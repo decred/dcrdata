@@ -1,4 +1,4 @@
-package offchaindb
+package politeia
 
 import (
 	"fmt"
@@ -12,13 +12,15 @@ import (
 	"testing"
 
 	"github.com/asdine/storm"
+	pitypes "github.com/decred/dcrdata/v4/gov/politeia/types"
+	piapi "github.com/decred/politeia/politeiawww/api/v1"
 )
 
 var db *storm.DB
 var tempDir string
 
 // initial sample proposal made.
-var firstProposal = &ProposalInfo{
+var firstProposal = &pitypes.ProposalInfo{
 	Name:      "Initial Test proposal",
 	State:     2,
 	Status:    4,
@@ -28,7 +30,7 @@ var firstProposal = &ProposalInfo{
 	PublicKey: "c7580e9d13a21a2046557f7ef0148a5be89fbe8db8c",
 	Signature: "8a1b69eb08b413b3ad3161c9b43b6a65a25c537f6151866d391a352",
 	Version:   "6",
-	Censorship: CensorshipRecord{
+	Censorship: pitypes.CensorshipRecord{
 		Token:      "0aaab331075d08cb03333d5a1bef04b99a708dcbfebc8f8c94040ceb1676e684",
 		MerkleRoot: "cfaf772010b439db2fa175b407f7c61fc7b06fbd844192a89551abe40791b6bb",
 		Signature:  "6f8a7740c518972c4dc607e877afc794be9f99a1c4790837a7104b7eb6228d4db219",
@@ -153,7 +155,7 @@ func mockServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var resp string
 		switch r.URL.Path {
-		case vettedProposalsRoute:
+		case piapi.RouteAllVetted:
 			resp = `{  
 			"proposals":[  
 			   {  
@@ -179,7 +181,7 @@ func mockServer() *httptest.Server {
 			   }
 			]
 		 }`
-		case voteStatusesRoute:
+		case piapi.RouteAllVoteStatus:
 			resp = `{  
 		   "votesstatus":[  
 			  {  
@@ -218,7 +220,7 @@ func mockServer() *httptest.Server {
 
 // mockedPayload defines the complete unmarshalled sing payload returned by the
 // mocked handleGetRequests.
-var mockedPayload = &ProposalInfo{
+var mockedPayload = &pitypes.ProposalInfo{
 	ID:            2,
 	Name:          "Change language: PoS Mining to PoS Voting, Stakepool to Voting Service Provider",
 	State:         2,
@@ -229,21 +231,21 @@ var mockedPayload = &ProposalInfo{
 	PublicKey:     "cd6e57b93f95dd0386d670c7ce42cb0ccd1cd5b997e87a716e9359e20251994e",
 	Signature:     "c0e3285d447fd2acf1f2e1a0c86a71383dfe71b1b01e0068e56e8e7649dadb7aa503a5f99765fc3a24da8716fd5b89f75bb97762e756f15303e96d135a2e7109",
 	NumComments:   19,
-	Files:         []AttachmentFile{},
+	Files:         []pitypes.AttachmentFile{},
 	Version:       "1",
 	PublishedDate: 1539898457,
-	Censorship: CensorshipRecord{
+	Censorship: pitypes.CensorshipRecord{
 		Token:      "522652954ea7998f3fca95b9c4ca8907820eb785877dcf7fba92307131818c75",
 		MerkleRoot: "20c9234c50e0dc78d28003fd57995192a16ca73349f5d97be456128984e463fc",
 		Signature:  "d1d44788cdf8d838aad97aa829b2f27f8a32897010d6373c9d3ca1a42820dcafe2615c1904558c6628c5f9165691ead087c0cb2ada023b9aa3f76b6c587ac90e",
 	},
-	VotesStatus: &ProposalVotes{
+	VotesStatus: &pitypes.ProposalVotes{
 		Token:      "522652954ea7998f3fca95b9c4ca8907820eb785877dcf7fba92307131818c75",
 		Status:     4,
 		TotalVotes: 12745,
-		VoteResults: []Results{
+		VoteResults: []pitypes.Results{
 			{
-				Option: VoteResults{
+				Option: pitypes.VoteOption{
 					OptionID:    "no",
 					Description: "Don't approve proposal",
 					Bits:        1,
@@ -251,7 +253,7 @@ var mockedPayload = &ProposalInfo{
 				VotesReceived: 754,
 			},
 			{
-				Option: VoteResults{
+				Option: pitypes.VoteOption{
 					OptionID:    "yes",
 					Description: "Approve proposal",
 					Bits:        2,
@@ -280,7 +282,7 @@ func TestStuff(t *testing.T) {
 
 	// compareProposal returns an error the proposal argument passed doesn't match
 	// any of the previous created proposals.
-	compareProposal := func(data *ProposalInfo) error {
+	compareProposal := func(data *pitypes.ProposalInfo) error {
 		if data == nil {
 			return fmt.Errorf("expected the proposal not to be nil but was nil")
 		}

@@ -9,16 +9,16 @@ import (
 	"os"
 	"path/filepath"
 
-	rpcclient "github.com/decred/dcrd/rpcclient/v2"
+	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrdata/v4/api"
 	"github.com/decred/dcrdata/v4/api/insight"
 	"github.com/decred/dcrdata/v4/blockdata"
 	"github.com/decred/dcrdata/v4/db/dcrpg"
 	"github.com/decred/dcrdata/v4/db/dcrsqlite"
-	"github.com/decred/dcrdata/v4/db/offchaindb"
-	"github.com/decred/dcrdata/v4/db/onchaindb"
 	"github.com/decred/dcrdata/v4/exchanges"
 	"github.com/decred/dcrdata/v4/explorer"
+	"github.com/decred/dcrdata/v4/gov/agendas"
+	"github.com/decred/dcrdata/v4/gov/politeia"
 	"github.com/decred/dcrdata/v4/mempool"
 	"github.com/decred/dcrdata/v4/middleware"
 	notify "github.com/decred/dcrdata/v4/notification"
@@ -90,8 +90,8 @@ func init() {
 	notify.UseLogger(notifyLog)
 	pubsub.UseLogger(pubsubLog)
 	exchanges.UseLogger(xcBotLog)
-	onchaindb.UseLogger(agendasLog)
-	offchaindb.UseLogger(proposalsLog)
+	agendas.UseLogger(agendasLog)
+	politeia.UseLogger(proposalsLog)
 }
 
 // subsystemLoggers maps each subsystem identifier to its associated logger.

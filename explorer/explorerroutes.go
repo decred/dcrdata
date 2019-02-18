@@ -22,10 +22,10 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
-	"github.com/decred/dcrdata/v4/db/offchaindb"
-	"github.com/decred/dcrdata/v4/db/onchaindb"
 	"github.com/decred/dcrdata/v4/exchanges"
 	"github.com/decred/dcrdata/v4/explorer/types"
+	"github.com/decred/dcrdata/v4/gov/agendas"
+	pitypes "github.com/decred/dcrdata/v4/gov/politeia/types"
 	"github.com/decred/dcrdata/v4/txhelpers"
 	humanize "github.com/dustin/go-humanize"
 )
@@ -1711,7 +1711,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 
 	str, err := exp.templates.execTemplateToString("agenda", struct {
 		*CommonPageData
-		Ai      *onchaindb.AgendaTagged
+		Ai      *agendas.AgendaTagged
 		NetName string
 	}{
 		CommonPageData: exp.commonData(),
@@ -1731,7 +1731,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 
 // AgendasPage is the page handler for the "/agendas" path.
 func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
-	agendas, err := exp.onChainSource.AllAgendas()
+	agenda, err := exp.onChainSource.AllAgendas()
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
@@ -1740,11 +1740,11 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 
 	str, err := exp.templates.execTemplateToString("agendas", struct {
 		*CommonPageData
-		Agendas []*onchaindb.AgendaTagged
+		Agendas []*agendas.AgendaTagged
 		NetName string
 	}{
 		CommonPageData: exp.commonData(),
-		Agendas:        agendas,
+		Agendas:        agenda,
 		NetName:        exp.NetName,
 	})
 
@@ -1779,7 +1779,7 @@ func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
 
 	str, err := exp.templates.execTemplateToString("proposal", struct {
 		*CommonPageData
-		Data    *offchaindb.ProposalInfo
+		Data    *pitypes.ProposalInfo
 		NetName string
 	}{
 		CommonPageData: exp.commonData(),
@@ -1809,7 +1809,7 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 
 	str, err := exp.templates.execTemplateToString("proposals", struct {
 		*CommonPageData
-		Proposals []*offchaindb.ProposalInfo
+		Proposals []*pitypes.ProposalInfo
 		NetName   string
 	}{
 		CommonPageData: exp.commonData(),

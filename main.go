@@ -28,11 +28,11 @@ import (
 	"github.com/decred/dcrdata/v4/db/dbtypes"
 	"github.com/decred/dcrdata/v4/db/dcrpg"
 	"github.com/decred/dcrdata/v4/db/dcrsqlite"
-	"github.com/decred/dcrdata/v4/db/offchaindb"
-	"github.com/decred/dcrdata/v4/db/onchaindb"
 	"github.com/decred/dcrdata/v4/exchanges"
 	"github.com/decred/dcrdata/v4/explorer"
 	exptypes "github.com/decred/dcrdata/v4/explorer/types"
+	"github.com/decred/dcrdata/v4/gov/agendas"
+	"github.com/decred/dcrdata/v4/gov/politeia"
 	"github.com/decred/dcrdata/v4/mempool"
 	m "github.com/decred/dcrdata/v4/middleware"
 	notify "github.com/decred/dcrdata/v4/notification"
@@ -499,27 +499,30 @@ func _main(ctx context.Context) error {
 		}
 	}
 
-	// NewAgendasDB creates an on-chain db instance the helps to store and
-	// retrieves on-chain agendas data.
-	onChainInstance, err := onchaindb.NewAgendasDB(filepath.Join(cfg.DataDir, cfg.OnChainDBFileName))
+	// It creates a new or loads an existing agendas db instance that helps to
+	// store and retrieves on-chain agendas data. On-Chain agendas votes
+	// are transactions that appear in the decred blockchain.
+	onChainInstance, err := agendas.NewAgendasDB(filepath.Join(cfg.DataDir, cfg.OnChainDBFileName))
 	if err != nil {
 		return fmt.Errorf("failed to create new on-chain db instance: %v", err)
 	}
 
-	// CheckOnChainUpdates checks for onchain db updates.
+	// Retrieve updates blockchain deployment updates and adds them to the agendas db.
 	if err = onChainInstance.CheckOnChainUpdates(dcrdClient); err != nil {
 		return fmt.Errorf("updating off chain db failed: %v", err)
 	}
 
-	// NewProposalsDB creates an off-chain db instance that helps to store and
-	// retrieve off-chain proposals data.
-	offChainInstance, err := offchaindb.NewProposalsDB(cfg.PoliteiaAPIURL,
+	// It creates a new or loads an existing proposals db instance that helps to
+	// store and retrieve off-chain proposals data. Off-Chain proposal votes is
+	// data stored in github repositories away from the decred blockchain. It also
+	// creates a new http client needed to query Politeia API endpoints.
+	offChainInstance, err := politeia.NewProposalsDB(cfg.PoliteiaAPIURL,
 		filepath.Join(cfg.DataDir, cfg.OffChainDBFileName))
 	if err != nil {
 		return fmt.Errorf("failed to create new off-chain db instance: %v", err)
 	}
 
-	// CheckOffChainUpdates checks for offchain db updates.
+	// Retrieves newly added proposals and addes them to the proposals db.
 	if err = offChainInstance.CheckOffChainUpdates(); err != nil {
 		return fmt.Errorf("updating on chain db failed: %v", err)
 	}

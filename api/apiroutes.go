@@ -27,9 +27,9 @@ import (
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/v4/api/types"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
-	"github.com/decred/dcrdata/v4/db/onchaindb"
 	"github.com/decred/dcrdata/v4/exchanges"
 	"github.com/decred/dcrdata/v4/explorer"
+	"github.com/decred/dcrdata/v4/gov/agendas"
 	m "github.com/decred/dcrdata/v4/middleware"
 	notify "github.com/decred/dcrdata/v4/notification"
 	"github.com/decred/dcrdata/v4/txhelpers"
@@ -123,14 +123,14 @@ type appContext struct {
 	Status        apitypes.Status
 	JSONIndent    string
 	xcBot         *exchanges.ExchangeBot
-	OnChainDB     *onchaindb.AgendaDB
+	OnChainDB     *agendas.AgendaDB
 }
 
 // NewContext constructs a new appContext from the RPC client, primary and
 // auxiliary data sources, and JSON indentation string.
 func NewContext(client *rpcclient.Client, params *chaincfg.Params, dataSource DataSourceLite,
 	auxDataSource DataSourceAux, JSONIndent string, xcBot *exchanges.ExchangeBot,
-	onchainInstance *onchaindb.AgendaDB) *appContext {
+	onchainInstance *agendas.AgendaDB) *appContext {
 	conns, _ := client.GetConnectionCount()
 	nodeHeight, _ := client.GetBlockCount()
 

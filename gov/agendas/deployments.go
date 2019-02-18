@@ -2,15 +2,18 @@
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
-package onchaindb
+// agendas package manages the various deployment agendas that are directly voted
+// upon with the vote bits in vote transactions.
+
+package agendas
 
 import (
 	"fmt"
 	"os"
 
 	"github.com/asdine/storm"
-	dcrjson "github.com/decred/dcrd/dcrjson/v2"
-	rpcclient "github.com/decred/dcrd/rpcclient/v2"
+	"github.com/decred/dcrd/dcrjson/v2"
+	"github.com/decred/dcrd/rpcclient/v2"
 )
 
 // AgendaDB represents the data for the saved db
@@ -93,7 +96,7 @@ func (db *AgendaDB) Close() error {
 	return db.sdb.Close()
 }
 
-// oadAgenda retrieves an agenda corresponding to the specified unique agenda
+// loadAgenda retrieves an agenda corresponding to the specified unique agenda
 // ID, or nil if it does not exist.
 func (db *AgendaDB) loadAgenda(agendaID string) (*AgendaTagged, error) {
 	agenda := new(AgendaTagged)

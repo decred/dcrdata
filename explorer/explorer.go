@@ -25,10 +25,10 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/v4/blockdata"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
-	"github.com/decred/dcrdata/v4/db/offchaindb"
-	"github.com/decred/dcrdata/v4/db/onchaindb"
 	"github.com/decred/dcrdata/v4/exchanges"
 	"github.com/decred/dcrdata/v4/explorer/types"
+	"github.com/decred/dcrdata/v4/gov/agendas"
+	pitypes "github.com/decred/dcrdata/v4/gov/politeia/types"
 	"github.com/decred/dcrdata/v4/mempool"
 	pstypes "github.com/decred/dcrdata/v4/pubsub/types"
 	"github.com/decred/dcrdata/v4/txhelpers"
@@ -111,20 +111,20 @@ type explorerDataSource interface {
 	AgendaCumulativeVoteChoices(agendaID string) (yes, abstain, no uint32, err error)
 }
 
-// explorerDataSourceOffChain implements methods that retrieve data from the
+// politeiaBackend implements methods that retrieve data from the
 // off-chain db source.
-type explorerDataSourceOffChain interface {
+type politeiaBackend interface {
 	CheckOffChainUpdates() error
-	AllProposals() (proposals []*offchaindb.ProposalInfo, err error)
-	ProposalByID(proposalID int) (proposal *offchaindb.ProposalInfo, err error)
+	AllProposals() (proposals []*pitypes.ProposalInfo, err error)
+	ProposalByID(proposalID int) (proposal *pitypes.ProposalInfo, err error)
 }
 
-// explorerDataSourceOnChain implements methods that retrieve data from the
+// agendaBackend implements methods that retrieve data from the
 // on-chain db source.
-type explorerDataSourceOnChain interface {
+type agendaBackend interface {
 	CheckOnChainUpdates(client *rpcclient.Client) error
-	AgendaInfo(agendaID string) (*onchaindb.AgendaTagged, error)
-	AllAgendas() (agendas []*onchaindb.AgendaTagged, err error)
+	AgendaInfo(agendaID string) (*agendas.AgendaTagged, error)
+	AllAgendas() (agendas []*agendas.AgendaTagged, err error)
 }
 
 // chartDataCounter is a data cache for the historical charts.
@@ -237,8 +237,8 @@ type explorerUI struct {
 	Mux              *chi.Mux
 	blockData        explorerDataSourceLite
 	explorerSource   explorerDataSource
-	onChainSource    explorerDataSourceOnChain
-	offChainSource   explorerDataSourceOffChain
+	onChainSource    agendaBackend
+	offChainSource   politeiaBackend
 	dbsSyncing       atomic.Value
 	liteMode         bool
 	devPrefetch      bool
@@ -305,8 +305,8 @@ func (exp *explorerUI) StopWebsocketHub() {
 // New returns an initialized instance of explorerUI
 func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource,
 	useRealIP bool, appVersion string, devPrefetch bool, viewsfolder string,
-	xcBot *exchanges.ExchangeBot, onChainInstance explorerDataSourceOnChain,
-	offChainInstance explorerDataSourceOffChain) *explorerUI {
+	xcBot *exchanges.ExchangeBot, onChainInstance agendaBackend,
+	offChainInstance politeiaBackend) *explorerUI {
 	exp := new(explorerUI)
 	exp.Mux = chi.NewRouter()
 	exp.blockData = dataSource

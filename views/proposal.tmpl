@@ -48,19 +48,37 @@
                         <tr>
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Vote Status</td>
                             <td>
-                                <span class="hash break-word  lh1rem">{{.VotesStatus.Status}}</span>
+                                <span class="hash break-word  lh1rem">
+                                    {{if .VotesStatus}}
+                                        {{.VotesStatus.Status}}
+                                    {{else}}
+                                        --
+                                    {{end}}
+                                </span>
                             </td>
                         </tr>
                          <tr>
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Total Votes</td>
                             <td>
-                                <span class="hash break-word  lh1rem">{{.VotesStatus.TotalVotes}}</span>
+                                <span class="hash break-word  lh1rem">
+                                    {{if .VotesStatus}}
+                                        {{.VotesStatus.TotalVotes}}
+                                    {{else}}
+                                        --
+                                    {{end}}
+                                </span>
                             </td>
                         </tr>
                          <tr>
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">End Height</td>
                             <td>
-                                <span class="hash break-word  lh1rem">{{.VotesStatus.Endheight}}</span>
+                                <span class="hash break-word  lh1rem">
+                                    {{if .VotesStatus}}
+                                        {{.VotesStatus.Endheight}}
+                                    {{else}}
+                                        --
+                                    {{end}}
+                                </span>
                             </td>
                         </tr>
                     </table>
@@ -83,8 +101,8 @@
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Published Date</td>
                             <td>
                                 <span class="hash break-word  lh1rem">
-                                    {{if ne .PubishedDate 0}}
-                                        {{TimeConversion .PubishedDate}}
+                                    {{if ne .PublishedDate 0}}
+                                        {{TimeConversion .PublishedDate}}
                                     {{else}}
                                         --
                                     {{end}}
@@ -118,31 +136,49 @@
                          <tr>
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Eligible Votes Count</td>
                             <td>
-                                <span class="hash break-word  lh1rem">{{.VotesStatus.NumOfEligibleVotes}}</span>
+                                <span class="hash break-word  lh1rem">
+                                    {{if .VotesStatus}}
+                                        {{.VotesStatus.NumOfEligibleVotes}}
+                                    {{else}}
+                                        --
+                                    {{end}}
+                                </span>
                             </td>
                         </tr>
                          <tr>
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Quorum Percentage</td>
                             <td>
-                                <span class="hash break-word  lh1rem">{{.VotesStatus.QuorumPercentage}}</span>
+                                <span class="hash break-word  lh1rem">
+                                    {{if .VotesStatus}}
+                                        {{.VotesStatus.QuorumPercentage}}
+                                    {{else}}
+                                        --
+                                    {{end}}
+                                </span>
                             </td>
                         </tr>
                          <tr>
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Pass Percentage</td>
                             <td>
-                                <span class="hash break-word  lh1rem">{{.VotesStatus.PassPercentage}}</span>
+                                <span class="hash break-word  lh1rem">
+                                    {{if .VotesStatus}}
+                                        {{.VotesStatus.PassPercentage}}
+                                    {{else}}
+                                        --
+                                    {{end}}
+                                </span>
                             </td>
                         </tr>
                         <tr>
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Comments Count</td>
                             <td>
-                                <span class="hash break-word  lh1rem">{{.Numcomments}}</span>
+                                <span class="hash break-word  lh1rem">{{.NumComments}}</span>
                             </td>
                         </tr>
                     </table>
                 </div>
             </div>
-            {{if .VotesStatus.VoteResults}}
+            {{if .VotesStatus}}
             <table class="table table-mono-cells table-sm striped">
                 <thead>
                     <th>ID</th>
