@@ -16,6 +16,7 @@ import (
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
+	"github.com/decred/dcrdata/v4/db/dcrpg/internal"
 )
 
 var (
@@ -52,6 +53,42 @@ func TestMain(m *testing.M) {
 
 	// call with result of m.Run()
 	os.Exit(retCode)
+}
+
+func TestMissingIndexes(t *testing.T) {
+	missing, descs, err := db.MissingIndexes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(missing) > 0 {
+		t.Errorf("Not all indexes exist in test table! Missing: %v", missing)
+	}
+	if len(missing) != len(descs) {
+		t.Errorf("MissingIndexes returned %d missing indexes but %d descriptions.",
+			len(missing), len(descs))
+	}
+}
+
+func TestExistsIndex(t *testing.T) {
+	// negative test
+	fakeIndexName := "not_an_index_adsfasdfa"
+	exists, err := ExistsIndex(db.db, fakeIndexName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exists {
+		t.Errorf(`Index "%s" should not exist!`, fakeIndexName)
+	}
+
+	// positive test
+	realIndexName := internal.IndexOfBlocksTableOnHash
+	exists, err = ExistsIndex(db.db, realIndexName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !exists {
+		t.Errorf(`Index "%s" should exist!`, realIndexName)
+	}
 }
 
 func TestCheckColumnDataType(t *testing.T) {

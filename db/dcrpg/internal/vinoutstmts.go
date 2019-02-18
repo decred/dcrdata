@@ -67,13 +67,13 @@ const (
 				FROM vins) t
 			WHERE t.rnum > 1);`
 
-	IndexVinTableOnVins = `CREATE UNIQUE INDEX uix_vin
-		ON vins(tx_hash, tx_index, tx_tree);`
-	DeindexVinTableOnVins = `DROP INDEX uix_vin;`
+	IndexVinTableOnVins = `CREATE UNIQUE INDEX ` + IndexOfVinsTableOnVin +
+		` ON vins(tx_hash, tx_index, tx_tree);`
+	DeindexVinTableOnVins = `DROP INDEX ` + IndexOfVinsTableOnVin + `;`
 
-	IndexVinTableOnPrevOuts = `CREATE INDEX uix_vin_prevout
-		ON vins(prev_tx_hash, prev_tx_index);`
-	DeindexVinTableOnPrevOuts = `DROP INDEX uix_vin_prevout;`
+	IndexVinTableOnPrevOuts = `CREATE INDEX ` + IndexOfVinsTableOnPrevOut +
+		` ON vins(prev_tx_hash, prev_tx_index);`
+	DeindexVinTableOnPrevOuts = `DROP INDEX ` + IndexOfVinsTableOnPrevOut + `;`
 
 	SelectVinIDsALL = `SELECT id FROM vins;`
 	CountVinsRows   = `SELECT reltuples::BIGINT AS estimate FROM pg_class WHERE relname='vins';`
@@ -193,9 +193,9 @@ const (
 
 	// IndexVoutTableOnTxHashIdx creates the unique index uix_vout_txhash_ind on
 	// (tx_hash, tx_index, tx_tree).
-	IndexVoutTableOnTxHashIdx = `CREATE UNIQUE INDEX uix_vout_txhash_ind
-		ON vouts(tx_hash, tx_index, tx_tree);`
-	DeindexVoutTableOnTxHashIdx = `DROP INDEX uix_vout_txhash_ind;`
+	IndexVoutTableOnTxHashIdx = `CREATE UNIQUE INDEX ` + IndexOfVoutsTableOnTxHashInd +
+		` ON vouts(tx_hash, tx_index, tx_tree);`
+	DeindexVoutTableOnTxHashIdx = `DROP INDEX ` + IndexOfVoutsTableOnTxHashInd + `;`
 
 	SelectAddressByTxHash = `SELECT script_addresses, value FROM vouts
 		WHERE tx_hash = $1 AND tx_index = $2 AND tx_tree = $3;`

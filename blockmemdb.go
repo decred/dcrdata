@@ -39,6 +39,7 @@ func NewBlockDataToMemdb(m ...*sync.Mutex) *BlockDataToMemdb {
 }
 
 // Store writes blockdata.BlockData to memdb
+// nolint:unparam
 func (s *BlockDataToMemdb) Store(data *blockdata.BlockData, _ *wire.MsgBlock) error {
 	if s.mtx != nil {
 		s.mtx.Lock()

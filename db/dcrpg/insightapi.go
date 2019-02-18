@@ -6,7 +6,6 @@ package dcrpg
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
@@ -37,19 +36,6 @@ func (pgb *ChainDB) GetBlockHeight(hash string) (int64, error) {
 		return -1, pgb.replaceCancelError(err)
 	}
 	return height, nil
-}
-
-// GetHeight returns the current best block height.
-func (pgb *ChainDB) GetHeight() (int64, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
-	defer cancel()
-	height, _, _, err := RetrieveBestBlockHeight(ctx, pgb.db)
-	// If the blocks table is empty, set height to -1.
-	bb := int64(height)
-	if err == sql.ErrNoRows {
-		bb = -1
-	}
-	return bb, pgb.replaceCancelError(err)
 }
 
 // SendRawTransaction attempts to decode the input serialized transaction,
@@ -198,7 +184,7 @@ func (pgb *ChainDB) AddressUTXO(address string) ([]apitypes.AddressTxnOutput, er
 
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
-	txnOutput, err := RetrieveAddressUTXOs(ctx, pgb.db, address, int64(blockHeight))
+	txnOutput, err := RetrieveAddressUTXOs(ctx, pgb.db, address, blockHeight)
 	if err != nil {
 		return nil, pgb.replaceCancelError(err)
 	}

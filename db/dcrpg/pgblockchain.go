@@ -81,7 +81,7 @@ func (d *DevFundBalance) Balance() *dbtypes.AddressBalance {
 // fetching the same information.
 type ticketPoolDataCache struct {
 	sync.RWMutex
-	Height          map[dbtypes.TimeBasedGrouping]uint64
+	Height          map[dbtypes.TimeBasedGrouping]int64
 	TimeGraphCache  map[dbtypes.TimeBasedGrouping]*dbtypes.PoolTicketsData
 	PriceGraphCache map[dbtypes.TimeBasedGrouping]*dbtypes.PoolTicketsData
 	// DonutGraphCache persist data for the Number of tickets outputs pie chart.
@@ -90,7 +90,7 @@ type ticketPoolDataCache struct {
 
 // ticketPoolGraphsCache persists the latest ticketpool data queried from the db.
 var ticketPoolGraphsCache = &ticketPoolDataCache{
-	Height:          make(map[dbtypes.TimeBasedGrouping]uint64),
+	Height:          make(map[dbtypes.TimeBasedGrouping]int64),
 	TimeGraphCache:  make(map[dbtypes.TimeBasedGrouping]*dbtypes.PoolTicketsData),
 	PriceGraphCache: make(map[dbtypes.TimeBasedGrouping]*dbtypes.PoolTicketsData),
 	DonutGraphCache: make(map[dbtypes.TimeBasedGrouping]*dbtypes.PoolTicketsData),
@@ -98,8 +98,8 @@ var ticketPoolGraphsCache = &ticketPoolDataCache{
 
 // TicketPoolData is a thread-safe way to access the ticketpool graphs data
 // stored in the cache.
-func TicketPoolData(interval dbtypes.TimeBasedGrouping, height uint64) (timeGraph *dbtypes.PoolTicketsData,
-	priceGraph *dbtypes.PoolTicketsData, donutChart *dbtypes.PoolTicketsData, actualHeight uint64, intervalFound, isStale bool) {
+func TicketPoolData(interval dbtypes.TimeBasedGrouping, height int64) (timeGraph *dbtypes.PoolTicketsData,
+	priceGraph *dbtypes.PoolTicketsData, donutChart *dbtypes.PoolTicketsData, actualHeight int64, intervalFound, isStale bool) {
 	ticketPoolGraphsCache.RLock()
 	defer ticketPoolGraphsCache.RUnlock()
 
@@ -119,7 +119,7 @@ func TicketPoolData(interval dbtypes.TimeBasedGrouping, height uint64) (timeGrap
 // This is a thread-safe way to update ticket pool cache data. TryLock helps avoid
 // stacking calls to update the cache.
 func UpdateTicketPoolData(interval dbtypes.TimeBasedGrouping, timeGraph *dbtypes.PoolTicketsData,
-	priceGraph *dbtypes.PoolTicketsData, donutcharts *dbtypes.PoolTicketsData, height uint64) {
+	priceGraph *dbtypes.PoolTicketsData, donutcharts *dbtypes.PoolTicketsData, height int64) {
 	ticketPoolGraphsCache.Lock()
 	defer ticketPoolGraphsCache.Unlock()
 
@@ -743,14 +743,17 @@ func (pgb *ChainDB) TransactionBlocks(txHash string) ([]*dbtypes.BlockStatus, []
 }
 
 // HeightDB queries the DB for the best block height. When the tables are empty,
-// the returned height will be 0, so it is necessary to check if the error value
-// is sql.ErrNoRows in this case.
-func (pgb *ChainDB) HeightDB() (uint64, error) {
+// the returned height will be -1.
+func (pgb *ChainDB) HeightDB() (int64, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 	bestHeight, _, _, err := RetrieveBestBlockHeight(ctx, pgb.db)
+	height := int64(bestHeight)
+	if err == sql.ErrNoRows {
+		height = -1
+	}
 	// DO NOT change this to return -1 if err == sql.ErrNoRows.
-	return bestHeight, pgb.replaceCancelError(err)
+	return height, pgb.replaceCancelError(err)
 }
 
 // HashDB queries the DB for the best block's hash.
@@ -770,15 +773,21 @@ func (pgb *ChainDB) HeightHashDB() (uint64, string, error) {
 }
 
 // Getter for ChainDB.bestBlock.height
-func (pgb *ChainDB) Height() uint64 {
+func (pgb *ChainDB) Height() int64 {
 	return pgb.bestBlock.Height()
 }
 
 // Height uses the last stored height.
-func (block *BestBlock) Height() uint64 {
+func (block *BestBlock) Height() int64 {
 	block.RLock()
 	defer block.RUnlock()
-	return uint64(block.height)
+	return block.height
+}
+
+// GetHeight is for middleware DataSource compatibility. No DB query is
+// performed; the last stored height is used.
+func (pgb *ChainDB) GetHeight() (int64, error) {
+	return pgb.Height(), nil
 }
 
 // HashStr uses the last stored block hash.
@@ -1151,10 +1160,14 @@ func (pgb *ChainDB) TimeBasedIntervals(timeGrouping dbtypes.TimeBasedGrouping,
 // this will launch a new query for the data if one is not already running, and
 // if one is running, it will wait for the query to complete.
 func (pgb *ChainDB) TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) (*dbtypes.PoolTicketsData,
-	*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, uint64, error) {
+	*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, int64, error) {
 	// Attempt to retrieve data for the current block from cache.
 	heightSeen := pgb.bestBlock.Height() // current block seen *by the ChainDB*
-	timeChart, priceChart, donutCharts, height, intervalFound, stale := TicketPoolData(interval, heightSeen)
+	if heightSeen < 0 {
+		return nil, nil, nil, -1, fmt.Errorf("no charts data available")
+	}
+	timeChart, priceChart, donutCharts, height, intervalFound, stale :=
+		TicketPoolData(interval, heightSeen)
 	if intervalFound && !stale {
 		// The cache was fresh.
 		return timeChart, priceChart, donutCharts, height, nil
@@ -1172,7 +1185,8 @@ func (pgb *ChainDB) TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) 
 			defer pgb.tpUpdatePermission[interval].Unlock()
 			// Try again to pull it from cache now that the update is completed.
 			heightSeen = pgb.bestBlock.Height()
-			timeChart, priceChart, donutCharts, height, intervalFound, stale = TicketPoolData(interval, heightSeen)
+			timeChart, priceChart, donutCharts, height, intervalFound, stale =
+				TicketPoolData(interval, heightSeen)
 			// We waited for the updater of this interval, so it should be found
 			// at this point. If not, this is an error.
 			if !intervalFound {
@@ -1210,7 +1224,7 @@ func (pgb *ChainDB) TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) 
 // "mo", "wk", "day", or "all". The data is needed to populate the ticketpool
 // graphs. The data grouped by time and price are returned in a slice.
 func (pgb *ChainDB) ticketPoolVisualization(interval dbtypes.TimeBasedGrouping) (timeChart *dbtypes.PoolTicketsData,
-	priceChart *dbtypes.PoolTicketsData, byInputs *dbtypes.PoolTicketsData, height uint64, err error) {
+	priceChart *dbtypes.PoolTicketsData, byInputs *dbtypes.PoolTicketsData, height int64, err error) {
 	// Ensure DB height is the same before and after queries since they are not
 	// atomic. Initial height:
 	height = pgb.bestBlock.Height()
@@ -1272,7 +1286,7 @@ func (pgb *ChainDB) retrieveDevBalance() (*DevFundBalance, error) {
 // project fund balance if devPrefetch is enabled and not mid-reorg.
 func (pgb *ChainDB) FreshenAddressCaches(lazyProjectFund bool) error {
 	pgb.addressCounts.Lock()
-	pgb.addressCounts.validHeight = int64(pgb.bestBlock.Height())
+	pgb.addressCounts.validHeight = pgb.bestBlock.Height()
 	pgb.addressCounts.balance = map[string]dbtypes.AddressBalance{}
 	pgb.addressCounts.Unlock()
 
@@ -1370,11 +1384,10 @@ func (pgb *ChainDB) DevBalance() (*dbtypes.AddressBalance, error) {
 // and if cache is stale or missing data for the address, a DB query is used. A
 // successful DB query will freshen the cache.
 func (pgb *ChainDB) addressBalance(address string) (*dbtypes.AddressBalance, error) {
-	bb, err := pgb.HeightDB()
+	bestBlock, err := pgb.HeightDB()
 	if err != nil {
 		return nil, err
 	}
-	bestBlock := int64(bb)
 
 	totals := pgb.addressCounts
 	totals.Lock()
@@ -1420,11 +1433,10 @@ func (pgb *ChainDB) addressBalance(address string) (*dbtypes.AddressBalance, err
 func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 	txnType dbtypes.AddrTxnType) ([]*dbtypes.AddressRow, *dbtypes.AddressBalance, error) {
 
-	bb, err := pgb.HeightDB() // TODO: should be by block hash
+	bestBlock, err := pgb.HeightDB() // TODO: should be by block hash
 	if err != nil {
 		return nil, nil, err
 	}
-	bestBlock := int64(bb)
 
 	// See if address count cache includes a fresh count for this address.
 	totals := pgb.addressCounts
@@ -1760,7 +1772,7 @@ func (pgb *ChainDB) FillAddressTransactions(addrInfo *dbtypes.AddressInfo) error
 		txn.Total = dcrutil.Amount(dbTx.Sent).ToCoin()
 		txn.Time = dbTx.BlockTime
 		if txn.Time.UNIX() > 0 {
-			txn.Confirmations = pgb.bestBlock.Height() - uint64(dbTx.BlockHeight) + 1
+			txn.Confirmations = uint64(pgb.bestBlock.Height() - dbTx.BlockHeight + 1)
 		} else {
 			numUnconfirmed++
 			txn.Confirmations = 0
@@ -2233,7 +2245,7 @@ func (pgb *ChainDB) setVinsMainchainForMany(vinDbIDsBlk []dbtypes.UInt64Array, a
 		// each vin
 		numUpd, err := pgb.setVinsMainchainOneTxn(vs, areMainchain[it])
 		if err != nil {
-			continue
+			return rowsUpdated, err
 		}
 		rowsUpdated += numUpd
 	}
@@ -2249,8 +2261,7 @@ func (pgb *ChainDB) setVinsMainchainOneTxn(vinDbIDs dbtypes.UInt64Array,
 		result, err := pgb.db.Exec(internal.SetIsMainchainByVinID,
 			vinDbID, isMainchain)
 		if err != nil {
-			log.Warnf("db ID not found: %d", vinDbID)
-			continue
+			return rowsUpdated, fmt.Errorf("db ID %d not found: %v", vinDbID, err)
 		}
 
 		c, err := result.RowsAffected()

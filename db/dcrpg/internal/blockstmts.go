@@ -82,13 +82,13 @@ const (
 		LIMIT  1;`
 
 	// IndexBlockTableOnHash creates the unique index uix_block_hash on (hash).
-	IndexBlockTableOnHash   = `CREATE UNIQUE INDEX uix_block_hash ON blocks(hash);`
-	DeindexBlockTableOnHash = `DROP INDEX uix_block_hash;`
+	IndexBlockTableOnHash   = `CREATE UNIQUE INDEX ` + IndexOfBlocksTableOnHash + ` ON blocks(hash);`
+	DeindexBlockTableOnHash = `DROP INDEX ` + IndexOfBlocksTableOnHash + `;`
 
 	// IndexBlocksTableOnHeight creates the index uix_block_height on (height).
 	// This is not unique because of side chains.
-	IndexBlocksTableOnHeight   = `CREATE INDEX uix_block_height ON blocks(height);`
-	DeindexBlocksTableOnHeight = `DROP INDEX uix_block_height;`
+	IndexBlocksTableOnHeight   = `CREATE INDEX ` + IndexOfBlocksTableOnHeight + ` ON blocks(height);`
+	DeindexBlocksTableOnHeight = `DROP INDEX ` + IndexOfBlocksTableOnHeight + `;`
 
 	SelectBlockByTimeRangeSQL = `SELECT hash, height, size, time, numtx
 		FROM blocks WHERE time BETWEEN $1 and $2 ORDER BY time DESC LIMIT $3;`

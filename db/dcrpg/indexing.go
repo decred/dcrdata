@@ -328,16 +328,46 @@ func (pgb *ChainDB) DeleteDuplicateMisses() (int64, error) {
 
 // Indexes checks
 
-func (pgb *ChainDB) ExistsIndexVinOnVins() (bool, error) {
-	return ExistsIndex(pgb.db, "uix_vin")
+// MissingIndexes lists missing table indexes and their descriptions.
+func (pgb *ChainDB) MissingIndexes() (missing, descs []string, err error) {
+	for idxName, desc := range internal.IndexDescriptions {
+		var exists bool
+		exists, err = ExistsIndex(pgb.db, idxName)
+		if err != nil {
+			return
+		}
+		if !exists {
+			missing = append(missing, idxName)
+			descs = append(descs, desc)
+		}
+	}
+	return
 }
 
-func (pgb *ChainDB) ExistsIndexVoutOnTxHashIdx() (bool, error) {
-	return ExistsIndex(pgb.db, "uix_vout_txhash_ind")
+// MissingAddressIndexes list missing addresses table indexes and their
+// descriptions.
+func (pgb *ChainDB) MissingAddressIndexes() (missing []string, descs []string, err error) {
+	for _, idxName := range internal.AddressesIndexNames {
+		var exists bool
+		exists, err = ExistsIndex(pgb.db, idxName)
+		if err != nil {
+			return
+		}
+		if !exists {
+			missing = append(missing, idxName)
+			descs = append(descs, pgb.indexDescription(idxName))
+		}
+	}
+	return
 }
 
-func (pgb *ChainDB) ExistsIndexAddressesVoutIDAddress() (bool, error) {
-	return ExistsIndex(pgb.db, "uix_addresses_vout_id")
+// indexDescription gives the description of the named index.
+func (pgb *ChainDB) indexDescription(indexName string) string {
+	name, ok := internal.IndexDescriptions[indexName]
+	if !ok {
+		name = "unknown index"
+	}
+	return name
 }
 
 // DeindexAll drops indexes in most tables.
