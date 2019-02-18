@@ -170,17 +170,39 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 		}
 	}
 
-	// Remove indexes/constraints before bulk import
-	blocksToSync := nodeHeight - lastBlock
-	reindexing := newIndexes || lastBlock == -1 || blocksToSync > nodeHeight/2
+	// Remove indexes/constraints before an initial sync or when explicitly
+	// requested to reindex and update spending information in the addresses
+	// table.
+	reindexing := newIndexes || lastBlock == -1
 	if reindexing {
+		// Remove any existing indexes.
 		log.Info("Large bulk load: Removing indexes and disabling duplicate checks.")
 		err = db.DeindexAll()
 		if err != nil && !strings.Contains(err.Error(), "does not exist") {
 			return lastBlock, err
 		}
+
+		// Disable duplicate checks on insert queries since the unique indexes
+		// that enforce the constraints will not exist.
 		db.EnableDuplicateCheckOnInsert(false)
+
+		// Syncing blocks without indexes requires a UTXO cache to avoid
+		// extremely expensive queries. Warm the UTXO cache if resuming an
+		// interrupted initial sync.
+		blocksToSync := nodeHeight - lastBlock
+		if lastBlock > 0 && blocksToSync > 50 {
+			log.Infof("Collecting all UTXO data prior to height %d...", lastBlock+1)
+			utxos, err := RetrieveUTXOs(ctx, db.db)
+			if err != nil {
+				return -1, fmt.Errorf("RetrieveUTXOs: %v", err)
+			}
+			log.Infof("Pre-warming UTXO cache with %d UTXOs...", len(utxos))
+			db.InitUtxoCache(utxos)
+			log.Infof("UTXO cache is ready.")
+		}
 	} else {
+		// When the unique indexes exist, inserts should check for conflicts
+		// with the tables' constraints.
 		db.EnableDuplicateCheckOnInsert(true)
 	}
 

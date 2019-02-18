@@ -430,26 +430,6 @@ func _main(ctx context.Context) error {
 			return fmt.Errorf("Node is still syncing. Node height = %d, "+
 				"DB height = %d", expectedHeight, heightDB)
 		}
-		// (TODO@chappjc) The following overrides of updateAllAddresses and
-		// newPGIndexes are COMMENTED OUT until the utxoStore/utxoCache can be
-		// pre-charged. This is because without indexes and without a
-		// well-populated utxo cache, the query the value and corresponding
-		// address for a UTXO is far too slow. In an initial sync, the utxo
-		// cache is effective as it gets filled from the start of the chain, but
-		// when starting at an arbitrary block the cache is empty. But the
-		// queries to look up the data on a cache miss rely on the indexes for
-		// acceptable performance.
-		//
-		// if blocksBehind > 7500 {
-		//  log.Warnf("Setting PSQL sync to rebuild address table after large "+
-		//      "import (%d blocks).", blocksBehind)
-		//  updateAllAddresses = true
-		//  if blocksBehind > 40000 {
-		//      log.Warnf("Setting PSQL sync to drop indexes prior to bulk data "+
-		//          "import (%d blocks).", blocksBehind)
-		//      newPGIndexes = true
-		//  }
-		// }
 
 		// PG gets winning tickets out of baseDB's pool info cache, so it must
 		// be big enough to hold the needed blocks' info, and charged with the

@@ -102,6 +102,15 @@ const (
 		prev_tx_hash, prev_tx_index, prev_tx_tree, value_in, tx_type FROM vins WHERE id = $1;`
 	SelectVinVoutPairByID = `SELECT tx_hash, tx_index, prev_tx_hash, prev_tx_index FROM vins WHERE id = $1;`
 
+	SelectUTXOs = `SELECT vouts.tx_hash, vouts.tx_index,  -- outpoint
+			vouts.script_addresses, vouts.value           -- value and addresses of output
+		FROM vouts LEFT OUTER JOIN vins                   -- LEFT JOIN to identify when there is no matching input (spend)
+		ON vouts.tx_hash=vins.prev_tx_hash
+			AND vouts.tx_index=vins.prev_tx_index
+		WHERE vins.prev_tx_hash IS NULL                   -- unspent
+			AND cardinality(script_addresses)>0
+			AND value>0;`
+
 	SetIsValidIsMainchainByTxHash = `UPDATE vins SET is_valid = $1, is_mainchain = $2
 		WHERE tx_hash = $3 AND block_time = $4 AND tx_tree = $5;`
 	SetIsValidIsMainchainByVinID = `UPDATE vins SET is_valid = $2, is_mainchain = $3

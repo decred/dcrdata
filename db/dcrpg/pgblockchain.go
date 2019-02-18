@@ -129,29 +129,23 @@ func UpdateTicketPoolData(interval dbtypes.TimeBasedGrouping, timeGraph *dbtypes
 	ticketPoolGraphsCache.DonutGraphCache[interval] = donutcharts
 }
 
-// UTXOData stores an address and value associated with a transaction output.
-type UTXOData struct {
-	Address string
-	Value   int64
-}
-
 // utxoStore provides a UTXOData cache with thread-safe get/set methods.
 type utxoStore struct {
 	sync.Mutex
-	c map[string]map[uint32]*UTXOData
+	c map[string]map[uint32]*dbtypes.UTXOData
 }
 
 // newUtxoStore constructs a new utxoStore.
 func newUtxoStore(prealloc int) utxoStore {
 	return utxoStore{
-		c: make(map[string]map[uint32]*UTXOData, prealloc),
+		c: make(map[string]map[uint32]*dbtypes.UTXOData, prealloc),
 	}
 }
 
 // Get attempts to locate UTXOData for the specified outpoint. If the data is
 // not in the cache, a nil pointer and false are returned. If the data is
 // located, the data and true are returned, and the data is evicted from cache.
-func (u *utxoStore) Get(txHash string, txIndex uint32) (*UTXOData, bool) {
+func (u *utxoStore) Get(txHash string, txIndex uint32) (*dbtypes.UTXOData, bool) {
 	u.Lock()
 	defer u.Unlock()
 	utxoData, ok := u.c[txHash][txIndex]
@@ -165,24 +159,41 @@ func (u *utxoStore) Get(txHash string, txIndex uint32) (*UTXOData, bool) {
 	return utxoData, ok
 }
 
-// Set stores the address and amount in a UTXOData entry in the cache for the
-// given outpoint.
-func (u *utxoStore) Set(txHash string, txIndex uint32, addr string, val int64) {
-	u.Lock()
-	defer u.Unlock()
+func (u *utxoStore) set(txHash string, txIndex uint32, addrs []string, val int64) {
 	txUTXOVals, ok := u.c[txHash]
 	if !ok {
-		u.c[txHash] = map[uint32]*UTXOData{
+		u.c[txHash] = map[uint32]*dbtypes.UTXOData{
 			txIndex: {
-				Address: addr,
-				Value:   val,
+				Addresses: addrs,
+				Value:     val,
 			},
 		}
 	} else {
-		txUTXOVals[txIndex] = &UTXOData{
-			Address: addr,
-			Value:   val,
+		txUTXOVals[txIndex] = &dbtypes.UTXOData{
+			Addresses: addrs,
+			Value:     val,
 		}
+	}
+}
+
+// Set stores the addresses and amount in a UTXOData entry in the cache for the
+// given outpoint.
+func (u *utxoStore) Set(txHash string, txIndex uint32, addrs []string, val int64) {
+	u.Lock()
+	defer u.Unlock()
+	u.set(txHash, txIndex, addrs, val)
+}
+
+// Reinit re-initializes the utxoStore with the given UTXOs.
+func (u *utxoStore) Reinit(utxos []dbtypes.UTXO) {
+	u.Lock()
+	defer u.Unlock()
+	// Pre-allocate the transaction hash map assuming the number of unique
+	// transaction hashes in input is roughly 2/3 of the number of UTXOs.
+	prealloc := 2 * len(utxos) / 3
+	u.c = make(map[string]map[uint32]*dbtypes.UTXOData, prealloc)
+	for i := range utxos {
+		u.set(utxos[i].TxHash, utxos[i].TxIndex, utxos[i].Addresses, utxos[i].Value)
 	}
 }
 
@@ -564,13 +575,18 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 		DevFundBalance:     new(DevFundBalance),
 		devPrefetch:        devPrefetch,
 		tpUpdatePermission: tpUpdatePermissions,
-		utxoCache:          newUtxoStore(2e4),
+		utxoCache:          newUtxoStore(5e4),
 	}, nil
 }
 
 // Close closes the underlying sql.DB connection to the database.
 func (pgb *ChainDB) Close() error {
 	return pgb.db.Close()
+}
+
+// InitUtxoCache resets the UTXO cache with the given slice of UTXO data.
+func (pgb *ChainDB) InitUtxoCache(utxos []dbtypes.UTXO) {
+	pgb.utxoCache.Reinit(utxos)
 }
 
 // UseStakeDB is used to assign a stakedb.StakeDatabase for ticket tracking.
@@ -2732,7 +2748,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		}
 	}
 
-	// Get the tx PK IDs for storage in the blocks, tickets, and votes table
+	// Get the tx PK IDs for storage in the blocks, tickets, and votes table.
 	*TxDbIDs, err = InsertTxns(pgb.db, dbTransactions, pgb.dupChecks,
 		updateExistingRecords)
 	if err != nil && err != sql.ErrNoRows {
@@ -2741,9 +2757,9 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		return txRes
 	}
 
-	// If processing stake tree, insert tickets, votes, and misses. Also update
-	// pool status and spending information in tickets table pertaining to the
-	// new votes, revokes, misses, and expires.
+	// If processing stake tree transactions, insert tickets, votes, and misses.
+	// Also update pool status and spending information in tickets table
+	// pertaining to the new votes, revokes, misses, and expires.
 	if txTree == wire.TxTreeStake {
 		// Tickets: Insert new (unspent) tickets
 		newTicketDbIDs, newTicketTx, err := InsertTickets(pgb.db, dbTransactions, *TxDbIDs,
@@ -2906,14 +2922,27 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 	// set IsFunding to true since InsertVouts is supplying the AddressRows.
 	dbAddressRowsFlat := make([]*dbtypes.AddressRow, 0, totalAddressRows)
 	for it, tx := range dbTransactions {
+		// A UTXO may have multiple addresses associated with it, so check each
+		// addresses table row for multiple entries for the same output of this
+		// txn. This can only happen if the output's pkScript is a P2PK or P2PKH
+		// multisignature script. This does not refer to P2SH, where a single
+		// address corresponds to the redeem script hash even though the script
+		// may be a multi-signature script.
+		utxos := make([]*dbtypes.UTXO, tx.NumVout)
 		for iv := range dbAddressRows[it] {
 			// Transaction that pays to the address
 			dba := &dbAddressRows[it][iv]
 
-			// Set fields not set by InsertVouts: TxBlockTime, IsFunding,
-			// ValidMainChain, and MatchingTxHash. Only MatchingTxHash goes
-			// unset initially, later set by insertAddrSpendingTxUpdateMatchedFunding (called
-			// by SetSpendingForFundingOP below, and other places).
+			// Do not store zero-value output data.
+			if dba.Value == 0 {
+				continue
+			}
+
+			// Set addresses row fields not set by InsertVouts: TxBlockTime,
+			// IsFunding, ValidMainChain, and MatchingTxHash. Only
+			// MatchingTxHash goes unset initially, later set by
+			// insertAddrSpendingTxUpdateMatchedFunding (called by
+			// SetSpendingForFundingOP below, and other places).
 			dba.TxBlockTime = tx.BlockTime
 			dba.IsFunding = true // from vouts
 			dba.ValidMainChain = isMainchain && isValid
@@ -2922,8 +2951,34 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			// by InsertVouts. Only the block time and is_funding was needed.
 			dbAddressRowsFlat = append(dbAddressRowsFlat, dba)
 
-			// Cache the data for this UTXO.
-			pgb.utxoCache.Set(tx.TxID, dba.TxVinVoutIndex, dba.Address, int64(dba.Value))
+			// See if this output has already been assigned to a UTXO.
+			utxo := utxos[dba.TxVinVoutIndex]
+			if utxo == nil {
+				// New UTXO. Initialize with this address.
+				utxos[dba.TxVinVoutIndex] = &dbtypes.UTXO{
+					TxHash:  tx.TxID,
+					TxIndex: dba.TxVinVoutIndex,
+					UTXOData: dbtypes.UTXOData{
+						Addresses: []string{dba.Address},
+						Value:     int64(dba.Value),
+					},
+				}
+				continue
+			}
+
+			// Existing UTXO. Append address for this likely-bare multisig output.
+			utxo.UTXOData.Addresses = append(utxo.UTXOData.Addresses, dba.Address)
+			log.Infof(" ============== BARE MULTISIG: %s:%d ============== ",
+				dba.TxHash, dba.TxVinVoutIndex)
+		}
+
+		// Store each output of this transaction in the UTXO cache.
+		for _, utxo := range utxos {
+			// Skip any that were not set (e.g. zero-value, no address, etc.).
+			if utxo == nil {
+				continue
+			}
+			pgb.utxoCache.Set(utxo.TxHash, utxo.TxIndex, utxo.Addresses, utxo.Value)
 		}
 	}
 
