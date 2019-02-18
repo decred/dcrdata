@@ -47,8 +47,8 @@
                   </div>
                 </div>
               </div>
-              <div class="text-left">
-                <div class="d-inline-block px-2 my-2 grey-highlight fs15 font-weight-bold break-word">{{.Hash}}</div>
+              <div class="text-left lh1rem">
+                <div class="d-inline-block px-2 py-1 my-2 offwhite-highlight fs15 font-weight-bold break-word">{{.Hash}}</div>
               </div>
               <div class="row py-2">
                 <div class="col-10 col-sm-8 text-left">
@@ -57,8 +57,8 @@
                     <span class="fs18 fs14-decimal font-weight-bold">{{template "decimalParts" (float64AsDecimalParts .TotalSent 8 true 2)}}</span><span class="text-secondary fs14">DCR</span>
                     <br>
                     <span class="text-secondary fs16"
-                    >{{if $.ExchangeState}}{{template "decimalParts" (float64AsDecimalParts $.ExchangeState.Price 2 true 0)}}
-                    <span class="fs14">{{$.ExchangeState.BtcIndex}}</span>
+                    >{{if $.HasConversion}}{{template "decimalParts" (float64AsDecimalParts $.ConvertedSent 2 true 0)}}
+                    <span class="fs14">{{$.BtcIndex}}</span>
                     {{end}}
                     </span>
                 </div>
@@ -95,35 +95,15 @@
             </div>
             <div class="col-24 col-xl-12 secondary-card py-3 pl-3 pr-2 pr-sm-4">
               <div class="h6 d-inline-block my-2 pl-3">Block Details</div>
-              <table class="my-1 fs14 mx-auto">
-                <tbody>
-                  <tr>
-                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Merkle Root: </td>
-                    <td class="text-left break-word py-1 text-secondary"> {{.MerkleRoot}}</td>
-                  </tr>
-                  <tr>
-                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Stake Root: </td>
-                    <td class="text-left break-word py-1 text-secondary"> {{.StakeRoot}}</td>
-                  </tr>
-                </tbody>
-              </table>
               <table class="w-100 fs14">
                 <tbody>
                   <tr>
                     <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Ticket Price: </td>
                     <td class="text-left py-1 text-secondary">{{template "decimalParts" (float64AsDecimalParts .SBits 8 false)}}</td>
-                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Pool Size: </td>
-                    <td class="text-left py-1 text-secondary">{{.PoolSize}}</td>
-                    <td class="d-none d-sm-table-cell text-right font-weight-bold text-nowrap pr-2 py-1">Block Version: </td>
-                    <td class="d-none d-sm-table-cell text-left py-1 text-secondary">{{.Version}}</td>
-                  </tr>
-                  <tr>
-                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Final State: </td>
-                    <td class="text-left py-1 text-secondary">{{.FinalState}}</td>
-                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Nonce: </td>
-                    <td class="text-left py-1 text-secondary">{{.Nonce}}</td>
-                    <td class="d-none d-sm-table-cell text-right font-weight-bold text-nowrap pr-2 py-1">Stake Version: </td>
-                    <td class="d-none d-sm-table-cell text-left py-1 text-secondary">{{.StakeVersion}}</td>
+                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Fees: </td>
+                    <td class="text-left py-1 text-secondary">{{.MiningFee}}</td>
+                    <td class="d-none d-sm-table-cell text-right font-weight-bold text-nowrap pr-2 py-1">Pool Size: </td>
+                    <td class="d-none d-sm-table-cell text-left py-1 text-secondary">{{.PoolSize}}</td>
                   </tr>
                   <tr>
                     <td class="text-right font-weight-bold text-nowrap pr-2 py-1"
@@ -131,20 +111,42 @@
                       ><span class="d-sm-none">PoW Diff</span>:
                     </td>
                     <td class="text-left py-1 text-secondary">{{template "decimalParts" (float64AsDecimalParts .Difficulty 0 true)}}</td>
-                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Fees: </td>
-                    <td class="text-left py-1 text-secondary">{{.MiningFee}}</td>
+                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1"
+                      ><span class="d-none d-sm-inline">Block Version</span
+                      ><span class="d-sm-none">Blk Version</span>:
+                    </td>
+                    <td class="text-left py-1 text-secondary">{{.Version}}</td>
+                    <td class="d-none d-sm-table-cell text-right font-weight-bold text-nowrap pr-2 py-1">Nonce: </td>
+                    <td class="d-none d-sm-table-cell text-left py-1 text-secondary">{{.Nonce}}</td>
+                  </tr>
+                  <tr>
+                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Final State: </td>
+                    <td class="text-left py-1 text-secondary">{{.FinalState}}</td>
+                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1"
+                      ><span class="d-none d-sm-inline">Stake Version</span
+                      ><span class="d-sm-none">Stk Version</span>:
+                    </td>
+                    <td class="text-left py-1 text-secondary">{{.StakeVersion}}</td>
                     <td class="d-none d-sm-table-cell text-right font-weight-bold text-nowrap pr-2 py-1">Vote Bits: </td>
                     <td class="d-none d-sm-table-cell text-left py-1 text-secondary">{{.VoteBits}}</td>
                   </tr>
                   <tr class="d-sm-none">
-                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Blk Version: </td>
-                    <td class="text-left py-1 text-secondary">{{.Version}}</td>
+                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Pool Size: </td>
+                    <td class="text-left py-1 text-secondary">{{.PoolSize}}</td>
                     <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Vote Bits: </td>
                     <td class="text-left py-1 text-secondary">{{.VoteBits}}</td>
                   </tr>
                   <tr class="d-sm-none">
-                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Stk Version: </td>
-                    <td class="text-left py-1 text-secondary">{{.StakeVersion}}</td>
+                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Nonce: </td>
+                    <td class="text-left py-1 text-secondary">{{.Nonce}}</td>
+                  </tr>
+                  <tr>
+                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Merkle Root: </td>
+                    <td colspan="5" class="text-left break-word py-1 text-secondary"> {{.MerkleRoot}}</td>
+                  </tr>
+                  <tr>
+                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Stake Root: </td>
+                    <td colspan="5" class="text-left break-word py-1 text-secondary"> {{.StakeRoot}}</td>
                   </tr>
                 </tbody>
               </table>
