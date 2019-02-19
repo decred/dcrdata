@@ -491,6 +491,16 @@ func (db *WiredDB) GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVer
 func (db *WiredDB) GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult {
 	return rpcutils.GetBlockVerboseByHash(db.client, hash, verboseTx)
 }
+
+func (db *WiredDB) GetBlockByHash(hash string) (*wire.MsgBlock, error) {
+	blockHash, err := chainhash.NewHashFromStr(hash)
+	if err != nil {
+		log.Errorf("Invalid block hash %s", hash)
+		return nil, err
+	}
+	return db.client.GetBlock(blockHash)
+}
+
 func (db *WiredDB) CoinSupply() (supply *apitypes.CoinSupply) {
 	coinSupply, err := db.client.GetCoinSupply()
 	if err != nil {
