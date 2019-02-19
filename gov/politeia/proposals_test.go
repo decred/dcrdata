@@ -145,6 +145,13 @@ func TestNewProposalsDB(t *testing.T) {
 					t.Fatalf("expect the returned result to be nil but was not nil")
 				}
 			}
+
+			// expects to find the correspnding db at the given path.
+			if data.IsdbInstance {
+				if _, err := os.Stat(data.dbPath); os.IsNotExist(err) {
+					t.Fatalf("expected to find the corresponding db at '%v' path but did not.", data.dbPath)
+				}
+			}
 		})
 	}
 }
@@ -280,32 +287,6 @@ func TestStuff(t *testing.T) {
 
 	defer server.Close()
 
-	// compareProposal returns an error the proposal argument passed doesn't match
-	// any of the previous created proposals.
-	compareProposal := func(data *pitypes.ProposalInfo) error {
-		if data == nil {
-			return fmt.Errorf("expected the proposal not to be nil but was nil")
-		}
-		// data.Censorship.Token compare the proposal token against know tokens
-		switch data.Censorship.Token {
-		case "0aaab331075d08cb03333d5a1bef04b99a708dcbfebc8f8c94040ceb1676e684":
-			if reflect.DeepEqual(data, firstProposal) {
-				return nil
-			}
-
-			return fmt.Errorf("expected the initialProposal to match the retrieved but it did not")
-
-		case "522652954ea7998f3fca95b9c4ca8907820eb785877dcf7fba92307131818c75":
-			if reflect.DeepEqual(data, mockedPayload) {
-				return nil
-			}
-			return fmt.Errorf("expected the Second Proposal to match the retrieved but it did not")
-
-		default:
-			return fmt.Errorf("unknown incorrect token found: %v", data.Censorship.Token)
-		}
-	}
-
 	// Testing the update functionality
 	t.Run("Test_CheckOffChainUpdates", func(t *testing.T) {
 		err := newDBInstance.CheckOffChainUpdates()
@@ -314,7 +295,7 @@ func TestStuff(t *testing.T) {
 		}
 
 		if newDBInstance.NumProposals != 2 {
-			t.Fatalf("expected the proposals count to be 2 but found %v", newDBInstance.NumProposals)
+			t.Fatalf("expected the proposals count to be 2 but found %d", newDBInstance.NumProposals)
 		}
 	})
 
@@ -325,9 +306,28 @@ func TestStuff(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		for _, p := range proposals {
-			if err = compareProposal(p); err != nil {
-				t.Fatalf("expected no error but found '%v'", err)
+		if len(proposals) != 2 {
+			t.Fatalf("expected to find two proposals but found %d", len(proposals))
+		}
+
+		for _, data := range proposals {
+			if data == nil {
+				t.Fatal("expected the proposal not to be nil but was nil")
+			}
+
+			switch data.Censorship.Token {
+			case firstProposal.Censorship.Token:
+				if !reflect.DeepEqual(data, firstProposal) {
+					t.Fatal("expected the initialProposal to match the retrieved but it did not")
+				}
+
+			case mockedPayload.Censorship.Token:
+				if !reflect.DeepEqual(data, mockedPayload) {
+					t.Fatal("expected the Second Proposal to match the retrieved but it did not")
+				}
+
+			default:
+				t.Fatal("unknown incorrect data returned")
 			}
 		}
 	})

@@ -13,14 +13,12 @@ import (
 
 	"github.com/asdine/storm"
 	"github.com/decred/dcrd/dcrjson/v2"
-	"github.com/decred/dcrd/rpcclient/v2"
 )
 
 // AgendaDB represents the data for the saved db
 type AgendaDB struct {
 	sdb        *storm.DB
 	NumAgendas int
-	NumChoices int
 }
 
 // AgendaTagged has the same fields as dcrjson.Agenda, but with the Id field
@@ -38,22 +36,24 @@ type AgendaTagged struct {
 	VoteVersion    uint32           `json:"voteversion"`
 }
 
-// ChoiceLabeled embeds dcrjson.Choice along with the AgendaID for the choice,
-// and a string array suitable for use as a primary key. The AgendaID is tagged
-// as an index for quick lookups based on the agenda.
-type ChoiceLabeled struct {
-	AgendaChoice   [2]string `storm:"id"`
-	AgendaID       string    `json:"agendaid" storm:"index"`
-	dcrjson.Choice `storm:"inline"`
-}
-
 // errDefault defines an error message returned if the agenda db wasn't
 // properly initialized.
 var errDefault = fmt.Errorf("AgendaDB was not initialized correctly")
 
+// DeploymentSource provides a cleaner way to track the methods that are used
+// in this package. It also allows alternative implementations to be used to
+// satisfy the interface.
+type DeploymentSource interface {
+	GetVoteInfo(version uint32) (*dcrjson.GetVoteInfoResult, error)
+}
+
 // NewAgendasDB opens an existing database or create a new one using with
 // the specified file name. An initialized on-chain db connection is returned.
 func NewAgendasDB(dbPath string) (*AgendaDB, error) {
+	if dbPath == "" {
+		return nil, fmt.Errorf("empty db Path found")
+	}
+
 	_, err := os.Stat(dbPath)
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
@@ -76,14 +76,7 @@ func (db *AgendaDB) countProperties() error {
 		return err
 	}
 
-	numChoices, err := db.sdb.Count(&ChoiceLabeled{})
-	if err != nil {
-		log.Errorf("Choices count failed: %v\n", err)
-		return err
-	}
-
 	db.NumAgendas = numAgendas
-	db.NumChoices = numChoices
 	return nil
 }
 
@@ -108,7 +101,7 @@ func (db *AgendaDB) loadAgenda(agendaID string) (*AgendaTagged, error) {
 }
 
 // agendasForVoteVersion fetches the agendas using the vote versions provided.
-func agendasForVoteVersion(ver uint32, client *rpcclient.Client) (agendas []AgendaTagged) {
+func agendasForVoteVersion(ver uint32, client DeploymentSource) (agendas []AgendaTagged) {
 	voteInfo, err := client.GetVoteInfo(ver)
 	if err != nil {
 		log.Errorf("Fetching Agendas by vote version failed: %v", err)
@@ -143,7 +136,7 @@ func (db *AgendaDB) isAgendasAvailable(version uint32) bool {
 }
 
 // updatedb used when needed to keep the saved db upto date.
-func (db *AgendaDB) updatedb(voteVersion uint32, client *rpcclient.Client) int {
+func (db *AgendaDB) updatedb(voteVersion uint32, client DeploymentSource) int {
 	var agendas []AgendaTagged
 	for agendasForVoteVersion(voteVersion, client) != nil {
 		taggedAgendas := agendasForVoteVersion(voteVersion, client)
@@ -169,7 +162,7 @@ func (db *AgendaDB) storeAgenda(agenda *AgendaTagged) error {
 
 // CheckOnChainUpdates checks for update at the start of the process and will
 // proceed to update when necessary.
-func (db *AgendaDB) CheckOnChainUpdates(client *rpcclient.Client) error {
+func (db *AgendaDB) CheckOnChainUpdates(client DeploymentSource) error {
 	if db == nil || db.sdb == nil {
 		return errDefault
 	}

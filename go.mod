@@ -18,6 +18,7 @@ require (
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.1
 	github.com/decred/dcrd/database v1.0.3
 	github.com/decred/dcrd/dcrec v0.0.0-20190130161649-59ed4247a1d5
+	github.com/decred/dcrd/dcrjson v1.1.0
 	github.com/decred/dcrd/dcrjson/v2 v2.0.0
 	github.com/decred/dcrd/dcrutil v1.2.1-0.20190118223730-3a5281156b73
 	github.com/decred/dcrd/rpcclient/v2 v2.0.0

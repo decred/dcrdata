@@ -507,6 +507,9 @@ func _main(ctx context.Context) error {
 		return fmt.Errorf("failed to create new on-chain db instance: %v", err)
 	}
 
+	// Confirm if dcrdClient implements agendas.DeploymentSource interface.
+	var _ agendas.DeploymentSource = dcrdClient
+
 	// Retrieve updates blockchain deployment updates and adds them to the agendas db.
 	if err = onChainInstance.CheckOnChainUpdates(dcrdClient); err != nil {
 		return fmt.Errorf("updating off chain db failed: %v", err)

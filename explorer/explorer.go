@@ -21,7 +21,6 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	dcrjson "github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
-	rpcclient "github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/v4/blockdata"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
@@ -122,7 +121,7 @@ type politeiaBackend interface {
 // agendaBackend implements methods that retrieve data from the
 // on-chain db source.
 type agendaBackend interface {
-	CheckOnChainUpdates(client *rpcclient.Client) error
+	CheckOnChainUpdates(agendas.DeploymentSource) error
 	AgendaInfo(agendaID string) (*agendas.AgendaTagged, error)
 	AllAgendas() (agendas []*agendas.AgendaTagged, err error)
 }
