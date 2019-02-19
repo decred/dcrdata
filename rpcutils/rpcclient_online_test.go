@@ -6,11 +6,14 @@
 package rpcutils
 
 import (
+	"os"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/rpcclient/v2"
+	"github.com/decred/slog"
 )
 
 const (
@@ -243,4 +246,90 @@ func TestSideChainFull(t *testing.T) {
 		t.Errorf("SideChainFull failed: %v", err)
 	}
 	t.Logf("Side chain: %v", sideChain)
+}
+
+func TestBlockPrefetchClient_GetBlockData(t *testing.T) {
+	backendLog := slog.NewBackend(os.Stdout)
+	pfLogger := backendLog.Logger("RPC")
+	//pfLogger.SetLevel(slog.LevelDebug)
+	UseLogger(pfLogger)
+
+	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, "", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Shutdown()
+
+	pf := NewBlockPrefetchClient(client)
+	bestHash, bestHeight, err := pf.GetBestBlock()
+	if err != nil {
+		t.Fatalf("GetBestBlock: %v", err)
+	}
+	t.Logf("best block: hash=%v, height=%d", bestHash, bestHeight)
+
+	height := bestHeight - 1e3
+	bestHash, err = pf.GetBlockHash(height)
+	if err != nil {
+		t.Fatalf("GetBlockHash: %v", err)
+	}
+
+	msgBlock, headerResult, err := pf.GetBlockData(bestHash)
+	if err != nil {
+		t.Fatalf("GetBlockData: %v", err)
+	}
+	t.Log(msgBlock.BlockHash())
+	t.Log(msgBlock.Header.Height)
+	t.Log(headerResult.ChainWork)
+
+	time.Sleep(500 * time.Millisecond)
+
+	// another block
+	height++
+	bestHash, err = pf.GetBlockHash(height)
+	if err != nil {
+		t.Fatalf("GetBlockHash: %v", err)
+	}
+
+	msgBlock, headerResult, err = pf.GetBlockData(bestHash)
+	if err != nil {
+		t.Fatalf("GetBlockData: %v", err)
+	}
+	t.Log(msgBlock.BlockHash())
+	t.Log(msgBlock.Header.Height)
+	t.Log(headerResult.ChainWork)
+
+	// another block
+	height++
+	bestHash, err = pf.GetBlockHash(height)
+	if err != nil {
+		t.Fatalf("GetBlockHash: %v", err)
+	}
+
+	msgBlock, headerResult, err = pf.GetBlockData(bestHash)
+	if err != nil {
+		t.Fatalf("GetBlockData: %v", err)
+	}
+	t.Log(msgBlock.BlockHash())
+	t.Log(msgBlock.Header.Height)
+	t.Log(headerResult.ChainWork)
+
+	// Go crazy
+	nextHash := headerResult.NextHash
+	var hash chainhash.Hash
+	for i := height + 1; i < height+1e3; i++ {
+		// hash (Hash) <- nextHash (string)
+		_ = chainhash.Decode(&hash, nextHash)
+
+		msgBlock, headerResult, err = pf.GetBlockData(&hash)
+		if err != nil {
+			t.Logf("GetBestBlock: %v / %d", err, i)
+			break
+		}
+		nextHash = headerResult.NextHash
+
+		// worky worky
+		time.Sleep(20 * time.Microsecond) // ~0.2 ms to hex convert hash and prefetch
+	}
+
+	t.Log(pf.Hits(), pf.Misses())
 }

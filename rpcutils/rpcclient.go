@@ -140,7 +140,8 @@ func BuildBlockHeaderVerbose(header *wire.BlockHeader, params *chaincfg.Params,
 		Time:          header.Timestamp.Unix(),
 		Nonce:         header.Nonce,
 		Difficulty:    diffRatio,
-		NextHash:      next,
+		// Cannot get ChainWork from the wire.BlockHeader
+		NextHash: next,
 	}
 
 	return &blockHeaderResult
@@ -148,7 +149,7 @@ func BuildBlockHeaderVerbose(header *wire.BlockHeader, params *chaincfg.Params,
 
 // GetBlockHeaderVerbose creates a *dcrjson.GetBlockHeaderVerboseResult for the
 // block at height idx via an RPC connection to a chain server.
-func GetBlockHeaderVerbose(client *rpcclient.Client, idx int64) *dcrjson.GetBlockHeaderVerboseResult {
+func GetBlockHeaderVerbose(client BlockFetcher, idx int64) *dcrjson.GetBlockHeaderVerboseResult {
 	blockhash, err := client.GetBlockHash(idx)
 	if err != nil {
 		log.Errorf("GetBlockHash(%d) failed: %v", idx, err)
@@ -166,7 +167,7 @@ func GetBlockHeaderVerbose(client *rpcclient.Client, idx int64) *dcrjson.GetBloc
 
 // GetBlockHeaderVerboseByString creates a *dcrjson.GetBlockHeaderVerboseResult
 // for the block specified by hash via an RPC connection to a chain server.
-func GetBlockHeaderVerboseByString(client *rpcclient.Client, hash string) *dcrjson.GetBlockHeaderVerboseResult {
+func GetBlockHeaderVerboseByString(client BlockFetcher, hash string) *dcrjson.GetBlockHeaderVerboseResult {
 	blockhash, err := chainhash.NewHashFromStr(hash)
 	if err != nil {
 		log.Errorf("Invalid block hash %s: %v", blockhash, err)
@@ -240,7 +241,7 @@ func GetStakeDiffEstimates(client *rpcclient.Client) *apitypes.StakeDiff {
 }
 
 // GetBlock gets a block at the given height from a chain server.
-func GetBlock(ind int64, client *rpcclient.Client) (*dcrutil.Block, *chainhash.Hash, error) {
+func GetBlock(ind int64, client BlockFetcher) (*dcrutil.Block, *chainhash.Hash, error) {
 	blockhash, err := client.GetBlockHash(ind)
 	if err != nil {
 		return nil, nil, fmt.Errorf("GetBlockHash(%d) failed: %v", ind, err)
@@ -257,7 +258,7 @@ func GetBlock(ind int64, client *rpcclient.Client) (*dcrutil.Block, *chainhash.H
 }
 
 // GetBlockByHash gets the block with the given hash from a chain server.
-func GetBlockByHash(blockhash *chainhash.Hash, client *rpcclient.Client) (*dcrutil.Block, error) {
+func GetBlockByHash(blockhash *chainhash.Hash, client BlockFetcher) (*dcrutil.Block, error) {
 	msgBlock, err := client.GetBlock(blockhash)
 	if err != nil {
 		return nil, fmt.Errorf("GetBlock failed (%s): %v", blockhash, err)
@@ -372,7 +373,7 @@ func SearchRawTransaction(client *rpcclient.Client, count int, address string) (
 // other chain, that block will be shared between the two chains, and the common
 // ancestor will be the previous block. However, the intended use of this
 // function is to find a common ancestor for two chains with no common blocks.
-func CommonAncestor(client *rpcclient.Client, hashA, hashB chainhash.Hash) (*chainhash.Hash, []chainhash.Hash, []chainhash.Hash, error) {
+func CommonAncestor(client BlockFetcher, hashA, hashB chainhash.Hash) (*chainhash.Hash, []chainhash.Hash, []chainhash.Hash, error) {
 	if client == nil {
 		return nil, nil, nil, errors.New("nil RPC client")
 	}
@@ -497,7 +498,7 @@ func OrphanedTipLength(ctx context.Context, client BlockHashGetter,
 
 // GetChainWork fetches the dcrjson.BlockHeaderVerbose and returns only the
 // ChainWork field as a string.
-func GetChainWork(client *rpcclient.Client, hash *chainhash.Hash) (string, error) {
+func GetChainWork(client BlockFetcher, hash *chainhash.Hash) (string, error) {
 	header, err := client.GetBlockHeaderVerbose(hash)
 	if err != nil {
 		return "", err
