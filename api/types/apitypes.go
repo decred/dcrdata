@@ -118,6 +118,13 @@ type BlockID struct {
 	BlockTime   int64  `json:"blocktime"`
 }
 
+// BlockRaw contains the hexadecimal encoded bytes of a serialized block.
+type BlockRaw struct {
+	Height uint32 `json:"height"`
+	Hash   string `json:"hash"`
+	Hex    string `json:"hex"`
+}
+
 // VoutMined appends a best block hash, number of confimations and if a
 // transaction is a coinbase to a transaction output
 type VoutMined struct {

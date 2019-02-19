@@ -9,6 +9,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/csv"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -23,6 +24,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/rpcclient/v2"
+	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/v4/api/types"
 	"github.com/decred/dcrdata/v4/db/agendadb"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
@@ -42,7 +44,7 @@ type DataSourceLite interface {
 	GetBestBlockHash() (string, error)
 	GetBlockHash(idx int64) (string, error)
 	GetBlockHeight(hash string) (int64, error)
-	//Get(idx int) *blockdata.BlockData
+	GetBlockByHash(string) (*wire.MsgBlock, error)
 	GetHeader(idx int) *dcrjson.GetBlockHeaderVerboseResult
 	GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVerboseResult
 	GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult
@@ -439,6 +441,38 @@ func (c *appContext) getBlockHeader(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, blockHeader, c.getIndentQuery(r))
+}
+
+func (c *appContext) getBlockRaw(w http.ResponseWriter, r *http.Request) {
+	hash := c.getBlockHashCtx(r)
+	if hash == "" {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	msgBlock, err := c.BlockData.GetBlockByHash(hash)
+	if err != nil {
+		apiLog.Errorf("Unable to get block %s: %v", hash, err)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	var hexString strings.Builder
+	hexString.Grow(msgBlock.SerializeSize())
+	err = msgBlock.Serialize(hex.NewEncoder(&hexString))
+	if err != nil {
+		apiLog.Errorf("Unable to serialize block %s: %v", hash, err)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	blockRaw := &apitypes.BlockRaw{
+		Height: msgBlock.Header.Height,
+		Hash:   hash,
+		Hex:    hexString.String(),
+	}
+
+	writeJSON(w, blockRaw, c.getIndentQuery(r))
 }
 
 func (c *appContext) getBlockVerbose(w http.ResponseWriter, r *http.Request) {
