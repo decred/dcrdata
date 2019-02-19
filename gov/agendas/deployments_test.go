@@ -63,11 +63,14 @@ func TestMain(m *testing.M) {
 		return
 	}
 
-	m.Run()
+	returnVal := m.Run()
 
 	db.Close()
 	// clean up
 	os.RemoveAll(tempDir)
+
+	// Exit with the return value
+	os.Exit(returnVal)
 }
 
 // TestNewAgendasDB tests the functionality of NewAgendaDB.

@@ -62,10 +62,12 @@ func TestMain(m *testing.M) {
 		return
 	}
 
-	m.Run()
+	returnVal := m.Run()
 
 	defer db.Close()
 	defer os.RemoveAll(tempDir) // clean up
+
+	os.Exit(returnVal)
 }
 
 // TestNewProposalsDB tests creating a new storm db and a http client instance.

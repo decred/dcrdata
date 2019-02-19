@@ -22,7 +22,7 @@ func TestHandleGetRequests(t *testing.T) {
 	}
 
 	// This is a mock server that should handle the requests locally.
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprintln(w, "OK")
 	}))
 
