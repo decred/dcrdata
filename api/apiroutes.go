@@ -46,6 +46,7 @@ type DataSourceLite interface {
 	GetBlockHeight(hash string) (int64, error)
 	GetBlockByHash(string) (*wire.MsgBlock, error)
 	GetHeader(idx int) *dcrjson.GetBlockHeaderVerboseResult
+	GetBlockHeaderByHash(hash string) (*wire.BlockHeader, error)
 	GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVerboseResult
 	GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult
 	GetRawTransaction(txid string) *apitypes.Tx
@@ -468,6 +469,37 @@ func (c *appContext) getBlockRaw(w http.ResponseWriter, r *http.Request) {
 
 	blockRaw := &apitypes.BlockRaw{
 		Height: msgBlock.Header.Height,
+		Hash:   hash,
+		Hex:    hexString.String(),
+	}
+
+	writeJSON(w, blockRaw, c.getIndentQuery(r))
+}
+
+func (c *appContext) getBlockHeaderRaw(w http.ResponseWriter, r *http.Request) {
+	hash := c.getBlockHashCtx(r)
+	if hash == "" {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	blockHeader, err := c.BlockData.GetBlockHeaderByHash(hash)
+	if err != nil {
+		apiLog.Errorf("Unable to get block %s: %v", hash, err)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	var hexString strings.Builder
+	err = blockHeader.Serialize(hex.NewEncoder(&hexString))
+	if err != nil {
+		apiLog.Errorf("Unable to serialize block %s: %v", hash, err)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	blockRaw := &apitypes.BlockRaw{
+		Height: blockHeader.Height,
 		Hash:   hash,
 		Hex:    hexString.String(),
 	}

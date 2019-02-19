@@ -501,6 +501,15 @@ func (db *WiredDB) GetBlockByHash(hash string) (*wire.MsgBlock, error) {
 	return db.client.GetBlock(blockHash)
 }
 
+func (db *WiredDB) GetBlockHeaderByHash(hash string) (*wire.BlockHeader, error) {
+	blockHash, err := chainhash.NewHashFromStr(hash)
+	if err != nil {
+		log.Errorf("Invalid block hash %s", hash)
+		return nil, err
+	}
+	return db.client.GetBlockHeader(blockHash)
+}
+
 func (db *WiredDB) CoinSupply() (supply *apitypes.CoinSupply) {
 	coinSupply, err := db.client.GetCoinSupply()
 	if err != nil {
