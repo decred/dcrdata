@@ -381,8 +381,8 @@ List of recognized environment variables:
 | The number minimum number of new tickets that must be seen to trigger a new mempool report.                              | DCRDATA_MP_TRIGGER_TICKETS     |
 | Dump to file the fees of all the tickets in mempool.                                                                     | DCRDATA_ENABLE_DUMP_ALL_MP_TIX |
 | SQLite DB file name (default is dcrdata.sqlt.db)                                                                         | DCRDATA_SQLITE_DB_FILE_NAME    |
-| On-Chain Voting agendas DB file name (default is agendas.db)                                                             | DCRDATA_ON_CHAIN_DB_FILE_NAME  |
-| Off-Chain Voting proposals DB file name (default is proposals.db)                                                        | DCRDATA_OFF_CHAIN_DB_FILE_NAME |
+| Agendas DB file name (default is agendas.db)                                                                             | DCRDATA_AGENDAS_DB_FILE_NAME   |
+| Proposals DB file name (default is proposals.db)                                                                         | DCRDATA_PROPOSALS_DB_FILE_NAME |
 | Run in "Full Mode" mode, enables postgresql support                                                                      | DCRDATA_ENABLE_FULL_MODE       |
 | PostgreSQL DB name.                                                                                                      | DCRDATA_PG_DB_NAME             |
 | PostgreSQL DB user                                                                                                       | DCRDATA_POSTGRES_USER          |

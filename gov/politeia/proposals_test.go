@@ -290,8 +290,8 @@ func TestStuff(t *testing.T) {
 	defer server.Close()
 
 	// Testing the update functionality
-	t.Run("Test_CheckOffChainUpdates", func(t *testing.T) {
-		err := newDBInstance.CheckOffChainUpdates()
+	t.Run("Test_CheckProposalsUpdates", func(t *testing.T) {
+		err := newDBInstance.CheckProposalsUpdates()
 		if err != nil {
 			t.Fatalf("expected no error to be returned but found '%v'", err)
 		}

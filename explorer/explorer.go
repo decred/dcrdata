@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
-	dcrjson "github.com/decred/dcrd/dcrjson/v2"
+	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/v4/blockdata"
@@ -110,18 +110,16 @@ type explorerDataSource interface {
 	AgendaCumulativeVoteChoices(agendaID string) (yes, abstain, no uint32, err error)
 }
 
-// politeiaBackend implements methods that retrieve data from the
-// off-chain db source.
+// politeiaBackend implements methods that manage data from the agendas db.
 type politeiaBackend interface {
-	CheckOffChainUpdates() error
+	CheckProposalsUpdates() error
 	AllProposals() (proposals []*pitypes.ProposalInfo, err error)
 	ProposalByID(proposalID int) (proposal *pitypes.ProposalInfo, err error)
 }
 
-// agendaBackend implements methods that retrieve data from the
-// on-chain db source.
+// agendaBackend implements methods that manage data from the proposals db.
 type agendaBackend interface {
-	CheckOnChainUpdates(agendas.DeploymentSource) error
+	CheckAgendasUpdates(agendas.DeploymentSource) error
 	AgendaInfo(agendaID string) (*agendas.AgendaTagged, error)
 	AllAgendas() (agendas []*agendas.AgendaTagged, err error)
 }
@@ -236,8 +234,8 @@ type explorerUI struct {
 	Mux              *chi.Mux
 	blockData        explorerDataSourceLite
 	explorerSource   explorerDataSource
-	onChainSource    agendaBackend
-	offChainSource   politeiaBackend
+	agendasSource    agendaBackend
+	proposalsSource  politeiaBackend
 	dbsSyncing       atomic.Value
 	liteMode         bool
 	devPrefetch      bool
@@ -316,8 +314,8 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	exp.Version = appVersion
 	exp.devPrefetch = devPrefetch
 	exp.xcBot = xcBot
-	exp.onChainSource = onChainInstance
-	exp.offChainSource = offChainInstance
+	exp.agendasSource = onChainInstance
+	exp.proposalsSource = offChainInstance
 	// explorerDataSource is an interface that could have a value of pointer
 	// type, and if either is nil this means lite mode.
 	if exp.explorerSource == nil || reflect.ValueOf(exp.explorerSource).IsNil() {

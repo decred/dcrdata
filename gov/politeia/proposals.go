@@ -1,9 +1,8 @@
 // Copyright (c) 2019, The Decred developers
 // See LICENSE for details.
 
-// politeia package manages Politeia proposals and the voting that is coordinated
+// Package politeia manages Politeia proposals and the voting that is coordinated
 // by the Politeia server and anchored on the blockchain.
-
 package politeia
 
 import (
@@ -19,7 +18,7 @@ import (
 	piapi "github.com/decred/politeia/politeiawww/api/v1"
 )
 
-// errDef defines the default error returned if the proposals db was initialized
+// errDef defines the default error returned if the proposals db was not initialized
 // correctly.
 var errDef = fmt.Errorf("ProposalDB was not initialized correctly")
 
@@ -32,7 +31,7 @@ type ProposalDB struct {
 }
 
 // NewProposalsDB opens an exiting database or creates a new db instance with the
-// provided file name. returns an initialized instance of Proposal DB, http client
+// provided file name. Returns an initialized instance of proposals DB, http client
 // and the politeia API URL path to be used.
 func NewProposalsDB(politeiaURL, dbPath string) (*ProposalDB, error) {
 	if politeiaURL == "" {
@@ -69,7 +68,7 @@ func NewProposalsDB(politeiaURL, dbPath string) (*ProposalDB, error) {
 	return proposalDB, nil
 }
 
-// countProperties fetches the proposal count and appends it the ProposalDB instance
+// countProperties fetches the proposals count and appends it the ProposalDB instance
 // provided.
 func (db *ProposalDB) countProperties() error {
 	count, err := db.dbP.Count(&pitypes.ProposalInfo{})
@@ -93,8 +92,8 @@ func (db *ProposalDB) Close() error {
 // saveProposals adds the proposals data to the db.
 func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
 	// constructs the full vetted proposals API URL
-	_URLpath := db._APIURLpath + piapi.RouteAllVetted + URLParams
-	data, err := piclient.HandleGetRequests(db.client, _URLpath)
+	URLpath := db._APIURLpath + piapi.RouteAllVetted + URLParams
+	data, err := piclient.HandleGetRequests(db.client, URLpath)
 	if err != nil {
 		return 0, err
 	}
@@ -106,8 +105,8 @@ func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
 	}
 
 	// constructs the full vote status API URL
-	_URLpath = db._APIURLpath + piapi.RouteAllVoteStatus + URLParams
-	data, err = piclient.HandleGetRequests(db.client, _URLpath)
+	URLpath = db._APIURLpath + piapi.RouteAllVoteStatus + URLParams
+	data, err = piclient.HandleGetRequests(db.client, URLpath)
 	if err != nil {
 		return 0, err
 	}
@@ -118,7 +117,7 @@ func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
 		return 0, err
 	}
 
-	// Append the votes status information to the respective proposals if it exits.
+	// Append the votes status information to the respective proposals if it exists.
 	for _, val := range publicProposals.Data {
 		for k := range votesInfo.Data {
 			if val.Censorship.Token == votesInfo.Data[k].Token {
@@ -131,7 +130,6 @@ func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
 
 	// Save all the proposals
 	for i, val := range publicProposals.Data {
-		// val.ID = val.Censorship.Token
 		if err = db.dbP.Save(val); err != nil {
 			return i, fmt.Errorf("save operation failed: %v", err)
 		}
@@ -176,8 +174,8 @@ func (db *ProposalDB) ProposalByID(proposalID int) (proposal *pitypes.ProposalIn
 	return
 }
 
-// CheckOffChainUpdates updates the on chain changes if they exist.
-func (db *ProposalDB) CheckOffChainUpdates() error {
+// CheckProposalsUpdates updates the on chain changes if they exist.
+func (db *ProposalDB) CheckProposalsUpdates() error {
 	if db == nil || db.dbP == nil {
 		return errDef
 	}
@@ -197,7 +195,7 @@ func (db *ProposalDB) CheckOffChainUpdates() error {
 		return err
 	}
 
-	log.Infof("%d off-chain records (politeia proposals) were updated", numRecords)
+	log.Infof("%d proposal records (politeia proposals) were updated", numRecords)
 
 	return db.countProperties()
 }

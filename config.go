@@ -56,9 +56,9 @@ var (
 	defaultMempoolMaxInterval = 120
 	defaultMPTriggerTickets   = 1
 
-	defaultDBFileName         = "dcrdata.sqlt.db"
-	defaultOnChainDBFileName  = "agendas.db"
-	defaultOffChainDBFileName = "proposals.db"
+	defaultDBFileName        = "dcrdata.sqlt.db"
+	defaultAgendasDBFileName = "agendas.db"
+	defaultProposalsFileName = "proposals.db"
 
 	defaultPGHost                       = "127.0.0.1:5432"
 	defaultPGUser                       = "dcrdata"
@@ -103,8 +103,8 @@ type config struct {
 	MempoolMaxInterval int    `long:"mp-max-interval" description:"The maximum time in seconds between mempool reports (within a couple seconds), regarless of number of new tickets seen." env:"DCRDATA_MEMPOOL_MAX_INTERVAL"`
 	MPTriggerTickets   int    `long:"mp-ticket-trigger" description:"The number minimum number of new tickets that must be seen to trigger a new mempool report." env:"DCRDATA_MP_TRIGGER_TICKETS"`
 	DBFileName         string `long:"dbfile" description:"SQLite DB file name (default is dcrdata.sqlt.db)." env:"DCRDATA_SQLITE_DB_FILE_NAME"`
-	OnChainDBFileName  string `long:"onchaindbfile" description:"On-Chain DB file name (default is agendas.db)." env:"DCRDATA_ON_CHAIN_DB_FILE_NAME"`
-	OffChainDBFileName string `long:"offchaindbfile" description:"Off-Chain DB file name (default is proposals.db)." env:"DCRDATA_OFF_CHAIN_DB_FILE_NAME"`
+	AgendasDBFileName  string `long:"agendadbfile" description:"Agendas DB file name (default is agendas.db)." env:"DCRDATA_AGENDAS_DB_FILE_NAME"`
+	ProposalsFileName  string `long:"proposalsdbfile" description:"Proposals DB file name (default is proposals.db)." env:"DCRDATA_PROPOSALS_DB_FILE_NAME"`
 
 	PurgeNBestBlocks int  `long:"purge-n-blocks" description:"Purge all data for the N best blocks, using the best block across all DBs if they are out of sync."`
 	FastSQLitePurge  bool `long:"fast-sqlite-purge" description:"Purge all data for the blocks above the specified height."`
@@ -152,8 +152,8 @@ var (
 		LogDir:             defaultLogDir,
 		ConfigFile:         defaultConfigFile,
 		DBFileName:         defaultDBFileName,
-		OnChainDBFileName:  defaultOnChainDBFileName,
-		OffChainDBFileName: defaultOffChainDBFileName,
+		AgendasDBFileName:  defaultAgendasDBFileName,
+		ProposalsFileName:  defaultProposalsFileName,
 		DebugLevel:         defaultLogLevel,
 		HTTPProfPath:       defaultHTTPProfPath,
 		APIProto:           defaultAPIProto,

@@ -2,9 +2,8 @@
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
-// agendas package manages the various deployment agendas that are directly voted
+// Package agendas manages the various deployment agendas that are directly voted
 // upon with the vote bits in vote transactions.
-
 package agendas
 
 import (
@@ -21,7 +20,7 @@ type AgendaDB struct {
 	NumAgendas int
 }
 
-// AgendaTagged has the same fields as dcrjson.Agenda, but with the Id field
+// AgendaTagged has the same fields as dcrjson.Agenda, but with the ID field
 // marked as the primary key via the `storm:"id"` tag. Fields tagged for
 // indexing by the DB are: StartTime, ExpireTime, Status, and QuorumProgress.
 type AgendaTagged struct {
@@ -40,15 +39,15 @@ type AgendaTagged struct {
 // properly initialized.
 var errDefault = fmt.Errorf("AgendaDB was not initialized correctly")
 
-// DeploymentSource provides a cleaner way to track the methods that are used
-// in this package. It also allows alternative implementations to be used to
-// satisfy the interface.
+// DeploymentSource provides a cleaner way to track the rpcclient methods used
+// in this package. It also allows usage of alternative implementations to satisfy
+// the interface.
 type DeploymentSource interface {
 	GetVoteInfo(version uint32) (*dcrjson.GetVoteInfoResult, error)
 }
 
 // NewAgendasDB opens an existing database or create a new one using with
-// the specified file name. An initialized on-chain db connection is returned.
+// the specified file name. An initialized agendas db connection is returned.
 func NewAgendasDB(dbPath string) (*AgendaDB, error) {
 	if dbPath == "" {
 		return nil, fmt.Errorf("empty db Path found")
@@ -67,8 +66,8 @@ func NewAgendasDB(dbPath string) (*AgendaDB, error) {
 	return &AgendaDB{sdb: db}, nil
 }
 
-// countProperties fetches the count of Agendas and Choices. It the appends them
-// to the AgendaDB receiver.
+// countProperties fetches the Agendas count and appends it to the AgendaDB
+// receiver.
 func (db *AgendaDB) countProperties() error {
 	numAgendas, err := db.sdb.Count(&AgendaTagged{})
 	if err != nil {
@@ -160,9 +159,9 @@ func (db *AgendaDB) storeAgenda(agenda *AgendaTagged) error {
 	return db.sdb.Save(agenda)
 }
 
-// CheckOnChainUpdates checks for update at the start of the process and will
+// CheckAgendasUpdates checks for update at the start of the process and will
 // proceed to update when necessary.
-func (db *AgendaDB) CheckOnChainUpdates(client DeploymentSource) error {
+func (db *AgendaDB) CheckAgendasUpdates(client DeploymentSource) error {
 	if db == nil || db.sdb == nil {
 		return errDefault
 	}
@@ -178,7 +177,7 @@ func (db *AgendaDB) CheckOnChainUpdates(client DeploymentSource) error {
 	}
 
 	numRecords := db.updatedb(voteVersion, client)
-	log.Infof("%d on-chain records (agendas) were updated", numRecords)
+	log.Infof("%d agenda records (agendas) were updated", numRecords)
 
 	return db.countProperties()
 }

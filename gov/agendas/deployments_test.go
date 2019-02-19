@@ -227,8 +227,8 @@ func TestUpdateAndRetrievals(t *testing.T) {
 
 	// Test saving updates to agendas db.
 	for i, val := range td {
-		t.Run("Test_CheckOnChainUpdates_#"+strconv.Itoa(i), func(t *testing.T) {
-			err := val.db.CheckOnChainUpdates(client)
+		t.Run("Test_CheckAgendasUpdates_#"+strconv.Itoa(i), func(t *testing.T) {
+			err := val.db.CheckAgendasUpdates(client)
 			if err != nil && val.errMsg != err.Error() {
 				t.Fatalf("expect to find error '%s' but found '%v' ", val.errMsg, err)
 			}

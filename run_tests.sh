@@ -55,8 +55,8 @@ testrepo () {
   echo "------------------------------------------"
   echo "Tests completed successfully!"
 
-  # Remove test-data-repo data
-  rm -rf $TMPDIR/test-data-repo* $TMPFILE
+  # Remove all the tests data
+  rm -rf $TMPDIR $TMPFILE
 }
 
 DOCKER=

@@ -123,14 +123,14 @@ type appContext struct {
 	Status        apitypes.Status
 	JSONIndent    string
 	xcBot         *exchanges.ExchangeBot
-	OnChainDB     *agendas.AgendaDB
+	AgendaDB      *agendas.AgendaDB
 }
 
 // NewContext constructs a new appContext from the RPC client, primary and
 // auxiliary data sources, and JSON indentation string.
 func NewContext(client *rpcclient.Client, params *chaincfg.Params, dataSource DataSourceLite,
 	auxDataSource DataSourceAux, JSONIndent string, xcBot *exchanges.ExchangeBot,
-	onchainInstance *agendas.AgendaDB) *appContext {
+	agendasDBInstance *agendas.AgendaDB) *appContext {
 	conns, _ := client.GetConnectionCount()
 	nodeHeight, _ := client.GetBlockCount()
 
@@ -145,7 +145,7 @@ func NewContext(client *rpcclient.Client, params *chaincfg.Params, dataSource Da
 		AuxDataSource: auxDataSource,
 		LiteMode:      liteMode,
 		xcBot:         xcBot,
-		OnChainDB:     onchainInstance,
+		AgendaDB:      agendasDBInstance,
 		Status: apitypes.Status{
 			Height:          uint32(nodeHeight),
 			NodeConnections: conns,
@@ -1736,7 +1736,7 @@ func (c *appContext) getCurrencyCodes(w http.ResponseWriter, r *http.Request) {
 // Description, Vote Version, VotingDone height, Activated, HardForked,
 // StartTime and ExpireTime.
 func (c *appContext) getAgendasData(w http.ResponseWriter, _ *http.Request) {
-	agendas, err := c.OnChainDB.AllAgendas()
+	agendas, err := c.AgendaDB.AllAgendas()
 	if err != nil {
 		apiLog.Errorf("agendadb AllAgendas error: %v", err)
 		http.Error(w, "agendadb.AllAgendas failed.", http.StatusServiceUnavailable)

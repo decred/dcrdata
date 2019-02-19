@@ -500,39 +500,40 @@ func _main(ctx context.Context) error {
 	}
 
 	// It creates a new or loads an existing agendas db instance that helps to
-	// store and retrieves on-chain agendas data. On-Chain agendas votes
-	// are transactions that appear in the decred blockchain.
-	onChainInstance, err := agendas.NewAgendasDB(filepath.Join(cfg.DataDir, cfg.OnChainDBFileName))
+	// store and retrieves agendas data. Agendas votes are On-Chain
+	// transactions that appear in the decred blockchain.
+	agendasInstance, err := agendas.NewAgendasDB(filepath.Join(cfg.DataDir,
+		cfg.AgendasDBFileName))
 	if err != nil {
-		return fmt.Errorf("failed to create new on-chain db instance: %v", err)
+		return fmt.Errorf("failed to create new agendas db instance: %v", err)
 	}
 
 	// Confirm if dcrdClient implements agendas.DeploymentSource interface.
 	var _ agendas.DeploymentSource = dcrdClient
 
 	// Retrieve updates blockchain deployment updates and adds them to the agendas db.
-	if err = onChainInstance.CheckOnChainUpdates(dcrdClient); err != nil {
-		return fmt.Errorf("updating off chain db failed: %v", err)
+	if err = agendasInstance.CheckAgendasUpdates(dcrdClient); err != nil {
+		return fmt.Errorf("updating agendas db failed: %v", err)
 	}
 
 	// It creates a new or loads an existing proposals db instance that helps to
-	// store and retrieve off-chain proposals data. Off-Chain proposal votes is
+	// store and retrieve proposals data. Proposals votes is Off-Chain
 	// data stored in github repositories away from the decred blockchain. It also
 	// creates a new http client needed to query Politeia API endpoints.
-	offChainInstance, err := politeia.NewProposalsDB(cfg.PoliteiaAPIURL,
-		filepath.Join(cfg.DataDir, cfg.OffChainDBFileName))
+	proposalsInstance, err := politeia.NewProposalsDB(cfg.PoliteiaAPIURL,
+		filepath.Join(cfg.DataDir, cfg.ProposalsFileName))
 	if err != nil {
-		return fmt.Errorf("failed to create new off-chain db instance: %v", err)
+		return fmt.Errorf("failed to create new proposals db instance: %v", err)
 	}
 
 	// Retrieves newly added proposals and addes them to the proposals db.
-	if err = offChainInstance.CheckOffChainUpdates(); err != nil {
-		return fmt.Errorf("updating on chain db failed: %v", err)
+	if err = proposalsInstance.CheckProposalsUpdates(); err != nil {
+		return fmt.Errorf("updating proposals db failed: %v", err)
 	}
 
 	// Create the explorer system.
 	explore := explorer.New(baseDB, auxDB, cfg.UseRealIP, version.Version(),
-		!cfg.NoDevPrefetch, "views", xcBot, onChainInstance, offChainInstance)
+		!cfg.NoDevPrefetch, "views", xcBot, agendasInstance, proposalsInstance)
 	// TODO: allow views config
 	if explore == nil {
 		return fmt.Errorf("failed to create new explorer (templates missing?)")
@@ -656,7 +657,7 @@ func _main(ctx context.Context) error {
 
 	// Start dcrdata's JSON web API.
 	app := api.NewContext(dcrdClient, activeChain, baseDB, auxDB, cfg.IndentJSON,
-		xcBot, onChainInstance)
+		xcBot, agendasInstance)
 	// Start the notification hander for keeping /status up-to-date.
 	wg.Add(1)
 	go app.StatusNtfnHandler(ctx, &wg)
