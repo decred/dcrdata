@@ -131,8 +131,7 @@ func (xc *CommonExchange) LastUpdate() time.Time {
 func (xc *CommonExchange) Hurry(d time.Duration) {
 	xc.Lock()
 	defer xc.Unlock()
-	xc.lastFail = xc.lastFail.Add(-d)
-	xc.lastUpdate = xc.lastUpdate.Add(-d)
+	xc.lastRequest = xc.lastRequest.Add(-d)
 }
 
 // LastFail gets the last time.Time of a failed exchange update.

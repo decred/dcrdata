@@ -91,6 +91,11 @@ func main() {
 				break out
 			case update := <-xcSignals.Update:
 				var grpcUpdate *dcrrates.ExchangeRateUpdate
+				msg := fmt.Sprintf("Update received from %s", update.Token)
+				if !xcBot.IsFailed() {
+					msg += fmt.Sprintf(". Current price: %.2f %s", xcBot.Price(), xcBot.BtcIndex)
+				}
+				log.Infof(msg)
 				if exchanges.IsDcrExchange(update.Token) {
 					state, err := update.TriggerState()
 					if err != nil {
