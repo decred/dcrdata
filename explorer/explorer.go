@@ -113,7 +113,7 @@ type explorerDataSource interface {
 // politeiaBackend implements methods that manage data from the agendas db.
 type politeiaBackend interface {
 	CheckProposalsUpdates() error
-	AllProposals() (proposals []*pitypes.ProposalInfo, err error)
+	AllProposals(page, rowsCount int) (proposals []*pitypes.ProposalInfo, totalCount int, err error)
 	ProposalByID(proposalID int) (proposal *pitypes.ProposalInfo, err error)
 }
 

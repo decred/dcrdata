@@ -139,16 +139,19 @@ func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
 }
 
 // AllProposals fetches all the proposals data saved to the db.
-func (db *ProposalDB) AllProposals() (proposals []*pitypes.ProposalInfo, err error) {
+func (db *ProposalDB) AllProposals(offset, rowsCount int) (proposals []*pitypes.ProposalInfo,
+	totalCount int, err error) {
 	if db == nil || db.dbP == nil {
-		return nil, errDef
+		return nil, 0, errDef
 	}
 
 	// Return the agendas listing starting with the oldest.
-	err = db.dbP.Select().OrderBy("Timestamp").Find(&proposals)
+	err = db.dbP.Select().Skip(offset).Limit(rowsCount).OrderBy("Timestamp").Find(&proposals)
 	if err != nil {
 		log.Errorf("Failed to fetch data from Agendas DB: %v", err)
 	}
+
+	totalCount = db.NumProposals
 
 	return
 }

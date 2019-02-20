@@ -421,9 +421,8 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"clipSlice": func(arr []*types.TrimmedTxInfo, n int) []*types.TrimmedTxInfo {
 			if len(arr) >= n {
 				return arr[:n]
-			} else {
-				return arr
 			}
+			return arr
 		},
 		"hashlink": func(hash string, link string) [2]string {
 			return [2]string{hash, link}

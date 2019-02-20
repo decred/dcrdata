@@ -1800,7 +1800,16 @@ func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
 
 // ProposalsPage is the page handler for the "/proposals" path.
 func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
-	proposals, err := exp.proposalsSource.AllProposals()
+	rowsCount, err := strconv.ParseUint(r.URL.Query().Get("rows"), 10, 64)
+	if err != nil || rowsCount == 0 {
+		// Number of rows displayed to the by default should be 10.
+		rowsCount = 10
+	}
+
+	// Ignore the error if it ever happens.
+	offset, _ := strconv.ParseUint(r.URL.Query().Get("offset"), 10, 64)
+
+	proposals, count, err := exp.proposalsSource.AllProposals(int(offset), int(rowsCount))
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
@@ -1809,11 +1818,17 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 
 	str, err := exp.templates.execTemplateToString("proposals", struct {
 		*CommonPageData
-		Proposals []*pitypes.ProposalInfo
-		NetName   string
+		Proposals  []*pitypes.ProposalInfo
+		Offset     int64
+		Limit      int64
+		NetName    string
+		TotalCount int64
 	}{
 		CommonPageData: exp.commonData(),
 		Proposals:      proposals,
+		Offset:         int64(offset),
+		Limit:          int64(rowsCount),
+		TotalCount:     int64(count),
 		NetName:        exp.NetName,
 	})
 
