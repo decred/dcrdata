@@ -55,7 +55,9 @@
                 <div class="col-10 col-sm-8 text-left">
                     <span class="text-secondary fs13">Total Sent</span>
                     <br>
-                    <span class="fs18 fs14-decimal font-weight-bold">{{template "decimalParts" (float64AsDecimalParts .TotalSent 8 true 2)}}</span><span class="text-secondary fs14">DCR</span>
+                    <span class="lh1rem d-inline-block pt-1"
+                      ><span class="fs18 fs14-decimal font-weight-bold">{{template "decimalParts" (float64AsDecimalParts .TotalSent 8 true 2)}}</span><span class="text-secondary fs14">DCR</span>
+                    </span>
                     <br>
                     <span class="text-secondary fs16"
                     >{{if $.HasConversion}}{{template "decimalParts" (float64AsDecimalParts $.ConvertedSent 2 true 0)}}
@@ -66,7 +68,7 @@
                 <div class="col-7 col-sm-8 text-left">
                     <span class="text-secondary fs13">Size</span>
                     <br>
-                    <span class="fs18 font-weight-bold">{{.FormattedBytes}}</span>
+                    <span class="fs18 font-weight-bold lh1rem d-inline-block pt-1">{{.FormattedBytes}}</span>
                     <br>
                     <span class="fs14 text-secondary">{{.AllTxs}}
                     <span class="d-sm-none">txs</span><span class="d-none d-sm-inline">transactions</span>
@@ -74,7 +76,7 @@
                 <div class="col-7 col-sm-8 text-left">
                     <span class="text-secondary fs13">Block Time</span>
                     <br>
-                    <span class="fs18 font-weight-bold">{{.BlockTime.PrettyMDY}}</span>
+                    <span class="fs18 font-weight-bold lh1rem d-inline-block pt-1">{{.BlockTime.PrettyMDY}}</span>
                     <br>
                     <span class="fs14 text-secondary">{{.BlockTime.HMSTZ}}</span>
                 </div>
@@ -145,11 +147,11 @@
                   </tr>
                   <tr>
                     <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Merkle Root: </td>
-                    <td colspan="5" class="text-left break-word py-1 text-secondary"> {{.MerkleRoot}}</td>
+                    <td colspan="5" class="text-left break-word py-1 text-secondary lh1rem"> {{.MerkleRoot}}</td>
                   </tr>
                   <tr>
                     <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Stake Root: </td>
-                    <td colspan="5" class="text-left break-word py-1 text-secondary"> {{.StakeRoot}}</td>
+                    <td colspan="5" class="text-left break-word py-1 text-secondary lh1rem"> {{.StakeRoot}}</td>
                   </tr>
                 </tbody>
               </table>
