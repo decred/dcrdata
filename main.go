@@ -531,9 +531,10 @@ func _main(ctx context.Context) error {
 		return fmt.Errorf("updating proposals db failed: %v", err)
 	}
 
-	// Create the explorer system.
+	// Create the explorer system. cfg.PoliteiaAPIURL is the Politeia API URL.
 	explore := explorer.New(baseDB, auxDB, cfg.UseRealIP, version.Version(),
-		!cfg.NoDevPrefetch, "views", xcBot, agendasInstance, proposalsInstance)
+		!cfg.NoDevPrefetch, "views", xcBot, agendasInstance, proposalsInstance,
+		cfg.PoliteiaAPIURL)
 	// TODO: allow views config
 	if explore == nil {
 		return fmt.Errorf("failed to create new explorer (templates missing?)")

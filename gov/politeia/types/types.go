@@ -106,8 +106,23 @@ func ProposalStatusFrmStr(val string) ProposalStatusType {
 // https://github.com/decred/politeia/blob/master/politeiawww/api/v1/v1.go
 type VoteStatusType piapi.PropVoteStatusT
 
-// VoteStatusType stringer
+// shorterDesc maps the short description to there respective proposal description.
+var shorterDesc = map[piapi.PropVoteStatusT]string{
+	piapi.PropVoteStatusInvalid:       "Invalid",
+	piapi.PropVoteStatusNotAuthorized: "Not Authorized",
+	piapi.PropVoteStatusAuthorized:    "Authorized",
+	piapi.PropVoteStatusStarted:       "Started",
+	piapi.PropVoteStatusFinished:      "Finished",
+	piapi.PropVoteStatusDoesntExist:   "Doesn't Exist",
+}
+
+// VoteStatusType stringer returns the shorter vote status description.
 func (s VoteStatusType) String() string {
+	return shorterDesc[piapi.PropVoteStatusT(s)]
+}
+
+// Description returns the long vote status description.
+func (s VoteStatusType) Description() string {
 	return piapi.PropVoteStatus[piapi.PropVoteStatusT(s)]
 }
 

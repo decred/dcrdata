@@ -1779,12 +1779,14 @@ func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
 
 	str, err := exp.templates.execTemplateToString("proposal", struct {
 		*CommonPageData
-		Data    *pitypes.ProposalInfo
-		NetName string
+		Data        *pitypes.ProposalInfo
+		NetName     string
+		PoliteiaURL string
 	}{
 		CommonPageData: exp.commonData(),
 		Data:           proposalInfo,
 		NetName:        exp.NetName,
+		PoliteiaURL:    exp.politeiaAPIURL,
 	})
 
 	if err != nil {
@@ -1818,11 +1820,12 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 
 	str, err := exp.templates.execTemplateToString("proposals", struct {
 		*CommonPageData
-		Proposals  []*pitypes.ProposalInfo
-		Offset     int64
-		Limit      int64
-		NetName    string
-		TotalCount int64
+		Proposals   []*pitypes.ProposalInfo
+		Offset      int64
+		Limit       int64
+		NetName     string
+		TotalCount  int64
+		PoliteiaURL string
 	}{
 		CommonPageData: exp.commonData(),
 		Proposals:      proposals,
@@ -1830,6 +1833,7 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 		Limit:          int64(rowsCount),
 		TotalCount:     int64(count),
 		NetName:        exp.NetName,
+		PoliteiaURL:    exp.politeiaAPIURL,
 	})
 
 	if err != nil {

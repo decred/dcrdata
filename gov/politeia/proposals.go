@@ -27,7 +27,7 @@ type ProposalDB struct {
 	dbP          *storm.DB
 	client       *http.Client
 	NumProposals int
-	_APIURLpath  string
+	APIURLpath   string
 }
 
 // NewProposalsDB opens an exiting database or creates a new db instance with the
@@ -59,10 +59,13 @@ func NewProposalsDB(politeiaURL, dbPath string) (*ProposalDB, error) {
 		DisableCompression: false,
 	}}
 
+	// politeiaURL should just be the domain part of the url without the API versioning.
+	versionedPath := fmt.Sprintf("%s/api/v%d/", politeiaURL, piapi.PoliteiaWWWAPIVersion)
+
 	proposalDB := &ProposalDB{
-		dbP:         db,
-		client:      c,
-		_APIURLpath: politeiaURL,
+		dbP:        db,
+		client:     c,
+		APIURLpath: versionedPath,
 	}
 
 	return proposalDB, nil
@@ -92,7 +95,7 @@ func (db *ProposalDB) Close() error {
 // saveProposals adds the proposals data to the db.
 func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
 	// constructs the full vetted proposals API URL
-	URLpath := db._APIURLpath + piapi.RouteAllVetted + URLParams
+	URLpath := db.APIURLpath + piapi.RouteAllVetted + URLParams
 	data, err := piclient.HandleGetRequests(db.client, URLpath)
 	if err != nil {
 		return 0, err
@@ -105,7 +108,7 @@ func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
 	}
 
 	// constructs the full vote status API URL
-	URLpath = db._APIURLpath + piapi.RouteAllVoteStatus + URLParams
+	URLpath = db.APIURLpath + piapi.RouteAllVoteStatus + URLParams
 	data, err = piclient.HandleGetRequests(db.client, URLpath)
 	if err != nil {
 		return 0, err
@@ -145,8 +148,8 @@ func (db *ProposalDB) AllProposals(offset, rowsCount int) (proposals []*pitypes.
 		return nil, 0, errDef
 	}
 
-	// Return the agendas listing starting with the oldest.
-	err = db.dbP.Select().Skip(offset).Limit(rowsCount).OrderBy("Timestamp").Find(&proposals)
+	// Return the agendas listing starting with the newest.
+	err = db.dbP.Select().Skip(offset).Limit(rowsCount).Reverse().OrderBy("Timestamp").Find(&proposals)
 	if err != nil {
 		log.Errorf("Failed to fetch data from Agendas DB: %v", err)
 	}

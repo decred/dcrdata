@@ -129,8 +129,8 @@ func TestNewProposalsDB(t *testing.T) {
 			}
 
 			if data.IsdbInstance && result != nil {
-				if result._APIURLpath != _API_URL {
-					t.Fatalf("expected the API URL to '%v' but found '%v'", result._APIURLpath, _API_URL)
+				if result.APIURLpath != _API_URL {
+					t.Fatalf("expected the API URL to '%v' but found '%v'", result.APIURLpath, _API_URL)
 				}
 
 				if result.client == nil {
@@ -282,9 +282,9 @@ var mockedPayload = &pitypes.ProposalInfo{
 func TestStuff(t *testing.T) {
 	server := mockServer()
 	newDBInstance := &ProposalDB{
-		dbP:         db,
-		client:      server.Client(),
-		_APIURLpath: server.URL,
+		dbP:        db,
+		client:     server.Client(),
+		APIURLpath: server.URL,
 	}
 
 	defer server.Close()
@@ -303,13 +303,19 @@ func TestStuff(t *testing.T) {
 
 	// Testing the retrieval of all proposals
 	t.Run("Test_AllProposals", func(t *testing.T) {
-		proposals, err := newDBInstance.AllProposals()
+		offset := 0
+		limit := 10
+		proposals, count, err := newDBInstance.AllProposals(offset, limit)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		if len(proposals) != 2 {
 			t.Fatalf("expected to find two proposals but found %d", len(proposals))
+		}
+
+		if count != 2 {
+			t.Fatalf("expected to find count equal to 2 but found %d", count)
 		}
 
 		for _, data := range proposals {

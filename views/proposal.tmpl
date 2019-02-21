@@ -8,41 +8,57 @@
         <div class="container main">
             <div class="row justify-content-between">
                 <div class="col-lg-14 col-sm-12 d-flex">
-                    <h4 class="mb-2">{{.Name}}
-                    </h4>
+                    <a class="medium row" href="/proposals">All Proposals</a>
+                </div>
+                <div class="col-lg-14 col-sm-12 d-flex">
+                    <h4 class="mb-2 row">{{.Name}}</h4>
                 </div>
             </div>
             <div class="row justify-content-between">
-                <div class="col-lg-16 col-sm-12 d-flex">
+                <div class="col-lg-20 col-sm-12 d-flex">
                     <table class="">
                         <tr>
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Token</td>
                             <td>
-                                <span class="hash break-word  lh1rem"><a>{{.Censorship.Token}}</span>
+                                <span class="hash break-word  lh1rem">
+                                    <a href="{{$.PoliteiaURL}}/proposals/{{.Censorship.Token}}">{{.Censorship.Token}}</a>
+                                </span>
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-right lh1rem pr-2 xs-w117">Status</td>
-                            <td class="lh1rem">
-                                <span class="hash break-word  lh1rem">{{.Status}}</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="text-right lh1rem pr-2 xs-w117">State</td>
-                            <td class="lh1rem">
-                                <span class="hash break-word  lh1rem">{{.State}}</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="text-right lh1rem pr-2 xs-w117">Version</td>
-                            <td class="lh1rem">
-                                <span class="hash break-word  lh1rem">{{.Version}}</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Username</td>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">State</td>
                             <td>
-                                <span class="hash break-word  lh1rem">@{{.Username}}</span>
+                                <span class="hash break-word  lh1rem">{{with .State}}{{toTitleCase .String}}{{end}}</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Status</td>
+                            <td>
+                                <span class="hash break-word  lh1rem">{{with .Status}}{{toTitleCase .String}}{{end}}</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Author</td>
+                            <td>
+                                <span class="hash break-word  lh1rem">{{.Username}}</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Version</td>
+                            <td>
+                                <span class="hash break-word  lh1rem">v{{.Version}}</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">End Height</td>
+                            <td>
+                                <span class="hash break-word  lh1rem">
+                                    {{if .VotesStatus}}
+                                        <a href="/block/{{.VotesStatus.Endheight}}">{{.VotesStatus.Endheight}}</a>
+                                    {{else}}
+                                        N/A
+                                    {{end}}
+                                </span>
                             </td>
                         </tr>
                         <tr>
@@ -50,85 +66,65 @@
                             <td>
                                 <span class="hash break-word  lh1rem">
                                     {{if .VotesStatus}}
-                                        {{.VotesStatus.Status}}
+                                        {{with .VotesStatus.Status}}
+                                            {{toTitleCase .String}} ({{.Description}})
+                                        {{end}}
                                     {{else}}
-                                        --
+                                        N/A
                                     {{end}}
                                 </span>
                             </td>
                         </tr>
-                         <tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Published</td>
+                            <td>
+                                <span class="hash break-word  lh1rem">{{TimeConversion .PublishedDate}}</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Updated</td>
+                            <td>
+                                <span class="hash break-word  lh1rem">{{TimeConversion .Timestamp}}</span>
+                            </td>
+                        </tr>
+                         {{if ne .CensoredDate 0}}
+                            <tr>
+                                <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Censored</td>
+                                <td>
+                                    <span class="hash break-word  lh1rem">{{TimeConversion .CensoredDate}}</span>
+                                </td>
+                            </tr>
+                        {{end}}
+                        {{if ne .AbandonedDate 0}}
+                            <tr>
+                                <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Abandoned</td>
+                                <td>
+                                    <span class="hash break-word  lh1rem">{{TimeConversion .AbandonedDate}}</span>
+                                </td>
+                            </tr>
+                        {{end}}
+                    </table>
+                </div>
+                <div class="col-lg-4 col-sm-12 d-flex">
+                    <table class="">
+                        {{if .VotesStatus}}
+                            {{range $i, $v := .VotesStatus.VoteResults}}
+                                <tr>
+                                    <td class="text-right pr-2 lh1rem vam nowrap xs-w117">{{toTitleCase $v.Option.OptionID}} Votes</td>
+                                    <td>
+                                        <span class="hash break-word  lh1rem">{{$v.VotesReceived}}</span>
+                                    </td>
+                                </tr>
+                            {{end}}
+                        {{end}}
+                        <tr>
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Total Votes</td>
                             <td>
                                 <span class="hash break-word  lh1rem">
                                     {{if .VotesStatus}}
                                         {{.VotesStatus.TotalVotes}}
                                     {{else}}
-                                        --
-                                    {{end}}
-                                </span>
-                            </td>
-                        </tr>
-                         <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">End Height</td>
-                            <td>
-                                <span class="hash break-word  lh1rem">
-                                    {{if .VotesStatus}}
-                                        {{.VotesStatus.Endheight}}
-                                    {{else}}
-                                        --
-                                    {{end}}
-                                </span>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-                <div class="col-lg-8 col-sm-12 d-flex">
-                    <table class="">
-                        <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Last Update</td>
-                            <td>
-                                <span class="hash break-word  lh1rem">
-                                    {{if ne .Timestamp 0}}
-                                        {{TimeConversion .Timestamp}}
-                                    {{else}}
-                                        --
-                                    {{end}}
-                                </span>
-                            </td>
-                        </tr>
-                         <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Published Date</td>
-                            <td>
-                                <span class="hash break-word  lh1rem">
-                                    {{if ne .PublishedDate 0}}
-                                        {{TimeConversion .PublishedDate}}
-                                    {{else}}
-                                        --
-                                    {{end}}
-                                </span>
-                            </td>
-                        </tr>
-                         <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Censored Date</td>
-                            <td>
-                                <span class="hash break-word  lh1rem">
-                                    {{if ne .CensoredDate 0}}
-                                        {{TimeConversion .CensoredDate}}
-                                    {{else}}
-                                        --
-                                    {{end}}
-                                </span>
-                            </td>
-                        </tr>
-                         <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Abandoned Date</td>
-                            <td>
-                                <span class="hash break-word  lh1rem">
-                                    {{if ne .AbandonedDate 0}}
-                                        {{TimeConversion .AbandonedDate}}
-                                    {{else}}
-                                        --
+                                        N/A
                                     {{end}}
                                 </span>
                             </td>
@@ -140,23 +136,37 @@
                                     {{if .VotesStatus}}
                                         {{.VotesStatus.NumOfEligibleVotes}}
                                     {{else}}
-                                        --
+                                        N/A
                                     {{end}}
                                 </span>
                             </td>
                         </tr>
-                         <tr>
+                        <tr>
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Quorum Percentage</td>
                             <td>
                                 <span class="hash break-word  lh1rem">
                                     {{if .VotesStatus}}
                                         {{.VotesStatus.QuorumPercentage}}
                                     {{else}}
-                                        --
+                                        N/A
                                     {{end}}
                                 </span>
                             </td>
                         </tr>
+                        {{if .VotesStatus}}
+                            {{range $i, $v := .VotesStatus.VoteResults}}
+                                {{if eq $v.Option.OptionID "yes"}}
+                                    <tr>
+                                        <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Actual Percentage</td>
+                                        <td>
+                                            <span class="hash break-word lh1rem">
+                                                {{toDecimalPlaces (percentage $v.VotesReceived $.Data.VotesStatus.TotalVotes) 2}}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                {{end}}
+                            {{end}}
+                        {{end}}
                          <tr>
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Pass Percentage</td>
                             <td>
@@ -164,7 +174,7 @@
                                     {{if .VotesStatus}}
                                         {{.VotesStatus.PassPercentage}}
                                     {{else}}
-                                        --
+                                        N/A
                                     {{end}}
                                 </span>
                             </td>
@@ -172,34 +182,31 @@
                         <tr>
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Comments Count</td>
                             <td>
-                                <span class="hash break-word  lh1rem">{{.NumComments}}</span>
+                                <span class="hash break-word lh1rem">{{.NumComments}}</span>
                             </td>
                         </tr>
                     </table>
                 </div>
+                {{if .VotesStatus}}
+                    {{if gt (len .VotesStatus.VoteResults) 1}}
+                        <div style="margin: auto;" data-controller="proposal">
+                            {{$firstentry := index .VotesStatus.VoteResults 0}}
+                            {{$secondentry := index .VotesStatus.VoteResults 1}}
+                            <canvas
+                                width="400"
+                                height="400"
+                                id="donutgraph"
+                                data-target="proposal.chartdata"
+                                data-firstvotesid="{{toTitleCase $firstentry.Option.OptionID}}"
+                                data-secondvotesid="{{toTitleCase $secondentry.Option.OptionID}}"
+                                data-firstvotescount="{{$firstentry.VotesReceived}}"
+                                data-secondvotescount="{{$secondentry.VotesReceived}}"
+                                chart-options="{tooltipTemplate: '<%=label%>: <%= numeral(value).format('($00[.]00)') %> - <%= numeral(circumference / 6.283).format('(0[.][00]%)') %>'"
+                            ></canvas>
+                        </div>
+                    {{end}}
+                {{end}}
             </div>
-            {{if .VotesStatus}}
-            <table class="table table-mono-cells table-sm striped">
-                <thead>
-                    <th>ID</th>
-                    <th>Description</th>
-                    <th>Bits</th>
-                    <th>Count</th>
-                </thead>
-                {{range $i, $v := .VotesStatus.VoteResults}}
-                {{with $v}}
-                <thead>
-                    <tr>
-                        <td class="text-left">{{.Option.OptionID}}</td>
-                        <td class="text-left">{{.Option.Description}}</td>
-                        <td class="text-left">{{.Option.Bits}}</td>
-                        <td class="text-left">{{.VotesReceived}}</td>
-                    </tr>
-                </thead>
-                {{end}}
-                {{end}}
-            </table>
-            {{end}}
         </div>
         {{end}}
         {{template "footer" . }}

@@ -252,6 +252,7 @@ type explorerUI struct {
 	// displaySyncStatusPage indicates if the sync status page is the only web
 	// page that should be accessible during DB synchronization.
 	displaySyncStatusPage atomic.Value
+	politeiaAPIURL        string
 }
 
 // AreDBsSyncing is a thread-safe way to fetch the boolean in dbsSyncing.
@@ -303,7 +304,7 @@ func (exp *explorerUI) StopWebsocketHub() {
 func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource,
 	useRealIP bool, appVersion string, devPrefetch bool, viewsfolder string,
 	xcBot *exchanges.ExchangeBot, onChainInstance agendaBackend,
-	offChainInstance politeiaBackend) *explorerUI {
+	offChainInstance politeiaBackend, politeiaURL string) *explorerUI {
 	exp := new(explorerUI)
 	exp.Mux = chi.NewRouter()
 	exp.blockData = dataSource
@@ -316,6 +317,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	exp.xcBot = xcBot
 	exp.agendasSource = onChainInstance
 	exp.proposalsSource = offChainInstance
+	exp.politeiaAPIURL = politeiaURL
 	// explorerDataSource is an interface that could have a value of pointer
 	// type, and if either is nil this means lite mode.
 	if exp.explorerSource == nil || reflect.ValueOf(exp.explorerSource).IsNil() {
