@@ -106,11 +106,7 @@
                             <td class="col-md-2">{{toTitleCase .String}}</td>
                         {{end}}
                         <td class="col-md-3">
-                            {{if .VotesStatus}}
-                                {{.VotesStatus.Status}}
-                            {{else}}
-                                N/A
-                            {{end}}
+                            {{if .VoteStatus}}{{.VoteStatus}}{{else}}N/A{{end}}
                         </td>
                         <td class="col-md-2">{{timeWithoutDateAndTimeZone .PublishedDate}}</td>
                         <td class="col-md-2">{{timeWithoutDateAndTimeZone .Timestamp}}</td>

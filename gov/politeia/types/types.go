@@ -20,13 +20,13 @@ type ProposalInfo struct {
 	Signature       string             `json:"signature"`
 	Version         string             `json:"version"`
 	Censorship      CensorshipRecord   `json:"censorshiprecord"`
-	Files           []AttachmentFile   `json:"files"`
 	NumComments     int32              `json:"numcomments"`
 	StatusChangeMsg string             `json:"statuschangemessage"`
 	PublishedDate   uint64             `json:"publishedat" storm:"index"`
 	CensoredDate    uint64             `json:"censoredat"`
 	AbandonedDate   uint64             `json:"abandonedat"`
-	VotesStatus     *ProposalVotes     `json:"votes"`
+	ProposalVotes   `json:"votes"`
+	// Files           []AttachmentFile   `json:"files"`
 }
 
 // Proposals defines an array of proposals as returned by RouteAllVetted.
@@ -55,7 +55,7 @@ type AttachmentFile struct {
 // https://github.com/decred/politeia/blob/master/politeiawww/api/v1/api.md#proposal-vote-status
 type ProposalVotes struct {
 	Token              string         `json:"token"`
-	Status             VoteStatusType `json:"status"`
+	VoteStatus         VoteStatusType `json:"status"`
 	VoteResults        []Results      `json:"optionsresult"`
 	TotalVotes         int64          `json:"totalvotes"`
 	Endheight          string         `json:"endheight"`
@@ -66,7 +66,7 @@ type ProposalVotes struct {
 
 // Votes defines a slice of VotesStatuses as returned by RouteAllVoteStatus.
 type Votes struct {
-	Data []*ProposalVotes `json:"votesstatus"`
+	Data []ProposalVotes `json:"votesstatus"`
 }
 
 // Results defines the actual vote count info per the votes choices available.

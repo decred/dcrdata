@@ -1,14 +1,18 @@
 // Copyright (c) 2019, The Decred developers
 // See LICENSE for details.
 
-// piclient handles the http requests made to Politeia API URLs.
-
+// Package piclient handles the http requests made to Politeia APIs.
 package piclient
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"regexp"
+
+	pitypes "github.com/decred/dcrdata/v4/gov/politeia/types"
+	piapi "github.com/decred/politeia/politeiawww/api/v1"
 )
 
 // HandleGetRequests accepts a http client and API URL path as arguments. If the
@@ -31,4 +35,85 @@ func HandleGetRequests(client *http.Client, URLPath string) ([]byte, error) {
 	defer response.Body.Close()
 
 	return ioutil.ReadAll(response.Body)
+}
+
+// DropURLRegex replaces "{token:[A-z0-9]{64}}" in a URL with provided the parameter.
+func DropURLRegex(URLPath, param string) string {
+	r := regexp.MustCompile(`\{token:\[A-z0-9]\{64\}}`)
+	return r.ReplaceAllLiteralString(URLPath, param)
+}
+
+// RetrieveAllProposals returns a list of Proposals who maximum count is defined
+// by piapi.ProposalListPageSize. Data returned is queried from Politeia API.
+func RetrieveAllProposals(client *http.Client, APIRootPath, URLParams string) (
+	*pitypes.Proposals, error) {
+	// Constructs the full vetted proposals API URL
+	URLpath := APIRootPath + piapi.RouteAllVetted + URLParams
+	data, err := HandleGetRequests(client, URLpath)
+	if err != nil {
+		return nil, err
+	}
+
+	var publicProposals pitypes.Proposals
+	err = json.Unmarshal(data, &publicProposals)
+	if err != nil || len(publicProposals.Data) == 0 {
+		return nil, err
+	}
+
+	// Constructs the full vote status API URL
+	URLpath = APIRootPath + piapi.RouteAllVoteStatus + URLParams
+	data, err = HandleGetRequests(client, URLpath)
+	if err != nil {
+		return nil, err
+	}
+
+	var votesInfo pitypes.Votes
+	err = json.Unmarshal(data, &votesInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	// Append the votes status information to the respective proposals if it exists.
+	for _, val := range publicProposals.Data {
+		for k := range votesInfo.Data {
+			if val.Censorship.Token == votesInfo.Data[k].Token {
+				val.ProposalVotes = votesInfo.Data[k]
+				// exits the second loop after finding a match.
+				break
+			}
+		}
+	}
+
+	return &publicProposals, nil
+}
+
+// RetrieveProposalByToken returns a single proposal identified by the token
+// hash provided if it exists. Data returned is queried from Politeia API.
+func RetrieveProposalByToken(client *http.Client, APIRootPath, token string) (*pitypes.ProposalInfo, error) {
+	// Constructs the full proposal's URl and fetch is data.
+	proposalRoute := APIRootPath + DropURLRegex(piapi.RouteProposalDetails, token)
+	data, err := HandleGetRequests(client, proposalRoute)
+	if err != nil {
+		return nil, fmt.Errorf("retrieving %s proposal details failed: %v", token, err)
+	}
+
+	var proposal pitypes.ProposalInfo
+	err = json.Unmarshal(data, &proposal)
+	if err != nil {
+		return nil, err
+	}
+
+	// Constructs the full votes status URL and fetch its data.
+	votesStatusRoute := APIRootPath + DropURLRegex(piapi.RouteVoteStatus, token)
+	data, err = HandleGetRequests(client, votesStatusRoute)
+	if err != nil {
+		return nil, fmt.Errorf("retrieving %s proposal vote status failed: %v", token, err)
+	}
+
+	err = json.Unmarshal(data, &proposal.ProposalVotes)
+	if err != nil {
+		return nil, err
+	}
+
+	return &proposal, nil
 }

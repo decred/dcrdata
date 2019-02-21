@@ -73,7 +73,8 @@ func TestMain(m *testing.M) {
 // TestNewProposalsDB tests creating a new storm db and a http client instance.
 func TestNewProposalsDB(t *testing.T) {
 	var count int
-	_API_URL := "https://proposals.decred.org/api/v1"
+	inputURLPath := "https://proposals.decred.org"
+	expectedPath := "https://proposals.decred.org/api/v1"
 	getDbPath := func() string {
 		count++
 		return filepath.Join(tempDir, fmt.Sprintf("test%v.db", count))
@@ -96,7 +97,7 @@ func TestNewProposalsDB(t *testing.T) {
 			errMsg:         "missing politeia API URL",
 		},
 		{
-			politeiaAPIURL: _API_URL,
+			politeiaAPIURL: inputURLPath,
 			dbPath:         "",
 			IsdbInstance:   false,
 			errMsg:         "missing db path",
@@ -108,7 +109,7 @@ func TestNewProposalsDB(t *testing.T) {
 			errMsg:         "missing politeia API URL",
 		},
 		{
-			politeiaAPIURL: _API_URL,
+			politeiaAPIURL: inputURLPath,
 			dbPath:         getDbPath(),
 			IsdbInstance:   true,
 			errMsg:         "",
@@ -129,8 +130,8 @@ func TestNewProposalsDB(t *testing.T) {
 			}
 
 			if data.IsdbInstance && result != nil {
-				if result.APIURLpath != _API_URL {
-					t.Fatalf("expected the API URL to '%v' but found '%v'", result.APIURLpath, _API_URL)
+				if result.APIURLpath != expectedPath {
+					t.Fatalf("expected the API URL to '%v' but found '%v'", result.APIURLpath, expectedPath)
 				}
 
 				if result.client == nil {
@@ -230,17 +231,17 @@ func mockServer() *httptest.Server {
 // mockedPayload defines the complete unmarshalled sing payload returned by the
 // mocked handleGetRequests.
 var mockedPayload = &pitypes.ProposalInfo{
-	ID:            2,
-	Name:          "Change language: PoS Mining to PoS Voting, Stakepool to Voting Service Provider",
-	State:         2,
-	Status:        4,
-	Timestamp:     1539880429,
-	UserID:        "350a4b6c-5cdd-4d87-822a-4900dc3a930c",
-	Username:      "richard-red",
-	PublicKey:     "cd6e57b93f95dd0386d670c7ce42cb0ccd1cd5b997e87a716e9359e20251994e",
-	Signature:     "c0e3285d447fd2acf1f2e1a0c86a71383dfe71b1b01e0068e56e8e7649dadb7aa503a5f99765fc3a24da8716fd5b89f75bb97762e756f15303e96d135a2e7109",
-	NumComments:   19,
-	Files:         []pitypes.AttachmentFile{},
+	ID:          2,
+	Name:        "Change language: PoS Mining to PoS Voting, Stakepool to Voting Service Provider",
+	State:       2,
+	Status:      4,
+	Timestamp:   1539880429,
+	UserID:      "350a4b6c-5cdd-4d87-822a-4900dc3a930c",
+	Username:    "richard-red",
+	PublicKey:   "cd6e57b93f95dd0386d670c7ce42cb0ccd1cd5b997e87a716e9359e20251994e",
+	Signature:   "c0e3285d447fd2acf1f2e1a0c86a71383dfe71b1b01e0068e56e8e7649dadb7aa503a5f99765fc3a24da8716fd5b89f75bb97762e756f15303e96d135a2e7109",
+	NumComments: 19,
+	// Files:         []pitypes.AttachmentFile{},
 	Version:       "1",
 	PublishedDate: 1539898457,
 	Censorship: pitypes.CensorshipRecord{
@@ -248,9 +249,9 @@ var mockedPayload = &pitypes.ProposalInfo{
 		MerkleRoot: "20c9234c50e0dc78d28003fd57995192a16ca73349f5d97be456128984e463fc",
 		Signature:  "d1d44788cdf8d838aad97aa829b2f27f8a32897010d6373c9d3ca1a42820dcafe2615c1904558c6628c5f9165691ead087c0cb2ada023b9aa3f76b6c587ac90e",
 	},
-	VotesStatus: &pitypes.ProposalVotes{
+	ProposalVotes: pitypes.ProposalVotes{
 		Token:      "522652954ea7998f3fca95b9c4ca8907820eb785877dcf7fba92307131818c75",
-		Status:     4,
+		VoteStatus: 4,
 		TotalVotes: 12745,
 		VoteResults: []pitypes.Results{
 			{

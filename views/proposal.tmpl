@@ -53,8 +53,8 @@
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">End Height</td>
                             <td>
                                 <span class="hash break-word  lh1rem">
-                                    {{if .VotesStatus}}
-                                        <a href="/block/{{.VotesStatus.Endheight}}">{{.VotesStatus.Endheight}}</a>
+                                    {{if .Endheight}}
+                                        <a href="/block/{{.Endheight}}">{{.Endheight}}</a>
                                     {{else}}
                                         N/A
                                     {{end}}
@@ -65,8 +65,8 @@
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Vote Status</td>
                             <td>
                                 <span class="hash break-word  lh1rem">
-                                    {{if .VotesStatus}}
-                                        {{with .VotesStatus.Status}}
+                                    {{if .VoteStatus}}
+                                        {{with .VoteStatus}}
                                             {{toTitleCase .String}} ({{.Description}})
                                         {{end}}
                                     {{else}}
@@ -107,8 +107,8 @@
                 </div>
                 <div class="col-lg-4 col-sm-12 d-flex">
                     <table class="">
-                        {{if .VotesStatus}}
-                            {{range $i, $v := .VotesStatus.VoteResults}}
+                        {{if .VoteStatus}}
+                            {{range $i, $v := .VoteResults}}
                                 <tr>
                                     <td class="text-right pr-2 lh1rem vam nowrap xs-w117">{{toTitleCase $v.Option.OptionID}} Votes</td>
                                     <td>
@@ -121,8 +121,8 @@
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Total Votes</td>
                             <td>
                                 <span class="hash break-word  lh1rem">
-                                    {{if .VotesStatus}}
-                                        {{.VotesStatus.TotalVotes}}
+                                    {{if .TotalVotes}}
+                                        {{.TotalVotes}}
                                     {{else}}
                                         N/A
                                     {{end}}
@@ -133,8 +133,8 @@
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Eligible Votes Count</td>
                             <td>
                                 <span class="hash break-word  lh1rem">
-                                    {{if .VotesStatus}}
-                                        {{.VotesStatus.NumOfEligibleVotes}}
+                                    {{if .NumOfEligibleVotes}}
+                                        {{.NumOfEligibleVotes}}
                                     {{else}}
                                         N/A
                                     {{end}}
@@ -145,22 +145,22 @@
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Quorum Percentage</td>
                             <td>
                                 <span class="hash break-word  lh1rem">
-                                    {{if .VotesStatus}}
-                                        {{.VotesStatus.QuorumPercentage}}
+                                    {{if .QuorumPercentage}}
+                                        {{.QuorumPercentage}}
                                     {{else}}
                                         N/A
                                     {{end}}
                                 </span>
                             </td>
                         </tr>
-                        {{if .VotesStatus}}
-                            {{range $i, $v := .VotesStatus.VoteResults}}
+                        {{if .VoteResults}}
+                            {{range $i, $v := .VoteResults}}
                                 {{if eq $v.Option.OptionID "yes"}}
                                     <tr>
                                         <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Actual Percentage</td>
                                         <td>
                                             <span class="hash break-word lh1rem">
-                                                {{toDecimalPlaces (percentage $v.VotesReceived $.Data.VotesStatus.TotalVotes) 2}}
+                                                {{toDecimalPlaces (percentage $v.VotesReceived $.Data.TotalVotes) 2}}
                                             </span>
                                         </td>
                                     </tr>
@@ -171,8 +171,8 @@
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Pass Percentage</td>
                             <td>
                                 <span class="hash break-word  lh1rem">
-                                    {{if .VotesStatus}}
-                                        {{.VotesStatus.PassPercentage}}
+                                    {{if .PassPercentage}}
+                                        {{.PassPercentage}}
                                     {{else}}
                                         N/A
                                     {{end}}
@@ -187,24 +187,22 @@
                         </tr>
                     </table>
                 </div>
-                {{if .VotesStatus}}
-                    {{if gt (len .VotesStatus.VoteResults) 1}}
-                        <div style="margin: auto;" data-controller="proposal">
-                            {{$firstentry := index .VotesStatus.VoteResults 0}}
-                            {{$secondentry := index .VotesStatus.VoteResults 1}}
-                            <canvas
-                                width="400"
-                                height="400"
-                                id="donutgraph"
-                                data-target="proposal.chartdata"
-                                data-firstvotesid="{{toTitleCase $firstentry.Option.OptionID}}"
-                                data-secondvotesid="{{toTitleCase $secondentry.Option.OptionID}}"
-                                data-firstvotescount="{{$firstentry.VotesReceived}}"
-                                data-secondvotescount="{{$secondentry.VotesReceived}}"
-                                chart-options="{tooltipTemplate: '<%=label%>: <%= numeral(value).format('($00[.]00)') %> - <%= numeral(circumference / 6.283).format('(0[.][00]%)') %>'"
-                            ></canvas>
-                        </div>
-                    {{end}}
+                {{if gt (len .VoteResults) 1}}
+                    <div style="margin: auto;" data-controller="proposal">
+                        {{$firstentry := index .VoteResults 0}}
+                        {{$secondentry := index .VoteResults 1}}
+                        <canvas
+                            width="400"
+                            height="400"
+                            id="donutgraph"
+                            data-target="proposal.chartdata"
+                            data-firstvotesid="{{toTitleCase $firstentry.Option.OptionID}}"
+                            data-secondvotesid="{{toTitleCase $secondentry.Option.OptionID}}"
+                            data-firstvotescount="{{$firstentry.VotesReceived}}"
+                            data-secondvotescount="{{$secondentry.VotesReceived}}"
+                            chart-options="{tooltipTemplate: '<%=label%>: <%= numeral(value).format('($00[.]00)') %> - <%= numeral(circumference / 6.283).format('(0[.][00]%)') %>'"
+                        ></canvas>
+                    </div>
                 {{end}}
             </div>
         </div>

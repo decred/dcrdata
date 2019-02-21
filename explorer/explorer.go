@@ -581,13 +581,28 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 		go exp.updateDevFundBalance()
 	}
 
-	// Update the charts data after every five blocks or if no charts data
-	// exists yet. Do not update the charts data if blockchain sync is running.
-	if !exp.AreDBsSyncing() && (newBlockData.Height%5 == 0 || cacheChartsData.Height() == -1) {
-		// This must be done after storing BlockInfo since that provides the
-		// explorer's best block height, which is used by prePopulateChartsData
-		// to decide if an update is needed.
-		go exp.prePopulateChartsData()
+	// Do not run updates if blockchain sync is running.
+	if !exp.AreDBsSyncing() {
+		// Update the charts data after every five blocks or if no charts data
+		// exists yet.
+		if newBlockData.Height%5 == 0 || cacheChartsData.Height() == -1 {
+			// This must be done after storing BlockInfo since that provides the
+			// explorer's best block height, which is used by prePopulateChartsData
+			// to decide if an update is needed.
+			go exp.prePopulateChartsData()
+		}
+
+		// Update the proposals db at intervals of 20 blocks as 5 blocks is too often.
+		// Also to update the Proposal db the politeia API is queried and can be
+		// slow at times.
+		if newBlockData.Height%20 == 0 {
+			go func() {
+				err := exp.proposalsSource.CheckProposalsUpdates()
+				if err != nil {
+					log.Error(err)
+				}
+			}()
+		}
 	}
 
 	// Signal to the websocket hub that a new block was received, but do not
