@@ -67,7 +67,7 @@
                                 <span class="hash break-word  lh1rem">
                                     {{if .VoteStatus}}
                                         {{with .VoteStatus}}
-                                            {{toTitleCase .String}} ({{.Description}})
+                                            {{.ShortDesc}} ({{.LongDesc}})
                                         {{end}}
                                     {{else}}
                                         N/A

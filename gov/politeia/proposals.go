@@ -34,7 +34,7 @@ type ProposalDB struct {
 
 // NewProposalsDB opens an exiting database or creates a new db instance with the
 // provided file name. Returns an initialized instance of proposals DB, http client
-// and the politeia API URL path to be used.
+// and the formatted politeia API URL path to be used.
 func NewProposalsDB(politeiaURL, dbPath string) (*ProposalDB, error) {
 	if politeiaURL == "" {
 		return nil, fmt.Errorf("missing politeia API URL")
@@ -146,11 +146,11 @@ func (db *ProposalDB) AllProposals(offset, rowsCount int) (proposals []*pitypes.
 	db.RLock()
 	defer db.RUnlock()
 
-	// Return the agendas listing starting with the newest.
+	// Return the proposals listing starting with the newest.
 	err = db.dbP.Select().Skip(offset).Limit(rowsCount).Reverse().
 		OrderBy("Timestamp").Find(&proposals)
 	if err != nil {
-		log.Errorf("Failed to fetch data from Agendas DB: %v", err)
+		log.Errorf("Failed to fetch data from Proposals DB: %v", err)
 	}
 
 	totalCount = db.NumProposals
@@ -171,7 +171,7 @@ func (db *ProposalDB) ProposalByID(proposalID int) (proposal *pitypes.ProposalIn
 
 	err = db.dbP.Find("ID", proposalID, &proposals, storm.Limit(1))
 	if err != nil {
-		log.Errorf("Failed to fetch data from Agendas DB: %v", err)
+		log.Errorf("Failed to fetch data from Proposals DB: %v", err)
 		return nil, err
 	}
 
@@ -182,7 +182,8 @@ func (db *ProposalDB) ProposalByID(proposalID int) (proposal *pitypes.ProposalIn
 	return
 }
 
-// CheckProposalsUpdates updates the on chain changes if they exist.
+// CheckProposalsUpdates updates the proposal changes if they exist and updates
+// them to the proposal db.
 func (db *ProposalDB) CheckProposalsUpdates() error {
 	if db == nil || db.dbP == nil {
 		return errDef
@@ -200,8 +201,8 @@ func (db *ProposalDB) CheckProposalsUpdates() error {
 		return err
 	}
 
-	// Retrieve and updates any new proposals created since the last proposals were
-	// stored in the db.
+	// Retrieve and update any new proposals created since the previous proposals
+	// were stored in the db.
 	lastProposal, err := db.lastSavedProposal()
 	if err != nil {
 		return fmt.Errorf("lastSavedProposal failed: %v", err)
@@ -234,7 +235,7 @@ func (db *ProposalDB) lastSavedProposal() (lastP []*pitypes.ProposalInfo, err er
 // are considered to be in progress. Data for the in progress proposals is fetched
 // from Politeia API. From the newly fetched proposals data, db update is only
 // made for the vote statuses without NotAuthorized status out of all the newly
-// statuses fetched.
+// votes statuses fetched.
 func (db *ProposalDB) updateInProgressProposals() (int, error) {
 	// statuses defines a list of vote statuses whose proposals may need an update.
 	statuses := []pitypes.VoteStatusType{

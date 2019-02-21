@@ -7,7 +7,7 @@
         <div class="container main" data-controller="ticketwindow">
             <div class="row justify-content-between">
                 <div class="col-sm-lg-14 col-sm-12 d-flex">
-                    <h4 class="mb-2">Off-Chain Proposals</h4>
+                    <h4 class="mb-2">Proposals</h4>
                 </div>
             </div>
             <div class="mb-1 fs13">
@@ -106,7 +106,7 @@
                             <td class="col-md-2">{{toTitleCase .String}}</td>
                         {{end}}
                         <td class="col-md-3">
-                            {{if .VoteStatus}}{{.VoteStatus}}{{else}}N/A{{end}}
+                            {{if .VoteStatus}}{{with .VoteStatus}}{{.ShortDesc}}{{end}}{{else}}N/A{{end}}
                         </td>
                         <td class="col-md-2">{{timeWithoutDateAndTimeZone .PublishedDate}}</td>
                         <td class="col-md-2">{{timeWithoutDateAndTimeZone .Timestamp}}</td>

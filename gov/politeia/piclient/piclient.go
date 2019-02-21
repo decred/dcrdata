@@ -43,7 +43,7 @@ func DropURLRegex(URLPath, param string) string {
 	return r.ReplaceAllLiteralString(URLPath, param)
 }
 
-// RetrieveAllProposals returns a list of Proposals who maximum count is defined
+// RetrieveAllProposals returns a list of Proposals whose maximum count is defined
 // by piapi.ProposalListPageSize. Data returned is queried from Politeia API.
 func RetrieveAllProposals(client *http.Client, APIRootPath, URLParams string) (
 	*pitypes.Proposals, error) {

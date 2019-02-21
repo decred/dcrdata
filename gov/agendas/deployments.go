@@ -89,7 +89,7 @@ func (db *AgendaDB) Close() error {
 }
 
 // loadAgenda retrieves an agenda corresponding to the specified unique agenda
-// ID, or nil if it does not exist.
+// ID, or returns nil if it does not exist.
 func (db *AgendaDB) loadAgenda(agendaID string) (*AgendaTagged, error) {
 	agenda := new(AgendaTagged)
 	if err := db.sdb.One("ID", agendaID, agenda); err != nil {
