@@ -16,6 +16,9 @@
             <div class="d-flex flex-wrap-reverse align-items-center justify-content-end list-display">
                 {{$oldest := (add .OffsetWindow $windowsCount)}}
                 {{$lastWindow := (add .BestWindow 1)}}
+                {{$dropVal := $lastWindow}}
+                {{if gt $lastWindow 200}}{{$dropVal = 200}}{{end}}
+
                 {{template "listViewRouting" "windows"}}
 
                 <span class="fs12 nowrap text-right">
@@ -33,10 +36,8 @@
                     {{if ge $pendingWindows 30}}<option {{if eq $windowsCount 30}}selected{{end}} value="30">30</option>{{end}}
                     {{if ge $pendingWindows 50}}<option {{if eq $windowsCount 50}}selected{{end}} value="50">50</option>{{end}}
                     {{if ge $pendingWindows 100}}<option {{if eq $windowsCount 100}}selected{{end}} value="100">100</option>{{end}}
-                    {{if eq $lastWindow $windowsCount 20 30 50 100}}{{else}}
-                        <option value="{{$lastWindow}}">{{if gt $lastWindow 400}}400{{else}}{{$lastWindow}}{{end}}</option>
-                    {{end}}
-                    {{if eq $windowsCount 20 30 50 100}}{{else}}<option selected value="{{$windowsCount}}">{{$windowsCount}}</option>{{end}}
+                    {{if eq $dropVal $windowsCount 20 30 50 100}}{{else}}<option value="{{$dropVal}}">{{$dropVal}}</option>{{end}}
+                    {{if eq $windowsCount 20 30 50 100 200}}{{else}}<option selected value="{{$windowsCount}}">{{$windowsCount}}</option>{{end}}
                     </select>
                 </span>
                 <span class="fs12 nowrap text-right">

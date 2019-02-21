@@ -18,6 +18,9 @@
                     {{$lastGrouping := (add .BestGrouping 1)}}
                     {{$lowerCaseVal := (toLowerCase .TimeGrouping)}}
                     {{$pending := (subtract $lastGrouping .Offset)}}
+                    {{$dropVal := $lastGrouping}}
+                    {{if gt $lastGrouping 200}}{{$dropVal = 200}}{{end}}
+
                     {{template "listViewRouting" $lowerCaseVal}}
 
                     <span class="fs12 nowrap text-right">
@@ -34,10 +37,8 @@
                         {{if ge $pending 30}}<option {{if eq $count 30}}selected{{end}} value="30">30</option>{{end}}
                         {{if ge $pending 50}}<option {{if eq $count 50}}selected{{end}} value="50">50</option>{{end}}
                         {{if ge $pending 100}}<option {{if eq $count 100}}selected{{end}} value="100">100</option>{{end}}
-                        {{if eq $lastGrouping $count 20 30 50 100}}{{else}}
-                            <option value="{{$lastGrouping}}">{{if gt $lastGrouping 400}}400{{else}}{{$lastGrouping}}{{end}}</option>
-                        {{end}}
-                        {{if eq $count 20 30 50 100}}{{else}}<option selected value="{{$count}}">{{$count}}</option>{{end}}
+                        {{if eq $dropVal $count 20 30 50 100}}{{else}}<option value="{{$dropVal}}">{{$dropVal}}</option>{{end}}
+                        {{if eq $count 20 30 50 100 200}}{{else}}<option selected value="{{$count}}">{{$count}}</option>{{end}}
                         </select>
                     </span>
                     <span class="fs12 nowrap text-right">
