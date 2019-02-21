@@ -5,7 +5,7 @@
 {{template "html-head" "Decred Blocks List"}}
 <body class="{{ theme }}">
     {{template "navbar" . }}
-    <div class="container main" data-controller="time blocklist">
+    <div class="container main" data-controller="time pagenavigation blocklist">
         <h4>Blocks</h4>
         {{$pendingBlocks := 0}}
         {{if gt (len $.Data) 0}}{{$pendingBlocks = ((index .Data 0).Height)}}{{end}}
@@ -24,10 +24,9 @@
                     <label class="mb-0 mr-1" for="blocksPagesize">Page Size</label>
                     <select
                         id="blocksPagesize"
-                        data-target="blocklist.pagesize"
-                        data-action="change->blocklist#setPageSize"
-                        data-blocklist-initial-offset="{{$pendingBlocks}}"
-                        data-blocklist-offset-key="height"
+                        data-target="pagenavigation.pagesize"
+                        data-action="change->pagenavigation#setPageSize"
+                        data-offset="{{$pendingBlocks}}"
                         class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $blocksCount 20}}disabled{{end}}"
                         {{if lt $blocksCount 20}}disabled="disabled"{{end}}
                     >

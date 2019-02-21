@@ -3,7 +3,7 @@
 <html lang="en">
 
 {{template "html-head" "Decred Windows List"}}
-<body class="{{ theme }}" data-controller="ticketwindow blocklist">
+<body class="{{ theme }}" data-controller="pagenavigation">
     {{template "navbar" . }}
     <div class="container main">
         <h4>Ticket Price Windows</h4><h6>The ticket price and mining difficulty are adjusted every {{$.WindowSize}} blocks on {{toLowerCase .NetName}} (~12 hours).</h6>
@@ -22,8 +22,8 @@
                     <label class="mb-0 mr-1" for="windowsPagesize">Page Size</label>
                     <select
                         name="windows-pagesize"
-                        data-target="ticketwindow.pagesize"
-                        data-action="change->ticketwindow#setPageSize"
+                        data-target="pagenavigation.pagesize"
+                        data-action="change->pagenavigation#setPageSize"
                         data-offset="{{$.OffsetWindow}}"
                         id="windowsPagesize"
                         class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $pendingWindows 20}}disabled{{end}}"
@@ -33,7 +33,9 @@
                     {{if ge $pendingWindows 30}}<option {{if eq $windowsCount 30}}selected{{end}} value="30">30</option>{{end}}
                     {{if ge $pendingWindows 50}}<option {{if eq $windowsCount 50}}selected{{end}} value="50">50</option>{{end}}
                     {{if ge $pendingWindows 100}}<option {{if eq $windowsCount 100}}selected{{end}} value="100">100</option>{{end}}
-                    {{if eq $lastWindow $windowsCount 20 30 50 100}}{{else}}<option value="{{$lastWindow}}">{{$lastWindow}}</option>{{end}}
+                    {{if eq $lastWindow $windowsCount 20 30 50 100}}{{else}}
+                        <option value="{{$lastWindow}}">{{if gt $lastWindow 400}}400{{else}}{{$lastWindow}}{{end}}</option>
+                    {{end}}
                     {{if eq $windowsCount 20 30 50 100}}{{else}}<option selected value="{{$windowsCount}}">{{$windowsCount}}</option>{{end}}
                     </select>
                 </span>
