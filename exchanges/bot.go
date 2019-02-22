@@ -7,8 +7,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -26,6 +28,8 @@ const (
 	DefaultDataExpiry = "20m"
 	// DefaultRequestExpiry : Any data older than RequestExpiry will be discarded.
 	DefaultRequestExpiry = "60m"
+
+	defaultDCRRatesPort = "7778"
 )
 
 var grpcClient dcrrates.DCRRatesClient
@@ -222,6 +226,19 @@ func NewExchangeBot(config *ExchangeBotConfig) (*ExchangeBot, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Failed to load TLS certificate: %v", err)
 		}
+		host, port, err := net.SplitHostPort(config.MasterBot)
+		if err != nil {
+			if !strings.Contains(err.Error(), "missing port in address") {
+				return nil, fmt.Errorf("Unable to parse master bot address %s: %v", config.MasterBot, err)
+			}
+			port = defaultDCRRatesPort
+		}
+		if host == "" {
+			// For addresses passed in form :[port], quietly substitute localhost. A
+			// hostname is required for the gRPC TLS connection.
+			host = "localhost"
+		}
+		config.MasterBot = host + ":" + port
 	}
 
 	isDisabled := func(token string) bool {

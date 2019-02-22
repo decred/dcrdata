@@ -65,9 +65,9 @@ var (
 	defaultPGDBName                     = "dcrdata"
 	defaultPGQueryTimeout time.Duration = time.Hour
 
-	defaultExchangeIndex       = "USD"
-	defaultDisabledExchanges   = "huobi,dragonex"
-	defaultRateCertFile = filepath.Join(defaultHomeDir, "rpc.cert")
+	defaultExchangeIndex     = "USD"
+	defaultDisabledExchanges = "huobi,dragonex"
+	defaultRateCertFile      = filepath.Join(defaultHomeDir, "rpc.cert")
 
 	maxSyncStatusLimit = 5000
 )

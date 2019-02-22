@@ -448,7 +448,7 @@ the `dcrdata` executable.
 
 ### Hiding the PostgreSQL db Configuration settings.
 
-By default postgres configuration settings are logged on system start up. 
+By default postgres configuration settings are logged on system start up.
 `--hidepgconfig` flag blocks the logging on dcrdata start up.
 
 ### Running the Web Interface During Synchronization

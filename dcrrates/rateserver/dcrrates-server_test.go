@@ -12,13 +12,13 @@ import (
 
 func TestAddDeleteClient(t *testing.T) {
 	server := NewRateServer("", nil)
-	_, sid := server.AddClient(nil, nil)
+	_, sid := server.addClient(nil, nil)
 	if len(server.clients) != 1 {
-		t.Fatalf("client length after AddClient: %d, expecting 1", len(server.clients))
+		t.Fatalf("client length after addClient: %d, expecting 1", len(server.clients))
 	}
-	server.DeleteClient(sid)
+	server.deleteClient(sid)
 	if len(server.clients) != 0 {
-		t.Fatalf("client length after DeleteClient %d, expecting 0", len(server.clients))
+		t.Fatalf("client length after deleteClient %d, expecting 0", len(server.clients))
 	}
 }
 
@@ -50,9 +50,21 @@ func (w certWriterStub) WriteCertificate(certPath string, cert []byte) error {
 	return nil
 }
 
+// TestDefaultAltDNSNames ensures that there are no additional hostnames added
+// by default during the configuration load phase.
+func TestDefaultAltDNSNames(t *testing.T) {
+	cfg, err := loadConfig()
+	if err != nil {
+		t.Fatalf("Failed to load dcrd config: %s", err)
+	}
+	if len(cfg.AltDNSNames) != 0 {
+		t.Fatalf("Invalid default value for altdnsnames: %s", cfg.AltDNSNames)
+	}
+}
+
 func TestGenerateRPCKeyPair(t *testing.T) {
 	writer := certWriterStub{lengths: make(map[string]int)}
-	_, err := generateRPCKeyPair("./cert", "./key", writer)
+	_, err := generateRPCKeyPair("./cert", "./key", []string(nil), writer)
 	if err != nil {
 		t.Fatalf("Error generating TLS certificate: %v", err)
 	}

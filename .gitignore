@@ -49,5 +49,5 @@ testutil/apiload/results/
 testutil/apiload/apiload.conf
 testutil/apiload/apiload
 pubsub/democlient/democlient
-dcrrates/server/server
-dcrrates/server/logs/
+dcrrates/rateserver/rateserver
+dcrrates/rateserver/logs/

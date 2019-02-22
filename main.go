@@ -484,8 +484,8 @@ func _main(ctx context.Context) error {
 	var xcBot *exchanges.ExchangeBot
 	if cfg.EnableExchangeBot {
 		botCfg := exchanges.ExchangeBotConfig{
-			BtcIndex:  cfg.ExchangeCurrency,
-			MasterBot: cfg.RateMaster,
+			BtcIndex:       cfg.ExchangeCurrency,
+			MasterBot:      cfg.RateMaster,
 			MasterCertFile: cfg.RateCertificate,
 		}
 		if cfg.DisabledExchanges != "" {

@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrdata/v4/dcrrates"
 	"github.com/decred/slog"
 )
 
@@ -45,8 +45,8 @@ func testExchanges(asSlave bool, t *testing.T) {
 	config.Disabled = make([]string, 0)
 	config.Indent = true
 	if asSlave {
-		config.MasterBot = "127.0.0.1:7778"
-		config.MasterCertFile = filepath.Join(dcrutil.AppDataDir("dcrdata", false), "rpc.cert")
+		config.MasterBot = ":7778"
+		config.MasterCertFile = filepath.Join(dcrrates.DefaultAppDirectory, dcrrates.DefaultCertName)
 	} else {
 		config.DataExpiry = "2m"
 		config.RequestExpiry = "4m"

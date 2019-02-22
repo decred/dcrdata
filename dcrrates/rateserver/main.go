@@ -28,13 +28,19 @@ func main() {
 		return
 	}
 
-	inititializeLogging(filepath.Join(cfg.LogPath, "dcrrate-server.log"))
+	err = os.MkdirAll(cfg.AppDirectory, 0700)
+	if err != nil {
+		fmt.Printf("Unable to create application directory: %v", err)
+		return
+	}
+
+	initializeLogging(filepath.Join(cfg.LogPath, "rateserver.log"), cfg.LogLevel)
 
 	if cfg.CertificatePath == "" || cfg.KeyPath == "" {
 		log.Errorf("TLS certificate and key files must be provided")
 		return
 	}
-	creds, err := openRPCKeyPair(cfg.CertificatePath, cfg.KeyPath)
+	creds, err := openRPCKeyPair(cfg)
 	if err != nil {
 		log.Errorf("TLS certificate error: %v", err)
 		return

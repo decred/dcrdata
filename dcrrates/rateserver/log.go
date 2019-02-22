@@ -30,12 +30,12 @@ func (logWriter) Write(p []byte) (n int, err error) {
 	return logRotator.Write(p)
 }
 
-// inititializeLogging initializes the logging rotater to write logs to logFile
+// initializeLogging initializes the logging rotater to write logs to logFile
 // and create roll files in the same directory.  It must be called before the
 // package-global log rotater variables are used.
-func inititializeLogging(logFile string) {
+func initializeLogging(logFile, logLevel string) {
 	log = backendLog.Logger("SRVR")
-	exchanges.UseLogger(backendLog.Logger("XBOT"))
+	exchanges.UseLogger(xcLogger)
 	logDir, _ := filepath.Split(logFile)
 	err := os.MkdirAll(logDir, 0700)
 	if err != nil {
@@ -48,4 +48,13 @@ func inititializeLogging(logFile string) {
 		os.Exit(1)
 	}
 	logRotator = r
+	if logLevel != "" {
+		level, ok := slog.LevelFromString(logLevel)
+		if ok {
+			log.SetLevel(level)
+			xcLogger.SetLevel(level)
+		} else {
+			log.Infof("Unable to assign logging level=%s. Falling back to level=info", logLevel)
+		}
+	}
 }

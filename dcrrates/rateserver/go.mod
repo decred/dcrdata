@@ -1,4 +1,4 @@
-module github.com/decred/dcrdata/dcrrates/server
+module github.com/decred/dcrdata/dcrrates/rateserver
 
 replace github.com/decred/dcrdata/v4 => ../..
 
@@ -9,6 +9,5 @@ require (
 	github.com/decred/dcrdata/v4 v4.0.0-20190211084703-a009a10db389
 	github.com/decred/slog v1.0.0
 	github.com/jrick/logrotate v1.0.0
-	google.golang.org/genproto v0.0.0-20190201180003-4b09977fb922 // indirect
 	google.golang.org/grpc v1.18.0
 )

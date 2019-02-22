@@ -73,13 +73,23 @@ func (server *RateServer) SubscribeExchanges(hello *dcrrates.ExchangeSubscriptio
 // It waits for the client contexts Done channel to close and deletes the client
 // from the RateServer.clients map.
 func (server *RateServer) ReallySubscribeExchanges(hello *dcrrates.ExchangeSubscription, stream GRPCStream) (err error) {
-	// For now, require the ExhcnageBot clients to have the same base currency.
+	// For now, require the ExchangeBot clients to have the same base currency.
 	// ToDo: Allow any index.
 	if hello.BtcIndex != server.btcIndex {
 		return fmt.Errorf("Exchange subscription has wrong BTC index. Given: %s, Required: %s", hello.BtcIndex, server.btcIndex)
 	}
 	// Save the client for use in the main loop.
-	client, sid := server.AddClient(stream, hello)
+	client, sid := server.addClient(stream, hello)
+
+	// Get the address for an Infof. Seems like peerInfo is always found, but
+	// am checking anyway.
+	peerInfo, peerFound := grpcPeer.FromContext(client.Stream().Context())
+	var clientAddr string
+	if peerFound {
+		clientAddr = peerInfo.Addr.String()
+		log.Infof("Client has connected from %s", clientAddr)
+	}
+
 	state := server.xcBot.State()
 	// Send Decred exchanges.
 	err = sendStateList(client, state.DcrBtc)
@@ -88,31 +98,28 @@ func (server *RateServer) ReallySubscribeExchanges(hello *dcrrates.ExchangeSubsc
 	}
 	// Send Bitcoin-fiat indices.
 	for token := range state.FiatIndices {
-		client.SendExchangeUpdate(&dcrrates.ExchangeRateUpdate{
+		err = client.SendExchangeUpdate(&dcrrates.ExchangeRateUpdate{
 			Token:   token,
 			Indices: server.xcBot.Indices(token),
 		})
-	}
-
-	// Get the address for an Infof. Seems like peerInfo is always found, but
-	// am checking anyway.
-	peerInfo, peerFound := grpcPeer.FromContext(client.Stream().Context())
-	if peerFound {
-		log.Infof("Client has connected from %s", peerInfo.Addr.String())
+		if err != nil {
+			log.Errorf("Error encountered while sending fiat indices to client at %s: %v", clientAddr, err)
+			// Assuming the Done channel will be closed on error, no further iteration
+			// is necessary.
+			break
+		}
 	}
 
 	// Keep stream alive.
 	<-client.Stream().Context().Done()
 
-	server.DeleteClient(sid)
-	if peerFound {
-		log.Infof("Client at %s has disconnected", peerInfo.Addr.String())
-	}
+	server.deleteClient(sid)
+	log.Infof("Client at %s has disconnected", clientAddr)
 	return
 }
 
-// AddClient adds a client to the map and advance the streamCounter.
-func (server *RateServer) AddClient(stream GRPCStream, hello *dcrrates.ExchangeSubscription) (RateClient, StreamID) {
+// addClient adds a client to the map and advance the streamCounter.
+func (server *RateServer) addClient(stream GRPCStream, hello *dcrrates.ExchangeSubscription) (RateClient, StreamID) {
 	server.clientLock.Lock()
 	defer server.clientLock.Unlock()
 	client := NewRateClient(stream, hello.GetExchanges())
@@ -121,14 +128,14 @@ func (server *RateServer) AddClient(stream GRPCStream, hello *dcrrates.ExchangeS
 	return client, streamCounter
 }
 
-// DeleteClient deletes the client from the map.
-func (server *RateServer) DeleteClient(sid StreamID) {
+// deleteClient deletes the client from the map.
+func (server *RateServer) deleteClient(sid StreamID) {
 	server.clientLock.Lock()
 	defer server.clientLock.Unlock()
 	delete(server.clients, sid)
 }
 
-// A rateClient stores a cient's gRPC stream and a list of exchange tokens
+// A rateClient stores a client's gRPC stream and a list of exchange tokens
 // to which they are subscribed. rateClient satisfies the RateClient interface.
 type rateClient struct {
 	stream    GRPCStream
