@@ -18,14 +18,12 @@ export default class extends Controller {
     })
   }
   setConfirmationText (el, confirmations) {
-    if (!el.dataset.formatted) {
-      el.textContent = confirmations
-      return
-    }
     if (confirmations > 0) {
-      el.textContent = '(' + confirmations + (confirmations > 1 ? ' confirmations' : ' confirmation') + ')'
+      el.textContent = el.dataset.yes.replace('#', confirmations).replace('@', confirmations > 1 ? 's' : '')
+      el.classList.add('confirmed')
     } else {
-      el.textContent = '(unconfirmed)'
+      el.textContent = el.dataset.no
+      el.classList.remove('confirmed')
     }
   }
   refreshConfirmations (expHeight) {

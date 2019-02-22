@@ -606,14 +606,30 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		data.MainChain = blockStatus.IsMainchain
 	}
 
+	xcState := exp.getExchangeState()
+	var convertedSent float64
+	var btcIndex string
+	var hasConversion bool
+	if xcState != nil && time.Since(data.BlockTime.T) < time.Hour {
+		convertedSent = xcState.Price * data.TotalSent
+		btcIndex = xcState.BtcIndex
+		hasConversion = true
+	}
+
 	pageData := struct {
 		*CommonPageData
-		Data    *types.BlockInfo
-		NetName string
+		Data          *types.BlockInfo
+		NetName       string
+		HasConversion bool
+		ConvertedSent float64
+		BtcIndex      string
 	}{
 		CommonPageData: exp.commonData(),
 		Data:           data,
 		NetName:        exp.NetName,
+		HasConversion:  hasConversion,
+		ConvertedSent:  convertedSent,
+		BtcIndex:       btcIndex,
 	}
 	str, err := exp.templates.execTemplateToString("block", pageData)
 	if err != nil {
