@@ -30,9 +30,13 @@ export default class extends Controller {
   }
 
   setListView () {
-    var controller = this
-    var url = Url(window.location.href)
-    url.set('pathname', controller.listviewTarget.selectedOptions[0].value)
+    var url = Url(window.location.href, true)
+    var newPeriod = this.listviewTarget.selectedOptions[0].value
+    if (url.pathname !== newPeriod) {
+      delete url.query.offset
+      delete url.query.rows
+    }
+    url.set('pathname', newPeriod)
     Turbolinks.visit(url.href)
   }
 
