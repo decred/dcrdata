@@ -102,9 +102,7 @@ func (db *AgendaDB) loadAgenda(agendaID string) (*AgendaTagged, error) {
 // agendasForVoteVersion fetches the agendas using the vote versions provided.
 func agendasForVoteVersion(ver uint32, client DeploymentSource) (agendas []AgendaTagged) {
 	voteInfo, err := client.GetVoteInfo(ver)
-	if err != nil {
-		log.Errorf("Fetching Agendas by vote version failed: %v", err)
-	} else {
+	if err == nil {
 		for i := range voteInfo.Agendas {
 			v := &voteInfo.Agendas[i]
 			agendas = append(agendas, AgendaTagged{
@@ -126,7 +124,7 @@ func agendasForVoteVersion(ver uint32, client DeploymentSource) (agendas []Agend
 // IsAgendasAvailable checks for the availabily of agendas in the db by vote version.
 func (db *AgendaDB) isAgendasAvailable(version uint32) bool {
 	agenda := make([]AgendaTagged, 0)
-	err := db.sdb.Find("VoteVersion", version, &agenda)
+	err := db.sdb.Find("VoteVersion", version, &agenda, storm.Limit(1))
 	if len(agenda) == 0 || err != nil {
 		return false
 	}
@@ -134,16 +132,19 @@ func (db *AgendaDB) isAgendasAvailable(version uint32) bool {
 	return true
 }
 
-// updatedb used when needed to keep the saved db upto date.
+// updatedb used when needed to keep the saved db up-to-date.
 func (db *AgendaDB) updatedb(voteVersion uint32, client DeploymentSource) int {
 	var agendas []AgendaTagged
-	for agendasForVoteVersion(voteVersion, client) != nil {
+	for {
 		taggedAgendas := agendasForVoteVersion(voteVersion, client)
 		if len(taggedAgendas) > 0 {
 			agendas = append(agendas, taggedAgendas...)
 			voteVersion++
+		} else {
+			break
 		}
 	}
+
 	for i := range agendas {
 		err := db.storeAgenda(&agendas[i])
 		if err != nil {

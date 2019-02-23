@@ -7,9 +7,11 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -59,6 +61,7 @@ var (
 	defaultDBFileName        = "dcrdata.sqlt.db"
 	defaultAgendasDBFileName = "agendas.db"
 	defaultProposalsFileName = "proposals.db"
+	defaultPoliteiaAPIURl    = "https://proposals.decred.org"
 
 	defaultPGHost                       = "127.0.0.1:5432"
 	defaultPGUser                       = "dcrdata"
@@ -96,7 +99,7 @@ type config struct {
 	IndentJSON         string `long:"indentjson" description:"String for JSON indentation (default is \"   \"), when indentation is requested via URL query."`
 	UseRealIP          bool   `long:"userealip" description:"Use the RealIP middleware from the pressly/chi/middleware package to get the client's real IP from the X-Forwarded-For or X-Real-IP headers, in that order." env:"DCRDATA_USE_REAL_IP"`
 	CacheControlMaxAge int    `long:"cachecontrol-maxage" description:"Set CacheControl in the HTTP response header to a value in seconds for clients to cache the response. This applies only to FileServer routes." env:"DCRDATA_MAX_CACHE_AGE"`
-	PoliteiaAPIURL     string `long:"politeiaurl" description:"Defines the root API politeia URL"`
+	PoliteiaAPIURL     string `long:"politeiaurl" description:"Defines the root API politeia URL (defaults to https://proposals.decred.org)."`
 
 	// Data I/O
 	MempoolMinInterval int    `long:"mp-min-interval" description:"The minimum time in seconds between mempool reports, regarless of number of new tickets seen." env:"DCRDATA_MEMPOOL_MIN_INTERVAL"`
@@ -172,6 +175,7 @@ var (
 		ExchangeCurrency:   defaultExchangeIndex,
 		DisabledExchanges:  defaultDisabledExchanges,
 		RateCertificate:    defaultRateCertFile,
+		PoliteiaAPIURL:     defaultPoliteiaAPIURl,
 	}
 )
 
@@ -563,6 +567,16 @@ func loadConfig() (*config, error) {
 		parser.WriteHelp(os.Stderr)
 		return loadConfigError(err)
 	}
+
+	// Validates if the expected format of the url was set. It also drops any
+	// unnecessary parts of the URL.
+	urlPath, err := retrieveRootPath(cfg.PoliteiaAPIURL)
+	if err != nil {
+		return loadConfigError(err)
+	}
+
+	cfg.PoliteiaAPIURL = urlPath
+
 	return &cfg, nil
 }
 
@@ -578,4 +592,25 @@ func netName(chainParams *netparams.Params) string {
 		log.Warnf("Unknown network: %s", chainParams.Name)
 	}
 	return chainParams.Name
+}
+
+// retrieveRootPath drops all extra characters that are not part of the root path.
+// i.e. with input http://www.mydomain.com/xxxxx, http://www.mydomain.com should
+// be returned.
+func retrieveRootPath(path string) (string, error) {
+	r, err := url.Parse(path)
+	if err != nil {
+		return "", fmt.Errorf("invalid '%s' url used. error: %v", path, err)
+	}
+
+	// if the url scheme was not found regex expression can be used to eliminate
+	// the unwanted part.
+	if r.Scheme == "" {
+		exp := regexp.MustCompile(`([\/?]\S*)`)
+		return exp.ReplaceAllString(path, ""), nil
+	}
+
+	r.Path = ""     // Drop any set path and the leading slash
+	r.RawQuery = "" // Drop any set Query
+	return r.String(), nil
 }

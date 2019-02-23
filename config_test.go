@@ -233,3 +233,33 @@ func TestDefaultConfigTestNetWithEnvAndBadValue(t *testing.T) {
 		t.Errorf("Invalid boolean value for DCRDATA_USE_TESTNET did not cause an error.")
 	}
 }
+
+func TestRetrieveRootPath(t *testing.T) {
+	type testData struct {
+		RawURL   string
+		FinalURL string
+	}
+
+	td := []testData{
+		{"mydomain.com/", "mydomain.com"},
+		{"mydomain.com?id=1", "mydomain.com"},
+		{"192.168.10.12/xxxxx", "192.168.10.12"},
+		{"mydomain.com/xxxxx?id=1", "mydomain.com"},
+		{"www.mydomain.com/xxxxx", "www.mydomain.com"},
+		{"http://www.mydomain.com/xxxxx", "http://www.mydomain.com"},
+		{"https://www.mydomain.com/xxxxx", "https://www.mydomain.com"},
+		{"https://www.mydomain.com/xxxxx?id=1", "https://www.mydomain.com"},
+	}
+
+	for _, val := range td {
+		expected, err := retrieveRootPath(val.RawURL)
+		if err != nil {
+			t.Fatalf("expected no error but found: %v", err)
+		}
+
+		if expected != val.FinalURL {
+			t.Fatalf("expected the returned url to be '%s' but found '%s'",
+				expected, val.FinalURL)
+		}
+	}
+}

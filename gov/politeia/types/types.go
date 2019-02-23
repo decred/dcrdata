@@ -7,7 +7,8 @@ import piapi "github.com/decred/politeia/politeiawww/api/v1"
 
 // ProposalInfo holds the proposal details as document here
 // https://github.com/decred/politeia/blob/master/politeiawww/api/v1/api.md#proposal.
-// It also holds the votes status details.
+// It also holds the votes status details. The ID field is auto incremented by the
+// db.
 type ProposalInfo struct {
 	ID              int                `json:"id" storm:"id,increment"`
 	Name            string             `json:"name"`
@@ -37,7 +38,7 @@ type Proposals struct {
 // CensorshipRecord is an entry that was created when the proposal was submitted.
 // https://github.com/decred/politeia/blob/master/politeiawww/api/v1/api.md#censorship-record
 type CensorshipRecord struct {
-	Token      string `json:"token"`
+	Token      string `json:"token" storm:"unique"`
 	MerkleRoot string `json:"merkle"`
 	Signature  string `json:"signature"`
 }
@@ -90,24 +91,12 @@ func (p ProposalStatusType) String() string {
 	return piapi.PropStatus[piapi.PropStatusT(p)]
 }
 
-// ProposalStatusFrmStr converts the string into ProposalStatusType value.
-func ProposalStatusFrmStr(val string) ProposalStatusType {
-	for key, status := range piapi.PropStatus {
-		if status == val {
-			return ProposalStatusType(key)
-		}
-	}
-
-	// returns invalid proposal status as the default.
-	return ProposalStatusType(piapi.PropStatusInvalid)
-}
-
 // VoteStatusType defines the various vote statuses available as referenced in
 // https://github.com/decred/politeia/blob/master/politeiawww/api/v1/v1.go
 type VoteStatusType piapi.PropVoteStatusT
 
-// shorterDesc maps the short description to there respective vote status type.
-var shorterDesc = map[piapi.PropVoteStatusT]string{
+// ShorterDesc maps the short description to there respective vote status type.
+var ShorterDesc = map[piapi.PropVoteStatusT]string{
 	piapi.PropVoteStatusInvalid:       "Invalid",
 	piapi.PropVoteStatusNotAuthorized: "Not Authorized",
 	piapi.PropVoteStatusAuthorized:    "Authorized",
@@ -118,23 +107,12 @@ var shorterDesc = map[piapi.PropVoteStatusT]string{
 
 // ShortDesc returns the shorter vote status description.
 func (s VoteStatusType) ShortDesc() string {
-	return shorterDesc[piapi.PropVoteStatusT(s)]
+	return ShorterDesc[piapi.PropVoteStatusT(s)]
 }
 
 // LongDesc returns the long vote status description.
 func (s VoteStatusType) LongDesc() string {
 	return piapi.PropVoteStatus[piapi.PropVoteStatusT(s)]
-}
-
-// VoteStatusTypeFromStr string version of the status to VoteStatusType.
-func VoteStatusTypeFromStr(val string) VoteStatusType {
-	for key, status := range piapi.PropVoteStatus {
-		if status == val {
-			return VoteStatusType(key)
-		}
-	}
-	// Invalid votes status is returned as the default..
-	return VoteStatusType(piapi.PropVoteStatusInvalid)
 }
 
 // ProposalStateType defines the proposal state entry.
@@ -184,4 +162,18 @@ func ProposalStateFromStr(val string) ProposalStateType {
 	default:
 		return UnknownState
 	}
+}
+
+// VotesStatuses returns the ShorterDesc map contents exclusive of Invalid and
+// Doesn't exist statuses.
+func VotesStatuses() map[VoteStatusType]string {
+	m := make(map[VoteStatusType]string)
+	for k, val := range ShorterDesc {
+		if k == piapi.PropVoteStatusInvalid ||
+			k == piapi.PropVoteStatusDoesntExist {
+			continue
+		}
+		m[VoteStatusType(k)] = val
+	}
+	return m
 }

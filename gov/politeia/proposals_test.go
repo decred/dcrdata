@@ -341,6 +341,29 @@ func TestStuff(t *testing.T) {
 		}
 	})
 
+	// Testing proposals Retrieval by vote status
+	t.Run("Test_AllProposals_By_VoteStatus", func(t *testing.T) {
+		offset := 0
+		limit := 10
+		voteStatus := 4 // Status "Finished".
+		proposals, count, err := newDBInstance.AllProposals(offset, limit, voteStatus)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(proposals) != 1 {
+			t.Fatalf("expected to find one proposal but found %d", len(proposals))
+		}
+
+		if count != 2 {
+			t.Fatalf("expected to find count equal to 2 but found %d", count)
+		}
+
+		if !reflect.DeepEqual(proposals[0], mockedPayload) {
+			t.Fatal("expected the Second Proposal to match the retrieved but it did not")
+		}
+	})
+
 	// Testing proposal retrieval by ID
 	t.Run("Test_ProposalByID", func(t *testing.T) {
 		proposal, err := newDBInstance.ProposalByID(1)

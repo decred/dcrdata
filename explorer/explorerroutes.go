@@ -1811,7 +1811,20 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 	// Ignore the error if it ever happens.
 	offset, _ := strconv.ParseUint(r.URL.Query().Get("offset"), 10, 64)
 
-	proposals, count, err := exp.proposalsSource.AllProposals(int(offset), int(rowsCount))
+	var count int
+	var proposals []*pitypes.ProposalInfo
+
+	// Check if filter by specific votes status was passed a query parameter.
+	// Ignore the error message if it occurs.
+	filterBy, _ := strconv.Atoi(r.URL.Query().Get("byvotestatus"))
+	if filterBy > 0 {
+		proposals, count, err = exp.proposalsSource.AllProposals(int(offset),
+			int(rowsCount), filterBy)
+	} else {
+		proposals, count, err = exp.proposalsSource.AllProposals(int(offset),
+			int(rowsCount))
+	}
+
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
@@ -1820,17 +1833,21 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 
 	str, err := exp.templates.execTemplateToString("proposals", struct {
 		*CommonPageData
-		Proposals   []*pitypes.ProposalInfo
-		Offset      int64
-		Limit       int64
-		NetName     string
-		TotalCount  int64
-		PoliteiaURL string
+		Proposals     []*pitypes.ProposalInfo
+		VotesStatus   map[pitypes.VoteStatusType]string
+		VStatusFilter int
+		Offset        int64
+		Limit         int64
+		NetName       string
+		TotalCount    int64
+		PoliteiaURL   string
 	}{
 		CommonPageData: exp.commonData(),
 		Proposals:      proposals,
+		VotesStatus:    pitypes.VotesStatuses(),
 		Offset:         int64(offset),
 		Limit:          int64(rowsCount),
+		VStatusFilter:  filterBy,
 		TotalCount:     int64(count),
 		NetName:        exp.NetName,
 		PoliteiaURL:    exp.politeiaAPIURL,

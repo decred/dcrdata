@@ -67,7 +67,8 @@
                                 <span class="hash break-word  lh1rem">
                                     {{if .VoteStatus}}
                                         {{with .VoteStatus}}
-                                            {{.ShortDesc}} ({{.LongDesc}})
+                                            {{.ShortDesc}}
+                                            <span class="hash break-word lh1rem position-relative d-inline-block" data-tooltip="{{.LongDesc}}">
                                         {{end}}
                                     {{else}}
                                         N/A
@@ -142,11 +143,11 @@
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Quorum Percentage</td>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Quorum</td>
                             <td>
                                 <span class="hash break-word  lh1rem">
                                     {{if .QuorumPercentage}}
-                                        {{.QuorumPercentage}}
+                                        {{.QuorumPercentage}}%
                                     {{else}}
                                         N/A
                                     {{end}}
@@ -157,10 +158,10 @@
                             {{range $i, $v := .VoteResults}}
                                 {{if eq $v.Option.OptionID "yes"}}
                                     <tr>
-                                        <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Actual Percentage</td>
+                                        <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Actual</td>
                                         <td>
                                             <span class="hash break-word lh1rem">
-                                                {{toDecimalPlaces (percentage $v.VotesReceived $.Data.TotalVotes) 2}}
+                                                {{toDecimalPlaces (percentage $v.VotesReceived $.Data.TotalVotes) 2}}%
                                             </span>
                                         </td>
                                     </tr>
@@ -168,11 +169,11 @@
                             {{end}}
                         {{end}}
                          <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Pass Percentage</td>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Pass</td>
                             <td>
                                 <span class="hash break-word  lh1rem">
                                     {{if .PassPercentage}}
-                                        {{.PassPercentage}}
+                                        {{.PassPercentage}}%
                                     {{else}}
                                         N/A
                                     {{end}}

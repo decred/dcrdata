@@ -499,7 +499,7 @@ func _main(ctx context.Context) error {
 		}
 	}
 
-	// It creates a new or loads an existing agendas db instance that helps to
+	// Creates a new or loads an existing agendas db instance that helps to
 	// store and retrieves agendas data. Agendas votes are On-Chain
 	// transactions that appear in the decred blockchain.
 	agendasInstance, err := agendas.NewAgendasDB(filepath.Join(cfg.DataDir,
@@ -511,12 +511,12 @@ func _main(ctx context.Context) error {
 	// Confirm if dcrdClient implements agendas.DeploymentSource interface.
 	var _ agendas.DeploymentSource = dcrdClient
 
-	// Retrieve updates blockchain deployment updates and adds them to the agendas db.
+	// Retrieves blockchain deployment updates and adds them to the agendas db.
 	if err = agendasInstance.CheckAgendasUpdates(dcrdClient); err != nil {
 		return fmt.Errorf("updating agendas db failed: %v", err)
 	}
 
-	// It creates a new or loads an existing proposals db instance that helps to
+	// Creates a new or loads an existing proposals db instance that helps to
 	// store and retrieve proposals data. Proposals votes is Off-Chain
 	// data stored in github repositories away from the decred blockchain. It also
 	// creates a new http client needed to query Politeia API endpoints.
@@ -531,7 +531,7 @@ func _main(ctx context.Context) error {
 		return fmt.Errorf("updating proposals db failed: %v", err)
 	}
 
-	// Create the explorer system. cfg.PoliteiaAPIURL is the Politeia API URL.
+	// Create the explorer system.
 	explore := explorer.New(baseDB, auxDB, cfg.UseRealIP, version.Version(),
 		!cfg.NoDevPrefetch, "views", xcBot, agendasInstance, proposalsInstance,
 		cfg.PoliteiaAPIURL)

@@ -7,12 +7,29 @@
         <div class="container main" data-controller="ticketwindow">
             <div class="row justify-content-between">
                 <div class="col-sm-lg-14 col-sm-12 d-flex">
-                    <h4 class="mb-2">Proposals</h4>
+                    <h4 class="mb-2">Politeia Proposals</h4>
                 </div>
             </div>
             <div class="mb-1 fs13">
-                <h6>This is data from <a href="{{.PoliteiaURL}}">Politeia</a> that is stored away from the decred blockchain in github repositories.</h6>
+                <h6><a href="{{.PoliteiaURL}}">Politeia</a> is a Decred's blockchain-anchored proposal system used for Decred's operational initiatives that don't affect consensus.</h6>
                 {{if not .Proposals }}
+                    {{block  "voteStatusWidget" .}}
+                        <div class="fs12 nowrap text-left" style="margin:auto auto auto 0px;">
+                            <label class="mb-0 mr-1">Vote Status</label>
+                            <select
+                                id="votestatus"
+                                class="form-control-sm mb-2 mr-sm-2 mb-sm-0"
+                                data-target="ticketwindow.votestatus"
+                                data-action="change->ticketwindow#setFilterbyVoteStatus"
+                            >
+                                <option value="all">All</option>
+                                {{range $k, $v := .VotesStatus}}
+                                    <option {{if eq $k $.VStatusFilter}}selected{{end}} value="{{$k}}">{{$v}}</option>
+                                {{end}}
+                            </select>
+                        </div>
+                    {{end}}
+
                     <table class="table table-sm striped">
                         <tr>
                             <td>No Proposal found for {{ .NetName }}</td>
@@ -22,6 +39,8 @@
 
                 {{block "proposalsPagination" .}}
                     <div class="d-flex flex-wrap-reverse align-items-center justify-content-end list-display mb-1 fs13">
+                        {{template  "voteStatusWidget" .}}
+
                         {{$count := (int64 (len .Proposals))}}
                         {{$oldest := (add .Offset $count)}}
                         {{$pending := (subtract $.TotalCount .Offset)}}

@@ -137,7 +137,8 @@ func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
 }
 
 // AllProposals fetches all the proposals data saved to the db.
-func (db *ProposalDB) AllProposals(offset, rowsCount int) (proposals []*pitypes.ProposalInfo,
+func (db *ProposalDB) AllProposals(offset, rowsCount int,
+	filterByVoteStatus ...int) (proposals []*pitypes.ProposalInfo,
 	totalCount int, err error) {
 	if db == nil || db.dbP == nil {
 		return nil, 0, errDef
@@ -146,11 +147,21 @@ func (db *ProposalDB) AllProposals(offset, rowsCount int) (proposals []*pitypes.
 	db.RLock()
 	defer db.RUnlock()
 
+	query := db.dbP.Select()
+	if len(filterByVoteStatus) > 0 {
+		// Filter by the votes status
+		query = db.dbP.Select(q.Eq("VoteStatus",
+			pitypes.VoteStatusType(filterByVoteStatus[0])))
+	}
+
 	// Return the proposals listing starting with the newest.
-	err = db.dbP.Select().Skip(offset).Limit(rowsCount).Reverse().
-		OrderBy("Timestamp").Find(&proposals)
-	if err != nil {
+	err = query.Skip(offset).Limit(rowsCount).Reverse().OrderBy("Timestamp").
+		Find(&proposals)
+
+	if err != nil && err != storm.ErrNotFound {
 		log.Errorf("Failed to fetch data from Proposals DB: %v", err)
+	} else {
+		err = nil
 	}
 
 	totalCount = db.NumProposals
@@ -234,7 +245,7 @@ func (db *ProposalDB) lastSavedProposal() (lastP []*pitypes.ProposalInfo, err er
 // Proposals whose vote statuses are either NotAuthorized, Authorized or Started
 // are considered to be in progress. Data for the in progress proposals is fetched
 // from Politeia API. From the newly fetched proposals data, db update is only
-// made for the vote statuses without NotAuthorized status out of all the newly
+// made for the vote statuses without NotAuthorized status out of all the new
 // votes statuses fetched.
 func (db *ProposalDB) updateInProgressProposals() (int, error) {
 	// statuses defines a list of vote statuses whose proposals may need an update.
@@ -271,6 +282,11 @@ func (db *ProposalDB) updateInProgressProposals() (int, error) {
 			val.Censorship.Token)
 		if err != nil {
 			return 0, fmt.Errorf("RetrieveProposalByToken failed: %v ", err)
+		}
+
+		// If the last update has not changed do not make the update.
+		if proposal.Timestamp == val.Timestamp {
+			continue
 		}
 
 		proposal.ID = val.ID

@@ -1,34 +1,17 @@
 import { Controller } from 'stimulus'
-import { Chart } from '../vendor/charts.min.js'
+import { getDefault } from '../helpers/module_helper'
+
+let Chart
 
 export default class extends Controller {
   static get targets () {
     return ['chartdata']
   }
 
-  setChartData () {
-    this.graphLabels = []
-    this.graphData = []
-    this.graphColors = []
-
-    this.graphLabels.push(this.chartdataTarget.dataset.firstvotesid)
-    this.graphLabels.push(this.chartdataTarget.dataset.secondvotesid)
-
-    this.graphData.push(parseInt(this.chartdataTarget.dataset.firstvotescount))
-    this.graphData.push(parseInt(this.chartdataTarget.dataset.secondvotescount))
-
-    this.graphColors.push(this.chartColor(this.chartdataTarget.dataset.firstvotesid))
-    this.graphColors.push(this.chartColor(this.chartdataTarget.dataset.secondvotesid))
-  }
-
-  chartColor (id) {
-    if (id === 'Yes') {
-      return '#32CD32' // green
-    } else if (id === 'No') {
-      return '#FF0000' // red
-    } else {
-      return '#2971FF'
-    }
+  async initialize () {
+    Chart = await getDefault(
+      import('../vendor/charts.min.js')
+    )
   }
 
   connect () {
@@ -70,5 +53,30 @@ export default class extends Controller {
         }
       }
     )
+  }
+
+  setChartData () {
+    this.graphLabels = []
+    this.graphData = []
+    this.graphColors = []
+
+    this.graphLabels.push(this.chartdataTarget.dataset.firstvotesid)
+    this.graphLabels.push(this.chartdataTarget.dataset.secondvotesid)
+
+    this.graphData.push(parseInt(this.chartdataTarget.dataset.firstvotescount))
+    this.graphData.push(parseInt(this.chartdataTarget.dataset.secondvotescount))
+
+    this.graphColors.push(this.chartColor(this.chartdataTarget.dataset.firstvotesid))
+    this.graphColors.push(this.chartColor(this.chartdataTarget.dataset.secondvotesid))
+  }
+
+  chartColor (id) {
+    if (id === 'Yes') {
+      return '#2DD8A3' // green
+    } else if (id === 'No') {
+      return '#ED6D47' // red
+    } else {
+      return '#2970FF' // blue
+    }
   }
 }

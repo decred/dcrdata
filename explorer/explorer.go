@@ -110,14 +110,14 @@ type explorerDataSource interface {
 	AgendaCumulativeVoteChoices(agendaID string) (yes, abstain, no uint32, err error)
 }
 
-// politeiaBackend implements methods that manage agendas db data.
+// politeiaBackend implements methods that manage proposals db data.
 type politeiaBackend interface {
 	CheckProposalsUpdates() error
-	AllProposals(page, rowsCount int) (proposals []*pitypes.ProposalInfo, totalCount int, err error)
+	AllProposals(offset, rowsCount int, filterByVoteStatus ...int) (proposals []*pitypes.ProposalInfo, totalCount int, err error)
 	ProposalByID(proposalID int) (proposal *pitypes.ProposalInfo, err error)
 }
 
-// agendaBackend implements methods that manage proposals db data.
+// agendaBackend implements methods that manage agendas db data.
 type agendaBackend interface {
 	CheckAgendasUpdates(agendas.DeploymentSource) error
 	AgendaInfo(agendaID string) (*agendas.AgendaTagged, error)
