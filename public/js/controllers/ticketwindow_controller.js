@@ -1,6 +1,6 @@
 /* global Turbolinks */
 import { Controller } from 'stimulus'
-import UrlParse from 'url-parse'
+import Url from 'url-parse'
 
 export default class extends Controller {
   static get targets () {
@@ -8,15 +8,19 @@ export default class extends Controller {
   }
 
   setPageSize () {
-    Turbolinks.visit(
-      window.location.pathname + '?offset=' + this.pagesizeTarget.dataset.offset +
-      '&rows=' + this.pagesizeTarget.selectedOptions[0].value
-    )
+    let url = Url(window.location.href)
+    let q = Url.qs.parse(url.query)
+    q['offset'] = this.pagesizeTarget.dataset.offset
+    q['rows'] = this.pagesizeTarget.selectedOptions[0].value
+    url.set('query', q)
+    Turbolinks.visit(url.toString())
   }
 
   setFilterbyVoteStatus () {
-    let url = UrlParse(window.location.href)
-    url.query.byvotestatus = this.votestatusTarget.selectedOptions[0].value
-    Turbolinks.visit(window.location.href)
+    let url = Url(window.location.href)
+    let q = {}
+    q['byvotestatus'] = this.votestatusTarget.selectedOptions[0].value
+    url.set('query', q)
+    Turbolinks.visit(url.toString())
   }
 }

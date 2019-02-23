@@ -1,5 +1,4 @@
 // Copyright (c) 2018-2019, The Decred developers
-// Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
 // Package agendas manages the various deployment agendas that are directly voted

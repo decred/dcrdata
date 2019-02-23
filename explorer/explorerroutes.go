@@ -1760,7 +1760,7 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 
 // ProposalPage is the page handler for the "/proposal" path.
 func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
-	// Attempts to retrieve proposal token from URL path.
+	// Attempts to retrieve a proposal token from URL path.
 	proposalID, err := strconv.Atoi(getProposalTokenCtx(r))
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
@@ -1814,8 +1814,8 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 	var count int
 	var proposals []*pitypes.ProposalInfo
 
-	// Check if filter by specific votes status was passed a query parameter.
-	// Ignore the error message if it occurs.
+	// Check if filter by votes status query parameter was passed. Ignore the
+	// error message if it occurs.
 	filterBy, _ := strconv.Atoi(r.URL.Query().Get("byvotestatus"))
 	if filterBy > 0 {
 		proposals, count, err = exp.proposalsSource.AllProposals(int(offset),

@@ -296,10 +296,6 @@ func TestStuff(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected no error to be returned but found '%v'", err)
 		}
-
-		if newDBInstance.NumProposals != 2 {
-			t.Fatalf("expected the proposals count to be 2 but found %d", newDBInstance.NumProposals)
-		}
 	})
 
 	// Testing the retrieval of all proposals
@@ -355,8 +351,8 @@ func TestStuff(t *testing.T) {
 			t.Fatalf("expected to find one proposal but found %d", len(proposals))
 		}
 
-		if count != 2 {
-			t.Fatalf("expected to find count equal to 2 but found %d", count)
+		if count != 1 {
+			t.Fatalf("expected to find count equal to 1 but found %d", count)
 		}
 
 		if !reflect.DeepEqual(proposals[0], mockedPayload) {

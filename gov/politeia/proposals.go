@@ -26,10 +26,9 @@ var errDef = fmt.Errorf("ProposalDB was not initialized correctly")
 // ProposalDB defines the common data needed to query the proposals db.
 type ProposalDB struct {
 	sync.RWMutex
-	dbP          *storm.DB
-	client       *http.Client
-	NumProposals int
-	APIURLpath   string
+	dbP        *storm.DB
+	client     *http.Client
+	APIURLpath string
 }
 
 // NewProposalsDB opens an exiting database or creates a new db instance with the
@@ -71,18 +70,6 @@ func NewProposalsDB(politeiaURL, dbPath string) (*ProposalDB, error) {
 	}
 
 	return proposalDB, nil
-}
-
-// countProperties fetches the proposals count and appends it the ProposalDB instance
-// provided.
-func (db *ProposalDB) countProperties() error {
-	count, err := db.dbP.Count(&pitypes.ProposalInfo{})
-	if err != nil {
-		return err
-	}
-
-	db.NumProposals = count
-	return nil
 }
 
 // Close closes the proposal DB instance created passed if it not nil.
@@ -154,6 +141,12 @@ func (db *ProposalDB) AllProposals(offset, rowsCount int,
 			pitypes.VoteStatusType(filterByVoteStatus[0])))
 	}
 
+	// Count the proposals based on the query created above.
+	totalCount, err = query.Count(&pitypes.ProposalInfo{})
+	if err != nil {
+		return
+	}
+
 	// Return the proposals listing starting with the newest.
 	err = query.Skip(offset).Limit(rowsCount).Reverse().OrderBy("Timestamp").
 		Find(&proposals)
@@ -163,8 +156,6 @@ func (db *ProposalDB) AllProposals(offset, rowsCount int,
 	} else {
 		err = nil
 	}
-
-	totalCount = db.NumProposals
 
 	return
 }
@@ -234,7 +225,7 @@ func (db *ProposalDB) CheckProposalsUpdates() error {
 
 	log.Infof("%d proposal records (politeia proposals) were updated", numRecords)
 
-	return db.countProperties()
+	return nil
 }
 
 func (db *ProposalDB) lastSavedProposal() (lastP []*pitypes.ProposalInfo, err error) {

@@ -568,13 +568,12 @@ func loadConfig() (*config, error) {
 		return loadConfigError(err)
 	}
 
-	// Validates if the expected format of the url was set. It also drops any
+	// Checks if the expected format of the API URL was set. It also drops any
 	// unnecessary parts of the URL.
 	urlPath, err := retrieveRootPath(cfg.PoliteiaAPIURL)
 	if err != nil {
 		return loadConfigError(err)
 	}
-
 	cfg.PoliteiaAPIURL = urlPath
 
 	return &cfg, nil
@@ -603,11 +602,11 @@ func retrieveRootPath(path string) (string, error) {
 		return "", fmt.Errorf("invalid '%s' url used. error: %v", path, err)
 	}
 
-	// if the url scheme was not found regex expression can be used to eliminate
-	// the unwanted part.
+	// If the url scheme was not found, a regex expression can be used to
+	// eliminate the unwanted part.
 	if r.Scheme == "" {
 		exp := regexp.MustCompile(`([\/?]\S*)`)
-		return exp.ReplaceAllString(path, ""), nil
+		return exp.ReplaceAllLiteralString(path, ""), nil
 	}
 
 	r.Path = ""     // Drop any set path and the leading slash

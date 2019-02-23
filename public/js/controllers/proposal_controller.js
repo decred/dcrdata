@@ -1,21 +1,17 @@
 import { Controller } from 'stimulus'
 import { getDefault } from '../helpers/module_helper'
 
-let Chart
-
 export default class extends Controller {
   static get targets () {
     return ['chartdata']
   }
 
-  async initialize () {
-    Chart = await getDefault(
+  async connect () {
+    this.setChartData()
+
+    let Chart = await getDefault(
       import('../vendor/charts.min.js')
     )
-  }
-
-  connect () {
-    this.setChartData()
 
     this.chart = new Chart(
       document.getElementById('donutgraph').getContext('2d'), {
