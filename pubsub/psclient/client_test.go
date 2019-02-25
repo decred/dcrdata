@@ -674,7 +674,8 @@ var msgNewBlock312592 = &pstypes.WebSocketMessage{
 			},
 			"total_locked_dcr": 0,
 			"hash_rate": 248.56734363605156,
-			"hash_rate_change": 7.2007116787749466
+			"hash_rate_change_day": 7.2007116787749466,
+			"hash_rate_change_month": 134.0
 		}
 	}
 	`,

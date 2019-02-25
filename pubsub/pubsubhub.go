@@ -560,13 +560,18 @@ func (psh *PubSubHub) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBl
 	newBlockData := psh.sourceBase.GetExplorerBlock(msgBlock.BlockHash().String())
 
 	// Use the latest block's blocktime to get the last 24hr timestamp.
-	timestamp := newBlockData.BlockTime.UNIX() - 86400
+	day := 24 * time.Hour
 	targetTimePerBlock := float64(psh.params.TargetTimePerBlock)
-	// RetreiveDifficulty fetches the difficulty using the last 24hr timestamp,
-	// whereby the difficulty can have a timestamp equal to the last 24hrs
-	// timestamp or that is immediately greater than the 24hr timestamp.
+
+	// Hashrate change over last day
+	timestamp := newBlockData.BlockTime.T.Add(-day).Unix()
 	last24hrDifficulty := psh.sourceBase.RetreiveDifficulty(timestamp)
 	last24HrHashRate := dbtypes.CalculateHashRate(last24hrDifficulty, targetTimePerBlock)
+
+	// Hashrate change over last month
+	timestamp = newBlockData.BlockTime.T.Add(-30 * day).Unix()
+	lastMonthDifficulty := psh.sourceBase.RetreiveDifficulty(timestamp)
+	lastMonthHashRate := dbtypes.CalculateHashRate(lastMonthDifficulty, targetTimePerBlock)
 
 	difficulty := blockData.Header.Difficulty
 	hashrate := dbtypes.CalculateHashRate(difficulty, targetTimePerBlock)
@@ -588,7 +593,8 @@ func (psh *PubSubHub) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBl
 
 	// Update GeneralInfo, keeping constant parameters set in NewPubSubHub.
 	p.GeneralInfo.HashRate = hashrate
-	p.GeneralInfo.HashRateChange = 100 * (hashrate - last24HrHashRate) / last24HrHashRate
+	p.GeneralInfo.HashRateChangeDay = 100 * (hashrate - last24HrHashRate) / last24HrHashRate
+	p.GeneralInfo.HashRateChangeMonth = 100 * (hashrate - lastMonthHashRate) / lastMonthHashRate
 	p.GeneralInfo.CoinSupply = blockData.ExtraInfo.CoinSupply
 	p.GeneralInfo.StakeDiff = blockData.CurrentStakeDiff.CurrentStakeDifficulty
 	p.GeneralInfo.NextExpectedStakeDiff = blockData.EstStakeDiff.Expected
