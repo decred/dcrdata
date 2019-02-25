@@ -178,7 +178,7 @@ export default class extends Controller {
     this.rewardIdxTarget.textContent = ex.reward_idx
     this.powBarTarget.style.width = `${(ex.reward_idx / ex.params.reward_window_size) * 100}%`
     this.poolValueTarget.innerHTML = humanize.decimalParts(ex.pool_info.value, true, 0)
-    this.ticketRewardTarget.innerHTML = humanize.fmtPercentage(ex.reward)
+    this.ticketRewardTarget.innerHTML = `${ex.reward.toFixed(2)} %`
     this.poolSizePctTarget.textContent = parseFloat(ex.pool_info.percent).toFixed(2)
     if (this.hasDevFundTarget) this.devFundTarget.innerHTML = humanize.decimalParts(ex.dev_fund / 100000000, true, 0)
     this.hashrateTarget.innerHTML = humanize.decimalParts(ex.hash_rate, false, 8, 2)
