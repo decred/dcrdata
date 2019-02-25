@@ -270,9 +270,9 @@
                                 <span class="pl-1 unit lh15rem" style="font-size:13px;">DCR/vote</span>
                             </div>
                             <div class="fs12 lh1rem text-black-50">
-                                <span data-target="homepage.ticketReward">{{template "fmtPercentage" .TicketReward}}</span> per ~{{.RewardPeriod}}
+                                <span data-target="homepage.ticketReward">{{printf "%.2f" .TicketReward}}%</span> per ~{{.RewardPeriod}}
                             </div>
-                            <div class="fs12 lh1rem text-black-50" title="Annual Stake Rewards"><span class="text-green">+{{printf "%.2f" .ASR}} %</span> per year</div>
+                            <div class="fs12 lh1rem text-black-50" title="Annual Stake Rewards">{{printf "%.2f" .ASR}}% per year</div>
                         </div>
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                             <div class="fs13 text-secondary">Total Staked DCR</div>
