@@ -77,7 +77,7 @@
                                         <td class="text-center" data-type="tickets">{{.FreshStake}}</td>
                                         <td class="text-center" data-type="revocations">{{.Revocations}}</td>
                                         <td class="text-center" data-type="value">{{threeSigFigs .Total}}</td>
-                                        <td class="text-center d-none d-sm-table-cell d-md-none d-lg-table-cell" data-type="value">{{.FormattedBytes}}</td>
+                                        <td class="text-center d-none d-sm-table-cell d-md-none d-lg-table-cell" data-type="size">{{.FormattedBytes}}</td>
                                         <td class="text-right pr-2" data-type="age" data-target="time.age" data-age="{{.BlockTime.UNIX}}">{{.BlockTime}}</td>
                                     </tr>
                                     {{end}}
