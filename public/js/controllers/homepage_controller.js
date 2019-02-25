@@ -182,7 +182,7 @@ export default class extends Controller {
     this.poolSizePctTarget.textContent = parseFloat(ex.pool_info.percent).toFixed(2)
     if (this.hasDevFundTarget) this.devFundTarget.innerHTML = humanize.decimalParts(ex.dev_fund / 100000000, true, 0)
     this.hashrateTarget.innerHTML = humanize.decimalParts(ex.hash_rate, false, 8, 2)
-    this.hashrateDeltaTarget.innerHTML = humanize.fmtPercentage(ex.hash_rate_change)
+    this.hashrateDeltaTarget.innerHTML = humanize.fmtPercentage(ex.hash_rate_change_month)
     this.blockVotesTarget.dataset.hash = blockData.block.hash
     this.setVotes()
     let block = blockData.block

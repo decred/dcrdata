@@ -361,8 +361,8 @@ type HomeInfo struct {
 	PoolInfo              TicketPoolInfo `json:"pool_info"`
 	TotalLockedDCR        float64        `json:"total_locked_dcr"`
 	HashRate              float64        `json:"hash_rate"`
-	// HashRateChange defines the hashrate change in 24hrs
-	HashRateChange float64 `json:"hash_rate_change"`
+	HashRateChangeDay     float64        `json:"hash_rate_change_day"`
+	HashRateChangeMonth   float64        `json:"hash_rate_change_month"`
 }
 
 // BlockSubsidy is an implementation of dcrjson.GetBlockSubsidyResult

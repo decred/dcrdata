@@ -475,13 +475,18 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 	newBlockData := exp.blockData.GetExplorerBlock(msgBlock.BlockHash().String())
 
 	// Use the latest block's blocktime to get the last 24hr timestamp.
-	timestamp := newBlockData.BlockTime.UNIX() - 86400
+	day := 24 * time.Hour
 	targetTimePerBlock := float64(exp.ChainParams.TargetTimePerBlock)
-	// RetreiveDifficulty fetches the difficulty using the last 24hr timestamp,
-	// whereby the difficulty can have a timestamp equal to the last 24hrs
-	// timestamp or that is immediately greater than the 24hr timestamp.
+
+	// Hashrate change over last day
+	timestamp := newBlockData.BlockTime.T.Add(-day).Unix()
 	last24hrDifficulty := exp.blockData.RetreiveDifficulty(timestamp)
 	last24HrHashRate := dbtypes.CalculateHashRate(last24hrDifficulty, targetTimePerBlock)
+
+	// Hashrate change over last month
+	timestamp = newBlockData.BlockTime.T.Add(-30 * day).Unix()
+	lastMonthDifficulty := exp.blockData.RetreiveDifficulty(timestamp)
+	lastMonthHashRate := dbtypes.CalculateHashRate(lastMonthDifficulty, targetTimePerBlock)
 
 	difficulty := blockData.Header.Difficulty
 	hashrate := dbtypes.CalculateHashRate(difficulty, targetTimePerBlock)
@@ -508,7 +513,8 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 
 	// Update HomeInfo.
 	p.HomeInfo.HashRate = hashrate
-	p.HomeInfo.HashRateChange = 100 * (hashrate - last24HrHashRate) / last24HrHashRate
+	p.HomeInfo.HashRateChangeDay = 100 * (hashrate - last24HrHashRate) / last24HrHashRate
+	p.HomeInfo.HashRateChangeMonth = 100 * (hashrate - lastMonthHashRate) / lastMonthHashRate
 	p.HomeInfo.CoinSupply = blockData.ExtraInfo.CoinSupply
 	p.HomeInfo.StakeDiff = blockData.CurrentStakeDiff.CurrentStakeDifficulty
 	p.HomeInfo.NextExpectedStakeDiff = blockData.EstStakeDiff.Expected
