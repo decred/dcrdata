@@ -389,7 +389,7 @@
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                             <div class="fs13 text-secondary">Exchange Rate</div>
                             <div class="mono lh1rem fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
-                                <span class="d-inline-block">{{template "decimalParts" (float64AsDecimalParts $.ExchangeState.Price 4 true)}}</span>
+                                <span class="d-inline-block">{{template "decimalParts" (float64AsDecimalParts $.ExchangeState.Price 2 true 2)}}</span>
                                 <span class="pl-1 unit lh15rem">{{$.ExchangeState.BtcIndex}}</span>
                             </div>
                         </div>
