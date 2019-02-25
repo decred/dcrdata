@@ -1696,6 +1696,11 @@ func (c *appContext) getExchanges(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Exchange monitoring disabled.", http.StatusServiceUnavailable)
 		return
 	}
+	// Don't provide any info if the bot is in the failed state.
+	if c.xcBot.IsFailed() {
+		http.Error(w, fmt.Sprintf("No exchange data available"), http.StatusNotFound)
+		return
+	}
 	code := r.URL.Query().Get("code")
 	var state *exchanges.ExchangeBotState
 	var err error
@@ -1707,10 +1712,6 @@ func (c *appContext) getExchanges(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		state = c.xcBot.State()
-		if state == nil {
-			http.Error(w, fmt.Sprintf("No exchange data available"), http.StatusNotFound)
-			return
-		}
 	}
 	writeJSON(w, state, c.getIndentQuery(r))
 }

@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package dcrrates;
+
+// DCRRates takes a subscription from a client and pushes data as its received
+// from external sources.
+service DCRRates {
+  rpc SubscribeExchanges (ExchangeSubscription) returns (stream ExchangeRateUpdate);
+}
+
+message ExchangeSubscription {
+  string btcIndex = 1;
+  repeated string exchanges = 2;
+}
+
+message ExchangeRateUpdate {
+  string token = 1;
+  double price = 2;
+  double baseVolume = 3;
+  double volume = 4;
+  double change = 5;
+  int64 stamp = 6;
+  map<string, double> indices = 7;
+}

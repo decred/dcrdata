@@ -50,8 +50,8 @@ git clone git@github.com:my-user-name/dcrdata.git
 
 ###### recommended
 
-Setting your master branch to track this repository makes keeping everything up-to-date a breeze. 
-The rest of this workflow guide will assume that you have completed this step. 
+Setting your master branch to track this repository makes keeping everything up-to-date a breeze.
+The rest of this workflow guide will assume that you have completed this step.
 
 ```sh
 git remote add upstream https://github.com/decred/dcrdata.git
@@ -138,8 +138,8 @@ Excellent [PR guidelines](https://github.com/kubernetes/community/blob/master/co
 
 10. Receive feedback and make changes
 
-You will typically receive feedback from other developers. Before responding, take a moment to review the 
-[Code of Conduct](https://github.com/decred/dcrdata/blob/master/CODE_OF_CONDUCT.md). 
+You will typically receive feedback from other developers. Before responding, take a moment to review the
+[Code of Conduct](https://github.com/decred/dcrdata/blob/master/CODE_OF_CONDUCT.md).
 
 Work through the comments and resolve any confusion with others. Make whatever revisions are necessary.
 
@@ -157,11 +157,11 @@ For example, if you have made 3 commits since your last push, then run the follo
 git rebase -i HEAD~3
 ```
 
-The number after the tilda (~) is the number of commits that you want to combine, including the one you did at the beginning of this step. Try not to squash post-review commits with pre-review commits. Leaving them separate makes navigating the changes easier. 
+The number after the tilda (~) is the number of commits that you want to combine, including the one you did at the beginning of this step. Try not to squash post-review commits with pre-review commits. Leaving them separate makes navigating the changes easier.
 
 ###### b)
 
-Then rebase the entire branch back to an updated master. 
+Then rebase the entire branch back to an updated master.
 
 ```sh
 git checkout master
@@ -174,16 +174,16 @@ Note that the 4th command is different than step 6. You already performed the sq
 
 ###### c)
 
-Push the changes to your remote fork. 
+Push the changes to your remote fork.
 
 ```sh
 git push myremote my-great-stuff
 ```
 
 Depending on what has changed, you will likely receive an error message rejecting your push for a misaligned branch tip. This is normal.
-Rerun with the `--force` flag. 
+Rerun with the `--force` flag.
 
-As soon as you push, your changes will be ready for review. There is typically no need to notify anybody that the changes have been made. Github takes care of that. Feel free to leave a comment on the pull request with a brief description of your changes. 
+As soon as you push, your changes will be ready for review. There is typically no need to notify anybody that the changes have been made. Github takes care of that. Feel free to leave a comment on the pull request with a brief description of your changes.
 
 ## Go Development Tips
 
@@ -192,3 +192,14 @@ Use code linters. `gometalinter` is suggested to run the whole lot.
 Always `go fmt` your code before committing.
 
 Read [Effective Go](https://golang.org/doc/effective_go.html).
+
+### Working with gRPC
+
+If you work with any gRPC components, you'll need up-to-date
+[`protoc` and the `protoc-gen-go` packages](https://grpc.io/docs/quickstart/go.html#install-grpc).
+
+If you update a gRPC protocol buffer file (.proto file extension), make sure to
+recompile the go type definitions.
+
+You can use the script at
+`dcdrrates/runprotoc.sh` to recompile `dcrrates.pb.go`.
