@@ -14,6 +14,7 @@ export default class extends Controller {
   connect () {
     this.startAgeRefresh()
     this.processBlock = this._processBlock.bind(this)
+    this.targetBlockTime = parseInt(document.getElementById('navBar').dataset.blocktime)
     if (this.hasBlocktimeTarget) {
       globalEventBus.on('BLOCK_RECEIVED', this.processBlock)
     }
@@ -57,7 +58,7 @@ export default class extends Controller {
     if (this.hasBlocktimeTarget) {
       var lbt = this.blocktimeTarget.dataset.stamp
       this.blocktimeTarget.textContent = humanize.timeSince(lbt)
-      if ((new Date()).getTime() / 1000 - lbt > 8 * window.DCRThings.targetBlockTime) { // 8*blocktime = 40minutes = 12000 seconds
+      if ((new Date()).getTime() / 1000 - lbt > 8 * this.targetBlockTime) { // 8*blocktime = 40minutes = 12000 seconds
         this.element.classList.add('text-danger')
       }
     }
