@@ -111,8 +111,8 @@
                         <th class="col-md-3">Vote Status</th>
                         <th class="col-md-2">Published</th>
                         <th class="col-md-2">Updated</th>
-                        <th class="col-md-1 text-center">Version</th>
-                        <th class="col-md-2 text-center">Comments</th>
+                        <th class="col-md-1 text-right">Version</th>
+                        <th class="col-md-2 text-right">Comments</th>
                     </tr>
                 </thead>
                 {{range $i, $v := .Proposals}}
@@ -129,8 +129,8 @@
                         </td>
                         <td class="col-md-2">{{timeWithoutDateAndTimeZone .PublishedDate}}</td>
                         <td class="col-md-2">{{timeWithoutDateAndTimeZone .Timestamp}}</td>
-                        <td class="col-md-1 text-center">v{{.Version}}</td>
-                        <td class="col-md-2 text-center">{{.NumComments}}</td>
+                        <td class="col-md-1 text-right">v{{.Version}}</td>
+                        <td class="col-md-2 text-right">{{.NumComments}}</td>
                     </tr>
                 </tbody>
                 {{end}}
