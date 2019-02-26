@@ -238,28 +238,36 @@ func TestRetrieveRootPath(t *testing.T) {
 	type testData struct {
 		RawURL   string
 		FinalURL string
+		isError  bool
 	}
 
 	td := []testData{
-		{"mydomain.com/", "mydomain.com"},
-		{"mydomain.com?id=1", "mydomain.com"},
-		{"192.168.10.12/xxxxx", "192.168.10.12"},
-		{"mydomain.com/xxxxx?id=1", "mydomain.com"},
-		{"www.mydomain.com/xxxxx", "www.mydomain.com"},
-		{"http://www.mydomain.com/xxxxx", "http://www.mydomain.com"},
-		{"https://www.mydomain.com/xxxxx", "https://www.mydomain.com"},
-		{"https://www.mydomain.com/xxxxx?id=1", "https://www.mydomain.com"},
+		// :1234 is consided invalid url since the root url is also used as a
+		// hyperlink reference on the frontend.
+		{":1234", "", true},
+		// 192.168.10.12:1234 is consided invalid url by net/url package.
+		// https://github.com/golang/go/issues/21415#issuecomment-321966574
+		{"192.168.10.12:1234/xxxxx", "", true},
+		{"mydomain.com/", "mydomain.com", false},
+		{"mydomain.com?id=1", "mydomain.com", false},
+		{"192.168.10.12/xxxxx", "192.168.10.12", false},
+		{"localhost:1234/api/", "localhost:1234", false},
+		{"mydomain.com/xxxxx?id=1", "mydomain.com", false},
+		{"www.mydomain.com/xxxxx", "www.mydomain.com", false},
+		{"http://www.mydomain.com/xxxxx", "http://www.mydomain.com", false},
+		{"https://www.mydomain.com/xxxxx", "https://www.mydomain.com", false},
+		{"https://www.mydomain.com/xxxxx?id=1", "https://www.mydomain.com", false},
 	}
 
 	for _, val := range td {
-		expected, err := retrieveRootPath(val.RawURL)
-		if err != nil {
+		result, err := retrieveRootPath(val.RawURL)
+		if err != nil && !val.isError {
 			t.Fatalf("expected no error but found: %v", err)
 		}
 
-		if expected != val.FinalURL {
+		if result != val.FinalURL {
 			t.Fatalf("expected the returned url to be '%s' but found '%s'",
-				expected, val.FinalURL)
+				val.FinalURL, result)
 		}
 	}
 }

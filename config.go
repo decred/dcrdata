@@ -602,9 +602,9 @@ func retrieveRootPath(path string) (string, error) {
 		return "", fmt.Errorf("invalid '%s' url used. error: %v", path, err)
 	}
 
-	// If the url scheme was not found, a regex expression can be used to
+	// If the url scheme or host were not found, a regex expression can be used to
 	// eliminate the unwanted part.
-	if r.Scheme == "" {
+	if r.Scheme == "" || r.Host == "" {
 		exp := regexp.MustCompile(`([\/?]\S*)`)
 		return exp.ReplaceAllLiteralString(path, ""), nil
 	}
