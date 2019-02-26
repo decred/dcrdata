@@ -508,9 +508,9 @@ func getTxFromList(txid string, txns []MempoolTx) (MempoolTx, bool) {
 	return MempoolTx{}, false
 }
 
-// GetTx checks the inventory and searches the appropriate lists for a
+// Tx checks the inventory and searches the appropriate lists for a
 // transaction matching the provided transaction ID.
-func (mpi *MempoolInfo) GetTx(txid string) (MempoolTx, bool) {
+func (mpi *MempoolInfo) Tx(txid string) (MempoolTx, bool) {
 	mpi.RLock()
 	defer mpi.RUnlock()
 	_, found := mpi.InvRegular[txid]

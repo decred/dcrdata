@@ -754,7 +754,7 @@ func (exp *explorerUI) getExchangeState() *exchanges.ExchangeBotState {
 func (exp *explorerUI) mempoolTime(txid string) types.TimeDef {
 	exp.mempool.RLock()
 	defer exp.mempool.RUnlock()
-	tx, found := exp.mempool.Inv.GetTx(txid)
+	tx, found := exp.mempool.Inv.Tx(txid)
 	if !found {
 		return types.NewTimeDefFromUNIX(0)
 	}
