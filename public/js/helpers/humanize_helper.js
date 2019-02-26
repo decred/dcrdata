@@ -86,8 +86,12 @@ var humanize = {
     if (v >= 1e-4) return `${v.toFixed(6)}`
     if (v >= 1e-5) return `${v.toFixed(7)}`
     if (v === 0) return '0'
-    console.log(`tiny v = ${v}`)
     return v.toFixed(8)
+  },
+  twoDecimals: function (v) {
+    if (v === 0.0) return '0.00'
+    if (Math.abs(v) < 1.0) return parseFloat(v).toPrecision(3)
+    return parseFloat(v).toFixed(2)
   },
   subsidyToString: function (x, y = 1) {
     return (x / 100000000 / y) + ' DCR'

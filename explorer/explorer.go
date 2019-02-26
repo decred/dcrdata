@@ -582,6 +582,11 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 		exp.ChainParams.TargetTimePerBlock.Hours()/24)
 	p.HomeInfo.ASR = ASR
 
+	// If exchange monitoring is enabled, set the exchange rate.
+	if exp.xcBot != nil {
+		p.HomeInfo.ExchangeRate = exp.xcBot.Conversion(1.0)
+	}
+
 	p.Unlock()
 
 	if !exp.liteMode && exp.devPrefetch {

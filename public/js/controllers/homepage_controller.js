@@ -43,7 +43,8 @@ export default class extends Controller {
       'mpRegTotal', 'mpRegCount', 'mpTicketTotal', 'mpTicketCount', 'mpVoteTotal', 'mpVoteCount',
       'mpRevTotal', 'mpRevCount', 'mpRegBar', 'mpVoteBar', 'mpTicketBar',
       'mpRevBar', 'voteTally', 'blockVotes', 'blockHeight', 'blockSize',
-      'blockTotal', 'consensusMsg'
+      'blockTotal', 'consensusMsg', 'powConverted', 'convertedDev',
+      'convertedSupply', 'convertedDevSub', 'exchangeRate', 'convertedStake'
     ]
   }
 
@@ -190,5 +191,28 @@ export default class extends Controller {
     this.blockHeightTarget.href = `/block/${block.hash}`
     this.blockSizeTarget.textContent = humanize.bytes(block.size)
     this.blockTotalTarget.textContent = humanize.threeSigFigs(block.total)
+
+    if (ex.exchange_rate) {
+      let xcRate = ex.exchange_rate.value
+      let btcIndex = ex.exchange_rate.index
+      if (this.hasPowConvertedTarget) {
+        this.powConvertedTarget.textContent = `${humanize.twoDecimals(ex.subsidy.pow / 1e8 * xcRate)} ${btcIndex}`
+      }
+      if (this.hasConvertedDevTarget) {
+        this.convertedDevTarget.textContent = `${humanize.threeSigFigs(ex.dev_fund / 1e8 * xcRate)} ${btcIndex}`
+      }
+      if (this.hasConvertedSupplyTarget) {
+        this.convertedSupplyTarget.textContent = `${humanize.threeSigFigs(ex.coin_supply / 1e8 * xcRate)} ${btcIndex}`
+      }
+      if (this.hasConvertedDevSubTarget) {
+        this.convertedDevSubTarget.textContent = `${humanize.twoDecimals(ex.subsidy.dev / 1e8 * xcRate)} ${btcIndex}`
+      }
+      if (this.hasExchangeRateTarget) {
+        this.exchangeRateTarget.textContent = humanize.twoDecimals(xcRate)
+      }
+      if (this.hasConvertedStakeTarget) {
+        this.convertedStakeTarget.textContent = `${humanize.twoDecimals(ex.sdiff * xcRate)} ${btcIndex}`
+      }
+    }
   }
 }
