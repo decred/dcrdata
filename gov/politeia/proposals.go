@@ -194,8 +194,6 @@ func (db *ProposalDB) CheckProposalsUpdates() error {
 	db.Lock()
 	defer db.Unlock()
 
-	log.Info("Updating proposals db. Please Wait...")
-
 	// Retrieve and update all current proposals whose vote statuses is either
 	// NotAuthorized, Authorized and Started
 	numRecords, err := db.updateInProgressProposals()

@@ -511,7 +511,7 @@ func _main(ctx context.Context) error {
 	// Confirm if dcrdClient implements agendas.DeploymentSource interface.
 	var _ agendas.DeploymentSource = dcrdClient
 
-	// Retrieves blockchain deployment updates and adds them to the agendas db.
+	// Retrieve blockchain deployment updates and add them to the agendas db.
 	if err = agendasInstance.CheckAgendasUpdates(dcrdClient); err != nil {
 		return fmt.Errorf("updating agendas db failed: %v", err)
 	}
@@ -526,10 +526,14 @@ func _main(ctx context.Context) error {
 		return fmt.Errorf("failed to create new proposals db instance: %v", err)
 	}
 
-	// Retrieves newly added proposals and addes them to the proposals db.
-	if err = proposalsInstance.CheckProposalsUpdates(); err != nil {
-		return fmt.Errorf("updating proposals db failed: %v", err)
-	}
+	// Retrieve newly added proposals and add them to the proposals db.
+	// Proposal db update is made asynchronously to ensure that the system works
+	// even when the Politeia API endpoint set is down.
+	go func() {
+		if err = proposalsInstance.CheckProposalsUpdates(); err != nil {
+			log.Errorf("updating proposals db failed: %v", err)
+		}
+	}()
 
 	// Create the explorer system.
 	explore := explorer.New(baseDB, auxDB, cfg.UseRealIP, version.Version(),

@@ -592,9 +592,9 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 			go exp.prePopulateChartsData()
 		}
 
-		// Update the proposals db at intervals of 20 blocks as 5 blocks is too often.
-		// Also to update the Proposal db the politeia API is queried and can be
-		// slow at times.
+		// Update the proposal DB. This is run asynchronously since it involves
+		// a query to Politeia (a remote system) and we do not want to block
+		// execution.
 		if newBlockData.Height%20 == 0 {
 			go func() {
 				err := exp.proposalsSource.CheckProposalsUpdates()
