@@ -1,4 +1,5 @@
 {{define "home"}}
+{{$conv := .Conversions}}
 <!DOCTYPE html>
 <html lang="en">
 
@@ -215,6 +216,11 @@
                                 <span data-target="homepage.blocksdiff">{{template "decimalParts" (float64AsDecimalParts .StakeDiff 8 false 2)}}</span>
                                 <span class="pl-1 unit lh15rem">DCR</span>
                             </div>
+                            {{if $conv}}
+                            <div class="fs12 lh1rem text-black-50">
+                                <span data-target="homepage.convertedStake">{{$conv.StakeDiff.TwoDecimals}} {{$conv.StakeDiff.Index}}</span>
+                            </div>
+                            {{end}}
                         </div>
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                             <div class="fs13 text-secondary">Next Ticket Price</div>
@@ -320,6 +326,11 @@
                                 <span data-target="homepage.bsubsidyPow">{{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.PoW) 8 true 2)}}</span>
                                 <span class="pl-1 unit lh15rem">DCR</span>
                             </div>
+                            {{if $conv}}
+                            <div class="fs12 lh1rem text-black-50">
+                                <span data-target="homepage.powConverted">{{$conv.PowSplit.TwoDecimals}} {{$conv.PowSplit.Index}}</span>
+                            </div>
+                            {{end}}
                         </div>
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                             <div class="fs13 text-secondary lh1rem">Next Block Reward Reduction</div>
@@ -365,6 +376,11 @@
                                 </span>
                                 <span class="pl-1 unit lh15rem">DCR</span>
                             </div>
+                            {{if $conv}}
+                            <div class="fs12 lh1rem text-black-50">
+                                <span data-target="homepage.convertedDev">{{threeSigFigs $conv.TreasuryBalance.Value}} {{$conv.TreasuryBalance.Index}}</span>
+                            </div>
+                            {{end}}
                         </div>
                         {{end}}
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
@@ -375,6 +391,11 @@
                                 </span>
                                 <span class="pl-1 unit lh15rem">DCR</span>
                             </div>
+                            {{if $conv}}
+                            <div class="fs12 lh1rem text-black-50">
+                                <span data-target="homepage.convertedSupply">{{threeSigFigs $conv.CoinSupply.Value}} {{$conv.CoinSupply.Index}}</span>
+                            </div>
+                            {{end}}
                         </div>
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                             <div class="fs13 text-secondary">Treasury Block Reward</div>
@@ -384,13 +405,18 @@
                                 </span>
                                 <span class="pl-1 unit lh15rem">DCR</span>
                             </div>
+                            {{if $conv}}
+                            <div class="fs12 lh1rem text-black-50">
+                                <span data-target="homepage.convertedDevSub">{{$conv.TreasurySplit.TwoDecimals}} {{$conv.TreasurySplit.Index}}</span>
+                            </div>
+                            {{end}}
                         </div>
-                        {{if $.ExchangeState}}
+                        {{if $conv}}
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                             <div class="fs13 text-secondary">Exchange Rate</div>
                             <div class="mono lh1rem fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
-                                <span class="d-inline-block">{{template "decimalParts" (float64AsDecimalParts $.ExchangeState.Price 4 true)}}</span>
-                                <span class="pl-1 unit lh15rem">{{$.ExchangeState.BtcIndex}}</span>
+                                <span class="d-inline-block" data-target="homepage.exchangeRate">{{$conv.ExchangeRate.TwoDecimals}}</span>
+                                <span class="pl-1 unit lh15rem">{{$conv.ExchangeRate.Index}}</span>
                             </div>
                         </div>
                         {{end}}

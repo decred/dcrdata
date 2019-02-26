@@ -120,6 +120,16 @@ func (exp *explorerUI) timeoutErrorPage(w http.ResponseWriter, err error, debugS
 	return
 }
 
+// For the exchange rates on the homepage
+type homeConversions struct {
+	ExchangeRate    *exchanges.Conversion
+	StakeDiff       *exchanges.Conversion
+	CoinSupply      *exchanges.Conversion
+	PowSplit        *exchanges.Conversion
+	TreasurySplit   *exchanges.Conversion
+	TreasuryBalance *exchanges.Conversion
+}
+
 // Home is the page handler for the "/" path.
 func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 	height, err := exp.blockData.GetHeight()
@@ -147,26 +157,41 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 
 	tallys, consensus := inv.VotingInfo.BlockStatus(bestBlock.Hash)
 
+	// Get fiat conversions if available
+	homeInfo := exp.pageData.HomeInfo
+	var conversions *homeConversions
+	xcBot := exp.xcBot
+	if xcBot != nil {
+		conversions = &homeConversions{
+			ExchangeRate:    xcBot.Conversion(1.0),
+			StakeDiff:       xcBot.Conversion(homeInfo.StakeDiff),
+			CoinSupply:      xcBot.Conversion(dcrutil.Amount(homeInfo.CoinSupply).ToCoin()),
+			PowSplit:        xcBot.Conversion(dcrutil.Amount(homeInfo.NBlockSubsidy.PoW).ToCoin()),
+			TreasurySplit:   xcBot.Conversion(dcrutil.Amount(homeInfo.NBlockSubsidy.Dev).ToCoin()),
+			TreasuryBalance: xcBot.Conversion(dcrutil.Amount(homeInfo.DevFund).ToCoin()),
+		}
+	}
+
 	str, err := exp.templates.execTemplateToString("home", struct {
 		*CommonPageData
-		Info          *types.HomeInfo
-		Mempool       *types.MempoolInfo
-		BestBlock     *types.BlockBasic
-		BlockTally    []int
-		Consensus     int
-		Blocks        []*types.BlockBasic
-		NetName       string
-		ExchangeState *exchanges.ExchangeBotState
+		Info        *types.HomeInfo
+		Mempool     *types.MempoolInfo
+		BestBlock   *types.BlockBasic
+		BlockTally  []int
+		Consensus   int
+		Blocks      []*types.BlockBasic
+		NetName     string
+		Conversions *homeConversions
 	}{
 		CommonPageData: exp.commonData(),
-		Info:           exp.pageData.HomeInfo,
+		Info:           homeInfo,
 		Mempool:        inv,
 		BestBlock:      bestBlock,
 		BlockTally:     tallys,
 		Consensus:      consensus,
 		Blocks:         blocks,
 		NetName:        exp.NetName,
-		ExchangeState:  exp.getExchangeState(),
+		Conversions:    conversions,
 	})
 
 	inv.RUnlock()

@@ -692,3 +692,34 @@ func (bot *ExchangeBot) Price() float64 {
 	defer bot.RUnlock()
 	return bot.currentState.Price
 }
+
+// Conversion is a representation of some amount of DCR in another index.
+type Conversion struct {
+	Value float64 `json:"value"`
+	Index string  `json:"index"`
+}
+
+// TwoDecimals is a string representation of the value with two digits after
+// the decimal point, but will show more to achieve at least three significant
+// digits.
+func (c *Conversion) TwoDecimals() string {
+	if c.Value == 0.0 {
+		return "0.00"
+	} else if c.Value < 1.0 && c.Value > -1.0 {
+		return fmt.Sprintf("%3g", c.Value)
+	}
+	return fmt.Sprintf("%.2f", c.Value)
+}
+
+// Conversion attempts to multiply the supplied float with the default index.
+// Nil pointer will be returned if there is no valid exchangeState.
+func (bot *ExchangeBot) Conversion(dcrVal float64) *Conversion {
+	xcState := bot.State()
+	if xcState != nil {
+		return &Conversion{
+			Value: xcState.Price * dcrVal,
+			Index: xcState.BtcIndex,
+		}
+	}
+	return nil
+}
