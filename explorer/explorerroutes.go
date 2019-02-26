@@ -1347,7 +1347,7 @@ func (exp *explorerUI) AddressTable(w http.ResponseWriter, r *http.Request) {
 }
 
 // parseAddressParams is used by both /address and /addresstable.
-func parseAddressParams(r *http.Request) (address string, txnType dbtypes.AddrTxnType, limitN, offsetAddrOuts int64, err error) {
+func parseAddressParams(r *http.Request) (address string, txnType dbtypes.AddrTxnViewType, limitN, offsetAddrOuts int64, err error) {
 	// Get the address URL parameter, which should be set in the request context
 	// by the addressPathCtx middleware.
 	var parseErr error
@@ -1382,7 +1382,7 @@ func parseAddressParams(r *http.Request) (address string, txnType dbtypes.AddrTx
 	if txntype == "" {
 		txntype = "all"
 	}
-	txnType = dbtypes.AddrTxnTypeFromStr(txntype)
+	txnType = dbtypes.AddrTxnViewTypeFromStr(txntype)
 	if txnType == dbtypes.AddrTxnUnknown {
 		err = fmt.Errorf("unknown txntype query value")
 	}
@@ -1394,7 +1394,7 @@ func parseAddressParams(r *http.Request) (address string, txnType dbtypes.AddrTx
 
 // AddressListData grabs a size-limited and type-filtered set of inputs/outputs
 // for a given address.
-func (exp *explorerUI) AddressListData(address string, txnType dbtypes.AddrTxnType, limitN, offsetAddrOuts int64) (addrData *dbtypes.AddressInfo, err error) {
+func (exp *explorerUI) AddressListData(address string, txnType dbtypes.AddrTxnViewType, limitN, offsetAddrOuts int64) (addrData *dbtypes.AddressInfo, err error) {
 	if exp.liteMode {
 		addrData, _, addrErr := exp.blockData.GetExplorerAddress(address,
 			limitN, offsetAddrOuts)

@@ -83,13 +83,14 @@ type explorerDataSourceLite interface {
 // faster solution than RPC, or additional functionality.
 type explorerDataSource interface {
 	BlockHeight(hash string) (int64, error)
+	Height() int64
 	HeightDB() (int64, error)
 	BlockHash(height int64) (string, error)
 	SpendingTransaction(fundingTx string, vout uint32) (string, uint32, int8, error)
 	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
 	PoolStatusForTicket(txid string) (dbtypes.TicketSpendType, dbtypes.TicketPoolStatus, error)
-	AddressHistory(address string, N, offset int64, txnType dbtypes.AddrTxnType) ([]*dbtypes.AddressRow, *dbtypes.AddressBalance, error)
-	AddressData(address string, N, offset int64, txnType dbtypes.AddrTxnType) (*dbtypes.AddressInfo, error)
+	AddressHistory(address string, N, offset int64, txnType dbtypes.AddrTxnViewType) ([]*dbtypes.AddressRow, *dbtypes.AddressBalance, error)
+	AddressData(address string, N, offset int64, txnType dbtypes.AddrTxnViewType) (*dbtypes.AddressInfo, error)
 	DevBalance() (*dbtypes.AddressBalance, error)
 	FillAddressTransactions(addrInfo *dbtypes.AddressInfo) error
 	BlockMissedVotes(blockHash string) ([]string, error)

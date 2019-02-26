@@ -1366,12 +1366,13 @@ func RetrieveAddressUTXOs(ctx context.Context, db *sql.DB, address string, curre
 	for rows.Next() {
 		pkScript := []byte{}
 		var blockHeight, atoms int64
-		var blocktime dbtypes.TimeDef
+		var blockTime dbtypes.TimeDef
 		txnOutput := apitypes.AddressTxnOutput{}
 		if err = rows.Scan(&txnOutput.Address, &txnOutput.TxnID,
-			&atoms, &blockHeight, &blocktime, &txnOutput.Vout, &pkScript); err != nil {
+			&atoms, &blockHeight, &blockTime, &txnOutput.Vout, &pkScript); err != nil {
 			log.Error(err)
 		}
+		txnOutput.BlockTime = blockTime.UNIX()
 		txnOutput.ScriptPubKey = hex.EncodeToString(pkScript)
 		txnOutput.Amount = dcrutil.Amount(atoms).ToCoin()
 		txnOutput.Satoshis = atoms
@@ -1443,6 +1444,35 @@ func RetrieveAllAddressTxns(ctx context.Context, db *sql.DB, address string) ([]
 	return scanAddressQueryRows(rows, creditDebitQuery)
 }
 
+// RetrieveAllMainchainAddressTxns retrieves all non-merged and valid_mainchain
+// rows of the address table pertaining to the given address.
+func RetrieveAllMainchainAddressTxns(ctx context.Context, db *sql.DB, address string) ([]uint64, []*dbtypes.AddressRow, error) {
+	rows, err := db.QueryContext(ctx, internal.SelectAddressAllMainchainByAddress, address)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	defer closeRows(rows)
+
+	return scanAddressQueryRows(rows, creditDebitQuery)
+}
+
+// RetrieveAllMainchainAddressMergedTxns retrieves all merged and
+// valid_mainchain rows of the address table pertaining to the given address.
+func RetrieveAllMainchainAddressMergedTxns(ctx context.Context, db *sql.DB, address string) ([]uint64, []*dbtypes.AddressRow, error) {
+	rows, err := db.QueryContext(ctx, internal.SelectAddressMergedViewAll, address)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	defer closeRows(rows)
+
+	addr, err := scanAddressMergedRows(rows, address, mergedQuery)
+	return nil, addr, err
+}
+
+// Regular (non-merged) address transactions queries.
+
 func RetrieveAddressTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
 	return retrieveAddressTxns(ctx, db, address, N, offset,
 		internal.SelectAddressLimitNByAddress, creditDebitQuery)
@@ -1458,6 +1488,8 @@ func RetrieveAddressCreditTxns(ctx context.Context, db *sql.DB, address string, 
 		internal.SelectAddressCreditsLimitNByAddress, debitQuery)
 }
 
+// Merged address transactions queries.
+
 func RetrieveAddressMergedDebitTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
 	return retrieveAddressTxns(ctx, db, address, N, offset,
 		internal.SelectAddressMergedDebitView, mergedDebitQuery)
@@ -1472,6 +1504,8 @@ func RetrieveAddressMergedTxns(ctx context.Context, db *sql.DB, address string, 
 	return retrieveAddressTxns(ctx, db, address, N, offset,
 		internal.SelectAddressMergedView, mergedQuery)
 }
+
+// Address transaction query helpers.
 
 func retrieveAddressTxns(ctx context.Context, db *sql.DB, address string, N, offset int64,
 	statement string, queryType int) ([]uint64, []*dbtypes.AddressRow, error) {
@@ -1545,28 +1579,26 @@ func retrieveAddressIoCsv(ctx context.Context, db *sql.DB, address string) (csvR
 
 func scanAddressMergedRows(rows *sql.Rows, addr string, queryType int) (addressRows []*dbtypes.AddressRow, err error) {
 	for rows.Next() {
-		var addr = dbtypes.AddressRow{Address: addr}
-		var blockTime dbtypes.TimeDef
+		addr := dbtypes.AddressRow{Address: addr}
 
 		var value int64
 		switch queryType {
 		case mergedCreditQuery:
-			err = rows.Scan(&addr.TxHash, &addr.ValidMainChain, &blockTime,
-				&value, &addr.MergedCount)
 			addr.IsFunding = true
+			fallthrough
 		case mergedDebitQuery:
-			err = rows.Scan(&addr.TxHash, &addr.ValidMainChain, &blockTime,
+			err = rows.Scan(&addr.TxHash, &addr.ValidMainChain, &addr.TxBlockTime,
 				&value, &addr.MergedCount)
 		case mergedQuery:
-			err = rows.Scan(&addr.TxHash, &addr.ValidMainChain, &blockTime,
+			err = rows.Scan(&addr.TxHash, &addr.ValidMainChain, &addr.TxBlockTime,
 				&addr.AtomsCredit, &addr.AtomsDebit, &addr.MergedCount)
-			value = int64(addr.AtomsCredit - addr.AtomsDebit)
-			if value >= 0 {
-				addr.IsFunding = true
-			} else {
-				value = -1 * value
+			value = int64(addr.AtomsCredit) - int64(addr.AtomsDebit)
+			addr.IsFunding = value >= 0
+			if !addr.IsFunding {
+				value = -value
 			}
 		default:
+			err = fmt.Errorf("invalid query %v", queryType)
 		}
 
 		if err != nil {
@@ -1574,7 +1606,6 @@ func scanAddressMergedRows(rows *sql.Rows, addr string, queryType int) (addressR
 		}
 
 		addr.Value = uint64(value)
-		addr.TxBlockTime = blockTime
 
 		addressRows = append(addressRows, &addr)
 	}
@@ -1585,12 +1616,11 @@ func scanAddressQueryRows(rows *sql.Rows, queryType int) (ids []uint64, addressR
 	for rows.Next() {
 		var id uint64
 		var addr dbtypes.AddressRow
-		var txHash sql.NullString
-		var blockTime dbtypes.TimeDef
+		var matchingTxHash sql.NullString
 		var txVinIndex, vinDbID sql.NullInt64
 
-		err = rows.Scan(&id, &addr.Address, &addr.MatchingTxHash, &txHash, &addr.TxType,
-			&addr.ValidMainChain, &txVinIndex, &blockTime, &vinDbID,
+		err = rows.Scan(&id, &addr.Address, &matchingTxHash, &addr.TxHash, &addr.TxType,
+			&addr.ValidMainChain, &txVinIndex, &addr.TxBlockTime, &vinDbID,
 			&addr.Value, &addr.IsFunding)
 
 		if err != nil {
@@ -1599,8 +1629,10 @@ func scanAddressQueryRows(rows *sql.Rows, queryType int) (ids []uint64, addressR
 
 		switch queryType {
 		case creditQuery:
+			// addr.IsFunding == true
 			addr.AtomsCredit = addr.Value
 		case debitQuery:
+			// addr.IsFunding == false
 			addr.AtomsDebit = addr.Value
 		case creditDebitQuery:
 			if addr.IsFunding {
@@ -1609,12 +1641,11 @@ func scanAddressQueryRows(rows *sql.Rows, queryType int) (ids []uint64, addressR
 				addr.AtomsDebit = addr.Value
 			}
 		default:
+			log.Warnf("Unrecognized addresses query type: %d", queryType)
 		}
 
-		addr.TxBlockTime = blockTime
-
-		if txHash.Valid {
-			addr.TxHash = txHash.String
+		if matchingTxHash.Valid {
+			addr.MatchingTxHash = matchingTxHash.String
 		}
 		if txVinIndex.Valid {
 			addr.TxVinVoutIndex = uint32(txVinIndex.Int64)

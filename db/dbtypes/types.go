@@ -258,12 +258,12 @@ func AgendaStatusFromStr(status string) AgendaStatusType {
 	}
 }
 
-// AddrTxnType enumerates the different transaction types as displayed by the
-// address page.
-type AddrTxnType int
+// AddrTxnViewType enumerates the different address transaction view types as
+// displayed by the address page.
+type AddrTxnViewType int
 
 const (
-	AddrTxnAll AddrTxnType = iota
+	AddrTxnAll AddrTxnViewType = iota
 	AddrTxnCredit
 	AddrTxnDebit
 	AddrMergedTxnDebit
@@ -272,8 +272,8 @@ const (
 	AddrTxnUnknown
 )
 
-// AddrTxnTypes is the canonical mapping from AddrTxnType to string.
-var AddrTxnTypes = map[AddrTxnType]string{
+// AddrTxnViewTypes is the canonical mapping from AddrTxnViewType to string.
+var AddrTxnViewTypes = map[AddrTxnViewType]string{
 	AddrTxnAll:          "all",
 	AddrTxnCredit:       "credit",
 	AddrTxnDebit:        "debit",
@@ -283,12 +283,25 @@ var AddrTxnTypes = map[AddrTxnType]string{
 	AddrTxnUnknown:      "unknown",
 }
 
-func (a AddrTxnType) String() string {
-	return AddrTxnTypes[a]
+func (a AddrTxnViewType) String() string {
+	return AddrTxnViewTypes[a]
 }
 
-// AddrTxnTypeFromStr attempts to decode a string into an AddrTxnType.
-func AddrTxnTypeFromStr(txnType string) AddrTxnType {
+// IsMerged indicates if the address transactions view type is a merged view. If
+// the type is invalid, a non-nil error is returned.
+func (a AddrTxnViewType) IsMerged() (bool, error) {
+	switch a {
+	case AddrTxnAll, AddrTxnCredit, AddrTxnDebit:
+		return false, nil
+	case AddrMergedTxn, AddrMergedTxnCredit, AddrMergedTxnDebit:
+		return true, nil
+	default:
+		return false, fmt.Errorf("unrecognized address transaction view: %v", a)
+	}
+}
+
+// AddrTxnViewTypeFromStr attempts to decode a string into an AddrTxnViewType.
+func AddrTxnViewTypeFromStr(txnType string) AddrTxnViewType {
 	txnType = strings.ToLower(txnType)
 	switch txnType {
 	case "all":
@@ -734,6 +747,12 @@ type AddressRow struct {
 	AtomsDebit  uint64
 }
 
+// IsMerged indicates if the AddressRow represents data for a "merged" address
+// table view by checking the MergedCount.
+func (ar *AddressRow) IsMerged() bool {
+	return ar.MergedCount > 0
+}
+
 // AddressMetrics defines address metrics needed to make decisions by which
 // grouping buttons on the address history page charts should be disabled or
 // enabled by default.
@@ -955,7 +974,7 @@ type AddressTx struct {
 // represented by the AddressTx.
 func (a *AddressTx) IOID(txType ...string) string {
 	// If transaction is of type merged_debit, return unformatted transaction ID
-	if len(txType) > 0 && AddrTxnTypeFromStr(txType[0]) == AddrMergedTxnDebit {
+	if len(txType) > 0 && AddrTxnViewTypeFromStr(txType[0]) == AddrMergedTxnDebit {
 		return a.TxID
 	}
 	// When AddressTx is used properly, at least one of ReceivedTotal or
