@@ -498,6 +498,64 @@ func ChoiceIndexFromStr(choice string) (VoteChoice, error) {
 	}
 }
 
+// Charts defines the respective charts that appear on the /charts page.
+type Charts int8
+
+const (
+	AvgBlockSize Charts = iota
+	BlockChainSize
+	ChainWork
+	CoinSupply
+	DurationBTW
+	HashRate
+	POWDifficulty
+	TicketByWindows
+	TicketPrice
+	TicketsByBlocks
+	TicketSpendT
+	TxPerBlock
+	TxPerDay
+	unknownChart
+)
+
+// generalCharts maps the general Charts data type to the actual chart name.
+var generalCharts = map[Charts]string{
+	AvgBlockSize:    "avg-block-size",
+	BlockChainSize:  "blockchain-size",
+	ChainWork:       "chainwork",
+	CoinSupply:      "coin-supply",
+	DurationBTW:     "duration-btw-blocks",
+	HashRate:        "hashrate",
+	POWDifficulty:   "pow-difficulty",
+	TicketByWindows: "ticket-by-outputs-windows",
+	TicketPrice:     "ticket-price",
+	TicketsByBlocks: "ticket-by-outputs-blocks",
+	TicketSpendT:    "ticket-spend-type",
+	TxPerBlock:      "tx-per-block",
+	TxPerDay:        "tx-per-day",
+}
+
+// It is the default string for Charts data type.
+func (c Charts) String() string {
+	return generalCharts[c]
+}
+
+// ChartsCount returns the current count of the general charts supported.
+func ChartsCount() int {
+	return len(generalCharts)
+}
+
+// ChartsFromStr returns the Charts data type key for the provided chart string
+// name.
+func ChartsFromStr(name string) (Charts, error) {
+	for key, val := range generalCharts {
+		if val == name {
+			return key, nil
+		}
+	}
+	return unknownChart, fmt.Errorf("%s chart name is unknown", name)
+}
+
 // MileStone defines the various stages passed by vote on a given agenda.
 // Activated is the height at which the delay time begins before a vote activates.
 // HardForked is the height at which the consensus rule changes.
