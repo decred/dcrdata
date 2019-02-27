@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -1503,6 +1504,35 @@ func (pgb *ChainDB) updateAddressRows(address string, merged bool) error {
 	return nil
 }
 
+// AddressRows gets the merged or non-merged address rows either from cache or
+// via DB query.
+func (pgb *ChainDB) AddressRows(address string, merged bool) ([]*dbtypes.AddressRow, error) {
+	// Try the address cache.
+	rowCacheFn := pgb.AddressCache.Rows
+	if merged {
+		rowCacheFn = pgb.AddressCache.RowsMerged
+	}
+
+	hash := pgb.BestBlockHash()
+	addressRows, validBlock := rowCacheFn(address)
+	cacheCurrent := validBlock != nil && validBlock.Hash == *hash && addressRows != nil
+	if cacheCurrent {
+		log.Debugf("AddressRows: rows (merged=%v) cache HIT for %s.", merged, address)
+		return addressRows, nil
+	}
+
+	log.Debugf("AddressRows: rows (merged=%v) cache MISS for %s.", merged, address)
+
+	// Update or wait for an update to the cached AddressRows.
+	err := pgb.updateAddressRows(address, merged)
+	if err != nil {
+		return nil, err
+	}
+
+	// Try again, starting with cache.
+	return pgb.AddressRows(address, merged)
+}
+
 // retrieveMergedTxnCount queries the DB for the merged address transaction view
 // row count.
 func (pgb *ChainDB) retrieveMergedTxnCount(addr string, txnView dbtypes.AddrTxnViewType) (int, error) {
@@ -2018,18 +2048,106 @@ func (pgb *ChainDB) AddressTotals(address string) (*apitypes.AddressTotals, erro
 	}, nil
 }
 
+// MakeCsvAddressRows converts an AddressRow slice into a [][]string, including
+// column headers, suitable for saving to CSV.
+func MakeCsvAddressRows(rows []*dbtypes.AddressRow) [][]string {
+	csvRows := make([][]string, 0, len(rows)+1)
+	csvRows = append(csvRows, []string{"tx_hash", "direction", "io_index",
+		"valid_mainchain", "value", "time_stamp", "tx_type", "matching_tx_hash"})
+
+	for _, r := range rows {
+		var strValidMainchain string
+		if r.ValidMainChain {
+			strValidMainchain = "1"
+		} else {
+			strValidMainchain = "0"
+		}
+
+		var strDirection string
+		if r.IsFunding {
+			strDirection = "1"
+		} else {
+			strDirection = "-1"
+		}
+
+		csvRows = append(csvRows, []string{
+			r.TxHash,
+			strDirection,
+			strconv.Itoa(int(r.TxVinVoutIndex)),
+			strValidMainchain,
+			strconv.FormatFloat(dcrutil.Amount(r.Value).ToCoin(), 'f', -1, 64),
+			strconv.FormatInt(r.TxBlockTime.UNIX(), 10),
+			txhelpers.TxTypeToString(int(r.TxType)),
+			r.MatchingTxHash,
+		})
+	}
+	return csvRows
+}
+
 // AddressTxIoCsv grabs rows of an address' transaction input/output data as a
 // 2-D array of strings to be CSV-formatted.
-func (pgb *ChainDB) AddressTxIoCsv(address string) (rows [][]string, err error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
-	defer cancel()
-
-	rows, err = retrieveAddressIoCsv(ctx, pgb.db, address)
+func (pgb *ChainDB) AddressTxIoCsv(address string) ([][]string, error) {
+	var merged bool
+	rows, err := pgb.AddressRows(address, merged)
 	if err != nil {
-		return nil, fmt.Errorf("AddressTxIoCsv error: %v", err)
+		return nil, err
 	}
 
-	return
+	return MakeCsvAddressRows(rows), nil
+
+	// ALT implementation, without cache update:
+
+	// Try the address rows cache.
+	// hash := pgb.BestBlockHash()
+	// rows, validBlock := pgb.AddressCache.Rows(address)
+	// cacheCurrent := validBlock != nil && validBlock.Hash == *hash
+	// if cacheCurrent && rows != nil {
+	// 	log.Debugf("AddressTxIoCsv: Merged address rows cache HIT for %s.", address)
+
+	// 	csvRows := make([][]string, 0, len(rows)+1)
+	// 	csvRows = append(csvRows, []string{"tx_hash", "direction", "io_index",
+	// 		"valid_mainchain", "value", "time_stamp", "tx_type", "matching_tx_hash"})
+
+	// 	for _, r := range rows {
+	// 		var strValidMainchain string
+	// 		if r.ValidMainChain {
+	// 			strValidMainchain = "1"
+	// 		} else {
+	// 			strValidMainchain = "0"
+	// 		}
+
+	// 		var strDirection string
+	// 		if r.IsFunding {
+	// 			strDirection = "1"
+	// 		} else {
+	// 			strDirection = "-1"
+	// 		}
+
+	// 		csvRows = append(csvRows, []string{
+	// 			r.TxHash,
+	// 			strDirection,
+	// 			strconv.Itoa(int(r.TxVinVoutIndex)),
+	// 			strValidMainchain,
+	// 			strconv.FormatFloat(dcrutil.Amount(r.Value).ToCoin(), 'f', -1, 64),
+	// 			strconv.FormatInt(r.TxBlockTime.UNIX(), 10),
+	// 			txhelpers.TxTypeToString(int(r.TxType)),
+	// 			r.MatchingTxHash,
+	// 		})
+	// 	}
+
+	// 	return csvRows, nil
+	// }
+
+	// log.Debugf("AddressTxIoCsv: Merged address rows cache MISS for %s.", address)
+
+	// ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	// defer cancel()
+
+	// csvRows, err := retrieveAddressIoCsv(ctx, pgb.db, address)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("retrieveAddressIoCsv: %v", err)
+	// }
+	// return csvRows, nil
 }
 
 func (pgb *ChainDB) addressInfo(addr string, count, skip int64, txnType dbtypes.AddrTxnViewType) (*dbtypes.AddressInfo, *dbtypes.AddressBalance, error) {
