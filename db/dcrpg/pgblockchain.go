@@ -840,6 +840,15 @@ func (pgb *ChainDB) BlockHash(height int64) (string, error) {
 	return hash, pgb.replaceCancelError(err)
 }
 
+// BlockTimeByHeight queries the DB for the time of the mainchain block at the
+// given height.
+func (pgb *ChainDB) BlockTimeByHeight(height int64) (int64, error) {
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	defer cancel()
+	time, err := RetrieveBlockTimeByHeight(ctx, pgb.db, height)
+	return time.UNIX(), pgb.replaceCancelError(err)
+}
+
 // VotesInBlock returns the number of votes mined in the block with the
 // specified hash.
 func (pgb *ChainDB) VotesInBlock(hash string) (int16, error) {
