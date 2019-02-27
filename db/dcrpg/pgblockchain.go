@@ -1531,6 +1531,10 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 // AddressData returns comprehensive, paginated information for an address.
 func (db *ChainDBRPC) AddressData(address string, limitN, offsetAddrOuts int64,
 	txnType dbtypes.AddrTxnType) (addrData *dbtypes.AddressInfo, err error) {
+	merged, err := txnType.IsMerged()
+	if err != nil {
+		return nil, err
+	}
 
 	addrHist, balance, errH := db.AddressHistory(address, limitN, offsetAddrOuts, txnType)
 
@@ -1561,12 +1565,13 @@ func (db *ChainDBRPC) AddressData(address string, limitN, offsetAddrOuts int64,
 		// Generate AddressInfo skeleton from the address table rows.
 		addrData = dbtypes.ReduceAddressHistory(addrHist)
 		if addrData == nil {
-			// Empty history is not expected for credit txnType with any txns.
-			if txnType != dbtypes.AddrTxnDebit &&
+			// Empty history is not expected for credit or all txnType with any
+			// txns. i.e. Empty history is OK for debit views (merged or not).
+			if (txnType != dbtypes.AddrTxnDebit && txnType != dbtypes.AddrMergedTxnDebit) &&
 				(balance.NumSpent+balance.NumUnspent) > 0 {
 				log.Debugf("empty address history (%s): n=%d&start=%d",
 					address, limitN, offsetAddrOuts)
-				return nil, fmt.Errorf("That address has no history")
+				return nil, fmt.Errorf("that address has no history")
 			}
 			addrData = new(dbtypes.AddressInfo)
 		}
@@ -1625,8 +1630,8 @@ func (db *ChainDBRPC) AddressData(address string, limitN, offsetAddrOuts int64,
 	}
 
 	// Check for unconfirmed transactions.
-	addressOuts, numUnconfirmed, err := rpcutils.UnconfirmedTxnsForAddress(db.Client, address, db.chainParams)
-	if err != nil || addressOuts == nil {
+	addressUTXOs, numUnconfirmed, err := rpcutils.UnconfirmedTxnsForAddress(db.Client, address, db.chainParams)
+	if err != nil || addressUTXOs == nil {
 		return nil, fmt.Errorf("UnconfirmedTxnsForAddress failed for address %s: %v", address, err)
 	}
 	addrData.NumUnconfirmed = numUnconfirmed
@@ -1638,7 +1643,12 @@ func (db *ChainDBRPC) AddressData(address string, limitN, offsetAddrOuts int64,
 	// Funding transactions (unconfirmed)
 	var received, sent, numReceived, numSent int64
 FUNDING_TX_DUPLICATE_CHECK:
-	for _, f := range addressOuts.Outpoints {
+	for _, f := range addressUTXOs.Outpoints {
+		// TODO: handle merged transactions
+		if merged {
+			break FUNDING_TX_DUPLICATE_CHECK
+		}
+
 		// Mempool transactions stick around for 2 blocks. The first block
 		// incorporates the transaction and mines it. The second block
 		// validates it by the stake. However, transactions move into our
@@ -1649,7 +1659,7 @@ FUNDING_TX_DUPLICATE_CHECK:
 				continue FUNDING_TX_DUPLICATE_CHECK
 			}
 		}
-		fundingTx, ok := addressOuts.TxnsStore[f.Hash]
+		fundingTx, ok := addressUTXOs.TxnsStore[f.Hash]
 		if !ok {
 			log.Errorf("An outpoint's transaction is not available in TxnStore.")
 			continue
@@ -1677,7 +1687,12 @@ FUNDING_TX_DUPLICATE_CHECK:
 
 	// Spending transactions (unconfirmed)
 SPENDING_TX_DUPLICATE_CHECK:
-	for _, f := range addressOuts.PrevOuts {
+	for _, f := range addressUTXOs.PrevOuts {
+		// TODO: handle merged transactions
+		if merged {
+			break SPENDING_TX_DUPLICATE_CHECK
+		}
+
 		// Mempool transactions stick around for 2 blocks. The first block
 		// incorporates the transaction and mines it. The second block
 		// validates it by the stake. However, transactions move into our
@@ -1688,7 +1703,7 @@ SPENDING_TX_DUPLICATE_CHECK:
 				continue SPENDING_TX_DUPLICATE_CHECK
 			}
 		}
-		spendingTx, ok := addressOuts.TxnsStore[f.TxSpending]
+		spendingTx, ok := addressUTXOs.TxnsStore[f.TxSpending]
 		if !ok {
 			log.Errorf("An outpoint's transaction is not available in TxnStore.")
 			continue
@@ -1703,7 +1718,7 @@ SPENDING_TX_DUPLICATE_CHECK:
 		prevhash := spendingTx.Tx.TxIn[f.InputIndex].PreviousOutPoint.Hash
 		strprevhash := prevhash.String()
 		previndex := spendingTx.Tx.TxIn[f.InputIndex].PreviousOutPoint.Index
-		valuein := addressOuts.TxnsStore[prevhash].Tx.TxOut[previndex].Value
+		valuein := addressUTXOs.TxnsStore[prevhash].Tx.TxOut[previndex].Value
 
 		// Look through old transactions and set the spending transactions'
 		// matching transaction fields.
@@ -1731,7 +1746,7 @@ SPENDING_TX_DUPLICATE_CHECK:
 
 		sent += valuein
 		numSent++
-	} // range addressOuts.PrevOuts
+	} // range addressUTXOs.PrevOuts
 
 	// Totals from funding and spending transactions.
 	addrData.Balance.NumSpent += numSent

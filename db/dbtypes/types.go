@@ -227,6 +227,19 @@ func (a AgendaStatusType) MarshalJSON() ([]byte, error) {
 	return json.Marshal(a.String())
 }
 
+// IsMerged indicates if the address transactions view type is a merged view. If
+// the type is invalid, a non-nil error is returned.
+func (a AddrTxnType) IsMerged() (bool, error) {
+	switch a {
+	case AddrTxnAll, AddrTxnCredit, AddrTxnDebit:
+		return false, nil
+	case AddrMergedTxn, AddrMergedTxnCredit, AddrMergedTxnDebit:
+		return true, nil
+	default:
+		return false, fmt.Errorf("unrecognized address transaction view: %v", a)
+	}
+}
+
 // AgendaStatusFromStr creates an agenda status from a string.
 func AgendaStatusFromStr(status string) AgendaStatusType {
 	switch strings.ToLower(status) {
