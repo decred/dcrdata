@@ -374,7 +374,7 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 
 	// After the last call to StoreBlock, synchronously update the project fund
 	// and clear the general address balance cache.
-	if err = db.FreshenAddressCaches(false); err != nil {
+	if err = db.FreshenAddressCaches(false, nil); err != nil {
 		log.Warnf("FreshenAddressCaches: %v", err)
 		err = nil // not an error with sync
 	}

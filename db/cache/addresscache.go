@@ -67,7 +67,7 @@ func CountCreditDebitRows(rows []*dbtypes.AddressRow) (numCredit, numDebit int) 
 	return
 }
 
-func creditAddressRows(rows []*dbtypes.AddressRow, N, offset int) []*dbtypes.AddressRow {
+func CreditAddressRows(rows []*dbtypes.AddressRow, N, offset int) []*dbtypes.AddressRow {
 	if offset >= len(rows) {
 		return nil
 	}
@@ -99,7 +99,7 @@ func creditAddressRows(rows []*dbtypes.AddressRow, N, offset int) []*dbtypes.Add
 	return out
 }
 
-func debitAddressRows(rows []*dbtypes.AddressRow, N, offset int) []*dbtypes.AddressRow {
+func DebitAddressRows(rows []*dbtypes.AddressRow, N, offset int) []*dbtypes.AddressRow {
 	_, numDebitRows := CountCreditDebitRows(rows)
 	if numDebitRows < N {
 		N = numDebitRows
@@ -123,23 +123,29 @@ func debitAddressRows(rows []*dbtypes.AddressRow, N, offset int) []*dbtypes.Addr
 	return out
 }
 
-func allCreditAddressRows(rows []*dbtypes.AddressRow) []*dbtypes.AddressRow {
+func AllCreditAddressRows(rows []*dbtypes.AddressRow) []*dbtypes.AddressRow {
 	numCreditRows, _ := CountCreditDebitRows(rows)
-	out := make([]*dbtypes.AddressRow, numCreditRows)
-	for i, r := range rows {
+	out := make([]*dbtypes.AddressRow, 0, numCreditRows)
+	if numCreditRows == 0 {
+		return out
+	}
+	for _, r := range rows {
 		if r.IsFunding {
-			out[i] = r
+			out = append(out, r)
 		}
 	}
 	return out
 }
 
-func allDebitAddressRows(rows []*dbtypes.AddressRow) []*dbtypes.AddressRow {
+func AllDebitAddressRows(rows []*dbtypes.AddressRow) []*dbtypes.AddressRow {
 	_, numDebitRows := CountCreditDebitRows(rows)
 	out := make([]*dbtypes.AddressRow, numDebitRows)
-	for i, r := range rows {
+	if numDebitRows == 0 {
+		return out
+	}
+	for _, r := range rows {
 		if !r.IsFunding {
-			out[i] = r
+			out = append(out, r)
 		}
 	}
 	return out
@@ -198,6 +204,9 @@ func (d *AddressCacheItem) BlockHeight() int64 {
 func (d *AddressCacheItem) Balance() (*dbtypes.AddressBalance, *BlockID) {
 	d.RLock()
 	defer d.RUnlock()
+	if d.balance == nil {
+		return nil, nil
+	}
 	return d.balance, d.blockID()
 }
 
@@ -205,6 +214,9 @@ func (d *AddressCacheItem) Balance() (*dbtypes.AddressBalance, *BlockID) {
 func (d *AddressCacheItem) UTXOs() ([]apitypes.AddressTxnOutput, *BlockID) {
 	d.RLock()
 	defer d.RUnlock()
+	if d.utxos == nil {
+		return nil, nil
+	}
 	return d.utxos, d.blockID()
 }
 
@@ -212,6 +224,9 @@ func (d *AddressCacheItem) UTXOs() ([]apitypes.AddressTxnOutput, *BlockID) {
 func (d *AddressCacheItem) Metrics() (*dbtypes.AddressMetrics, *BlockID) {
 	d.RLock()
 	defer d.RUnlock()
+	if d.metrics == nil {
+		return nil, nil
+	}
 	return d.metrics, d.blockID()
 }
 
@@ -219,6 +234,9 @@ func (d *AddressCacheItem) Metrics() (*dbtypes.AddressMetrics, *BlockID) {
 func (d *AddressCacheItem) Rows() ([]*dbtypes.AddressRow, *BlockID) {
 	d.RLock()
 	defer d.RUnlock()
+	if d.rows == nil {
+		return nil, nil
+	}
 	return d.rows, d.blockID()
 }
 
@@ -226,6 +244,9 @@ func (d *AddressCacheItem) Rows() ([]*dbtypes.AddressRow, *BlockID) {
 func (d *AddressCacheItem) RowsMerged() ([]*dbtypes.AddressRow, *BlockID) {
 	d.RLock()
 	defer d.RUnlock()
+	if d.rowsMerged == nil {
+		return nil, nil
+	}
 	return d.rowsMerged, d.blockID()
 }
 
@@ -256,9 +277,6 @@ func (d *AddressCacheItem) NumRowsMerged() (int, *BlockID) {
 // retrieve, N, and the number of transactions to skip, offset, are also
 // specified.
 func (d *AddressCacheItem) Transactions(N, offset int, txnView dbtypes.AddrTxnViewType) ([]*dbtypes.AddressRow, *BlockID, error) {
-	if N == 0 {
-		return nil, d.blockID(), nil
-	}
 	if offset < 0 || N < 0 {
 		return nil, nil, fmt.Errorf("invalid offset (%d) or N (%d)", offset, N)
 	}
@@ -280,6 +298,13 @@ func (d *AddressCacheItem) Transactions(N, offset int, txnView dbtypes.AddrTxnVi
 		return nil, nil, nil // cache miss is not an error
 	}
 
+	// Cache hit, not nil.
+	rows := []*dbtypes.AddressRow{}
+	if N == 0 {
+		// Not a cache miss, just no requested data.
+		return rows, d.blockID(), nil
+	}
+
 	endRange := func(l int) int {
 		end := offset + N
 		if end > l {
@@ -288,7 +313,6 @@ func (d *AddressCacheItem) Transactions(N, offset int, txnView dbtypes.AddrTxnVi
 		return end
 	}
 
-	var rows []*dbtypes.AddressRow
 	switch txnView {
 	case dbtypes.AddrTxnAll:
 		end := endRange(len(d.rows))
@@ -296,18 +320,18 @@ func (d *AddressCacheItem) Transactions(N, offset int, txnView dbtypes.AddrTxnVi
 			rows = d.rows[offset:end]
 		}
 	case dbtypes.AddrTxnCredit:
-		rows = creditAddressRows(d.rows, N, offset)
+		rows = CreditAddressRows(d.rows, N, offset)
 	case dbtypes.AddrTxnDebit:
-		rows = debitAddressRows(d.rows, N, offset)
+		rows = DebitAddressRows(d.rows, N, offset)
 	case dbtypes.AddrMergedTxn:
 		end := endRange(len(d.rowsMerged))
 		if offset < end {
 			rows = d.rowsMerged[offset:end]
 		}
 	case dbtypes.AddrMergedTxnCredit:
-		rows = creditAddressRows(d.rowsMerged, N, offset)
+		rows = CreditAddressRows(d.rowsMerged, N, offset)
 	case dbtypes.AddrMergedTxnDebit:
-		rows = debitAddressRows(d.rowsMerged, N, offset)
+		rows = DebitAddressRows(d.rowsMerged, N, offset)
 	default:
 		return nil, nil, fmt.Errorf("unrecognized address transaction view: %v", txnView)
 	}
@@ -395,10 +419,30 @@ func (ac *AddressCache) addressCacheItem(addr string) *AddressCacheItem {
 }
 
 // ClearAll resets AddressCache, purging all cached data.
-func (ac *AddressCache) ClearAll() {
+func (ac *AddressCache) ClearAll() (numCleared int) {
 	ac.Lock()
 	defer ac.Unlock()
+	numCleared = len(ac.a)
 	ac.a = make(map[string]*AddressCacheItem, ac.cap)
+	return
+}
+
+// Clear purging cached data for the given addresses. If addrs is nil, all data
+// are cleared. If addresses is non-nil empty slice, no data are cleard.
+func (ac *AddressCache) Clear(addrs []string) (numCleared int) {
+	if addrs == nil {
+		return ac.ClearAll()
+	}
+	if len(addrs) == 0 {
+		return
+	}
+	ac.Lock()
+	defer ac.Unlock()
+	for i := range addrs {
+		delete(ac.a, addrs[i])
+		numCleared++
+	}
+	return
 }
 
 // Balance attempts to retrieve an AddressBalance for the given address. The
