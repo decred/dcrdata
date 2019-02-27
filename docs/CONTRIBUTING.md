@@ -15,11 +15,11 @@
 
 ### PR/Issues Naming Standard Format
 
-For effecient records keeping and retrievals, the following should be used th PR/Issues naming standard whenever possible:
+For efficient records keeping and retrieval, the following should be used as the PR/Issues naming standard whenever possible:
 
-`[Package/File/Directory Name]: [Short but concrete description of the PR/Issue]`
+`[Package/File/Directory Name]: [Concise and concrete description of the PR/Issue]`
 
-`Package/File/Directory Name` - Represents the collective name of the container in which the changes requested belong to.
+`Package/File/Directory Name` - Represents the collective name of the container in which the changes requested, belong to.
 
 examples of valid PR/Issues naming formats:
 
