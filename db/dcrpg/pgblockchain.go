@@ -1489,6 +1489,91 @@ func (pgb *ChainDB) updateAddressRows(address string, merged bool) error {
 	return nil
 }
 
+// retrieveMergedTxnCount queries the DB for the merged address transaction view
+// row count.
+func (pgb *ChainDB) retrieveMergedTxnCount(addr string, txnView dbtypes.AddrTxnViewType) (int, error) {
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	defer cancel()
+
+	var count int64
+	var err error
+	switch txnView {
+	case dbtypes.AddrMergedTxnDebit:
+		count, err = CountMergedSpendingTxns(ctx, pgb.db, addr)
+	case dbtypes.AddrMergedTxnCredit:
+		count, err = CountMergedFundingTxns(ctx, pgb.db, addr)
+	case dbtypes.AddrMergedTxn:
+		count, err = CountMergedTxns(ctx, pgb.db, addr)
+	default:
+		return 0, fmt.Errorf("retrieveMergedTxnCount: requested count for non-merged view")
+	}
+	return int(count), err
+}
+
+// mergedTxnCount checks cache and falls back to retrieveMergedTxnCount.
+func (pgb *ChainDB) mergedTxnCount(addr string, txnView dbtypes.AddrTxnViewType) (int, error) {
+	// Try the cache first.
+	rows, blockID := pgb.AddressCache.RowsMerged(addr)
+	if blockID == nil {
+		// Query the DB.
+		return pgb.retrieveMergedTxnCount(addr, txnView)
+	}
+
+	switch txnView {
+	case dbtypes.AddrMergedTxn:
+		return len(rows), nil
+	case dbtypes.AddrMergedTxnCredit:
+		numCredit, _ := cache.CountCreditDebitRows(rows)
+		return numCredit, nil
+	case dbtypes.AddrMergedTxnDebit:
+		_, numDebit := cache.CountCreditDebitRows(rows)
+		return numDebit, nil
+	default:
+		return 0, fmt.Errorf("MergedTxnCount: requested count for non-merged view")
+	}
+}
+
+// nonMergedTxnCount gets the non-merged address transaction view row count via
+// AddressBalance, which checks the cache and falls back to a DB query.
+func (pgb *ChainDB) nonMergedTxnCount(addr string, txnView dbtypes.AddrTxnViewType) (int, error) {
+	bal, err := pgb.AddressBalance(addr)
+	if err != nil {
+		return 0, err
+	}
+	var count int64
+	switch txnView {
+	case dbtypes.AddrTxnAll:
+		count = (bal.NumSpent * 2) + bal.NumUnspent
+	case dbtypes.AddrTxnCredit:
+		count = bal.NumSpent + bal.NumUnspent
+	case dbtypes.AddrTxnDebit:
+		count = bal.NumSpent
+	default:
+		return 0, fmt.Errorf("NonMergedTxnCount: requested count for merged view")
+	}
+	return int(count), nil
+}
+
+// CountTransactions gets the total row count for the given address and address
+// transaction view.
+func (pgb *ChainDB) CountTransactions(addr string, txnView dbtypes.AddrTxnViewType) (int, error) {
+	merged, err := txnView.IsMerged()
+	if err != nil {
+		return 0, err
+	}
+
+	countFn := pgb.nonMergedTxnCount
+	if merged {
+		countFn = pgb.mergedTxnCount
+	}
+
+	count, err := countFn(addr, txnView)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 // AddressHistory queries the database for rows of the addresses table
 // containing values for a certain type of transaction (all, credits, or debits)
 // for the given address.
@@ -1523,6 +1608,17 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 		// Try again, starting with cache.
 		return pgb.AddressHistory(address, N, offset, txnView)
 	}
+
+	defer func() {
+		if balance != nil {
+			log.Infof("%s: %d spent totalling %f DCR, %d unspent totalling %f DCR",
+				address, balance.NumSpent, dcrutil.Amount(balance.TotalSpent).ToCoin(),
+				balance.NumUnspent, dcrutil.Amount(balance.TotalUnspent).ToCoin())
+			log.Infof("Caching address receive count for address %s: "+
+				"count = %d at block %d.", address,
+				balance.NumSpent+balance.NumUnspent, height)
+		}
+	}()
 
 	log.Debugf("Address rows (view=%s) cache HIT for %s.", txnView.String(), address)
 
@@ -1570,13 +1666,6 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 			TotalUnspent: amtUnspent,
 		}
 	}
-
-	log.Infof("%s: %d spent totalling %f DCR, %d unspent totalling %f DCR",
-		address, balance.NumSpent, dcrutil.Amount(balance.TotalSpent).ToCoin(),
-		balance.NumUnspent, dcrutil.Amount(balance.TotalUnspent).ToCoin())
-	log.Infof("Caching address receive count for address %s: "+
-		"count = %d at block %d.", address,
-		balance.NumSpent+balance.NumUnspent, height)
 
 	return addressRows, balance, nil
 }
@@ -1635,35 +1724,31 @@ func (db *ChainDBRPC) AddressData(address string, limitN, offsetAddrOuts int64,
 		addrData.KnownFundingTxns = balance.NumSpent + balance.NumUnspent
 		addrData.KnownSpendingTxns = balance.NumSpent
 
-		// Transactions to fetch with FillAddressTransactions. This should be a
-		// noop if ReduceAddressHistory is working right.
-		switch txnType {
-		case dbtypes.AddrTxnAll:
-			addrData.TxnCount = addrData.KnownFundingTxns + addrData.KnownSpendingTxns
-		case dbtypes.AddrMergedTxnDebit, dbtypes.AddrMergedTxnCredit, dbtypes.AddrMergedTxn:
-			addrData.IsMerged = true
-			ctx, cancel := context.WithTimeout(db.ctx, db.queryTimeout)
-			defer cancel()
-			switch txnType {
-			case dbtypes.AddrMergedTxnDebit:
-				addrData.TxnCount, err = CountMergedSpendingTxns(ctx, db.db, address)
-			case dbtypes.AddrMergedTxnCredit:
-				addrData.TxnCount, err = CountMergedFundingTxns(ctx, db.db, address)
-			case dbtypes.AddrMergedTxn:
-				addrData.TxnCount, err = CountMergedTxns(ctx, db.db, address)
-			}
+		// Obtain the TxnCount, which pertains to the number of table rows.
+		merged, err := txnType.IsMerged()
+		if err != nil {
+			return nil, err
+		}
+		if merged {
+			// For merged views, either query the DB or check the process the
+			// cached merged rows.
+			count, err := db.mergedTxnCount(address, txnType)
 			if err != nil {
-				return nil, fmt.Errorf("AddressHistory: %v", err)
+				return nil, err
 			}
-
-		case dbtypes.AddrTxnCredit:
-			addrData.TxnCount = addrData.KnownFundingTxns
-			addrData.Transactions = addrData.TxnsFunding
-		case dbtypes.AddrTxnDebit:
-			addrData.TxnCount = addrData.KnownSpendingTxns
-			addrData.Transactions = addrData.TxnsSpending
-		default:
-			log.Warnf("Unknown address transaction type: %v", txnType)
+			addrData.TxnCount = int64(count)
+		} else {
+			// For non-merged views, use the balance data.
+			switch txnType {
+			case dbtypes.AddrTxnAll:
+				addrData.TxnCount = addrData.KnownFundingTxns + addrData.KnownSpendingTxns
+			case dbtypes.AddrTxnCredit:
+				addrData.TxnCount = addrData.KnownFundingTxns
+				addrData.Transactions = addrData.TxnsFunding
+			case dbtypes.AddrTxnDebit:
+				addrData.TxnCount = addrData.KnownSpendingTxns
+				addrData.Transactions = addrData.TxnsSpending
+			}
 		}
 
 		// Transactions on current page

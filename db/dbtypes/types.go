@@ -1068,15 +1068,14 @@ func ReduceAddressHistory(addrHist []*AddressRow) *AddressInfo {
 		}
 		coin := dcrutil.Amount(addrOut.Value).ToCoin()
 		tx := AddressTx{
-			Time:      addrOut.TxBlockTime,
-			InOutID:   addrOut.TxVinVoutIndex,
-			TxID:      addrOut.TxHash,
-			TxType:    txhelpers.TxTypeToString(int(addrOut.TxType)),
-			MatchedTx: addrOut.MatchingTxHash,
-			IsFunding: addrOut.IsFunding,
+			Time:           addrOut.TxBlockTime,
+			InOutID:        addrOut.TxVinVoutIndex,
+			TxID:           addrOut.TxHash,
+			TxType:         txhelpers.TxTypeToString(int(addrOut.TxType)),
+			MatchedTx:      addrOut.MatchingTxHash,
+			IsFunding:      addrOut.IsFunding,
+			MergedTxnCount: addrOut.MergedCount,
 		}
-
-		tx.MergedTxnCount = addrOut.MergedCount
 
 		if addrOut.IsFunding {
 			// Funding transaction

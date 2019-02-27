@@ -56,7 +56,7 @@ func (cl *CacheLock) TryLock(addr string) (busy bool, wait chan struct{}, done f
 	return busy, wait, done
 }
 
-func countCreditDebitRows(rows []*dbtypes.AddressRow) (numCredit, numDebit int) {
+func CountCreditDebitRows(rows []*dbtypes.AddressRow) (numCredit, numDebit int) {
 	for _, r := range rows {
 		if r.IsFunding {
 			numCredit++
@@ -72,7 +72,7 @@ func creditAddressRows(rows []*dbtypes.AddressRow, N, offset int) []*dbtypes.Add
 		return nil
 	}
 
-	numCreditRows, _ := countCreditDebitRows(rows)
+	numCreditRows, _ := CountCreditDebitRows(rows)
 	if numCreditRows < N {
 		N = numCreditRows
 	}
@@ -100,7 +100,7 @@ func creditAddressRows(rows []*dbtypes.AddressRow, N, offset int) []*dbtypes.Add
 }
 
 func debitAddressRows(rows []*dbtypes.AddressRow, N, offset int) []*dbtypes.AddressRow {
-	_, numDebitRows := countCreditDebitRows(rows)
+	_, numDebitRows := CountCreditDebitRows(rows)
 	if numDebitRows < N {
 		N = numDebitRows
 	}
@@ -124,7 +124,7 @@ func debitAddressRows(rows []*dbtypes.AddressRow, N, offset int) []*dbtypes.Addr
 }
 
 func allCreditAddressRows(rows []*dbtypes.AddressRow) []*dbtypes.AddressRow {
-	numCreditRows, _ := countCreditDebitRows(rows)
+	numCreditRows, _ := CountCreditDebitRows(rows)
 	out := make([]*dbtypes.AddressRow, numCreditRows)
 	for i, r := range rows {
 		if r.IsFunding {
@@ -135,7 +135,7 @@ func allCreditAddressRows(rows []*dbtypes.AddressRow) []*dbtypes.AddressRow {
 }
 
 func allDebitAddressRows(rows []*dbtypes.AddressRow) []*dbtypes.AddressRow {
-	_, numDebitRows := countCreditDebitRows(rows)
+	_, numDebitRows := CountCreditDebitRows(rows)
 	out := make([]*dbtypes.AddressRow, numDebitRows)
 	for i, r := range rows {
 		if !r.IsFunding {
@@ -227,6 +227,28 @@ func (d *AddressCacheItem) RowsMerged() ([]*dbtypes.AddressRow, *BlockID) {
 	d.RLock()
 	defer d.RUnlock()
 	return d.rowsMerged, d.blockID()
+}
+
+// NumRows returns the number of non-merged rows. If the rows are not cached, a
+// count of -1 and *BlockID of nil are returned.
+func (d *AddressCacheItem) NumRows() (int, *BlockID) {
+	d.RLock()
+	defer d.RUnlock()
+	if d.rows == nil {
+		return -1, nil
+	}
+	return len(d.rows), d.blockID()
+}
+
+// NumRowsMerged returns the number of merged rows. If the rows are not cached,
+// a count of -1 and *BlockID of nil are returned.
+func (d *AddressCacheItem) NumRowsMerged() (int, *BlockID) {
+	d.RLock()
+	defer d.RUnlock()
+	if d.rowsMerged == nil {
+		return -1, nil
+	}
+	return len(d.rowsMerged), d.blockID()
 }
 
 // Transactions attempts to retrieve transaction data for the given view (merged
@@ -432,6 +454,26 @@ func (ac *AddressCache) RowsMerged(addr string) ([]*dbtypes.AddressRow, *BlockID
 		return nil, nil
 	}
 	return aci.RowsMerged()
+}
+
+// NumRows returns the number of non-merged rows. If the rows are not cached, a
+// count of -1 and *BlockID of nil are returned.
+func (ac *AddressCache) NumRows(addr string) (int, *BlockID) {
+	aci := ac.addressCacheItem(addr)
+	if aci == nil {
+		return -1, nil
+	}
+	return aci.NumRows()
+}
+
+// NumRowsMerged returns the number of merged rows. If the rows are not cached,
+// a count of -1 and *BlockID of nil are returned.
+func (ac *AddressCache) NumRowsMerged(addr string) (int, *BlockID) {
+	aci := ac.addressCacheItem(addr)
+	if aci == nil {
+		return -1, nil
+	}
+	return aci.NumRowsMerged()
 }
 
 // Transactions attempts to retrieve transaction data for the given address and
