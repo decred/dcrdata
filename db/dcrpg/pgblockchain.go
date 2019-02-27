@@ -2517,7 +2517,7 @@ func (pgb *ChainDB) CoinSupplyChartsData() (*dbtypes.ChartsData, error) {
 }
 
 // GetPgChartsData retrieves the different types of charts data.
-func (pgb *ChainDB) GetPgChartsData() (map[string]*dbtypes.ChartsData, error) {
+func (pgb *ChainDB) GetPgChartsData() (map[dbtypes.Charts]*dbtypes.ChartsData, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	tickets, err := RetrieveTicketsPriceByHeight(ctx, pgb.db, pgb.chainParams.StakeDiffWindowSize)
 	cancel()
@@ -2577,23 +2577,46 @@ func (pgb *ChainDB) GetPgChartsData() (map[string]*dbtypes.ChartsData, error) {
 		return nil, fmt.Errorf("retrieveChainWork: %v", err)
 	}
 
-	data := map[string]*dbtypes.ChartsData{
-		"avg-block-size":            {Time: size.Time, Size: size.Size},
-		"blockchain-size":           {Time: size.Time, ChainSize: size.ChainSize},
-		"tx-per-block":              {Value: size.Value, Count: size.Count},
-		"duration-btw-blocks":       {Value: size.Value, ValueF: size.ValueF},
-		"tx-per-day":                txRate,
-		"pow-difficulty":            {Time: tickets.Time, Difficulty: tickets.Difficulty},
-		"ticket-price":              {Time: tickets.Time, ValueF: tickets.ValueF},
-		"coin-supply":               supply,
-		"ticket-spend-type":         ticketsSpendType,
-		"ticket-by-outputs-blocks":  ticketsByOutputsAllBlocks,
-		"ticket-by-outputs-windows": ticketsByOutputsTPWindow,
-		"chainwork":                 chainWork,
-		"hashrate":                  hashrates,
+	data := map[dbtypes.Charts]*dbtypes.ChartsData{
+		dbtypes.AvgBlockSize:    {Time: size.Time, Size: size.Size},
+		dbtypes.BlockChainSize:  {Time: size.Time, ChainSize: size.ChainSize},
+		dbtypes.TxPerBlock:      {Value: size.Value, Count: size.Count},
+		dbtypes.DurationBTW:     {Value: size.Value, ValueF: size.ValueF},
+		dbtypes.TxPerDay:        txRate,
+		dbtypes.POWDifficulty:   {Time: tickets.Time, Difficulty: tickets.Difficulty},
+		dbtypes.TicketPrice:     {Time: tickets.Time, ValueF: tickets.ValueF},
+		dbtypes.CoinSupply:      supply,
+		dbtypes.TicketSpendT:    ticketsSpendType,
+		dbtypes.TicketsByBlocks: ticketsByOutputsAllBlocks,
+		dbtypes.TicketByWindows: ticketsByOutputsTPWindow,
+		dbtypes.ChainWork:       chainWork,
+		dbtypes.HashRate:        hashrates,
 	}
 
 	return data, nil
+}
+
+// PgChartsDataUpdate does fresh charts data retrieval if any of the old charts data
+// is empty or invalid. One old charts is validate only the minor charts updates
+// need to be added.
+func (pgb *ChainDB) PgChartsDataUpdate(oldData map[string]*dbtypes.ChartsData) (
+	map[dbtypes.Charts]*dbtypes.ChartsData, error) {
+	// checkif oldData has expected count of charts, trigger a fresh update if otherwise.
+	if len(oldData) != dbtypes.ChartsCount() {
+		return pgb.GetPgChartsData()
+	}
+
+	// Check for any invalid chart specific data and trigger a fresh charts data update.
+	for _, chartData := range oldData {
+		if chartData == nil {
+			return pgb.GetPgChartsData()
+		}
+	}
+
+	// Data that now currently exists here is valid and requires some minors
+	// updates if at they exist.
+
+	return nil, nil
 }
 
 // SetVinsMainchainByBlock first retrieves for all transactions in the specified
