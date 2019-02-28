@@ -1145,8 +1145,8 @@ func (pgb *ChainDB) AddressTransactionsAllMerged(address string) (addressRows []
 	return
 }
 
-// AddressHistoryAll queries the database for all rows of the addresses table
-// for the given address.
+// AddressHistoryAll retrieves N address rows of type AddrTxnAll, skipping over
+// offset rows first, in order of block time.
 func (pgb *ChainDB) AddressHistoryAll(address string, N, offset int64) ([]*dbtypes.AddressRow, *dbtypes.AddressBalance, error) {
 	return pgb.AddressHistory(address, N, offset, dbtypes.AddrTxnAll)
 }
@@ -1729,8 +1729,7 @@ func (db *ChainDBRPC) AddressData(address string, limitN, offsetAddrOuts int64,
 			return nil, err
 		}
 		if addrData.IsMerged {
-			// For merged views, either query the DB or check the process the
-			// cached merged rows.
+			// For merged views, check the cache and fall back on a DB query.
 			count, err := db.mergedTxnCount(address, txnType)
 			if err != nil {
 				return nil, err
