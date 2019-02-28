@@ -599,6 +599,9 @@ func (pgb *ChainDB) UseStakeDB(stakeDB *stakedb.StakeDatabase) {
 // EnableDuplicateCheckOnInsert specifies whether SQL insertions should check
 // for row conflicts (duplicates), and avoid adding or updating.
 func (pgb *ChainDB) EnableDuplicateCheckOnInsert(dupCheck bool) {
+	if pgb == nil {
+		return
+	}
 	pgb.dupChecks = dupCheck
 }
 
@@ -2011,6 +2014,9 @@ func (pgb *ChainDB) AddressTransactionRawDetails(addr string, count, skip int64,
 // is "lockedIn" or "activated"), Activated is set to the height at which the rule
 // change will take(or took) place.
 func (pgb *ChainDB) UpdateChainState(blockChainInfo *dcrjson.GetBlockChainInfoResult) {
+	if pgb == nil {
+		return
+	}
 	if blockChainInfo == nil {
 		log.Errorf("dcrjson.GetBlockChainInfoResult data passed is empty")
 		return
