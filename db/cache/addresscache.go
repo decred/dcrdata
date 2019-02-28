@@ -39,12 +39,15 @@ func (cl *CacheLock) hold(addr string) func() {
 	}
 }
 
-// TryLock will attempt to obtain either an exclusive updating lock. Trylock
-// returns a bool, busy, indicating if another caller has already obtained the
-// lock. When busy is false, the caller has obtained the exclusive lock, and the
-// returned func(), done, should be called when ready to release the lock. When
-// busy is true, the returned channel, wait, should be received from to block
-// until the updater has released the lock.
+// TryLock will attempt to obtain an exclusive lock and a function to release
+// the lock. If the lock is already held, the channel returned by TryLock will
+// be closed when/if the holder of the lock calls the done function.
+//
+// Trylock returns a bool, busy, indicating if another caller has already
+// obtained the lock. When busy is false, the caller has obtained the exclusive
+// lock, and the returned func(), done, should be called when ready to release
+// the lock. When busy is true, the returned channel, wait, should be received
+// from to block until the updater has released the lock.
 func (cl *CacheLock) TryLock(addr string) (busy bool, wait chan struct{}, done func()) {
 	cl.Lock()
 	defer cl.Unlock()
@@ -395,12 +398,13 @@ func (d *AddressCacheItem) SetBalance(block BlockID, balance *dbtypes.AddressBal
 // a new AddressCache with initialized internal data structures.
 type AddressCache struct {
 	sync.RWMutex
-	a          map[string]*AddressCacheItem
-	cap        int
-	DevAddress string
+	a              map[string]*AddressCacheItem
+	cap            int
+	ProjectAddress string
 }
 
-// NewAddressCache constructs a AddressCache.
+// NewAddressCache constructs a AddressCache with capacity for the specified
+// number of addresses.
 func NewAddressCache(cap int) *AddressCache {
 	if cap < 2 {
 		cap = 2
@@ -527,15 +531,18 @@ func (ac *AddressCache) NumRowsMerged(addr string) (int, *BlockID) {
 func (ac *AddressCache) Transactions(addr string, N, offset int64, txnType dbtypes.AddrTxnViewType) ([]*dbtypes.AddressRow, *BlockID, error) {
 	aci := ac.addressCacheItem(addr)
 	if aci == nil {
-		return nil, nil, nil /*fmt.Errorf("uninitialized address cache")*/
+		return nil, nil, nil // cache miss is not an error; *BlockID must be nil
 	}
 	return aci.Transactions(int(N), int(offset), txnType)
 }
 
 func (ac *AddressCache) addCacheItem(addr string, aci *AddressCacheItem) {
+	// If the cache is at or above capacity, remove cache items to make room for
+	// the new item.
 	for len(ac.a) >= ac.cap {
 		for a := range ac.a {
-			if a == ac.DevAddress {
+			// Never purge the data for the project fund address.
+			if a == ac.ProjectAddress {
 				continue
 			}
 			delete(ac.a, a)

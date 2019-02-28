@@ -1629,10 +1629,8 @@ func scanAddressQueryRows(rows *sql.Rows, queryType int) (ids []uint64, addressR
 
 		switch queryType {
 		case creditQuery:
-			// addr.IsFunding == true
 			addr.AtomsCredit = addr.Value
 		case debitQuery:
-			// addr.IsFunding == false
 			addr.AtomsDebit = addr.Value
 		case creditDebitQuery:
 			if addr.IsFunding {

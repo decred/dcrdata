@@ -168,6 +168,8 @@ const (
 		JOIN vouts ON addresses.tx_vin_vout_row_id = vouts.id
 		WHERE addresses.address=$1 AND addresses.is_funding AND addresses.matching_tx_hash = '' AND valid_mainchain
 		ORDER BY addresses.block_time DESC;`
+	// Since tx_vin_vout_row_id is the vouts table primary key (id) when
+	// is_funding=true, there is no need to join vouts on tx_hash and tx_index.
 
 	SelectAddressLimitNByAddress = `SELECT ` + addrsColumnNames + ` FROM addresses
 		WHERE address=$1 AND valid_mainchain = TRUE

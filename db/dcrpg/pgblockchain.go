@@ -532,8 +532,10 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 		hash:   bestHash,
 	}
 
+	// Create the address cache with an arbitrary capacity. The project fund
+	// address is set to prevent purging its data when cache reaches capacity.
 	addrCache := cache.NewAddressCache(500)
-	addrCache.DevAddress = devSubsidyAddress
+	addrCache.ProjectAddress = devSubsidyAddress
 
 	return &ChainDB{
 		ctx:                ctx,
@@ -1300,19 +1302,21 @@ func (pgb *ChainDB) ticketPoolVisualization(interval dbtypes.TimeBasedGrouping) 
 }
 
 func (pgb *ChainDB) updateProjectFundCache() error {
-	// Update non-merged rows.
+	// Update balance and non-merged rows.
 	_, _, err := pgb.AddressHistory(pgb.devAddress, 1, 0, dbtypes.AddrTxnAll)
 	if err != nil {
 		return err
 	}
 
-	// Update merged rows.
+	// Update merged rows (and balance, which is already current).
 	_, _, err = pgb.AddressHistory(pgb.devAddress, 1, 0, dbtypes.AddrMergedTxn)
 	return err
 }
 
-// FreshenAddressCaches resets the address balance cache, and prefetches the
-// project fund balance if devPrefetch is enabled and not mid-reorg.
+// FreshenAddressCaches resets the address balance cache by purging data for the
+// addresses listed in expireAddresses, and prefetches the project fund balance
+// if devPrefetch is enabled and not mid-reorg. The project fund update is run
+// asynchronously if lazyProjectFund is true.
 func (pgb *ChainDB) FreshenAddressCaches(lazyProjectFund bool, expireAddresses []string) error {
 	// Clear existing cache entries.
 	numCleared := pgb.AddressCache.Clear(expireAddresses)
@@ -2673,7 +2677,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	numVouts = errStk.numVouts + errReg.numVouts
 	numAddresses = errStk.numAddresses + errReg.numAddresses
 
-	// Merge the affected addresses.
+	// Merge the affected addresses, which are to be purged from the cache.
 	affectedAddresses := errReg.addresses
 	for ad := range errStk.addresses {
 		affectedAddresses[ad] = struct{}{}
@@ -2722,7 +2726,8 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 		return
 	}
 
-	// If not in batch sync, lazy update the dev fund balance.
+	// If not in batch sync, lazy update the dev fund balance, and expire cache
+	// data for the affected addresses.
 	if !pgb.InBatchSync {
 		if err = pgb.FreshenAddressCaches(true, addresses); err != nil {
 			log.Warnf("FreshenAddressCaches: %v", err)
