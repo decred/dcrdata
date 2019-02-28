@@ -21,10 +21,11 @@ import (
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
-	"github.com/decred/dcrdata/v4/db/agendadb"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
 	"github.com/decred/dcrdata/v4/exchanges"
 	"github.com/decred/dcrdata/v4/explorer/types"
+	"github.com/decred/dcrdata/v4/gov/agendas"
+	pitypes "github.com/decred/dcrdata/v4/gov/politeia/types"
 	"github.com/decred/dcrdata/v4/txhelpers"
 	humanize "github.com/dustin/go-humanize"
 )
@@ -1693,7 +1694,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 
 	// Attempt to get agendaid string from URL path.
 	agendaId := getAgendaIDCtx(r)
-	agendaInfo, err := types.AgendaInfo(agendaId)
+	agendaInfo, err := exp.agendasSource.AgendaInfo(agendaId)
 	if err != nil {
 		errPageInvalidAgenda(err)
 		return
@@ -1720,7 +1721,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 
 	str, err := exp.templates.execTemplateToString("agenda", struct {
 		*CommonPageData
-		Ai      *agendadb.AgendaTagged
+		Ai      *agendas.AgendaTagged
 		NetName string
 	}{
 		CommonPageData: exp.commonData(),
@@ -1740,7 +1741,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 
 // AgendasPage is the page handler for the "/agendas" path.
 func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
-	agendas, err := agendadb.AllAgendas()
+	agenda, err := exp.agendasSource.AllAgendas()
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
@@ -1749,12 +1750,117 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 
 	str, err := exp.templates.execTemplateToString("agendas", struct {
 		*CommonPageData
-		Agendas []*agendadb.AgendaTagged
+		Agendas []*agendas.AgendaTagged
 		NetName string
 	}{
 		CommonPageData: exp.commonData(),
-		Agendas:        agendas,
+		Agendas:        agenda,
 		NetName:        exp.NetName,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+// ProposalPage is the page handler for the "/proposal" path.
+func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
+	// Attempts to retrieve a proposal token from URL path.
+	proposalID, err := strconv.Atoi(getProposalTokenCtx(r))
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, "invalid proposal ID used ",
+			"", ExpStatusNotFound)
+		return
+	}
+
+	proposalInfo, err := exp.proposalsSource.ProposalByID(proposalID)
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, "the proposal token does not exist",
+			"", ExpStatusNotFound)
+		return
+	}
+
+	str, err := exp.templates.execTemplateToString("proposal", struct {
+		*CommonPageData
+		Data        *pitypes.ProposalInfo
+		NetName     string
+		PoliteiaURL string
+	}{
+		CommonPageData: exp.commonData(),
+		Data:           proposalInfo,
+		NetName:        exp.NetName,
+		PoliteiaURL:    exp.politeiaAPIURL,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+// ProposalsPage is the page handler for the "/proposals" path.
+func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
+	rowsCount, err := strconv.ParseUint(r.URL.Query().Get("rows"), 10, 64)
+	if err != nil || rowsCount == 0 {
+		// Number of rows displayed to the by default should be 10.
+		rowsCount = 10
+	}
+
+	// Ignore the error if it ever happens.
+	offset, _ := strconv.ParseUint(r.URL.Query().Get("offset"), 10, 64)
+
+	var count int
+	var proposals []*pitypes.ProposalInfo
+
+	// Check if filter by votes status query parameter was passed. Ignore the
+	// error message if it occurs.
+	filterBy, _ := strconv.Atoi(r.URL.Query().Get("byvotestatus"))
+	if filterBy > 0 {
+		proposals, count, err = exp.proposalsSource.AllProposals(int(offset),
+			int(rowsCount), filterBy)
+	} else {
+		proposals, count, err = exp.proposalsSource.AllProposals(int(offset),
+			int(rowsCount))
+	}
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		return
+	}
+
+	str, err := exp.templates.execTemplateToString("proposals", struct {
+		*CommonPageData
+		Proposals     []*pitypes.ProposalInfo
+		VotesStatus   map[pitypes.VoteStatusType]string
+		VStatusFilter int
+		Offset        int64
+		Limit         int64
+		NetName       string
+		TotalCount    int64
+		PoliteiaURL   string
+	}{
+		CommonPageData: exp.commonData(),
+		Proposals:      proposals,
+		VotesStatus:    pitypes.VotesStatuses(),
+		Offset:         int64(offset),
+		Limit:          int64(rowsCount),
+		VStatusFilter:  filterBy,
+		TotalCount:     int64(count),
+		NetName:        exp.NetName,
+		PoliteiaURL:    exp.politeiaAPIURL,
 	})
 
 	if err != nil {

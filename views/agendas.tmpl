@@ -31,7 +31,7 @@
                 {{range $i, $v := .Agendas}}
                 {{with $v}}
                 <tbody>
-                    <td><a href="/agenda/{{.Id}}">{{.Id}}</a></td>
+                    <td><a href="/agenda/{{.ID}}">{{.ID}}</a></td>
                     <td>{{.Description}}</td>
                     <td>{{.Mask}}</td>
                     <td>{{.Status}}</td>
@@ -43,7 +43,7 @@
                 {{end}}
                 {{end}}
             </table>
-            {{ end }}
+            {{end}}
         </div>
         {{template "footer" . }}
     </body>

@@ -25,13 +25,14 @@ import (
 	"github.com/decred/dcrdata/v4/api"
 	"github.com/decred/dcrdata/v4/api/insight"
 	"github.com/decred/dcrdata/v4/blockdata"
-	"github.com/decred/dcrdata/v4/db/agendadb"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
 	"github.com/decred/dcrdata/v4/db/dcrpg"
 	"github.com/decred/dcrdata/v4/db/dcrsqlite"
 	"github.com/decred/dcrdata/v4/exchanges"
 	"github.com/decred/dcrdata/v4/explorer"
 	exptypes "github.com/decred/dcrdata/v4/explorer/types"
+	"github.com/decred/dcrdata/v4/gov/agendas"
+	"github.com/decred/dcrdata/v4/gov/politeia"
 	"github.com/decred/dcrdata/v4/mempool"
 	m "github.com/decred/dcrdata/v4/middleware"
 	notify "github.com/decred/dcrdata/v4/notification"
@@ -448,14 +449,6 @@ func _main(ctx context.Context) error {
 		}
 	}
 
-	// Set the path to the AgendaDB file.
-	agendadb.SetDbPath(filepath.Join(cfg.DataDir, cfg.AgendaDBFileName))
-
-	// AgendaDB upgrade check
-	if err = agendadb.CheckForUpdates(dcrdClient); err != nil {
-		return fmt.Errorf("agendadb upgrade failed: %v", err)
-	}
-
 	// Block data collector. Needs a StakeDatabase too.
 	collector := blockdata.NewCollector(dcrdClient, activeChain, baseDB.GetStakeDB())
 	if collector == nil {
@@ -506,9 +499,47 @@ func _main(ctx context.Context) error {
 		}
 	}
 
+	// Creates a new or loads an existing agendas db instance that helps to
+	// store and retrieves agendas data. Agendas votes are On-Chain
+	// transactions that appear in the decred blockchain.
+	agendasInstance, err := agendas.NewAgendasDB(filepath.Join(cfg.DataDir,
+		cfg.AgendasDBFileName))
+	if err != nil {
+		return fmt.Errorf("failed to create new agendas db instance: %v", err)
+	}
+
+	// Confirm if dcrdClient implements agendas.DeploymentSource interface.
+	var _ agendas.DeploymentSource = dcrdClient
+
+	// Retrieve blockchain deployment updates and add them to the agendas db.
+	if err = agendasInstance.CheckAgendasUpdates(dcrdClient); err != nil {
+		return fmt.Errorf("updating agendas db failed: %v", err)
+	}
+
+	// Creates a new or loads an existing proposals db instance that helps to
+	// store and retrieve proposals data. Proposals votes is Off-Chain
+	// data stored in github repositories away from the decred blockchain. It also
+	// creates a new http client needed to query Politeia API endpoints.
+	proposalsInstance, err := politeia.NewProposalsDB(cfg.PoliteiaAPIURL,
+		filepath.Join(cfg.DataDir, cfg.ProposalsFileName))
+	if err != nil {
+		return fmt.Errorf("failed to create new proposals db instance: %v", err)
+	}
+
+	// Retrieve newly added proposals and add them to the proposals db.
+	// Proposal db update is made asynchronously to ensure that the system works
+	// even when the Politeia API endpoint set is down.
+	go func() {
+		if err = proposalsInstance.CheckProposalsUpdates(); err != nil {
+			log.Errorf("updating proposals db failed: %v", err)
+		}
+	}()
+
 	// Create the explorer system.
 	explore := explorer.New(baseDB, auxDB, cfg.UseRealIP, version.Version(),
-		!cfg.NoDevPrefetch, "views", xcBot) // TODO: allow views config
+		!cfg.NoDevPrefetch, "views", xcBot, agendasInstance, proposalsInstance,
+		cfg.PoliteiaAPIURL)
+	// TODO: allow views config
 	if explore == nil {
 		return fmt.Errorf("failed to create new explorer (templates missing?)")
 	}
@@ -632,7 +663,8 @@ func _main(ctx context.Context) error {
 	}
 
 	// Start dcrdata's JSON web API.
-	app := api.NewContext(dcrdClient, activeChain, baseDB, auxDB, cfg.IndentJSON, xcBot)
+	app := api.NewContext(dcrdClient, activeChain, baseDB, auxDB, cfg.IndentJSON,
+		xcBot, agendasInstance)
 	// Start the notification hander for keeping /status up-to-date.
 	wg.Add(1)
 	go app.StatusNtfnHandler(ctx, &wg)
@@ -711,6 +743,8 @@ func _main(ctx context.Context) error {
 		r.With(explorer.AddressPathCtx).Get("/addresstable/{address}", explore.AddressTable)
 		r.Get("/agendas", explore.AgendasPage)
 		r.With(explorer.AgendaPathCtx).Get("/agenda/{agendaid}", explore.AgendaPage)
+		r.Get("/proposals", explore.ProposalsPage)
+		r.With(explorer.ProposalPathCtx).Get("/proposal/{proposalToken}", explore.ProposalPage)
 		r.Get("/decodetx", explore.DecodeTxPage)
 		r.Get("/search", explore.Search)
 		r.Get("/charts", explore.Charts)

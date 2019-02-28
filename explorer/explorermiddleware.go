@@ -26,6 +26,7 @@ const (
 	ctxTxInOutId
 	ctxAddress
 	ctxAgendaId
+	ctxProposalToken
 )
 
 func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
@@ -172,6 +173,15 @@ func getAgendaIDCtx(r *http.Request) string {
 	return hash
 }
 
+func getProposalTokenCtx(r *http.Request) string {
+	hash, ok := r.Context().Value(ctxProposalToken).(string)
+	if !ok {
+		log.Trace("Proposal token not set")
+		return ""
+	}
+	return hash
+}
+
 // TransactionHashCtx embeds "txid" into the request context
 func TransactionHashCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -206,6 +216,15 @@ func AgendaPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		agendaid := chi.URLParam(r, "agendaid")
 		ctx := context.WithValue(r.Context(), ctxAgendaId, agendaid)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// ProposalPathCtx embeds "proposalToken" into the request context
+func ProposalPathCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		proposalToken := chi.URLParam(r, "proposalToken")
+		ctx := context.WithValue(r.Context(), ctxProposalToken, proposalToken)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

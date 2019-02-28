@@ -26,6 +26,8 @@ import (
 	"github.com/decred/dcrdata/v4/db/dbtypes"
 	"github.com/decred/dcrdata/v4/exchanges"
 	"github.com/decred/dcrdata/v4/explorer/types"
+	"github.com/decred/dcrdata/v4/gov/agendas"
+	pitypes "github.com/decred/dcrdata/v4/gov/politeia/types"
 	"github.com/decred/dcrdata/v4/mempool"
 	pstypes "github.com/decred/dcrdata/v4/pubsub/types"
 	"github.com/decred/dcrdata/v4/txhelpers"
@@ -106,6 +108,20 @@ type explorerDataSource interface {
 	PosIntervals(limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error)
 	TimeBasedIntervals(timeGrouping dbtypes.TimeBasedGrouping, limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error)
 	AgendaCumulativeVoteChoices(agendaID string) (yes, abstain, no uint32, err error)
+}
+
+// politeiaBackend implements methods that manage proposals db data.
+type politeiaBackend interface {
+	CheckProposalsUpdates() error
+	AllProposals(offset, rowsCount int, filterByVoteStatus ...int) (proposals []*pitypes.ProposalInfo, totalCount int, err error)
+	ProposalByID(proposalID int) (proposal *pitypes.ProposalInfo, err error)
+}
+
+// agendaBackend implements methods that manage agendas db data.
+type agendaBackend interface {
+	CheckAgendasUpdates(agendas.DeploymentSource) error
+	AgendaInfo(agendaID string) (*agendas.AgendaTagged, error)
+	AllAgendas() (agendas []*agendas.AgendaTagged, err error)
 }
 
 // chartDataCounter is a data cache for the historical charts.
@@ -218,6 +234,8 @@ type explorerUI struct {
 	Mux              *chi.Mux
 	blockData        explorerDataSourceLite
 	explorerSource   explorerDataSource
+	agendasSource    agendaBackend
+	proposalsSource  politeiaBackend
 	dbsSyncing       atomic.Value
 	liteMode         bool
 	devPrefetch      bool
@@ -234,6 +252,7 @@ type explorerUI struct {
 	// displaySyncStatusPage indicates if the sync status page is the only web
 	// page that should be accessible during DB synchronization.
 	displaySyncStatusPage atomic.Value
+	politeiaAPIURL        string
 }
 
 // AreDBsSyncing is a thread-safe way to fetch the boolean in dbsSyncing.
@@ -284,7 +303,8 @@ func (exp *explorerUI) StopWebsocketHub() {
 // New returns an initialized instance of explorerUI
 func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource,
 	useRealIP bool, appVersion string, devPrefetch bool, viewsfolder string,
-	xcBot *exchanges.ExchangeBot) *explorerUI {
+	xcBot *exchanges.ExchangeBot, onChainInstance agendaBackend,
+	offChainInstance politeiaBackend, politeiaURL string) *explorerUI {
 	exp := new(explorerUI)
 	exp.Mux = chi.NewRouter()
 	exp.blockData = dataSource
@@ -295,6 +315,9 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	exp.Version = appVersion
 	exp.devPrefetch = devPrefetch
 	exp.xcBot = xcBot
+	exp.agendasSource = onChainInstance
+	exp.proposalsSource = offChainInstance
+	exp.politeiaAPIURL = politeiaURL
 	// explorerDataSource is an interface that could have a value of pointer
 	// type, and if either is nil this means lite mode.
 	if exp.explorerSource == nil || reflect.ValueOf(exp.explorerSource).IsNil() {
@@ -342,7 +365,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
 		"rawtx", "status", "parameters", "agenda", "agendas", "charts",
 		"sidechains", "disapproved", "ticketpool", "nexthome", "statistics",
-		"windows", "timelisting", "addresstable"}
+		"windows", "timelisting", "addresstable", "proposals", "proposal"}
 
 	for _, name := range tmpls {
 		if err := exp.templates.addTemplate(name); err != nil {
@@ -564,13 +587,28 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 		go exp.updateDevFundBalance()
 	}
 
-	// Update the charts data after every five blocks or if no charts data
-	// exists yet. Do not update the charts data if blockchain sync is running.
-	if !exp.AreDBsSyncing() && (newBlockData.Height%5 == 0 || cacheChartsData.Height() == -1) {
-		// This must be done after storing BlockInfo since that provides the
-		// explorer's best block height, which is used by prePopulateChartsData
-		// to decide if an update is needed.
-		go exp.prePopulateChartsData()
+	// Do not run updates if blockchain sync is running.
+	if !exp.AreDBsSyncing() {
+		// Update the charts data after every five blocks or if no charts data
+		// exists yet.
+		if newBlockData.Height%5 == 0 || cacheChartsData.Height() == -1 {
+			// This must be done after storing BlockInfo since that provides the
+			// explorer's best block height, which is used by prePopulateChartsData
+			// to decide if an update is needed.
+			go exp.prePopulateChartsData()
+		}
+
+		// Update the proposal DB. This is run asynchronously since it involves
+		// a query to Politeia (a remote system) and we do not want to block
+		// execution.
+		if newBlockData.Height%20 == 0 {
+			go func() {
+				err := exp.proposalsSource.CheckProposalsUpdates()
+				if err != nil {
+					log.Error(err)
+				}
+			}()
+		}
 	}
 
 	// Signal to the websocket hub that a new block was received, but do not

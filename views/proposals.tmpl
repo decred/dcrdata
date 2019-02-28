@@ -1,0 +1,148 @@
+{{define "proposals"}}
+<!DOCTYPE html>
+<html lang="en">
+    {{template "html-head" printf "Decred Vote Proposals Page"}}
+    <body class="{{ theme }}">
+        {{template "navbar" .}}
+        <div class="container main" data-controller="ticketwindow">
+            <div class="row justify-content-between">
+                <div class="col-sm-lg-14 col-sm-12 d-flex">
+                    <h4 class="mb-2">Politeia Proposals</h4>
+                </div>
+            </div>
+            <div class="mb-1 fs13">
+                <h6><a href="{{.PoliteiaURL}}">Politeia</a> is Decred's blockchain-anchored proposal system used for Decred's operational initiatives that don't affect consensus.</h6>
+                {{if not .Proposals }}
+                    {{block  "voteStatusWidget" .}}
+                        <div class="fs12 nowrap text-left" style="margin:auto auto auto 0px;">
+                            <label class="mb-0 mr-1">Vote Status</label>
+                            <select
+                                id="votestatus"
+                                class="form-control-sm mb-2 mr-sm-2 mb-sm-0"
+                                data-target="ticketwindow.votestatus"
+                                data-action="change->ticketwindow#setFilterbyVoteStatus"
+                            >
+                                <option value="all">All</option>
+                                {{range $k, $v := .VotesStatus}}
+                                    <option {{if eq $k $.VStatusFilter}}selected{{end}} value="{{$k}}">{{$v}}</option>
+                                {{end}}
+                            </select>
+                        </div>
+                    {{end}}
+
+                    <table class="table table-sm striped">
+                        <tr>
+                            <td>No Proposal found for {{ .NetName }}</td>
+                        </tr>
+                    </table>
+                {{ else }}
+
+                {{block "proposalsPagination" .}}
+                    <div class="d-flex flex-wrap-reverse align-items-center justify-content-end list-display mb-1 fs13">
+                        {{template  "voteStatusWidget" .}}
+
+                        {{$count := (int64 (len .Proposals))}}
+                        {{$oldest := (add .Offset $count)}}
+                        {{$pending := (subtract $.TotalCount .Offset)}}
+
+                        <span class="fs12 nowrap text-right">
+                            <label class="mb-0 mr-1" for="tbPagesize">Page Size</label>
+                            <select
+                                id="tbPagesize"
+                                data-target="ticketwindow.pagesize"
+                                data-action="change->ticketwindow#setPageSize"
+                                data-offset="{{$.Offset}}"
+                                class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $pending 10}}disabled{{end}}"
+                                {{if lt $pending 10}}disabled="disabled"{{end}}
+                            >
+                            {{if ge $pending 10}}<option {{if eq $count 10}}selected{{end}} value="10">10</option>{{end}}
+                            {{if ge $pending 20}}<option {{if eq $count 20}}selected{{end}} value="20">20</option>{{end}}
+                            {{if ge $pending 30}}<option {{if eq $count 30}}selected{{end}} value="30">30</option>{{end}}
+                            {{if ge $pending 50}}<option {{if eq $count 50}}selected{{end}} value="50">50</option>{{end}}
+                            {{if eq $.TotalCount $count 10 20 30 50}}{{else}}<option value="{{$.TotalCount}}">{{$.TotalCount}}</option>{{end}}
+                            {{if eq $count 10 20 30 50}}{{else}}<option selected value="{{$count}}">{{$count}}</option>{{end}}
+                            </select>
+                        </span>
+                        <span class="fs12 nowrap text-right">
+                            {{intComma (add .Offset 1)}} &ndash; {{intComma $oldest}} of {{ intComma $.TotalCount }} rows
+                        </span>
+                        <nav aria-label="blocks navigation" data-limit="{{.Limit}}" class="ml-2">
+                            <ul class="pagination mb-0 pagination-sm">
+                                <li class="page-item {{if eq .Offset 0}}disabled{{end}}">
+                                    <a
+                                        class="page-link"
+                                        href="?offset=0&rows={{.Limit}}"
+                                        id="next"
+                                    > Newest</a>
+                                </li>
+                                <li class="page-item {{if eq .Offset 0}}disabled{{end}}">
+                                    <a
+                                        class="page-link"
+                                        href="?offset={{subtract .Offset .Limit}}&rows={{.Limit}}"
+                                        id="next"
+                                    > Newer</a>
+                                </li>
+                                <li class="page-item {{if ge $oldest $.TotalCount}}disabled{{end}}">
+                                    <a
+                                        class="page-link"
+                                        href="?offset={{add .Offset .Limit}}&rows={{.Limit}}"
+                                        id="prev"
+                                    >Older</a>
+                                </li>
+                                <li class="page-item {{if ge $oldest $.TotalCount}}disabled{{end}}">
+                                    <a
+                                        class="page-link"
+                                        href="?offset={{subtract $.TotalCount .Limit}}&rows={{.Limit}}"
+                                        id="prev"
+                                    >Oldest</a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                {{end}}
+            <div>
+
+            <table class="table table-mono-cells striped">
+                <thead>
+                    <tr class="d-flex">
+                        <th class="col-md-9">Title</th>
+                        <th class="col-md-3">Author</th>
+                        <th class="col-md-2">Proposal Status</th>
+                        <th class="col-md-3">Vote Status</th>
+                        <th class="col-md-2">Published</th>
+                        <th class="col-md-2">Updated</th>
+                        <th class="col-md-1 text-right">Version</th>
+                        <th class="col-md-2 text-right">Comments</th>
+                    </tr>
+                </thead>
+                {{range $i, $v := .Proposals}}
+                {{with $v}}
+                <tbody>
+                    <tr class="d-flex">
+                        <td class="col-md-9"><a href="/proposal/{{.ID}}">{{.Name}}</a></td>
+                        <td class="col-md-3">{{.Username}}</td>
+                        {{with .Status}}
+                            <td class="col-md-2">{{toTitleCase .String}}</td>
+                        {{end}}
+                        <td class="col-md-3">
+                            {{if .VoteStatus}}{{with .VoteStatus}}{{.ShortDesc}}{{end}}{{else}}N/A{{end}}
+                        </td>
+                        <td class="col-md-2">{{timeWithoutDateAndTimeZone .PublishedDate}}</td>
+                        <td class="col-md-2">{{timeWithoutDateAndTimeZone .Timestamp}}</td>
+                        <td class="col-md-1 text-right">v{{.Version}}</td>
+                        <td class="col-md-2 text-right">{{.NumComments}}</td>
+                    </tr>
+                </tbody>
+                {{end}}
+                {{end}}
+            </table>
+
+            {{if gt .Limit 10}}
+                {{template "proposalsPagination" .}}
+            {{end}}
+            {{end}}
+        </div>
+        {{template "footer" . }}
+    </body>
+</html>
+{{end}}

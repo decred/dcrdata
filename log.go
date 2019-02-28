@@ -17,6 +17,8 @@ import (
 	"github.com/decred/dcrdata/v4/db/dcrsqlite"
 	"github.com/decred/dcrdata/v4/exchanges"
 	"github.com/decred/dcrdata/v4/explorer"
+	"github.com/decred/dcrdata/v4/gov/agendas"
+	"github.com/decred/dcrdata/v4/gov/politeia"
 	"github.com/decred/dcrdata/v4/mempool"
 	"github.com/decred/dcrdata/v4/middleware"
 	notify "github.com/decred/dcrdata/v4/notification"
@@ -68,6 +70,8 @@ var (
 	iapiLog       = backendLog.Logger("IAPI")
 	pubsubLog     = backendLog.Logger("PUBS")
 	xcBotLog      = backendLog.Logger("XBOT")
+	agendasLog    = backendLog.Logger("AGDB")
+	proposalsLog  = backendLog.Logger("PRDB")
 )
 
 // Initialize package-global logger variables.
@@ -86,6 +90,8 @@ func init() {
 	notify.UseLogger(notifyLog)
 	pubsub.UseLogger(pubsubLog)
 	exchanges.UseLogger(xcBotLog)
+	agendas.UseLogger(agendasLog)
+	politeia.UseLogger(proposalsLog)
 }
 
 // subsystemLoggers maps each subsystem identifier to its associated logger.
@@ -103,6 +109,8 @@ var subsystemLoggers = map[string]slog.Logger{
 	"DATD": log,
 	"PUBS": pubsubLog,
 	"XBOT": xcBotLog,
+	"AGDB": agendasLog,
+	"PRDB": proposalsLog,
 }
 
 // initLogRotator initializes the logging rotater to write logs to logFile and

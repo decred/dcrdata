@@ -356,13 +356,29 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			result = int(a) * b
 			return
 		},
-		"TimeConversion": func(a uint64) (result string) {
+		"TimeConversion": func(a uint64) string {
+			if a == 0 {
+				return "N/A"
+			}
 			dateTime := time.Unix(int64(a), 0).UTC()
-			result = dateTime.Format("2006-01-02 15:04:05 MST")
-			return
+			return dateTime.Format("2006-01-02 15:04:05 MST")
+		},
+		"timeWithoutDateAndTimeZone": func(a uint64) string {
+			if a == 0 {
+				return "N/A"
+			}
+			dateTime := time.Unix(int64(a), 0).UTC()
+			return dateTime.Format("2006-01-02")
 		},
 		"toLowerCase": func(a string) string {
 			return strings.ToLower(a)
+		},
+		"toTitleCase": func(a string) string {
+			return strings.Title(a)
+		},
+		"toDecimalPlaces": func(a float64, b int) float64 {
+			pow := math.Pow10(b)
+			return math.Floor(a*pow) / pow
 		},
 		"fetchRowLinkURL": func(groupingStr string, start, end time.Time) string {
 			// fetchRowLinkURL creates links url to be used in the blocks list views
@@ -421,9 +437,8 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"clipSlice": func(arr []*types.TrimmedTxInfo, n int) []*types.TrimmedTxInfo {
 			if len(arr) >= n {
 				return arr[:n]
-			} else {
-				return arr
 			}
+			return arr
 		},
 		"hashlink": func(hash string, link string) [2]string {
 			return [2]string{hash, link}

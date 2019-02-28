@@ -23,7 +23,8 @@ require (
 	github.com/decred/dcrd/rpcclient/v2 v2.0.0
 	github.com/decred/dcrd/txscript v1.0.2
 	github.com/decred/dcrd/wire v1.2.0
-	github.com/decred/dcrwallet/wallet v1.1.0
+	github.com/decred/dcrwallet/wallet v1.2.0
+	github.com/decred/politeia v0.0.0-20190215175939-73ba15aa6d3e
 	github.com/decred/slog v1.0.0
 	github.com/dgraph-io/badger v1.5.5-0.20190214192501-3196cc1d7a5f
 	github.com/dgryski/go-farm v0.0.0-20180109070241-2de33835d102 // indirect
@@ -47,7 +48,6 @@ require (
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
 	github.com/oleiade/lane v1.0.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
-	github.com/pkg/errors v0.8.0 // indirect
 	github.com/rs/cors v1.6.0
 	github.com/shiena/ansicolor v0.0.0-20151119151921-a422bbe96644
 	github.com/sirupsen/logrus v1.2.0
@@ -56,7 +56,7 @@ require (
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
 	golang.org/x/net v0.0.0-20190213061140-3a22650c66bd
 	golang.org/x/time v0.0.0-20181108054448-85acf8d2951c // indirect
-	google.golang.org/appengine v1.3.0 // indirect
+	google.golang.org/appengine v1.3.0
 	google.golang.org/genproto v0.0.0-20190219182410-082222b4a5c5 // indirect
 	google.golang.org/grpc v1.18.0
 )
