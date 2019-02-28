@@ -1,6 +1,12 @@
 // Copyright (c) 2019, The Decred developers
 // See LICENSE for details.
 
+// package cache provides a number of types and functions for caching Decred
+// address data, and filtering AddressRow slices. The type AddressCache may
+// store the following data for an address: balance (see
+// db/types.AddressBalance), address table row data (see db/types.AddressRow),
+// merged address table row data, UTXOs (see api/types.AddressTxnOutput), and
+// "metrics" (see db/types.AddressMetrics).
 package cache
 
 import (
@@ -59,6 +65,8 @@ func (cl *CacheLock) TryLock(addr string) (busy bool, wait chan struct{}, done f
 	return busy, wait, done
 }
 
+// CountCreditDebitRows returns the numbers of credit (funding) and debit
+// (!funding) address rows.
 func CountCreditDebitRows(rows []*dbtypes.AddressRow) (numCredit, numDebit int) {
 	for _, r := range rows {
 		if r.IsFunding {
@@ -70,6 +78,8 @@ func CountCreditDebitRows(rows []*dbtypes.AddressRow) (numCredit, numDebit int) 
 	return
 }
 
+// CreditAddressRows returns up to N credit (funding) address rows from the
+// given AddressRow slice, starting after skipping offset rows.
 func CreditAddressRows(rows []*dbtypes.AddressRow, N, offset int) []*dbtypes.AddressRow {
 	if offset >= len(rows) {
 		return nil
@@ -102,6 +112,8 @@ func CreditAddressRows(rows []*dbtypes.AddressRow, N, offset int) []*dbtypes.Add
 	return out
 }
 
+// DebitAddressRows returns up to N debit (!funding) address rows from the given
+// AddressRow slice, starting after skipping offset rows.
 func DebitAddressRows(rows []*dbtypes.AddressRow, N, offset int) []*dbtypes.AddressRow {
 	_, numDebitRows := CountCreditDebitRows(rows)
 	if numDebitRows < N {
@@ -126,6 +138,8 @@ func DebitAddressRows(rows []*dbtypes.AddressRow, N, offset int) []*dbtypes.Addr
 	return out
 }
 
+// AllCreditAddressRows returns all of the credit (funding) address rows from
+// the given AddressRow slice.
 func AllCreditAddressRows(rows []*dbtypes.AddressRow) []*dbtypes.AddressRow {
 	numCreditRows, _ := CountCreditDebitRows(rows)
 	out := make([]*dbtypes.AddressRow, 0, numCreditRows)
@@ -140,6 +154,8 @@ func AllCreditAddressRows(rows []*dbtypes.AddressRow) []*dbtypes.AddressRow {
 	return out
 }
 
+// AllDebitAddressRows returns all of the debit (!funding) address rows from the
+// given AddressRow slice.
 func AllDebitAddressRows(rows []*dbtypes.AddressRow) []*dbtypes.AddressRow {
 	_, numDebitRows := CountCreditDebitRows(rows)
 	out := make([]*dbtypes.AddressRow, numDebitRows)
