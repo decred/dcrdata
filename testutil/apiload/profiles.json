@@ -58,6 +58,42 @@
       }
     ]
   },
+  "insight-addr": {
+    "duration": 60,
+    "attackers": [
+      {
+        "name": "first",
+        "frequency": 10,
+        "endpoints": [
+          "/insight/api/addr/Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx",
+          "/insight/api/addr/Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx/utxo",
+          "/insight/api/addr/DspCVzEw21aDGZ43Ax24rjFqsHimiJbF4qe",
+          "/insight/api/addr/DspCVzEw21aDGZ43Ax24rjFqsHimiJbF4qe/utxo",
+          "/insight/api/addr/DcfQyJ8RBPNFN8PoRBNwhJmE9PFwpNLSE4N",
+          "/insight/api/addr/DcfQyJ8RBPNFN8PoRBNwhJmE9PFwpNLSE4N/utxo",
+          "/insight/api/addr/DcfQyJ8RBPNFN8PoRBNwhJmE9PFwpNLSxxx",
+          "/insight/api/addr/DcfQyJ8RBPNFN8PoRBNwhJmE9PFwpNLSxxx/utxo",
+          "/insight/api/addrs/Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx/txs",
+          "/insight/api/addrs/Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx/utxo",
+          "/insight/api/addrs/Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qexxx/txs",
+          "/insight/api/addrs/Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qexxx/utxo",
+          "/insight/api/addrs/Dsh3RaFqAgnfnGqY9cQiJUde5cR7qwdQP8r,DsSjYHYcc7iJZaJ74CBb4dHNcukdoiLxUQ1/txs",
+          "/insight/api/addrs/Dsh3RaFqAgnfnGqY9cQiJUde5cR7qwdQP8r,DsSjYHYcc7iJZaJ74CBb4dHNcukdoiLxUQ1/utxo",
+          "/insight/api/addrs/Dsoa62CGHSupBhPNoiBGTiGmUVy9C6fLUhL,Dsj7Myj4QLyPRr5aZxoMeKeffXoueeGtYgP/txs",
+          "/insight/api/addrs/Dsoa62CGHSupBhPNoiBGTiGmUVy9C6fLUhL,Dsj7Myj4QLyPRr5aZxoMeKeffXoueeGtYgP/utxo",
+          "/insight/api/addrs/Dsoa62CGHSupBhPNoiBGTiGmUVy9C6fLUhL,Dsj7Myj4QLyPRr5aZxoMeKeffXoueeGtxxx/txs",
+          "/insight/api/addrs/Dsoa62CGHSupBhPNoiBGTiGmUVy9C6fLUhL,Dsj7Myj4QLyPRr5aZxoMeKeffXoueeGtxxx/utxo",
+          "/insight/api/txs?address=Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx",
+          "/insight/api/txs?address=Dsd8i7LHGCfKWtog5kwYL5Ut7pBhMLKPVZo",
+          "/insight/api/txs?address=Dsa4zhhBhLuGKmsgHc1hHp9acW6WbpyuN7P",
+          "/insight/api/txs?address=DcpR6s7iZsPMJRorJymeYP4K9sHo35RAWZB",
+          "/insight/api/txs?address=Dsksm4jgwFJScNznBz9Rdo4R2zmUXuM71CP",
+          "/insight/api/txs?address=DsZFcexJZtXXmgsbJRjLsq8btXLh7EBSDL7",
+          "/insight/api/txs?address=DsZFcexJZtXXmgsbJRjLsq8btXLh7EBxxxx"
+        ]
+      }
+    ]
+  },
   "rotation": {
     "duration": 60,
     "attackers": [

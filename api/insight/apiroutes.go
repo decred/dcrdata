@@ -35,13 +35,16 @@ type DataSourceLite interface {
 	UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error)
 }
 
+const defaultReqPerSecLimit = 20.0
+
 type insightApiContext struct {
-	nodeClient *rpcclient.Client
-	BlockData  *dcrpg.ChainDBRPC
-	params     *chaincfg.Params
-	MemPool    DataSourceLite
-	Status     apitypes.Status
-	JSONIndent string
+	nodeClient     *rpcclient.Client
+	BlockData      *dcrpg.ChainDBRPC
+	params         *chaincfg.Params
+	MemPool        DataSourceLite
+	Status         apitypes.Status
+	JSONIndent     string
+	ReqPerSecLimit float64
 }
 
 // NewInsightContext Constructor for insightApiContext
@@ -62,8 +65,15 @@ func NewInsightContext(client *rpcclient.Client, blockData *dcrpg.ChainDBRPC, pa
 			DcrdataVersion:  version.String(),
 			NetworkName:     params.Name,
 		},
+		ReqPerSecLimit: defaultReqPerSecLimit,
 	}
 	return &newContext
+}
+
+// SetReqRateLimit is used to set the requests/second/IP for the Insight API's
+// rate limiter.
+func (c *insightApiContext) SetReqRateLimit(reqPerSecLimit float64) {
+	c.ReqPerSecLimit = reqPerSecLimit
 }
 
 func (c *insightApiContext) getIndentQuery(r *http.Request) (indent string) {

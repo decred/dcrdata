@@ -30,8 +30,7 @@ func NewInsightApiRouter(app *insightApiContext, useRealIP bool) ApiMux {
 	mux := chi.NewRouter()
 
 	// Create a rate limiter struct.
-	reqPerSecLimit := 10.0
-	limiter := tollbooth.NewLimiter(reqPerSecLimit, nil)
+	limiter := tollbooth.NewLimiter(app.ReqPerSecLimit, nil)
 
 	if useRealIP {
 		mux.Use(middleware.RealIP)

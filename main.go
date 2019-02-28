@@ -714,6 +714,7 @@ func _main(ctx context.Context) error {
 		if usePG {
 			insightApp := insight.NewInsightContext(dcrdClient, auxDB,
 				activeChain, baseDB, cfg.IndentJSON)
+			insightApp.SetReqRateLimit(cfg.InsightReqRateLimit)
 			insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP)
 			r.Mount("/insight/api", insightMux.Mux)
 
