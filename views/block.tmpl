@@ -58,12 +58,13 @@
                     <span class="lh1rem d-inline-block pt-1"
                       ><span class="fs18 fs14-decimal font-weight-bold">{{template "decimalParts" (float64AsDecimalParts .TotalSent 8 true 2)}}</span><span class="text-secondary fs14">DCR</span>
                     </span>
+                    {{if $.FiatConversion}}
                     <br>
                     <span class="text-secondary fs16"
-                    >{{if $.FiatConversion}}{{template "decimalParts" (float64AsDecimalParts $.FiatConversion.ConvertedValue 2 true 0)}}
-                    <span class="fs14">{{$.FiatConversion.BtcIndex}}</span>
-                    {{end}}
+                    >{{threeSigFigs $.FiatConversion.Value}}
+                    <span class="fs14">{{$.FiatConversion.Index}}</span>
                     </span>
+                    {{end}}
                 </div>
                 <div class="col-7 col-sm-8 text-left">
                     <span class="text-secondary fs13">Size</span>
