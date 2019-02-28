@@ -4,6 +4,7 @@
 {{template "html-head" printf "Decred Transaction %.20s..." .Data.TxID}}
 <body class="{{ theme }}">
 {{template "navbar" . }}
+{{$conv := .Conversions}}
 {{with .Data}}
 <div class="container main" data-controller="time tx" data-tx-txid="{{.TxID}}">
 {{$isMempool := (eq .BlockHeight 0)}}
@@ -52,15 +53,16 @@
                 <span class="lh1rem d-inline-block pt-1"
                   ><span class="fs18 fs14-decimal font-weight-bold">{{template "decimalParts" (float64AsDecimalParts .Total 8 true 2)}}</span><span class="text-secondary fs14">DCR</span>
                 </span>
+                {{if $conv.Total}}
                 <br>
                 <div class="lh1rem d-inline-block text-secondary"
                   ><span class="fs16 lh1rem d-inline-block text-nowrap"
-                  >{{if $.ConvertedTotal}}{{threeSigFigs $.ConvertedTotal.ConvertedValue}}
-                  <span class="fs14">{{$.ConvertedTotal.BtcIndex}}</span>
-                  {{end}}
+                  >{{threeSigFigs $conv.Total.Value}}
+                  <span class="fs14">{{$conv.Total.Index}}</span>
                   </span>
                   <span class="fs12">(today)</span>
                 </div>
+                {{end}}
             </div>
             <div class="col-8 text-left"{{if $isMempool}} data-target="tx.unconfirmed" data-txid="{{.TxID}}"{{end}}>
                 <span class="text-secondary fs13"><span class="d-none d-sm-inline">Included in Block</span><span class="d-sm-none">Block #</span></span>
@@ -92,12 +94,13 @@
                 <span class="lh1rem d-inline-block pt-1"
                   ><span class="fs18 fs14-decimal font-weight-bold">{{template "decimalParts" (float64AsDecimalParts .Fee.ToCoin 8 true 2)}}</span><span class="text-secondary fs14">DCR</span>
                 </span>
+                {{if $conv.Fees}}
                 <br>
                 <span class="text-secondary fs16 lh1rem d-inline-block"
-                >{{if $.ConvertedFees}}{{threeSigFigs $.ConvertedFees.ConvertedValue}}
-                <span class="fs14 lh1rem  d-inline-block">{{$.ConvertedFees.BtcIndex}} <span class="fs12">(today)</span></span>
-                {{end}}
+                >{{threeSigFigs $conv.Fees.Value}}
+                <span class="fs14 lh1rem  d-inline-block">{{$conv.Fees.Index}} <span class="fs12">(today)</span></span>
                 </span>
+                {{end}}
             </div>
           </div>
           {{if .IsImmatureTicket}}

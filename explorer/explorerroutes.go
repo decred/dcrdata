@@ -66,12 +66,6 @@ const (
 	ExpStatusP2PKAddress    expStatus = "P2PK Address Type"
 )
 
-// A fiat converted DCR value.
-type fiatConversion struct {
-	ConvertedValue float64
-	BtcIndex       string
-}
-
 func (e expStatus) IsNotFound() bool {
 	return e == ExpStatusNotFound
 }
@@ -638,22 +632,21 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		data.MainChain = blockStatus.IsMainchain
 	}
 
-	var conversion *fiatConversion
-	if time.Since(data.BlockTime.T) < time.Hour {
-		conversion = exp.getConversion(data.TotalSent)
-	}
-
 	pageData := struct {
 		*CommonPageData
 		Data           *types.BlockInfo
 		NetName        string
-		FiatConversion *fiatConversion
+		FiatConversion *exchanges.Conversion
 	}{
 		CommonPageData: exp.commonData(),
 		Data:           data,
 		NetName:        exp.NetName,
-		FiatConversion: conversion,
 	}
+
+	if exp.xcBot != nil && time.Since(data.BlockTime.T) < time.Hour {
+		pageData.FiatConversion = exp.xcBot.Conversion(data.TotalSent)
+	}
+
 	str, err := exp.templates.execTemplateToString("block", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
@@ -1167,10 +1160,6 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Get a fiat-converted value for the total and the fees.
-	convertedTotal := exp.getConversion(tx.Total)
-	convertedFees := exp.getConversion(tx.Fee.ToCoin())
-
 	// For an unconfirmed tx, get the time it was received in explorer's mempool.
 	if tx.BlockHeight == 0 {
 		tx.Time = exp.mempoolTime(tx.TxID)
@@ -1185,8 +1174,10 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		NetName              string
 		HighlightInOut       string
 		HighlightInOutID     int64
-		ConvertedTotal       *fiatConversion
-		ConvertedFees        *fiatConversion
+		Conversions          struct {
+			Total *exchanges.Conversion
+			Fees  *exchanges.Conversion
+		}
 	}{
 		CommonPageData:       exp.commonData(),
 		Data:                 tx,
@@ -1196,8 +1187,12 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		NetName:              exp.NetName,
 		HighlightInOut:       inout,
 		HighlightInOutID:     inoutid,
-		ConvertedTotal:       convertedTotal,
-		ConvertedFees:        convertedFees,
+	}
+
+	// Get a fiat-converted value for the total and the fees.
+	if exp.xcBot != nil {
+		pageData.Conversions.Total = exp.xcBot.Conversion(tx.Total)
+		pageData.Conversions.Fees = exp.xcBot.Conversion(tx.Fee.ToCoin())
 	}
 
 	str, err := exp.templates.execTemplateToString("tx", pageData)
@@ -2041,16 +2036,4 @@ func (exp *explorerUI) commonData() *CommonPageData {
 		log.Errorf("Failed to get the chain tip from the database.: %v", err)
 	}
 	return &cd
-}
-
-// getConversion converts the float DCR value to the fiat value in the default
-// index.
-func (exp *explorerUI) getConversion(dcrVal float64) (conversion *fiatConversion) {
-	xcState := exp.getExchangeState()
-	if xcState != nil {
-		conversion = new(fiatConversion)
-		conversion.ConvertedValue = xcState.Price * dcrVal
-		conversion.BtcIndex = xcState.BtcIndex
-	}
-	return
 }
