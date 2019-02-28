@@ -7,8 +7,8 @@ import piapi "github.com/decred/politeia/politeiawww/api/v1"
 
 // ProposalInfo holds the proposal details as document here
 // https://github.com/decred/politeia/blob/master/politeiawww/api/v1/api.md#proposal.
-// It also holds the votes status details. The ID field is auto incremented by the
-// db.
+// It also holds the votes status details. The ID field is auto incremented by
+// the db.
 type ProposalInfo struct {
 	ID              int                `json:"id" storm:"id,increment"`
 	Name            string             `json:"name"`

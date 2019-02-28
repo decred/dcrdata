@@ -1,8 +1,8 @@
 // Copyright (c) 2019, The Decred developers
 // See LICENSE for details.
 
-// Package politeia manages Politeia proposals and the voting that is coordinated
-// by the Politeia server and anchored on the blockchain.
+// Package politeia manages Politeia proposals and the voting that is
+// coordinated by the Politeia server and anchored on the blockchain.
 package politeia
 
 import (
@@ -19,8 +19,8 @@ import (
 	piapi "github.com/decred/politeia/politeiawww/api/v1"
 )
 
-// errDef defines the default error returned if the proposals db was not initialized
-// correctly.
+// errDef defines the default error returned if the proposals db was not
+// initialized correctly.
 var errDef = fmt.Errorf("ProposalDB was not initialized correctly")
 
 // ProposalDB defines the common data needed to query the proposals db.
@@ -31,9 +31,9 @@ type ProposalDB struct {
 	APIURLpath string
 }
 
-// NewProposalsDB opens an exiting database or creates a new db instance with the
-// provided file name. Returns an initialized instance of proposals DB, http client
-// and the formatted politeia API URL path to be used.
+// NewProposalsDB opens an exiting database or creates a new DB instance with
+// the provided file name. Returns an initialized instance of proposals DB, http
+// client and the formatted politeia API URL path to be used.
 func NewProposalsDB(politeiaURL, dbPath string) (*ProposalDB, error) {
 	if politeiaURL == "" {
 		return nil, fmt.Errorf("missing politeia API URL")
@@ -53,12 +53,15 @@ func NewProposalsDB(politeiaURL, dbPath string) (*ProposalDB, error) {
 		return nil, err
 	}
 
-	// returns a http client used to query the API endpoints.
-	c := &http.Client{Transport: &http.Transport{
-		MaxIdleConns:       10,
-		IdleConnTimeout:    5 * time.Second,
-		DisableCompression: false,
-	}}
+	// Create the http client used to query the API endpoints.
+	c := &http.Client{
+		Transport: &http.Transport{
+			MaxIdleConns:       10,
+			IdleConnTimeout:    5 * time.Second,
+			DisableCompression: false,
+		},
+		Timeout: 30 * time.Second,
+	}
 
 	// politeiaURL should just be the domain part of the url without the API versioning.
 	versionedPath := fmt.Sprintf("%s/api/v%d", politeiaURL, piapi.PoliteiaWWWAPIVersion)
@@ -201,8 +204,8 @@ func (db *ProposalDB) CheckProposalsUpdates() error {
 		return err
 	}
 
-	// Retrieve and update any new proposals created since the previous proposals
-	// were stored in the db.
+	// Retrieve and update any new proposals created since the previous
+	// proposals were stored in the db.
 	lastProposal, err := db.lastSavedProposal()
 	if err != nil {
 		return fmt.Errorf("lastSavedProposal failed: %v", err)
@@ -232,10 +235,10 @@ func (db *ProposalDB) lastSavedProposal() (lastP []*pitypes.ProposalInfo, err er
 }
 
 // Proposals whose vote statuses are either NotAuthorized, Authorized or Started
-// are considered to be in progress. Data for the in progress proposals is fetched
-// from Politeia API. From the newly fetched proposals data, db update is only
-// made for the vote statuses without NotAuthorized status out of all the new
-// votes statuses fetched.
+// are considered to be in progress. Data for the in progress proposals is
+// fetched from Politeia API. From the newly fetched proposals data, db update
+// is only made for the vote statuses without NotAuthorized status out of all
+// the new votes statuses fetched.
 func (db *ProposalDB) updateInProgressProposals() (int, error) {
 	// statuses defines a list of vote statuses whose proposals may need an update.
 	statuses := []pitypes.VoteStatusType{
@@ -282,7 +285,8 @@ func (db *ProposalDB) updateInProgressProposals() (int, error) {
 
 		err = db.dbP.Update(proposal)
 		if err != nil {
-			return 0, fmt.Errorf("Update for %s failed with error: %v ", val.Censorship.Token, err)
+			return 0, fmt.Errorf("Update for %s failed with error: %v ",
+				val.Censorship.Token, err)
 		}
 
 		count++

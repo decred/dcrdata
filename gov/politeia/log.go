@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2019, The Decred developers
 // See LICENSE for details.
 
 package politeia

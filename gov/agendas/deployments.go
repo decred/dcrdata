@@ -1,8 +1,8 @@
 // Copyright (c) 2018-2019, The Decred developers
 // See LICENSE for details.
 
-// Package agendas manages the various deployment agendas that are directly voted
-// upon with the vote bits in vote transactions.
+// Package agendas manages the various deployment agendas that are directly
+// voted upon with the vote bits in vote transactions.
 package agendas
 
 import (
@@ -13,15 +13,16 @@ import (
 	"github.com/decred/dcrd/dcrjson/v2"
 )
 
-// AgendaDB represents the data for the saved db
+// AgendaDB represents the data for the stored DB.
 type AgendaDB struct {
 	sdb        *storm.DB
 	NumAgendas int
 }
 
-// AgendaTagged has the same fields as dcrjson.Agenda, but with the ID field
-// marked as the primary key via the `storm:"id"` tag. Fields tagged for
-// indexing by the DB are: StartTime, ExpireTime, Status, and QuorumProgress.
+// AgendaTagged has the same fields as dcrjson.Agenda plus the VoteVersion
+// field, but with the ID field marked as the primary key via the `storm:"id"`
+// tag. Fields tagged for indexing by the DB are: StartTime, ExpireTime, Status,
+// and QuorumProgress.
 type AgendaTagged struct {
 	ID             string           `json:"id" storm:"id"`
 	Description    string           `json:"description"`
@@ -34,19 +35,19 @@ type AgendaTagged struct {
 	VoteVersion    uint32           `json:"voteversion"`
 }
 
-// errDefault defines an error message returned if the agenda db wasn't
-// properly initialized.
+// errDefault defines an error message returned if the agenda db wasn't properly
+// initialized.
 var errDefault = fmt.Errorf("AgendaDB was not initialized correctly")
 
 // DeploymentSource provides a cleaner way to track the rpcclient methods used
-// in this package. It also allows usage of alternative implementations to satisfy
-// the interface.
+// in this package. It also allows usage of alternative implementations to
+// satisfy the interface.
 type DeploymentSource interface {
 	GetVoteInfo(version uint32) (*dcrjson.GetVoteInfoResult, error)
 }
 
-// NewAgendasDB opens an existing database or create a new one using with
-// the specified file name. An initialized agendas db connection is returned.
+// NewAgendasDB opens an existing database or create a new one using with the
+// specified file name. An initialized agendas db connection is returned.
 func NewAgendasDB(dbPath string) (*AgendaDB, error) {
 	if dbPath == "" {
 		return nil, fmt.Errorf("empty db Path found")
@@ -101,26 +102,31 @@ func (db *AgendaDB) loadAgenda(agendaID string) (*AgendaTagged, error) {
 // agendasForVoteVersion fetches the agendas using the vote versions provided.
 func agendasForVoteVersion(ver uint32, client DeploymentSource) (agendas []AgendaTagged) {
 	voteInfo, err := client.GetVoteInfo(ver)
-	if err == nil {
-		for i := range voteInfo.Agendas {
-			v := &voteInfo.Agendas[i]
-			agendas = append(agendas, AgendaTagged{
-				ID:             v.ID,
-				Description:    v.Description,
-				Mask:           v.Mask,
-				StartTime:      v.StartTime,
-				ExpireTime:     v.ExpireTime,
-				Status:         v.Status,
-				QuorumProgress: v.QuorumProgress,
-				Choices:        v.Choices,
-				VoteVersion:    voteInfo.VoteVersion,
-			})
-		}
+	if err != nil {
+		return
 	}
+
+	agendas = make([]AgendaTagged, 0, len(voteInfo.Agendas))
+	for i := range voteInfo.Agendas {
+		v := &voteInfo.Agendas[i]
+		agendas = append(agendas, AgendaTagged{
+			ID:             v.ID,
+			Description:    v.Description,
+			Mask:           v.Mask,
+			StartTime:      v.StartTime,
+			ExpireTime:     v.ExpireTime,
+			Status:         v.Status,
+			QuorumProgress: v.QuorumProgress,
+			Choices:        v.Choices,
+			VoteVersion:    voteInfo.VoteVersion,
+		})
+	}
+
 	return
 }
 
-// IsAgendasAvailable checks for the availabily of agendas in the db by vote version.
+// IsAgendasAvailable checks for the availabily of agendas in the db by vote
+// version.
 func (db *AgendaDB) isAgendasAvailable(version uint32) bool {
 	agenda := make([]AgendaTagged, 0)
 	err := db.sdb.Find("VoteVersion", version, &agenda, storm.Limit(1))
