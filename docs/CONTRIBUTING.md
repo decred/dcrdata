@@ -1,6 +1,33 @@
 # Contributing
 
+## Contents
+- [PR/Issues Naming Standard Format](#pr/issues-naming-standard-format)
+- [When to Search the Issue Tracker](#when-to-search-the-issue-tracker)
+- [When to Submit a New Issue](#when-to-submit-a-new-issue)
+- [When to Submit a Pull Request](#when-to-submit-a-pull-request)
+- [How to Contribute](#how-to-contribute)
+  - [Suggested Toolkit](#suggested-toolkit)
+  - [Git Workflow](#git-workflow)
+- [Go Development Tips](#go-development-tips)
+- [Working with gRPC](#working-with-grpc)
+
 ## Guidelines
+
+### PR/Issues Naming Standard Format
+
+For efficient records keeping and retrieval, the following should be used as the PR/Issues naming standard whenever possible:
+
+`[Package/File/Directory Name]: [Concise and concrete description of the PR/Issue]`
+
+`Package/File/Directory Name` - Represents the collective name of the container in which the changes requested, belong to.
+
+examples of valid PR/Issues naming formats:
+
+- net/url: Parsing 192.168.12.12:8080 returns an error (Issue)
+- views/home: data-type of size column needs to be "size" (PR)
+- db/dcrpg: Charts data updates could use incremental changes. (Issue)
+- doc/contributing.md: Updating the users contribution guidilines. (PR)
+
 
 ### When to Search the Issue Tracker
 
@@ -36,7 +63,7 @@ Only submit a PR once the intended edits are either done or nearing completion. 
 - Visual Studio Code with Go extension plus `gometalinter`
 - coffee, preferably black. [some good stuff](http://haiticoffeeacademy.com/)
 
-## Git Workflow
+### Git Workflow
 
 1. Fork the repository on GitHub.  Just click the little Fork button at https://github.com/decred/dcrdata
 
