@@ -12,6 +12,9 @@ export default class extends Controller {
     var q = Url.qs.parse(url.query)
     q['offset'] = this.pagesizeTarget.dataset.offset
     q['rows'] = this.pagesizeTarget.selectedOptions[0].value
+    if (this.hasVotestatusTarget) {
+      q['byvotestatus'] = this.votestatusTarget.selectedOptions[0].value
+    }
     url.set('query', q)
     Turbolinks.visit(url.toString())
   }

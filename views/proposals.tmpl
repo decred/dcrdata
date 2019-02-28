@@ -4,7 +4,7 @@
     {{template "html-head" printf "Decred Vote Proposals Page"}}
     <body class="{{ theme }}">
         {{template "navbar" .}}
-        <div class="container main" data-controller="ticketwindow">
+        <div class="container main" data-controller="pagenavigation">
             <div class="row justify-content-between">
                 <div class="col-sm-lg-14 col-sm-12 d-flex">
                     <h4 class="mb-2">Politeia Proposals</h4>
@@ -19,8 +19,8 @@
                             <select
                                 id="votestatus"
                                 class="form-control-sm mb-2 mr-sm-2 mb-sm-0"
-                                data-target="ticketwindow.votestatus"
-                                data-action="change->ticketwindow#setFilterbyVoteStatus"
+                                data-target="pagenavigation.votestatus"
+                                data-action="change->pagenavigation#setFilterbyVoteStatus"
                             >
                                 <option value="all">All</option>
                                 {{range $k, $v := .VotesStatus}}
@@ -49,8 +49,8 @@
                             <label class="mb-0 mr-1" for="tbPagesize">Page Size</label>
                             <select
                                 id="tbPagesize"
-                                data-target="ticketwindow.pagesize"
-                                data-action="change->ticketwindow#setPageSize"
+                                data-target="pagenavigation.pagesize"
+                                data-action="change->pagenavigation#setPageSize"
                                 data-offset="{{$.Offset}}"
                                 class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $pending 10}}disabled{{end}}"
                                 {{if lt $pending 10}}disabled="disabled"{{end}}
@@ -71,28 +71,28 @@
                                 <li class="page-item {{if eq .Offset 0}}disabled{{end}}">
                                     <a
                                         class="page-link"
-                                        href="?offset=0&rows={{.Limit}}"
+                                        href="?offset=0&rows={{.Limit}}&byvotestatus={{$.VStatusFilter}}"
                                         id="next"
                                     > Newest</a>
                                 </li>
                                 <li class="page-item {{if eq .Offset 0}}disabled{{end}}">
                                     <a
                                         class="page-link"
-                                        href="?offset={{subtract .Offset .Limit}}&rows={{.Limit}}"
+                                        href="?offset={{subtract .Offset .Limit}}&rows={{.Limit}}&byvotestatus={{$.VStatusFilter}}"
                                         id="next"
                                     > Newer</a>
                                 </li>
                                 <li class="page-item {{if ge $oldest $.TotalCount}}disabled{{end}}">
                                     <a
                                         class="page-link"
-                                        href="?offset={{add .Offset .Limit}}&rows={{.Limit}}"
+                                        href="?offset={{add .Offset .Limit}}&rows={{.Limit}}&byvotestatus={{$.VStatusFilter}}"
                                         id="prev"
                                     >Older</a>
                                 </li>
                                 <li class="page-item {{if ge $oldest $.TotalCount}}disabled{{end}}">
                                     <a
                                         class="page-link"
-                                        href="?offset={{subtract $.TotalCount .Limit}}&rows={{.Limit}}"
+                                        href="?offset={{subtract $.TotalCount .Limit}}&rows={{.Limit}}&byvotestatus={{$.VStatusFilter}}"
                                         id="prev"
                                     >Oldest</a>
                                 </li>
