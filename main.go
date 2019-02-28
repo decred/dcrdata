@@ -249,7 +249,7 @@ func _main(ctx context.Context) error {
 			auxDBHeight, err = auxDB.HeightDB()
 			if err != nil {
 				if err != sql.ErrNoRows {
-					log.Errorf("auxDB.GetHeight failed: %v", err)
+					log.Errorf("auxDB.HeightDB failed: %v", err)
 					return
 				}
 				// err == sql.ErrNoRows is not an error, and auxDBHeight == -1
@@ -606,15 +606,17 @@ func _main(ctx context.Context) error {
 		latestBlockHash <- latestDBBlockHash
 	}
 
-	// Fetches the latest blockdata which is needed to update the agendas db
-	// while db sync is in progress.
-	bci, err := baseDB.BlockchainInfo()
-	if err != nil {
-		return fmt.Errorf("failed to fetch the latest blockdata")
-	}
+	if usePG {
+		// Fetch the latest blockchain info, which is needed to update the
+		// agendas db while db sync is in progress.
+		bci, err := baseDB.BlockchainInfo()
+		if err != nil {
+			return fmt.Errorf("failed to fetch the latest blockchain info")
+		}
 
-	// Update the current chain state in the ChainDBRPC
-	auxDB.UpdateChainState(bci)
+		// Update the current chain state in the ChainDBRPC
+		auxDB.UpdateChainState(bci)
+	}
 
 	// Create the Insight socket.io server, and add it to block savers if in
 	// full/pg mode. Since insightSocketServer is added into the url before even
@@ -1026,7 +1028,7 @@ func _main(ctx context.Context) error {
 			err.Error())
 	}
 
-	// Update the current chain state in the ChainDBRPC
+	// Update the current chain state in the ChainDB.
 	auxDB.UpdateChainState(blockData.BlockchainInfo)
 
 	if err = explore.Store(blockData, msgBlock); err != nil {

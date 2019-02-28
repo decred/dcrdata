@@ -307,6 +307,15 @@ func (db *ChainDBRPC) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBl
 	return db.ChainDB.Store(blockData, msgBlock)
 }
 
+// UpdateChainState calls (*ChainDB).UpdateChainState after a nil pointer check
+// on the ChainDBRPC receiver.
+func (pgb *ChainDBRPC) UpdateChainState(blockChainInfo *dcrjson.GetBlockChainInfoResult) {
+	if pgb == nil || pgb.ChainDB == nil {
+		return
+	}
+	pgb.ChainDB.UpdateChainState(blockChainInfo)
+}
+
 // MissingSideChainBlocks identifies side chain blocks that are missing from the
 // DB. Side chains known to dcrd are listed via the getchaintips RPC. Each block
 // presence in the postgres DB is checked, and any missing block is returned in
@@ -599,6 +608,9 @@ func (pgb *ChainDB) UseStakeDB(stakeDB *stakedb.StakeDatabase) {
 // EnableDuplicateCheckOnInsert specifies whether SQL insertions should check
 // for row conflicts (duplicates), and avoid adding or updating.
 func (pgb *ChainDB) EnableDuplicateCheckOnInsert(dupCheck bool) {
+	if pgb == nil {
+		return
+	}
 	pgb.dupChecks = dupCheck
 }
 
@@ -2011,6 +2023,9 @@ func (pgb *ChainDB) AddressTransactionRawDetails(addr string, count, skip int64,
 // is "lockedIn" or "activated"), Activated is set to the height at which the rule
 // change will take(or took) place.
 func (pgb *ChainDB) UpdateChainState(blockChainInfo *dcrjson.GetBlockChainInfoResult) {
+	if pgb == nil {
+		return
+	}
 	if blockChainInfo == nil {
 		log.Errorf("dcrjson.GetBlockChainInfoResult data passed is empty")
 		return
