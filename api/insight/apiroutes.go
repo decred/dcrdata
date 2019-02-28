@@ -197,17 +197,7 @@ func (c *insightApiContext) getBlockHash(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	height, err := c.BlockData.ChainDB.HeightDB()
-	if dbtypes.IsTimeoutErr(err) {
-		apiLog.Errorf("HeightDB: %v", err)
-		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
-		return
-	}
-	if err != nil {
-		writeInsightNotFound(w, "Not found")
-		return
-	}
-
+	height := c.BlockData.ChainDB.Height()
 	if idx < 0 || idx > int(height) {
 		writeInsightError(w, "Block height out of range")
 		return
@@ -699,7 +689,7 @@ func (c *insightApiContext) getAddressBalance(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	addressInfo, err := c.BlockData.ChainDB.AddressBalance(address, 20, 0)
+	addressInfo, err := c.BlockData.ChainDB.AddressBalance(address)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("AddressBalance: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)

@@ -194,7 +194,8 @@ out:
 
 			p.db.InReorg = false
 
-			_ = p.db.FreshenAddressCaches(true) // async update
+			// Freshen project fund balance and clear ALL address cache data.
+			_ = p.db.FreshenAddressCaches(true, nil) // async update
 
 			reorgData.WG.Done()
 

@@ -10,6 +10,7 @@ import (
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
 	apitypes "github.com/decred/dcrdata/v4/api/types"
+	"github.com/decred/dcrdata/v4/db/cache"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
 	"github.com/decred/dcrdata/v4/rpcutils"
 	"github.com/decred/dcrdata/v4/txhelpers"
@@ -61,14 +62,6 @@ func (pgb *ChainDB) InsightAddressTransactions(addr []string, recentBlockHeight 
 	defer cancel()
 	txs, recentTxs, err := RetrieveAddressTxnsOrdered(ctx, pgb.db, addr, recentBlockHeight)
 	return txs, recentTxs, pgb.replaceCancelError(err)
-}
-
-// AddressSpentUnspent retrieves balance information for a specific address.
-func (pgb *ChainDB) AddressSpentUnspent(address string) (int64, int64, int64, int64, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
-	defer cancel()
-	ns, nu, as, au, err := RetrieveAddressSpentUnspent(ctx, pgb.db, address)
-	return ns, nu, as, au, pgb.replaceCancelError(err)
 }
 
 // AddressIDsByOutpoint fetches all address row IDs for a given outpoint
@@ -155,16 +148,6 @@ func (pgb *ChainDB) GetBlockHash(idx int64) (string, error) {
 	return hash, nil
 }
 
-// AddressBalance returns a AddressBalance for the specified address,
-// transaction count limit, and transaction number offset.
-func (pgb *ChainDB) AddressBalance(address string, N, offset int64) (*dbtypes.AddressBalance, error) {
-	_, balance, err := pgb.AddressHistoryAll(address, N, offset)
-	if err != nil {
-		return nil, err
-	}
-	return balance, nil
-}
-
 // BlockSummaryTimeRange returns the blocks created within a specified time
 // range (min, max time), up to limit transactions.
 func (pgb *ChainDB) BlockSummaryTimeRange(min, max int64, limit int) ([]dbtypes.BlockDataBasic, error) {
@@ -177,17 +160,43 @@ func (pgb *ChainDB) BlockSummaryTimeRange(min, max int64, limit int) ([]dbtypes.
 // AddressUTXO returns the unspent transaction outputs (UTXOs) paying to the
 // specified address in a []apitypes.AddressTxnOutput.
 func (pgb *ChainDB) AddressUTXO(address string) ([]apitypes.AddressTxnOutput, error) {
-	blockHeight, err := pgb.HeightDB()
-	if err != nil {
-		return nil, err
+	// Check the cache first.
+	bestHash, height := pgb.BestBlock()
+	utxos, validHeight := pgb.AddressCache.UTXOs(address)
+	if utxos != nil && *bestHash == validHeight.Hash {
+		return utxos, nil
 	}
 
+	busy, wait, done := pgb.CacheLocks.utxo.TryLock(address)
+	if busy {
+		// Let others get the wait channel while we wait.
+		// To return stale cache data if it is available:
+		// utxos, _ := pgb.AddressCache.UTXOs(address)
+		// if utxos != nil {
+		// 	return utxos, nil
+		// }
+		<-wait
+
+		// Try again, starting with the cache.
+		return pgb.AddressUTXO(address)
+	} else {
+		// We will run the DB query, so block others from doing the same. When
+		// query and/or cache update is completed, broadcast to any waiters that
+		// the coast is clear.
+		defer done()
+	}
+
+	// Cache is empty or stale, so query the DB.
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
+	blockHeight := pgb.Height()
 	txnOutput, err := RetrieveAddressUTXOs(ctx, pgb.db, address, blockHeight)
 	if err != nil {
 		return nil, pgb.replaceCancelError(err)
 	}
+
+	// Update the address cache.
+	pgb.AddressCache.StoreUTXOs(address, txnOutput, cache.NewBlockID(bestHash, height))
 	return txnOutput, nil
 }
 

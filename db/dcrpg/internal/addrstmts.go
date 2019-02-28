@@ -82,7 +82,12 @@ const (
 	addrsColumnNames = `id, address, matching_tx_hash, tx_hash, tx_type, valid_mainchain,
 		tx_vin_vout_index, block_time, tx_vin_vout_row_id, value, is_funding`
 
-	SelectAddressAllByAddress = `SELECT ` + addrsColumnNames + ` FROM addresses WHERE address=$1 ORDER BY block_time DESC;`
+	SelectAddressAllByAddress = `SELECT ` + addrsColumnNames + ` FROM addresses
+		WHERE address=$1
+		ORDER BY block_time DESC;`
+	SelectAddressAllMainchainByAddress = `SELECT ` + addrsColumnNames + ` FROM addresses
+		WHERE address=$1 AND valid_mainchain
+		ORDER BY block_time DESC;`
 
 	SelectAddressesAllTxn = `SELECT
 			transactions.tx_hash,
@@ -155,14 +160,16 @@ const (
 			addresses.value,
 			transactions.block_height,
 			addresses.block_time,
-			tx_vin_vout_index,
-			pkscript
+			addresses.tx_vin_vout_index,
+			vouts.pkscript
 		FROM addresses
 		JOIN transactions ON
 			addresses.tx_hash = transactions.tx_hash
-		JOIN vouts ON addresses.tx_hash = vouts.tx_hash AND addresses.tx_vin_vout_index=vouts.tx_index
-		WHERE addresses.address=$1 AND addresses.is_funding = TRUE AND addresses.matching_tx_hash = '' AND valid_mainchain = TRUE
+		JOIN vouts ON addresses.tx_vin_vout_row_id = vouts.id
+		WHERE addresses.address=$1 AND addresses.is_funding AND addresses.matching_tx_hash = '' AND valid_mainchain
 		ORDER BY addresses.block_time DESC;`
+	// Since tx_vin_vout_row_id is the vouts table primary key (id) when
+	// is_funding=true, there is no need to join vouts on tx_hash and tx_index.
 
 	SelectAddressLimitNByAddress = `SELECT ` + addrsColumnNames + ` FROM addresses
 		WHERE address=$1 AND valid_mainchain = TRUE
@@ -187,12 +194,14 @@ const (
 		GROUP BY (tx_hash, valid_mainchain, block_time)  -- merging common transactions in same valid mainchain block
 		ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
 
-	SelectAddressMergedView = `SELECT tx_hash, valid_mainchain, block_time, sum(CASE WHEN is_funding = TRUE THEN value ELSE 0 END),
+	SelectAddressMergedViewAll = `SELECT tx_hash, valid_mainchain, block_time, sum(CASE WHEN is_funding = TRUE THEN value ELSE 0 END),
 		sum(CASE WHEN is_funding = FALSE THEN value ELSE 0 END), COUNT(*)
 		FROM addresses
 		WHERE address=$1                                 -- spending and funding transactions
 		GROUP BY (tx_hash, valid_mainchain, block_time)  -- merging common transactions in same valid mainchain block
-		ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
+		ORDER BY block_time DESC`
+
+	SelectAddressMergedView = SelectAddressMergedViewAll + ` LIMIT $2 OFFSET $3;`
 
 	SelectAddressCsvView = "SELECT tx_hash, valid_mainchain, matching_tx_hash, value, block_time, is_funding, " +
 		"tx_vin_vout_index, tx_type FROM addresses WHERE address=$1 ORDER BY block_time DESC"
