@@ -65,6 +65,12 @@ const (
 	ExpStatusP2PKAddress    expStatus = "P2PK Address Type"
 )
 
+// A fiat converted DCR value.
+type fiatConversion struct {
+	ConvertedValue float64
+	BtcIndex       string
+}
+
 func (e expStatus) IsNotFound() bool {
 	return e == ExpStatusNotFound
 }
@@ -606,30 +612,21 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		data.MainChain = blockStatus.IsMainchain
 	}
 
-	xcState := exp.getExchangeState()
-	var convertedSent float64
-	var btcIndex string
-	var hasConversion bool
-	if xcState != nil && time.Since(data.BlockTime.T) < time.Hour {
-		convertedSent = xcState.Price * data.TotalSent
-		btcIndex = xcState.BtcIndex
-		hasConversion = true
+	var conversion *fiatConversion
+	if time.Since(data.BlockTime.T) < time.Hour {
+		conversion = exp.getConversion(data.TotalSent)
 	}
 
 	pageData := struct {
 		*CommonPageData
-		Data          *types.BlockInfo
-		NetName       string
-		HasConversion bool
-		ConvertedSent float64
-		BtcIndex      string
+		Data           *types.BlockInfo
+		NetName        string
+		FiatConversion *fiatConversion
 	}{
 		CommonPageData: exp.commonData(),
 		Data:           data,
 		NetName:        exp.NetName,
-		HasConversion:  hasConversion,
-		ConvertedSent:  convertedSent,
-		BtcIndex:       btcIndex,
+		FiatConversion: conversion,
 	}
 	str, err := exp.templates.execTemplateToString("block", pageData)
 	if err != nil {
@@ -966,7 +963,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	// and get additional ticket details and pool status.
 	var blocks []*dbtypes.BlockStatus
 	var blockInds []uint32
-	var hasValidMainchain bool
+	var isConfirmedMainchain bool
 	if exp.liteMode {
 		blocks = append(blocks, &dbtypes.BlockStatus{
 			Hash:        tx.BlockHash,
@@ -1008,7 +1005,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		// (a.k.a. valid).
 		for ib := range blocks {
 			if blocks[ib].IsValid && blocks[ib].IsMainchain {
-				hasValidMainchain = true
+				isConfirmedMainchain = true
 				break
 			}
 		}
@@ -1144,24 +1141,37 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Get a fiat-converted value for the total and the fees.
+	convertedTotal := exp.getConversion(tx.Total)
+	convertedFees := exp.getConversion(tx.Fee.ToCoin())
+
+	// For an unconfirmed tx, get the time it was received in explorer's mempool.
+	if tx.BlockHeight == 0 {
+		tx.Time = exp.mempoolTime(tx.TxID)
+	}
+
 	pageData := struct {
 		*CommonPageData
-		Data              *types.TxInfo
-		Blocks            []*dbtypes.BlockStatus
-		BlockInds         []uint32
-		HasValidMainchain bool
-		NetName           string
-		HighlightInOut    string
-		HighlightInOutID  int64
+		Data                 *types.TxInfo
+		Blocks               []*dbtypes.BlockStatus
+		BlockInds            []uint32
+		IsConfirmedMainchain bool
+		NetName              string
+		HighlightInOut       string
+		HighlightInOutID     int64
+		ConvertedTotal       *fiatConversion
+		ConvertedFees        *fiatConversion
 	}{
-		CommonPageData:    exp.commonData(),
-		Data:              tx,
-		Blocks:            blocks,
-		BlockInds:         blockInds,
-		HasValidMainchain: hasValidMainchain,
-		NetName:           exp.NetName,
-		HighlightInOut:    inout,
-		HighlightInOutID:  inoutid,
+		CommonPageData:       exp.commonData(),
+		Data:                 tx,
+		Blocks:               blocks,
+		BlockInds:            blockInds,
+		IsConfirmedMainchain: isConfirmedMainchain,
+		NetName:              exp.NetName,
+		HighlightInOut:       inout,
+		HighlightInOutID:     inoutid,
+		ConvertedTotal:       convertedTotal,
+		ConvertedFees:        convertedFees,
 	}
 
 	str, err := exp.templates.execTemplateToString("tx", pageData)
@@ -1900,4 +1910,16 @@ func (exp *explorerUI) commonData() *CommonPageData {
 		log.Errorf("Failed to get the chain tip from the database.: %v", err)
 	}
 	return &cd
+}
+
+// getConversion converts the float DCR value to the fiat value in the default
+// index.
+func (exp *explorerUI) getConversion(dcrVal float64) (conversion *fiatConversion) {
+	xcState := exp.getExchangeState()
+	if xcState != nil {
+		conversion = new(fiatConversion)
+		conversion.ConvertedValue = xcState.Price * dcrVal
+		conversion.BtcIndex = xcState.BtcIndex
+	}
+	return
 }

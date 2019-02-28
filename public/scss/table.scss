@@ -48,6 +48,14 @@ table.align-baseline-rows tr {
   font-size: 14px;
 }
 
+.table div.hash-box {
+  position: relative;
+  height: 1.4rem;
+  min-width: 4em;
+  font-size: 14px;
+  padding: 0.2em 10% 0.2em 0;
+}
+
 // v2 tables have a little more padding and bold headers. Will likely be a
 // default site-wide style for larger tables soon.
 .v2-tables {
@@ -62,6 +70,11 @@ table.align-baseline-rows tr {
   .table th {
     padding: 0.9em 0.6em;
     font-weight: bold;
+  }
+
+  .table div.hash-box {
+    height: 1em;
+    margin-top: 2px;
   }
 }
 
@@ -92,14 +105,6 @@ body.darkBG .table tr.disabled-row {
 
 .table-fixed {
   table-layout: fixed;
-}
-
-.table div.hash-box {
-  position: relative;
-  height: 1.4rem;
-  min-width: 4em;
-  font-size: 14px;
-  padding: 0.2em 10% 0.2em 0;
 }
 
 .table th.addr-hash-column {

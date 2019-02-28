@@ -37,7 +37,7 @@
                             >best block
                           </div>
                         {{else}}
-                          <div class="mx-2 fs14"><a href="/side" class="attention">side chain</a></div>
+                          <div class="d-inline-block confirmations-box mx-2 fs14"><a href="/side" class="attention">side chain</a></div>
                         {{end}}
                   </div>
                   <div class="d-inline-block text-nowrap">
@@ -60,8 +60,8 @@
                     </span>
                     <br>
                     <span class="text-secondary fs16"
-                    >{{if $.HasConversion}}{{template "decimalParts" (float64AsDecimalParts $.ConvertedSent 2 true 0)}}
-                    <span class="fs14">{{$.BtcIndex}}</span>
+                    >{{if $.FiatConversion}}{{template "decimalParts" (float64AsDecimalParts $.FiatConversion.ConvertedValue 2 true 0)}}
+                    <span class="fs14">{{$.FiatConversion.BtcIndex}}</span>
                     {{end}}
                     </span>
                 </div>

@@ -754,3 +754,15 @@ func (exp *explorerUI) getExchangeState() *exchanges.ExchangeBotState {
 	}
 	return exp.xcBot.State()
 }
+
+// mempoolTime is the TimeDef that the transaction was received in DCRData, or
+// else a zero-valued TimeDef if no transaction is found.
+func (exp *explorerUI) mempoolTime(txid string) types.TimeDef {
+	exp.mempool.RLock()
+	defer exp.mempool.RUnlock()
+	tx, found := exp.mempool.Inv.Tx(txid)
+	if !found {
+		return types.NewTimeDefFromUNIX(0)
+	}
+	return types.NewTimeDefFromUNIX(tx.Time)
+}

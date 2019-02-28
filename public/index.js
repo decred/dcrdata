@@ -21,13 +21,6 @@ document.addEventListener('turbolinks:load', function (e) {
   })
 })
 
-{
-  let navBar = document.getElementById('navBar')
-  window.DCRThings = {}
-  window.DCRThings.targetBlockTime = navBar.dataset.blocktime
-  window.DCRThings.ticketPoolSize = navBar.dataset.poolsize
-}
-
 function getSocketURI (loc) {
   var protocol = (loc.protocol === 'https:') ? 'wss' : 'ws'
   return protocol + '://' + loc.host + '/ws'

@@ -177,12 +177,59 @@ type TxInfo struct {
 	TicketInfo
 }
 
+// IsTicket checks whether this transaction is a ticket.
 func (t *TxInfo) IsTicket() bool {
 	return t.Type == "Ticket"
 }
 
+// IsVote checks whether this transaction is a vote.
 func (t *TxInfo) IsVote() bool {
 	return t.Type == "Vote"
+}
+
+// IsRevocation checks whether this transaction is a revocation.
+func (t *TxInfo) IsRevocation() bool {
+	return t.Type == "Revocation"
+}
+
+// IsLiveTicket verifies the conditions: 1. is a ticket, 2. is mature,
+// 3. hasn't voted, 4. isn't  expired.
+func (t *TxInfo) IsLiveTicket() bool {
+	return t.Type == "Ticket" && t.Mature == "True" && t.SpendStatus != "Voted" &&
+		t.PoolStatus == "live" && t.TicketLiveBlocks < t.TicketExpiry
+}
+
+// IsExpiredTicket verifies the conditions: 1. is a ticket, 2. is mature,
+// 3. hasn't voted, 4. is past expiration.
+func (t *TxInfo) IsExpiredTicket() bool {
+	return t.Type == "Ticket" && t.Mature == "True" && t.SpendStatus != "Voted" &&
+		t.PoolStatus == "live" && t.TicketLiveBlocks >= t.TicketExpiry
+}
+
+// IsImmatureTicket verifies the conditions: 1. is a ticket, 2. is not mature.
+func (t *TxInfo) IsImmatureTicket() bool {
+	return t.Type == "Ticket" && t.Mature == "False"
+}
+
+// IsImmatureVote verifies the conditions: 1. is a vote, 2. is not mature.
+func (t *TxInfo) IsImmatureVote() bool {
+	return t.Type == "Vote" && t.Mature == "False"
+}
+
+// IsImmatureCoinbase verifies the conditions: 1. is coinbase, 2. is not mature.
+func (t *TxInfo) IsImmatureCoinbase() bool {
+	return t.Type == "Coinbase" && t.Mature == "False"
+}
+
+// BlocksToTicketMaturity will return 0 if this isn't an immature ticket.
+func (t *TxInfo) BlocksToTicketMaturity() (blocks int64) {
+	if t.Type != "Ticket" {
+		return
+	}
+	if t.Mature == "True" {
+		return
+	}
+	return t.TicketInfo.TicketMaturity + 1 - t.Confirmations
 }
 
 // TicketInfo is used to represent data shown for a sstx transaction.
@@ -449,6 +496,40 @@ func (mpi *MempoolInfo) Trim() *TrimmedMempoolInfo {
 	data.Fees = allFees.ToCoin()
 
 	return data
+}
+
+// getTxFromList is a helper function for searching the MempoolInfo tx lists.
+func getTxFromList(txid string, txns []MempoolTx) (MempoolTx, bool) {
+	for idx := range txns {
+		if txns[idx].TxID == txid {
+			return txns[idx], true
+		}
+	}
+	return MempoolTx{}, false
+}
+
+// Tx checks the inventory and searches the appropriate lists for a
+// transaction matching the provided transaction ID.
+func (mpi *MempoolInfo) Tx(txid string) (MempoolTx, bool) {
+	mpi.RLock()
+	defer mpi.RUnlock()
+	_, found := mpi.InvRegular[txid]
+	if found {
+		return getTxFromList(txid, mpi.Transactions)
+	}
+	_, found = mpi.InvStake[txid]
+	if found {
+		tx, found := getTxFromList(txid, mpi.Tickets)
+		if found {
+			return tx, true
+		}
+		tx, found = getTxFromList(txid, mpi.Votes)
+		if found {
+			return tx, true
+		}
+		return getTxFromList(txid, mpi.Revocations)
+	}
+	return MempoolTx{}, false
 }
 
 // FilterRegularTx returns a slice of all the regular (non-stake) transactions
