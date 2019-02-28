@@ -1,3 +1,4 @@
+bou.ke/monkey v1.0.1 h1:zEMLInw9xvNakzUUPjfS4Ds6jYPqCFx3m7bRmG5NH2U=
 bou.ke/monkey v1.0.1/go.mod h1:FgHuK96Rv2Nlf+0u1OOVDpCMdsWyOFmeeketDHE7LIg=
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 github.com/AndreasBriese/bbloom v0.0.0-20180913140656-343706a395b7 h1:PqzgE6kAMi81xWQA2QIVxjWkFHptGgC547vchpUbtFo=
@@ -29,6 +30,7 @@ github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb/go.mod h1:xz
 github.com/chappjc/trylock v1.0.0 h1:WR9J1cP/+h0x9RoKsxf4I0AnYg7aONYjiwYwys8nibA=
 github.com/chappjc/trylock v1.0.0/go.mod h1:+FnHf7ZLQpdbR3H9QZUrMKF1jfyHmtpbZddoYhSTzvw=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
+github.com/dajohi/goemail v0.0.0-20190207191308-61faa215f94d h1:erd++vWXw2JEXelnwMBlTjOrllgTby+Oxg17Td8KUTg=
 github.com/dajohi/goemail v0.0.0-20190207191308-61faa215f94d/go.mod h1:YyX3pgj9VJX6VQYu8Cbs0GYHzgFUs8q0vX5pLmFvops=
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -149,8 +151,8 @@ github.com/dgraph-io/badger v1.5.5-0.20190214192501-3196cc1d7a5f h1:zpnMq37RjYYJ
 github.com/dgraph-io/badger v1.5.5-0.20190214192501-3196cc1d7a5f/go.mod h1:VZxzAIRPHRVNRKRo6AXrX9BJegn6il06VMTZVJYCIjQ=
 github.com/dgryski/go-farm v0.0.0-20180109070241-2de33835d102 h1:afESQBXJEnj3fu+34X//E8Wg3nEbMJxJkwSc0tPePK0=
 github.com/dgryski/go-farm v0.0.0-20180109070241-2de33835d102/go.mod h1:SqUrOPUnsFjfmXRMNPybcSiG0BgUW2AuFH8PAnS2iTw=
-github.com/didip/tollbooth v4.0.0+incompatible h1:ayQZYuF5QOxx3NdYRNuRVFLv9/2b64JtSUlewb+0TMo=
-github.com/didip/tollbooth v4.0.0+incompatible/go.mod h1:A9b0665CE6l1KmzpDws2++elm/CsuWBMa5Jv4WY0PEY=
+github.com/didip/tollbooth v4.0.1-0.20180415195142-b10a036da5f0+incompatible h1:XPOvHQZ3qQ54NtienofDf4clvH/6Kf9FbX3MqkdDsOQ=
+github.com/didip/tollbooth v4.0.1-0.20180415195142-b10a036da5f0+incompatible/go.mod h1:A9b0665CE6l1KmzpDws2++elm/CsuWBMa5Jv4WY0PEY=
 github.com/didip/tollbooth_chi v0.0.0-20170928041846-6ab5f3083f3d h1:vs5Nf6IE0N/PwGJ8//zRed4gpCdcr99K2HzX7RuLOQ8=
 github.com/didip/tollbooth_chi v0.0.0-20170928041846-6ab5f3083f3d/go.mod h1:YWyIfq3y4ArRfWZ9XksmuusP+7Mad+T0iFZ0kv0XG/M=
 github.com/dustin/go-humanize v1.0.0 h1:VSnTsYCnlFHaM2/igO1h6X3HA71jcobQuxemgkq4zYo=

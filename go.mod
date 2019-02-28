@@ -25,7 +25,7 @@ require (
 	github.com/decred/slog v1.0.0
 	github.com/dgraph-io/badger v1.5.5-0.20190214192501-3196cc1d7a5f
 	github.com/dgryski/go-farm v0.0.0-20180109070241-2de33835d102 // indirect
-	github.com/didip/tollbooth v4.0.0+incompatible
+	github.com/didip/tollbooth v4.0.1-0.20180415195142-b10a036da5f0+incompatible
 	github.com/didip/tollbooth_chi v0.0.0-20170928041846-6ab5f3083f3d
 	github.com/dustin/go-humanize v1.0.0
 	github.com/go-chi/chi v4.0.1+incompatible

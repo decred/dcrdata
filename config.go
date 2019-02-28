@@ -47,12 +47,13 @@ var (
 	dcrdHomeDir              = dcrutil.AppDataDir("dcrd", false)
 	defaultDaemonRPCCertFile = filepath.Join(dcrdHomeDir, "rpc.cert")
 
-	defaultHost               = "localhost"
-	defaultHTTPProfPath       = "/p"
-	defaultAPIProto           = "http"
-	defaultAPIListen          = "127.0.0.1:7777"
-	defaultIndentJSON         = "   "
-	defaultCacheControlMaxAge = 86400
+	defaultHost                = "localhost"
+	defaultHTTPProfPath        = "/p"
+	defaultAPIProto            = "http"
+	defaultAPIListen           = "127.0.0.1:7777"
+	defaultIndentJSON          = "   "
+	defaultCacheControlMaxAge  = 86400
+	defaultInsightReqRateLimit = 20.0
 
 	defaultMempoolMinInterval = 2
 	defaultMempoolMaxInterval = 120
@@ -94,12 +95,12 @@ type config struct {
 	UseGops      bool   `short:"g" long:"gops" description:"Run with gops diagnostics agent listening. See github.com/google/gops for more information." env:"DCRDATA_USE_GOPS"`
 
 	// API
-	APIProto           string `long:"apiproto" description:"Protocol for API (http or https)" env:"DCRDATA_ENABLE_HTTPS"`
-	APIListen          string `long:"apilisten" description:"Listen address for API" env:"DCRDATA_LISTEN_URL"`
-	IndentJSON         string `long:"indentjson" description:"String for JSON indentation (default is \"   \"), when indentation is requested via URL query."`
-	UseRealIP          bool   `long:"userealip" description:"Use the RealIP middleware from the pressly/chi/middleware package to get the client's real IP from the X-Forwarded-For or X-Real-IP headers, in that order." env:"DCRDATA_USE_REAL_IP"`
-	CacheControlMaxAge int    `long:"cachecontrol-maxage" description:"Set CacheControl in the HTTP response header to a value in seconds for clients to cache the response. This applies only to FileServer routes." env:"DCRDATA_MAX_CACHE_AGE"`
-	PoliteiaAPIURL     string `long:"politeiaurl" description:"Defines the root API politeia URL (defaults to https://proposals.decred.org)."`
+	APIProto            string  `long:"apiproto" description:"Protocol for API (http or https)" env:"DCRDATA_ENABLE_HTTPS"`
+	APIListen           string  `long:"apilisten" description:"Listen address for API" env:"DCRDATA_LISTEN_URL"`
+	IndentJSON          string  `long:"indentjson" description:"String for JSON indentation (default is \"   \"), when indentation is requested via URL query."`
+	UseRealIP           bool    `long:"userealip" description:"Use the RealIP middleware from the pressly/chi/middleware package to get the client's real IP from the X-Forwarded-For or X-Real-IP headers, in that order." env:"DCRDATA_USE_REAL_IP"`
+	CacheControlMaxAge  int     `long:"cachecontrol-maxage" description:"Set CacheControl in the HTTP response header to a value in seconds for clients to cache the response. This applies only to FileServer routes." env:"DCRDATA_MAX_CACHE_AGE"`
+	InsightReqRateLimit float64 `long:"insight-limit-rps" description:"Requests/second per client IP for the Insight API's rate limiter." env:"DCRDATA_INSIGHT_RATE_LIMIT"`
 
 	// Data I/O
 	MempoolMinInterval int    `long:"mp-min-interval" description:"The minimum time in seconds between mempool reports, regarless of number of new tickets seen." env:"DCRDATA_MEMPOOL_MIN_INTERVAL"`
@@ -108,6 +109,7 @@ type config struct {
 	DBFileName         string `long:"dbfile" description:"SQLite DB file name (default is dcrdata.sqlt.db)." env:"DCRDATA_SQLITE_DB_FILE_NAME"`
 	AgendasDBFileName  string `long:"agendadbfile" description:"Agendas DB file name (default is agendas.db)." env:"DCRDATA_AGENDAS_DB_FILE_NAME"`
 	ProposalsFileName  string `long:"proposalsdbfile" description:"Proposals DB file name (default is proposals.db)." env:"DCRDATA_PROPOSALS_DB_FILE_NAME"`
+	PoliteiaAPIURL     string `long:"politeiaurl" description:"Defines the root API politeia URL (defaults to https://proposals.decred.org)."`
 
 	PurgeNBestBlocks int  `long:"purge-n-blocks" description:"Purge all data for the N best blocks, using the best block across all DBs if they are out of sync."`
 	FastSQLitePurge  bool `long:"fast-sqlite-purge" description:"Purge all data for the blocks above the specified height."`
@@ -150,32 +152,33 @@ type config struct {
 
 var (
 	defaultConfig = config{
-		HomeDir:            defaultHomeDir,
-		DataDir:            defaultDataDir,
-		LogDir:             defaultLogDir,
-		ConfigFile:         defaultConfigFile,
-		DBFileName:         defaultDBFileName,
-		AgendasDBFileName:  defaultAgendasDBFileName,
-		ProposalsFileName:  defaultProposalsFileName,
-		DebugLevel:         defaultLogLevel,
-		HTTPProfPath:       defaultHTTPProfPath,
-		APIProto:           defaultAPIProto,
-		APIListen:          defaultAPIListen,
-		IndentJSON:         defaultIndentJSON,
-		CacheControlMaxAge: defaultCacheControlMaxAge,
-		DcrdCert:           defaultDaemonRPCCertFile,
-		MempoolMinInterval: defaultMempoolMinInterval,
-		MempoolMaxInterval: defaultMempoolMaxInterval,
-		MPTriggerTickets:   defaultMPTriggerTickets,
-		PGDBName:           defaultPGDBName,
-		PGUser:             defaultPGUser,
-		PGPass:             defaultPGPass,
-		PGHost:             defaultPGHost,
-		PGQueryTimeout:     defaultPGQueryTimeout,
-		ExchangeCurrency:   defaultExchangeIndex,
-		DisabledExchanges:  defaultDisabledExchanges,
-		RateCertificate:    defaultRateCertFile,
-		PoliteiaAPIURL:     defaultPoliteiaAPIURl,
+		HomeDir:             defaultHomeDir,
+		DataDir:             defaultDataDir,
+		LogDir:              defaultLogDir,
+		ConfigFile:          defaultConfigFile,
+		DBFileName:          defaultDBFileName,
+		AgendasDBFileName:   defaultAgendasDBFileName,
+		ProposalsFileName:   defaultProposalsFileName,
+		PoliteiaAPIURL:      defaultPoliteiaAPIURl,
+		DebugLevel:          defaultLogLevel,
+		HTTPProfPath:        defaultHTTPProfPath,
+		APIProto:            defaultAPIProto,
+		APIListen:           defaultAPIListen,
+		IndentJSON:          defaultIndentJSON,
+		CacheControlMaxAge:  defaultCacheControlMaxAge,
+		InsightReqRateLimit: defaultInsightReqRateLimit,
+		DcrdCert:            defaultDaemonRPCCertFile,
+		MempoolMinInterval:  defaultMempoolMinInterval,
+		MempoolMaxInterval:  defaultMempoolMaxInterval,
+		MPTriggerTickets:    defaultMPTriggerTickets,
+		PGDBName:            defaultPGDBName,
+		PGUser:              defaultPGUser,
+		PGPass:              defaultPGPass,
+		PGHost:              defaultPGHost,
+		PGQueryTimeout:      defaultPGQueryTimeout,
+		ExchangeCurrency:    defaultExchangeIndex,
+		DisabledExchanges:   defaultDisabledExchanges,
+		RateCertificate:     defaultRateCertFile,
 	}
 )
 
