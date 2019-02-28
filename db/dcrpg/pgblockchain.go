@@ -1312,14 +1312,20 @@ func (pgb *ChainDB) ticketPoolVisualization(interval dbtypes.TimeBasedGrouping) 
 }
 
 func (pgb *ChainDB) updateProjectFundCache() error {
-	// Update balance and non-merged rows.
-	_, _, err := pgb.AddressHistory(pgb.devAddress, 1, 0, dbtypes.AddrTxnAll)
+	// Update balance.
+	_, err := pgb.AddressBalance(pgb.devAddress)
 	if err != nil {
 		return err
 	}
 
-	// Update merged rows (and balance, which is already current).
-	_, _, err = pgb.AddressHistory(pgb.devAddress, 1, 0, dbtypes.AddrMergedTxn)
+	// Update non-merged rows.
+	_, err = pgb.AddressRows(pgb.devAddress, false)
+	if err != nil {
+		return err
+	}
+
+	// Update merged rows.
+	_, err = pgb.AddressRows(pgb.devAddress, true)
 	return err
 }
 
