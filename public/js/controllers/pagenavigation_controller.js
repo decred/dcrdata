@@ -10,7 +10,9 @@ export default class extends Controller {
   setPageSize () {
     var url = Url(window.location.href)
     var q = Url.qs.parse(url.query)
-    q['offset'] = this.pagesizeTarget.dataset.offset
+    delete q.offset
+    delete q.height
+    q[this.pagesizeTarget.dataset.offsetkey] = this.pagesizeTarget.dataset.offset
     q['rows'] = this.pagesizeTarget.selectedOptions[0].value
     if (this.hasVotestatusTarget) {
       q['byvotestatus'] = this.votestatusTarget.selectedOptions[0].value
@@ -31,8 +33,7 @@ export default class extends Controller {
     var url = Url(window.location.href, true)
     var newPeriod = this.listviewTarget.selectedOptions[0].value
     if (url.pathname !== newPeriod) {
-      delete url.query.offset
-      delete url.query.rows
+      url.set('query', {})
     }
     url.set('pathname', newPeriod)
     Turbolinks.visit(url.href)

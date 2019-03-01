@@ -28,6 +28,7 @@
                         data-target="pagenavigation.pagesize"
                         data-action="change->pagenavigation#setPageSize"
                         data-offset="{{$.OffsetWindow}}"
+                        data-offsetkey="offset"
                         id="windowsPagesize"
                         class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $pendingWindows 20}}disabled{{end}}"
                         {{if lt $pendingWindows 20}}disabled="disabled"{{end}}

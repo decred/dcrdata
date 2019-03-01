@@ -52,6 +52,7 @@
                                 data-target="pagenavigation.pagesize"
                                 data-action="change->pagenavigation#setPageSize"
                                 data-offset="{{$.Offset}}"
+                                data-offsetkey="offset"
                                 class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $pending 10}}disabled{{end}}"
                                 {{if lt $pending 10}}disabled="disabled"{{end}}
                             >
