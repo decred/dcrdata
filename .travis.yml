@@ -21,4 +21,5 @@ cache:
     - ~/.cache
 
 script:
-  - ./run_tests.sh docker
+   - docker build -t decred/dcrdata .
+   - ./run_tests.sh docker
