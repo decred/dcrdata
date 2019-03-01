@@ -97,6 +97,9 @@ const (
 	SelectBlockHashByHeight = `SELECT hash FROM blocks WHERE height = $1 AND is_mainchain = true;`
 	SelectBlockHeightByHash = `SELECT height FROM blocks WHERE hash = $1;`
 
+	SelectBlockTimeByHeight = `SELECT time FROM blocks
+		WHERE height = $1 AND is_mainchain = true;`
+
 	RetrieveBestBlockHeightAny = `SELECT id, hash, height FROM blocks
 		ORDER BY height DESC LIMIT 1;`
 	RetrieveBestBlockHeight = `SELECT id, hash, height FROM blocks

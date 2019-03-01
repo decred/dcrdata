@@ -89,20 +89,23 @@ const (
 		WHERE address=$1 AND valid_mainchain
 		ORDER BY block_time DESC;`
 
-	SelectAddressesAllTxn = `SELECT
-			transactions.tx_hash,
-			block_height
-		FROM
-			addresses
-			INNER JOIN
-				transactions
-				ON addresses.tx_hash = transactions.tx_hash
-				AND is_mainchain = TRUE AND is_valid=TRUE
+	SelectAddressesAllTxnWithHeight = `SELECT
+			addresses.tx_hash,
+			transactions.block_height
+		FROM addresses
+		INNER JOIN transactions
+			ON addresses.tx_hash = transactions.tx_hash
+				AND is_mainchain AND is_valid
 		WHERE
-			address = ANY($1) AND valid_mainchain=true
+			address = ANY($1) AND valid_mainchain
 		ORDER BY
-			time DESC,
-			transactions.tx_hash ASC;`
+			transactions.time DESC,
+			addresses.tx_hash ASC;`
+
+	SelectAddressesAllTxn = `SELECT	tx_hash, block_time
+		FROM addresses
+		WHERE address = ANY($1) AND valid_mainchain
+		ORDER BY block_time DESC, tx_hash ASC;`
 
 	// selectAddressTimeGroupingCount return the count of record groups,
 	// where grouping is done by a specified time interval, for an addresss.

@@ -56,12 +56,46 @@ func (pgb *ChainDBRPC) SendRawTransaction(txhex string) (string, error) {
 }
 
 // InsightAddressTransactions performs a db query to pull all txids for the
-// specified addresses ordered desc by time.
-func (pgb *ChainDB) InsightAddressTransactions(addr []string, recentBlockHeight int64) ([]string, []string, error) {
+// specified addresses ordered desc by time. It also returns a list of recently
+// (defined as greater than recentBlockHeight) confirmed transactions that can
+// be used to validate mempool status.
+func (pgb *ChainDB) InsightAddressTransactions(addr []string, recentBlockHeight int64) (txs, recentTxs []string, err error) {
+	recentBlocktime, err0 := pgb.BlockTimeByHeight(recentBlockHeight)
+	if err0 != nil {
+		return nil, nil, err0
+	}
+
+	// Try cache for each address first.
+	for i := range addr {
+		rows, _ := pgb.AddressCache.RowsMerged(addr[i])
+		if rows == nil {
+			txs = nil
+			recentTxs = nil
+			break
+		}
+		rows = cache.AllCreditAddressRows(rows)
+		if len(rows) == 0 {
+			continue
+		}
+		for _, r := range rows {
+			txs = append(txs, r.TxHash)
+			if r.TxBlockTime.UNIX() > recentBlocktime {
+				recentTxs = append(recentTxs, r.TxHash)
+			}
+		}
+	}
+
+	if txs != nil {
+		// Cache hit for all listed addresses.
+		return
+	}
+
+	// Perform the DB query in the absence of all cached data.
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
-	txs, recentTxs, err := RetrieveAddressTxnsOrdered(ctx, pgb.db, addr, recentBlockHeight)
-	return txs, recentTxs, pgb.replaceCancelError(err)
+	txs, recentTxs, err = RetrieveAddressTxnsOrdered(ctx, pgb.db, addr, recentBlocktime)
+	err = pgb.replaceCancelError(err)
+	return
 }
 
 // AddressIDsByOutpoint fetches all address row IDs for a given outpoint

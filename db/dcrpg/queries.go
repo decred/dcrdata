@@ -1389,9 +1389,7 @@ func RetrieveAddressUTXOs(ctx context.Context, db *sql.DB, address string, curre
 // short list of recently (defined as greater than recentBlockHeight) confirmed
 // transactions that can be used to validate mempool status.
 func RetrieveAddressTxnsOrdered(ctx context.Context, db *sql.DB, addresses []string,
-	recentBlockHeight int64) (txs []string, recenttxs []string, err error) {
-	var txHash string
-	var height int64
+	recentBlockTime int64) (txs []string, recenttxs []string, err error) {
 	var stmt *sql.Stmt
 	stmt, err = db.Prepare(internal.SelectAddressesAllTxn)
 	if err != nil {
@@ -1406,13 +1404,15 @@ func RetrieveAddressTxnsOrdered(ctx context.Context, db *sql.DB, addresses []str
 	}
 	defer closeRows(rows)
 
+	var txHash string
+	var time dbtypes.TimeDef
 	for rows.Next() {
-		err = rows.Scan(&txHash, &height)
+		err = rows.Scan(&txHash, &time)
 		if err != nil {
 			return // return what we got, plus the error
 		}
 		txs = append(txs, txHash)
-		if height > recentBlockHeight {
+		if time.UNIX() > recentBlockTime {
 			recenttxs = append(recenttxs, txHash)
 		}
 	}
@@ -3045,6 +3045,13 @@ func RetrieveBestBlockHeightAny(ctx context.Context, db *sql.DB) (height uint64,
 // the most recently added block at this height, but there may be others.
 func RetrieveBlockHash(ctx context.Context, db *sql.DB, idx int64) (hash string, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectBlockHashByHeight, idx).Scan(&hash)
+	return
+}
+
+// RetrieveBlockTimeByHeight retrieves time hash of the main chain block at the
+// given height, if it exists (be sure to check error against sql.ErrNoRows!).
+func RetrieveBlockTimeByHeight(ctx context.Context, db *sql.DB, idx int64) (time dbtypes.TimeDef, err error) {
+	err = db.QueryRowContext(ctx, internal.SelectBlockTimeByHeight, idx).Scan(&time)
 	return
 }
 
