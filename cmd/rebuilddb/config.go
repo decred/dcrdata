@@ -7,10 +7,10 @@ import (
 	"regexp"
 	"strings"
 
-	flags "github.com/btcsuite/go-flags"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrdata/v4/netparams"
+	flags "github.com/jessevdk/go-flags"
 )
 
 const (

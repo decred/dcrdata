@@ -4,9 +4,6 @@ require (
 	github.com/AndreasBriese/bbloom v0.0.0-20180913140656-343706a395b7 // indirect
 	github.com/DataDog/zstd v1.3.4 // indirect
 	github.com/asdine/storm v0.0.0-20181222204021-f4de09a602e2
-	github.com/btcsuite/btcd v0.0.0-20190213025234-306aecffea32
-	github.com/btcsuite/btcutil v0.0.0-20190207003914-4c204d697803
-	github.com/btcsuite/go-flags v0.0.0-20150116065318-6c288d648c1c
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb
 	github.com/chappjc/trylock v1.0.0
@@ -39,6 +36,7 @@ require (
 	github.com/googollee/go-engine.io v0.0.0-20180829091931-e2f255711dcb // indirect
 	github.com/googollee/go-socket.io v0.0.0-20181214084611-0ad7206c347a
 	github.com/gopherjs/gopherjs v0.0.0-20181103185306-d547d1d9531e // indirect
+	github.com/jessevdk/go-flags v1.4.0
 	github.com/jrick/logrotate v1.0.0
 	github.com/jtolds/gls v4.2.1+incompatible // indirect
 	github.com/lib/pq v1.0.0
@@ -56,7 +54,7 @@ require (
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
 	golang.org/x/net v0.0.0-20190213061140-3a22650c66bd
 	golang.org/x/time v0.0.0-20181108054448-85acf8d2951c // indirect
-	google.golang.org/appengine v1.3.0
+	google.golang.org/appengine v1.3.0 // indirect
 	google.golang.org/genproto v0.0.0-20190219182410-082222b4a5c5 // indirect
 	google.golang.org/grpc v1.18.0
 )

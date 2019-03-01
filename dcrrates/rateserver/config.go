@@ -11,8 +11,8 @@ import (
 	"runtime"
 	"strings"
 
-	flags "github.com/btcsuite/go-flags"
 	"github.com/decred/dcrdata/v4/dcrrates"
+	flags "github.com/jessevdk/go-flags"
 )
 
 const (
