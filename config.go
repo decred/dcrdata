@@ -17,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	flags "github.com/btcsuite/go-flags"
 	"github.com/caarlos0/env"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
@@ -26,6 +25,7 @@ import (
 	"github.com/decred/dcrdata/v4/netparams"
 	"github.com/decred/dcrdata/v4/version"
 	"github.com/decred/slog"
+	flags "github.com/jessevdk/go-flags"
 )
 
 const (

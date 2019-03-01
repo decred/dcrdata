@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	flags "github.com/btcsuite/go-flags"
+	flags "github.com/jessevdk/go-flags"
 )
 
 const (
