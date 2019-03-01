@@ -1,12 +1,10 @@
-/* global Turbolinks */
 import { Controller } from 'stimulus'
-import Url from 'url-parse'
 import globalEventBus from '../services/event_bus_service'
 import humanize from '../helpers/humanize_helper'
 
 export default class extends Controller {
   static get targets () {
-    return ['pagesize', 'listview', 'table']
+    return ['table']
   }
 
   connect () {
@@ -17,27 +15,6 @@ export default class extends Controller {
 
   disconnect () {
     globalEventBus.off('BLOCK_RECEIVED', this.processBlock)
-  }
-
-  setPageSize () {
-    var controller = this
-    var queryData = {}
-    queryData[controller.data.get('offsetKey')] = controller.pageOffset
-    queryData.rows = controller.pagesizeTarget.selectedOptions[0].value
-    var url = Url(window.location.href, true)
-    url.set('query', queryData)
-    Turbolinks.visit(url.href)
-  }
-
-  setListView () {
-    var url = Url(window.location.href, true)
-    var newPeriod = this.listviewTarget.selectedOptions[0].value
-    if (url.pathname !== newPeriod) {
-      delete url.query.offset
-      delete url.query.rows
-    }
-    url.set('pathname', newPeriod)
-    Turbolinks.visit(url.href)
   }
 
   _processBlock (blockData) {

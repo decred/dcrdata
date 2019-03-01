@@ -5,7 +5,7 @@
 {{template "html-head" printf "Decred %s List" .TimeGrouping}}
 <body class="{{ theme }}">
     {{template "navbar" . }}
-    <div class="container main" data-controller="time blocklist">
+    <div class="container main" data-controller="time pagenavigation">
         <div style="margin: auto auto 1rem; width: 80%; max-width: 80%;">
             <h4>{{.TimeGrouping}}</h4>
 
@@ -18,16 +18,19 @@
                     {{$lastGrouping := (add .BestGrouping 1)}}
                     {{$lowerCaseVal := (toLowerCase .TimeGrouping)}}
                     {{$pending := (subtract $lastGrouping .Offset)}}
+                    {{$dropVal := $lastGrouping}}
+                    {{if gt $lastGrouping 200}}{{$dropVal = 200}}{{end}}
+
                     {{template "listViewRouting" $lowerCaseVal}}
 
                     <span class="fs12 nowrap text-right">
                         <label class="mb-0 mr-1" for="tbPagesize">Page Size</label>
                         <select
                             id="tbPagesize"
-                            data-target="blocklist.pagesize"
-                            data-action="change->blocklist#setPageSize"
-                            data-blocklist-initial-offset="{{$.Offset}}"
-                            data-blocklist-offset-key="offset"
+                            data-target="pagenavigation.pagesize"
+                            data-action="change->pagenavigation#setPageSize"
+                            data-offset="{{$.Offset}}"
+                            data-offsetkey="offset"
                             class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $pending 20}}disabled{{end}}"
                             {{if lt $pending 20}}disabled="disabled"{{end}}
                         >
@@ -35,8 +38,8 @@
                         {{if ge $pending 30}}<option {{if eq $count 30}}selected{{end}} value="30">30</option>{{end}}
                         {{if ge $pending 50}}<option {{if eq $count 50}}selected{{end}} value="50">50</option>{{end}}
                         {{if ge $pending 100}}<option {{if eq $count 100}}selected{{end}} value="100">100</option>{{end}}
-                        {{if eq $lastGrouping $count 20 30 50 100}}{{else}}<option value="{{$lastGrouping}}">{{$lastGrouping}}</option>{{end}}
-                        {{if eq $count 20 30 50 100}}{{else}}<option selected value="{{$count}}">{{$count}}</option>{{end}}
+                        {{if eq $dropVal $count 20 30 50 100}}{{else}}<option value="{{$dropVal}}">{{$dropVal}}</option>{{end}}
+                        {{if eq $count 20 30 50 100 200}}{{else}}<option selected value="{{$count}}">{{$count}}</option>{{end}}
                         </select>
                     </span>
                     <span class="fs12 nowrap text-right">

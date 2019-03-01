@@ -172,8 +172,8 @@
     <div class="fs12 nowrap text-left" style="margin:auto auto auto 0px;">
         <select
           class="form-control-sm mb-2 mr-sm-2 mb-sm-0"
-          data-target="blocklist.listview"
-          data-action="change->blocklist#setListView"
+          data-target="pagenavigation.listview"
+          data-action="change->pagenavigation#setListView"
           >
             <option {{if eq . "years"}}selected{{end}} value="years">Years</option>
             <option {{if eq . "months"}}selected{{end}} value="months">Months</option>
