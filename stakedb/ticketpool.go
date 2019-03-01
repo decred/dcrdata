@@ -133,7 +133,7 @@ func (l *badgerLogger) Errorf(format string, v ...interface{}) {
 
 // NewTicketPool constructs a TicketPool by opening the persistent diff db,
 // loading all known diffs, initializing the TicketPool values.
-func NewTicketPool(dataDir, dbSubDir string) (*TicketPool, error) {
+func NewTicketPool(dataDir, dbSubDir string) (tp *TicketPool, err error) {
 	// Open ticket pool diffs database
 	badgerDbPath := filepath.Join(dataDir, dbSubDir)
 	opts := badger.DefaultOptions
@@ -151,6 +151,15 @@ func NewTicketPool(dataDir, dbSubDir string) (*TicketPool, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed badger.Open: %v", err)
 	}
+	defer func() {
+		if r := recover(); r != nil {
+			db.Close()
+			panic(r)
+		}
+		if err != nil {
+			db.Close()
+		}
+	}()
 
 	// Attempt garbage collection of badger value log. If greater than
 	// rewriteThreshold of the space was discarded, rewrite the entire value
