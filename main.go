@@ -530,7 +530,7 @@ func _main(ctx context.Context) error {
 	// Proposal db update is made asynchronously to ensure that the system works
 	// even when the Politeia API endpoint set is down.
 	go func() {
-		if err = proposalsInstance.CheckProposalsUpdates(); err != nil {
+		if err := proposalsInstance.CheckProposalsUpdates(); err != nil {
 			log.Errorf("updating proposals db failed: %v", err)
 		}
 	}()
