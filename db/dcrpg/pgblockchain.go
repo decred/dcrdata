@@ -607,34 +607,35 @@ func (pgb *ChainDB) VersionCheck(client *rpcclient.Client) error {
 		log.Debugf("Table %s: v%s", tab, ver)
 	}
 
-	if tableUpgrades := TableUpgradesRequired(vers); len(tableUpgrades) > 0 {
-		if tableUpgrades[0].UpgradeType == "upgrade" || tableUpgrades[0].UpgradeType == "reindex" {
-			// CheckForAuxDBUpgrade makes db upgrades that are currently supported.
-			isSuccess, err := pgb.CheckForAuxDBUpgrade(client)
-			if err != nil {
-				return err
-			}
-			// Upgrade was successful, no need to proceed.
-			if isSuccess {
-				return nil
-			}
-		}
+	needsUpgrade := make([]TableUpgrade, 0)
+	tableUpgrades := TableUpgradesRequired(vers)
 
-		// ensure all tables have "ok" status
-		OK := true
-		for _, u := range tableUpgrades {
-			if u.UpgradeType != "ok" {
-				log.Warnf(u.String())
-				OK = false
-			}
-		}
-		if OK {
-			log.Debugf("All tables at correct version (%v)", tableUpgrades[0].RequiredVer)
-			return nil
-		}
+	for _, val := range tableUpgrades {
+		switch val.UpgradeType {
+		case Upgrade, ReIndex:
+			// Select the all tables that need an upgrade or reindex.
+			needsUpgrade = append(needsUpgrade, val)
 
-		return fmt.Errorf("rebuild of PostgreSQL tables required (drop with rebuilddb2 -D)")
+		case Unknown, Rebuild:
+			// All the tables require rebuilding.
+			return fmt.Errorf("rebuild of PostgreSQL tables required (drop with rebuilddb2 -D)")
+		}
 	}
+
+	if len(needsUpgrade) == 0 {
+		// All tables have the correct version.
+		log.Debugf("All tables at correct version (%v)", tableUpgrades[0].RequiredVer)
+		return nil
+	}
+
+	// AddAuxPendingDBUpgrades adds the pending db upgrades and reindexes.
+	_, err := pgb.AddAuxPendingDBUpgrades(client, needsUpgrade[0].CurrentVer,
+		needsUpgrade[0].RequiredVer)
+	if err != nil {
+		return err
+	}
+
+	// Upgrade was successful.
 	return nil
 }
 

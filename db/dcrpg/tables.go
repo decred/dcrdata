@@ -74,24 +74,50 @@ type TableVersion struct {
 	major, minor, patch uint32
 }
 
+// CompatibilityAction defines the action to be taken once the current and the
+// required pg table versions are compared.
+type CompatibilityAction int8
+
+const (
+	Rebuild CompatibilityAction = iota
+	Upgrade
+	ReIndex
+	OK
+	Unknown
+)
+
 // TableVersionCompatible indicates if the table versions are compatible
 // (equal), and if not, what is the required action (rebuild, upgrade, or
 // reindex).
-func TableVersionCompatible(required, actual TableVersion) string {
+func TableVersionCompatible(required, actual TableVersion) CompatibilityAction {
 	switch {
 	case required.major != actual.major:
-		return "rebuild"
+		return Rebuild
 	case required.minor != actual.minor:
-		return "upgrade"
+		return Upgrade
 	case required.patch != actual.patch:
-		return "reindex"
+		return ReIndex
 	default:
-		return "ok"
+		return OK
 	}
 }
 
 func (s TableVersion) String() string {
 	return fmt.Sprintf("%d.%d.%d", s.major, s.minor, s.patch)
+}
+
+// CompatibilityAction default stringer
+func (v CompatibilityAction) String() string {
+	actions := map[CompatibilityAction]string{
+		Rebuild: "rebuild",
+		Upgrade: "upgrade",
+		ReIndex: "reindex",
+		OK:      "ok",
+	}
+	if actionStr, ok := actions[v]; ok {
+		return actionStr
+	}
+	return "unknown"
 }
 
 // NewTableVersion returns a new TableVersion with the version major.minor.patch
@@ -101,7 +127,8 @@ func NewTableVersion(major, minor, patch uint32) TableVersion {
 
 // TableUpgrade is used to define a required upgrade for a table
 type TableUpgrade struct {
-	TableName, UpgradeType  string
+	TableName               string
+	UpgradeType             CompatibilityAction
 	CurrentVer, RequiredVer TableVersion
 }
 
@@ -278,7 +305,7 @@ func TableUpgradesRequired(versions map[string]TableVersion) []TableUpgrade {
 			log.Errorf("required version unknown for table %s", t)
 			tableUpgrades = append(tableUpgrades, TableUpgrade{
 				TableName:   t,
-				UpgradeType: "unknown",
+				UpgradeType: Unknown,
 			})
 			continue
 		}
@@ -286,7 +313,7 @@ func TableUpgradesRequired(versions map[string]TableVersion) []TableUpgrade {
 			log.Errorf("current version unknown for table %s", t)
 			tableUpgrades = append(tableUpgrades, TableUpgrade{
 				TableName:   t,
-				UpgradeType: "rebuild",
+				UpgradeType: Rebuild,
 				RequiredVer: req,
 			})
 			continue
@@ -375,13 +402,18 @@ func (pgb *ChainDB) DeleteDuplicates(barLoad chan *dbtypes.ProgressBarLoad) erro
 	allDuplicates := []dropDuplicatesInfo{
 		// Remove duplicate vins
 		{TableName: "vins", DropDupsFunc: pgb.DeleteDuplicateVins},
+
 		// Remove duplicate vouts
 		{TableName: "vouts", DropDupsFunc: pgb.DeleteDuplicateVouts},
+
 		// Remove duplicate transactions
 		{TableName: "transactions", DropDupsFunc: pgb.DeleteDuplicateTxns},
 
-		// TODO: remove entries from addresses table that reference removed
-		// vins/vouts.
+		// Remove duplicate agendas
+		{TableName: "agendas", DropDupsFunc: pgb.DeleteDuplicateAgendas},
+
+		// Remove duplicate agenda_votes
+		{TableName: "agenda_votes", DropDupsFunc: pgb.DeleteDuplicateAgendaVotes},
 	}
 
 	var err error
@@ -418,9 +450,6 @@ func (pgb *ChainDB) DeleteDuplicatesRecovery(barLoad chan *dbtypes.ProgressBarLo
 		// Remove duplicate vouts
 		{TableName: "vouts", DropDupsFunc: pgb.DeleteDuplicateVouts},
 
-		// TODO: remove entries from addresses table that reference removed
-		// vins/vouts.
-
 		// Remove duplicate transactions
 		{TableName: "transactions", DropDupsFunc: pgb.DeleteDuplicateTxns},
 
@@ -432,6 +461,12 @@ func (pgb *ChainDB) DeleteDuplicatesRecovery(barLoad chan *dbtypes.ProgressBarLo
 
 		// Remove duplicate misses
 		{TableName: "misses", DropDupsFunc: pgb.DeleteDuplicateMisses},
+
+		// Remove duplicate agendas
+		{TableName: "agendas", DropDupsFunc: pgb.DeleteDuplicateAgendas},
+
+		// Remove duplicate agenda_votes
+		{TableName: "agenda_votes", DropDupsFunc: pgb.DeleteDuplicateAgendaVotes},
 	}
 
 	var err error
