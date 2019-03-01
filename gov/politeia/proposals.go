@@ -60,7 +60,7 @@ func NewProposalsDB(politeiaURL, dbPath string) (*ProposalDB, error) {
 			IdleConnTimeout:    5 * time.Second,
 			DisableCompression: false,
 		},
-		Timeout: 30 * time.Second,
+		Timeout: 10 * time.Second,
 	}
 
 	// politeiaURL should just be the domain part of the url without the API versioning.
