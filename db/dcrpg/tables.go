@@ -106,7 +106,7 @@ func (s TableVersion) String() string {
 	return fmt.Sprintf("%d.%d.%d", s.major, s.minor, s.patch)
 }
 
-// CompatibilityAction default stringer
+// String implements Stringer for CompatibilityAction.
 func (v CompatibilityAction) String() string {
 	actions := map[CompatibilityAction]string{
 		Rebuild: "rebuild",

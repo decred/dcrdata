@@ -607,7 +607,7 @@ func (pgb *ChainDB) VersionCheck(client *rpcclient.Client) error {
 		log.Debugf("Table %s: v%s", tab, ver)
 	}
 
-	needsUpgrade := make([]TableUpgrade, 0)
+	var needsUpgrade []TableUpgrade
 	tableUpgrades := TableUpgradesRequired(vers)
 
 	for _, val := range tableUpgrades {

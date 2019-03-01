@@ -188,7 +188,7 @@ func DeleteDuplicateTickets(db *sql.DB) (int64, error) {
 	} else if isuniq {
 		return 0, nil
 	}
-	execErrPrefix := "failed to delete duplicate in tickets: "
+	execErrPrefix := "failed to delete duplicate tickets: "
 	return sqlExec(db, internal.DeleteTicketsDuplicateRows, execErrPrefix)
 }
 
@@ -200,7 +200,7 @@ func DeleteDuplicateVotes(db *sql.DB) (int64, error) {
 	} else if isuniq {
 		return 0, nil
 	}
-	execErrPrefix := "failed to delete duplicate in votes: "
+	execErrPrefix := "failed to delete duplicate votes: "
 	return sqlExec(db, internal.DeleteVotesDuplicateRows, execErrPrefix)
 }
 
@@ -212,7 +212,7 @@ func DeleteDuplicateMisses(db *sql.DB) (int64, error) {
 	} else if isuniq {
 		return 0, nil
 	}
-	execErrPrefix := "failed to delete duplicate in misses: "
+	execErrPrefix := "failed to delete duplicate misses: "
 	return sqlExec(db, internal.DeleteMissesDuplicateRows, execErrPrefix)
 }
 
@@ -224,7 +224,7 @@ func DeleteDuplicateAgendas(db *sql.DB) (int64, error) {
 	} else if isuniq {
 		return 0, nil
 	}
-	execErrPrefix := "failed to delete duplicate in agendas: "
+	execErrPrefix := "failed to delete duplicate agendas: "
 	return sqlExec(db, internal.DeleteAgendasDuplicateRows, execErrPrefix)
 }
 
@@ -236,7 +236,7 @@ func DeleteDuplicateAgendaVotes(db *sql.DB) (int64, error) {
 	} else if isuniq {
 		return 0, nil
 	}
-	execErrPrefix := "failed to delete duplicate in agenda_votes: "
+	execErrPrefix := "failed to delete duplicate agenda_votes: "
 	return sqlExec(db, internal.DeleteAgendasDuplicateRows, execErrPrefix)
 }
 
