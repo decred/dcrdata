@@ -696,6 +696,15 @@ func _main(ctx context.Context) error {
 	FileServer(webMux, "/images", http.Dir("./public/images"), cacheControlMaxAge)
 	FileServer(webMux, "/dist", http.Dir("./public/dist"), cacheControlMaxAge)
 
+	// HTTP profiler
+	if cfg.HTTPProfile {
+		profPath := cfg.HTTPProfPath
+		log.Warnf("Starting the HTTP profiler on path %s.", profPath)
+		// http pprof uses http.DefaultServeMux
+		http.Handle("/", http.RedirectHandler(profPath+"/debug/pprof/", http.StatusSeeOther))
+		webMux.Mount(profPath, http.StripPrefix(profPath, http.DefaultServeMux))
+	}
+
 	// SyncStatusAPIIntercept returns a json response if the sync status page is
 	// enabled (no the full explorer while syncing).
 	webMux.With(explore.SyncStatusAPIIntercept).Group(func(r chi.Router) {
@@ -753,15 +762,6 @@ func _main(ctx context.Context) error {
 		r.Get("/statistics", func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/stats", http.StatusPermanentRedirect)
 		})
-
-		// HTTP profiler
-		if cfg.HTTPProfile {
-			profPath := cfg.HTTPProfPath
-			log.Warnf("Starting the HTTP profiler on path %s.", profPath)
-			// http pprof uses http.DefaultServeMux
-			http.Handle("/", http.RedirectHandler(profPath+"/debug/pprof/", http.StatusSeeOther))
-			r.Mount(profPath, http.StripPrefix(profPath, http.DefaultServeMux))
-		}
 	})
 
 	// Start the web server.
