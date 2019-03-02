@@ -20,7 +20,7 @@ func (c *insightApiContext) TxConverter(txs []*dcrjson.TxRawResult) ([]apitypes.
 // scriptSig, and spending status may be skipped by setting the appropriate
 // input arguments.
 func (c *insightApiContext) DcrToInsightTxns(txs []*dcrjson.TxRawResult, noAsm, noScriptSig, noSpent bool) ([]apitypes.InsightTx, error) {
-	var newTxs []apitypes.InsightTx
+	newTxs := make([]apitypes.InsightTx, 0, len(txs))
 	for _, tx := range txs {
 		// Build new InsightTx
 		txNew := apitypes.InsightTx{

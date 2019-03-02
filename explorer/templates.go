@@ -35,7 +35,7 @@ type templates struct {
 }
 
 func newTemplates(folder string, common []string, helpers template.FuncMap) templates {
-	var com []string
+	com := make([]string, 0, len(common))
 	for _, file := range common {
 		com = append(com, filepath.Join(folder, file+".tmpl"))
 	}

@@ -1749,8 +1749,7 @@ func (c *appContext) getAgendasData(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
 	}
 
-	var data []apitypes.AgendasInfo
-
+	data := make([]apitypes.AgendasInfo, 0, len(agendas))
 	for index := range agendas {
 		val := agendas[index]
 		agendaMilestone := voteMilestones[val.ID]
