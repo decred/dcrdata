@@ -17,7 +17,7 @@ import (
 
 // ChainMonitor connects blocks to the stake DB as they come in.
 type ChainMonitor struct {
-	sync.Mutex     // coordinate reorg handling
+	mtx            sync.Mutex // coordinate reorg handling
 	ctx            context.Context
 	db             *StakeDatabase
 	wg             *sync.WaitGroup
@@ -71,12 +71,12 @@ out:
 	keepon:
 		select {
 		case hash, ok := <-p.blockChan:
-			p.Lock()
-			release := func() { p.Unlock() }
+			p.mtx.Lock()
+			release := func() { p.mtx.Unlock() }
 			select {
 			case <-p.ConnectingLock:
 				// send on unbuffered channel
-				release = func() { p.Unlock(); p.DoneConnecting <- struct{}{} }
+				release = func() { p.mtx.Unlock(); p.DoneConnecting <- struct{}{} }
 			default:
 			}
 
@@ -179,9 +179,9 @@ out:
 		//keepon:
 		select {
 		case reorgData, ok := <-p.reorgChan:
-			p.Lock()
+			p.mtx.Lock()
 			if !ok {
-				p.Unlock()
+				p.mtx.Unlock()
 				log.Warnf("Reorg channel closed.")
 				break out
 			}
@@ -208,7 +208,7 @@ out:
 					stakeDBTipHash, newHash)
 			}
 
-			p.Unlock()
+			p.mtx.Unlock()
 
 			reorgData.WG.Done()
 

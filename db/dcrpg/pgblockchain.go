@@ -210,7 +210,7 @@ type ChainDB struct {
 
 // BestBlock is mutex-protected block hash and height.
 type BestBlock struct {
-	sync.RWMutex
+	mtx    sync.RWMutex
 	height int64
 	hash   string
 }
@@ -354,7 +354,7 @@ func (db *ChainDBRPC) MissingSideChainBlocks() ([]dbtypes.SideChain, int, error)
 
 // TicketTxnIDGetter provides a cache for DB row IDs of tickets.
 type TicketTxnIDGetter struct {
-	sync.RWMutex
+	mtx     sync.RWMutex
 	idCache map[string]uint64
 	db      *sql.DB
 }
@@ -367,14 +367,14 @@ func (t *TicketTxnIDGetter) TxnDbID(txid string, expire bool) (uint64, error) {
 	if t == nil {
 		panic("You're using an uninitialized TicketTxnIDGetter")
 	}
-	t.RLock()
+	t.mtx.RLock()
 	dbID, ok := t.idCache[txid]
-	t.RUnlock()
+	t.mtx.RUnlock()
 	if ok {
 		if expire {
-			t.Lock()
+			t.mtx.Lock()
 			delete(t.idCache, txid)
-			t.Unlock()
+			t.mtx.Unlock()
 		}
 		return dbID, nil
 	}
@@ -388,8 +388,8 @@ func (t *TicketTxnIDGetter) Set(txid string, txDbID uint64) {
 	if t == nil {
 		return
 	}
-	t.Lock()
-	defer t.Unlock()
+	t.mtx.Lock()
+	defer t.mtx.Unlock()
 	t.idCache[txid] = txDbID
 }
 
@@ -398,8 +398,8 @@ func (t *TicketTxnIDGetter) SetN(txid []string, txDbID []uint64) {
 	if t == nil {
 		return
 	}
-	t.Lock()
-	defer t.Unlock()
+	t.mtx.Lock()
+	defer t.mtx.Unlock()
 	for i := range txid {
 		t.idCache[txid[i]] = txDbID[i]
 	}
@@ -776,8 +776,8 @@ func (pgb *ChainDB) Height() int64 {
 
 // Height uses the last stored height.
 func (block *BestBlock) Height() int64 {
-	block.RLock()
-	defer block.RUnlock()
+	block.mtx.RLock()
+	defer block.mtx.RUnlock()
 	return block.height
 }
 
@@ -789,8 +789,8 @@ func (pgb *ChainDB) GetHeight() (int64, error) {
 
 // HashStr uses the last stored block hash.
 func (block *BestBlock) HashStr() string {
-	block.RLock()
-	defer block.RUnlock()
+	block.mtx.RLock()
+	defer block.mtx.RUnlock()
 	return block.hash
 }
 
@@ -802,15 +802,15 @@ func (block *BestBlock) Hash() *chainhash.Hash {
 }
 
 func (pgb *ChainDB) BestBlock() (*chainhash.Hash, int64) {
-	pgb.bestBlock.RLock()
-	defer pgb.bestBlock.RUnlock()
+	pgb.bestBlock.mtx.RLock()
+	defer pgb.bestBlock.mtx.RUnlock()
 	hash, _ := chainhash.NewHashFromStr(pgb.bestBlock.hash)
 	return hash, pgb.bestBlock.height
 }
 
 func (pgb *ChainDB) BestBlockStr() (string, int64) {
-	pgb.bestBlock.RLock()
-	defer pgb.bestBlock.RUnlock()
+	pgb.bestBlock.mtx.RLock()
+	defer pgb.bestBlock.mtx.RUnlock()
 	return pgb.bestBlock.hash, pgb.bestBlock.height
 }
 
@@ -2704,13 +2704,13 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 		// move on to next block
 		tipHash = previousHash
 
-		pgb.bestBlock.Lock()
+		pgb.bestBlock.mtx.Lock()
 		pgb.bestBlock.height, err = pgb.BlockHeight(tipHash)
 		if err != nil {
 			log.Errorf("Failed to retrieve block height for %s", tipHash)
 		}
 		pgb.bestBlock.hash = tipHash
-		pgb.bestBlock.Unlock()
+		pgb.bestBlock.mtx.Unlock()
 	}
 
 	log.Debugf("Reorg orphaned: %d blocks, %d txns, %d vins, %d addresses, %d votes, %d tickets",
@@ -2831,10 +2831,10 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 
 	if isMainchain {
 		// Update best block height and hash.
-		pgb.bestBlock.Lock()
+		pgb.bestBlock.mtx.Lock()
 		pgb.bestBlock.height = int64(dbBlock.Height)
 		pgb.bestBlock.hash = dbBlock.Hash
-		pgb.bestBlock.Unlock()
+		pgb.bestBlock.mtx.Unlock()
 	}
 
 	// Insert the block in the block_chain table with the previous block hash

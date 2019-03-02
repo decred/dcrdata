@@ -29,7 +29,7 @@ import (
 // PoolInfoCache contains a map of block hashes to ticket pool info data at that
 // block height.
 type PoolInfoCache struct {
-	sync.RWMutex
+	mtx         sync.RWMutex
 	poolInfo    map[chainhash.Hash]*apitypes.TicketPoolInfo
 	expireQueue *lane.Queue
 	maxSize     int
@@ -49,16 +49,16 @@ func NewPoolInfoCache(size int) *PoolInfoCache {
 // a *apitypes.TicketPoolInfo, and a bool indicating if the hash was found in
 // the map.
 func (c *PoolInfoCache) Get(hash chainhash.Hash) (*apitypes.TicketPoolInfo, bool) {
-	c.RLock()
-	defer c.RUnlock()
+	c.mtx.RLock()
+	defer c.mtx.RUnlock()
 	tpi, ok := c.poolInfo[hash]
 	return tpi, ok
 }
 
 // Set stores the ticket pool info for the given hash in the pool info cache.
 func (c *PoolInfoCache) Set(hash chainhash.Hash, p *apitypes.TicketPoolInfo) {
-	c.Lock()
-	defer c.Unlock()
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
 	c.poolInfo[hash] = p
 	c.expireQueue.Enqueue(hash)
 	if c.expireQueue.Size() >= c.maxSize {
@@ -71,8 +71,8 @@ func (c *PoolInfoCache) Set(hash chainhash.Hash, p *apitypes.TicketPoolInfo) {
 // the new capacity is smaller than the current cache size, elements are
 // automatically evicted until the desired size is reached.
 func (c *PoolInfoCache) SetCapacity(cap int) error {
-	c.Lock()
-	defer c.Unlock()
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
 	c.maxSize = cap
 	for c.expireQueue.Size() >= c.maxSize {
 		expireHash, ok := c.expireQueue.Dequeue().(chainhash.Hash)

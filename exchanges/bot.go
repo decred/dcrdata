@@ -52,7 +52,7 @@ type ExchangeBotConfig struct {
 // received from an exchange, the state is updated, and some convenient data
 // structures are prepared. Make ExchangeBot with NewExchangeBot.
 type ExchangeBot struct {
-	*sync.RWMutex
+	mtx             sync.RWMutex
 	DcrBtcExchanges map[string]Exchange
 	IndexExchanges  map[string]Exchange
 	Exchanges       map[string]Exchange
@@ -192,7 +192,6 @@ func NewExchangeBot(config *ExchangeBotConfig) (*ExchangeBot, error) {
 	}
 
 	bot := &ExchangeBot{
-		RWMutex:         new(sync.RWMutex),
 		DcrBtcExchanges: make(map[string]Exchange),
 		IndexExchanges:  make(map[string]Exchange),
 		Exchanges:       make(map[string]Exchange),
@@ -387,8 +386,8 @@ out:
 	if wg != nil {
 		wg.Done()
 	}
-	bot.RLock()
-	defer bot.RUnlock()
+	bot.mtx.RLock()
+	defer bot.mtx.RUnlock()
 	for _, ch := range bot.quitChans {
 		close(ch)
 	}
@@ -441,8 +440,8 @@ func (bot *ExchangeBot) subscribedExchanges() []string {
 func (bot *ExchangeBot) UpdateChannels() *UpdateChannels {
 	update := make(chan *UpdateSignal, 16)
 	quit := make(chan struct{})
-	bot.Lock()
-	defer bot.Unlock()
+	bot.mtx.Lock()
+	defer bot.mtx.Unlock()
 	bot.updateChans = append(bot.updateChans, update)
 	bot.quitChans = append(bot.quitChans, quit)
 	return &UpdateChannels{
@@ -469,16 +468,16 @@ func (bot *ExchangeBot) signalUpdate(token string) {
 // State is a copy of the current ExchangeBotState. A JSON-encoded byte array
 // of the current state can be accessed through StateBytes().
 func (bot *ExchangeBot) State() *ExchangeBotState {
-	bot.RLock()
-	defer bot.RUnlock()
+	bot.mtx.RLock()
+	defer bot.mtx.RUnlock()
 	return bot.stateCopy
 }
 
 // ConvertedState returns an ExchangeBotState with a base of the provided
 // currency code, if available.
 func (bot *ExchangeBot) ConvertedState(code string) (*ExchangeBotState, error) {
-	bot.RLock()
-	defer bot.RUnlock()
+	bot.mtx.RLock()
+	defer bot.mtx.RUnlock()
 	fiatIndices := make(map[string]*ExchangeState)
 	for token, indices := range bot.indexMap {
 		for symbol, price := range indices {
@@ -508,8 +507,8 @@ func (bot *ExchangeBot) ConvertedState(code string) (*ExchangeBotState, error) {
 
 // StateBytes is a JSON-encoded byte array of the currentState.
 func (bot *ExchangeBot) StateBytes() []byte {
-	bot.RLock()
-	defer bot.RUnlock()
+	bot.mtx.RLock()
+	defer bot.mtx.RUnlock()
 	return bot.currentStateBytes
 }
 
@@ -534,8 +533,8 @@ func (bot *ExchangeBot) ConvertedStateBytes(symbol string) ([]byte, error) {
 
 // AvailableIndices creates a fresh slice of all available index currency codes.
 func (bot *ExchangeBot) AvailableIndices() []string {
-	bot.RLock()
-	defer bot.RUnlock()
+	bot.mtx.RLock()
+	defer bot.mtx.RUnlock()
 	var indices sort.StringSlice
 	add := func(index string) {
 		for _, symbol := range indices {
@@ -556,8 +555,8 @@ func (bot *ExchangeBot) AvailableIndices() []string {
 
 // Indices is the fiat indices for a given BTC index exchange.
 func (bot *ExchangeBot) Indices(token string) FiatIndices {
-	bot.RLock()
-	defer bot.RUnlock()
+	bot.mtx.RLock()
+	defer bot.mtx.RUnlock()
 	indices := make(FiatIndices)
 	for code, price := range bot.indexMap[token] {
 		indices[code] = price
@@ -595,8 +594,8 @@ func (bot *ExchangeBot) processState(states map[string]*ExchangeState, volumeAve
 
 // updateExchange processes an update from a Decred-BTC Exchange.
 func (bot *ExchangeBot) updateExchange(update *ExchangeUpdate) error {
-	bot.Lock()
-	defer bot.Unlock()
+	bot.mtx.Lock()
+	defer bot.mtx.Unlock()
 	bot.currentState.DcrBtc[update.Token] = update.State
 	return bot.updateState()
 }
@@ -604,8 +603,8 @@ func (bot *ExchangeBot) updateExchange(update *ExchangeUpdate) error {
 // updateIndices processes an update from an Bitcoin index source, essentially
 // a map pairing currency codes to bitcoin prices.
 func (bot *ExchangeBot) updateIndices(update *IndexUpdate) error {
-	bot.Lock()
-	defer bot.Unlock()
+	bot.mtx.Lock()
+	defer bot.mtx.Unlock()
 	bot.indexMap[update.Token] = update.Indices
 	price, hasCode := update.Indices[bot.config.BtcIndex]
 	if hasCode {
@@ -652,8 +651,8 @@ func (bot *ExchangeBot) updateState() error {
 // be outdated/failed without IsFailed being false, as long as there is at least
 // one Bitcoin index and one Decred exchange.
 func (bot *ExchangeBot) IsFailed() bool {
-	bot.RLock()
-	defer bot.RUnlock()
+	bot.mtx.RLock()
+	defer bot.mtx.RUnlock()
 	return bot.failed
 }
 
@@ -688,8 +687,8 @@ func (bot *ExchangeBot) Cycle() {
 
 // Price gets the lastest Price in the default currency (BtcIndex).
 func (bot *ExchangeBot) Price() float64 {
-	bot.RLock()
-	defer bot.RUnlock()
+	bot.mtx.RLock()
+	defer bot.mtx.RUnlock()
 	return bot.currentState.Price
 }
 

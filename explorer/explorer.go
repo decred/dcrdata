@@ -216,7 +216,7 @@ type pageData struct {
 
 // Mempool represents a snapshot of the mempool.
 type Mempool struct {
-	sync.RWMutex
+	mtx sync.RWMutex
 
 	// Inv contains a MempoolShort, which contains a detailed summary of the
 	// mempool state, and a []MempoolTx for each of tickets, votes, revocations,
@@ -410,8 +410,8 @@ func (exp *explorerUI) LastBlock() (lastBlockHash string, lastBlock int64, lastB
 
 // MempoolInventory safely retrieves the current mempool inventory.
 func (exp *explorerUI) MempoolInventory() *types.MempoolInfo {
-	exp.mempool.RLock()
-	defer exp.mempool.RUnlock()
+	exp.mempool.mtx.RLock()
+	defer exp.mempool.mtx.RUnlock()
 	return exp.mempool.Inv
 }
 
@@ -475,11 +475,11 @@ func (exp *explorerUI) prePopulateChartsData() {
 // other MempoolDataSavers.
 func (exp *explorerUI) StoreMPData(stakeData *mempool.StakeData, txs []types.MempoolTx, inv *types.MempoolInfo) {
 	// Get exclusive access to the Mempool field.
-	exp.mempool.Lock()
+	exp.mempool.mtx.Lock()
 	exp.mempool.Inv = inv
 	exp.mempool.StakeData = stakeData
 	exp.mempool.Txns = txs
-	exp.mempool.Unlock()
+	exp.mempool.mtx.Unlock()
 
 	// Signal to the websocket hub that a new tx was received, but do not block
 	// StoreMPData(), and do not hang forever in a goroutine waiting to send.
@@ -802,8 +802,8 @@ func (exp *explorerUI) getExchangeState() *exchanges.ExchangeBotState {
 // mempoolTime is the TimeDef that the transaction was received in DCRData, or
 // else a zero-valued TimeDef if no transaction is found.
 func (exp *explorerUI) mempoolTime(txid string) types.TimeDef {
-	exp.mempool.RLock()
-	defer exp.mempool.RUnlock()
+	exp.mempool.mtx.RLock()
+	defer exp.mempool.mtx.RUnlock()
 	tx, found := exp.mempool.Inv.Tx(txid)
 	if !found {
 		return types.NewTimeDefFromUNIX(0)

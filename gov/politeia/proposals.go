@@ -25,7 +25,7 @@ var errDef = fmt.Errorf("ProposalDB was not initialized correctly")
 
 // ProposalDB defines the common data needed to query the proposals db.
 type ProposalDB struct {
-	sync.RWMutex
+	mtx        sync.RWMutex
 	dbP        *storm.DB
 	client     *http.Client
 	APIURLpath string
@@ -134,8 +134,8 @@ func (db *ProposalDB) AllProposals(offset, rowsCount int,
 		return nil, 0, errDef
 	}
 
-	db.RLock()
-	defer db.RUnlock()
+	db.mtx.RLock()
+	defer db.mtx.RUnlock()
 
 	query := db.dbP.Select()
 	if len(filterByVoteStatus) > 0 {
@@ -169,8 +169,8 @@ func (db *ProposalDB) ProposalByID(proposalID int) (proposal *pitypes.ProposalIn
 		return nil, errDef
 	}
 
-	db.RLock()
-	defer db.RUnlock()
+	db.mtx.RLock()
+	defer db.mtx.RUnlock()
 
 	var proposals []*pitypes.ProposalInfo
 
@@ -194,8 +194,8 @@ func (db *ProposalDB) CheckProposalsUpdates() error {
 		return errDef
 	}
 
-	db.Lock()
-	defer db.Unlock()
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
 
 	// Retrieve and update all current proposals whose vote statuses is either
 	// NotAuthorized, Authorized and Started

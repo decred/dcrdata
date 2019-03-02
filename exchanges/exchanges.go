@@ -107,7 +107,7 @@ type Exchange interface {
 // state tracking and token handling for ExchangeBot communications. The
 // http.Request must be created individually for each exchange.
 type CommonExchange struct {
-	*sync.RWMutex
+	mtx          sync.RWMutex
 	token        string
 	URL          string
 	currentState *ExchangeState
@@ -121,44 +121,44 @@ type CommonExchange struct {
 
 // LastUpdate gets a time.Time of the last successful exchange update.
 func (xc *CommonExchange) LastUpdate() time.Time {
-	xc.RLock()
-	defer xc.RUnlock()
+	xc.mtx.RLock()
+	defer xc.mtx.RUnlock()
 	return xc.lastUpdate
 }
 
 // Hurry can be used to subtract some amount of time from the lastUpate
 // and lastFail, and can be used to de-sync the exchange updates.
 func (xc *CommonExchange) Hurry(d time.Duration) {
-	xc.Lock()
-	defer xc.Unlock()
+	xc.mtx.Lock()
+	defer xc.mtx.Unlock()
 	xc.lastRequest = xc.lastRequest.Add(-d)
 }
 
 // LastFail gets the last time.Time of a failed exchange update.
 func (xc *CommonExchange) LastFail() time.Time {
-	xc.RLock()
-	defer xc.RUnlock()
+	xc.mtx.RLock()
+	defer xc.mtx.RUnlock()
 	return xc.lastFail
 }
 
 // IsFailed will be true if xc.lastFail > xc.lastUpdate.
 func (xc *CommonExchange) IsFailed() bool {
-	xc.RLock()
-	defer xc.RUnlock()
+	xc.mtx.RLock()
+	defer xc.mtx.RUnlock()
 	return xc.lastFail.After(xc.lastUpdate)
 }
 
 // LogRequest sets the lastRequest time.Time.
 func (xc *CommonExchange) LogRequest() {
-	xc.Lock()
-	defer xc.Unlock()
+	xc.mtx.Lock()
+	defer xc.mtx.Unlock()
 	xc.lastRequest = time.Now()
 }
 
 // LastTry is the more recent of lastFail and LastUpdate.
 func (xc *CommonExchange) LastTry() time.Time {
-	xc.RLock()
-	defer xc.RUnlock()
+	xc.mtx.RLock()
+	defer xc.mtx.RUnlock()
 	return xc.lastRequest
 }
 
@@ -169,8 +169,8 @@ func (xc *CommonExchange) Token() string {
 
 // setLastFail sets the last failure time.
 func (xc *CommonExchange) setLastFail(t time.Time) {
-	xc.Lock()
-	defer xc.Unlock()
+	xc.mtx.Lock()
+	defer xc.mtx.Unlock()
 	xc.lastFail = t
 }
 
@@ -182,8 +182,8 @@ func (xc *CommonExchange) fail(msg string, err error) {
 
 // Update sends an updated ExchangeState to the ExchangeBot.
 func (xc *CommonExchange) Update(state *ExchangeState) {
-	xc.Lock()
-	defer xc.Unlock()
+	xc.mtx.Lock()
+	defer xc.mtx.Unlock()
 	xc.lastUpdate = time.Now()
 	xc.channels.exchange <- &ExchangeUpdate{
 		Token: xc.token,
@@ -193,8 +193,8 @@ func (xc *CommonExchange) Update(state *ExchangeState) {
 
 // UpdateIndices sends a bitcoin index update to the ExchangeBot.
 func (xc *CommonExchange) UpdateIndices(indices FiatIndices) {
-	xc.Lock()
-	defer xc.Unlock()
+	xc.mtx.Lock()
+	defer xc.mtx.Unlock()
 	xc.lastUpdate = time.Now()
 	xc.channels.index <- &IndexUpdate{
 		Token:   xc.token,
@@ -221,7 +221,6 @@ func newCommonExchange(token string, client *http.Client,
 	request *http.Request, channels *BotChannels) *CommonExchange {
 	var tZero time.Time
 	return &CommonExchange{
-		RWMutex:      new(sync.RWMutex),
 		token:        token,
 		client:       client,
 		channels:     channels,

@@ -44,18 +44,18 @@ func TestTimeDefUnmarshal(t *testing.T) {
 
 func TestDeepCopys(t *testing.T) {
 	tickets := []MempoolTx{
-		MempoolTx{
+		{
 			TxID:      "96e10d7ce108b1a357168b0a923d86d2744ba9777a2d81cbff71ffb982381c95",
 			Fees:      0.0001,
 			VinCount:  2,
 			VoutCount: 5,
 			Vin: []MempoolInput{
-				MempoolInput{
+				{
 					TxId:   "43f26841e744ce2f901e21400f275eda27ba2a3fa962110d52e7dd37f2193c78",
 					Index:  0,
 					Outdex: 0,
 				},
-				MempoolInput{
+				{
 					TxId:   "43f26841e744ce2f901e21400f275eda27ba2a3fa962110d52e7dd37f2193c78",
 					Index:  1,
 					Outdex: 1,
@@ -66,18 +66,18 @@ func TestDeepCopys(t *testing.T) {
 			TotalOut: 106.39717461,
 			Type:     "Ticket",
 		},
-		MempoolTx{
+		{
 			TxID:      "8eb2f6c8f3a9cdc8d6de2ef3bfca9efcffed4484dd4fde2d01dc0fc0e415c75a",
 			Fees:      0.0001,
 			VinCount:  2,
 			VoutCount: 5,
 			Vin: []MempoolInput{
-				MempoolInput{
+				{
 					TxId:   "4e9221f790916b4d891b40ef82b8a6dc89f5c0719d5d5ddcf46ac3673d8446aa",
 					Index:  0,
 					Outdex: 0,
 				},
-				MempoolInput{
+				{
 					TxId:   "4e9221f790916b4d891b40ef82b8a6dc89f5c0719d5d5ddcf46ac3673d8446aa",
 					Index:  1,
 					Outdex: 1,
@@ -91,18 +91,18 @@ func TestDeepCopys(t *testing.T) {
 	}
 
 	votes := []MempoolTx{
-		MempoolTx{
+		{
 			TxID:      "64ce0422cb6ba1aefa63c8df1d872250d181261ff3acd5a71bc1f521096207c9",
 			Fees:      0,
 			VinCount:  2,
 			VoutCount: 3,
 			Vin: []MempoolInput{
-				MempoolInput{
+				{
 					TxId:   "",
 					Index:  0,
 					Outdex: 0,
 				},
-				MempoolInput{
+				{
 					TxId:   "7884ecd8fb5934e77708f82f0aa052ad86cccc5749602be14d93745d8272538e",
 					Index:  1,
 					Outdex: 0,
@@ -113,18 +113,18 @@ func TestDeepCopys(t *testing.T) {
 			TotalOut: 102.86278351,
 			Type:     "Vote",
 		},
-		MempoolTx{
+		{
 			TxID:      "07aa38f10fe1a849a52b9d4812081854e4ac7268751a0ea661e8f499d7de91f1",
 			Fees:      0,
 			VinCount:  2,
 			VoutCount: 3,
 			Vin: []MempoolInput{
-				MempoolInput{
+				{
 					TxId:   "",
 					Index:  0,
 					Outdex: 0,
 				},
-				MempoolInput{
+				{
 					TxId:   "99045541c481e7e694598a2d77967f5e4e053cee3265d77c5b49f1eb8b282176",
 					Index:  1,
 					Outdex: 0,
@@ -135,18 +135,18 @@ func TestDeepCopys(t *testing.T) {
 			TotalOut: 105.29923146,
 			Type:     "Vote",
 		},
-		MempoolTx{
+		{
 			TxID:      "1df658e1b0de08112adcfb9b8b17dcc2b64f756b1e21f6b1f715fd2b86439955",
 			Fees:      0,
 			VinCount:  2,
 			VoutCount: 3,
 			Vin: []MempoolInput{
-				MempoolInput{
+				{
 					TxId:   "",
 					Index:  0,
 					Outdex: 0,
 				},
-				MempoolInput{
+				{
 					TxId:   "28cc0b43bf79908115323f16dbd17d0e44a5366ca5d49e2d4f5a9c5f741e5699",
 					Index:  1,
 					Outdex: 0,
@@ -160,23 +160,23 @@ func TestDeepCopys(t *testing.T) {
 	}
 
 	regular := []MempoolTx{
-		MempoolTx{
+		{
 			TxID:      "0572b2d121322d3a9b20fe5d5024c73d8bb817398948a167ddb668e52bbb21f6",
 			Fees:      0.000585,
 			VinCount:  3,
 			VoutCount: 2,
 			Vin: []MempoolInput{
-				MempoolInput{
+				{
 					TxId:   "4a9aaca49784586d3abc0dbd5d7d3dcdf70940c60bc5cbaa39379690d9ac5c6d",
 					Index:  0,
 					Outdex: 9,
 				},
-				MempoolInput{
+				{
 					TxId:   "f621d45fb440307f151c1470619e37209aca7f8c12379e82f5c2ebcf882fb884",
 					Index:  1,
 					Outdex: 1,
 				},
-				MempoolInput{
+				{
 					TxId:   "08b01afd1c252fbef8bbad933c1d7e3da1d3e3011ef3d4cdd532f5803ea173b9",
 					Index:  2,
 					Outdex: 0,
@@ -187,23 +187,23 @@ func TestDeepCopys(t *testing.T) {
 			TotalOut: 139.11389736,
 			Type:     "Regular",
 		},
-		MempoolTx{
+		{
 			TxID:      "9e11deaae5ecd1d3288468a491f820b66adfb74be70eba582c0b13a25e76bb3b",
 			Fees:      0.000585,
 			VinCount:  3,
 			VoutCount: 2,
 			Vin: []MempoolInput{
-				MempoolInput{
+				{
 					TxId:   "bf9d371a9f3fd510ec5d6b485c0fd64ca1b6dac9c3b915973ba8fc86fc788e8c",
 					Index:  0,
 					Outdex: 1,
 				},
-				MempoolInput{
+				{
 					TxId:   "a245d62d3916869f930afd80dce6f47c7291145c36fccae7ba73c0e462ff4cd5",
 					Index:  1,
 					Outdex: 1,
 				},
-				MempoolInput{
+				{
 					TxId:   "b8274d92cac36a08cc28600fec66a09e9d429486506da1c8616c93544ce0f2ee",
 					Index:  2,
 					Outdex: 2,
@@ -285,7 +285,7 @@ func TestDeepCopys(t *testing.T) {
 				"99045541c481e7e694598a2d77967f5e4e053cee3265d77c5b49f1eb8b282176": false,
 			},
 			VoteTallys: map[string]*VoteTally{
-				"de563e0f0ee0f4717c553ce456fa5ff37c784e3f52059f2e3e64ddfbcf2aaffb": &VoteTally{
+				"de563e0f0ee0f4717c553ce456fa5ff37c784e3f52059f2e3e64ddfbcf2aaffb": {
 					TicketsPerBlock: 5,
 					Marks:           []bool{true, true, true, true, true},
 				},
