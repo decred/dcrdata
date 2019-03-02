@@ -36,7 +36,7 @@ type MasterBlockGetter interface {
 
 // BlockGate is an implementation of MasterBlockGetter with cache
 type BlockGate struct {
-	sync.RWMutex
+	mtx           sync.RWMutex
 	client        *rpcclient.Client
 	height        int64
 	fetchToHeight int64
@@ -99,8 +99,8 @@ func NewBlockGate(client *rpcclient.Client, capacity int) *BlockGate {
 // RPC to retrieve the block immediately. For the given height and up,
 // WaitForHeight will only return a notification channel.
 func (g *BlockGate) SetFetchToHeight(height int64) {
-	g.RLock()
-	defer g.RUnlock()
+	g.mtx.RLock()
+	defer g.mtx.RUnlock()
 	g.fetchToHeight = height
 }
 
@@ -112,15 +112,15 @@ func (g *BlockGate) NodeHeight() (int64, error) {
 
 // BestBlockHeight gets the best block height in the block cache.
 func (g *BlockGate) BestBlockHeight() int64 {
-	g.RLock()
-	defer g.RUnlock()
+	g.mtx.RLock()
+	defer g.mtx.RUnlock()
 	return g.height
 }
 
 // BestBlockHash gets the hash and height of the best block in cache.
 func (g *BlockGate) BestBlockHash() (chainhash.Hash, int64, error) {
-	g.RLock()
-	defer g.RUnlock()
+	g.mtx.RLock()
+	defer g.mtx.RUnlock()
 	var err error
 	hash, ok := g.hashAtHeight[g.height]
 	if !ok {
@@ -131,8 +131,8 @@ func (g *BlockGate) BestBlockHash() (chainhash.Hash, int64, error) {
 
 // BestBlock gets the best block in cache.
 func (g *BlockGate) BestBlock() (*dcrutil.Block, error) {
-	g.RLock()
-	defer g.RUnlock()
+	g.mtx.RLock()
+	defer g.mtx.RUnlock()
 	var err error
 	hash, ok := g.hashAtHeight[g.height]
 	if !ok {
@@ -147,8 +147,8 @@ func (g *BlockGate) BestBlock() (*dcrutil.Block, error) {
 
 // CachedBlock attempts to get the block with the specified hash from cache.
 func (g *BlockGate) CachedBlock(hash chainhash.Hash) (*dcrutil.Block, error) {
-	g.RLock()
-	defer g.RUnlock()
+	g.mtx.RLock()
+	defer g.mtx.RUnlock()
 	block, ok := g.blockWithHash[hash]
 	if !ok {
 		return nil, fmt.Errorf("block %d not found", hash)
@@ -171,10 +171,10 @@ func (g *BlockGate) Block(hash chainhash.Hash) (*dcrutil.Block, error) {
 		return nil, fmt.Errorf("GetBlock (%v) failed: %v", hash, err)
 	}
 
-	g.RLock()
+	g.mtx.RLock()
 	fmt.Printf("Block cache miss: requested %d, cache capacity %d, tip %d.",
 		block.Height(), g.expireQueue.cap, g.height)
-	g.RUnlock()
+	g.mtx.RUnlock()
 	return block, nil
 }
 
@@ -191,9 +191,9 @@ func (g *BlockGate) UpdateToBestBlock() (*dcrutil.Block, error) {
 // UpdateToNextBlock gets the next block following the best in cache via RPC and
 // updates the cache.
 func (g *BlockGate) UpdateToNextBlock() (*dcrutil.Block, error) {
-	g.Lock()
+	g.mtx.Lock()
 	height := g.height + 1
-	g.Unlock()
+	g.mtx.Unlock()
 	return g.UpdateToBlock(height)
 }
 
@@ -201,8 +201,8 @@ func (g *BlockGate) UpdateToNextBlock() (*dcrutil.Block, error) {
 // dcrd, stores it in cache, and signals any waiters. This is the thread-safe
 // version of updateToBlock.
 func (g *BlockGate) UpdateToBlock(height int64) (*dcrutil.Block, error) {
-	g.Lock()
-	defer g.Unlock()
+	g.mtx.Lock()
+	defer g.mtx.Unlock()
 	return g.updateToBlock(height)
 }
 
@@ -313,8 +313,8 @@ func (g *BlockGate) signalHeight(height int64, hash chainhash.Hash) {
 // WaitForHeight provides a notification channel for signaling to the caller
 // when the block at the specified height is available.
 func (g *BlockGate) WaitForHeight(height int64) chan chainhash.Hash {
-	g.Lock()
-	defer g.Unlock()
+	g.mtx.Lock()
+	defer g.mtx.Unlock()
 
 	if height < 0 {
 		return nil
@@ -344,8 +344,8 @@ func (g *BlockGate) WaitForHeight(height int64) chan chainhash.Hash {
 // WaitForHash provides a notification channel for signaling to the caller
 // when the block with the specified hash is available.
 func (g *BlockGate) WaitForHash(hash chainhash.Hash) chan int64 {
-	g.Lock()
-	defer g.Unlock()
+	g.mtx.Lock()
+	defer g.mtx.Unlock()
 
 	waitChan := make(chan int64, 1)
 

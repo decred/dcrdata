@@ -38,7 +38,7 @@ type MempoolDataSaver interface {
 // height, hash, and time are kept in memory in order to properly process votes
 // in mempool.
 type MempoolMonitor struct {
-	sync.RWMutex
+	mtx        sync.RWMutex
 	ctx        context.Context
 	mpoolInfo  MempoolInfo
 	inventory  *exptypes.MempoolInfo
@@ -88,20 +88,20 @@ func NewMempoolMonitor(ctx context.Context, collector *MempoolDataCollector,
 }
 
 func (p *MempoolMonitor) LastBlockHash() chainhash.Hash {
-	p.RLock()
-	defer p.RUnlock()
+	p.mtx.RLock()
+	defer p.mtx.RUnlock()
 	return p.lastBlock.Hash
 }
 
 func (p *MempoolMonitor) LastBlockHeight() int64 {
-	p.RLock()
-	defer p.RUnlock()
+	p.mtx.RLock()
+	defer p.mtx.RUnlock()
 	return p.lastBlock.Height
 }
 
 func (p *MempoolMonitor) LastBlockTime() int64 {
-	p.RLock()
-	defer p.RUnlock()
+	p.mtx.RLock()
+	defer p.mtx.RUnlock()
 	return p.lastBlock.Time
 }
 
@@ -149,7 +149,7 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 			txType := txhelpers.DetermineTxTypeString(msgTx)
 
 			// Maintain the list of unique stake and regular txns encountered.
-			p.RLock()          // do not allow p.inventory to be reset
+			p.mtx.RLock()      // do not allow p.inventory to be reset
 			p.inventory.Lock() // do not allow *p.inventory to be accessed
 			var txExists bool
 			if txType == "Regular" {
@@ -161,7 +161,7 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 			if txExists {
 				log.Tracef("Not broadcasting duplicate %s notification: %s", txType, hash)
 				p.inventory.Unlock()
-				p.RUnlock()
+				p.mtx.RUnlock()
 				continue // back to waiting for new tx signal
 			}
 
@@ -223,7 +223,7 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 				// vote will be included in that update.
 				if tx.VoteInfo.Validation.Height > p.LastBlockHeight() {
 					p.inventory.Unlock()
-					p.RUnlock()
+					p.mtx.RUnlock()
 					log.Trace("Got a vote for a future block. Waiting to pull it "+
 						"out of mempool with new block signal. Vote: ", tx.Hash)
 					continue
@@ -280,7 +280,7 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 			}
 			p.inventory.FormattedTotalSize = humanize.Bytes(uint64(p.inventory.TotalSize))
 			p.inventory.Unlock()
-			p.RUnlock()
+			p.mtx.RUnlock()
 
 			// Broadcast the new transaction.
 			log.Tracef("Signaling mempool event to hub relays...")
@@ -333,7 +333,7 @@ func (p *MempoolMonitor) Refresh() (*StakeData, []exptypes.MempoolTx, *exptypes.
 	inventory := ParseTxns(txs, p.params, &stakeData.LatestBlock)
 
 	// Reset the counter for tickets since last report.
-	p.Lock()
+	p.mtx.Lock()
 	newTickets := p.mpoolInfo.NumTicketsSinceStatsReport
 	p.mpoolInfo.NumTicketsSinceStatsReport = 0
 
@@ -345,7 +345,7 @@ func (p *MempoolMonitor) Refresh() (*StakeData, []exptypes.MempoolTx, *exptypes.
 	// Store the current best block info.
 	p.lastBlock = stakeData.LatestBlock
 	p.inventory = inventory
-	p.Unlock()
+	p.mtx.Unlock()
 
 	// Insert new ticket counter into stakeData structure.
 	stakeData.NewTickets = uint32(newTickets)

@@ -26,7 +26,7 @@ import (
 // stores these diffs, with a cursor pointing to the next unapplied diff. An
 // on-disk database of diffs is maintained using the badger database.
 type TicketPool struct {
-	*sync.RWMutex
+	mtx    sync.RWMutex
 	cursor int64
 	tip    int64
 	diffs  []PoolDiff
@@ -216,11 +216,10 @@ func NewTicketPool(dataDir, dbSubDir string) (tp *TicketPool, err error) {
 
 	// Construct TicketPool with loaded diffs and diff DB
 	return &TicketPool{
-		RWMutex: new(sync.RWMutex),
-		pool:    make(map[chainhash.Hash]struct{}),
-		diffs:   diffs,             // make([]PoolDiff, 0, 100000)
-		tip:     int64(len(diffs)), // number of blocks connected over genesis
-		diffDB:  db,
+		pool:   make(map[chainhash.Hash]struct{}),
+		diffs:  diffs,             // make([]PoolDiff, 0, 100000)
+		tip:    int64(len(diffs)), // number of blocks connected over genesis
+		diffDB: db,
 	}, nil
 }
 
@@ -345,15 +344,15 @@ func (tp *TicketPool) Close() error {
 
 // Tip returns the current length of the diffs slice.
 func (tp *TicketPool) Tip() int64 {
-	tp.RLock()
-	defer tp.RUnlock()
+	tp.mtx.RLock()
+	defer tp.mtx.RUnlock()
 	return tp.tip
 }
 
 // Cursor returns the current cursor, the location of the next unapplied diff.
 func (tp *TicketPool) Cursor() int64 {
-	tp.RLock()
-	defer tp.RUnlock()
+	tp.mtx.RLock()
+	defer tp.mtx.RUnlock()
 	return tp.cursor
 }
 
@@ -384,8 +383,8 @@ func (tp *TicketPool) trim() (int64, PoolDiff) {
 // Trim removes the end diff and decrements the tip height. If the cursor would
 // fall beyond the end of the diffs, the removed diffs are applied in reverse.
 func (tp *TicketPool) Trim() (int64, PoolDiff) {
-	tp.Lock()
-	defer tp.Unlock()
+	tp.mtx.Lock()
+	defer tp.mtx.Unlock()
 	return tp.trim()
 }
 
@@ -495,8 +494,8 @@ func (tp *TicketPool) Append(diff *PoolDiff, height int64) error {
 	if height != tp.tip+1 {
 		return fmt.Errorf("block height %d does not build on %d", height, tp.tip)
 	}
-	tp.Lock()
-	defer tp.Unlock()
+	tp.mtx.Lock()
+	defer tp.mtx.Unlock()
 	tp.append(diff)
 	return tp.storeDiff(diff, height)
 }
@@ -507,8 +506,8 @@ func (tp *TicketPool) AppendAndAdvancePool(diff *PoolDiff, height int64) error {
 	if height != tp.tip+1 {
 		return fmt.Errorf("block height %d does not build on %d", height, tp.tip)
 	}
-	tp.Lock()
-	defer tp.Unlock()
+	tp.mtx.Lock()
+	defer tp.mtx.Unlock()
 	tp.append(diff)
 	if err := tp.storeDiff(diff, height); err != nil {
 		return err
@@ -533,15 +532,15 @@ func (tp *TicketPool) currentPool() ([]chainhash.Hash, int64) {
 // the ticket hashes is random as they are extracted from a the pool map with a
 // range statement.
 func (tp *TicketPool) CurrentPool() ([]chainhash.Hash, int64) {
-	tp.RLock()
-	defer tp.RUnlock()
+	tp.mtx.RLock()
+	defer tp.mtx.RUnlock()
 	return tp.currentPool()
 }
 
 // CurrentPoolSize returns the number of tickets stored in the current pool map.
 func (tp *TicketPool) CurrentPoolSize() int {
-	tp.RLock()
-	defer tp.RUnlock()
+	tp.mtx.RLock()
+	defer tp.mtx.RUnlock()
 	return len(tp.pool)
 }
 
@@ -549,8 +548,8 @@ func (tp *TicketPool) CurrentPoolSize() int {
 // will advance/retreat the cursor as needed to reach the desired height, and
 // then extract the tickets from the resulting pool map.
 func (tp *TicketPool) Pool(height int64) ([]chainhash.Hash, error) {
-	tp.Lock()
-	defer tp.Unlock()
+	tp.mtx.Lock()
+	defer tp.mtx.Unlock()
 
 	if height > tp.tip {
 		return nil, fmt.Errorf("block height %d is not connected yet, tip is %d", height, tp.tip)
@@ -612,8 +611,8 @@ func (tp *TicketPool) advanceTo(height int64) error {
 // the cursor will stop just beyond the last element of the diffs slice. It will
 // not be possible to advance further, only retreat.
 func (tp *TicketPool) AdvanceToTip() (int64, error) {
-	tp.Lock()
-	defer tp.Unlock()
+	tp.mtx.Lock()
+	defer tp.mtx.Unlock()
 	err := tp.advanceTo(tp.tip)
 	return tp.cursor - 1, err
 }

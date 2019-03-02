@@ -55,7 +55,7 @@ type wsDataSourceAux interface {
 type State struct {
 	// State is read locked by the send loop, and read/write locked when
 	// occasional updates are made.
-	sync.RWMutex
+	mtx sync.RWMutex
 
 	// GeneralInfo contains a variety of high level status information. Much of
 	// GeneralInfo is constant, set in the constructor, while many fields are
@@ -73,7 +73,7 @@ type State struct {
 
 // Mempool represents a snapshot of the mempool.
 type Mempool struct {
-	sync.RWMutex
+	mtx       sync.RWMutex
 	Inv       *exptypes.MempoolInfo
 	StakeData *mempool.StakeData
 	Txns      []exptypes.MempoolTx
@@ -178,8 +178,8 @@ func (psh *PubSubHub) HubRelays() (HubRelay chan pstypes.HubSignal, NewTxChan ch
 
 // MempoolInventory safely retrieves the current mempool inventory.
 func (psh *PubSubHub) MempoolInventory() *types.MempoolInfo {
-	psh.mempool.RLock()
-	defer psh.mempool.RUnlock()
+	psh.mempool.mtx.RLock()
+	defer psh.mempool.mtx.RUnlock()
 	return psh.mempool.Inv
 }
 
@@ -297,9 +297,9 @@ func (psh *PubSubHub) receiveLoop(conn *connection) {
 			inv := psh.MempoolInventory()
 			mempoolInfo := inv.Trim() // Trim locks the inventory.
 
-			psh.state.RLock()
+			psh.state.mtx.RLock()
 			mempoolInfo.Subsidy = psh.state.GeneralInfo.NBlockSubsidy
-			psh.state.RUnlock()
+			psh.state.mtx.RUnlock()
 
 			b, err := json.Marshal(mempoolInfo)
 			if err != nil {
@@ -391,16 +391,16 @@ loop:
 
 			switch sig {
 			case sigNewBlock:
-				psh.state.RLock()
+				psh.state.mtx.RLock()
 				if psh.state.BlockInfo == nil {
-					psh.state.RUnlock()
+					psh.state.mtx.RUnlock()
 					break // from switch to send empty message
 				}
 				err := enc.Encode(exptypes.WebsocketBlock{
 					Block: psh.state.BlockInfo,
 					Extra: psh.state.GeneralInfo,
 				})
-				psh.state.RUnlock()
+				psh.state.mtx.RUnlock()
 				if err != nil {
 					log.Warnf("Encode(WebsocketBlock) failed: %v", err)
 				}
@@ -534,11 +534,11 @@ func (psh *PubSubHub) StoreMPData(stakeData *mempool.StakeData, txs []exptypes.M
 	//mpInfo := mempool.ParseTxns(txs, psh.params, &stakeData.LatestBlock)
 
 	// Get exclusive access to the Mempool field.
-	psh.mempool.Lock()
+	psh.mempool.mtx.Lock()
 	psh.mempool.Inv = inv
 	psh.mempool.StakeData = stakeData
 	psh.mempool.Txns = txs
-	psh.mempool.Unlock()
+	psh.mempool.mtx.Unlock()
 
 	// Signal to the websocket hub that a new tx was received, but do not block
 	// StoreMPData(), and do not hang forever in a goroutine waiting to send.
@@ -585,7 +585,7 @@ func (psh *PubSubHub) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBl
 
 	// Update pageData with block data and chain (home) info.
 	p := psh.state
-	p.Lock()
+	p.mtx.Lock()
 
 	// Store current block and blockchain data.
 	p.BlockInfo = newBlockData
@@ -638,7 +638,7 @@ func (psh *PubSubHub) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBl
 		psh.params.TargetTimePerBlock.Hours()/24)
 	//p.GeneralInfo.ASR = ASR
 
-	p.Unlock()
+	p.mtx.Unlock()
 
 	// Signal to the websocket hub that a new block was received, but do not
 	// block Store(), and do not hang forever in a goroutine waiting to send.

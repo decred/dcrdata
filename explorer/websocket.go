@@ -56,7 +56,7 @@ type WebsocketHub struct {
 	HubRelay         chan hubSignal
 	NewTxChan        chan *types.MempoolTx
 	newTxBuffer      []*types.MempoolTx
-	bufferMtx        *sync.Mutex
+	bufferMtx        sync.Mutex
 	bufferTickerChan chan int
 	sendBufferChan   chan int
 	quitWSHandler    chan struct{}
@@ -92,7 +92,6 @@ func NewWebsocketHub() *WebsocketHub {
 		NewTxChan:        make(chan *types.MempoolTx),
 		newTxBuffer:      make([]*types.MempoolTx, 0, newTxBufferSize),
 		bufferTickerChan: make(chan int, clientSignalSize),
-		bufferMtx:        new(sync.Mutex),
 		sendBufferChan:   make(chan int, clientSignalSize),
 		quitWSHandler:    make(chan struct{}),
 	}

@@ -63,7 +63,7 @@ type DB struct {
 	BlockCache *apitypes.APICache
 
 	// Guard cached data: lastStoredBlock, dbSummaryHeight, dbStakeInfoHeight
-	sync.RWMutex
+	mtx sync.RWMutex
 
 	// lastStoredBlock caches data for the most recently stored block, and is
 	// used to optimize getTip.
@@ -483,8 +483,8 @@ func (db *DBDataSaver) Store(data *blockdata.BlockData, msgBlock *wire.MsgBlock)
 
 func (db *DB) updateHeights() error {
 	// Update dbSummaryHeight and dbStakeInfoHeight.
-	db.Lock()
-	defer db.Unlock()
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
 
 	height, err := db.getBlockSummaryHeight()
 	if err != nil {
@@ -652,8 +652,8 @@ func (db *DB) StoreBlock(bd *apitypes.BlockDataBasic, isMainchain bool, isValid 
 	}
 
 	// Update the DB block summary height.
-	db.Lock()
-	defer db.Unlock()
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
 	if err = logDBResult(res); err == nil {
 		height := int64(bd.Height)
 		if height > db.dbSummaryHeight {
@@ -736,8 +736,8 @@ func (db *DB) getBlockSummaryHeightAnyChain() (int64, error) {
 // can provide a block summary. A cached best block summary height will be
 // returned when available to avoid unnecessary DB queries.
 func (db *DB) GetBlockSummaryHeight() (int64, error) {
-	db.RLock()
-	defer db.RUnlock()
+	db.mtx.RLock()
+	defer db.mtx.RUnlock()
 	if db.dbSummaryHeight < 0 {
 		h, err := db.getBlockSummaryHeight()
 		if err == nil {
@@ -790,8 +790,8 @@ func (db *DB) getStakeInfoHeightAnyChain() (int64, error) {
 // otherwise it queries the database for the best (mainchain) block height in
 // the stake info table and updates the cache.
 func (db *DB) GetStakeInfoHeight() (int64, error) {
-	db.RLock()
-	defer db.RUnlock()
+	db.mtx.RLock()
+	defer db.mtx.RUnlock()
 	if db.dbStakeInfoHeight < 0 {
 		h, err := db.getStakeInfoHeight()
 		if err == nil {
@@ -813,13 +813,13 @@ func (db *DB) RetrievePoolInfoRange(ind0, ind1 int64) ([]apitypes.TicketPoolInfo
 		return nil, nil, fmt.Errorf("Cannot retrieve pool info range (%d>%d)",
 			ind0, ind1)
 	}
-	db.RLock()
+	db.mtx.RLock()
 	if ind1 > db.dbSummaryHeight || ind0 < 0 {
-		defer db.RUnlock()
+		defer db.mtx.RUnlock()
 		return nil, nil, fmt.Errorf("Cannot retrieve pool info range [%d,%d], have height %d",
 			ind0, ind1, db.dbSummaryHeight)
 	}
-	db.RUnlock()
+	db.mtx.RUnlock()
 
 	tpis := make([]apitypes.TicketPoolInfo, 0, N)
 	hashes := make([]string, 0, N)
@@ -913,13 +913,13 @@ func (db *DB) RetrievePoolValAndSizeRange(ind0, ind1 int64) ([]float64, []float6
 		return nil, nil, fmt.Errorf("Cannot retrieve pool val and size range (%d>%d)",
 			ind0, ind1)
 	}
-	db.RLock()
+	db.mtx.RLock()
 	if ind1 > db.dbSummaryHeight || ind0 < 0 {
-		defer db.RUnlock()
+		defer db.mtx.RUnlock()
 		return nil, nil, fmt.Errorf("Cannot retrieve pool val and size range [%d,%d], have height %d",
 			ind0, ind1, db.dbSummaryHeight)
 	}
-	db.RUnlock()
+	db.mtx.RUnlock()
 
 	poolvals := make([]float64, 0, N)
 	poolsizes := make([]float64, 0, N)
@@ -1004,8 +1004,8 @@ func (db *DB) RetrieveAllPoolValAndSize() (*dbtypes.ChartsData, error) {
 
 // RetrieveBlockFeeInfo fetches the block median fee chart data.
 func (db *DB) RetrieveBlockFeeInfo() (*dbtypes.ChartsData, error) {
-	db.RLock()
-	defer db.RUnlock()
+	db.mtx.RLock()
+	defer db.mtx.RUnlock()
 
 	var chartsData = new(dbtypes.ChartsData)
 	var stmt, err = db.Prepare(db.getAllFeeInfoPerBlock)
@@ -1056,13 +1056,13 @@ func (db *DB) RetrieveSDiffRange(ind0, ind1 int64) ([]float64, error) {
 		return nil, fmt.Errorf("Cannot retrieve sdiff range (%d>%d)",
 			ind0, ind1)
 	}
-	db.RLock()
+	db.mtx.RLock()
 	if ind1 > db.dbSummaryHeight || ind0 < 0 {
-		defer db.RUnlock()
+		defer db.mtx.RUnlock()
 		return nil, fmt.Errorf("Cannot retrieve sdiff range [%d,%d], have height %d",
 			ind0, ind1, db.dbSummaryHeight)
 	}
-	db.RUnlock()
+	db.mtx.RUnlock()
 
 	sdiffs := make([]float64, 0, N)
 
@@ -1346,13 +1346,13 @@ func (db *DB) RetrieveBlockSize(ind int64) (int32, error) {
 		// Cache miss necessitates a DB query.
 	}
 
-	db.RLock()
+	db.mtx.RLock()
 	if ind > db.dbSummaryHeight || ind < 0 {
-		defer db.RUnlock()
+		defer db.mtx.RUnlock()
 		return -1, fmt.Errorf("Cannot retrieve block size %d, have height %d",
 			ind, db.dbSummaryHeight)
 	}
-	db.RUnlock()
+	db.mtx.RUnlock()
 
 	var blockSize int32
 	err := db.QueryRow(db.getBlockSizeSQL, ind).Scan(&blockSize)
@@ -1373,13 +1373,13 @@ func (db *DB) RetrieveBlockSizeRange(ind0, ind1 int64) ([]int32, error) {
 		return nil, fmt.Errorf("Cannot retrieve block size range (%d>%d)",
 			ind0, ind1)
 	}
-	db.RLock()
+	db.mtx.RLock()
 	if ind1 > db.dbSummaryHeight || ind0 < 0 {
-		defer db.RUnlock()
+		defer db.mtx.RUnlock()
 		return nil, fmt.Errorf("Cannot retrieve block size range [%d,%d], have height %d",
 			ind0, ind1, db.dbSummaryHeight)
 	}
-	db.RUnlock()
+	db.mtx.RUnlock()
 
 	blockSizes := make([]int32, 0, N)
 
@@ -1442,8 +1442,8 @@ func (db *DB) StoreStakeInfoExtended(si *apitypes.StakeInfoExtended) error {
 		return err
 	}
 
-	db.Lock()
-	defer db.Unlock()
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
 	if err = logDBResult(res); err == nil {
 		height := int64(si.Feeinfo.Height)
 		if height > db.dbStakeInfoHeight {
@@ -1758,8 +1758,8 @@ func splitToArray(str string) []string {
 // getTip returns the last block stored using StoreBlockSummary.
 // If no block has been stored yet, it returns the best block in the database.
 func (db *DB) getTip() (*apitypes.BlockDataBasic, error) {
-	db.RLock()
-	defer db.RUnlock()
+	db.mtx.RLock()
+	defer db.mtx.RUnlock()
 	if db.lastStoredBlock != nil {
 		return db.lastStoredBlock, nil
 	}

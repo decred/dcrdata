@@ -27,7 +27,7 @@ import (
 // server's mempool.
 type MempoolDataCollector struct {
 	// Mutex is used to prevent multiple concurrent calls to Collect.
-	sync.Mutex
+	mtx          sync.Mutex
 	dcrdChainSvr *rpcclient.Client
 	activeChain  *chaincfg.Params
 }
@@ -132,8 +132,8 @@ func (t *MempoolDataCollector) mempoolTxns() ([]exptypes.MempoolTx, error) {
 func (t *MempoolDataCollector) Collect() (*StakeData, []exptypes.MempoolTx, error) {
 	// In case of a very fast block, make sure previous call to collect is not
 	// still running, or dcrd may be mad.
-	t.Lock()
-	defer t.Unlock()
+	t.mtx.Lock()
+	defer t.mtx.Unlock()
 
 	// Time this function
 	defer func(start time.Time) {

@@ -101,7 +101,7 @@ func (b *BlockData) ToBlockExplorerSummary() apitypes.BlockExplorerBasic {
 
 // Collector models a structure for the source of the blockdata
 type Collector struct {
-	sync.Mutex
+	mtx          sync.Mutex
 	dcrdChainSvr *rpcclient.Client
 	netParams    *chaincfg.Params
 	stakeDB      *stakedb.StakeDatabase
@@ -225,8 +225,8 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 func (t *Collector) CollectHash(hash *chainhash.Hash) (*BlockData, *wire.MsgBlock, error) {
 	// In case of a very fast block, make sure previous call to collect is not
 	// still running, or dcrd may be mad.
-	t.Lock()
-	defer t.Unlock()
+	t.mtx.Lock()
+	defer t.mtx.Unlock()
 
 	// Time this function
 	defer func(start time.Time) {
@@ -280,8 +280,8 @@ func (t *Collector) CollectHash(hash *chainhash.Hash) (*BlockData, *wire.MsgBloc
 func (t *Collector) Collect() (*BlockData, *wire.MsgBlock, error) {
 	// In case of a very fast block, make sure previous call to collect is not
 	// still running, or dcrd may be mad.
-	t.Lock()
-	defer t.Unlock()
+	t.mtx.Lock()
+	defer t.mtx.Unlock()
 
 	// Time this function
 	defer func(start time.Time) {
