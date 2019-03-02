@@ -183,7 +183,7 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 						Choices:     choices,
 						TicketSpent: msgTx.TxIn[1].PreviousOutPoint.Hash.String(),
 					}
-					voteInfo.ForLastBlock = voteInfo.VotesOnBlock(p.LastBlockHash().String())
+					voteInfo.ForLastBlock = voteInfo.VotesOnBlock(p.lastBlock.Hash.String())
 				}
 			}
 
@@ -221,7 +221,7 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 				// actually processing the new block. Do not broadcast these
 				// ahead of the full update with the new block signal as the
 				// vote will be included in that update.
-				if tx.VoteInfo.Validation.Height > p.LastBlockHeight() {
+				if tx.VoteInfo.Validation.Height > p.lastBlock.Height {
 					p.inventory.Unlock()
 					p.mtx.RUnlock()
 					log.Trace("Got a vote for a future block. Waiting to pull it "+
