@@ -1100,14 +1100,13 @@ func (db *DB) RetrieveBlockSummaryByTimeRange(minTime, maxTime int64, limit int)
 	if err != nil {
 		return nil, err
 	}
+	defer stmt.Close()
 
 	rows, err := stmt.Query(minTime, maxTime, limit)
-
 	if err != nil {
 		log.Errorf("Query failed: %v", err)
 		return nil, err
 	}
-
 	defer rows.Close()
 
 	for rows.Next() {
@@ -1643,6 +1642,7 @@ func (db *DB) JustifyTableStructures(dbInfo *DBInfo) error {
 		return err
 	}
 	defer rows.Close()
+
 	rowCounter := 0
 	for rows.Next() {
 		rowCounter += 1

@@ -371,6 +371,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 	if err != nil {
 		log.Errorf("Agenda Votes INSERT prepare: %v", err)
 		_ = voteStmt.Close()
+		_ = agendaStmt.Close()
 		_ = dbtx.Rollback() // try, but we want the Prepare error back
 		return nil, nil, nil, nil, nil, err
 	}
@@ -737,6 +738,7 @@ func retrieveWindowBlocks(ctx context.Context, db *sql.DB, windowSize int64, lim
 	if err != nil {
 		return nil, fmt.Errorf("retrieveWindowBlocks failed: error: %v", err)
 	}
+	defer closeRows(rows)
 
 	data := make([]*dbtypes.BlocksGroupedInfo, 0)
 	for rows.Next() {
@@ -783,6 +785,7 @@ func retrieveTimeBasedBlockListing(ctx context.Context, db *sql.DB, timeInterval
 	if err != nil {
 		return nil, fmt.Errorf("retrieveTimeBasedBlockListing failed: error: %v", err)
 	}
+	defer closeRows(rows)
 
 	var data []*dbtypes.BlocksGroupedInfo
 	for rows.Next() {
@@ -870,7 +873,6 @@ func RetrieveTicketIDsByHashes(ctx context.Context, db *sql.DB, ticketHashes []s
 	stmt, err := dbtx.Prepare(internal.SelectTicketIDByHash)
 	if err != nil {
 		log.Errorf("Tickets SELECT prepare: %v", err)
-		_ = stmt.Close()
 		_ = dbtx.Rollback() // try, but we want the Prepare error back
 		return nil, err
 	}
@@ -997,7 +999,6 @@ func retrieveTicketSpendTypePerBlock(ctx context.Context, db *sql.DB) (*dbtypes.
 	if err != nil {
 		return nil, err
 	}
-
 	defer closeRows(rows)
 
 	for rows.Next() {
@@ -1258,16 +1259,17 @@ func RetrieveAddressSpentUnspent(ctx context.Context, db *sql.DB, address string
 	// Query for spent and unspent totals.
 	var rows *sql.Rows
 	rows, err = db.QueryContext(ctx, internal.SelectAddressSpentUnspentCountAndValue, address)
-	if err != nil && err != sql.ErrNoRows {
-		if errRoll := dbtx.Rollback(); errRoll != nil {
-			log.Errorf("Rollback failed: %v", errRoll)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			_ = dbtx.Commit()
+			return
+		} else {
+			if errRoll := dbtx.Rollback(); errRoll != nil {
+				log.Errorf("Rollback failed: %v", errRoll)
+			}
+			err = fmt.Errorf("failed to query spent and unspent amounts: %v", err)
+			return
 		}
-		err = fmt.Errorf("failed to query spent and unspent amounts: %v", err)
-		return
-	}
-	if err == sql.ErrNoRows {
-		_ = dbtx.Commit()
-		return
 	}
 
 	for rows.Next() {
@@ -1353,9 +1355,8 @@ func RetrieveAddressUTXOs(ctx context.Context, db *sql.DB, address string, curre
 		log.Error(err)
 		return nil, err
 	}
-
 	rows, err := stmt.QueryContext(ctx, address)
-	// _ = stmt.Close() // or does Rows.Close() do it?
+	_ = stmt.Close()
 	if err != nil {
 		log.Error(err)
 		return nil, err
@@ -1398,7 +1399,7 @@ func RetrieveAddressTxnsOrdered(ctx context.Context, db *sql.DB, addresses []str
 
 	var rows *sql.Rows
 	rows, err = stmt.QueryContext(ctx, pq.Array(addresses))
-	// _ = stmt.Close() // or does Rows.Close do it?
+	_ = stmt.Close()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1438,7 +1439,6 @@ func RetrieveAllAddressTxns(ctx context.Context, db *sql.DB, address string) ([]
 	if err != nil {
 		return nil, nil, err
 	}
-
 	defer closeRows(rows)
 
 	return scanAddressQueryRows(rows, creditDebitQuery)
@@ -1451,7 +1451,6 @@ func RetrieveAllMainchainAddressTxns(ctx context.Context, db *sql.DB, address st
 	if err != nil {
 		return nil, nil, err
 	}
-
 	defer closeRows(rows)
 
 	return scanAddressQueryRows(rows, creditDebitQuery)
@@ -1464,7 +1463,6 @@ func RetrieveAllMainchainAddressMergedTxns(ctx context.Context, db *sql.DB, addr
 	if err != nil {
 		return nil, nil, err
 	}
-
 	defer closeRows(rows)
 
 	addr, err := scanAddressMergedRows(rows, address, mergedQuery)
@@ -1513,7 +1511,6 @@ func retrieveAddressTxns(ctx context.Context, db *sql.DB, address string, N, off
 	if err != nil {
 		return nil, nil, err
 	}
-
 	defer closeRows(rows)
 
 	switch queryType {
@@ -1669,7 +1666,6 @@ func RetrieveAddressIDsByOutpoint(ctx context.Context, db *sql.DB, txHash string
 	if err != nil {
 		return ids, addresses, 0, err
 	}
-
 	defer closeRows(rows)
 
 	for rows.Next() {
@@ -1705,7 +1701,6 @@ func retrieveTxHistoryByType(ctx context.Context, db *sql.DB, addr, timeInterval
 	if err != nil {
 		return nil, err
 	}
-
 	defer closeRows(rows)
 
 	items := new(dbtypes.ChartsData)
@@ -1739,7 +1734,6 @@ func retrieveTxHistoryByAmountFlow(ctx context.Context, db *sql.DB, addr, timeIn
 	if err != nil {
 		return nil, err
 	}
-
 	defer closeRows(rows)
 
 	for rows.Next() {
@@ -1775,7 +1769,6 @@ func retrieveTxHistoryByUnspentAmount(ctx context.Context, db *sql.DB, addr, tim
 	if err != nil {
 		return nil, err
 	}
-
 	defer closeRows(rows)
 
 	for rows.Next() {
@@ -3206,6 +3199,7 @@ func RetrieveBlockSummaryByTimeRange(ctx context.Context, db *sql.DB, minTime, m
 		}
 		rows, err = stmt.QueryContext(ctx, minT, maxT, limit)
 	}
+	_ = stmt.Close()
 
 	if err != nil {
 		log.Error(err)

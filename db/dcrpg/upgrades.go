@@ -923,12 +923,12 @@ func (pgb *ChainDB) handleTxTypeHistogramUpgrade(bestBlock uint64, upgrade table
 		if err != nil {
 			return 0, err
 		}
-
 		var dbIDs = make([]VinVoutTypeUpdateData, 0)
 		for rows.Next() {
 			rowIDs := VinVoutTypeUpdateData{}
 			err = rows.Scan(&rowIDs.TxType, &rowIDs.VinsDbIDs, &rowIDs.VoutsDbIDs)
 			if err != nil {
+				closeRows(rows)
 				return 0, err
 			}
 
