@@ -472,7 +472,7 @@ func (c *insightApiContext) getTransactions(w http.ResponseWriter, r *http.Reque
 		}
 		addresses := []string{address}
 		rawTxs, recentTxs, err :=
-			c.BlockData.ChainDB.InsightAddressTransactions(addresses, int64(c.Status.GetHeight()-2))
+			c.BlockData.ChainDB.InsightAddressTransactions(addresses, int64(c.Status.Height-2))
 		if dbtypes.IsTimeoutErr(err) {
 			apiLog.Errorf("InsightAddressTransactions: %v", err)
 			http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -573,9 +573,8 @@ func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Reque
 	// Initialize Output Structure
 	addressOutput := new(apitypes.InsightMultiAddrsTxOutput)
 	UnconfirmedTxs := []string{}
-
 	rawTxs, recentTxs, err :=
-		c.BlockData.ChainDB.InsightAddressTransactions(addresses, int64(c.Status.GetHeight()-2))
+		c.BlockData.ChainDB.InsightAddressTransactions(addresses, int64(c.Status.Height-2))
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("InsightAddressTransactions: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -786,10 +785,10 @@ func (c *insightApiContext) getStatusInfo(w http.ResponseWriter, r *http.Request
 			writeInsightError(w, fmt.Sprintf("Error getting block hash %d (%s)", infoResult.Blocks, err))
 			return
 		}
-		lastblockhash, err := c.nodeClient.GetBlockHash(int64(c.Status.GetHeight()))
+		lastblockhash, err := c.nodeClient.GetBlockHash(int64(c.Status.Height))
 		if err != nil {
-			apiLog.Errorf("Error getting block hash %d (%s)", c.Status.GetHeight(), err)
-			writeInsightError(w, fmt.Sprintf("Error getting block hash %d (%s)", c.Status.GetHeight(), err))
+			apiLog.Errorf("Error getting block hash %d (%s)", c.Status.Height, err)
+			writeInsightError(w, fmt.Sprintf("Error getting block hash %d (%s)", c.Status.Height, err))
 			return
 		}
 
@@ -955,7 +954,7 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 
 	// Get confirmed transactions.
 	rawTxs, recentTxs, err :=
-		c.BlockData.ChainDB.InsightAddressTransactions(addresses, int64(c.Status.GetHeight()-2))
+		c.BlockData.ChainDB.InsightAddressTransactions(addresses, int64(c.Status.Height-2))
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("InsightAddressTransactions: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)

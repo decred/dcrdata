@@ -120,6 +120,7 @@ type appContext struct {
 	BlockData     DataSourceLite
 	AuxDataSource DataSourceAux
 	LiteMode      bool
+	statusMtx     sync.RWMutex
 	Status        apitypes.Status
 	JSONIndent    string
 	xcBot         *exchanges.ExchangeBot
@@ -171,7 +172,7 @@ out:
 				break out
 			}
 
-			c.Status.Lock()
+			c.statusMtx.Lock()
 			c.Status.Height = height
 			// If DB height agrees with node height, then we're ready.
 			c.Status.Ready = c.Status.Height == c.Status.DBHeight
@@ -180,11 +181,11 @@ out:
 			c.Status.NodeConnections, err = c.nodeClient.GetConnectionCount()
 			if err != nil {
 				c.Status.Ready = false
-				c.Status.Unlock()
+				c.statusMtx.Unlock()
 				log.Warn("Failed to get connection count: ", err)
 				break keepon
 			}
-			c.Status.Unlock()
+			c.statusMtx.Unlock()
 
 		case height, ok := <-notify.NtfnChans.UpdateStatusDBHeight:
 			if !ok {
@@ -202,7 +203,7 @@ out:
 				break keepon
 			}
 
-			c.Status.Lock()
+			c.statusMtx.Lock()
 			c.Status.DBHeight = height
 			c.Status.DBLastBlockTime = summary.Time.S.UNIX()
 
@@ -219,12 +220,12 @@ out:
 			default:
 				// If DB height agrees with node height, then we're ready.
 				c.Status.Ready = c.Status.Height == c.Status.DBHeight
-				c.Status.Unlock()
+				c.statusMtx.Unlock()
 				break keepon
 			}
 
 			c.Status.Ready = false
-			c.Status.Unlock()
+			c.statusMtx.Unlock()
 
 		case <-ctx.Done():
 			log.Debugf("Got quit signal. Exiting block connected handler for STATUS monitor.")
@@ -320,8 +321,8 @@ func getVoteVersionQuery(r *http.Request) (int32, string, error) {
 }
 
 func (c *appContext) status(w http.ResponseWriter, r *http.Request) {
-	c.Status.RLock()
-	defer c.Status.RUnlock()
+	c.statusMtx.RLock()
+	defer c.statusMtx.RUnlock()
 	writeJSON(w, &c.Status, c.getIndentQuery(r))
 }
 
@@ -338,7 +339,11 @@ func (c *appContext) coinSupply(w http.ResponseWriter, r *http.Request) {
 
 func (c *appContext) currentHeight(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	if _, err := io.WriteString(w, strconv.Itoa(int(c.Status.GetHeight()))); err != nil {
+	c.statusMtx.RLock()
+	statusHeight := c.Status.Height
+	c.statusMtx.RUnlock()
+
+	if _, err := io.WriteString(w, strconv.Itoa(int(statusHeight))); err != nil {
 		apiLog.Infof("failed to write height response: %v", err)
 	}
 }
@@ -1454,8 +1459,12 @@ func (c *appContext) addressIoCsv(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	c.statusMtx.RLock()
+	statusHeight := c.Status.Height
+	c.statusMtx.RUnlock()
+
 	filename := fmt.Sprintf("address-io-%s-%d-%s.csv", address,
-		c.Status.GetHeight(), strconv.FormatInt(time.Now().Unix(), 10))
+		statusHeight, strconv.FormatInt(time.Now().Unix(), 10))
 
 	// Check if ?cr=true was specified.
 	crlfParam := r.URL.Query().Get("cr")
