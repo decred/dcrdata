@@ -27,17 +27,13 @@ type chainMonitor struct {
 	blockChan       chan *chainhash.Hash
 	recvTxBlockChan chan *txhelpers.BlockWatchedTx
 	reorgChan       chan *txhelpers.ReorgData
-	ConnectingLock  chan struct{}
-	DoneConnecting  chan struct{}
-	syncConnect     sync.Mutex
 	reorgLock       sync.Mutex
 }
 
 // NewChainMonitor creates a new chainMonitor.
 func NewChainMonitor(ctx context.Context, collector *Collector, savers []BlockDataSaver,
 	reorgSavers []BlockDataSaver, wg *sync.WaitGroup, addrs map[string]txhelpers.TxAction,
-	blockChan chan *chainhash.Hash, recvTxBlockChan chan *txhelpers.BlockWatchedTx,
-	reorgChan chan *txhelpers.ReorgData) *chainMonitor {
+	recvTxBlockChan chan *txhelpers.BlockWatchedTx, reorgChan chan *txhelpers.ReorgData) *chainMonitor {
 	return &chainMonitor{
 		ctx:             ctx,
 		collector:       collector,
@@ -45,26 +41,9 @@ func NewChainMonitor(ctx context.Context, collector *Collector, savers []BlockDa
 		reorgDataSavers: reorgSavers,
 		wg:              wg,
 		watchaddrs:      addrs,
-		blockChan:       blockChan,
 		recvTxBlockChan: recvTxBlockChan,
 		reorgChan:       reorgChan,
-		ConnectingLock:  make(chan struct{}, 1),
-		DoneConnecting:  make(chan struct{}),
 	}
-}
-
-// BlockConnectedSync is the synchronous (blocking call) handler for the newly
-// connected block given by the hash.
-func (p *chainMonitor) BlockConnectedSync(hash *chainhash.Hash) error {
-	// Connections go one at a time so signals cannot be mixed
-	p.syncConnect.Lock()
-	defer p.syncConnect.Unlock()
-	// lock with buffered channel
-	p.ConnectingLock <- struct{}{}
-	p.blockChan <- hash
-	// wait
-	<-p.DoneConnecting
-	return nil
 }
 
 func (p *chainMonitor) collect(hash *chainhash.Hash) (*wire.MsgBlock, *BlockData, error) {
@@ -122,7 +101,40 @@ func (p *chainMonitor) collect(hash *chainhash.Hash) (*wire.MsgBlock, *BlockData
 	return msgBlock, blockData, nil
 }
 
-// blockConnectedHandler handles block connected notifications, which trigger
+// ConnectBlock is a sychronous version of BlockConnectedHandler that collects
+// and stores data for a block specified by the given hash.
+func (p *chainMonitor) ConnectBlock(hash *chainhash.Hash) error {
+	// Do not handle reorg and block connects simultaneously.
+	p.reorgLock.Lock()
+	defer p.reorgLock.Unlock()
+
+	// Collect block data.
+	msgBlock, blockData, err := p.collect(hash)
+	if err != nil {
+		return err
+	}
+
+	// Store block data with each saver.
+	for _, s := range p.dataSavers {
+		if s != nil {
+			// Save data to wherever the saver wants to put it.
+			if err0 := s.Store(blockData, msgBlock); err0 != nil {
+				log.Errorf("(%v).Store failed: %v", reflect.TypeOf(s), err0)
+				err = err0
+			}
+		}
+	}
+	return err
+}
+
+// SetNewBlockChan specifies the new-block channel to be used by
+// BlockConnectedHandler. Note that BlockConnectedHandler is not required if
+// using a direct call to ConnectBlock.
+func (p *chainMonitor) SetNewBlockChan(blockChan chan *chainhash.Hash) {
+	p.blockChan = blockChan
+}
+
+// BlockConnectedHandler handles block connected notifications, which trigger
 // data collection and storage.
 func (p *chainMonitor) BlockConnectedHandler() {
 	defer p.wg.Done()
@@ -131,28 +143,18 @@ out:
 	keepon:
 		select {
 		case hash, ok := <-p.blockChan:
-			// Do not handle reorg and block connects simultaneously.
-			p.reorgLock.Lock()
-			release := func() { p.reorgLock.Unlock() }
-
-			select {
-			case <-p.ConnectingLock:
-				// send on unbuffered channel
-				release = func() { p.reorgLock.Unlock(); p.DoneConnecting <- struct{}{} }
-			default:
-			}
-
 			if !ok {
 				log.Warnf("Block connected channel closed.")
-				release()
 				break out
 			}
 
+			// Do not handle reorg and block connects simultaneously.
+			p.reorgLock.Lock()
 			// Collect block data.
 			msgBlock, blockData, err := p.collect(hash)
+			p.reorgLock.Unlock()
 			if err != nil {
 				log.Errorf("Failed to collect data for block %v: %v", hash, err)
-				release()
 				break keepon
 			}
 
@@ -165,8 +167,6 @@ out:
 					}
 				}
 			}
-
-			release()
 
 		case <-p.ctx.Done():
 			log.Debugf("Got quit signal. Exiting block connected handler.")

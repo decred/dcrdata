@@ -54,13 +54,13 @@ func MakeNtfnChans(postgresEnabled bool) {
 	// as nil so that both a send (below) blocks and a receive (in
 	// blockConnectedHandler) block. default case makes non-blocking below.
 	// quit channel case manages blockConnectedHandlers.
-	NtfnChans.ConnectChan = make(chan *chainhash.Hash, blockConnChanBuffer)
+	//NtfnChans.ConnectChan = make(chan *chainhash.Hash, blockConnChanBuffer)
 
 	// WiredDB channel for connecting new blocks
 	NtfnChans.ConnectChanWiredDB = make(chan *chainhash.Hash, blockConnChanBuffer)
 
 	// Stake DB channel for connecting new blocks - BLOCKING!
-	NtfnChans.ConnectChanStakeDB = make(chan *chainhash.Hash)
+	//NtfnChans.ConnectChanStakeDB = make(chan *chainhash.Hash)
 
 	NtfnChans.ConnectChanDcrpgDB = make(chan *chainhash.Hash, blockConnChanBuffer)
 
