@@ -60,6 +60,9 @@ export default class extends Controller {
         case 'value':
           newTd.textContent = humanize.threeSigFigs(block.TotalSent)
           break
+        case 'time':
+          newTd.textContent = humanize.date(block.time, true)
+          break
         default:
           newTd.textContent = block[dataType]
       }

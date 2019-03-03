@@ -37,9 +37,9 @@ export default class extends Controller {
         this.unconfirmedTarget.querySelector('.mp-unconfirmed-msg').classList.add('d-none')
         // Reset the age and time to be based off of the block time.
         let age = this.unconfirmedTarget.querySelector('.mp-unconfirmed-time')
-        age.dataset.age = block.unixStamp
-        age.textContent = humanize.formatTxDate(block.time, true)
-        this.formattedAgeTarget.textContent = humanize.formatTxDate(block.time, true)
+        age.dataset.age = block.time
+        age.textContent = humanize.timeSince(block.unixStamp)
+        this.formattedAgeTarget.textContent = humanize.date(block.time, true)
         this.ageTarget.dataset.age = block.unixStamp
         this.ageTarget.textContent = humanize.timeSince(block.unixStamp)
         this.ageTarget.dataset.target = 'time.age'

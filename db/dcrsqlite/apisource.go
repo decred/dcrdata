@@ -1212,32 +1212,26 @@ func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult, params *chaincf
 
 	total := sumOutsTxRawResult(data.RawTx) + sumOutsTxRawResult(data.RawSTx)
 
+	numReg := len(data.RawTx)
+
 	block := &exptypes.BlockBasic{
 		IndexVal:       index,
 		Height:         data.Height,
 		Hash:           data.Hash,
+		Version:        data.Version,
 		Size:           data.Size,
 		Valid:          true, // we do not know this, TODO with DB v2
 		MainChain:      true,
 		Voters:         data.Voters,
-		Transactions:   len(data.RawTx),
+		Transactions:   numReg,
 		FreshStake:     data.FreshStake,
+		Revocations:    uint32(data.Revocations),
+		TxCount:        uint32(data.FreshStake+data.Revocations) + uint32(numReg) + uint32(data.Voters),
 		BlockTime:      exptypes.NewTimeDefFromUNIX(data.Time),
 		FormattedBytes: humanize.Bytes(uint64(data.Size)),
 		Total:          total,
 	}
 
-	// Count the number of revocations
-	for i := range data.RawSTx {
-		msgTx, err := txhelpers.MsgTxFromHex(data.RawSTx[i].Hex)
-		if err != nil {
-			log.Errorf("Unknown transaction %s", data.RawSTx[i].Txid)
-			continue
-		}
-		if stake.IsSSRtx(msgTx) {
-			block.Revocations++
-		}
-	}
 	return block
 }
 
@@ -1351,7 +1345,6 @@ func (db *WiredDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 	// Explorer Block Info
 	block := &exptypes.BlockInfo{
 		BlockBasic:            b,
-		Version:               data.Version,
 		Confirmations:         data.Confirmations,
 		StakeRoot:             data.StakeRoot,
 		MerkleRoot:            data.MerkleRoot,
@@ -1367,7 +1360,6 @@ func (db *WiredDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 		PreviousHash:          data.PreviousHash,
 		NextHash:              data.NextHash,
 		StakeValidationHeight: db.params.StakeValidationHeight,
-		AllTxs:                (uint32(b.Voters) + uint32(b.Transactions) + uint32(b.FreshStake)),
 		Subsidy:               db.BlockSubsidy(b.Height, b.Voters),
 	}
 

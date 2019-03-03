@@ -477,6 +477,12 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 		return
 	}
 
+	// If the view is "years" and the top row is this year, modify the formatted
+	// time string to indicate its a partial result.
+	if val == "Years" && len(data) > 0 && data[0].EndTime.T.Year() == time.Now().Year() {
+		data[0].FormattedStartTime = fmt.Sprintf("%s so far", time.Now().Format("2006"))
+	}
+
 	str, err := exp.templates.execTemplateToString("timelisting", struct {
 		*CommonPageData
 		Data         []*dbtypes.BlocksGroupedInfo

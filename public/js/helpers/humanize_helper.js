@@ -156,11 +156,10 @@ var humanize = {
     }
     return Math.floor(seconds) + 's'
   },
-  formatTxDate: function (stamp, withTimezone) {
+  date: function (stamp, withTimezone) {
     var d = new Date(stamp)
-    var zone = withTimezone ? '(' + d.toLocaleTimeString('en-us', { timeZoneName: 'short' }).split(' ')[2] + ') ' : ''
-    return zone + String(d.getFullYear()) + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + ' ' +
-          String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0')
+    return `${String(d.getUTCFullYear())}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')} ` +
+          `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}:${String(d.getUTCSeconds()).padStart(2, '0')} (UTC)`
   },
   hashElide: function (hash, link, asNode) {
     var div = document.createElement(link ? 'a' : 'div')

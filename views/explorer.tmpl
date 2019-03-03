@@ -6,7 +6,7 @@
 <body class="{{ theme }}">
     {{template "navbar" . }}
     <div class="container main" data-controller="time pagenavigation blocklist">
-        <h4>Blocks</h4>
+        <span class="h4">Blocks</span>
         {{$pendingBlocks := 0}}
         {{if gt (len $.Data) 0}}{{$pendingBlocks = ((index .Data 0).Height)}}{{end}}
 
@@ -39,10 +39,10 @@
                     {{if eq $blocksCount 20 30 50 100 .WindowSize}}{{else}}<option selected value="{{$blocksCount}}">{{$blocksCount}}</option>{{end}}
                     </select>
                 </span>
-                <span class="fs12 nowrap text-right">
+                <span class="fs12 nowrap text-right px-2">
                     {{intComma (add $Offset 1)}} &ndash; {{intComma (add $Offset .Rows)}} of {{intComma (add .BestBlock 1) }} rows
                 </span>
-                <nav aria-label="blocks navigation" data-limit="{{.Rows}}" class="ml-2">
+                <nav aria-label="blocks navigation" data-limit="{{.Rows}}" class="m-2">
                     <ul class="pagination mb-0 pagination-sm">
                          <li class="page-item {{if ge $topBlock .BestBlock}}disabled{{end}}">
                             <a
@@ -82,38 +82,52 @@
         {{end}}
 
         <div class="row">
-            <div class="col-lg-24">
-                <table class="table striped table-responsive-sm">
+            <div class="col-lg-24 mt-2 v2-tables">
+                <table class="table striped">
                     <thead>
                         <tr>
-                            <th><span class="nowrap">Ticket Price</span> <span class="nowrap">Window #<span></th>
                             <th>Height</th>
-                            <th>
-                                <span class="d-none d-md-inline">Transactions</span>
-                                <span class="d-md-none">Txn</span>
+                            <th class="text-right d-none d-sm-table-cell">
+                                <span class="d-none d-md-inline">Regular</span>
+                                <span class="d-md-none position-relative" data-tooltip="regular transactions">R</span>
                             </th>
-                            <th>Vote<span class="d-none d-md-inline">s</span></th>
-                            <th>Ticket<span class="d-none d-md-inline">s</span></th>
-                            <th>
-                                <span>Revokes</span>
+                            <th class="text-right d-none d-sm-table-cell">
+                                <span class="d-none d-md-inline">Votes</span>
+                                <span class="d-md-none position-relative" data-tooltip="votes">V</span>
                             </th>
-                            <th>Size</th>
-                            <th class="jsonly" >Age</th>
-                            <th>Time</th>
+                            <th class="text-right d-none d-sm-table-cell">
+                                <span class="d-none d-md-inline">Tickets</span>
+                                <span class="d-md-none position-relative" data-tooltip="tickets">T</span>
+                            </th>
+                            <th class="text-right d-none d-sm-table-cell">
+                                <span class="d-none d-md-inline">Revocations</span>
+                                <span class="d-md-none position-relative" data-tooltip="revocations">X</span>
+                            </th>
+                            <th class="text-right d-table-cell d-sm-none">Txns</th>
+                            <th class="text-right">DCR</th>
+                            <th class="text-right">Size</th>
+                            <th class="text-right">
+                                <span class="d-none d-md-inline">Version</span>
+                                <span class="d-md-none position-relative" data-tooltip="block version">Ver</span>
+                            </th>
+                            <th class="text-right" class="jsonly" >Age</th>
+                            <th class="text-right">Time</th>
                         </tr>
                     </thead>
                     <tbody data-target="blocklist.table">
                     {{range .Data}}
                         <tr data-height="{{ .Height }}" data-link-class="fs16">
-                            <td data-type="windowIndex">{{.IndexVal}}</td>
                             <td data-type="height"><a href="/block/{{.Height}}" class="fs16">{{if not .Valid}}<span class="attention">&#9888;</span>{{end}}{{ .Height }}</a></td>
-                            <td data-type="tx" {{if not .Valid}}class="grayed" title="Regular transactions invalidated by stakeholders."{{end}}>{{.Transactions}}</td>
-                            <td data-type="votes">{{.Voters}}</td>
-                            <td data-type="tickets">{{.FreshStake}}</td>
-                            <td data-type="revocations">{{.Revocations}}</td>
-                            <td data-type="size">{{.FormattedBytes}}</td>
-                            <td data-type="age" class="jsonly" data-target="time.age" data-age="{{.BlockTime.UNIX}}"></td>
-                            <td data-type="time">{{.BlockTime}}</td>
+                            <td class="text-right d-none d-sm-table-cell" data-type="tx" {{if not .Valid}}class="grayed" title="Regular transactions invalidated by stakeholders."{{end}}>{{.Transactions}}</td>
+                            <td class="text-right d-none d-sm-table-cell" data-type="votes">{{.Voters}}</td>
+                            <td class="text-right d-none d-sm-table-cell" data-type="tickets">{{.FreshStake}}</td>
+                            <td class="text-right d-none d-sm-table-cell" data-type="revocations">{{.Revocations}}</td>
+                            <td class="text-right d-table-cell d-sm-none" data-type="tx_count">{{.TxCount}}</td>
+                            <td class="text-right" data-type="value">{{threeSigFigs .Total}}</td>
+                            <td class="text-right" data-type="size">{{.FormattedBytes}}</td>
+                            <td class="text-right" data-type="version">{{.Version}}</td>
+                            <td class="text-right" data-type="age" class="jsonly" data-target="time.age" data-age="{{.BlockTime.UNIX}}"></td>
+                            <td class="text-right pr-1" data-type="time">{{.BlockTime}}</td>
                         </tr>
                     {{end}}
                     </tbody>

@@ -270,6 +270,7 @@ var msgNewBlock312592 = &pstypes.WebSocketMessage{
 		"block": {
 			"height": 312592,
 			"hash": "0000000000000000027e6f3738ab0aa01ffb9972b573bb445f4a62f28e02d92a",
+			"version": 6,
 			"size": 5560,
 			"valid": true,
 			"mainchain": true,
@@ -278,9 +279,9 @@ var msgNewBlock312592 = &pstypes.WebSocketMessage{
 			"windowIndex": 2171,
 			"tickets": 4,
 			"revocations": 0,
+			"tx_count": 14,
 			"time": "2019-01-24T14:43:21Z",
 			"formatted_bytes": "5.6 kB",
-			"Version": 5,
 			"Confirmations": 1,
 			"StakeRoot": "cab467f611badd5bd732c528b8a78989c24edc892d6d677a516a6d70f8427298",
 			"MerkleRoot": "c0bf56d9c5e4a0bbf6e803e74e2c2c8a5fe9a8889aaf6fde9b1b95380864dad1",
@@ -629,7 +630,6 @@ var msgNewBlock312592 = &pstypes.WebSocketMessage{
 			"TotalSent": 26040.99921614,
 			"MiningFee": 0.00283752,
 			"StakeValidationHeight": 4096,
-			"AllTxs": 14,
 			"Subsidy": {
 				"developer": 189682735,
 				"pos": 569048205,
