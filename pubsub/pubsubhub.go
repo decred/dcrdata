@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -44,11 +43,6 @@ type wsDataSource interface {
 	GetMempool() []exptypes.MempoolTx
 	BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
 	RetreiveDifficulty(timestamp int64) float64
-}
-
-// wsDataSourceAux defines the interface for collecting auxiliary/optional data.
-type wsDataSourceAux interface {
-	TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) (*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, int64, error)
 }
 
 // State represents the current state of block chain.
@@ -87,9 +81,7 @@ type connection struct {
 // PubSubHub manages the collection and distribution of block chain and mempool
 // data to WebSocket clients.
 type PubSubHub struct {
-	liteMode   bool
 	sourceBase wsDataSource
-	sourceAux  wsDataSourceAux
 	wsHub      *WebsocketHub
 	state      *State
 	mempool    Mempool
@@ -100,21 +92,13 @@ type PubSubHub struct {
 // source. The primary data source is required, while the aux. source may be
 // nil, which indicates a "lite" mode of operation. The WebSocketHub is
 // automatically started.
-func NewPubSubHub(dataSource wsDataSource, auxDataSource wsDataSourceAux) *PubSubHub {
+func NewPubSubHub(dataSource wsDataSource) (*PubSubHub, error) {
 	psh := new(PubSubHub)
 	psh.sourceBase = dataSource
-	psh.sourceAux = auxDataSource
 
 	// Allocate Mempool fields.
 	psh.mempool.Inv = new(exptypes.MempoolInfo)
 	psh.mempool.StakeData = new(mempool.StakeData)
-
-	// wsDataSource is an interface that could have a value of pointer type, and
-	// if either is nil this means lite mode.
-	if psh.sourceAux == nil || reflect.ValueOf(psh.sourceAux).IsNil() {
-		log.Debugf("Auxiliary data source not available. Operating in lite mode.")
-		psh.liteMode = true
-	}
 
 	// Retrieve chain parameters.
 	params := psh.sourceBase.GetChainParams()
@@ -123,7 +107,7 @@ func NewPubSubHub(dataSource wsDataSource, auxDataSource wsDataSourceAux) *PubSu
 	// Development subsidy address of the current network
 	devSubsidyAddress, err := dbtypes.DevSubsidyAddress(params)
 	if err != nil {
-		log.Warnf("NewPubSubHub: bad project fund address (%v)", err)
+		return nil, fmt.Errorf("bad project fund address: %v", err)
 	}
 
 	psh.state = &State{
@@ -146,7 +130,7 @@ func NewPubSubHub(dataSource wsDataSource, auxDataSource wsDataSourceAux) *PubSu
 	psh.wsHub = NewWebsocketHub()
 	go psh.wsHub.Run()
 
-	return psh
+	return psh, nil
 }
 
 // StopWebsocketHub stops the websocket hub.
