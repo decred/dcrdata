@@ -122,7 +122,7 @@
                             <td class="text-right d-none d-sm-table-cell">{{intComma .Voters}}</td>
                             <td class="text-right d-none d-sm-table-cell">{{intComma .FreshStake}}</td>
                             <td class="text-right d-none d-sm-table-cell">{{intComma .Revocations}}</td>
-                            <td class="text-right d-table-cell d-sm-none" data-type="tx_count">{{intComma .TxCount}}</td>
+                            <td class="text-right d-table-cell d-sm-none">{{intComma .TxCount}}</td>
                             <td class="text-right">{{intComma .BlocksCount}}</td>
                             <td class="text-right">{{.FormattedSize}}</td>
                             <td id="{{toLowerCase $.TimeGrouping}}" class="text-right" data-target="time.age" data-age="{{.StartTime.UNIX}}"></td>

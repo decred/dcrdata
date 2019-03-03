@@ -129,7 +129,7 @@
                             <td class="text-right d-none d-sm-table-cell">{{intComma .Voters}}</td>
                             <td class="text-right d-none d-sm-table-cell">{{intComma .FreshStake}}</td>
                             <td class="text-right d-none d-sm-table-cell">{{intComma .Revocations}}</td>
-                            <td class="text-right d-table-cell d-sm-none" data-type="tx_count">{{intComma .TxCount}}</td>
+                            <td class="text-right d-table-cell d-sm-none">{{intComma .TxCount}}</td>
                             <td>{{.FormattedSize}}</td>
                             <td class="text-right d-none d-sm-table-cell">{{template "decimalParts" (float64AsDecimalParts .Difficulty 0 true)}}</td>
                             <td class="text-right">{{printf "%.2f" (toFloat64Amount .TicketPrice)}}</td>
