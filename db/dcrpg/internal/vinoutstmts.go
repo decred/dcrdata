@@ -286,7 +286,7 @@ func MakeVoutInsertStatement(checked, updateOnConflict bool) string {
 }
 
 func makeARRAYOfVouts(vouts []*dbtypes.Vout) string {
-	var rowSubStmts []string
+	rowSubStmts := make([]string, 0, len(vouts))
 	for i := range vouts {
 		hexPkScript := hex.EncodeToString(vouts[i].ScriptPubKey)
 		rowSubStmts = append(rowSubStmts,

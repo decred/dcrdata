@@ -2600,8 +2600,8 @@ func (pgb *ChainDB) PkScriptByVoutID(id uint64) (pkScript []byte, ver uint16, er
 func (pgb *ChainDB) VinsForTx(dbTx *dbtypes.Tx) ([]dbtypes.VinTxProperty, []string, []uint16, error) {
 	// Retrieve the pkScript and script version for the previous outpoint of
 	// each vin.
-	var prevPkScripts []string
-	var versions []uint16
+	prevPkScripts := make([]string, 0, len(dbTx.VinDbIds))
+	versions := make([]uint16, 0, len(dbTx.VinDbIds))
 	for _, id := range dbTx.VinDbIds {
 		pkScript, ver, err := pgb.PkScriptByVinID(id)
 		if err != nil {

@@ -60,7 +60,7 @@ func IsDcrExchange(token string) bool {
 
 // Tokens is a new slice of available exchange tokens.
 func Tokens() []string {
-	var tokens []string
+	tokens := make([]string, 0, len(BtcIndices)+len(DcrExchanges))
 	var token string
 	for token = range BtcIndices {
 		tokens = append(tokens, token)
