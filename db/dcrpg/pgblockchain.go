@@ -1667,31 +1667,39 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 	}
 	log.Tracef("Address balance cache MISS for %s.", address)
 
-	// You've got all txs when the total number of fetched txs is less than the
-	// limit, txtype is AddrTxnAll, and Offset is zero.
+	// Short cut: we have all txs when the total number of fetched txs is less
+	// than the limit, txtype is AddrTxnAll, and Offset is zero.
 	if len(addressRows) < int(N) && offset == 0 && txnView == dbtypes.AddrTxnAll {
 		log.Debugf("Taking balance shortcut since address rows includes all.")
-		addrInfo := dbtypes.ReduceAddressHistory(addressRows)
-		if addrInfo == nil {
-			return addressRows, nil,
-				fmt.Errorf("ReduceAddressHistory failed. len(addressRows) = %d",
-					len(addressRows))
-		}
+		// Zero balances and txn counts when rows is zero length.
+		if len(addressRows) == 0 {
+			balance = &dbtypes.AddressBalance{
+				Address: address,
+			}
+		} else {
+			addrInfo := dbtypes.ReduceAddressHistory(addressRows)
+			if addrInfo == nil {
+				return addressRows, nil,
+					fmt.Errorf("ReduceAddressHistory failed. len(addressRows) = %d",
+						len(addressRows))
+			}
 
-		balance = &dbtypes.AddressBalance{
-			Address:      address,
-			NumSpent:     addrInfo.NumSpendingTxns,
-			NumUnspent:   addrInfo.NumFundingTxns - addrInfo.NumSpendingTxns,
-			TotalSpent:   int64(addrInfo.AmountSent),
-			TotalUnspent: int64(addrInfo.AmountUnspent),
-		}
+			balance = &dbtypes.AddressBalance{
+				Address:      address,
+				NumSpent:     addrInfo.NumSpendingTxns,
+				NumUnspent:   addrInfo.NumFundingTxns - addrInfo.NumSpendingTxns,
+				TotalSpent:   int64(addrInfo.AmountSent),
+				TotalUnspent: int64(addrInfo.AmountUnspent),
+			}
 
-		// Update balance cache.
-		blockID := cache.NewBlockID(hash, height)
-		pgb.AddressCache.StoreBalance(address, balance, blockID)
+			// Update balance cache.
+			blockID := cache.NewBlockID(hash, height)
+			pgb.AddressCache.StoreBalance(address, balance, blockID)
+		}
 	} else {
-		// AddressSpentUnspent updates the balance cache.
+		// Count spent/unspent amounts and transactions.
 		log.Debugf("Obtaining balance via DB query.")
+		// AddressSpentUnspent updates the balance cache.
 		numSpent, numUnspent, amtSpent, amtUnspent, err :=
 			pgb.AddressSpentUnspent(address)
 		if err != nil {
