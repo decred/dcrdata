@@ -1434,10 +1434,10 @@ func retrieveRCIWindowStartHeight(ctx context.Context, db *sql.DB,
 
 // RetrieveAllAddressTxns retrieves all rows of the address table pertaining to
 // the given address.
-func RetrieveAllAddressTxns(ctx context.Context, db *sql.DB, address string) ([]uint64, []*dbtypes.AddressRow, error) {
+func RetrieveAllAddressTxns(ctx context.Context, db *sql.DB, address string) ([]*dbtypes.AddressRow, error) {
 	rows, err := db.QueryContext(ctx, internal.SelectAddressAllByAddress, address)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer closeRows(rows)
 
@@ -1446,10 +1446,10 @@ func RetrieveAllAddressTxns(ctx context.Context, db *sql.DB, address string) ([]
 
 // RetrieveAllMainchainAddressTxns retrieves all non-merged and valid_mainchain
 // rows of the address table pertaining to the given address.
-func RetrieveAllMainchainAddressTxns(ctx context.Context, db *sql.DB, address string) ([]uint64, []*dbtypes.AddressRow, error) {
+func RetrieveAllMainchainAddressTxns(ctx context.Context, db *sql.DB, address string) ([]*dbtypes.AddressRow, error) {
 	rows, err := db.QueryContext(ctx, internal.SelectAddressAllMainchainByAddress, address)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer closeRows(rows)
 
@@ -1471,34 +1471,34 @@ func RetrieveAllMainchainAddressMergedTxns(ctx context.Context, db *sql.DB, addr
 
 // Regular (non-merged) address transactions queries.
 
-func RetrieveAddressTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
+func RetrieveAddressTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]*dbtypes.AddressRow, error) {
 	return retrieveAddressTxns(ctx, db, address, N, offset,
 		internal.SelectAddressLimitNByAddress, creditDebitQuery)
 }
 
-func RetrieveAddressDebitTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
+func RetrieveAddressDebitTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]*dbtypes.AddressRow, error) {
 	return retrieveAddressTxns(ctx, db, address, N, offset,
 		internal.SelectAddressDebitsLimitNByAddress, creditQuery)
 }
 
-func RetrieveAddressCreditTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
+func RetrieveAddressCreditTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]*dbtypes.AddressRow, error) {
 	return retrieveAddressTxns(ctx, db, address, N, offset,
 		internal.SelectAddressCreditsLimitNByAddress, debitQuery)
 }
 
 // Merged address transactions queries.
 
-func RetrieveAddressMergedDebitTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
+func RetrieveAddressMergedDebitTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]*dbtypes.AddressRow, error) {
 	return retrieveAddressTxns(ctx, db, address, N, offset,
 		internal.SelectAddressMergedDebitView, mergedDebitQuery)
 }
 
-func RetrieveAddressMergedCreditTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
+func RetrieveAddressMergedCreditTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]*dbtypes.AddressRow, error) {
 	return retrieveAddressTxns(ctx, db, address, N, offset,
 		internal.SelectAddressMergedCreditView, mergedCreditQuery)
 }
 
-func RetrieveAddressMergedTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
+func RetrieveAddressMergedTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]*dbtypes.AddressRow, error) {
 	return retrieveAddressTxns(ctx, db, address, N, offset,
 		internal.SelectAddressMergedView, mergedQuery)
 }
@@ -1506,17 +1506,17 @@ func RetrieveAddressMergedTxns(ctx context.Context, db *sql.DB, address string, 
 // Address transaction query helpers.
 
 func retrieveAddressTxns(ctx context.Context, db *sql.DB, address string, N, offset int64,
-	statement string, queryType int) ([]uint64, []*dbtypes.AddressRow, error) {
+	statement string, queryType int) ([]*dbtypes.AddressRow, error) {
 	rows, err := db.QueryContext(ctx, statement, address, N, offset)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer closeRows(rows)
 
 	switch queryType {
 	case mergedCreditQuery, mergedDebitQuery, mergedQuery:
 		addr, err := scanAddressMergedRows(rows, address, queryType)
-		return nil, addr, err
+		return addr, err
 	default:
 		return scanAddressQueryRows(rows, queryType)
 	}
@@ -1609,7 +1609,7 @@ func scanAddressMergedRows(rows *sql.Rows, addr string, queryType int) (addressR
 	return
 }
 
-func scanAddressQueryRows(rows *sql.Rows, queryType int) (ids []uint64, addressRows []*dbtypes.AddressRow, err error) {
+func scanAddressQueryRows(rows *sql.Rows, queryType int) (addressRows []*dbtypes.AddressRow, err error) {
 	for rows.Next() {
 		var id uint64
 		var addr dbtypes.AddressRow
@@ -1649,7 +1649,6 @@ func scanAddressQueryRows(rows *sql.Rows, queryType int) (ids []uint64, addressR
 			addr.VinVoutDbID = uint64(vinDbID.Int64)
 		}
 
-		ids = append(ids, id)
 		addressRows = append(addressRows, &addr)
 	}
 	return

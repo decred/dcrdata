@@ -1107,7 +1107,7 @@ func (pgb *ChainDB) AddressMetrics(addr string) (*dbtypes.AddressMetrics, error)
 // txnType transactions.
 func (pgb *ChainDB) AddressTransactions(address string, N, offset int64,
 	txnType dbtypes.AddrTxnViewType) (addressRows []*dbtypes.AddressRow, err error) {
-	var addrFunc func(context.Context, *sql.DB, string, int64, int64) ([]uint64, []*dbtypes.AddressRow, error)
+	var addrFunc func(context.Context, *sql.DB, string, int64, int64) ([]*dbtypes.AddressRow, error)
 	switch txnType {
 	case dbtypes.AddrTxnCredit:
 		addrFunc = RetrieveAddressCreditTxns
@@ -1128,7 +1128,7 @@ func (pgb *ChainDB) AddressTransactions(address string, N, offset int64,
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 
-	_, addressRows, err = addrFunc(ctx, pgb.db, address, N, offset)
+	addressRows, err = addrFunc(ctx, pgb.db, address, N, offset)
 	err = pgb.replaceCancelError(err)
 	return
 }
@@ -1139,7 +1139,7 @@ func (pgb *ChainDB) AddressTransactionsAll(address string) (addressRows []*dbtyp
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 
-	_, addressRows, err = RetrieveAllMainchainAddressTxns(ctx, pgb.db, address)
+	addressRows, err = RetrieveAllMainchainAddressTxns(ctx, pgb.db, address)
 	err = pgb.replaceCancelError(err)
 	return
 }
