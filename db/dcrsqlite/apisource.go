@@ -120,8 +120,8 @@ func (db *WiredDB) DisableCache() {
 }
 
 func (db *WiredDB) NewStakeDBChainMonitor(ctx context.Context, wg *sync.WaitGroup,
-	blockChan chan *chainhash.Hash, reorgChan chan *txhelpers.ReorgData) *stakedb.ChainMonitor {
-	return db.sDB.NewChainMonitor(ctx, wg, blockChan, reorgChan)
+	reorgChan chan *txhelpers.ReorgData) *stakedb.ChainMonitor {
+	return db.sDB.NewChainMonitor(ctx, wg, reorgChan)
 }
 
 func (db *WiredDB) ChargePoolInfoCache(startHeight int64) error {

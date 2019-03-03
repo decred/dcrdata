@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
@@ -17,49 +16,46 @@ import (
 
 // ChainMonitor connects blocks to the stake DB as they come in.
 type ChainMonitor struct {
-	mtx            sync.Mutex // coordinate reorg handling
-	ctx            context.Context
-	db             *StakeDatabase
-	wg             *sync.WaitGroup
-	blockChan      chan *chainhash.Hash
-	reorgChan      chan *txhelpers.ReorgData
-	syncConnect    sync.Mutex
-	ConnectingLock chan struct{}
-	DoneConnecting chan struct{}
+	mtx       sync.Mutex // coordinate reorg handling
+	ctx       context.Context
+	db        *StakeDatabase
+	wg        *sync.WaitGroup
+	blockChan chan *chainhash.Hash
+	reorgChan chan *txhelpers.ReorgData
 }
 
 // NewChainMonitor creates a new ChainMonitor
 func (db *StakeDatabase) NewChainMonitor(ctx context.Context, wg *sync.WaitGroup,
-	blockChan chan *chainhash.Hash, reorgChan chan *txhelpers.ReorgData) *ChainMonitor {
+	reorgChan chan *txhelpers.ReorgData) *ChainMonitor {
 	return &ChainMonitor{
-		ctx:            ctx,
-		db:             db,
-		wg:             wg,
-		blockChan:      blockChan,
-		reorgChan:      reorgChan,
-		ConnectingLock: make(chan struct{}, 1),
-		DoneConnecting: make(chan struct{}),
+		ctx:       ctx,
+		db:        db,
+		wg:        wg,
+		reorgChan: reorgChan,
 	}
 }
 
-// BlockConnectedSync is the synchronous (blocking call) handler for the newly
-// connected block given by the hash.
-func (p *ChainMonitor) BlockConnectedSync(hash *chainhash.Hash) (err error) {
-	// Connections go one at a time so signals cannot be mixed
-	p.syncConnect.Lock()
-	defer p.syncConnect.Unlock()
-	// lock with buffered channel, accepting handoff in BlockConnectedHandler
-	p.ConnectingLock <- struct{}{}
-	t := time.NewTimer(10 * time.Second)
-	select {
-	case <-t.C:
-		err = fmt.Errorf("block send timeout")
-	case p.blockChan <- hash:
-		// wait
-		<-p.DoneConnecting
+// ConnectBlock is a sychronous version of BlockConnectedHandler that collects
+// and stores data for a block specified by the given hash.
+func (p *ChainMonitor) ConnectBlock(hash *chainhash.Hash) (err error) {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+
+	// Extend main chain
+	block, err := p.db.ConnectBlockHash(hash)
+	if err != nil {
+		return err
 	}
 
-	return
+	log.Infof("Connected block %d to stake DB.", block.Height())
+	return nil
+}
+
+// SetNewBlockChan specifies the new-block channel to be used by
+// BlockConnectedHandler. Note that BlockConnectedHandler is not required if
+// using a direct call to ConnectBlock.
+func (p *ChainMonitor) SetNewBlockChan(blockChan chan *chainhash.Hash) {
+	p.blockChan = blockChan
 }
 
 // BlockConnectedHandler handles block connected notifications, which trigger
@@ -71,43 +67,27 @@ out:
 	keepon:
 		select {
 		case hash, ok := <-p.blockChan:
-			p.mtx.Lock()
-			release := func() { p.mtx.Unlock() }
-			select {
-			case <-p.ConnectingLock:
-				// send on unbuffered channel
-				release = func() { p.mtx.Unlock(); p.DoneConnecting <- struct{}{} }
-			default:
-			}
-
 			if !ok {
 				log.Warnf("Block connected channel closed.")
-				release()
 				break out
 			}
 
-			// Extend main chain
+			// Extend main chain.
+			p.mtx.Lock()
 			block, err := p.db.ConnectBlockHash(hash)
+			p.mtx.Unlock()
 			if err != nil {
-				release()
 				log.Error(err)
 				break keepon
 			}
 
 			log.Infof("Connected block %d to stake DB.", block.Height())
 
-			release()
-
 		case <-p.ctx.Done():
 			log.Debugf("Got quit signal. Exiting block connected handler.")
 			break out
 		}
 	}
-
-	// Drain the block connected channel.
-	// for range <-p.blockChan {
-	// }
-
 }
 
 // switchToSideChain attempts to switch to a new side chain by: determining a
