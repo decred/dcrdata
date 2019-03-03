@@ -319,8 +319,8 @@ func (d *AddressCacheItem) Transactions(N, offset int, txnView dbtypes.AddrTxnVi
 
 	// Cache hit, not nil.
 	rows := []*dbtypes.AddressRow{}
-	if N == 0 {
-		// Not a cache miss, just no requested data.
+	if N == 0 || len(d.rows) == 0 {
+		// Not a cache miss, just no requested or existing data.
 		return rows, d.blockID(), nil
 	}
 
@@ -574,6 +574,10 @@ func (ac *AddressCache) StoreRows(addr string, rows []*dbtypes.AddressRow, block
 	defer ac.mtx.Unlock()
 	aci := ac.a[addr]
 
+	if block != nil && rows == nil {
+		rows = []*dbtypes.AddressRow{}
+	}
+
 	if aci == nil || aci.BlockHash() != block.Hash {
 		ac.addCacheItem(addr, &AddressCacheItem{
 			rows:   rows,
@@ -595,6 +599,10 @@ func (ac *AddressCache) StoreRowsMerged(addr string, rows []*dbtypes.AddressRow,
 	ac.mtx.Lock()
 	defer ac.mtx.Unlock()
 	aci := ac.a[addr]
+
+	if block != nil && rows == nil {
+		rows = []*dbtypes.AddressRow{}
+	}
 
 	if aci == nil || aci.BlockHash() != block.Hash {
 		ac.addCacheItem(addr, &AddressCacheItem{
@@ -618,6 +626,12 @@ func (ac *AddressCache) StoreBalance(addr string, balance *dbtypes.AddressBalanc
 	defer ac.mtx.Unlock()
 	aci := ac.a[addr]
 
+	if block != nil && balance == nil {
+		balance = &dbtypes.AddressBalance{
+			Address: addr,
+		}
+	}
+
 	if aci == nil || aci.BlockHash() != block.Hash {
 		ac.addCacheItem(addr, &AddressCacheItem{
 			balance: balance,
@@ -639,6 +653,10 @@ func (ac *AddressCache) StoreUTXOs(addr string, utxos []apitypes.AddressTxnOutpu
 	ac.mtx.Lock()
 	defer ac.mtx.Unlock()
 	aci := ac.a[addr]
+
+	if block != nil && utxos == nil {
+		utxos = []apitypes.AddressTxnOutput{}
+	}
 
 	if aci == nil || aci.BlockHash() != block.Hash {
 		ac.addCacheItem(addr, &AddressCacheItem{

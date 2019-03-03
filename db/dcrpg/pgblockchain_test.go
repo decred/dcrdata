@@ -14,9 +14,11 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrdata/v4/db/cache"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
 	"github.com/decred/dcrdata/v4/db/dcrpg/internal"
 )
@@ -80,6 +82,31 @@ func TestMain(m *testing.M) {
 
 	// call with result of m.Run()
 	os.Exit(retCode)
+}
+
+func TestChainDB_AddressTransactionsAll(t *testing.T) {
+	// address with no transactions.
+	address := "DsUBCQWJsW8raht1i4gXTv7xPu3ySpUxxxx"
+	rows, err := db.AddressTransactionsAll(address)
+	if err != nil {
+		t.Errorf("err should have been nil, was: %v", err)
+	}
+	if rows != nil {
+		t.Fatalf("should have been no rows, got %v", rows)
+	}
+
+	height, hash, _ := db.HeightHashDB()
+	h, _ := chainhash.NewHashFromStr(hash)
+	blockID := cache.NewBlockID(h, int64(height))
+	db.AddressCache.StoreRows(address, rows, blockID)
+
+	r, bid := db.AddressCache.Rows(address)
+	if bid == nil {
+		t.Errorf("BlockID should not have been nil since this is a cache hit.")
+	}
+	if r == nil || len(r) > 0 {
+		t.Errorf("rows should have been non-nil empty slice, got: %v", r)
+	}
 }
 
 func TestMissingIndexes(t *testing.T) {
