@@ -184,8 +184,8 @@
                                     <td class="text-left pl-1">{{template "hashElide" (hashlink .Hash (print "/tx/" .Hash))}}</td>
                                     <td>{{.Type}}</td>
                                     <td>{{threeSigFigs .TotalOut}}</td>
-                                    <td class="d-none d-sm-table-cell d-md-none d-lg-table-cell">{{.Size}} B</td>
-                                    <td class="text-right pr-3 jsonly" data-target="time.age" data-age="{{.Time}}"></td>
+                                    <td class="d-none d-sm-table-cell d-md-none d-lg-table-cell text-nowrap">{{.Size}} B</td>
+                                    <td class="text-right pr-3 jsonly text-nowrap" data-target="time.age" data-age="{{.Time}}"></td>
                                 </tr>
                                 {{end}}
                                 </tbody>
