@@ -612,7 +612,7 @@ func (pgb *ChainDB) VersionCheck(client *rpcclient.Client) error {
 
 	for _, val := range tableUpgrades {
 		switch val.UpgradeType {
-		case Upgrade, ReIndex:
+		case Upgrade, Reindex:
 			// Select the all tables that need an upgrade or reindex.
 			needsUpgrade = append(needsUpgrade, val)
 
@@ -628,8 +628,8 @@ func (pgb *ChainDB) VersionCheck(client *rpcclient.Client) error {
 		return nil
 	}
 
-	// AddAuxPendingDBUpgrades adds the pending db upgrades and reindexes.
-	_, err := pgb.AddAuxPendingDBUpgrades(client, needsUpgrade[0].CurrentVer,
+	// UpgradeTables adds the pending db upgrades and reindexes.
+	_, err := pgb.UpgradeTables(client, needsUpgrade[0].CurrentVer,
 		needsUpgrade[0].RequiredVer)
 	if err != nil {
 		return err

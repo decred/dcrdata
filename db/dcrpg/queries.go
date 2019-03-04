@@ -216,7 +216,7 @@ func DeleteDuplicateMisses(db *sql.DB) (int64, error) {
 	return sqlExec(db, internal.DeleteMissesDuplicateRows, execErrPrefix)
 }
 
-// DeleteDuplicateAgendas deletes rows in misses with duplicate names leaving
+// DeleteDuplicateAgendas deletes rows in agendas with duplicate names leaving
 // the one row with the lowest id.
 func DeleteDuplicateAgendas(db *sql.DB) (int64, error) {
 	if isuniq, err := IsUniqueIndex(db, "uix_agendas_name"); err != nil && err != sql.ErrNoRows {
@@ -228,8 +228,8 @@ func DeleteDuplicateAgendas(db *sql.DB) (int64, error) {
 	return sqlExec(db, internal.DeleteAgendasDuplicateRows, execErrPrefix)
 }
 
-// DeleteDuplicateAgendaVotes deletes rows in misses with duplicate votes-row-id,
-// and agendas-row-id leaving the one row with the lowest id.
+// DeleteDuplicateAgendaVotes deletes rows in agenda_votes with duplicate
+// votes-row-id and agendas-row-id leaving the one row with the lowest id.
 func DeleteDuplicateAgendaVotes(db *sql.DB) (int64, error) {
 	if isuniq, err := IsUniqueIndex(db, "uix_agenda_votes"); err != nil && err != sql.ErrNoRows {
 		return 0, err
@@ -237,7 +237,7 @@ func DeleteDuplicateAgendaVotes(db *sql.DB) (int64, error) {
 		return 0, nil
 	}
 	execErrPrefix := "failed to delete duplicate agenda_votes: "
-	return sqlExec(db, internal.DeleteAgendasDuplicateRows, execErrPrefix)
+	return sqlExec(db, internal.DeleteAgendaVotesDuplicateRows, execErrPrefix)
 }
 
 // --- stake (votes, tickets, misses) tables ---

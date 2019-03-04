@@ -81,7 +81,7 @@ type CompatibilityAction int8
 const (
 	Rebuild CompatibilityAction = iota
 	Upgrade
-	ReIndex
+	Reindex
 	OK
 	Unknown
 )
@@ -96,7 +96,7 @@ func TableVersionCompatible(required, actual TableVersion) CompatibilityAction {
 	case required.minor != actual.minor:
 		return Upgrade
 	case required.patch != actual.patch:
-		return ReIndex
+		return Reindex
 	default:
 		return OK
 	}
@@ -111,7 +111,7 @@ func (v CompatibilityAction) String() string {
 	actions := map[CompatibilityAction]string{
 		Rebuild: "rebuild",
 		Upgrade: "upgrade",
-		ReIndex: "reindex",
+		Reindex: "reindex",
 		OK:      "ok",
 	}
 	if actionStr, ok := actions[v]; ok {

@@ -78,10 +78,10 @@ var votingMilestones = map[string]dbtypes.MileStone{}
 // toVersion defines a table version to which the pg tables will commented to.
 var toVersion TableVersion
 
-// AddAuxPendingDBUpgrades upgrades all the tables with the pending updates from
-// the current table versions to the most recent table version supported. A
-// boolean is returned to indicate if the db upgrade was successfully completed.
-func (pgb *ChainDB) AddAuxPendingDBUpgrades(dcrdClient *rpcclient.Client,
+// UpgradeTables upgrades all the tables with the pending updates from the
+// current table versions to the most recent table version supported. A boolean
+// is returned to indicate if the db upgrade was successfully completed.
+func (pgb *ChainDB) UpgradeTables(dcrdClient *rpcclient.Client,
 	version, needVersion TableVersion) (bool, error) {
 	// If the previous DB is between the 3.1/3.2 and 4.0 releases (dcrpg table
 	// versions >3.5.5 and <3.9.0), an upgrade is likely not possible IF PostgreSQL
@@ -388,10 +388,19 @@ func (pgb *ChainDB) AddAuxPendingDBUpgrades(dcrdClient *rpcclient.Client,
 			version, needVersion)
 	}
 
+	upgradeFailed := fmt.Errorf("failed to upgrade tables to required version %v",
+		needVersion)
+
 	// Ensure the required version was reached.
 	upgradeInfo := TableUpgradesRequired(TableVersions(pgb.db))
-	if len(upgradeInfo) > 0 && upgradeInfo[0].UpgradeType != OK {
-		return false, fmt.Errorf("failed to upgrade tables to required version %v", needVersion)
+	if len(upgradeInfo) > 0 {
+		return false, upgradeFailed
+	}
+
+	for _, info := range upgradeInfo {
+		if info.UpgradeType != OK {
+			return false, upgradeFailed
+		}
 	}
 
 	// Unsupported upgrades caught by default case, so we've succeeded.
