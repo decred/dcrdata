@@ -43,7 +43,7 @@
                                 class="d-inline-block position-relative"
                                 data-tooltip="{{if eq $vote -1}}the stakeholder has voted to reject this block{{else if eq $vote 1}}the stakeholder has voted to accept this block{{else}}this vote has not been received yet{{end}}"
                                 >
-                                <span class="dcricon-{{if eq $vote 0}}reject{{else if eq $vote 1}}affirm{{else}}missing{{end}}"></span>
+                                <span class="dcricon-{{if eq $vote -1}}reject{{else if eq $vote 1}}affirm{{else}}missing{{end}}"></span>
                                 </div>
                                 {{end}}
                             </div>
