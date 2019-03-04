@@ -44,3 +44,9 @@ $regular-light: #2970FF;
 $ticket-light: #2ED6A1;
 $vote-light: #c600c0;
 $rev-light: #ED6D47;
+
+// card background colors
+// primary background color is white, so can use bootstrap bg-white, which has
+/// a darkBG override in themes.scss
+$card-bg-secondary: #f8f8f9;
+$card-bg-secondary-dark: #222326;

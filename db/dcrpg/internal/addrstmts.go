@@ -147,14 +147,17 @@ const (
 	//
 	// Since part of the grouping is on "matching_tx_hash = ''", what is
 	// logically "any" empty matching is actually no_empty_matching.
-	SelectAddressSpentUnspentCountAndValue = `SELECT COUNT(*),
+	SelectAddressSpentUnspentCountAndValue = `SELECT
+			BOOL_AND(tx_type = 0) AS is_regular,
+			COUNT(*),
 			SUM(value),
 			is_funding,
 			BOOL_AND(matching_tx_hash = '') AS all_empty_matching
 			-- NOT BOOL_AND(matching_tx_hash = '') AS no_empty_matching
 		FROM addresses
 		WHERE address = $1 AND valid_mainchain = TRUE
-		GROUP BY is_funding, matching_tx_hash=''  -- separate spent and unspent
+		GROUP BY tx_type=0, is_funding, 
+			matching_tx_hash=''  -- separate spent and unspent
 		ORDER BY count, is_funding;`
 
 	SelectAddressUnspentWithTxn = `SELECT

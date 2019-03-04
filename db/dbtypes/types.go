@@ -975,6 +975,19 @@ func (a *AddressTx) IOID(txType ...string) string {
 	return fmt.Sprintf("%s:in[%d]", a.TxID, a.InOutID)
 }
 
+// Link formats a link for the transaction, with vin/vout index if the AddressTx
+// is not merged.
+func (a *AddressTx) Link() string {
+	if a.MergedTxnCount > 0 {
+		direction := "in"
+		if a.IsFunding {
+			direction = "out"
+		}
+		return fmt.Sprintf("/tx/%s/%s/%d", a.TxID, direction, a.InOutID)
+	}
+	return fmt.Sprintf("/tx/%s", a.TxID)
+}
+
 // AddressTransactions collects the transactions for an address as AddressTx
 // slices.
 type AddressTransactions struct {
@@ -1031,11 +1044,25 @@ type AddressInfo struct {
 // AddressBalance represents the number and value of spent and unspent outputs
 // for an address.
 type AddressBalance struct {
-	Address      string `json:"address"`
-	NumSpent     int64  `json:"num_stxos"`
-	NumUnspent   int64  `json:"num_utxos"`
-	TotalSpent   int64  `json:"amount_spent"`
-	TotalUnspent int64  `json:"amount_unspent"`
+	Address      string  `json:"address"`
+	NumSpent     int64   `json:"num_stxos"`
+	NumUnspent   int64   `json:"num_utxos"`
+	TotalSpent   int64   `json:"amount_spent"`
+	TotalUnspent int64   `json:"amount_unspent"`
+	FromStake    float64 `json:"from_stake"`
+	ToStake      float64 `json:"to_stake"`
+}
+
+// HasStakeOutputs checks whether any of the Address tx outputs were
+// stake-related.
+func (balance *AddressBalance) HasStakeOutputs() bool {
+	return balance.FromStake > 0
+}
+
+// HasStakeInputs checks whether any of the Address tx inputs were
+// stake-related.
+func (balance *AddressBalance) HasStakeInputs() bool {
+	return balance.ToStake > 0
 }
 
 // ReduceAddressHistory generates a template AddressInfo from a slice of
@@ -1043,23 +1070,24 @@ type AddressBalance struct {
 // completely. Transactions is partially set, with each transaction having only
 // the TxID and ReceivedTotal set. The rest of the data should be filled in by
 // other means, such as RPC calls or database queries.
-func ReduceAddressHistory(addrHist []*AddressRow) *AddressInfo {
+func ReduceAddressHistory(addrHist []*AddressRow) (*AddressInfo, float64, float64) {
 	if len(addrHist) == 0 {
-		return nil
+		return nil, 0, 0
 	}
 
-	var received, sent int64
+	var received, sent, fromStake, toStake int64
 	var transactions, creditTxns, debitTxns []*AddressTx
 	for _, addrOut := range addrHist {
 		if !addrOut.ValidMainChain {
 			continue
 		}
 		coin := dcrutil.Amount(addrOut.Value).ToCoin()
+		txType := txhelpers.TxTypeToString(int(addrOut.TxType))
 		tx := AddressTx{
 			Time:           addrOut.TxBlockTime,
 			InOutID:        addrOut.TxVinVoutIndex,
 			TxID:           addrOut.TxHash,
-			TxType:         txhelpers.TxTypeToString(int(addrOut.TxType)),
+			TxType:         txType,
 			MatchedTx:      addrOut.MatchingTxHash,
 			IsFunding:      addrOut.IsFunding,
 			MergedTxnCount: addrOut.MergedCount,
@@ -1070,17 +1098,31 @@ func ReduceAddressHistory(addrHist []*AddressRow) *AddressInfo {
 			received += int64(addrOut.Value)
 			tx.ReceivedTotal = coin
 			creditTxns = append(creditTxns, &tx)
+			if txType != "Regular" {
+				fromStake += int64(addrOut.Value)
+			}
 		} else {
 			// Spending transaction
 			sent += int64(addrOut.Value)
 			tx.SentTotal = coin
 			debitTxns = append(debitTxns, &tx)
+			if txType != "Regular" {
+				toStake += int64(addrOut.Value)
+			}
 		}
 
 		transactions = append(transactions, &tx)
 	}
 
-	return &AddressInfo{
+	var fromStakeFraction, toStakeFraction float64
+	if sent > 0 {
+		toStakeFraction = float64(toStake) / float64(sent)
+	}
+	if received > 0 {
+		fromStakeFraction = float64(fromStake) / float64(received)
+	}
+
+	ai := &AddressInfo{
 		Address:         addrHist[0].Address,
 		Transactions:    transactions,
 		TxnsFunding:     creditTxns,
@@ -1091,6 +1133,7 @@ func ReduceAddressHistory(addrHist []*AddressRow) *AddressInfo {
 		AmountSent:      dcrutil.Amount(sent),
 		AmountUnspent:   dcrutil.Amount(received - sent),
 	}
+	return ai, fromStakeFraction, toStakeFraction
 }
 
 // Post-process performs time/vin/vout sorting and block height calculations.

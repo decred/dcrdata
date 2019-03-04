@@ -11,12 +11,23 @@ a.download {
   border: 1px solid #dee2e6;
 }
 
-body.darkBG a.download {
-  background-color: #2a2a2a;
-  color: white;
-  border-color: black;
+.hash-box {
+  padding: 0.3em 0.5em;
+  background-color: #edeff1;
 }
 
-body.darkBG a.download:hover {
-  color: #94ffca;
+body.darkBG {
+  a.download {
+    background-color: #2a2a2a;
+    color: white;
+    border-color: black;
+  }
+
+  a.download:hover {
+    color: #94ffca;
+  }
+
+  .hash-box {
+    background-color: #12100e;
+  }
 }

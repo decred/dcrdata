@@ -1216,12 +1216,14 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 // AddressPage is the page handler for the "/address" path.
 func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	// AddressPageData is the data structure passed to the HTML template
+
 	type AddressPageData struct {
 		*CommonPageData
 		Data         *dbtypes.AddressInfo
 		NetName      string
 		IsLiteMode   bool
 		CRLFDownload bool
+		FiatBalance  *exchanges.Conversion
 	}
 
 	// Grab the URL query parameters
@@ -1300,6 +1302,12 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	addrData.IsDummyAddress = isZeroAddress // may be redundant
 	addrData.Path = r.URL.Path
 
+	// If exchange monitoring is active, prepare a fiat balance conversion
+	var conversion *exchanges.Conversion
+	if exp.xcBot != nil && !exp.liteMode {
+		conversion = exp.xcBot.Conversion(dcrutil.Amount(addrData.Balance.TotalUnspent).ToCoin())
+	}
+
 	// For Windows clients only, link to downloads with CRLF (\r\n) line
 	// endings.
 	UseCRLF := strings.Contains(r.UserAgent(), "Windows")
@@ -1311,6 +1319,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		IsLiteMode:     exp.liteMode,
 		NetName:        exp.NetName,
 		CRLFDownload:   UseCRLF,
+		FiatBalance:    conversion,
 	}
 	str, err := exp.templates.execTemplateToString("address", pageData)
 	if err != nil {

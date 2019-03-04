@@ -181,11 +181,7 @@
                                 <tbody class="homepage-mempool" data-target="homepage.transactions">
                                 {{range .Mempool.LatestTransactions}}
                                 <tr>
-                                    <td class="text-left pl-1">
-                                    <div class="hash-box">
-                                        <div class="hash-fill">{{template "hashElide" (hashlink .Hash (print "/tx/" .Hash))}}</div>
-                                    </div>
-                                    </td>
+                                    <td class="text-left pl-1">{{template "hashElide" (hashlink .Hash (print "/tx/" .Hash))}}</td>
                                     <td>{{.Type}}</td>
                                     <td>{{threeSigFigs .TotalOut}}</td>
                                     <td class="d-none d-sm-table-cell d-md-none d-lg-table-cell">{{.Size}} B</td>
@@ -369,7 +365,7 @@
                     <div class="row mt-1">
                         {{if .DevFund}}
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
-                            <div class="fs13 text-secondary"><a href="/address/{{.DevAddress}}?n=20&start=0&txntype=merged">Treasury</a></div>
+                            <div class="fs13 text-secondary"><a href="/address/{{.DevAddress}}?n=20&start=0&txntype=merged_debit">Treasury</a></div>
                             <div class="mono lh1rem fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
                                 <span data-target="homepage.devFund">
                                     {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .DevFund) 0 true)}}

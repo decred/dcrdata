@@ -1245,9 +1245,12 @@ func retrieveAddressTxsCount(ctx context.Context, db *sql.DB, address, interval 
 // RetrieveAddressSpentUnspent gets the numbers of spent and unspent outpoints
 // for the given address, the total amounts spent and unspent, and the the
 // number of distinct spending transactions.
-func RetrieveAddressSpentUnspent(ctx context.Context, db *sql.DB, address string) (numSpent, numUnspent,
-	amtSpent, amtUnspent int64, err error) {
+func RetrieveAddressSpentUnspent(ctx context.Context, db *sql.DB, address string) (balance *dbtypes.AddressBalance, err error) {
 	// The sql.Tx does not have a timeout, as the individial queries will.
+	balance = new(dbtypes.AddressBalance)
+	balance.Address = address
+	var fromStake, toStake int64
+
 	var dbtx *sql.Tx
 	dbtx, err = db.BeginTx(context.Background(), &sql.TxOptions{
 		Isolation: sql.LevelDefault,
@@ -1276,16 +1279,16 @@ func RetrieveAddressSpentUnspent(ctx context.Context, db *sql.DB, address string
 
 	for rows.Next() {
 		var count, totalValue int64
-		var noMatchingTx, isFunding bool
-		err = rows.Scan(&count, &totalValue, &isFunding, &noMatchingTx)
+		var noMatchingTx, isFunding, isRegular bool
+		err = rows.Scan(&isRegular, &count, &totalValue, &isFunding, &noMatchingTx)
 		if err != nil {
 			break
 		}
 
 		// Unspent == funding with no matching transaction
 		if isFunding && noMatchingTx {
-			numUnspent = count
-			amtUnspent = totalValue
+			balance.NumUnspent += count
+			balance.TotalUnspent += totalValue
 		}
 		// Spent == spending (but ensure a matching transaction is set)
 		if !isFunding {
@@ -1294,9 +1297,22 @@ func RetrieveAddressSpentUnspent(ctx context.Context, db *sql.DB, address string
 					" unset for %s!", address)
 				continue
 			}
-			numSpent = count
-			amtSpent = totalValue
+			balance.NumSpent += count
+			balance.TotalSpent += totalValue
+			if !isRegular {
+				toStake += totalValue
+			}
+		} else if !isRegular {
+			fromStake += totalValue
 		}
+	}
+
+	totalTransfer := balance.TotalSpent + balance.TotalUnspent
+	if totalTransfer > 0 {
+		balance.FromStake = float64(fromStake) / float64(totalTransfer)
+	}
+	if balance.TotalSpent > 0 {
+		balance.ToStake = float64(toStake) / float64(balance.TotalSpent)
 	}
 	closeRows(rows)
 

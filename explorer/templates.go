@@ -280,6 +280,9 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"percentage": func(a, b int64) float64 {
 			return (float64(a) / float64(b)) * 100
 		},
+		"x100": func(v float64) float64 {
+			return v * 100
+		},
 		"int64": toInt64,
 		"intComma": func(v interface{}) string {
 			return humanize.Comma(toInt64(v))

@@ -205,70 +205,62 @@
   {{$txType := .TxnType}}
   {{$isMerged := .IsMerged}}
   {{if .Transactions}}
-  <table class="table table-mono-cells table-sm striped" style="width: 100%;">
+  <table class="table table-mono-cells table-responsive-sm">
       <thead>
-          <th>Tx Type</th>
-          <th>Input/Output ID</th>
+          <th class="d-none d-sm-table-cell">Tx Type</th>
+          <th class="text-left">Input/&#8203;Output ID</th>
           {{if eq $txType "merged_debit"}}
-              <th># of Input(s)</th>
-              <th class="text-center">Debit DCR</th>
+              <th class="text-right"><span class="d-sm-none position-relative" data-tooltip="merged input count">Cnt</span
+                ><span class="d-none d-sm-inline">Inputs</span>
+              </th>
+              <th class="text-right">Debit DCR</th>
           {{else if eq $txType "merged_credit" }}
-              <th># of Outputs(s)</th>
-              <th class="text-center">Credit DCR</th>
+              <th class="text-right"><span class="d-sm-none position-relative" data-tooltip="merged output count">Cnt</span
+                ><span class="d-none d-sm-inline">Outputs</span>
+              </th>
+              <th class="text-right">Credit DCR</th>
           {{else if eq $txType "merged" }}
-              <th title="Count of address's inputs and outputs in the transaction.">I/O&nbsp;Count</th>
-              <th class="text-center">Credit DCR</th>
-              <th class="text-center">Debit DCR</th>
+              <th title="Count of address's inputs and outputs in the transaction." class="text-right"><span class="d-none d-sm-inline-block">I/O Count</span><span class="d-sm-none position-relative" data-tooltip="# of inputs and outputs">#</span></th>
+              <th class="text-right">Credit DCR</th>
+              <th class="text-right">Debit DCR</th>
           {{else}}
               <th class="text-right">Credit DCR</th>
-              <th>Debit DCR</th>
+              <th class="text-right">Debit DCR</th>
           {{end}}
-          <th>Time</th>
-          <th>Age</th>
-          <th>Confirms</th>
-          <th>Size</th>
+          <th class="d-none d-sm-table-cell text-right">Time</th>
+          <th class="text-right">Age</th>
+          <th class="text-right"><span class="d-sm-none position-relative" data-tooltip="Confirmations">Cons</span><span class="d-none d-sm-inline">Confirms</span></th>
+          <th class="d-none d-sm-table-cell text-right">Size</th>
       </thead>
       <tbody>
           {{range $i, $v := .Transactions}}
           <tr {{if eq .Confirmations 0}} data-target="address.pending" data-txid="{{.TxID}}" {{end}}>
               {{with $v}}
-              <td>{{.TxType}}</td>
-              {{if $isMerged}}
-                <td><a href="/tx/{{.TxID}}"
-                  data-target="address.hash"
-                  class="hash"
-                  data-keynav-priority
-                  >{{.TxID}}</a>
-              {{else}}
-                <td><a href="/tx/{{.TxID}}/{{if .IsFunding}}out{{else}}in{{end}}/{{.InOutID}}"
-                  data-target="address.hash"
-                  class="hash"
-                  data-keynav-priority
-                  >{{.IOID $txType}}</a>
-              {{end}}
+              <td class="d-none d-sm-table-cell">{{.TxType}}</td>
+              <td>{{template "hashElide" (hashlink .TxID .Link)}}</td>
 
               {{if eq $txType "merged_debit"}}
-                <td class="text-center">{{.MergedTxnCount}}</td>
+                <td class="text-right">{{.MergedTxnCount}}</td>
                 <td class="text-right fs15">
                   {{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}
                 </td>
 
               {{else if eq $txType "merged_credit"}}
-                <td class="text-center">{{.MergedTxnCount}}</td>
+                <td class="text-right">{{.MergedTxnCount}}</td>
                 <td class="text-right fs15">
                   {{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}
                 </td>
 
               {{else if eq $txType "merged"}}
-                <td class="text-center">{{.MergedTxnCount}}</td>
+                <td class="text-right">{{.MergedTxnCount}}</td>
                 {{if .IsFunding}}
-                  <td class="text-center fs15">
+                  <td class="text-right fs15">
                     {{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}
                   </td>
-                  <td class="text-center">&mdash;</td>
+                  <td class="text-right">&mdash;</td>
                 {{else}}
-                  <td class="text-center">&mdash;</td>
-                  <td class="text-center fs15">
+                  <td class="text-right">&mdash;</td>
+                  <td class="text-right fs15">
                     {{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}
                   </td>
                 {{end}}
@@ -278,12 +270,12 @@
                   {{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}
                 </td>
                 {{if ne .MatchedTx ""}}
-                    <td><a href="/tx/{{.MatchedTx}}/in/{{.MatchedTxIndex}}"
+                    <td class="text-right"><a href="/tx/{{.MatchedTx}}/in/{{.MatchedTxIndex}}"
                       data-txid="{{.MatchedTx}}"
                       data-action="mouseover->address#hashOver mouseout->address#hashOut"
                       >spent</a></td>
                 {{else}}
-                    <td>unspent</td>
+                    <td class="text-right">unspent</td>
                 {{end}}
 
               {{else}} <!-- either "credit", or "all" with .IsFunding = false -->
@@ -302,14 +294,14 @@
                 </td>
               {{end}}
 
-              <td class="addr-tx-time">
+              <td class="addr-tx-time d-none d-sm-table-cell text-right">
                   {{if eq .Confirmations 0}}
                       Unconfirmed
                   {{else}}
                       {{.Time}}
                   {{end}}
               </td>
-              <td class="addr-tx-age">
+              <td class="addr-tx-age text-right">
               {{if eq (.Time.T.Unix) 0}}
                   N/A
               {{else}}
@@ -317,7 +309,7 @@
               {{end}}
               </td>
 
-              <td class="addr-tx-confirms"
+              <td class="addr-tx-confirms text-right"
                   data-target="newblock.confirmations"
                   data-confirmations="{{.Confirmations}}"
                   data-confirmation-block-height="{{if eq .Confirmations 0}}-1{{else}}{{.BlockHeight}}{{end}}"
@@ -325,7 +317,7 @@
                   data-no="(unconfirmed)"
               >{{.Confirmations}}</td>
 
-              <td class="text-right">{{.FormattedSize}}</td>
+              <td class="text-right d-none d-sm-table-cell text-right">{{.FormattedSize}}</td>
               {{end}}
           </tr>
           {{end}}
