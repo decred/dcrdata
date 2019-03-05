@@ -233,17 +233,20 @@ func cleanAndExpandPath(path string) string {
 	return filepath.Join(homeDir, path)
 }
 
-// normalizeNetworkAddres checks for a valid local network address format and
-// adds default host and port if not present.
+// normalizeNetworkAddress checks for a valid local network address format and
+// adds default host and port if not present. Invalidates addresses that include
+// a protocol identifier.
 func normalizeNetworkAddress(a, defaultHost, defaultPort string) (string, error) {
-	normalized := a
+	if strings.Contains(a, "://") {
+		return a, fmt.Errorf("Address %s contains a protocol identifier, which is not allowed", a)
+	}
 	if a == "" {
 		return defaultHost + ":" + defaultPort, nil
 	}
 	host, port, err := net.SplitHostPort(a)
 	if err != nil {
 		if strings.Contains(err.Error(), "missing port in address") {
-			normalized += ":" + defaultPort
+			normalized := a + ":" + defaultPort
 			host, port, err = net.SplitHostPort(normalized)
 			if err != nil {
 				return a, fmt.Errorf("Unable to address %s after port resolution: %v", normalized, err)
