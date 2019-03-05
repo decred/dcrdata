@@ -266,7 +266,7 @@ export default class extends Controller {
       rollPeriod: this.rollPeriod,
       zoomCallback: null,
       drawCallback: null,
-      logscale: this.settings.scale === 'log' ? true : false
+      logscale: this.settings.scale === 'log'
     }
     switch (chartName) {
       case 'ticket-price': // price graph
