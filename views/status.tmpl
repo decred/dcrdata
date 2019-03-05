@@ -15,21 +15,21 @@
                 <h5>{{.Message}}
                 {{if redirectToTestnet .NetName .Message}}
                     {{if ne .AdditionalInfo ""}}
-                    You can <a href="https://testnet.dcrdata.org/search?search={{.AdditionalInfo}}">switch to testnet here.</a>
+                    You can <a href="{{.Links.TestNetSearch}}{{.AdditionalInfo}}">switch to testnet here.</a>
                     {{end}}
                 {{else if redirectToMainnet .NetName .Message}}
                     {{if ne .AdditionalInfo ""}}
-                    You can <a href="https://explorer.dcrdata.org/search?search={{.AdditionalInfo}}">switch to mainnet here.</a>
+                    You can <a href="{{.Links.ExplorerSearch}}{{.AdditionalInfo}}">switch to mainnet here.</a>
                     {{end}}
                 {{end}}
                 </h5>
             {{else if .StatusType.IsBitcoinAddress}}
-                <h5>{{.Message}} You may possibly <a href="https://live.blockcypher.com/btc/address/{{.AdditionalInfo}}/">find it here.</a></h5>
+                <h5>{{.Message}} You may possibly <a href="{{.Links.BtcAddress}}{{.AdditionalInfo}}/">find it here.</a></h5>
             {{else if .StatusType.IsP2PKAddress}}
                 {{$P2PKHAddr := PKAddr2PKHAddr .AdditionalInfo}}
                 <h5>{{.Message}}
                 {{if and (ne .AdditionalInfo "") (ne $P2PKHAddr "")}}
-                    You can <a href="https://explorer.dcrdata.org/search?search={{$P2PKHAddr}}">search for the P2PKH address instead.</a>
+                    You can <a href="{{.Links.ExplorerSearch}}{{$P2PKHAddr}}">search for the P2PKH address instead.</a>
                 {{end}}
                 </h5>
             {{else if .StatusType.IsFutureBlock}}

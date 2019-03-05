@@ -30,6 +30,35 @@ import (
 	humanize "github.com/dustin/go-humanize"
 )
 
+// links to be passed with common page data.
+type links struct {
+	CoinbaseComment string
+	POSExplanation  string
+	TestNet         string
+	Explorer        string
+	APIDocs         string
+	Github          string
+	License         string
+	NetParams       string
+	TestNetSearch   string
+	ExplorerSearch  string
+	BtcAddress      string
+}
+
+var explorerLinks = &links{
+	CoinbaseComment: "https://github.com/decred/dcrd/blob/2a18beb4d56fe59d614a7309308d84891a0cba96/chaincfg/genesis.go#L17-L53",
+	POSExplanation:  "https://docs.decred.org/faq/proof-of-stake/general/#9-what-is-proof-of-stake-voting",
+	TestNet:         "http://testnet.dcrdata.org/",
+	Explorer:        "https://explorer.dcrdata.org/",
+	APIDocs:         "https://github.com/decred/dcrdata#apis",
+	Github:          "https://github.com/decred/dcrdata",
+	License:         "https://github.com/decred/dcrdata/blob/master/LICENSE",
+	NetParams:       "https://github.com/decred/dcrd/blob/master/chaincfg/params.go",
+	TestNetSearch:   "https://testnet.dcrdata.org/search?search=",
+	ExplorerSearch:  "https://explorer.dcrdata.org/search?search=",
+	BtcAddress:      "https://live.blockcypher.com/btc/address/",
+}
+
 // CommonPageData is the basis for data structs used for HTML templates.
 // explorerUI.commonData returns an initialized instance or CommonPageData,
 // which itself should be used to initialize page data template structs.
@@ -39,6 +68,7 @@ type CommonPageData struct {
 	ChainParams   *chaincfg.Params
 	BlockTimeUnix int64
 	DevAddress    string
+	Links         *links
 }
 
 // Status page strings
@@ -2058,6 +2088,7 @@ func (exp *explorerUI) commonData() *CommonPageData {
 	cd.ChainParams = exp.ChainParams
 	cd.BlockTimeUnix = int64(exp.ChainParams.TargetTimePerBlock.Seconds())
 	cd.DevAddress = exp.pageData.HomeInfo.DevAddress
+	cd.Links = explorerLinks
 	var err error
 	cd.Tip, err = exp.blockData.GetTip()
 	if err != nil {
