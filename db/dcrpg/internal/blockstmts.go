@@ -174,6 +174,10 @@ const (
 		WHERE is_valid = FALSE
 		ORDER BY height DESC;`
 
+	SelectTxsPerDay = `SELECT date_trunc('day',time) AS date, sum(numtx)
+		FROM blocks
+		GROUP BY date ORDER BY date;`
+
 	// blocks table updates
 
 	UpdateLastBlockValid = `UPDATE blocks SET is_valid = $2 WHERE id = $1;`

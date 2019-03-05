@@ -210,18 +210,20 @@ const (
 		"tx_vin_vout_index, tx_type FROM addresses WHERE address=$1 ORDER BY block_time DESC"
 
 	SelectAddressDebitsLimitNByAddress = `SELECT ` + addrsColumnNames + `
-		FROM addresses WHERE address=$1 AND is_funding = FALSE AND valid_mainchain = TRUE
+		FROM addresses WHERE address=$1 AND is_funding = FALSE AND valid_mainchain
 		ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
 
 	SelectAddressCreditsLimitNByAddress = `SELECT ` + addrsColumnNames + `
-		FROM addresses WHERE address=$1 AND is_funding = TRUE AND valid_mainchain = TRUE
+		FROM addresses WHERE address=$1 AND is_funding AND valid_mainchain
 		ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
 
-	SelectAddressIDsByFundingOutpoint = `SELECT id, address, value FROM addresses WHERE tx_hash=$1 AND
-		tx_vin_vout_index=$2 AND is_funding = TRUE ORDER BY block_time DESC;`
+	SelectAddressIDsByFundingOutpoint = `SELECT id, address, value
+		FROM addresses
+		WHERE tx_hash=$1 AND tx_vin_vout_index=$2 AND is_funding
+		ORDER BY block_time DESC;`
 
 	SelectAddressIDByVoutIDAddress = `SELECT id FROM addresses WHERE address=$1 AND
-	    tx_vin_vout_row_id=$2 AND is_funding = TRUE;`
+	    tx_vin_vout_row_id=$2 AND is_funding;`
 
 	SelectAddressOldestTxBlockTime = `SELECT block_time FROM addresses WHERE
 		address=$1 ORDER BY block_time LIMIT 1;`
@@ -236,16 +238,24 @@ const (
 		COUNT(CASE WHEN tx_type = 1 THEN 1 ELSE NULL END) as SSTx,
 		COUNT(CASE WHEN tx_type = 2 THEN 1 ELSE NULL END) as SSGen,
 		COUNT(CASE WHEN tx_type = 3 THEN 1 ELSE NULL END) as SSRtx
-		FROM addresses WHERE address=$1 GROUP BY timestamp ORDER BY timestamp;`
+		FROM addresses
+		WHERE address=$1
+		GROUP BY timestamp
+		ORDER BY timestamp;`
 
 	selectAddressAmountFlowByAddress = `SELECT %s as timestamp,
 		SUM(CASE WHEN is_funding = TRUE THEN value ELSE 0 END) as received,
-		SUM(CASE WHEN is_funding = FALSE THEN value ELSE 0 END) as sent FROM
-		addresses WHERE address=$1 GROUP BY timestamp ORDER BY timestamp;`
+		SUM(CASE WHEN is_funding = FALSE THEN value ELSE 0 END) as sent
+		FROM addresses
+		WHERE address=$1
+		GROUP BY timestamp
+		ORDER BY timestamp;`
 
-	selectAddressUnspentAmountByAddress = `SELECT %s as timestamp,
-		SUM(value) as unspent FROM addresses WHERE address=$1 AND is_funding=TRUE
-		AND matching_tx_hash ='' GROUP BY timestamp ORDER BY timestamp;`
+	selectAddressUnspentAmountByAddress = `SELECT %s as timestamp, SUM(value) as unspent
+		FROM addresses
+		WHERE address=$1 AND is_funding AND matching_tx_hash = ''
+		GROUP BY timestamp
+		ORDER BY timestamp;`
 
 	// UPDATEs/SETs
 
@@ -253,7 +263,7 @@ const (
 	// transaction) for the addresses rows corresponding to the specified
 	// outpoint (tx_hash:tx_vin_vout_index), a funding tx row.
 	SetAddressMatchingTxHashForOutpoint = `UPDATE addresses SET matching_tx_hash=$1
-		WHERE tx_hash=$2 AND is_funding = TRUE AND tx_vin_vout_index=$3`  // not terminated with ;
+		WHERE tx_hash=$2 AND is_funding AND tx_vin_vout_index=$3`  // not terminated with ;
 
 	// AssignMatchingTxHashForOutpoint is like
 	// SetAddressMatchingTxHashForOutpoint except that it only updates rows
