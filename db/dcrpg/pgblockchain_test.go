@@ -109,6 +109,46 @@ func TestChainDB_AddressTransactionsAll(t *testing.T) {
 	}
 }
 
+func TestMergeRows(t *testing.T) {
+	address := "Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx"
+
+	rows, err := db.AddressTransactionsAll(address)
+	if err != nil {
+		t.Errorf("err should have been nil, was: %v", err)
+	}
+	if rows == nil {
+		t.Fatalf("should have rows, got none")
+	}
+
+	tStart := time.Now()
+	mergedRows, mrMap, err := dbtypes.MergeRows(rows)
+	if err != nil {
+		t.Fatalf("MergeRows failed: %v", err)
+	}
+	t.Logf("%d rows combined to %d merged rows in %v", len(rows),
+		len(mergedRows), time.Since(tStart))
+
+	mergedRows0, err := db.AddressTransactionsAllMerged(address)
+	if err != nil {
+		t.Errorf("err should have been nil, was: %v", err)
+	}
+	if mergedRows0 == nil {
+		t.Fatalf("should have rows, got none")
+	}
+
+	if len(mergedRows) != len(mergedRows0) {
+		t.Errorf("len(mergedRows) = %d != len(mergedRows0) = %d",
+			len(mergedRows), len(mergedRows0))
+	}
+
+	for _, mr := range mergedRows0 {
+		_, ok := mrMap[mr.TxHash]
+		if !ok {
+			t.Errorf("TxHash %s not found in mergedRows.", mr.TxHash)
+		}
+	}
+}
+
 func TestMissingIndexes(t *testing.T) {
 	missing, descs, err := db.MissingIndexes()
 	if err != nil {

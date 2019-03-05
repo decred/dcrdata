@@ -1144,13 +1144,15 @@ func (pgb *ChainDB) AddressTransactionsAll(address string) (addressRows []*dbtyp
 	return
 }
 
-// AddressTransactionsAllMerged retrieves all merged mainchain addresses table
-// rows for the given address.
+// AddressTransactionsAllMerged retrieves all merged (stakeholder-approved and
+// mainchain only) addresses table rows for the given address.
 func (pgb *ChainDB) AddressTransactionsAllMerged(address string) (addressRows []*dbtypes.AddressRow, err error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 
-	_, addressRows, err = RetrieveAllMainchainAddressMergedTxns(ctx, pgb.db, address)
+	onlyValidMainchain := true
+	_, addressRows, err = RetrieveAllAddressMergedTxns(ctx, pgb.db, address,
+		onlyValidMainchain)
 	err = pgb.replaceCancelError(err)
 	return
 }
