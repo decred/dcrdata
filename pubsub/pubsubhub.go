@@ -354,6 +354,7 @@ func (psh *PubSubHub) sendLoop(conn *connection) {
 	// WebSocketHub, which broadcasts signals to all clients.
 	updateSigChan := *conn.client.c
 	clientData := conn.client.cl
+	buff := new(bytes.Buffer)
 
 loop:
 	for {
@@ -386,7 +387,7 @@ loop:
 			}
 
 			// JSON encoder for the Message.
-			buff := new(bytes.Buffer)
+			buff.Reset()
 			enc := json.NewEncoder(buff)
 
 			switch sig {
