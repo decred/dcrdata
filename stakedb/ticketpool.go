@@ -410,10 +410,11 @@ func storeDiffs(db *badger.DB, diffs []*PoolDiff, heights []int64) error {
 		return
 	}
 
+	poolDiffBuffer := new(bytes.Buffer)
 	txn := db.NewTransaction(true)
 	for i, h := range heights {
 		heightBytes := heightToBytes(h)
-		poolDiffBuffer := new(bytes.Buffer)
+		poolDiffBuffer.Reset()
 		gobEnc := gob.NewEncoder(poolDiffBuffer)
 		err := gobEnc.Encode(diffs[i])
 		if err != nil {
@@ -437,7 +438,6 @@ func storeDiffs(db *badger.DB, diffs []*PoolDiff, heights []int64) error {
 			txn.Discard()
 			return err
 		}
-		//poolDiffBuffer.Reset()
 	}
 	return txn.Commit()
 }
