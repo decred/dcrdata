@@ -109,6 +109,7 @@ func NewTimeDefFromUNIX(t int64) TimeDef {
 type BlockBasic struct {
 	Height         int64   `json:"height"`
 	Hash           string  `json:"hash"`
+	Version        int32   `json:"version"`
 	Size           int32   `json:"size"`
 	Valid          bool    `json:"valid"`
 	MainChain      bool    `json:"mainchain"`
@@ -117,6 +118,7 @@ type BlockBasic struct {
 	IndexVal       int64   `json:"windowIndex"`
 	FreshStake     uint8   `json:"tickets"`
 	Revocations    uint32  `json:"revocations"`
+	TxCount        uint32  `json:"tx_count"`
 	BlockTime      TimeDef `json:"time"`
 	FormattedBytes string  `json:"formatted_bytes"`
 	Total          float64 `json:"total"`
@@ -360,7 +362,6 @@ type TrimmedBlockInfo struct {
 // BlockInfo models data for display on the block page
 type BlockInfo struct {
 	*BlockBasic
-	Version               int32
 	Confirmations         int64
 	StakeRoot             string
 	MerkleRoot            string
@@ -384,7 +385,6 @@ type BlockInfo struct {
 	TotalSent             float64
 	MiningFee             float64
 	StakeValidationHeight int64
-	AllTxs                uint32
 	Subsidy               *dcrjson.GetBlockSubsidyResult
 }
 

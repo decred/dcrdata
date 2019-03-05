@@ -730,7 +730,7 @@ export default class extends Controller {
           let confirms = row.querySelector('td.addr-tx-confirms')
           confirms.textContent = '1'
           confirms.dataset.confirmationBlockHeight = block.height
-          row.querySelector('td.addr-tx-time').textContent = humanize.formatTxDate(block.time, false)
+          row.querySelector('td.addr-tx-time').textContent = humanize.date(block.time, true)
           let age = row.querySelector('td.addr-tx-age > span')
           age.dataset.age = block.time
           age.textContent = humanize.timeSince(block.unixStamp)

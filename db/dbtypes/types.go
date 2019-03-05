@@ -374,6 +374,7 @@ type BlocksGroupedInfo struct {
 	Transactions uint64
 	FreshStake   uint64
 	Revocations  uint64
+	TxCount      uint64
 	BlocksCount  int64
 }
 
