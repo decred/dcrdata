@@ -5,7 +5,7 @@
 <body class="{{ theme }}">
     {{template "navbar" . }}
 
-    <div data-controller="charts">
+    <div data-controller="charts" data-charts-tps="{{.ChainParams.TicketExpiry}}">
 
         <div class="container main">
 
@@ -96,7 +96,7 @@
                     </div>
                 </div>
 
-                <div class="chart-control-wrapper mb-1" data-target="charts.zoomSelector">
+                <div class="chart-control-wrapper mr-2 mb-1" data-target="charts.zoomSelector">
                     <div class="chart-control-label">MOVING AVG</div>
                     <div class="chart-control">
                         <input
@@ -109,6 +109,34 @@
                             data-target="charts.rollPeriodInput"
                             data-action="change->charts#onRollPeriodChange"
                         >
+                    </div>
+                </div>
+
+                <div class="chart-control-wrapper mb-1">
+                    <div class="chart-control-label">SCALE</div>
+                    <div class="chart-control">
+                        <ul
+                            class="nav nav-pills"
+                        >
+                            <li class="nav-item active">
+                                <a
+                                    class="nav-link active"
+                                    href="javascript:void(0);"
+                                    data-target="charts.linearBttn"
+                                    data-action="click->charts#linearScale"
+                                    data-zoom="all"
+                                >Linear</a>
+                            </li>
+                            <li class="nav-item">
+                                <a
+                                    class="nav-link"
+                                    href="javascript:void(0);"
+                                    data-target="charts.logBttn"
+                                    data-action="click->charts#logScale"
+                                    data-zoom="year"
+                                >Log</a>
+                            </li>
+                        </ul>
                     </div>
                 </div>
 
