@@ -1242,10 +1242,11 @@ func retrieveAddressTxsCount(ctx context.Context, db *sql.DB, address, interval 
 	return
 }
 
-// RetrieveAddressSpentUnspent gets the numbers of spent and unspent outpoints
-// for the given address, the total amounts spent and unspent, and the the
-// number of distinct spending transactions.
-func RetrieveAddressSpentUnspent(ctx context.Context, db *sql.DB, address string) (balance *dbtypes.AddressBalance, err error) {
+// RetrieveAddressBalance gets the numbers of spent and unspent outpoints
+// for the given address, the total amounts spent and unspent, the number of
+// distinct spending transactions, and the fraction spent to and received from
+// stake-related trasnsactions.
+func RetrieveAddressBalance(ctx context.Context, db *sql.DB, address string) (balance *dbtypes.AddressBalance, err error) {
 	// The sql.Tx does not have a timeout, as the individial queries will.
 	balance = new(dbtypes.AddressBalance)
 	balance.Address = address

@@ -1069,7 +1069,10 @@ func (balance *AddressBalance) HasStakeInputs() bool {
 // AddressRow. All fields except NumUnconfirmed and Transactions are set
 // completely. Transactions is partially set, with each transaction having only
 // the TxID and ReceivedTotal set. The rest of the data should be filled in by
-// other means, such as RPC calls or database queries.
+// other means, such as RPC calls or database queries. Additionally, the
+// fractions of sent and received from stake-related transactions is returned.
+// These values are analogous to AddressBalance.FromStake and
+// AddressBalance.ToStake, but based on only the rows given.
 func ReduceAddressHistory(addrHist []*AddressRow) (*AddressInfo, float64, float64) {
 	if len(addrHist) == 0 {
 		return nil, 0, 0

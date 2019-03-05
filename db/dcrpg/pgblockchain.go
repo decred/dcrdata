@@ -1393,22 +1393,10 @@ func (pgb *ChainDB) DevBalance() (*dbtypes.AddressBalance, error) {
 	return nil, fmt.Errorf("unable to query for balance during reorg")
 }
 
-// AddressBalance attempts to retrieve the dbtypes.AddressBalance from cache,
-// and if cache is stale or missing data for the address, a DB query is used. A
-// successful DB query will freshen the cache.
-func (pgb *ChainDB) AddressBalance(address string) (*dbtypes.AddressBalance, error) {
-	balance, err := pgb.AddressSpentUnspent(address)
-	if err != nil {
-		return nil, err
-	}
-
-	return balance, nil
-}
-
-// AddressSpentUnspent attempts to retrieve balance information for a specific
+// AddressBalance attempts to retrieve balance information for a specific
 // address from cache, and if cache is stale or missing data for the address, a
 // DB query is used. A successful DB query will freshen the cache.
-func (pgb *ChainDB) AddressSpentUnspent(address string) (*dbtypes.AddressBalance, error) {
+func (pgb *ChainDB) AddressBalance(address string) (*dbtypes.AddressBalance, error) {
 	// Check the cache first.
 	bestHash, height := pgb.BestBlock()
 	bal, validHeight := pgb.AddressCache.Balance(address)
@@ -1427,7 +1415,7 @@ func (pgb *ChainDB) AddressSpentUnspent(address string) (*dbtypes.AddressBalance
 		<-wait
 
 		// Try again, starting with the cache.
-		return pgb.AddressSpentUnspent(address)
+		return pgb.AddressBalance(address)
 	} else {
 		// We will run the DB query, so block others from doing the same. When
 		// query and/or cache update is completed, broadcast to any waiters that
@@ -1438,7 +1426,7 @@ func (pgb *ChainDB) AddressSpentUnspent(address string) (*dbtypes.AddressBalance
 	// Cache is empty or stale, so query the DB.
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
-	balance, err := RetrieveAddressSpentUnspent(ctx, pgb.db, address)
+	balance, err := RetrieveAddressBalance(ctx, pgb.db, address)
 	if err != nil {
 		return nil, pgb.replaceCancelError(err)
 	}
@@ -1686,7 +1674,7 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 	} else {
 		// Count spent/unspent amounts and transactions.
 		log.Debugf("Obtaining balance via DB query.")
-		balance, err = pgb.AddressSpentUnspent(address)
+		balance, err = pgb.AddressBalance(address)
 		if err != nil {
 			return nil, nil, err
 		}
