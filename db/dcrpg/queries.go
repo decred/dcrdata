@@ -2946,6 +2946,7 @@ func retrieveChainWork(db *sql.DB) (*dbtypes.ChartsData, *dbtypes.ChartsData, er
 		idx++
 	}
 
+	exawork := big.NewInt(0)
 	for rows.Next() {
 		// Get the chainwork.
 		err = rows.Scan(&blocktime, &workhex)
@@ -2953,9 +2954,7 @@ func retrieveChainWork(db *sql.DB) (*dbtypes.ChartsData, *dbtypes.ChartsData, er
 			return nil, nil, err
 		}
 
-		bigwork := new(big.Int)
-		exawork := new(big.Int)
-		bigwork, ok := bigwork.SetString(workhex, 16)
+		bigwork, ok := new(big.Int).SetString(workhex, 16)
 		if !ok {
 			badRow()
 			continue
