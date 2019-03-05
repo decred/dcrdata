@@ -41,8 +41,7 @@ type blockCache map[chainhash.Hash]*CachedBlock
 func WatchPriorityQueue(bpq *BlockPriorityQueue) {
 	ticker := time.NewTicker(250 * time.Millisecond)
 	for range ticker.C {
-		lastAccessTime := bpq.lastAccessTime()
-		if bpq.doesNeedReheap() && time.Since(lastAccessTime) > 7*time.Second {
+		if bpq.doesNeedReheap() {
 			start := time.Now()
 			bpq.Reheap()
 			fmt.Printf("Triggered REHEAP completed in %v\n", time.Since(start))
@@ -760,7 +759,8 @@ func (pq *BlockPriorityQueue) setAccessTime(t time.Time) {
 func (pq *BlockPriorityQueue) doesNeedReheap() bool {
 	pq.mtx.RLock()
 	defer pq.mtx.RUnlock()
-	return pq.needsReheap
+	return pq.needsReheap &&
+		time.Since(pq.lastAccess) > 7*time.Second
 }
 
 func (pq *BlockPriorityQueue) setNeedsReheap(needReheap bool) {
