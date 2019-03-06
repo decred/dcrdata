@@ -214,23 +214,6 @@ type pageData struct {
 	HomeInfo       *types.HomeInfo
 }
 
-// Mempool represents a snapshot of the mempool.
-type Mempool struct {
-	mtx sync.RWMutex
-
-	// Inv contains a MempoolShort, which contains a detailed summary of the
-	// mempool state, and a []MempoolTx for each of tickets, votes, revocations,
-	// and regular transactions. This is essentially a mempool inventory. The
-	// struct pointed to may be shared, so it should not be modified.
-	Inv *types.MempoolInfo
-
-	// StakeData and Txns are set by StoreMPData, but this data is presently not
-	// used by explorerUI. Consider removing these in the future and editing
-	// StoreMPData accordingly
-	StakeData *mempool.StakeData
-	Txns      []types.MempoolTx
-}
-
 type explorerUI struct {
 	Mux              *chi.Mux
 	blockData        explorerDataSourceLite
@@ -243,7 +226,6 @@ type explorerUI struct {
 	templates        templates
 	wsHub            *WebsocketHub
 	pageData         *pageData
-	mempool          Mempool
 	ChainParams      *chaincfg.Params
 	Version          string
 	NetName          string
@@ -254,6 +236,9 @@ type explorerUI struct {
 	// page that should be accessible during DB synchronization.
 	displaySyncStatusPage atomic.Value
 	politeiaAPIURL        string
+
+	invsMtx sync.RWMutex
+	invs    *types.MempoolInfo
 }
 
 // AreDBsSyncing is a thread-safe way to fetch the boolean in dbsSyncing.
@@ -311,8 +296,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	exp.blockData = dataSource
 	exp.explorerSource = primaryDataSource
 	// Allocate Mempool fields.
-	exp.mempool.Inv = new(types.MempoolInfo)
-	exp.mempool.StakeData = new(mempool.StakeData)
+	exp.invs = new(types.MempoolInfo)
 	exp.Version = appVersion
 	exp.devPrefetch = devPrefetch
 	exp.xcBot = xcBot
@@ -410,9 +394,9 @@ func (exp *explorerUI) LastBlock() (lastBlockHash string, lastBlock int64, lastB
 
 // MempoolInventory safely retrieves the current mempool inventory.
 func (exp *explorerUI) MempoolInventory() *types.MempoolInfo {
-	exp.mempool.mtx.RLock()
-	defer exp.mempool.mtx.RUnlock()
-	return exp.mempool.Inv
+	exp.invsMtx.RLock()
+	defer exp.invsMtx.RUnlock()
+	return exp.invs
 }
 
 // MempoolSignals returns the mempool signal and data channels, which are to be
@@ -473,13 +457,11 @@ func (exp *explorerUI) prePopulateChartsData() {
 // StoreMPData stores mempool data. It is advisable to pass a copy of the
 // []types.MempoolTx so that it may be modified (e.g. sorted) without affecting
 // other MempoolDataSavers.
-func (exp *explorerUI) StoreMPData(stakeData *mempool.StakeData, txs []types.MempoolTx, inv *types.MempoolInfo) {
+func (exp *explorerUI) StoreMPData(_ *mempool.StakeData, _ []types.MempoolTx, inv *types.MempoolInfo) {
 	// Get exclusive access to the Mempool field.
-	exp.mempool.mtx.Lock()
-	exp.mempool.Inv = inv
-	exp.mempool.StakeData = stakeData
-	exp.mempool.Txns = txs
-	exp.mempool.mtx.Unlock()
+	exp.invsMtx.Lock()
+	exp.invs = inv
+	exp.invsMtx.Unlock()
 
 	// Signal to the websocket hub that a new tx was received, but do not block
 	// StoreMPData(), and do not hang forever in a goroutine waiting to send.
@@ -802,9 +784,9 @@ func (exp *explorerUI) getExchangeState() *exchanges.ExchangeBotState {
 // mempoolTime is the TimeDef that the transaction was received in DCRData, or
 // else a zero-valued TimeDef if no transaction is found.
 func (exp *explorerUI) mempoolTime(txid string) types.TimeDef {
-	exp.mempool.mtx.RLock()
-	defer exp.mempool.mtx.RUnlock()
-	tx, found := exp.mempool.Inv.Tx(txid)
+	exp.invsMtx.RLock()
+	defer exp.invsMtx.RUnlock()
+	tx, found := exp.invs.Tx(txid)
 	if !found {
 		return types.NewTimeDefFromUNIX(0)
 	}
