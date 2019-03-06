@@ -127,8 +127,13 @@ function txPerDayFunc (gData) {
   return map(gData.time, (n, i) => { return [new Date(n), gData.count[i]] })
 }
 
-function poolSizeFunc (gData) {
-  return map(gData.time, (n, i) => { return [new Date(n), gData.sizef[i]] })
+function poolSizeFunc (gData, networkTarget) {
+  var data = map(gData.time, (n, i) => { return [new Date(n), gData.sizef[i], null] })
+  if (data.length) {
+    data[0][2] = networkTarget
+    data[data.length - 1][2] = networkTarget
+  }
+  return data
 }
 
 function poolValueFunc (gData) {
@@ -181,19 +186,25 @@ export default class extends Controller {
       'chartSelect',
       'zoomSelector',
       'zoomOption',
-      'rollPeriodInput'
+      'rollPeriodInput',
+      'linearBttn',
+      'logBttn'
     ]
   }
 
   async connect () {
     this.query = new TurboQuery()
-    this.settings = TurboQuery.nullTemplate(['chart', 'zoom', 'roll'])
+    this.ticketPoolSizeTarget = parseInt(this.data.get('tps'))
+    this.settings = TurboQuery.nullTemplate(['chart', 'zoom', 'roll', 'scale'])
     this.query.update(this.settings)
     if (this.settings.zoom) {
       this.setSelectedZoom(this.settings.zoom)
     }
     if (this.settings.roll) {
       this.setRollPeriod(this.settings.roll)
+    }
+    if (this.settings.scale && this.settings.scale === 'log') {
+      this.logScale()
     }
     this.settings.chart = this.settings.chart || 'ticket-price'
     this.zoomCallback = this._zoomCallback.bind(this)
@@ -254,7 +265,8 @@ export default class extends Controller {
     var gOptions = {
       rollPeriod: this.rollPeriod,
       zoomCallback: null,
-      drawCallback: null
+      drawCallback: null,
+      logscale: this.settings.scale === 'log'
     }
     switch (chartName) {
       case 'ticket-price': // price graph
@@ -263,9 +275,16 @@ export default class extends Controller {
         break
 
       case 'ticket-pool-size': // pool size graph
-        d = poolSizeFunc(data)
-        assign(gOptions, mapDygraphOptions(d, ['Date', 'Ticket Pool Size'], false, 'Ticket Pool Size', 'Date',
-          undefined, true, false))
+        d = poolSizeFunc(data, this.ticketPoolSizeTarget)
+        assign(gOptions, mapDygraphOptions(d, ['Date', 'Ticket Pool Size', 'Network Target'], false, 'Ticket Pool Size', 'Date', undefined, true, false))
+        gOptions.series = {
+          'Network Target': {
+            strokePattern: [5, 3],
+            connectSeparatedPoints: true,
+            strokeWidth: 2,
+            color: '#888'
+          }
+        }
         break
 
       case 'ticket-pool-value': // pool value graph
@@ -466,6 +485,30 @@ export default class extends Controller {
 
   setRollPeriod (period) {
     this.rollPeriodInputTarget.value = period
+  }
+
+  linearScale () {
+    this.settings.scale = null // default
+    this.linearBttnTarget.classList.add('active')
+    this.logBttnTarget.classList.remove('active')
+    if (this.chartsView !== undefined) {
+      this.chartsView.updateOptions({
+        logscale: false
+      })
+    }
+    this.query.replace(this.settings)
+  }
+
+  logScale () {
+    this.settings.scale = 'log'
+    this.linearBttnTarget.classList.remove('active')
+    this.logBttnTarget.classList.add('active')
+    if (this.chartsView !== undefined) {
+      this.chartsView.updateOptions({
+        logscale: true
+      })
+    }
+    this.query.replace(this.settings)
   }
 
   get selectedZoom () {
