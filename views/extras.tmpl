@@ -336,6 +336,7 @@
 
 {{define "mempoolDump"}}
   {{$likely := .LikelyMineable}}
+  data-id="{{.Ident}}"
   data-total="{{$likely.Total}}"
   data-size="{{$likely.Size}}"
   data-count="{{$likely.Count}}"

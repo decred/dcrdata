@@ -29,6 +29,8 @@ class MessageSocket {
     this.uri = undefined
     this.connection = undefined
     this.handlers = {}
+    this.queue = []
+    this.maxQlength = 5
   }
 
   registerEvtHandler (eventID, handler) {
@@ -42,7 +44,11 @@ class MessageSocket {
 
   // send a message back to the server
   send (eventID, message) {
-    if (this.connection === undefined) { return }
+    if (this.connection === undefined) {
+      while (this.queue.length > this.maxQlength - 1) this.queue.shift()
+      this.queue.push([eventID, message])
+      return
+    }
     var payload = JSON.stringify({
       event: eventID,
       message: message
@@ -74,6 +80,11 @@ class MessageSocket {
     }
     this.connection.onopen = () => {
       forward('open', null, this.handlers)
+      while (this.queue.length) {
+        let eventID, message
+        [eventID, message] = this.queue.shift()
+        this.send(eventID, message)
+      }
     }
     this.connection.onerror = (evt) => {
       forward('error', evt, this.handlers)

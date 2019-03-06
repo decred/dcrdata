@@ -165,6 +165,9 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 				continue // back to waiting for new tx signal
 			}
 
+			// Iterate the state id.
+			p.inventory.Ident++
+
 			// If this is a vote, decode vote bits.
 			var voteInfo *exptypes.VoteInfo
 			if ok := stake.IsSSGen(msgTx); ok {
@@ -344,6 +347,9 @@ func (p *MempoolMonitor) Refresh() (*StakeData, []exptypes.MempoolTx, *exptypes.
 
 	// Store the current best block info.
 	p.lastBlock = stakeData.LatestBlock
+	if p.inventory != nil {
+		inventory.Ident = p.inventory.ID() + 1
+	}
 	p.inventory = inventory
 	p.mtx.Unlock()
 
