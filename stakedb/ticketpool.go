@@ -193,32 +193,17 @@ func NewTicketPool(dataDir, dbSubDir string) (tp *TicketPool, err error) {
 
 	// Load all diffs
 	log.Infof("Loading all ticket pool diffs...")
-	var poolDiffs []PoolDiffDBItem
-	poolDiffs, err = LoadAllPoolDiffs(db)
+	poolDiffs, err := LoadAllPoolDiffs(db)
 	if err != nil {
 		return nil, fmt.Errorf("failed LoadAllPoolDiffs: %v", err)
 	}
-
-	if len(poolDiffs) > 0 {
-		log.Debugf("len(poolDiffs)=%d", len(poolDiffs))
-		endHeight := poolDiffs[len(poolDiffs)-1].Height
-		log.Debugf("poolDiffs[0].Height=%d, poolDiffs[end].Height=%d",
-			poolDiffs[0].Height, endHeight)
-		if int64(len(poolDiffs)) != endHeight {
-			panic(fmt.Sprintf("last poolDiff Height (%d) != %d", endHeight, len(poolDiffs)))
-		}
-	}
-
-	diffs := make([]PoolDiff, len(poolDiffs))
-	for i := range poolDiffs {
-		diffs[i] = poolDiffs[i].PoolDiff
-	}
+	log.Infof("Successfully loaded %d ticket pool diffs", len(poolDiffs))
 
 	// Construct TicketPool with loaded diffs and diff DB
 	return &TicketPool{
 		pool:   make(map[chainhash.Hash]struct{}),
-		diffs:  diffs,             // make([]PoolDiff, 0, 100000)
-		tip:    int64(len(diffs)), // number of blocks connected over genesis
+		diffs:  poolDiffs,
+		tip:    int64(len(poolDiffs)), // number of blocks connected over genesis
 		diffDB: db,
 	}, nil
 }
@@ -285,8 +270,8 @@ func MigrateFromStorm(stormDBFile string, db *badger.DB) (bool, error) {
 }
 
 // LoadAllPoolDiffs loads all found ticket pool diffs from badger DB.
-func LoadAllPoolDiffs(db *badger.DB) ([]PoolDiffDBItem, error) {
-	var poolDiffs []PoolDiffDBItem
+func LoadAllPoolDiffs(db *badger.DB) ([]PoolDiff, error) {
+	var poolDiffs []PoolDiff
 	err := db.View(func(txn *badger.Txn) error {
 		// Create the badger iterator
 		opts := badger.IteratorOptions{
@@ -322,16 +307,20 @@ func LoadAllPoolDiffs(db *badger.DB) ([]PoolDiffDBItem, error) {
 				return errTx
 			}
 
-			poolDiffs = append(poolDiffs, PoolDiffDBItem{
-				Height:   int64(height),
-				PoolDiff: poolDiff,
-			})
-
+			poolDiffs = append(poolDiffs, poolDiff)
 			if lastheight+1 != height {
 				panic(fmt.Sprintf("height: %d, lastheight: %d", height, lastheight))
 			}
 			lastheight = height
 		}
+		// extra sanity check
+		poolDiffLen := uint64(len(poolDiffs))
+		if poolDiffLen > 0 {
+			if poolDiffLen != lastheight {
+				panic(fmt.Sprintf("last poolDiff Height (%d) != %d", lastheight, poolDiffLen))
+			}
+		}
+
 		return nil
 	})
 	return poolDiffs, err
