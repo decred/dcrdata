@@ -7,6 +7,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"os/user"
@@ -50,7 +51,8 @@ var (
 	defaultHost                = "localhost"
 	defaultHTTPProfPath        = "/p"
 	defaultAPIProto            = "http"
-	defaultAPIListen           = "127.0.0.1:7777"
+	defaultAPIPort             = "7777"
+	defaultAPIListen           = defaultHost + ":" + defaultAPIPort
 	defaultIndentJSON          = "   "
 	defaultCacheControlMaxAge  = 86400
 	defaultInsightReqRateLimit = 20.0
@@ -229,6 +231,37 @@ func cleanAndExpandPath(path string) string {
 	}
 
 	return filepath.Join(homeDir, path)
+}
+
+// normalizeNetworkAddress checks for a valid local network address format and
+// adds default host and port if not present. Invalidates addresses that include
+// a protocol identifier.
+func normalizeNetworkAddress(a, defaultHost, defaultPort string) (string, error) {
+	if strings.Contains(a, "://") {
+		return a, fmt.Errorf("Address %s contains a protocol identifier, which is not allowed", a)
+	}
+	if a == "" {
+		return defaultHost + ":" + defaultPort, nil
+	}
+	host, port, err := net.SplitHostPort(a)
+	if err != nil {
+		if strings.Contains(err.Error(), "missing port in address") {
+			normalized := a + ":" + defaultPort
+			host, port, err = net.SplitHostPort(normalized)
+			if err != nil {
+				return a, fmt.Errorf("Unable to address %s after port resolution: %v", normalized, err)
+			}
+		} else {
+			return a, fmt.Errorf("Unable to normalize address %s: %v", a, err)
+		}
+	}
+	if host == "" {
+		host = defaultHost
+	}
+	if port == "" {
+		port = defaultPort
+	}
+	return host + ":" + port, nil
 }
 
 // validLogLevel returns whether or not logLevel is a valid debug log level.
@@ -533,8 +566,9 @@ func loadConfig() (*config, error) {
 
 	// Set the host names and ports to the default if the user does not specify
 	// them.
-	if cfg.DcrdServ == "" {
-		cfg.DcrdServ = defaultHost + ":" + activeNet.JSONRPCClientPort
+	cfg.DcrdServ, err = normalizeNetworkAddress(cfg.DcrdServ, defaultHost, activeNet.JSONRPCClientPort)
+	if err != nil {
+		return loadConfigError(err)
 	}
 
 	// Output folder
@@ -578,6 +612,19 @@ func loadConfig() (*config, error) {
 		return loadConfigError(err)
 	}
 	cfg.PoliteiaAPIURL = urlPath
+
+	// Check the supplied APIListen address
+	cfg.APIListen, err = normalizeNetworkAddress(cfg.APIListen, defaultHost, defaultAPIPort)
+	if err != nil {
+		return loadConfigError(err)
+	}
+
+	// Expand some additional paths.
+	cfg.DcrdCert = cleanAndExpandPath(cfg.DcrdCert)
+	cfg.DBFileName = cleanAndExpandPath(cfg.DBFileName)
+	cfg.AgendasDBFileName = cleanAndExpandPath(cfg.AgendasDBFileName)
+	cfg.ProposalsFileName = cleanAndExpandPath(cfg.ProposalsFileName)
+	cfg.RateCertificate = cleanAndExpandPath(cfg.RateCertificate)
 
 	return &cfg, nil
 }

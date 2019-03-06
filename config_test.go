@@ -271,3 +271,36 @@ func TestRetrieveRootPath(t *testing.T) {
 		}
 	}
 }
+
+func TestNormalizeNetworkAddress(t *testing.T) {
+	defaultPort := "1234"
+	defaultHost := "localhost"
+	type test struct {
+		input         string
+		expectation   string
+		shouldBeError bool
+	}
+	tests := []test{
+		{":1234", "localhost:1234", false},
+		{"some.name", "some.name:1234", false},
+		{"192.168.0.2", "192.168.0.2:1234", false},
+		{"192.168.0.2:5678", "192.168.0.2:5678", false},
+		{"http://remote.com:5678", "http://remote.com:5678", true}, // Only local addresses supported.
+		{"", "localhost:1234", false},
+		{":", "localhost:1234", false},
+	}
+	for _, test := range tests {
+		translated, err := normalizeNetworkAddress(test.input, defaultHost, defaultPort)
+		if translated != test.expectation {
+			t.Errorf("Unexpected result. input: %s, returned: %s, expected: %s", test.input, translated, test.expectation)
+		}
+		if err != nil {
+			if test.shouldBeError {
+				continue
+			}
+			t.Errorf("Unexpected error parsing %s: %v", test.input, err)
+		} else if test.shouldBeError {
+			t.Errorf("Error expected but not seen for %s", test.input)
+		}
+	}
+}
