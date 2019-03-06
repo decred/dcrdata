@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -46,11 +45,6 @@ type wsDataSource interface {
 	RetreiveDifficulty(timestamp int64) float64
 }
 
-// wsDataSourceAux defines the interface for collecting auxiliary/optional data.
-type wsDataSourceAux interface {
-	TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) (*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, int64, error)
-}
-
 // State represents the current state of block chain.
 type State struct {
 	// State is read locked by the send loop, and read/write locked when
@@ -71,13 +65,6 @@ type State struct {
 	BlockchainInfo *dcrjson.GetBlockChainInfoResult
 }
 
-// Mempool represents a snapshot of the mempool.
-type Mempool struct {
-	mtx       sync.RWMutex
-	Inv       *exptypes.MempoolInfo
-	StakeData *mempool.StakeData
-	Txns      []exptypes.MempoolTx
-}
 type connection struct {
 	sync.WaitGroup
 	ws     *websocket.Conn
@@ -87,34 +74,24 @@ type connection struct {
 // PubSubHub manages the collection and distribution of block chain and mempool
 // data to WebSocket clients.
 type PubSubHub struct {
-	liteMode   bool
 	sourceBase wsDataSource
-	sourceAux  wsDataSourceAux
 	wsHub      *WebsocketHub
 	state      *State
-	mempool    Mempool
 	params     *chaincfg.Params
+	invsMtx    sync.RWMutex
+	invs       *exptypes.MempoolInfo
 }
 
 // NewPubSubHub constructs a PubSubHub given a primary and auxiliary data
 // source. The primary data source is required, while the aux. source may be
 // nil, which indicates a "lite" mode of operation. The WebSocketHub is
 // automatically started.
-func NewPubSubHub(dataSource wsDataSource, auxDataSource wsDataSourceAux) *PubSubHub {
+func NewPubSubHub(dataSource wsDataSource) (*PubSubHub, error) {
 	psh := new(PubSubHub)
 	psh.sourceBase = dataSource
-	psh.sourceAux = auxDataSource
 
 	// Allocate Mempool fields.
-	psh.mempool.Inv = new(exptypes.MempoolInfo)
-	psh.mempool.StakeData = new(mempool.StakeData)
-
-	// wsDataSource is an interface that could have a value of pointer type, and
-	// if either is nil this means lite mode.
-	if psh.sourceAux == nil || reflect.ValueOf(psh.sourceAux).IsNil() {
-		log.Debugf("Auxiliary data source not available. Operating in lite mode.")
-		psh.liteMode = true
-	}
+	psh.invs = new(exptypes.MempoolInfo)
 
 	// Retrieve chain parameters.
 	params := psh.sourceBase.GetChainParams()
@@ -123,7 +100,7 @@ func NewPubSubHub(dataSource wsDataSource, auxDataSource wsDataSourceAux) *PubSu
 	// Development subsidy address of the current network
 	devSubsidyAddress, err := dbtypes.DevSubsidyAddress(params)
 	if err != nil {
-		log.Warnf("NewPubSubHub: bad project fund address (%v)", err)
+		return nil, fmt.Errorf("bad project fund address: %v", err)
 	}
 
 	psh.state = &State{
@@ -146,7 +123,7 @@ func NewPubSubHub(dataSource wsDataSource, auxDataSource wsDataSourceAux) *PubSu
 	psh.wsHub = NewWebsocketHub()
 	go psh.wsHub.Run()
 
-	return psh
+	return psh, nil
 }
 
 // StopWebsocketHub stops the websocket hub.
@@ -178,9 +155,9 @@ func (psh *PubSubHub) HubRelays() (HubRelay chan pstypes.HubSignal, NewTxChan ch
 
 // MempoolInventory safely retrieves the current mempool inventory.
 func (psh *PubSubHub) MempoolInventory() *types.MempoolInfo {
-	psh.mempool.mtx.RLock()
-	defer psh.mempool.mtx.RUnlock()
-	return psh.mempool.Inv
+	psh.invsMtx.RLock()
+	defer psh.invsMtx.RUnlock()
+	return psh.invs
 }
 
 // closeWS attempts to close a websocket.Conn, logging errors other than those
@@ -530,16 +507,11 @@ func (psh *PubSubHub) WebSocketHandler(w http.ResponseWriter, r *http.Request) {
 // []types.MempoolTx so that it may be modified (e.g. sorted) without affecting
 // other MempoolDataSavers. The struct pointed to may be shared, so it should
 // not be modified.
-func (psh *PubSubHub) StoreMPData(stakeData *mempool.StakeData, txs []exptypes.MempoolTx, inv *exptypes.MempoolInfo) {
-	// Parse the MempoolTx slice to generate a exptypes.MempoolInfo.
-	//mpInfo := mempool.ParseTxns(txs, psh.params, &stakeData.LatestBlock)
-
+func (psh *PubSubHub) StoreMPData(_ *mempool.StakeData, _ []exptypes.MempoolTx, inv *exptypes.MempoolInfo) {
 	// Get exclusive access to the Mempool field.
-	psh.mempool.mtx.Lock()
-	psh.mempool.Inv = inv
-	psh.mempool.StakeData = stakeData
-	psh.mempool.Txns = txs
-	psh.mempool.mtx.Unlock()
+	psh.invsMtx.Lock()
+	psh.invs = inv
+	psh.invsMtx.Unlock()
 
 	// Signal to the websocket hub that a new tx was received, but do not block
 	// StoreMPData(), and do not hang forever in a goroutine waiting to send.

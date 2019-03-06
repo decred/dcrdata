@@ -550,9 +550,9 @@ func _main(ctx context.Context) error {
 	mempoolSavers = append(mempoolSavers, explore)
 
 	// Create the pub sub hub.
-	psHub := pubsub.NewPubSubHub(baseDB, auxDB)
-	if psHub == nil {
-		return fmt.Errorf("failed to create new PubSubHub")
+	psHub, err := pubsub.NewPubSubHub(baseDB)
+	if err != nil {
+		return fmt.Errorf("failed to create new pubsubhub: %v", err)
 	}
 	defer psHub.StopWebsocketHub()
 
