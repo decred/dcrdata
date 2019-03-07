@@ -116,7 +116,8 @@ func TestNewAgendasDB(t *testing.T) {
 type testClient int
 
 // voteVersionErrMsg is a sample error message that does not imply the format of
-// the actual error GetVoteInfo returns when an invalid votes version is provided.
+// the actual error rpcclient.GetVoteInfo returns when an invalid votes version
+// is provided.
 var voteVersionErrMsg = "invalid vote version %d found"
 
 // GetVoteInfo implementation showing a sample data format expected.

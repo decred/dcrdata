@@ -513,7 +513,7 @@ func _main(ctx context.Context) error {
 	var _ agendas.DeploymentSource = dcrdClient
 
 	// Retrieve blockchain deployment updates and add them to the agendas db.
-	// activeChain.Deployments contains a list of all agendas support in the
+	// activeChain.Deployments contains a list of all agendas supported in the
 	// current environment.
 	if err = agendasInstance.CheckAgendasUpdates(dcrdClient,
 		activeChain.Deployments); err != nil {

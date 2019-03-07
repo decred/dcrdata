@@ -107,7 +107,7 @@ func agendasForVoteVersion(ver uint32, client DeploymentSource) ([]AgendaTagged,
 		return nil, err
 	}
 
-	// Set the agendas slice size
+	// Set the agendas slice capacity.
 	agendas := make([]AgendaTagged, 0, len(voteInfo.Agendas))
 	for i := range voteInfo.Agendas {
 		v := &voteInfo.Agendas[i]
