@@ -513,7 +513,10 @@ func _main(ctx context.Context) error {
 	var _ agendas.DeploymentSource = dcrdClient
 
 	// Retrieve blockchain deployment updates and add them to the agendas db.
-	if err = agendasInstance.CheckAgendasUpdates(dcrdClient); err != nil {
+	// activeChain.Deployments contains a list of all agendas support in the
+	// current environment.
+	if err = agendasInstance.CheckAgendasUpdates(dcrdClient,
+		activeChain.Deployments); err != nil {
 		return fmt.Errorf("updating agendas db failed: %v", err)
 	}
 
