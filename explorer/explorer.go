@@ -121,7 +121,7 @@ type politeiaBackend interface {
 
 // agendaBackend implements methods that manage agendas db data.
 type agendaBackend interface {
-	CheckAgendasUpdates(agendas.DeploymentSource) error
+	CheckAgendasUpdates(data agendas.DeploymentSource, activeVersions map[uint32][]chaincfg.ConsensusDeployment) error
 	AgendaInfo(agendaID string) (*agendas.AgendaTagged, error)
 	AllAgendas() (agendas []*agendas.AgendaTagged, err error)
 }
