@@ -3,6 +3,7 @@ package explorer
 import (
 	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/decred/dcrdata/v4/db/dbtypes"
@@ -64,6 +65,8 @@ func (exp *explorerUI) BeginSyncStatusUpdates(barLoad chan *dbtypes.ProgressBarL
 		log.Warnf("Not updating sync status page.")
 		return
 	}
+	barLoading := new(atomic.Value)
+	barLoading.Store(true)
 
 	exp.EnableSyncStatusPage(true)
 
@@ -71,7 +74,7 @@ func (exp *explorerUI) BeginSyncStatusUpdates(barLoad chan *dbtypes.ProgressBarL
 	go func() {
 		timer := time.NewTicker(syncStatusInterval)
 		for range timer.C {
-			if barLoad == nil {
+			if !barLoading.Load().(bool) {
 				log.Debug("Stopping progress bar signals.")
 				timer.Stop()
 				return
@@ -89,6 +92,7 @@ func (exp *explorerUI) BeginSyncStatusUpdates(barLoad chan *dbtypes.ProgressBarL
 		// returns. As a result, the websocket trigger goroutine will return.
 		defer func() {
 			log.Debug("Finished with sync status updates.")
+			barLoading.Store(false)
 			barLoad = nil
 			// Send the one last signal so that the websocket can send the final
 			// confirmation that syncing is done and home page auto reload should
