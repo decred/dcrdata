@@ -1,6 +1,9 @@
 package internal
 
-import "fmt"
+import (
+	"bytes"
+	"strconv"
+)
 
 const (
 	IndexExists = `SELECT 1
@@ -25,46 +28,51 @@ func makeARRAYOfTEXT(text []string) string {
 	if len(text) == 0 {
 		return "ARRAY['']"
 	}
-	sTEXTARRAY := "ARRAY["
+	buffer := bytes.NewBufferString("ARRAY[")
 	for i, txt := range text {
 		if i == len(text)-1 {
-			sTEXTARRAY += fmt.Sprintf(`'%s'`, txt)
+			buffer.WriteString(`'` + txt + `'`)
 			break
 		}
-		sTEXTARRAY += fmt.Sprintf(`'%s', `, txt)
+		buffer.WriteString(`'` + txt + `', `)
 	}
-	sTEXTARRAY += "]"
-	return sTEXTARRAY
+	buffer.WriteString("]")
+
+	return buffer.String()
 }
 
 func makeARRAYOfUnquotedTEXT(text []string) string {
 	if len(text) == 0 {
 		return "ARRAY[]"
 	}
-	sTEXTARRAY := "ARRAY["
+	buffer := bytes.NewBufferString("ARRAY[")
 	for i, txt := range text {
 		if i == len(text)-1 {
-			sTEXTARRAY += txt
+			buffer.WriteString(txt)
 			break
 		}
-		sTEXTARRAY += fmt.Sprintf(`%s, `, txt)
+		buffer.WriteString(txt + `, `)
 	}
-	sTEXTARRAY += "]"
-	return sTEXTARRAY
+	buffer.WriteString("]")
+
+	return buffer.String()
 }
 
 func makeARRAYOfBIGINTs(ints []uint64) string {
 	if len(ints) == 0 {
 		return "ARRAY[]::BIGINT[]"
 	}
-	ARRAY := "ARRAY["
+
+	buffer := bytes.NewBufferString("ARRAY[")
 	for i, v := range ints {
+		u := strconv.FormatUint(v, 10)
 		if i == len(ints)-1 {
-			ARRAY += fmt.Sprintf(`%d`, v)
+			buffer.WriteString(u)
 			break
 		}
-		ARRAY += fmt.Sprintf(`%d, `, v)
+		buffer.WriteString(u + `, `)
 	}
-	ARRAY += "]"
-	return ARRAY
+	buffer.WriteString("]")
+
+	return buffer.String()
 }
