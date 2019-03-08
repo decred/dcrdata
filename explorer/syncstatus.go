@@ -67,13 +67,15 @@ func (exp *explorerUI) BeginSyncStatusUpdates(barLoad chan *dbtypes.ProgressBarL
 
 	// stopTimer allows safe exit of the goroutine that triggers periodic
 	// websocket progress update.
-	var stopTimer chan bool
+	stopTimer := make(chan bool)
 
 	exp.EnableSyncStatusPage(true)
 
 	// Periodically trigger websocket hub to signal a progress update.
 	go func() {
 		timer := time.NewTicker(syncStatusInterval)
+
+	timerLoop:
 		for {
 			select {
 			case <-timer.C:
@@ -83,7 +85,7 @@ func (exp *explorerUI) BeginSyncStatusUpdates(barLoad chan *dbtypes.ProgressBarL
 			case <-stopTimer:
 				log.Debug("Stopping progress bar signals.")
 				timer.Stop()
-				return
+				break timerLoop
 			}
 		}
 	}()
