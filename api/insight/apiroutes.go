@@ -938,7 +938,9 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 
 	// Get Confirmed Balances
 	var unconfirmedBalanceSat int64
-	_, _, totalSpent, totalUnspent, err := c.BlockData.ChainDB.AddressSpentUnspent(address)
+
+	balance, err := c.BlockData.ChainDB.AddressBalance(address)
+
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("AddressSpentUnspent: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -953,13 +955,13 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 	if isCmd {
 		switch command {
 		case "balance":
-			writeJSON(w, totalUnspent, c.getIndentQuery(r))
+			writeJSON(w, balance.TotalUnspent, c.getIndentQuery(r))
 			return
 		case "totalReceived":
-			writeJSON(w, totalSpent+totalUnspent, c.getIndentQuery(r))
+			writeJSON(w, balance.TotalSpent+balance.TotalUnspent, c.getIndentQuery(r))
 			return
 		case "totalSent":
-			writeJSON(w, totalSpent, c.getIndentQuery(r))
+			writeJSON(w, balance.TotalSpent, c.getIndentQuery(r))
 			return
 		}
 	}
@@ -1078,12 +1080,12 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 
 	addressInfo := apitypes.InsightAddressInfo{
 		Address:                  address,
-		TotalReceivedSat:         (totalSpent + totalUnspent),
-		TotalSentSat:             totalSpent,
-		BalanceSat:               totalUnspent,
-		TotalReceived:            dcrutil.Amount(totalSpent + totalUnspent).ToCoin(),
-		TotalSent:                dcrutil.Amount(totalSpent).ToCoin(),
-		Balance:                  dcrutil.Amount(totalUnspent).ToCoin(),
+		TotalReceivedSat:         (balance.TotalSpent + balance.TotalUnspent),
+		TotalSentSat:             balance.TotalSpent,
+		BalanceSat:               balance.TotalUnspent,
+		TotalReceived:            dcrutil.Amount(balance.TotalSpent + balance.TotalUnspent).ToCoin(),
+		TotalSent:                dcrutil.Amount(balance.TotalSpent).ToCoin(),
+		Balance:                  dcrutil.Amount(balance.TotalUnspent).ToCoin(),
 		TxAppearances:            int64(confirmedTxCount),
 		UnconfirmedBalance:       dcrutil.Amount(unconfirmedBalanceSat).ToCoin(),
 		UnconfirmedBalanceSat:    unconfirmedBalanceSat,

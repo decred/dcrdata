@@ -1395,35 +1395,15 @@ func (pgb *ChainDB) DevBalance() (*dbtypes.AddressBalance, error) {
 	return nil, fmt.Errorf("unable to query for balance during reorg")
 }
 
-// AddressBalance attempts to retrieve the dbtypes.AddressBalance from cache,
-// and if cache is stale or missing data for the address, a DB query is used. A
-// successful DB query will freshen the cache.
-func (pgb *ChainDB) AddressBalance(address string) (*dbtypes.AddressBalance, error) {
-	numSpent, numUnspent, amtSpent, amtUnspent, err :=
-		pgb.AddressSpentUnspent(address)
-	if err != nil {
-		return nil, err
-	}
-	balance := &dbtypes.AddressBalance{
-		Address:      address,
-		NumSpent:     numSpent,
-		NumUnspent:   numUnspent,
-		TotalSpent:   amtSpent,
-		TotalUnspent: amtUnspent,
-	}
-
-	return balance, nil
-}
-
-// AddressSpentUnspent attempts to retrieve balance information for a specific
+// AddressBalance attempts to retrieve balance information for a specific
 // address from cache, and if cache is stale or missing data for the address, a
 // DB query is used. A successful DB query will freshen the cache.
-func (pgb *ChainDB) AddressSpentUnspent(address string) (int64, int64, int64, int64, error) {
+func (pgb *ChainDB) AddressBalance(address string) (*dbtypes.AddressBalance, error) {
 	// Check the cache first.
 	bestHash, height := pgb.BestBlock()
 	bal, validHeight := pgb.AddressCache.Balance(address)
 	if bal != nil && *bestHash == validHeight.Hash {
-		return bal.NumSpent, bal.NumUnspent, bal.TotalSpent, bal.TotalUnspent, nil
+		return bal, nil
 	}
 
 	busy, wait, done := pgb.CacheLocks.bal.TryLock(address)
@@ -1437,7 +1417,7 @@ func (pgb *ChainDB) AddressSpentUnspent(address string) (int64, int64, int64, in
 		<-wait
 
 		// Try again, starting with the cache.
-		return pgb.AddressSpentUnspent(address)
+		return pgb.AddressBalance(address)
 	} else {
 		// We will run the DB query, so block others from doing the same. When
 		// query and/or cache update is completed, broadcast to any waiters that
@@ -1448,21 +1428,14 @@ func (pgb *ChainDB) AddressSpentUnspent(address string) (int64, int64, int64, in
 	// Cache is empty or stale, so query the DB.
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
-	ns, nu, as, au, err := RetrieveAddressSpentUnspent(ctx, pgb.db, address)
+	balance, err := RetrieveAddressBalance(ctx, pgb.db, address)
 	if err != nil {
-		return 0, 0, 0, 0, pgb.replaceCancelError(err)
+		return nil, pgb.replaceCancelError(err)
 	}
 
 	// Update the address cache.
-	balance := &dbtypes.AddressBalance{
-		Address:      address,
-		NumSpent:     ns,
-		NumUnspent:   nu,
-		TotalSpent:   as,
-		TotalUnspent: au,
-	}
 	pgb.AddressCache.StoreBalance(address, balance, cache.NewBlockID(bestHash, height))
-	return ns, nu, as, au, nil
+	return balance, nil
 }
 
 // updateAddressRows updates the merged or non-merged address rows, or waits for
@@ -1679,7 +1652,7 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 				Address: address,
 			}
 		} else {
-			addrInfo := dbtypes.ReduceAddressHistory(addressRows)
+			addrInfo, fromStake, toStake := dbtypes.ReduceAddressHistory(addressRows)
 			if addrInfo == nil {
 				return addressRows, nil,
 					fmt.Errorf("ReduceAddressHistory failed. len(addressRows) = %d",
@@ -1692,6 +1665,8 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 				NumUnspent:   addrInfo.NumFundingTxns - addrInfo.NumSpendingTxns,
 				TotalSpent:   int64(addrInfo.AmountSent),
 				TotalUnspent: int64(addrInfo.AmountUnspent),
+				FromStake:    fromStake,
+				ToStake:      toStake,
 			}
 
 			// Update balance cache.
@@ -1701,18 +1676,9 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 	} else {
 		// Count spent/unspent amounts and transactions.
 		log.Debugf("Obtaining balance via DB query.")
-		// AddressSpentUnspent updates the balance cache.
-		numSpent, numUnspent, amtSpent, amtUnspent, err :=
-			pgb.AddressSpentUnspent(address)
+		balance, err = pgb.AddressBalance(address)
 		if err != nil {
 			return nil, nil, err
-		}
-		balance = &dbtypes.AddressBalance{
-			Address:      address,
-			NumSpent:     numSpent,
-			NumUnspent:   numUnspent,
-			TotalSpent:   amtSpent,
-			TotalUnspent: amtUnspent,
 		}
 	}
 
@@ -1759,7 +1725,7 @@ func (db *ChainDBRPC) AddressData(address string, limitN, offsetAddrOuts int64,
 		return nil, fmt.Errorf("AddressHistory: %v", err)
 	} else /*err == nil*/ {
 		// Generate AddressInfo skeleton from the address table rows.
-		addrData = dbtypes.ReduceAddressHistory(addrHist)
+		addrData, _, _ = dbtypes.ReduceAddressHistory(addrHist)
 		if addrData == nil {
 			// Empty history is not expected for credit or all txnType with any
 			// txns. i.e. Empty history is OK for debit views (merged or not).
@@ -2181,7 +2147,7 @@ func (pgb *ChainDB) addressInfo(addr string, count, skip int64, txnType dbtypes.
 	}
 
 	// Generate AddressInfo skeleton from the address table rows
-	addrData := dbtypes.ReduceAddressHistory(addrHist)
+	addrData, _, _ := dbtypes.ReduceAddressHistory(addrHist)
 	if addrData == nil {
 		// Empty history is not expected for credit txnType with any txns.
 		if txnType != dbtypes.AddrTxnDebit && (balance.NumSpent+balance.NumUnspent) > 0 {

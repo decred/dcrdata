@@ -22,6 +22,8 @@
 }
 
 .dygraph-rangesel-zoomhandle {
+  height: 16px;
+  width: 8px;
   z-index: 0 !important;
 }
 
@@ -71,6 +73,34 @@
   display: block;
 }
 
+.loader-v2 {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  background-color: rgba(128, 128, 128, 0.5);
+}
+
+.loader-v2::after {
+  content: '';
+  width: 70px;
+  height: 70px;
+  background-image: url('/images/loader.svg');
+  background-repeat: no-repeat;
+  background-size: contain;
+  -webkit-animation: spin 0.8s ease-in-out infinite; /* Safari */
+  animation: spin 0.8s ease-in-out infinite;
+}
+
+.loader-v2.loading {
+  display: flex;
+}
+
 .bal-d {
   font-weight: bolder;
   margin: 0 auto;
@@ -89,27 +119,49 @@
   height: fit-content;
 }
 
-.btn-group-add {
+.btn-group-compact {
   font-size: 0.875rem;
+  border-top-style: solid;
+  border-width: 1px;
+  border-color: #333;
+  position: relative;
+  padding-top: 1em;
+  margin: 1em 0;
 }
 
-.btn-group-add > button {
+.btn-group-compact > button {
   display: inline-flex;
-  padding: 0 0.5em;
+  padding: 0 0.2em;
   margin: 0 0.1em;
-  height: 2em;
-  line-height: 2em;
-  background-color: #ddd;
+  height: 1.5em;
+  line-height: 1.5em;
   border-style: none;
   cursor: pointer;
-  border-radius: 3px;
+  border-radius: 2px;
+  background: transparent;
   transition: all 0.1s cubic-bezier(0.25, 0.8, 0.25, 1);
+  font-size: 14px;
 }
 
-.btn-group-add > button.btn-selected {
-  padding: 0.2 0.7em;
-  background-color: #fff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+.btn-group-compact > button.btn-selected {
+  background-color: white;
+  border: 1px solid #aaa;
+}
+
+.btn-group-compact > label {
+  position: absolute;
+  left: 0.5em;
+  top: -0.5em;
+  line-height: 1em;
+  font-size: 14px;
+  font-weight: bolder;
+  background-color: $card-bg-secondary;
+  z-index: 10;
+  padding: 0 0.3em;
+}
+
+body.darkBG .btn-group-compact > label {
+  background-color: $card-bg-secondary-dark;
 }
 
 .btn-active,
@@ -208,14 +260,19 @@
 
 .address_chart_wrap {
   background-color: white;
-  padding: 1em;
   border-radius: 3px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+  flex: auto;
+  position: relative;
+  min-height: 200px;
+  border: 1px solid rgba(128, 128, 128, 0.5);
 }
 
 .address_chart {
-  width: 100%;
-  height: 500px;
+  position: absolute;
+  left: 1em;
+  right: 2em;
+  top: 1em;
+  bottom: 1em;
 }
 
 /* chart theme */
@@ -298,14 +355,6 @@
   display: none !important;
 }
 
-.t-charts {
-  width: 22%;
-  max-width: 270px;
-  font-size: 0.875rem;
-  font-weight: bolder;
-  line-height: 1.5em;
-}
-
 .customcheck {
   display: block;
   position: relative;
@@ -379,11 +428,11 @@ input ~ .checkmark {
 }
 
 .chart-box {
-  font-size: 0.875rem;
+  font-size: 14px;
   background-color: #fff;
   height: 2em;
   line-height: 2em;
-  padding: 0 0.5em;
+  padding-right: 0.5em;
 }
 
 .loader {
@@ -403,13 +452,13 @@ input ~ .checkmark {
 @-webkit-keyframes spin {
   0% { -webkit-transform: rotate(0deg); }
 
-  100% { -webkit-transform: rotate(360deg); }
+  100% { -webkit-transform: rotate(480deg); }
 }
 
 @keyframes spin {
   0% { transform: rotate(0deg); }
 
-  100% { transform: rotate(360deg); }
+  100% { transform: rotate(480deg); }
 }
 
 .d-val {
@@ -432,12 +481,16 @@ body.darkBG {
     background-color: #333;
   }
 
-  .btn-group-add > button {
+  .btn-group-compact {
+    border-color: #ddd;
+  }
+
+  .btn-group-compact > button {
     background-color: #333;
     color: white;
   }
 
-  .btn-group-add > button.btn-selected {
+  .btn-group-compact > button.btn-selected {
     padding: 0.2 0.7em;
     background-color: #34a;
   }

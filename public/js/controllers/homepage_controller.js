@@ -18,11 +18,7 @@ function mempoolTableRow (tx) {
   var tbody = document.createElement('tbody')
   var link = `/tx/${tx.hash}`
   tbody.innerHTML = `<tr>
-    <td class="text-left pl-1">
-      <div class="hash-box">
-        <div class="hash-fill">${humanize.hashElide(tx.hash, link)}</div>
-      </div>
-    </td>
+    <td class="text-left pl-1">${humanize.hashElide(tx.hash, link)}</td>
     <td>${tx.Type}</td>
     <td>${humanize.threeSigFigs(tx.total || 0, false, 8)}</td>
     <td class="d-none d-sm-table-cell d-md-none d-lg-table-cell">${tx.size} B</td>

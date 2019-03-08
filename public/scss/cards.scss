@@ -1,9 +1,3 @@
-// card background colors
-// primary background color is white, so can use bootstrap bg-white, which has
-/// a darkBG override in themes.scss
-$card-bg-secondary: #f8f8f9;
-$card-bg-secondary-dark: #222326;
-
 .secondary-card {
   background-color: $card-bg-secondary;
 }

@@ -9,7 +9,7 @@ import TurboQuery from '../helpers/turbolinks_helper'
 import axios from 'axios'
 import humanize from '../helpers/humanize_helper'
 import txInBlock from '../helpers/block_helper'
-import { fadeIn } from '../helpers/animation_helper'
+import { fadeIn, animationFrame } from '../helpers/animation_helper'
 
 const blockDuration = 5 * 60000
 let Dygraph // lazy loaded on connect
@@ -95,16 +95,18 @@ function createOptions () {
     rangeSelectorForegroundStrokeColor: '#999',
     rangeSelectorBackgroundStrokeColor: '#777',
     legend: 'follow',
-    xlabel: 'Date',
     fillAlpha: 0.9,
-    labelsKMB: true
+    labelsKMB: true,
+    rangeSelectorPlotFillColor: 'rgba(128, 128, 128, 0.3)',
+    rangeSelectorPlotFillGradientColor: 'transparent',
+    rangeSelectorPlotStrokeColor: 'rgba(128, 128, 128, 0.7)',
+    rangeSelectorPlotLineWidth: 2
   }
 
   typesGraphOptions = {
     labels: ['Date', 'Sending (regular)', 'Receiving (regular)', 'Tickets', 'Votes', 'Revocations'],
     colors: ['#69D3F5', '#2971FF', '#41BF53', 'darkorange', '#FF0090'],
-    ylabel: 'Number of Transactions by Type',
-    title: 'Transactions Types',
+    ylabel: 'Tx Count',
     visibility: [true, true, true, true, true],
     legendFormatter: formatter,
     stackedGraph: true,
@@ -114,8 +116,7 @@ function createOptions () {
   amountFlowGraphOptions = {
     labels: ['Date', 'Received', 'Spent', 'Net Received', 'Net Spent'],
     colors: ['#2971FF', '#2ED6A1', '#41BF53', '#FF0090'],
-    ylabel: 'Total Amount (DCR)',
-    title: 'Sent And Received',
+    ylabel: 'Total (DCR)',
     visibility: [true, false, false, false],
     legendFormatter: customizedFormatter,
     stackedGraph: true,
@@ -126,7 +127,6 @@ function createOptions () {
     labels: ['Date', 'Balance'],
     colors: ['#41BF53'],
     ylabel: 'Balance (DCR)',
-    title: 'Balance',
     plotter: [Dygraph.Plotters.linePlotter, Dygraph.Plotters.fillPlotter],
     legendFormatter: customizedFormatter,
     stackedGraph: false,
@@ -135,6 +135,8 @@ function createOptions () {
   }
 }
 
+var ctrl = null
+
 export default class extends Controller {
   static get targets () {
     return ['options', 'addr', 'balance',
@@ -142,17 +144,17 @@ export default class extends Controller {
       'pagesize', 'txntype', 'txnCount', 'qricon', 'qrimg', 'qrbox',
       'paginator', 'pageplus', 'pageminus', 'listbox', 'table',
       'range', 'chartbox', 'noconfirms', 'chart', 'pagebuttons',
-      'pending', 'hash', 'matchhash', 'view', 'mergedMsg']
+      'pending', 'hash', 'matchhash', 'view', 'mergedMsg',
+      'chartLoader', 'listLoader']
   }
 
   async connect () {
-    var ctrl = this
+    ctrl = this
     ctrl.retrievedData = {}
     ctrl.ajaxing = false
     ctrl.qrCode = false
     ctrl.requestedChart = false
     // Bind functions that are passed as callbacks
-    ctrl.updateView = ctrl._updateView.bind(ctrl)
     ctrl.zoomCallback = ctrl._zoomCallback.bind(ctrl)
     ctrl.drawCallback = ctrl._drawCallback.bind(ctrl)
     ctrl.lastEnd = 0
@@ -163,22 +165,26 @@ export default class extends Controller {
 
     // These two are templates for query parameter sets.
     // When url query parameters are set, these will also be updated.
-    ctrl.chartSettings = TurboQuery.nullTemplate(['chart', 'zoom', 'bin', 'flow'])
-    ctrl.listSettings = TurboQuery.nullTemplate(['n', 'start', 'txntype'])
+    var settings = ctrl.settings = TurboQuery.nullTemplate(['chart', 'zoom', 'bin', 'flow',
+      'n', 'start', 'txntype'])
 
-    ctrl.chartState = Object.assign({}, ctrl.chartSettings)
+    ctrl.state = Object.assign({}, settings)
 
     // Get initial view settings from the url
-    ctrl.query.update(ctrl.chartSettings)
-    ctrl.query.update(ctrl.listSettings)
-    ctrl.currentTab = ctrl.query.get('chart') ? 'chart' : 'list'
-    ctrl.setViewButton(ctrl.currentTab === 'list' ? 'list' : 'chart')
+    ctrl.query.update(settings)
+    ctrl.query.update(ctrl.settings)
     ctrl.setChartType()
-    if (ctrl.chartSettings.flow) ctrl.setFlowChecks()
-    if (ctrl.chartSettings.zoom !== null) {
+    if (settings.flow) ctrl.setFlowChecks()
+    if (settings.zoom !== null) {
       ctrl.zoomButtons.forEach((button) => {
         button.classList.remove('btn-selected')
       })
+    }
+    if (settings.bin == null) {
+      settings.bin = ctrl.getBin()
+    }
+    if (settings.chart == null || !ctrl.validChartType(settings.chart)) {
+      settings.chart = ctrl.chartType
     }
 
     // Parse stimulus data
@@ -194,7 +200,7 @@ export default class extends Controller {
       import(/* webpackChunkName: "dygraphs" */ '../vendor/dygraphs.min.js')
     )
     ctrl.initializeChart()
-    setTimeout(ctrl.updateView, 0)
+    ctrl.drawGraph()
   }
 
   disconnect () {
@@ -223,7 +229,6 @@ export default class extends Controller {
   }
 
   bindEvents () {
-    var ctrl = this
     globalEventBus.on('BLOCK_RECEIVED', this.confirmMempoolTxs)
     ctrl.paginatorTargets.forEach((link) => {
       link.addEventListener('click', (e) => {
@@ -235,7 +240,7 @@ export default class extends Controller {
   async showQRCode () {
     this.qrboxTarget.classList.remove('d-hide')
     if (this.qrCode) {
-      fadeIn(this.qrimgTarget)
+      await fadeIn(this.qrimgTarget)
     } else {
       let QRCode = await getDefault(
         import(/* webpackChunkName: "qrcode" */ 'qrcode')
@@ -243,20 +248,23 @@ export default class extends Controller {
       let qrCodeImg = await QRCode.toDataURL(this.dcrAddress,
         {
           errorCorrectionLevel: 'H',
-          scale: 8,
+          scale: 6,
           margin: 0
         }
       )
       this.qrimgTarget.innerHTML = `<img src="${qrCodeImg}"/>`
-      fadeIn(this.qrimgTarget)
+      await fadeIn(this.qrimgTarget)
+      if (this.graph) this.graph.resize()
     }
     this.qriconTarget.classList.add('d-hide')
   }
 
-  hideQRCode () {
+  async hideQRCode () {
     this.qriconTarget.classList.remove('d-hide')
     this.qrboxTarget.classList.add('d-hide')
     this.qrimgTarget.style.opacity = 0
+    await animationFrame()
+    if (this.graph) this.graph.resize()
   }
 
   makeTableUrl (txType, count, offset) {
@@ -281,7 +289,6 @@ export default class extends Controller {
   }
 
   toPage (direction) {
-    var ctrl = this
     var params = ctrl.paginationParams
     var count = ctrl.pageSize
     var txType = ctrl.txnType
@@ -292,13 +299,12 @@ export default class extends Controller {
   }
 
   async fetchTable (txType, count, offset) {
-    var ctrl = this
-    ctrl.listboxTarget.classList.add('loading')
+    ctrl.listLoaderTarget.classList.add('loading')
     var requestCount = count > 20 ? count : 20
     let tableResponse = await axios.get(ctrl.makeTableUrl(txType, requestCount, offset))
     let data = tableResponse.data
     ctrl.tableTarget.innerHTML = dompurify.sanitize(data.html)
-    var settings = ctrl.listSettings
+    var settings = ctrl.settings
     settings.n = count
     settings.start = offset
     settings.txntype = txType
@@ -311,11 +317,10 @@ export default class extends Controller {
     } else {
       this.mergedMsgTarget.classList.remove('d-hide')
     }
-    ctrl.listboxTarget.classList.remove('loading')
+    ctrl.listLoaderTarget.classList.remove('loading')
   }
 
   setPageability () {
-    var ctrl = this
     var params = ctrl.paginationParams
     var rowMax = params.count
     var count = ctrl.pageSize
@@ -363,16 +368,15 @@ export default class extends Controller {
   }
 
   drawGraph () {
-    var ctrl = this
-    var settings = ctrl.chartSettings
+    var settings = ctrl.settings
 
     ctrl.noconfirmsTarget.classList.add('d-hide')
     ctrl.chartTarget.classList.remove('d-hide')
 
-    // If the view parameters aren't valid, go to default (list) view.
-    if (!ctrl.validChartType() || !ctrl.validGraphInterval()) return ctrl.showList()
+    // Check for invalid view parameters
+    if (!ctrl.validChartType(settings.chart) || !ctrl.validGraphInterval()) return
 
-    if (settings.chart === ctrl.chartState.chart && settings.bin === ctrl.chartState.bin) {
+    if (settings.chart === ctrl.state.chart && settings.bin === ctrl.state.bin) {
       // Only the zoom has changed.
       let zoom = Zoom.decode(settings.zoom)
       if (zoom) {
@@ -382,12 +386,11 @@ export default class extends Controller {
     }
 
     // Set the current view to prevent uneccesary reloads.
-    Object.assign(ctrl.chartState, settings)
+    Object.assign(ctrl.state, settings)
     ctrl.fetchGraphData(settings.chart, settings.bin)
   }
 
   async fetchGraphData (chart, bin) {
-    var ctrl = this
     var cacheKey = chart + '-' + bin
     if (ctrl.ajaxing === cacheKey) {
       return
@@ -395,32 +398,33 @@ export default class extends Controller {
     ctrl.requestedChart = cacheKey
     ctrl.ajaxing = cacheKey
 
-    ctrl.chartboxTarget.classList.add('loading')
+    ctrl.chartLoaderTarget.classList.add('loading')
 
     // Check for cached data
     if (ctrl.retrievedData[cacheKey]) {
       // Queue the function to allow the loader to display.
       setTimeout(() => {
         ctrl.popChartCache(chart, bin)
-        ctrl.chartboxTarget.classList.remove('loading')
+        ctrl.chartLoaderTarget.classList.remove('loading')
         ctrl.ajaxing = false
       }, 10) // 0 should work but doesn't always
       return
     }
+
     var chartKey = chart === 'balance' ? 'amountflow' : chart
     let url = '/api/address/' + ctrl.dcrAddress + '/' + chartKey + '/' + bin
     let graphDataResponse = await axios.get(url)
     ctrl.processData(chart, bin, graphDataResponse.data)
     ctrl.ajaxing = false
-    ctrl.chartboxTarget.classList.remove('loading')
+    ctrl.chartLoaderTarget.classList.remove('loading')
   }
 
   processData (chart, bin, data) {
-    var ctrl = this
     if (isEmpty(data)) {
       ctrl.noDataAvailable()
       return
     }
+
     var binSize = Zoom.mapValue(bin) || blockDuration
     if (chart === 'types') {
       ctrl.retrievedData['types-' + bin] = txTypesFunc(data, binSize)
@@ -435,12 +439,10 @@ export default class extends Controller {
   }
 
   popChartCache (chart, bin) {
-    var ctrl = this
     var cacheKey = chart + '-' + bin
     var binSize = Zoom.mapValue(bin) || blockDuration
     if (!ctrl.retrievedData[cacheKey] ||
-        ctrl.requestedChart !== cacheKey ||
-        ctrl.currentTab === 'list'
+        ctrl.requestedChart !== cacheKey
     ) {
       return
     }
@@ -475,7 +477,7 @@ export default class extends Controller {
     if (chart === 'amountflow') {
       ctrl.updateFlow()
     }
-    ctrl.chartboxTarget.classList.remove('loading')
+    ctrl.chartLoaderTarget.classList.remove('loading')
     ctrl.xRange = ctrl.graph.xAxisExtremes()
     ctrl.validateZoom(binSize)
   }
@@ -483,45 +485,15 @@ export default class extends Controller {
   noDataAvailable () {
     this.noconfirmsTarget.classList.remove('d-hide')
     this.chartTarget.classList.add('d-hide')
-    this.chartboxTarget.classList.remove('loading')
-    this.flowTarget.classList.add('d-hide')
-  }
-
-  _updateView () {
-    var ctrl = this
-    if (ctrl.query.count === 0 || ctrl.currentTab === 'list') {
-      ctrl.showList()
-      return
-    }
-    ctrl.showGraph()
-    ctrl.drawGraph()
-  }
-
-  showList () {
-    var ctrl = this
-    ctrl.currentTab = 'list'
-    ctrl.query.replace(ctrl.listSettings)
-    ctrl.chartboxTarget.classList.add('d-hide')
-    ctrl.listboxTarget.classList.remove('d-hide')
-  }
-
-  showGraph () {
-    var ctrl = this
-    var settings = ctrl.chartSettings
-    settings.bin = ctrl.getBin()
-    settings.flow = settings.chart === 'amountflow' ? ctrl.flow : null
-    ctrl.query.replace(settings)
-    ctrl.chartboxTarget.classList.remove('d-hide')
-    ctrl.listboxTarget.classList.add('d-hide')
+    this.chartLoaderTarget.classList.remove('loading')
   }
 
   validChartType (chart) {
-    chart = chart || this.chartSettings.chart
     return this.optionsTarget.namedItem(chart) || false
   }
 
   validGraphInterval (interval) {
-    var bin = interval || this.chartSettings.bin || this.activeBin
+    var bin = interval || this.settings.bin || this.activeBin
     var b = false
     this.binputs.forEach((button) => {
       if (button.name === bin) b = button
@@ -530,9 +502,8 @@ export default class extends Controller {
   }
 
   validateZoom (binSize) {
-    var ctrl = this
     ctrl.setButtonVisibility()
-    var zoom = Zoom.validate(ctrl.activeZoomKey || ctrl.chartSettings.zoom, ctrl.xRange, binSize)
+    var zoom = Zoom.validate(ctrl.activeZoomKey || ctrl.settings.zoom, ctrl.xRange, binSize)
     ctrl.setZoom(zoom.start, zoom.end)
     ctrl.graph.updateOptions({
       zoomCallback: ctrl.zoomCallback,
@@ -540,53 +511,33 @@ export default class extends Controller {
     })
   }
 
-  changeView (e) {
-    var ctrl = this
-    var target = e.srcElement || e.target
-    ctrl.viewTargets.forEach((button) => {
-      button.classList.remove('btn-active')
-    })
-    target.classList.add('btn-active')
-    var view = ctrl.activeView
-    if (view !== 'list') {
-      ctrl.currentTab = 'chart'
-      ctrl.chartSettings.chart = ctrl.chartType
-      ctrl.setGraphQuery() // Triggers chart draw
-      this.updateView()
-    } else {
-      ctrl.showList()
-    }
-  }
-
   changeGraph (e) {
-    this.chartSettings.chart = this.chartType
+    this.settings.chart = this.chartType
     this.setGraphQuery()
-    this.updateView()
+    this.drawGraph()
   }
 
   changeBin (e) {
-    var ctrl = this
     var target = e.srcElement || e.target
     if (target.nodeName !== 'BUTTON') return
-    ctrl.chartSettings.bin = target.name
+    ctrl.settings.bin = target.name
     ctrl.setIntervalButton(target.name)
     this.setGraphQuery()
-    this.updateView()
+    this.drawGraph()
   }
 
   setGraphQuery () {
-    this.query.replace(this.chartSettings)
+    this.query.replace(this.settings)
   }
 
   updateFlow () {
-    var ctrl = this
     var bitmap = ctrl.flow
     if (bitmap === 0) {
       // If all boxes are unchecked, just leave the last view
       // in place to prevent chart errors with zero visible datasets
       return
     }
-    ctrl.chartSettings.flow = bitmap
+    ctrl.settings.flow = bitmap
     ctrl.setGraphQuery()
     // Set the graph dataset visibility based on the bitmap
     // Dygraph dataset indices: 0 received, 1 sent, 2 & 3 net
@@ -600,14 +551,13 @@ export default class extends Controller {
   }
 
   setFlowChecks () {
-    var bitmap = this.chartSettings.flow
+    var bitmap = this.settings.flow
     this.flowBoxes.forEach((box) => {
       box.checked = bitmap & parseInt(box.value)
     })
   }
 
   onZoom (e) {
-    var ctrl = this
     var target = e.srcElement || e.target
     if (target.nodeName !== 'BUTTON') return
     ctrl.zoomButtons.forEach((button) => {
@@ -625,19 +575,17 @@ export default class extends Controller {
   }
 
   setZoom (start, end) {
-    var ctrl = this
-    ctrl.chartboxTarget.classList.add('loading')
+    ctrl.chartLoaderTarget.classList.add('loading')
     ctrl.graph.updateOptions({
       dateWindow: [start, end]
     })
-    ctrl.chartSettings.zoom = Zoom.encode(start, end)
+    ctrl.settings.zoom = Zoom.encode(start, end)
     ctrl.lastEnd = end
-    ctrl.query.replace(ctrl.chartSettings)
-    ctrl.chartboxTarget.classList.remove('loading')
+    ctrl.query.replace(ctrl.settings)
+    ctrl.chartLoaderTarget.classList.remove('loading')
   }
 
   getBin () {
-    var ctrl = this
     var bin = ctrl.query.get('bin')
     if (!ctrl.setIntervalButton(bin)) {
       bin = ctrl.activeBin
@@ -646,7 +594,6 @@ export default class extends Controller {
   }
 
   setIntervalButton (interval) {
-    var ctrl = this
     var button = ctrl.validGraphInterval(interval)
     if (!button) return false
     ctrl.binputs.forEach((button) => {
@@ -666,7 +613,7 @@ export default class extends Controller {
   }
 
   setChartType () {
-    var chart = this.chartSettings.chart
+    var chart = this.settings.chart
     if (this.validChartType(chart)) {
       this.optionsTarget.value = chart
     }
@@ -683,30 +630,27 @@ export default class extends Controller {
   }
 
   _drawCallback (graph, first) {
-    var ctrl = this
     if (first) return
     var start, end
     [start, end] = ctrl.graph.xAxisRange()
     if (start === end) return
     if (end === this.lastEnd) return // Only handle slide event.
     this.lastEnd = end
-    ctrl.chartSettings.zoom = Zoom.encode(start, end)
-    ctrl.query.replace(ctrl.chartSettings)
-    ctrl.setSelectedZoom(Zoom.mapKey(ctrl.chartSettings.zoom, ctrl.graph.xAxisExtremes()))
+    ctrl.settings.zoom = Zoom.encode(start, end)
+    ctrl.query.replace(ctrl.settings)
+    ctrl.setSelectedZoom(Zoom.mapKey(ctrl.settings.zoom, ctrl.graph.xAxisExtremes()))
   }
 
   _zoomCallback (start, end) {
-    var ctrl = this
     ctrl.zoomButtons.forEach((button) => {
       button.classList.remove('btn-selected')
     })
-    ctrl.chartSettings.zoom = Zoom.encode(start, end)
-    ctrl.query.replace(ctrl.chartSettings)
-    ctrl.setSelectedZoom(Zoom.mapKey(ctrl.chartSettings.zoom, ctrl.graph.xAxisExtremes()))
+    ctrl.settings.zoom = Zoom.encode(start, end)
+    ctrl.query.replace(ctrl.settings)
+    ctrl.setSelectedZoom(Zoom.mapKey(ctrl.settings.zoom, ctrl.graph.xAxisExtremes()))
   }
 
   setButtonVisibility () {
-    var ctrl = this
     var duration = ctrl.chartDuration
     var buttonSets = [ctrl.zoomButtons, ctrl.binputs]
     buttonSets.forEach((buttonSet) => {
@@ -748,7 +692,7 @@ export default class extends Controller {
               tr.classList.add('.d-hide')
               delete tr.dataset.target
             } else {
-              td.textContent = `${count} transaction${count > 1 ? 's' : ''}`
+              td.textContent = count
             }
           })
         }

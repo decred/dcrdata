@@ -294,20 +294,12 @@
                     <tr {{if and (eq $.HighlightInOut "in") (eq $.HighlightInOutID .Index)}} class="blue-row" {{end}}>
                         <td class="shrink-to-fit">{{.Index}}</td>
                         <td class="position-relative">
-                          <div class="hash-box">
-                            <div class="hash-fill">
-                              {{if .TextIsHash}}{{template "hashElide" (hashlink .DisplayText .Link)}}{{else}}{{.DisplayText}}{{end}}
-                            </div>
-                          </div>
+                            {{if .TextIsHash}}{{template "hashElide" (hashlink .DisplayText .Link)}}{{else}}{{.DisplayText}}{{end}}
                         </td>
                         <td class="position-relative">
                             {{if gt (len .Addresses) 0}}
                                 {{range .Addresses}}
-                                <div class="hash-box">
-                                  <div class="hash-fill">
-                                    {{template "hashElide" (hashlink . (print "/address/" .))}}
-                                  </div>
-                                </div>
+                                  {{template "hashElide" (hashlink . (print "/address/" .))}}
                                 {{end}}
                             {{else}}
                                 N/A
@@ -353,11 +345,7 @@
                         <td class="shrink-to-fit">{{.Index}}</td>
                         <td class="position-relative">
                             {{range .Addresses}}
-                              <div class="hash-box">
-                                <div class="hash-fill">
-                                  {{template "hashElide" (hashlink . (print "/address/" .))}}
-                                </div>
-                              </div>
+                                {{template "hashElide" (hashlink . (print "/address/" .))}}
                             {{end}}
                             {{if .OP_RETURN}}
                                 {{if .Addresses}}
