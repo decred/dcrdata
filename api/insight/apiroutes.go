@@ -113,10 +113,9 @@ func writeInsightNotFound(w http.ResponseWriter, str string) {
 }
 
 func (c *insightApiContext) getTransaction(w http.ResponseWriter, r *http.Request) {
-	txid := m.GetTxIDCtx(r)
-	if txid == "" {
-		apiLog.Errorf("Txid cannot be empty")
-		writeInsightError(w, fmt.Sprintf("Txid cannot be empty"))
+	txid, err := m.GetTxIDCtx(r)
+	if err != nil {
+		writeInsightError(w, err.Error())
 		return
 	}
 
@@ -143,9 +142,9 @@ func (c *insightApiContext) getTransaction(w http.ResponseWriter, r *http.Reques
 }
 
 func (c *insightApiContext) getTransactionHex(w http.ResponseWriter, r *http.Request) {
-	txid := m.GetTxIDCtx(r)
-	if txid == "" {
-		writeInsightError(w, "TxId must not be empty")
+	txid, err := m.GetTxIDCtx(r)
+	if err != nil {
+		writeInsightError(w, err.Error())
 		return
 	}
 
