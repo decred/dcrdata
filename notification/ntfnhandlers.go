@@ -239,7 +239,7 @@ func signalReorg(d ReorgData) {
 // anyQueue is a buffered channel used queueing the handling of different types
 // of event notifications, while keeping the order in which they were received
 // from the daemon. See superQueue.
-var anyQueue = make(chan interface{}, 1e7)
+var anyQueue = make(chan interface{}, 16)
 
 // superQueue manages the event notification queue, keeping the events in the
 // same order they were received by the rpcclient.NotificationHandlers, and
