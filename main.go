@@ -14,6 +14,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"runtime/pprof"
 	"strings"
@@ -185,8 +186,12 @@ func _main(ctx context.Context) error {
 		// If using {netname} then replace it with netName(activeNet).
 		dbi.DBName = strings.Replace(dbi.DBName, "{netname}", netName(activeNet), -1)
 
+		// Rough estimate of capacity in rows, using size of struct plus some
+		// for the string buffer of the Address field.
+		rowCap := cfg.AddrCacheCap / int(32+reflect.TypeOf(dbtypes.AddressRowCompact{}).Size())
+		log.Infof("Address cache capacity: %d rows, %d bytes", rowCap, cfg.AddrCacheCap)
 		chainDB, err := dcrpg.NewChainDBWithCancel(ctx, &dbi, activeChain,
-			baseDB.GetStakeDB(), !cfg.NoDevPrefetch, cfg.HidePGConfig)
+			baseDB.GetStakeDB(), !cfg.NoDevPrefetch, cfg.HidePGConfig, rowCap)
 		if chainDB != nil {
 			defer chainDB.Close()
 		}

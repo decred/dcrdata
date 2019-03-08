@@ -84,10 +84,10 @@ const (
 
 	SelectAddressAllByAddress = `SELECT ` + addrsColumnNames + ` FROM addresses
 		WHERE address=$1
-		ORDER BY block_time DESC;`
+		ORDER BY block_time DESC, tx_hash ASC;`
 	SelectAddressAllMainchainByAddress = `SELECT ` + addrsColumnNames + ` FROM addresses
 		WHERE address=$1 AND valid_mainchain
-		ORDER BY block_time DESC;`
+		ORDER BY block_time DESC, tx_hash ASC;`
 
 	SelectAddressesAllTxnWithHeight = `SELECT
 			addresses.tx_hash,
@@ -179,7 +179,8 @@ const (
 
 	SelectAddressLimitNByAddress = `SELECT ` + addrsColumnNames + ` FROM addresses
 		WHERE address=$1 AND valid_mainchain = TRUE
-		ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
+		ORDER BY block_time DESC, tx_hash ASC
+		LIMIT $2 OFFSET $3;`
 
 	// SelectAddressLimitNByAddressSubQry was used in certain cases prior to
 	// sorting the block_time_index.
@@ -214,11 +215,13 @@ const (
 
 	SelectAddressDebitsLimitNByAddress = `SELECT ` + addrsColumnNames + `
 		FROM addresses WHERE address=$1 AND is_funding = FALSE AND valid_mainchain
-		ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
+		ORDER BY block_time DESC, tx_hash ASC
+		LIMIT $2 OFFSET $3;`
 
 	SelectAddressCreditsLimitNByAddress = `SELECT ` + addrsColumnNames + `
 		FROM addresses WHERE address=$1 AND is_funding AND valid_mainchain
-		ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
+		ORDER BY block_time DESC, tx_hash ASC
+		LIMIT $2 OFFSET $3;`
 
 	SelectAddressIDsByFundingOutpoint = `SELECT id, address, value
 		FROM addresses
