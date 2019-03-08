@@ -130,7 +130,10 @@ const (
 	SelectTicketSpendTypeByBlock = `SELECT block_height,
 		SUM(CASE WHEN spend_type = 0 THEN 1 ELSE 0 END) as unspent,
 		SUM(CASE WHEN spend_type = 1 THEN 1 ELSE 0 END) as revoked
-		FROM tickets GROUP BY block_height ORDER BY block_height;`
+		FROM tickets
+		WEHERE block_height > $1
+		GROUP BY block_height
+		ORDER BY block_height;`
 
 	// Updates
 

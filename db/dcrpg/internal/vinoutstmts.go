@@ -131,10 +131,14 @@ const (
 	// SelectCoinSupply fetches the coin supply as of the latest block, where
 	// sum represents the generated coins for all stakebase and only
 	// stake-validated coinbase transactions.
-	SelectCoinSupply = `SELECT block_time, sum(value_in) FROM vins WHERE
-		prev_tx_hash = '0000000000000000000000000000000000000000000000000000000000000000' AND
-		NOT (is_valid = false AND tx_tree = 0)
-		AND is_mainchain = true GROUP BY block_time ORDER BY block_time;`
+	SelectCoinSupply = `SELECT block_time, sum(value_in)
+		FROM vins 
+		WHERE prev_tx_hash = '0000000000000000000000000000000000000000000000000000000000000000'
+		AND block_time > $1
+		AND NOT (is_valid = false AND tx_tree = 0)
+		AND is_mainchain
+		GROUP BY block_time
+		ORDER BY block_time;`
 
 	CreateVinType = `CREATE TYPE vin_t AS (
 		prev_tx_hash TEXT,
