@@ -355,7 +355,11 @@ func (c *appContext) getLatestBlock(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getBlockHeight(w http.ResponseWriter, r *http.Request) {
-	idx := c.getBlockHeightCtx(r)
+	idx, err := c.getBlockHeightCtx(r)
+	if err != nil {
+		apiLog.Infof("getBlockHeight: getBlockHeightCtx failed: %v", err)
+		return
+	}
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	if _, err := io.WriteString(w, strconv.Itoa(int(idx))); err != nil {
@@ -364,8 +368,11 @@ func (c *appContext) getBlockHeight(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getBlockHash(w http.ResponseWriter, r *http.Request) {
-	hash := c.getBlockHashCtx(r)
-
+	hash, err := c.getBlockHashCtx(r)
+	if err != nil {
+		apiLog.Debugf("getBlockHash: %v", err)
+		return
+	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	if _, err := io.WriteString(w, hash); err != nil {
 		apiLog.Infof("failed to write height response: %v", err)
@@ -374,8 +381,8 @@ func (c *appContext) getBlockHash(w http.ResponseWriter, r *http.Request) {
 
 func (c *appContext) getBlockSummary(w http.ResponseWriter, r *http.Request) {
 	// attempt to get hash of block set by hash or (fallback) height set on path
-	hash := c.getBlockHashCtx(r)
-	if hash == "" {
+	hash, err := c.getBlockHashCtx(r)
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -394,8 +401,8 @@ func (c *appContext) getBlockSummary(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getBlockTransactions(w http.ResponseWriter, r *http.Request) {
-	hash := c.getBlockHashCtx(r)
-	if hash == "" {
+	hash, err := c.getBlockHashCtx(r)
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -411,8 +418,8 @@ func (c *appContext) getBlockTransactions(w http.ResponseWriter, r *http.Request
 }
 
 func (c *appContext) getBlockTransactionsCount(w http.ResponseWriter, r *http.Request) {
-	hash := c.getBlockHashCtx(r)
-	if hash == "" {
+	hash, err := c.getBlockHashCtx(r)
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -431,8 +438,8 @@ func (c *appContext) getBlockTransactionsCount(w http.ResponseWriter, r *http.Re
 }
 
 func (c *appContext) getBlockHeader(w http.ResponseWriter, r *http.Request) {
-	idx := c.getBlockHeightCtx(r)
-	if idx < 0 {
+	idx, err := c.getBlockHeightCtx(r)
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -448,8 +455,8 @@ func (c *appContext) getBlockHeader(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getBlockRaw(w http.ResponseWriter, r *http.Request) {
-	hash := c.getBlockHashCtx(r)
-	if hash == "" {
+	hash, err := c.getBlockHashCtx(r)
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -480,8 +487,8 @@ func (c *appContext) getBlockRaw(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getBlockHeaderRaw(w http.ResponseWriter, r *http.Request) {
-	hash := c.getBlockHashCtx(r)
-	if hash == "" {
+	hash, err := c.getBlockHashCtx(r)
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -511,8 +518,8 @@ func (c *appContext) getBlockHeaderRaw(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getBlockVerbose(w http.ResponseWriter, r *http.Request) {
-	hash := c.getBlockHashCtx(r)
-	if hash == "" {
+	hash, err := c.getBlockHashCtx(r)
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -842,8 +849,8 @@ func (c *appContext) getTransactionOutput(w http.ResponseWriter, r *http.Request
 }
 
 func (c *appContext) getBlockFeeInfo(w http.ResponseWriter, r *http.Request) {
-	idx := c.getBlockHeightCtx(r)
-	if idx < 0 {
+	idx, err := c.getBlockHeightCtx(r)
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -861,8 +868,8 @@ func (c *appContext) getBlockFeeInfo(w http.ResponseWriter, r *http.Request) {
 // getBlockStakeInfoExtendedByHash retrieves the apitype.StakeInfoExtended
 // for the given blockhash
 func (c *appContext) getBlockStakeInfoExtendedByHash(w http.ResponseWriter, r *http.Request) {
-	hash := c.getBlockHashCtx(r)
-	if hash == "" {
+	hash, err := c.getBlockHashCtx(r)
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -880,8 +887,8 @@ func (c *appContext) getBlockStakeInfoExtendedByHash(w http.ResponseWriter, r *h
 // getBlockStakeInfoExtendedByHeight retrieves the apitype.StakeInfoExtended
 // for the given blockheight on mainchain
 func (c *appContext) getBlockStakeInfoExtendedByHeight(w http.ResponseWriter, r *http.Request) {
-	idx := c.getBlockHeightCtx(r)
-	if idx < 0 {
+	idx, err := c.getBlockHeightCtx(r)
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -1044,8 +1051,8 @@ func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request)
 }
 
 func (c *appContext) getBlockSize(w http.ResponseWriter, r *http.Request) {
-	idx := c.getBlockHeightCtx(r)
-	if idx < 0 {
+	idx, err := c.getBlockHeightCtx(r)
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -1066,12 +1073,16 @@ func (c *appContext) blockSubsidies(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idx := c.getBlockHeightCtx(r)
-	if idx < 0 {
+	idx, err := c.getBlockHeightCtx(r)
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
-	hash := c.getBlockHashCtx(r)
+	hash, err := c.getBlockHashCtx(r)
+	if err != nil {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
 
 	// Unless this is a mined block, assume all votes.
 	numVotes := int16(c.Params.TicketsPerBlock)
@@ -1282,8 +1293,8 @@ func (c *appContext) getBlockRangeSteppedSummary(w http.ResponseWriter, r *http.
 
 func (c *appContext) getTicketPool(w http.ResponseWriter, r *http.Request) {
 	// getBlockHeightCtx falls back to try hash if height fails
-	idx := c.getBlockHeightCtx(r)
-	if idx < 0 {
+	idx, err := c.getBlockHeightCtx(r)
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -1304,8 +1315,8 @@ func (c *appContext) getTicketPool(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getTicketPoolInfo(w http.ResponseWriter, r *http.Request) {
-	idx := c.getBlockHeightCtx(r)
-	if idx < 0 {
+	idx, err := c.getBlockHeightCtx(r)
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -1370,8 +1381,8 @@ func (c *appContext) getTicketPoolValAndSizeRange(w http.ResponseWriter, r *http
 }
 
 func (c *appContext) getStakeDiff(w http.ResponseWriter, r *http.Request) {
-	idx := c.getBlockHeightCtx(r)
-	if idx < 0 {
+	idx, err := c.getBlockHeightCtx(r)
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -1788,19 +1799,19 @@ func (c *appContext) BlockIndexLatestCtx(next http.Handler) http.Handler {
 	})
 }
 
-func (c *appContext) getBlockHeightCtx(r *http.Request) int64 {
-	idx := m.GetBlockHeightCtx(r, c.BlockData)
-	return idx
+func (c *appContext) getBlockHeightCtx(r *http.Request) (int64, error) {
+	return m.GetBlockHeightCtx(r, c.BlockData)
 }
 
-func (c *appContext) getBlockHashCtx(r *http.Request) string {
-	hash := m.GetBlockHashCtx(r)
-	if hash == "" {
-		var err error
-		hash, err = c.BlockData.GetBlockHash(int64(m.GetBlockIndexCtx(r)))
+func (c *appContext) getBlockHashCtx(r *http.Request) (string, error) {
+	hash, err := m.GetBlockHashCtx(r)
+	if err != nil {
+		idx := int64(m.GetBlockIndexCtx(r))
+		hash, err = c.BlockData.GetBlockHash(idx)
 		if err != nil {
 			apiLog.Errorf("Unable to GetBlockHash: %v", err)
+			return "", err
 		}
 	}
-	return hash
+	return hash, nil
 }

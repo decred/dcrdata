@@ -230,13 +230,17 @@ func (c *insightApiContext) getBlockHash(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, blockOutput, c.getIndentQuery(r))
 }
 
-func (c *insightApiContext) getBlockChainHashCtx(r *http.Request) *chainhash.Hash {
-	hash, err := chainhash.NewHashFromStr(c.getBlockHashCtx(r))
+func (c *insightApiContext) getBlockChainHashCtx(r *http.Request) (*chainhash.Hash, error) {
+	hashStr, err := c.getBlockHashCtx(r)
+	if err != nil {
+		return nil, err
+	}
+	hash, err := chainhash.NewHashFromStr(hashStr)
 	if err != nil {
 		apiLog.Errorf("Failed to parse block hash: %v", err)
-		return nil
+		return nil, err
 	}
-	return hash
+	return hash, nil
 }
 
 func (c *insightApiContext) getRawBlock(w http.ResponseWriter, r *http.Request) {
@@ -420,14 +424,14 @@ func (c *insightApiContext) getAddressesTxnOutput(w http.ResponseWriter, r *http
 }
 
 func (c *insightApiContext) getTransactions(w http.ResponseWriter, r *http.Request) {
-	hash := m.GetBlockHashCtx(r)
+	hash, blockerr := m.GetBlockHashCtx(r)
 	address := m.GetAddressCtx(r)
-	if hash == "" && address == "" {
+	if blockerr != nil && address == "" {
 		writeInsightError(w, "Required query parameters (address or block) not present.")
 		return
 	}
 
-	if hash != "" {
+	if blockerr == nil {
 		blkTrans := c.BlockData.GetBlockVerboseByHash(hash, true)
 		if blkTrans == nil {
 			apiLog.Errorf("Unable to get block %s transactions", hash)

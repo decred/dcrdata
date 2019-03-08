@@ -213,12 +213,18 @@ func ValidateTxnsPostCtx(next http.Handler) http.Handler {
 
 // GetBlockHashCtx retrieves the ctxBlockHash data from the request context. If
 // not set, the return value is an empty string.
-func GetBlockHashCtx(r *http.Request) string {
+func GetBlockHashCtx(r *http.Request) (string, error) {
 	hash, ok := r.Context().Value(ctxBlockHash).(string)
 	if !ok {
 		apiLog.Trace("block hash not set")
+		return "", fmt.Errorf("block hash not set")
 	}
-	return hash
+	if _, err := chainhash.NewHashFromStr(hash); err != nil {
+		apiLog.Trace("invalid hash '%s': %v", hash, err)
+		return "", fmt.Errorf("invalid hash '%s': %v", hash, err)
+	}
+
+	return hash, nil
 }
 
 // GetAddressCtx retrieves the ctxAddress data from the request context. If not
@@ -698,17 +704,20 @@ func StatusCtx(r *http.Request, status *apitypes.Status) context.Context {
 
 // GetBlockHeightCtx returns the block height for the block index or hash
 // specified on the URL path.
-func GetBlockHeightCtx(r *http.Request, source DataSource) int64 {
+func GetBlockHeightCtx(r *http.Request, source DataSource) (int64, error) {
 	idxI, ok := r.Context().Value(ctxBlockIndex).(int)
 	idx := int64(idxI)
 	if !ok || idx < 0 {
-		var err error
-		idx, err = source.GetBlockHeight(GetBlockHashCtx(r))
+		hash, err := GetBlockHashCtx(r)
 		if err != nil {
-			apiLog.Errorf("Unable to GetBlockHeight: %v", err)
+			return 0, err
+		}
+		idx, err = source.GetBlockHeight(hash)
+		if err != nil {
+			return 0, err
 		}
 	}
-	return idx
+	return idx, nil
 }
 
 // GetLatestVoteVersionCtx attempts to retrieve the latest stake version
