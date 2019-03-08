@@ -206,21 +206,28 @@ const (
 )
 
 var (
-	SelectAllRevokes = fmt.Sprintf(`SELECT id, tx_hash, block_height, vin_db_ids[0] `+
-		`FROM transactions WHERE tx_type = %d;`, stake.TxTypeSSRtx)
+	SelectAllRevokes = fmt.Sprintf(`SELECT id, tx_hash, block_height, vin_db_ids[0]
+		FROM transactions
+		WHERE tx_type = %d;`,
+		stake.TxTypeSSRtx)
 
-	SelectTicketsOutputCountByAllBlocks = fmt.Sprintf(`SELECT block_height,
+	SelectTicketsOutputCountByAllBlocks = `SELECT block_height,
 		SUM(CASE WHEN num_vout = 3 THEN 1 ELSE 0 END) as solo,
 		SUM(CASE WHEN num_vout = 5 THEN 1 ELSE 0 END) as pooled
-		FROM transactions WHERE tx_type = %d GROUP BY block_height
-		ORDER BY block_height;`, stake.TxTypeSStx)
+		FROM transactions 
+		WHERE tx_type = $1
+		AND block_height > $2 
+		GROUP BY block_height
+		ORDER BY block_height;`
 
-	SelectTicketsOutputCountByTPWindow = fmt.Sprintf(`SELECT
+	SelectTicketsOutputCountByTPWindow = `SELECT
 		floor(block_height/144) as count,
 		SUM(CASE WHEN num_vout = 3 THEN 1 ELSE 0 END) as solo,
 		SUM(CASE WHEN num_vout = 5 THEN 1 ELSE 0 END) as pooled
-		FROM transactions WHERE tx_type = %d
-		GROUP BY count ORDER BY count;`, stake.TxTypeSStx)
+		FROM transactions 
+		WHERE tx_type = $1
+		AND block_height > $2
+		GROUP BY count ORDER BY count;`
 )
 
 // func makeTxInsertStatement(voutDbIDs, vinDbIDs []uint64, vouts []*dbtypes.Vout, checked bool) string {

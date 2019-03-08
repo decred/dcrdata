@@ -2597,7 +2597,7 @@ func (pgb *ChainDB) GetPgChartsData() (map[dbtypes.Charts]*dbtypes.ChartsData, e
 }
 
 // PgChartsDataUpdate does fresh charts data retrieval if any of the old charts data
-// is empty or invalid. One old charts is validate only the minor charts updates
+// is empty or invalid. Once old charts data is validated only the minor charts updates
 // need to be added.
 func (pgb *ChainDB) PgChartsDataUpdate(oldData map[string]*dbtypes.ChartsData) (
 	map[dbtypes.Charts]*dbtypes.ChartsData, error) {
@@ -2615,6 +2615,7 @@ func (pgb *ChainDB) PgChartsDataUpdate(oldData map[string]*dbtypes.ChartsData) (
 
 	// Data that now currently exists here is valid and requires some minors
 	// updates if at they exist.
+	// Fetch the minor changes per chart.
 
 	return nil, nil
 }

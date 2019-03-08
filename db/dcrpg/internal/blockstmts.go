@@ -107,7 +107,11 @@ const (
 
 	// SelectBlocksTicketsPrice selects the ticket price and difficulty for the
 	// first block in a stake difficulty window.
-	SelectBlocksTicketsPrice = `SELECT sbits, time, difficulty FROM blocks WHERE height % $1 = 0 ORDER BY time;`
+	SelectBlocksTicketsPrice = `SELECT sbits, time, difficulty
+		FROM blocks
+		WHERE height % $1 = 0
+		AND height > $2
+		ORDER BY time;`
 
 	SelectWindowsByLimit = `SELECT (height/$1)*$1 AS window_start,
 		MAX(difficulty) AS difficulty,
@@ -139,7 +143,10 @@ const (
 		ORDER BY index_value DESC
 		LIMIT $2 OFFSET $3;`
 
-	SelectBlocksBlockSize = `SELECT time, size, numtx, height FROM blocks ORDER BY time;`
+	SelectBlocksBlockSize = `SELECT time, size, numtx, height
+		FROM blocks
+		WHERE height > $1
+		ORDER BY time;`
 
 	SelectBlocksPreviousHash = `SELECT previous_hash FROM blocks WHERE hash = $1;`
 
@@ -176,7 +183,9 @@ const (
 
 	SelectTxsPerDay = `SELECT date_trunc('day',time) AS date, sum(numtx)
 		FROM blocks
-		GROUP BY date ORDER BY date;`
+		WHERE data > $1
+		GROUP BY date
+		ORDER BY date;`
 
 	// blocks table updates
 
@@ -208,6 +217,7 @@ const (
 	SelectChainWork = `SELECT time, chainwork
 		FROM blocks
 		WHERE is_mainchain
+		AND height > $1
 		ORDER BY height;`
 
 	// TODO: index block_chain where needed
