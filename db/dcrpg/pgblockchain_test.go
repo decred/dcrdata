@@ -141,10 +141,14 @@ func TestMergeRows(t *testing.T) {
 			len(mergedRows), len(mergedRows0))
 	}
 
-	for _, mr := range mergedRows0 {
-		_, ok := mrMap[mr.TxHash]
+	for _, mr0 := range mergedRows0 {
+		mr, ok := mrMap[mr0.TxHash]
 		if !ok {
-			t.Errorf("TxHash %s not found in mergedRows.", mr.TxHash)
+			t.Errorf("TxHash %s not found in mergedRows.", mr0.TxHash)
+			continue
+		}
+		if !reflect.DeepEqual(mr, mr0) {
+			t.Errorf("wanted %v, got %v", mr0, mr)
 		}
 	}
 }

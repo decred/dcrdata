@@ -762,16 +762,23 @@ func MergeRows(rows []*AddressRow) ([]*AddressRow, map[string]*AddressRow, error
 		// New transactions are started with MergedCount = 1.
 		row := merged[hash]
 		if row == nil {
+			// This is the first component composing this merged row.
 			r.MergedCount = 1
+
 			// Clear the TxVinVoutIndex and VinVoutDbID since merged
 			// transactions do not refer to a single input/output.
 			r.TxVinVoutIndex = 0
 			r.VinVoutDbID = 0
+			// Merged rows are combinations of in and out transaction
+			// components, so the matching tx hash has no meaning.
+			r.MatchingTxHash = ""
+
 			if r.IsFunding {
 				r.AtomsCredit = r.Value
 			} else {
 				r.AtomsDebit = r.Value
 			}
+
 			merged[hash] = r
 			continue
 		}
