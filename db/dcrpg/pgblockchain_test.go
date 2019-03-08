@@ -49,8 +49,9 @@ func (m MemStats) String() string {
 }
 
 var (
-	db       *ChainDB
-	trefUNIX int64 = 1454954400 // mainnet genesis block time
+	db           *ChainDB
+	trefUNIX     int64 = 1454954400 // mainnet genesis block time
+	addrCacheCap       = 1e4
 )
 
 func openDB() (func() error, error) {
@@ -62,7 +63,7 @@ func openDB() (func() error, error) {
 		DBName: "dcrdata_mainnet_test",
 	}
 	var err error
-	db, err = NewChainDB(&dbi, &chaincfg.MainNetParams, nil, true, true)
+	db, err = NewChainDB(&dbi, &chaincfg.MainNetParams, nil, true, true, addrCacheCap)
 	cleanUp := func() error { return nil }
 	if db != nil {
 		cleanUp = db.Close
@@ -98,7 +99,10 @@ func TestChainDB_AddressTransactionsAll(t *testing.T) {
 	height, hash, _ := db.HeightHashDB()
 	h, _ := chainhash.NewHashFromStr(hash)
 	blockID := cache.NewBlockID(h, int64(height))
-	db.AddressCache.StoreRows(address, rows, blockID)
+	wasStored := db.AddressCache.StoreRows(address, rows, blockID)
+	if !wasStored {
+		t.Fatalf("Address not stored in cache!")
+	}
 
 	r, bid := db.AddressCache.Rows(address)
 	if bid == nil {

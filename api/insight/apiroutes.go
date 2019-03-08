@@ -331,7 +331,7 @@ func (c *insightApiContext) getAddressesTxnOutput(w http.ResponseWriter, r *http
 	txnOutputs := make([]apitypes.AddressTxnOutput, 0)
 
 	for _, address := range addresses {
-		confirmedTxnOutputs, err := c.BlockData.ChainDB.AddressUTXO(address)
+		confirmedTxnOutputs, _, err := c.BlockData.ChainDB.AddressUTXO(address)
 		if dbtypes.IsTimeoutErr(err) {
 			apiLog.Errorf("AddressUTXO: %v", err)
 			http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -701,7 +701,7 @@ func (c *insightApiContext) getAddressBalance(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	addressInfo, err := c.BlockData.ChainDB.AddressBalance(addresses[0])
+	addressInfo, _, err := c.BlockData.ChainDB.AddressBalance(addresses[0])
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("AddressBalance: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -947,7 +947,7 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 	// Get Confirmed Balances
 	var unconfirmedBalanceSat int64
 
-	balance, err := c.BlockData.ChainDB.AddressBalance(address)
+	balance, _, err := c.BlockData.ChainDB.AddressBalance(address)
 
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("AddressSpentUnspent: %v", err)

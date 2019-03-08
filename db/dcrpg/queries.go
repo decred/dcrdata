@@ -1272,11 +1272,10 @@ func retrieveAddressTxsCount(ctx context.Context, db *sql.DB, address, interval 
 // distinct spending transactions, and the fraction spent to and received from
 // stake-related trasnsactions.
 func RetrieveAddressBalance(ctx context.Context, db *sql.DB, address string) (balance *dbtypes.AddressBalance, err error) {
-	// The sql.Tx does not have a timeout, as the individial queries will.
-	balance = new(dbtypes.AddressBalance)
-	balance.Address = address
-	var fromStake, toStake int64
+	// Never return nil *AddressBalance.
+	balance = &dbtypes.AddressBalance{Address: address}
 
+	// The sql.Tx does not have a timeout, as the individial queries will.
 	var dbtx *sql.Tx
 	dbtx, err = db.BeginTx(context.Background(), &sql.TxOptions{
 		Isolation: sql.LevelDefault,
@@ -1303,6 +1302,7 @@ func RetrieveAddressBalance(ctx context.Context, db *sql.DB, address string) (ba
 		}
 	}
 
+	var fromStake, toStake int64
 	for rows.Next() {
 		var count, totalValue int64
 		var noMatchingTx, isFunding, isRegular bool

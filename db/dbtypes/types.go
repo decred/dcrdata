@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrdata/v4/db/dbtypes/internal"
 	"github.com/decred/dcrdata/v4/txhelpers"
@@ -714,7 +715,6 @@ type UTXO struct {
 
 // AddressRow represents a row in the addresses table
 type AddressRow struct {
-	// id int64
 	Address        string
 	ValidMainChain bool
 	// MatchingTxHash provides the relationship between spending tx inputs and
@@ -741,45 +741,185 @@ func (ar *AddressRow) IsMerged() bool {
 	return ar.MergedCount > 0
 }
 
+// AddressRowCompact is like AddressRow for efficient in-memory storage of
+// non-merged address transaction data. The fields are ordered to avoid unneeded
+// padding and extra data is omitted for efficient caching. The hashes are
+// stored as chainhash.Hash ([32]byte) for efficiency and data locality. The
+// fields of AddressRow that only pertain to merged views (AtomsCredit,
+// AtomsDebit, and MergedTxCount) are omitted. VinVoutDbID is also omitted since
+// it is only used when inserting data (see InsertVouts and storeTxns).
+type AddressRowCompact struct {
+	Address        string
+	TxBlockTime    int64
+	MatchingTxHash chainhash.Hash
+	TxHash         chainhash.Hash
+	TxVinVoutIndex uint32
+	TxType         int16
+	ValidMainChain bool
+	IsFunding      bool
+	Value          uint64
+}
+
+// AddressRowCompact is like AddressRow for efficient in-memory storage of
+// merged address transaction data. The fields are ordered to avoid unneeded
+// padding and extra data is omitted for efficient caching. The fields that only
+// pertain to non-merged views (IsFunding, TxVinVoutIndex, VinVoutDbID, and
+// MatchingTxHash) are omitted. The IsFunding and Value fields are also omitted
+// and replaced with methods to get these values from AtomsCredit and AtomsDebit
+// as needed. Also node that MergedCount is of type int32 since that is big
+// enough and it allows using the padding with TxType and ValidMainChain.
+type AddressRowMerged struct {
+	Address        string
+	TxBlockTime    int64
+	TxHash         chainhash.Hash
+	AtomsCredit    uint64
+	AtomsDebit     uint64
+	MergedCount    int32
+	TxType         int16
+	ValidMainChain bool
+}
+
+// IsFunding indicates the the transaction is "net funding", meaning that
+// AtomsCredit > AtomsDebit.
+func (arm *AddressRowMerged) IsFunding() bool {
+	return arm.AtomsCredit > arm.AtomsDebit
+}
+
+// Value returns the absolute (non-negative) net value of the transaction as
+// abs(AtomsCredit - AtomsDebit).
+func (arm *AddressRowMerged) Value() uint64 {
+	if arm.AtomsCredit > arm.AtomsDebit {
+		return arm.AtomsCredit - arm.AtomsDebit
+	}
+	return arm.AtomsDebit - arm.AtomsCredit
+}
+
+// CountMergedRows counts the number of merged rows that would result from
+// calling MergeRows on the input slice. As with MergeRows, the input must be
+// regular (non-merged) addresses table rows.
+func CountMergedRows(rows []*AddressRow, txnView AddrTxnViewType) (numMerged int, err error) {
+	var wrongDirection func(funding bool) bool
+	switch txnView {
+	case AddrMergedTxn:
+		wrongDirection = func(_ bool) bool {
+			return false
+		}
+	case AddrMergedTxnCredit:
+		wrongDirection = func(funding bool) bool {
+			return !funding
+		}
+	case AddrMergedTxnDebit:
+		wrongDirection = func(funding bool) bool {
+			return funding
+		}
+	default:
+		return 0, fmt.Errorf("MergedTxnCount: requested count for non-merged view")
+	}
+
+	merged := make(map[string]struct{})
+	for _, r := range rows {
+		if r.MergedCount != 0 {
+			return 0, fmt.Errorf("CountMergedRows: merged row found in input; " +
+				"only non-merged rows may be merged")
+		}
+
+		if wrongDirection(r.IsFunding) {
+			continue
+		}
+
+		hash := r.TxHash
+		_, found := merged[hash]
+		if !found {
+			numMerged++
+			merged[hash] = struct{}{}
+			continue
+		}
+	}
+	return
+}
+
+// CountMergedRowsCompact counts the number of merged rows that would result
+// from calling MergeRowsCompact (a non-merged row) on the input slice.
+func CountMergedRowsCompact(rows []AddressRowCompact, txnView AddrTxnViewType) (numMerged int, err error) {
+	var wrongDirection func(funding bool) bool
+	switch txnView {
+	case AddrMergedTxn:
+		wrongDirection = func(_ bool) bool {
+			return false
+		}
+	case AddrMergedTxnCredit:
+		wrongDirection = func(funding bool) bool {
+			return !funding
+		}
+	case AddrMergedTxnDebit:
+		wrongDirection = func(funding bool) bool {
+			return funding
+		}
+	default:
+		return 0, fmt.Errorf("MergedTxnCount: requested count for non-merged view")
+	}
+
+	merged := make(map[chainhash.Hash]struct{})
+	for i := range rows {
+		if wrongDirection(rows[i].IsFunding) {
+			continue
+		}
+
+		hash := rows[i].TxHash
+		_, found := merged[hash]
+		if !found {
+			numMerged++
+			merged[hash] = struct{}{}
+			continue
+		}
+	}
+	return
+}
+
 // MergeRows converts a slice of non-merged (regular addresses table row data)
 // into a slice of merged address rows. This involves merging rows with the same
 // transaction hash into a single entry by combining the signed values. The
 // IsFunding field of a merged transaction indicates if the net value is
 // positive or not, although the Value field is an absolute value (always
-// positive). A map of transaction hash to *AddressRow is also returned.
-// MergedRows will return a non-nil error of a merged row is detected in the
-// input since only non-merged rows are expected.
-func MergeRows(rows []*AddressRow) ([]*AddressRow, map[string]*AddressRow, error) {
-	merged := make(map[string]*AddressRow)
+// positive). MergedRows will return a non-nil error of a merged row is detected
+// in the input since only non-merged rows are expected.
+func MergeRows(rows []*AddressRow) ([]AddressRowMerged, error) {
+	hashes := make([]chainhash.Hash, 0, len(rows))
+	merged := make(map[chainhash.Hash]*AddressRowMerged)
 	for _, r := range rows {
 		if r.MergedCount != 0 {
-			return nil, nil,
-				fmt.Errorf("merged row found in input; " +
-					"only non-merged rows may be merged")
+			return nil, fmt.Errorf("MergeRows: merged row found in input; " +
+				"only non-merged rows may be merged")
 		}
 		hash := r.TxHash
 
+		Hash, err := chainhash.NewHashFromStr(hash)
+		if err != nil {
+			fmt.Printf("invalid address: %s", hash)
+			continue
+		}
+
 		// New transactions are started with MergedCount = 1.
-		row := merged[hash]
+		row := merged[*Hash]
 		if row == nil {
-			// This is the first component composing this merged row.
-			r.MergedCount = 1
+			hashes = append(hashes, *Hash)
 
-			// Clear the TxVinVoutIndex and VinVoutDbID since merged
-			// transactions do not refer to a single input/output.
-			r.TxVinVoutIndex = 0
-			r.VinVoutDbID = 0
-			// Merged rows are combinations of in and out transaction
-			// components, so the matching tx hash has no meaning.
-			r.MatchingTxHash = ""
-
-			if r.IsFunding {
-				r.AtomsCredit = r.Value
-			} else {
-				r.AtomsDebit = r.Value
+			mr := AddressRowMerged{
+				Address:        r.Address,
+				TxBlockTime:    r.TxBlockTime.T.Unix(),
+				TxHash:         *Hash,
+				MergedCount:    1,
+				TxType:         r.TxType,
+				ValidMainChain: r.ValidMainChain,
 			}
 
-			merged[hash] = r
+			if r.IsFunding {
+				mr.AtomsCredit = r.Value
+			} else {
+				mr.AtomsDebit = r.Value
+			}
+
+			merged[*Hash] = &mr
 			continue
 		}
 
@@ -792,19 +932,243 @@ func MergeRows(rows []*AddressRow) ([]*AddressRow, map[string]*AddressRow, error
 		}
 	}
 
-	// Set the Value and IsFunding fields, and build the slice.
-	mergedRows := make([]*AddressRow, 0, len(merged))
-	for _, mr := range merged {
-		value := int64(mr.AtomsCredit) - int64(mr.AtomsDebit)
-		mr.IsFunding = value >= 0
-		if !mr.IsFunding {
-			value = -value
-		}
-		mr.Value = uint64(value)
-		mergedRows = append(mergedRows, mr)
+	// Build the slice.
+	mergedRows := make([]AddressRowMerged, 0, len(merged))
+	for i := range hashes {
+		mergedRows = append(mergedRows, *merged[hashes[i]])
 	}
 
-	return mergedRows, merged, nil
+	return mergedRows, nil
+}
+
+// MergeRowsCompact converts a []AddressRowCompact (non-merged rows) into a
+// slice of merged address rows. This involves merging rows with the same
+// transaction hash into a single entry by combining the signed values. The
+// IsFunding function of an AddressRowMerged indicates if the net value is
+// positive or not, although the Value function returns an absolute value
+// (always positive).
+func MergeRowsCompact(rows []AddressRowCompact) []AddressRowMerged {
+	hashes := make([]chainhash.Hash, 0, len(rows))
+	merged := make(map[chainhash.Hash]*AddressRowMerged)
+	for i := range rows {
+		r := &rows[i]
+
+		// New transactions are started with MergedCount = 1.
+		row := merged[r.TxHash]
+		if row == nil {
+			hashes = append(hashes, r.TxHash)
+
+			mr := AddressRowMerged{
+				Address:        r.Address,
+				TxBlockTime:    r.TxBlockTime,
+				TxHash:         r.TxHash,
+				MergedCount:    1,
+				TxType:         r.TxType,
+				ValidMainChain: r.ValidMainChain,
+			}
+
+			if r.IsFunding {
+				mr.AtomsCredit = r.Value
+			} else {
+				mr.AtomsDebit = r.Value
+			}
+
+			merged[r.TxHash] = &mr
+			continue
+		}
+
+		// Update existing transaction.
+		row.MergedCount++
+		if r.IsFunding {
+			row.AtomsCredit += r.Value
+		} else {
+			row.AtomsDebit += r.Value
+		}
+	}
+
+	// Build the slice.
+	mergedRows := make([]AddressRowMerged, 0, len(merged))
+	for i := range hashes {
+		mergedRows = append(mergedRows, *merged[hashes[i]])
+	}
+
+	return mergedRows
+}
+
+func MergeRowsCompactRange(rows []AddressRowCompact, N, offset int, txnView AddrTxnViewType) []AddressRowMerged {
+	// Check for invalid count and offset.
+	if offset < 0 || N < 0 {
+		return nil
+	}
+
+	var wrongDirection func(funding bool) bool
+	switch txnView {
+	case AddrMergedTxn:
+		wrongDirection = func(_ bool) bool { return false }
+	case AddrMergedTxnCredit:
+		wrongDirection = func(f bool) bool { return !f }
+	case AddrMergedTxnDebit:
+		wrongDirection = func(f bool) bool { return f }
+	default:
+		return nil
+	}
+
+	// Quick return when no data requested or provided. This intercepts
+	// rows==nil.
+	if N == 0 || len(rows) == 0 {
+		return []AddressRowMerged{}
+	}
+
+	// Skip over the first offset tx hashes.
+	var skipped int
+	seen := make(map[chainhash.Hash]struct{}, offset)
+
+	// Output has at most N elements, each with a unique hash.
+	hashes := make([]chainhash.Hash, 0, N)
+	merged := make(map[chainhash.Hash]*AddressRowMerged, N)
+	for i := range rows {
+		r := &rows[i]
+
+		if wrongDirection(r.IsFunding) {
+			continue
+		}
+
+		// Newly encountered tx hash starts a new merged row.
+		row := merged[r.TxHash]
+		if row == nil {
+			// Do not get beyond N merged rows, but continue looking for more
+			// data to merge.
+			if len(merged) == N {
+				continue
+			}
+
+			// Skip over offset merged rows.
+			if skipped < offset {
+				if _, found := seen[r.TxHash]; !found {
+					// Would create a new merged row. Incremend the skip counter
+					// and register this tx hash.
+					skipped++
+					seen[r.TxHash] = struct{}{}
+				}
+				// Skip this merged row data.
+				continue
+			}
+
+			hashes = append(hashes, r.TxHash)
+
+			mr := AddressRowMerged{
+				Address:        r.Address,
+				TxBlockTime:    r.TxBlockTime,
+				TxHash:         r.TxHash,
+				MergedCount:    1,
+				TxType:         r.TxType,
+				ValidMainChain: r.ValidMainChain,
+			}
+
+			if r.IsFunding {
+				mr.AtomsCredit = r.Value
+			} else {
+				mr.AtomsDebit = r.Value
+			}
+
+			merged[r.TxHash] = &mr
+			continue
+		}
+
+		// Update existing merged row.
+		row.MergedCount++
+		if r.IsFunding {
+			row.AtomsCredit += r.Value
+		} else {
+			row.AtomsDebit += r.Value
+		}
+	}
+
+	// Build the slice.
+	mergedRows := make([]AddressRowMerged, 0, len(merged))
+	// Range over the hashes slice to keep the same order.
+	for i := range hashes {
+		mergedRows = append(mergedRows, *merged[hashes[i]])
+	}
+
+	return mergedRows
+}
+
+// CompactRows converts a []*AddressRow to a []AddressRowCompact.
+func CompactRows(rows []*AddressRow) []AddressRowCompact {
+	compact := make([]AddressRowCompact, 0, len(rows))
+	for _, r := range rows {
+		hash, err := chainhash.NewHashFromStr(r.TxHash)
+		if err != nil {
+			fmt.Println("Bad hash", r.TxHash)
+			return nil
+		}
+		mhash, _ := chainhash.NewHashFromStr(r.MatchingTxHash) // zero array on error
+		compact = append(compact, AddressRowCompact{
+			Address:        r.Address,
+			TxBlockTime:    r.TxBlockTime.UNIX(),
+			MatchingTxHash: *mhash,
+			TxHash:         *hash,
+			TxVinVoutIndex: r.TxVinVoutIndex,
+			TxType:         r.TxType,
+			ValidMainChain: r.ValidMainChain,
+			IsFunding:      r.IsFunding,
+			Value:          r.Value,
+		})
+	}
+	return compact
+}
+
+// UncompactRows converts (to the extent possible) a []AddressRowCompact to a
+// []*AddressRow. VinVoutDbID is unknown and set to zero. Do not use
+// VinVoutDbID, or insert the AddressRow.
+func UncompactRows(compact []AddressRowCompact) []*AddressRow {
+	rows := make([]*AddressRow, 0, len(compact))
+	for i := range compact {
+		r := &compact[i]
+		// An unset matching hash is represented by the zero-value array.
+		var matchingHash string
+		if !txhelpers.IsZeroHash(r.MatchingTxHash) {
+			matchingHash = r.MatchingTxHash.String()
+		}
+		rows = append(rows, &AddressRow{
+			Address:        r.Address,
+			ValidMainChain: r.ValidMainChain,
+			MatchingTxHash: matchingHash,
+			IsFunding:      r.IsFunding,
+			TxBlockTime:    NewTimeDefFromUNIX(r.TxBlockTime),
+			TxHash:         r.TxHash.String(),
+			TxVinVoutIndex: r.TxVinVoutIndex,
+			Value:          r.Value,
+			// VinVoutDbID unknown. Do not use.
+			TxType: r.TxType,
+		})
+	}
+	return rows
+}
+
+// UncompactMergedRows converts (to the extent possible) a []AddressRowMerged to
+// a []*AddressRow. VinVoutDbID is unknown and set to zero. Do not use
+// VinVoutDbID, or insert the AddressRow.
+func UncompactMergedRows(merged []AddressRowMerged) []*AddressRow {
+	rows := make([]*AddressRow, 0, len(merged))
+	for i := range merged {
+		r := &merged[i]
+		rows = append(rows, &AddressRow{
+			Address:        r.Address,
+			ValidMainChain: r.ValidMainChain,
+			// no MatchingTxHash for merged
+			IsFunding:   r.IsFunding(),
+			TxBlockTime: NewTimeDefFromUNIX(r.TxBlockTime),
+			TxHash:      r.TxHash.String(),
+			// no TxVinVoutIndex for merged
+			Value: r.Value(),
+			// no VinVoutDbID for merged
+			MergedCount: uint64(r.MergedCount),
+			TxType:      r.TxType,
+		})
+	}
+	return rows
 }
 
 // AddressMetrics defines address metrics needed to make decisions by which

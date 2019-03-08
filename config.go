@@ -71,6 +71,7 @@ var (
 	defaultPGPass                       = ""
 	defaultPGDBName                     = "dcrdata"
 	defaultPGQueryTimeout time.Duration = time.Hour
+	defaultAddrCacheCap                 = 1 << 27 // 128 MiB
 
 	defaultExchangeIndex     = "USD"
 	defaultDisabledExchanges = "huobi,dragonex"
@@ -123,6 +124,7 @@ type config struct {
 	PGHost         string        `long:"pghost" description:"PostgreSQL server host:port or UNIX socket (e.g. /run/postgresql)." env:"DCRDATA_POSTGRES_HOST_URL"`
 	PGQueryTimeout time.Duration `short:"T" long:"pgtimeout" description:"Timeout (a time.Duration string) for most PostgreSQL queries used for user initiated queries."`
 	HidePGConfig   bool          `long:"hidepgconfig" description:"Blocks logging of the PostgreSQL db configuration on system start up."`
+	AddrCacheCap   int           `long:"addr-cache-cap" description:"Address cache capacity in bytes."`
 
 	NoDevPrefetch    bool `long:"no-dev-prefetch" description:"Disable automatic dev fund balance query on new blocks. When true, the query will still be run on demand, but not automatically after new blocks are connected." env:"DCRDATA_DISABLE_DEV_PREFETCH"`
 	SyncAndQuit      bool `long:"sync-and-quit" description:"Sync to the best block and exit. Do not start the explorer or API." env:"DCRDATA_ENABLE_SYNC_N_QUIT"`
@@ -178,6 +180,7 @@ var (
 		PGPass:              defaultPGPass,
 		PGHost:              defaultPGHost,
 		PGQueryTimeout:      defaultPGQueryTimeout,
+		AddrCacheCap:        defaultAddrCacheCap,
 		ExchangeCurrency:    defaultExchangeIndex,
 		DisabledExchanges:   defaultDisabledExchanges,
 		RateCertificate:     defaultRateCertFile,

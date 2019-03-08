@@ -1068,7 +1068,9 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 				return
 			} else if err == sql.ErrNoRows {
-				log.Warnf("Spend and pool status not found for ticket %s: %v", hash, err)
+				if tx.Confirmations != 0 {
+					log.Warnf("Spend and pool status not found for ticket %s: %v", hash, err)
+				}
 			} else {
 				if tx.Mature == "False" {
 					tx.TicketInfo.PoolStatus = "immature"
@@ -1377,13 +1379,19 @@ func (exp *explorerUI) AddressTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jsonBytes, err := json.Marshal(response)
-	if err != nil {
-		jsonBytes = []byte("JSON error")
-	}
+	// jsonBytes, err := json.Marshal(response)
+	// if err != nil {
+	// 	jsonBytes = []byte("JSON error")
+	// }
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(jsonBytes)
+	enc := json.NewEncoder(w)
+	//enc.SetEscapeHTML(false)
+	err = enc.Encode(response)
+	if err != nil {
+		log.Debug(err)
+	}
+	//w.Write(jsonBytes)
 }
 
 // parseAddressParams is used by both /address and /addresstable.
