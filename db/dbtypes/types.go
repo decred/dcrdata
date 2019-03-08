@@ -741,6 +741,72 @@ func (ar *AddressRow) IsMerged() bool {
 	return ar.MergedCount > 0
 }
 
+// MergeRows converts a slice of non-merged (regular addresses table row data)
+// into a slice of merged address rows. This involves merging rows with the same
+// transaction hash into a single entry by combining the signed values. The
+// IsFunding field of a merged transaction indicates if the net value is
+// positive or not, although the Value field is an absolute value (always
+// positive). A map of transaction hash to *AddressRow is also returned.
+// MergedRows will return a non-nil error of a merged row is detected in the
+// input since only non-merged rows are expected.
+func MergeRows(rows []*AddressRow) ([]*AddressRow, map[string]*AddressRow, error) {
+	merged := make(map[string]*AddressRow)
+	for _, r := range rows {
+		if r.MergedCount != 0 {
+			return nil, nil,
+				fmt.Errorf("merged row found in input; " +
+					"only non-merged rows may be merged")
+		}
+		hash := r.TxHash
+
+		// New transactions are started with MergedCount = 1.
+		row := merged[hash]
+		if row == nil {
+			// This is the first component composing this merged row.
+			r.MergedCount = 1
+
+			// Clear the TxVinVoutIndex and VinVoutDbID since merged
+			// transactions do not refer to a single input/output.
+			r.TxVinVoutIndex = 0
+			r.VinVoutDbID = 0
+			// Merged rows are combinations of in and out transaction
+			// components, so the matching tx hash has no meaning.
+			r.MatchingTxHash = ""
+
+			if r.IsFunding {
+				r.AtomsCredit = r.Value
+			} else {
+				r.AtomsDebit = r.Value
+			}
+
+			merged[hash] = r
+			continue
+		}
+
+		// Update existing transaction.
+		row.MergedCount++
+		if r.IsFunding {
+			row.AtomsCredit += r.Value
+		} else {
+			row.AtomsDebit += r.Value
+		}
+	}
+
+	// Set the Value and IsFunding fields, and build the slice.
+	mergedRows := make([]*AddressRow, 0, len(merged))
+	for _, mr := range merged {
+		value := int64(mr.AtomsCredit) - int64(mr.AtomsDebit)
+		mr.IsFunding = value >= 0
+		if !mr.IsFunding {
+			value = -value
+		}
+		mr.Value = uint64(value)
+		mergedRows = append(mergedRows, mr)
+	}
+
+	return mergedRows, merged, nil
+}
+
 // AddressMetrics defines address metrics needed to make decisions by which
 // grouping buttons on the address history page charts should be disabled or
 // enabled by default.

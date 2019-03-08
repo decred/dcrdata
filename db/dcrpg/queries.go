@@ -1458,16 +1458,18 @@ func RetrieveAllMainchainAddressTxns(ctx context.Context, db *sql.DB, address st
 	return scanAddressQueryRows(rows, creditDebitQuery)
 }
 
-// RetrieveAllMainchainAddressMergedTxns retrieves all merged and
-// valid_mainchain rows of the address table pertaining to the given address.
-func RetrieveAllMainchainAddressMergedTxns(ctx context.Context, db *sql.DB, address string) ([]uint64, []*dbtypes.AddressRow, error) {
+// RetrieveAllAddressMergedTxns retrieves all merged rows of the address table
+// pertaining to the given address. Specify only valid_mainchain=true rows via
+// the onlyValidMainchain argument.
+func RetrieveAllAddressMergedTxns(ctx context.Context, db *sql.DB, address string, onlyValidMainchain bool) ([]uint64, []*dbtypes.AddressRow, error) {
 	rows, err := db.QueryContext(ctx, internal.SelectAddressMergedViewAll, address)
 	if err != nil {
 		return nil, nil, err
 	}
 	defer closeRows(rows)
 
-	addr, err := scanAddressMergedRows(rows, address, mergedQuery)
+	addr, err := scanAddressMergedRows(rows, address, mergedQuery,
+		onlyValidMainchain)
 	return nil, addr, err
 }
 
@@ -1517,7 +1519,8 @@ func retrieveAddressTxns(ctx context.Context, db *sql.DB, address string, N, off
 
 	switch queryType {
 	case mergedCreditQuery, mergedDebitQuery, mergedQuery:
-		addr, err := scanAddressMergedRows(rows, address, queryType)
+		onlyValidMainchain := true
+		addr, err := scanAddressMergedRows(rows, address, queryType, onlyValidMainchain)
 		return addr, err
 	default:
 		return scanAddressQueryRows(rows, queryType)
@@ -1576,7 +1579,7 @@ func retrieveAddressIoCsv(ctx context.Context, db *sql.DB, address string) (csvR
 	return
 }
 
-func scanAddressMergedRows(rows *sql.Rows, addr string, queryType int) (addressRows []*dbtypes.AddressRow, err error) {
+func scanAddressMergedRows(rows *sql.Rows, addr string, queryType int, onlyValidMainchain bool) (addressRows []*dbtypes.AddressRow, err error) {
 	for rows.Next() {
 		addr := dbtypes.AddressRow{Address: addr}
 
@@ -1602,6 +1605,10 @@ func scanAddressMergedRows(rows *sql.Rows, addr string, queryType int) (addressR
 
 		if err != nil {
 			return
+		}
+
+		if onlyValidMainchain && !addr.ValidMainChain {
+			continue
 		}
 
 		addr.Value = uint64(value)
