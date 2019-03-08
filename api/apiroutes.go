@@ -591,8 +591,8 @@ func (c *appContext) setTrimmedTxSpends(tx *apitypes.TrimmedTx) error {
 }
 
 func (c *appContext) getTransaction(w http.ResponseWriter, r *http.Request) {
-	txid := m.GetTxIDCtx(r)
-	if txid == "" {
+	txid, err := m.GetTxIDCtx(r)
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -623,8 +623,8 @@ func (c *appContext) getTransaction(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getTransactionHex(w http.ResponseWriter, r *http.Request) {
-	txid := m.GetTxIDCtx(r)
-	if txid == "" {
+	txid, err := m.GetTxIDCtx(r)
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -635,8 +635,8 @@ func (c *appContext) getTransactionHex(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getDecodedTx(w http.ResponseWriter, r *http.Request) {
-	txid := m.GetTxIDCtx(r)
-	if txid == "" {
+	txid, err := m.GetTxIDCtx(r)
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -667,8 +667,8 @@ func (c *appContext) getDecodedTx(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getTransactions(w http.ResponseWriter, r *http.Request) {
-	txids := m.GetTxnsCtx(r)
-	if txids == nil {
+	txids, err := m.GetTxnsCtx(r)
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -705,8 +705,8 @@ func (c *appContext) getTransactions(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getDecodedTransactions(w http.ResponseWriter, r *http.Request) {
-	txids := m.GetTxnsCtx(r)
-	if txids == nil {
+	txids, err := m.GetTxnsCtx(r)
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -726,8 +726,8 @@ func (c *appContext) getDecodedTransactions(w http.ResponseWriter, r *http.Reque
 }
 
 func (c *appContext) getTxVoteInfo(w http.ResponseWriter, r *http.Request) {
-	txid := m.GetTxIDCtx(r)
-	if txid == "" {
+	txid, err := m.GetTxIDCtx(r)
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -742,8 +742,8 @@ func (c *appContext) getTxVoteInfo(w http.ResponseWriter, r *http.Request) {
 
 // getTransactionInputs serves []TxIn
 func (c *appContext) getTransactionInputs(w http.ResponseWriter, r *http.Request) {
-	txid := m.GetTxIDCtx(r)
-	if txid == "" {
+	txid, err := m.GetTxIDCtx(r)
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -761,8 +761,8 @@ func (c *appContext) getTransactionInputs(w http.ResponseWriter, r *http.Request
 
 // getTransactionInput serves TxIn[i]
 func (c *appContext) getTransactionInput(w http.ResponseWriter, r *http.Request) {
-	txid := m.GetTxIDCtx(r)
-	if txid == "" {
+	txid, err := m.GetTxIDCtx(r)
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -793,8 +793,8 @@ func (c *appContext) getTransactionInput(w http.ResponseWriter, r *http.Request)
 
 // getTransactionOutputs serves []TxOut
 func (c *appContext) getTransactionOutputs(w http.ResponseWriter, r *http.Request) {
-	txid := m.GetTxIDCtx(r)
-	if txid == "" {
+	txid, err := m.GetTxIDCtx(r)
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -812,8 +812,8 @@ func (c *appContext) getTransactionOutputs(w http.ResponseWriter, r *http.Reques
 
 // getTransactionOutput serves TxOut[i]
 func (c *appContext) getTransactionOutput(w http.ResponseWriter, r *http.Request) {
-	txid := m.GetTxIDCtx(r)
-	if txid == "" {
+	txid, err := m.GetTxIDCtx(r)
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}

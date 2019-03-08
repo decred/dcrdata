@@ -137,24 +137,35 @@ func GetRawHexTx(r *http.Request) string {
 
 // GetTxIDCtx retrieves the ctxTxHash data from the request context. If not set,
 // the return value is an empty string.
-func GetTxIDCtx(r *http.Request) string {
+func GetTxIDCtx(r *http.Request) (string, error) {
 	hash, ok := r.Context().Value(ctxTxHash).(string)
 	if !ok {
 		apiLog.Trace("txid not set")
-		return ""
+		return "", fmt.Errorf("txid not set")
 	}
-	return hash
+	if _, err := chainhash.NewHashFromStr(hash); err != nil {
+		apiLog.Trace("invalid hash '%s': %v", hash, err)
+		return "", fmt.Errorf("invalid hash '%s': %v", hash, err)
+	}
+	return hash, nil
 }
 
 // GetTxnsCtx retrieves the ctxTxns data from the request context. If not set,
 // the return value is an empty string slice.
-func GetTxnsCtx(r *http.Request) []string {
+func GetTxnsCtx(r *http.Request) ([]string, error) {
 	hashes, ok := r.Context().Value(ctxTxns).([]string)
-	if !ok {
+	if !ok || len(hashes) == 0 {
 		apiLog.Trace("ctxTxns not set")
-		return nil
+		return nil, fmt.Errorf("ctxTxns not set")
 	}
-	return hashes
+	for _, hash := range hashes {
+		if _, err := chainhash.NewHashFromStr(hash); err != nil {
+			apiLog.Trace("invalid hash '%s': %v", hash, err)
+			return nil, fmt.Errorf("invalid hash '%s': %v", hash, err)
+		}
+	}
+
+	return hashes, nil
 }
 
 // PostTxnsCtx extract transaction IDs from the POST body
