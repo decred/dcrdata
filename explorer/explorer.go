@@ -401,9 +401,9 @@ func (exp *explorerUI) MempoolInventory() *types.MempoolInfo {
 
 // MempoolID safely fetches the current mempool inventory ID.
 func (exp *explorerUI) MempoolID() uint64 {
-	exp.mempool.mtx.RLock()
-	defer exp.mempool.mtx.RUnlock()
-	return exp.mempool.Inv.ID()
+	exp.invsMtx.RLock()
+	defer exp.invsMtx.RUnlock()
+	return exp.invs.ID()
 }
 
 // MempoolSignals returns the mempool signal and data channels, which are to be
