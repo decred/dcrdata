@@ -507,9 +507,12 @@ const (
 	ChainWork
 	CoinSupply
 	DurationBTW
+	FeePerBlock
 	HashRate
 	POWDifficulty
 	TicketByWindows
+	TicketPoolSize
+	TicketPoolValue
 	TicketPrice
 	TicketsByBlocks
 	TicketSpendT
@@ -525,9 +528,12 @@ var generalCharts = map[Charts]string{
 	ChainWork:       "chainwork",
 	CoinSupply:      "coin-supply",
 	DurationBTW:     "duration-btw-blocks",
+	FeePerBlock:     "fee-per-block",
 	HashRate:        "hashrate",
 	POWDifficulty:   "pow-difficulty",
 	TicketByWindows: "ticket-by-outputs-windows",
+	TicketPoolSize:  "ticket-pool-size",
+	TicketPoolValue: "ticket-pool-value",
 	TicketPrice:     "ticket-price",
 	TicketsByBlocks: "ticket-by-outputs-blocks",
 	TicketSpendT:    "ticket-spend-type",

@@ -2533,35 +2533,6 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 	return 0, nil
 }
 
-// retrieveCoinSupply fetches the coin supply data from the vins table.
-func retrieveCoinSupply(ctx context.Context, db *sql.DB) (*dbtypes.ChartsData, error) {
-	rows, err := db.QueryContext(ctx, internal.SelectCoinSupply)
-	if err != nil {
-		return nil, err
-	}
-	defer closeRows(rows)
-
-	var sum float64
-	items := new(dbtypes.ChartsData)
-	for rows.Next() {
-		var value int64
-		var timestamp dbtypes.TimeDef
-		err = rows.Scan(&timestamp, &value)
-		if err != nil {
-			return nil, err
-		}
-
-		if value < 0 {
-			value = 0
-		}
-		sum += dcrutil.Amount(value).ToCoin()
-		items.Time = append(items.Time, timestamp)
-		items.ValueF = append(items.ValueF, sum)
-	}
-
-	return items, nil
-}
-
 // --- agendas table ---
 
 // retrieveAgendaVoteChoices retrieves for the specified agenda the vote counts
@@ -2879,7 +2850,8 @@ func RetrieveTxsByBlockHash(ctx context.Context, db *sql.DB, blockHash string) (
 // RetrieveTxnsBlocks retrieves for the specified transaction hash the following
 // data for each block containing the transactions: block_hash, block_index,
 // is_valid, is_mainchain.
-func RetrieveTxnsBlocks(ctx context.Context, db *sql.DB, txHash string) (blockHashes []string, blockHeights, blockIndexes []uint32, areValid, areMainchain []bool, err error) {
+func RetrieveTxnsBlocks(ctx context.Context, db *sql.DB, txHash string) (blockHashes []string,
+	blockHeights, blockIndexes []uint32, areValid, areMainchain []bool, err error) {
 	var rows *sql.Rows
 	rows, err = db.QueryContext(ctx, internal.SelectTxsBlocks, txHash)
 	if err != nil {
@@ -2905,6 +2877,105 @@ func RetrieveTxnsBlocks(ctx context.Context, db *sql.DB, txHash string) (blockHa
 	return
 }
 
+// ----- /charts page charts ------
+
+// retrieveBlockTicketsPoolValue defines the ticket-price and pow-difficulty
+// charts data source
+func retrieveBlockTicketsPoolValue(ctx context.Context, db *sql.DB) (*dbtypes.ChartsData, error) {
+	rows, err := db.QueryContext(ctx, internal.SelectBlocksBlockSize)
+	if err != nil {
+		return nil, err
+	}
+	defer closeRows(rows)
+
+	items := new(dbtypes.ChartsData)
+	var prevTimestamp int64
+	var chainsize uint64
+	for rows.Next() {
+		var timestamp dbtypes.TimeDef
+		var blockSize, blocksCount, blockHeight uint64
+		err = rows.Scan(&timestamp, &blockSize, &blocksCount, &blockHeight)
+		if err != nil {
+			return nil, err
+		}
+
+		val := prevTimestamp - timestamp.UNIX()
+		if val < 0 {
+			val *= -1
+		}
+		prevTimestamp = timestamp.UNIX()
+
+		items.Time = append(items.Time, timestamp)
+
+		chainsize += blockSize
+		items.Size = append(items.Size, blockSize)
+		items.ChainSize = append(items.ChainSize, chainsize)
+		items.Count = append(items.Count, blocksCount)
+		items.ValueF = append(items.ValueF, float64(val))
+		items.Value = append(items.Value, blockHeight)
+	}
+
+	return items, nil
+}
+
+// retrieveCoinSupply fetches the coin supply data from the vins table.
+func retrieveCoinSupply(ctx context.Context, db *sql.DB) (*dbtypes.ChartsData, error) {
+	rows, err := db.QueryContext(ctx, internal.SelectCoinSupply)
+	if err != nil {
+		return nil, err
+	}
+	defer closeRows(rows)
+
+	var sum float64
+	items := new(dbtypes.ChartsData)
+	for rows.Next() {
+		var value int64
+		var timestamp dbtypes.TimeDef
+		err = rows.Scan(&timestamp, &value)
+		if err != nil {
+			return nil, err
+		}
+
+		if value < 0 {
+			value = 0
+		}
+		sum += dcrutil.Amount(value).ToCoin()
+		items.Time = append(items.Time, timestamp)
+		items.ValueF = append(items.ValueF, sum)
+	}
+
+	return items, nil
+}
+
+// RetrieveTicketsPriceByHeight fetches the ticket price and its timestamp that
+// are used to display the ticket price variation on ticket price chart. These
+// data are fetched at an interval of chaincfg.Params.StakeDiffWindowSize.
+func RetrieveTicketsPriceByHeight(ctx context.Context, db *sql.DB, val int64) (*dbtypes.ChartsData, error) {
+	rows, err := db.QueryContext(ctx, internal.SelectBlocksTicketsPrice, val)
+	if err != nil {
+		return nil, err
+	}
+	defer closeRows(rows)
+
+	items := new(dbtypes.ChartsData)
+	for rows.Next() {
+		var timestamp dbtypes.TimeDef
+		var price uint64
+		var difficulty float64
+		err = rows.Scan(&price, &timestamp, &difficulty)
+		if err != nil {
+			return nil, err
+		}
+
+		items.Time = append(items.Time, timestamp)
+		priceCoin := dcrutil.Amount(price).ToCoin()
+		items.ValueF = append(items.ValueF, priceCoin)
+		items.Difficulty = append(items.Difficulty, difficulty)
+	}
+
+	return items, nil
+}
+
 func retrieveTxPerDay(ctx context.Context, db *sql.DB) (*dbtypes.ChartsData, error) {
 	rows, err := db.QueryContext(ctx, internal.SelectTxsPerDay)
 	if err != nil {
@@ -2927,7 +2998,8 @@ func retrieveTxPerDay(ctx context.Context, db *sql.DB) (*dbtypes.ChartsData, err
 	return items, nil
 }
 
-func retrieveTicketByOutputCount(ctx context.Context, db *sql.DB, dataType outputCountType) (*dbtypes.ChartsData, error) {
+func retrieveTicketByOutputCount(ctx context.Context, db *sql.DB,
+	dataType outputCountType) (*dbtypes.ChartsData, error) {
 	var query string
 	switch dataType {
 	case outputCountByAllBlocks:
@@ -3279,35 +3351,6 @@ func RetrieveBlockSummaryByTimeRange(ctx context.Context, db *sql.DB, minTime, m
 	return blocks, nil
 }
 
-// RetrieveTicketsPriceByHeight fetches the ticket price and its timestamp that
-// are used to display the ticket price variation on ticket price chart. These
-// data are fetched at an interval of chaincfg.Params.StakeDiffWindowSize.
-func RetrieveTicketsPriceByHeight(ctx context.Context, db *sql.DB, val int64) (*dbtypes.ChartsData, error) {
-	rows, err := db.QueryContext(ctx, internal.SelectBlocksTicketsPrice, val)
-	if err != nil {
-		return nil, err
-	}
-	defer closeRows(rows)
-
-	items := new(dbtypes.ChartsData)
-	for rows.Next() {
-		var timestamp dbtypes.TimeDef
-		var price uint64
-		var difficulty float64
-		err = rows.Scan(&price, &timestamp, &difficulty)
-		if err != nil {
-			return nil, err
-		}
-
-		items.Time = append(items.Time, timestamp)
-		priceCoin := dcrutil.Amount(price).ToCoin()
-		items.ValueF = append(items.ValueF, priceCoin)
-		items.Difficulty = append(items.Difficulty, difficulty)
-	}
-
-	return items, nil
-}
-
 // RetrievePreviousHashByBlockHash retrieves the previous block hash for the
 // given block from the blocks table.
 func RetrievePreviousHashByBlockHash(ctx context.Context, db *sql.DB, hash string) (previousHash string, err error) {
@@ -3320,43 +3363,6 @@ func RetrievePreviousHashByBlockHash(ctx context.Context, db *sql.DB, hash strin
 func SetMainchainByBlockHash(db *sql.DB, hash string, isMainchain bool) (previousHash string, err error) {
 	err = db.QueryRow(internal.UpdateBlockMainchain, hash, isMainchain).Scan(&previousHash)
 	return
-}
-
-func retrieveBlockTicketsPoolValue(ctx context.Context, db *sql.DB) (*dbtypes.ChartsData, error) {
-	rows, err := db.QueryContext(ctx, internal.SelectBlocksBlockSize)
-	if err != nil {
-		return nil, err
-	}
-	defer closeRows(rows)
-
-	items := new(dbtypes.ChartsData)
-	var prevTimestamp int64
-	var chainsize uint64
-	for rows.Next() {
-		var timestamp dbtypes.TimeDef
-		var blockSize, blocksCount, blockHeight uint64
-		err = rows.Scan(&timestamp, &blockSize, &blocksCount, &blockHeight)
-		if err != nil {
-			return nil, err
-		}
-
-		val := prevTimestamp - timestamp.UNIX()
-		if val < 0 {
-			val *= -1
-		}
-		prevTimestamp = timestamp.UNIX()
-
-		items.Time = append(items.Time, timestamp)
-
-		chainsize += blockSize
-		items.Size = append(items.Size, blockSize)
-		items.ChainSize = append(items.ChainSize, chainsize)
-		items.Count = append(items.Count, blocksCount)
-		items.ValueF = append(items.ValueF, float64(val))
-		items.Value = append(items.Value, blockHeight)
-	}
-
-	return items, nil
 }
 
 // -- UPDATE functions for various tables ---
