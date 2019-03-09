@@ -122,7 +122,7 @@ type appContext struct {
 	BlockData     DataSourceLite
 	AuxDataSource DataSourceAux
 	LiteMode      bool
-	Status        apitypes.Status
+	Status        *apitypes.Status
 	JSONIndent    string
 	xcBot         *exchanges.ExchangeBot
 	AgendaDB      *agendas.AgendaDB
@@ -149,15 +149,9 @@ func NewContext(client *rpcclient.Client, params *chaincfg.Params, dataSource Da
 		LiteMode:      liteMode,
 		xcBot:         xcBot,
 		AgendaDB:      agendasDBInstance,
-		Status: apitypes.Status{
-			Height:          uint32(nodeHeight),
-			NodeConnections: conns,
-			APIVersion:      APIVersion,
-			DcrdataVersion:  appver.Version(),
-			NetworkName:     params.Name,
-		},
-		JSONIndent:  jsonIndent,
-		maxCSVAddrs: maxAddrs,
+		Status:        apitypes.NewStatus(uint32(nodeHeight), conns, APIVersion, appver.Version(), params.Name),
+		JSONIndent:    jsonIndent,
+		maxCSVAddrs:   maxAddrs,
 	}
 }
 
@@ -175,20 +169,15 @@ out:
 				break out
 			}
 
-			c.Status.Lock()
-			c.Status.Height = height
-			// If DB height agrees with node height, then we're ready.
-			c.Status.Ready = c.Status.Height == c.Status.DBHeight
-
-			var err error
-			c.Status.NodeConnections, err = c.nodeClient.GetConnectionCount()
-			if err != nil {
-				c.Status.Ready = false
-				c.Status.Unlock()
+			nodeConnections, err := c.nodeClient.GetConnectionCount()
+			if err == nil {
+				c.Status.SetHeightAndConnections(height, nodeConnections)
+			} else {
+				c.Status.SetHeight(height)
+				c.Status.SetReady(false)
 				log.Warn("Failed to get connection count: ", err)
 				break keepon
 			}
-			c.Status.Unlock()
 
 		case height, ok := <-notify.NtfnChans.UpdateStatusDBHeight:
 			if !ok {
@@ -206,9 +195,7 @@ out:
 				break keepon
 			}
 
-			c.Status.Lock()
-			c.Status.DBHeight = height
-			c.Status.DBLastBlockTime = summary.Time.S.UNIX()
+			c.Status.DBUpdate(height, summary.Time.S.UNIX())
 
 			bdHeight, err := c.BlockData.GetHeight()
 			// Catch certain pathological conditions.
@@ -222,13 +209,10 @@ out:
 				log.Warnf("DB empty (height = %d)", bdHeight)
 			default:
 				// If DB height agrees with node height, then we're ready.
-				c.Status.Ready = c.Status.Height == c.Status.DBHeight
-				c.Status.Unlock()
 				break keepon
 			}
 
-			c.Status.Ready = false
-			c.Status.Unlock()
+			c.Status.SetReady(false)
 
 		case <-ctx.Done():
 			log.Debugf("Got quit signal. Exiting block connected handler for STATUS monitor.")
@@ -324,9 +308,7 @@ func getVoteVersionQuery(r *http.Request) (int32, string, error) {
 }
 
 func (c *appContext) status(w http.ResponseWriter, r *http.Request) {
-	c.Status.RLock()
-	defer c.Status.RUnlock()
-	writeJSON(w, &c.Status, c.getIndentQuery(r))
+	writeJSON(w, c.Status.API(), c.getIndentQuery(r))
 }
 
 func (c *appContext) coinSupply(w http.ResponseWriter, r *http.Request) {
@@ -342,7 +324,7 @@ func (c *appContext) coinSupply(w http.ResponseWriter, r *http.Request) {
 
 func (c *appContext) currentHeight(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	if _, err := io.WriteString(w, strconv.Itoa(int(c.Status.GetHeight()))); err != nil {
+	if _, err := io.WriteString(w, strconv.Itoa(int(c.Status.Height()))); err != nil {
 		apiLog.Infof("failed to write height response: %v", err)
 	}
 }
@@ -1489,7 +1471,7 @@ func (c *appContext) addressIoCsv(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filename := fmt.Sprintf("address-io-%s-%d-%s.csv", address,
-		c.Status.GetHeight(), strconv.FormatInt(time.Now().Unix(), 10))
+		c.Status.Height(), strconv.FormatInt(time.Now().Unix(), 10))
 
 	// Check if ?cr=true was specified.
 	crlfParam := r.URL.Query().Get("cr")
