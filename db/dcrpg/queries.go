@@ -1065,28 +1065,6 @@ func retrieveTicketsGroupedByType(ctx context.Context, db *sql.DB) (*dbtypes.Poo
 	return &entry, nil
 }
 
-func retrieveTicketSpendTypePerBlock(ctx context.Context, db *sql.DB) (*dbtypes.ChartsData, error) {
-	var items = new(dbtypes.ChartsData)
-	rows, err := db.QueryContext(ctx, internal.SelectTicketSpendTypeByBlock)
-	if err != nil {
-		return nil, err
-	}
-	defer closeRows(rows)
-
-	for rows.Next() {
-		var height, unspent, revoked uint64
-		err = rows.Scan(&height, &unspent, &revoked)
-		if err != nil {
-			return nil, err
-		}
-
-		items.Height = append(items.Height, height)
-		items.Unspent = append(items.Unspent, unspent)
-		items.Revoked = append(items.Revoked, revoked)
-	}
-	return items, nil
-}
-
 // SetPoolStatusForTickets sets the ticket pool status for the tickets specified
 // by db row ID.
 func SetPoolStatusForTickets(db *sql.DB, ticketDbIDs []uint64, poolStatuses []dbtypes.TicketPoolStatus) (int64, error) {
@@ -2877,50 +2855,53 @@ func RetrieveTxnsBlocks(ctx context.Context, db *sql.DB, txHash string) (blockHa
 	return
 }
 
-// ----- /charts page charts ------
+// ----- Historical Charts on /charts page -----
 
-// retrieveBlockTicketsPoolValue defines the ticket-price and pow-difficulty
-// charts data source
-func retrieveBlockTicketsPoolValue(ctx context.Context, db *sql.DB) (*dbtypes.ChartsData, error) {
-	rows, err := db.QueryContext(ctx, internal.SelectBlocksBlockSize)
+// retrieveTicketsPriceByHeight fetches the ticket-price and pow-difficulty
+// charts data source from the blocks table. These data are fetched at an
+// interval of chaincfg.Params.StakeDiffWindowSize. If lastHeight is not empty,
+// only the latest update since last height was fetched is retrieved.
+func retrieveTicketsPriceByHeight(ctx context.Context, db *sql.DB, interval int64,
+	lastHeight ...int64) (*dbtypes.ChartsData, error) {
+	var since int64
+	if len(lastHeight) > 0 {
+		since = lastHeight[0]
+	}
+
+	rows, err := db.QueryContext(ctx, internal.SelectBlocksTicketsPrice, interval, since)
 	if err != nil {
 		return nil, err
 	}
 	defer closeRows(rows)
 
 	items := new(dbtypes.ChartsData)
-	var prevTimestamp int64
-	var chainsize uint64
 	for rows.Next() {
 		var timestamp dbtypes.TimeDef
-		var blockSize, blocksCount, blockHeight uint64
-		err = rows.Scan(&timestamp, &blockSize, &blocksCount, &blockHeight)
+		var price uint64
+		var difficulty float64
+		err = rows.Scan(&price, &timestamp, &difficulty)
 		if err != nil {
 			return nil, err
 		}
 
-		val := prevTimestamp - timestamp.UNIX()
-		if val < 0 {
-			val *= -1
-		}
-		prevTimestamp = timestamp.UNIX()
-
 		items.Time = append(items.Time, timestamp)
-
-		chainsize += blockSize
-		items.Size = append(items.Size, blockSize)
-		items.ChainSize = append(items.ChainSize, chainsize)
-		items.Count = append(items.Count, blocksCount)
-		items.ValueF = append(items.ValueF, float64(val))
-		items.Value = append(items.Value, blockHeight)
+		priceCoin := dcrutil.Amount(price).ToCoin()
+		items.ValueF = append(items.ValueF, priceCoin)
+		items.Difficulty = append(items.Difficulty, difficulty)
 	}
 
 	return items, nil
 }
 
 // retrieveCoinSupply fetches the coin supply data from the vins table.
-func retrieveCoinSupply(ctx context.Context, db *sql.DB) (*dbtypes.ChartsData, error) {
-	rows, err := db.QueryContext(ctx, internal.SelectCoinSupply)
+func retrieveCoinSupply(ctx context.Context, db *sql.DB,
+	lastTime ...time.Time) (*dbtypes.ChartsData, error) {
+	var since time.Time
+	if len(lastTime) > 0 {
+		since = lastTime[0]
+	}
+
+	rows, err := db.QueryContext(ctx, internal.SelectCoinSupply, since)
 	if err != nil {
 		return nil, err
 	}
@@ -2947,37 +2928,90 @@ func retrieveCoinSupply(ctx context.Context, db *sql.DB) (*dbtypes.ChartsData, e
 	return items, nil
 }
 
-// RetrieveTicketsPriceByHeight fetches the ticket price and its timestamp that
-// are used to display the ticket price variation on ticket price chart. These
-// data are fetched at an interval of chaincfg.Params.StakeDiffWindowSize.
-func RetrieveTicketsPriceByHeight(ctx context.Context, db *sql.DB, val int64) (*dbtypes.ChartsData, error) {
-	rows, err := db.QueryContext(ctx, internal.SelectBlocksTicketsPrice, val)
+// retrieveTicketSpendTypePerBlock fetches data for ticket-spend-type chart from
+// the tickets table.
+func retrieveTicketSpendTypePerBlock(ctx context.Context, db *sql.DB,
+	lastHeight ...int64) (*dbtypes.ChartsData, error) {
+	var since int64
+	if len(lastHeight) > 0 {
+		since = lastHeight[0]
+	}
+
+	rows, err := db.QueryContext(ctx, internal.SelectTicketSpendTypeByBlock, since)
+	if err != nil {
+		return nil, err
+	}
+	defer closeRows(rows)
+
+	var items = new(dbtypes.ChartsData)
+	for rows.Next() {
+		var height, unspent, revoked uint64
+		err = rows.Scan(&height, &unspent, &revoked)
+		if err != nil {
+			return nil, err
+		}
+
+		items.Height = append(items.Height, height)
+		items.Unspent = append(items.Unspent, unspent)
+		items.Revoked = append(items.Revoked, revoked)
+	}
+	return items, nil
+}
+
+// retrieveBlockTicketsPoolValue fetches data for avg-block-size, blockchain-size,
+// tx-per-block and duration-btw-blocks charts from the blocks table.
+func retrieveBlockTicketsPoolValue(ctx context.Context, db *sql.DB,
+	lastHeight ...int64) (*dbtypes.ChartsData, error) {
+	var since int64
+	if len(lastHeight) > 0 {
+		since = lastHeight[0]
+	}
+
+	rows, err := db.QueryContext(ctx, internal.SelectBlocksBlockSize, since)
 	if err != nil {
 		return nil, err
 	}
 	defer closeRows(rows)
 
 	items := new(dbtypes.ChartsData)
+	var prevTimestamp int64
+	var chainsize uint64
 	for rows.Next() {
 		var timestamp dbtypes.TimeDef
-		var price uint64
-		var difficulty float64
-		err = rows.Scan(&price, &timestamp, &difficulty)
+		var blockSize, blocksCount, blockHeight uint64
+		err = rows.Scan(&timestamp, &blockSize, &blocksCount, &blockHeight)
 		if err != nil {
 			return nil, err
 		}
 
+		val := prevTimestamp - timestamp.UNIX()
+		if val < 0 {
+			val = val * -1
+		}
+		prevTimestamp = timestamp.UNIX()
+
 		items.Time = append(items.Time, timestamp)
-		priceCoin := dcrutil.Amount(price).ToCoin()
-		items.ValueF = append(items.ValueF, priceCoin)
-		items.Difficulty = append(items.Difficulty, difficulty)
+
+		chainsize += blockSize
+		items.Size = append(items.Size, blockSize)
+		items.ChainSize = append(items.ChainSize, chainsize)
+		items.Count = append(items.Count, blocksCount)
+		items.ValueF = append(items.ValueF, float64(val))
+		items.Value = append(items.Value, blockHeight)
 	}
 
 	return items, nil
 }
 
-func retrieveTxPerDay(ctx context.Context, db *sql.DB) (*dbtypes.ChartsData, error) {
-	rows, err := db.QueryContext(ctx, internal.SelectTxsPerDay)
+// retrieveTxPerDay fetches data for tx-per-day chart from the blocks table.
+func retrieveTxPerDay(ctx context.Context, db *sql.DB,
+	lastTime ...time.Time) (*dbtypes.ChartsData, error) {
+	var since time.Time
+	if len(lastTime) > 0 {
+		since = lastTime[0]
+	}
+
+	rows, err := db.QueryContext(ctx, internal.SelectTxsPerDay, since)
 	if err != nil {
 		return nil, err
 	}
@@ -2998,8 +3032,16 @@ func retrieveTxPerDay(ctx context.Context, db *sql.DB) (*dbtypes.ChartsData, err
 	return items, nil
 }
 
+// retrieveTicketByOutputCount fetches the data for ticket-by-outputs-windows
+// chart if outputCountType outputCountByTicketPoolWindow is passed and
+// ticket-by-outputs-blocks if outputCountType outputCountByAllBlocks is passed.
 func retrieveTicketByOutputCount(ctx context.Context, db *sql.DB,
-	dataType outputCountType) (*dbtypes.ChartsData, error) {
+	dataType outputCountType, lastHeight ...int64) (*dbtypes.ChartsData, error) {
+	var since int64
+	if len(lastHeight) > 0 {
+		since = lastHeight[0]
+	}
+
 	var query string
 	switch dataType {
 	case outputCountByAllBlocks:
@@ -3010,7 +3052,7 @@ func retrieveTicketByOutputCount(ctx context.Context, db *sql.DB,
 		return nil, fmt.Errorf("unknown output count type '%v'", dataType)
 	}
 
-	rows, err := db.QueryContext(ctx, query)
+	rows, err := db.QueryContext(ctx, query, stake.TxTypeSStx, since)
 	if err != nil {
 		return nil, err
 	}
@@ -3033,11 +3075,17 @@ func retrieveTicketByOutputCount(ctx context.Context, db *sql.DB,
 
 // retrieveChainWork assembles both block-by-block chainwork data
 // and a rolling average for network hashrate data.
-func retrieveChainWork(db *sql.DB) (*dbtypes.ChartsData, *dbtypes.ChartsData, error) {
+func retrieveChainWork(db *sql.DB, lastHeight ...int64) ([2]*dbtypes.ChartsData, error) {
+	var since int64
+	if len(lastHeight) > 0 {
+		since = lastHeight[0]
+	}
+
+	var data [2]*dbtypes.ChartsData
 	// Grab all chainwork points in rows of (time, chainwork).
-	rows, err := db.Query(internal.SelectChainWork)
+	rows, err := db.Query(internal.SelectChainWork, since)
 	if err != nil {
-		return nil, nil, err
+		return data, err
 	}
 	defer closeRows(rows)
 
@@ -3061,7 +3109,7 @@ func retrieveChainWork(db *sql.DB) (*dbtypes.ChartsData, *dbtypes.ChartsData, er
 	}
 	// How many blocks to average across for hashrate.
 	// 120 is the default returned by the RPC method `getnetworkhashps`.
-	var averagingLength int = 120
+	var averagingLength = 120
 	// points is used as circular storage.
 	points := make([]chainWorkPt, averagingLength)
 	var thisPt, lastPt chainWorkPt
@@ -3078,7 +3126,7 @@ func retrieveChainWork(db *sql.DB) (*dbtypes.ChartsData, *dbtypes.ChartsData, er
 		// Get the chainwork.
 		err = rows.Scan(&blocktime, &workhex)
 		if err != nil {
-			return nil, nil, err
+			return data, err
 		}
 
 		bigwork, ok := new(big.Int).SetString(workhex, 16)
@@ -3120,7 +3168,11 @@ func retrieveChainWork(db *sql.DB) (*dbtypes.ChartsData, *dbtypes.ChartsData, er
 	if badRows > 0 {
 		log.Errorf("%d rows have invalid chainwork values.", badRows)
 	}
-	return workdata, hashrates, nil
+
+	data[0] = workdata
+	data[1] = hashrates
+
+	return data, nil
 }
 
 // --- blocks and block_chain tables ---

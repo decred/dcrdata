@@ -183,7 +183,7 @@ const (
 
 	SelectTxsPerDay = `SELECT date_trunc('day',time) AS date, sum(numtx)
 		FROM blocks
-		WHERE data > $1
+		WHERE time > $1
 		GROUP BY date
 		ORDER BY date;`
 

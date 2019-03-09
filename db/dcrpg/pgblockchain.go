@@ -2483,7 +2483,7 @@ func (pgb *ChainDB) TxHistoryData(address string, addrChart dbtypes.HistoryChart
 func (pgb *ChainDB) TicketsPriceByHeight() (*dbtypes.ChartsData, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
-	d, err := RetrieveTicketsPriceByHeight(ctx, pgb.db, pgb.chainParams.StakeDiffWindowSize)
+	d, err := retrieveTicketsPriceByHeight(ctx, pgb.db, pgb.chainParams.StakeDiffWindowSize)
 	if err != nil {
 		return nil, pgb.replaceCancelError(err)
 	}
@@ -2519,17 +2519,17 @@ func (pgb *ChainDB) CoinSupplyChartsData() (*dbtypes.ChartsData, error) {
 // GetPgChartsData retrieves the different types of charts data.
 func (pgb *ChainDB) GetPgChartsData() (map[dbtypes.Charts]*dbtypes.ChartsData, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
-	tickets, err := RetrieveTicketsPriceByHeight(ctx, pgb.db, pgb.chainParams.StakeDiffWindowSize)
+	tickets, err := retrieveTicketsPriceByHeight(ctx, pgb.db, pgb.chainParams.StakeDiffWindowSize)
 	cancel()
 	if err != nil {
 		err = pgb.replaceCancelError(err)
-		return nil, fmt.Errorf("RetrieveTicketsPriceByHeight: %v", err)
+		return nil, fmt.Errorf("retrieveTicketsPriceByHeight: %v", err)
 	}
 
 	supply, err := pgb.CoinSupplyChartsData()
 	if err != nil {
 		err = pgb.replaceCancelError(err)
-		return nil, fmt.Errorf("CoinSupplyChartsData: %v", err)
+		return nil, fmt.Errorf("retrieveCoinSupply: %v", err)
 	}
 
 	ctx, cancel = context.WithTimeout(pgb.ctx, pgb.queryTimeout)
@@ -2572,7 +2572,7 @@ func (pgb *ChainDB) GetPgChartsData() (map[dbtypes.Charts]*dbtypes.ChartsData, e
 		return nil, fmt.Errorf("retrieveTicketByOutputCount by All TP window: %v", err)
 	}
 
-	chainWork, hashrates, err := retrieveChainWork(pgb.db)
+	chainData, err := retrieveChainWork(pgb.db)
 	if err != nil {
 		return nil, fmt.Errorf("retrieveChainWork: %v", err)
 	}
@@ -2589,8 +2589,8 @@ func (pgb *ChainDB) GetPgChartsData() (map[dbtypes.Charts]*dbtypes.ChartsData, e
 		dbtypes.TicketSpendT:    ticketsSpendType,
 		dbtypes.TicketsByBlocks: ticketsByOutputsAllBlocks,
 		dbtypes.TicketByWindows: ticketsByOutputsTPWindow,
-		dbtypes.ChainWork:       chainWork,
-		dbtypes.HashRate:        hashrates,
+		dbtypes.ChainWork:       chainData[0], // chainWork,
+		dbtypes.HashRate:        chainData[1], // hashrates,
 	}
 
 	return data, nil
