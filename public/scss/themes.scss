@@ -6,10 +6,6 @@ body.theme-testnet {
     color: #fff;
   }
 
-  .navbar-fixed-bottom .nav-item {
-    color: #fff;
-  }
-
   .top-search {
     color: #fff;
   }
@@ -32,10 +28,6 @@ body.theme-simnet {
   }
 
   .top-search {
-    color: #fff;
-  }
-
-  .navbar-fixed-bottom .nav-item {
     color: #fff;
   }
 
@@ -97,7 +89,6 @@ body.darkBG {
   .top-nav,
   .navbar-fixed-bottom {
     background: #292929;
-    color: #3c4044;
   }
 
   .top-nav a,
@@ -126,10 +117,6 @@ body.darkBG {
   .top-nav input:-webkit-autofill {
     -webkit-animation-name: autofillDark;
     -webkit-animation-fill-mode: both;
-  }
-
-  .navbar-fixed-bottom .nav-item {
-    color: #dcdcdc;
   }
 
   #menuToggle .patty {

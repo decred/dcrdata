@@ -5,7 +5,7 @@
 <body class="{{ theme }}">
     {{template "navbar" . }}
 
-    <div class="container" data-controller="status">
+    <div class="container py-1" data-controller="status">
         <br/>
         <div class="alert alert-info" data-target="status.message">
             {{if .StatusType.IsNotFound}}

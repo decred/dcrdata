@@ -19,10 +19,6 @@
   .sm-w151 {
     width: 151px;
   }
-
-  .block-msg {
-    display: none;
-  }
 }
 
 @media only screen and (max-width: 576px) {
@@ -37,11 +33,5 @@
 
   .xs-w117 {
     width: 117px;
-  }
-}
-
-@media (min-width: 768px) {
-  .connection-wrapper {
-    width: 180px;
   }
 }

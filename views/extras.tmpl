@@ -39,9 +39,9 @@
                     </a>
                 </div>
             </div>
-            <div class="col pl-2">
+            <div class="col px-4 text-right">
                 <form
-                    class="navbar-form"
+                    class="search-form"
                     role="search"
                     id="search-form"
                     action="/search"
@@ -53,9 +53,11 @@
                         type="text"
                         name="search"
                         id="search"
-                        class="form-control top-search mousetrap"
+                        class="top-search mousetrap"
                         placeholder="Search for blocks, addresses or transactions"
+                        spellcheck="false"
                     />
+                    <button class="search-bttn"><span class="dcricon-search"></span></button>
                 </form>
             </div>
             <nav role="navigation" id="hamburger-menu" data-controller="menu" data-turbolinks-permanent>
@@ -96,44 +98,34 @@
 {{define "footer"}}
 <footer class="navbar-fixed-bottom">
     <div class="container d-flex justify-content-between align-items-center">
-        <ul class="nav justify-contents-left nowrap blockcounter jsonly">
-          <li class="nav-item text-left">
-            <span data-controller="time" data-target="time.blocktime" data-stamp="{{$.Tip.Time}}"></span> <span class="block-msg">since last block</span>
-          </li>
-        </ul>
-        <ul class="nav justify-content-center col">
-            <li class="nav-item">
-                <a
-                    class="nav-item no-wrap"
-                    href="https://github.com/decred/dcrdata"
-                    title="dcrdata on GitHub"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >dcrdata v{{.Version}}</a>
-            </li>
-            <li class="nav-item">
-                <a
-                    class="nav-item nowrap"
-                    href="https://github.com/decred/dcrdata/blob/master/LICENSE"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >© 2019 The Decred developers (ISC)</a>
-            </li>
-        </ul>
-        <ul class="nav justify-content-right align-items-center jsonly">
-            <li class="text-right connection-wrapper">
-                <span
-                    id="connection"
-                    class="nav-item align-items-center clickable"
-                    data-turbolinks-permanent
-                    data-controller="connection"
-                    data-target="connection.indicator"
-                    data-action="click->connection#requestNotifyPermission"
-                    title="While connected, you will receive live page updates and, if enabled, desktop notifications (click to enable)."
-                    ><span>Connecting <span class="d-none d-md-inline-block">to WebSocket...</span></span><div></div>
-                </span>
-            </li>
-        </ul>
+        <span>
+            <span data-controller="time" data-target="time.blocktime" data-stamp="{{$.Tip.Time}}"></span> <span class="d-none d-sm-inline">since last block</span>
+        </span>
+        <span>
+            <a
+                class="text-nowrap d-none d-md-inline-block pr-3"
+                href="https://github.com/decred/dcrdata"
+                title="dcrdata on GitHub"
+                target="_blank"
+                rel="noopener noreferrer"
+            >dcrdata v{{.Version}}</a>
+            <a
+                class="text-nowrap"
+                href="https://github.com/decred/dcrdata/blob/master/LICENSE"
+                target="_blank"
+                rel="noopener noreferrer"
+            >© 2019 The Decred developers (ISC)</a>
+        </span>
+        <span
+            id="connection"
+            class="text-nowrap align-items-center clickable d-inline-block"
+            data-turbolinks-permanent
+            data-controller="connection"
+            data-target="connection.indicator"
+            data-action="click->connection#requestNotifyPermission"
+            title="While connected, you will receive live page updates and, if enabled, desktop notifications (click to enable)."
+            ><span class="d-none d-sm-inline" data-target="connection.status">Connecting <span class="d-none d-md-inline-block">to WebSocket...</span></span><div></div>
+        </span>
     </div>
     <script
         src="/dist/js/vendors~app.bundle.js"
