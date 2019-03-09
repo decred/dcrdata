@@ -1651,6 +1651,12 @@ func (db *WiredDB) GetExplorerAddress(address string, count, offset int64) (*dbt
 			Offset:          offset,
 			Fullmode:        true,
 		}, addrType, nil
+	case txhelpers.AddressErrorWrongNet:
+		// Set the net name field so a user can be properly directed.
+		return &dbtypes.AddressInfo{
+			Address: address,
+			Net:     addr.Net().Name,
+		}, addrType, addrErr
 	default:
 		return nil, addrType, addrErr
 	}
