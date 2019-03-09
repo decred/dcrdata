@@ -118,14 +118,15 @@ func _main(ctx context.Context) error {
 	}
 
 	defer func() {
-		// The individial hander's loops should close the notifications channels
-		// on quit, but do it here too to be sure.
-		notify.CloseNtfnChans()
-
 		if dcrdClient != nil {
 			log.Infof("Closing connection to dcrd.")
 			dcrdClient.Shutdown()
+			dcrdClient.WaitForShutdown()
 		}
+
+		// The individial hander's loops should close the notifications channels
+		// on quit, but do it here too to be sure.
+		notify.CloseNtfnChans()
 
 		log.Infof("Bye!")
 		time.Sleep(250 * time.Millisecond)
