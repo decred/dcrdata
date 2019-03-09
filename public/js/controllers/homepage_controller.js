@@ -21,8 +21,8 @@ function mempoolTableRow (tx) {
     <td class="text-left pl-1">${humanize.hashElide(tx.hash, link)}</td>
     <td>${tx.Type}</td>
     <td>${humanize.threeSigFigs(tx.total || 0, false, 8)}</td>
-    <td class="d-none d-sm-table-cell d-md-none d-lg-table-cell">${tx.size} B</td>
-    <td class="text-right pr-3 home-bl-age" data-target="time.age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
+    <td class="d-none d-sm-table-cell d-md-none d-lg-table-cell text-nowrap">${tx.size} B</td>
+    <td class="text-right pr-3 home-bl-age text-nowrap" data-target="time.age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
   </tr>`
   dompurify.sanitize(tbody, { IN_PLACE: true })
   return tbody.firstChild
@@ -46,7 +46,9 @@ export default class extends Controller {
 
   connect () {
     this.ticketsPerBlock = parseInt(this.mpVoteCountTarget.dataset.ticketsPerBlock)
-    this.mempool = new Mempool(this.mempoolTarget.dataset, this.voteTallyTargets)
+    var mempoolData = this.mempoolTarget.dataset
+    ws.send('getmempooltxs', mempoolData.id)
+    this.mempool = new Mempool(mempoolData, this.voteTallyTargets)
     this.setBars(this.mempool.totals())
     ws.registerEvtHandler('newtx', (evt) => {
       var txs = JSON.parse(evt)
