@@ -137,32 +137,38 @@ func GetRawHexTx(r *http.Request) string {
 
 // GetTxIDCtx retrieves the ctxTxHash data from the request context. If not set,
 // the return value is an empty string.
-func GetTxIDCtx(r *http.Request) (string, error) {
-	hash, ok := r.Context().Value(ctxTxHash).(string)
+func GetTxIDCtx(r *http.Request) (*chainhash.Hash, error) {
+	hashStr, ok := r.Context().Value(ctxTxHash).(string)
 	if !ok {
 		apiLog.Trace("txid not set")
-		return "", fmt.Errorf("txid not set")
+		return nil, fmt.Errorf("txid not set")
 	}
-	if _, err := chainhash.NewHashFromStr(hash); err != nil {
-		apiLog.Trace("invalid hash '%s': %v", hash, err)
-		return "", fmt.Errorf("invalid hash '%s': %v", hash, err)
+	hash, err := chainhash.NewHashFromStr(hashStr)
+	if err != nil {
+		apiLog.Trace("invalid hash '%s': %v", hashStr, err)
+		return nil, fmt.Errorf("invalid hash '%s': %v",
+			hashStr, err)
 	}
 	return hash, nil
 }
 
 // GetTxnsCtx retrieves the ctxTxns data from the request context. If not set,
 // the return value is an empty string slice.
-func GetTxnsCtx(r *http.Request) ([]string, error) {
-	hashes, ok := r.Context().Value(ctxTxns).([]string)
-	if !ok || len(hashes) == 0 {
+func GetTxnsCtx(r *http.Request) ([]*chainhash.Hash, error) {
+	hashStrs, ok := r.Context().Value(ctxTxns).([]string)
+	if !ok || len(hashStrs) == 0 {
 		apiLog.Trace("ctxTxns not set")
 		return nil, fmt.Errorf("ctxTxns not set")
 	}
-	for _, hash := range hashes {
-		if _, err := chainhash.NewHashFromStr(hash); err != nil {
-			apiLog.Trace("invalid hash '%s': %v", hash, err)
-			return nil, fmt.Errorf("invalid hash '%s': %v", hash, err)
+
+	var hashes []*chainhash.Hash
+	for _, hashStr := range hashStrs {
+		hash, err := chainhash.NewHashFromStr(hashStr)
+		if err != nil {
+			apiLog.Trace("invalid hash '%s': %v", hashStr, err)
+			return nil, fmt.Errorf("invalid hash '%s': %v", hashStr, err)
 		}
+		hashes = append(hashes, hash)
 	}
 
 	return hashes, nil

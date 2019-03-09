@@ -7,6 +7,7 @@ package dcrpg
 import (
 	"context"
 
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
 	apitypes "github.com/decred/dcrdata/v4/api/types"
@@ -18,7 +19,7 @@ import (
 
 // GetRawTransaction gets a dcrjson.TxRawResult for the specified transaction
 // hash.
-func (pgb *ChainDBRPC) GetRawTransaction(txid string) (*dcrjson.TxRawResult, error) {
+func (pgb *ChainDBRPC) GetRawTransaction(txid *chainhash.Hash) (*dcrjson.TxRawResult, error) {
 	txraw, err := rpcutils.GetTransactionVerboseByID(pgb.Client, txid)
 	if err != nil {
 		log.Errorf("GetRawTransactionVerbose failed for: %s", txid)
@@ -59,7 +60,7 @@ func (pgb *ChainDBRPC) SendRawTransaction(txhex string) (string, error) {
 // specified addresses ordered desc by time. It also returns a list of recently
 // (defined as greater than recentBlockHeight) confirmed transactions that can
 // be used to validate mempool status.
-func (pgb *ChainDB) InsightAddressTransactions(addr []string, recentBlockHeight int64) (txs, recentTxs []string, err error) {
+func (pgb *ChainDB) InsightAddressTransactions(addr []string, recentBlockHeight int64) (txs, recentTxs []chainhash.Hash, err error) {
 	recentBlocktime, err0 := pgb.BlockTimeByHeight(recentBlockHeight)
 	if err0 != nil {
 		return nil, nil, err0
@@ -78,9 +79,13 @@ func (pgb *ChainDB) InsightAddressTransactions(addr []string, recentBlockHeight 
 			continue
 		}
 		for _, r := range rows {
-			txs = append(txs, r.TxHash)
+			tx, err := chainhash.NewHashFromStr(r.TxHash)
+			if err != nil {
+				return nil, nil, err
+			}
+			txs = append(txs, *tx)
 			if r.TxBlockTime.UNIX() > recentBlocktime {
-				recentTxs = append(recentTxs, r.TxHash)
+				recentTxs = append(recentTxs, *tx)
 			}
 		}
 	}
@@ -132,7 +137,7 @@ func (pgb *ChainDBRPC) InsightSearchRPCAddressTransactions(addr string, count,
 
 // GetTransactionHex returns the full serialized transaction for the specified
 // transaction hash as a hex encode string.
-func (pgb *ChainDBRPC) GetTransactionHex(txid string) string {
+func (pgb *ChainDBRPC) GetTransactionHex(txid *chainhash.Hash) string {
 	txraw, err := rpcutils.GetTransactionVerboseByID(pgb.Client, txid)
 
 	if err != nil {
