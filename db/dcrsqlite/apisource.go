@@ -1156,6 +1156,9 @@ func (db *WiredDB) GetAddressTransactionsRawWithSkip(addr string, count int, ski
 	}
 	txs, err := db.client.SearchRawTransactionsVerbose(address, skip, count, true, true, nil)
 	if err != nil {
+		if strings.Contains(err.Error(), "No Txns available") {
+			return make([]*apitypes.AddressTxRaw, 0)
+		}
 		log.Warnf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
 		return nil
 	}
