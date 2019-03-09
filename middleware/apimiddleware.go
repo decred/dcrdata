@@ -124,17 +124,6 @@ func GetTpCtx(r *http.Request) string {
 	return tp
 }
 
-// GetRawHexTx retrieves the ctxRawHexTx data from the request context. If not
-// set, the return value is an empty string.
-func GetRawHexTx(r *http.Request) string {
-	rawHexTx, ok := r.Context().Value(ctxRawHexTx).(string)
-	if !ok {
-		apiLog.Trace("hex transaction id not set")
-		return ""
-	}
-	return rawHexTx
-}
-
 // GetTxIDCtx retrieves the ctxTxHash data from the request context. If not set,
 // the return value is an empty string.
 func GetTxIDCtx(r *http.Request) (string, error) {

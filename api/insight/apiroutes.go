@@ -292,9 +292,9 @@ func (c *insightApiContext) getRawBlock(w http.ResponseWriter, r *http.Request) 
 
 func (c *insightApiContext) broadcastTransactionRaw(w http.ResponseWriter, r *http.Request) {
 	// Check for rawtx
-	rawHexTx, ok := c.GetRawHexTx(r)
-	if !ok {
-		// JSON extraction failed or rawtx blank.  Error message already returned.
+	rawHexTx, err := c.GetRawHexTx(r)
+	if err != nil {
+		writeInsightError(w, err.Error())
 		return
 	}
 

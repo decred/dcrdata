@@ -5,7 +5,9 @@
 package insight
 
 import (
+	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -13,6 +15,7 @@ import (
 	"strconv"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/v4/api/types"
 	m "github.com/decred/dcrdata/v4/middleware"
 	"github.com/go-chi/chi"
@@ -69,13 +72,24 @@ func (c *insightApiContext) getBlockHashCtx(r *http.Request) (string, error) {
 
 // GetRawHexTx retrieves the ctxRawHexTx data from the request context. If not
 // set, the return value is an empty string.
-func (c *insightApiContext) GetRawHexTx(r *http.Request) (string, bool) {
+func (c *insightApiContext) GetRawHexTx(r *http.Request) (string, error) {
 	rawHexTx, ok := r.Context().Value(ctxRawHexTx).(string)
 	if !ok {
-		apiLog.Trace("Rawtx hex transaction not set")
-		return "", false
+		apiLog.Trace("hex transaction id not set")
+		return "", fmt.Errorf("hex transaction id not set")
 	}
-	return rawHexTx, true
+	serializedTx, err := hex.DecodeString(rawHexTx)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode tx: %v", err)
+	}
+	msgtx := wire.NewMsgTx()
+	err = msgtx.Deserialize(bytes.NewReader(serializedTx))
+	if err != nil {
+		return "", fmt.Errorf("failed to deserialize tx: %v", err)
+	}
+
+	return rawHexTx, nil
+
 }
 
 // Process params given in post body for an broadcast tx endpoint.
