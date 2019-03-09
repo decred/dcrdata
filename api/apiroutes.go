@@ -1418,12 +1418,13 @@ func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	address := m.GetAddressCtx(r)
-	if address == "" {
+	addresses, err := m.GetAddressCtx(r, c.Params)
+	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
+	address := addresses[0]
 	totals, err := c.AuxDataSource.AddressTotals(address)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("AddressTotals: %v", err)
@@ -1447,12 +1448,12 @@ func (c *appContext) addressIoCsv(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	address := m.GetAddressCtx(r)
-	if address == "" {
-		log.Debugf("Failed to parse address from request")
+	addresses, err := m.GetAddressCtx(r, c.Params)
+	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return
 	}
+	address := addresses[0]
 
 	_, _, addrErr := txhelpers.AddressValidation(address, c.Params)
 	if addrErr != nil {
@@ -1484,9 +1485,15 @@ func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	address := m.GetAddressCtx(r)
+	addresses, err := m.GetAddressCtx(r, c.Params)
+	if err != nil || len(addresses) > 1 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+	address := addresses[0]
+
 	chartGrouping := m.GetChartGroupingCtx(r)
-	if address == "" || chartGrouping == "" {
+	if chartGrouping == "" {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -1513,9 +1520,15 @@ func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	address := m.GetAddressCtx(r)
+	addresses, err := m.GetAddressCtx(r, c.Params)
+	if err != nil || len(addresses) > 1 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+	address := addresses[0]
+
 	chartGrouping := m.GetChartGroupingCtx(r)
-	if address == "" || chartGrouping == "" {
+	if chartGrouping == "" {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -1542,9 +1555,15 @@ func (c *appContext) getAddressTxUnspentAmountData(w http.ResponseWriter, r *htt
 		return
 	}
 
-	address := m.GetAddressCtx(r)
+	addresses, err := m.GetAddressCtx(r, c.Params)
+	if err != nil || len(addresses) > 1 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+	address := addresses[0]
+
 	chartGrouping := m.GetChartGroupingCtx(r)
-	if address == "" || chartGrouping == "" {
+	if chartGrouping == "" {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -1597,11 +1616,12 @@ func (c *appContext) ChartTypeData(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Request) {
-	address := m.GetAddressCtx(r)
-	if address == "" {
+	addresses, err := m.GetAddressCtx(r, c.Params)
+	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
+	address := addresses[0]
 
 	count := int64(m.GetNCtx(r))
 	skip := int64(m.GetMCtx(r))
@@ -1616,7 +1636,6 @@ func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Reque
 		skip = 0
 	}
 
-	var err error
 	var txs *apitypes.Address
 	if c.LiteMode {
 		txs = c.BlockData.GetAddressTransactionsWithSkip(address, int(count), int(skip))
@@ -1636,11 +1655,12 @@ func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Reque
 }
 
 func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Request) {
-	address := m.GetAddressCtx(r)
-	if address == "" {
+	addresses, err := m.GetAddressCtx(r, c.Params)
+	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
+	address := addresses[0]
 
 	count := int64(m.GetNCtx(r))
 	skip := int64(m.GetMCtx(r))

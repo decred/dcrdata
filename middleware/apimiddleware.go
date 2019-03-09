@@ -13,9 +13,12 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 
+	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson/v2"
+	"github.com/decred/dcrd/dcrutil"
 	apitypes "github.com/decred/dcrdata/v4/api/types"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/docgen"
@@ -235,13 +238,28 @@ func GetBlockHashCtx(r *http.Request) (string, error) {
 
 // GetAddressCtx retrieves the ctxAddress data from the request context. If not
 // set, the return value is an empty string.
-func GetAddressCtx(r *http.Request) string {
-	address, ok := r.Context().Value(CtxAddress).(string)
-	if !ok {
+func GetAddressCtx(r *http.Request, activeNetParams *chaincfg.Params) ([]string, error) {
+	addressStr, ok := r.Context().Value(CtxAddress).(string)
+	if !ok || len(addressStr) == 0 {
 		apiLog.Trace("address not set")
-		return ""
+		return []string{}, fmt.Errorf("address not set")
 	}
-	return address
+	addressStrs := strings.Split(addressStr, ",")
+
+	var addrStrs []string
+	for _, addrStr := range addressStrs {
+		address, err := dcrutil.DecodeAddress(addrStr)
+		if err != nil {
+			return []string{}, fmt.Errorf("invalid address '%v': %v",
+				addrStr, err)
+		}
+		if !address.IsForNet(activeNetParams) {
+			return []string{}, fmt.Errorf("%v is invalid for this network",
+				addrStr)
+		}
+		addrStrs = append(addrStrs, addrStr)
+	}
+	return addrStrs, nil
 }
 
 // GetChartTypeCtx retrieves the ctxChart data from the request context.
