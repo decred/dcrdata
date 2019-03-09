@@ -74,7 +74,7 @@ type explorerDataSourceLite interface {
 	GetMempool() []types.MempoolTx
 	TxHeight(txid *chainhash.Hash) (height int64)
 	BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
-	GetSqliteChartsData() (map[string]*dbtypes.ChartsData, error)
+	GetSqliteChartsData() (map[dbtypes.Charts]*dbtypes.ChartsData, error)
 	GetExplorerFullBlocks(start int, end int) []*types.BlockInfo
 	Difficulty() (float64, error)
 	RetreiveDifficulty(timestamp int64) float64
@@ -96,7 +96,7 @@ type explorerDataSource interface {
 	FillAddressTransactions(addrInfo *dbtypes.AddressInfo) error
 	BlockMissedVotes(blockHash string) ([]string, error)
 	TicketMiss(ticketHash string) (string, int64, error)
-	GetPgChartsData() (map[string]*dbtypes.ChartsData, error)
+	GetPgChartsData() (map[dbtypes.Charts]*dbtypes.ChartsData, error)
 	TicketsPriceByHeight() (*dbtypes.ChartsData, error)
 	SideChainBlocks() ([]*dbtypes.BlockStatus, error)
 	DisapprovedBlocks() ([]*dbtypes.BlockStatus, error)
@@ -158,7 +158,7 @@ var explorerLinks = &links{
 type chartDataCounter struct {
 	sync.RWMutex
 	updateHeight int64
-	Data         map[string]*dbtypes.ChartsData
+	Data         map[dbtypes.Charts]*dbtypes.ChartsData
 }
 
 // cacheChartsData holds the prepopulated data that is used to draw the charts.
@@ -172,7 +172,7 @@ func (c *chartDataCounter) Height() int64 {
 }
 
 // Update sets new data for the given height in the the charts data cache.
-func (c *chartDataCounter) Update(height int64, newData map[string]*dbtypes.ChartsData) {
+func (c *chartDataCounter) Update(height int64, newData map[dbtypes.Charts]*dbtypes.ChartsData) {
 	c.Lock()
 	defer c.Unlock()
 	c.update(height, newData)
@@ -189,7 +189,7 @@ func (c *chartDataCounter) height() int64 {
 
 // update sets new data for the given height in the the charts data cache. Use
 // Update instead for thread-safe access.
-func (c *chartDataCounter) update(height int64, newData map[string]*dbtypes.ChartsData) {
+func (c *chartDataCounter) update(height int64, newData map[dbtypes.Charts]*dbtypes.ChartsData) {
 	c.updateHeight = height
 	c.Data = newData
 }
@@ -199,9 +199,15 @@ func ChartTypeData(chartType string) (data *dbtypes.ChartsData, ok bool) {
 	cacheChartsData.RLock()
 	defer cacheChartsData.RUnlock()
 
+	chartVal, err := dbtypes.ChartsFromStr(chartType)
+	if err != nil {
+		log.Debug(err)
+		return nil, false
+	}
+
 	// Data updates replace the entire map rather than modifying the data to
 	// which the pointers refer, so the pointer can safely be returned here.
-	data, ok = cacheChartsData.Data[chartType]
+	data, ok = cacheChartsData.Data[chartVal]
 	return
 }
 
