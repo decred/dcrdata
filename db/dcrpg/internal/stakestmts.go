@@ -131,7 +131,7 @@ const (
 		SUM(CASE WHEN spend_type = 0 THEN 1 ELSE 0 END) as unspent,
 		SUM(CASE WHEN spend_type = 1 THEN 1 ELSE 0 END) as revoked
 		FROM tickets
-		WEHERE block_height > $1
+		WHERE block_height > $1
 		GROUP BY block_height
 		ORDER BY block_height;`
 
