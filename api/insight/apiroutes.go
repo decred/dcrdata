@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
@@ -322,14 +321,11 @@ func (c *insightApiContext) broadcastTransactionRaw(w http.ResponseWriter, r *ht
 }
 
 func (c *insightApiContext) getAddressesTxnOutput(w http.ResponseWriter, r *http.Request) {
-	address := m.GetAddressCtx(r) // Required
-	if address == "" {
-		writeInsightError(w, "Address cannot be empty")
+	addresses, err := m.GetAddressCtx(r, c.params) // Required
+	if err != nil {
+		writeInsightError(w, err.Error())
 		return
 	}
-
-	// Allow Addresses to be single or multiple separated by a comma.
-	addresses := strings.Split(address, ",")
 
 	// Initialize Output Structure
 	txnOutputs := make([]apitypes.AddressTxnOutput, 0)
@@ -425,9 +421,14 @@ func (c *insightApiContext) getAddressesTxnOutput(w http.ResponseWriter, r *http
 
 func (c *insightApiContext) getTransactions(w http.ResponseWriter, r *http.Request) {
 	hash, blockerr := m.GetBlockHashCtx(r)
-	address := m.GetAddressCtx(r)
-	if blockerr != nil && address == "" {
+	addresses, addrerr := m.GetAddressCtx(r, c.params)
+
+	if blockerr != nil && addrerr != nil {
 		writeInsightError(w, "Required query parameters (address or block) not present.")
+		return
+	}
+	if addrerr == nil && len(addresses) > 1 {
+		writeInsightError(w, "Only one address is allowed.")
 		return
 	}
 
@@ -476,7 +477,8 @@ func (c *insightApiContext) getTransactions(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if address != "" {
+	if addrerr == nil {
+		address := addresses[0]
 		// Validate Address
 		_, err := dcrutil.DecodeAddress(address)
 		if err != nil {
@@ -565,9 +567,9 @@ func (c *insightApiContext) getTransactions(w http.ResponseWriter, r *http.Reque
 }
 
 func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Request) {
-	address := m.GetAddressCtx(r) // Required
-	if address == "" {
-		writeInsightError(w, "Address cannot be empty")
+	addresses, err := m.GetAddressCtx(r, c.params) // Required
+	if err != nil {
+		writeInsightError(w, err.Error())
 		return
 	}
 
@@ -579,9 +581,6 @@ func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Reque
 	if !ok {
 		to = from + 10
 	}
-
-	// Allow Addresses to be single or multiple separated by a comma.
-	addresses := strings.Split(address, ",")
 
 	// Initialize Output Structure
 	addressOutput := new(apitypes.InsightMultiAddrsTxOutput)
@@ -696,13 +695,13 @@ func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Reque
 }
 
 func (c *insightApiContext) getAddressBalance(w http.ResponseWriter, r *http.Request) {
-	address := m.GetAddressCtx(r)
-	if address == "" {
+	addresses, err := m.GetAddressCtx(r, c.params)
+	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	addressInfo, err := c.BlockData.ChainDB.AddressBalance(address)
+	addressInfo, err := c.BlockData.ChainDB.AddressBalance(addresses[0])
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("AddressBalance: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -919,10 +918,19 @@ func (c *insightApiContext) getBlockSummaryByTime(w http.ResponseWriter, r *http
 }
 
 func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Request) {
-	address := m.GetAddressCtx(r)
+	addresses, err := m.GetAddressCtx(r, c.params)
+	if err != nil {
+		writeInsightError(w, err.Error())
+		return
+	}
+	if len(addresses) > 1 {
+		writeInsightError(w, fmt.Sprintln("only one address allowed"))
+		return
+	}
+	address := addresses[0]
 	command, isCmd := c.GetAddressCommandCtx(r)
 
-	_, err := dcrutil.DecodeAddress(address)
+	_, err = dcrutil.DecodeAddress(address)
 	if err != nil {
 		writeInsightError(w, "Invalid Address")
 		return
@@ -965,8 +973,6 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 			return
 		}
 	}
-
-	addresses := []string{address}
 
 	// Get confirmed transactions.
 	rawTxs, recentTxs, err :=
