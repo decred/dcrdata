@@ -78,9 +78,9 @@
                         <a class="menu-item" data-keynav-skip href="/address/{{.DevAddress}}?txntype=merged_debit" title="Decred Treasury">Treasury</a>
                         <a class="menu-item" data-keynav-skip href="/decodetx" title="Decode or send a raw transaction">Decode/Broadcast Tx</a>
                         {{if eq .NetName "Mainnet"}}
-                            <a class="menu-item" data-keynav-skip href="{{.Links.TestNet}}" title="Home">Switch To Testnet</a>
+                            <a class="menu-item" data-keynav-skip href="{{.Links.Testnet}}" title="Home">Switch To Testnet</a>
                         {{else}}
-                            <a class="menu-item" data-keynav-skip href="{{.Links.Explorer}}" title="Home">Switch To Mainnet</a>
+                            <a class="menu-item" data-keynav-skip href="{{.Links.Mainnet}}" title="Home">Switch To Mainnet</a>
                         {{end}}
                         <span class="menu-item jsonly" data-keynav-skip data-action="click->menu#onSunClick"><span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span> Night Mode</span>
                         <a class="menu-item" data-keynav-skip data-turbolinks="false" href="#" class="jsonly" id="keynav-toggle">

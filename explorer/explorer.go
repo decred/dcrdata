@@ -126,6 +126,32 @@ type agendaBackend interface {
 	AllAgendas() (agendas []*agendas.AgendaTagged, err error)
 }
 
+// links to be passed with common page data.
+type links struct {
+	CoinbaseComment string
+	POSExplanation  string
+	APIDocs         string
+	Github          string
+	License         string
+	NetParams       string
+	BtcAddress      string
+	// Testnet and below are set via dcrdata config.
+	Testnet       string
+	Mainnet       string
+	TestnetSearch string
+	MainnetSearch string
+}
+
+var explorerLinks = &links{
+	CoinbaseComment: "https://github.com/decred/dcrd/blob/2a18beb4d56fe59d614a7309308d84891a0cba96/chaincfg/genesis.go#L17-L53",
+	POSExplanation:  "https://docs.decred.org/faq/proof-of-stake/general/#9-what-is-proof-of-stake-voting",
+	APIDocs:         "https://github.com/decred/dcrdata#apis",
+	Github:          "https://github.com/decred/dcrdata",
+	License:         "https://github.com/decred/dcrdata/blob/master/LICENSE",
+	NetParams:       "https://github.com/decred/dcrd/blob/master/chaincfg/params.go",
+	BtcAddress:      "https://live.blockcypher.com/btc/address/",
+}
+
 // chartDataCounter is a data cache for the historical charts.
 type chartDataCounter struct {
 	sync.RWMutex
@@ -291,7 +317,7 @@ func (exp *explorerUI) StopWebsocketHub() {
 func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource,
 	useRealIP bool, appVersion string, devPrefetch bool, viewsfolder string,
 	xcBot *exchanges.ExchangeBot, onChainInstance agendaBackend,
-	offChainInstance politeiaBackend, politeiaURL string) *explorerUI {
+	offChainInstance politeiaBackend, politeiaURL, mainnetLink, testnetLink string) *explorerUI {
 	exp := new(explorerUI)
 	exp.Mux = chi.NewRouter()
 	exp.blockData = dataSource
@@ -304,6 +330,11 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	exp.agendasSource = onChainInstance
 	exp.proposalsSource = offChainInstance
 	exp.politeiaAPIURL = politeiaURL
+	explorerLinks.Mainnet = mainnetLink
+	explorerLinks.Testnet = testnetLink
+	explorerLinks.MainnetSearch = mainnetLink + "search?search="
+	explorerLinks.TestnetSearch = testnetLink + "search?search="
+
 	// explorerDataSource is an interface that could have a value of pointer
 	// type, and if either is nil this means lite mode.
 	if exp.explorerSource == nil || reflect.ValueOf(exp.explorerSource).IsNil() {
