@@ -17,6 +17,7 @@ import (
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
@@ -1409,7 +1410,7 @@ func RetrieveAddressUTXOs(ctx context.Context, db *sql.DB, address string, curre
 // short list of recently (defined as greater than recentBlockHeight) confirmed
 // transactions that can be used to validate mempool status.
 func RetrieveAddressTxnsOrdered(ctx context.Context, db *sql.DB, addresses []string,
-	recentBlockTime int64) (txs []string, recenttxs []string, err error) {
+	recentBlockTime int64) (txs, recenttxs []chainhash.Hash, err error) {
 	var stmt *sql.Stmt
 	stmt, err = db.Prepare(internal.SelectAddressesAllTxn)
 	if err != nil {
@@ -1424,6 +1425,7 @@ func RetrieveAddressTxnsOrdered(ctx context.Context, db *sql.DB, addresses []str
 	}
 	defer closeRows(rows)
 
+	var tx *chainhash.Hash
 	var txHash string
 	var time dbtypes.TimeDef
 	for rows.Next() {
@@ -1431,9 +1433,13 @@ func RetrieveAddressTxnsOrdered(ctx context.Context, db *sql.DB, addresses []str
 		if err != nil {
 			return // return what we got, plus the error
 		}
-		txs = append(txs, txHash)
+		tx, err = chainhash.NewHashFromStr(txHash)
+		if err != nil {
+			return
+		}
+		txs = append(txs, *tx)
 		if time.UNIX() > recentBlockTime {
-			recenttxs = append(recenttxs, txHash)
+			recenttxs = append(recenttxs, *tx)
 		}
 	}
 	return

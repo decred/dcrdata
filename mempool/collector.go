@@ -13,6 +13,7 @@ import (
 	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient/v2"
@@ -56,7 +57,12 @@ func (t *MempoolDataCollector) mempoolTxns() ([]exptypes.MempoolTx, error) {
 
 	txs := make([]exptypes.MempoolTx, 0, len(mempooltxs))
 
-	for hash, tx := range mempooltxs {
+	for hashStr, tx := range mempooltxs {
+		hash, err := chainhash.NewHashFromStr(hashStr)
+		if err != nil {
+			log.Warn(err)
+			continue
+		}
 		rawtx, err := rpcutils.GetTransactionVerboseByID(t.dcrdChainSvr, hash)
 		if err != nil {
 			log.Warn(err)
@@ -112,7 +118,7 @@ func (t *MempoolDataCollector) mempoolTxns() ([]exptypes.MempoolTx, error) {
 			VoutCount: len(msgTx.TxOut),
 			Vin:       exptypes.MsgTxMempoolInputs(msgTx),
 			Coinbase:  blockchain.IsCoinBaseTx(msgTx),
-			Hash:      hash,
+			Hash:      hashStr,
 			Time:      tx.Time,
 			Size:      tx.Size,
 			TotalOut:  totalOut,

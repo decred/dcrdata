@@ -499,7 +499,7 @@ func (c *insightApiContext) getTransactions(w http.ResponseWriter, r *http.Reque
 		}
 
 		addressOuts, _, err := c.MemPool.UnconfirmedTxnsForAddress(address)
-		UnconfirmedTxs := []string{}
+		var UnconfirmedTxs []chainhash.Hash
 
 		if err != nil {
 			writeInsightError(w, fmt.Sprintf("Error gathering mempool transactions (%v)", err))
@@ -510,22 +510,22 @@ func (c *insightApiContext) getTransactions(w http.ResponseWriter, r *http.Reque
 		for _, f := range addressOuts.Outpoints {
 			// Confirm its not already in our recent transactions
 			for _, v := range recentTxs {
-				if v == f.Hash.String() {
+				if v.IsEqual(&f.Hash) {
 					continue FUNDING_TX_DUPLICATE_CHECK
 				}
 			}
-			UnconfirmedTxs = append(UnconfirmedTxs, f.Hash.String()) // Funding tx
-			recentTxs = append(recentTxs, f.Hash.String())
+			UnconfirmedTxs = append(UnconfirmedTxs, f.Hash) // Funding tx
+			recentTxs = append(recentTxs, f.Hash)
 		}
 	SPENDING_TX_DUPLICATE_CHECK:
 		for _, f := range addressOuts.PrevOuts {
 			for _, v := range recentTxs {
-				if v == f.TxSpending.String() {
+				if v.IsEqual(&f.TxSpending) {
 					continue SPENDING_TX_DUPLICATE_CHECK
 				}
 			}
-			UnconfirmedTxs = append(UnconfirmedTxs, f.TxSpending.String()) // Spending tx
-			recentTxs = append(recentTxs, f.TxSpending.String())
+			UnconfirmedTxs = append(UnconfirmedTxs, f.TxSpending) // Spending tx
+			recentTxs = append(recentTxs, f.TxSpending)
 		}
 
 		// Merge unconfirmed with confirmed transactions
@@ -539,7 +539,7 @@ func (c *insightApiContext) getTransactions(w http.ResponseWriter, r *http.Reque
 
 		txsOld := []*dcrjson.TxRawResult{}
 		for _, rawTx := range rawTxs {
-			txOld, err1 := c.BlockData.GetRawTransaction(rawTx)
+			txOld, err1 := c.BlockData.GetRawTransaction(&rawTx)
 			if err1 != nil {
 				apiLog.Errorf("Unable to get transaction %s", rawTx)
 				writeInsightError(w, fmt.Sprintf("Error gathering transaction details (%s)", err1))
@@ -585,7 +585,7 @@ func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Reque
 
 	// Initialize Output Structure
 	addressOutput := new(apitypes.InsightMultiAddrsTxOutput)
-	UnconfirmedTxs := []string{}
+	var UnconfirmedTxs []chainhash.Hash
 
 	rawTxs, recentTxs, err :=
 		c.BlockData.ChainDB.InsightAddressTransactions(addresses, int64(c.Status.GetHeight()-2))
@@ -618,22 +618,22 @@ func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Reque
 		for _, f := range addressOuts.Outpoints {
 			// Confirm its not already in our recent transactions
 			for _, v := range recentTxs {
-				if v == f.Hash.String() {
+				if v.IsEqual(&f.Hash) {
 					continue FUNDING_TX_DUPLICATE_CHECK
 				}
 			}
-			UnconfirmedTxs = append(UnconfirmedTxs, f.Hash.String()) // Funding tx
-			recentTxs = append(recentTxs, f.Hash.String())
+			UnconfirmedTxs = append(UnconfirmedTxs, f.Hash) // Funding tx
+			recentTxs = append(recentTxs, f.Hash)
 		}
 	SPENDING_TX_DUPLICATE_CHECK:
 		for _, f := range addressOuts.PrevOuts {
 			for _, v := range recentTxs {
-				if v == f.TxSpending.String() {
+				if v.IsEqual(&f.TxSpending) {
 					continue SPENDING_TX_DUPLICATE_CHECK
 				}
 			}
-			UnconfirmedTxs = append(UnconfirmedTxs, f.TxSpending.String()) // Spending tx
-			recentTxs = append(recentTxs, f.TxSpending.String())
+			UnconfirmedTxs = append(UnconfirmedTxs, f.TxSpending) // Spending tx
+			recentTxs = append(recentTxs, f.TxSpending)
 		}
 	}
 
@@ -671,7 +671,7 @@ func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Reque
 
 	txsOld := []*dcrjson.TxRawResult{}
 	for _, rawTx := range rawTxs {
-		txOld, err := c.BlockData.GetRawTransaction(rawTx)
+		txOld, err := c.BlockData.GetRawTransaction(&rawTx)
 		if err != nil {
 			apiLog.Errorf("Unable to get transaction %s", rawTx)
 			writeInsightError(w, fmt.Sprintf("Error gathering transaction details (%s)", err))
@@ -986,7 +986,7 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 	confirmedTxCount := len(rawTxs)
 
 	// Get unconfirmed transactions.
-	unconfirmedTxs := []string{}
+	var unconfirmedTxs []chainhash.Hash
 	addressOuts, _, err := c.MemPool.UnconfirmedTxnsForAddress(address)
 	if err != nil {
 		apiLog.Errorf("Error in getting unconfirmed transactions")
@@ -996,7 +996,7 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 		for _, f := range addressOuts.Outpoints {
 			// Confirm it's not already in our recent transactions.
 			for _, v := range recentTxs {
-				if v == f.Hash.String() {
+				if v.IsEqual(&f.Hash) {
 					continue FUNDING_TX_DUPLICATE_CHECK
 				}
 			}
@@ -1010,13 +1010,13 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 				continue
 			}
 			unconfirmedBalanceSat += fundingTx.Tx.TxOut[f.Index].Value
-			unconfirmedTxs = append(unconfirmedTxs, f.Hash.String()) // Funding tx
-			recentTxs = append(recentTxs, f.Hash.String())
+			unconfirmedTxs = append(unconfirmedTxs, f.Hash) // Funding tx
+			recentTxs = append(recentTxs, f.Hash)
 		}
 	SPENDING_TX_DUPLICATE_CHECK:
 		for _, f := range addressOuts.PrevOuts {
 			for _, v := range recentTxs {
-				if v == f.TxSpending.String() {
+				if v.IsEqual(&f.TxSpending) {
 					continue SPENDING_TX_DUPLICATE_CHECK
 				}
 			}
@@ -1036,8 +1036,8 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 			previndex := spendingTx.Tx.TxIn[f.InputIndex].PreviousOutPoint.Index
 			valuein := addressOuts.TxnsStore[prevhash].Tx.TxOut[previndex].Value
 			unconfirmedBalanceSat -= valuein
-			unconfirmedTxs = append(unconfirmedTxs, f.TxSpending.String()) // Spending tx
-			recentTxs = append(recentTxs, f.TxSpending.String())
+			unconfirmedTxs = append(unconfirmedTxs, f.TxSpending) // Spending tx
+			recentTxs = append(recentTxs, f.TxSpending)
 		}
 	}
 
@@ -1092,8 +1092,12 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 		UnconfirmedTxAppearances: int64(len(unconfirmedTxs)),
 	}
 
-	if noTxList == 0 {
-		addressInfo.TransactionsID = rawTxs
+	if noTxList == 0 && len(rawTxs) > 0 {
+		addressInfo.TransactionsID = make([]string, 0, len(rawTxs))
+		for _, tx := range rawTxs {
+			addressInfo.TransactionsID = append(addressInfo.TransactionsID,
+				tx.String())
+		}
 	}
 
 	writeJSON(w, addressInfo, c.getIndentQuery(r))

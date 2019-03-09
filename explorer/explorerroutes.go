@@ -1096,7 +1096,12 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				blocksLive := tx.Confirmations - int64(exp.ChainParams.TicketMaturity)
 				if tx.TicketInfo.SpendStatus == "Voted" {
 					// Blocks from eligible until voted (actual luck)
-					tx.TicketInfo.TicketLiveBlocks = exp.blockData.TxHeight(tx.SpendingTxns[0].Hash) -
+					txhash, err := chainhash.NewHashFromStr(tx.SpendingTxns[0].Hash)
+					if err != nil {
+						exp.StatusPage(w, defaultErrorCode, err.Error(), "", ExpStatusError)
+						return
+					}
+					tx.TicketInfo.TicketLiveBlocks = exp.blockData.TxHeight(txhash) -
 						tx.BlockHeight - int64(exp.ChainParams.TicketMaturity) - 1
 				} else if tx.Confirmations >= int64(exp.ChainParams.TicketExpiry+
 					uint32(exp.ChainParams.TicketMaturity)) { // Expired

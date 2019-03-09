@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/wire"
@@ -49,16 +50,16 @@ type DataSourceLite interface {
 	GetBlockHeaderByHash(hash string) (*wire.BlockHeader, error)
 	GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVerboseResult
 	GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult
-	GetRawTransaction(txid string) *apitypes.Tx
-	GetTransactionHex(txid string) string
-	GetTrimmedTransaction(txid string) *apitypes.TrimmedTx
-	GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes.Tx, [][]string)
-	GetVoteInfo(txid string) (*apitypes.VoteInfo, error)
+	GetRawTransaction(txid *chainhash.Hash) *apitypes.Tx
+	GetTransactionHex(txid *chainhash.Hash) string
+	GetTrimmedTransaction(txid *chainhash.Hash) *apitypes.TrimmedTx
+	GetRawTransactionWithPrevOutAddresses(txid *chainhash.Hash) (*apitypes.Tx, [][]string)
+	GetVoteInfo(txid *chainhash.Hash) (*apitypes.VoteInfo, error)
 	GetVoteVersionInfo(ver uint32) (*dcrjson.GetVoteInfoResult, error)
 	GetStakeVersions(txHash string, count int32) (*dcrjson.GetStakeVersionsResult, error)
 	GetStakeVersionsLatest() (*dcrjson.StakeVersions, error)
-	GetAllTxIn(txid string) []*apitypes.TxIn
-	GetAllTxOut(txid string) []*apitypes.TxOut
+	GetAllTxIn(txid *chainhash.Hash) []*apitypes.TxIn
+	GetAllTxOut(txid *chainhash.Hash) []*apitypes.TxOut
 	GetTransactionsForBlock(idx int64) *apitypes.BlockTransactions
 	GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions
 	GetFeeInfo(idx int) *dcrjson.FeeInfoBlock
@@ -740,8 +741,10 @@ func (c *appContext) getTxVoteInfo(w http.ResponseWriter, r *http.Request) {
 	}
 	vinfo, err := c.BlockData.GetVoteInfo(txid)
 	if err != nil {
-		apiLog.Errorf("Unable to get vote info for transaction %s", txid)
-		http.Error(w, "Unable to get vote info. Is tx "+txid+" a vote?", 422)
+		err = fmt.Errorf("unable to get vote info for tx %v: %v",
+			txid, err)
+		apiLog.Error(err)
+		http.Error(w, err.Error(), 422)
 		return
 	}
 	writeJSON(w, vinfo, c.getIndentQuery(r))
