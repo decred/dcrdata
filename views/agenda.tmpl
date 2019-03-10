@@ -71,31 +71,31 @@
             {{$isProgress := (ne (index .Choices 0).Progress 0.0)}}
             {{$isNotDone := (or (eq .Status "started") (eq .Status "defined"))}}
             {{$showProgress := or $isProgress $isNotDone}}
-            <table class="table table-mono-cells table-sm striped">
+            <table class="table table-mono-cells table-sm my-3">
                 <thead>
                     <th>ID</th>
                     <th>Description</th>
-                    <th>Bits</th>
-                    <th>Count</th>
+                    <th class="text-right">Bits</th>
+                    <th class="text-right">Count</th>
                     {{if $showProgress}}
-                        <th>Progress</th> 
+                        <th class="text-right">Progress</th>
                    {{end}}
                 </thead>
+                <tbody>
                 {{range $i, $v := .Choices}}
                 {{with $v}}
-                <thead>
                     <tr>
                         <td class="text-left">{{.ID}}</td>
                         <td class="text-left">{{.Description}}</td>
-                        <td class="text-left">{{.Bits}}</td>
-                        <td class="text-left">{{.Count}}</td>
+                        <td class="text-right">{{.Bits}}</td>
+                        <td class="text-right">{{.Count}}</td>
                         {{if $showProgress}}
-                            <td class="text-left">{{.Progress}}</td>
+                            <td class="text-right">{{.Progress}}</td>
                         {{end}}
                     </tr>
-                </thead>
                 {{end}}
                 {{end}}
+              </tbody>
             </table>
             {{end}}
             <div data-controller="agenda" data-agenda-id="{{.ID}}" class="position-relative">

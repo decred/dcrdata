@@ -99,75 +99,75 @@
             </div>
             <div class="col-24 col-xl-12 secondary-card py-3 px-3 px-xl-4">
               <div class="h6 d-inline-block my-2 pl-3">Block Details</div>
-              <table class="w-100 fs14 mt-2">
+              <table class="w-100 fs14 mt-2 details">
                 <tbody>
                   <tr>
-                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1"
+                    <td class="text-right font-weight-bold text-nowrap pr-2"
                       ><span class="d-none d-sm-inline">Ticket Price</span
                       ><span class="d-sm-none">Tkt Price</span>:
-                    <td class="text-left py-1 text-secondary">{{template "decimalParts" (float64AsDecimalParts .SBits 8 false)}}</td>
-                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Fees: </td>
-                    <td class="text-left py-1 text-secondary">{{.MiningFee}}</td>
-                    <td class="d-none d-sm-table-cell text-right font-weight-bold text-nowrap pr-2 py-1">Pool Size: </td>
-                    <td class="d-none d-sm-table-cell text-left py-1 text-secondary">{{.PoolSize}}</td>
+                    <td class="text-left text-secondary">{{template "decimalParts" (float64AsDecimalParts .SBits 8 false)}}</td>
+                    <td class="text-right font-weight-bold text-nowrap pr-2">Fees: </td>
+                    <td class="text-left text-secondary">{{.MiningFee}}</td>
+                    <td class="d-none d-sm-table-cell text-right font-weight-bold text-nowrap pr-2">Pool Size: </td>
+                    <td class="d-none d-sm-table-cell text-left text-secondary">{{.PoolSize}}</td>
                   </tr>
                   <tr>
-                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1"
+                    <td class="text-right font-weight-bold text-nowrap pr-2"
                       ><span class="d-none d-sm-inline">PoW Difficulty</span
                       ><span class="d-sm-none">PoW Diff</span>:
                     </td>
-                    <td class="text-left py-1 text-secondary">{{template "decimalParts" (float64AsDecimalParts .Difficulty 0 true)}}</td>
-                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1"
+                    <td class="text-left text-secondary">{{template "decimalParts" (float64AsDecimalParts .Difficulty 0 true)}}</td>
+                    <td class="text-right font-weight-bold text-nowrap pr-2"
                       ><span class="d-none d-sm-inline">Block Version</span
                       ><span class="d-sm-none">Blk Ver</span>:
                     </td>
-                    <td class="text-left py-1 text-secondary">{{.Version}}</td>
-                    <td class="d-none d-sm-table-cell text-right font-weight-bold text-nowrap pr-2 py-1">Nonce: </td>
-                    <td class="d-none d-sm-table-cell text-left py-1 text-secondary">{{.Nonce}}</td>
+                    <td class="text-left text-secondary">{{.Version}}</td>
+                    <td class="d-none d-sm-table-cell text-right font-weight-bold text-nowrap pr-2">Nonce: </td>
+                    <td class="d-none d-sm-table-cell text-left text-secondary">{{.Nonce}}</td>
                   </tr>
                   <tr>
-                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Final State: </td>
-                    <td class="text-left py-1 text-secondary">{{.FinalState}}</td>
-                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1"
+                    <td class="text-right font-weight-bold text-nowrap pr-2">Final State: </td>
+                    <td class="text-left text-secondary">{{.FinalState}}</td>
+                    <td class="text-right font-weight-bold text-nowrap pr-2"
                       ><span class="d-none d-sm-inline">Stake Version</span
                       ><span class="d-sm-none">Stk Ver</span>:
                     </td>
-                    <td class="text-left py-1 text-secondary">{{.StakeVersion}}</td>
-                    <td class="d-none d-sm-table-cell text-right font-weight-bold text-nowrap pr-2 py-1">Vote Bits: </td>
-                    <td class="d-none d-sm-table-cell text-left py-1 text-secondary">{{.VoteBits}}</td>
+                    <td class="text-left text-secondary">{{.StakeVersion}}</td>
+                    <td class="d-none d-sm-table-cell text-right font-weight-bold text-nowrap pr-2">Vote Bits: </td>
+                    <td class="d-none d-sm-table-cell text-left text-secondary">{{.VoteBits}}</td>
                   </tr>
                   <tr class="d-sm-none">
-                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Pool Size: </td>
-                    <td class="text-left py-1 text-secondary">{{.PoolSize}}</td>
-                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Vote Bits: </td>
-                    <td class="text-left py-1 text-secondary">{{.VoteBits}}</td>
+                    <td class="text-right font-weight-bold text-nowrap pr-2">Pool Size: </td>
+                    <td class="text-left text-secondary">{{.PoolSize}}</td>
+                    <td class="text-right font-weight-bold text-nowrap pr-2">Vote Bits: </td>
+                    <td class="text-left text-secondary">{{.VoteBits}}</td>
                   </tr>
                   <tr class="d-sm-none">
-                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Nonce: </td>
-                    <td class="text-left py-1 text-secondary">{{.Nonce}}</td>
+                    <td class="text-right font-weight-bold text-nowrap pr-2">Nonce: </td>
+                    <td class="text-left text-secondary">{{.Nonce}}</td>
                   </tr>
                   <tr>
-                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Merkle Root: </td>
-                    <td colspan="5" class="text-left break-word py-1 text-secondary lh1rem"> {{.MerkleRoot}}</td>
+                    <td class="text-right font-weight-bold text-nowrap pr-2">Merkle Root: </td>
+                    <td colspan="5" class="text-left break-word text-secondary lh1rem"> {{.MerkleRoot}}</td>
                   </tr>
                   <tr>
-                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Stake Root: </td>
-                    <td colspan="5" class="text-left break-word py-1 text-secondary lh1rem"> {{.StakeRoot}}</td>
+                    <td class="text-right font-weight-bold text-nowrap pr-2">Stake Root: </td>
+                    <td colspan="5" class="text-left break-word text-secondary lh1rem"> {{.StakeRoot}}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
         </div>
 
-        <div class="v2-tables">
+        <div>
           <span class="d-inline-block pt-4 pb-1 h4">Block Reward</span>
           {{range .Tx}}
               {{if eq .Coinbase true}}
-                  <table class="table table-sm striped">
+                  <table class="table">
                       <thead>
                           <th>Transaction ID</th>
                           <th class="text-right">Total DCR</th>
-                          <th>Size</th>
+                          <th class="text-right">Size</th>
                       </thead>
                       <tbody {{if $Invalidated}}class="invalidated-tx" title="Regular transactions invalidated."{{end}}>
                           <tr>
@@ -185,7 +185,7 @@
                               <td class="mono fs15 text-right">
                                 {{template "decimalParts" (float64AsDecimalParts .Total 8 false)}}
                               </td>
-                              <td class="mono fs15">{{.FormattedSize}}</td>
+                              <td class="mono fs15 text-right">{{.FormattedSize}}</td>
                           </tr>
                       </tbody>
                   </table>
@@ -194,7 +194,7 @@
 
           <span class="d-inline-block pt-4 pb-1 h4">Votes</span>
           {{if not .Votes}}
-              <table class="table table-sm striped">
+              <table class="table">
                   <tr>
                       <td>No votes in this block.
                           {{if lt .Height .StakeValidationHeight}}
@@ -204,11 +204,11 @@
                   </tr>
               </table>
           {{else}}
-              <table class="table table-sm striped">
+              <table class="table">
                   <thead>
                       <th>Transactions ID</th>
-                      <th>Vote Version</th>
-                      <th>Last Block</th>
+                      <th class="text-right">Vote Version</th>
+                      <th class="text-right">Last Block</th>
                       <th class="text-right">Total DCR</th>
                       <th class="text-right">Size</th>
                   </thead>
@@ -220,8 +220,8 @@
                                   <a class="hash lh1rem" href="/tx/{{.TxID}}">{{.TxID}}</a>
                               </span>
                           </td>
-                          <td class="mono fs15">{{.VoteInfo.Version}}</td>
-                          <td>{{if .VoteInfo.Validation.Validity}}Valid{{else}}Invalid{{end}}</td>
+                          <td class="mono fs15 text-right">{{.VoteInfo.Version}}</td>
+                          <td class="text-right">{{if .VoteInfo.Validation.Validity}}Valid{{else}}Invalid{{end}}</td>
                           <td class="mono fs15 text-right">
                             {{template "decimalParts" (float64AsDecimalParts .Total 8 false)}}
                           </td>
@@ -235,7 +235,7 @@
         {{if ge .Height .StakeValidationHeight}}
         {{if .Misses}}
             <span class="d-inline-block pt-4 pb-1 h4">Missed Votes</span>
-            <table class="table table-sm striped">
+            <table class="table">
                 <thead>
                     <th>Ticket ID</th>
                 </thead>
@@ -256,18 +256,18 @@
 
             <span class="d-inline-block pt-4 pb-1 h4">Tickets</span>
             {{if not .Tickets}}
-            <table class="table table-sm striped">
+            <table class="table">
                 <tr>
                     <td>No tickets mined this block.</td>
                 </tr>
             </table>
             {{else}}
-                <table class="table table-sm striped">
+                <table class="table">
                     <thead>
                         <th>Transaction ID</th>
                         <th class="text-right">Total DCR</th>
                         <th class="text-right">Fee</th>
-                        <th>Size</th>
+                        <th class="text-right">Size</th>
                     </thead>
                     <tbody>
                     {{ range .Tickets}}
@@ -281,7 +281,7 @@
                               {{template "decimalParts" (float64AsDecimalParts .Total 8 false)}}
                             </td>
                             <td class="mono fs15 text-right">{{.Fee}}</td>
-                            <td class="mono fs15">{{.FormattedSize}}</td>
+                            <td class="mono fs15 text-right">{{.FormattedSize}}</td>
                         </tr>
                     {{end}}
                     </tbody>
@@ -290,12 +290,12 @@
 
         {{if .Revocations}}
             <span class="d-inline-block pt-4 pb-1 h4">Revocations</span>
-            <table class="table table-sm striped">
+            <table class="table">
                 <thead>
                     <th>Transaction ID</th>
                     <th class="text-right">Total DCR</th>
                     <th class="text-right">Fee</th>
-                    <th>Size</th>
+                    <th class="text-right">Size</th>
                 </thead>
                 <tbody>
                     {{ range .Revs}}
@@ -309,7 +309,7 @@
                           {{template "decimalParts" (float64AsDecimalParts .Total 8 false)}}
                         </td>
                         <td class="mono fs15 text-right">{{.Fee}}</td>
-                        <td class="mono fs15">{{.FormattedSize}}</td>
+                        <td class="mono fs15 text-right">{{.FormattedSize}}</td>
                     </tr>
                     {{end}}
                 </tbody>
@@ -317,18 +317,18 @@
         {{end}}
             <span class="d-inline-block pt-4 pb-1 h4">Transactions</span>
               {{if not .TxAvailable}}
-              <table class="table table-sm striped">
+              <table class="table">
                   <tr>
                       <td>No standard transactions mined this block.</td>
                   </tr>
               </table>
               {{else}}
-                  <table class="table table-sm striped">
+                  <table class="table">
                       <thead>
                           <th>Transaction ID</th>
                           <th class="text-right">Total DCR</th>
                           <th class="text-right">Fee</th>
-                          <th>Size</th>
+                          <th class="text-right">Size</th>
                       </thead>
                       <tbody {{if $Invalidated}}class="invalidated-tx" title="Regular transactions invalidated."{{end}}>
                           {{range .Tx}}
@@ -343,7 +343,7 @@
                                 {{template "decimalParts" (float64AsDecimalParts .Total 8 false)}}
                               </td>
                               <td class="mono fs15 text-right">{{.Fee}}</td>
-                              <td class="mono fs15">{{.FormattedSize}}</td>
+                              <td class="mono fs15 text-right">{{.FormattedSize}}</td>
                           </tr>
                           {{end}}
                           {{end}}
