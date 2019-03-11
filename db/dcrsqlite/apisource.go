@@ -992,25 +992,32 @@ func (db *WiredDB) GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []float64)
 	return poolvals, poolsizes
 }
 
-// GetSqliteChartsData fetches the charts data from the sqlite db.
-func (db *WiredDB) GetSqliteChartsData() (map[dbtypes.Charts]*dbtypes.ChartsData, error) {
-	poolData, err := db.RetrieveAllPoolValAndSize()
+// SqliteChartsData fetches the charts data from the sqlite db.
+func (db *WiredDB) SqliteChartsData(data *[]*dbtypes.ChartsData) (err error) {
+	poolData := (*data)[0]
+	poolValue := (*data)[1]
+	//  Append the missing data
+	if poolData != nil && poolValue != nil {
+		poolData.ValueF = poolValue.ValueF
+	}
+	poolData, err = db.RetrieveAllPoolValAndSize(poolData)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	feeData, err := db.RetrieveBlockFeeInfo()
+	feeData := (*data)[2]
+	feeData, err = db.RetrieveBlockFeeInfo(feeData)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	var data = map[dbtypes.Charts]*dbtypes.ChartsData{
-		dbtypes.TicketPoolSize:  {Time: poolData.Time, SizeF: poolData.SizeF},
-		dbtypes.TicketPoolValue: {Time: poolData.Time, ValueF: poolData.ValueF},
-		dbtypes.FeePerBlock:     feeData,
+	*data = []*dbtypes.ChartsData{
+		feeData, // dbtypes.FeePerBlock: index 0 here and 13 in cache
+		{Time: poolData.Time, SizeF: poolData.SizeF},   // dbtypes.TicketPoolSize: index 1 here and 14 in cache
+		{Time: poolData.Time, ValueF: poolData.ValueF}, // dbtypes.TicketPoolValue: index 2 here and 15 in cache
 	}
 
-	return data, nil
+	return
 }
 
 func (db *WiredDB) GetSDiff(idx int) float64 {

@@ -498,31 +498,38 @@ func ChoiceIndexFromStr(choice string) (VoteChoice, error) {
 	}
 }
 
-// Charts defines the respective charts that appear on the /charts page.
+// Charts defines the respective charts that appear on the /charts page. It helps
+// define the respective indexes in which the charts are pushed in the cache
+// array. Change made to the listing of the charts below should be reflected in
+// how charts data is stored.
 type Charts int8
 
 const (
-	AvgBlockSize Charts = iota
-	BlockChainSize
-	ChainWork
-	CoinSupply
-	DurationBTW
-	FeePerBlock
-	HashRate
-	POWDifficulty
-	TicketByWindows
-	TicketPoolSize
-	TicketPoolValue
-	TicketPrice
-	TicketsByBlocks
-	TicketSpendT
-	TxPerBlock
-	TxPerDay
-	unknownChart
+	// Pg Charts
+
+	AvgBlockSize    Charts = iota // Index 0 in pgCharts and 0 in cache
+	BlockChainSize                // Index 1 in pgCharts and 1 in cache
+	ChainWork                     // Index 2 in pgCharts and 2 in cache
+	CoinSupply                    // Index 3 in pgCharts and 3 in cache
+	DurationBTW                   // Index 4 in pgCharts and 4 in cache
+	HashRate                      // Index 5 in pgCharts and 5 in cache
+	POWDifficulty                 // Index 6 in pgCharts and 6 in cache
+	TicketByWindows               // Index 7 in pgCharts and 7 in cache
+	TicketPrice                   // Index 8 in pgCharts and 8 in cache
+	TicketsByBlocks               // Index 9 in pgCharts and 9 in cache
+	TicketSpendT                  // Index 10 in pgCharts and 9 in cache
+	TxPerBlock                    // Index 11 in pgCharts and 11 in cache
+	TxPerDay                      // Index 12 in pgCharts and 12 in cache
+
+	// Sqlite Charts
+
+	FeePerBlock     // Index 0 in SqliteCharts and 13 in cache
+	TicketPoolSize  // Index 1 in SqliteCharts and 14 in cache
+	TicketPoolValue // Index 2 in SqliteCharts and 15 in cache
 )
 
-// generalCharts maps the general Charts data type to the actual chart name.
-var generalCharts = map[Charts]string{
+// chartsDef maps the general Charts data type to the actual chart name.
+var chartsDef = map[Charts]string{
 	AvgBlockSize:    "avg-block-size",
 	BlockChainSize:  "blockchain-size",
 	ChainWork:       "chainwork",
@@ -541,25 +548,31 @@ var generalCharts = map[Charts]string{
 	TxPerDay:        "tx-per-day",
 }
 
-// It is the default string for Charts data type.
+// String is the default stringer for Charts data type.
 func (c Charts) String() string {
-	return generalCharts[c]
+	return chartsDef[c]
+}
+
+// Pos return the index of the position in the slice where the respective chart
+// data should be located.
+func (c Charts) Pos() int {
+	return int(c)
 }
 
 // ChartsCount returns the current count of the general charts supported.
 func ChartsCount() int {
-	return len(generalCharts)
+	return len(chartsDef)
 }
 
 // ChartsFromStr returns the Charts data type key for the provided chart string
 // name.
 func ChartsFromStr(name string) (Charts, error) {
-	for key, val := range generalCharts {
+	for key, val := range chartsDef {
 		if val == name {
 			return key, nil
 		}
 	}
-	return unknownChart, fmt.Errorf("%s chart name is unknown", name)
+	return TicketPrice, fmt.Errorf("%s chart name is unknown", name)
 }
 
 // MileStone defines the various stages passed by vote on a given agenda.

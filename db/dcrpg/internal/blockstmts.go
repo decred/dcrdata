@@ -110,7 +110,7 @@ const (
 	SelectBlocksTicketsPrice = `SELECT sbits, time, difficulty
 		FROM blocks
 		WHERE height % $1 = 0
-		AND height > $2
+		AND time > $2
 		ORDER BY time;`
 
 	SelectWindowsByLimit = `SELECT (height/$1)*$1 AS window_start,
@@ -217,7 +217,7 @@ const (
 	SelectChainWork = `SELECT time, chainwork
 		FROM blocks
 		WHERE is_mainchain
-		AND height > $1
+		AND time > $1
 		ORDER BY height;`
 
 	// TODO: index block_chain where needed
