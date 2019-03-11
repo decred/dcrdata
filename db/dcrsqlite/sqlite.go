@@ -154,7 +154,7 @@ func NewDB(db *sql.DB, shutdown func()) (*DB, error) {
 	d.getPoolValSizeRangeSQL = fmt.Sprintf(`SELECT poolsize, poolval `+
 		`FROM %s WHERE height BETWEEN ? AND ? AND is_mainchain = 1`, TableNameSummaries)
 	d.getAllPoolValSize = fmt.Sprintf(`SELECT distinct poolsize, poolval, time `+
-		`FROM %s WHERE is_mainchain = 1 ORDER BY time`, TableNameSummaries)
+		`FROM %s WHERE is_mainchain = 1 AND time > $1 ORDER BY time`, TableNameSummaries)
 	d.getWinnersSQL = fmt.Sprintf(`SELECT hash, winners FROM %s
 		WHERE height = ? AND is_mainchain = 1`, TableNameSummaries)
 	d.getWinnersByHashSQL = fmt.Sprintf(`SELECT height, winners FROM %s WHERE hash = ?`,
@@ -253,6 +253,7 @@ func NewDB(db *sql.DB, shutdown func()) (*DB, error) {
 	d.getAllFeeInfoPerBlock = fmt.Sprintf(
 		`SELECT distinct %[1]s.height, fee_med FROM %[1]s
 		 JOIN %[2]s ON %[1]s.hash = %[2]s.hash
+		 WHERE  %[1]s.height > $1
 		 ORDER BY %[1]s.height;`,
 		TableNameStakeInfo, TableNameSummaries)
 
@@ -982,18 +983,25 @@ func (db *DB) RetrievePoolValAndSizeRange(ind0, ind1 int64) ([]float64, []float6
 
 // RetrieveAllPoolValAndSize returns all the pool values and sizes stored since
 // the first value was recorded up current height.
-func (db *DB) RetrieveAllPoolValAndSize() (*dbtypes.ChartsData, error) {
-	chartsData := new(dbtypes.ChartsData)
+func (db *DB) RetrieveAllPoolValAndSize(chartsData *dbtypes.ChartsData) (*dbtypes.ChartsData, error) {
+	var since int64
+
+	if chartsData == nil {
+		chartsData = new(dbtypes.ChartsData)
+	} else if len(chartsData.Time) > 0 {
+		since = chartsData.Time[len(chartsData.Time)-1].UNIX()
+	}
+
 	stmt, err := db.Prepare(db.getAllPoolValSize)
 	if err != nil {
-		return chartsData, err
+		return nil, err
 	}
 	defer stmt.Close()
 
-	rows, err := stmt.Query()
+	rows, err := stmt.Query(since)
 	if err != nil {
 		log.Errorf("Query failed: %v", err)
-		return chartsData, err
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -1002,7 +1010,7 @@ func (db *DB) RetrieveAllPoolValAndSize() (*dbtypes.ChartsData, error) {
 		var timestamp int64
 		if err = rows.Scan(&psize, &pval, &timestamp); err != nil {
 			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
-			// TODO: not return???
+			return nil, err
 		}
 
 		if timestamp == 0 {
@@ -1017,30 +1025,29 @@ func (db *DB) RetrieveAllPoolValAndSize() (*dbtypes.ChartsData, error) {
 		log.Error(err)
 	}
 
-	if len(chartsData.Time) < 1 {
-		log.Warnf("RetrieveAllPoolValAndSize: Retrieved pool values (%d) not expected number (%d)",
-			len(chartsData.Time), 1)
-	}
-
 	return chartsData, nil
 }
 
 // RetrieveBlockFeeInfo fetches the block median fee chart data.
-func (db *DB) RetrieveBlockFeeInfo() (*dbtypes.ChartsData, error) {
-	db.mtx.RLock()
-	defer db.mtx.RUnlock()
+func (db *DB) RetrieveBlockFeeInfo(chartsData *dbtypes.ChartsData) (*dbtypes.ChartsData, error) {
+	var since uint64
 
-	var chartsData = new(dbtypes.ChartsData)
-	var stmt, err = db.Prepare(db.getAllFeeInfoPerBlock)
+	if chartsData == nil {
+		chartsData = new(dbtypes.ChartsData)
+	} else if len(chartsData.Count) > 0 {
+		since = chartsData.Count[len(chartsData.Count)-1]
+	}
+
+	stmt, err := db.Prepare(db.getAllFeeInfoPerBlock)
 	if err != nil {
-		return chartsData, err
+		return nil, err
 	}
 	defer stmt.Close()
 
-	rows, err := stmt.Query()
+	rows, err := stmt.Query(since)
 	if err != nil {
 		log.Errorf("Query failed: %v", err)
-		return chartsData, err
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -1049,6 +1056,7 @@ func (db *DB) RetrieveBlockFeeInfo() (*dbtypes.ChartsData, error) {
 		var height uint64
 		if err = rows.Scan(&height, &feeMed); err != nil {
 			log.Errorf("Unable to scan for FeeInfoPerBlock fields: %v", err)
+			return nil, err
 		}
 		if height == 0 && feeMed == 0 {
 			continue
@@ -1059,10 +1067,6 @@ func (db *DB) RetrieveBlockFeeInfo() (*dbtypes.ChartsData, error) {
 	}
 	if err = rows.Err(); err != nil {
 		log.Error(err)
-	}
-
-	if len(chartsData.Count) < 1 {
-		log.Warnf("RetrieveBlockFeeInfo: Retrieved pool values (%d) not expected number (%d)", len(chartsData.Count), 1)
 	}
 
 	return chartsData, nil

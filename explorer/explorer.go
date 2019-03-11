@@ -74,7 +74,7 @@ type explorerDataSourceLite interface {
 	GetMempool() []types.MempoolTx
 	TxHeight(txid *chainhash.Hash) (height int64)
 	BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
-	GetSqliteChartsData() (map[dbtypes.Charts]*dbtypes.ChartsData, error)
+	SqliteChartsData(data *[]*dbtypes.ChartsData) error
 	GetExplorerFullBlocks(start int, end int) []*types.BlockInfo
 	Difficulty() (float64, error)
 	RetreiveDifficulty(timestamp int64) float64
@@ -96,7 +96,7 @@ type explorerDataSource interface {
 	FillAddressTransactions(addrInfo *dbtypes.AddressInfo) error
 	BlockMissedVotes(blockHash string) ([]string, error)
 	TicketMiss(ticketHash string) (string, int64, error)
-	GetPgChartsData() (map[dbtypes.Charts]*dbtypes.ChartsData, error)
+	PgChartsData(oldData *[]*dbtypes.ChartsData) (err error)
 	TicketsPriceByHeight() (*dbtypes.ChartsData, error)
 	SideChainBlocks() ([]*dbtypes.BlockStatus, error)
 	DisapprovedBlocks() ([]*dbtypes.BlockStatus, error)
@@ -158,7 +158,7 @@ var explorerLinks = &links{
 type chartDataCounter struct {
 	sync.RWMutex
 	updateHeight int64
-	Data         map[dbtypes.Charts]*dbtypes.ChartsData
+	Data         [16]*dbtypes.ChartsData
 }
 
 // cacheChartsData holds the prepopulated data that is used to draw the charts.
@@ -172,16 +172,23 @@ func (c *chartDataCounter) Height() int64 {
 }
 
 // Update sets new data for the given height in the the charts data cache.
-func (c *chartDataCounter) Update(height int64, newData map[dbtypes.Charts]*dbtypes.ChartsData) {
+func (c *chartDataCounter) Update(height int64, newData [16]*dbtypes.ChartsData) {
 	c.Lock()
 	defer c.Unlock()
 	c.update(height, newData)
 }
 
+// get provides a thread-safe way to access the cachec charts data.
+func (c *chartDataCounter) get() [16]*dbtypes.ChartsData {
+	c.RLock()
+	defer c.RUnlock()
+	return c.Data
+}
+
 // height returns the last update height of the charts data cache. Use Height
 // instead for thread-safe access.
 func (c *chartDataCounter) height() int64 {
-	if c.Data == nil {
+	if c.updateHeight == 0 {
 		return -1
 	}
 	return c.updateHeight
@@ -189,13 +196,13 @@ func (c *chartDataCounter) height() int64 {
 
 // update sets new data for the given height in the the charts data cache. Use
 // Update instead for thread-safe access.
-func (c *chartDataCounter) update(height int64, newData map[dbtypes.Charts]*dbtypes.ChartsData) {
+func (c *chartDataCounter) update(height int64, newData [16]*dbtypes.ChartsData) {
 	c.updateHeight = height
 	c.Data = newData
 }
 
 // ChartTypeData is a thread-safe way to access chart data of the given type.
-func ChartTypeData(chartType string) (data *dbtypes.ChartsData, ok bool) {
+func ChartTypeData(chartType string) (*dbtypes.ChartsData, bool) {
 	cacheChartsData.RLock()
 	defer cacheChartsData.RUnlock()
 
@@ -205,10 +212,9 @@ func ChartTypeData(chartType string) (data *dbtypes.ChartsData, ok bool) {
 		return nil, false
 	}
 
-	// Data updates replace the entire map rather than modifying the data to
-	// which the pointers refer, so the pointer can safely be returned here.
-	data, ok = cacheChartsData.Data[chartVal]
-	return
+	// If an invalid chart type is found the returned data belongs to ticket
+	// price chart.
+	return cacheChartsData.Data[chartVal.Pos()], true
 }
 
 // TicketStatusText generates the text to display on the explorer's transaction
@@ -487,29 +493,37 @@ func (exp *explorerUI) prePopulateChartsData() {
 
 	log.Info("Pre-populating the charts data. This may take a minute...")
 	log.Debugf("Retrieving charts data from aux DB.")
-	var err error
-	pgData, err := exp.explorerSource.GetPgChartsData()
-	if dbtypes.IsTimeoutErr(err) {
-		log.Warnf("GetPgChartsData DB timeout: %v", err)
-		return
-	}
-	if err != nil {
+
+	var chartsData = cacheChartsData.get()
+	var pgData = make([]*dbtypes.ChartsData, 13)
+
+	// Pg charts data is stored from index 0-12
+	copy(pgData, chartsData[:13])
+	if err := exp.explorerSource.PgChartsData(&pgData); err != nil {
+		if dbtypes.IsTimeoutErr(err) {
+			log.Warnf("GetPgChartsData DB timeout: %v", err)
+			return
+		}
+
 		log.Errorf("Invalid PG data found: %v", err)
 		return
 	}
 
 	log.Debugf("Retrieving charts data from base DB.")
-	sqliteData, err := exp.blockData.GetSqliteChartsData()
-	if err != nil {
+
+	sqliteData := make([]*dbtypes.ChartsData, 3)
+
+	// Sqlite charts data is stored between index 13 to 16.
+	copy(sqliteData, chartsData[13:])
+
+	if err := exp.blockData.SqliteChartsData(&sqliteData); err != nil {
 		log.Errorf("Invalid SQLite data found: %v", err)
 		return
 	}
 
-	for k, v := range sqliteData {
-		pgData[k] = v
-	}
-
-	cacheChartsData.Update(expHeight, pgData)
+	copy(chartsData[:13], pgData[:])
+	copy(chartsData[13:], sqliteData[:])
+	cacheChartsData.Update(expHeight, chartsData)
 
 	log.Info("Done pre-populating the charts data.")
 }
