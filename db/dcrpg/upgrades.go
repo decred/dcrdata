@@ -78,20 +78,11 @@ var votingMilestones = map[string]dbtypes.MileStone{}
 // toVersion defines a table version to which the pg tables will commented to.
 var toVersion TableVersion
 
-// CheckForAuxDBUpgrade checks if an upgrade is required and currently supported.
-// A boolean value is returned to indicate if the db upgrade was
-// successfully completed.
-func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, error) {
-	var version, needVersion TableVersion
-	upgradeInfo := TableUpgradesRequired(TableVersions(pgb.db))
-
-	if len(upgradeInfo) > 0 {
-		version = upgradeInfo[0].CurrentVer
-		needVersion = upgradeInfo[0].RequiredVer
-	} else {
-		return false, nil
-	}
-
+// UpgradeTables upgrades all the tables with the pending updates from the
+// current table versions to the most recent table version supported. A boolean
+// is returned to indicate if the db upgrade was successfully completed.
+func (pgb *ChainDB) UpgradeTables(dcrdClient *rpcclient.Client,
+	version, needVersion TableVersion) (bool, error) {
 	// If the previous DB is between the 3.1/3.2 and 4.0 releases (dcrpg table
 	// versions >3.5.5 and <3.9.0), an upgrade is likely not possible IF PostgreSQL
 	// was running in a TimeZone other than UTC. Deny upgrade.
@@ -123,9 +114,6 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 
 	// Apply each upgrade in succession
 	switch {
-	case upgradeInfo[0].UpgradeType != "upgrade" && upgradeInfo[0].UpgradeType != "reindex":
-		return false, nil
-
 	// Upgrade from 3.1.0 --> 3.2.0
 	case version.major == 3 && version.minor == 1 && version.patch == 0:
 		toVersion = TableVersion{3, 2, 0}
@@ -400,10 +388,19 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 			version, needVersion)
 	}
 
+	upgradeFailed := fmt.Errorf("failed to upgrade tables to required version %v",
+		needVersion)
+
 	// Ensure the required version was reached.
-	upgradeInfo = TableUpgradesRequired(TableVersions(pgb.db))
-	if len(upgradeInfo) > 0 && upgradeInfo[0].UpgradeType != "ok" {
-		return false, fmt.Errorf("failed to upgrade tables to required version %v", needVersion)
+	upgradeInfo := TableUpgradesRequired(TableVersions(pgb.db))
+	if len(upgradeInfo) > 0 {
+		return false, upgradeFailed
+	}
+
+	for _, info := range upgradeInfo {
+		if info.UpgradeType != OK {
+			return false, upgradeFailed
+		}
 	}
 
 	// Unsupported upgrades caught by default case, so we've succeeded.

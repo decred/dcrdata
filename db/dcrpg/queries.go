@@ -217,6 +217,30 @@ func DeleteDuplicateMisses(db *sql.DB) (int64, error) {
 	return sqlExec(db, internal.DeleteMissesDuplicateRows, execErrPrefix)
 }
 
+// DeleteDuplicateAgendas deletes rows in agendas with duplicate names leaving
+// the one row with the lowest id.
+func DeleteDuplicateAgendas(db *sql.DB) (int64, error) {
+	if isuniq, err := IsUniqueIndex(db, "uix_agendas_name"); err != nil && err != sql.ErrNoRows {
+		return 0, err
+	} else if isuniq {
+		return 0, nil
+	}
+	execErrPrefix := "failed to delete duplicate agendas: "
+	return sqlExec(db, internal.DeleteAgendasDuplicateRows, execErrPrefix)
+}
+
+// DeleteDuplicateAgendaVotes deletes rows in agenda_votes with duplicate
+// votes-row-id and agendas-row-id leaving the one row with the lowest id.
+func DeleteDuplicateAgendaVotes(db *sql.DB) (int64, error) {
+	if isuniq, err := IsUniqueIndex(db, "uix_agenda_votes"); err != nil && err != sql.ErrNoRows {
+		return 0, err
+	} else if isuniq {
+		return 0, nil
+	}
+	execErrPrefix := "failed to delete duplicate agenda_votes: "
+	return sqlExec(db, internal.DeleteAgendaVotesDuplicateRows, execErrPrefix)
+}
+
 // --- stake (votes, tickets, misses) tables ---
 
 // InsertTickets takes a slice of *dbtypes.Tx and corresponding DB row IDs for
