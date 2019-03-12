@@ -509,9 +509,6 @@ func _main(ctx context.Context) error {
 		return fmt.Errorf("failed to create new agendas db instance: %v", err)
 	}
 
-	// Confirm if dcrdClient implements agendas.DeploymentSource interface.
-	var _ agendas.DeploymentSource = dcrdClient
-
 	// Retrieve blockchain deployment updates and add them to the agendas db.
 	// activeChain.Deployments contains a list of all agendas supported in the
 	// current environment.
