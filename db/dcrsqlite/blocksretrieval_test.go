@@ -13,7 +13,7 @@ func TestEmptyDBRetrieveAllPoolValAndSize(t *testing.T) {
 		t.Fatalf("Failed to obtain test DB: %v", err)
 	}
 
-	result, err := db.RetrieveAllPoolValAndSize()
+	result, err := db.RetrieveAllPoolValAndSize(nil)
 	if err != nil {
 		t.Fatalf("RetrieveAllPoolValAndSize() failed: default result expected: %v", err)
 	}
@@ -31,7 +31,7 @@ func TestEmptyDBRetrieveBlockFeeInfo(t *testing.T) {
 		t.Fatalf("Failed to obtain test DB: %v", err)
 	}
 
-	result, err := db.RetrieveBlockFeeInfo()
+	result, err := db.RetrieveBlockFeeInfo(nil)
 	if err != nil {
 		t.Fatalf("RetrieveBlockFeeInfo() failed: default result expected: %v", err)
 	}

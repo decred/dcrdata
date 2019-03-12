@@ -603,6 +603,16 @@ func _main(ctx context.Context) error {
 	displaySyncStatusPage := blocksBehind > int64(cfg.SyncStatusLimit) || // over limit
 		updateAllAddresses || newPGIndexes // maintenance or initial sync
 
+	// charts data cache dump file path.
+	dumpPath := filepath.Join(cfg.DataDir, cfg.ChartsCacheDump)
+
+	// Pre-populate charts data now using the dumped cache data in the file path
+	// to the .gob file provided instead of querying the data from the dbs.
+	// It should be invoked before explore.Store to avoid double charts data
+	// cache population. This charts pre-population is faster than db querying
+	// and can be done before the monitors are fully set up.
+	explore.PrepareCharts(dumpPath)
+
 	// Initiate the sync status monitor and the coordinating goroutines if the
 	// sync status is activated, otherwise coordinate updating the full set of
 	// explorer pages.
@@ -1167,16 +1177,24 @@ func _main(ctx context.Context) error {
 	// Begin listening on notify.NtfnChans.NewTxChan, and forwarding mempool
 	// events to psHub via the channels from HubRelays().
 	wg.Add(1)
-	go mpm.TxHandler(dcrdClient)
+
 	// TxHandler also gets signaled about new blocks when a nil tx hash is sent
 	// on notify.NtfnChans.NewTxChan, which triggers a full mempool refresh
 	// followed by CollectAndStore, which provides the parsed data to all
 	// mempoolSavers via their StoreMPData method. This should include the
 	// PubSubHub and the base DB's MempoolDataCache.
+	go mpm.TxHandler(dcrdClient)
 
-	// Pre-populate charts data now that blocks are sync'd and new-block
-	// monitors are running.
-	explore.PrepareCharts()
+	// This dumps the cache charts data into a file for future use on system
+	// exit.
+	defer func() {
+		er := explorer.WriteCacheFile(dumpPath)
+		if er != nil {
+			log.Errorf("WriteCacheFile failed: %v", er)
+		} else {
+			log.Debug("Dumping the charts cache data was successful")
+		}
+	}()
 
 	// Wait for notification handlers to quit.
 	wg.Wait()

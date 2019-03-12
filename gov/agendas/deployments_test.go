@@ -47,7 +47,7 @@ var firstAgendaInfo = &AgendaTagged{
 // TestMain sets up the temporary db needed for testing
 func TestMain(m *testing.M) {
 	var err error
-	tempDir, err = ioutil.TempDir("", "onchain")
+	tempDir, err = ioutil.TempDir(os.TempDir(), "onchain")
 	if err != nil {
 		log.Error(err)
 		return

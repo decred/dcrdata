@@ -66,6 +66,7 @@ var (
 	defaultAgendasDBFileName = "agendas.db"
 	defaultProposalsFileName = "proposals.db"
 	defaultPoliteiaAPIURl    = "https://proposals.decred.org"
+	defaultChartsCacheDump   = "chartscache.gob"
 
 	defaultPGHost                       = "127.0.0.1:5432"
 	defaultPGUser                       = "dcrdata"
@@ -119,6 +120,7 @@ type config struct {
 	AgendasDBFileName  string `long:"agendadbfile" description:"Agendas DB file name (default is agendas.db)." env:"DCRDATA_AGENDAS_DB_FILE_NAME"`
 	ProposalsFileName  string `long:"proposalsdbfile" description:"Proposals DB file name (default is proposals.db)." env:"DCRDATA_PROPOSALS_DB_FILE_NAME"`
 	PoliteiaAPIURL     string `long:"politeiaurl" description:"Defines the root API politeia URL (defaults to https://proposals.decred.org)."`
+	ChartsCacheDump    string `long:"chartscache" description:"Defines the file name that holds the charts cache data on system exit."`
 
 	PurgeNBestBlocks int  `long:"purge-n-blocks" description:"Purge all data for the N best blocks, using the best block across all DBs if they are out of sync."`
 	FastSQLitePurge  bool `long:"fast-sqlite-purge" description:"Purge all data for the blocks above the specified height."`
@@ -174,6 +176,7 @@ var (
 		AgendasDBFileName:   defaultAgendasDBFileName,
 		ProposalsFileName:   defaultProposalsFileName,
 		PoliteiaAPIURL:      defaultPoliteiaAPIURl,
+		ChartsCacheDump:     defaultChartsCacheDump,
 		DebugLevel:          defaultLogLevel,
 		HTTPProfPath:        defaultHTTPProfPath,
 		APIProto:            defaultAPIProto,
@@ -641,6 +644,7 @@ func loadConfig() (*config, error) {
 	cfg.AgendasDBFileName = cleanAndExpandPath(cfg.AgendasDBFileName)
 	cfg.ProposalsFileName = cleanAndExpandPath(cfg.ProposalsFileName)
 	cfg.RateCertificate = cleanAndExpandPath(cfg.RateCertificate)
+	cfg.ChartsCacheDump = cleanAndExpandPath(cfg.ChartsCacheDump)
 
 	// Clean up the provided mainnet and testnet links, ensuring there is a single
 	// trailing slash.
