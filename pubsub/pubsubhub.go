@@ -512,17 +512,6 @@ func (psh *PubSubHub) StoreMPData(_ *mempool.StakeData, _ []exptypes.MempoolTx, 
 	psh.invsMtx.Lock()
 	psh.invs = inv
 	psh.invsMtx.Unlock()
-
-	// Signal to the websocket hub that a new tx was received, but do not block
-	// StoreMPData(), and do not hang forever in a goroutine waiting to send.
-	go func() {
-		select {
-		case psh.wsHub.HubRelay <- sigMempoolUpdate:
-		case <-time.After(time.Second * 10):
-			log.Errorf("sigMempoolUpdate send failed: Timeout waiting for WebsocketHub.")
-		}
-	}()
-
 	log.Debugf("Updated mempool details for the pubsubhub.")
 }
 
