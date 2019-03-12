@@ -221,13 +221,14 @@ var (
 		ORDER BY block_height;`
 
 	SelectTicketsOutputCountByTPWindow = `SELECT
-		floor(block_height/144) as count,
+		floor(block_height/$3) as count,
 		SUM(CASE WHEN num_vout = 3 THEN 1 ELSE 0 END) as solo,
 		SUM(CASE WHEN num_vout = 5 THEN 1 ELSE 0 END) as pooled
-		FROM transactions 
+		FROM transactions
 		WHERE tx_type = $1
 		AND block_height > $2
-		GROUP BY count ORDER BY count;`
+		GROUP BY count
+		ORDER BY count;`
 )
 
 // func makeTxInsertStatement(voutDbIDs, vinDbIDs []uint64, vouts []*dbtypes.Vout, checked bool) string {

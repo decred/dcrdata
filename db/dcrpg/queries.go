@@ -3021,7 +3021,12 @@ func retrieveTxPerDay(ctx context.Context, db *sql.DB,
 	if items == nil {
 		items = new(dbtypes.ChartsData)
 	} else if len(items.Time) > 0 {
-		since = items.Time[len(items.Time)-1].T
+		count := len(items.Time) - 1
+		since = items.Time[count].T
+
+		// delete the last entry to avoid duplicates
+		items.Time = items.Time[:count]
+		items.Count = items.Count[:count]
 	}
 
 	rows, err := db.QueryContext(ctx, internal.SelectTxsPerDay, since)
@@ -3048,26 +3053,40 @@ func retrieveTxPerDay(ctx context.Context, db *sql.DB,
 // chart if outputCountType outputCountByTicketPoolWindow is passed and
 // ticket-by-outputs-blocks if outputCountType outputCountByAllBlocks is passed.
 func retrieveTicketByOutputCount(ctx context.Context, db *sql.DB,
-	dataType outputCountType, items *dbtypes.ChartsData) (*dbtypes.ChartsData, error) {
+	dataType outputCountType, items *dbtypes.ChartsData, interval int64) (*dbtypes.ChartsData, error) {
 	var since uint64
 
 	if items == nil {
 		items = new(dbtypes.ChartsData)
 	} else if len(items.Height) > 0 {
-		since = items.Height[len(items.Height)-1]
+		c := len(items.Height)
+		since = items.Height[c-1]
+
+		// drop the last entry to avoid duplication.
+		if dataType == outputCountByTicketPoolWindow {
+			items.Height = items.Height[:c-1]
+			items.Solo = items.Solo[:c-1]
+			items.Pooled = items.Pooled[:c-1]
+		}
 	}
 
 	var query string
+	var args []interface{}
 	switch dataType {
 	case outputCountByAllBlocks:
 		query = internal.SelectTicketsOutputCountByAllBlocks
+		args = []interface{}{stake.TxTypeSStx, since}
+
 	case outputCountByTicketPoolWindow:
 		query = internal.SelectTicketsOutputCountByTPWindow
+		since = since * uint64(interval)
+		args = []interface{}{stake.TxTypeSStx, since, interval}
+
 	default:
 		return nil, fmt.Errorf("unknown output count type '%v'", dataType)
 	}
 
-	rows, err := db.QueryContext(ctx, query, stake.TxTypeSStx, since)
+	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
