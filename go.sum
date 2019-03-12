@@ -25,7 +25,6 @@ github.com/asdine/storm v2.2.0+incompatible/go.mod h1:cMLKpjHSP4q0P133fV15ojQgwW
 github.com/badoux/checkmail v0.0.0-20180430153108-0755fe2dc241/go.mod h1:r5ZalvRl3tXevRNJkwIB6DC4DD3DMjIlY9NEU1XGoaQ=
 github.com/boltdb/bolt v1.3.1 h1:JQmyP4ZBrce+ZQu0dY660FMfatumYDLun9hBCUVIkF4=
 github.com/boltdb/bolt v1.3.1/go.mod h1:clJnj/oiGkjum5o1McbSZDSLxVThjynRyGBgiAx27Ps=
-github.com/btcsuite/go-flags v0.0.0-20150116065318-6c288d648c1c h1:jYE+0osxEwZMwnJkGJCiQZKLhMFMR6+G8QxtFtL9/Zw=
 github.com/btcsuite/go-flags v0.0.0-20150116065318-6c288d648c1c/go.mod h1:FAMFTQ1iW6ewsFxRHGOzmtOgCNMIw1ks4L86fZ3nNaw=
 github.com/btcsuite/go-socks v0.0.0-20170105172521-4720035b7bfd h1:R/opQEbFEy9JGkIguV40SvRY1uliPX8ifOvi6ICsFCw=
 github.com/btcsuite/go-socks v0.0.0-20170105172521-4720035b7bfd/go.mod h1:HHNXQzUsZCxOoE+CPiyCTO6x34Zs86zZUiwtpXoGdtg=
@@ -146,6 +145,7 @@ github.com/decred/dcrd/wire v1.1.0 h1:G+3CugtxNbToUN8RKWqm74yLfzJJ2BKMOr2RgWc4Ty
 github.com/decred/dcrd/wire v1.1.0/go.mod h1:/JKOsLInOJu6InN+/zH5AyCq3YDIOW/EqcffvU8fJHM=
 github.com/decred/dcrd/wire v1.2.0 h1:HqJVB7vcklIguzFWgRXw/WYCQ9cD3bUC5TKj53i1Hng=
 github.com/decred/dcrd/wire v1.2.0/go.mod h1:/JKOsLInOJu6InN+/zH5AyCq3YDIOW/EqcffvU8fJHM=
+github.com/decred/dcrdata v2.1.3+incompatible h1:DLzrqgOOgHwrUSbuOVDAUzfQePhCGl9UsjEgZI1D0Kg=
 github.com/decred/dcrdata/v3 v3.1.2/go.mod h1:yzBJXhNSOHsWgLNp9m0rGUY3ajn6HADvre0bL3ApNdE=
 github.com/decred/dcrtime v0.0.0-20180808181920-4c91c4cbed09/go.mod h1:ix2x3x3d4LivVPyh1l+ZVNjxuycrXyGZolnuVqVfywY=
 github.com/decred/dcrwallet v1.2.3-0.20190128160919-849f7c01c12d h1:29CvbLfATHA5XDxr6w4Z3hYx/tqM+tgnj63LJhUVCCU=

@@ -43,7 +43,7 @@ var firstProposal = &pitypes.ProposalInfo{
 // TestMain sets up the temporary db needed for testing
 func TestMain(m *testing.M) {
 	var err error
-	tempDir, err = ioutil.TempDir("", "offchain")
+	tempDir, err = ioutil.TempDir(os.TempDir(), "offchain")
 	if err != nil {
 		log.Error(err)
 		return

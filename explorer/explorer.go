@@ -166,69 +166,6 @@ var explorerLinks = &links{
 	DownloadLink:    "https://decred.org/downloads/",
 }
 
-// chartDataCounter is a data cache for the historical charts.
-type chartDataCounter struct {
-	sync.RWMutex
-	updateHeight int64
-	Data         []*dbtypes.ChartsData
-}
-
-// cacheChartsData holds the prepopulated data that is used to draw the charts.
-var cacheChartsData chartDataCounter
-
-// Height returns the last update height of the charts data cache.
-func (c *chartDataCounter) Height() int64 {
-	c.RLock()
-	defer c.RUnlock()
-	return c.height()
-}
-
-// Update sets new data for the given height in the the charts data cache.
-func (c *chartDataCounter) Update(height int64, newData []*dbtypes.ChartsData) {
-	c.Lock()
-	defer c.Unlock()
-	c.update(height, newData)
-}
-
-// get provides a thread-safe way to access the cachec charts data.
-func (c *chartDataCounter) get() []*dbtypes.ChartsData {
-	c.RLock()
-	defer c.RUnlock()
-	return c.Data
-}
-
-// height returns the last update height of the charts data cache. Use Height
-// instead for thread-safe access.
-func (c *chartDataCounter) height() int64 {
-	if c.updateHeight == 0 {
-		return -1
-	}
-	return c.updateHeight
-}
-
-// update sets new data for the given height in the the charts data cache. Use
-// Update instead for thread-safe access.
-func (c *chartDataCounter) update(height int64, newData []*dbtypes.ChartsData) {
-	c.updateHeight = height
-	c.Data = newData
-}
-
-// ChartTypeData is a thread-safe way to access chart data of the given type.
-func ChartTypeData(chartType string) (*dbtypes.ChartsData, bool) {
-	cacheChartsData.RLock()
-	defer cacheChartsData.RUnlock()
-
-	chartVal, err := dbtypes.ChartsFromStr(chartType)
-	if err != nil {
-		log.Debug(err)
-		return nil, false
-	}
-
-	// If an invalid chart type is found the returned data belongs to ticket
-	// price chart.
-	return cacheChartsData.Data[chartVal.Pos()], true
-}
-
 // TicketStatusText generates the text to display on the explorer's transaction
 // page for the "POOL STATUS" field.
 func TicketStatusText(s dbtypes.TicketSpendType, p dbtypes.TicketPoolStatus) string {
@@ -439,10 +376,25 @@ func New(cfg *ExplorerConfig) *explorerUI {
 	return exp
 }
 
-// PrepareCharts pre-populates charts data when in full mode.
-func (exp *explorerUI) PrepareCharts() {
+// PrepareCharts pre-populates charts data when in full mode. Since by the time
+// PrepareCharts is invoked, exp.Height() hasn't been set yet, use 1 as the default
+// height that will be updated with the accurate value once the background sync
+// is complete.
+func (exp *explorerUI) PrepareCharts(cacheDumpPath string) {
+	t := time.Now()
 	if !exp.liteMode {
-		exp.prePopulateChartsData()
+		var defHeight int64 = 1
+
+		if err := ReadCacheFile(cacheDumpPath, defHeight); err != nil {
+			log.Errorf("Cache dump data loading failed: %v", err)
+
+			// If the cache data loading fails, the db querying will be
+			// triggered in the next explorer.Store call. Since this method is
+			// not asynchronous, charts db querying will be triggered in a
+			// goroutine to avoid making a blocking operation.
+		}
+
+		log.Debugf("completed the initial charts cache scanning in %v", time.Since(t))
 	}
 }
 
@@ -450,6 +402,9 @@ func (exp *explorerUI) PrepareCharts() {
 func (exp *explorerUI) Height() int64 {
 	exp.pageData.RLock()
 	defer exp.pageData.RUnlock()
+	if exp.pageData.BlockInfo == nil {
+		return -1
+	}
 	return exp.pageData.BlockInfo.Height
 }
 
@@ -673,8 +628,8 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 		go exp.updateDevFundBalance()
 	}
 
-	// Do not run updates if blockchain sync is running.
-	if !exp.AreDBsSyncing() {
+	// Do not run updates if blockchain sync is running or lite mode is on.
+	if !exp.AreDBsSyncing() && !exp.liteMode {
 		// Politeia updates happen hourly thus if every blocks takes an average
 		// of 5 minutes to mine then 12 blocks take approximately 1hr.
 		// https://docs.decred.org/advanced/navigating-politeia-data/#voting-and-comment-data
