@@ -68,7 +68,7 @@ class MessageSocket {
       this.connection.close()
     }
 
-    // unmarshall message, and forward the message to registered handlers
+    // unmarshal message, and forward the message to registered handlers
     this.connection.onmessage = (evt) => {
       var json = JSON.parse(evt.data)
       forward(json.event, json.message, this.handlers)
