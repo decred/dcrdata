@@ -4,3 +4,13 @@
 .progress-bar {
   text-shadow: 1px 1px 0 #00000012;
 }
+
+.v2-progress.progress {
+  height: 1rem;
+}
+
+.v2-progress {
+  .progress-bar {
+    background-color: #2dd8a3;
+  }
+}

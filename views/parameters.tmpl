@@ -82,12 +82,12 @@
                             </tr>
                             <tr>
                                 <td class="mono text-left pr-2 nowrap p03rem0">TargetTimespan</td>
-                                <td class="mono">{{TimeDurationFormat .ChainParams.TargetTimespan}}</td>
+                                <td class="mono">{{durationToShortDurationString .ChainParams.TargetTimespan}}</td>
                                 <td>Amount of time that should elapse before the block difficulty requirement is examined to determine how it should be changed in order to maintain the desired block generation rate</td>
                             </tr>
                             <tr>
                                 <td class="mono text-left pr-2 nowrap p03rem0">TargetTimePerBlock</td>
-                                <td class="mono">{{TimeDurationFormat .ChainParams.TargetTimePerBlock}}</td>
+                                <td class="mono">{{durationToShortDurationString .ChainParams.TargetTimePerBlock}}</td>
                                 <td>The desired amount of time to generate each block</td>
                             </tr>
                             <tr>

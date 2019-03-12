@@ -454,6 +454,16 @@ func _main(ctx context.Context) error {
 		if err = baseDB.ChargePoolInfoCache(heightDB - 2); err != nil {
 			return fmt.Errorf("Failed to charge pool info cache: %v", err)
 		}
+
+		// Fetch the latest blockchain info, which is needed to update the
+		// agendas db while db sync is in progress.
+		bci, err := baseDB.BlockchainInfo()
+		if err != nil {
+			return fmt.Errorf("failed to fetch the latest blockchain info")
+		}
+
+		// Update the current chain state in the ChainDBRPC
+		auxDB.UpdateChainState(bci)
 	}
 
 	// Block data collector. Needs a StakeDatabase too.
@@ -542,6 +552,12 @@ func _main(ctx context.Context) error {
 		}
 	}()
 
+	// A vote tracker tracks current block and stake versions and votes.
+	tracker, err := agendas.NewVoteTracker(activeChain, dcrdClient, auxDB.AgendaCumulativeVoteChoices)
+	if err != nil {
+		return fmt.Errorf("Unable to initialize vote tracker: %v", err)
+	}
+
 	// Create the explorer system.
 	explore := explorer.New(&explorer.ExplorerConfig{
 		DataSource:        baseDB,
@@ -552,6 +568,7 @@ func _main(ctx context.Context) error {
 		Viewsfolder:       "views",
 		XcBot:             xcBot,
 		AgendasSource:     agendasInstance,
+		Tracker:           tracker,
 		ProposalsSource:   proposalsInstance,
 		PoliteiaURL:       cfg.PoliteiaAPIURL,
 		MainnetLink:       cfg.MainnetLink,
@@ -653,18 +670,6 @@ func _main(ctx context.Context) error {
 		// Signal to load this block's data into the explorer. Future signals
 		// will come from the sync methods of either baseDB or auxDB.
 		latestBlockHash <- latestDBBlockHash
-	}
-
-	if usePG {
-		// Fetch the latest blockchain info, which is needed to update the
-		// agendas db while db sync is in progress.
-		bci, err := baseDB.BlockchainInfo()
-		if err != nil {
-			return fmt.Errorf("failed to fetch the latest blockchain info")
-		}
-
-		// Update the current chain state in the ChainDBRPC
-		auxDB.UpdateChainState(bci)
 	}
 
 	// Create the Insight socket.io server, and add it to block savers if in

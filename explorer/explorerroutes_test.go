@@ -76,6 +76,7 @@ func TestStatusPageResponseCodes(t *testing.T) {
 		DevPrefetch:       false,
 		Viewsfolder:       viewsPath,
 		XcBot:             nil,
+		Tracker:           nil,
 		AgendasSource:     nil,
 		ProposalsSource:   nil,
 		PoliteiaURL:       "",

@@ -476,6 +476,27 @@ input ~ .checkmark {
   margin: 2px;
 }
 
+.upgrade-meter {
+  display: inline-block;
+  width: 125px;
+  height: 125px;
+  font-size: 14px;
+  overflow: hidden;
+}
+
+.upgrade-meter.large-gap {
+  height: 105px;
+}
+
+.upgrade-meter.arch {
+  height: 80px;
+}
+
+.upgrade-meter > canvas {
+  width: 125px;
+  height: 125px;
+}
+
 body.darkBG {
   .address_chart_wrap {
     background-color: #333;

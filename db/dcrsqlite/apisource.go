@@ -725,8 +725,8 @@ func (db *WiredDB) GetVoteVersionInfo(ver uint32) (*dcrjson.GetVoteInfoResult, e
 // GetStakeVersions requests the output of the getstakeversions RPC, which gets
 // stake version information and individual vote version information starting at the
 // given block and for count-1 blocks prior.
-func (db *WiredDB) GetStakeVersions(txHash string, count int32) (*dcrjson.GetStakeVersionsResult, error) {
-	return db.client.GetStakeVersions(txHash, count)
+func (db *WiredDB) GetStakeVersions(blockHash string, count int32) (*dcrjson.GetStakeVersionsResult, error) {
+	return db.client.GetStakeVersions(blockHash, count)
 }
 
 // GetStakeVersionsLatest requests the output of the getstakeversions RPC for
