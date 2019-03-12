@@ -54,6 +54,18 @@ const (
 	// MaxAddressRows is an upper limit on the number of rows that may be shown
 	// on the address page table.
 	MaxAddressRows int64 = 1000
+
+	// chartsCount defines the max count of charts that whose data held in
+	// cacheChartsData. When adjusting this value, ensure changes made to
+	// dbtypes.Charts chart type matches the index that the new chart(s) are
+	// stored with in the cache.
+	chartsCount = 16
+
+	// pgChartsCount defines the count of charts that use the auxiliary db as
+	// the data source and the are held in cacheChartsData. When adjusting this
+	// value, ensure changes made to dbtypes.Charts chart type matches the index
+	// that the new chart(s) are stored with in the cache.
+	pgChartsCount = 13
 )
 
 // explorerDataSourceLite implements an interface for collecting data for the
@@ -74,7 +86,7 @@ type explorerDataSourceLite interface {
 	GetMempool() []types.MempoolTx
 	TxHeight(txid *chainhash.Hash) (height int64)
 	BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
-	SqliteChartsData(data *[]*dbtypes.ChartsData) error
+	SqliteChartsData(data []*dbtypes.ChartsData) error
 	GetExplorerFullBlocks(start int, end int) []*types.BlockInfo
 	Difficulty() (float64, error)
 	RetreiveDifficulty(timestamp int64) float64
@@ -96,7 +108,7 @@ type explorerDataSource interface {
 	FillAddressTransactions(addrInfo *dbtypes.AddressInfo) error
 	BlockMissedVotes(blockHash string) ([]string, error)
 	TicketMiss(ticketHash string) (string, int64, error)
-	PgChartsData(oldData *[]*dbtypes.ChartsData) (err error)
+	PgChartsData(oldData []*dbtypes.ChartsData) (err error)
 	TicketsPriceByHeight() (*dbtypes.ChartsData, error)
 	SideChainBlocks() ([]*dbtypes.BlockStatus, error)
 	DisapprovedBlocks() ([]*dbtypes.BlockStatus, error)
@@ -158,7 +170,7 @@ var explorerLinks = &links{
 type chartDataCounter struct {
 	sync.RWMutex
 	updateHeight int64
-	Data         [16]*dbtypes.ChartsData
+	Data         []*dbtypes.ChartsData
 }
 
 // cacheChartsData holds the prepopulated data that is used to draw the charts.
@@ -172,14 +184,14 @@ func (c *chartDataCounter) Height() int64 {
 }
 
 // Update sets new data for the given height in the the charts data cache.
-func (c *chartDataCounter) Update(height int64, newData [16]*dbtypes.ChartsData) {
+func (c *chartDataCounter) Update(height int64, newData []*dbtypes.ChartsData) {
 	c.Lock()
 	defer c.Unlock()
 	c.update(height, newData)
 }
 
 // get provides a thread-safe way to access the cachec charts data.
-func (c *chartDataCounter) get() [16]*dbtypes.ChartsData {
+func (c *chartDataCounter) get() []*dbtypes.ChartsData {
 	c.RLock()
 	defer c.RUnlock()
 	return c.Data
@@ -196,7 +208,7 @@ func (c *chartDataCounter) height() int64 {
 
 // update sets new data for the given height in the the charts data cache. Use
 // Update instead for thread-safe access.
-func (c *chartDataCounter) update(height int64, newData [16]*dbtypes.ChartsData) {
+func (c *chartDataCounter) update(height int64, newData []*dbtypes.ChartsData) {
 	c.updateHeight = height
 	c.Data = newData
 }
@@ -491,15 +503,21 @@ func (exp *explorerUI) prePopulateChartsData() {
 		return
 	}
 
-	log.Info("Pre-populating the charts data. This may take a minute...")
+	startTime := time.Now()
+
+	log.Info("Pre-populating the charts data")
 	log.Debugf("Retrieving charts data from aux DB.")
 
-	var chartsData = cacheChartsData.get()
-	var pgData = make([]*dbtypes.ChartsData, 13)
+	chartsData := cacheChartsData.get()
+	pgData := make([]*dbtypes.ChartsData, pgChartsCount)
 
-	// Pg charts data is stored from index 0-12
-	copy(pgData, chartsData[:13])
-	if err := exp.explorerSource.PgChartsData(&pgData); err != nil {
+	// Since Pg charts are 13, data is stored from index 0-12 in the cache.
+	// Make the data copy if the charts count matches the chartsCount value.
+	if len(chartsData) == chartsCount {
+		copy(pgData, chartsData[:13])
+	}
+
+	if err := exp.explorerSource.PgChartsData(pgData); err != nil {
 		if dbtypes.IsTimeoutErr(err) {
 			log.Warnf("GetPgChartsData DB timeout: %v", err)
 			return
@@ -511,21 +529,38 @@ func (exp *explorerUI) prePopulateChartsData() {
 
 	log.Debugf("Retrieving charts data from base DB.")
 
-	sqliteData := make([]*dbtypes.ChartsData, 3)
+	sqliteData := make([]*dbtypes.ChartsData, chartsCount-pgChartsCount)
 
-	// Sqlite charts data is stored between index 13 to 16.
-	copy(sqliteData, chartsData[13:])
+	// Sqlite charts are 3 thus data is stored between index 13 to 15 in the cache.
+	// Make the data copy if the charts count matches the chartsCount value.
+	if len(chartsData) == chartsCount {
+		copy(sqliteData, chartsData[pgChartsCount:])
+	}
 
-	if err := exp.blockData.SqliteChartsData(&sqliteData); err != nil {
+	if err := exp.blockData.SqliteChartsData(sqliteData); err != nil {
 		log.Errorf("Invalid SQLite data found: %v", err)
 		return
 	}
 
-	copy(chartsData[:13], pgData[:])
-	copy(chartsData[13:], sqliteData[:])
+	// count defines the total number of chart returned.
+	count := len(pgData) + len(sqliteData)
+	if count == chartsCount {
+		// chartsData is initialized to an array of length chartsCount if it
+		// current length is not equal to chartsCount.
+		if len(chartsData) != chartsCount {
+			chartsData = make([]*dbtypes.ChartsData, chartsCount)
+		}
+
+		copy(chartsData[:pgChartsCount], pgData)
+		copy(chartsData[pgChartsCount:], sqliteData)
+	} else {
+		log.Errorf("Expected to find %d charts but found %d", chartsCount, count)
+		return
+	}
+
 	cacheChartsData.Update(expHeight, chartsData)
 
-	log.Info("Done pre-populating the charts data.")
+	log.Infof("Done pre-populating the charts data in %v.", time.Since(startTime))
 }
 
 // StoreMPData stores mempool data. It is advisable to pass a copy of the

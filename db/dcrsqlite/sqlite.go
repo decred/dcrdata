@@ -153,8 +153,9 @@ func NewDB(db *sql.DB, shutdown func()) (*DB, error) {
 		`FROM %s WHERE height BETWEEN ? AND ? AND is_mainchain = 1`, TableNameSummaries)
 	d.getPoolValSizeRangeSQL = fmt.Sprintf(`SELECT poolsize, poolval `+
 		`FROM %s WHERE height BETWEEN ? AND ? AND is_mainchain = 1`, TableNameSummaries)
-	d.getAllPoolValSize = fmt.Sprintf(`SELECT distinct poolsize, poolval, time `+
-		`FROM %s WHERE is_mainchain = 1 AND time > $1 ORDER BY time`, TableNameSummaries)
+	d.getAllPoolValSize = fmt.Sprintf(`SELECT poolsize, poolval, time, COUNT(*) `+
+		`FROM %s WHERE is_mainchain = 1 AND time > $1 GROUP BY time HAVING COUNT(*) = 1`,
+		TableNameSummaries)
 	d.getWinnersSQL = fmt.Sprintf(`SELECT hash, winners FROM %s
 		WHERE height = ? AND is_mainchain = 1`, TableNameSummaries)
 	d.getWinnersByHashSQL = fmt.Sprintf(`SELECT height, winners FROM %s WHERE hash = ?`,
@@ -251,9 +252,9 @@ func NewDB(db *sql.DB, shutdown func()) (*DB, error) {
 		TableNameStakeInfo)
 
 	d.getAllFeeInfoPerBlock = fmt.Sprintf(
-		`SELECT distinct %[1]s.height, fee_med FROM %[1]s
+		`SELECT %[1]s.height, fee_med FROM %[1]s
 		 JOIN %[2]s ON %[1]s.hash = %[2]s.hash
-		 WHERE  %[1]s.height > $1
+		 WHERE %[1]s.height > $1
 		 ORDER BY %[1]s.height;`,
 		TableNameStakeInfo, TableNameSummaries)
 
@@ -1007,8 +1008,8 @@ func (db *DB) RetrieveAllPoolValAndSize(chartsData *dbtypes.ChartsData) (*dbtype
 
 	for rows.Next() {
 		var pval, psize float64
-		var timestamp int64
-		if err = rows.Scan(&psize, &pval, &timestamp); err != nil {
+		var timestamp, count int64
+		if err = rows.Scan(&psize, &pval, &timestamp, &count); err != nil {
 			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
 			return nil, err
 		}
