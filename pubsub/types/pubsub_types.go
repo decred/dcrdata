@@ -1,22 +1,24 @@
 package types
 
 import (
-	"errors"
 	"net"
+	"strings"
 
 	exptypes "github.com/decred/dcrdata/v4/explorer/types"
 )
 
 var (
-	// ErrWsClosed is the error when a websocket.(*Conn).Close tries to close an
-	// already closed connection. See Go's src/internal/poll/fd.go.
-	ErrWsClosed = errors.New("use of closed network connection")
+	// ErrWsClosed is the error message when a websocket.(*Conn).Close tries to
+	// close an already closed connection. See Go's src/internal/poll/fd.go.
+	ErrWsClosed = "use of closed network connection"
 )
 
 // IsWSClosedErr checks if the passed error indicates a closed websocket
 // connection.
 func IsWSClosedErr(err error) (closedErr bool) {
-	return err == ErrWsClosed
+	// Must use strings.Contains to catch errors like "write tcp
+	// 127.0.0.1:7777->127.0.0.1:39196: use of closed network connection".
+	return strings.Contains(err.Error(), ErrWsClosed)
 }
 
 // IsIOTimeoutErr checks if the passed error indicates an I/O timeout error.
