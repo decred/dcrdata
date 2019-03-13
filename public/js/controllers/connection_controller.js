@@ -4,7 +4,7 @@ import Notify from 'notifyjs'
 
 export default class extends Controller {
   static get targets () {
-    return ['indicator']
+    return ['indicator', 'status']
   }
 
   connect () {
@@ -38,7 +38,7 @@ export default class extends Controller {
       this.indicatorTarget.classList.remove('connected')
       this.indicatorTarget.classList.add('disconnected')
     }
-    this.indicatorTarget.innerHTML = msg + '<div></div>'
+    this.statusTarget.textContent = `${msg} `
   }
 
   requestNotifyPermission () {

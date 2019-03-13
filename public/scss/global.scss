@@ -5,14 +5,10 @@ html {
   -webkit-font-smoothing: antialiased !important;
   -moz-font-smoothing: antialiased !important;
   text-rendering: optimizelegibility !important;
-  padding-top: 35px;
+  padding-top: 45px;
+  padding-bottom: 34px;
 }
 
-body {
-  padding-bottom: 2.1rem;
-  padding-top: 0.8em;
-}
-
-.container.main {
-  padding-top: 0.5em;
+::placeholder {
+  color: $gray-600;
 }
