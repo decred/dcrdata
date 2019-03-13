@@ -1221,7 +1221,7 @@ func waitForSync(ctx context.Context, base chan dbtypes.SyncResult, aux chan dbt
 
 func connectNodeRPC(cfg *config, ntfnHandlers *rpcclient.NotificationHandlers) (*rpcclient.Client, semver.Semver, error) {
 	return rpcutils.ConnectNodeRPC(cfg.DcrdServ, cfg.DcrdUser, cfg.DcrdPass,
-		cfg.DcrdCert, cfg.DisableDaemonTLS, ntfnHandlers)
+		cfg.DcrdCert, cfg.DisableDaemonTLS, true, ntfnHandlers)
 }
 
 func listenAndServeProto(ctx context.Context, wg *sync.WaitGroup, listen, proto string, mux http.Handler) {

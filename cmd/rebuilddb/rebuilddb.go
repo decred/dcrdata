@@ -56,7 +56,7 @@ func mainCore() int {
 
 	// Connect to node RPC server
 	client, _, err := rpcutils.ConnectNodeRPC(cfg.DcrdServ, cfg.DcrdUser,
-		cfg.DcrdPass, cfg.DcrdCert, cfg.DisableDaemonTLS)
+		cfg.DcrdPass, cfg.DcrdCert, cfg.DisableDaemonTLS, false)
 	if err != nil {
 		log.Fatalf("Unable to connect to RPC server: %v", err)
 		return 1

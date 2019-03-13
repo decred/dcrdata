@@ -44,7 +44,7 @@ func testCommonAncestorPositive(t *testing.T, client *rpcclient.Client, hashA, h
 }
 
 func TestCommonAncestorOnlineDifferentHeights(t *testing.T) {
-	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, "", true)
+	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, """", true, false))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +66,7 @@ func TestCommonAncestorOnlineDifferentHeights(t *testing.T) {
 }
 
 func TestCommonAncestorOnlineSameHeights(t *testing.T) {
-	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, "", true)
+	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, """", true, false))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestCommonAncestorOnlineSameHeights(t *testing.T) {
 }
 
 func TestCommonAncestorOnlineSameHashes(t *testing.T) {
-	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, "", true)
+	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, """", true, false))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +101,7 @@ func TestCommonAncestorOnlineSameHashes(t *testing.T) {
 }
 
 func TestCommonAncestorOnlineSharedBlock(t *testing.T) {
-	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, "", true)
+	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, """", true, false))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +125,7 @@ func TestCommonAncestorOnlineSharedBlock(t *testing.T) {
 }
 
 func TestCommonAncestorOnlineGenesis(t *testing.T) {
-	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, "", true)
+	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, """", true, false))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +164,7 @@ func TestCommonAncestorOnlineGenesis(t *testing.T) {
 }
 
 func TestCommonAncestorOnlineBadHash(t *testing.T) {
-	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, "", true)
+	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, """", true, false))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,7 +187,7 @@ func TestCommonAncestorOnlineBadHash(t *testing.T) {
 }
 
 func TestCommonAncestorOnlineTooLong(t *testing.T) {
-	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, "", true)
+	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, """", true, false))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,7 +210,7 @@ func TestCommonAncestorOnlineTooLong(t *testing.T) {
 }
 
 func TestSideChains(t *testing.T) {
-	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, "", true)
+	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, """", true, false))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -222,7 +222,7 @@ func TestSideChains(t *testing.T) {
 }
 
 func TestSideChainFull(t *testing.T) {
-	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, "", true)
+	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, """", true, false))
 	if err != nil {
 		t.Fatal(err)
 	}
