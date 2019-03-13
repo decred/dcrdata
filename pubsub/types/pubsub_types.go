@@ -1,36 +1,34 @@
 package types
 
 import (
-	"strings"
+	"errors"
+	"net"
 
 	exptypes "github.com/decred/dcrdata/v4/explorer/types"
 )
 
 var (
-	// ErrWsClosed is the error message text when a websocket.(*Conn).Close
-	// tries to close an already closed connection.
-	ErrWsClosed = "use of closed network connection"
-
-	// ErrWsClosed is the error message text when a websocket.(*Conn).Close
-	// fails to close a connection due to a passed write deadline.
-	ErrIOTimeout = "i/o timeout"
+	// ErrWsClosed is the error when a websocket.(*Conn).Close tries to close an
+	// already closed connection. See Go's src/internal/poll/fd.go.
+	ErrWsClosed = errors.New("use of closed network connection")
 )
 
 // IsWSClosedErr checks if the passed error indicates a closed websocket
 // connection.
 func IsWSClosedErr(err error) (closedErr bool) {
-	if err != nil && strings.Contains(err.Error(), ErrWsClosed) {
-		closedErr = true
-	}
-	return
+	return err == ErrWsClosed
 }
 
 // IsIOTimeoutErr checks if the passed error indicates an I/O timeout error.
-func IsIOTimeoutErr(err error) (closedErr bool) {
-	if err != nil && strings.Contains(err.Error(), ErrIOTimeout) {
-		closedErr = true
-	}
-	return
+func IsIOTimeoutErr(err error) bool {
+	t, ok := err.(net.Error)
+	return ok && t.Timeout()
+}
+
+// IsTemporaryErr checks if the passed error indicates a transient error.
+func IsTemporaryErr(err error) bool {
+	t, ok := err.(net.Error)
+	return ok && t.Temporary()
 }
 
 // WebSocketMessage represents the JSON object used to send and receive typed

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 	"time"
 
 	exptypes "github.com/decred/dcrdata/v4/explorer/types"
@@ -165,7 +164,7 @@ func main() {
 
 		resp, err := cl.ReceiveMsg()
 		if err != nil {
-			if strings.Contains(err.Error(), "i/o timeout") {
+			if pstypes.IsIOTimeoutErr(err) {
 				continue
 			}
 			return

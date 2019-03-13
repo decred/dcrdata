@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -199,7 +198,7 @@ func (psh *PubSubHub) receiveLoop(conn *connection) {
 		msg := new(pstypes.WebSocketMessage)
 		if err := websocket.JSON.Receive(ws, &msg); err != nil {
 			// Keep listening for new messages if the read deadline has passed.
-			if strings.Contains(err.Error(), "i/o timeout") {
+			if pstypes.IsIOTimeoutErr(err) {
 				//log.Tracef("No data read from client in %v. Trying again.", wsReadTimeout)
 				continue
 			}

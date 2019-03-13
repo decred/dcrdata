@@ -1,9 +1,11 @@
 module github.com/decred/dcrdata/pubsub/democlient
 
 require (
-	github.com/btcsuite/go-flags v0.0.0-20150116065318-6c288d648c1c
 	github.com/decred/dcrdata/v4 v4.0.0-20190129203925-bb16cf817719
-	golang.org/x/net v0.0.0-20181217023233-e147a9138326
+	github.com/jessevdk/go-flags v1.4.0
+	golang.org/x/crypto v0.0.0-20190313024323-a1f597ede03a // indirect
+	golang.org/x/net v0.0.0-20190313082753-5c2c250b6a70
+	golang.org/x/sys v0.0.0-20190312061237-fead79001313 // indirect
 	gopkg.in/AlecAivazis/survey.v1 v1.8.2
 )
 
