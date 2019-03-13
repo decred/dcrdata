@@ -10,6 +10,7 @@ import (
 	"os"
 
 	"github.com/asdine/storm"
+	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson/v2"
 )
 
@@ -100,13 +101,14 @@ func (db *AgendaDB) loadAgenda(agendaID string) (*AgendaTagged, error) {
 }
 
 // agendasForVoteVersion fetches the agendas using the vote versions provided.
-func agendasForVoteVersion(ver uint32, client DeploymentSource) (agendas []AgendaTagged) {
+func agendasForVoteVersion(ver uint32, client DeploymentSource) ([]AgendaTagged, error) {
 	voteInfo, err := client.GetVoteInfo(ver)
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	agendas = make([]AgendaTagged, 0, len(voteInfo.Agendas))
+	// Set the agendas slice capacity.
+	agendas := make([]AgendaTagged, 0, len(voteInfo.Agendas))
 	for i := range voteInfo.Agendas {
 		v := &voteInfo.Agendas[i]
 		agendas = append(agendas, AgendaTagged{
@@ -122,42 +124,37 @@ func agendasForVoteVersion(ver uint32, client DeploymentSource) (agendas []Agend
 		})
 	}
 
-	return
+	return agendas, nil
 }
 
-// IsAgendasAvailable checks for the availabily of agendas in the db by vote
-// version.
-func (db *AgendaDB) isAgendasAvailable(version uint32) bool {
-	agenda := make([]AgendaTagged, 0)
-	err := db.sdb.Find("VoteVersion", version, &agenda, storm.Limit(1))
-	if len(agenda) == 0 || err != nil {
-		return false
-	}
-
-	return true
-}
-
-// updatedb used when needed to keep the saved db up-to-date.
-func (db *AgendaDB) updatedb(voteVersion uint32, client DeploymentSource) int {
+// updatedb checks if vote versions available in chaincfg.ConsensusDeployment
+// are already updated in the agendas db, if not yet their data is updated.
+// dcrjson.GetVoteInfoResult and chaincfg.ConsensusDeployment hold almost similar
+// data contents but chaincfg.Vote does not contain the important vote status
+// field that is found in dcrjson.Agenda.
+func (db *AgendaDB) updatedb(client DeploymentSource,
+	activeVersions map[uint32][]chaincfg.ConsensusDeployment) (int, error) {
 	var agendas []AgendaTagged
-	for {
-		taggedAgendas := agendasForVoteVersion(voteVersion, client)
-		if len(taggedAgendas) > 0 {
-			agendas = append(agendas, taggedAgendas...)
-			voteVersion++
-		} else {
-			break
+	for voteVersion := range activeVersions {
+		taggedAgendas, err := agendasForVoteVersion(voteVersion, client)
+		if err != nil || len(taggedAgendas) == 0 {
+			return -1, fmt.Errorf("vote version %d agendas retrieval failed: %v",
+				voteVersion, err)
 		}
+
+		agendas = append(agendas, taggedAgendas...)
 	}
 
 	for i := range agendas {
-		err := db.storeAgenda(&agendas[i])
+		agenda := &agendas[i]
+		err := db.storeAgenda(agenda)
 		if err != nil {
-			log.Errorf("Agenda not saved: %v \n", err)
+			return -1, fmt.Errorf("agenda '%s' was not saved: %v",
+				agenda.Description, err)
 		}
 	}
 
-	return len(agendas)
+	return len(agendas), nil
 }
 
 // storeAgenda saves an agenda in the database.
@@ -167,22 +164,21 @@ func (db *AgendaDB) storeAgenda(agenda *AgendaTagged) error {
 
 // CheckAgendasUpdates checks for update at the start of the process and will
 // proceed to update when necessary.
-func (db *AgendaDB) CheckAgendasUpdates(client DeploymentSource) error {
+func (db *AgendaDB) CheckAgendasUpdates(client DeploymentSource,
+	activeVersions map[uint32][]chaincfg.ConsensusDeployment) error {
 	if db == nil || db.sdb == nil {
 		return errDefault
 	}
 
-	// voteVersion is vote version as of when lnsupport and sdiffalgorithm votes
-	// casting was activated. More information can be found here
-	// https://docs.decred.org/getting-started/user-guides/agenda-voting/#voting-archive
-	// Also at the moment all agenda version information available in the rpc
-	// starts from version 4 by default.
-	var voteVersion uint32 = 4
-	for db.isAgendasAvailable(voteVersion) {
-		voteVersion++
+	if len(activeVersions) == 0 {
+		return nil
 	}
 
-	numRecords := db.updatedb(voteVersion, client)
+	numRecords, err := db.updatedb(client, activeVersions)
+	if err != nil {
+		return fmt.Errorf("agendas.CheckAgendasUpdates failed: %v", err)
+	}
+
 	log.Infof("%d agenda records (agendas) were updated", numRecords)
 
 	return db.countProperties()
