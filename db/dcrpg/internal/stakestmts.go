@@ -378,6 +378,15 @@ const (
 	SetVoteMileStoneheights = `UPDATE agendas SET status = $2, locked_in = $3,
 		activated = $4, hard_forked = $5 WHERE id = $1;`
 
+	// DeleteAgendasDuplicateRows removes rows that would violate the unique
+	// index uix_agendas_name. This should be run prior to creating the index.
+	DeleteAgendasDuplicateRows = `DELETE FROM agendas
+		WHERE id IN (SELECT id FROM (
+				SELECT id, ROW_NUMBER()
+				OVER (partition BY name ORDER BY id) AS rnum
+				FROM agendas) t
+			WHERE t.rnum > 1);`
+
 	// agendas votes table
 
 	CreateAgendaVotesTable = `CREATE TABLE IF NOT EXISTS agenda_votes (
@@ -399,6 +408,15 @@ const (
 	IndexAgendaVotesTableOnAgendaID = `CREATE UNIQUE INDEX ` + IndexOfAgendaVotesTableOnRowIDs +
 		` ON agenda_votes(votes_row_id, agendas_row_id);`
 	DeindexAgendaVotesTableOnAgendaID = `DROP INDEX ` + IndexOfAgendaVotesTableOnRowIDs + `;`
+
+	// DeleteAgendaVotesDuplicateRows removes rows that would violate the unique
+	// index uix_agenda_votes. This should be run prior to creating the index.
+	DeleteAgendaVotesDuplicateRows = `DELETE FROM agenda_votes
+		WHERE id IN (SELECT id FROM (
+				SELECT id, ROW_NUMBER()
+				OVER (partition BY votes_row_id, agendas_row_id ORDER BY id) AS rnum
+				FROM agenda_votes) t
+			WHERE t.rnum > 1);`
 
 	// Select
 

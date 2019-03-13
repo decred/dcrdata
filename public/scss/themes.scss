@@ -71,19 +71,25 @@ body.darkBG {
     color: rgba(148, 255, 202, 0.75) !important;
   }
 
-  .flex-table .flex-table-row,
-  .flex-table .header,
-  .table tr {
-    border-bottom: 1px solid #2d2d2d;
-  }
-
-  .table thead th {
+  table thead th {
     vertical-align: bottom;
   }
 
-  .flex-table .header,
-  .table thead tr {
+  table thead tr {
     background: #2d2d2d;
+  }
+
+  table tr.disabled-row {
+    background-color: #ff00000d;
+  }
+
+  table.table {
+    tr,
+    th,
+    td {
+      color: #fdfdfd; // Set this explicitly to prevent bootstrap > 4.3.1 override
+      border-bottom: 1px solid #2d2d2d;
+    }
   }
 
   .top-nav,

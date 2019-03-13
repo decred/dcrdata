@@ -17,6 +17,7 @@ import (
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
@@ -214,6 +215,30 @@ func DeleteDuplicateMisses(db *sql.DB) (int64, error) {
 	}
 	execErrPrefix := "failed to delete duplicate misses: "
 	return sqlExec(db, internal.DeleteMissesDuplicateRows, execErrPrefix)
+}
+
+// DeleteDuplicateAgendas deletes rows in agendas with duplicate names leaving
+// the one row with the lowest id.
+func DeleteDuplicateAgendas(db *sql.DB) (int64, error) {
+	if isuniq, err := IsUniqueIndex(db, "uix_agendas_name"); err != nil && err != sql.ErrNoRows {
+		return 0, err
+	} else if isuniq {
+		return 0, nil
+	}
+	execErrPrefix := "failed to delete duplicate agendas: "
+	return sqlExec(db, internal.DeleteAgendasDuplicateRows, execErrPrefix)
+}
+
+// DeleteDuplicateAgendaVotes deletes rows in agenda_votes with duplicate
+// votes-row-id and agendas-row-id leaving the one row with the lowest id.
+func DeleteDuplicateAgendaVotes(db *sql.DB) (int64, error) {
+	if isuniq, err := IsUniqueIndex(db, "uix_agenda_votes"); err != nil && err != sql.ErrNoRows {
+		return 0, err
+	} else if isuniq {
+		return 0, nil
+	}
+	execErrPrefix := "failed to delete duplicate agenda_votes: "
+	return sqlExec(db, internal.DeleteAgendaVotesDuplicateRows, execErrPrefix)
 }
 
 // --- stake (votes, tickets, misses) tables ---
@@ -1247,11 +1272,10 @@ func retrieveAddressTxsCount(ctx context.Context, db *sql.DB, address, interval 
 // distinct spending transactions, and the fraction spent to and received from
 // stake-related trasnsactions.
 func RetrieveAddressBalance(ctx context.Context, db *sql.DB, address string) (balance *dbtypes.AddressBalance, err error) {
-	// The sql.Tx does not have a timeout, as the individial queries will.
-	balance = new(dbtypes.AddressBalance)
-	balance.Address = address
-	var fromStake, toStake int64
+	// Never return nil *AddressBalance.
+	balance = &dbtypes.AddressBalance{Address: address}
 
+	// The sql.Tx does not have a timeout, as the individial queries will.
 	var dbtx *sql.Tx
 	dbtx, err = db.BeginTx(context.Background(), &sql.TxOptions{
 		Isolation: sql.LevelDefault,
@@ -1278,6 +1302,7 @@ func RetrieveAddressBalance(ctx context.Context, db *sql.DB, address string) (ba
 		}
 	}
 
+	var fromStake, toStake int64
 	for rows.Next() {
 		var count, totalValue int64
 		var noMatchingTx, isFunding, isRegular bool
@@ -1409,7 +1434,7 @@ func RetrieveAddressUTXOs(ctx context.Context, db *sql.DB, address string, curre
 // short list of recently (defined as greater than recentBlockHeight) confirmed
 // transactions that can be used to validate mempool status.
 func RetrieveAddressTxnsOrdered(ctx context.Context, db *sql.DB, addresses []string,
-	recentBlockTime int64) (txs []string, recenttxs []string, err error) {
+	recentBlockTime int64) (txs, recenttxs []chainhash.Hash, err error) {
 	var stmt *sql.Stmt
 	stmt, err = db.Prepare(internal.SelectAddressesAllTxn)
 	if err != nil {
@@ -1424,6 +1449,7 @@ func RetrieveAddressTxnsOrdered(ctx context.Context, db *sql.DB, addresses []str
 	}
 	defer closeRows(rows)
 
+	var tx *chainhash.Hash
 	var txHash string
 	var time dbtypes.TimeDef
 	for rows.Next() {
@@ -1431,9 +1457,13 @@ func RetrieveAddressTxnsOrdered(ctx context.Context, db *sql.DB, addresses []str
 		if err != nil {
 			return // return what we got, plus the error
 		}
-		txs = append(txs, txHash)
+		tx, err = chainhash.NewHashFromStr(txHash)
+		if err != nil {
+			return
+		}
+		txs = append(txs, *tx)
 		if time.UNIX() > recentBlockTime {
-			recenttxs = append(recenttxs, txHash)
+			recenttxs = append(recenttxs, *tx)
 		}
 	}
 	return

@@ -316,7 +316,7 @@
       </tbody>
   </table>
   {{else}}
-  <table class="table table-mono-cells table-sm striped">
+  <table class="table table-mono-cells">
       <tr>
           <td>
               No transactions found for this address.
@@ -328,6 +328,7 @@
 
 {{define "mempoolDump"}}
   {{$likely := .LikelyMineable}}
+  data-id="{{.Ident}}"
   data-total="{{$likely.Total}}"
   data-size="{{$likely.Size}}"
   data-count="{{$likely.Count}}"

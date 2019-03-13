@@ -50,10 +50,10 @@
   -moz-user-select: all;
   user-select: all;
   z-index: 20;
-  word-break: break-word;
+  word-break: break-all;
   overflow: hidden;
   height: 1.2em;
-  min-width: 4em;
+  padding-top: 1px;
 }
 
 a.elidedhash {
@@ -73,7 +73,7 @@ a.elidedhash:visited {
   content: attr(data-head);
   position: absolute;
   left: 0;
-  top: 0;
+  top: 2px;
   right: 3em;
   word-break: normal;
   text-overflow: ellipsis;
@@ -96,7 +96,7 @@ div.elidedhash::after {
   content: attr(data-tail);
   position: absolute;
   right: 0;
-  top: 0;
+  top: 2px;
   width: 3em;
   z-index: 10;
   word-break: normal;

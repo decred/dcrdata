@@ -563,15 +563,8 @@ func makeBlockTransactions(blockVerbose *dcrjson.GetBlockVerboseResult) *apitype
 	return blockTransactions
 }
 
-func (db *WiredDB) GetAllTxIn(txid string) []*apitypes.TxIn {
-
-	txhash, err := chainhash.NewHashFromStr(txid)
-	if err != nil {
-		log.Errorf("Invalid transaction hash %s", txid)
-		return nil
-	}
-
-	tx, err := db.client.GetRawTransaction(txhash)
+func (db *WiredDB) GetAllTxIn(txid *chainhash.Hash) []*apitypes.TxIn {
+	tx, err := db.client.GetRawTransaction(txid)
 	if err != nil {
 		log.Errorf("Unknown transaction %s", txid)
 		return nil
@@ -598,15 +591,8 @@ func (db *WiredDB) GetAllTxIn(txid string) []*apitypes.TxIn {
 	return allTxIn
 }
 
-func (db *WiredDB) GetAllTxOut(txid string) []*apitypes.TxOut {
-
-	txhash, err := chainhash.NewHashFromStr(txid)
-	if err != nil {
-		log.Infof("Invalid transaction hash %s", txid)
-		return nil
-	}
-
-	tx, err := db.client.GetRawTransactionVerbose(txhash)
+func (db *WiredDB) GetAllTxOut(txid *chainhash.Hash) []*apitypes.TxOut {
+	tx, err := db.client.GetRawTransactionVerbose(txid)
 	if err != nil {
 		log.Warnf("Unknown transaction %s", txid)
 		return nil
@@ -643,7 +629,7 @@ func (db *WiredDB) GetAllTxOut(txid string) []*apitypes.TxOut {
 // GetRawTransactionWithPrevOutAddresses looks up the previous outpoints for a
 // transaction and extracts a slice of addresses encoded by the pkScript for
 // each previous outpoint consumed by the transaction.
-func (db *WiredDB) GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes.Tx, [][]string) {
+func (db *WiredDB) GetRawTransactionWithPrevOutAddresses(txid *chainhash.Hash) (*apitypes.Tx, [][]string) {
 	tx, _ := db.getRawTransaction(txid)
 	if tx == nil {
 		return nil, nil
@@ -669,12 +655,12 @@ func (db *WiredDB) GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes
 	return tx, prevOutAddresses
 }
 
-func (db *WiredDB) GetRawTransaction(txid string) *apitypes.Tx {
+func (db *WiredDB) GetRawTransaction(txid *chainhash.Hash) *apitypes.Tx {
 	tx, _ := db.getRawTransaction(txid)
 	return tx
 }
 
-func (db *WiredDB) GetTransactionHex(txid string) string {
+func (db *WiredDB) GetTransactionHex(txid *chainhash.Hash) string {
 	_, hex := db.getRawTransaction(txid)
 	return hex
 }
@@ -707,7 +693,7 @@ func (db *WiredDB) SendRawTransaction(txhex string) (string, error) {
 	return hash.String(), err
 }
 
-func (db *WiredDB) GetTrimmedTransaction(txid string) *apitypes.TrimmedTx {
+func (db *WiredDB) GetTrimmedTransaction(txid *chainhash.Hash) *apitypes.TrimmedTx {
 	tx, _ := db.getRawTransaction(txid)
 	if tx == nil {
 		return nil
@@ -722,7 +708,7 @@ func (db *WiredDB) GetTrimmedTransaction(txid string) *apitypes.TrimmedTx {
 	}
 }
 
-func (db *WiredDB) getRawTransaction(txid string) (tx *apitypes.Tx, hex string) {
+func (db *WiredDB) getRawTransaction(txid *chainhash.Hash) (tx *apitypes.Tx, hex string) {
 	var err error
 	tx, hex, err = rpcutils.APITransaction(db.client, txid)
 	if err != nil {
@@ -763,13 +749,7 @@ func (db *WiredDB) GetStakeVersionsLatest() (*dcrjson.StakeVersions, error) {
 // on the stake version with which dcrdata is compiled with (chaincfg.Params),
 // the Choices field of VoteInfo may be a nil slice even if the votebits were
 // set for a previously-valid agenda.
-func (db *WiredDB) GetVoteInfo(txid string) (*apitypes.VoteInfo, error) {
-	txhash, err := chainhash.NewHashFromStr(txid)
-	if err != nil {
-		log.Errorf("Invalid transaction hash %s", txid)
-		return nil, nil
-	}
-
+func (db *WiredDB) GetVoteInfo(txhash *chainhash.Hash) (*apitypes.VoteInfo, error) {
 	tx, err := db.client.GetRawTransaction(txhash)
 	if err != nil {
 		log.Errorf("GetRawTransaction failed for: %v", txhash)
@@ -1788,7 +1768,11 @@ func (db *WiredDB) GetMempool() []exptypes.MempoolTx {
 
 	txs := make([]exptypes.MempoolTx, 0, len(mempooltxs))
 
-	for hash, tx := range mempooltxs {
+	for hashStr, tx := range mempooltxs {
+		hash, err := chainhash.NewHashFromStr(hashStr)
+		if err != nil {
+			continue
+		}
 		rawtx, hex := db.getRawTransaction(hash)
 		total := 0.0
 		if rawtx == nil {
@@ -1824,7 +1808,7 @@ func (db *WiredDB) GetMempool() []exptypes.MempoolTx {
 		}
 		txs = append(txs, exptypes.MempoolTx{
 			TxID:     msgTx.TxHash().String(),
-			Hash:     hash,
+			Hash:     hashStr,
 			Time:     tx.Time,
 			Size:     tx.Size,
 			TotalOut: total,
@@ -1838,15 +1822,10 @@ func (db *WiredDB) GetMempool() []exptypes.MempoolTx {
 }
 
 // TxHeight gives the block height of the transaction id specified
-func (db *WiredDB) TxHeight(txid string) (height int64) {
-	txhash, err := chainhash.NewHashFromStr(txid)
+func (db *WiredDB) TxHeight(txid *chainhash.Hash) (height int64) {
+	txraw, err := db.client.GetRawTransactionVerbose(txid)
 	if err != nil {
-		log.Errorf("Invalid transaction hash %s", txid)
-		return 0
-	}
-	txraw, err := db.client.GetRawTransactionVerbose(txhash)
-	if err != nil {
-		log.Errorf("GetRawTransactionVerbose failed for: %v", txhash)
+		log.Errorf("GetRawTransactionVerbose failed for: %v", txid)
 		return 0
 	}
 	height = txraw.BlockHeight

@@ -336,13 +336,7 @@ func reverseStringSlice(s []string) {
 }
 
 // GetTransactionVerboseByID get a transaction by transaction id
-func GetTransactionVerboseByID(client *rpcclient.Client, txid string) (*dcrjson.TxRawResult, error) {
-	txhash, err := chainhash.NewHashFromStr(txid)
-	if err != nil {
-		log.Errorf("Invalid transaction hash %s", txid)
-		return nil, err
-	}
-
+func GetTransactionVerboseByID(client *rpcclient.Client, txhash *chainhash.Hash) (*dcrjson.TxRawResult, error) {
 	txraw, err := client.GetRawTransactionVerbose(txhash)
 	if err != nil {
 		log.Errorf("GetRawTransactionVerbose failed for: %v", txhash)
@@ -565,7 +559,7 @@ func UnconfirmedTxnsForAddress(client *rpcclient.Client, address string, params 
 
 // APITransaction uses the RPC client to retrieve the specified transaction, and
 // convert the data into a *apitypes.Tx.
-func APITransaction(client *rpcclient.Client, txid string) (tx *apitypes.Tx, hex string, err error) {
+func APITransaction(client *rpcclient.Client, txid *chainhash.Hash) (tx *apitypes.Tx, hex string, err error) {
 	txraw, err := GetTransactionVerboseByID(client, txid)
 	if err != nil {
 		err = fmt.Errorf("APITransaction failed for %v: %v", txid, err)

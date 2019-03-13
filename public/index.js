@@ -33,7 +33,7 @@ function sleep (ms) {
 async function createWebSocket (loc) {
   // wait a bit to prevent websocket churn from drive by page loads
   var uri = getSocketURI(loc)
-  await sleep(3000)
+  await sleep(1000)
   ws.connect(uri)
 
   var updateBlockData = function (event) {

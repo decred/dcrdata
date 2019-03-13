@@ -441,6 +441,7 @@ type MempoolInfo struct {
 	Tickets      []MempoolTx `json:"tickets"`
 	Votes        []MempoolTx `json:"votes"`
 	Revocations  []MempoolTx `json:"revs"`
+	Ident        uint64      `json:"id"`
 }
 
 // DeepCopy makes a deep copy of MempoolInfo, where all the slice and map data
@@ -531,6 +532,13 @@ func (mpi *MempoolInfo) Tx(txid string) (MempoolTx, bool) {
 		return getTxFromList(txid, mpi.Revocations)
 	}
 	return MempoolTx{}, false
+}
+
+// ID can be used to track state changes.
+func (mpi *MempoolInfo) ID() uint64 {
+	mpi.RLock()
+	defer mpi.RUnlock()
+	return mpi.Ident
 }
 
 // FilterRegularTx returns a slice of all the regular (non-stake) transactions
@@ -738,8 +746,8 @@ func (vi *VotingInfo) Tally(vinfo *VoteInfo) {
 	}
 }
 
-// Tallys fetches the mempool VoteTally.VoteList if found, else a list of
-// VoteMissing.
+// BlockStatus fetches a list of votes in mempool, for the provided block hash.
+// If not found, a list of VoteMissing is returned.
 func (vi *VotingInfo) BlockStatus(hash string) ([]int, int) {
 	tally, ok := vi.VoteTallys[hash]
 	if ok {

@@ -13,9 +13,12 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 
+	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson/v2"
+	"github.com/decred/dcrd/dcrutil"
 	apitypes "github.com/decred/dcrdata/v4/api/types"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/docgen"
@@ -137,32 +140,38 @@ func GetRawHexTx(r *http.Request) string {
 
 // GetTxIDCtx retrieves the ctxTxHash data from the request context. If not set,
 // the return value is an empty string.
-func GetTxIDCtx(r *http.Request) (string, error) {
-	hash, ok := r.Context().Value(ctxTxHash).(string)
+func GetTxIDCtx(r *http.Request) (*chainhash.Hash, error) {
+	hashStr, ok := r.Context().Value(ctxTxHash).(string)
 	if !ok {
 		apiLog.Trace("txid not set")
-		return "", fmt.Errorf("txid not set")
+		return nil, fmt.Errorf("txid not set")
 	}
-	if _, err := chainhash.NewHashFromStr(hash); err != nil {
-		apiLog.Trace("invalid hash '%s': %v", hash, err)
-		return "", fmt.Errorf("invalid hash '%s': %v", hash, err)
+	hash, err := chainhash.NewHashFromStr(hashStr)
+	if err != nil {
+		apiLog.Trace("invalid hash '%s': %v", hashStr, err)
+		return nil, fmt.Errorf("invalid hash '%s': %v",
+			hashStr, err)
 	}
 	return hash, nil
 }
 
 // GetTxnsCtx retrieves the ctxTxns data from the request context. If not set,
 // the return value is an empty string slice.
-func GetTxnsCtx(r *http.Request) ([]string, error) {
-	hashes, ok := r.Context().Value(ctxTxns).([]string)
-	if !ok || len(hashes) == 0 {
+func GetTxnsCtx(r *http.Request) ([]*chainhash.Hash, error) {
+	hashStrs, ok := r.Context().Value(ctxTxns).([]string)
+	if !ok || len(hashStrs) == 0 {
 		apiLog.Trace("ctxTxns not set")
 		return nil, fmt.Errorf("ctxTxns not set")
 	}
-	for _, hash := range hashes {
-		if _, err := chainhash.NewHashFromStr(hash); err != nil {
-			apiLog.Trace("invalid hash '%s': %v", hash, err)
-			return nil, fmt.Errorf("invalid hash '%s': %v", hash, err)
+
+	var hashes []*chainhash.Hash
+	for _, hashStr := range hashStrs {
+		hash, err := chainhash.NewHashFromStr(hashStr)
+		if err != nil {
+			apiLog.Trace("invalid hash '%s': %v", hashStr, err)
+			return nil, fmt.Errorf("invalid hash '%s': %v", hashStr, err)
 		}
+		hashes = append(hashes, hash)
 	}
 
 	return hashes, nil
@@ -229,13 +238,28 @@ func GetBlockHashCtx(r *http.Request) (string, error) {
 
 // GetAddressCtx retrieves the ctxAddress data from the request context. If not
 // set, the return value is an empty string.
-func GetAddressCtx(r *http.Request) string {
-	address, ok := r.Context().Value(CtxAddress).(string)
-	if !ok {
+func GetAddressCtx(r *http.Request, activeNetParams *chaincfg.Params) ([]string, error) {
+	addressStr, ok := r.Context().Value(CtxAddress).(string)
+	if !ok || len(addressStr) == 0 {
 		apiLog.Trace("address not set")
-		return ""
+		return []string{}, fmt.Errorf("address not set")
 	}
-	return address
+	addressStrs := strings.Split(addressStr, ",")
+
+	var addrStrs []string
+	for _, addrStr := range addressStrs {
+		address, err := dcrutil.DecodeAddress(addrStr)
+		if err != nil {
+			return []string{}, fmt.Errorf("invalid address '%v': %v",
+				addrStr, err)
+		}
+		if !address.IsForNet(activeNetParams) {
+			return []string{}, fmt.Errorf("%v is invalid for this network",
+				addrStr)
+		}
+		addrStrs = append(addrStrs, addrStr)
+	}
+	return addrStrs, nil
 }
 
 // GetChartTypeCtx retrieves the ctxChart data from the request context.

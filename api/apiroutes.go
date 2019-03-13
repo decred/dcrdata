@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/wire"
@@ -49,16 +50,16 @@ type DataSourceLite interface {
 	GetBlockHeaderByHash(hash string) (*wire.BlockHeader, error)
 	GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVerboseResult
 	GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult
-	GetRawTransaction(txid string) *apitypes.Tx
-	GetTransactionHex(txid string) string
-	GetTrimmedTransaction(txid string) *apitypes.TrimmedTx
-	GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes.Tx, [][]string)
-	GetVoteInfo(txid string) (*apitypes.VoteInfo, error)
+	GetRawTransaction(txid *chainhash.Hash) *apitypes.Tx
+	GetTransactionHex(txid *chainhash.Hash) string
+	GetTrimmedTransaction(txid *chainhash.Hash) *apitypes.TrimmedTx
+	GetRawTransactionWithPrevOutAddresses(txid *chainhash.Hash) (*apitypes.Tx, [][]string)
+	GetVoteInfo(txid *chainhash.Hash) (*apitypes.VoteInfo, error)
 	GetVoteVersionInfo(ver uint32) (*dcrjson.GetVoteInfoResult, error)
 	GetStakeVersions(txHash string, count int32) (*dcrjson.GetStakeVersionsResult, error)
 	GetStakeVersionsLatest() (*dcrjson.StakeVersions, error)
-	GetAllTxIn(txid string) []*apitypes.TxIn
-	GetAllTxOut(txid string) []*apitypes.TxOut
+	GetAllTxIn(txid *chainhash.Hash) []*apitypes.TxIn
+	GetAllTxOut(txid *chainhash.Hash) []*apitypes.TxOut
 	GetTransactionsForBlock(idx int64) *apitypes.BlockTransactions
 	GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions
 	GetFeeInfo(idx int) *dcrjson.FeeInfoBlock
@@ -740,8 +741,10 @@ func (c *appContext) getTxVoteInfo(w http.ResponseWriter, r *http.Request) {
 	}
 	vinfo, err := c.BlockData.GetVoteInfo(txid)
 	if err != nil {
-		apiLog.Errorf("Unable to get vote info for transaction %s", txid)
-		http.Error(w, "Unable to get vote info. Is tx "+txid+" a vote?", 422)
+		err = fmt.Errorf("unable to get vote info for tx %v: %v",
+			txid, err)
+		apiLog.Error(err)
+		http.Error(w, err.Error(), 422)
 		return
 	}
 	writeJSON(w, vinfo, c.getIndentQuery(r))
@@ -1415,12 +1418,13 @@ func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	address := m.GetAddressCtx(r)
-	if address == "" {
+	addresses, err := m.GetAddressCtx(r, c.Params)
+	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
+	address := addresses[0]
 	totals, err := c.AuxDataSource.AddressTotals(address)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("AddressTotals: %v", err)
@@ -1444,12 +1448,12 @@ func (c *appContext) addressIoCsv(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	address := m.GetAddressCtx(r)
-	if address == "" {
-		log.Debugf("Failed to parse address from request")
+	addresses, err := m.GetAddressCtx(r, c.Params)
+	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return
 	}
+	address := addresses[0]
 
 	_, _, addrErr := txhelpers.AddressValidation(address, c.Params)
 	if addrErr != nil {
@@ -1481,9 +1485,15 @@ func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	address := m.GetAddressCtx(r)
+	addresses, err := m.GetAddressCtx(r, c.Params)
+	if err != nil || len(addresses) > 1 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+	address := addresses[0]
+
 	chartGrouping := m.GetChartGroupingCtx(r)
-	if address == "" || chartGrouping == "" {
+	if chartGrouping == "" {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -1510,9 +1520,15 @@ func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	address := m.GetAddressCtx(r)
+	addresses, err := m.GetAddressCtx(r, c.Params)
+	if err != nil || len(addresses) > 1 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+	address := addresses[0]
+
 	chartGrouping := m.GetChartGroupingCtx(r)
-	if address == "" || chartGrouping == "" {
+	if chartGrouping == "" {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -1539,9 +1555,15 @@ func (c *appContext) getAddressTxUnspentAmountData(w http.ResponseWriter, r *htt
 		return
 	}
 
-	address := m.GetAddressCtx(r)
+	addresses, err := m.GetAddressCtx(r, c.Params)
+	if err != nil || len(addresses) > 1 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+	address := addresses[0]
+
 	chartGrouping := m.GetChartGroupingCtx(r)
-	if address == "" || chartGrouping == "" {
+	if chartGrouping == "" {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -1594,11 +1616,12 @@ func (c *appContext) ChartTypeData(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Request) {
-	address := m.GetAddressCtx(r)
-	if address == "" {
+	addresses, err := m.GetAddressCtx(r, c.Params)
+	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
+	address := addresses[0]
 
 	count := int64(m.GetNCtx(r))
 	skip := int64(m.GetMCtx(r))
@@ -1613,7 +1636,6 @@ func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Reque
 		skip = 0
 	}
 
-	var err error
 	var txs *apitypes.Address
 	if c.LiteMode {
 		txs = c.BlockData.GetAddressTransactionsWithSkip(address, int(count), int(skip))
@@ -1633,11 +1655,12 @@ func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Reque
 }
 
 func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Request) {
-	address := m.GetAddressCtx(r)
-	if address == "" {
+	addresses, err := m.GetAddressCtx(r, c.Params)
+	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
+	address := addresses[0]
 
 	count := int64(m.GetNCtx(r))
 	skip := int64(m.GetMCtx(r))

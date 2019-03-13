@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
@@ -71,7 +72,7 @@ type explorerDataSourceLite interface {
 	GetChainParams() *chaincfg.Params
 	UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error)
 	GetMempool() []types.MempoolTx
-	TxHeight(txid string) (height int64)
+	TxHeight(txid *chainhash.Hash) (height int64)
 	BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
 	GetSqliteChartsData() (map[string]*dbtypes.ChartsData, error)
 	GetExplorerFullBlocks(start int, end int) []*types.BlockInfo
@@ -120,7 +121,7 @@ type politeiaBackend interface {
 
 // agendaBackend implements methods that manage agendas db data.
 type agendaBackend interface {
-	CheckAgendasUpdates(agendas.DeploymentSource) error
+	CheckAgendasUpdates(data agendas.DeploymentSource, activeVersions map[uint32][]chaincfg.ConsensusDeployment) error
 	AgendaInfo(agendaID string) (*agendas.AgendaTagged, error)
 	AllAgendas() (agendas []*agendas.AgendaTagged, err error)
 }
@@ -399,6 +400,13 @@ func (exp *explorerUI) MempoolInventory() *types.MempoolInfo {
 	return exp.invs
 }
 
+// MempoolID safely fetches the current mempool inventory ID.
+func (exp *explorerUI) MempoolID() uint64 {
+	exp.invsMtx.RLock()
+	defer exp.invsMtx.RUnlock()
+	return exp.invs.ID()
+}
+
 // MempoolSignals returns the mempool signal and data channels, which are to be
 // used by the mempool package's MempoolMonitor as send only channels.
 func (exp *explorerUI) MempoolSignals() (chan<- pstypes.HubSignal, chan<- *types.MempoolTx) {
@@ -462,17 +470,6 @@ func (exp *explorerUI) StoreMPData(_ *mempool.StakeData, _ []types.MempoolTx, in
 	exp.invsMtx.Lock()
 	exp.invs = inv
 	exp.invsMtx.Unlock()
-
-	// Signal to the websocket hub that a new tx was received, but do not block
-	// StoreMPData(), and do not hang forever in a goroutine waiting to send.
-	go func() {
-		select {
-		case exp.wsHub.HubRelay <- sigMempoolUpdate:
-		case <-time.After(time.Second * 10):
-			log.Errorf("sigMempoolUpdate send failed: Timeout waiting for WebsocketHub.")
-		}
-	}()
-
 	log.Debugf("Updated mempool details for the explorerUI.")
 }
 

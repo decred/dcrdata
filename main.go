@@ -14,6 +14,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"runtime/pprof"
 	"strings"
@@ -185,8 +186,12 @@ func _main(ctx context.Context) error {
 		// If using {netname} then replace it with netName(activeNet).
 		dbi.DBName = strings.Replace(dbi.DBName, "{netname}", netName(activeNet), -1)
 
+		// Rough estimate of capacity in rows, using size of struct plus some
+		// for the string buffer of the Address field.
+		rowCap := cfg.AddrCacheCap / int(32+reflect.TypeOf(dbtypes.AddressRowCompact{}).Size())
+		log.Infof("Address cache capacity: %d rows, %d bytes", rowCap, cfg.AddrCacheCap)
 		chainDB, err := dcrpg.NewChainDBWithCancel(ctx, &dbi, activeChain,
-			baseDB.GetStakeDB(), !cfg.NoDevPrefetch, cfg.HidePGConfig)
+			baseDB.GetStakeDB(), !cfg.NoDevPrefetch, cfg.HidePGConfig, rowCap)
 		if chainDB != nil {
 			defer chainDB.Close()
 		}
@@ -509,11 +514,11 @@ func _main(ctx context.Context) error {
 		return fmt.Errorf("failed to create new agendas db instance: %v", err)
 	}
 
-	// Confirm if dcrdClient implements agendas.DeploymentSource interface.
-	var _ agendas.DeploymentSource = dcrdClient
-
 	// Retrieve blockchain deployment updates and add them to the agendas db.
-	if err = agendasInstance.CheckAgendasUpdates(dcrdClient); err != nil {
+	// activeChain.Deployments contains a list of all agendas supported in the
+	// current environment.
+	if err = agendasInstance.CheckAgendasUpdates(dcrdClient,
+		activeChain.Deployments); err != nil {
 		return fmt.Errorf("updating agendas db failed: %v", err)
 	}
 

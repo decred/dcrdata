@@ -1,46 +1,27 @@
-.table-centered-1rem td {
-  line-height: 1rem;
-  vertical-align: middle;
-}
+table {
+  line-height: 1;
+  margin-bottom: 0;
 
-.table th {
-  font-size: 13px;
-  font-weight: 500;
-}
+  th {
+    font-size: 13px;
+    padding: 0.9em 0.6em;
+  }
 
-.table td {
-  font-size: 14px;
-  vertical-align: middle;
-}
+  td {
+    font-size: 14px;
+    padding: 0.6em;
+  }
 
-.table th,
-.table td {
-  border: none;
-  padding: 0.25rem 0.5rem;
-}
+  th,
+  td {
+    border: none;
+    padding: 0.25rem 0.5rem;
+  }
 
-.table tr {
-  border-bottom: 1px solid #e4e4e4;
-}
-
-table.align-baseline-rows tr {
-  vertical-align: baseline;
-}
-
-.table thead th {
-  border-bottom: none;
-  padding: 0.36rem 0.5rem;
-  font-weight: 600;
-}
-
-.table thead tr {
-  background: #fff;
-  border-bottom: 1px solid #e2e2e2;
-}
-
-.table-sm td {
-  padding: 0.1rem 0.5rem;
-  height: 25px;
+  thead tr {
+    background: #fff;
+    font-weight: bold;
+  }
 }
 
 .table-mono-cells td {
@@ -48,91 +29,38 @@ table.align-baseline-rows tr {
   font-size: 14px;
 }
 
-// v2 tables have a little more padding and bold headers. Will likely be a
-// default site-wide style for larger tables soon.
-.v2-tables {
-  .table {
-    line-height: 1;
-    margin-bottom: 0;
-  }
-
-  .table td {
-    padding: 0.6em;
-  }
-
-  .table th {
-    padding: 0.9em 0.6em;
-    font-weight: bold;
-  }
-
-  .elidedhash {
-    padding-top: 0.3em;
-    height: 1.3em;
-  }
-
-  .elidedhash::after,
-  .elidedhash::before {
-    padding-top: 0.3em;
+table.table {
+  tr,
+  th,
+  td {
+    color: #052f4b; // Setting explicitly so bootstrap > 4.3.1 won't override.
+    border-top: none;
+    border-bottom: 1px solid #e4e4e4;
   }
 }
 
-.table tr.disabled-row {
+table.table-sm {
+  th,
+  td {
+    padding: 0.5em;
+  }
+}
+
+table.details td {
+  line-height: 1em;
+  padding: 0.5em 0;
+}
+
+table tr.disabled-row {
   background-color: #00000015;
   border-bottom: 1px solid #8885;
-}
-
-body.darkBG .table tr.disabled-row {
-  background-color: #ff00000d;
 }
 
 .blue-row {
   background: #0078ff1c;
 }
 
-.table.flush-left tr td:first-child {
-  padding-left: 0;
-}
-
-.table .address {
-  max-width: 126px;
-}
-
-.table .outpoint {
-  max-width: 222px;
-}
-
-.table-fixed {
-  table-layout: fixed;
-}
-
-.table th.addr-hash-column {
+table th.addr-hash-column {
   font-size: 14px;
   width: 20em;
-}
-
-.table div.hash-fill {
-  position: absolute;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-}
-
-/* flexboxtable */
-.flex-table .header {
-  padding: 0.36rem 0.5rem;
-  background: #fff;
-  border-bottom: 1px solid #e2e2e2;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.flex-table-row {
-  padding: 0.4rem;
-  font-size: 13px;
-  border-bottom: 1px solid #e4e4e4;
-}
-
-.table.no-border tr {
-  border-bottom: none !important;
 }

@@ -102,6 +102,21 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					// MempoolInfo. Used on mempool and home page.
 					inv := exp.MempoolInventory()
 
+					// Check if client supplied a mempool ID. If so, check that an update
+					// is needed before sending.
+					if msg.Message != "" {
+						clientID, err := strconv.ParseUint(msg.Message, 10, 64)
+						if err != nil {
+							// For now, just log a warning and return the mempool anyway.
+							log.Warn("Unable to parse supplied mempool ID %s", msg.Message)
+						} else {
+							if inv.ID() == clientID {
+								// Client is up-to-date. No need to send anything.
+								continue
+							}
+						}
+					}
+
 					inv.RLock()
 					msg, err := json.Marshal(inv)
 					inv.RUnlock()

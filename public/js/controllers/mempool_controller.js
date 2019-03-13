@@ -84,7 +84,9 @@ export default class extends Controller {
 
   connect () {
     // from txhelpers.DetermineTxTypeString
-    this.mempool = new Mempool(this.mempoolTarget.dataset, this.voteTallyTargets)
+    var mempoolData = this.mempoolTarget.dataset
+    ws.send('getmempooltxs', mempoolData.id)
+    this.mempool = new Mempool(mempoolData, this.voteTallyTargets)
     this.txTargetMap = {
       'Vote': this.voteTransactionsTarget,
       'Ticket': this.ticketTransactionsTarget,

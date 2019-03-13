@@ -1068,7 +1068,9 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 				return
 			} else if err == sql.ErrNoRows {
-				log.Warnf("Spend and pool status not found for ticket %s: %v", hash, err)
+				if tx.Confirmations != 0 {
+					log.Warnf("Spend and pool status not found for ticket %s: %v", hash, err)
+				}
 			} else {
 				if tx.Mature == "False" {
 					tx.TicketInfo.PoolStatus = "immature"
@@ -1096,7 +1098,12 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				blocksLive := tx.Confirmations - int64(exp.ChainParams.TicketMaturity)
 				if tx.TicketInfo.SpendStatus == "Voted" {
 					// Blocks from eligible until voted (actual luck)
-					tx.TicketInfo.TicketLiveBlocks = exp.blockData.TxHeight(tx.SpendingTxns[0].Hash) -
+					txhash, err := chainhash.NewHashFromStr(tx.SpendingTxns[0].Hash)
+					if err != nil {
+						exp.StatusPage(w, defaultErrorCode, err.Error(), "", ExpStatusError)
+						return
+					}
+					tx.TicketInfo.TicketLiveBlocks = exp.blockData.TxHeight(txhash) -
 						tx.BlockHeight - int64(exp.ChainParams.TicketMaturity) - 1
 				} else if tx.Confirmations >= int64(exp.ChainParams.TicketExpiry+
 					uint32(exp.ChainParams.TicketMaturity)) { // Expired
@@ -1372,13 +1379,19 @@ func (exp *explorerUI) AddressTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jsonBytes, err := json.Marshal(response)
-	if err != nil {
-		jsonBytes = []byte("JSON error")
-	}
+	// jsonBytes, err := json.Marshal(response)
+	// if err != nil {
+	// 	jsonBytes = []byte("JSON error")
+	// }
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(jsonBytes)
+	enc := json.NewEncoder(w)
+	//enc.SetEscapeHTML(false)
+	err = enc.Encode(response)
+	if err != nil {
+		log.Debug(err)
+	}
+	//w.Write(jsonBytes)
 }
 
 // parseAddressParams is used by both /address and /addresstable.
