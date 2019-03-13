@@ -18,7 +18,7 @@ var (
 func IsWSClosedErr(err error) (closedErr bool) {
 	// Must use strings.Contains to catch errors like "write tcp
 	// 127.0.0.1:7777->127.0.0.1:39196: use of closed network connection".
-	return strings.Contains(err.Error(), ErrWsClosed)
+	return err != nil && strings.Contains(err.Error(), ErrWsClosed)
 }
 
 // IsIOTimeoutErr checks if the passed error indicates an I/O timeout error.
