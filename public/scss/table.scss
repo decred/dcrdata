@@ -33,6 +33,7 @@ table.table {
   tr,
   th,
   td {
+    color: #052f4b; // Setting explicitly so bootstrap > 4.3.1 won't override.
     border-top: none;
     border-bottom: 1px solid #e4e4e4;
   }
