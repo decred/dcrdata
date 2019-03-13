@@ -41,7 +41,7 @@ var (
 
 // ConnectNodeRPC attempts to create a new websocket connection to a dcrd node,
 // with the given credentials and optional notification handlers.
-func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool,
+func ConnectNodeRPC(host, user, pass, cert string, disableTLS, disableReconnect bool,
 	ntfnHandlers ...*rpcclient.NotificationHandlers) (*rpcclient.Client, semver.Semver, error) {
 	var dcrdCerts []byte
 	var err error
@@ -62,12 +62,13 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool,
 	}
 
 	connCfgDaemon := &rpcclient.ConnConfig{
-		Host:         host,
-		Endpoint:     "ws", // websocket
-		User:         user,
-		Pass:         pass,
-		Certificates: dcrdCerts,
-		DisableTLS:   disableTLS,
+		Host:                 host,
+		Endpoint:             "ws", // websocket
+		User:                 user,
+		Pass:                 pass,
+		Certificates:         dcrdCerts,
+		DisableTLS:           disableTLS,
+		DisableAutoReconnect: disableReconnect,
 	}
 
 	var ntfnHdlrs *rpcclient.NotificationHandlers

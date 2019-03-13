@@ -40,7 +40,7 @@ func mainCore() int {
 	}()
 	flag.Parse()
 
-	client, _, err := rpcutils.ConnectNodeRPC(*host, *user, *pass, *cert, *notls)
+	client, _, err := rpcutils.ConnectNodeRPC(*host, *user, *pass, *cert, *notls, false)
 	if err != nil {
 		log.Fatalf("Unable to connect to RPC server: %v", err)
 		return 1
