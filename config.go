@@ -56,6 +56,7 @@ var (
 	defaultIndentJSON          = "   "
 	defaultCacheControlMaxAge  = 86400
 	defaultInsightReqRateLimit = 20.0
+	defaultMaxCSVAddrs         = 3
 
 	defaultMempoolMinInterval = 2
 	defaultMempoolMaxInterval = 120
@@ -104,6 +105,7 @@ type config struct {
 	UseRealIP           bool    `long:"userealip" description:"Use the RealIP middleware from the pressly/chi/middleware package to get the client's real IP from the X-Forwarded-For or X-Real-IP headers, in that order." env:"DCRDATA_USE_REAL_IP"`
 	CacheControlMaxAge  int     `long:"cachecontrol-maxage" description:"Set CacheControl in the HTTP response header to a value in seconds for clients to cache the response. This applies only to FileServer routes." env:"DCRDATA_MAX_CACHE_AGE"`
 	InsightReqRateLimit float64 `long:"insight-limit-rps" description:"Requests/second per client IP for the Insight API's rate limiter." env:"DCRDATA_INSIGHT_RATE_LIMIT"`
+	MaxCSVAddrs         int     `long:"max-api-addrs" description:"Maximum allowed comma-separated addresses for endpoints that accept multiple addresses."`
 
 	// Data I/O
 	MempoolMinInterval int    `long:"mp-min-interval" description:"The minimum time in seconds between mempool reports, regarless of number of new tickets seen." env:"DCRDATA_MEMPOOL_MIN_INTERVAL"`
@@ -171,6 +173,7 @@ var (
 		IndentJSON:          defaultIndentJSON,
 		CacheControlMaxAge:  defaultCacheControlMaxAge,
 		InsightReqRateLimit: defaultInsightReqRateLimit,
+		MaxCSVAddrs:         defaultMaxCSVAddrs,
 		DcrdCert:            defaultDaemonRPCCertFile,
 		MempoolMinInterval:  defaultMempoolMinInterval,
 		MempoolMaxInterval:  defaultMempoolMaxInterval,

@@ -236,26 +236,44 @@ func GetBlockHashCtx(r *http.Request) (string, error) {
 	return hash, nil
 }
 
-// GetAddressCtx retrieves the ctxAddress data from the request context. If not
-// set, the return value is an empty string.
-func GetAddressCtx(r *http.Request, activeNetParams *chaincfg.Params) ([]string, error) {
+// GetAddressCtx retrieves the CtxAddress data from the request context. If not
+// set, the return value is an empty string. The CtxAddress string data may be a
+// comma-separated list of addresses, subject to the provided maximum number of
+// addresses allowed. Duplicate addresses are removed, but the limit is enforced
+// prior to removal of duplicates.
+func GetAddressCtx(r *http.Request, activeNetParams *chaincfg.Params, maxAddrs int) ([]string, error) {
 	addressStr, ok := r.Context().Value(CtxAddress).(string)
 	if !ok || len(addressStr) == 0 {
 		apiLog.Trace("address not set")
-		return []string{}, fmt.Errorf("address not set")
+		return nil, fmt.Errorf("address not set")
 	}
 	addressStrs := strings.Split(addressStr, ",")
+	if len(addressStrs) > maxAddrs {
+		return nil, fmt.Errorf("maximum of %d addresses allowed", maxAddrs)
+	}
+
+	strInSlice := func(sl []string, s string) bool {
+		for i := range sl {
+			if sl[i] == s {
+				return true
+			}
+		}
+		return false
+	}
 
 	var addrStrs []string
 	for _, addrStr := range addressStrs {
 		address, err := dcrutil.DecodeAddress(addrStr)
 		if err != nil {
-			return []string{}, fmt.Errorf("invalid address '%v': %v",
+			return nil, fmt.Errorf("invalid address '%v': %v",
 				addrStr, err)
 		}
 		if !address.IsForNet(activeNetParams) {
-			return []string{}, fmt.Errorf("%v is invalid for this network",
+			return nil, fmt.Errorf("%v is invalid for this network",
 				addrStr)
+		}
+		if strInSlice(addrStrs, addrStr) {
+			continue
 		}
 		addrStrs = append(addrStrs, addrStr)
 	}
