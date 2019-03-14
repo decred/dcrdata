@@ -19,10 +19,10 @@ function mempoolTableRow (tx) {
   var link = `/tx/${tx.hash}`
   tbody.innerHTML = `<tr>
     <td class="text-left pl-1">${humanize.hashElide(tx.hash, link)}</td>
-    <td>${tx.Type}</td>
-    <td>${humanize.threeSigFigs(tx.total || 0, false, 8)}</td>
-    <td class="d-none d-sm-table-cell d-md-none d-lg-table-cell text-nowrap">${tx.size} B</td>
-    <td class="text-right pr-3 home-bl-age text-nowrap" data-target="time.age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
+    <td class="text-left">${tx.Type}</td>
+    <td class="text-right">${humanize.threeSigFigs(tx.total || 0, false, 8)}</td>
+    <td class="text-nowrap text-right">${tx.size} B</td>
+    <td class="text-right pr-1 text-nowrap" data-target="time.age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
   </tr>`
   dompurify.sanitize(tbody, { IN_PLACE: true })
   return tbody.firstChild

@@ -103,39 +103,39 @@
                 {{end}}
             <div>
 
-            <table class="table table-mono-cells">
+            <table class="table table-mono-cells my-2">
                 <thead>
-                    <tr class="d-flex">
-                        <th class="col-md-9">Title</th>
-                        <th class="col-md-3">Author</th>
-                        <th class="col-md-2">Proposal Status</th>
-                        <th class="col-md-3">Vote Status</th>
-                        <th class="col-md-2">Published</th>
-                        <th class="col-md-2">Updated</th>
-                        <th class="col-md-1 text-right">Version</th>
-                        <th class="col-md-2 text-right">Comments</th>
+                    <tr>
+                        <th class="text-left">Title</th>
+                        <th class="text-left">Author</th>
+                        <th class="text-left">Proposal Status</th>
+                        <th class="text-left">Vote Status</th>
+                        <th class="text-right">Published</th>
+                        <th class="text-right">Updated</th>
+                        <th class="text-right">Version</th>
+                        <th class="text-right">Comments</th>
                     </tr>
                 </thead>
+                <tbody>
                 {{range $i, $v := .Proposals}}
                 {{with $v}}
-                <tbody>
-                    <tr class="d-flex">
-                        <td class="col-md-9"><a href="/proposal/{{.ID}}">{{.Name}}</a></td>
-                        <td class="col-md-3">{{.Username}}</td>
+                    <tr>
+                        <td class="text-left"><a href="/proposal/{{.ID}}">{{.Name}}</a></td>
+                        <td class="text-left">{{.Username}}</td>
                         {{with .Status}}
-                            <td class="col-md-2">{{toTitleCase .String}}</td>
+                            <td class="text-left">{{toTitleCase .String}}</td>
                         {{end}}
-                        <td class="col-md-3">
+                        <td class="text-left">
                             {{if .VoteStatus}}{{with .VoteStatus}}{{.ShortDesc}}{{end}}{{else}}N/A{{end}}
                         </td>
-                        <td class="col-md-2">{{timeWithoutDateAndTimeZone .PublishedDate}}</td>
-                        <td class="col-md-2">{{timeWithoutDateAndTimeZone .Timestamp}}</td>
-                        <td class="col-md-1 text-right">v{{.Version}}</td>
-                        <td class="col-md-2 text-right">{{.NumComments}}</td>
+                        <td class="text-right">{{timeWithoutDateAndTimeZone .PublishedDate}}</td>
+                        <td class="text-right">{{timeWithoutDateAndTimeZone .Timestamp}}</td>
+                        <td class="text-right">v{{.Version}}</td>
+                        <td class="text-right">{{.NumComments}}</td>
                     </tr>
+                {{end}}
+                {{end}}
                 </tbody>
-                {{end}}
-                {{end}}
             </table>
 
             {{if gt .Limit 10}}
