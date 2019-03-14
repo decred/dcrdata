@@ -4,18 +4,15 @@ table {
 
   th {
     font-size: 13px;
-    padding: 0.9em 0.6em;
   }
 
   td {
     font-size: 14px;
-    padding: 0.6em;
   }
 
   th,
   td {
     border: none;
-    padding: 0.25rem 0.5rem;
   }
 
   thead tr {
@@ -36,6 +33,7 @@ table.table {
     color: #052f4b; // Setting explicitly so bootstrap > 4.3.1 won't override.
     border-top: none;
     border-bottom: 1px solid #e4e4e4;
+    padding: 0.75em 0.5em;
   }
 }
 

@@ -59,27 +59,35 @@
                             <table class="table w-100 mt-2 mx-auto mb-0">
                                 <thead>
                                     <tr>
-                                        <th class="text-left pl-3">Height</th>
-                                        <th><div class="position-relative text-center" data-tooltip="regular transactions">T<span class="d-sm-none">xns</span><span class="d-none d-sm-inline">ransactions</span></div></th>
-                                        <th><div class="position-relative text-center" data-tooltip="votes">Votes</div></th>
-                                        <th><div class="position-relative text-center" data-tooltip="tickets">Tickets</div></th>
-                                        <th><div class="position-relative text-center" data-tooltip="revocations">Revokes</div></th>
-                                        <th><div class="position-relative text-center" data-tooltip="total DCR sent">DCR</div></th>
-                                        <th class="d-none d-sm-table-cell d-md-none d-lg-table-cell"><div class="position-relative text-center">Size</div></th>
-                                        <th class="text-right pr-3" data-target="time.header" data-jstitle="Age">Time</th>
+                                        <th class="text-left pl-2">Height</th>
+                                        <th class="text-center"
+                                          ><span class="d-sm-none position-relative" data-tooltip="regular transactions">Txn</span
+                                          ><span class="d-none d-sm-inline">Transactions</span></th>
+                                        <th class="text-center"
+                                          ><span class="d-sm-none position-relative" data-tooltip="vote transactions">Vote</span
+                                          ><span class="d-none d-sm-inline">Votes</span></th>
+                                        <th class="text-center"
+                                          ><span class="d-sm-none position-relative" data-tooltip="ticket transactions">Tkt</span
+                                          ><span class="d-none d-sm-inline">Tickets</span></th>
+                                        <th class="text-center"
+                                          ><span class="d-sm-none position-relative" data-tooltip="ticket revocations">Rev</span
+                                          ><span class="d-none d-sm-inline">Revokes</span></th>
+                                        <th class="text-right" data-tooltip="total DCR sent">DCR</div></th>
+                                        <th class="d-none d-sm-table-cell d-md-none d-lg-table-cell text-right">Size</th>
+                                        <th class="text-right pr-2" data-target="time.header" data-jstitle="Age">Time</th>
                                     </tr>
                                 </thead>
                                 <tbody data-target="blocklist.table">
                                     {{range .Blocks}}
                                     <tr data-height="{{.Height}}" data-link-class="fs18">
-                                        <td class="text-left pl-2" data-type="height"><a href="/block/{{.Height}}" class="fs18">{{.Height}}</a></td>
+                                        <td class="text-left pl-1" data-type="height"><a href="/block/{{.Height}}" class="fs18">{{.Height}}</a></td>
                                         <td class="text-center" data-type="tx">{{.Transactions}}</td>
                                         <td class="text-center" data-type="votes">{{.Voters}}</td>
                                         <td class="text-center" data-type="tickets">{{.FreshStake}}</td>
                                         <td class="text-center" data-type="revocations">{{.Revocations}}</td>
-                                        <td class="text-center" data-type="value">{{threeSigFigs .Total}}</td>
-                                        <td class="text-center d-none d-sm-table-cell d-md-none d-lg-table-cell text-nowrap" data-type="size">{{.FormattedBytes}}</td>
-                                        <td class="text-right pr-2 text-nowrap" data-type="age" data-target="time.age" data-age="{{.BlockTime.UNIX}}">{{.BlockTime}}</td>
+                                        <td class="text-right" data-type="value">{{threeSigFigs .Total}}</td>
+                                        <td class="text-right d-none d-sm-table-cell d-md-none d-lg-table-cell text-nowrap" data-type="size">{{.FormattedBytes}}</td>
+                                        <td class="text-right pr-1 text-nowrap" data-type="age" data-target="time.age" data-age="{{.BlockTime.UNIX}}">{{.BlockTime}}</td>
                                     </tr>
                                     {{end}}
                                 </tbody>
@@ -172,20 +180,20 @@
                                 <thead>
                                 <tr>
                                     <th class="text-left pl-2">Hash</th>
-                                    <th>Type</th>
-                                    <th>DCR</th>
-                                    <th class="d-none d-sm-table-cell d-md-none d-lg-table-cell">Size</th>
-                                    <th class="text-right pr-3 jsonly">Age</th>
+                                    <th class="text-left">Type</th>
+                                    <th class="text-right">DCR</th>
+                                    <th class="text-right">Size</th>
+                                    <th class="text-right pr-2 jsonly">Age</th>
                                 </tr>
                                 </thead>
                                 <tbody class="homepage-mempool" data-target="homepage.transactions">
                                 {{range .Mempool.LatestTransactions}}
                                 <tr>
                                     <td class="text-left pl-1">{{template "hashElide" (hashlink .Hash (print "/tx/" .Hash))}}</td>
-                                    <td>{{.Type}}</td>
-                                    <td>{{threeSigFigs .TotalOut}}</td>
-                                    <td class="d-none d-sm-table-cell d-md-none d-lg-table-cell text-nowrap">{{.Size}} B</td>
-                                    <td class="text-right pr-3 jsonly text-nowrap" data-target="time.age" data-age="{{.Time}}"></td>
+                                    <td class="text-left">{{.Type}}</td>
+                                    <td class="text-right">{{threeSigFigs .TotalOut}}</td>
+                                    <td class="text-nowrap text-right">{{.Size}} B</td>
+                                    <td class="text-right pr-1 jsonly text-nowrap" data-target="time.age" data-age="{{.Time}}"></td>
                                 </tr>
                                 {{end}}
                                 </tbody>
