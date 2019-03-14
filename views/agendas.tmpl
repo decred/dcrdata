@@ -124,7 +124,6 @@
                             data-target="agendas.minerMeter"
                             data-progress="{{.MinerProgress}}"
                             data-threshold="{{.MinerThreshold}}"
-                            data-type="progress"
                             >
                             {{printf "%.1f" (f32x100 .MinerProgress)}}%
                           </div><br>
@@ -137,7 +136,6 @@
                             data-target="agendas.voterMeter"
                             data-progress="{{.VoterProgress}}"
                             data-threshold="{{.VoterThreshold}}"
-                            data-type="progress"
                             >
                             {{printf "%.1f" (f32x100 .VoterProgress)}}%
                           </div><br>
@@ -173,7 +171,7 @@
                                 class="upgrade-meter text-center js-only large-gap"
                                 data-target="agendas.quorumMeter"
                                 data-progress="{{.QuorumProgress}}"
-                                data-type="progress"
+                                data-threshold="1.0"
                                 >
                                 {{printf "%.1f" (f32x100 .QuorumProgress)}}%
                               </div><br>
@@ -188,9 +186,8 @@
                               <div
                                 class="upgrade-meter text-center js-only large-gap"
                                 data-target="agendas.approvalMeter"
-                                data-progress="{{.Approval}}"
+                                data-approval="{{.Approval}}"
                                 data-threshold="{{.PassThreshold}}"
-                                data-type="vote"
                                 >
                                 {{printf "%.1f" (f32x100 .Approval)}}%
                               </div><br>
@@ -209,9 +206,8 @@
                               <div
                                 class="upgrade-meter text-center js-only large-gap"
                                 data-target="agendas.approvalMeter"
-                                data-progress="{{.Approval}}"
+                                data-approval="{{.Approval}}"
                                 data-threshold="{{.PassThreshold}}"
-                                data-type="vote"
                                 >
                                 {{printf "%.1f" (f32x100 .Approval)}}%
                               </div><br>

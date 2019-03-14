@@ -1,7 +1,7 @@
 import { Controller } from 'stimulus'
 import globalEventBus from '../services/event_bus_service'
 import { darkEnabled } from '../services/theme_service'
-import VoteMeter from '../helpers/vote_meter.js'
+import { VoteMeter, ProgressMeter } from '../helpers/vote_meter.js'
 
 export default class extends Controller {
   static get targets () {
@@ -17,19 +17,15 @@ export default class extends Controller {
       darkMode: darkEnabled()
     }
     if (this.hasMinerMeterTarget) {
-      this.minerMeter = new VoteMeter(this.minerMeterTarget, opts)
+      this.minerMeter = new ProgressMeter(this.minerMeterTarget, opts)
       this.meters.push(this.minerMeter)
     }
     if (this.hasVoterMeterTarget) {
-      this.voterMeter = new VoteMeter(this.voterMeterTarget, Object.assign({
-        meterColor: '#2970ff'
-      }, opts))
+      this.voterMeter = new ProgressMeter(this.voterMeterTarget, opts)
       this.meters.push(this.voterMeter)
     }
     if (this.hasQuorumMeterTarget) {
-      this.quorumMeter = new VoteMeter(this.quorumMeterTarget, Object.assign({
-        meterColor: '#2970ff'
-      }, opts))
+      this.quorumMeter = new ProgressMeter(this.quorumMeterTarget, opts)
       this.meters.push(this.quorumMeter)
     }
     if (this.hasApprovalMeterTarget) {

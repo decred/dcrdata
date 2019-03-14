@@ -459,7 +459,7 @@ func spoof(summary *VoteSummary) {
 	agenda := &summary.Agendas[0]
 	summary.VotingTriggered = false
 	agenda.VotingTriggered = false
-	agenda.IsVoting = false
+	agenda.IsVoting = true
 	agenda.IsDefined = false
 
 	agenda.Aye = agenda.Quorum * 9
@@ -475,9 +475,9 @@ func spoof(summary *VoteSummary) {
 	agenda.QuorumProgress = 1
 	agenda.QuorumAchieved = true
 	agenda.Approval = float32(agenda.Aye) / float32(agenda.VoteCount)
-	agenda.IsWinning = false
+	agenda.IsWinning = true
 	agenda.IsLosing = false
-	agenda.IsLocked = true
+	agenda.IsLocked = false
 	agenda.IsActive = false
 	agenda.IsFailed = false
 }

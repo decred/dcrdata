@@ -478,23 +478,23 @@ input ~ .checkmark {
 
 .upgrade-meter {
   display: inline-block;
-  width: 125px;
-  height: 125px;
+  width: 135px;
+  height: 135px;
   font-size: 14px;
   overflow: hidden;
 }
 
 .upgrade-meter.large-gap {
-  height: 105px;
+  height: 110px;
 }
 
 .upgrade-meter.arch {
-  height: 80px;
+  height: 90px;
 }
 
 .upgrade-meter > canvas {
-  width: 125px;
-  height: 125px;
+  width: 135px;
+  height: 135px;
 }
 
 body.darkBG {
