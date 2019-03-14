@@ -124,7 +124,7 @@ type VoteTracker struct {
 	rciBlocks      uint32
 	blockTime      int64
 	passThreshold  float32
-	lockCount      uint32
+	rciVotes       uint32
 }
 
 // NewVoteTracker is a constructor for a VoteTracker.
@@ -144,7 +144,7 @@ func NewVoteTracker(params *chaincfg.Params, node VoteDataSource, counter voteCo
 		rciBlocks:      params.RuleChangeActivationInterval,
 		blockTime:      int64(params.TargetTimePerBlock.Seconds()),
 		passThreshold:  float32(params.RuleChangeActivationMultiplier) / float32(params.RuleChangeActivationDivisor),
-		lockCount:      params.RuleChangeActivationInterval * uint32(params.TicketsPerBlock) * params.RuleChangeActivationMultiplier / params.RuleChangeActivationDivisor,
+		rciVotes:       uint32(params.TicketsPerBlock) * params.RuleChangeActivationInterval,
 	}
 
 	voteInfo, err := tracker.refreshRCI()
@@ -353,7 +353,7 @@ func (tracker *VoteTracker) newVoteSummary() *VoteSummary {
 			ID:            agenda.ID,
 			Quorum:        tracker.params.RuleChangeActivationQuorum,
 			PassThreshold: tracker.passThreshold,
-			LockCount:     tracker.lockCount,
+			// LockCount:     tracker.lockCount,
 		}
 		status := agenda.Status
 		agendaSummary.IsLocked = status == statusLocked
@@ -394,6 +394,12 @@ func (tracker *VoteTracker) newVoteSummary() *VoteSummary {
 			agendaSummary.VotingTriggered = true
 			summary.VotingTriggered = true
 		}
+
+		// Get the number of votes that locks approval. Must consider missed votes.
+		minedBlocks := uint32(summary.Height) - summary.NextRCIHeight + summary.RCIBlocks
+		missedVotes := minedBlocks*uint32(tracker.params.TicketsPerBlock) - agendaSummary.VoteCount - agendaSummary.Abstain
+		agendaSummary.LockCount = uint32(float32(tracker.rciVotes-missedVotes) * tracker.passThreshold)
+
 		summary.Agendas[idx] = agendaSummary
 	}
 	var sviMined uint32
