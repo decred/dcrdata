@@ -135,13 +135,13 @@ func (source dataSourceStub) GetStakeVersions(hash string, count int32) (*dcrjso
 	}
 	c := int(count)
 	for i := 0; i < c; i++ {
-		result.StakeVersions = append(result.StakeVersions, dcrjson.StakeVersions{
+		result.StakeVersions[i] = dcrjson.StakeVersions{
 			Hash:         strconv.Itoa(h),
 			Height:       int64(h),
 			BlockVersion: 6,
 			StakeVersion: 6,
 			Votes:        []dcrjson.VersionBits{}, // VoteTracker does not use this
-		})
+		}
 		h--
 	}
 	return result, nil
@@ -154,6 +154,6 @@ func counter(hash string) (uint32, uint32, uint32, error) {
 func TestVoteTracker(t *testing.T) {
 	_, err := NewVoteTracker(&chaincfg.MainNetParams, dataSourceStub{}, counter)
 	if err != nil {
-		fmt.Errorf("NewVoteTracker error: %v", err)
+		t.Errorf("NewVoteTracker error: %v", err)
 	}
 }

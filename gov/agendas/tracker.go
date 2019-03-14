@@ -242,7 +242,7 @@ func (tracker *VoteTracker) fetchBlocks(voteInfo *dcrjson.GetVoteInfoResult) ([]
 	}
 	blockCount := len(r.StakeVersions)
 	if blockCount != blocksToRequest {
-		return nil, 0, fmt.Errorf("Unexpected number of blocks returns from GetStakeVersions. Asked for %d, received %d", blockCount, blockCount)
+		return nil, 0, fmt.Errorf("Unexpected number of blocks returns from GetStakeVersions. Asked for %d, received %d", blocksToRequest, blockCount)
 	}
 	blocks := make([]int32, blockCount)
 	var block dcrjson.StakeVersions
