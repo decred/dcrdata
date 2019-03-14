@@ -125,13 +125,14 @@ type appContext struct {
 	JSONIndent    string
 	xcBot         *exchanges.ExchangeBot
 	AgendaDB      *agendas.AgendaDB
+	maxCSVAddrs   int
 }
 
 // NewContext constructs a new appContext from the RPC client, primary and
 // auxiliary data sources, and JSON indentation string.
 func NewContext(client *rpcclient.Client, params *chaincfg.Params, dataSource DataSourceLite,
 	auxDataSource DataSourceAux, JSONIndent string, xcBot *exchanges.ExchangeBot,
-	agendasDBInstance *agendas.AgendaDB) *appContext {
+	agendasDBInstance *agendas.AgendaDB, maxAddrs int) *appContext {
 	conns, _ := client.GetConnectionCount()
 	nodeHeight, _ := client.GetBlockCount()
 
@@ -154,7 +155,8 @@ func NewContext(client *rpcclient.Client, params *chaincfg.Params, dataSource Da
 			DcrdataVersion:  appver.Version(),
 			NetworkName:     params.Name,
 		},
-		JSONIndent: JSONIndent,
+		JSONIndent:  JSONIndent,
+		maxCSVAddrs: maxAddrs,
 	}
 }
 
@@ -1418,7 +1420,7 @@ func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	addresses, err := m.GetAddressCtx(r, c.Params)
+	addresses, err := m.GetAddressCtx(r, c.Params, 1)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -1448,7 +1450,7 @@ func (c *appContext) addressIoCsv(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	addresses, err := m.GetAddressCtx(r, c.Params)
+	addresses, err := m.GetAddressCtx(r, c.Params, 1)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return
@@ -1485,7 +1487,7 @@ func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	addresses, err := m.GetAddressCtx(r, c.Params)
+	addresses, err := m.GetAddressCtx(r, c.Params, 1)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -1520,7 +1522,7 @@ func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	addresses, err := m.GetAddressCtx(r, c.Params)
+	addresses, err := m.GetAddressCtx(r, c.Params, 1)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -1555,7 +1557,7 @@ func (c *appContext) getAddressTxUnspentAmountData(w http.ResponseWriter, r *htt
 		return
 	}
 
-	addresses, err := m.GetAddressCtx(r, c.Params)
+	addresses, err := m.GetAddressCtx(r, c.Params, 1)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -1616,7 +1618,7 @@ func (c *appContext) ChartTypeData(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Request) {
-	addresses, err := m.GetAddressCtx(r, c.Params)
+	addresses, err := m.GetAddressCtx(r, c.Params, 1)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -1655,7 +1657,7 @@ func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Reque
 }
 
 func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Request) {
-	addresses, err := m.GetAddressCtx(r, c.Params)
+	addresses, err := m.GetAddressCtx(r, c.Params, 1)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
 		return

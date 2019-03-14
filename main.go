@@ -670,7 +670,7 @@ func _main(ctx context.Context) error {
 
 	// Start dcrdata's JSON web API.
 	app := api.NewContext(dcrdClient, activeChain, baseDB, auxDB, cfg.IndentJSON,
-		xcBot, agendasInstance)
+		xcBot, agendasInstance, cfg.MaxCSVAddrs)
 	// Start the notification hander for keeping /status up-to-date.
 	wg.Add(1)
 	go app.StatusNtfnHandler(ctx, &wg)
@@ -719,7 +719,7 @@ func _main(ctx context.Context) error {
 		// Setup and mount the Insight API.
 		if usePG {
 			insightApp := insight.NewInsightContext(dcrdClient, auxDB,
-				activeChain, baseDB, cfg.IndentJSON)
+				activeChain, baseDB, cfg.IndentJSON, cfg.MaxCSVAddrs)
 			insightApp.SetReqRateLimit(cfg.InsightReqRateLimit)
 			insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP)
 			r.Mount("/insight/api", insightMux.Mux)
