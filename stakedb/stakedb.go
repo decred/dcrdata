@@ -23,7 +23,6 @@ import (
 	apitypes "github.com/decred/dcrdata/v4/api/types"
 	"github.com/decred/dcrdata/v4/rpcutils"
 	"github.com/decred/dcrdata/v4/txhelpers"
-	"github.com/oleiade/lane"
 )
 
 // PoolInfoCache contains a map of block hashes to ticket pool info data at that
@@ -31,18 +30,21 @@ import (
 type PoolInfoCache struct {
 	mtx         sync.RWMutex
 	poolInfo    map[chainhash.Hash]*apitypes.TicketPoolInfo
-	expireQueue *lane.Queue
+	expireQueue []chainhash.Hash
 	maxSize     int
 }
 
 // NewPoolInfoCache constructs a new PoolInfoCache, and is needed to initialize
 // the internal map.
-func NewPoolInfoCache(size int) *PoolInfoCache {
+func NewPoolInfoCache(size int) (*PoolInfoCache, error) {
+	if size < 2 {
+		return nil, fmt.Errorf("size %d is less than 2", size)
+	}
 	return &PoolInfoCache{
 		poolInfo:    make(map[chainhash.Hash]*apitypes.TicketPoolInfo, size),
-		expireQueue: lane.NewQueue(),
+		expireQueue: make([]chainhash.Hash, 0, size),
 		maxSize:     size,
-	}
+	}, nil
 }
 
 // Get attempts to fetch the ticket pool info for a given block hash, returning
@@ -60,25 +62,28 @@ func (c *PoolInfoCache) Set(hash chainhash.Hash, p *apitypes.TicketPoolInfo) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	c.poolInfo[hash] = p
-	c.expireQueue.Enqueue(hash)
-	if c.expireQueue.Size() >= c.maxSize {
-		expireHash := c.expireQueue.Dequeue().(chainhash.Hash)
+	if len(c.expireQueue)+1 >= c.maxSize {
+		expireHash := c.expireQueue[0]
+		c.expireQueue = c.expireQueue[1:]
 		delete(c.poolInfo, expireHash)
 	}
+	c.expireQueue = append(c.expireQueue, hash)
 }
 
 // SetCapacity sets the cache capacity to the specified number of elements. If
 // the new capacity is smaller than the current cache size, elements are
 // automatically evicted until the desired size is reached.
-func (c *PoolInfoCache) SetCapacity(cap int) error {
+func (c *PoolInfoCache) SetCapacity(size int) error {
+	if size < 2 {
+		return fmt.Errorf("size %d is less than 2", size)
+	}
+
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
-	c.maxSize = cap
-	for c.expireQueue.Size() >= c.maxSize {
-		expireHash, ok := c.expireQueue.Dequeue().(chainhash.Hash)
-		if !ok {
-			return fmt.Errorf("failed to reduce pool cache capacity")
-		}
+	c.maxSize = size
+	for len(c.expireQueue) >= c.maxSize {
+		expireHash := c.expireQueue[0]
+		c.expireQueue = c.expireQueue[1:]
 		delete(c.poolInfo, expireHash)
 	}
 	return nil
@@ -133,13 +138,16 @@ func LoadAndRecover(client *rpcclient.Client, params *chaincfg.Params,
 	if err != nil {
 		return nil, fmt.Errorf("unable to open ticket pool DB: %v", err)
 	}
-
+	poolInfoCache, err := NewPoolInfoCache(513)
+	if err != nil {
+		return nil, err
+	}
 	sDB := &StakeDatabase{
 		params:          params,
 		NodeClient:      client,
 		blockCache:      make(map[int64]*dcrutil.Block),
 		liveTicketCache: make(map[chainhash.Hash]int64, params.TicketPoolSize*(params.TicketsPerBlock+1)),
-		poolInfo:        NewPoolInfoCache(513),
+		poolInfo:        poolInfoCache,
 		PoolDB:          poolDB,
 		heightWaiters:   make(map[int64][]chan *chainhash.Hash),
 	}
@@ -246,12 +254,17 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
 	if err != nil {
 		return nil, height, fmt.Errorf("unable to open ticket pool DB: %v", err)
 	}
+	poolInfoCache, err := NewPoolInfoCache(513)
+	if err != nil {
+		return nil, height, err
+	}
+
 	sDB := &StakeDatabase{
 		params:          params,
 		NodeClient:      client,
 		blockCache:      make(map[int64]*dcrutil.Block),
 		liveTicketCache: make(map[chainhash.Hash]int64, params.TicketPoolSize*(params.TicketsPerBlock+1)),
-		poolInfo:        NewPoolInfoCache(513),
+		poolInfo:        poolInfoCache,
 		PoolDB:          poolDB,
 		heightWaiters:   make(map[int64][]chan *chainhash.Hash),
 	}

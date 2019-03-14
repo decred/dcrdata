@@ -44,7 +44,6 @@ require (
 	github.com/mattn/go-isatty v0.0.4 // indirect
 	github.com/mattn/go-sqlite3 v1.10.0
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
-	github.com/oleiade/lane v1.0.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/rs/cors v1.6.0
 	github.com/shiena/ansicolor v0.0.0-20151119151921-a422bbe96644
