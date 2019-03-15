@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2018 The Decred developers
+// Copyright (c) 2016-2019 The Decred developers
 // Copyright (c) 2017 Jonathan Chappelow
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
@@ -109,6 +109,7 @@ type config struct {
 	CacheControlMaxAge  int     `long:"cachecontrol-maxage" description:"Set CacheControl in the HTTP response header to a value in seconds for clients to cache the response. This applies only to FileServer routes." env:"DCRDATA_MAX_CACHE_AGE"`
 	InsightReqRateLimit float64 `long:"insight-limit-rps" description:"Requests/second per client IP for the Insight API's rate limiter." env:"DCRDATA_INSIGHT_RATE_LIMIT"`
 	MaxCSVAddrs         int     `long:"max-api-addrs" description:"Maximum allowed comma-separated addresses for endpoints that accept multiple addresses."`
+	CompressAPI         bool    `long:"compress-api" description:"Use compression for a number of endpoints with commonly large responses."`
 
 	// Data I/O
 	MempoolMinInterval int    `long:"mp-min-interval" description:"The minimum time in seconds between mempool reports, regarless of number of new tickets seen." env:"DCRDATA_MEMPOOL_MIN_INTERVAL"`
