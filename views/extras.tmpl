@@ -78,15 +78,15 @@
                         <a class="menu-item" data-keynav-skip href="/address/{{.DevAddress}}?txntype=merged_debit" title="Decred Treasury">Treasury</a>
                         <a class="menu-item" data-keynav-skip href="/decodetx" title="Decode or send a raw transaction">Decode/Broadcast Tx</a>
                         {{if eq .NetName "Mainnet"}}
-                            <a class="menu-item" data-keynav-skip href="http://testnet.dcrdata.org/" title="Home">Switch To Testnet</a>
+                            <a class="menu-item" data-keynav-skip href="{{.Links.Testnet}}" title="Home">Switch To Testnet</a>
                         {{else}}
-                            <a class="menu-item" data-keynav-skip href="https://explorer.dcrdata.org/" title="Home">Switch To Mainnet</a>
+                            <a class="menu-item" data-keynav-skip href="{{.Links.Mainnet}}" title="Home">Switch To Mainnet</a>
                         {{end}}
                         <span class="menu-item jsonly" data-keynav-skip data-action="click->menu#onSunClick"><span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span> Night Mode</span>
                         <a class="menu-item" data-keynav-skip data-turbolinks="false" href="#" class="jsonly" id="keynav-toggle">
                             <span class="text">Enable Hot Keys</span><span class="keys-hint">(&nbsp;&nbsp;<span class="arrows"> &#8592;<br>&#8594;</span>&nbsp;&nbsp;enter&nbsp;&nbsp;\&nbsp;&nbsp;=&nbsp;&nbsp;)</span>
                         </a>
-                        <a class="menu-item" data-keynav-skip href="https://github.com/decred/dcrdata#apis" title="API Endpoints" target="_blank" rel="noopener noreferrer">JSON API Docs</a>
+                        <a class="menu-item" data-keynav-skip href="{{.Links.APIDocs}}" title="API Endpoints" target="_blank" rel="noopener noreferrer">JSON API Docs</a>
                     </div>
                 </div>
             </nav>
@@ -104,14 +104,14 @@
         <span>
             <a
                 class="text-nowrap d-none d-md-inline-block pr-3"
-                href="https://github.com/decred/dcrdata"
+                href="{{.Links.Github}}"
                 title="dcrdata on GitHub"
                 target="_blank"
                 rel="noopener noreferrer"
             >dcrdata v{{.Version}}</a>
             <a
                 class="text-nowrap"
-                href="https://github.com/decred/dcrdata/blob/master/LICENSE"
+                href="{{.Links.License}}"
                 target="_blank"
                 rel="noopener noreferrer"
             >© 2019 The Decred developers (ISC)</a>

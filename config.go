@@ -78,6 +78,9 @@ var (
 	defaultDisabledExchanges = "huobi,dragonex"
 	defaultRateCertFile      = filepath.Join(defaultHomeDir, "rpc.cert")
 
+	defaultMainnetLink = "https://explorer.dcrdata.org/"
+	defaultTestnetLink = "https://testnet.dcrdata.org/"
+
 	maxSyncStatusLimit = 5000
 )
 
@@ -154,6 +157,10 @@ type config struct {
 	ExchangeCurrency  string `long:"exchange-currency" description:"The default bitcoin price index. A 3-letter currency code" env:"DCRDATA_EXCHANGE_INDEX"`
 	RateMaster        string `long:"ratemaster" description:"The address of a DCRRates instance. Exchange monitoring will get all data from a DCRRates subscription." env:"DCRDATA_RATE_MASTER"`
 	RateCertificate   string `long:"ratecert" description:"File containing DCRRates TLS certificate file." env:"DCRDATA_RATE_MASTER"`
+
+	// Links
+	MainnetLink string `long:"mainnet-link" description:"When dcrdata is on testnet, this address will be used to direct a user to a dcrdata on mainnet when appropriate." env:"DCRDATA_MAINNET_LINK"`
+	TestnetLink string `long:"testnet-link" description:"When dcrdata is on mainnet, this address will be used to direct a user to a dcrdata on testnet when appropriate." env:"DCRDATA_TESTNET_LINK"`
 }
 
 var (
@@ -187,6 +194,8 @@ var (
 		ExchangeCurrency:    defaultExchangeIndex,
 		DisabledExchanges:   defaultDisabledExchanges,
 		RateCertificate:     defaultRateCertFile,
+		MainnetLink:         defaultMainnetLink,
+		TestnetLink:         defaultTestnetLink,
 	}
 )
 
@@ -631,6 +640,11 @@ func loadConfig() (*config, error) {
 	cfg.AgendasDBFileName = cleanAndExpandPath(cfg.AgendasDBFileName)
 	cfg.ProposalsFileName = cleanAndExpandPath(cfg.ProposalsFileName)
 	cfg.RateCertificate = cleanAndExpandPath(cfg.RateCertificate)
+
+	// Clean up the provided mainnet and testnet links, ensuring there is a single
+	// trailing slash.
+	cfg.MainnetLink = strings.TrimSuffix(cfg.MainnetLink, "/") + "/"
+	cfg.TestnetLink = strings.TrimSuffix(cfg.TestnetLink, "/") + "/"
 
 	return &cfg, nil
 }

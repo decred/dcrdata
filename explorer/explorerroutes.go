@@ -39,6 +39,7 @@ type CommonPageData struct {
 	ChainParams   *chaincfg.Params
 	BlockTimeUnix int64
 	DevAddress    string
+	Links         *links
 }
 
 // Status page strings
@@ -2058,6 +2059,7 @@ func (exp *explorerUI) commonData() *CommonPageData {
 	cd.ChainParams = exp.ChainParams
 	cd.BlockTimeUnix = int64(exp.ChainParams.TargetTimePerBlock.Seconds())
 	cd.DevAddress = exp.pageData.HomeInfo.DevAddress
+	cd.Links = explorerLinks
 	var err error
 	cd.Tip, err = exp.blockData.GetTip()
 	if err != nil {

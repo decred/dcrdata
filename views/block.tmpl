@@ -178,7 +178,7 @@
                                   </span>
                               {{else}}
                                   <span title="The Genesis block coinbase transaction is invalid on mainnet.">
-                                      <span class="attention">&#9888;</span> <a class="hash" href="https://github.com/decred/dcrd/blob/2a18beb4d56fe59d614a7309308d84891a0cba96/chaincfg/genesis.go#L17-L53">{{.TxID}}</a>
+                                      <span class="attention">&#9888;</span> <a class="hash" href="{{$.Links.CoinbaseComment}}">{{.TxID}}</a>
                                   </span>
                               {{end}}
                               </td>
