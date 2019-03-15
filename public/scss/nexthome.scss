@@ -204,6 +204,43 @@
   margin-bottom: 30px;
 }
 
+body.darkBG {
+  .blocks-section .showmore {
+    background: #2d2d2d !important;
+  }
+
+  .blocks-holder .info-block {
+    background: #2d2d2d !important;
+  }
+
+  .blocks-holder .info-block .color-code {
+    color: rgba(148, 255, 202, 0.75) !important;
+  }
+
+  .block-rows .block-rewards,
+  .block-rows .block-votes,
+  .block-rows .block-tickets,
+  .block-rows .block-transactions {
+    border-top: 1px solid black;
+  }
+
+  .block-rows .block-rewards > span,
+  .block-rows .block-votes > span,
+  .block-rows .block-tickets > span,
+  .block-rows .block-transactions > span {
+    border-left: 1px solid black;
+  }
+
+  .block-info a.color-code,
+  .block-info span.timespan {
+    color: #bbb;
+  }
+
+  .block-info a.color-code:hover {
+    color: $dark-link-hover-color;
+  }
+}
+
 .blockhchainWrapper table#blockchainTable {
   width: 100%;
   font-family: "Source Sans Pro", sans-serif;
@@ -299,16 +336,4 @@
   .blocks-section {
     padding: 0 0;
   }
-}
-
-body.darkBG .blocks-section .showmore {
-  background: #2d2d2d !important;
-}
-
-body.darkBG .blocks-holder .info-block {
-  background: #2d2d2d !important;
-}
-
-body.darkBG .blocks-holder .info-block .color-code {
-  color: rgba(148, 255, 202, 0.75) !important;
 }

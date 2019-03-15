@@ -47,18 +47,18 @@ body.darkBG {
 
   a,
   a:hover {
-    color: #94ffca;
+    color: $dark-link-hover-color;
   }
 
   a.elidedhash,
   a.elidedhash:hover {
     color: transparent;
-    text-decoration-color: #94ffca;
+    text-decoration-color: $dark-link-hover-color;
   }
 
   a.elidedhash::before,
   a.elidedhash::after {
-    color: #94ffca;
+    color: $dark-link-hover-color;
   }
 
   div.elidedhash::before,
@@ -138,7 +138,7 @@ body.darkBG {
 
     &:hover,
     &:hover span {
-      color: #94ffca;
+      color: $dark-link-hover-color;
     }
   }
 
