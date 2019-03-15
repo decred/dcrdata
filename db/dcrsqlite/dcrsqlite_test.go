@@ -10,6 +10,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrdata/v4/testutil"
+	sqlite3 "github.com/mattn/go-sqlite3"
 )
 
 func TestParseUnknownTicketError(t *testing.T) {
@@ -65,7 +66,7 @@ func DBPathForTest() string {
 // InitTestDB creates default DB instance
 func InitTestDB(targetDBFile string) *DB {
 	dbInfo := &DBInfo{FileName: targetDBFile}
-	db, err := InitDB(dbInfo)
+	db, err := InitDB(dbInfo, func() {})
 	if err != nil {
 		testutil.ReportTestFailed("InitDB() failed: %v", err)
 	}
@@ -89,4 +90,28 @@ func ObtainReusableEmptyDB() *DB {
 		reusableEmptyDB = InitTestDB(targetDBFile)
 	}
 	return reusableEmptyDB
+}
+
+var triggered = false
+
+func shutdown() {
+	triggered = true
+}
+
+func TestFilterError(t *testing.T) {
+	var db DB
+	db.shutdownDcrdata = shutdown
+
+	var otherError error
+	db.filterError(otherError)
+	if triggered {
+		t.Errorf("shutdown unexpectedly triggered")
+	}
+
+	var err sqlite3.Error
+	err.Code = sqlite3.ErrLocked
+	db.filterError(err)
+	if !triggered {
+		t.Errorf("SQLite3 database locked error failed to trigger shutdown")
+	}
 }

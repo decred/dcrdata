@@ -19,7 +19,7 @@ import (
 	"github.com/decred/dcrdata/v4/blockdata"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
 	"github.com/decred/slog"
-	_ "github.com/mattn/go-sqlite3" // register sqlite driver with database/sql
+	sqlite3 "github.com/mattn/go-sqlite3" // register sqlite driver with database/sql
 )
 
 // StakeInfoDatabaser is the interface for an extended stake info saving database
@@ -74,6 +74,10 @@ type DB struct {
 	// dbSummaryHeight is set when a block's stake info is stored.
 	dbStakeInfoHeight int64
 
+	// Drop shutdownDcrdata when the "database is locked" error is mitigated.
+	// See https://github.com/decred/dcrdata/issues/1133 for more info.
+	shutdownDcrdata func()
+
 	// Block summary table queries
 	insertBlockSQL                                               string
 	getPoolSQL, getPoolRangeSQL                                  string
@@ -114,11 +118,12 @@ type DB struct {
 
 // NewDB creates a new DB instance with pre-generated sql statements from an
 // existing sql.DB. Use InitDB to create a new DB without having a sql.DB.
-func NewDB(db *sql.DB) (*DB, error) {
+func NewDB(db *sql.DB, shutdown func()) (*DB, error) {
 	d := DB{
 		DB:                db,
 		dbSummaryHeight:   -1,
 		dbStakeInfoHeight: -1,
+		shutdownDcrdata:   shutdown,
 	}
 
 	// Block summary insert
@@ -312,7 +317,7 @@ func NewDB(db *sql.DB) (*DB, error) {
 
 // InitDB creates a new DB instance from a DBInfo containing the name of the
 // file used to back the underlying sql database.
-func InitDB(dbInfo *DBInfo) (*DB, error) {
+func InitDB(dbInfo *DBInfo, shutdown func()) (*DB, error) {
 	dbPath, err := filepath.Abs(dbInfo.FileName)
 	if err != nil {
 		return nil, err
@@ -407,7 +412,7 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
 		return nil, err
 	}
 
-	dataBase, err := NewDB(db)
+	dataBase, err := NewDB(db, shutdown)
 	if err != nil {
 		return nil, err
 	}
@@ -421,6 +426,20 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
 	}
 
 	return dataBase, err
+}
+
+// Need to check the error for a SQLite database "database is locked" error
+// until resolved. See https://github.com/decred/dcrdata/issues/1133 for info.
+func (db *DB) filterError(err error) error {
+	if err == nil {
+		return err
+	}
+	sqliteErr, is := err.(sqlite3.Error)
+	if is && sqliteErr.Code == sqlite3.ErrLocked {
+		log.Criticalf("SQLite3 database is locked error encountered. Restart required")
+		db.shutdownDcrdata()
+	}
+	return err
 }
 
 // DBDataSaver models a DB with a channel to communicate new block height to the
@@ -513,6 +532,7 @@ func (db *DB) deleteBlock(blockhash string) (NSummaryRows, NStakeInfoRows int64,
 		err = nil
 	}
 	if err != nil {
+		db.filterError(err)
 		return
 	}
 
@@ -527,6 +547,7 @@ func (db *DB) deleteBlock(blockhash string) (NSummaryRows, NStakeInfoRows int64,
 		err = nil
 	}
 	if err != nil {
+		db.filterError(err)
 		return
 	}
 
@@ -556,6 +577,7 @@ func (db *DB) deleteBlocksAboveHeight(height int64) (NSummaryRows, NStakeInfoRow
 		err = nil
 	}
 	if err != nil {
+		db.filterError(err)
 		return
 	}
 
@@ -570,6 +592,7 @@ func (db *DB) deleteBlocksAboveHeight(height int64) (NSummaryRows, NStakeInfoRow
 		err = nil
 	}
 	if err != nil {
+		db.filterError(err)
 		return
 	}
 
@@ -596,7 +619,7 @@ func (db *DB) DeleteBlocksAboveHeight(height int64) (NSummaryRows, NStakeInfoRow
 func (db *DB) deleteBlockHeightMainchain(height int64) (int64, error) {
 	res, err := db.Exec(db.deleteBlockByHeightMainChainSQL, height)
 	if err != nil {
-		return 0, err
+		return 0, db.filterError(err)
 	}
 	return res.RowsAffected()
 }
@@ -604,20 +627,20 @@ func (db *DB) deleteBlockHeightMainchain(height int64) (int64, error) {
 // Invalidate block with the given hash.
 func (db *DB) invalidateBlock(blockhash string) error {
 	_, err := db.Exec(db.invalidateBlockSQL, blockhash)
-	return err
+	return db.filterError(err)
 }
 
 // Sets the is_mainchain field to false for the given block in the database.
 func (db *DB) setHeightToSideChain(height int64) error {
 	_, err := db.Exec(db.setHeightToSideChainSQL, height)
-	return err
+	return db.filterError(err)
 }
 
 // Returns the is_mainchain value from the database for the given hash.
 func (db *DB) getMainchainStatus(blockhash string) (bool, error) {
 	var isMainchain bool
 	err := db.QueryRow(db.getMainchainStatusSQL, blockhash).Scan(&isMainchain)
-	return isMainchain, err
+	return isMainchain, db.filterError(err)
 }
 
 // StoreBlock attempts to store the block data in the database, and
@@ -864,7 +887,7 @@ func (db *DB) RetrievePoolInfo(ind int64) (*apitypes.TicketPoolInfo, error) {
 	err := db.QueryRow(db.getPoolSQL, ind).Scan(&hash, &tpi.Size,
 		&tpi.Value, &tpi.ValAvg, &winners)
 	tpi.Winners = splitToArray(winners)
-	return tpi, err
+	return tpi, db.filterError(err)
 }
 
 // RetrieveWinners returns the winning ticket tx IDs drawn after connecting the
@@ -874,7 +897,7 @@ func (db *DB) RetrieveWinners(ind int64) ([]string, string, error) {
 	var hash, winners string
 	err := db.QueryRow(db.getWinnersSQL, ind).Scan(&hash, &winners)
 	if err != nil {
-		return nil, "", err
+		return nil, "", db.filterError(err)
 	}
 	return splitToArray(winners), hash, err
 }
@@ -887,7 +910,7 @@ func (db *DB) RetrieveWinnersByHash(hash string) ([]string, uint32, error) {
 	var height uint32
 	err := db.QueryRow(db.getWinnersByHashSQL, hash).Scan(&height, &winners)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, db.filterError(err)
 	}
 	return splitToArray(winners), height, err
 }
@@ -899,7 +922,7 @@ func (db *DB) RetrievePoolInfoByHash(hash string) (*apitypes.TicketPoolInfo, err
 	err := db.QueryRow(db.getPoolByHashSQL, hash).Scan(&tpi.Height, &tpi.Size,
 		&tpi.Value, &tpi.ValAvg, &winners)
 	tpi.Winners = splitToArray(winners)
-	return tpi, err
+	return tpi, db.filterError(err)
 }
 
 // RetrievePoolValAndSizeRange returns an array each of the pool values and
@@ -1134,7 +1157,7 @@ func (db *DB) RetrieveBlockSummaryByTimeRange(minTime, maxTime int64, limit int)
 func (db *DB) RetrieveDiff(timestamp int64) (float64, error) {
 	var diff float64
 	err := db.QueryRow(db.getDifficulty, timestamp).Scan(&diff)
-	return diff, err
+	return diff, db.filterError(err)
 }
 
 // RetrieveSDiff returns the stake difficulty for block at the specified chain
@@ -1142,7 +1165,7 @@ func (db *DB) RetrieveDiff(timestamp int64) (float64, error) {
 func (db *DB) RetrieveSDiff(ind int64) (float64, error) {
 	var sdiff float64
 	err := db.QueryRow(db.getSDiffSQL, ind).Scan(&sdiff)
-	return sdiff, err
+	return sdiff, db.filterError(err)
 }
 
 // RetrieveLatestBlockSummary returns the block summary for the best block.
@@ -1157,7 +1180,7 @@ func (db *DB) RetrieveLatestBlockSummary() (*apitypes.BlockDataBasic, error) {
 		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg,
 		&winners, &isMainchain, &isValid)
 	if err != nil {
-		return nil, err
+		return nil, db.filterError(err)
 	}
 	bd.Time = apitypes.TimeAPI{S: dbtypes.NewTimeDefFromUNIX(timestamp)}
 	bd.PoolInfo.Winners = splitToArray(winners)
@@ -1179,21 +1202,21 @@ func (db *DB) RetrieveBlockHash(ind int64) (string, error) {
 
 	var blockHash string
 	err := db.QueryRow(db.getBlockHashSQL, ind).Scan(&blockHash)
-	return blockHash, err
+	return blockHash, db.filterError(err)
 }
 
 // RetrieveBlockHeight returns the block height for blockhash hash
 func (db *DB) RetrieveBlockHeight(hash string) (int64, error) {
 	var blockHeight int64
 	err := db.QueryRow(db.getBlockHeightSQL, hash).Scan(&blockHeight)
-	return blockHeight, err
+	return blockHeight, db.filterError(err)
 }
 
 // RetrieveBestBlockHash returns the block hash for the best (mainchain) block.
 func (db *DB) RetrieveBestBlockHash() (string, error) {
 	var blockHash string
 	err := db.QueryRow(db.getBestBlockHashSQL).Scan(&blockHash)
-	return blockHash, err
+	return blockHash, db.filterError(err)
 }
 
 // RetrieveHighestBlockHash returns the block hash for the highest block,
@@ -1201,14 +1224,14 @@ func (db *DB) RetrieveBestBlockHash() (string, error) {
 func (db *DB) RetrieveHighestBlockHash() (string, error) {
 	var blockHash string
 	err := db.QueryRow(db.getHighestBlockHashSQL).Scan(&blockHash)
-	return blockHash, err
+	return blockHash, db.filterError(err)
 }
 
 // RetrieveBestBlockHeight returns the block height for the best block
 func (db *DB) RetrieveBestBlockHeight() (int64, error) {
 	var blockHeight int64
 	err := db.QueryRow(db.getBestBlockHeightSQL).Scan(&blockHeight)
-	return blockHeight, err
+	return blockHeight, db.filterError(err)
 }
 
 // RetrieveHighestBlockHeight returns the block height for the highest block,
@@ -1216,7 +1239,7 @@ func (db *DB) RetrieveBestBlockHeight() (int64, error) {
 func (db *DB) RetrieveHighestBlockHeight() (int64, error) {
 	var blockHeight int64
 	err := db.QueryRow(db.getHighestBlockHeightSQL).Scan(&blockHeight)
-	return blockHeight, err
+	return blockHeight, db.filterError(err)
 }
 
 // RetrieveBlockSummaryByHash returns basic block data for a block given its hash
@@ -1241,7 +1264,7 @@ func (db *DB) RetrieveBlockSummaryByHash(hash string) (*apitypes.BlockDataBasic,
 		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg,
 		&winners, &isMainchain, &isValid)
 	if err != nil {
-		return nil, err
+		return nil, db.filterError(err)
 	}
 	bd.Time = apitypes.TimeAPI{S: dbtypes.NewTimeDefFromUNIX(timestamp)}
 	bd.PoolInfo.Winners = splitToArray(winners)
@@ -1283,7 +1306,7 @@ func (db *DB) RetrieveBlockSummary(ind int64) (*apitypes.BlockDataBasic, error) 
 		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg,
 		&winners, &isMainchain, &isValid)
 	if err != nil {
-		return nil, err
+		return nil, db.filterError(err)
 	}
 	bd.Time = apitypes.TimeAPI{S: dbtypes.NewTimeDefFromUNIX(timestamp)}
 	bd.PoolInfo.Winners = splitToArray(winners)
@@ -1356,7 +1379,7 @@ func (db *DB) RetrieveBlockSize(ind int64) (int32, error) {
 	var blockSize int32
 	err := db.QueryRow(db.getBlockSizeSQL, ind).Scan(&blockSize)
 	if err != nil {
-		return -1, fmt.Errorf("unable to scan for block size: %v", err)
+		return -1, fmt.Errorf("unable to scan for block size: %v", db.filterError(err))
 	}
 
 	return blockSize, nil
@@ -1457,7 +1480,7 @@ func (db *DB) StoreStakeInfoExtended(si *apitypes.StakeInfoExtended) error {
 func (db *DB) deleteStakeInfo(blockhash string) (int64, error) {
 	res, err := db.Exec(db.deleteBlockByHashSQL, blockhash)
 	if err != nil {
-		return 0, err
+		return 0, db.filterError(err)
 	}
 	return res.RowsAffected()
 }
@@ -1467,7 +1490,7 @@ func (db *DB) deleteStakeInfo(blockhash string) (int64, error) {
 func (db *DB) deleteStakeInfoHeightMainchain(height int64) (int64, error) {
 	res, err := db.Exec(db.deleteBlockByHeightMainChainSQL, height)
 	if err != nil {
-		return 0, err
+		return 0, db.filterError(err)
 	}
 	return res.RowsAffected()
 }
@@ -1486,7 +1509,7 @@ func (db *DB) RetrieveLatestStakeInfoExtended() (*apitypes.StakeInfoExtended, er
 		&si.PriceWindowNum, &si.IdxBlockInWindow, &si.PoolInfo.Size,
 		&si.PoolInfo.Value, &si.PoolInfo.ValAvg, &winners)
 	if err != nil {
-		return nil, err
+		return nil, db.filterError(err)
 	}
 	si.PoolInfo.Winners = splitToArray(winners)
 
@@ -1512,7 +1535,7 @@ func (db *DB) RetrieveBestStakeHeight() (int64, error) {
 	var height int64
 	err := db.QueryRow(db.getBestStakeHeightSQL).Scan(&height)
 	if err != nil {
-		return -1, err
+		return -1, db.filterError(err)
 	}
 	return height, nil
 }
@@ -1523,7 +1546,7 @@ func (db *DB) RetrieveHighestStakeHeight() (int64, error) {
 	var height int64
 	err := db.QueryRow(db.getHighestStakeHeightSQL).Scan(&height)
 	if err != nil {
-		return -1, err
+		return -1, db.filterError(err)
 	}
 	return height, nil
 }
@@ -1552,7 +1575,7 @@ func (db *DB) RetrieveStakeInfoExtended(ind int64) (*apitypes.StakeInfoExtended,
 		&si.PriceWindowNum, &si.IdxBlockInWindow, &si.PoolInfo.Size,
 		&si.PoolInfo.Value, &si.PoolInfo.ValAvg, &winners)
 	if err != nil {
-		return nil, err
+		return nil, db.filterError(err)
 	}
 	si.PoolInfo.Winners = splitToArray(winners)
 
@@ -1590,7 +1613,7 @@ func (db *DB) RetrieveStakeInfoExtendedByHash(blockhash string) (*apitypes.Stake
 		&si.PriceWindowNum, &si.IdxBlockInWindow, &si.PoolInfo.Size,
 		&si.PoolInfo.Value, &si.PoolInfo.ValAvg, &winners)
 	if err != nil {
-		return nil, err
+		return nil, db.filterError(err)
 	}
 	si.PoolInfo.Winners = splitToArray(winners)
 
@@ -1639,7 +1662,7 @@ func (db *DB) JustifyTableStructures(dbInfo *DBInfo) error {
 	rows, err := db.Query(db.getBlockSummaryTableInfo)
 	if err != nil {
 		log.Errorf("Query failed: %v", err)
-		return err
+		return db.filterError(err)
 	}
 	defer rows.Close()
 
