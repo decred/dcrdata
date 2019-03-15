@@ -63,7 +63,6 @@ const (
 	ExpStatusDeprecated     expStatus = "Deprecated"
 	ExpStatusSyncing        expStatus = "Blocks Syncing"
 	ExpStatusDBTimeout      expStatus = "Database Timeout"
-	ExpStatusBitcoin        expStatus = "Bitcoin Address"
 	ExpStatusP2PKAddress    expStatus = "P2PK Address Type"
 )
 
@@ -73,10 +72,6 @@ func (e expStatus) IsNotFound() bool {
 
 func (e expStatus) IsWrongNet() bool {
 	return e == ExpStatusWrongNetwork
-}
-
-func (e expStatus) IsBitcoinAddress() bool {
-	return e == ExpStatusBitcoin
 }
 
 func (e expStatus) IsP2PKAddress() bool {
@@ -1249,9 +1244,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		var message string
 		code := defaultErrorCode
 		switch addrErr {
-		case txhelpers.AddressErrorBitcoin:
-			status = ExpStatusBitcoin
-			message = "Looks like you are searching for a bitcoin address."
 		case txhelpers.AddressErrorDecodeFailed, txhelpers.AddressErrorUnknown:
 			status = ExpStatusError
 			message = "Unexpected issue validating this address."
@@ -1528,7 +1520,7 @@ func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	searchStr := r.URL.Query().Get("search")
 	if searchStr == "" {
-		exp.StatusPage(w, "search failed", "Nothing was searched for",
+		exp.StatusPage(w, "search failed", "No search term!",
 			searchStr, ExpStatusNotSupported)
 		return
 	}
@@ -1567,10 +1559,6 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		message := fmt.Sprintf("The address %v is valid on %s, not %s",
 			searchStr, address.Net, exp.NetName)
 		exp.StatusPage(w, wrongNetwork, message, searchStr, ExpStatusWrongNetwork)
-		return
-	case txhelpers.AddressErrorBitcoin:
-		message := "Looks like you are searching for a bitcoin address."
-		exp.StatusPage(w, wrongNetwork, message, searchStr, ExpStatusBitcoin)
 		return
 	}
 
@@ -1670,7 +1658,7 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code, message, addition
 	// and accepted but cannot be processed now till the sync is complete.
 	case ExpStatusSyncing:
 		w.WriteHeader(http.StatusAccepted)
-	case ExpStatusNotSupported, ExpStatusBitcoin:
+	case ExpStatusNotSupported:
 		w.WriteHeader(http.StatusUnprocessableEntity)
 	default:
 		w.WriteHeader(http.StatusServiceUnavailable)

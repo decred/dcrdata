@@ -23,8 +23,6 @@
                     {{end}}
                 {{end}}
                 </h5>
-            {{else if .StatusType.IsBitcoinAddress}}
-                <h5>{{.Message}} You may possibly <a href="{{.Links.BtcAddress}}{{.AdditionalInfo}}/">find it here.</a></h5>
             {{else if .StatusType.IsP2PKAddress}}
                 {{$P2PKHAddr := PKAddr2PKHAddr .AdditionalInfo}}
                 <h5>{{.Message}}
