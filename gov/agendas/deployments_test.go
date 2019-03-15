@@ -12,6 +12,7 @@ import (
 	"github.com/asdine/storm"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson/v2"
+	"github.com/decred/dcrdata/v4/db/dbtypes"
 )
 
 var db *storm.DB
@@ -23,7 +24,7 @@ var firstAgendaInfo = &AgendaTagged{
 	Mask:        6,
 	StartTime:   1548633600,
 	ExpireTime:  1580169600,
-	Status:      "defined",
+	Status:      dbtypes.InitialAgendaStatus,
 	Choices: []dcrjson.Choice{
 		{
 			ID:          "abstain",
@@ -183,7 +184,7 @@ var expectedAgenda = &AgendaTagged{
 	Mask:           6,
 	StartTime:      1493164800,
 	ExpireTime:     1524700800,
-	Status:         "active",
+	Status:         dbtypes.ActivatedAgendaStatus,
 	QuorumProgress: 100,
 	Choices: []dcrjson.Choice{
 		{
