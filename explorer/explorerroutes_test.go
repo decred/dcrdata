@@ -77,7 +77,7 @@ func TestStatusPageResponseCodes(t *testing.T) {
 		RespCode  int
 	}{
 		{
-			ExpStatusBitcoin, http.StatusUnprocessableEntity,
+			ExpStatusNotSupported, http.StatusUnprocessableEntity,
 		},
 	}
 

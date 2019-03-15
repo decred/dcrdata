@@ -957,7 +957,6 @@ type AddressError error
 
 var (
 	AddressErrorNoError      AddressError = nil
-	AddressErrorBitcoin      AddressError = errors.New("possible Bitcoin address")
 	AddressErrorZeroAddress  AddressError = errors.New("null address")
 	AddressErrorWrongNet     AddressError = errors.New("wrong network")
 	AddressErrorDecodeFailed AddressError = errors.New("decoding failed")
@@ -971,7 +970,6 @@ const (
 	AddressTypeP2PK = iota
 	AddressTypeP2PKH
 	AddressTypeP2SH
-	AddressTypeBitcoin
 	AddressTypeOther
 	AddressTypeUnknown
 )
