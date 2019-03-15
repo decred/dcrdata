@@ -230,14 +230,16 @@ func (a AgendaStatusType) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON is the default unmarshaller for AgendaStatusType.
 func (a *AgendaStatusType) UnmarshalJSON(b []byte) error {
-	*a = AgendaStatusFromStr(string(b))
+	str := strings.Replace(string(b), `"`, ``, -1)
+	*a = AgendaStatusFromStr(str)
 	return nil
 }
 
-// AgendaStatusFromStr creates an agenda status from a string.
+// AgendaStatusFromStr creates an agenda status from a string. If "UnknownStatus"
+// is returned then an invalid status string has been passed.
 func AgendaStatusFromStr(status string) AgendaStatusType {
 	switch strings.ToLower(status) {
-	case "defined", "upcomming":
+	case "defined", "upcoming":
 		return InitialAgendaStatus
 	case "started", "in progress":
 		return StartedAgendaStatus

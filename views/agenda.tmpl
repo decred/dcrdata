@@ -78,10 +78,11 @@
                 </div>
                 <div class="col-lg-5 col-sm-12 d-flex">
                     <table class="">
+
                         <tr>
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117 font-weight-bold">Status</td>
                             <td class="lh1rem">
-                                <span class="hash break-word">{{toTitleCase .Status}}</span>
+                                <span class="hash break-word">{{with .Status}}{{toTitleCase .String}}{{end}}</span>
                             </td>
                         </tr>
                         <tr>
@@ -103,7 +104,8 @@
             </div>
             {{if .Choices}}
             {{$isProgress := (ne (index .Choices 0).Progress 0.0)}}
-            {{$isNotDone := (or (eq .Status "started") (eq .Status "defined"))}}
+            {{$isNotDone := true}}
+            {{with .Status}}{{$isNotDone = (or (eq .String "started") (eq .String "defined"))}}{{end}}
             {{$showProgress := or $isProgress $isNotDone}}
             <table class="table table-mono-cells table-sm my-3">
                 <thead>
