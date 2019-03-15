@@ -58,6 +58,7 @@ const (
 	ExpStatusNotFound       expStatus = "Not Found"
 	ExpStatusFutureBlock    expStatus = "Future Block"
 	ExpStatusNotSupported   expStatus = "Not Supported"
+	ExpStatusBadRequest     expStatus = "Bad Request"
 	ExpStatusNotImplemented expStatus = "Not Implemented"
 	ExpStatusWrongNetwork   expStatus = "Wrong Network"
 	ExpStatusDeprecated     expStatus = "Deprecated"
@@ -1518,10 +1519,15 @@ func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 // question is a block index, block hash, address hash or transaction hash and
 // redirects to the appropriate page or displays an error.
 func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
+	// The ?search= query.
 	searchStr := r.URL.Query().Get("search")
+
+	// Strip leading and tailing whitespace.
+	searchStr = strings.TrimSpace(searchStr)
+
 	if searchStr == "" {
-		exp.StatusPage(w, "search failed", "No search term!",
-			searchStr, ExpStatusNotSupported)
+		exp.StatusPage(w, "search failed", "The search term was empty.",
+			searchStr, ExpStatusBadRequest)
 		return
 	}
 
@@ -1660,6 +1666,8 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code, message, addition
 		w.WriteHeader(http.StatusAccepted)
 	case ExpStatusNotSupported:
 		w.WriteHeader(http.StatusUnprocessableEntity)
+	case ExpStatusBadRequest:
+		w.WriteHeader(http.StatusBadRequest)
 	default:
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
