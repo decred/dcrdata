@@ -7,7 +7,6 @@ package insight
 import (
 	"bytes"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -26,7 +25,10 @@ import (
 	m "github.com/decred/dcrdata/v4/middleware"
 	"github.com/decred/dcrdata/v4/semver"
 	"github.com/decred/dcrdata/v4/txhelpers"
+	jsoniter "github.com/json-iterator/go"
 )
+
+var jsonfast = jsoniter.ConfigCompatibleWithStandardLibrary
 
 // DataSourceLite specifies an interface for collecting data from the built-in
 // databases (i.e. SQLite, storm, ffldb)
@@ -89,7 +91,7 @@ func (c *insightApiContext) getIndentQuery(r *http.Request) (indent string) {
 // Insight API successful response for JSON return items.
 func writeJSON(w http.ResponseWriter, thing interface{}, indent string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	encoder := json.NewEncoder(w)
+	encoder := jsonfast.NewEncoder(w)
 	encoder.SetIndent("", indent)
 	if err := encoder.Encode(thing); err != nil {
 		apiLog.Infof("JSON encode error: %v", err)
