@@ -47,7 +47,7 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/rs/cors v1.6.0
 	github.com/shiena/ansicolor v0.0.0-20151119151921-a422bbe96644
-	github.com/sirupsen/logrus v1.2.0
+	github.com/sirupsen/logrus v1.4.0
 	github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d // indirect
 	github.com/smartystreets/goconvey v0.0.0-20181108003508-044398e4856c // indirect
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect

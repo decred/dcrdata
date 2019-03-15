@@ -508,7 +508,8 @@ func _main(ctx context.Context) error {
 
 	// Creates a new or loads an existing agendas db instance that helps to
 	// store and retrieves agendas data. Agendas votes are On-Chain
-	// transactions that appear in the decred blockchain.
+	// transactions that appear in the decred blockchain. If corrupted data is
+	// is found, its deleted pending the data update that restores valid data.
 	agendasInstance, err := agendas.NewAgendasDB(filepath.Join(cfg.DataDir,
 		cfg.AgendasDBFileName))
 	if err != nil {

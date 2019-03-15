@@ -1710,7 +1710,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	yes, abstain, no, err := exp.explorerSource.AgendaCumulativeVoteChoices(agendaId)
+	summary, err := exp.explorerSource.AgendasVotesSummary(agendaId)
 	if err != nil {
 		log.Errorf("fetching Cumulative votes choices count failed: %v", err)
 	}
@@ -1718,23 +1718,62 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 	// Overrides the default count value with the actual vote choices count
 	// matching data displayed on "Cumulative Vote Choices" and "Vote Choices By
 	// Block" charts.
+	var totalVotes uint32
 	for index := range agendaInfo.Choices {
 		switch strings.ToLower(agendaInfo.Choices[index].ID) {
 		case "abstain":
-			agendaInfo.Choices[index].Count = abstain
+			agendaInfo.Choices[index].Count = summary.Abstain
 		case "yes":
-			agendaInfo.Choices[index].Count = yes
+			agendaInfo.Choices[index].Count = summary.Yes
 		case "no":
-			agendaInfo.Choices[index].Count = no
+			agendaInfo.Choices[index].Count = summary.No
 		}
+		totalVotes += agendaInfo.Choices[index].Count
+	}
+
+	ruleChangeI := exp.ChainParams.RuleChangeActivationInterval
+	qVotes := uint32(float64(ruleChangeI) * agendaInfo.QuorumProgress)
+
+	// agendaInfo.QuorumProgress limit quorum progress to 2 decimal places.
+	if agendaInfo.QuorumProgress > 0 {
+		agendaInfo.QuorumProgress = math.Floor(agendaInfo.QuorumProgress*10000) / 100
+	}
+
+	var timeLeft string
+	blocksLeft := summary.LockedIn - exp.Height()
+
+	if blocksLeft > 0 {
+		// Approximately 1 block per 5 minutes.
+		var minPerblock = 5 * time.Minute
+
+		hoursLeft := int((time.Duration(blocksLeft) * minPerblock).Hours())
+		if hoursLeft > 0 {
+			timeLeft = fmt.Sprintf("%v days %v hours", hoursLeft/24, hoursLeft%24)
+		}
+	} else {
+		blocksLeft = 0
 	}
 
 	str, err := exp.templates.execTemplateToString("agenda", struct {
 		*CommonPageData
-		Ai *agendas.AgendaTagged
+		Ai            *agendas.AgendaTagged
+		QuorumVotes   uint32
+		RuleChangeI   uint32
+		VotingStarted int64
+		LockedIn      int64
+		BlocksLeft    int64
+		TimeRemaining string
+		TotalVotes    uint32
 	}{
 		CommonPageData: exp.commonData(),
 		Ai:             agendaInfo,
+		QuorumVotes:    qVotes,
+		RuleChangeI:    ruleChangeI,
+		VotingStarted:  summary.VotingStarted,
+		LockedIn:       summary.LockedIn,
+		BlocksLeft:     blocksLeft,
+		TimeRemaining:  timeLeft,
+		TotalVotes:     totalVotes,
 	})
 
 	if err != nil {
@@ -1754,6 +1793,13 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 		log.Errorf("Template execute failure: %v", err)
 		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
+	}
+
+	for i, a := range agenda {
+		// limit quorum progress to 2 decimal places.
+		if a.QuorumProgress > 0 {
+			agenda[i].QuorumProgress = math.Floor(a.QuorumProgress*100) / 100
+		}
 	}
 
 	str, err := exp.templates.execTemplateToString("agendas", struct {

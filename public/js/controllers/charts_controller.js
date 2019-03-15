@@ -248,7 +248,8 @@ export default class extends Controller {
       labelsDiv: this.labelsTarget,
       legend: 'always',
       legendFormatter: legendFormatter,
-      highlightCircleSize: 4
+      highlightCircleSize: 4,
+      labelsUTC: true
     }
 
     this.chartsView = new Dygraph(

@@ -991,43 +991,13 @@ func (pgb *ChainDB) AgendaVotes(agendaID string, chartType int) (*dbtypes.Agenda
 		return nil, nil
 	}
 
-	votingStartHeight, err := pgb.RCIStartHeight(agendaInfo)
-	if err != nil {
-		return nil, err
-	}
-
 	avc, err := retrieveAgendaVoteChoices(ctx, pgb.db, agendaID, chartType,
-		votingStartHeight, agendaInfo.VotingDone)
+		agendaInfo.VotingStarted, agendaInfo.VotingDone)
 	return avc, pgb.replaceCancelError(err)
 }
 
-// RCIStartHeight returns the startheight of the RCI window when voting for
-// the current agenda started. Computing the current agenda RCI StartHeight
-// helps ignore all the other possible RCIs especially if the current agenda is
-// on a revote. There are also the many votes that happen before the the POW and
-// POS upgrades have completed, and thus before the votes are tallied.
-func (pgb *ChainDB) RCIStartHeight(agendaInfo dbtypes.MileStone) (int64, error) {
-	chainRCIValue := int64(pgb.chainParams.RuleChangeActivationInterval)
-
-	// If agendas status is "started" its voting is still in progress and therefore
-	// to obtain where the current voting phase starts from, we check where the
-	// previous RCI end height was and start from there.
-	if agendaInfo.Status == dbtypes.StartedAgendaStatus {
-		ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
-		defer cancel()
-		return retrieveRCIWindowStartHeight(ctx, pgb.db,
-			agendaInfo.StartTime, chainRCIValue)
-	}
-
-	// For agendas where voting is complete (status "lockedin", "failed" or
-	// "active"), the start of voting is chainParams.RuleChangeActivationInterval
-	// blocks prior to the VotingDone height.
-	return agendaInfo.VotingDone - chainRCIValue, nil
-}
-
-// AgendaCumulativeVoteChoices fetches the total vote choices count for the
-// provided agenda.
-func (pgb *ChainDB) AgendaCumulativeVoteChoices(agendaID string) (yes, abstain, no uint32, err error) {
+// AgendasVotesSummary fetches the total vote choices count for the provided agenda.
+func (pgb *ChainDB) AgendasVotesSummary(agendaID string) (summary *dbtypes.AgendaSummary, err error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 
@@ -1038,14 +1008,26 @@ func (pgb *ChainDB) AgendaCumulativeVoteChoices(agendaID string) (yes, abstain, 
 		return
 	}
 
-	var votingStartHeight int64
-	votingStartHeight, err = pgb.RCIStartHeight(agendaInfo)
-	if err != nil {
-		return
+	var statusChangeBlock int64
+
+	// Fetches the block from where thr current status changed from.
+	switch agendaInfo.Status {
+	case dbtypes.StartedAgendaStatus:
+		statusChangeBlock = agendaInfo.VotingStarted
+	case dbtypes.LockedInAgendaStatus, dbtypes.FailedAgendaStatus:
+		statusChangeBlock = agendaInfo.VotingDone
+	case dbtypes.ActivatedAgendaStatus:
+		statusChangeBlock = agendaInfo.Activated
 	}
 
-	yes, abstain, no, err = retrieveTotalAgendaVotesCount(ctx, pgb.db, agendaID,
-		votingStartHeight, agendaInfo.VotingDone)
+	summary = &dbtypes.AgendaSummary{
+		ChangeBlock:   statusChangeBlock,
+		VotingStarted: agendaInfo.VotingStarted,
+		LockedIn:      agendaInfo.VotingDone,
+	}
+
+	summary.Yes, summary.Abstain, summary.No, err = retrieveTotalAgendaVotesCount(ctx,
+		pgb.db, agendaID, agendaInfo.VotingStarted, agendaInfo.VotingDone)
 	return
 }
 
@@ -2315,12 +2297,15 @@ func (pgb *ChainDB) UpdateChainState(blockChainInfo *dcrjson.GetBlockChainInfoRe
 			ExpireTime: time.Unix(int64(entry.ExpireTime), 0).UTC(),
 		}
 
-		// status "defined" is not considered since voting hasn't started.
-		// With status "started", votingDone should be taken as the current best
-		// height (if need be) but could not be set to avoid misleading that the
-		// vote for the current agenda is complete while it is still in progress
-		// till the status changes to either "failed" or "lockedin".
+		// The period between Voting start height to voting end height takes
+		// chainParams.RuleChangeActivationInterval blocks to change. The Period
+		// between Voting Done and activation also takes
+		// chainParams.RuleChangeActivationInterval blocks
 		switch agendaInfo.Status {
+		case dbtypes.StartedAgendaStatus:
+			agendaInfo.VotingDone = entry.Since + ruleChangeInterval
+			agendaInfo.Activated = agendaInfo.VotingDone + ruleChangeInterval
+
 		case dbtypes.FailedAgendaStatus:
 			agendaInfo.VotingDone = entry.Since
 
@@ -2329,9 +2314,11 @@ func (pgb *ChainDB) UpdateChainState(blockChainInfo *dcrjson.GetBlockChainInfoRe
 			agendaInfo.Activated = entry.Since + ruleChangeInterval
 
 		case dbtypes.ActivatedAgendaStatus:
-			agendaInfo.Activated = entry.Since
 			agendaInfo.VotingDone = entry.Since - ruleChangeInterval
+			agendaInfo.Activated = entry.Since
 		}
+
+		agendaInfo.VotingStarted = agendaInfo.VotingDone - ruleChangeInterval
 
 		voteMilestones[agendaID] = agendaInfo
 	}

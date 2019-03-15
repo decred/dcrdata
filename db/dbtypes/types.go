@@ -206,15 +206,15 @@ const (
 func (a AgendaStatusType) String() string {
 	switch a {
 	case InitialAgendaStatus:
-		return "defined"
+		return "upcoming"
 	case StartedAgendaStatus:
-		return "started"
+		return "in progress"
+	case LockedInAgendaStatus:
+		return "locked in"
 	case FailedAgendaStatus:
 		return "failed"
-	case LockedInAgendaStatus:
-		return "lockedin"
 	case ActivatedAgendaStatus:
-		return "active"
+		return "finished"
 	default:
 		return "unknown"
 	}
@@ -223,23 +223,29 @@ func (a AgendaStatusType) String() string {
 // Ensure at compile time that AgendaStatusType satisfies interface json.Marshaller.
 var _ json.Marshaler = (*AgendaStatusType)(nil)
 
-// AgendaStatusType default marshaller.
+// MarshalJSON is AgendaStatusType default marshaller.
 func (a AgendaStatusType) MarshalJSON() ([]byte, error) {
 	return json.Marshal(a.String())
+}
+
+// UnmarshalJSON is the default unmarshaller for AgendaStatusType.
+func (a *AgendaStatusType) UnmarshalJSON(b []byte) error {
+	*a = AgendaStatusFromStr(string(b))
+	return nil
 }
 
 // AgendaStatusFromStr creates an agenda status from a string.
 func AgendaStatusFromStr(status string) AgendaStatusType {
 	switch strings.ToLower(status) {
-	case "defined":
+	case "defined", "upcomming":
 		return InitialAgendaStatus
-	case "started":
+	case "started", "in progress":
 		return StartedAgendaStatus
 	case "failed":
 		return FailedAgendaStatus
-	case "lockedin":
+	case "lockedin", "locked in":
 		return LockedInAgendaStatus
-	case "active":
+	case "active", "finished":
 		return ActivatedAgendaStatus
 	default:
 		return UnknownStatus
@@ -493,13 +499,25 @@ func ChoiceIndexFromStr(choice string) (VoteChoice, error) {
 // VotingDone is the height at which voting is considered complete or when the
 // status changes from "started" to either "failed" or "lockedin".
 type MileStone struct {
-	ID         int64            `json:"-"`
-	Status     AgendaStatusType `json:"status"`
-	VotingDone int64            `json:"votingdone"`
-	Activated  int64            `json:"activated"`
-	HardForked int64            `json:"hardforked"`
-	StartTime  time.Time        `json:"starttime"`
-	ExpireTime time.Time        `json:"expiretime"`
+	ID            int64            `json:"-"`
+	Status        AgendaStatusType `json:"status"`
+	VotingStarted int64            `json:"votingStarted"`
+	VotingDone    int64            `json:"votingdone"`
+	Activated     int64            `json:"activated"`
+	HardForked    int64            `json:"hardforked"`
+	StartTime     time.Time        `json:"starttime"`
+	ExpireTime    time.Time        `json:"expiretime"`
+}
+
+// AgendaSummary describes a short summary of a given agenda that includes
+// vote choices tally and deployment rule change intervals.
+type AgendaSummary struct {
+	Yes           uint32
+	No            uint32
+	Abstain       uint32
+	ChangeBlock   int64 // Current Vote status change block.
+	VotingStarted int64
+	LockedIn      int64
 }
 
 // BlockChainData defines data holding the latest block chain state from the

@@ -16,53 +16,87 @@
                 </div>
             </div>
             <div class="row justify-content-between">
-                <div class="col-lg-18 col-sm-12 d-flex">
+                <div class="col-lg-12 col-sm-12 d-flex">
                     <table class="">
                         <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Description</td>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117 font-weight-bold">Description</td>
                             <td>
-                                <span class="hash break-word  lh1rem">{{.Description}}</span>
+                                <span class="hash lh1rem">{{.Description}}</span>
+                            </td>
+                        </tr>
+                         <tr>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117 font-weight-bold">Vote Version</td>
+                            <td class="lh1rem">
+                                <span class="hash break-word">v{{.VoteVersion}}</span>
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">StartTime</td>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117 font-weight-bold">Agenda Valid</td>
                             <td>
-                                <span class="hash break-word  lh1rem">{{TimeConversion .StartTime}}</span>
+                                <span class="hash break-word">{{TimeConversion .StartTime}}</span>
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">ExpireTime</td>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117 font-weight-bold">Agenda Expire</td>
                             <td>
-                                <span class="hash break-word  lh1rem">{{TimeConversion .ExpireTime}}</span>
+                                <span class="hash break-word">{{TimeConversion .ExpireTime}}</span>
                             </td>
                         </tr>
                     </table>
                 </div>
-                <div class="col-lg-6 col-sm-12 d-flex">
+                <div class="col-lg-7 col-sm-12 d-flex">
+                <table class="">
+                        <tr>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117 font-weight-bold">Voting Start</td>
+                            <td class="lh1rem">
+                                <span class="hash break-word"><a href="/block/{{$.VotingStarted}}">{{$.VotingStarted}}</a></span>
+                            </td>
+                        </tr>
+                         <tr>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117 font-weight-bold">Voting End</td>
+                            <td class="lh1rem">
+                                <span class="hash break-word"></a><a href="/block/{{$.LockedIn}}">{{$.LockedIn}}</a></span>
+                            </td>
+                        </tr>
+                        <tr>
+                            {{if gt $.BlocksLeft 0}}
+                                <td class="text-right pr-2 lh1rem vam nowrap xs-w117 font-weight-bold">Blocks Left</td>
+                                <td class="lh1rem">
+                                    <span class="hash break-word">{{intComma $.BlocksLeft}}</span>
+                                </td>
+                            {{end}}
+                        </tr>
+                         <tr>
+                            {{if ne $.TimeRemaining ""}}
+                                <td class="text-right pr-2 lh1rem vam nowrap xs-w117 font-weight-bold">Remaining</td>
+                                <td class="lh1rem">
+                                    <span class="hash break-word">{{$.TimeRemaining}}</span>
+                                </td>
+                            {{end}}
+                        </tr>
+                    </table>
+                </div>
+                <div class="col-lg-5 col-sm-12 d-flex">
                     <table class="">
                         <tr>
-                            <td class="text-right lh1rem pr-2 xs-w117">Status</td>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117 font-weight-bold">Status</td>
                             <td class="lh1rem">
-                                <span class="hash break-word  lh1rem">{{.Status}}</span>
+                                <span class="hash break-word">{{toTitleCase .Status}}</span>
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-right lh1rem pr-2 xs-w117">QuorumProgress</td>
-                            <td class="lh1rem">
-                                <span class="hash break-word  lh1rem">{{.QuorumProgress}}</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="text-right lh1rem pr-2 xs-w117">VoteVersion</td>
-                            <td class="lh1rem">
-                                <span class="hash break-word  lh1rem">{{.VoteVersion}}</span>
-                            </td>
-                             <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Mask</td>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117 font-weight-bold">Total Votes</td>
                             <td>
-                                <span class="hash break-word  lh1rem">{{.Mask}}</span>
+                                <span class="hash break-word">{{$.TotalVotes}}</span>
                             </td>
                         </tr>
+                        <tr>
+                            {{if gt .QuorumProgress 0.0}}
+                                <td class="text-right pr-2 lh1rem vam nowrap xs-w117 font-weight-bold">Quorum</td>
+                                <td class="lh1rem">
+                                    <span class="hash break-word">{{$.QuorumVotes}}/{{$.RuleChangeI}} ({{.QuorumProgress}}%)</span>
+                                </td>
+                            {{end}}
                         </tr>
                     </table>
                 </div>
@@ -90,7 +124,7 @@
                         <td class="text-right">{{.Bits}}</td>
                         <td class="text-right">{{.Count}}</td>
                         {{if $showProgress}}
-                            <td class="text-right">{{.Progress}}</td>
+                            <td class="text-right">{{toDecimalPlaces .Progress 2}}%</td>
                         {{end}}
                     </tr>
                 {{end}}
@@ -102,7 +136,7 @@
               <div class="modal position-absolute"></div>
               <div
                   data-target="agenda.cumulativeVoteChoices"
-                  style="width:100%; height:400px; margin:0 auto;"
+                  style="width:100%; height:300px; margin:0 auto;"
               ></div>
               <br>
               <div

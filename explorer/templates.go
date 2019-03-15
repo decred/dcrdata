@@ -242,8 +242,12 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 	netTheme := "theme-" + strings.ToLower(netName(params))
 
 	return template.FuncMap{
-		"add": func(a, b int64) int64 {
-			return a + b
+		"add": func(args ...int64) int64 {
+			var sum int64
+			for _, a := range args {
+				sum += a
+			}
+			return sum
 		},
 		"intAdd": func(a, b int) int {
 			return a + b
