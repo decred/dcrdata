@@ -1,7 +1,7 @@
 import { Controller } from 'stimulus'
 import globalEventBus from '../services/event_bus_service'
 import { darkEnabled } from '../services/theme_service'
-import { VoteMeter, ProgressMeter } from '../helpers/vote_meter.js'
+import { VoteMeter, ProgressMeter } from '../helpers/meters.js'
 
 export default class extends Controller {
   static get targets () {

@@ -18,6 +18,12 @@ function sleep (ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
+// Meter provides basic drawing and math utilities for a meter object, which
+// has a circular strip shape with a gap. You can draw segments of the strip
+// using segment. Child classes should implement a draw method. The parent
+// parameter should be a block element with class .meter. CSS classes .large-gap
+// and .arch can also be applied for increasingly large gap angle, with .arch
+// being a semi-circle. Any contents of parent will be replaced with the Meter.
 class Meter {
   constructor (parent, opts) {
     opts = opts || {}
@@ -25,13 +31,21 @@ class Meter {
     this.radius = opts.radius || 0.4
     this.parent = parent
     this.canvas = document.createElement('canvas')
-    this.offset = makePt(15, 15)
-    this.canvas.width = 130
-    this.canvas.height = 130
+    opts.padding = opts.padding || 15
+    // Add a little padding around the drawing area by offsetting all drawing.
+    // This allows element like text to overflow the drawing area slightly
+    // without being cut off.
+    this.offset = makePt(opts.padding, opts.padding)
+    // Meter's API provides an assumed canvas size of 100 x 100
     this.dimension = 100
+    this.canvas.width = this.dimension + 2 * opts.padding
+    this.canvas.height = this.dimension + 2 * opts.padding
+
+    // Keep track of any properties being animated
     this.animationEnd = {}
     this.animationRunning = {}
     this.animationTarget = {}
+
     this.ctx = this.canvas.getContext('2d')
     this.ctx.textAlign = 'center'
     this.ctx.textBaseline = 'middle'
@@ -43,10 +57,9 @@ class Meter {
     }
     this.offsetMiddle = addOffset(this.middle, this.offset)
     this.startAngle = Math.PI / 2
-    var l = parent.classList
     var meterSpace = 0.5 // radians
-    if (l.contains('large-gap')) meterSpace = Math.PI / 2
-    if (l.contains('arch')) meterSpace = Math.PI
+    if (parent.classList.contains('large-gap')) meterSpace = Math.PI / 2
+    if (parent.classList.contains('arch')) meterSpace = Math.PI
     this.meterSpecs = {
       meterSpace: meterSpace,
       startTheta: this.startAngle + meterSpace / 2,
@@ -82,7 +95,7 @@ class Meter {
   }
 
   normedPolarToCartesian (normed, normedTheta) {
-    // maps [0,1] to [0,width] and [0,1] to [0,2PI]
+    // maps radius: [0,1] to [0,width], and angle: [0,1] to [0,2PI]
     var r = this.denorm(normed)
     var theta = this.denormTheta(normedTheta)
     return {
@@ -92,6 +105,7 @@ class Meter {
   }
 
   denormTheta (theta) {
+    // [0, 1] to [this.meterSpecs.startTheta, this.meterSpecs.endTheta]
     return this.meterSpecs.startTheta + theta * this.meterSpecs.range
   }
 
@@ -121,6 +135,7 @@ class Meter {
   }
 
   segment (start, end, color) {
+    // A segment of the strip, where 0 <= start < end <= 1.
     var ctx = this.ctx
     ctx.strokeStyle = color
     let range = this.denormThetaRange(start, end)
@@ -130,6 +145,7 @@ class Meter {
   }
 
   line (start, end) {
+    // set ctx.lineWidth and ctx.strokeStyle before drawing.
     start = addOffset(start, this.offset)
     end = addOffset(end, this.offset)
     var ctx = this.ctx
@@ -140,11 +156,13 @@ class Meter {
   }
 
   write (text, pt, maxWidth) {
+    // Set ctx.textAlign and ctx.textBaseline for additional alignment options.
     pt = addOffset(pt, this.offset)
     this.ctx.fillText(text, pt.x, pt.y, maxWidth)
   }
 
   async animate (key, target) {
+    // key is a string referencing any property of Meter.data.
     var opts = this.options
     this.animationEnd[key] = new Date().getTime() + opts.animationLength
     this.animationTarget[key] = target
@@ -168,6 +186,9 @@ class Meter {
   }
 }
 
+// VoteMeter has three regions: reject, revote, and approve. The parent element
+// should have property parent.dataset.threshold set to the pass threshold [0,1],
+// and parent.dataset.approval set to the current approval rate.
 export class VoteMeter extends Meter {
   constructor (parent, opts) {
     super(parent, opts)
@@ -199,7 +220,7 @@ export class VoteMeter extends Meter {
     }
     this.activeTheme = opts.darkMode ? this.darkTheme : this.lightTheme
 
-    // Set up the animation
+    // Set up a starting animation
     var progress = this.data.approval
     this.data.approval = 0.5
     this.draw()
@@ -233,7 +254,8 @@ export class VoteMeter extends Meter {
     super.line(super.normedPolarToCartesian(this.radius + this.norm(borderWidth / 2), 1),
       super.normedPolarToCartesian(this.radius - this.norm(borderWidth / 2), 1))
 
-    // Draw the indicator icon
+    // Draw the indicator icon, which is a checkmark if the measure is currently
+    // passing.
     if (opts.showIndicator) {
       ctx.font = `${super.denorm(0.2)}px sans-serif`
       if (this.data.approval < this.rejectThreshold) {
@@ -267,6 +289,9 @@ export class VoteMeter extends Meter {
   }
 }
 
+// ProgressMeter has a single threshold. The parent element should have property
+// parent.dataset.threshold set to the progress threshold [0,1], and
+// parent.dataset.progress set to the current value.
 export class ProgressMeter extends Meter {
   constructor (parent, opts) {
     super(parent, opts)
@@ -322,7 +347,6 @@ export class ProgressMeter extends Meter {
     ctx.lineWidth = opts.meterWidth
     var c = this.data.progress >= this.threshold ? opts.successColor : theme.tray
     super.segment(0, 1, c)
-    // super.segment(0, this.threshold, theme.tray)
 
     this.drawIndicator(this.threshold, c)
 

@@ -476,7 +476,7 @@ input ~ .checkmark {
   margin: 2px;
 }
 
-.upgrade-meter {
+.meter {
   display: inline-block;
   width: 135px;
   height: 135px;
@@ -484,15 +484,15 @@ input ~ .checkmark {
   overflow: hidden;
 }
 
-.upgrade-meter.large-gap {
+.meter.large-gap {
   height: 110px;
 }
 
-.upgrade-meter.arch {
+.meter.arch {
   height: 90px;
 }
 
-.upgrade-meter > canvas {
+.meter > canvas {
   width: 135px;
   height: 135px;
 }

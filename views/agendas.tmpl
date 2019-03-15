@@ -120,7 +120,7 @@
                         <div class="d-inline-block text-center p-2">
                           <span class="fs16 font-weight-bold">v{{.Version}} Miners</span><br>
                           <div
-                            class="upgrade-meter text-center js-only large-gap"
+                            class="meter text-center js-only large-gap"
                             data-target="agendas.minerMeter"
                             data-progress="{{.MinerProgress}}"
                             data-threshold="{{.MinerThreshold}}"
@@ -132,7 +132,7 @@
                         <div class="d-inline-block text-center p-4">
                           <span class="fs16 font-weight-bold">v{{.Version}} Voters</span><br>
                           <div
-                            class="upgrade-meter text-center js-only large-gap"
+                            class="meter text-center js-only large-gap"
                             data-target="agendas.voterMeter"
                             data-progress="{{.VoterProgress}}"
                             data-threshold="{{.VoterThreshold}}"
@@ -168,7 +168,7 @@
                             <div class="d-inline-block text-center p-2">
                               <span class="fs16 font-weight-bold">Quorum</span><br>
                               <div
-                                class="upgrade-meter text-center js-only large-gap"
+                                class="meter text-center js-only large-gap"
                                 data-target="agendas.quorumMeter"
                                 data-progress="{{.QuorumProgress}}"
                                 data-threshold="1.0"
@@ -184,7 +184,7 @@
                             <div class="d-inline-block text-center p-2">
                               <span class="fs16 font-weight-bold">Approval</span><br>
                               <div
-                                class="upgrade-meter text-center js-only large-gap"
+                                class="meter text-center js-only large-gap"
                                 data-target="agendas.approvalMeter"
                                 data-approval="{{.Approval}}"
                                 data-threshold="{{.PassThreshold}}"
@@ -204,7 +204,7 @@
                             <div class="d-inline-block text-center p-2">
                               <span class="fs16 font-weight-bold">{{.ID}} Results</span><br>
                               <div
-                                class="upgrade-meter text-center js-only large-gap"
+                                class="meter text-center js-only large-gap"
                                 data-target="agendas.approvalMeter"
                                 data-approval="{{.Approval}}"
                                 data-threshold="{{.PassThreshold}}"
