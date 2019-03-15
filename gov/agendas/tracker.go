@@ -90,9 +90,9 @@ type VoteSummary struct {
 	VotingTriggered bool            `json:"voting_triggered"`
 }
 
-// Store counts fetched usin the voteCounter to prevent extra database calls.
-// The counts are only required for votes that have complete, so the numbers
-// will not change.
+// Store counts fetched using the voteCounter to prevent extra database calls.
+// The counts are only required for votes that have completed, so the numbers
+// will not change once cached.
 type voteCount struct {
 	yes     uint32
 	no      uint32
@@ -112,7 +112,7 @@ type VoteTracker struct {
 	version        uint32
 	blockVersion   int32
 	stakeVersion   uint32
-	stakeIntervals *dcrjson.GetStakeVersionInfoResult
+	stakeInfo      *dcrjson.GetStakeVersionInfoResult
 	voteInfo       *dcrjson.GetVoteInfoResult
 	summary        *VoteSummary
 	ringIndex      int
@@ -147,6 +147,7 @@ func NewVoteTracker(params *chaincfg.Params, node VoteDataSource, counter voteCo
 		rciVotes:       uint32(params.TicketsPerBlock) * params.RuleChangeActivationInterval,
 	}
 
+	// first sync has different error handling than Refresh.
 	voteInfo, err := tracker.refreshRCI()
 	if err != nil {
 		return nil, err
@@ -160,6 +161,7 @@ func NewVoteTracker(params *chaincfg.Params, node VoteDataSource, counter voteCo
 		return nil, err
 	}
 	tracker.update(voteInfo, blocksToAdd, stakeInfo, stakeVersion)
+
 	return tracker, nil
 }
 
@@ -185,6 +187,7 @@ func (tracker *VoteTracker) Refresh() {
 	tracker.update(voteInfo, blocksToAdd, stakeInfo, stakeVersion)
 }
 
+// Version returns the current best know vote version.
 // Since versoion could technically be updated without turning off dcrdata,
 // the field must be protected.
 func (tracker *VoteTracker) Version() uint32 {
@@ -193,9 +196,8 @@ func (tracker *VoteTracker) Version() uint32 {
 	return tracker.version
 }
 
-// Grab the getvoteinfo data. Instead of updating the tracker's voteInfo field,
-// return, return the data. voteInfo will be updated in VoteTracker.update
-// along with other fileds under mutex lock.
+// Grab the getvoteinfo data. Do not update VoteTracker.voteInfo here, as it
+// will be updated with other fields under mutex lock in VoteTracker.update.
 func (tracker *VoteTracker) refreshRCI() (*dcrjson.GetVoteInfoResult, error) {
 	oldVersion := tracker.Version()
 	v := oldVersion
@@ -273,8 +275,7 @@ func (tracker *VoteTracker) refreshSVIs(voteInfo *dcrjson.GetVoteInfoResult) (*d
 func (tracker *VoteTracker) cachedCounts(agendaId string) *voteCount {
 	tracker.mtx.RLock()
 	defer tracker.mtx.RUnlock()
-	counts := tracker.countCache[agendaId]
-	return counts
+	return tracker.countCache[agendaId]
 }
 
 // Cache the voteCount for the given agenda.
@@ -290,16 +291,15 @@ func (tracker *VoteTracker) update(voteInfo *dcrjson.GetVoteInfoResult, blocks [
 	// Check if voteCounts are needed
 	for idx := range voteInfo.Agendas {
 		agenda := &voteInfo.Agendas[idx]
-		status := agenda.Status
-		if status != statusDefined && status != statusStarted {
+		if agenda.Status != statusDefined && agenda.Status != statusStarted {
 			// check the cache
-			counts := tracker.countCache[agenda.ID]
+			counts := tracker.cachedCounts(agenda.ID)
 			if counts == nil {
 				counts = new(voteCount)
 				var err error
 				counts.yes, counts.abstain, counts.no, err = tracker.voteCounter(agenda.ID)
 				if err != nil {
-					log.Errorf("Error counting votes for %s", agenda.ID)
+					log.Errorf("Error counting votes for %s: %v", agenda.ID, err)
 					continue
 				}
 				tracker.cacheVoteCounts(agenda.ID, counts)
@@ -319,7 +319,7 @@ func (tracker *VoteTracker) update(voteInfo *dcrjson.GetVoteInfoResult, blocks [
 	tracker.mtx.Lock()
 	defer tracker.mtx.Unlock()
 	tracker.voteInfo = voteInfo
-	tracker.stakeIntervals = stakeInfo
+	tracker.stakeInfo = stakeInfo
 	ringLen := int(tracker.params.BlockUpgradeNumToCheck)
 	for idx := range blocks {
 		tracker.ringIndex = (tracker.ringIndex + 1) % ringLen
@@ -344,8 +344,11 @@ func (tracker *VoteTracker) newVoteSummary() *VoteSummary {
 		SVIBlocks:       tracker.sviBlocks,
 		NextRCIHeight:   uint32(tracker.voteInfo.EndHeight + 1),
 		NetworkUpgraded: uint32(tracker.blockVersion) == tracker.version && tracker.stakeVersion == tracker.version,
+		RCIMined:        uint32(tracker.voteInfo.CurrentHeight - tracker.voteInfo.StartHeight + 1),
 	}
 	summary.Agendas = make([]AgendaSummary, len(tracker.voteInfo.Agendas))
+	summary.RCIProgress = float32(summary.RCIMined) / float32(summary.RCIBlocks)
+
 	for idx := range tracker.voteInfo.Agendas {
 		agenda := &tracker.voteInfo.Agendas[idx]
 		agendaSummary := AgendaSummary{
@@ -376,6 +379,11 @@ func (tracker *VoteTracker) newVoteSummary() *VoteSummary {
 		agendaSummary.AbstainRate = float32(agendaSummary.Abstain) / float32(agendaSummary.VoteCount+agendaSummary.Abstain)
 		agendaSummary.QuorumProgress = float32(agendaSummary.VoteCount) / float32(agendaSummary.Quorum)
 		agendaSummary.FailThreshold = 1 - agendaSummary.PassThreshold
+
+		// Get the number of votes that locks in approval, considering missed votes.
+		missedVotes := summary.RCIMined*uint32(tracker.params.TicketsPerBlock) - agendaSummary.VoteCount - agendaSummary.Abstain
+		agendaSummary.LockCount = uint32(float32(tracker.rciVotes-missedVotes) * tracker.passThreshold)
+
 		agendaSummary.QuorumAchieved = agendaSummary.VoteCount > agendaSummary.Quorum
 		if agendaSummary.QuorumProgress >= 1 {
 			agendaSummary.QuorumProgress = 1
@@ -395,16 +403,11 @@ func (tracker *VoteTracker) newVoteSummary() *VoteSummary {
 			summary.VotingTriggered = true
 		}
 
-		// Get the number of votes that locks approval. Must consider missed votes.
-		minedBlocks := uint32(summary.Height) - summary.NextRCIHeight + summary.RCIBlocks
-		missedVotes := minedBlocks*uint32(tracker.params.TicketsPerBlock) - agendaSummary.VoteCount - agendaSummary.Abstain
-		agendaSummary.LockCount = uint32(float32(tracker.rciVotes-missedVotes) * tracker.passThreshold)
-
 		summary.Agendas[idx] = agendaSummary
 	}
 	var sviMined uint32
-	for idx := range tracker.stakeIntervals.Intervals {
-		interval := tracker.stakeIntervals.Intervals[idx]
+	for idx := range tracker.stakeInfo.Intervals {
+		interval := &tracker.stakeInfo.Intervals[idx]
 		var newVoters, oldVoters uint32
 		for idy := range interval.VoteVersions {
 			version := &interval.VoteVersions[idy]
@@ -436,9 +439,6 @@ func (tracker *VoteTracker) newVoteSummary() *VoteSummary {
 	summary.MinerCount = summary.NewMiners + summary.OldMiners
 	summary.MinerProgress = float32(summary.NewMiners) / float32(summary.MinerCount)
 
-	summary.RCIMined = uint32(tracker.voteInfo.CurrentHeight - tracker.voteInfo.StartHeight + 1)
-	summary.RCIProgress = float32(summary.RCIMined) / float32(summary.RCIBlocks)
-
 	summary.SVIMined = sviMined
 	summary.SVIProgress = float32(summary.SVIMined) / float32(summary.SVIBlocks)
 
@@ -447,8 +447,8 @@ func (tracker *VoteTracker) newVoteSummary() *VoteSummary {
 	return summary
 }
 
-// Summary returns VoteTracker's most recent VoteSummary. The summary returned
-// will never be modified by VoteTracker, so can be used read-only by any number
+// Summary is a getter for the cached VoteSummary. The summary returned will
+// never be modified by VoteTracker, so can be used read-only by any number
 // of threads.
 func (tracker *VoteTracker) Summary() *VoteSummary {
 	tracker.mtx.RLock()

@@ -30,10 +30,10 @@
             {{- /* PRIMARY INFO CARD. LISTS AGENDAS AND SHOWS RCI/SVI PROGRESS BARS */}}
             {{if .VotingSummary}}
             {{with .VotingSummary}}
-            <div class="row px-3">
-                <div class="bg-white py-3 px-4 px-lg-5 text-left col-24 col-lg-12 my-4">
+            <div class="row">
+                <div class="py-1 px-4 px-lg-3 text-left col-24 col-lg-12 my-2">
                   {{range .Agendas}}
-                    <div class="fs16 w-100 text-left hash-box rounded mb-3 p-3">
+                    <div class="fs16 w-100 text-left bg-white mb-3 p-3">
                       {{if .IsDefined}}
                         {{if .VotingTriggered}}
                             <span class="fs18 font-weight-bold lh1rem">{{.ID}} vote scheduled</span><br />
@@ -74,7 +74,7 @@
                     </div>
                   {{end}}{{/* END AGENDA ITERATION, START RCI/SVI PROGRESS BARS */}}
                     <div class="row justify-content-between">
-                        <div class="col-24 col-sm-12 text-left mb-3">
+                        <div class="col-24 col-sm-12 text-left">
                             <span class="text-secondary fs14">Rule Change Interval</span>
                             <div class="progress v2-progress col-24 col-sm-18 px-0">
                                 <div
@@ -110,7 +110,7 @@
 
                 {{/* PRE-VOTING */}}
                 {{if or (not .NetworkUpgraded) .VotingTriggered}}
-                    <div class="col-24 col-lg-12 pt-4 px-1 text-center">
+                    <div class="col-24 col-lg-12 pt-2 px-2 text-center">
                       {{if .VotingTriggered}}
                         <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border">Upgrade complete. A vote has been triggered</div>
                       {{else}}
@@ -150,10 +150,10 @@
                 {{/* FOR CURRENT OR COMPLETED VOTES, SHOW THE TALLIES */}}
                 {{range .Agendas}}
                     {{if .IsVoting}}
-                      <div class="col-24 col-lg-12 d-flex flex-column justify-content-between pt-4 px-1 text-center">
+                      <div class="col-24 col-lg-12 d-flex flex-column justify-content-start pt-2 px-2 text-center">
                           <div>
                             {{if not .QuorumAchieved}}
-                              <span class="bg-white p-2 fs16 text-center mx-2 border"><span class="font-weight-bold">{{.ID}}</span> has not achieved quorum yet</span>
+                              <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border"><span class="font-weight-bold">{{.ID}}</span> has not achieved quorum yet</div>
                             {{else if .IsLocked}}
                               <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border"><span class="font-weight-bold">{{.ID}}</span> has passed</div>
                             {{else if .IsWinning}}
@@ -164,7 +164,7 @@
                               <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border">Voting on <span class="font-weight-bold">{{.ID}}</span></div>
                             {{end}}
                           </div>
-                          <div class="d-flex justify-content-around align-items-start flex-wrap">
+                          <div class="d-flex justify-content-around align-items-start flex-wrap mt-2">
                             <div class="d-inline-block text-center p-2">
                               <span class="fs16 font-weight-bold">Quorum</span><br>
                               <div

@@ -152,8 +152,13 @@ func counter(hash string) (uint32, uint32, uint32, error) {
 }
 
 func TestVoteTracker(t *testing.T) {
-	_, err := NewVoteTracker(&chaincfg.MainNetParams, dataSourceStub{}, counter)
+	tracker, err := NewVoteTracker(&chaincfg.MainNetParams, dataSourceStub{}, counter)
 	if err != nil {
 		t.Errorf("NewVoteTracker error: %v", err)
+	}
+
+	summary := tracker.Summary()
+	if summary == nil {
+		t.Errorf("nil VoteSummary error")
 	}
 }
