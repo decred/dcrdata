@@ -323,8 +323,12 @@ const (
 	UnknownGrouping
 )
 
-// TimeIntervals is a slice of distinct time intervals used for grouping data.
-var TimeIntervals = []TimeBasedGrouping{
+// NumIntervals is the number of known values for TimeBasedGrouping.
+const NumIntervals = 5
+
+// TimeIntervals is an array of distinct time intervals used for grouping data.
+var TimeIntervals = [NumIntervals]TimeBasedGrouping{
+	AllGrouping,
 	YearGrouping,
 	MonthGrouping,
 	WeekGrouping,
@@ -417,7 +421,6 @@ type HistoryChart int8
 const (
 	TxsType HistoryChart = iota
 	AmountFlow
-	TotalUnspent
 	ChartUnknown
 )
 

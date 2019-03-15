@@ -2382,6 +2382,34 @@ func (pgb *ChainDB) PurgeBestBlocks(N int64) (*dbtypes.DeletionSummary, int64, e
 // type and time grouping.
 func (pgb *ChainDB) TxHistoryData(address string, addrChart dbtypes.HistoryChart,
 	chartGroupings dbtypes.TimeBasedGrouping) (cd *dbtypes.ChartsData, err error) {
+	// First check cache for this address' chart data of the given type and
+	// interval.
+	bestHash, height := pgb.BestBlock()
+	var validHeight *cache.BlockID
+	cd, validHeight = pgb.AddressCache.HistoryChart(address, addrChart, chartGroupings)
+	if cd != nil && *bestHash == validHeight.Hash {
+		return
+	}
+
+	busy, wait, done := pgb.CacheLocks.bal.TryLock(address)
+	if busy {
+		// Let others get the wait channel while we wait.
+		// To return stale cache data if it is available:
+		// utxos, _ := pgb.AddressCache.UTXOs(address)
+		// if utxos != nil {
+		// 	return utxos, nil
+		// }
+		<-wait
+
+		// Try again, starting with the cache.
+		return pgb.TxHistoryData(address, addrChart, chartGroupings)
+	} else {
+		// We will run the DB query, so block others from doing the same. When
+		// query and/or cache update is completed, broadcast to any waiters that
+		// the coast is clear.
+		defer done()
+	}
+
 	timeInterval := chartGroupings.String()
 
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
@@ -2394,13 +2422,17 @@ func (pgb *ChainDB) TxHistoryData(address string, addrChart dbtypes.HistoryChart
 	case dbtypes.AmountFlow:
 		cd, err = retrieveTxHistoryByAmountFlow(ctx, pgb.db, address, timeInterval)
 
-	case dbtypes.TotalUnspent:
-		cd, err = retrieveTxHistoryByUnspentAmount(ctx, pgb.db, address, timeInterval)
-
 	default:
-		err = fmt.Errorf("unknown error occurred")
+		cd, err = nil, fmt.Errorf("unknown error occurred")
 	}
 	err = pgb.replaceCancelError(err)
+	if err != nil {
+		return
+	}
+
+	// Update cache.
+	_ = pgb.AddressCache.StoreHistoryChart(address, addrChart, chartGroupings,
+		cd, cache.NewBlockID(bestHash, height))
 	return
 }
 

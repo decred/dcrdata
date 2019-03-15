@@ -358,6 +358,21 @@ func AllDebitAddressRows(rows []*dbtypes.AddressRow) []*dbtypes.AddressRow {
 	return out
 }
 
+// TxHistory contains ChartsData for different chart types (tx type and amount
+// flow), each with data at known time intervals (TimeBasedGrouping).
+type TxHistory struct {
+	TypeByInterval    [dbtypes.NumIntervals]*dbtypes.ChartsData
+	AmtFlowByInterval [dbtypes.NumIntervals]*dbtypes.ChartsData
+}
+
+// Clear sets each *ChartsData to nil, effectively clearing the TxHistory.
+func (th *TxHistory) Clear() {
+	for i := 0; i < dbtypes.NumIntervals; i++ {
+		th.TypeByInterval[i] = nil
+		th.AmtFlowByInterval[i] = nil
+	}
+}
+
 // AddressCacheItem is the unit of cached data pertaining to a certain address.
 // The height and hash of the best block at the time the data was obtained is
 // stored to determine validity of the cache item. Cached data for an address
@@ -368,7 +383,7 @@ type AddressCacheItem struct {
 	balance *dbtypes.AddressBalance
 	rows    []dbtypes.AddressRowCompact // creditDebitQuery
 	utxos   []apitypes.AddressTxnOutput
-	metrics *dbtypes.AddressMetrics
+	history TxHistory
 	height  int64
 	hash    chainhash.Hash
 }
@@ -426,14 +441,28 @@ func (d *AddressCacheItem) UTXOs() ([]apitypes.AddressTxnOutput, *BlockID) {
 	return d.utxos, d.blockID()
 }
 
-// Metrics is a thread-safe accessor for the *dbtypes.AddressMetrics.
-func (d *AddressCacheItem) Metrics() (*dbtypes.AddressMetrics, *BlockID) {
+// HistoryChart is a thread-safe accessor for the TxHistory.
+func (d *AddressCacheItem) HistoryChart(addrChart dbtypes.HistoryChart, chartGrouping dbtypes.TimeBasedGrouping) (*dbtypes.ChartsData, *BlockID) {
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
-	if d.metrics == nil {
+
+	if int(chartGrouping) >= dbtypes.NumIntervals {
+		log.Errorf("Invalid chart grouping: %v", chartGrouping)
 		return nil, nil
 	}
-	return d.metrics, d.blockID()
+
+	var cd *dbtypes.ChartsData
+	switch addrChart {
+	case dbtypes.TxsType:
+		cd = d.history.TypeByInterval[chartGrouping]
+	case dbtypes.AmountFlow:
+		cd = d.history.AmtFlowByInterval[chartGrouping]
+	}
+
+	if cd == nil {
+		return nil, nil
+	}
+	return cd, d.blockID()
 }
 
 // Rows is a thread-safe accessor for the []*dbtypes.AddressRow.
@@ -518,7 +547,7 @@ func (d *AddressCacheItem) setBlock(block BlockID) {
 	d.hash = block.Hash
 	d.height = block.Height
 	d.utxos = nil
-	d.metrics = nil
+	d.history.Clear()
 	d.balance = nil
 	d.rows = nil
 }
@@ -550,6 +579,7 @@ func (d *AddressCacheItem) SetBalance(block BlockID, balance *dbtypes.AddressBal
 	d.balance = balance
 }
 
+// CacheCounts stores cache hits and misses.
 type CacheCounts struct {
 	Hits, Misses int
 }
@@ -559,11 +589,12 @@ type cacheCounts struct {
 	CacheCounts
 }
 
+// CacheMetrics is a collection of CacheCounts for the various cached data.
 type CacheMetrics struct {
 	rowMetrics     cacheCounts
 	utxoMetrics    cacheCounts
 	balanceMetrics cacheCounts
-	metricMetrics  cacheCounts
+	historyMetrics cacheCounts
 }
 
 func (cm *CacheMetrics) RowStats() (hits, misses int) {
@@ -584,10 +615,10 @@ func (cm *CacheMetrics) UtxoStats() (hits, misses int) {
 	return cm.utxoMetrics.Hits, cm.utxoMetrics.Misses
 }
 
-func (cm *CacheMetrics) MetricStats() (hits, misses int) {
-	cm.metricMetrics.Lock()
-	defer cm.metricMetrics.Unlock()
-	return cm.metricMetrics.Hits, cm.metricMetrics.Misses
+func (cm *CacheMetrics) HistoryStats() (hits, misses int) {
+	cm.historyMetrics.Lock()
+	defer cm.historyMetrics.Unlock()
+	return cm.historyMetrics.Hits, cm.historyMetrics.Misses
 }
 
 func (cm *CacheMetrics) RowHit() {
@@ -626,16 +657,16 @@ func (cm *CacheMetrics) BalanceMiss() {
 	cm.balanceMetrics.Unlock()
 }
 
-func (cm *CacheMetrics) MetricHit() {
-	cm.metricMetrics.Lock()
-	cm.metricMetrics.Hits++
-	cm.metricMetrics.Unlock()
+func (cm *CacheMetrics) HistoryHit() {
+	cm.historyMetrics.Lock()
+	cm.historyMetrics.Hits++
+	cm.historyMetrics.Unlock()
 }
 
-func (cm *CacheMetrics) MetricMiss() {
-	cm.metricMetrics.Lock()
-	cm.metricMetrics.Misses++
-	cm.metricMetrics.Unlock()
+func (cm *CacheMetrics) HistoryMiss() {
+	cm.historyMetrics.Lock()
+	cm.historyMetrics.Misses++
+	cm.historyMetrics.Unlock()
 }
 
 // AddressCache maintains a store of address data. Use NewAddressCache to create
@@ -664,40 +695,56 @@ func NewAddressCache(rowCapacity int) *AddressCache {
 	return ac
 }
 
+// BalanceStats reports the balance hit/miss stats.
 func (ac *AddressCache) BalanceStats() (hits, misses int) {
 	return ac.cacheMetrics.BalanceStats()
 }
 
+// RowStats reports the row hit/miss stats.
 func (ac *AddressCache) RowStats() (hits, misses int) {
 	return ac.cacheMetrics.RowStats()
 }
 
+// UtxoStats reports the utxo hit/miss stats.
 func (ac *AddressCache) UtxoStats() (hits, misses int) {
 	return ac.cacheMetrics.UtxoStats()
 }
 
-func (ac *AddressCache) MetricStats() (hits, misses int) {
-	return ac.cacheMetrics.MetricStats()
+// HistoryStats reports the history data hit/miss stats.
+func (ac *AddressCache) HistoryStats() (hits, misses int) {
+	return ac.cacheMetrics.HistoryStats()
 }
 
+// Reporter prints the number of cached addresses, rows, and utxos, as well as a
+// table of cache hits and misses.
 func (ac *AddressCache) Reporter() {
-	var lastBH, lastBM, lastRH, lastRM, lastUH, lastUM int
+	var lastBH, lastBM, lastRH, lastRM, lastUH, lastUM, lastHH, lastHM int
 	ticker := time.NewTicker(4 * time.Second)
 	for range ticker.C {
 		balHits, balMisses := ac.BalanceStats()
 		rowHits, rowMisses := ac.RowStats()
 		utxoHits, utxoMisses := ac.UtxoStats()
+		histHits, histMisses := ac.HistoryStats()
 		// Only report if a hit/miss count has changed.
 		if balHits != lastBH || balMisses != lastBM ||
 			rowHits != lastRH || rowMisses != lastRM ||
-			utxoHits != lastUH || utxoMisses != lastUM {
+			utxoHits != lastUH || utxoMisses != lastUM ||
+			histHits != lastHH || histMisses != lastHM {
 			lastBH, lastBM = balHits, balMisses
 			lastRH, lastRM = rowHits, rowMisses
 			lastUH, lastUM = utxoHits, utxoMisses
+			lastHH, lastHM = histHits, histMisses
 			numAddrs, numRows, numUTXOs := ac.Length()
-			log.Debugf("CACHE: addresses = %d, rows = %d, utxos = %d", numAddrs, numRows, numUTXOs)
-			log.Debugf("CACHE: row H = %d, M = %d; balance H = %d, M = %d; utxo H = %d, M = %d",
-				rowHits, rowMisses, balHits, balMisses, utxoHits, utxoMisses)
+			log.Debugf("ADDRESS CACHE: addresses = %d, rows = %d, utxos = %d",
+				numAddrs, numRows, numUTXOs)
+			log.Debugf("ADDRESS CACHE:"+
+				"\n\t\t\t\t\t            HITS | MISSES"+
+				"\n\t\t\t\t\trows    %8d | %6d"+
+				"\n\t\t\t\t\tbalance %8d | %6d"+
+				"\n\t\t\t\t\tutxos   %8d | %6d"+
+				"\n\t\t\t\t\thist    %8d | %6d",
+				rowHits, rowMisses, balHits, balMisses,
+				utxoHits, utxoMisses, histHits, histMisses)
 		}
 	}
 }
@@ -762,17 +809,26 @@ func (ac *AddressCache) UTXOs(addr string) ([]apitypes.AddressTxnOutput, *BlockI
 	return aci.UTXOs()
 }
 
-// Metrics attempts to retrieve an AddressMetrics for the given address. The
-// BlockID for the block at which the cached data is valid is also returned. In
-// the event of a cache miss, both returned pointers will be nil.
-func (ac *AddressCache) Metrics(addr string) (*dbtypes.AddressMetrics, *BlockID) {
+// HistoryChart attempts to retrieve ChartsData for the given address, chart
+// type, and grouping inverval. The BlockID for the block at which the cached
+// data is valid is also returned. In the event of a cache miss, both returned
+// pointers will be nil.
+func (ac *AddressCache) HistoryChart(addr string, addrChart dbtypes.HistoryChart,
+	chartGrouping dbtypes.TimeBasedGrouping) (*dbtypes.ChartsData, *BlockID) {
 	aci := ac.addressCacheItem(addr)
 	if aci == nil {
-		ac.cacheMetrics.MetricMiss()
+		ac.cacheMetrics.HistoryMiss()
 		return nil, nil
 	}
-	ac.cacheMetrics.MetricHit()
-	return aci.Metrics()
+
+	cd, blockID := aci.HistoryChart(addrChart, chartGrouping)
+	if cd == nil || blockID == nil {
+		ac.cacheMetrics.HistoryMiss()
+		return nil, nil
+	}
+
+	ac.cacheMetrics.HistoryHit()
+	return cd, blockID
 }
 
 // Rows attempts to retrieve an []*AddressRow for the given address. The BlockID
@@ -819,6 +875,8 @@ func (ac *AddressCache) Transactions(addr string, N, offset int64, txnType dbtyp
 	return rows, blockID, err
 }
 
+// TransactionsMerged is like Transactions, but it must be used with a merged
+// AddrTxnViewType, and it returns a []dbtypes.AddressRowMerged.
 func (ac *AddressCache) TransactionsMerged(addr string, N, offset int64, txnType dbtypes.AddrTxnViewType) ([]dbtypes.AddressRowMerged, *BlockID, error) {
 	aci := ac.addressCacheItem(addr)
 	if aci == nil {
@@ -837,6 +895,8 @@ func (ac *AddressCache) TransactionsMerged(addr string, N, offset int64, txnType
 	}
 }
 
+// TransactionsCompact is like Transactions, but it must be used with a
+// non-merged AddrTxnViewType, and it returns a []dbtypes.AddressRowCompact.
 func (ac *AddressCache) TransactionsCompact(addr string, N, offset int64, txnType dbtypes.AddrTxnViewType) ([]dbtypes.AddressRowCompact, *BlockID, error) {
 	aci := ac.addressCacheItem(addr)
 	if aci == nil {
@@ -1000,6 +1060,53 @@ func (ac *AddressCache) StoreRows(addr string, rows []*dbtypes.AddressRow, block
 
 	// respect cache capacity
 	return ac.StoreRowsCompact(addr, rowsCompact, block)
+}
+
+// StoreHistoryChart stores the charts data for the given address in cache. The
+// current best block data is required to determine cache freshness.
+func (ac *AddressCache) StoreHistoryChart(addr string, addrChart dbtypes.HistoryChart,
+	chartGrouping dbtypes.TimeBasedGrouping, cd *dbtypes.ChartsData, block *BlockID) bool {
+	if block == nil || ac.cap < 1 || ac.capAddr < 1 {
+		return false
+	}
+
+	if int(chartGrouping) >= dbtypes.NumIntervals {
+		log.Errorf("Invalid chart grouping: %v", chartGrouping)
+		return false
+	}
+
+	if cd == nil {
+		cd = &dbtypes.ChartsData{}
+	}
+
+	ac.mtx.Lock()
+	defer ac.mtx.Unlock()
+	aci := ac.a[addr]
+
+	if aci == nil || aci.BlockHash() != block.Hash {
+		aci = &AddressCacheItem{
+			height: block.Height,
+			hash:   block.Hash,
+		}
+		if !ac.addCacheItem(addr, aci) {
+			return false
+		}
+	}
+
+	// Set the history data in the cache item.
+	aci.mtx.Lock()
+	defer aci.mtx.Unlock()
+
+	switch addrChart {
+	case dbtypes.TxsType:
+		aci.history.TypeByInterval[chartGrouping] = cd
+	case dbtypes.AmountFlow:
+		aci.history.AmtFlowByInterval[chartGrouping] = cd
+	default:
+		return false
+	}
+
+	return true
 }
 
 // StoreRows stores the non-merged AddressRow slice for the given address in

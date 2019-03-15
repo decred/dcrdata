@@ -1811,38 +1811,6 @@ func retrieveTxHistoryByAmountFlow(ctx context.Context, db *sql.DB, addr, timeIn
 	return items, nil
 }
 
-// retrieveTxHistoryByUnspentAmount fetches the unspent amount for all the
-// transactions associated with a given address for the given time interval.
-// The time interval is grouping records by week, month, year, day and all.
-// For all time interval, transactions are grouped by the unique
-// timestamps (blocks) available.
-func retrieveTxHistoryByUnspentAmount(ctx context.Context, db *sql.DB, addr, timeInterval string) (*dbtypes.ChartsData, error) {
-	var totalAmount uint64
-	var items = new(dbtypes.ChartsData)
-
-	rows, err := db.QueryContext(ctx, internal.MakeSelectAddressUnspentAmountByAddress(timeInterval), addr)
-	if err != nil {
-		return nil, err
-	}
-	defer closeRows(rows)
-
-	for rows.Next() {
-		var blockTime dbtypes.TimeDef
-		var amount uint64
-		err = rows.Scan(&blockTime, &amount)
-		if err != nil {
-			return nil, err
-		}
-
-		items.Time = append(items.Time, blockTime)
-
-		// Return cumulative amount data for the unspent chart type.
-		totalAmount += amount
-		items.Amount = append(items.Amount, dcrutil.Amount(totalAmount).ToCoin())
-	}
-	return items, nil
-}
-
 // --- vins and vouts tables ---
 
 // InsertVin either inserts, attempts to insert, or upserts the given vin data
