@@ -2422,9 +2422,6 @@ func (pgb *ChainDB) TxHistoryData(address string, addrChart dbtypes.HistoryChart
 	case dbtypes.AmountFlow:
 		cd, err = retrieveTxHistoryByAmountFlow(ctx, pgb.db, address, timeInterval)
 
-	case dbtypes.TotalUnspent:
-		cd, err = retrieveTxHistoryByUnspentAmount(ctx, pgb.db, address, timeInterval)
-
 	default:
 		cd, err = nil, fmt.Errorf("unknown error occurred")
 	}

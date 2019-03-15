@@ -1551,41 +1551,6 @@ func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.R
 	writeJSON(w, data, c.getIndentQuery(r))
 }
 
-func (c *appContext) getAddressTxUnspentAmountData(w http.ResponseWriter, r *http.Request) {
-	if c.LiteMode {
-		http.Error(w, "not available in lite mode", 422)
-		return
-	}
-
-	addresses, err := m.GetAddressCtx(r, c.Params, 1)
-	if err != nil || len(addresses) > 1 {
-		http.Error(w, http.StatusText(422), 422)
-		return
-	}
-	address := addresses[0]
-
-	chartGrouping := m.GetChartGroupingCtx(r)
-	if chartGrouping == "" {
-		http.Error(w, http.StatusText(422), 422)
-		return
-	}
-
-	data, err := c.AuxDataSource.TxHistoryData(address, dbtypes.TotalUnspent,
-		dbtypes.TimeGroupingFromStr(chartGrouping))
-	if dbtypes.IsTimeoutErr(err) {
-		apiLog.Errorf("TxHistoryData: %v", err)
-		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
-		return
-	}
-	if err != nil {
-		log.Warnf("failed to get address (%s) history by unspent amount flow: %v", address, err)
-		http.Error(w, http.StatusText(422), 422)
-		return
-	}
-
-	writeJSON(w, data, c.getIndentQuery(r))
-}
-
 func (c *appContext) getTicketPriceChartData(w http.ResponseWriter, r *http.Request) {
 	if c.LiteMode {
 		http.Error(w, "not available in lite mode", 422)

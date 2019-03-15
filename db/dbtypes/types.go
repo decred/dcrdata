@@ -421,7 +421,6 @@ type HistoryChart int8
 const (
 	TxsType HistoryChart = iota
 	AmountFlow
-	TotalUnspent
 	ChartUnknown
 )
 

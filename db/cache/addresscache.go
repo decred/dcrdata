@@ -358,13 +358,11 @@ func AllDebitAddressRows(rows []*dbtypes.AddressRow) []*dbtypes.AddressRow {
 	return out
 }
 
-// TxHistory contains ChartsData for different chart types (tx type, amount
-// flow, and unspent amount), each with data at known time intervals
-// (TimeBasedGrouping).
+// TxHistory contains ChartsData for different chart types (tx type and amount
+// flow), each with data at known time intervals (TimeBasedGrouping).
 type TxHistory struct {
-	TypeByInterval       [dbtypes.NumIntervals]*dbtypes.ChartsData
-	AmtFlowByInterval    [dbtypes.NumIntervals]*dbtypes.ChartsData
-	UnspentAmtByInterval [dbtypes.NumIntervals]*dbtypes.ChartsData
+	TypeByInterval    [dbtypes.NumIntervals]*dbtypes.ChartsData
+	AmtFlowByInterval [dbtypes.NumIntervals]*dbtypes.ChartsData
 }
 
 // Clear sets each *ChartsData to nil, effectively clearing the TxHistory.
@@ -372,7 +370,6 @@ func (th *TxHistory) Clear() {
 	for i := 0; i < dbtypes.NumIntervals; i++ {
 		th.TypeByInterval[i] = nil
 		th.AmtFlowByInterval[i] = nil
-		th.UnspentAmtByInterval[i] = nil
 	}
 }
 
@@ -460,8 +457,6 @@ func (d *AddressCacheItem) HistoryChart(addrChart dbtypes.HistoryChart, chartGro
 		cd = d.history.TypeByInterval[chartGrouping]
 	case dbtypes.AmountFlow:
 		cd = d.history.AmtFlowByInterval[chartGrouping]
-	case dbtypes.TotalUnspent:
-		cd = d.history.UnspentAmtByInterval[chartGrouping]
 	}
 
 	if cd == nil {
@@ -1107,8 +1102,6 @@ func (ac *AddressCache) StoreHistoryChart(addr string, addrChart dbtypes.History
 		aci.history.TypeByInterval[chartGrouping] = cd
 	case dbtypes.AmountFlow:
 		aci.history.AmtFlowByInterval[chartGrouping] = cd
-	case dbtypes.TotalUnspent:
-		aci.history.UnspentAmtByInterval[chartGrouping] = cd
 	default:
 		return false
 	}

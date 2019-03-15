@@ -257,12 +257,6 @@ const (
 		GROUP BY timestamp
 		ORDER BY timestamp;`
 
-	selectAddressUnspentAmountByAddress = `SELECT %s as timestamp, SUM(value) as unspent
-		FROM addresses
-		WHERE address=$1 AND is_funding AND matching_tx_hash = ''
-		GROUP BY timestamp
-		ORDER BY timestamp;`
-
 	// UPDATEs/SETs
 
 	// SetAddressMatchingTxHashForOutpoint sets the matching tx hash (a spending
@@ -375,11 +369,6 @@ func MakeSelectAddressTxTypesByAddress(group string) string {
 // MakeSelectAddressAmountFlowByAddress returns the selectAddressAmountFlowByAddress query
 func MakeSelectAddressAmountFlowByAddress(group string) string {
 	return formatGroupingQuery(selectAddressAmountFlowByAddress, group, "block_time")
-}
-
-// MakeSelectAddressUnspentAmountByAddress returns the selectAddressUnspentAmountByAddress query
-func MakeSelectAddressUnspentAmountByAddress(group string) string {
-	return formatGroupingQuery(selectAddressUnspentAmountByAddress, group, "block_time")
 }
 
 func MakeSelectAddressTimeGroupingCount(group string) string {
