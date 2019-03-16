@@ -1221,9 +1221,10 @@ func (pgb *ChainDB) handleAgendaAndAgendaVotesTablesUpgrade(msgBlock *wire.MsgBl
 		}
 
 		var rowID uint64
+		chainInfo := pgb.ChainInfo()
 		for _, val := range choices {
 			// check if agendas row id is not set then save the agenda details.
-			progress := pgb.chainInfo.AgendaMileStones[val.ID]
+			progress := chainInfo.AgendaMileStones[val.ID]
 			if progress.ID == 0 {
 				err = pgb.db.QueryRow(internal.MakeAgendaInsertStatement(false),
 					val.ID, progress.Status, progress.VotingDone, progress.Activated,
@@ -1231,7 +1232,7 @@ func (pgb *ChainDB) handleAgendaAndAgendaVotesTablesUpgrade(msgBlock *wire.MsgBl
 				if err != nil {
 					return -1, err
 				}
-				pgb.chainInfo.AgendaMileStones[val.ID] = progress
+				chainInfo.AgendaMileStones[val.ID] = progress
 			}
 
 			var index, err = dbtypes.ChoiceIndexFromStr(val.Choice.Id)

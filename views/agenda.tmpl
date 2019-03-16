@@ -95,7 +95,7 @@
                             {{if gt .QuorumProgress 0.0}}
                                 <td class="text-right pr-2 lh1rem vam nowrap xs-w117 font-weight-bold">Quorum</td>
                                 <td class="lh1rem">
-                                    <span class="hash break-word">{{$.QuorumVotes}}/{{$.RuleChangeI}} ({{.QuorumProgress}}%)</span>
+                                    <span class="hash break-word">{{$.QuorumVotes}}/{{$.RuleChangeI}} ({{printf "%.2f" (x100 .QuorumProgress)}}%)</span>
                                 </td>
                             {{end}}
                         </tr>

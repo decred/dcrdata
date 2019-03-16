@@ -1734,11 +1734,6 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 	ruleChangeI := exp.ChainParams.RuleChangeActivationInterval
 	qVotes := uint32(float64(ruleChangeI) * agendaInfo.QuorumProgress)
 
-	// agendaInfo.QuorumProgress limit quorum progress to 2 decimal places.
-	if agendaInfo.QuorumProgress > 0 {
-		agendaInfo.QuorumProgress = math.Floor(agendaInfo.QuorumProgress*10000) / 100
-	}
-
 	var timeLeft string
 	blocksLeft := summary.LockedIn - exp.Height()
 
@@ -1793,13 +1788,6 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 		log.Errorf("Template execute failure: %v", err)
 		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
-	}
-
-	for i, a := range agenda {
-		// limit quorum progress to 2 decimal places.
-		if a.QuorumProgress > 0 {
-			agenda[i].QuorumProgress = math.Floor(a.QuorumProgress*100) / 100
-		}
 	}
 
 	str, err := exp.templates.execTemplateToString("agendas", struct {

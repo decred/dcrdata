@@ -205,7 +205,13 @@ type ChainDB struct {
 	InReorg            bool
 	tpUpdatePermission map[dbtypes.TimeBasedGrouping]*trylock.Mutex
 	utxoCache          utxoStore
-	chainInfo          *dbtypes.BlockChainData
+	deployments        *ChainDeployments
+}
+
+// ChainDeployments is mutex-protected blockchain deployment data.
+type ChainDeployments struct {
+	mtx       sync.RWMutex
+	chainInfo *dbtypes.BlockChainData
 }
 
 // BestBlock is mutex-protected block hash and height.
@@ -554,6 +560,7 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 		devPrefetch:        devPrefetch,
 		tpUpdatePermission: tpUpdatePermissions,
 		utxoCache:          newUtxoStore(5e4),
+		deployments:        new(ChainDeployments),
 	}, nil
 }
 
@@ -984,7 +991,8 @@ func (pgb *ChainDB) AgendaVotes(agendaID string, chartType int) (*dbtypes.Agenda
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 
-	agendaInfo := pgb.chainInfo.AgendaMileStones[agendaID]
+	chainInfo := pgb.ChainInfo()
+	agendaInfo := chainInfo.AgendaMileStones[agendaID]
 
 	// check if starttime is in the future exit.
 	if time.Now().Before(agendaInfo.StartTime) {
@@ -1001,7 +1009,8 @@ func (pgb *ChainDB) AgendasVotesSummary(agendaID string) (summary *dbtypes.Agend
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 
-	agendaInfo := pgb.chainInfo.AgendaMileStones[agendaID]
+	chainInfo := pgb.ChainInfo()
+	agendaInfo := chainInfo.AgendaMileStones[agendaID]
 
 	// Check if starttime is in the future and exit if true.
 	if time.Now().Before(agendaInfo.StartTime) {
@@ -2276,6 +2285,7 @@ func (pgb *ChainDB) UpdateChainState(blockChainInfo *dcrjson.GetBlockChainInfoRe
 	}
 
 	ruleChangeInterval := int64(pgb.chainParams.RuleChangeActivationInterval)
+
 	chainInfo := dbtypes.BlockChainData{
 		Chain:                  blockChainInfo.Chain,
 		SyncHeight:             blockChainInfo.SyncHeight,
@@ -2325,7 +2335,18 @@ func (pgb *ChainDB) UpdateChainState(blockChainInfo *dcrjson.GetBlockChainInfoRe
 
 	chainInfo.AgendaMileStones = voteMilestones
 
-	pgb.chainInfo = &chainInfo
+	pgb.deployments.mtx.Lock()
+
+	pgb.deployments.chainInfo = &chainInfo
+
+	pgb.deployments.mtx.Unlock()
+}
+
+// ChainInfo guarantees thread-safe access and update of the deployment data.
+func (pgb *ChainDB) ChainInfo() *dbtypes.BlockChainData {
+	pgb.deployments.mtx.RLock()
+	defer pgb.deployments.mtx.RUnlock()
+	return pgb.deployments.chainInfo
 }
 
 // Store satisfies BlockDataSaver. Blocks stored this way are considered valid
@@ -3111,9 +3132,10 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 
 		// voteDbIDs, voteTxns, spentTicketHashes, ticketDbIDs, missDbIDs, err := ...
 		var missesHashIDs map[string]uint64
+		chainInfo := pgb.ChainInfo()
 		_, _, _, _, missesHashIDs, err = InsertVotes(pgb.db, dbTransactions, *TxDbIDs,
 			unspentTicketCache, msgBlock, pgb.dupChecks, updateExistingRecords,
-			pgb.chainParams, pgb.chainInfo)
+			pgb.chainParams, chainInfo)
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertVotes:", err)
 			txRes.err = err
