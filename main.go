@@ -542,9 +542,20 @@ func _main(ctx context.Context) error {
 	}()
 
 	// Create the explorer system.
-	explore := explorer.New(baseDB, auxDB, cfg.UseRealIP, version.Version(),
-		!cfg.NoDevPrefetch, "views", xcBot, agendasInstance, proposalsInstance,
-		cfg.PoliteiaAPIURL, cfg.MainnetLink, cfg.TestnetLink)
+	explore := explorer.New(&explorer.ExplorerConfig{
+		DataSource:        baseDB,
+		PrimaryDataSource: auxDB,
+		UseRealIP:         cfg.UseRealIP,
+		AppVersion:        version.Version(),
+		DevPrefetch:       !cfg.NoDevPrefetch,
+		Viewsfolder:       "views",
+		XcBot:             xcBot,
+		AgendasSource:     agendasInstance,
+		ProposalsSource:   proposalsInstance,
+		PoliteiaURL:       cfg.PoliteiaAPIURL,
+		MainnetLink:       cfg.MainnetLink,
+		TestnetLink:       cfg.TestnetLink,
+	})
 	// TODO: allow views config
 	if explore == nil {
 		return fmt.Errorf("failed to create new explorer (templates missing?)")

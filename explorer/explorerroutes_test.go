@@ -67,7 +67,21 @@ func TestStatusPageResponseCodes(t *testing.T) {
 
 	var wiredDBStub WiredDBStub
 	var chainDBStub ChainDBStub
-	exp := New(&wiredDBStub, &chainDBStub, false, "test", false, viewsPath, nil, nil, nil, "", "/", "/")
+
+	exp := New(&ExplorerConfig{
+		DataSource:        &wiredDBStub,
+		PrimaryDataSource: &chainDBStub,
+		UseRealIP:         false,
+		AppVersion:        "test",
+		DevPrefetch:       false,
+		Viewsfolder:       viewsPath,
+		XcBot:             nil,
+		AgendasSource:     nil,
+		ProposalsSource:   nil,
+		PoliteiaURL:       "",
+		MainnetLink:       "/",
+		TestnetLink:       "/",
+	})
 
 	// handler := http.HandlerFunc()
 	// handler.ServeHTTP(rr, req)
