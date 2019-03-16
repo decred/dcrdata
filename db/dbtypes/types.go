@@ -517,7 +517,6 @@ type AgendaSummary struct {
 	Yes           uint32
 	No            uint32
 	Abstain       uint32
-	ChangeBlock   int64 // Current Vote status change block.
 	VotingStarted int64
 	LockedIn      int64
 }

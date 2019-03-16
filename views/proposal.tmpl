@@ -161,7 +161,7 @@
                                         <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Actual</td>
                                         <td>
                                             <span class="hash break-word lh1rem">
-                                                {{toDecimalPlaces (percentage $v.VotesReceived $.Data.TotalVotes) 2}}%
+                                                {{printf "%.2f" (percentage $v.VotesReceived $.Data.TotalVotes)}}%
                                             </span>
                                         </td>
                                     </tr>

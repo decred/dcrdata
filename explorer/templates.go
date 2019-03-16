@@ -383,10 +383,6 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"toTitleCase": func(a string) string {
 			return strings.Title(a)
 		},
-		"toDecimalPlaces": func(a float64, b int) float64 {
-			pow := math.Pow10(b)
-			return math.Floor(a*pow) / pow
-		},
 		"fetchRowLinkURL": func(groupingStr string, start, end time.Time) string {
 			// fetchRowLinkURL creates links url to be used in the blocks list views
 			// in heirachical order i.e. /years -> /months -> weeks -> /days -> /blocks

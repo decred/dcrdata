@@ -1017,20 +1017,7 @@ func (pgb *ChainDB) AgendasVotesSummary(agendaID string) (summary *dbtypes.Agend
 		return
 	}
 
-	var statusChangeBlock int64
-
-	// Fetches the block from where thr current status changed from.
-	switch agendaInfo.Status {
-	case dbtypes.StartedAgendaStatus:
-		statusChangeBlock = agendaInfo.VotingStarted
-	case dbtypes.LockedInAgendaStatus, dbtypes.FailedAgendaStatus:
-		statusChangeBlock = agendaInfo.VotingDone
-	case dbtypes.ActivatedAgendaStatus:
-		statusChangeBlock = agendaInfo.Activated
-	}
-
 	summary = &dbtypes.AgendaSummary{
-		ChangeBlock:   statusChangeBlock,
 		VotingStarted: agendaInfo.VotingStarted,
 		LockedIn:      agendaInfo.VotingDone,
 	}
@@ -2336,13 +2323,12 @@ func (pgb *ChainDB) UpdateChainState(blockChainInfo *dcrjson.GetBlockChainInfoRe
 	chainInfo.AgendaMileStones = voteMilestones
 
 	pgb.deployments.mtx.Lock()
+	defer pgb.deployments.mtx.Unlock()
 
 	pgb.deployments.chainInfo = &chainInfo
-
-	pgb.deployments.mtx.Unlock()
 }
 
-// ChainInfo guarantees thread-safe access and update of the deployment data.
+// ChainInfo guarantees thread-safe access of the deployment data.
 func (pgb *ChainDB) ChainInfo() *dbtypes.BlockChainData {
 	pgb.deployments.mtx.RLock()
 	defer pgb.deployments.mtx.RUnlock()

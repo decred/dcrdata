@@ -126,7 +126,7 @@
                         <td class="text-right">{{.Bits}}</td>
                         <td class="text-right">{{.Count}}</td>
                         {{if $showProgress}}
-                            <td class="text-right">{{toDecimalPlaces .Progress 2}}%</td>
+                            <td class="text-right">{{printf "%.2f" (x100 .Progress)}}%</td>
                         {{end}}
                     </tr>
                 {{end}}
