@@ -313,27 +313,40 @@ func (exp *explorerUI) StopWebsocketHub() {
 	exp.wsHub.Stop()
 }
 
+// ExplorerConfig is the configuration settings for explorerUI.
+type ExplorerConfig struct {
+	DataSource        explorerDataSourceLite
+	PrimaryDataSource explorerDataSource
+	UseRealIP         bool
+	AppVersion        string
+	DevPrefetch       bool
+	Viewsfolder       string
+	XcBot             *exchanges.ExchangeBot
+	AgendasSource     agendaBackend
+	ProposalsSource   politeiaBackend
+	PoliteiaURL       string
+	MainnetLink       string
+	TestnetLink       string
+}
+
 // New returns an initialized instance of explorerUI
-func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource,
-	useRealIP bool, appVersion string, devPrefetch bool, viewsfolder string,
-	xcBot *exchanges.ExchangeBot, onChainInstance agendaBackend,
-	offChainInstance politeiaBackend, politeiaURL, mainnetLink, testnetLink string) *explorerUI {
+func New(cfg *ExplorerConfig) *explorerUI {
 	exp := new(explorerUI)
 	exp.Mux = chi.NewRouter()
-	exp.blockData = dataSource
-	exp.explorerSource = primaryDataSource
+	exp.blockData = cfg.DataSource
+	exp.explorerSource = cfg.PrimaryDataSource
 	// Allocate Mempool fields.
 	exp.invs = new(types.MempoolInfo)
-	exp.Version = appVersion
-	exp.devPrefetch = devPrefetch
-	exp.xcBot = xcBot
-	exp.agendasSource = onChainInstance
-	exp.proposalsSource = offChainInstance
-	exp.politeiaAPIURL = politeiaURL
-	explorerLinks.Mainnet = mainnetLink
-	explorerLinks.Testnet = testnetLink
-	explorerLinks.MainnetSearch = mainnetLink + "search?search="
-	explorerLinks.TestnetSearch = testnetLink + "search?search="
+	exp.Version = cfg.AppVersion
+	exp.devPrefetch = cfg.DevPrefetch
+	exp.xcBot = cfg.XcBot
+	exp.agendasSource = cfg.AgendasSource
+	exp.proposalsSource = cfg.ProposalsSource
+	exp.politeiaAPIURL = cfg.PoliteiaURL
+	explorerLinks.Mainnet = cfg.MainnetLink
+	explorerLinks.Testnet = cfg.TestnetLink
+	explorerLinks.MainnetSearch = cfg.MainnetLink + "search?search="
+	explorerLinks.TestnetSearch = cfg.TestnetLink + "search?search="
 
 	// explorerDataSource is an interface that could have a value of pointer
 	// type, and if either is nil this means lite mode.
@@ -342,7 +355,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		exp.liteMode = true
 	}
 
-	if useRealIP {
+	if cfg.UseRealIP {
 		exp.Mux.Use(middleware.RealIP)
 	}
 
@@ -377,7 +390,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	log.Infof("Mean Voting Blocks calculated: %d", exp.pageData.HomeInfo.Params.MeanVotingBlocks)
 
 	commonTemplates := []string{"extras"}
-	exp.templates = newTemplates(viewsfolder, commonTemplates, makeTemplateFuncMap(exp.ChainParams))
+	exp.templates = newTemplates(cfg.Viewsfolder, commonTemplates, makeTemplateFuncMap(exp.ChainParams))
 
 	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
 		"rawtx", "status", "parameters", "agenda", "agendas", "charts",
