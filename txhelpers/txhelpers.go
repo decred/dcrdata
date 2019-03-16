@@ -247,32 +247,30 @@ func TxConsumesOutpointWithAddress(msgTx *wire.MsgTx, addr string,
 	// Send all the raw transaction requests
 	type promiseGetRawTransaction struct {
 		result rpcclient.FutureGetRawTransactionVerboseResult
-		prevtx chainhash.Hash
+		inIdx  int
 	}
 	numPrevOut := len(msgTx.TxIn)
-	promisesGetRawTransaction := make([]promiseGetRawTransaction, numPrevOut)
+	promisesGetRawTransaction := make([]promiseGetRawTransaction, 0, numPrevOut)
 
 	for inIdx, txIn := range msgTx.TxIn {
 		hash := &txIn.PreviousOutPoint.Hash
 		if zeroHash.IsEqual(hash) {
 			continue // coinbase or stakebase
 		}
-		promisesGetRawTransaction[inIdx] = promiseGetRawTransaction{
+		promisesGetRawTransaction = append(promisesGetRawTransaction, promiseGetRawTransaction{
 			result: c.GetRawTransactionVerboseAsync(hash),
-			prevtx: *hash,
-		}
+			inIdx:  inIdx,
+		})
 	}
 
 	// For each TxIn of this transaction, inspect the previous outpoint.
-	for inIdx, txIn := range msgTx.TxIn {
+	for i := range promisesGetRawTransaction {
 		// Previous outpoint for this TxIn
-		prevOut := &txIn.PreviousOutPoint
-		hash := &prevOut.Hash
-		if zeroHash.IsEqual(hash) {
-			continue
-		}
+		inIdx := promisesGetRawTransaction[i].inIdx
+		prevOut := &msgTx.TxIn[inIdx].PreviousOutPoint
+		hash := prevOut.Hash
 
-		prevTxRaw, err := promisesGetRawTransaction[inIdx].result.Receive()
+		prevTxRaw, err := promisesGetRawTransaction[i].result.Receive()
 		if err != nil {
 			fmt.Printf("Unable to get raw transaction for %v: %v\n", hash, err)
 			return nil, nil
