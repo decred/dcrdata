@@ -28,8 +28,14 @@ func HandleGetRequests(client *http.Client, URLPath string) ([]byte, error) {
 	}
 
 	response, err := client.Get(URLPath)
-	if err != nil {
-		return nil, err
+	if err != nil || response == nil {
+		return nil, fmt.Errorf("request failed: %v", err)
+	}
+
+	// Check if valid status code (200 Ok) was returned.
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("request (%s) failed with status code: %s",
+			URLPath, response.Status)
 	}
 
 	defer response.Body.Close()
