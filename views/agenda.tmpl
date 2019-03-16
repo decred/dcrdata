@@ -82,7 +82,7 @@
                         <tr>
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117 font-weight-bold">Status</td>
                             <td class="lh1rem">
-                                <span class="hash break-word">{{with .Status}}{{toTitleCase .String}}{{end}}</span>
+                                <span class="hash break-word">{{toTitleCase .Status.String}}</span>
                             </td>
                         </tr>
                         <tr>
@@ -104,8 +104,7 @@
             </div>
             {{if .Choices}}
             {{$isProgress := (ne (index .Choices 0).Progress 0.0)}}
-            {{$isNotDone := true}}
-            {{with .Status}}{{$isNotDone = (or (eq .String "started") (eq .String "defined"))}}{{end}}
+            {{$isNotDone := (or (eq .Status.String "started") (eq .Status.String "defined"))}}
             {{$showProgress := or $isProgress $isNotDone}}
             <table class="table table-mono-cells table-sm my-3">
                 <thead>
