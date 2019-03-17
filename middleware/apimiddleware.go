@@ -177,6 +177,13 @@ func GetTxnsCtx(r *http.Request) ([]*chainhash.Hash, error) {
 	return hashes, nil
 }
 
+// Next is a dummy middleware that just continues with the next http.Handler.
+func Next(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r)
+	})
+}
+
 // PostTxnsCtx extract transaction IDs from the POST body
 func PostTxnsCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

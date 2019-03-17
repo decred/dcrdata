@@ -681,7 +681,7 @@ func _main(ctx context.Context) error {
 	}
 
 	// Configure the URL path to http handler router for the API.
-	apiMux := api.NewAPIRouter(app, cfg.UseRealIP)
+	apiMux := api.NewAPIRouter(app, cfg.UseRealIP, cfg.CompressAPI)
 	// File downloads piggy-back on the API.
 	fileMux := api.NewFileRouter(app, cfg.UseRealIP)
 	// Configure the explorer web pages router.
@@ -721,7 +721,7 @@ func _main(ctx context.Context) error {
 			insightApp := insight.NewInsightContext(dcrdClient, auxDB,
 				activeChain, baseDB, cfg.IndentJSON, cfg.MaxCSVAddrs)
 			insightApp.SetReqRateLimit(cfg.InsightReqRateLimit)
-			insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP)
+			insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP, cfg.CompressAPI)
 			r.Mount("/insight/api", insightMux.Mux)
 
 			if insightSocketServer != nil {

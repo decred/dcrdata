@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 //
@@ -25,7 +25,7 @@ const APIVersion = 0
 
 // NewInsightApiRouter returns a new HTTP path router, ApiMux, for the Insight
 // API, app.
-func NewInsightApiRouter(app *insightApiContext, useRealIP bool) ApiMux {
+func NewInsightApiRouter(app *insightApiContext, useRealIP, compression bool) ApiMux {
 	// chi router
 	mux := chi.NewRouter()
 
@@ -46,7 +46,9 @@ func NewInsightApiRouter(app *insightApiContext, useRealIP bool) ApiMux {
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer)
 	mux.Use(middleware.StripSlashes)
-	mux.Use(middleware.DefaultCompress)
+	if compression {
+		mux.Use(middleware.NewCompressor(3).Handler())
+	}
 
 	// Block endpoints
 	mux.With(app.BlockDateLimitQueryCtx).Get("/blocks", app.getBlockSummaryByTime)

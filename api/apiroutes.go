@@ -1195,14 +1195,12 @@ func (c *appContext) getBlockRangeSummary(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// TODO: check that we have all in range
-
+	// w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	// N := idx - idx0 + 1
 	// summaries := make([]*apitypes.BlockDataBasic, 0, N)
 	// for i := idx0; i <= idx; i++ {
 	// 	summaries = append(summaries, c.BlockData.GetSummary(i))
 	// }
-
 	// writeJSON(w, summaries, c.getIndentQuery(r))
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")

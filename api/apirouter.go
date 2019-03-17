@@ -1,3 +1,4 @@
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -23,7 +24,7 @@ type fileMux struct {
 
 // NewAPIRouter creates a new HTTP request path router/mux for the given API,
 // appContext.
-func NewAPIRouter(app *appContext, useRealIP bool) apiMux {
+func NewAPIRouter(app *appContext, useRealIP, compressLarge bool) apiMux {
 	// chi router
 	mux := stackedMux(useRealIP)
 
@@ -31,6 +32,12 @@ func NewAPIRouter(app *appContext, useRealIP bool) apiMux {
 
 	mux.Get("/status", app.status)
 	mux.Get("/supply", app.coinSupply)
+
+	compMiddleware := m.Next
+	if compressLarge {
+		log.Debug("Enabling compressed responses for large JSON payload endpoints.")
+		compMiddleware = middleware.NewCompressor(3).Handler()
+	}
 
 	mux.Route("/block", func(r chi.Router) {
 		r.Route("/best", func(rd chi.Router) {
@@ -45,7 +52,7 @@ func NewAPIRouter(app *appContext, useRealIP bool) apiMux {
 			rd.Get("/raw", app.getBlockRaw)
 			rd.Get("/size", app.getBlockSize)
 			rd.Get("/subsidy", app.blockSubsidies)
-			rd.With((middleware.Compress(1))).Get("/verbose", app.getBlockVerbose)
+			rd.With(compMiddleware).Get("/verbose", app.getBlockVerbose)
 			rd.Get("/pos", app.getBlockStakeInfoExtendedByHeight)
 			rd.Route("/tx", func(rt chi.Router) {
 				rt.Get("/", app.getBlockTransactions)
@@ -64,7 +71,7 @@ func NewAPIRouter(app *appContext, useRealIP bool) apiMux {
 			rd.Get("/raw", app.getBlockRaw)
 			rd.Get("/size", app.getBlockSize)
 			rd.Get("/subsidy", app.blockSubsidies)
-			rd.With((middleware.Compress(1))).Get("/verbose", app.getBlockVerbose)
+			rd.With(compMiddleware).Get("/verbose", app.getBlockVerbose)
 			rd.Get("/pos", app.getBlockStakeInfoExtendedByHash)
 			rd.Route("/tx", func(rt chi.Router) {
 				rt.Get("/", app.getBlockTransactions)
@@ -83,7 +90,7 @@ func NewAPIRouter(app *appContext, useRealIP bool) apiMux {
 			rd.Get("/raw", app.getBlockRaw)
 			rd.Get("/size", app.getBlockSize)
 			rd.Get("/subsidy", app.blockSubsidies)
-			rd.With((middleware.Compress(1))).Get("/verbose", app.getBlockVerbose)
+			rd.With(compMiddleware).Get("/verbose", app.getBlockVerbose)
 			rd.Get("/pos", app.getBlockStakeInfoExtendedByHeight)
 			rd.Route("/tx", func(rt chi.Router) {
 				rt.Get("/", app.getBlockTransactions)
@@ -93,7 +100,7 @@ func NewAPIRouter(app *appContext, useRealIP bool) apiMux {
 
 		r.Route("/range/{idx0}/{idx}", func(rd chi.Router) {
 			rd.Use(m.BlockIndex0PathCtx, m.BlockIndexPathCtx)
-			rd.Use(middleware.Compress(1))
+			rd.Use(compMiddleware)
 			rd.Get("/", app.getBlockRangeSummary)
 			rd.Get("/size", app.getBlockRangeSize)
 			rd.Route("/{step}", func(rs chi.Router) {
@@ -104,8 +111,6 @@ func NewAPIRouter(app *appContext, useRealIP bool) apiMux {
 			// rd.Get("/header", app.getBlockHeader)
 			// rd.Get("/pos", app.getBlockStakeInfoExtendedByHeight)
 		})
-
-		//r.With(middleware.DefaultCompress).Get("/raw", app.someLargeResponse)
 	})
 
 	mux.Route("/stake", func(r chi.Router) {
@@ -164,15 +169,15 @@ func NewAPIRouter(app *appContext, useRealIP bool) apiMux {
 			rd.Get("/", app.getAddressTransactions)
 			rd.With(m.ChartGroupingCtx).Get("/types/{chartgrouping}", app.getAddressTxTypesData)
 			rd.With(m.ChartGroupingCtx).Get("/amountflow/{chartgrouping}", app.getAddressTxAmountFlowData)
-			rd.With((middleware.Compress(1))).Get("/raw", app.getAddressTransactionsRaw)
+			rd.With(compMiddleware).Get("/raw", app.getAddressTransactionsRaw)
 			rd.Route("/count/{N}", func(ri chi.Router) {
 				ri.Use(m.NPathCtx)
 				ri.Get("/", app.getAddressTransactions)
-				ri.With((middleware.Compress(1))).Get("/raw", app.getAddressTransactionsRaw)
+				ri.With(compMiddleware).Get("/raw", app.getAddressTransactionsRaw)
 				ri.Route("/skip/{M}", func(rj chi.Router) {
 					rj.Use(m.MPathCtx)
 					rj.Get("/", app.getAddressTransactions)
-					rj.With((middleware.Compress(1))).Get("/raw", app.getAddressTransactionsRaw)
+					rj.With(compMiddleware).Get("/raw", app.getAddressTransactionsRaw)
 				})
 			})
 		})
@@ -278,8 +283,6 @@ func stackedMux(useRealIP bool) *chi.Mux {
 	}
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer)
-	//mux.Use(middleware.DefaultCompress)
-	//mux.Use(middleware.Compress(2))
 	corsMW := cors.Default()
 	mux.Use(corsMW.Handler)
 	return mux
