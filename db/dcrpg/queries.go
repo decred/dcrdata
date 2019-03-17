@@ -3007,7 +3007,7 @@ func retrieveBlockTicketsPoolValue(ctx context.Context, db *sql.DB,
 		items.ChainSize = append(items.ChainSize, chainsize)
 		items.Count = append(items.Count, blocksCount)
 		items.ValueF = append(items.ValueF, float64(val))
-		items.Value = append(items.Value, blockHeight)
+		items.Height = append(items.Height, blockHeight)
 	}
 
 	return items, nil

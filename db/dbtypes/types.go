@@ -528,8 +528,8 @@ const (
 	TicketPoolValue // Index 2 in SqliteCharts and 15 in cache
 )
 
-// chartsDef maps the general Charts data type to the actual chart name.
-var chartsDef = map[Charts]string{
+// ChartsDef maps the general Charts data type to the actual chart name.
+var ChartsDef = map[Charts]string{
 	AvgBlockSize:    "avg-block-size",
 	BlockChainSize:  "blockchain-size",
 	ChainWork:       "chainwork",
@@ -550,7 +550,7 @@ var chartsDef = map[Charts]string{
 
 // String is the default stringer for Charts data type.
 func (c Charts) String() string {
-	return chartsDef[c]
+	return ChartsDef[c]
 }
 
 // Pos return the index of the position in the slice where the respective chart
@@ -561,13 +561,13 @@ func (c Charts) Pos() int {
 
 // ChartsCount returns the current count of the general charts supported.
 func ChartsCount() int {
-	return len(chartsDef)
+	return len(ChartsDef)
 }
 
 // ChartsFromStr returns the Charts data type key for the provided chart string
 // name.
 func ChartsFromStr(name string) (Charts, error) {
-	for key, val := range chartsDef {
+	for key, val := range ChartsDef {
 		if val == name {
 			return key, nil
 		}
