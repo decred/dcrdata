@@ -47,7 +47,7 @@ func NewInsightApiRouter(app *insightApiContext, useRealIP, compression bool) Ap
 	mux.Use(middleware.Recoverer)
 	mux.Use(middleware.StripSlashes)
 	if compression {
-		mux.Use(middleware.DefaultCompress)
+		mux.Use(middleware.NewCompressor(3).Handler())
 	}
 
 	// Block endpoints

@@ -28,7 +28,7 @@ require (
 	github.com/didip/tollbooth v4.0.1-0.20180415195142-b10a036da5f0+incompatible
 	github.com/didip/tollbooth_chi v0.0.0-20170928041846-6ab5f3083f3d
 	github.com/dustin/go-humanize v1.0.0
-	github.com/go-chi/chi v4.0.1+incompatible
+	github.com/go-chi/chi v4.0.3-0.20190316151245-d08916613452+incompatible
 	github.com/go-chi/docgen v1.0.5
 	github.com/golang/protobuf v1.2.0
 	github.com/google/go-cmp v0.2.0
