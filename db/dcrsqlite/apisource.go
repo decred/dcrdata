@@ -81,9 +81,9 @@ func newWiredDB(DB *DB, statusC chan uint32, cl *rpcclient.Client,
 // parameters, and a status update channel. It calls dcrsqlite.NewDB to create a
 // new DB that wrapps the sql.DB.
 func NewWiredDB(db *sql.DB, statusC chan uint32, cl *rpcclient.Client,
-	p *chaincfg.Params, datadir string) (*WiredDB, func() error, error) {
+	p *chaincfg.Params, datadir string, shutdown func()) (*WiredDB, func() error, error) {
 	// Create the sqlite.DB
-	DB, err := NewDB(db)
+	DB, err := NewDB(db, shutdown)
 	if err != nil || DB == nil {
 		return nil, func() error { return nil }, err
 	}
@@ -98,8 +98,8 @@ func NewWiredDB(db *sql.DB, statusC chan uint32, cl *rpcclient.Client,
 // InitWiredDB creates a new WiredDB from a file containing the data for a
 // sql.DB. The other parameters are same as those for NewWiredDB.
 func InitWiredDB(dbInfo *DBInfo, statusC chan uint32, cl *rpcclient.Client,
-	p *chaincfg.Params, datadir string) (*WiredDB, func() error, error) {
-	db, err := InitDB(dbInfo)
+	p *chaincfg.Params, datadir string, shutdown func()) (*WiredDB, func() error, error) {
+	db, err := InitDB(dbInfo, shutdown)
 	if err != nil {
 		return nil, func() error { return nil }, err
 	}

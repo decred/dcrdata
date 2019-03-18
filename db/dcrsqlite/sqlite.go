@@ -19,7 +19,7 @@ import (
 	"github.com/decred/dcrdata/v4/blockdata"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
 	"github.com/decred/slog"
-	_ "github.com/mattn/go-sqlite3" // register sqlite driver with database/sql
+	sqlite3 "github.com/mattn/go-sqlite3" // register sqlite driver with database/sql
 )
 
 // StakeInfoDatabaser is the interface for an extended stake info saving database
@@ -74,6 +74,10 @@ type DB struct {
 	// dbSummaryHeight is set when a block's stake info is stored.
 	dbStakeInfoHeight int64
 
+	// Drop shutdownDcrdata when the "database is locked" error is mitigated.
+	// See https://github.com/decred/dcrdata/issues/1133 for more info.
+	shutdownDcrdata func()
+
 	// Block summary table queries
 	insertBlockSQL                                               string
 	getPoolSQL, getPoolRangeSQL                                  string
@@ -114,11 +118,12 @@ type DB struct {
 
 // NewDB creates a new DB instance with pre-generated sql statements from an
 // existing sql.DB. Use InitDB to create a new DB without having a sql.DB.
-func NewDB(db *sql.DB) (*DB, error) {
+func NewDB(db *sql.DB, shutdown func()) (*DB, error) {
 	d := DB{
 		DB:                db,
 		dbSummaryHeight:   -1,
 		dbStakeInfoHeight: -1,
+		shutdownDcrdata:   shutdown,
 	}
 
 	// Block summary insert
@@ -312,7 +317,7 @@ func NewDB(db *sql.DB) (*DB, error) {
 
 // InitDB creates a new DB instance from a DBInfo containing the name of the
 // file used to back the underlying sql database.
-func InitDB(dbInfo *DBInfo) (*DB, error) {
+func InitDB(dbInfo *DBInfo, shutdown func()) (*DB, error) {
 	dbPath, err := filepath.Abs(dbInfo.FileName)
 	if err != nil {
 		return nil, err
@@ -407,7 +412,7 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
 		return nil, err
 	}
 
-	dataBase, err := NewDB(db)
+	dataBase, err := NewDB(db, shutdown)
 	if err != nil {
 		return nil, err
 	}
@@ -421,6 +426,20 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
 	}
 
 	return dataBase, err
+}
+
+// Need to check the error for a SQLite database "database is locked" error
+// until resolved. See https://github.com/decred/dcrdata/issues/1133 for info.
+func (db *DB) filterError(err error) error {
+	if err == nil {
+		return err
+	}
+	sqliteErr, is := err.(sqlite3.Error)
+	if is && sqliteErr.Code == sqlite3.ErrLocked {
+		log.Criticalf("SQLite3 database is locked error encountered. Restart required")
+		db.shutdownDcrdata()
+	}
+	return err
 }
 
 // DBDataSaver models a DB with a channel to communicate new block height to the
@@ -513,6 +532,7 @@ func (db *DB) deleteBlock(blockhash string) (NSummaryRows, NStakeInfoRows int64,
 		err = nil
 	}
 	if err != nil {
+		db.filterError(err)
 		return
 	}
 
@@ -527,6 +547,7 @@ func (db *DB) deleteBlock(blockhash string) (NSummaryRows, NStakeInfoRows int64,
 		err = nil
 	}
 	if err != nil {
+		db.filterError(err)
 		return
 	}
 
@@ -556,6 +577,7 @@ func (db *DB) deleteBlocksAboveHeight(height int64) (NSummaryRows, NStakeInfoRow
 		err = nil
 	}
 	if err != nil {
+		db.filterError(err)
 		return
 	}
 
@@ -570,6 +592,7 @@ func (db *DB) deleteBlocksAboveHeight(height int64) (NSummaryRows, NStakeInfoRow
 		err = nil
 	}
 	if err != nil {
+		db.filterError(err)
 		return
 	}
 
@@ -596,7 +619,7 @@ func (db *DB) DeleteBlocksAboveHeight(height int64) (NSummaryRows, NStakeInfoRow
 func (db *DB) deleteBlockHeightMainchain(height int64) (int64, error) {
 	res, err := db.Exec(db.deleteBlockByHeightMainChainSQL, height)
 	if err != nil {
-		return 0, err
+		return 0, db.filterError(err)
 	}
 	return res.RowsAffected()
 }
@@ -604,13 +627,13 @@ func (db *DB) deleteBlockHeightMainchain(height int64) (int64, error) {
 // Invalidate block with the given hash.
 func (db *DB) invalidateBlock(blockhash string) error {
 	_, err := db.Exec(db.invalidateBlockSQL, blockhash)
-	return err
+	return db.filterError(err)
 }
 
 // Sets the is_mainchain field to false for the given block in the database.
 func (db *DB) setHeightToSideChain(height int64) error {
 	_, err := db.Exec(db.setHeightToSideChainSQL, height)
-	return err
+	return db.filterError(err)
 }
 
 // Returns the is_mainchain value from the database for the given hash.
@@ -648,7 +671,7 @@ func (db *DB) StoreBlock(bd *apitypes.BlockDataBasic, isMainchain bool, isValid 
 		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg,
 		&winners, &isMainchain, &isValid)
 	if err != nil {
-		return err
+		return db.filterError(err)
 	}
 
 	// Update the DB block summary height.
@@ -1438,7 +1461,7 @@ func (db *DB) StoreStakeInfoExtended(si *apitypes.StakeInfoExtended) error {
 		&si.PriceWindowNum, &si.IdxBlockInWindow, &si.PoolInfo.Size,
 		&si.PoolInfo.Value, &si.PoolInfo.ValAvg, &winners)
 	if err != nil {
-		return err
+		return db.filterError(err)
 	}
 
 	db.mtx.Lock()
@@ -1457,7 +1480,7 @@ func (db *DB) StoreStakeInfoExtended(si *apitypes.StakeInfoExtended) error {
 func (db *DB) deleteStakeInfo(blockhash string) (int64, error) {
 	res, err := db.Exec(db.deleteBlockByHashSQL, blockhash)
 	if err != nil {
-		return 0, err
+		return 0, db.filterError(err)
 	}
 	return res.RowsAffected()
 }
@@ -1467,7 +1490,7 @@ func (db *DB) deleteStakeInfo(blockhash string) (int64, error) {
 func (db *DB) deleteStakeInfoHeightMainchain(height int64) (int64, error) {
 	res, err := db.Exec(db.deleteBlockByHeightMainChainSQL, height)
 	if err != nil {
-		return 0, err
+		return 0, db.filterError(err)
 	}
 	return res.RowsAffected()
 }

@@ -151,7 +151,8 @@ func _main(ctx context.Context) error {
 	dbPath := filepath.Join(cfg.DataDir, cfg.DBFileName)
 	dbInfo := dcrsqlite.DBInfo{FileName: dbPath}
 	baseDB, cleanupDB, err := dcrsqlite.InitWiredDB(&dbInfo,
-		notify.NtfnChans.UpdateStatusDBHeight, dcrdClient, activeChain, cfg.DataDir)
+		notify.NtfnChans.UpdateStatusDBHeight, dcrdClient, activeChain, cfg.DataDir,
+		requestShutdown)
 	defer cleanupDB()
 	if err != nil {
 		return fmt.Errorf("Unable to initialize SQLite database: %v", err)
