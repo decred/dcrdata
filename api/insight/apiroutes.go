@@ -164,15 +164,15 @@ func (c *insightApiContext) getTransactionHex(w http.ResponseWriter, r *http.Req
 }
 
 func (c *insightApiContext) getBlockSummary(w http.ResponseWriter, r *http.Request) {
-	// attempt to get hash of block set by hash or (fallback) height set on path
-	hash, ok := c.GetInsightBlockHashCtx(r)
-	if !ok {
-		idx, ok := c.GetInsightBlockIndexCtx(r)
-		if !ok {
-			writeInsightError(w, "Must provide an index or block hash")
+	// Attempt to get hash or height of block from URL path.
+	hash, err := m.GetBlockHashCtx(r)
+	if err != nil {
+		idx := m.GetBlockIndexCtx(r)
+		if idx < 0 {
+			writeInsightError(w, "Must provide a block index or hash.")
 			return
 		}
-		var err error
+
 		hash, err = c.BlockData.ChainDB.GetBlockHash(int64(idx))
 		if dbtypes.IsTimeoutErr(err) {
 			apiLog.Errorf("GetBlockHash: %v", err)
@@ -184,17 +184,18 @@ func (c *insightApiContext) getBlockSummary(w http.ResponseWriter, r *http.Reque
 			return
 		}
 	}
-	blockDcrd := c.BlockData.GetBlockVerboseByHash(hash, false)
-	if blockDcrd == nil {
+
+	block := c.BlockData.GetBlockVerboseByHash(hash, false)
+	if block == nil {
 		writeInsightNotFound(w, "Unable to get block")
 		return
 	}
 
-	blockSummary := []*dcrjson.GetBlockVerboseResult{blockDcrd}
+	blockSummary := []*dcrjson.GetBlockVerboseResult{block}
 	blockInsight, err := c.DcrToInsightBlock(blockSummary)
 	if err != nil {
 		apiLog.Errorf("Unable to process block (%s)", hash)
-		writeInsightError(w, "Unable to Process Block")
+		writeInsightError(w, "Unable to process block")
 		return
 	}
 
@@ -202,8 +203,8 @@ func (c *insightApiContext) getBlockSummary(w http.ResponseWriter, r *http.Reque
 }
 
 func (c *insightApiContext) getBlockHash(w http.ResponseWriter, r *http.Request) {
-	idx, ok := c.GetInsightBlockIndexCtx(r)
-	if !ok {
+	idx := m.GetBlockIndexCtx(r)
+	if idx < 0 {
 		writeInsightError(w, "No index found in query")
 		return
 	}
@@ -232,29 +233,16 @@ func (c *insightApiContext) getBlockHash(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, blockOutput, c.getIndentQuery(r))
 }
 
-func (c *insightApiContext) getBlockChainHashCtx(r *http.Request) (*chainhash.Hash, error) {
-	hashStr, err := c.getBlockHashCtx(r)
-	if err != nil {
-		return nil, err
-	}
-	hash, err := chainhash.NewHashFromStr(hashStr)
-	if err != nil {
-		apiLog.Errorf("Failed to parse block hash: %v", err)
-		return nil, err
-	}
-	return hash, nil
-}
-
 func (c *insightApiContext) getRawBlock(w http.ResponseWriter, r *http.Request) {
 
-	hash, ok := c.GetInsightBlockHashCtx(r)
-	if !ok {
-		idx, ok := c.GetInsightBlockIndexCtx(r)
-		if !ok {
+	hash, err := m.GetBlockHashCtx(r)
+	if err != nil {
+		idx := m.GetBlockIndexCtx(r)
+		if idx < 0 {
 			writeInsightError(w, "Must provide an index or block hash")
 			return
 		}
-		var err error
+
 		hash, err = c.BlockData.ChainDB.GetBlockHash(int64(idx))
 		if dbtypes.IsTimeoutErr(err) {
 			apiLog.Errorf("GetBlockHash: %v", err)
@@ -266,6 +254,7 @@ func (c *insightApiContext) getRawBlock(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 	}
+
 	chainHash, err := chainhash.NewHashFromStr(hash)
 	if err != nil {
 		writeInsightError(w, fmt.Sprintf("Failed to parse block hash: %v", err))
@@ -274,9 +263,11 @@ func (c *insightApiContext) getRawBlock(w http.ResponseWriter, r *http.Request) 
 
 	blockMsg, err := c.nodeClient.GetBlock(chainHash)
 	if err != nil {
-		writeInsightNotFound(w, fmt.Sprintf("Failed to retrieve block %s: %v", chainHash.String(), err))
+		writeInsightNotFound(w, fmt.Sprintf("Failed to retrieve block %s: %v",
+			chainHash.String(), err))
 		return
 	}
+
 	var blockHex bytes.Buffer
 	if err = blockMsg.Serialize(&blockHex); err != nil {
 		apiLog.Errorf("Failed to serialize block: %v", err)
@@ -293,20 +284,22 @@ func (c *insightApiContext) getRawBlock(w http.ResponseWriter, r *http.Request) 
 }
 
 func (c *insightApiContext) broadcastTransactionRaw(w http.ResponseWriter, r *http.Request) {
-	// Check for rawtx
-	rawHexTx, ok := c.GetRawHexTx(r)
-	if !ok {
-		// JSON extraction failed or rawtx blank.  Error message already returned.
+	// Check for rawtx.
+	rawHexTx, err := m.GetRawHexTx(r)
+	if err != nil {
+		// JSON extraction failed or rawtx blank.
+		writeInsightError(w, err.Error())
 		return
 	}
 
-	// Check maximum transaction size
+	// Check maximum transaction size.
 	if len(rawHexTx)/2 > c.params.MaxTxSize {
-		writeInsightError(w, fmt.Sprintf("Rawtx length exceeds maximum allowable characters (%d bytes received)", len(rawHexTx)/2))
+		writeInsightError(w, fmt.Sprintf("Rawtx length exceeds maximum allowable characters"+
+			"(%d bytes received)", len(rawHexTx)/2))
 		return
 	}
 
-	// Broadcast
+	// Broadcast the transaction.
 	txid, err := c.BlockData.SendRawTransaction(rawHexTx)
 	if err != nil {
 		apiLog.Errorf("Unable to send transaction %s", rawHexTx)
@@ -314,7 +307,7 @@ func (c *insightApiContext) broadcastTransactionRaw(w http.ResponseWriter, r *ht
 		return
 	}
 
-	// Respond with hash of broadcasted transaction
+	// Respond with hash of broadcasted transaction.
 	txidJSON := struct {
 		TxidHash string `json:"txid"`
 	}{
@@ -576,11 +569,11 @@ func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	noAsm := c.GetNoAsmCtx(r)             // Optional
-	noScriptSig := c.GetNoScriptSigCtx(r) // Optional
-	noSpent := c.GetNoSpentCtx(r)         // Optional
-	from := c.GetFromCtx(r)               // Optional
-	to, ok := c.GetToCtx(r)               // Optional
+	noAsm := GetNoAsmCtx(r)             // Optional
+	noScriptSig := GetNoScriptSigCtx(r) // Optional
+	noSpent := GetNoSpentCtx(r)         // Optional
+	from := GetFromCtx(r)               // Optional
+	to, ok := GetToCtx(r)               // Optional
 	if !ok {
 		to = from + 10
 	}
@@ -902,7 +895,7 @@ func (c *insightApiContext) getBlockSummaryByTime(w http.ResponseWriter, r *http
 	}
 
 	// Generate the pagination parameters More and MoreTs, and limit the result.
-	limit := c.GetLimitCtx(r)
+	limit := GetLimitCtx(r)
 	if limit > 0 {
 		var outputBlockSummary []dbtypes.BlockDataBasic
 		for i, block := range blockSummary {
@@ -935,32 +928,19 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 		writeInsightError(w, err.Error())
 		return
 	}
-	if len(addresses) > 1 {
+	if len(addresses) != 1 {
 		writeInsightError(w, fmt.Sprintln("only one address allowed"))
 		return
 	}
 	address := addresses[0]
-	command, isCmd := c.GetAddressCommandCtx(r)
-
 	_, err = dcrutil.DecodeAddress(address)
 	if err != nil {
 		writeInsightError(w, "Invalid Address")
 		return
 	}
 
-	noTxList := c.GetNoTxListCtx(r)
-
-	from := c.GetFromCtx(r)
-	to, ok := c.GetToCtx(r)
-	if !ok || to <= from {
-		to = from + 1000
-	}
-
-	// Get Confirmed Balances
-	var unconfirmedBalanceSat int64
-
+	// Get confirmed balance.
 	balance, _, err := c.BlockData.ChainDB.AddressBalance(address)
-
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("AddressSpentUnspent: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -972,6 +952,7 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	command, isCmd := GetAddressCommandCtx(r)
 	if isCmd {
 		switch command {
 		case "balance":
@@ -1004,6 +985,7 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 	confirmedTxCount := len(rawTxs)
 
 	// Get unconfirmed transactions.
+	var unconfirmedBalanceSat int64
 	var unconfirmedTxs []chainhash.Hash
 	addressOuts, _, err := c.MemPool.UnconfirmedTxnsForAddress(address)
 	if err != nil {
@@ -1048,8 +1030,9 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 				continue
 			}
 
-			// Sent total sats has to be a lookup of the vout:i prevout value
-			// because vin:i valuein is not reliable from dcrd at present
+			// Sent total atoms must be a lookup of the vout:i prevout value
+			// because vin:i valuein is not reliable from dcrd at present.
+			// TODO(chappjc): dcrd should be OK now. Recheck this.
 			prevhash := spendingTx.Tx.TxIn[f.InputIndex].PreviousOutPoint.Hash
 			previndex := spendingTx.Tx.TxIn[f.InputIndex].PreviousOutPoint.Index
 			valuein := addressOuts.TxnsStore[prevhash].Tx.TxOut[previndex].Value
@@ -1064,33 +1047,25 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Merge Unconfirmed with Confirmed transactions
+	// Merge unconfirmed with confirmed transactions.
 	rawTxs = append(unconfirmedTxs, rawTxs...)
 
-	// Final Slice Extraction
-	txcount := len(rawTxs)
-	if txcount > 0 {
-		if int(from) > txcount {
-			from = int64(txcount)
+	// Final raw tx slice extraction
+	if txcount := int64(len(rawTxs)); txcount > 0 {
+		txLimit := int64(1000)
+		from := GetFromCtx(r)
+		to, ok := GetToCtx(r)
+		if !ok || to < from {
+			to = from + txLimit
 		}
-		if int(from) < 0 {
-			from = 0
-		}
-		if int(to) > txcount {
-			to = int64(txcount)
-		}
-		if int(to) < 0 {
-			to = 0
-		}
-		if from > to {
-			to = from
-		}
-		if (to - from) > 1000 {
-			writeInsightError(w, fmt.Sprintf("\"from\" (%d) and \"to\" (%d) range should be less than or equal to 1000", from, to))
+
+		start, end, err := fromToForSlice(from, to, txcount, txLimit)
+		if err != nil {
+			writeInsightError(w, err.Error())
 			return
 		}
 
-		rawTxs = rawTxs[from:to]
+		rawTxs = rawTxs[start:end]
 	}
 
 	addressInfo := apitypes.InsightAddressInfo{
@@ -1107,6 +1082,7 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 		UnconfirmedTxAppearances: int64(len(unconfirmedTxs)),
 	}
 
+	noTxList := GetNoTxListCtx(r)
 	if noTxList == 0 && len(rawTxs) > 0 {
 		addressInfo.TransactionsID = make([]string, 0, len(rawTxs))
 		for _, tx := range rawTxs {
@@ -1118,12 +1094,45 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, addressInfo, c.getIndentQuery(r))
 }
 
+// fromToForSlice takes ?from=A&to=B from the URL queries where A is the "from"
+// index and B is the "to" index, which together define a range [A, B] for
+// indexing a slice as slice[start,end]. This function computes valid start and
+// end value given the provided from, to, the length of the slice, and an upper
+// limit on the number of elements.
+func fromToForSlice(from, to, sliceLength, txLimit int64) (int64, int64, error) {
+	if sliceLength < 1 {
+		return 0, 0, fmt.Errorf("no valid to/from for empty slice")
+	}
+
+	// Convert to exclusive range end semantics for slice end indexing (end
+	// index + 1).
+	start, end := from, to+1
+
+	if start >= sliceLength {
+		start = sliceLength - 1
+	}
+	if start < 0 {
+		start = 0
+	}
+	if end <= start {
+		end = start + 1
+	}
+	if end > sliceLength {
+		end = sliceLength
+	}
+
+	if end-start > txLimit {
+		return start, end, fmt.Errorf(`"from" (%d) and "to" (%d) range "+
+			"must include at most %d transactions`, start, end-1, txLimit)
+	}
+	return start, end, nil
+}
+
 func (c *insightApiContext) getEstimateFee(w http.ResponseWriter, r *http.Request) {
-	nbBlocks := c.GetNbBlocksCtx(r)
+	nbBlocks := GetNbBlocksCtx(r)
 	if nbBlocks == 0 {
 		nbBlocks = 2
 	}
-	estimateFee := make(map[string]float64)
 
 	// A better solution would be a call to the DCRD RPC "estimatefee" endpoint
 	// but that does not appear to be exposed currently.
@@ -1133,7 +1142,10 @@ func (c *insightApiContext) getEstimateFee(w http.ResponseWriter, r *http.Reques
 		writeInsightError(w, fmt.Sprintf("Error getting status (%s)", err))
 		return
 	}
-	estimateFee[strconv.Itoa(nbBlocks)] = infoResult.RelayFee
+
+	estimateFee := map[string]float64{
+		strconv.Itoa(nbBlocks): infoResult.RelayFee,
+	}
 
 	writeJSON(w, estimateFee, c.getIndentQuery(r))
 }
@@ -1142,12 +1154,8 @@ func (c *insightApiContext) getEstimateFee(w http.ResponseWriter, r *http.Reques
 func (c *insightApiContext) GetPeerStatus(w http.ResponseWriter, r *http.Request) {
 	// Use a RPC call to tell if we are connected or not
 	_, err := c.nodeClient.GetPeerInfo()
-	var connected bool
-	if err == nil {
-		connected = true
-	} else {
-		connected = false
-	}
+	connected := err == nil
+
 	var port *string
 	peerInfo := struct {
 		Connected bool    `json:"connected"`
