@@ -4,6 +4,10 @@ import { Controller } from 'stimulus'
 export default class extends Controller {
   execute (e) {
     e.preventDefault()
-    Turbolinks.visit('/search?search=' + e.target[0].value)
+    var search = e.target[0].value.trim()
+    if (search === '') {
+      return
+    }
+    Turbolinks.visit('/search?search=' + search)
   }
 }
