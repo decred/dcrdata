@@ -17,6 +17,7 @@ import (
 	"math/big"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/decred/base58"
@@ -26,6 +27,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 )
@@ -64,6 +66,7 @@ type RawTransactionGetter interface {
 // for GetRawTransactionVerbose.
 type VerboseTransactionGetter interface {
 	GetRawTransactionVerbose(txHash *chainhash.Hash) (*dcrjson.TxRawResult, error)
+	GetRawTransactionVerboseAsync(txHash *chainhash.Hash) rpcclient.FutureGetRawTransactionVerboseResult
 }
 
 // BlockWatchedTx contains, for a certain block, the transactions for certain
@@ -241,20 +244,43 @@ func TxInvolvesAddress(msgTx *wire.MsgTx, addr string, c VerboseTransactionGette
 // indexes and the corresponding previous outpoints determined.
 func TxConsumesOutpointWithAddress(msgTx *wire.MsgTx, addr string,
 	c VerboseTransactionGetter, params *chaincfg.Params) (prevOuts []PrevOut, prevTxs []*TxWithBlockData) {
-	// For each TxIn of this transaction, inspect the previous outpoint.
+	// Send all the raw transaction requests
+	type promiseGetRawTransaction struct {
+		result rpcclient.FutureGetRawTransactionVerboseResult
+		inIdx  int
+	}
+	numPrevOut := len(msgTx.TxIn)
+	promisesGetRawTransaction := make([]promiseGetRawTransaction, 0, numPrevOut)
+
 	for inIdx, txIn := range msgTx.TxIn {
+		hash := &txIn.PreviousOutPoint.Hash
+		if zeroHash.IsEqual(hash) {
+			continue // coinbase or stakebase
+		}
+		promisesGetRawTransaction = append(promisesGetRawTransaction, promiseGetRawTransaction{
+			result: c.GetRawTransactionVerboseAsync(hash),
+			inIdx:  inIdx,
+		})
+	}
+
+	// For each TxIn of this transaction, inspect the previous outpoint.
+	for i := range promisesGetRawTransaction {
 		// Previous outpoint for this TxIn
-		prevOut := &txIn.PreviousOutPoint
-		if bytes.Equal(zeroHash[:], prevOut.Hash[:]) {
-			continue
-		}
-		// GetRawTransactionVerbose provides the height and hash of the block in
-		// which the transaction is included, if it is confirmed.
-		prevTxRaw, err := c.GetRawTransactionVerbose(&prevOut.Hash)
+		inIdx := promisesGetRawTransaction[i].inIdx
+		prevOut := &msgTx.TxIn[inIdx].PreviousOutPoint
+		hash := prevOut.Hash
+
+		prevTxRaw, err := promisesGetRawTransaction[i].result.Receive()
 		if err != nil {
-			fmt.Printf("Unable to get raw transaction for %s\n", prevOut.Hash.String())
-			continue
+			fmt.Printf("Unable to get raw transaction for %v: %v\n", hash, err)
+			return nil, nil
 		}
+
+		if prevTxRaw.Txid != hash.String() {
+			fmt.Printf("%v != %v", prevTxRaw.Txid, hash.String())
+			return nil, nil
+		}
+
 		prevTx, err := MsgTxFromHex(prevTxRaw.Hex)
 		if err != nil {
 			fmt.Printf("MsgTxFromHex failed: %s\n", err)
@@ -262,9 +288,9 @@ func TxConsumesOutpointWithAddress(msgTx *wire.MsgTx, addr string,
 		}
 		txHash := prevTx.TxHash()
 
-		// prevOut.Index tells indicates which output
+		// prevOut.Index indicates which output.
 		txOut := prevTx.TxOut[prevOut.Index]
-		// extract the addresses from this output's PkScript
+		// Extract the addresses from this output's PkScript.
 		_, txAddrs, _, err := txscript.ExtractPkScriptAddrs(
 			txOut.Version, txOut.PkScript, params)
 		if err != nil {
@@ -768,14 +794,10 @@ func FeeRateInfoBlock(block *dcrutil.Block) *dcrjson.FeeInfoBlock {
 	return feeInfo
 }
 
-// MsgTxFromHex returns a wire.MsgTx struct built from the transaction hex string
+// MsgTxFromHex returns a wire.MsgTx struct built from the transaction hex string.
 func MsgTxFromHex(txhex string) (*wire.MsgTx, error) {
-	txBytes, err := hex.DecodeString(txhex)
-	if err != nil {
-		return nil, err
-	}
 	msgTx := wire.NewMsgTx()
-	if err = msgTx.FromBytes(txBytes); err != nil {
+	if err := msgTx.Deserialize(hex.NewDecoder(strings.NewReader(txhex))); err != nil {
 		return nil, err
 	}
 	return msgTx, nil

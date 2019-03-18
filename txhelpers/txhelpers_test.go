@@ -16,6 +16,7 @@ import (
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient/v2"
+	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/v4/semver"
 	"github.com/decred/dcrdata/v4/testutil"
 )
@@ -364,5 +365,172 @@ func TestIsZeroHashStr(t *testing.T) {
 				t.Errorf("IsZeroHashStr() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestMsgTxFromHex(t *testing.T) {
+	tests := []struct {
+		testName string
+		txhex    string
+		want     *wire.MsgTx
+		wantErr  bool
+	}{
+		{
+			testName: "badHex",
+			txhex:    "thisainthex",
+			want:     nil,
+			wantErr:  true, // encoding/hex: invalid byte: U+0074 't'
+		},
+		{
+			testName: "partialTxHex",
+			txhex: "0100000002000000000000000000000000000000000000000000000000000000" +
+				"0000000000ffffffff00ffffffffcbc2bc0d947d8ebfa22ef060db230e3ecca0" +
+				"8caa20e9eedcfc573dea71af2c940000000001ffffffff040000000000000000" +
+				"0000266a2464e719ba6f832b4a51caf58a88cd4f6a57789f6cffe5c014000000" +
+				"000000000070fd040000000000000000000000086a060100050000006e0d2100" +
+				"0000000000001abb76a91414362cb17eb0295c03b051aad6abd87e31bd2fd0",
+			want:    nil,
+			wantErr: true, // unexpected EOF
+		},
+		{
+			testName: "badTxType",
+			txhex:    "0000002000000000000000000000000000000000000000000000000000000",
+			want:     nil,
+			wantErr:  true, // MsgTx.BtcDecode: unsupported transaction type
+		},
+		{
+			testName: "ok",
+			txhex: "0100000002000000000000000000000000000000000000000000000000000000" +
+				"0000000000ffffffff00ffffffffcbc2bc0d947d8ebfa22ef060db230e3ecca0" +
+				"8caa20e9eedcfc573dea71af2c940000000001ffffffff040000000000000000" +
+				"0000266a2464e719ba6f832b4a51caf58a88cd4f6a57789f6cffe5c014000000" +
+				"000000000070fd040000000000000000000000086a060100050000006e0d2100" +
+				"0000000000001abb76a91414362cb17eb0295c03b051aad6abd87e31bd2fd088" +
+				"ac84ee19b10200000000001abb76a914fcc2ec1e801444402b23b204328b32b0" +
+				"76e62e6088ac000000000000000002348695060000000000000000ffffffff02" +
+				"0000bf75a5aa02000000a6f904000f000000914830450221008abbf185422662" +
+				"0727fd0f0a9f5cbad324b223ae5f2708d397f257882b3e116702204b0b048b6d" +
+				"6a0c129a8b6bfa0788c7d2ee597fe0f85d6dd5b43d625f55d214290147512102" +
+				"3259b72bbb675b34cb0ad519d3f8bc5f58bd0ee4aec8a4d248c204a926c953e2" +
+				"2102be3864d8c7264baa1ef75e3fccb1697ab9a403f6e95ff11614a7fb22af3c" +
+				"5c0f52ae",
+			want: &wire.MsgTx{
+				CachedHash: nil,
+				SerType:    0,
+				Version:    1,
+				TxIn: []*wire.TxIn{
+					&wire.TxIn{
+						PreviousOutPoint: wire.OutPoint{zeroHash, 4294967295, 0},
+						Sequence:         4294967295,
+						ValueIn:          110462516,
+						BlockHeight:      0,
+						BlockIndex:       4294967295,
+						SignatureScript:  []uint8{00, 00},
+					},
+					&wire.TxIn{
+						PreviousOutPoint: wire.OutPoint{
+							Hash: chainhash.Hash{0xcb, 0xc2, 0xbc, 0xd, 0x94, 0x7d, 0x8e, 0xbf,
+								0xa2, 0x2e, 0xf0, 0x60, 0xdb, 0x23, 0xe, 0x3e, 0xcc, 0xa0,
+								0x8c, 0xaa, 0x20, 0xe9, 0xee, 0xdc, 0xfc, 0x57, 0x3d,
+								0xea, 0x71, 0xaf, 0x2c, 0x94},
+							Index: 0,
+							Tree:  1,
+						},
+						Sequence:    4294967295,
+						ValueIn:     11452904895,
+						BlockHeight: 326054,
+						BlockIndex:  15,
+						SignatureScript: []byte{0x48, 0x30, 0x45, 0x2, 0x21, 0x0, 0x8a,
+							0xbb, 0xf1, 0x85, 0x42, 0x26, 0x62, 0x7, 0x27, 0xfd, 0xf, 0xa,
+							0x9f, 0x5c, 0xba, 0xd3, 0x24, 0xb2, 0x23, 0xae, 0x5f, 0x27,
+							0x8, 0xd3, 0x97, 0xf2, 0x57, 0x88, 0x2b, 0x3e, 0x11, 0x67,
+							0x2, 0x20, 0x4b, 0xb, 0x4, 0x8b, 0x6d, 0x6a, 0xc, 0x12, 0x9a,
+							0x8b, 0x6b, 0xfa, 0x7, 0x88, 0xc7, 0xd2, 0xee, 0x59, 0x7f,
+							0xe0, 0xf8, 0x5d, 0x6d, 0xd5, 0xb4, 0x3d, 0x62, 0x5f, 0x55,
+							0xd2, 0x14, 0x29, 0x1, 0x47, 0x51, 0x21, 0x2, 0x32, 0x59, 0xb7,
+							0x2b, 0xbb, 0x67, 0x5b, 0x34, 0xcb, 0xa, 0xd5, 0x19, 0xd3,
+							0xf8, 0xbc, 0x5f, 0x58, 0xbd, 0xe, 0xe4, 0xae, 0xc8, 0xa4,
+							0xd2, 0x48, 0xc2, 0x4, 0xa9, 0x26, 0xc9, 0x53, 0xe2, 0x21, 0x2,
+							0xbe, 0x38, 0x64, 0xd8, 0xc7, 0x26, 0x4b, 0xaa, 0x1e, 0xf7,
+							0x5e, 0x3f, 0xcc, 0xb1, 0x69, 0x7a, 0xb9, 0xa4, 0x3, 0xf6,
+							0xe9, 0x5f, 0xf1, 0x16, 0x14, 0xa7, 0xfb, 0x22, 0xaf, 0x3c,
+							0x5c, 0xf, 0x52, 0xae},
+					},
+				},
+				TxOut: []*wire.TxOut{
+					&wire.TxOut{
+						Value:   0,
+						Version: 0,
+						PkScript: []byte{0x6a, 0x24, 0x64, 0xe7, 0x19, 0xba, 0x6f, 0x83,
+							0x2b, 0x4a, 0x51, 0xca, 0xf5, 0x8a, 0x88, 0xcd, 0x4f, 0x6a,
+							0x57, 0x78, 0x9f, 0x6c, 0xff, 0xe5, 0xc0, 0x14, 0x0, 0x0,
+							0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x70, 0xfd, 0x4, 0x0},
+					},
+					&wire.TxOut{
+						Value:    0,
+						Version:  0,
+						PkScript: []byte{0x6a, 0x6, 0x1, 0x0, 0x5, 0x0, 0x0, 0x0},
+					},
+					&wire.TxOut{
+						Value:   2166126,
+						Version: 0,
+						PkScript: []byte{0xbb, 0x76, 0xa9, 0x14, 0x14, 0x36, 0x2c, 0xb1,
+							0x7e, 0xb0, 0x29, 0x5c, 0x3, 0xb0, 0x51, 0xaa, 0xd6, 0xab,
+							0xd8, 0x7e, 0x31, 0xbd, 0x2f, 0xd0, 0x88, 0xac},
+					},
+					&wire.TxOut{
+						Value:   11561201284,
+						Version: 0,
+						PkScript: []byte{0xbb, 0x76, 0xa9, 0x14, 0xfc, 0xc2, 0xec, 0x1e,
+							0x80, 0x14, 0x44, 0x40, 0x2b, 0x23, 0xb2, 0x4, 0x32, 0x8b,
+							0x32, 0xb0, 0x76, 0xe6, 0x2e, 0x60, 0x88, 0xac},
+					},
+				},
+				LockTime: 0,
+				Expiry:   0,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.testName, func(t *testing.T) {
+			got, err := MsgTxFromHex(tt.txhex)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("MsgTxFromHex() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			//t.Log(spew.Sdump(got))
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("MsgTxFromHex() = %v, want %v", got, tt.want)
+			}
+			if err != nil {
+				t.Log(err)
+			}
+		})
+	}
+}
+
+func BenchmarkMsgTxFromHex(b *testing.B) {
+	txHex :=
+		"0100000002000000000000000000000000000000000000000000000000000000" +
+			"0000000000ffffffff00ffffffffcbc2bc0d947d8ebfa22ef060db230e3ecca0" +
+			"8caa20e9eedcfc573dea71af2c940000000001ffffffff040000000000000000" +
+			"0000266a2464e719ba6f832b4a51caf58a88cd4f6a57789f6cffe5c014000000" +
+			"000000000070fd040000000000000000000000086a060100050000006e0d2100" +
+			"0000000000001abb76a91414362cb17eb0295c03b051aad6abd87e31bd2fd088" +
+			"ac84ee19b10200000000001abb76a914fcc2ec1e801444402b23b204328b32b0" +
+			"76e62e6088ac000000000000000002348695060000000000000000ffffffff02" +
+			"0000bf75a5aa02000000a6f904000f000000914830450221008abbf185422662" +
+			"0727fd0f0a9f5cbad324b223ae5f2708d397f257882b3e116702204b0b048b6d" +
+			"6a0c129a8b6bfa0788c7d2ee597fe0f85d6dd5b43d625f55d214290147512102" +
+			"3259b72bbb675b34cb0ad519d3f8bc5f58bd0ee4aec8a4d248c204a926c953e2" +
+			"2102be3864d8c7264baa1ef75e3fccb1697ab9a403f6e95ff11614a7fb22af3c" +
+			"5c0f52ae"
+
+	for i := 0; i < b.N; i++ {
+		_, err := MsgTxFromHex(txHex)
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
