@@ -11,7 +11,8 @@ var chartLayout = {
   stackedGraph: true,
   legendFormatter: agendasLegendFormatter,
   labelsSeparateLines: true,
-  labelsKMB: true
+  labelsKMB: true,
+  labelsUTC: true
 }
 
 function agendasLegendFormatter (data) {

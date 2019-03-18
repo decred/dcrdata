@@ -97,6 +97,7 @@ function createOptions () {
     legend: 'follow',
     fillAlpha: 0.9,
     labelsKMB: true,
+    labelsUTC: true,
     rangeSelectorPlotFillColor: 'rgba(128, 128, 128, 0.3)',
     rangeSelectorPlotFillGradientColor: 'transparent',
     rangeSelectorPlotStrokeColor: 'rgba(128, 128, 128, 0.7)',

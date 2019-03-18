@@ -109,7 +109,7 @@ type explorerDataSource interface {
 	VoutsForTx(*dbtypes.Tx) ([]dbtypes.Vout, error)
 	PosIntervals(limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error)
 	TimeBasedIntervals(timeGrouping dbtypes.TimeBasedGrouping, limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error)
-	AgendaCumulativeVoteChoices(agendaID string) (yes, abstain, no uint32, err error)
+	AgendasVotesSummary(agendaID string) (summary *dbtypes.AgendaSummary, err error)
 }
 
 // politeiaBackend implements methods that manage proposals db data.

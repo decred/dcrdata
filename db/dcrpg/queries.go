@@ -430,7 +430,8 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 			m, ok := storedAgendas[name]
 			// Updates the current agenda details to the agendas table and
 			// storedAgendas map if doesn't exist or when its status has changed.
-			if !ok || (d.Status != m.Status) {
+			if !ok || (d.Status != m.Status) || (d.Activated != m.Activated) ||
+				(d.VotingDone != m.VotingDone) {
 				err = agendaStmt.QueryRow(name, d.Status, d.VotingDone,
 					d.Activated, d.HardForked).Scan(&id)
 				if err != nil {
@@ -1466,18 +1467,6 @@ func RetrieveAddressTxnsOrdered(ctx context.Context, db *sql.DB, addresses []str
 			recenttxs = append(recenttxs, *tx)
 		}
 	}
-	return
-}
-
-// retrieveRCIWindowStartHeight helps in obtaining the RCI startheight for the
-// current active voting session when the agenda status is "started". By obtaining
-// the accurate startheight the votes cast in the previous voting sessions are
-// ignored. chainRCI is the rule changes blocks interval defined by
-// chainParams.RuleChangeActivationInterval value.
-func retrieveRCIWindowStartHeight(ctx context.Context, db *sql.DB,
-	starttime time.Time, chainRCI int64) (startheight int64, err error) {
-	err = db.QueryRowContext(ctx, internal.SelectRCIStartHeight, starttime.UTC(),
-		chainRCI).Scan(startheight)
 	return
 }
 

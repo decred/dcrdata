@@ -242,8 +242,12 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 	netTheme := "theme-" + strings.ToLower(netName(params))
 
 	return template.FuncMap{
-		"add": func(a, b int64) int64 {
-			return a + b
+		"add": func(args ...int64) int64 {
+			var sum int64
+			for _, a := range args {
+				sum += a
+			}
+			return sum
 		},
 		"intAdd": func(a, b int) int {
 			return a + b
@@ -378,10 +382,6 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		},
 		"toTitleCase": func(a string) string {
 			return strings.Title(a)
-		},
-		"toDecimalPlaces": func(a float64, b int) float64 {
-			pow := math.Pow10(b)
-			return math.Floor(a*pow) / pow
 		},
 		"fetchRowLinkURL": func(groupingStr string, start, end time.Time) string {
 			// fetchRowLinkURL creates links url to be used in the blocks list views

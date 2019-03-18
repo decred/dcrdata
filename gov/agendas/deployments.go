@@ -12,6 +12,7 @@ import (
 	"github.com/asdine/storm"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson/v2"
+	"github.com/decred/dcrdata/v4/db/dbtypes"
 )
 
 // AgendaDB represents the data for the stored DB.
@@ -25,15 +26,15 @@ type AgendaDB struct {
 // tag. Fields tagged for indexing by the DB are: StartTime, ExpireTime, Status,
 // and QuorumProgress.
 type AgendaTagged struct {
-	ID             string           `json:"id" storm:"id"`
-	Description    string           `json:"description"`
-	Mask           uint16           `json:"mask"`
-	StartTime      uint64           `json:"starttime" storm:"index"`
-	ExpireTime     uint64           `json:"expiretime" storm:"index"`
-	Status         string           `json:"status" storm:"index"`
-	QuorumProgress float64          `json:"quorumprogress" storm:"index"`
-	Choices        []dcrjson.Choice `json:"choices"`
-	VoteVersion    uint32           `json:"voteversion"`
+	ID             string                   `json:"id" storm:"id"`
+	Description    string                   `json:"description"`
+	Mask           uint16                   `json:"mask"`
+	StartTime      uint64                   `json:"starttime" storm:"index"`
+	ExpireTime     uint64                   `json:"expiretime" storm:"index"`
+	Status         dbtypes.AgendaStatusType `json:"status" storm:"index"`
+	QuorumProgress float64                  `json:"quorumprogress" storm:"index"`
+	Choices        []dcrjson.Choice         `json:"choices"`
+	VoteVersion    uint32                   `json:"voteversion"`
 }
 
 // errDefault defines an error message returned if the agenda db wasn't properly
@@ -117,7 +118,7 @@ func agendasForVoteVersion(ver uint32, client DeploymentSource) ([]AgendaTagged,
 			Mask:           v.Mask,
 			StartTime:      v.StartTime,
 			ExpireTime:     v.ExpireTime,
-			Status:         v.Status,
+			Status:         dbtypes.AgendaStatusFromStr(v.Status),
 			QuorumProgress: v.QuorumProgress,
 			Choices:        v.Choices,
 			VoteVersion:    voteInfo.VoteVersion,

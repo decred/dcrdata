@@ -34,8 +34,8 @@
                     <td><a href="/agenda/{{.ID}}">{{.ID}}</a></td>
                     <td>{{.Description}}</td>
                     <td>{{.Mask}}</td>
-                    <td>{{.Status}}</td>
-                    <td>{{.QuorumProgress}}</td>
+                    <td>{{toTitleCase .Status.String}}</td>
+                    <td>{{printf "%.2f" (x100 .QuorumProgress)}}</td>
                     <td>{{.VoteVersion}}</td>
                     <td>{{TimeConversion .StartTime}}</td>
                     <td>{{TimeConversion .ExpireTime}}</td>
