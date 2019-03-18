@@ -87,15 +87,12 @@ function nightModeOptions (nightModeOn) {
 }
 
 function ticketsFunc (gData) {
-  var data = []
-  var lastIdx = gData.time.length - 1
-  for (let i = 0; i < lastIdx; i++) {
-    data.push([new Date(gData.time[i]), gData.valuef[i]])
-    data.push([new Date(gData.time[i + 1]), gData.valuef[i]])
-  }
-  data.push([new Date(gData.time[lastIdx]), gData.valuef[lastIdx]])
-  data.push([new Date(), gData.valuef[lastIdx]])
-  return data
+  return map(gData.time, (n, i) => {
+    return [
+      new Date(n),
+      gData.valuef[i]
+    ]
+  })
 }
 
 function difficultyFunc (gData) {
@@ -269,11 +266,13 @@ export default class extends Controller {
       rollPeriod: this.rollPeriod,
       zoomCallback: null,
       drawCallback: null,
-      logscale: this.settings.scale === 'log'
+      logscale: this.settings.scale === 'log',
+      stepPlot: false
     }
     switch (chartName) {
       case 'ticket-price': // price graph
         d = ticketsFunc(data)
+        gOptions.stepPlot = true
         assign(gOptions, mapDygraphOptions(d, ['Date', 'Ticket Price'], true, 'Price (DCR)', 'Date', undefined, false, false))
         break
 
