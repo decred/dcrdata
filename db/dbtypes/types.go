@@ -230,7 +230,10 @@ func (a AgendaStatusType) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON is the default unmarshaller for AgendaStatusType.
 func (a *AgendaStatusType) UnmarshalJSON(b []byte) error {
-	str := strings.Replace(string(b), `"`, ``, -1)
+	var str string
+	if err := json.Unmarshal(b, &str); err != nil {
+		return err
+	}
 	*a = AgendaStatusFromStr(str)
 	return nil
 }

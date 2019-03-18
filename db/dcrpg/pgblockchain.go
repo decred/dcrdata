@@ -3118,10 +3118,9 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 
 		// voteDbIDs, voteTxns, spentTicketHashes, ticketDbIDs, missDbIDs, err := ...
 		var missesHashIDs map[string]uint64
-		chainInfo := pgb.ChainInfo()
 		_, _, _, _, missesHashIDs, err = InsertVotes(pgb.db, dbTransactions, *TxDbIDs,
 			unspentTicketCache, msgBlock, pgb.dupChecks, updateExistingRecords,
-			pgb.chainParams, chainInfo)
+			pgb.chainParams, pgb.ChainInfo())
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertVotes:", err)
 			txRes.err = err
