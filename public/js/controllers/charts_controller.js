@@ -266,11 +266,13 @@ export default class extends Controller {
       rollPeriod: this.rollPeriod,
       zoomCallback: null,
       drawCallback: null,
-      logscale: this.settings.scale === 'log'
+      logscale: this.settings.scale === 'log',
+      stepPlot: false
     }
     switch (chartName) {
       case 'ticket-price': // price graph
         d = ticketsFunc(data)
+        gOptions.stepPlot = true
         assign(gOptions, mapDygraphOptions(d, ['Date', 'Ticket Price'], true, 'Price (DCR)', 'Date', undefined, false, false))
         break
 
