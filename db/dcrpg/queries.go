@@ -2858,7 +2858,7 @@ func RetrieveTxnsBlocks(ctx context.Context, db *sql.DB, txHash string) (blockHa
 // ----- Historical Charts on /charts page -----
 
 // retrieveTicketsPriceByHeight fetches the ticket-price and pow-difficulty
-// charts data source from the blocks table. These data are fetched at an
+// charts data source from the blocks table. These data is fetched at an
 // interval of chaincfg.Params.StakeDiffWindowSize. If lastHeight is not empty,
 // only the latest update since last height was fetched is retrieved.
 func retrieveTicketsPriceByHeight(ctx context.Context, db *sql.DB, interval int64,
@@ -2867,8 +2867,8 @@ func retrieveTicketsPriceByHeight(ctx context.Context, db *sql.DB, interval int6
 
 	if items == nil {
 		items = new(dbtypes.ChartsData)
-	} else if len(items.Time) > 0 {
-		since = items.Time[len(items.Time)-1].T
+	} else if c := len(items.Time); c > 0 {
+		since = items.Time[c-1].T
 	}
 
 	rows, err := db.QueryContext(ctx, internal.SelectBlocksTicketsPrice, interval, since)
@@ -2887,9 +2887,8 @@ func retrieveTicketsPriceByHeight(ctx context.Context, db *sql.DB, interval int6
 		}
 
 		items.Time = append(items.Time, timestamp)
-		priceCoin := dcrutil.Amount(price).ToCoin()
-		items.ValueF = append(items.ValueF, priceCoin)
 		items.Difficulty = append(items.Difficulty, difficulty)
+		items.ValueF = append(items.ValueF, dcrutil.Amount(price).ToCoin())
 	}
 
 	return items, nil
@@ -2903,9 +2902,9 @@ func retrieveCoinSupply(ctx context.Context, db *sql.DB,
 
 	if items == nil {
 		items = new(dbtypes.ChartsData)
-	} else if len(items.Time) > 0 {
-		since = items.Time[len(items.Time)-1].T
-		sum = items.ValueF[len(items.ValueF)-1]
+	} else if c := len(items.Time); c > 0 {
+		since = items.Time[c-1].T
+		sum = items.ValueF[c-1]
 	}
 
 	rows, err := db.QueryContext(ctx, internal.SelectCoinSupply, since)
@@ -2941,8 +2940,8 @@ func retrieveTicketSpendTypePerBlock(ctx context.Context, db *sql.DB,
 
 	if items == nil {
 		items = new(dbtypes.ChartsData)
-	} else if len(items.Height) > 0 {
-		since = items.Height[len(items.Height)-1]
+	} else if c := len(items.Height); c > 0 {
+		since = items.Height[c-1]
 	}
 
 	rows, err := db.QueryContext(ctx, internal.SelectTicketSpendTypeByBlock, since)
@@ -2974,10 +2973,10 @@ func retrieveBlockTicketsPoolValue(ctx context.Context, db *sql.DB,
 
 	if items == nil {
 		items = new(dbtypes.ChartsData)
-	} else if len(items.Value) > 0 {
-		since = items.Value[len(items.Value)-1]
-		prevTimestamp = items.Time[len(items.Time)-1].UNIX()
-		chainsize = items.ChainSize[len(items.ChainSize)-1]
+	} else if c := len(items.Height); c > 0 {
+		since = items.Height[c-1]
+		prevTimestamp = items.Time[c-1].UNIX()
+		chainsize = items.ChainSize[c-1]
 	}
 
 	rows, err := db.QueryContext(ctx, internal.SelectBlocksBlockSize, since)
@@ -2996,7 +2995,7 @@ func retrieveBlockTicketsPoolValue(ctx context.Context, db *sql.DB,
 
 		val := prevTimestamp - timestamp.UNIX()
 		if val < 0 {
-			val = val * -1
+			val *= -1
 		}
 		prevTimestamp = timestamp.UNIX()
 
@@ -3020,13 +3019,12 @@ func retrieveTxPerDay(ctx context.Context, db *sql.DB,
 
 	if items == nil {
 		items = new(dbtypes.ChartsData)
-	} else if len(items.Time) > 0 {
-		count := len(items.Time) - 1
-		since = items.Time[count].T
+	} else if c := len(items.Time); c > 0 {
+		since = items.Time[c-1].T
 
 		// delete the last entry to avoid duplicates
-		items.Time = items.Time[:count]
-		items.Count = items.Count[:count]
+		items.Time = items.Time[:c-1]
+		items.Count = items.Count[:c-1]
 	}
 
 	rows, err := db.QueryContext(ctx, internal.SelectTxsPerDay, since)
@@ -3058,8 +3056,7 @@ func retrieveTicketByOutputCount(ctx context.Context, db *sql.DB,
 
 	if items == nil {
 		items = new(dbtypes.ChartsData)
-	} else if len(items.Height) > 0 {
-		c := len(items.Height)
+	} else if c := len(items.Height); c > 0 {
 		since = items.Height[c-1]
 
 		// drop the last entry to avoid duplication.
@@ -3116,8 +3113,8 @@ func retrieveChainWork(ctx context.Context, db *sql.DB, data [2]*dbtypes.ChartsD
 	if data[0] == nil || data[1] == nil {
 		workdata = new(dbtypes.ChartsData)
 		hashrates = new(dbtypes.ChartsData)
-	} else {
-		since = data[1].Time[len(data[1].Time)-1].T
+	} else if c := len(data[0].Time); c > 0 && len(data[1].Time) > 0 {
+		since = data[0].Time[c-1].T
 		workdata = data[0]
 		hashrates = data[1]
 	}

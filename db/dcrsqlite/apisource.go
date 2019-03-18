@@ -994,31 +994,38 @@ func (db *WiredDB) GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []float64)
 
 // SqliteChartsData fetches the charts data from the sqlite db.
 func (db *WiredDB) SqliteChartsData(data []*dbtypes.ChartsData) (err error) {
-	feeData := data[0]
+	if len(data) != dbtypes.SqliteChartsCount {
+		data = make([]*dbtypes.ChartsData, dbtypes.SqliteChartsCount)
+		log.Debug("Found some charts data missing thus initiated a fresh data query")
+	}
+
+	feeData := data[dbtypes.FeePerBlock.SqlitePos()]
 	feeData, err = db.RetrieveBlockFeeInfo(feeData)
 	if err != nil {
 		return err
 	}
 
-	poolData := data[1]
-	poolValue := data[2]
-	//  Append the missing data
+	poolData := data[dbtypes.TicketPoolSize.SqlitePos()]
+	poolValue := data[dbtypes.TicketPoolValue.SqlitePos()]
+
+	var wCopy *dbtypes.ChartsData
+	//  Append the all data to the working Copy.
 	if poolData != nil && poolValue != nil {
-		poolData.ValueF = poolValue.ValueF
+		wCopy = new(dbtypes.ChartsData)
+		*wCopy = *poolData
+		wCopy.ValueF = poolValue.ValueF
 	}
-	poolData, err = db.RetrieveAllPoolValAndSize(poolData)
+	wCopy, err = db.RetrieveAllPoolValAndSize(wCopy)
 	if err != nil {
 		return err
 	}
 
-	d := []*dbtypes.ChartsData{
-		feeData, // dbtypes.FeePerBlock: index 0 here and 13 in cache
-		{Time: poolData.Time, SizeF: poolData.SizeF},   // dbtypes.TicketPoolSize: index 1 here and 14 in cache
-		{Time: poolData.Time, ValueF: poolData.ValueF}, // dbtypes.TicketPoolValue: index 2 here and 15 in cache
-	}
+	poolData = &dbtypes.ChartsData{Time: wCopy.Time, SizeF: wCopy.SizeF}
+	poolValue = &dbtypes.ChartsData{Time: wCopy.Time, ValueF: wCopy.ValueF}
 
-	copy(data, d)
-
+	data[dbtypes.FeePerBlock.SqlitePos()] = feeData
+	data[dbtypes.TicketPoolSize.SqlitePos()] = poolData
+	data[dbtypes.TicketPoolValue.SqlitePos()] = poolValue
 	return
 }
 

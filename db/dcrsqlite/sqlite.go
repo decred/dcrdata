@@ -1063,7 +1063,7 @@ func (db *DB) RetrieveBlockFeeInfo(chartsData *dbtypes.ChartsData) (*dbtypes.Cha
 			continue
 		}
 
-		chartsData.Count = append(chartsData.Count, height)
+		chartsData.Height = append(chartsData.Count, height)
 		chartsData.SizeF = append(chartsData.SizeF, feeMed)
 	}
 	if err = rows.Err(); err != nil {

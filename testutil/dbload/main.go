@@ -1,118 +1,58 @@
 package main
 
 import (
-	"flag"
+	"database/sql"
 	"fmt"
-	"io"
-	"os"
+	"log"
 	"path/filepath"
 
-	"github.com/decred/dcrdata/v4/testutil/dbload/testsconfig"
-	"github.com/go-pg/migrations"
-	"github.com/go-pg/pg"
+	tc "github.com/decred/dcrdata/v4/testutil/dbload/testsconfig"
+	_ "github.com/lib/pq"
 )
 
-const usageText = `This program runs command on the db. Supported commands are:
-  - up - runs all available migrations.
-  - up [target] - runs available migrations up to the target one.
-  - down - reverts last migration.
-  - reset - reverts all migrations.
-  - version - prints current db version.
-  - set_version [version] - sets db version without running migrations.
-Usage:
-  go run *.go <command> [args]
-`
+type client struct {
+	db *sql.DB
+}
 
-// If posgresql migrations are placed in this folder, this program picks them up
-// automatically. https://github.com/go-pg/migrations#sql-migrations.
+// Before running the tool, the appropriate test db should be created by:
+// psql -U postgres -c "DROP DATABASE IF EXISTS dcrdata_mainnet_test"
+// psql -U postgres -c "CREATE DATABASE dcrdata_mainnet_test"
 
-// Before running the tool, the appropriate test db should be created by.
-// psql -c "CREATE DATABASE {{db-name}}". The db name is set at
-// testconfig.PGChartsTestsDBName
+// This tool loads the test data into the test db.
 
 func main() {
-	if err := copyPgFileDumpHere(); err != nil {
-		exitf(err.Error())
-	}
+	connStr := fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=disable",
+		tc.PGChartsTestsHost, tc.PGChartsTestsPort, tc.PGChartsTestsUser,
+		tc.PGChartsTestsDBName)
 
-	flag.Usage = usage
-	flag.Parse()
-
-	db := pg.Connect(&pg.Options{
-		User:     testsconfig.PGChartsTestsUser,
-		Database: testsconfig.PGChartsTestsDBName,
-	})
-
-	oldVersion, newVersion, err := migrations.Run(db, flag.Args()...)
+	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		exitf(err.Error())
+		log.Fatal(err)
+		return
 	}
-	if newVersion != oldVersion {
-		fmt.Printf("migrated from version %d to %d\n", oldVersion, newVersion)
-	} else {
-		fmt.Printf("version is %d\n", oldVersion)
+
+	err = db.Ping()
+	if err != nil {
+		log.Fatalf("Modify (pg_hba.conf - pgsql) for (%s) to work : %v", connStr, err)
+		return
+	}
+
+	if err = tc.CustomScanner(&client{db}); err != nil {
+		log.Fatal(err)
 	}
 }
 
-func usage() {
-	fmt.Print(usageText)
-	flag.PrintDefaults()
-	os.Exit(2)
+// Path returns the path to the pg dump file.
+func (c *client) Path() string {
+	str, err := filepath.Abs("testutil/dbload/testsconfig/test.data/pgsql_dump.sql")
+	if err != nil {
+		panic(err)
+	}
+	return str
 }
 
-func errorf(s string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, s+"\n", args...)
-}
-
-func exitf(s string, args ...interface{}) {
-	errorf(s, args...)
-	os.Exit(1)
-}
-
-// copys the pg dump data file to this folder
-func copyPgFileDumpHere() error {
-	dir, err := testsconfig.TempDir()
-	if err != nil {
-		return err
-	}
-
-	dst := "data.up.sql"
-
-	// if the file already exists quit.
-	if _, err = os.Stat(dst); os.IsExist(err) {
-		return nil
-	}
-
-	bufferSize := 1000
-	src := filepath.Join(dir, "pgdb", "data.sql")
-
-	source, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-
-	defer source.Close()
-
-	destination, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-
-	defer destination.Close()
-
-	buf := make([]byte, bufferSize)
-	for {
-		n, err := source.Read(buf)
-		if err != nil && err != io.EOF {
-			return err
-		}
-		if n == 0 {
-			break
-		}
-
-		if _, err := destination.Write(buf[:n]); err != nil {
-			return err
-		}
-	}
-	return nil
+// Runner executes the scanned db query.
+func (c *client) Runner(q string) error {
+	_, err := c.db.Exec(q)
+	return err
 }

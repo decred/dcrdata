@@ -105,7 +105,7 @@ function supplyFunc (gData) {
 
 function timeBtwBlocksFunc (gData) {
   var d = []
-  gData.value.forEach((n, i) => { if (n === 0) { return } d.push([n, gData.valuef[i]]) })
+  gData.height.forEach((n, i) => { if (n === 0) { return } d.push([n, gData.valuef[i]]) })
   return d
 }
 
@@ -120,7 +120,7 @@ function blockChainSizeFunc (gData) {
 }
 
 function txPerBlockFunc (gData) {
-  return map(gData.value, (n, i) => { return [n, gData.count[i]] })
+  return map(gData.height, (n, i) => { return [n, gData.count[i]] })
 }
 
 function txPerDayFunc (gData) {

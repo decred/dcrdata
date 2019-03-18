@@ -54,18 +54,6 @@ const (
 	// MaxAddressRows is an upper limit on the number of rows that may be shown
 	// on the address page table.
 	MaxAddressRows int64 = 1000
-
-	// chartsCount defines the max count of charts that whose data held in
-	// cacheChartsData. When adjusting this value, ensure changes made to
-	// dbtypes.Charts chart type matches the index that the new chart(s) are
-	// stored with in the cache.
-	chartsCount = 16
-
-	// pgChartsCount defines the count of charts that use the auxiliary db as
-	// the data source and the are held in cacheChartsData. When adjusting this
-	// value, ensure changes made to dbtypes.Charts chart type matches the index
-	// that the new chart(s) are stored with in the cache.
-	pgChartsCount = 13
 )
 
 // explorerDataSourceLite implements an interface for collecting data for the
@@ -464,12 +452,16 @@ func (exp *explorerUI) prePopulateChartsData() {
 	log.Debugf("Retrieving charts data from aux DB.")
 
 	chartsData := cacheChartsData.get()
+	pgChartsCount := dbtypes.PgChartsCount
+	sqliteChartsCount := dbtypes.SqliteChartsCount
+	chartsCount := pgChartsCount + sqliteChartsCount
 	pgData := make([]*dbtypes.ChartsData, pgChartsCount)
 
-	// Since Pg charts are 13, data is stored from index 0-12 in the cache.
+	// Since Pg charts count defined by dbtypes.PgChartsCount, their data is
+	// stored from index 0-(dbtypes.PgChartsCount -1) in the charts cache.
 	// Make the data copy if the charts count matches the chartsCount value.
 	if len(chartsData) == chartsCount {
-		copy(pgData, chartsData[:13])
+		copy(pgData, chartsData[:pgChartsCount])
 	}
 
 	if err := exp.explorerSource.PgChartsData(pgData); err != nil {
@@ -484,9 +476,10 @@ func (exp *explorerUI) prePopulateChartsData() {
 
 	log.Debugf("Retrieving charts data from base DB.")
 
-	sqliteData := make([]*dbtypes.ChartsData, chartsCount-pgChartsCount)
+	sqliteData := make([]*dbtypes.ChartsData, sqliteChartsCount)
 
-	// Sqlite charts are 3 thus data is stored between index 13 to 15 in the cache.
+	// Sqlite charts count is defined by thus data is stored between index
+	// (dbtypes.PgChartsCount) to the end of the cache.
 	// Make the data copy if the charts count matches the chartsCount value.
 	if len(chartsData) == chartsCount {
 		copy(sqliteData, chartsData[pgChartsCount:])
