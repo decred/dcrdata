@@ -12,7 +12,7 @@ import (
 
 var tempDir string
 
-// TestMain setup the tempDir and cleans up the directory afetr tests.
+// TestMain setups the tempDir and cleans it up after tests.
 func TestMain(m *testing.M) {
 	var err error
 	tempDir, err = ioutil.TempDir(os.TempDir(), "cache")

@@ -498,38 +498,48 @@ func ChoiceIndexFromStr(choice string) (VoteChoice, error) {
 	}
 }
 
-// Charts defines the respective charts that appear on the /charts page. It helps
-// define the respective indexes in which the charts are pushed in the cache
-// array. Change made to the listing of the charts below should be reflected in
-// how charts data is stored.
-type Charts int8
+// ChartType defines the respective charts that appear on the /charts page. It also
+// helps define the respective indexes to the charts pushed into the cache array.
+type ChartType int8
 
 const (
-	// Pg Charts
+	// Pg Charts in alphabetical order.
 
-	AvgBlockSize    Charts = iota // Index 0 in pgCharts and 0 in cache
-	BlockChainSize                // Index 1 in pgCharts and 1 in cache
-	ChainWork                     // Index 2 in pgCharts and 2 in cache
-	CoinSupply                    // Index 3 in pgCharts and 3 in cache
-	DurationBTW                   // Index 4 in pgCharts and 4 in cache
-	HashRate                      // Index 5 in pgCharts and 5 in cache
-	POWDifficulty                 // Index 6 in pgCharts and 6 in cache
-	TicketByWindows               // Index 7 in pgCharts and 7 in cache
-	TicketPrice                   // Index 8 in pgCharts and 8 in cache
-	TicketsByBlocks               // Index 9 in pgCharts and 9 in cache
-	TicketSpendT                  // Index 10 in pgCharts and 9 in cache
-	TxPerBlock                    // Index 11 in pgCharts and 11 in cache
-	TxPerDay                      // Index 12 in pgCharts and 12 in cache
+	AvgBlockSize ChartType = iota
+	BlockChainSize
+	ChainWork
+	CoinSupply
+	DurationBTW
+	HashRate
+	POWDifficulty
+	TicketByWindows
+	TicketPrice
+	TicketsByBlocks
+	TicketSpendT
+	TxPerBlock
+	TxPerDay
 
-	// Sqlite Charts
+	// Sqlite Charts in alphabetical order.
 
-	FeePerBlock     // Index 0 in SqliteCharts and 13 in cache
-	TicketPoolSize  // Index 1 in SqliteCharts and 14 in cache
-	TicketPoolValue // Index 2 in SqliteCharts and 15 in cache
+	FeePerBlock
+	TicketPoolSize
+	TicketPoolValue
 )
 
-// ChartsDef maps the general Charts data type to the actual chart name.
-var ChartsDef = map[Charts]string{
+const (
+	// SqliteChartsCount defines the count of charts that use the sqlite db as
+	// data source and their data is held in cacheChartsData cache. When new
+	// sqlite charts are added, this value should be updated to avoid errors.
+	SqliteChartsCount = 3
+
+	// PgChartsCount defines the count of charts that use the auxiliary db as
+	// data source and their data is held in cacheChartsData cache. When new
+	// pg charts are added, this value should be updated to avoid errors.
+	PgChartsCount = 13
+)
+
+// ChartsDef maps the ChartType value to its respective chart name string.
+var ChartsDef = map[ChartType]string{
 	AvgBlockSize:    "avg-block-size",
 	BlockChainSize:  "blockchain-size",
 	ChainWork:       "chainwork",
@@ -549,24 +559,34 @@ var ChartsDef = map[Charts]string{
 }
 
 // String is the default stringer for Charts data type.
-func (c Charts) String() string {
+func (c ChartType) String() string {
 	return ChartsDef[c]
 }
 
-// Pos return the index of the position in the slice where the respective chart
-// data should be located.
-func (c Charts) Pos() int {
+// Pos returns the index to the position in the cache slices where all charts
+// data is held. Index returned, is obtained from the alphabetical order in
+// which pgCharts and sqliteCharts chart types are defined in. It is also used
+// to define the index of the pgCharts data.
+func (c ChartType) Pos() int {
 	return int(c)
 }
 
-// ChartsCount returns the current count of the general charts supported.
-func ChartsCount() int {
-	return len(ChartsDef)
+// SqlitePos returns the index to the position in sqlite charts slice data only.
+// Since sqlite charts are listed alphabetically after pgCharts, the index of
+// last pgChart should be deleted from each chart to get the exact position of
+// the sqlite chart in the sqlite dataset.
+func (c ChartType) SqlitePos() int {
+	lastPGChartIndex := PgChartsCount
+	if int(c) >= lastPGChartIndex {
+		return int(c) - lastPGChartIndex
+	}
+	// A non-sqlite chart was accessed as sqlite chart.
+	return -1
 }
 
 // ChartsFromStr returns the Charts data type key for the provided chart string
 // name.
-func ChartsFromStr(name string) (Charts, error) {
+func ChartsFromStr(name string) (ChartType, error) {
 	for key, val := range ChartsDef {
 		if val == name {
 			return key, nil
@@ -1289,7 +1309,6 @@ type AddressMetrics struct {
 type ChartsData struct {
 	Difficulty  []float64 `json:"difficulty,omitempty"`
 	Time        []TimeDef `json:"time,omitempty"`
-	Value       []uint64  `json:"value,omitempty"`
 	Size        []uint64  `json:"size,omitempty"`
 	ChainSize   []uint64  `json:"chainsize,omitempty"`
 	Count       []uint64  `json:"count,omitempty"`

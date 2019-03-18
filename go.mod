@@ -34,17 +34,17 @@ require (
 	github.com/didip/tollbooth v4.0.1-0.20180415195142-b10a036da5f0+incompatible
 	github.com/didip/tollbooth_chi v0.0.0-20170928041846-6ab5f3083f3d
 	github.com/dustin/go-humanize v1.0.0
-<<<<<<< HEAD
 	github.com/go-chi/chi v4.0.3-0.20190316151245-d08916613452+incompatible
+<<<<<<< HEAD
 <<<<<<< HEAD
 =======
 =======
 	github.com/gchaincl/dotsql v0.1.0
 	github.com/go-chi/chi v4.0.1+incompatible
 >>>>>>> 8f49aa5... Add the sqlite tests and the dump data loading
+=======
+>>>>>>> 769fa89... Make underlying chartsdata pointers as lean as possible
 	github.com/go-chi/docgen v1.0.5
-	github.com/go-pg/migrations v6.7.2+incompatible
-	github.com/go-pg/pg v8.0.2+incompatible
 	github.com/golang/protobuf v1.2.0
 	github.com/google/go-cmp v0.2.0
 >>>>>>> 55b9d8c... Add the sqlite tests and the dump data loading
@@ -83,11 +83,14 @@ replace (
 	github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d // indirect
 	github.com/smartystreets/goconvey v0.0.0-20181108003508-044398e4856c // indirect
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
-	golang.org/x/net v0.0.0-20190311183353-d8887717615a
+	golang.org/x/net v0.0.0-20190213061140-3a22650c66bd
 	golang.org/x/time v0.0.0-20181108054448-85acf8d2951c // indirect
 	google.golang.org/appengine v1.3.0 // indirect
 	google.golang.org/genproto v0.0.0-20190219182410-082222b4a5c5 // indirect
 	google.golang.org/grpc v1.18.0
+<<<<<<< HEAD
 	mellium.im/sasl v0.2.1 // indirect
 >>>>>>> 55b9d8c... Add the sqlite tests and the dump data loading
+=======
+>>>>>>> 769fa89... Make underlying chartsdata pointers as lean as possible
 )

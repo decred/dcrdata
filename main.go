@@ -606,9 +606,9 @@ func _main(ctx context.Context) error {
 	// charts data cache dump file path.
 	dumpPath := filepath.Join(cfg.DataDir, cfg.ChartsCacheDump)
 
-	// Pre-populate charts data now using the dumped cache data in the file path
-	// to the .gob file provided instead of querying the data from the dbs.
-	// It should be invoked before explore.Store to avoid double charts data
+	// Pre-populate charts data using the dumped cache data in the .gob file path
+	// provided instead of querying the data from the dbs.
+	// Should be invoked before explore.Store to avoid double charts data
 	// cache population. This charts pre-population is faster than db querying
 	// and can be done before the monitors are fully set up.
 	explore.PrepareCharts(dumpPath)

@@ -2510,12 +2510,12 @@ func (pgb *ChainDB) TicketsByInputCount() (*dbtypes.PoolTicketsData, error) {
 }
 
 // ticketsPriceByHeight fetches the charts data from retrieveTicketsPriceByHeight.
-func (pgb *ChainDB) ticketsPriceByHeight(tickets *dbtypes.ChartsData) (*dbtypes.ChartsData, error) {
+func (pgb *ChainDB) ticketsPriceByHeight(data *dbtypes.ChartsData) (*dbtypes.ChartsData, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 
 	tickets, err := retrieveTicketsPriceByHeight(ctx, pgb.db,
-		pgb.chainParams.StakeDiffWindowSize, tickets)
+		pgb.chainParams.StakeDiffWindowSize, data)
 	if err != nil {
 		err = fmt.Errorf("ticketsPriceByHeight: %v", pgb.replaceCancelError(err))
 	}
@@ -2524,11 +2524,11 @@ func (pgb *ChainDB) ticketsPriceByHeight(tickets *dbtypes.ChartsData) (*dbtypes.
 }
 
 // coinSupply fetches the coin supply chart data from retrieveCoinSupply.
-func (pgb *ChainDB) coinSupply(supply *dbtypes.ChartsData) (*dbtypes.ChartsData, error) {
+func (pgb *ChainDB) coinSupply(data *dbtypes.ChartsData) (*dbtypes.ChartsData, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 
-	supply, err := retrieveCoinSupply(ctx, pgb.db, supply)
+	supply, err := retrieveCoinSupply(ctx, pgb.db, data)
 	if err != nil {
 		err = fmt.Errorf("coinSupply: %v", pgb.replaceCancelError(err))
 	}
@@ -2537,11 +2537,11 @@ func (pgb *ChainDB) coinSupply(supply *dbtypes.ChartsData) (*dbtypes.ChartsData,
 }
 
 // blockTicketsPoolValue fetches the charts data from retrieveBlockTicketsPoolValue.
-func (pgb *ChainDB) blockTicketsPoolValue(size *dbtypes.ChartsData) (*dbtypes.ChartsData, error) {
+func (pgb *ChainDB) blockTicketsPoolValue(data *dbtypes.ChartsData) (*dbtypes.ChartsData, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 
-	size, err := retrieveBlockTicketsPoolValue(ctx, pgb.db, size)
+	size, err := retrieveBlockTicketsPoolValue(ctx, pgb.db, data)
 	if err != nil {
 		err = fmt.Errorf("blockTicketsPoolValue: %v", pgb.replaceCancelError(err))
 	}
@@ -2550,11 +2550,11 @@ func (pgb *ChainDB) blockTicketsPoolValue(size *dbtypes.ChartsData) (*dbtypes.Ch
 }
 
 // txPerDay fetches the tx-per-day chart data from retrieveTxPerDay.
-func (pgb *ChainDB) txPerDay(txRate *dbtypes.ChartsData) (*dbtypes.ChartsData, error) {
+func (pgb *ChainDB) txPerDay(data *dbtypes.ChartsData) (*dbtypes.ChartsData, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 
-	txRate, err := retrieveTxPerDay(ctx, pgb.db, txRate)
+	txRate, err := retrieveTxPerDay(ctx, pgb.db, data)
 	if err != nil {
 		err = fmt.Errorf("txPerDay: %v", pgb.replaceCancelError(err))
 	}
@@ -2568,12 +2568,12 @@ func (pgb *ChainDB) ticketSpendTypePerBlock(data *dbtypes.ChartsData) (*dbtypes.
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 
-	data, err := retrieveTicketSpendTypePerBlock(ctx, pgb.db, data)
+	newData, err := retrieveTicketSpendTypePerBlock(ctx, pgb.db, data)
 	if err != nil {
 		err = fmt.Errorf("ticketSpendTypePerBlock: %v", pgb.replaceCancelError(err))
 	}
 
-	return data, err
+	return newData, err
 }
 
 // ticketsByBlocks fetches the tickets by blocks output count chart data from
@@ -2582,13 +2582,13 @@ func (pgb *ChainDB) ticketsByBlocks(data *dbtypes.ChartsData) (*dbtypes.ChartsDa
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 
-	data, err := retrieveTicketByOutputCount(ctx, pgb.db, outputCountByAllBlocks, data, 1)
+	newData, err := retrieveTicketByOutputCount(ctx, pgb.db, outputCountByAllBlocks, data, 1)
 	if err != nil {
 		err = fmt.Errorf("ticketsByBlocks: %v", pgb.replaceCancelError(err))
 		return nil, err
 	}
 
-	return data, err
+	return newData, err
 }
 
 // ticketsByTPWindows fetches the tickets by ticket pool windows count chart data
@@ -2597,21 +2597,21 @@ func (pgb *ChainDB) ticketsByTPWindows(data *dbtypes.ChartsData) (*dbtypes.Chart
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 
-	data, err := retrieveTicketByOutputCount(ctx, pgb.db, outputCountByTicketPoolWindow,
+	newData, err := retrieveTicketByOutputCount(ctx, pgb.db, outputCountByTicketPoolWindow,
 		data, pgb.chainParams.StakeDiffWindowSize)
 	if err != nil {
 		err = fmt.Errorf("ticketsByTPWindows: %v", pgb.replaceCancelError(err))
 	}
 
-	return data, err
+	return newData, err
 }
 
 // chainWork fetches the chainwork charts data from
-func (pgb *ChainDB) chainWork(chainData [2]*dbtypes.ChartsData) ([2]*dbtypes.ChartsData, error) {
+func (pgb *ChainDB) chainWork(data [2]*dbtypes.ChartsData) ([2]*dbtypes.ChartsData, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 
-	chainData, err := retrieveChainWork(ctx, pgb.db, chainData)
+	chainData, err := retrieveChainWork(ctx, pgb.db, data)
 	if err != nil {
 		err = fmt.Errorf("chainWork: %v", pgb.replaceCancelError(err))
 	}
@@ -2620,96 +2620,115 @@ func (pgb *ChainDB) chainWork(chainData [2]*dbtypes.ChartsData) ([2]*dbtypes.Cha
 }
 
 // PgChartsData retrieves the data for the different types of charts.
-func (pgb *ChainDB) PgChartsData(oldData []*dbtypes.ChartsData) error {
-	txRate, err := pgb.txPerDay(oldData[dbtypes.TxPerDay.Pos()])
+func (pgb *ChainDB) PgChartsData(data []*dbtypes.ChartsData) error {
+	if len(data) != dbtypes.PgChartsCount {
+		data = make([]*dbtypes.ChartsData, dbtypes.PgChartsCount)
+		log.Debug("Found some charts data missing thus initiated a fresh data query")
+	}
+
+	txRate, err := pgb.txPerDay(data[dbtypes.TxPerDay.Pos()])
 	if err != nil {
 		return err
 	}
 
-	supply, err := pgb.coinSupply(oldData[dbtypes.CoinSupply.Pos()])
+	supply, err := pgb.coinSupply(data[dbtypes.CoinSupply.Pos()])
 	if err != nil {
 		return err
 	}
 
 	chainData := [2]*dbtypes.ChartsData{
-		oldData[dbtypes.ChainWork.Pos()],
-		oldData[dbtypes.HashRate.Pos()],
+		data[dbtypes.ChainWork.Pos()],
+		data[dbtypes.HashRate.Pos()],
 	}
 	chainData, err = pgb.chainWork(chainData)
 	if err != nil {
 		return err
 	}
 
-	size := oldData[dbtypes.AvgBlockSize.Pos()]
-	cSize := oldData[dbtypes.BlockChainSize.Pos()]
-	durationB := oldData[dbtypes.DurationBTW.Pos()]
-	TxPerBlock := oldData[dbtypes.TxPerBlock.Pos()]
-	if size != nil {
-		if cSize != nil {
-			size.ChainSize = cSize.ChainSize
+	avgSize := data[dbtypes.AvgBlockSize.Pos()]
+	blockCSize := data[dbtypes.BlockChainSize.Pos()]
+	durationB := data[dbtypes.DurationBTW.Pos()]
+	TxPerBlock := data[dbtypes.TxPerBlock.Pos()]
+
+	// A working copy helps maintain the underlying dbtypes.ChartsData pointer
+	// as lean as possible.
+	var sWCopy *dbtypes.ChartsData
+	if avgSize != nil {
+		sWCopy = new(dbtypes.ChartsData)
+		*sWCopy = *avgSize
+		if blockCSize != nil {
+			sWCopy.ChainSize = blockCSize.ChainSize
 		}
 
 		if durationB != nil {
-			size.Value = durationB.Value
-			size.ValueF = durationB.ValueF
+			sWCopy.Height = durationB.Height
+			sWCopy.ValueF = durationB.ValueF
 		}
 
 		if TxPerBlock != nil {
-			size.Count = TxPerBlock.Count
+			sWCopy.Count = TxPerBlock.Count
 		}
 	}
-	size, err = pgb.blockTicketsPoolValue(size)
+	sWCopy, err = pgb.blockTicketsPoolValue(sWCopy)
 	if err != nil {
 		return err
 	}
 
-	tickets := oldData[dbtypes.TicketPrice.Pos()]
-	DiffPow := oldData[dbtypes.POWDifficulty.Pos()]
+	avgSize = &dbtypes.ChartsData{Time: sWCopy.Time, Size: sWCopy.Size}
+	blockCSize = &dbtypes.ChartsData{Time: sWCopy.Time, ChainSize: sWCopy.ChainSize}
+	durationB = &dbtypes.ChartsData{Height: sWCopy.Height, ValueF: sWCopy.ValueF}
+	TxPerBlock = &dbtypes.ChartsData{Height: sWCopy.Height, Count: sWCopy.Count}
+
+	tickets := data[dbtypes.TicketPrice.Pos()]
+	DiffPow := data[dbtypes.POWDifficulty.Pos()]
+
+	var tWCopy *dbtypes.ChartsData
 	if tickets != nil && DiffPow != nil {
-		tickets.Difficulty = DiffPow.Difficulty
+		tWCopy = new(dbtypes.ChartsData)
+		*tWCopy = *tickets
+		tWCopy.Difficulty = DiffPow.Difficulty
 	}
-	tickets, err = pgb.ticketsPriceByHeight(tickets)
+	tWCopy, err = pgb.ticketsPriceByHeight(tWCopy)
 	if err != nil {
 		return err
 	}
 
-	ticketsByAllBlocks := oldData[dbtypes.TicketsByBlocks.Pos()]
+	tickets = &dbtypes.ChartsData{Time: tWCopy.Time, ValueF: tWCopy.ValueF}
+	DiffPow = &dbtypes.ChartsData{Time: tWCopy.Time, Difficulty: tWCopy.Difficulty}
+
+	ticketsByAllBlocks := data[dbtypes.TicketsByBlocks.Pos()]
 	ticketsByAllBlocks, err = pgb.ticketsByBlocks(ticketsByAllBlocks)
 	if err != nil {
 		return err
 	}
 
-	ticketsByTPWindow := oldData[dbtypes.TicketByWindows.Pos()]
+	ticketsByTPWindow := data[dbtypes.TicketByWindows.Pos()]
 	ticketsByTPWindow, err = pgb.ticketsByTPWindows(ticketsByTPWindow)
 	if err != nil {
 		return err
 	}
 
-	ticketsSpendType := oldData[dbtypes.TicketSpendT.Pos()]
+	ticketsSpendType := data[dbtypes.TicketSpendT.Pos()]
 	ticketsSpendType, err = pgb.ticketSpendTypePerBlock(ticketsSpendType)
 	if err != nil {
 		return err
 	}
 
-	// Since map access is expensive an array will be used to store data instead.
-	// Chart data is going to be stored relative to dbtypes.Charts int value.
-	d := []*dbtypes.ChartsData{
-		{Time: size.Time, Size: size.Size},           // dbtypes.AvgBlockSize: -> index 0 here and 0 in cache
-		{Time: size.Time, ChainSize: size.ChainSize}, // dbtypes.BlockChainSize:  -> index 1 here and 1 in cache
-		chainData[0],                             // dbtypes.ChainWork:  -> index 2 here and 2 in cache
-		supply,                                   // dbtypes.CoinSupply:  -> index 3 here and 3 in cache
-		{Value: size.Value, ValueF: size.ValueF}, // dbtypes.DurationBTW:  -> index 4 here and 4 in cache
-		chainData[1],                             //  dbtypes.HashRate:  -> index 5 here and 5 in cache
-		{Time: tickets.Time, Difficulty: tickets.Difficulty}, // dbtypes.POWDifficulty:  -> index 6 here and 6 in cache
-		ticketsByTPWindow, // dbtypes.TicketByWindows:  -> index 7 here and 7 in cache
-		{Time: tickets.Time, ValueF: tickets.ValueF}, // dbtypes.TicketPrice:  -> index 8 here and 8 in cache
-		ticketsByAllBlocks,                           // dbtypes.TicketsByBlocks:  -> index 9 here and 9 in cache
-		ticketsSpendType,                             // dbtypes.TicketSpendT:  -> index 10 here and 10 in cache
-		{Value: size.Value, Count: size.Count},       // dbtypes.TxPerBlock:  -> index 11 here and 11 in cache
-		txRate,                                       // dbtypes.TxPerDay:  -> index 12 here and 12 in cache
-	}
-
-	copy(oldData, d)
+	// Since map access is expensive, an array will be used to store data instead.
+	// Each Chart's data is going to be stored relative to dbtypes.Charts int value.
+	data[dbtypes.AvgBlockSize.Pos()] = avgSize
+	data[dbtypes.BlockChainSize.Pos()] = blockCSize
+	data[dbtypes.ChainWork.Pos()] = chainData[0]
+	data[dbtypes.CoinSupply.Pos()] = supply
+	data[dbtypes.DurationBTW.Pos()] = durationB
+	data[dbtypes.HashRate.Pos()] = chainData[1]
+	data[dbtypes.POWDifficulty.Pos()] = DiffPow
+	data[dbtypes.TicketByWindows.Pos()] = ticketsByTPWindow
+	data[dbtypes.TicketPrice.Pos()] = tickets
+	data[dbtypes.TicketsByBlocks.Pos()] = ticketsByAllBlocks
+	data[dbtypes.TicketSpendT.Pos()] = ticketsSpendType
+	data[dbtypes.TxPerBlock.Pos()] = TxPerBlock
+	data[dbtypes.TxPerDay.Pos()] = txRate
 
 	return nil
 }

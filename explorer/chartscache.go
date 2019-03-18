@@ -9,9 +9,10 @@ import (
 	"github.com/decred/dcrdata/v4/db/dbtypes"
 )
 
-// Charts cache data is managed here.
+// Cache data for charts that appear on /charts page is managed here.
 
-// chartDataCounter is a data cache for the historical charts.
+// chartDataCounter is a data cache for the historical charts that appear on
+// /charts page on the UI.
 type chartDataCounter struct {
 	sync.RWMutex
 	updateHeight int64
@@ -69,7 +70,7 @@ func ChartTypeData(chartType string) (*dbtypes.ChartsData, bool) {
 		return nil, false
 	}
 
-	// If an invalid chart type is found the returned data belongs to ticket
+	// If an invalid chart type is found, the returned data belongs to ticket
 	// price chart.
 	return cacheChartsData.Data[chartVal.Pos()], true
 }
@@ -81,8 +82,8 @@ func isfileExists(filePath string) bool {
 	return !os.IsNotExist(err)
 }
 
-// WriteCacheFile creates the charts cache file path if it doesn't exists. It
-// dumps the cacheChartsData contents into a file using the .gob file encoding.
+// WriteCacheFile creates the charts cache in the provided file path if it
+// doesn't exists. It dumps the cacheChartsData contents using the .gob encoding.
 func WriteCacheFile(filePath string) (err error) {
 	var file *os.File
 	if !isfileExists(filePath) {
@@ -102,7 +103,8 @@ func WriteCacheFile(filePath string) (err error) {
 }
 
 // ReadCacheFile reads the contents of the charts cache dump file encoded in
-// .gob format if it exists returns an error if otherwise.
+// .gob format if it exists returns an error if otherwise. It then deletes
+// the read *.gob cache dump file.
 func ReadCacheFile(filePath string, height int64) error {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -124,6 +126,7 @@ func ReadCacheFile(filePath string, height int64) error {
 		return err
 	}
 
+	chartsCount := dbtypes.PgChartsCount + dbtypes.SqliteChartsCount
 	if len(data) != chartsCount {
 		return fmt.Errorf("Found %d instead of %d charts in the cache dump",
 			len(data), chartsCount)

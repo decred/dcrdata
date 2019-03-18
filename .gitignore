@@ -48,6 +48,8 @@ public/**/*.gz
 testutil/apiload/results/
 testutil/apiload/apiload.conf
 testutil/apiload/apiload
+testutil/dbload/dbload
+testutil/dbload/testsconfig/test.data
 pubsub/democlient/democlient
 dcrrates/rateserver/rateserver
 dcrrates/rateserver/logs/
