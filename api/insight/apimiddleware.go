@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -21,14 +21,11 @@ import (
 type contextKey int
 
 const (
-	ctxRawHexTx contextKey = iota
-	ctxFrom
+	ctxFrom contextKey = iota
 	ctxTo
 	ctxNoAsm
 	ctxNoScriptSig
 	ctxNoSpent
-	ctxBlockHash
-	ctxBlockIndex
 	ctxNoTxList
 	ctxAddrCmd
 	ctxNbBlocks
@@ -67,47 +64,22 @@ func (c *insightApiContext) getBlockHashCtx(r *http.Request) (string, error) {
 	return hash, nil
 }
 
-// GetRawHexTx retrieves the ctxRawHexTx data from the request context. If not
-// set, the return value is an empty string.
-func (c *insightApiContext) GetRawHexTx(r *http.Request) (string, bool) {
-	rawHexTx, ok := r.Context().Value(ctxRawHexTx).(string)
-	if !ok {
-		apiLog.Trace("Rawtx hex transaction not set")
-		return "", false
+func (c *insightApiContext) getBlockChainHashCtx(r *http.Request) (*chainhash.Hash, error) {
+	hashStr, err := c.getBlockHashCtx(r)
+	if err != nil {
+		return nil, err
 	}
-	return rawHexTx, true
-}
-
-// Process params given in post body for an broadcast tx endpoint.
-func (c *insightApiContext) PostBroadcastTxCtx(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var req apitypes.InsightRawTx
-		body, err := ioutil.ReadAll(r.Body)
-		r.Body.Close()
-		if err != nil {
-			writeInsightError(w, fmt.Sprintf("Error reading JSON message: %v", err))
-			return
-		}
-		err = json.Unmarshal(body, &req)
-		if err != nil {
-			writeInsightError(w, fmt.Sprintf("Failed to parse request: %v", err))
-			return
-		}
-		// Successful extraction of Body JSON as long as the rawtx is not empty
-		// string we should return it
-		if req.Rawtx == "" {
-			writeInsightError(w, fmt.Sprintf("rawtx cannot be an empty string."))
-			return
-		}
-
-		ctx := context.WithValue(r.Context(), ctxRawHexTx, req.Rawtx)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
+	hash, err := chainhash.NewHashFromStr(hashStr)
+	if err != nil {
+		apiLog.Errorf("Failed to parse block hash: %v", err)
+		return nil, err
+	}
+	return hash, nil
 }
 
 // GetToCtx retrieves the ctxTo data ("to") from the request context. If not
 // set, the return value ok is false.
-func (c *insightApiContext) GetToCtx(r *http.Request) (int64, bool) {
+func GetToCtx(r *http.Request) (int64, bool) {
 	to, ok := r.Context().Value(ctxTo).(int)
 	if !ok {
 		return int64(0), false
@@ -117,7 +89,7 @@ func (c *insightApiContext) GetToCtx(r *http.Request) (int64, bool) {
 
 // GetFromCtx retrieves the ctxFrom data ("from") from the request context.
 // If not set, the return value is 0
-func (c *insightApiContext) GetFromCtx(r *http.Request) int64 {
+func GetFromCtx(r *http.Request) int64 {
 	from, ok := r.Context().Value(ctxFrom).(int)
 	if !ok {
 		return int64(0)
@@ -127,7 +99,7 @@ func (c *insightApiContext) GetFromCtx(r *http.Request) int64 {
 
 // GetNoAsmCtx retrieves the ctxNoAsm data ("noAsm") from the request context.
 // If not set, the return value is false.
-func (c *insightApiContext) GetNoAsmCtx(r *http.Request) bool {
+func GetNoAsmCtx(r *http.Request) bool {
 	noAsm, ok := r.Context().Value(ctxNoAsm).(bool)
 	if !ok {
 		return false
@@ -137,7 +109,7 @@ func (c *insightApiContext) GetNoAsmCtx(r *http.Request) bool {
 
 // GetNoScriptSigCtx retrieves the ctxNoScriptSig data ("noScriptSig") from the
 // request context. If not set, the return value is false.
-func (c *insightApiContext) GetNoScriptSigCtx(r *http.Request) bool {
+func GetNoScriptSigCtx(r *http.Request) bool {
 	noScriptSig, ok := r.Context().Value(ctxNoScriptSig).(bool)
 	if !ok {
 		return false
@@ -147,7 +119,7 @@ func (c *insightApiContext) GetNoScriptSigCtx(r *http.Request) bool {
 
 // GetNoSpentCtx retrieves the ctxNoSpent data ("noSpent") from the
 // request context. If not set, the return value is false.
-func (c *insightApiContext) GetNoSpentCtx(r *http.Request) bool {
+func GetNoSpentCtx(r *http.Request) bool {
 	noSpent, ok := r.Context().Value(ctxNoSpent).(bool)
 	if !ok {
 		return false
@@ -156,7 +128,7 @@ func (c *insightApiContext) GetNoSpentCtx(r *http.Request) bool {
 }
 
 // FromToPaginationCtx will parse the query parameters for from/to values.
-func (c *insightApiContext) FromToPaginationCtx(next http.Handler) http.Handler {
+func FromToPaginationCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		to, from := r.FormValue("to"), r.FormValue("from")
@@ -194,7 +166,7 @@ func (c *insightApiContext) ValidatePostCtx(next http.Handler) http.Handler {
 }
 
 // Process params given in post body for an addrs endpoint
-func (c *insightApiContext) PostAddrsTxsCtx(next http.Handler) http.Handler {
+func PostAddrsTxsCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req apitypes.InsightMultiAddrsTx
 		var from, to, noAsm, noScriptSig, noSpent int64
@@ -250,7 +222,7 @@ func (c *insightApiContext) PostAddrsTxsCtx(next http.Handler) http.Handler {
 }
 
 // Process params given in post body for an addrs Utxo endpoint
-func (c *insightApiContext) PostAddrsUtxoCtx(next http.Handler) http.Handler {
+func PostAddrsUtxoCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		req := apitypes.InsightAddr{}
 		body, err := ioutil.ReadAll(r.Body)
@@ -259,11 +231,13 @@ func (c *insightApiContext) PostAddrsUtxoCtx(next http.Handler) http.Handler {
 			writeInsightError(w, fmt.Sprintf("error reading JSON message: %v", err))
 			return
 		}
+
 		err = json.Unmarshal(body, &req)
 		if err != nil {
 			writeInsightError(w, fmt.Sprintf("Failed to parse request: %v", err))
 			return
 		}
+
 		// Successful extraction of Body JSON
 		ctx := context.WithValue(r.Context(), m.CtxAddress, req.Addrs)
 
@@ -273,7 +247,7 @@ func (c *insightApiContext) PostAddrsUtxoCtx(next http.Handler) http.Handler {
 
 // AddressCommandCtx returns a http.HandlerFunc that embeds the value at the url
 // part {command} into the request context.
-func (c *insightApiContext) AddressCommandCtx(next http.Handler) http.Handler {
+func AddressCommandCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		command := chi.URLParam(r, "command")
 		ctx := context.WithValue(r.Context(), ctxAddrCmd, command)
@@ -283,7 +257,7 @@ func (c *insightApiContext) AddressCommandCtx(next http.Handler) http.Handler {
 
 // GetAddressCommandCtx retrieves the ctxAddrCmd data from the request context.
 // If not set the return value is "" and false.
-func (c *insightApiContext) GetAddressCommandCtx(r *http.Request) (string, bool) {
+func GetAddressCommandCtx(r *http.Request) (string, bool) {
 	command, ok := r.Context().Value(ctxAddrCmd).(string)
 	if !ok {
 		return "", false
@@ -291,51 +265,9 @@ func (c *insightApiContext) GetAddressCommandCtx(r *http.Request) (string, bool)
 	return command, true
 }
 
-// BlockIndexOrHashPathCtx returns a http.HandlerFunc that embeds the value at
-// the url part {idxorhash} into the request context.
-func (c *insightApiContext) BlockIndexOrHashPathCtx(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var ctx context.Context
-		pathIdxOrHashStr := chi.URLParam(r, "idxorhash")
-		if len(pathIdxOrHashStr) == 2*chainhash.HashSize {
-			ctx = context.WithValue(r.Context(), ctxBlockHash, pathIdxOrHashStr)
-		} else {
-			idx, err := strconv.Atoi(pathIdxOrHashStr)
-			if err != nil {
-				writeInsightError(w, "Valid hash or index not found")
-				return
-			}
-			ctx = context.WithValue(r.Context(), ctxBlockIndex, idx)
-		}
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
-// GetInsightBlockIndexCtx retrieves the ctxBlockIndex data from the request context. If not
-// set, the return value is an 0 and false
-func (c *insightApiContext) GetInsightBlockIndexCtx(r *http.Request) (int, bool) {
-	idx, ok := r.Context().Value(ctxBlockIndex).(int)
-	if !ok {
-		apiLog.Trace("Rawtx hex transaction not set")
-		return 0, false
-	}
-	return idx, true
-}
-
-// GetInsightBlockHashCtx retrieves the ctxBlockHash data from the request context. If not
-// set, the return value is an empty string and false
-func (c *insightApiContext) GetInsightBlockHashCtx(r *http.Request) (string, bool) {
-	hash, ok := r.Context().Value(ctxBlockHash).(string)
-	if !ok {
-		apiLog.Trace("Rawtx hex transaction not set")
-		return "", false
-	}
-	return hash, true
-}
-
 // NoTxListCtx returns a http.Handlerfunc that embeds the {noTxList} value in
 // the request into the request context.
-func (c *insightApiContext) NoTxListCtx(next http.Handler) http.Handler {
+func NoTxListCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		notxlist := r.FormValue("noTxList")
 		notxlistint, err := strconv.Atoi(notxlist)
@@ -349,7 +281,7 @@ func (c *insightApiContext) NoTxListCtx(next http.Handler) http.Handler {
 
 // GetLimitCtx retrieves the ctxLimit data from the request context. If not set,
 // the return value is 0 which is interpreted as no limit.
-func (c *insightApiContext) GetLimitCtx(r *http.Request) int {
+func GetLimitCtx(r *http.Request) int {
 	limit, ok := r.Context().Value(m.CtxLimit).(string)
 	if !ok {
 		return 0
@@ -363,7 +295,7 @@ func (c *insightApiContext) GetLimitCtx(r *http.Request) int {
 
 // GetNoTxListCtx retrieves the ctxNoTxList data ("noTxList") from the request context.
 // If not set, the return value is false.
-func (c *insightApiContext) GetNoTxListCtx(r *http.Request) int {
+func GetNoTxListCtx(r *http.Request) int {
 	notxlist, ok := r.Context().Value(ctxNoTxList).(int)
 	if !ok {
 		return 0
@@ -373,7 +305,7 @@ func (c *insightApiContext) GetNoTxListCtx(r *http.Request) int {
 
 // BlockDateLimitQueryCtx returns a http.Handlerfunc that embeds the
 // {blockdate,limit} value in the request into the request context.
-func (c *insightApiContext) BlockDateLimitQueryCtx(next http.Handler) http.Handler {
+func BlockDateLimitQueryCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		blockDate := r.FormValue("blockDate")
 		ctx := context.WithValue(r.Context(), m.CtxBlockDate, blockDate)
@@ -385,7 +317,7 @@ func (c *insightApiContext) BlockDateLimitQueryCtx(next http.Handler) http.Handl
 
 // GetNbBlocksCtx retrieves the ctxNbBlocks data from the request context. If not
 // set, the return value is 0.
-func (c *insightApiContext) GetNbBlocksCtx(r *http.Request) int {
+func GetNbBlocksCtx(r *http.Request) int {
 	nbBlocks, ok := r.Context().Value(ctxNbBlocks).(int)
 	if !ok {
 		return 0
@@ -394,7 +326,7 @@ func (c *insightApiContext) GetNbBlocksCtx(r *http.Request) int {
 }
 
 // NbBlocksCtx will parse the query parameters for nbBlocks.
-func (c *insightApiContext) NbBlocksCtx(next http.Handler) http.Handler {
+func NbBlocksCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		nbBlocks := r.FormValue("nbBlocks")

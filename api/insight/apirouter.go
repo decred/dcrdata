@@ -51,14 +51,14 @@ func NewInsightApiRouter(app *insightApiContext, useRealIP, compression bool) Ap
 	}
 
 	// Block endpoints
-	mux.With(app.BlockDateLimitQueryCtx).Get("/blocks", app.getBlockSummaryByTime)
-	mux.With(app.BlockIndexOrHashPathCtx).Get("/block/{idxorhash}", app.getBlockSummary)
-	mux.With(app.BlockIndexOrHashPathCtx).Get("/block-index/{idxorhash}", app.getBlockHash)
-	mux.With(app.BlockIndexOrHashPathCtx).Get("/rawblock/{idxorhash}", app.getRawBlock)
+	mux.With(BlockDateLimitQueryCtx).Get("/blocks", app.getBlockSummaryByTime)
+	mux.With(m.BlockIndexOrHashPathCtx).Get("/block/{idxorhash}", app.getBlockSummary)
+	mux.With(m.BlockIndexOrHashPathCtx).Get("/block-index/{idxorhash}", app.getBlockHash)
+	mux.With(m.BlockIndexOrHashPathCtx).Get("/rawblock/{idxorhash}", app.getRawBlock)
 
 	// Transaction endpoints
 	mux.With(middleware.AllowContentType("application/json"),
-		app.ValidatePostCtx, app.PostBroadcastTxCtx).Post("/tx/send", app.broadcastTransactionRaw)
+		app.ValidatePostCtx, m.PostBroadcastTxCtx).Post("/tx/send", app.broadcastTransactionRaw)
 	mux.With(m.TransactionHashCtx).Get("/tx/{txid}", app.getTransaction)
 	mux.With(m.TransactionHashCtx).Get("/rawtx/{txid}", app.getTransactionHex)
 	mux.With(m.TransactionsCtx).Get("/txs", app.getTransactions)
@@ -66,30 +66,30 @@ func NewInsightApiRouter(app *insightApiContext, useRealIP, compression bool) Ap
 	// Status and Utility
 	mux.With(app.StatusInfoCtx).Get("/status", app.getStatusInfo)
 	mux.Get("/sync", app.getSyncInfo)
-	mux.With(app.NbBlocksCtx).Get("/utils/estimatefee", app.getEstimateFee)
+	mux.With(NbBlocksCtx).Get("/utils/estimatefee", app.getEstimateFee)
 	mux.Get("/peer", app.GetPeerStatus)
 
 	// Addresses endpoints
 	mux.Route("/addrs", func(rd chi.Router) {
 		rd.Route("/{address}", func(ra chi.Router) {
-			ra.Use(m.AddressPathCtx, app.FromToPaginationCtx)
+			ra.Use(m.AddressPathCtx, FromToPaginationCtx)
 			ra.Get("/txs", app.getAddressesTxn)
 			ra.Get("/utxo", app.getAddressesTxnOutput)
 		})
 		// POST methods
 		rd.With(middleware.AllowContentType("application/json"),
-			app.ValidatePostCtx, app.PostAddrsTxsCtx).Post("/txs", app.getAddressesTxn)
+			app.ValidatePostCtx, PostAddrsTxsCtx).Post("/txs", app.getAddressesTxn)
 		rd.With(middleware.AllowContentType("application/json"),
-			app.ValidatePostCtx, app.PostAddrsUtxoCtx).Post("/utxo", app.getAddressesTxnOutput)
+			app.ValidatePostCtx, PostAddrsUtxoCtx).Post("/utxo", app.getAddressesTxnOutput)
 	})
 
 	// Address endpoints
 	mux.Route("/addr/{address}", func(rd chi.Router) {
 		rd.Use(m.AddressPathCtx)
-		rd.With(app.FromToPaginationCtx, app.NoTxListCtx).Get("/", app.getAddressInfo)
+		rd.With(FromToPaginationCtx, NoTxListCtx).Get("/", app.getAddressInfo)
 		rd.Get("/utxo", app.getAddressesTxnOutput)
 		rd.Route("/{command}", func(ra chi.Router) {
-			ra.With(app.AddressCommandCtx).Get("/", app.getAddressInfo)
+			ra.With(AddressCommandCtx).Get("/", app.getAddressInfo)
 		})
 	})
 

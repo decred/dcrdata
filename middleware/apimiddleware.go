@@ -7,6 +7,7 @@ package middleware
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -19,6 +20,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/docgen"
@@ -60,6 +62,25 @@ type DataSource interface {
 }
 
 type StakeVersionsLatest func() (*dcrjson.StakeVersions, error)
+
+// writeHTMLBadRequest is used for the Insight API error response for a BAD REQUEST.
+// This means the request was malformed in some way or the request HASH,
+// ADDRESS, BLOCK was not valid.
+func writeHTMLBadRequest(w http.ResponseWriter, str string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusBadRequest)
+	io.WriteString(w, str)
+}
+
+// writeHTMLNotFound is used for the Insight API response for an item NOT FOUND.
+// This means the request was valid but no records were found for the item in
+// question.  For some endpoints responding with an empty array [] is expected
+// such as a transaction query for addresses with no transactions.
+func writeHTMLNotFound(w http.ResponseWriter, str string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusNotFound)
+	io.WriteString(w, str)
+}
 
 // GetBlockStepCtx retrieves the ctxBlockStep data from the request context. If
 // not set, the return value is -1.
@@ -129,13 +150,49 @@ func GetTpCtx(r *http.Request) string {
 
 // GetRawHexTx retrieves the ctxRawHexTx data from the request context. If not
 // set, the return value is an empty string.
-func GetRawHexTx(r *http.Request) string {
+func GetRawHexTx(r *http.Request) (string, error) {
 	rawHexTx, ok := r.Context().Value(ctxRawHexTx).(string)
 	if !ok {
 		apiLog.Trace("hex transaction id not set")
-		return ""
+		return "", fmt.Errorf("hex transaction id not set")
 	}
-	return rawHexTx
+
+	msgtx := wire.NewMsgTx()
+	err := msgtx.Deserialize(hex.NewDecoder(strings.NewReader(rawHexTx)))
+	if err != nil {
+		return "", fmt.Errorf("failed to deserialize tx: %v", err)
+	}
+	return rawHexTx, nil
+}
+
+// PostBroadcastTxCtx is middleware that checks for parameters given in POST
+// request body of the broadcast transaction endpoint.
+func PostBroadcastTxCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req apitypes.InsightRawTx
+		body, err := ioutil.ReadAll(r.Body)
+		r.Body.Close()
+		if err != nil {
+			writeHTMLBadRequest(w, fmt.Sprintf("Error reading JSON message: %v", err))
+			return
+		}
+
+		err = json.Unmarshal(body, &req)
+		if err != nil {
+			writeHTMLBadRequest(w, fmt.Sprintf("Failed to parse request: %v", err))
+			return
+		}
+
+		// Successful extraction of Body JSON as long as the rawtx is not empty
+		// string we should return it.
+		if req.Rawtx == "" {
+			writeHTMLBadRequest(w, fmt.Sprintf("rawtx cannot be an empty string."))
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), ctxRawHexTx, req.Rawtx)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
 
 // GetTxIDCtx retrieves the ctxTxHash data from the request context. If not set,
@@ -395,7 +452,7 @@ func BlockIndexPathCtx(next http.Handler) http.Handler {
 		idx, err := strconv.Atoi(pathIdxStr)
 		if err != nil {
 			apiLog.Infof("No/invalid idx value (int64): %v", err)
-			http.NotFound(w, r)
+			http.Error(w, "Valid index not provided", http.StatusBadRequest)
 			return
 		}
 		ctx := context.WithValue(r.Context(), ctxBlockIndex, idx)
@@ -415,7 +472,7 @@ func BlockIndexOrHashPathCtx(next http.Handler) http.Handler {
 			idx, err := strconv.Atoi(pathIdxOrHashStr)
 			if err != nil {
 				apiLog.Infof("No/invalid idx value (int64): %v", err)
-				http.NotFound(w, r)
+				http.Error(w, "Hash or index not provided", http.StatusBadRequest)
 				return
 			}
 			ctx = context.WithValue(r.Context(), ctxBlockIndex, idx)
