@@ -146,9 +146,9 @@ func (psh *PubSubHub) SetReady(ready bool) {
 
 // HubRelays returns the channels used to signal events and new transactions to
 // the WebSocketHub. See pstypes.HubSignal for valid signals.
-func (psh *PubSubHub) HubRelays() (HubRelay chan pstypes.HubSignal, NewTxChan chan *types.MempoolTx) {
-	HubRelay = psh.wsHub.HubRelay
-	NewTxChan = psh.wsHub.NewTxChan
+func (psh *PubSubHub) HubRelays() (hubRelay chan pstypes.HubSignal, newTxChan chan *types.MempoolTx) {
+	hubRelay = psh.wsHub.HubRelay
+	newTxChan = psh.wsHub.NewTxChan
 	return
 }
 

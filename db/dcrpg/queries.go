@@ -951,7 +951,7 @@ func retrieveTicketsByDate(ctx context.Context, db *sql.DB, maturityBlock int64,
 		tickets.Live = append(tickets.Live, live)
 
 		// Returns the average value of a ticket depending on the grouping mode used
-		price = price * 100000000
+		price *= 100000000
 		total = float64(live + immature)
 		tickets.Price = append(tickets.Price, dcrutil.Amount(price/total).ToCoin())
 	}
@@ -3298,7 +3298,7 @@ func retrieveBlockTicketsPoolValue(ctx context.Context, db *sql.DB) (*dbtypes.Ch
 
 		val := prevTimestamp - timestamp.UNIX()
 		if val < 0 {
-			val = val * -1
+			val *= -1
 		}
 		prevTimestamp = timestamp.UNIX()
 

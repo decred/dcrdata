@@ -141,12 +141,10 @@ func TestNewProposalsDB(t *testing.T) {
 				if result.dbP == nil {
 					t.Fatal("expected the db instance not to be nil but was nil")
 				}
-			} else {
-				// the result should be nil since the incorrect inputs resulted
+			} else if result != nil {
+				// The result should be nil since the incorrect inputs resulted
 				// to an error being returned and a nil proposalDB instance.
-				if result != nil {
-					t.Fatalf("expect the returned result to be nil but was not nil")
-				}
+				t.Fatalf("expect the returned result to be nil but was not nil")
 			}
 
 			// expects to find the correspnding db at the given path.

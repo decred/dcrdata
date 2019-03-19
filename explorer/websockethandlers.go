@@ -109,11 +109,9 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 						if err != nil {
 							// For now, just log a warning and return the mempool anyway.
 							log.Warn("Unable to parse supplied mempool ID %s", msg.Message)
-						} else {
-							if inv.ID() == clientID {
-								// Client is up-to-date. No need to send anything.
-								continue
-							}
+						} else if inv.ID() == clientID {
+							// Client is up-to-date. No need to send anything.
+							continue
 						}
 					}
 

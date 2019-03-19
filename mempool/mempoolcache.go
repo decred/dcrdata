@@ -1,3 +1,4 @@
+// Copyright (c) 2019, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -185,7 +186,7 @@ func (c *MempoolDataCache) GetTicketPriceCountTime(feeAvgLength int) *apitypes.P
 	for i := 0; i < feeAvgLength; i++ {
 		feeAvg += c.allFees[numFees-i-1]
 	}
-	feeAvg = feeAvg / float64(feeAvgLength)
+	feeAvg /= float64(feeAvgLength)
 
 	return &apitypes.PriceCountTime{
 		Price: c.stakeDiff + feeAvg,

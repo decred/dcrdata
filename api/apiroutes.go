@@ -131,7 +131,7 @@ type appContext struct {
 // NewContext constructs a new appContext from the RPC client, primary and
 // auxiliary data sources, and JSON indentation string.
 func NewContext(client *rpcclient.Client, params *chaincfg.Params, dataSource DataSourceLite,
-	auxDataSource DataSourceAux, JSONIndent string, xcBot *exchanges.ExchangeBot,
+	auxDataSource DataSourceAux, jsonIndent string, xcBot *exchanges.ExchangeBot,
 	agendasDBInstance *agendas.AgendaDB, maxAddrs int) *appContext {
 	conns, _ := client.GetConnectionCount()
 	nodeHeight, _ := client.GetBlockCount()
@@ -155,7 +155,7 @@ func NewContext(client *rpcclient.Client, params *chaincfg.Params, dataSource Da
 			DcrdataVersion:  appver.Version(),
 			NetworkName:     params.Name,
 		},
-		JSONIndent:  JSONIndent,
+		JSONIndent:  jsonIndent,
 		maxCSVAddrs: maxAddrs,
 	}
 }

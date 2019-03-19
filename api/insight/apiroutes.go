@@ -1050,12 +1050,9 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	if isCmd {
-		switch command {
-		case "unconfirmedBalance":
-			writeJSON(w, unconfirmedBalanceSat, c.getIndentQuery(r))
-			return
-		}
+	if isCmd && command == "unconfirmedBalance" {
+		writeJSON(w, unconfirmedBalanceSat, c.getIndentQuery(r))
+		return
 	}
 
 	// Merge Unconfirmed with Confirmed transactions
