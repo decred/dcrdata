@@ -3019,7 +3019,7 @@ type MsgBlockPG struct {
 
 // storeTxns stores the transactions of a given block.
 func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
-	chainParams *chaincfg.Params, TxDbIDs *[]uint64, isValid, isMainchain bool,
+	chainParams *chaincfg.Params, txDbIDs *[]uint64, isValid, isMainchain bool,
 	updateExistingRecords, updateAddressesSpendingInfo,
 	updateTicketsSpendingInfo bool) storeTxnsResult {
 	// For the given block, transaction tree, and network, extract the
@@ -3080,7 +3080,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 	}
 
 	// Get the tx PK IDs for storage in the blocks, tickets, and votes table.
-	*TxDbIDs, err = InsertTxns(pgb.db, dbTransactions, pgb.dupChecks,
+	*txDbIDs, err = InsertTxns(pgb.db, dbTransactions, pgb.dupChecks,
 		updateExistingRecords)
 	if err != nil && err != sql.ErrNoRows {
 		log.Error("InsertTxns:", err)
@@ -3093,7 +3093,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 	// pertaining to the new votes, revokes, misses, and expires.
 	if txTree == wire.TxTreeStake {
 		// Tickets: Insert new (unspent) tickets
-		newTicketDbIDs, newTicketTx, err := InsertTickets(pgb.db, dbTransactions, *TxDbIDs,
+		newTicketDbIDs, newTicketTx, err := InsertTickets(pgb.db, dbTransactions, *txDbIDs,
 			pgb.dupChecks, updateExistingRecords)
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertTickets:", err)
@@ -3118,7 +3118,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 
 		// voteDbIDs, voteTxns, spentTicketHashes, ticketDbIDs, missDbIDs, err := ...
 		var missesHashIDs map[string]uint64
-		_, _, _, _, missesHashIDs, err = InsertVotes(pgb.db, dbTransactions, *TxDbIDs,
+		_, _, _, _, missesHashIDs, err = InsertVotes(pgb.db, dbTransactions, *txDbIDs,
 			unspentTicketCache, msgBlock, pgb.dupChecks, updateExistingRecords,
 			pgb.chainParams, pgb.ChainInfo())
 		if err != nil && err != sql.ErrNoRows {
@@ -3135,7 +3135,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			// uses ChainDB's ticket DB row ID cache (unspentTicketCache), and
 			// immediately expires any found entries for a main chain block.
 			spendingTxDbIDs, spendTypes, spentTicketHashes, ticketDbIDs, err :=
-				pgb.CollectTicketSpendDBInfo(dbTransactions, *TxDbIDs,
+				pgb.CollectTicketSpendDBInfo(dbTransactions, *txDbIDs,
 					msgBlock.MsgBlock, isMainchain)
 			if err != nil {
 				log.Error("CollectTicketSpendDBInfo:", err)

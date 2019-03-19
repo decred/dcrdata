@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -197,16 +197,16 @@ func NewAddressOutpoints(address string) *AddressOutpoints {
 }
 
 // Update appends the provided outpoints, and merges the transactions.
-func (a *AddressOutpoints) Update(Txns []*TxWithBlockData,
-	Outpoints []*wire.OutPoint, PrevOutpoint []PrevOut) {
+func (a *AddressOutpoints) Update(txns []*TxWithBlockData,
+	outpoints []*wire.OutPoint, prevOutpoint []PrevOut) {
 	// Relevant outpoints
-	a.Outpoints = append(a.Outpoints, Outpoints...)
+	a.Outpoints = append(a.Outpoints, outpoints...)
 
 	// Previous outpoints (inputs)
-	a.PrevOuts = append(a.PrevOuts, PrevOutpoint...)
+	a.PrevOuts = append(a.PrevOuts, prevOutpoint...)
 
 	// Referenced transactions
-	for _, t := range Txns {
+	for _, t := range txns {
 		a.TxnsStore[t.Hash()] = t
 	}
 }

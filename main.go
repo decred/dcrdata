@@ -1294,7 +1294,7 @@ func listenAndServeProto(ctx context.Context, wg *sync.WaitGroup, listen, proto 
 
 // FileServer conveniently sets up a http.FileServer handler to serve static
 // files from a http.FileSystem.
-func FileServer(r chi.Router, path string, root http.FileSystem, CacheControlMaxAge int64) {
+func FileServer(r chi.Router, path string, root http.FileSystem, cacheControlMaxAge int64) {
 	if strings.ContainsAny(path, "{}*") {
 		panic("FileServer does not permit URL parameters.")
 	}
@@ -1307,7 +1307,7 @@ func FileServer(r chi.Router, path string, root http.FileSystem, CacheControlMax
 	}
 	path += "*"
 
-	r.With(m.CacheControl(CacheControlMaxAge)).Get(path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	r.With(m.CacheControl(cacheControlMaxAge)).Get(path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fs.ServeHTTP(w, r)
 	}))
 }

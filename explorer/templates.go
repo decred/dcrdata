@@ -1,3 +1,4 @@
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -291,9 +292,7 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"intComma": func(v interface{}) string {
 			return humanize.Comma(toInt64(v))
 		},
-		"int64Comma": func(v int64) string {
-			return humanize.Comma(v)
-		},
+		"int64Comma": humanize.Comma,
 		"ticketWindowProgress": func(i int) float64 {
 			p := (float64(i) / float64(params.StakeDiffWindowSize)) * 100
 			return p
@@ -377,12 +376,8 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			dateTime := time.Unix(int64(a), 0).UTC()
 			return dateTime.Format("2006-01-02")
 		},
-		"toLowerCase": func(a string) string {
-			return strings.ToLower(a)
-		},
-		"toTitleCase": func(a string) string {
-			return strings.Title(a)
-		},
+		"toLowerCase": strings.ToLower,
+		"toTitleCase": strings.Title,
 		"fetchRowLinkURL": func(groupingStr string, start, end time.Time) string {
 			// fetchRowLinkURL creates links url to be used in the blocks list views
 			// in heirachical order i.e. /years -> /months -> weeks -> /days -> /blocks

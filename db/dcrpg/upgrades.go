@@ -1362,12 +1362,12 @@ func dropTableIfExists(db *sql.DB, table string) (bool, error) {
 func makeDeleteColumnsStmt(table string, columns []string) string {
 	dropStmt := fmt.Sprintf("ALTER TABLE %s", table)
 	for i := range columns {
-		dropStmt = dropStmt + fmt.Sprintf(" DROP COLUMN IF EXISTS %s", columns[i])
+		dropStmt += fmt.Sprintf(" DROP COLUMN IF EXISTS %s", columns[i])
 		if i < len(columns)-1 {
-			dropStmt = dropStmt + ","
+			dropStmt += ","
 		}
 	}
-	dropStmt = dropStmt + ";"
+	dropStmt += ";"
 	return dropStmt
 }
 
