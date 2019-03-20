@@ -214,7 +214,7 @@ var expectedAgenda = &AgendaTagged{
 }
 
 var activeVersions = map[uint32][]chaincfg.ConsensusDeployment{
-	5: []chaincfg.ConsensusDeployment{
+	5: {
 		{
 			Vote: chaincfg.Vote{
 				Id:          "TestAgenda0001",
@@ -260,7 +260,7 @@ func TestUpdateAndRetrievals(t *testing.T) {
 	var _ DeploymentSource = client
 
 	var invalidVersions = map[uint32][]chaincfg.ConsensusDeployment{
-		20: []chaincfg.ConsensusDeployment{},
+		20: {},
 	}
 
 	type testData struct {
