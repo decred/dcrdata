@@ -613,6 +613,17 @@ func _main(ctx context.Context) error {
 	// and can be done before the monitors are fully set up.
 	explore.PrepareCharts(dumpPath)
 
+	// This dumps the cache charts data into a file for future use on system
+	// exit.
+	defer func() {
+		er := explorer.WriteCacheFile(dumpPath)
+		if er != nil {
+			log.Errorf("WriteCacheFile failed: %v", er)
+		} else {
+			log.Debug("Dumping the charts cache data was successful")
+		}
+	}()
+
 	// Initiate the sync status monitor and the coordinating goroutines if the
 	// sync status is activated, otherwise coordinate updating the full set of
 	// explorer pages.
@@ -1184,17 +1195,6 @@ func _main(ctx context.Context) error {
 	// mempoolSavers via their StoreMPData method. This should include the
 	// PubSubHub and the base DB's MempoolDataCache.
 	go mpm.TxHandler(dcrdClient)
-
-	// This dumps the cache charts data into a file for future use on system
-	// exit.
-	defer func() {
-		er := explorer.WriteCacheFile(dumpPath)
-		if er != nil {
-			log.Errorf("WriteCacheFile failed: %v", er)
-		} else {
-			log.Debug("Dumping the charts cache data was successful")
-		}
-	}()
 
 	// Wait for notification handlers to quit.
 	wg.Wait()

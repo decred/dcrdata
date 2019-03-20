@@ -141,7 +141,7 @@ function poolValueFunc (gData) {
 }
 
 function blockFeeFunc (gData) {
-  return map(gData.count, (n, i) => { return [n, gData.sizef[i]] })
+  return map(gData.height, (n, i) => { return [n, gData.sizef[i]] })
 }
 
 function ticketSpendTypeFunc (gData) {
@@ -303,7 +303,7 @@ export default class extends Controller {
 
       case 'blockchain-size': // blockchain size graph
         d = blockChainSizeFunc(data)
-        assign(gOptions, mapDygraphOptions(d, ['Date', 'BlockChain Size'], true, 'BlockChain Size', 'Date', undefined, false, true))
+        assign(gOptions, mapDygraphOptions(d, ['Date', 'Blockchain Size'], true, 'Blockchain Size', 'Date', undefined, false, true))
         break
 
       case 'tx-per-block': // tx per block graph

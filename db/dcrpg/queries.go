@@ -10,6 +10,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"math/big"
 	"strconv"
 	"strings"
@@ -2859,21 +2860,18 @@ func RetrieveTxnsBlocks(ctx context.Context, db *sql.DB, txHash string) (blockHa
 
 // retrieveTicketsPriceByHeight fetches the ticket-price and pow-difficulty
 // charts data source from the blocks table. These data is fetched at an
-// interval of chaincfg.Params.StakeDiffWindowSize. If lastHeight is not empty,
-// only the latest update since last height was fetched is retrieved.
+// interval of chaincfg.Params.StakeDiffWindowSize.
 func retrieveTicketsPriceByHeight(ctx context.Context, db *sql.DB, interval int64,
-	items *dbtypes.ChartsData) (*dbtypes.ChartsData, error) {
+	timeArr []dbtypes.TimeDef, priceArr, powArr []float64) ([]dbtypes.TimeDef,
+	[]float64, []float64, error) {
 	var since time.Time
-
-	if items == nil {
-		items = new(dbtypes.ChartsData)
-	} else if c := len(items.Time); c > 0 {
-		since = items.Time[c-1].T
+	if c := len(timeArr); c > 0 {
+		since = timeArr[c-1].T
 	}
 
 	rows, err := db.QueryContext(ctx, internal.SelectBlocksTicketsPrice, interval, since)
 	if err != nil {
-		return nil, err
+		return timeArr, priceArr, powArr, err
 	}
 	defer closeRows(rows)
 
@@ -2881,189 +2879,217 @@ func retrieveTicketsPriceByHeight(ctx context.Context, db *sql.DB, interval int6
 		var timestamp dbtypes.TimeDef
 		var price uint64
 		var difficulty float64
-		err = rows.Scan(&price, &timestamp, &difficulty)
-		if err != nil {
-			return nil, err
+		if err = rows.Scan(&price, &timestamp, &difficulty); err != nil {
+			return timeArr, priceArr, powArr, err
 		}
 
-		items.Time = append(items.Time, timestamp)
-		items.Difficulty = append(items.Difficulty, difficulty)
-		items.ValueF = append(items.ValueF, dcrutil.Amount(price).ToCoin())
+		powArr = append(powArr, difficulty)
+		timeArr = append(timeArr, timestamp)
+		priceArr = append(priceArr, dcrutil.Amount(price).ToCoin())
 	}
 
-	return items, nil
+	return timeArr, priceArr, powArr, nil
 }
 
 // retrieveCoinSupply fetches the coin supply data from the vins table.
-func retrieveCoinSupply(ctx context.Context, db *sql.DB,
-	items *dbtypes.ChartsData) (*dbtypes.ChartsData, error) {
+func retrieveCoinSupply(ctx context.Context, db *sql.DB, timeArr []dbtypes.TimeDef,
+	sumArr []float64) ([]dbtypes.TimeDef, []float64, error) {
 	var sum float64
 	var since time.Time
 
-	if items == nil {
-		items = new(dbtypes.ChartsData)
-	} else if c := len(items.Time); c > 0 {
-		since = items.Time[c-1].T
-		sum = items.ValueF[c-1]
+	if c := len(timeArr); c > 0 {
+		since = timeArr[c-1].T
+		sum = sumArr[c-1]
 	}
 
 	rows, err := db.QueryContext(ctx, internal.SelectCoinSupply, since)
 	if err != nil {
-		return nil, err
+		return timeArr, sumArr, err
 	}
+
 	defer closeRows(rows)
 
 	for rows.Next() {
 		var value int64
 		var timestamp dbtypes.TimeDef
-		err = rows.Scan(&timestamp, &value)
-		if err != nil {
-			return nil, err
+		if err = rows.Scan(&timestamp, &value); err != nil {
+			return timeArr, sumArr, err
 		}
 
 		if value < 0 {
 			value = 0
 		}
+
 		sum += dcrutil.Amount(value).ToCoin()
-		items.Time = append(items.Time, timestamp)
-		items.ValueF = append(items.ValueF, sum)
+		timeArr = append(timeArr, timestamp)
+		sumArr = append(sumArr, sum)
 	}
 
-	return items, nil
+	return timeArr, sumArr, nil
 }
 
 // retrieveTicketSpendTypePerBlock fetches data for ticket-spend-type chart from
 // the tickets table.
-func retrieveTicketSpendTypePerBlock(ctx context.Context, db *sql.DB,
-	items *dbtypes.ChartsData) (*dbtypes.ChartsData, error) {
+func retrieveTicketSpendTypePerBlock(ctx context.Context, db *sql.DB, heightArr,
+	unSpentArr, revokedArr []uint64) ([]uint64, []uint64, []uint64, error) {
 	var since uint64
-
-	if items == nil {
-		items = new(dbtypes.ChartsData)
-	} else if c := len(items.Height); c > 0 {
-		since = items.Height[c-1]
+	if c := len(heightArr); c > 0 {
+		since = heightArr[c-1]
 	}
 
 	rows, err := db.QueryContext(ctx, internal.SelectTicketSpendTypeByBlock, since)
 	if err != nil {
-		return nil, err
+		return heightArr, unSpentArr, revokedArr, err
 	}
+
 	defer closeRows(rows)
 
 	for rows.Next() {
 		var height, unspent, revoked uint64
-		err = rows.Scan(&height, &unspent, &revoked)
-		if err != nil {
-			return nil, err
+		if err = rows.Scan(&height, &unspent, &revoked); err != nil {
+			return heightArr, unSpentArr, revokedArr, err
 		}
 
-		items.Height = append(items.Height, height)
-		items.Unspent = append(items.Unspent, unspent)
-		items.Revoked = append(items.Revoked, revoked)
+		heightArr = append(heightArr, height)
+		unSpentArr = append(unSpentArr, unspent)
+		revokedArr = append(revokedArr, revoked)
 	}
-	return items, nil
+	return heightArr, unSpentArr, revokedArr, nil
 }
 
-// retrieveBlockTicketsPoolValue fetches data for avg-block-size, blockchain-size,
-// tx-per-block and duration-btw-blocks charts from the blocks table.
-func retrieveBlockTicketsPoolValue(ctx context.Context, db *sql.DB,
-	items *dbtypes.ChartsData) (*dbtypes.ChartsData, error) {
-	var prevTimestamp int64
-	var chainsize, since uint64
+// retrieveBlocksByHeight fetches data for  tx-per-block and duration-btw-blocks
+// charts from the blocks table.
+func retrieveBlocksByHeight(ctx context.Context, db *sql.DB, heightArr,
+	blocksCountArr []uint64, durationArr []float64) ([]uint64, []uint64, []float64, error) {
+	// Checks if a prevTimestamp should be fetched before the update process can
+	// proceed.
+	var isFetchPrevTime bool
 
-	if items == nil {
-		items = new(dbtypes.ChartsData)
-	} else if c := len(items.Height); c > 0 {
-		since = items.Height[c-1]
-		prevTimestamp = items.Time[c-1].UNIX()
-		chainsize = items.ChainSize[c-1]
+	var since uint64
+	if c := len(heightArr); c > 1 {
+		// since previous timestamp is not available, go back 2 steps to set since.
+		since = heightArr[c-2]
+		isFetchPrevTime = true
 	}
 
-	rows, err := db.QueryContext(ctx, internal.SelectBlocksBlockSize, since)
+	rows, err := db.QueryContext(ctx, internal.SelectBlocksByHeight, since)
 	if err != nil {
-		return nil, err
+		return heightArr, blocksCountArr, durationArr, err
+	}
+
+	defer closeRows(rows)
+	var prevTimestamp dbtypes.TimeDef
+
+	for rows.Next() {
+		var timestamp dbtypes.TimeDef
+		var blocksCount, blockHeight uint64
+		if err = rows.Scan(&timestamp, &blocksCount, &blockHeight); err != nil {
+			return heightArr, blocksCountArr, durationArr, err
+		}
+
+		// Ignore setting the other values if blockHeight is zero or
+		// prevTimestamp has not been set.
+		if isFetchPrevTime || blockHeight == 0 {
+			prevTimestamp = timestamp
+			// prevent execution of this if statement later.
+			isFetchPrevTime = false
+			continue
+		}
+
+		heightArr = append(heightArr, blockHeight)
+		blocksCountArr = append(blocksCountArr, blocksCount)
+
+		duration := math.Abs(prevTimestamp.T.Sub(timestamp.T).Seconds())
+		durationArr = append(durationArr, duration)
+
+		prevTimestamp = timestamp
+	}
+	return heightArr, blocksCountArr, durationArr, nil
+}
+
+// retrieveBlockByTime fetches data for blockchain-size and avg-block-size
+// charts from the blocks table.
+func retrieveBlockByTime(ctx context.Context, db *sql.DB, timeArr []dbtypes.TimeDef,
+	chainSizeArr, avgSizeArr []uint64) ([]dbtypes.TimeDef, []uint64, []uint64, error) {
+	var since dbtypes.TimeDef
+	var chainsize uint64
+
+	if c := len(timeArr); c > 0 {
+		since = timeArr[c-1]
+		chainsize = chainSizeArr[c-1]
+	}
+
+	rows, err := db.QueryContext(ctx, internal.SelectBlocksByTime, since)
+	if err != nil {
+		return timeArr, chainSizeArr, avgSizeArr, err
 	}
 	defer closeRows(rows)
 
 	for rows.Next() {
 		var timestamp dbtypes.TimeDef
-		var blockSize, blocksCount, blockHeight uint64
-		err = rows.Scan(&timestamp, &blockSize, &blocksCount, &blockHeight)
-		if err != nil {
-			return nil, err
+		var blockSize uint64
+		if err = rows.Scan(&timestamp, &blockSize); err != nil {
+			return timeArr, chainSizeArr, avgSizeArr, err
 		}
-
-		val := prevTimestamp - timestamp.UNIX()
-		if val < 0 {
-			val *= -1
-		}
-		prevTimestamp = timestamp.UNIX()
-
-		items.Time = append(items.Time, timestamp)
 
 		chainsize += blockSize
-		items.Size = append(items.Size, blockSize)
-		items.ChainSize = append(items.ChainSize, chainsize)
-		items.Count = append(items.Count, blocksCount)
-		items.ValueF = append(items.ValueF, float64(val))
-		items.Height = append(items.Height, blockHeight)
+		timeArr = append(timeArr, timestamp)
+		avgSizeArr = append(avgSizeArr, blockSize)
+		chainSizeArr = append(chainSizeArr, chainsize)
 	}
 
-	return items, nil
+	return timeArr, chainSizeArr, avgSizeArr, nil
 }
 
 // retrieveTxPerDay fetches data for tx-per-day chart from the blocks table.
-func retrieveTxPerDay(ctx context.Context, db *sql.DB,
-	items *dbtypes.ChartsData) (*dbtypes.ChartsData, error) {
+func retrieveTxPerDay(ctx context.Context, db *sql.DB, timeArr []dbtypes.TimeDef,
+	txCountArr []uint64) ([]dbtypes.TimeDef, []uint64, error) {
 	var since time.Time
 
-	if items == nil {
-		items = new(dbtypes.ChartsData)
-	} else if c := len(items.Time); c > 0 {
-		since = items.Time[c-1].T
+	if c := len(timeArr); c > 0 {
+		since = timeArr[c-1].T
 
 		// delete the last entry to avoid duplicates
-		items.Time = items.Time[:c-1]
-		items.Count = items.Count[:c-1]
+		timeArr = timeArr[:c-1]
+		txCountArr = txCountArr[:c-1]
 	}
 
 	rows, err := db.QueryContext(ctx, internal.SelectTxsPerDay, since)
 	if err != nil {
-		return nil, err
+		return timeArr, txCountArr, err
 	}
+
 	defer closeRows(rows)
 
 	for rows.Next() {
 		var blockTime dbtypes.TimeDef
 		var count uint64
-		err = rows.Scan(&blockTime, &count)
-		if err != nil {
-			return nil, err
+		if err = rows.Scan(&blockTime, &count); err != nil {
+			return timeArr, txCountArr, err
 		}
 
-		items.Time = append(items.Time, blockTime)
-		items.Count = append(items.Count, count)
+		timeArr = append(timeArr, blockTime)
+		txCountArr = append(txCountArr, count)
 	}
-	return items, nil
+	return timeArr, txCountArr, nil
 }
 
 // retrieveTicketByOutputCount fetches the data for ticket-by-outputs-windows
 // chart if outputCountType outputCountByTicketPoolWindow is passed and
 // ticket-by-outputs-blocks if outputCountType outputCountByAllBlocks is passed.
-func retrieveTicketByOutputCount(ctx context.Context, db *sql.DB,
-	dataType outputCountType, items *dbtypes.ChartsData, interval int64) (*dbtypes.ChartsData, error) {
+func retrieveTicketByOutputCount(ctx context.Context, db *sql.DB, interval int64,
+	dataType outputCountType, heightArr, soloArr, pooledArr []uint64) ([]uint64,
+	[]uint64, []uint64, error) {
 	var since uint64
 
-	if items == nil {
-		items = new(dbtypes.ChartsData)
-	} else if c := len(items.Height); c > 0 {
-		since = items.Height[c-1]
+	if c := len(heightArr); c > 0 {
+		since = heightArr[c-1]
 
 		// drop the last entry to avoid duplication.
 		if dataType == outputCountByTicketPoolWindow {
-			items.Height = items.Height[:c-1]
-			items.Solo = items.Solo[:c-1]
-			items.Pooled = items.Pooled[:c-1]
+			heightArr = heightArr[:c-1]
+			soloArr = soloArr[:c-1]
+			pooledArr = pooledArr[:c-1]
 		}
 	}
 
@@ -3080,28 +3106,29 @@ func retrieveTicketByOutputCount(ctx context.Context, db *sql.DB,
 		args = []interface{}{stake.TxTypeSStx, since, interval}
 
 	default:
-		return nil, fmt.Errorf("unknown output count type '%v'", dataType)
+		return heightArr, soloArr, pooledArr,
+			fmt.Errorf("unknown output count type '%v'", dataType)
 	}
 
 	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return heightArr, soloArr, pooledArr, err
 	}
+
 	defer closeRows(rows)
 
 	for rows.Next() {
 		var height, solo, pooled uint64
-		err = rows.Scan(&height, &solo, &pooled)
-		if err != nil {
-			return nil, err
+		if err = rows.Scan(&height, &solo, &pooled); err != nil {
+			return heightArr, soloArr, pooledArr, err
 		}
 
-		items.Height = append(items.Height, height)
-		items.Solo = append(items.Solo, solo)
-		items.Pooled = append(items.Pooled, pooled)
+		heightArr = append(heightArr, height)
+		soloArr = append(soloArr, solo)
+		pooledArr = append(pooledArr, pooled)
 	}
 
-	return items, nil
+	return heightArr, soloArr, pooledArr, nil
 }
 
 // retrieveChainWork assembles both block-by-block chainwork data

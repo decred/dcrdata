@@ -982,27 +982,26 @@ func (db *DB) RetrievePoolValAndSizeRange(ind0, ind1 int64) ([]float64, []float6
 	return poolvals, poolsizes, nil
 }
 
-// RetrieveAllPoolValAndSize returns all the pool values and sizes stored since
-// the first value was recorded up current height.
-func (db *DB) RetrieveAllPoolValAndSize(chartsData *dbtypes.ChartsData) (*dbtypes.ChartsData, error) {
+// RetrievePoolAllValueAndSize returns all the pool value and the pool size
+// charts data needed to plot ticket-pool-size and ticket-pool value charts on
+// charts page.
+func (db *DB) RetrievePoolAllValueAndSize(timeArr []dbtypes.TimeDef, poolSizeArr,
+	poolValArr []float64) ([]dbtypes.TimeDef, []float64, []float64, error) {
 	var since int64
-
-	if chartsData == nil {
-		chartsData = new(dbtypes.ChartsData)
-	} else if len(chartsData.Time) > 0 {
-		since = chartsData.Time[len(chartsData.Time)-1].UNIX()
+	if c := len(timeArr); c > 0 {
+		since = timeArr[c-1].UNIX()
 	}
 
 	stmt, err := db.Prepare(db.getAllPoolValSize)
 	if err != nil {
-		return nil, err
+		return timeArr, poolSizeArr, poolValArr, err
 	}
 	defer stmt.Close()
 
 	rows, err := stmt.Query(since)
 	if err != nil {
 		log.Errorf("Query failed: %v", err)
-		return nil, err
+		return timeArr, poolSizeArr, poolValArr, err
 	}
 	defer rows.Close()
 
@@ -1011,66 +1010,58 @@ func (db *DB) RetrieveAllPoolValAndSize(chartsData *dbtypes.ChartsData) (*dbtype
 		var timestamp, count int64
 		if err = rows.Scan(&psize, &pval, &timestamp, &count); err != nil {
 			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
-			return nil, err
+			return timeArr, poolSizeArr, poolValArr, err
 		}
 
 		if timestamp == 0 {
 			continue
 		}
 
-		chartsData.Time = append(chartsData.Time, dbtypes.NewTimeDefFromUNIX(timestamp))
-		chartsData.SizeF = append(chartsData.SizeF, psize)
-		chartsData.ValueF = append(chartsData.ValueF, pval)
-	}
-	if err = rows.Err(); err != nil {
-		log.Error(err)
+		timeArr = append(timeArr, dbtypes.NewTimeDefFromUNIX(timestamp))
+		poolSizeArr = append(poolSizeArr, psize)
+		poolValArr = append(poolValArr, pval)
 	}
 
-	return chartsData, nil
+	return timeArr, poolSizeArr, poolValArr, nil
 }
 
-// RetrieveBlockFeeInfo fetches the block median fee chart data.
-func (db *DB) RetrieveBlockFeeInfo(chartsData *dbtypes.ChartsData) (*dbtypes.ChartsData, error) {
+// RetrieveBlockFeeInfo retrieves the block fee chart data over time. This data
+// is used to plot block-fee-chart on the /charts page.
+func (db *DB) RetrieveBlockFeeInfo(height []uint64, fee []float64) ([]uint64, []float64, error) {
 	var since uint64
-
-	if chartsData == nil {
-		chartsData = new(dbtypes.ChartsData)
-	} else if len(chartsData.Count) > 0 {
-		since = chartsData.Count[len(chartsData.Count)-1]
+	if c := len(height); c > 0 {
+		since = height[c-1]
 	}
 
 	stmt, err := db.Prepare(db.getAllFeeInfoPerBlock)
 	if err != nil {
-		return nil, err
+		return height, fee, err
 	}
 	defer stmt.Close()
 
 	rows, err := stmt.Query(since)
 	if err != nil {
 		log.Errorf("Query failed: %v", err)
-		return nil, err
+		return height, fee, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var feeMed float64
-		var height uint64
-		if err = rows.Scan(&height, &feeMed); err != nil {
+		var blockHeight uint64
+		if err = rows.Scan(&blockHeight, &feeMed); err != nil {
 			log.Errorf("Unable to scan for FeeInfoPerBlock fields: %v", err)
-			return nil, err
+			return height, fee, err
 		}
-		if height == 0 && feeMed == 0 {
+		if blockHeight == 0 && feeMed == 0 {
 			continue
 		}
 
-		chartsData.Height = append(chartsData.Count, height)
-		chartsData.SizeF = append(chartsData.SizeF, feeMed)
-	}
-	if err = rows.Err(); err != nil {
-		log.Error(err)
+		fee = append(fee, feeMed)
+		height = append(height, blockHeight)
 	}
 
-	return chartsData, nil
+	return height, fee, nil
 }
 
 // RetrieveSDiffRange returns an array of stake difficulties for block range ind0 to

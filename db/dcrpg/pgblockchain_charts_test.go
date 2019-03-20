@@ -74,7 +74,7 @@ func TestPgChartsData(t *testing.T) {
 
 	// xvalArray maps the chart type to its respective x-axis dataset name.
 	// Most charts either use timestamp or block height as the x-axis value.
-	xvalArray := map[dbtypes.Charts]string{
+	xvalArray := map[dbtypes.ChartType]string{
 		dbtypes.AvgBlockSize:    "Time",
 		dbtypes.BlockChainSize:  "Time",
 		dbtypes.ChainWork:       "Time",
@@ -98,73 +98,74 @@ func TestPgChartsData(t *testing.T) {
 	// Charts x-axis coordinates dataset should not have duplicates. charts x-axis
 	// coordinates should be ordered in ascending order.
 	t.Run("check_duplicates_&_ordering_for_", func(t *testing.T) {
-		for chartType, xValName := range xvalArray {
-			data := oldData[chartType.Pos()]
+		for chartT, xValName := range xvalArray {
+			data := oldData[chartT.Pos()]
 
-			t.Run(chartType.String(), func(t *testing.T) {
-				val := reflect.ValueOf(data).Elem()
-				for i := 0; i < val.NumField(); i++ {
-					if xValName == val.Type().Field(i).Name {
-						switch strings.ToLower(xValName) {
-						case "height":
-							// All Height dataset is an array of type uint64
-							heights := val.Field(i).Interface().([]uint64)
-							heightsCopy := make([]uint64, len(heights))
-							copy(heightsCopy, heights)
-
-							// Sort and check for ascending order.
-							sort.Slice(heightsCopy, func(i, j int) bool { return heightsCopy[i] < heightsCopy[j] })
-
-							if !reflect.DeepEqual(heightsCopy, heights) {
-								t.Fatalf("expected x-axis data for chart (%s) to be in ascending order but it wasn't \n\n",
-									chartType)
-								return
-							}
-
-							// check for duplicates
-							var m = make(map[uint64]struct{})
-							for _, elem := range heightsCopy {
-								m[elem] = struct{}{}
-							}
-							if len(m) != len(heightsCopy) {
-								t.Fatalf("expected x-axis data for chart (%s) to have no duplicates but found %d",
-									chartType, len(heightsCopy)-len(m))
-								return
-							}
-
-						case "time":
-							// All Time dataset is an array of type dbtypes.TimeDef
-							timestamp := val.Field(i).Interface().([]dbtypes.TimeDef)
-							timestampCopy := make([]dbtypes.TimeDef, len(timestamp))
-							copy(timestampCopy, timestamp)
-
-							// Sort and check for ascending order.
-							sort.Slice(
-								timestampCopy,
-								func(i, j int) bool { return timestampCopy[i].T.Before(timestampCopy[j].T) },
-							)
-							if !reflect.DeepEqual(timestampCopy, timestamp) {
-								t.Fatalf("expected x-axis data for chart (%s) to be in ascending order but it wasn't",
-									chartType)
-								return
-							}
-
-							// check for duplicates
-							var m = make(map[dbtypes.TimeDef]struct{})
-							for _, elem := range timestampCopy {
-								m[elem] = struct{}{}
-							}
-							if len(m) != len(timestampCopy) {
-								t.Fatalf("expected x-axis data for chart (%s) to have no duplicates but found %d",
-									chartType, len(timestampCopy)-len(m))
-								return
-							}
-
-						default:
-							t.Fatalf("unknown x-axis dataset name (%s) found", xValName)
-							return
-						}
+			t.Run(chartT.String(), func(t *testing.T) {
+				switch strings.ToLower(xValName) {
+				case "height":
+					// All Height dataset is an array of type uint64
+					heights := data.Height
+					if len(heights) == 0 {
+						t.Fatalf("expected the x-axis dataset to have entries but had none")
+						return
 					}
+
+					heightsCopy := make([]uint64, len(heights))
+					copy(heightsCopy, heights)
+
+					// Sort and check for ascending order.
+					sort.Slice(heightsCopy, func(i, j int) bool { return heightsCopy[i] < heightsCopy[j] })
+
+					if !reflect.DeepEqual(heightsCopy, heights) {
+						t.Fatalf("expected x-axis data for chart (%s) to be in ascending order but it wasn't", chartT)
+						return
+					}
+
+					// check for duplicates
+					var m = make(map[uint64]struct{})
+					for _, elem := range heightsCopy {
+						m[elem] = struct{}{}
+					}
+					if len(m) != len(heightsCopy) {
+						t.Fatalf("x-axis dataset for chart (%s) was found to have %d duplicates",
+							chartT, len(heightsCopy)-len(m))
+						return
+					}
+
+				case "time":
+					// All Time dataset is an array of type dbtypes.TimeDef
+					timestamp := data.Time
+					if len(timestamp) == 0 {
+						t.Fatalf("expected the x-axis dataset to have entries but had none")
+						return
+					}
+
+					timestampCopy := make([]dbtypes.TimeDef, len(timestamp))
+					copy(timestampCopy, timestamp)
+
+					// Sort and check for ascending order.
+					sort.Slice(timestampCopy, func(i, j int) bool { return timestampCopy[i].T.Before(timestampCopy[j].T) })
+
+					if !reflect.DeepEqual(timestampCopy, timestamp) {
+						t.Fatalf("expected x-axis data for chart (%s) to be in ascending order but it wasn't", chartT)
+						return
+					}
+
+					// check for duplicates
+					var m = make(map[dbtypes.TimeDef]struct{})
+					for _, elem := range timestampCopy {
+						m[elem] = struct{}{}
+					}
+					if len(m) != len(timestampCopy) {
+						t.Fatalf("x-axis dataset for chart (%s) was found to have %d duplicates",
+							chartT, len(timestampCopy)-len(m))
+						return
+					}
+
+				default:
+					t.Fatalf("unknown x-axis dataset name (%s) found", xValName)
+					return
 				}
 			})
 		}
@@ -184,7 +185,7 @@ func TestPgChartsData(t *testing.T) {
 		}
 
 		for k := range dataCopy {
-			chartName := dbtypes.Charts(k).String()
+			chartName := dbtypes.ChartType(k).String()
 			t.Run(chartName, func(t *testing.T) {
 				if !reflect.DeepEqual(dataCopy[k], oldData[k]) {
 					t.Fatalf("expected no new data to be added for chart (%s) to dataCopy but it was.",
@@ -356,7 +357,7 @@ func TestPgChartsData(t *testing.T) {
 		}
 
 		for k := range dataCopy {
-			chartName := dbtypes.Charts(k).String()
+			chartName := dbtypes.ChartType(k).String()
 			t.Run(chartName, func(t *testing.T) {
 				if !reflect.DeepEqual(dataCopy[k], oldData[k]) {
 					t.Fatalf("expected no new data to be added for chart (%s) to dataCopy but it was.",

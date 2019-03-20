@@ -53,7 +53,7 @@ testrepo () {
   # Pre-populate the pg db with test data.
   ./testutil/dbload/dbload
 
-  env GORACE='halt_on_error=1'  go test --tags=chartests -v -race ./...
+  env GORACE='halt_on_error=1' go test --tags=chartests -v -race ./...
 
   # Drop the tests db.
   psql -U postgres -c "DROP DATABASE IF EXISTS dcrdata_mainnet_test"
