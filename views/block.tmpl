@@ -42,7 +42,9 @@
                   </div>
                   <div class="d-inline-block text-nowrap">
                     <a class="fs13" href="/block/{{.PreviousHash}}">previous </a>|
-                    <a class="fs13" href="/block/{{.NextHash}}">next </a>|
+                    {{if ne .NextHash ""}}
+                      <a class="fs13" href="/block/{{.NextHash}}">next </a>|
+                    {{end}}
                     <a class="fs13" href="/api/block/{{.Height}}/verbose?indent=true" data-turbolinks="false">api</a>
                   </div>
                 </div>
