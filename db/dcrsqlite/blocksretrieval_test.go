@@ -13,7 +13,9 @@ func TestEmptyDBRetrieveAllPoolValAndSize(t *testing.T) {
 		t.Fatalf("Failed to obtain test DB: %v", err)
 	}
 
-	result, err := db.RetrieveAllPoolValAndSize(nil)
+	var err error
+	result.Time, result.SizeF, result.ValueF, err = db.RetrievePoolAllValueAndSize(result.Time,
+		result.SizeF, result.ValueF)
 	if err != nil {
 		t.Fatalf("RetrieveAllPoolValAndSize() failed: default result expected: %v", err)
 	}

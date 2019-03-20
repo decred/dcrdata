@@ -992,39 +992,46 @@ func (db *WiredDB) GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []float64)
 	return poolvals, poolsizes
 }
 
-// SqliteChartsData fetches the charts data from the sqlite db.
+// SqliteChartsData takes the old sqlite charts' data that requires an update.
+// If any of the chart's data has no entries, records from the oldest to the
+// most recent are queried from the db and updated. If some entries were found,
+// only the change since the last update is queried and pushed to the charts' data.
 func (db *WiredDB) SqliteChartsData(data []*dbtypes.ChartsData) (err error) {
+	// Ensure space to store all chart's data exists.
 	if len(data) != dbtypes.SqliteChartsCount {
-		data = make([]*dbtypes.ChartsData, dbtypes.SqliteChartsCount)
-		log.Debug("Found some charts data missing thus initiated a fresh data query")
+		return fmt.Errorf("found data to have length %d but expected it to have %d",
+			len(data), dbtypes.SqliteChartsCount)
 	}
 
 	feeData := data[dbtypes.FeePerBlock.SqlitePos()]
-	feeData, err = db.RetrieveBlockFeeInfo(feeData)
+	if feeData == nil {
+		feeData = new(dbtypes.ChartsData)
+	}
+	feeData.Height, feeData.SizeF, err = db.RetrieveBlockFeeInfo(feeData.Height, feeData.SizeF)
 	if err != nil {
 		return err
 	}
 
-	poolData := data[dbtypes.TicketPoolSize.SqlitePos()]
+	poolSize := data[dbtypes.TicketPoolSize.SqlitePos()]
+	if poolSize == nil {
+		poolSize = new(dbtypes.ChartsData)
+	}
+
 	poolValue := data[dbtypes.TicketPoolValue.SqlitePos()]
-
-	var wCopy *dbtypes.ChartsData
-	//  Append the all data to the working Copy.
-	if poolData != nil && poolValue != nil {
-		wCopy = new(dbtypes.ChartsData)
-		*wCopy = *poolData
-		wCopy.ValueF = poolValue.ValueF
+	if poolValue == nil {
+		poolValue = new(dbtypes.ChartsData)
 	}
-	wCopy, err = db.RetrieveAllPoolValAndSize(wCopy)
+
+	poolSize.Time, poolSize.SizeF, poolValue.ValueF, err = db.RetrievePoolAllValueAndSize(poolSize.Time,
+		poolSize.SizeF, poolValue.ValueF)
 	if err != nil {
 		return err
 	}
 
-	poolData = &dbtypes.ChartsData{Time: wCopy.Time, SizeF: wCopy.SizeF}
-	poolValue = &dbtypes.ChartsData{Time: wCopy.Time, ValueF: wCopy.ValueF}
+	poolValue.Time = poolSize.Time
 
 	data[dbtypes.FeePerBlock.SqlitePos()] = feeData
-	data[dbtypes.TicketPoolSize.SqlitePos()] = poolData
+	data[dbtypes.TicketPoolSize.SqlitePos()] = poolSize
 	data[dbtypes.TicketPoolValue.SqlitePos()] = poolValue
 	return
 }

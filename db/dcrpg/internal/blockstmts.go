@@ -143,10 +143,19 @@ const (
 		ORDER BY index_value DESC
 		LIMIT $2 OFFSET $3;`
 
-	SelectBlocksBlockSize = `SELECT time, size, numtx, height
+	// SelectBlocksByTime returns data for blockchain-size and avg-block-size
+	SelectBlocksByTime = `SELECT time, size
+		FROM blocks
+		WHERE time > $1
+		AND is_mainchain
+		ORDER BY time;`
+
+	// SelectBlocksByHeight returns data for duration-btw-blocks and tx-per-block
+	SelectBlocksByHeight = `SELECT time, numtx, height
 		FROM blocks
 		WHERE height > $1
-		ORDER BY time;`
+		AND is_mainchain
+		ORDER BY height;`
 
 	SelectBlocksPreviousHash = `SELECT previous_hash FROM blocks WHERE hash = $1;`
 

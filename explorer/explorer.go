@@ -374,12 +374,10 @@ func (exp *explorerUI) PrepareCharts(cacheDumpPath string) {
 		var defHeight int64 = 1
 
 		if err := ReadCacheFile(cacheDumpPath, defHeight); err != nil {
-			log.Errorf("Cache dump data loading failed: %v", err)
+			log.Debugf("Cache dump data loading failed: %v", err)
 
-			// If the cache data loading fails, the db querying will be
-			// triggered in the next explorer.Store call. Since this method is
-			// not asynchronous, charts db querying will be triggered in a
-			// goroutine to avoid making a blocking operation.
+			// If the cache data loading fails, the db querying will be triggered.
+			exp.prePopulateChartsData()
 		}
 
 		log.Debugf("completed the initial charts cache scanning in %v", time.Since(t))
@@ -390,9 +388,12 @@ func (exp *explorerUI) PrepareCharts(cacheDumpPath string) {
 func (exp *explorerUI) Height() int64 {
 	exp.pageData.RLock()
 	defer exp.pageData.RUnlock()
-	if exp.pageData.BlockInfo == nil {
+
+	if exp.pageData.BlockInfo.BlockBasic == nil {
+		// If exp.pageData.BlockInfo.BlockBasic has not yet been set return:
 		return -1
 	}
+
 	return exp.pageData.BlockInfo.Height
 }
 
@@ -400,6 +401,13 @@ func (exp *explorerUI) Height() int64 {
 func (exp *explorerUI) LastBlock() (lastBlockHash string, lastBlock int64, lastBlockTime int64) {
 	exp.pageData.RLock()
 	defer exp.pageData.RUnlock()
+
+	if exp.pageData.BlockInfo.BlockBasic == nil {
+		// If exp.pageData.BlockInfo.BlockBasic has not yet been set return:
+		lastBlock, lastBlockTime = -1, -1
+		return
+	}
+
 	lastBlock = exp.pageData.BlockInfo.Height
 	lastBlockTime = exp.pageData.BlockInfo.BlockTime.UNIX()
 	lastBlockHash = exp.pageData.BlockInfo.Hash
@@ -427,7 +435,7 @@ func (exp *explorerUI) MempoolSignals() (chan<- pstypes.HubSignal, chan<- *types
 }
 
 // prePopulateChartsData should run in the background the first time the system
-// is initialized and when new blocks are added.
+// is initialized if cache data loading failed and when new blocks are added.
 func (exp *explorerUI) prePopulateChartsData() {
 	if exp.liteMode {
 		log.Warnf("Charts are not supported in lite mode!")
@@ -457,12 +465,15 @@ func (exp *explorerUI) prePopulateChartsData() {
 	chartsCount := pgChartsCount + sqliteChartsCount
 	pgData := make([]*dbtypes.ChartsData, pgChartsCount)
 
-	// Since Pg charts count defined by dbtypes.PgChartsCount, their data is
-	// stored from index 0-(dbtypes.PgChartsCount -1) in the charts cache.
-	// Make the data copy if the charts count matches the chartsCount value.
-	if len(chartsData) == chartsCount {
-		copy(pgData, chartsData[:pgChartsCount])
+	// chartsData is initialized to an array of length chartsCount if it is empty
+	// or its current length is not equal to chartsCount.
+	if len(chartsData) != chartsCount {
+		chartsData = make([]*dbtypes.ChartsData, chartsCount)
 	}
+
+	// Pg charts data is stored from index 0-(dbtypes.PgChartsCount -1) in the
+	// charts cache.
+	copy(pgData, chartsData[:pgChartsCount])
 
 	if err := exp.explorerSource.PgChartsData(pgData); err != nil {
 		if dbtypes.IsTimeoutErr(err) {
@@ -478,12 +489,9 @@ func (exp *explorerUI) prePopulateChartsData() {
 
 	sqliteData := make([]*dbtypes.ChartsData, sqliteChartsCount)
 
-	// Sqlite charts count is defined by thus data is stored between index
-	// (dbtypes.PgChartsCount) to the end of the cache.
-	// Make the data copy if the charts count matches the chartsCount value.
-	if len(chartsData) == chartsCount {
-		copy(sqliteData, chartsData[pgChartsCount:])
-	}
+	// Sqlite charts data is stored between index (dbtypes.PgChartsCount) to
+	// the end of the cache.
+	copy(sqliteData, chartsData[pgChartsCount:])
 
 	if err := exp.blockData.SqliteChartsData(sqliteData); err != nil {
 		log.Errorf("Invalid SQLite data found: %v", err)
@@ -493,12 +501,6 @@ func (exp *explorerUI) prePopulateChartsData() {
 	// count defines the total number of chart returned.
 	count := len(pgData) + len(sqliteData)
 	if count == chartsCount {
-		// chartsData is initialized to an array of length chartsCount if it
-		// current length is not equal to chartsCount.
-		if len(chartsData) != chartsCount {
-			chartsData = make([]*dbtypes.ChartsData, chartsCount)
-		}
-
 		copy(chartsData[:pgChartsCount], pgData)
 		copy(chartsData[pgChartsCount:], sqliteData)
 	} else {
