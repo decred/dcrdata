@@ -135,6 +135,7 @@ type links struct {
 	License         string
 	NetParams       string
 	BtcAddress      string
+	DownloadLink    string
 	// Testnet and below are set via dcrdata config.
 	Testnet       string
 	Mainnet       string
@@ -150,6 +151,7 @@ var explorerLinks = &links{
 	License:         "https://github.com/decred/dcrdata/blob/master/LICENSE",
 	NetParams:       "https://github.com/decred/dcrd/blob/master/chaincfg/params.go",
 	BtcAddress:      "https://live.blockcypher.com/btc/address/",
+	DownloadLink:    "https://decred.org/downloads/",
 }
 
 // chartDataCounter is a data cache for the historical charts.
