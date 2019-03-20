@@ -1,3 +1,4 @@
+# This Dockerfile is NOT supported.
 FROM golang:1.11-alpine3.8
 RUN apk update && apk add vim tree lsof bash git gcc musl-dev
 ENV GOPATH=/home/decred/go
