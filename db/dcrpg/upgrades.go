@@ -393,7 +393,7 @@ func (pgb *ChainDB) UpgradeTables(dcrdClient *rpcclient.Client,
 
 	// Ensure the required version was reached.
 	upgradeInfo := TableUpgradesRequired(TableVersions(pgb.db))
-	if len(upgradeInfo) > 0 {
+	if len(upgradeInfo) == 0 {
 		return false, upgradeFailed
 	}
 
