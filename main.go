@@ -557,6 +557,7 @@ func _main(ctx context.Context) error {
 		PoliteiaURL:       cfg.PoliteiaAPIURL,
 		MainnetLink:       cfg.MainnetLink,
 		TestnetLink:       cfg.TestnetLink,
+		RPCClient:         dcrdClient,
 	})
 	// TODO: allow views config
 	if explore == nil {

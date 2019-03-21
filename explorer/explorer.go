@@ -268,6 +268,7 @@ type explorerUI struct {
 
 	invsMtx sync.RWMutex
 	invs    *types.MempoolInfo
+	client  agendas.DeploymentSource
 }
 
 // AreDBsSyncing is a thread-safe way to fetch the boolean in dbsSyncing.
@@ -329,6 +330,7 @@ type ExplorerConfig struct {
 	PoliteiaURL       string
 	MainnetLink       string
 	TestnetLink       string
+	RPCClient         agendas.DeploymentSource
 }
 
 // New returns an initialized instance of explorerUI
@@ -349,6 +351,7 @@ func New(cfg *ExplorerConfig) *explorerUI {
 	explorerLinks.Testnet = cfg.TestnetLink
 	explorerLinks.MainnetSearch = cfg.MainnetLink + "search?search="
 	explorerLinks.TestnetSearch = cfg.TestnetLink + "search?search="
+	exp.client = cfg.RPCClient
 
 	// explorerDataSource is an interface that could have a value of pointer
 	// type, and if either is nil this means lite mode.
@@ -620,25 +623,40 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 
 	// Do not run updates if blockchain sync is running.
 	if !exp.AreDBsSyncing() {
-		// Update the charts data after every five blocks or if no charts data
-		// exists yet.
-		if newBlockData.Height%5 == 0 || cacheChartsData.Height() == -1 {
-			// This must be done after storing BlockInfo since that provides the
-			// explorer's best block height, which is used by prePopulateChartsData
-			// to decide if an update is needed.
-			go exp.prePopulateChartsData()
-		}
-
-		// Update the proposal DB. This is run asynchronously since it involves
-		// a query to Politeia (a remote system) and we do not want to block
-		// execution.
-		if newBlockData.Height%20 == 0 {
+		// Politeia updates happen hourly thus if every blocks takes an average
+		// of 5 minutes to mine then 12 blocks take approximately 1hr.
+		// https://docs.decred.org/advanced/navigating-politeia-data/#voting-and-comment-data
+		if newBlockData.Height%12 == 0 {
+			// Update the proposal DB. This is run asynchronously since it involves
+			// a query to Politeia (a remote system) and we do not want to block
+			// execution.
 			go func() {
 				err := exp.proposalsSource.CheckProposalsUpdates()
 				if err != nil {
 					log.Error(err)
 				}
 			}()
+		}
+
+		// Update in every 5 blocks implys that in approximately every 25mins
+		// an update will be queried.
+		if newBlockData.Height%5 == 0 {
+			// Update the Agendas DB. Run this asynchronously to avoid
+			// blocking other processes.
+			go func() {
+				err := exp.agendasSource.CheckAgendasUpdates(exp.client,
+					exp.ChainParams.Deployments)
+				if err != nil {
+					log.Error(err)
+				}
+			}()
+		}
+
+		// If incorrect cache height was set, fetch the charts updates and set
+		// the correct block height. Also fetch agenda db updates consecutively
+		// after intervals of 5 blocks.
+		if cacheChartsData.Height() == -1 || newBlockData.Height%5 == 0 {
+			go exp.prePopulateChartsData()
 		}
 	}
 
