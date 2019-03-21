@@ -1650,7 +1650,7 @@ func copyFile(src, dst string) error {
 	return out.Close()
 }
 
-// JustifyTableStructure updates an old structure that wasn't indexing
+// JustifyTableStructures updates an old structure that wasn't indexing
 // sidechains. It could and should be removed in a future version. The block
 // summary table got two new boolean columns, `is_mainchain` and `is_valid`, and
 // the Primary key was changed from height to hash. The stake info table got a

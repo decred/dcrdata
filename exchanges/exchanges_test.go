@@ -70,7 +70,7 @@ out:
 		select {
 		case update := <-ch.Update:
 			updated = append(updated, update.Token)
-			log.Infof("Update recieved from %s", update.Token)
+			log.Infof("Update received from %s", update.Token)
 		case <-ch.Quit:
 			t.Errorf("Exchange bot has quit.")
 			break out

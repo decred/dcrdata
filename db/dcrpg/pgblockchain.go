@@ -1394,12 +1394,12 @@ func (pgb *ChainDB) AddressBalance(address string) (bal *dbtypes.AddressBalance,
 
 		// Try again, starting with the cache.
 		return pgb.AddressBalance(address)
-	} else {
-		// We will run the DB query, so block others from doing the same. When
-		// query and/or cache update is completed, broadcast to any waiters that
-		// the coast is clear.
-		defer done()
 	}
+
+	// We will run the DB query, so block others from doing the same. When query
+	// and/or cache update is completed, broadcast to any waiters that the coast
+	// is clear.
+	defer done()
 
 	// Cache is empty or stale, so query the DB.
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
@@ -1426,12 +1426,12 @@ func (pgb *ChainDB) updateAddressRows(address string) (rows []*dbtypes.AddressRo
 		<-wait
 		err = fmt.Errorf("retry")
 		return
-	} else {
-		// We will run the DB query, so block others from doing the same. When
-		// query and/or cache update is completed, broadcast to any waiters that
-		// the coast is clear.
-		defer done()
 	}
+
+	// We will run the DB query, so block others from doing the same. When query
+	// and/or cache update is completed, broadcast to any waiters that the coast
+	// is clear.
+	defer done()
 
 	hash, height := pgb.BestBlock()
 	blockID := cache.NewBlockID(hash, height)
@@ -1475,7 +1475,8 @@ func (pgb *ChainDB) AddressRowsMerged(address string) ([]dbtypes.AddressRowMerge
 	return dbtypes.MergeRows(rows)
 }
 
-// AddressRows gets non-merged address rows either from cache or via DB query.
+// AddressRowsCompact gets non-merged address rows either from cache or via DB
+// query.
 func (pgb *ChainDB) AddressRowsCompact(address string) ([]dbtypes.AddressRowCompact, error) {
 	// Try the address cache.
 	hash := pgb.BestBlockHash()
@@ -2397,12 +2398,12 @@ func (pgb *ChainDB) TxHistoryData(address string, addrChart dbtypes.HistoryChart
 
 		// Try again, starting with the cache.
 		return pgb.TxHistoryData(address, addrChart, chartGroupings)
-	} else {
-		// We will run the DB query, so block others from doing the same. When
-		// query and/or cache update is completed, broadcast to any waiters that
-		// the coast is clear.
-		defer done()
 	}
+
+	// We will run the DB query, so block others from doing the same. When query
+	// and/or cache update is completed, broadcast to any waiters that the coast
+	// is clear.
+	defer done()
 
 	timeInterval := chartGroupings.String()
 
@@ -3475,7 +3476,7 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses(barLoad chan *dbtypes.Progr
 			barLoad <- &dbtypes.ProgressBarLoad{
 				From:      int64(i),
 				To:        int64(totalVinIbIDs),
-				Msg:       AddressesSyncStatusMsg,
+				Msg:       addressesSyncStatusMsg,
 				BarID:     dbtypes.AddressesTableSync,
 				Timestamp: int64(timeTakenPerBlock * float64(totalVinIbIDs-endChunk)),
 			}
@@ -3496,7 +3497,7 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses(barLoad chan *dbtypes.Progr
 		barLoad <- &dbtypes.ProgressBarLoad{
 			From:  int64(totalVinIbIDs),
 			To:    int64(totalVinIbIDs),
-			Msg:   AddressesSyncStatusMsg,
+			Msg:   addressesSyncStatusMsg,
 			BarID: dbtypes.AddressesTableSync,
 		}
 	}
@@ -3594,8 +3595,8 @@ func ticketpoolStatusSlice(ss dbtypes.TicketPoolStatus, N int) []dbtypes.TicketP
 	return S
 }
 
-// GetChainwork fetches the dcrjson.BlockHeaderVerbose and returns only the ChainWork
-// attribute as a hex-encoded string, without 0x prefix.
+// GetChainWork fetches the dcrjson.BlockHeaderVerbose and returns only the
+// ChainWork attribute as a hex-encoded string, without 0x prefix.
 func (db *ChainDBRPC) GetChainWork(hash *chainhash.Hash) (string, error) {
 	return rpcutils.GetChainWork(db.Client, hash)
 }

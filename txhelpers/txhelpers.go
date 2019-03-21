@@ -2,7 +2,7 @@
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
-// package txhelpers contains helper functions for working with transactions and
+// Package txhelpers contains helper functions for working with transactions and
 // blocks (e.g. checking for a transaction in a block).
 
 package txhelpers
@@ -963,7 +963,7 @@ func IsZeroHash(hash chainhash.Hash) bool {
 	return hash == zeroHash
 }
 
-// IsZeroHash checks if the string is the zero hash string.
+// IsZeroHashStr checks if the string is the zero hash string.
 func IsZeroHashStr(hash string) bool {
 	return hash == string(zeroHashStringBytes)
 }
@@ -978,7 +978,7 @@ func ValidateNetworkAddress(address dcrutil.Address, p *chaincfg.Params) bool {
 type AddressError error
 
 var (
-	AddressErrorNoError      AddressError = nil
+	AddressErrorNoError      AddressError
 	AddressErrorZeroAddress  AddressError = errors.New("null address")
 	AddressErrorWrongNet     AddressError = errors.New("wrong network")
 	AddressErrorDecodeFailed AddressError = errors.New("decoding failed")

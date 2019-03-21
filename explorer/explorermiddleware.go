@@ -59,7 +59,7 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 				if err != nil {
 					log.Errorf("GetHeight() failed: %v", err)
 					exp.StatusPage(w, defaultErrorCode,
-						"an unexpected error had occured while retrieving the best block",
+						"an unexpected error had occurred while retrieving the best block",
 						"", ExpStatusNotFound)
 					return
 				}

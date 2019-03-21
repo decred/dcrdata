@@ -310,8 +310,7 @@ func GetChartGroupingCtx(r *http.Request) string {
 }
 
 // GetCountCtx retrieves the ctxCount data ("to") URL path element from the
-// request context. If not set, the return value is 20. TODO: rename this
-// function.
+// request context. If not set, the return value is 20.
 func GetCountCtx(r *http.Request) int {
 	count, ok := r.Context().Value(ctxCount).(int)
 	if !ok {
@@ -321,8 +320,8 @@ func GetCountCtx(r *http.Request) int {
 	return count
 }
 
-// GetCountCtx retrieves the ctxOffset data ("from") from the request context.
-// If not set, the return value is 0. TODO: rename this function.
+// GetOffsetCtx retrieves the ctxOffset data ("from") from the request context.
+// If not set, the return value is 0.
 func GetOffsetCtx(r *http.Request) int {
 	offset, ok := r.Context().Value(ctxOffset).(int)
 	if !ok {

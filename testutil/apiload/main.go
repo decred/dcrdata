@@ -1,3 +1,7 @@
+// Copyright (c) 2018-2019, The Decred developers
+// Use of this source code is governed by an ISC license
+// that can be found in the LICENSE file.
+
 package main
 
 import (
@@ -138,7 +142,7 @@ func main() {
 				remainder -= attackDelay
 			}
 			if attacker.Name != "" {
-				log.Printf("Beggining %s", attacker.Name)
+				log.Printf("Beginning %s", attacker.Name)
 			}
 			for res := range vegAttacker.Attack(targeter, rate, remainder, strconv.Itoa(id)) {
 				resChan <- res

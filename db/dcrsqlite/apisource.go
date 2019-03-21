@@ -1755,7 +1755,7 @@ func (db *WiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.Address
 	return rpcutils.UnconfirmedTxnsForAddress(db.client, address, db.params)
 }
 
-// GetMepool gets all transactions from the mempool for explorer and adds the
+// GetMempool gets all transactions from the mempool for explorer and adds the
 // total out for all the txs and vote info for the votes. The returned slice
 // will be nil if the GetRawMempoolVerbose RPC fails. A zero-length non-nil
 // slice is returned if there are no transactions in mempool.
