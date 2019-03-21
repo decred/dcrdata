@@ -1,7 +1,7 @@
 // Copyright (c) 2019, The Decred developers
 // See LICENSE for details.
 
-// package cache provides a number of types and functions for caching Decred
+// Package cache provides a number of types and functions for caching Decred
 // address data, and filtering AddressRow slices. The type AddressCache may
 // store the following data for an address: balance (see
 // db/types.AddressBalance), address table row data (see db/types.AddressRow),
@@ -1109,8 +1109,9 @@ func (ac *AddressCache) StoreHistoryChart(addr string, addrChart dbtypes.History
 	return true
 }
 
-// StoreRows stores the non-merged AddressRow slice for the given address in
-// cache. The current best block data is required to determine cache freshness.
+// StoreRowsCompact stores the non-merged AddressRow slice for the given address
+// in cache. The current best block data is required to determine cache
+// freshness.
 func (ac *AddressCache) StoreRowsCompact(addr string, rows []dbtypes.AddressRowCompact, block *BlockID) bool {
 	if block == nil || ac.cap < 1 || ac.capAddr < 1 {
 		return false

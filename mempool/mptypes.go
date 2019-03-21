@@ -101,7 +101,8 @@ func (m *StakeData) Hash() string {
 }
 
 // TODO: tx data types
-// NewTx models data for a new transaction
+
+// NewTx models data for a new transaction.
 type NewTx struct {
 	Hash *chainhash.Hash
 	T    time.Time

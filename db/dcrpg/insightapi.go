@@ -250,12 +250,12 @@ func (pgb *ChainDB) AddressUTXO(address string) ([]apitypes.AddressTxnOutput, bo
 
 		// Try again, starting with the cache.
 		return pgb.AddressUTXO(address)
-	} else {
-		// We will run the DB query, so block others from doing the same. When
-		// query and/or cache update is completed, broadcast to any waiters that
-		// the coast is clear.
-		defer done()
 	}
+
+	// We will run the DB query, so block others from doing the same. When query
+	// and/or cache update is completed, broadcast to any waiters that the coast
+	// is clear.
+	defer done()
 
 	// Cache is empty or stale, so query the DB.
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)

@@ -204,8 +204,11 @@ const (
 	UpdateBlockNextByHash     = `UPDATE block_chain SET next_hash = $2 WHERE this_hash = $1;`
 	UpdateBlockNextByNextHash = `UPDATE block_chain SET next_hash = $2 WHERE next_hash = $1;`
 
-	// Grab the timestamp and chainwork.
-	SelectChainWork = `SELECT time, chainwork FROM blocks WHERE is_mainchain = true ORDER BY height;`
+	// SelectChainWork retrieves block timestamp and chainwork.
+	SelectChainWork = `SELECT time, chainwork
+		FROM blocks
+		WHERE is_mainchain
+		ORDER BY height;`
 
 	// TODO: index block_chain where needed
 )

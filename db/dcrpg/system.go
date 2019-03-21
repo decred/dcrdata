@@ -1,3 +1,6 @@
+// Copyright (c) 2019, The Decred developers
+// See LICENSE for details.
+
 package dcrpg
 
 import (
@@ -158,10 +161,10 @@ func retrieveSysSettings(stmt string, db *sql.DB) (PGSettings, error) {
 	settings := make(PGSettings)
 
 	for rows.Next() {
-		var name, setting, unit, short_desc, source, sourcefile sql.NullString
-		var sourceline sql.NullInt64
-		err = rows.Scan(&name, &setting, &unit, &short_desc,
-			&source, &sourcefile, &sourceline)
+		var name, setting, unit, shortDesc, source, sourceFile sql.NullString
+		var sourceLine sql.NullInt64
+		err = rows.Scan(&name, &setting, &unit, &shortDesc,
+			&source, &sourceFile, &sourceLine)
 		if err != nil {
 			return nil, err
 		}
@@ -172,11 +175,11 @@ func retrieveSysSettings(stmt string, db *sql.DB) (PGSettings, error) {
 		if source.String == "configuration file" {
 			// Shorten the source string.
 			source.String = "conf file"
-			if sourcefile.String == "" {
+			if sourceFile.String == "" {
 				file = "NO PERMISION"
 			} else {
-				file = sourcefile.String
-				line = strconv.FormatInt(sourceline.Int64, 10)
+				file = sourceFile.String
+				line = strconv.FormatInt(sourceLine.Int64, 10)
 			}
 		}
 
@@ -184,7 +187,7 @@ func retrieveSysSettings(stmt string, db *sql.DB) (PGSettings, error) {
 			Name:       name.String,
 			Setting:    setting.String,
 			Unit:       unit.String,
-			ShortDesc:  short_desc.String,
+			ShortDesc:  shortDesc.String,
 			Source:     source.String,
 			SourceFile: file,
 			SourceLine: line,
@@ -205,8 +208,8 @@ func RetrieveSysSettingsPerformance(db *sql.DB) (PGSettings, error) {
 	return retrieveSysSettings(internal.RetrieveSysSettingsPerformance, db)
 }
 
-// RetrieveSysSettingsPerformance a key server configuration settings
-// (config_file, data_directory, max_connections, dynamic_shared_memory_type,
+// RetrieveSysSettingsServer a key server configuration settings (config_file,
+// data_directory, max_connections, dynamic_shared_memory_type,
 // max_files_per_process, port, unix_socket_directories), which may be helpful
 // in debugging connectivity issues or other DB errors.
 func RetrieveSysSettingsServer(db *sql.DB) (PGSettings, error) {

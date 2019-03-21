@@ -46,10 +46,12 @@ const (
 	IndexOfAgendaVotesTableOnRowIDs = "uix_agenda_votes"
 )
 
+// AddressesIndexNames are the names of the indexes on the addresses table.
 var AddressesIndexNames = []string{IndexOfAddressTableOnAddress,
 	IndexOfAddressTableOnVoutID, IndexOfAddressTableOnBlockTime,
 	IndexOfAddressTableOnTx, IndexOfAddressTableOnMatchingTx}
 
+// IndexDescriptions relate table index names to descriptions of the indexes.
 var IndexDescriptions = map[string]string{
 	IndexOfBlocksTableOnHash:           "blocks on hash",
 	IndexOfBlocksTableOnHeight:         "blocks on height",

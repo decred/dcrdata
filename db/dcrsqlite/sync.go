@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -22,7 +22,7 @@ import (
 
 const (
 	rescanLogBlockChunk      = 1000
-	InitialLoadSyncStatusMsg = "(Lite Mode) Syncing stake and base DBs..."
+	initialLoadSyncStatusMsg = "(Lite Mode) Syncing stake and base DBs..."
 )
 
 // DBHeights returns the best block heights of: SQLite database tables (block
@@ -274,7 +274,7 @@ func (db *WiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGette
 
 	// Initialize the progress bars on the sync status page.
 	sendProgressUpdate(&dbtypes.ProgressBarLoad{
-		Msg:   InitialLoadSyncStatusMsg,
+		Msg:   initialLoadSyncStatusMsg,
 		BarID: dbtypes.InitialDBLoad,
 	})
 
@@ -347,7 +347,7 @@ func (db *WiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGette
 						From:      i,
 						To:        height,
 						Timestamp: int64(timeTakenPerBlock * float64(height-endRangeBlock)), //timeToComplete
-						Msg:       InitialLoadSyncStatusMsg,
+						Msg:       initialLoadSyncStatusMsg,
 						BarID:     dbtypes.InitialDBLoad,
 					}
 					sendProgressUpdate(progress)
@@ -454,7 +454,7 @@ func (db *WiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGette
 	sendProgressUpdate(&dbtypes.ProgressBarLoad{
 		From:     height,
 		To:       height,
-		Msg:      InitialLoadSyncStatusMsg,
+		Msg:      initialLoadSyncStatusMsg,
 		BarID:    dbtypes.InitialDBLoad,
 		Subtitle: "sync complete",
 	})

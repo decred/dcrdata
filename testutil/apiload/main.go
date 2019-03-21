@@ -1,3 +1,7 @@
+// Copyright (c) 2018-2019, The Decred developers
+// Use of this source code is governed by an ISC license
+// that can be found in the LICENSE file.
+
 package main
 
 import (
@@ -124,12 +128,13 @@ func main() {
 		vegAttacker := vegeta.NewAttacker(vegeta.MaxBody(100))
 
 		wg.Add(1)
-		go func(attacker *Attacker) {
+		go func(attacker *Attacker, id int) {
 			defer wg.Done()
 			remainder := duration
 			if attacker.Delay > 0 {
 				if attacker.Delay >= float32(attackProfile.Duration) {
-					log.Printf("The specified delay, %f, for attacker %d is >= the duration of test, %d.", attacker.Delay, idx, Config.Attack)
+					log.Printf("The specified delay, %f, for attacker %d is >= the duration of test, %s.",
+						attacker.Delay, id, Config.Attack)
 					return
 				}
 				attackDelay := time.Duration(int(attacker.Delay*1000)) * time.Millisecond
@@ -137,12 +142,12 @@ func main() {
 				remainder -= attackDelay
 			}
 			if attacker.Name != "" {
-				log.Printf("Beggining %s", attacker.Name)
+				log.Printf("Beginning %s", attacker.Name)
 			}
-			for res := range vegAttacker.Attack(targeter, rate, remainder, strconv.Itoa(idx)) {
+			for res := range vegAttacker.Attack(targeter, rate, remainder, strconv.Itoa(id)) {
 				resChan <- res
 			}
-		}(attacker)
+		}(attacker, idx)
 	}
 
 	// Make a notification channel for the end of the attack.

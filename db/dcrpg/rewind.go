@@ -1,3 +1,6 @@
+// Copyright (c) 2019, The Decred developers
+// See LICENSE for details.
+
 package dcrpg
 
 // Deletion of all data for a certain block (identified by hash), is performed
@@ -79,8 +82,8 @@ func deleteBlock(dbTx *sql.Tx, hash string) (rowsDeleted int64, err error) {
 func deleteBlockFromChain(dbTx *sql.Tx, hash string) (err error) {
 	// Delete the row from block_chain where this_hash is the specified hash,
 	// returning the previous block hash in the chain.
-	var prev_hash string
-	err = dbTx.QueryRow(internal.DeleteBlockFromChain, hash).Scan(&prev_hash)
+	var prevHash string
+	err = dbTx.QueryRow(internal.DeleteBlockFromChain, hash).Scan(&prevHash)
 	if err != nil {
 		// If a row with this_hash was not found, and thus prev_hash is not set,
 		// attempt to locate a row with next_hash set to the hash of this block,
@@ -93,7 +96,7 @@ func deleteBlockFromChain(dbTx *sql.Tx, hash string) (err error) {
 
 	// For any row where next_hash is the prev_hash of the removed row, set
 	// next_hash to and empty string since that block is no longer in the chain.
-	return UpdateBlockNextByHash(dbTx, prev_hash, "")
+	return UpdateBlockNextByHash(dbTx, prevHash, "")
 }
 
 // DeleteBlockData removes all data for the specified block from every table.
@@ -195,7 +198,7 @@ func DeleteBlockData(ctx context.Context, db *sql.DB, hash string) (res dbtypes.
 	default: // err != nil && err != sql.ErrNoRows
 		// Do not return an error if deleteBlockFromChain just did not delete
 		// exactly 1 row. Commit and be done.
-		if strings.HasPrefix(err.Error(), NotOneRowErrMsg) {
+		if strings.HasPrefix(err.Error(), notOneRowErrMsg) {
 			log.Warnf("deleteBlockFromChain: %v", err)
 			err = dbTx.Commit()
 		} else {

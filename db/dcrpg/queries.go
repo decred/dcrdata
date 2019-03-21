@@ -39,7 +39,7 @@ const (
 	outputCountByAllBlocks outputCountType = iota
 	outputCountByTicketPoolWindow
 
-	NotOneRowErrMsg = "failed to update exactly 1 row"
+	notOneRowErrMsg = "failed to update exactly 1 row"
 )
 
 const (
@@ -1294,13 +1294,12 @@ func RetrieveAddressBalance(ctx context.Context, db *sql.DB, address string) (ba
 		if err == sql.ErrNoRows {
 			_ = dbtx.Commit()
 			return
-		} else {
-			if errRoll := dbtx.Rollback(); errRoll != nil {
-				log.Errorf("Rollback failed: %v", errRoll)
-			}
-			err = fmt.Errorf("failed to query spent and unspent amounts: %v", err)
-			return
 		}
+		if errRoll := dbtx.Rollback(); errRoll != nil {
+			log.Errorf("Rollback failed: %v", errRoll)
+		}
+		err = fmt.Errorf("failed to query spent and unspent amounts: %v", err)
+		return
 	}
 
 	var fromStake, toStake int64
@@ -2331,7 +2330,7 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 	return addressRowsUpdated, totalUpdated, dbtx.Commit()
 }
 
-// SetSpendingForVinDbIDs updates rows of the addresses table with spending
+// SetSpendingForVinDbID updates rows of the addresses table with spending
 // information from the row of the vins table specified by vinDbID. This does
 // not insert the spending transaction into the addresses table.
 func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
@@ -2800,8 +2799,9 @@ func RetrieveTxBlockTimeByHash(ctx context.Context, db *sql.DB, txHash string) (
 	return
 }
 
-// This is used by update functions, so care should be taken to not timeout in
-// these cases.
+// RetrieveTxsByBlockHash retrieves all transactoins in a given block. This is
+// used by update functions, so care should be taken to not timeout in these
+// cases.
 func RetrieveTxsByBlockHash(ctx context.Context, db *sql.DB, blockHash string) (ids []uint64, txs []string,
 	blockInds []uint32, trees []int8, blockTimes []dbtypes.TimeDef, err error) {
 	var rows *sql.Rows
@@ -3502,7 +3502,7 @@ func UpdateBlockNext(db SqlExecutor, blockDbID uint64, next string) error {
 		return err
 	}
 	if numRows != 1 {
-		return fmt.Errorf("%s (%d)", NotOneRowErrMsg, numRows)
+		return fmt.Errorf("%s (%d)", notOneRowErrMsg, numRows)
 	}
 	return nil
 }
@@ -3519,7 +3519,7 @@ func UpdateBlockNextByHash(db SqlExecutor, this, next string) error {
 		return err
 	}
 	if numRows != 1 {
-		return fmt.Errorf("%s (%d)", NotOneRowErrMsg, numRows)
+		return fmt.Errorf("%s (%d)", notOneRowErrMsg, numRows)
 	}
 	return nil
 }
@@ -3536,7 +3536,7 @@ func UpdateBlockNextByNextHash(db SqlExecutor, currentNext, newNext string) erro
 		return err
 	}
 	if numRows != 1 {
-		return fmt.Errorf("%s (%d)", NotOneRowErrMsg, numRows)
+		return fmt.Errorf("%s (%d)", notOneRowErrMsg, numRows)
 	}
 	return nil
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -19,8 +19,8 @@ import (
 
 const (
 	rescanLogBlockChunk      = 500
-	InitialLoadSyncStatusMsg = "(Full Mode) Syncing stake, base and auxiliary DBs..."
-	AddressesSyncStatusMsg   = "Syncing addresses table with spending info..."
+	initialLoadSyncStatusMsg = "(Full Mode) Syncing stake, base and auxiliary DBs..."
+	addressesSyncStatusMsg   = "Syncing addresses table with spending info..."
 )
 
 /////////// Coordinated synchronization of base DB and auxiliary DB. ///////////
@@ -236,13 +236,13 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 
 	// Add the various updates that should run on successful sync.
 	sendProgressUpdate(&dbtypes.ProgressBarLoad{
-		Msg:   InitialLoadSyncStatusMsg,
+		Msg:   initialLoadSyncStatusMsg,
 		BarID: dbtypes.InitialDBLoad,
 	})
 	// Addresses table sync should only run if bulk update is enabled.
 	if updateAllAddresses {
 		sendProgressUpdate(&dbtypes.ProgressBarLoad{
-			Msg:   AddressesSyncStatusMsg,
+			Msg:   addressesSyncStatusMsg,
 			BarID: dbtypes.AddressesTableSync,
 		})
 	}
@@ -277,7 +277,7 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 						From:      ib,
 						To:        nodeHeight,
 						Timestamp: int64(timeTakenPerBlock * float64(nodeHeight-endRangeBlock)),
-						Msg:       InitialLoadSyncStatusMsg,
+						Msg:       initialLoadSyncStatusMsg,
 						BarID:     dbtypes.InitialDBLoad,
 					})
 					timeStart = time.Now()
@@ -383,7 +383,7 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 	sendProgressUpdate(&dbtypes.ProgressBarLoad{
 		From:  nodeHeight,
 		To:    nodeHeight,
-		Msg:   InitialLoadSyncStatusMsg,
+		Msg:   initialLoadSyncStatusMsg,
 		BarID: dbtypes.InitialDBLoad,
 	})
 

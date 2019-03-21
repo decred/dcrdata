@@ -2,7 +2,7 @@
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
-// package explorer handles the block explorer subsystem for generating the
+// Package explorer handles the block explorer subsystem for generating the
 // explorer pages.
 package explorer
 

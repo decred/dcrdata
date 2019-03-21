@@ -349,7 +349,7 @@ func _main(ctx context.Context) error {
 		// The number of rows removed from the summary table and stake table may
 		// be different if the DB was corrupted, but it is not important to log
 		// for the tables separately.
-		log.Infof("Sucessfully purged data for %d blocks from SQLite "+
+		log.Infof("Successfully purged data for %d blocks from SQLite "+
 			"(new height = %d).", nRemovedSummary, heightDB)
 
 		if usePG {
@@ -362,7 +362,7 @@ func _main(ctx context.Context) error {
 					NAux, err)
 			}
 			if s != nil {
-				log.Infof("Sucessfully purged data for %d blocks from PostgreSQL "+
+				log.Infof("Successfully purged data for %d blocks from PostgreSQL "+
 					"(new height = %d):\n%v", s.Blocks, heightDB, s)
 			} // otherwise likely err == sql.ErrNoRows
 		}

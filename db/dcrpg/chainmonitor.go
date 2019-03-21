@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -27,14 +27,14 @@ type ChainMonitor struct {
 }
 
 // NewChainMonitor creates a new ChainMonitor.
-func (db *ChainDBRPC) NewChainMonitor(ctx context.Context, wg *sync.WaitGroup,
+func (pgb *ChainDBRPC) NewChainMonitor(ctx context.Context, wg *sync.WaitGroup,
 	blockChan chan *chainhash.Hash, reorgChan chan *txhelpers.ReorgData) *ChainMonitor {
-	if db == nil {
+	if pgb == nil {
 		return nil
 	}
 	return &ChainMonitor{
 		ctx:            ctx,
-		db:             db,
+		db:             pgb,
 		wg:             wg,
 		blockChan:      blockChan,
 		reorgChan:      reorgChan,

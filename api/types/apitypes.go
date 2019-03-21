@@ -1,3 +1,4 @@
+// Copyright (c) 2019, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -385,6 +386,7 @@ type Status struct {
 	NetworkName     string `json:"network_name"`
 }
 
+// GetHeight returns the last stored block height.
 func (s *Status) GetHeight() uint32 {
 	s.RLock()
 	defer s.RUnlock()

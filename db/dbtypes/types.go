@@ -36,8 +36,8 @@ func IsTimeout(msg string) bool {
 		strings.Contains(msg, CtxDeadlineExceeded)
 }
 
-// IsTimeout checks if error's message is prefixed with the expected DB timeout
-// message prefix.
+// IsTimeoutErr checks if error's message is prefixed with the expected DB
+// timeout message prefix.
 func IsTimeoutErr(err error) bool {
 	return err != nil && IsTimeout(err.Error())
 }
@@ -785,9 +785,9 @@ type AddressRowCompact struct {
 	Value          uint64
 }
 
-// AddressRowCompact is like AddressRow for efficient in-memory storage of
-// merged address transaction data. The fields are ordered to avoid unneeded
-// padding and extra data is omitted for efficient caching. The fields that only
+// AddressRowMerged is like AddressRow for efficient in-memory storage of merged
+// address transaction data. The fields are ordered to avoid needless padding,
+// and extra data is omitted for memory efficient caching. The fields that only
 // pertain to non-merged views (IsFunding, TxVinVoutIndex, VinVoutDbID, and
 // MatchingTxHash) are omitted. The IsFunding and Value fields are also omitted
 // and replaced with methods to get these values from AtomsCredit and AtomsDebit
@@ -1594,7 +1594,7 @@ func ReduceAddressHistory(addrHist []*AddressRow) (*AddressInfo, float64, float6
 	return ai, fromStakeFraction, toStakeFraction
 }
 
-// Post-process performs time/vin/vout sorting and block height calculations.
+// PostProcess performs time/vin/vout sorting and block height calculations.
 func (a *AddressInfo) PostProcess(tipHeight uint32) {
 	// Sort the transactions by date and vin/vout index
 	sort.Slice(a.Transactions, func(i, j int) bool {
