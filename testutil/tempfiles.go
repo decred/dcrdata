@@ -1,4 +1,4 @@
-// package testutil provides some helper functions to be used in unit tests.
+// Package testutil provides some helper functions to be used in unit tests.
 package testutil
 
 import (

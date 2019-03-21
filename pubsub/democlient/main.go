@@ -1,3 +1,6 @@
+// Copyright (c) 2019, The Decred developers
+// See LICENSE for details.
+
 package main
 
 import (
@@ -202,6 +205,7 @@ func strInSlice(sl []string, str string) (bool, int) {
 	return false, -1
 }
 
+// AnotInB returns strings in the slice sA that are not in slice sB.
 func AnotInB(sA []string, sB []string) (AnotB []string) {
 	for _, s := range sA {
 		if found, _ := strInSlice(sB, s); found {

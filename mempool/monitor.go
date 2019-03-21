@@ -87,18 +87,21 @@ func NewMempoolMonitor(ctx context.Context, collector *MempoolDataCollector,
 	return p
 }
 
+// LastBlockHash returns the hash of the most recently stored block.
 func (p *MempoolMonitor) LastBlockHash() chainhash.Hash {
 	p.mtx.RLock()
 	defer p.mtx.RUnlock()
 	return p.lastBlock.Hash
 }
 
+// LastBlockHeight returns the height of the most recently stored block.
 func (p *MempoolMonitor) LastBlockHeight() int64 {
 	p.mtx.RLock()
 	defer p.mtx.RUnlock()
 	return p.lastBlock.Height
 }
 
+// LastBlockTime returns the time of the most recently stored block.
 func (p *MempoolMonitor) LastBlockTime() int64 {
 	p.mtx.RLock()
 	defer p.mtx.RUnlock()

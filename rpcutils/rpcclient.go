@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -495,8 +495,8 @@ func OrphanedTipLength(ctx context.Context, client BlockHashGetter,
 	return tipHeight - commonHeight, nil
 }
 
-// GetChainwork fetches the dcrjson.BlockHeaderVerbose
-// and returns only the ChainWork field as a string.
+// GetChainWork fetches the dcrjson.BlockHeaderVerbose and returns only the
+// ChainWork field as a string.
 func GetChainWork(client *rpcclient.Client, hash *chainhash.Hash) (string, error) {
 	header, err := client.GetBlockHeaderVerbose(hash)
 	if err != nil {

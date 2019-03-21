@@ -137,6 +137,7 @@ func (s TableUpgrade) String() string {
 		s.UpgradeType, s.CurrentVer, s.RequiredVer)
 }
 
+// TableExists checks if the specified table exists.
 func TableExists(db *sql.DB, tableName string) (bool, error) {
 	rows, err := db.Query(`select relname from pg_class where relname = $1`,
 		tableName)
@@ -227,6 +228,8 @@ func ClearTestingTable(db *sql.DB) error {
 	return err
 }
 
+// CreateTables creates all tables required by dcrdata if they do not already
+// exist.
 func CreateTables(db *sql.DB) error {
 	var err error
 	for tableName, createCommand := range createTableStatements {
@@ -363,6 +366,7 @@ func CheckColumnDataType(db *sql.DB, table, column string) (dataType string, err
 	return
 }
 
+// CheckCurrentTimeZone queries for the currently set postgres time zone.
 func CheckCurrentTimeZone(db *sql.DB) (currentTZ string, err error) {
 	if err = db.QueryRow(`SHOW TIME ZONE`).Scan(&currentTZ); err != nil {
 		err = fmt.Errorf("unable to query current time zone: %v", err)
@@ -370,6 +374,9 @@ func CheckCurrentTimeZone(db *sql.DB) (currentTZ string, err error) {
 	return
 }
 
+// CheckCurrentTimeZone queries for the default postgres time zone. This is the
+// value that would be observed if postgres were restarted using its current
+// configuration. The currently set time zone is also returned.
 func CheckDefaultTimeZone(db *sql.DB) (defaultTZ, currentTZ string, err error) {
 	// Remember the current time zone before switching to default.
 	currentTZ, err = CheckCurrentTimeZone(db)
@@ -398,6 +405,8 @@ func CheckDefaultTimeZone(db *sql.DB) (defaultTZ, currentTZ string, err error) {
 	return
 }
 
+// DeleteDuplicates attempts to delete "duplicate" rows in tables where unique
+// indexes are to be created.
 func (pgb *ChainDB) DeleteDuplicates(barLoad chan *dbtypes.ProgressBarLoad) error {
 	allDuplicates := []dropDuplicatesInfo{
 		// Remove duplicate vins

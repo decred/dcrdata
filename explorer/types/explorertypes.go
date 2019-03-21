@@ -290,33 +290,33 @@ type BlockValidation struct {
 // is (in)validating and the spent ticket hash. The ticketSpendInds tracks
 // known combinations of target block and spent ticket hash. This index is used
 // for sorting in views and counting total unique votes for a block.
-func (v *VoteInfo) SetTicketIndex(ticketSpendInds BlockValidatorIndex) {
+func (vi *VoteInfo) SetTicketIndex(ticketSpendInds BlockValidatorIndex) {
 	// One-based indexing
 	startInd := 1
 	// Reference the sub-index for the block being (in)validated by this vote.
-	if idxs, ok := ticketSpendInds[v.Validation.Hash]; ok {
+	if idxs, ok := ticketSpendInds[vi.Validation.Hash]; ok {
 		// If this ticket has been seen before voting on this block, set the
 		// known index. Otherwise, assign the next index in the series.
-		if idx, ok := idxs[v.TicketSpent]; ok {
-			v.MempoolTicketIndex = idx
+		if idx, ok := idxs[vi.TicketSpent]; ok {
+			vi.MempoolTicketIndex = idx
 		} else {
 			idx := len(idxs) + startInd
-			idxs[v.TicketSpent] = idx
-			v.MempoolTicketIndex = idx
+			idxs[vi.TicketSpent] = idx
+			vi.MempoolTicketIndex = idx
 		}
 	} else {
 		// First vote encountered for this block. Create new ticket sub-index.
-		ticketSpendInds[v.Validation.Hash] = TicketIndex{
-			v.TicketSpent: startInd,
+		ticketSpendInds[vi.Validation.Hash] = TicketIndex{
+			vi.TicketSpent: startInd,
 		}
-		v.MempoolTicketIndex = startInd
+		vi.MempoolTicketIndex = startInd
 	}
 }
 
 // VotesOnBlock indicates if the vote is voting on the validity of block
 // specified by the given hash.
-func (v *VoteInfo) VotesOnBlock(blockHash string) bool {
-	return v.Validation.ForBlock(blockHash)
+func (vi *VoteInfo) VotesOnBlock(blockHash string) bool {
+	return vi.Validation.ForBlock(blockHash)
 }
 
 // ForBlock indicates if the validation choice is for the specified block.
@@ -552,7 +552,7 @@ func FilterRegularTx(txs []*TrimmedTxInfo) (transactions []*TrimmedTxInfo) {
 	return transactions
 }
 
-// MempoolTx converts the input []MempoolTx to a []*TrimmedTxInfo.
+// TrimMempoolTx converts the input []MempoolTx to a []*TrimmedTxInfo.
 func TrimMempoolTx(txs []MempoolTx) (trimmedTxs []*TrimmedTxInfo) {
 	for _, tx := range txs {
 		fee, _ := dcrutil.NewAmount(tx.Fees) // non-nil error returns 0 fee

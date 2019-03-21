@@ -214,7 +214,7 @@ var expectedAgenda = &AgendaTagged{
 }
 
 var activeVersions = map[uint32][]chaincfg.ConsensusDeployment{
-	5: []chaincfg.ConsensusDeployment{
+	5: {
 		{
 			Vote: chaincfg.Vote{
 				Id:          "TestAgenda0001",
@@ -256,12 +256,7 @@ func TestUpdateAndRetrievals(t *testing.T) {
 	var client *testClient
 	dbInstance := &AgendaDB{sdb: db}
 
-	// Confirm that the client implements the DeploymentSource interface.
-	var _ DeploymentSource = client
-
-	var invalidVersions = map[uint32][]chaincfg.ConsensusDeployment{
-		20: []chaincfg.ConsensusDeployment{},
-	}
+	invalidVersions := map[uint32][]chaincfg.ConsensusDeployment{20: {}}
 
 	type testData struct {
 		db           *AgendaDB
@@ -295,7 +290,7 @@ func TestUpdateAndRetrievals(t *testing.T) {
 		})
 	}
 
-	// Test retrieval of all agendas
+	// Test retrieval of all agendas.
 	t.Run("Test_AllAgendas", func(t *testing.T) {
 		agendas, err := dbInstance.AllAgendas()
 		if err != nil {
@@ -327,7 +322,7 @@ func TestUpdateAndRetrievals(t *testing.T) {
 		}
 	})
 
-	// Testing retrieval of single agenda by ID
+	// Testing retrieval of single agenda by ID.
 	t.Run("Test_AgendaInfo", func(t *testing.T) {
 		agenda, err := dbInstance.AgendaInfo(firstAgendaInfo.ID)
 		if err != nil {

@@ -484,7 +484,7 @@ func (bittrex *BittrexExchange) Refresh() {
 	}
 	result := response.Result[0]
 	if result.MarketName != bittrex.MarketName {
-		bittrex.fail("Wrong market", fmt.Errorf("Expected market %s. Recieved %s", bittrex.MarketName, result.MarketName))
+		bittrex.fail("Wrong market", fmt.Errorf("Expected market %s. Received %s", bittrex.MarketName, result.MarketName))
 		return
 	}
 	bittrex.Update(&ExchangeState{
@@ -640,7 +640,7 @@ func (huobi *HuobiExchange) Refresh() {
 		return
 	}
 	if response.Status != huobi.Ok {
-		huobi.fail("Status not ok", fmt.Errorf("Expected status %s. Recieved %s", huobi.Ok, response.Status))
+		huobi.fail("Status not ok", fmt.Errorf("Expected status %s. Received %s", huobi.Ok, response.Status))
 		return
 	}
 	dcrVolume := response.Tick.Vol
