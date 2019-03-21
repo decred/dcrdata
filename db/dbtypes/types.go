@@ -786,9 +786,9 @@ type AddressRowCompact struct {
 }
 
 // AddressRowMerged is like AddressRow for efficient in-memory storage of merged
-// address transaction data. The fields are ordered to avoid unneeded padding
-// and extra data is omitted for efficient caching. The fields that only pertain
-// to non-merged views (IsFunding, TxVinVoutIndex, VinVoutDbID, and
+// address transaction data. The fields are ordered to avoid needless padding,
+// and extra data is omitted for memory efficient caching. The fields that only
+// pertain to non-merged views (IsFunding, TxVinVoutIndex, VinVoutDbID, and
 // MatchingTxHash) are omitted. The IsFunding and Value fields are also omitted
 // and replaced with methods to get these values from AtomsCredit and AtomsDebit
 // as needed. Also node that MergedCount is of type int32 since that is big
