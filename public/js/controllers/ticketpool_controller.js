@@ -282,7 +282,8 @@ export default class extends Controller {
             callbacks: {
               label: (tooltipItem, data) => {
                 var sum = 0
-                var currentValue = data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index]
+                var d = data.datasets[tooltipItem.datasetIndex].data
+                var currentValue = d[tooltipItem.index]
                 d.map((u) => { sum += u })
                 return currentValue + ' Tickets ( ' + ((currentValue / sum) * 100).toFixed(2) + '% )'
               }
