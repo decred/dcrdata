@@ -296,6 +296,10 @@ func CreateTable(db *sql.DB, tableName string) error {
 	return err
 }
 
+// TableUpgradesRequired builds a list of table upgrade information for each
+// of the supported auxiliary db tables. The upgrade information includes the
+// table name, its current & required table versions and the action to be taken
+// after comparing the current & required versions.
 func TableUpgradesRequired(versions map[string]TableVersion) []TableUpgrade {
 	var tableUpgrades []TableUpgrade
 	for t := range createTableStatements {
@@ -329,7 +333,8 @@ func TableUpgradesRequired(versions map[string]TableVersion) []TableUpgrade {
 	return tableUpgrades
 }
 
-// TableVersions retrieves the versions of the tables in the auxiliary db.
+// TableVersions retrieve and maps the tables names in the auxiliary db to their
+// current table versions.
 func TableVersions(db *sql.DB) map[string]TableVersion {
 	versions := map[string]TableVersion{}
 	for tableName := range createTableStatements {

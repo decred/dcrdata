@@ -391,19 +391,21 @@ func (pgb *ChainDB) UpgradeTables(dcrdClient *rpcclient.Client,
 	upgradeFailed := fmt.Errorf("failed to upgrade tables to required version %v",
 		needVersion)
 
-	// Ensure the required version was reached.
 	upgradeInfo := TableUpgradesRequired(TableVersions(pgb.db))
+	// If no upgrade information exists return an error
 	if len(upgradeInfo) == 0 {
 		return false, upgradeFailed
 	}
 
+	// Ensure that the required version was reached for all the table upgrades
+	// otherwise return an error.
 	for _, info := range upgradeInfo {
 		if info.UpgradeType != OK {
 			return false, upgradeFailed
 		}
 	}
 
-	// Unsupported upgrades caught by default case, so we've succeeded.
+	// Unsupported upgrades are caught by the default case, so we've succeeded.
 	log.Infof("Table upgrades completed.")
 	return true, nil
 }
