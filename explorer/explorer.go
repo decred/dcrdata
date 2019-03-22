@@ -74,7 +74,7 @@ type explorerDataSourceLite interface {
 	GetMempool() []types.MempoolTx
 	TxHeight(txid *chainhash.Hash) (height int64)
 	BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
-	SqliteChartsData(data []*dbtypes.ChartsData) error
+	SqliteChartsData(data map[string]*dbtypes.ChartsData) (map[string]*dbtypes.ChartsData, error)
 	GetExplorerFullBlocks(start int, end int) []*types.BlockInfo
 	Difficulty() (float64, error)
 	RetreiveDifficulty(timestamp int64) float64
@@ -96,7 +96,7 @@ type explorerDataSource interface {
 	FillAddressTransactions(addrInfo *dbtypes.AddressInfo) error
 	BlockMissedVotes(blockHash string) ([]string, error)
 	TicketMiss(ticketHash string) (string, int64, error)
-	PgChartsData(oldData []*dbtypes.ChartsData) (err error)
+	PgChartsData(oldData map[string]*dbtypes.ChartsData) (map[string]*dbtypes.ChartsData, error)
 	TicketsPriceByHeight() (*dbtypes.ChartsData, error)
 	SideChainBlocks() ([]*dbtypes.BlockStatus, error)
 	DisapprovedBlocks() ([]*dbtypes.BlockStatus, error)
@@ -460,22 +460,26 @@ func (exp *explorerUI) prePopulateChartsData() {
 	log.Debugf("Retrieving charts data from aux DB.")
 
 	chartsData := cacheChartsData.get()
-	pgChartsCount := dbtypes.PgChartsCount
-	sqliteChartsCount := dbtypes.SqliteChartsCount
-	chartsCount := pgChartsCount + sqliteChartsCount
-	pgData := make([]*dbtypes.ChartsData, pgChartsCount)
+	pgData := make(map[string]*dbtypes.ChartsData)
+	sqliteData := make(map[string]*dbtypes.ChartsData)
 
-	// chartsData is initialized to an array of length chartsCount if it is empty
-	// or its current length is not equal to chartsCount.
-	if len(chartsData) != chartsCount {
-		chartsData = make([]*dbtypes.ChartsData, chartsCount)
+	if chartsData != nil {
+		// Pick all the PgCharts
+		for _, chartName := range dbtypes.PgCharts {
+			dataset := chartsData[chartName]
+			pgData[chartName] = dataset
+		}
+
+		// Pick all the sqliteCharts
+		for _, chartName := range dbtypes.SqliteCharts {
+			dataset := chartsData[chartName]
+			sqliteData[chartName] = dataset
+		}
 	}
 
-	// Pg charts data is stored from index 0-(dbtypes.PgChartsCount -1) in the
-	// charts cache.
-	copy(pgData, chartsData[:pgChartsCount])
-
-	if err := exp.explorerSource.PgChartsData(pgData); err != nil {
+	var err error
+	pgData, err = exp.explorerSource.PgChartsData(pgData)
+	if err != nil {
 		if dbtypes.IsTimeoutErr(err) {
 			log.Warnf("GetPgChartsData DB timeout: %v", err)
 			return
@@ -487,28 +491,18 @@ func (exp *explorerUI) prePopulateChartsData() {
 
 	log.Debugf("Retrieving charts data from base DB.")
 
-	sqliteData := make([]*dbtypes.ChartsData, sqliteChartsCount)
-
-	// Sqlite charts data is stored between index (dbtypes.PgChartsCount) to
-	// the end of the cache.
-	copy(sqliteData, chartsData[pgChartsCount:])
-
-	if err := exp.blockData.SqliteChartsData(sqliteData); err != nil {
+	sqliteData, err = exp.blockData.SqliteChartsData(sqliteData)
+	if err != nil {
 		log.Errorf("Invalid SQLite data found: %v", err)
 		return
 	}
 
-	// count defines the total number of chart returned.
-	count := len(pgData) + len(sqliteData)
-	if count == chartsCount {
-		copy(chartsData[:pgChartsCount], pgData)
-		copy(chartsData[pgChartsCount:], sqliteData)
-	} else {
-		log.Errorf("Expected to find %d charts but found %d", chartsCount, count)
-		return
+	// Append the sqlite chart data
+	for k, v := range sqliteData {
+		pgData[k] = v
 	}
 
-	cacheChartsData.Update(expHeight, chartsData)
+	cacheChartsData.Update(expHeight, pgData)
 
 	log.Infof("Done pre-populating the charts data in %v.", time.Since(startTime))
 }

@@ -55,3 +55,4 @@ dcrrates/rateserver/rateserver
 dcrrates/rateserver/logs/
 *.sql
 *.gob
+dbload

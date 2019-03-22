@@ -2,7 +2,6 @@ package explorer
 
 import (
 	"encoding/gob"
-	"fmt"
 	"os"
 	"sync"
 
@@ -11,26 +10,26 @@ import (
 
 // Cache data for charts that appear on /charts page is managed here.
 
-// chartDataCounter is a data cache for the historical charts that appear on
+// chartDataCache is a data cache for the historical charts that appear on
 // /charts page on the UI.
-type chartDataCounter struct {
+type chartDataCache struct {
 	sync.RWMutex
 	updateHeight int64
-	Data         []*dbtypes.ChartsData
+	Data         map[string]*dbtypes.ChartsData
 }
 
 // cacheChartsData holds the prepopulated data that is used to draw the charts.
-var cacheChartsData chartDataCounter
+var cacheChartsData chartDataCache
 
 // get provides a thread-safe way to access the all cache charts data.
-func (c *chartDataCounter) get() []*dbtypes.ChartsData {
+func (c *chartDataCache) get() map[string]*dbtypes.ChartsData {
 	c.RLock()
 	defer c.RUnlock()
 	return c.Data
 }
 
 // Height returns the last update height of the charts data cache.
-func (c *chartDataCounter) Height() int64 {
+func (c *chartDataCache) Height() int64 {
 	c.RLock()
 	defer c.RUnlock()
 	return c.height()
@@ -38,7 +37,7 @@ func (c *chartDataCounter) Height() int64 {
 
 // height returns the last update height of the charts data cache. Use Height
 // instead for thread-safe access.
-func (c *chartDataCounter) height() int64 {
+func (c *chartDataCache) height() int64 {
 	if c.updateHeight == 0 {
 		return -1
 	}
@@ -46,7 +45,7 @@ func (c *chartDataCounter) height() int64 {
 }
 
 // Update sets new data for the given height in the the charts data cache.
-func (c *chartDataCounter) Update(height int64, newData []*dbtypes.ChartsData) {
+func (c *chartDataCache) Update(height int64, newData map[string]*dbtypes.ChartsData) {
 	c.Lock()
 	defer c.Unlock()
 	c.update(height, newData)
@@ -54,25 +53,20 @@ func (c *chartDataCounter) Update(height int64, newData []*dbtypes.ChartsData) {
 
 // update sets new data for the given height in the the charts data cache. Use
 // Update instead for thread-safe access.
-func (c *chartDataCounter) update(height int64, newData []*dbtypes.ChartsData) {
+func (c *chartDataCache) update(height int64, newData map[string]*dbtypes.ChartsData) {
 	c.updateHeight = height
 	c.Data = newData
 }
 
 // ChartTypeData is a thread-safe way to access chart data of the given type.
-func ChartTypeData(chartType string) (*dbtypes.ChartsData, bool) {
+func ChartTypeData(chartType string) (data *dbtypes.ChartsData, ok bool) {
 	cacheChartsData.RLock()
 	defer cacheChartsData.RUnlock()
 
-	chartVal, err := dbtypes.ChartsFromStr(chartType)
-	if err != nil {
-		log.Debug(err)
-		return nil, false
-	}
-
-	// If an invalid chart type is found, the returned data belongs to ticket
-	// price chart.
-	return cacheChartsData.Data[chartVal.Pos()], true
+	// Data updates replace the entire map rather than modifying the data to
+	// which the pointers refer, so the pointer can safely be returned here.
+	data, ok = cacheChartsData.Data[chartType]
+	return
 }
 
 // isfileExists checks if the provided file paths exists. It returns true if
@@ -118,18 +112,12 @@ func ReadCacheFile(filePath string, height int64) error {
 		os.RemoveAll(filePath)
 	}()
 
-	var data = make([]*dbtypes.ChartsData, 0)
+	var data = make(map[string]*dbtypes.ChartsData)
 
 	decoder := gob.NewDecoder(file)
 	err = decoder.Decode(&data)
 	if err != nil {
 		return err
-	}
-
-	chartsCount := dbtypes.PgChartsCount + dbtypes.SqliteChartsCount
-	if len(data) != chartsCount {
-		return fmt.Errorf("Found %d instead of %d charts in the cache dump",
-			len(data), chartsCount)
 	}
 
 	cacheChartsData.Update(height, data)

@@ -498,102 +498,36 @@ func ChoiceIndexFromStr(choice string) (VoteChoice, error) {
 	}
 }
 
-// ChartType defines the respective charts that appear on the /charts page. It also
-// helps define the respective indexes to the charts pushed into the cache array.
-type ChartType int8
-
 const (
-	// Pg Charts in alphabetical order.
-
-	AvgBlockSize ChartType = iota
-	BlockChainSize
-	ChainWork
-	CoinSupply
-	DurationBTW
-	HashRate
-	POWDifficulty
-	TicketByWindows
-	TicketPrice
-	TicketsByBlocks
-	TicketSpendT
-	TxPerBlock
-	TxPerDay
-
-	// Sqlite Charts in alphabetical order.
-
-	FeePerBlock
-	TicketPoolSize
-	TicketPoolValue
+	AvgBlockSize    = "avg-block-size"
+	BlockChainSize  = "blockchain-size"
+	ChainWork       = "chainwork"
+	CoinSupply      = "coin-supply"
+	DurationBTW     = "duration-btw-blocks"
+	HashRate        = "hashrate"
+	POWDifficulty   = "pow-difficulty"
+	TicketByWindows = "ticket-by-outputs-windows"
+	TicketPrice     = "ticket-price"
+	TicketsByBlocks = "ticket-by-outputs-blocks"
+	TicketSpendT    = "ticket-spend-type"
+	TxPerBlock      = "tx-per-block"
+	TxPerDay        = "tx-per-day"
+	FeePerBlock     = "fee-per-block"
+	TicketPoolSize  = "ticket-pool-size"
+	TicketPoolValue = "ticket-pool-value"
 )
 
-const (
-	// SqliteChartsCount defines the count of charts that use the sqlite db as
-	// data source and their data is held in cacheChartsData cache. When new
-	// sqlite charts are added, this value should be updated to avoid errors.
-	SqliteChartsCount = 3
+var (
+	// SqliteCharts helps select all the charts that use the SQlite db as a data
+	// source from the charts cache data.
+	SqliteCharts = []string{FeePerBlock, TicketPoolSize, TicketPoolValue}
 
-	// PgChartsCount defines the count of charts that use the auxiliary db as
-	// data source and their data is held in cacheChartsData cache. When new
-	// pg charts are added, this value should be updated to avoid errors.
-	PgChartsCount = 13
+	// PgCharts helps select all the charts that use the auxiliary db as a data
+	// source from the charts cache data.
+	PgCharts = []string{AvgBlockSize, BlockChainSize, ChainWork, CoinSupply,
+		DurationBTW, HashRate, POWDifficulty, TicketByWindows, TicketPrice,
+		TicketsByBlocks, TicketSpendT, TxPerBlock, TxPerDay}
 )
-
-// ChartsDef maps the ChartType value to its respective chart name string.
-var ChartsDef = map[ChartType]string{
-	AvgBlockSize:    "avg-block-size",
-	BlockChainSize:  "blockchain-size",
-	ChainWork:       "chainwork",
-	CoinSupply:      "coin-supply",
-	DurationBTW:     "duration-btw-blocks",
-	FeePerBlock:     "fee-per-block",
-	HashRate:        "hashrate",
-	POWDifficulty:   "pow-difficulty",
-	TicketByWindows: "ticket-by-outputs-windows",
-	TicketPoolSize:  "ticket-pool-size",
-	TicketPoolValue: "ticket-pool-value",
-	TicketPrice:     "ticket-price",
-	TicketsByBlocks: "ticket-by-outputs-blocks",
-	TicketSpendT:    "ticket-spend-type",
-	TxPerBlock:      "tx-per-block",
-	TxPerDay:        "tx-per-day",
-}
-
-// String is the default stringer for Charts data type.
-func (c ChartType) String() string {
-	return ChartsDef[c]
-}
-
-// Pos returns the index to the position in the cache slices where all charts
-// data is held. Index returned, is obtained from the alphabetical order in
-// which pgCharts and sqliteCharts chart types are defined in. It is also used
-// to define the index of the pgCharts data.
-func (c ChartType) Pos() int {
-	return int(c)
-}
-
-// SqlitePos returns the index to the position in sqlite charts slice data only.
-// Since sqlite charts are listed alphabetically after pgCharts, the index of
-// last pgChart should be deleted from each chart to get the exact position of
-// the sqlite chart in the sqlite dataset.
-func (c ChartType) SqlitePos() int {
-	lastPGChartIndex := PgChartsCount
-	if int(c) >= lastPGChartIndex {
-		return int(c) - lastPGChartIndex
-	}
-	// A non-sqlite chart was accessed as sqlite chart.
-	return -1
-}
-
-// ChartsFromStr returns the Charts data type key for the provided chart string
-// name.
-func ChartsFromStr(name string) (ChartType, error) {
-	for key, val := range ChartsDef {
-		if val == name {
-			return key, nil
-		}
-	}
-	return TicketPrice, fmt.Errorf("%s chart name is unknown", name)
-}
 
 // MileStone defines the various stages passed by vote on a given agenda.
 // Activated is the height at which the delay time begins before a vote activates.

@@ -56,17 +56,10 @@ func TestMain(m *testing.M) {
 // No difference between the two should exist otherwise this test should fail.
 // It also checks the order and duplicates in the x-axis dataset.
 func TestPgChartsData(t *testing.T) {
-	var oldData = make([]*dbtypes.ChartsData, dbtypes.PgChartsCount)
-	err := db.PgChartsData(oldData)
+	var oldData = make(map[string]*dbtypes.ChartsData)
+	oldData, err := db.PgChartsData(oldData)
 	if err != nil {
 		t.Fatalf("expected no error but found: %v", err)
-		return
-	}
-
-	// All supported pg historical charts count is defined by dbtypes.PgChartsCount.
-	if len(oldData) != dbtypes.PgChartsCount {
-		t.Fatalf("expected to %d charts data but only found %d ",
-			dbtypes.PgChartsCount, len(oldData))
 		return
 	}
 
@@ -74,7 +67,7 @@ func TestPgChartsData(t *testing.T) {
 
 	// xvalArray maps the chart type to its respective x-axis dataset name.
 	// Most charts either use timestamp or block height as the x-axis value.
-	xvalArray := map[dbtypes.ChartType]string{
+	xvalArray := map[string]string{
 		dbtypes.AvgBlockSize:    "Time",
 		dbtypes.BlockChainSize:  "Time",
 		dbtypes.ChainWork:       "Time",
@@ -90,18 +83,13 @@ func TestPgChartsData(t *testing.T) {
 		dbtypes.TxPerDay:        "Time",
 	}
 
-	if len(xvalArray) != dbtypes.PgChartsCount {
-		t.Fatalf("some charts x-axis details are unaccounted for")
-		return
-	}
-
 	// Charts x-axis coordinates dataset should not have duplicates. charts x-axis
 	// coordinates should be ordered in ascending order.
 	t.Run("check_duplicates_&_ordering_for_", func(t *testing.T) {
 		for chartT, xValName := range xvalArray {
-			data := oldData[chartT.Pos()]
+			data := oldData[chartT]
 
-			t.Run(chartT.String(), func(t *testing.T) {
+			t.Run(chartT, func(t *testing.T) {
 				switch strings.ToLower(xValName) {
 				case "height":
 					// All Height dataset is an array of type uint64
@@ -171,25 +159,26 @@ func TestPgChartsData(t *testing.T) {
 		}
 	})
 
-	dataCopy := make([]*dbtypes.ChartsData, len(oldData))
-	copy(dataCopy, oldData)
+	dataCopy := make(map[string]*dbtypes.ChartsData, len(oldData))
+	for k, v := range oldData {
+		dataCopy[k] = v
+	}
 
 	// In this test, no new data is expected to be added by the queries. The correct
 	// data returned after passing dataCopy should match oldData. i.e. the oldData
 	// arrays length and content should match the returned result.
 
 	t.Run("Check_if_invalid_data_was_added_for_", func(t *testing.T) {
-		if err = db.PgChartsData(dataCopy); err != nil {
+		dataCopy, err = db.PgChartsData(dataCopy)
+		if err != nil {
 			t.Fatalf("expected no error but found: %v", err)
 			return
 		}
 
 		for k := range dataCopy {
-			chartName := dbtypes.ChartType(k).String()
-			t.Run(chartName, func(t *testing.T) {
+			t.Run(k, func(t *testing.T) {
 				if !reflect.DeepEqual(dataCopy[k], oldData[k]) {
-					t.Fatalf("expected no new data to be added for chart (%s) to dataCopy but it was.",
-						chartName)
+					t.Fatalf("expected no new data to be added for chart (%s) to dataCopy but it was.", k)
 					return
 				}
 			})
@@ -203,165 +192,150 @@ func TestPgChartsData(t *testing.T) {
 	// diff defines the number of entries to delete from the parent array.
 	diff := 5
 
-	// dbtypes.AvgBlockSize: -> index 0 here and 0 in cache
-	index := dbtypes.AvgBlockSize.Pos()
-	avgC := len(dataCopy[index].Time)
+	name := dbtypes.AvgBlockSize
+	avgC := len(dataCopy[name].Time)
 	if avgC < diff {
 		avgC = 0
 	} else {
 		avgC -= diff
 	}
-	dataCopy[index].Time = dataCopy[index].Time[:avgC]
-	dataCopy[index].Size = dataCopy[index].Size[:avgC]
+	dataCopy[name].Time = dataCopy[name].Time[:avgC]
+	dataCopy[name].Size = dataCopy[name].Size[:avgC]
 
-	// dbtypes.BlockChainSize:  -> index 1 here and 1 in cache
-	index = dbtypes.BlockChainSize.Pos()
-	bSizeC := len(dataCopy[index].Time)
+	name = dbtypes.BlockChainSize
+	bSizeC := len(dataCopy[name].Time)
 	if bSizeC < diff {
 		bSizeC = 0
 	} else {
 		bSizeC -= diff
 	}
-	dataCopy[index].Time = dataCopy[index].Time[:bSizeC]
-	dataCopy[index].ChainSize = dataCopy[index].ChainSize[:bSizeC]
+	dataCopy[name].Time = dataCopy[name].Time[:bSizeC]
+	dataCopy[name].ChainSize = dataCopy[name].ChainSize[:bSizeC]
 
-	// dbtypes.ChainWork:  -> index 2 here and 2 in cache
-	index = dbtypes.ChainWork.Pos()
-	chainC := len(dataCopy[index].Time)
+	name = dbtypes.ChainWork
+	chainC := len(dataCopy[name].Time)
 	if chainC < diff {
 		chainC = 0
 	} else {
 		chainC -= diff
 	}
-	dataCopy[index].Time = dataCopy[index].Time[:chainC]
-	dataCopy[index].ChainWork = dataCopy[index].ChainWork[:chainC]
+	dataCopy[name].Time = dataCopy[name].Time[:chainC]
+	dataCopy[name].ChainWork = dataCopy[name].ChainWork[:chainC]
 
-	// dbtypes.CoinSupply:  -> index 3 here and 3 in cache
-	index = dbtypes.CoinSupply.Pos()
-	coinC := len(dataCopy[index].Time)
+	name = dbtypes.CoinSupply
+	coinC := len(dataCopy[name].Time)
 	if coinC < diff {
 		coinC = 0
 	} else {
 		coinC -= diff
 	}
-	dataCopy[index].Time = dataCopy[index].Time[:coinC]
-	dataCopy[index].ValueF = dataCopy[index].ValueF[:coinC]
+	dataCopy[name].Time = dataCopy[name].Time[:coinC]
+	dataCopy[name].ValueF = dataCopy[name].ValueF[:coinC]
 
-	// dbtypes.DurationBTW:  -> index 4 here and 4 in cache
-	index = dbtypes.DurationBTW.Pos()
-	durC := len(dataCopy[index].Height)
+	name = dbtypes.DurationBTW
+	durC := len(dataCopy[name].Height)
 	if durC < diff {
 		durC = 0
 	} else {
 		durC -= diff
 	}
-	dataCopy[index].Height = dataCopy[index].Height[:durC]
-	dataCopy[index].ValueF = dataCopy[index].ValueF[:durC]
+	dataCopy[name].Height = dataCopy[name].Height[:durC]
+	dataCopy[name].ValueF = dataCopy[name].ValueF[:durC]
 
-	//  dbtypes.HashRate:  -> index 5 here and 5 in cache
-	index = dbtypes.HashRate.Pos()
-	rateC := len(dataCopy[index].Time)
+	name = dbtypes.HashRate
+	rateC := len(dataCopy[name].Time)
 	if rateC < diff {
 		rateC = 0
 	} else {
 		rateC -= diff
 	}
-	dataCopy[index].Time = dataCopy[index].Time[:rateC]
-	dataCopy[index].NetHash = dataCopy[index].NetHash[:rateC]
+	dataCopy[name].Time = dataCopy[name].Time[:rateC]
+	dataCopy[name].NetHash = dataCopy[name].NetHash[:rateC]
 
-	// dbtypes.POWDifficulty:  -> index 6 here and 6 in cache
-	index = dbtypes.POWDifficulty.Pos()
-	powC := len(dataCopy[index].Time)
+	name = dbtypes.POWDifficulty
+	powC := len(dataCopy[name].Time)
 	if powC < diff {
 		powC = 0
 	} else {
 		powC -= diff
 	}
-	dataCopy[index].Time = dataCopy[index].Time[:powC]
-	dataCopy[index].Difficulty = dataCopy[index].Difficulty[:powC]
+	dataCopy[name].Time = dataCopy[name].Time[:powC]
+	dataCopy[name].Difficulty = dataCopy[name].Difficulty[:powC]
 
-	// dbtypes.TicketByWindows:  -> index 7 here and 7 in cache
-	index = dbtypes.TicketByWindows.Pos()
-	winC := len(dataCopy[index].Height)
+	name = dbtypes.TicketByWindows
+	winC := len(dataCopy[name].Height)
 	if winC < diff {
 		winC = 0
 	} else {
 		winC -= diff
 	}
-	dataCopy[index].Height = dataCopy[index].Height[:winC]
-	dataCopy[index].Solo = dataCopy[index].Solo[:winC]
-	dataCopy[index].Pooled = dataCopy[index].Pooled[:winC]
+	dataCopy[name].Height = dataCopy[name].Height[:winC]
+	dataCopy[name].Solo = dataCopy[name].Solo[:winC]
+	dataCopy[name].Pooled = dataCopy[name].Pooled[:winC]
 
-	// dbtypes.TicketPrice:  -> index 8 here and 8 in cache
-	index = dbtypes.TicketPrice.Pos()
-	priceC := len(dataCopy[index].Time)
+	name = dbtypes.TicketPrice
+	priceC := len(dataCopy[name].Time)
 	if priceC < diff {
 		priceC = 0
 	} else {
 		priceC -= diff
 	}
-	dataCopy[index].Time = dataCopy[index].Time[:priceC]
-	dataCopy[index].ValueF = dataCopy[index].ValueF[:priceC]
+	dataCopy[name].Time = dataCopy[name].Time[:priceC]
+	dataCopy[name].ValueF = dataCopy[name].ValueF[:priceC]
 
-	// dbtypes.TicketsByBlocks:  -> index 9 here and 9 in cache
-	index = dbtypes.TicketsByBlocks.Pos()
-	blockC := len(dataCopy[index].Height)
+	name = dbtypes.TicketsByBlocks
+	blockC := len(dataCopy[name].Height)
 	if blockC < diff {
 		blockC = 0
 	} else {
 		blockC -= diff
 	}
-	dataCopy[index].Height = dataCopy[index].Height[:blockC]
-	dataCopy[index].Solo = dataCopy[index].Solo[:blockC]
-	dataCopy[index].Pooled = dataCopy[index].Pooled[:blockC]
+	dataCopy[name].Height = dataCopy[name].Height[:blockC]
+	dataCopy[name].Solo = dataCopy[name].Solo[:blockC]
+	dataCopy[name].Pooled = dataCopy[name].Pooled[:blockC]
 
-	// dbtypes.TicketSpendT:  -> index 10 here and 10 in cache
-	index = dbtypes.TicketSpendT.Pos()
-	spendC := len(dataCopy[index].Height)
+	name = dbtypes.TicketSpendT
+	spendC := len(dataCopy[name].Height)
 	if spendC < diff {
 		spendC = 0
 	} else {
 		spendC -= diff
 	}
-	dataCopy[index].Height = dataCopy[index].Height[:spendC]
-	dataCopy[index].Unspent = dataCopy[index].Unspent[:spendC]
-	dataCopy[index].Revoked = dataCopy[index].Revoked[:spendC]
+	dataCopy[name].Height = dataCopy[name].Height[:spendC]
+	dataCopy[name].Unspent = dataCopy[name].Unspent[:spendC]
+	dataCopy[name].Revoked = dataCopy[name].Revoked[:spendC]
 
-	// dbtypes.TxPerBlock:  -> index 11 here and 11 in cache
-	index = dbtypes.TxPerBlock.Pos()
-	txC := len(dataCopy[index].Height)
+	name = dbtypes.TxPerBlock
+	txC := len(dataCopy[name].Height)
 	if txC < diff {
 		txC = 0
 	} else {
 		txC -= diff
 	}
-	dataCopy[index].Height = dataCopy[index].Height[:txC]
-	dataCopy[index].Count = dataCopy[index].Count[:txC]
+	dataCopy[name].Height = dataCopy[name].Height[:txC]
+	dataCopy[name].Count = dataCopy[name].Count[:txC]
 
-	// dbtypes.TxPerDay:  -> index 12 here and 12 in cache
-	index = dbtypes.TxPerDay.Pos()
-	dayC := len(dataCopy[index].Time)
+	name = dbtypes.TxPerDay
+	dayC := len(dataCopy[name].Time)
 	if dayC < diff {
 		dayC = 0
 	} else {
 		dayC -= diff
 	}
-	dataCopy[index].Time = dataCopy[index].Time[:dayC]
-	dataCopy[index].Count = dataCopy[index].Count[:dayC]
+	dataCopy[name].Time = dataCopy[name].Time[:dayC]
+	dataCopy[name].Count = dataCopy[name].Count[:dayC]
 
 	t.Run("Match_incremental_change_with_oldData_for_", func(t *testing.T) {
-		err := db.PgChartsData(dataCopy)
+		dataCopy, err = db.PgChartsData(dataCopy)
 		if err != nil {
 			t.Fatalf("expected no error but found: %v", err)
 			return
 		}
 
 		for k := range dataCopy {
-			chartName := dbtypes.ChartType(k).String()
-			t.Run(chartName, func(t *testing.T) {
+			t.Run(k, func(t *testing.T) {
 				if !reflect.DeepEqual(dataCopy[k], oldData[k]) {
-					t.Fatalf("expected no new data to be added for chart (%s) to dataCopy but it was.",
-						chartName)
+					t.Fatalf("expected no new data to be added for chart (%s) to dataCopy but it was.", k)
 					return
 				}
 			})

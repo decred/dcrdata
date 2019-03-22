@@ -996,28 +996,23 @@ func (db *WiredDB) GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []float64)
 // If any of the chart's data has no entries, records from the oldest to the
 // most recent are queried from the db and updated. If some entries were found,
 // only the change since the last update is queried and pushed to the charts' data.
-func (db *WiredDB) SqliteChartsData(data []*dbtypes.ChartsData) (err error) {
-	// Ensure space to store all chart's data exists.
-	if len(data) != dbtypes.SqliteChartsCount {
-		return fmt.Errorf("found data to have length %d but expected it to have %d",
-			len(data), dbtypes.SqliteChartsCount)
-	}
-
-	feeData := data[dbtypes.FeePerBlock.SqlitePos()]
+func (db *WiredDB) SqliteChartsData(data map[string]*dbtypes.ChartsData) (map[string]*dbtypes.ChartsData, error) {
+	var err error
+	feeData := data[dbtypes.FeePerBlock]
 	if feeData == nil {
 		feeData = new(dbtypes.ChartsData)
 	}
 	feeData.Height, feeData.SizeF, err = db.RetrieveBlockFeeInfo(feeData.Height, feeData.SizeF)
 	if err != nil {
-		return err
+		return data, err
 	}
 
-	poolSize := data[dbtypes.TicketPoolSize.SqlitePos()]
+	poolSize := data[dbtypes.TicketPoolSize]
 	if poolSize == nil {
 		poolSize = new(dbtypes.ChartsData)
 	}
 
-	poolValue := data[dbtypes.TicketPoolValue.SqlitePos()]
+	poolValue := data[dbtypes.TicketPoolValue]
 	if poolValue == nil {
 		poolValue = new(dbtypes.ChartsData)
 	}
@@ -1025,15 +1020,16 @@ func (db *WiredDB) SqliteChartsData(data []*dbtypes.ChartsData) (err error) {
 	poolSize.Time, poolSize.SizeF, poolValue.ValueF, err = db.RetrievePoolAllValueAndSize(poolSize.Time,
 		poolSize.SizeF, poolValue.ValueF)
 	if err != nil {
-		return err
+		return data, err
 	}
 
 	poolValue.Time = poolSize.Time
 
-	data[dbtypes.FeePerBlock.SqlitePos()] = feeData
-	data[dbtypes.TicketPoolSize.SqlitePos()] = poolSize
-	data[dbtypes.TicketPoolValue.SqlitePos()] = poolValue
-	return
+	data[dbtypes.FeePerBlock] = feeData
+	data[dbtypes.TicketPoolSize] = poolSize
+	data[dbtypes.TicketPoolValue] = poolValue
+
+	return data, nil
 }
 
 func (db *WiredDB) GetSDiff(idx int) float64 {
