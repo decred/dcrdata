@@ -19,6 +19,7 @@ import (
 type AgendaDB struct {
 	sdb        *storm.DB
 	NumAgendas int
+	rpcClient  DeploymentSource
 }
 
 // AgendaTagged has the same fields as dcrjson.Agenda plus the VoteVersion
@@ -50,9 +51,13 @@ type DeploymentSource interface {
 
 // NewAgendasDB opens an existing database or create a new one using with the
 // specified file name. An initialized agendas db connection is returned.
-func NewAgendasDB(dbPath string) (*AgendaDB, error) {
+func NewAgendasDB(client DeploymentSource, dbPath string) (*AgendaDB, error) {
 	if dbPath == "" {
 		return nil, fmt.Errorf("empty db Path found")
+	}
+
+	if client == DeploymentSource(nil) {
+		return nil, fmt.Errorf("invalid deployment source found")
 	}
 
 	_, err := os.Stat(dbPath)
@@ -65,7 +70,7 @@ func NewAgendasDB(dbPath string) (*AgendaDB, error) {
 		return nil, err
 	}
 
-	return &AgendaDB{sdb: db}, nil
+	return &AgendaDB{sdb: db, rpcClient: client}, nil
 }
 
 // countProperties fetches the Agendas count and appends it to the AgendaDB
@@ -133,11 +138,10 @@ func agendasForVoteVersion(ver uint32, client DeploymentSource) ([]AgendaTagged,
 // dcrjson.GetVoteInfoResult and chaincfg.ConsensusDeployment hold almost similar
 // data contents but chaincfg.Vote does not contain the important vote status
 // field that is found in dcrjson.Agenda.
-func (db *AgendaDB) updatedb(client DeploymentSource,
-	activeVersions map[uint32][]chaincfg.ConsensusDeployment) (int, error) {
+func (db *AgendaDB) updatedb(activeVersions map[uint32][]chaincfg.ConsensusDeployment) (int, error) {
 	var agendas []AgendaTagged
 	for voteVersion := range activeVersions {
-		taggedAgendas, err := agendasForVoteVersion(voteVersion, client)
+		taggedAgendas, err := agendasForVoteVersion(voteVersion, db.rpcClient)
 		if err != nil || len(taggedAgendas) == 0 {
 			return -1, fmt.Errorf("vote version %d agendas retrieval failed: %v",
 				voteVersion, err)
@@ -165,8 +169,7 @@ func (db *AgendaDB) storeAgenda(agenda *AgendaTagged) error {
 
 // CheckAgendasUpdates checks for update at the start of the process and will
 // proceed to update when necessary.
-func (db *AgendaDB) CheckAgendasUpdates(client DeploymentSource,
-	activeVersions map[uint32][]chaincfg.ConsensusDeployment) error {
+func (db *AgendaDB) CheckAgendasUpdates(activeVersions map[uint32][]chaincfg.ConsensusDeployment) error {
 	if db == nil || db.sdb == nil {
 		return errDefault
 	}
@@ -175,7 +178,7 @@ func (db *AgendaDB) CheckAgendasUpdates(client DeploymentSource,
 		return nil
 	}
 
-	numRecords, err := db.updatedb(client, activeVersions)
+	numRecords, err := db.updatedb(activeVersions)
 	if err != nil {
 		return fmt.Errorf("agendas.CheckAgendasUpdates failed: %v", err)
 	}

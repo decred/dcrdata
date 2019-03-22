@@ -121,9 +121,9 @@ type politeiaBackend interface {
 
 // agendaBackend implements methods that manage agendas db data.
 type agendaBackend interface {
-	CheckAgendasUpdates(data agendas.DeploymentSource, activeVersions map[uint32][]chaincfg.ConsensusDeployment) error
 	AgendaInfo(agendaID string) (*agendas.AgendaTagged, error)
 	AllAgendas() (agendas []*agendas.AgendaTagged, err error)
+	CheckAgendasUpdates(activeVersions map[uint32][]chaincfg.ConsensusDeployment) error
 }
 
 // links to be passed with common page data.
@@ -620,25 +620,39 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 
 	// Do not run updates if blockchain sync is running.
 	if !exp.AreDBsSyncing() {
-		// Update the charts data after every five blocks or if no charts data
-		// exists yet.
-		if newBlockData.Height%5 == 0 || cacheChartsData.Height() == -1 {
-			// This must be done after storing BlockInfo since that provides the
-			// explorer's best block height, which is used by prePopulateChartsData
-			// to decide if an update is needed.
-			go exp.prePopulateChartsData()
-		}
-
-		// Update the proposal DB. This is run asynchronously since it involves
-		// a query to Politeia (a remote system) and we do not want to block
-		// execution.
-		if newBlockData.Height%20 == 0 {
+		// Politeia updates happen hourly thus if every blocks takes an average
+		// of 5 minutes to mine then 12 blocks take approximately 1hr.
+		// https://docs.decred.org/advanced/navigating-politeia-data/#voting-and-comment-data
+		if newBlockData.Height%12 == 0 {
+			// Update the proposal DB. This is run asynchronously since it involves
+			// a query to Politeia (a remote system) and we do not want to block
+			// execution.
 			go func() {
 				err := exp.proposalsSource.CheckProposalsUpdates()
 				if err != nil {
 					log.Error(err)
 				}
 			}()
+		}
+
+		// Update in every 5 blocks implys that in approximately every 25mins
+		// an update will be queried.
+		if newBlockData.Height%5 == 0 {
+			// Update the Agendas DB. Run this asynchronously to avoid
+			// blocking other processes.
+			go func() {
+				err := exp.agendasSource.CheckAgendasUpdates(exp.ChainParams.Deployments)
+				if err != nil {
+					log.Error(err)
+				}
+			}()
+		}
+
+		// If incorrect cache height was set, fetch the charts updates and set
+		// the correct block height. Also fetch agenda db updates consecutively
+		// after intervals of 5 blocks.
+		if cacheChartsData.Height() == -1 || newBlockData.Height%5 == 0 {
+			go exp.prePopulateChartsData()
 		}
 	}
 
