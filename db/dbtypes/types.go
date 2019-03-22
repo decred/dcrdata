@@ -520,11 +520,11 @@ const (
 var (
 	// SqliteCharts helps select all the charts that use the SQlite db as a data
 	// source from the charts cache data.
-	SqliteCharts = []string{FeePerBlock, TicketPoolSize, TicketPoolValue}
+	SqliteCharts = [...]string{FeePerBlock, TicketPoolSize, TicketPoolValue}
 
 	// PgCharts helps select all the charts that use the auxiliary db as a data
 	// source from the charts cache data.
-	PgCharts = []string{AvgBlockSize, BlockChainSize, ChainWork, CoinSupply,
+	PgCharts = [...]string{AvgBlockSize, BlockChainSize, ChainWork, CoinSupply,
 		DurationBTW, HashRate, POWDifficulty, TicketByWindows, TicketPrice,
 		TicketsByBlocks, TicketSpendT, TxPerBlock, TxPerDay}
 )

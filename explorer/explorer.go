@@ -74,7 +74,7 @@ type explorerDataSourceLite interface {
 	GetMempool() []types.MempoolTx
 	TxHeight(txid *chainhash.Hash) (height int64)
 	BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
-	SqliteChartsData(data map[string]*dbtypes.ChartsData) (map[string]*dbtypes.ChartsData, error)
+	SqliteChartsData(data map[string]*dbtypes.ChartsData) error
 	GetExplorerFullBlocks(start int, end int) []*types.BlockInfo
 	Difficulty() (float64, error)
 	RetreiveDifficulty(timestamp int64) float64
@@ -96,7 +96,7 @@ type explorerDataSource interface {
 	FillAddressTransactions(addrInfo *dbtypes.AddressInfo) error
 	BlockMissedVotes(blockHash string) ([]string, error)
 	TicketMiss(ticketHash string) (string, int64, error)
-	PgChartsData(oldData map[string]*dbtypes.ChartsData) (map[string]*dbtypes.ChartsData, error)
+	PgChartsData(oldData map[string]*dbtypes.ChartsData) error
 	TicketsPriceByHeight() (*dbtypes.ChartsData, error)
 	SideChainBlocks() ([]*dbtypes.BlockStatus, error)
 	DisapprovedBlocks() ([]*dbtypes.BlockStatus, error)
@@ -380,7 +380,7 @@ func (exp *explorerUI) PrepareCharts(cacheDumpPath string) {
 			exp.prePopulateChartsData()
 		}
 
-		log.Debugf("completed the initial charts cache scanning in %v", time.Since(t))
+		log.Debugf("Completed the initial charts cache scanning in %v", time.Since(t))
 	}
 }
 
@@ -466,19 +466,16 @@ func (exp *explorerUI) prePopulateChartsData() {
 	if chartsData != nil {
 		// Pick all the PgCharts
 		for _, chartName := range dbtypes.PgCharts {
-			dataset := chartsData[chartName]
-			pgData[chartName] = dataset
+			pgData[chartName] = chartsData[chartName]
 		}
 
 		// Pick all the sqliteCharts
 		for _, chartName := range dbtypes.SqliteCharts {
-			dataset := chartsData[chartName]
-			sqliteData[chartName] = dataset
+			sqliteData[chartName] = chartsData[chartName]
 		}
 	}
 
-	var err error
-	pgData, err = exp.explorerSource.PgChartsData(pgData)
+	err := exp.explorerSource.PgChartsData(pgData)
 	if err != nil {
 		if dbtypes.IsTimeoutErr(err) {
 			log.Warnf("GetPgChartsData DB timeout: %v", err)
@@ -491,7 +488,7 @@ func (exp *explorerUI) prePopulateChartsData() {
 
 	log.Debugf("Retrieving charts data from base DB.")
 
-	sqliteData, err = exp.blockData.SqliteChartsData(sqliteData)
+	err = exp.blockData.SqliteChartsData(sqliteData)
 	if err != nil {
 		log.Errorf("Invalid SQLite data found: %v", err)
 		return

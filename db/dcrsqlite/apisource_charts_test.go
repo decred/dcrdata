@@ -80,7 +80,7 @@ func TestMain(m *testing.M) {
 // should fail. It also checks the order and duplicates is the x-axis dataset.
 func TestSqliteChartsData(t *testing.T) {
 	var oldData = make(map[string]*dbtypes.ChartsData)
-	oldData, err := db.SqliteChartsData(oldData)
+	err := db.SqliteChartsData(oldData)
 	if err != nil {
 		t.Fatalf("expected no error but found: %v", err)
 	}
@@ -178,7 +178,7 @@ func TestSqliteChartsData(t *testing.T) {
 	// arrays length and content should match the returned result.
 
 	t.Run("Check_if_invalid_data_was_added_for_", func(t *testing.T) {
-		dataCopy, err = db.SqliteChartsData(dataCopy)
+		err = db.SqliteChartsData(dataCopy)
 		if err != nil {
 			t.Fatalf("expected no error but found: %v", err)
 		}
@@ -232,7 +232,7 @@ func TestSqliteChartsData(t *testing.T) {
 	dataCopy[index].ValueF = dataCopy[index].ValueF[:valC]
 
 	t.Run("Match_incremental_change_with_oldData_for_", func(t *testing.T) {
-		dataCopy, err = db.SqliteChartsData(dataCopy)
+		err = db.SqliteChartsData(dataCopy)
 		if err != nil {
 			t.Fatalf("expected no error but found: %v", err)
 		}

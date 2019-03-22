@@ -57,7 +57,7 @@ func TestMain(m *testing.M) {
 // It also checks the order and duplicates in the x-axis dataset.
 func TestPgChartsData(t *testing.T) {
 	var oldData = make(map[string]*dbtypes.ChartsData)
-	oldData, err := db.PgChartsData(oldData)
+	err := db.PgChartsData(oldData)
 	if err != nil {
 		t.Fatalf("expected no error but found: %v", err)
 		return
@@ -169,7 +169,7 @@ func TestPgChartsData(t *testing.T) {
 	// arrays length and content should match the returned result.
 
 	t.Run("Check_if_invalid_data_was_added_for_", func(t *testing.T) {
-		dataCopy, err = db.PgChartsData(dataCopy)
+		err = db.PgChartsData(dataCopy)
 		if err != nil {
 			t.Fatalf("expected no error but found: %v", err)
 			return
@@ -326,7 +326,7 @@ func TestPgChartsData(t *testing.T) {
 	dataCopy[name].Count = dataCopy[name].Count[:dayC]
 
 	t.Run("Match_incremental_change_with_oldData_for_", func(t *testing.T) {
-		dataCopy, err = db.PgChartsData(dataCopy)
+		err = db.PgChartsData(dataCopy)
 		if err != nil {
 			t.Fatalf("expected no error but found: %v", err)
 			return
