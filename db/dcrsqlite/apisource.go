@@ -996,15 +996,14 @@ func (db *WiredDB) GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []float64)
 // If any of the chart's data has no entries, records from the oldest to the
 // most recent are queried from the db and updated. If some entries were found,
 // only the change since the last update is queried and pushed to the charts' data.
-func (db *WiredDB) SqliteChartsData(data map[string]*dbtypes.ChartsData) (map[string]*dbtypes.ChartsData, error) {
-	var err error
+func (db *WiredDB) SqliteChartsData(data map[string]*dbtypes.ChartsData) (err error) {
 	feeData := data[dbtypes.FeePerBlock]
 	if feeData == nil {
 		feeData = new(dbtypes.ChartsData)
 	}
 	feeData.Height, feeData.SizeF, err = db.RetrieveBlockFeeInfo(feeData.Height, feeData.SizeF)
 	if err != nil {
-		return data, err
+		return
 	}
 
 	poolSize := data[dbtypes.TicketPoolSize]
@@ -1020,7 +1019,7 @@ func (db *WiredDB) SqliteChartsData(data map[string]*dbtypes.ChartsData) (map[st
 	poolSize.Time, poolSize.SizeF, poolValue.ValueF, err = db.RetrievePoolAllValueAndSize(poolSize.Time,
 		poolSize.SizeF, poolValue.ValueF)
 	if err != nil {
-		return data, err
+		return
 	}
 
 	poolValue.Time = poolSize.Time
@@ -1028,8 +1027,7 @@ func (db *WiredDB) SqliteChartsData(data map[string]*dbtypes.ChartsData) (map[st
 	data[dbtypes.FeePerBlock] = feeData
 	data[dbtypes.TicketPoolSize] = poolSize
 	data[dbtypes.TicketPoolValue] = poolValue
-
-	return data, nil
+	return
 }
 
 func (db *WiredDB) GetSDiff(idx int) float64 {
