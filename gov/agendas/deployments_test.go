@@ -76,50 +76,8 @@ func TestMain(m *testing.M) {
 	os.Exit(returnVal)
 }
 
-// TestNewAgendasDB tests the functionality of NewAgendaDB.
-func TestNewAgendasDB(t *testing.T) {
-	type testData struct {
-		dbPath string
-		// Outputs
-		IsDBInstance bool
-		errMsg       string
-	}
-
-	td := []testData{
-		{"", false, "empty db Path found"},
-		{filepath.Join(tempDir, "test2.db"), true, ""},
-	}
-
-	for _, val := range td {
-		results, err := NewAgendasDB(val.dbPath)
-		if err == nil && val.errMsg != "" {
-			t.Fatalf("expected no error but found '%v' ", err)
-		}
-
-		if err != nil && err.Error() != val.errMsg {
-			t.Fatalf(" expected error '%v' but found '%v", val.errMsg, err)
-		}
-
-		if results == nil && val.IsDBInstance {
-			t.Fatal("expected a non-nil db instance but found a nil instance")
-		}
-
-		// If a valid db instance is expected test if the corresponding db exists.
-		if val.IsDBInstance {
-			if _, err := os.Stat(val.dbPath); os.IsNotExist(err) {
-				t.Fatalf("expected to find the corresponding db at '%v' path but did not.", val.dbPath)
-			}
-		}
-	}
-}
-
 // testClient needed to mock the actual client GetVoteInfo implementation
 type testClient int
-
-// voteVersionErrMsg is a sample error message that does not imply the format of
-// the actual error rpcclient.GetVoteInfo returns when an invalid votes version
-// is provided.
-var voteVersionErrMsg = "invalid vote version %d found"
 
 // GetVoteInfo implementation showing a sample data format expected.
 func (*testClient) GetVoteInfo(version uint32) (*dcrjson.GetVoteInfoResult, error) {
@@ -177,6 +135,54 @@ func (*testClient) GetVoteInfo(version uint32) (*dcrjson.GetVoteInfoResult, erro
 	}
 	return resp, nil
 }
+
+// TestNewAgendasDB tests the functionality of NewAgendaDB.
+func TestNewAgendasDB(t *testing.T) {
+	type testData struct {
+		rpc    DeploymentSource
+		dbPath string
+		// Outputs
+		IsDBInstance bool
+		errMsg       string
+	}
+
+	var client *testClient
+	testPath := filepath.Join(tempDir, "test2.db")
+
+	td := []testData{
+		{nil, "", false, "empty db Path found"},
+		{client, "", false, "empty db Path found"},
+		{nil, testPath, false, "invalid deployment source found"},
+		{client, testPath, true, ""},
+	}
+
+	for _, val := range td {
+		results, err := NewAgendasDB(val.rpc, val.dbPath)
+		if err == nil && val.errMsg != "" {
+			t.Fatalf("expected no error but found '%v' ", err)
+		}
+
+		if err != nil && err.Error() != val.errMsg {
+			t.Fatalf(" expected error '%v' but found '%v", val.errMsg, err)
+		}
+
+		if results == nil && val.IsDBInstance {
+			t.Fatal("expected a non-nil db instance but found a nil instance")
+		}
+
+		// If a valid db instance is expected test if the corresponding db exists.
+		if val.IsDBInstance {
+			if _, err := os.Stat(val.dbPath); os.IsNotExist(err) {
+				t.Fatalf("expected to find the corresponding db at '%v' path but did not.", val.dbPath)
+			}
+		}
+	}
+}
+
+// voteVersionErrMsg is a sample error message that does not imply the format of
+// the actual error rpcclient.GetVoteInfo returns when an invalid votes version
+// is provided.
+var voteVersionErrMsg = "invalid vote version %d found"
 
 var expectedAgenda = &AgendaTagged{
 	ID:             "TestAgenda0001",
@@ -254,8 +260,8 @@ var activeVersions = map[uint32][]chaincfg.ConsensusDeployment{
 // and many agendas.
 func TestUpdateAndRetrievals(t *testing.T) {
 	var client *testClient
-	dbInstance := &AgendaDB{sdb: db}
 
+	dbInstance := &AgendaDB{sdb: db, rpcClient: client}
 	invalidVersions := map[uint32][]chaincfg.ConsensusDeployment{20: {}}
 
 	type testData struct {
@@ -275,7 +281,7 @@ func TestUpdateAndRetrievals(t *testing.T) {
 	// Test saving updates to agendas db.
 	for i, val := range td {
 		t.Run("Test_CheckAgendasUpdates_#"+strconv.Itoa(i), func(t *testing.T) {
-			err := val.db.CheckAgendasUpdates(client, val.voteVersions)
+			err := val.db.CheckAgendasUpdates(val.voteVersions)
 			if err != nil && val.errMsg != err.Error() {
 				t.Fatalf("expect to find error '%s' but found '%v' ", val.errMsg, err)
 			}
