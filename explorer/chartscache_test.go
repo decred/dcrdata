@@ -34,9 +34,8 @@ func TestChartsCache(t *testing.T) {
 	gobPath := filepath.Join(tempDir, "log.gob")
 
 	// chartsData needs to contain entries defined chartsCount.
-	chartsData := []*dbtypes.ChartsData{
-		{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
-		{
+	chartsData := map[string]*dbtypes.ChartsData{
+		dbtypes.AvgBlockSize: {
 			ValueF: []float64{1.2, 2.0, 5.9},
 			SizeF:  []float64{1.2, 1.3, 1.6},
 		},
@@ -95,7 +94,7 @@ func TestChartsCache(t *testing.T) {
 
 	t.Run("Read_from_an_existing_gob_encoded_file", func(t *testing.T) {
 		// delete the cache contents by setting an empty array.
-		cacheChartsData.Update(defHeight, []*dbtypes.ChartsData{})
+		cacheChartsData.Update(defHeight, map[string]*dbtypes.ChartsData{})
 
 		// fetch the updated cache contents.
 		contents := cacheChartsData.get()

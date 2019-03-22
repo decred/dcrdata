@@ -79,40 +79,29 @@ func TestMain(m *testing.M) {
 // were synced. No difference between the two should exist otherwise this test
 // should fail. It also checks the order and duplicates is the x-axis dataset.
 func TestSqliteChartsData(t *testing.T) {
-	var oldData = make([]*dbtypes.ChartsData, dbtypes.SqliteChartsCount)
-	err := db.SqliteChartsData(oldData)
+	var oldData = make(map[string]*dbtypes.ChartsData)
+	oldData, err := db.SqliteChartsData(oldData)
 	if err != nil {
 		t.Fatalf("expected no error but found: %v", err)
-	}
-
-	// All supported historical sqlite charts that appear on charts page are
-	// defined by dbtypes.SqliteChartsCount
-	if len(oldData) != dbtypes.SqliteChartsCount {
-		t.Fatalf("expected to %d charts data but only found %d ",
-			dbtypes.SqliteChartsCount, len(oldData))
 	}
 
 	// Validate the oldData contents by checking for duplicates and dataset order.
 
 	// xvalArray maps the chart type to its respective x-axis dataset name.
 	// Most charts either use timestamp or block height as the x-axis value.
-	xvalArray := map[dbtypes.ChartType]string{
+	xvalArray := map[string]string{
 		dbtypes.FeePerBlock:     "Height",
 		dbtypes.TicketPoolSize:  "Time",
 		dbtypes.TicketPoolValue: "Time",
-	}
-
-	if len(xvalArray) != dbtypes.SqliteChartsCount {
-		t.Fatalf("some charts' x-axis values are unaccounted for.")
 	}
 
 	t.Run("check_duplicates_n_ordering_for_", func(t *testing.T) {
 		// Charts x-axis coordinates dataset should not have duplicates. charts x-axis
 		// coordinates should be ordered in ascending order.
 		for chartV, xValName := range xvalArray {
-			data := oldData[chartV.SqlitePos()]
+			data := oldData[chartV]
 
-			t.Run(chartV.String(), func(t *testing.T) {
+			t.Run(chartV, func(t *testing.T) {
 				switch strings.ToLower(xValName) {
 				case "height":
 					// All Height dataset is an array of type uint64
@@ -179,25 +168,25 @@ func TestSqliteChartsData(t *testing.T) {
 		}
 	})
 
-	dataCopy := make([]*dbtypes.ChartsData, len(oldData))
-	copy(dataCopy, oldData)
+	dataCopy := make(map[string]*dbtypes.ChartsData, len(oldData))
+	for k, v := range oldData {
+		dataCopy[k] = v
+	}
 
 	// In this test, no new data is expected to be added by the queries. The correct
 	// data returned after passing dataCopy should match oldData. i.e. the oldData
 	// arrays length and content should match the returned result.
 
 	t.Run("Check_if_invalid_data_was_added_for_", func(t *testing.T) {
-		err := db.SqliteChartsData(dataCopy[:])
+		dataCopy, err = db.SqliteChartsData(dataCopy)
 		if err != nil {
 			t.Fatalf("expected no error but found: %v", err)
 		}
 
-		for i := range oldData {
-			chartName := dbtypes.ChartType(i).String()
-			t.Run(chartName, func(t *testing.T) {
-				if !reflect.DeepEqual(dataCopy[i], oldData[i]) {
-					t.Fatalf("expected no new data to be added to dataCopy for (%s) but it was.",
-						chartName)
+		for k := range oldData {
+			t.Run(k, func(t *testing.T) {
+				if !reflect.DeepEqual(dataCopy[k], oldData[k]) {
+					t.Fatalf("expected no new data to be added to dataCopy for (%s) but it was.", k)
 				}
 			})
 		}
@@ -210,7 +199,7 @@ func TestSqliteChartsData(t *testing.T) {
 	diff := 10
 
 	// dbtypes.FeePerBlock: index 0 here and 13 in cache
-	index := dbtypes.FeePerBlock.SqlitePos()
+	index := dbtypes.FeePerBlock
 	feeC := len(dataCopy[index].Height)
 	if feeC < diff {
 		feeC = 0
@@ -221,7 +210,7 @@ func TestSqliteChartsData(t *testing.T) {
 	dataCopy[index].SizeF = dataCopy[index].SizeF[:feeC]
 
 	// dbtypes.TicketPoolSize: index 1 here and 14 in cache
-	index = dbtypes.TicketPoolSize.SqlitePos()
+	index = dbtypes.TicketPoolSize
 	sizeC := len(dataCopy[index].Time)
 	if sizeC < diff {
 		sizeC = 0
@@ -232,7 +221,7 @@ func TestSqliteChartsData(t *testing.T) {
 	dataCopy[index].SizeF = dataCopy[index].SizeF[:sizeC]
 
 	// dbtypes.TicketPoolValue: index 2 here and 15 in cache
-	index = dbtypes.TicketPoolValue.SqlitePos()
+	index = dbtypes.TicketPoolValue
 	valC := len(dataCopy[index].Time)
 	if valC < diff {
 		valC = 0
@@ -243,17 +232,15 @@ func TestSqliteChartsData(t *testing.T) {
 	dataCopy[index].ValueF = dataCopy[index].ValueF[:valC]
 
 	t.Run("Match_incremental_change_with_oldData_for_", func(t *testing.T) {
-		err := db.SqliteChartsData(dataCopy)
+		dataCopy, err = db.SqliteChartsData(dataCopy)
 		if err != nil {
 			t.Fatalf("expected no error but found: %v", err)
 		}
 
-		for i := range oldData {
-			chartName := dbtypes.ChartType(i).String()
-			t.Run(chartName, func(t *testing.T) {
-				if !reflect.DeepEqual(dataCopy[i], oldData[i]) {
-					t.Fatalf("expected no new data to be added to dataCopy for (%s) but it was.",
-						chartName)
+		for k := range oldData {
+			t.Run(k, func(t *testing.T) {
+				if !reflect.DeepEqual(dataCopy[k], oldData[k]) {
+					t.Fatalf("expected no new data to be added to dataCopy for (%s) but it was.", k)
 				}
 			})
 		}
