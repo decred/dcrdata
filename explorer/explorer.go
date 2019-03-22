@@ -121,9 +121,9 @@ type politeiaBackend interface {
 
 // agendaBackend implements methods that manage agendas db data.
 type agendaBackend interface {
-	CheckAgendasUpdates(data agendas.DeploymentSource, activeVersions map[uint32][]chaincfg.ConsensusDeployment) error
 	AgendaInfo(agendaID string) (*agendas.AgendaTagged, error)
 	AllAgendas() (agendas []*agendas.AgendaTagged, err error)
+	CheckAgendasUpdates(activeVersions map[uint32][]chaincfg.ConsensusDeployment) error
 }
 
 // links to be passed with common page data.
@@ -268,7 +268,6 @@ type explorerUI struct {
 
 	invsMtx sync.RWMutex
 	invs    *types.MempoolInfo
-	client  agendas.DeploymentSource
 }
 
 // AreDBsSyncing is a thread-safe way to fetch the boolean in dbsSyncing.
@@ -330,7 +329,6 @@ type ExplorerConfig struct {
 	PoliteiaURL       string
 	MainnetLink       string
 	TestnetLink       string
-	RPCClient         agendas.DeploymentSource
 }
 
 // New returns an initialized instance of explorerUI
@@ -351,7 +349,6 @@ func New(cfg *ExplorerConfig) *explorerUI {
 	explorerLinks.Testnet = cfg.TestnetLink
 	explorerLinks.MainnetSearch = cfg.MainnetLink + "search?search="
 	explorerLinks.TestnetSearch = cfg.TestnetLink + "search?search="
-	exp.client = cfg.RPCClient
 
 	// explorerDataSource is an interface that could have a value of pointer
 	// type, and if either is nil this means lite mode.
@@ -644,8 +641,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 			// Update the Agendas DB. Run this asynchronously to avoid
 			// blocking other processes.
 			go func() {
-				err := exp.agendasSource.CheckAgendasUpdates(exp.client,
-					exp.ChainParams.Deployments)
+				err := exp.agendasSource.CheckAgendasUpdates(exp.ChainParams.Deployments)
 				if err != nil {
 					log.Error(err)
 				}

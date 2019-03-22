@@ -510,8 +510,8 @@ func _main(ctx context.Context) error {
 	// store and retrieves agendas data. Agendas votes are On-Chain
 	// transactions that appear in the decred blockchain. If corrupted data is
 	// is found, its deleted pending the data update that restores valid data.
-	agendasInstance, err := agendas.NewAgendasDB(filepath.Join(cfg.DataDir,
-		cfg.AgendasDBFileName))
+	agendasInstance, err := agendas.NewAgendasDB(dcrdClient,
+		filepath.Join(cfg.DataDir, cfg.AgendasDBFileName))
 	if err != nil {
 		return fmt.Errorf("failed to create new agendas db instance: %v", err)
 	}
@@ -519,8 +519,7 @@ func _main(ctx context.Context) error {
 	// Retrieve blockchain deployment updates and add them to the agendas db.
 	// activeChain.Deployments contains a list of all agendas supported in the
 	// current environment.
-	if err = agendasInstance.CheckAgendasUpdates(dcrdClient,
-		activeChain.Deployments); err != nil {
+	if err = agendasInstance.CheckAgendasUpdates(activeChain.Deployments); err != nil {
 		return fmt.Errorf("updating agendas db failed: %v", err)
 	}
 
@@ -557,7 +556,6 @@ func _main(ctx context.Context) error {
 		PoliteiaURL:       cfg.PoliteiaAPIURL,
 		MainnetLink:       cfg.MainnetLink,
 		TestnetLink:       cfg.TestnetLink,
-		RPCClient:         dcrdClient,
 	})
 	// TODO: allow views config
 	if explore == nil {
