@@ -995,7 +995,8 @@ func (db *WiredDB) GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []float64)
 // SqliteChartsData takes the old sqlite charts' data that requires an update.
 // If any of the chart's data has no entries, records from the oldest to the
 // most recent are queried from the db and updated. If some entries were found,
-// only the change since the last update is queried and pushed to the charts' data.
+// only the change since the last update is queried and pushed to the charts'
+// data.
 func (db *WiredDB) SqliteChartsData(data map[string]*dbtypes.ChartsData) (err error) {
 	feeData := data[dbtypes.FeePerBlock]
 	if feeData == nil {

@@ -232,6 +232,16 @@ func signalReorg(d ReorgData) {
 	}
 	d.WG.Wait()
 
+	// Ensure all the other chain reorgs are successful before initiating the
+	// charts cache reorg. Send common ancestor reorg data to charts cache monitor.
+	d.WG.Add(1)
+	select {
+	case NtfnChans.ReorgChartsCache <- fullData:
+	default:
+		d.WG.Done()
+	}
+	d.WG.Wait()
+
 	// Update prevHash and prevHeight in collectionQueue.
 	blockQueue.SetPreviousBlock(d.NewChainHead, int64(d.NewChainHeight))
 }

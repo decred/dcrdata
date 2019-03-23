@@ -45,6 +45,7 @@ var NtfnChans struct {
 	RelevantTxMempoolChan             chan *dcrutil.Tx
 	NewTxChan                         chan *dcrjson.TxRawResult
 	InsightNewTxChan                  chan *insight.NewTx
+	ReorgChartsCache                  chan *txhelpers.ReorgData
 }
 
 // MakeNtfnChans create notification channels based on config
@@ -87,6 +88,7 @@ func MakeNtfnChans(postgresEnabled bool) {
 
 	if postgresEnabled {
 		NtfnChans.InsightNewTxChan = make(chan *insight.NewTx, expNewTxChanBuffer)
+		NtfnChans.ReorgChartsCache = make(chan *txhelpers.ReorgData)
 	}
 }
 
@@ -141,5 +143,9 @@ func CloseNtfnChans() {
 
 	if NtfnChans.InsightNewTxChan != nil {
 		close(NtfnChans.InsightNewTxChan)
+	}
+
+	if NtfnChans.ReorgChartsCache != nil {
+		close(NtfnChans.ReorgChartsCache)
 	}
 }

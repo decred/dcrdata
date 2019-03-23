@@ -1078,6 +1078,7 @@ func _main(ctx context.Context) error {
 		notify.NtfnChans.ConnectChanWiredDB, notify.NtfnChans.ReorgChanWiredDB)
 
 	var auxDBChainMonitor *dcrpg.ChainMonitor
+	var chartsCacheMonitor *explorer.ChainMonitor
 	if usePG {
 		// Blockchain monitor for the aux (PG) DB
 		auxDBChainMonitor = auxDB.NewChainMonitor(ctx, &wg,
@@ -1085,6 +1086,10 @@ func _main(ctx context.Context) error {
 		if auxDBChainMonitor == nil {
 			return fmt.Errorf("Failed to enable dcrpg ChainMonitor. *ChainDB is nil.")
 		}
+
+		// Blockchain monitor for the charts cache.
+		chartsCacheMonitor = explore.NewCacheChainMonitor(ctx, &wg,
+			notify.NtfnChans.ReorgChartsCache)
 	}
 
 	// Setup the synchronous handler functions called by the collectionQueue via
@@ -1156,6 +1161,11 @@ func _main(ctx context.Context) error {
 		// dcrpg also does not handle new blocks except during reorg.
 		wg.Add(1)
 		go auxDBChainMonitor.ReorgHandler()
+
+		wg.Add(1)
+		// charts cache drops all the records added since the common ancestor
+		// before initiating a cache update after all other reorgs have completed.
+		go chartsCacheMonitor.ReorgHandler()
 	}
 
 	// Create the mempool data collector.

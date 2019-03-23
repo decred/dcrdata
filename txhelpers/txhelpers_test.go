@@ -413,7 +413,7 @@ func TestMsgTxFromHex(t *testing.T) {
 				Version:    1,
 				TxIn: []*wire.TxIn{
 					{
-						PreviousOutPoint: wire.OutPoint{zeroHash, 4294967295, 0},
+						PreviousOutPoint: wire.OutPoint{Hash: zeroHash, Index: 4294967295, Tree: 0},
 						Sequence:         4294967295,
 						ValueIn:          110462516,
 						BlockHeight:      0,
