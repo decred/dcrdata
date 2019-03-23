@@ -20,6 +20,7 @@ require (
 	github.com/decred/dcrd/rpcclient/v2 v2.0.0
 	github.com/decred/dcrd/txscript v1.0.2
 	github.com/decred/dcrd/wire v1.2.0
+	github.com/decred/dcrdata/api/types v1.0.0
 	github.com/decred/dcrwallet/wallet v1.2.0
 	github.com/decred/politeia v0.0.0-20190215175939-73ba15aa6d3e
 	github.com/decred/slog v1.0.0
