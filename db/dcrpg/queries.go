@@ -886,6 +886,50 @@ func RetrieveTicketStatusByHash(ctx context.Context, db *sql.DB, ticketHash stri
 	return
 }
 
+// RetrieveTicketInfoByHash retrieves the ticket spend and pool statuses as well
+// as the purchase and spending block info and spending txid.
+func RetrieveTicketInfoByHash(ctx context.Context, db *sql.DB, ticketHash string) (spendStatus dbtypes.TicketSpendType,
+	poolStatus dbtypes.TicketPoolStatus, purchaseBlock, lotteryBlock *dbtypes.TinyBlock, spendTxid string, err error) {
+	var dbid sql.NullInt64
+	var purchaseHash, spendHash string
+	var purchaseHeight, spendHeight uint32
+	err = db.QueryRowContext(ctx, internal.SelectTicketInfoByHash, ticketHash).
+		Scan(&purchaseHash, &purchaseHeight, &spendStatus, &poolStatus, &dbid)
+	if err != nil {
+		return
+	}
+
+	purchaseBlock = &dbtypes.TinyBlock{
+		Hash:   purchaseHash,
+		Height: purchaseHeight,
+	}
+
+	if spendStatus == dbtypes.TicketUnspent {
+		// ticket unspent. No further queries required.
+		return
+	}
+	if !dbid.Valid {
+		err = fmt.Errorf("Invalid spneding tx database ID")
+		return
+	}
+
+	err = db.QueryRowContext(ctx, internal.SelectTxnByDbID, dbid.Int64).
+		Scan(&spendHash, &spendHeight, &spendTxid)
+
+	if err != nil {
+		return
+	}
+
+	if spendStatus == dbtypes.TicketVoted {
+		lotteryBlock = &dbtypes.TinyBlock{
+			Hash:   spendHash,
+			Height: spendHeight,
+		}
+	}
+
+	return
+}
+
 // RetrieveTicketIDsByHashes gets the db row IDs (primary keys) in the tickets
 // table for the given ticket purchase transaction hashes.
 func RetrieveTicketIDsByHashes(ctx context.Context, db *sql.DB, ticketHashes []string) (ids []uint64, err error) {

@@ -36,12 +36,12 @@ const (
 	// insertTxRow is the basis for several tx insert/upsert statements.
 	insertTxRow = `INSERT INTO transactions (
 		block_hash, block_height, block_time, time,
-		tx_type, version, tree, tx_hash, block_index, 
-		lock_time, expiry, size, spent, sent, fees, 
+		tx_type, version, tree, tx_hash, block_index,
+		lock_time, expiry, size, spent, sent, fees,
 		num_vin, vin_db_ids, num_vout, vout_db_ids,
 		is_valid, is_mainchain)
 	VALUES (
-		$1, $2, $3, $4, 
+		$1, $2, $3, $4,
 		$5, $6, $7, $8, $9,
 		$10, $11, $12, $13, $14, $15,
 		$16, $17, $18, $19,
@@ -54,7 +54,7 @@ const (
 
 	// UpsertTxRow is an upsert (insert or update on conflict), returning the
 	// inserted/updated transaction row id.
-	UpsertTxRow = insertTxRow + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
+	UpsertTxRow = insertTxRow + `ON CONFLICT (tx_hash, block_hash) DO UPDATE
 		SET is_valid = $20, is_mainchain = $21 RETURNING id;`
 
 	// InsertTxRowOnConflictDoNothing allows an INSERT with a DO NOTHING on
@@ -108,16 +108,16 @@ const (
 		ORDER BY is_mainchain DESC, is_valid DESC, block_time DESC
 		LIMIT 1;`
 
-	SelectFullTxByHash = `SELECT id, block_hash, block_height, block_time, 
-		time, tx_type, version, tree, tx_hash, block_index, lock_time, expiry, 
+	SelectFullTxByHash = `SELECT id, block_hash, block_height, block_time,
+		time, tx_type, version, tree, tx_hash, block_index, lock_time, expiry,
 		size, spent, sent, fees, num_vin, vin_db_ids, num_vout, vout_db_ids,
 		is_valid, is_mainchain
 		FROM transactions WHERE tx_hash = $1
 		ORDER BY is_mainchain DESC, is_valid DESC, block_time DESC
 		LIMIT 1;`
 
-	SelectFullTxsByHash = `SELECT id, block_hash, block_height, block_time, 
-		time, tx_type, version, tree, tx_hash, block_index, lock_time, expiry, 
+	SelectFullTxsByHash = `SELECT id, block_hash, block_height, block_time,
+		time, tx_type, version, tree, tx_hash, block_index, lock_time, expiry,
 		size, spent, sent, fees, num_vin, vin_db_ids, num_vout, vout_db_ids,
 		is_valid, is_mainchain
 		FROM transactions WHERE tx_hash = $1
@@ -142,15 +142,15 @@ const (
 		ORDER BY is_valid DESC, is_mainchain DESC, block_height DESC;`
 
 	UpdateRegularTxnsValidMainchainByBlock = `UPDATE transactions
-		SET is_valid=$1, is_mainchain=$2 
+		SET is_valid=$1, is_mainchain=$2
 		WHERE block_hash=$3 and tree=0;`
 
 	UpdateRegularTxnsValidByBlock = `UPDATE transactions
-		SET is_valid=$1 
+		SET is_valid=$1
 		WHERE block_hash=$2 and tree=0;`
 
 	UpdateTxnsMainchainByBlock = `UPDATE transactions
-		SET is_mainchain=$1 
+		SET is_mainchain=$1
 		WHERE block_hash=$2
 		RETURNING id;`
 
@@ -184,6 +184,8 @@ const (
 		FROM transactions JOIN tickets
 		ON transactions.id=purchase_tx_db_id WHERE pool_status=0
 		AND tickets.is_mainchain = TRUE GROUP BY ticket_bucket;`
+
+	SelectTxnByDbID = `SELECT block_hash, block_height, tx_hash FROM transactions WHERE id = $1;`
 
 	//SelectTxByPrevOut = `SELECT * FROM transactions WHERE vins @> json_build_array(json_build_object('prevtxhash',$1)::jsonb)::jsonb;`
 	//SelectTxByPrevOut = `SELECT * FROM transactions WHERE vins #>> '{"prevtxhash"}' = '$1';`

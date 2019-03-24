@@ -5,7 +5,7 @@ package internal
 const (
 	// tickets table
 
-	CreateTicketsTable = `CREATE TABLE IF NOT EXISTS tickets (  
+	CreateTicketsTable = `CREATE TABLE IF NOT EXISTS tickets (
 		id SERIAL PRIMARY KEY,
 		tx_hash TEXT NOT NULL,
 		block_hash TEXT NOT NULL,
@@ -33,7 +33,7 @@ const (
 	VALUES (
 		$1, $2, $3,	$4,
 		$5, $6, $7,
-		$8, $9, $10, $11, $12, 
+		$8, $9, $10, $11, $12,
 		$13) `
 
 	// InsertTicketRow inserts a new ticket row without checking for unique
@@ -44,7 +44,7 @@ const (
 	// UpsertTicketRow is an upsert (insert or update on conflict), returning
 	// the inserted/updated ticket row id. is_mainchain is updated as this might
 	// be a reorganization.
-	UpsertTicketRow = insertTicketRow + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
+	UpsertTicketRow = insertTicketRow + `ON CONFLICT (tx_hash, block_hash) DO UPDATE
 		SET is_mainchain = $13 RETURNING id;`
 
 	// InsertTicketRowOnConflictDoNothing allows an INSERT with a DO NOTHING on
@@ -104,6 +104,7 @@ const (
 	SelectTicketIDHeightByHash = `SELECT id, block_height FROM tickets` + forTxHashMainchainFirst
 	SelectTicketIDByHash       = `SELECT id FROM tickets` + forTxHashMainchainFirst
 	SelectTicketStatusByHash   = `SELECT id, spend_type, pool_status FROM tickets` + forTxHashMainchainFirst
+	SelectTicketInfoByHash     = `SELECT block_hash, block_height, spend_type, pool_status, spend_tx_db_id FROM tickets` + forTxHashMainchainFirst
 
 	SelectUnspentTickets = `SELECT id, tx_hash FROM tickets
 		WHERE spend_type = 0 AND is_mainchain = true;`
@@ -126,7 +127,7 @@ const (
 		WHERE pool_status = 0 AND tickets.is_mainchain = TRUE
 		GROUP BY timestamp ORDER BY timestamp;`
 
-	SelectTicketSpendTypeByBlock = `SELECT block_height, 
+	SelectTicketSpendTypeByBlock = `SELECT block_height,
 		SUM(CASE WHEN spend_type = 0 THEN 1 ELSE 0 END) as unspent,
 		SUM(CASE WHEN spend_type = 1 THEN 1 ELSE 0 END) as revoked
 		FROM tickets GROUP BY block_height ORDER BY block_height;`
@@ -154,7 +155,7 @@ const (
 		WHERE block_hash = b.hash;`
 
 	UpdateTicketsMainchainByBlock = `UPDATE tickets
-		SET is_mainchain=$1 
+		SET is_mainchain=$1
 		WHERE block_hash=$2;`
 
 	// votes table
@@ -200,7 +201,7 @@ const (
 	// UpsertVoteRow is an upsert (insert or update on conflict), returning the
 	// inserted/updated vote row id. is_mainchain is updated as this might be a
 	// reorganization.
-	UpsertVoteRow = insertVoteRow + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
+	UpsertVoteRow = insertVoteRow + `ON CONFLICT (tx_hash, block_hash) DO UPDATE
 		SET is_mainchain = $12 RETURNING id;`
 
 	// InsertVoteRowOnConflictDoNothing allows an INSERT with a DO NOTHING on
@@ -268,7 +269,7 @@ const (
 		WHERE block_hash = b.hash;`
 
 	UpdateVotesMainchainByBlock = `UPDATE votes
-		SET is_mainchain=$1 
+		SET is_mainchain=$1
 		WHERE block_hash=$2;`
 
 	// misses table
@@ -294,7 +295,7 @@ const (
 
 	// UpsertMissRow is an upsert (insert or update on conflict), returning
 	// the inserted/updated miss row id.
-	UpsertMissRow = insertMissRow + `ON CONFLICT (ticket_hash, block_hash) DO UPDATE 
+	UpsertMissRow = insertMissRow + `ON CONFLICT (ticket_hash, block_hash) DO UPDATE
 		SET ticket_hash = $4, block_hash = $2 RETURNING id;`
 
 	// InsertMissRowOnConflictDoNothing allows an INSERT with a DO NOTHING on
