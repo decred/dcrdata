@@ -9,8 +9,8 @@ import (
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
 
-	"github.com/decred/dcrdata/v4/api/insight"
 	"github.com/decred/dcrdata/txhelpers"
+	"github.com/decred/dcrdata/v4/api/insight"
 )
 
 const (

@@ -27,13 +27,13 @@ import (
 	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types"
+	"github.com/decred/dcrdata/txhelpers"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
 	"github.com/decred/dcrdata/v4/exchanges"
 	"github.com/decred/dcrdata/v4/explorer"
 	"github.com/decred/dcrdata/v4/gov/agendas"
 	m "github.com/decred/dcrdata/v4/middleware"
 	notify "github.com/decred/dcrdata/v4/notification"
-	"github.com/decred/dcrdata/txhelpers"
 	appver "github.com/decred/dcrdata/v4/version"
 )
 
