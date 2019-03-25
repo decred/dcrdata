@@ -41,7 +41,7 @@ import (
 	pstypes "github.com/decred/dcrdata/v4/pubsub/types"
 	"github.com/decred/dcrdata/v4/rpcutils"
 	"github.com/decred/dcrdata/v4/semver"
-	"github.com/decred/dcrdata/v4/txhelpers"
+	"github.com/decred/dcrdata/txhelpers"
 	"github.com/decred/dcrdata/v4/version"
 	"github.com/go-chi/chi"
 	"github.com/google/gops/agent"

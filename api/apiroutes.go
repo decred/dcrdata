@@ -33,7 +33,7 @@ import (
 	"github.com/decred/dcrdata/v4/gov/agendas"
 	m "github.com/decred/dcrdata/v4/middleware"
 	notify "github.com/decred/dcrdata/v4/notification"
-	"github.com/decred/dcrdata/v4/txhelpers"
+	"github.com/decred/dcrdata/txhelpers"
 	appver "github.com/decred/dcrdata/v4/version"
 )
 

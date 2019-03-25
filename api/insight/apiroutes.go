@@ -25,7 +25,7 @@ import (
 	"github.com/decred/dcrdata/v4/db/dcrpg"
 	m "github.com/decred/dcrdata/v4/middleware"
 	"github.com/decred/dcrdata/v4/semver"
-	"github.com/decred/dcrdata/v4/txhelpers"
+	"github.com/decred/dcrdata/txhelpers"
 )
 
 // DataSourceLite specifies an interface for collecting data from the built-in

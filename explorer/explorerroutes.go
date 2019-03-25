@@ -26,7 +26,7 @@ import (
 	"github.com/decred/dcrdata/v4/explorer/types"
 	"github.com/decred/dcrdata/v4/gov/agendas"
 	pitypes "github.com/decred/dcrdata/v4/gov/politeia/types"
-	"github.com/decred/dcrdata/v4/txhelpers"
+	"github.com/decred/dcrdata/txhelpers"
 	humanize "github.com/dustin/go-humanize"
 )
 

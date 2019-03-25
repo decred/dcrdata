@@ -6,7 +6,6 @@ require (
 	github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb
 	github.com/chappjc/trylock v1.0.0
 	github.com/davecgh/go-spew v1.1.1
-	github.com/decred/base58 v1.0.0
 	github.com/decred/dcrd/blockchain v1.1.1
 	github.com/decred/dcrd/blockchain/stake v1.1.0
 	github.com/decred/dcrd/chaincfg v1.3.0
@@ -19,6 +18,7 @@ require (
 	github.com/decred/dcrd/txscript v1.0.2
 	github.com/decred/dcrd/wire v1.2.0
 	github.com/decred/dcrdata/api/types v1.0.2
+	github.com/decred/dcrdata/txhelpers v1.0.0
 	github.com/decred/dcrwallet/wallet v1.2.0
 	github.com/decred/politeia v0.0.0-20190325135210-6d7b23a66d77
 	github.com/decred/slog v1.0.0
@@ -44,3 +44,5 @@ require (
 )
 
 replace github.com/decred/dcrdata/api/types => ./api/types
+
+replace github.com/decred/dcrdata/txhelpers => ./txhelpers
