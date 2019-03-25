@@ -140,6 +140,8 @@ github.com/decred/dcrd/wire v1.1.0 h1:G+3CugtxNbToUN8RKWqm74yLfzJJ2BKMOr2RgWc4Ty
 github.com/decred/dcrd/wire v1.1.0/go.mod h1:/JKOsLInOJu6InN+/zH5AyCq3YDIOW/EqcffvU8fJHM=
 github.com/decred/dcrd/wire v1.2.0 h1:HqJVB7vcklIguzFWgRXw/WYCQ9cD3bUC5TKj53i1Hng=
 github.com/decred/dcrd/wire v1.2.0/go.mod h1:/JKOsLInOJu6InN+/zH5AyCq3YDIOW/EqcffvU8fJHM=
+github.com/decred/dcrdata/semver v1.0.0 h1:DBqYU/x+4LqHq/3r4xKdF6xG5ewktG2KDC+g/p3f8mc=
+github.com/decred/dcrdata/semver v1.0.0/go.mod h1:z+nQqiAd9fYkHhBLbejysZ2FPHtgkrErWDgMf+JlZWE=
 github.com/decred/dcrdata/v3 v3.1.2/go.mod h1:yzBJXhNSOHsWgLNp9m0rGUY3ajn6HADvre0bL3ApNdE=
 github.com/decred/dcrdata/v4 v4.0.0-rc4/go.mod h1:Ot54gY60h0WKZ/oqcx7GaU5NWSIPd05tikOrWCPS0Nk=
 github.com/decred/dcrtime v0.0.0-20180808181920-4c91c4cbed09/go.mod h1:ix2x3x3d4LivVPyh1l+ZVNjxuycrXyGZolnuVqVfywY=

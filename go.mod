@@ -19,6 +19,7 @@ require (
 	github.com/decred/dcrd/wire v1.2.0
 	github.com/decred/dcrdata/api/types v1.0.2
 	github.com/decred/dcrdata/db/dbtypes v1.0.0
+	github.com/decred/dcrdata/semver v1.0.0
 	github.com/decred/dcrdata/txhelpers v1.0.0
 	github.com/decred/dcrwallet/wallet v1.2.0
 	github.com/decred/politeia v0.0.0-20190325135210-6d7b23a66d77
