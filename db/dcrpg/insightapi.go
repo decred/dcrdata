@@ -11,7 +11,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
-	apitypes "github.com/decred/dcrdata/v4/api/types"
+	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/v4/db/cache"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
 	"github.com/decred/dcrdata/v4/rpcutils"
