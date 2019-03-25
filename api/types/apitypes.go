@@ -6,8 +6,10 @@ package types
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
@@ -21,13 +23,46 @@ type TimeAPI struct {
 	S dbtypes.TimeDef
 }
 
+// String formats the time in a human-friendly layout.
 func (t TimeAPI) String() string {
 	return t.S.String()
+}
+
+// UNIX returns the UNIX epoch time stamp.
+func (t TimeAPI) UNIX() int64 {
+	return t.S.UNIX()
 }
 
 // MarshalJSON is set as the default marshalling function for TimeAPI struct.
 func (t *TimeAPI) MarshalJSON() ([]byte, error) {
 	return json.Marshal(t.S.UNIX())
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (t *TimeAPI) UnmarshalJSON(data []byte) error {
+	if t == nil {
+		return fmt.Errorf("TimeAPI: UnmarshalJSON on nil pointer")
+	}
+	var ts int64
+	if err := json.Unmarshal(data, &ts); err != nil {
+		return err
+	}
+	*t = NewTimeAPIFromUNIX(ts)
+	return nil
+}
+
+// NewTimeAPI constructs a TimeAPI from the given time.Time. It presets the
+// timezone for formatting to UTC.
+func NewTimeAPI(t time.Time) TimeAPI {
+	return TimeAPI{
+		S: dbtypes.NewTimeDef(t),
+	}
+}
+
+// NewTimeAPIFromUNIX constructs a TimeAPI from the given UNIX epoch time stamp
+// in seconds. It presets the timezone for formatting to UTC.
+func NewTimeAPIFromUNIX(t int64) TimeAPI {
+	return NewTimeAPI(time.Unix(t, 0))
 }
 
 // much of the time, dcrdata will be using the types in dcrjson, but others are
