@@ -1292,6 +1292,53 @@ func (pgb *ChainDB) ticketPoolVisualization(interval dbtypes.TimeBasedGrouping) 
 	return
 }
 
+// GetTicketInfo retrieves information about the pool and spend statuses, the
+// purchase block, the lottery block, and the spending transaction.
+func (pgb *ChainDB) GetTicketInfo(txid string) (*apitypes.TicketInfo, error) {
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	defer cancel()
+	spendStatus, poolStatus, purchaseBlock, lotteryBlock, spendTxid, err := RetrieveTicketInfoByHash(ctx, pgb.db, txid)
+
+	if err != nil {
+		return nil, pgb.replaceCancelError(err)
+	}
+
+	var vote, revocation *string
+	status := strings.ToLower(poolStatus.String())
+	maturity := purchaseBlock.Height + uint32(pgb.chainParams.TicketMaturity)
+	expiration := maturity + pgb.chainParams.TicketExpiry
+	if pgb.Height() < int64(maturity) {
+		status = "immature"
+	}
+	if spendStatus == dbtypes.TicketRevoked {
+		status = spendStatus.String()
+		revocation = &spendTxid
+	} else if spendStatus == dbtypes.TicketVoted {
+		vote = &spendTxid
+	}
+
+	if poolStatus == dbtypes.PoolStatusMissed {
+		hash, height, err := RetrieveMissForTicket(ctx, pgb.db, txid)
+		if err != nil {
+			return nil, pgb.replaceCancelError(err)
+		}
+		lotteryBlock = &apitypes.TinyBlock{
+			Hash:   hash,
+			Height: uint32(height),
+		}
+	}
+
+	return &apitypes.TicketInfo{
+		Status:           status,
+		PurchaseBlock:    purchaseBlock,
+		MaturityHeight:   maturity,
+		ExpirationHeight: expiration,
+		LotteryBlock:     lotteryBlock,
+		Vote:             vote,
+		Revocation:       revocation,
+	}, nil
+}
+
 func (pgb *ChainDB) updateProjectFundCache() error {
 	_, _, err := pgb.AddressHistoryAll(pgb.devAddress, 1, 0)
 	return err
