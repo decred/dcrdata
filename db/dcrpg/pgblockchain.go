@@ -1293,8 +1293,8 @@ func (pgb *ChainDB) ticketPoolVisualization(interval dbtypes.TimeBasedGrouping) 
 }
 
 // GetTicketInfo retrieves information about the pool and spend statuses, the
-// purchase block, the lottery block, and the spending transaction. 
-func (pgb *ChainDB) GetTicketInfo(txid string) (*dbtypes.TicketInfo, error) {
+// purchase block, the lottery block, and the spending transaction.
+func (pgb *ChainDB) GetTicketInfo(txid string) (*apitypes.TicketInfo, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 	spendStatus, poolStatus, purchaseBlock, lotteryBlock, spendTxid, err := RetrieveTicketInfoByHash(ctx, pgb.db, txid)
@@ -1322,13 +1322,13 @@ func (pgb *ChainDB) GetTicketInfo(txid string) (*dbtypes.TicketInfo, error) {
 		if err != nil {
 			return nil, pgb.replaceCancelError(err)
 		}
-		lotteryBlock = &dbtypes.TinyBlock{
+		lotteryBlock = &apitypes.TinyBlock{
 			Hash:   hash,
 			Height: uint32(height),
 		}
 	}
 
-	return &dbtypes.TicketInfo{
+	return &apitypes.TicketInfo{
 		Status:           status,
 		PurchaseBlock:    purchaseBlock,
 		MaturityHeight:   maturity,

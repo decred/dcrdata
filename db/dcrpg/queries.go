@@ -889,7 +889,7 @@ func RetrieveTicketStatusByHash(ctx context.Context, db *sql.DB, ticketHash stri
 // RetrieveTicketInfoByHash retrieves the ticket spend and pool statuses as well
 // as the purchase and spending block info and spending txid.
 func RetrieveTicketInfoByHash(ctx context.Context, db *sql.DB, ticketHash string) (spendStatus dbtypes.TicketSpendType,
-	poolStatus dbtypes.TicketPoolStatus, purchaseBlock, lotteryBlock *dbtypes.TinyBlock, spendTxid string, err error) {
+	poolStatus dbtypes.TicketPoolStatus, purchaseBlock, lotteryBlock *apitypes.TinyBlock, spendTxid string, err error) {
 	var dbid sql.NullInt64
 	var purchaseHash, spendHash string
 	var purchaseHeight, spendHeight uint32
@@ -899,7 +899,7 @@ func RetrieveTicketInfoByHash(ctx context.Context, db *sql.DB, ticketHash string
 		return
 	}
 
-	purchaseBlock = &dbtypes.TinyBlock{
+	purchaseBlock = &apitypes.TinyBlock{
 		Hash:   purchaseHash,
 		Height: purchaseHeight,
 	}
@@ -921,7 +921,7 @@ func RetrieveTicketInfoByHash(ctx context.Context, db *sql.DB, ticketHash string
 	}
 
 	if spendStatus == dbtypes.TicketVoted {
-		lotteryBlock = &dbtypes.TinyBlock{
+		lotteryBlock = &apitypes.TinyBlock{
 			Hash:   spendHash,
 			Height: spendHeight,
 		}

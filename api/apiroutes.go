@@ -112,7 +112,7 @@ type DataSourceAux interface {
 	AddressTxIoCsv(address string) ([][]string, error)
 	Height() int64
 	AllAgendas() (map[string]dbtypes.MileStone, error)
-	GetTicketInfo(txid string) (*dbtypes.TicketInfo, error)
+	GetTicketInfo(txid string) (*apitypes.TicketInfo, error)
 }
 
 // dcrdata application context used by all route handlers

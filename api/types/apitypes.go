@@ -560,6 +560,24 @@ type MempoolTicketDetails struct {
 // MempoolTicketDetails
 type TicketsDetails []*TicketDetails
 
+// TicketInfo combines spend and pool statuses and relevant block and spending
+// transaction IDs.
+type TicketInfo struct {
+	Status           string     `json:"status"`
+	PurchaseBlock    *TinyBlock `json:"purchase_block"`
+	MaturityHeight   uint32     `json:"maturity_height"`
+	ExpirationHeight uint32     `json:"expiration_height"`
+	LotteryBlock     *TinyBlock `json:"lottery_block"`
+	Vote             *string    `json:"vote"`
+	Revocation       *string    `json:"revocation"`
+}
+
+// TinyBlock is the hash and height of a block.
+type TinyBlock struct {
+	Hash   string `json:"hash"`
+	Height uint32 `json:"height"`
+}
+
 // TicketPoolChartsData is for data used to display ticket pool statistics at
 // /ticketpool.
 type TicketPoolChartsData struct {
