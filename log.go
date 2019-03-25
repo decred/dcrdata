@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/decred/dcrd/rpcclient/v2"
+	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/v4/api"
 	"github.com/decred/dcrdata/v4/api/insight"
 	"github.com/decred/dcrdata/v4/blockdata"
@@ -23,7 +24,6 @@ import (
 	"github.com/decred/dcrdata/v4/middleware"
 	notify "github.com/decred/dcrdata/v4/notification"
 	"github.com/decred/dcrdata/v4/pubsub"
-	"github.com/decred/dcrdata/v4/rpcutils"
 	"github.com/decred/dcrdata/v4/stakedb"
 	"github.com/decred/slog"
 	"github.com/jrick/logrotate/rotator"
