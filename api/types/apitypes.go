@@ -13,7 +13,7 @@ import (
 
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
-	"github.com/decred/dcrdata/v4/txhelpers"
+	"github.com/decred/dcrdata/txhelpers"
 )
 
 // TimeAPI is a fall back dbtypes.TimeDef wrapper that allows API endpoints that

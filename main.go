@@ -23,6 +23,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/rpcclient/v2"
+	"github.com/decred/dcrdata/txhelpers"
 	"github.com/decred/dcrdata/v4/api"
 	"github.com/decred/dcrdata/v4/api/insight"
 	"github.com/decred/dcrdata/v4/blockdata"
@@ -41,7 +42,6 @@ import (
 	pstypes "github.com/decred/dcrdata/v4/pubsub/types"
 	"github.com/decred/dcrdata/v4/rpcutils"
 	"github.com/decred/dcrdata/v4/semver"
-	"github.com/decred/dcrdata/v4/txhelpers"
 	"github.com/decred/dcrdata/v4/version"
 	"github.com/go-chi/chi"
 	"github.com/google/gops/agent"
