@@ -1027,6 +1027,23 @@ func (pgb *ChainDB) AgendasVotesSummary(agendaID string) (summary *dbtypes.Agend
 	return
 }
 
+// AgendaVoteCounts returns the vote counts for the agenda as builtin types.
+func (pgb *ChainDB) AgendaVoteCounts(agendaID string) (yes, abstain, no uint32, err error) {
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	defer cancel()
+
+	chainInfo := pgb.ChainInfo()
+	agendaInfo := chainInfo.AgendaMileStones[agendaID]
+
+	// Check if starttime is in the future and exit if true.
+	if time.Now().Before(agendaInfo.StartTime) {
+		return
+	}
+
+	return retrieveTotalAgendaVotesCount(ctx, pgb.db, agendaID,
+		agendaInfo.VotingStarted, agendaInfo.VotingDone)
+}
+
 // AllAgendas returns all the agendas stored currently.
 func (pgb *ChainDB) AllAgendas() (map[string]dbtypes.MileStone, error) {
 	return retrieveAllAgendas(pgb.db)
