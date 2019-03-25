@@ -17,8 +17,9 @@ require (
 	github.com/decred/dcrd/rpcclient/v2 v2.0.0
 	github.com/decred/dcrd/txscript v1.0.2
 	github.com/decred/dcrd/wire v1.2.0
-	github.com/decred/dcrdata/api/types v1.0.2
+	github.com/decred/dcrdata/api/types v1.0.3
 	github.com/decred/dcrdata/db/dbtypes v1.0.0
+	github.com/decred/dcrdata/rpcutils v1.0.0
 	github.com/decred/dcrdata/semver v1.0.0
 	github.com/decred/dcrdata/txhelpers v1.0.0
 	github.com/decred/dcrwallet/wallet v1.2.0
@@ -45,8 +46,10 @@ require (
 	google.golang.org/grpc v1.18.0
 )
 
-replace github.com/decred/dcrdata/api/types => ./api/types
-
-replace github.com/decred/dcrdata/db/dbtypes => ./db/dbtypes
-
-replace github.com/decred/dcrdata/txhelpers => ./txhelpers
+replace (
+	github.com/decred/dcrdata/api/types => ./api/types
+	github.com/decred/dcrdata/db/dbtypes => ./db/dbtypes
+	github.com/decred/dcrdata/rpcutils => ./rpcutils
+	github.com/decred/dcrdata/semver => ./semver
+	github.com/decred/dcrdata/txhelpers => ./txhelpers
+)
