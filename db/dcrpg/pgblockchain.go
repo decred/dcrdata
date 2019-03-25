@@ -29,7 +29,7 @@ import (
 	"github.com/decred/dcrdata/txhelpers"
 	"github.com/decred/dcrdata/v4/blockdata"
 	"github.com/decred/dcrdata/v4/db/cache"
-	"github.com/decred/dcrdata/v4/db/dbtypes"
+	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/v4/db/dcrpg/internal"
 	"github.com/decred/dcrdata/v4/rpcutils"
 	"github.com/decred/dcrdata/v4/stakedb"

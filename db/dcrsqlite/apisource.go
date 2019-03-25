@@ -22,7 +22,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/txhelpers"
-	"github.com/decred/dcrdata/v4/db/dbtypes"
+	"github.com/decred/dcrdata/db/dbtypes"
 	exptypes "github.com/decred/dcrdata/v4/explorer/types"
 	"github.com/decred/dcrdata/v4/mempool"
 	"github.com/decred/dcrdata/v4/rpcutils"

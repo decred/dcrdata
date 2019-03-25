@@ -16,7 +16,7 @@ import (
 	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/txhelpers"
-	"github.com/decred/dcrdata/v4/db/dbtypes"
+	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/v4/db/dcrpg/internal"
 	"github.com/decred/dcrdata/v4/rpcutils"
 )
