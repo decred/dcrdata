@@ -27,7 +27,7 @@ import (
 	"github.com/decred/dcrdata/v4/api"
 	"github.com/decred/dcrdata/v4/api/insight"
 	"github.com/decred/dcrdata/v4/blockdata"
-	"github.com/decred/dcrdata/v4/db/dbtypes"
+	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/v4/db/dcrpg"
 	"github.com/decred/dcrdata/v4/db/dcrsqlite"
 	"github.com/decred/dcrdata/v4/exchanges"

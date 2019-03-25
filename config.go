@@ -22,7 +22,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/v4/db/dbtypes"
+	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/v4/netparams"
 	"github.com/decred/dcrdata/v4/version"
 	"github.com/decred/slog"

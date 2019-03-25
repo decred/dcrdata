@@ -3,7 +3,7 @@ package dcrsqlite
 import (
 	"testing"
 
-	"github.com/decred/dcrdata/v4/db/dbtypes"
+	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/v4/testutil"
 	"github.com/google/go-cmp/cmp"
 )
