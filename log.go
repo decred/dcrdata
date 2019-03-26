@@ -24,7 +24,7 @@ import (
 	"github.com/decred/dcrdata/v4/middleware"
 	notify "github.com/decred/dcrdata/v4/notification"
 	"github.com/decred/dcrdata/v4/pubsub"
-	"github.com/decred/dcrdata/v4/stakedb"
+	"github.com/decred/dcrdata/stakedb"
 	"github.com/decred/slog"
 	"github.com/jrick/logrotate/rotator"
 )

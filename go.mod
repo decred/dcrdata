@@ -1,7 +1,7 @@
 module github.com/decred/dcrdata/v4
 
 require (
-	github.com/asdine/storm v2.1.1+incompatible
+	github.com/asdine/storm v2.2.0+incompatible
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb
 	github.com/chappjc/trylock v1.0.0
@@ -17,10 +17,11 @@ require (
 	github.com/decred/dcrd/rpcclient/v2 v2.0.0
 	github.com/decred/dcrd/txscript v1.0.2
 	github.com/decred/dcrd/wire v1.2.0
-	github.com/decred/dcrdata/api/types v1.0.3
+	github.com/decred/dcrdata/api/types v1.0.4
 	github.com/decred/dcrdata/db/dbtypes v1.0.0
 	github.com/decred/dcrdata/rpcutils v1.0.0
 	github.com/decred/dcrdata/semver v1.0.0
+	github.com/decred/dcrdata/stakedb v1.0.0
 	github.com/decred/dcrdata/txhelpers v1.0.0
 	github.com/decred/dcrwallet/wallet v1.2.0
 	github.com/decred/politeia v0.0.0-20190325135210-6d7b23a66d77
@@ -51,5 +52,6 @@ replace (
 	github.com/decred/dcrdata/db/dbtypes => ./db/dbtypes
 	github.com/decred/dcrdata/rpcutils => ./rpcutils
 	github.com/decred/dcrdata/semver => ./semver
+	github.com/decred/dcrdata/stakedb => ./stakedb
 	github.com/decred/dcrdata/txhelpers => ./txhelpers
 )

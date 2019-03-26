@@ -32,7 +32,7 @@ import (
 	"github.com/decred/dcrdata/v4/blockdata"
 	"github.com/decred/dcrdata/v4/db/cache"
 	"github.com/decred/dcrdata/v4/db/dcrpg/internal"
-	"github.com/decred/dcrdata/v4/stakedb"
+	"github.com/decred/dcrdata/stakedb"
 	humanize "github.com/dustin/go-humanize"
 )
 
