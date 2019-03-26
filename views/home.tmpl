@@ -18,15 +18,15 @@
 
                     <div class="row">
                         {{with .BestBlock}}
-                        <div class="col-6 text-center">
+                        <div class="col-12 col-sm-6 text-center">
                             <span class="h6 mb-0 position-relative text-secondary" data-tooltip="stakeholders are validating this block now.">proposed</span><br>
                             <a class="d-inline-block h3 position-relative" href="/block/{{.Hash}}" data-target="homepage.blockHeight">{{.Height}}</a>
                         </div>
-                        <div class="col-6 text-center">
+                        <div class="col-12 col-sm-6 text-center">
                             <span class="h6 position-relative text-secondary" data-tooltip="total DCR sent in this block">value</span><br>
                             <span class="h4" data-target="homepage.blockTotal">{{threeSigFigs .Total}}</span><span class="h6"> DCR</span>
                         </div>
-                        <div class="col-6 text-center">
+                        <div class="col-12 col-sm-6 text-center">
                             <div class="d-flex align-items-baseline justify-content-center p-0 m-0">
                                 <span class="h6 mr-2 text-secondary" data-tooltip="stakeholder's votes for the proposed block.">votes</span>
                                 {{if eq $.Consensus -1}}
@@ -48,7 +48,7 @@
                                 {{end}}
                             </div>
                         </div>
-                        <div class="col-6 text-center">
+                        <div class="col-12 col-sm-6 text-center">
                             <span class="h6 text-secondary">size</span><br>
                             <span class="h4" data-target="homepage.blockSize">{{.FormattedBytes}}</span>
                         </div>
