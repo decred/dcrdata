@@ -22,10 +22,10 @@ import (
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/db/dbtypes"
+	exptypes "github.com/decred/dcrdata/explorer/types"
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/stakedb"
 	"github.com/decred/dcrdata/txhelpers"
-	exptypes "github.com/decred/dcrdata/v4/explorer/types"
 	"github.com/decred/dcrdata/v4/mempool"
 	humanize "github.com/dustin/go-humanize"
 )

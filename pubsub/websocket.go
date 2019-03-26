@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	exptypes "github.com/decred/dcrdata/v4/explorer/types"
+	exptypes "github.com/decred/dcrdata/explorer/types"
 	pstypes "github.com/decred/dcrdata/v4/pubsub/types"
 )
 
