@@ -14,4 +14,5 @@ require (
 	github.com/decred/dcrd/rpcclient/v2 v2.0.0
 	github.com/decred/dcrd/txscript v1.0.2
 	github.com/decred/dcrd/wire v1.2.0
+	github.com/decred/dcrdata/semver v1.0.0
 )

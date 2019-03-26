@@ -123,8 +123,6 @@ github.com/decred/dcrdata/db/dbtypes v1.0.0 h1:zfQRdEIh2teryg7uWa/aeSrclRkQBIRxR
 github.com/decred/dcrdata/db/dbtypes v1.0.0/go.mod h1:rXR0Ut0rCeIjKSxu7Q9CIjcDVi19TKIXV//VJ6EIl+4=
 github.com/decred/dcrdata/txhelpers v1.0.0 h1:hvLRp218/B+7dA5r6rXySECTnuy05HW6cBDpa2bH9Jo=
 github.com/decred/dcrdata/txhelpers v1.0.0/go.mod h1:kpj3uQsfVzAuh2ycX79UoRQQx8OMYuXg5i+Q774jCtA=
-github.com/decred/dcrdata/v3 v3.1.2/go.mod h1:yzBJXhNSOHsWgLNp9m0rGUY3ajn6HADvre0bL3ApNdE=
-github.com/decred/dcrdata/v4 v4.0.0-rc4/go.mod h1:Ot54gY60h0WKZ/oqcx7GaU5NWSIPd05tikOrWCPS0Nk=
 github.com/decred/dcrtime v0.0.0-20180808181920-4c91c4cbed09/go.mod h1:ix2x3x3d4LivVPyh1l+ZVNjxuycrXyGZolnuVqVfywY=
 github.com/decred/dcrwallet v1.2.3-0.20190128160919-849f7c01c12d h1:29CvbLfATHA5XDxr6w4Z3hYx/tqM+tgnj63LJhUVCCU=
 github.com/decred/dcrwallet v1.2.3-0.20190128160919-849f7c01c12d/go.mod h1:jtNUWAO6lg2t2UHOlT9fmjuxD8os9JMljZNEXaw95Tg=

@@ -18,7 +18,6 @@ import (
 	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/semver"
-	"github.com/decred/dcrdata/v4/testutil"
 )
 
 type TxGetter struct {
@@ -254,8 +253,6 @@ func TestAddressErrors(t *testing.T) {
 }
 
 func TestIsZeroHashP2PHKAddress(t *testing.T) {
-	testutil.BindCurrentTestSetup(t)
-
 	mainnetDummy := "DsQxuVRvS4eaJ42dhQEsCXauMWjvopWgrVg"
 	testnetDummy := "TsR28UZRprhgQQhzWns2M6cAwchrNVvbYq2"
 	simnetDummy := "SsUMGgvWLcixEeHv3GT4TGYyez4kY79RHth"
@@ -263,30 +260,26 @@ func TestIsZeroHashP2PHKAddress(t *testing.T) {
 	positiveTest := true
 	negativeTest := !positiveTest
 
-	testIsZeroHashP2PHKAddress(mainnetDummy, &chaincfg.MainNetParams, positiveTest)
-	testIsZeroHashP2PHKAddress(testnetDummy, &chaincfg.TestNet3Params, positiveTest)
-	testIsZeroHashP2PHKAddress(simnetDummy, &chaincfg.SimNetParams, positiveTest)
+	testIsZeroHashP2PHKAddress(t, mainnetDummy, &chaincfg.MainNetParams, positiveTest)
+	testIsZeroHashP2PHKAddress(t, testnetDummy, &chaincfg.TestNet3Params, positiveTest)
+	testIsZeroHashP2PHKAddress(t, simnetDummy, &chaincfg.SimNetParams, positiveTest)
 
 	// wrong network
-	testIsZeroHashP2PHKAddress(mainnetDummy, &chaincfg.SimNetParams, negativeTest)
-	testIsZeroHashP2PHKAddress(testnetDummy, &chaincfg.MainNetParams, negativeTest)
-	testIsZeroHashP2PHKAddress(simnetDummy, &chaincfg.TestNet3Params, negativeTest)
+	testIsZeroHashP2PHKAddress(t, mainnetDummy, &chaincfg.SimNetParams, negativeTest)
+	testIsZeroHashP2PHKAddress(t, testnetDummy, &chaincfg.MainNetParams, negativeTest)
+	testIsZeroHashP2PHKAddress(t, simnetDummy, &chaincfg.TestNet3Params, negativeTest)
 
 	// wrong address
-	testIsZeroHashP2PHKAddress("", &chaincfg.SimNetParams, negativeTest)
-	testIsZeroHashP2PHKAddress("", &chaincfg.MainNetParams, negativeTest)
-	testIsZeroHashP2PHKAddress("", &chaincfg.TestNet3Params, negativeTest)
-
+	testIsZeroHashP2PHKAddress(t, "", &chaincfg.SimNetParams, negativeTest)
+	testIsZeroHashP2PHKAddress(t, "", &chaincfg.MainNetParams, negativeTest)
+	testIsZeroHashP2PHKAddress(t, "", &chaincfg.TestNet3Params, negativeTest)
 }
 
-func testIsZeroHashP2PHKAddress(expectedAddress string, params *chaincfg.Params, expectedTestResult bool) {
+func testIsZeroHashP2PHKAddress(t *testing.T, expectedAddress string, params *chaincfg.Params, expectedTestResult bool) {
 	result := IsZeroHashP2PHKAddress(expectedAddress, params)
 	if expectedTestResult != result {
-		testutil.ReportTestFailed(
-			"IsZeroHashP2PHKAddress(%v) returned <%v>, expected <%v>",
-			expectedAddress,
-			result,
-			expectedTestResult)
+		t.Fatalf("IsZeroHashP2PHKAddress(%v) returned <%v>, expected <%v>",
+			expectedAddress, result, expectedTestResult)
 	}
 }
 

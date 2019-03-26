@@ -9,6 +9,5 @@ require (
 	github.com/decred/dcrd/dcrutil v1.2.1-0.20190118223730-3a5281156b73
 	github.com/decred/dcrd/txscript v1.0.2
 	github.com/decred/dcrd/wire v1.2.0
-	github.com/decred/dcrdata/txhelpers v1.0.0
-	github.com/decred/dcrdata/v4 v4.0.0-rc4
+	github.com/decred/dcrdata/txhelpers v1.0.1
 )
