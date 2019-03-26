@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/decred/dcrdata/v4/dcrrates"
+	"github.com/decred/dcrdata/dcrrates"
 	"github.com/decred/slog"
 )
 

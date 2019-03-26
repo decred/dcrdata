@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrdata/v4/dcrrates"
+	"github.com/decred/dcrdata/dcrrates"
 	"google.golang.org/grpc"
 	credentials "google.golang.org/grpc/credentials"
 )
