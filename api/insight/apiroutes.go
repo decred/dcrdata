@@ -857,9 +857,6 @@ func dateFromStr(format, dateStr string) (date time.Time, isToday bool, err erro
 	} else {
 		date, err = time.Parse(format, dateStr)
 		if err != nil {
-			// writeInsightError(w,
-			// 	fmt.Sprintf("Unable to retrieve block summary using time %s: %v",
-			// 		blockDateStr, err))
 			return
 		}
 		date = date.UTC()
