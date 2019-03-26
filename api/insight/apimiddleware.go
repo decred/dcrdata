@@ -14,7 +14,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	apitypes "github.com/decred/dcrdata/api/types"
-	m "github.com/decred/dcrdata/v4/middleware"
+	m "github.com/decred/dcrdata/middleware"
 	"github.com/go-chi/chi"
 )
 
