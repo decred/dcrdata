@@ -505,8 +505,16 @@ func (d *AddressCacheItem) Transactions(N, offset int, txnView dbtypes.AddrTxnVi
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid transaction view: %v", txnView)
 	}
+
+	// Identify cache miss by nil rows.
 	if d.rows == nil {
-		return nil, nil, nil // cache miss is not an error
+		// Cache miss is not an error, but rows return type must be consistent
+		// with requested view for the sanity checking in AddressCache
+		// (TransactionsCompact or TransactionsMerged).
+		if merged {
+			return []dbtypes.AddressRowMerged(nil), nil, nil
+		}
+		return []dbtypes.AddressRowCompact(nil), nil, nil
 	}
 
 	blockID := d.blockID()
@@ -876,7 +884,9 @@ func (ac *AddressCache) Transactions(addr string, N, offset int64, txnType dbtyp
 }
 
 // TransactionsMerged is like Transactions, but it must be used with a merged
-// AddrTxnViewType, and it returns a []dbtypes.AddressRowMerged.
+// AddrTxnViewType, and it returns a []dbtypes.AddressRowMerged. A cache miss is
+// indicated by (*BlockID)==nil. The retured rows may be nil or an empty slice
+// for a cache hit if the address has no history.
 func (ac *AddressCache) TransactionsMerged(addr string, N, offset int64, txnType dbtypes.AddrTxnViewType) ([]dbtypes.AddressRowMerged, *BlockID, error) {
 	aci := ac.addressCacheItem(addr)
 	if aci == nil {
@@ -886,17 +896,23 @@ func (ac *AddressCache) TransactionsMerged(addr string, N, offset int64, txnType
 	ac.cacheMetrics.RowHit()
 
 	rows, blockID, err := aci.Transactions(int(N), int(offset), txnType)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	switch r := rows.(type) {
 	case []dbtypes.AddressRowMerged:
 		return r, blockID, err
 	default:
-		return nil, nil, fmt.Errorf("TransactionsMerged called with non-merged view %v, giving %T",
-			txnType.String(), r)
+		return nil, nil, fmt.Errorf(`TransactionsMerged(%s, N=%d, offset=%d, view="%s") failed to return []dbtypes.AddressRowMerged.`,
+			addr, N, offset, txnType.String())
 	}
 }
 
 // TransactionsCompact is like Transactions, but it must be used with a
-// non-merged AddrTxnViewType, and it returns a []dbtypes.AddressRowCompact.
+// non-merged AddrTxnViewType, and it returns a []dbtypes.AddressRowCompact. A
+// cache miss is indicated by (*BlockID)==nil. The retured rows may be nil or an
+// empty slice for a cache hit if the address has no history.
 func (ac *AddressCache) TransactionsCompact(addr string, N, offset int64, txnType dbtypes.AddrTxnViewType) ([]dbtypes.AddressRowCompact, *BlockID, error) {
 	aci := ac.addressCacheItem(addr)
 	if aci == nil {
@@ -906,12 +922,16 @@ func (ac *AddressCache) TransactionsCompact(addr string, N, offset int64, txnTyp
 	ac.cacheMetrics.RowHit()
 
 	rows, blockID, err := aci.Transactions(int(N), int(offset), txnType)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	switch r := rows.(type) {
 	case []dbtypes.AddressRowCompact:
 		return r, blockID, err
 	default:
-		return nil, nil, fmt.Errorf("TransactionsCompact called with merged view %v, giving %T",
-			txnType.String(), r)
+		return nil, nil, fmt.Errorf(`TransactionsCompact(%s, N=%d, offset=%d, view="%s") failed to return []dbtypes.AddressRowCompact.`,
+			addr, N, offset, txnType.String())
 	}
 }
 
