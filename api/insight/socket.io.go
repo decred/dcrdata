@@ -12,8 +12,8 @@ import (
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/v4/blockdata"
-	"github.com/decred/dcrdata/v4/txhelpers"
+	"github.com/decred/dcrdata/blockdata"
+	"github.com/decred/dcrdata/txhelpers"
 	socketio "github.com/googollee/go-socket.io"
 )
 

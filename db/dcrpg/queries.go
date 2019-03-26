@@ -21,10 +21,10 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-	apitypes "github.com/decred/dcrdata/v4/api/types"
-	"github.com/decred/dcrdata/v4/db/dbtypes"
-	"github.com/decred/dcrdata/v4/db/dcrpg/internal"
-	"github.com/decred/dcrdata/v4/txhelpers"
+	apitypes "github.com/decred/dcrdata/api/types"
+	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/txhelpers"
+	"github.com/decred/dcrdata/db/dcrpg/internal"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/lib/pq"
 )
@@ -883,6 +883,50 @@ func RetrieveTicketStatusByHash(ctx context.Context, db *sql.DB, ticketHash stri
 	spendStatus dbtypes.TicketSpendType, poolStatus dbtypes.TicketPoolStatus, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectTicketStatusByHash, ticketHash).
 		Scan(&id, &spendStatus, &poolStatus)
+	return
+}
+
+// RetrieveTicketInfoByHash retrieves the ticket spend and pool statuses as well
+// as the purchase and spending block info and spending txid.
+func RetrieveTicketInfoByHash(ctx context.Context, db *sql.DB, ticketHash string) (spendStatus dbtypes.TicketSpendType,
+	poolStatus dbtypes.TicketPoolStatus, purchaseBlock, lotteryBlock *apitypes.TinyBlock, spendTxid string, err error) {
+	var dbid sql.NullInt64
+	var purchaseHash, spendHash string
+	var purchaseHeight, spendHeight uint32
+	err = db.QueryRowContext(ctx, internal.SelectTicketInfoByHash, ticketHash).
+		Scan(&purchaseHash, &purchaseHeight, &spendStatus, &poolStatus, &dbid)
+	if err != nil {
+		return
+	}
+
+	purchaseBlock = &apitypes.TinyBlock{
+		Hash:   purchaseHash,
+		Height: purchaseHeight,
+	}
+
+	if spendStatus == dbtypes.TicketUnspent {
+		// ticket unspent. No further queries required.
+		return
+	}
+	if !dbid.Valid {
+		err = fmt.Errorf("Invalid spneding tx database ID")
+		return
+	}
+
+	err = db.QueryRowContext(ctx, internal.SelectTxnByDbID, dbid.Int64).
+		Scan(&spendHash, &spendHeight, &spendTxid)
+
+	if err != nil {
+		return
+	}
+
+	if spendStatus == dbtypes.TicketVoted {
+		lotteryBlock = &apitypes.TinyBlock{
+			Hash:   spendHash,
+			Height: spendHeight,
+		}
+	}
+
 	return
 }
 

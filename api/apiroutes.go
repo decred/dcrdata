@@ -26,14 +26,14 @@ import (
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/wire"
-	apitypes "github.com/decred/dcrdata/v4/api/types"
-	"github.com/decred/dcrdata/v4/db/dbtypes"
+	apitypes "github.com/decred/dcrdata/api/types"
+	"github.com/decred/dcrdata/db/dbtypes"
+	m "github.com/decred/dcrdata/middleware"
+	"github.com/decred/dcrdata/txhelpers"
 	"github.com/decred/dcrdata/v4/exchanges"
 	"github.com/decred/dcrdata/v4/explorer"
 	"github.com/decred/dcrdata/v4/gov/agendas"
-	m "github.com/decred/dcrdata/v4/middleware"
 	notify "github.com/decred/dcrdata/v4/notification"
-	"github.com/decred/dcrdata/v4/txhelpers"
 	appver "github.com/decred/dcrdata/v4/version"
 )
 
@@ -112,6 +112,7 @@ type DataSourceAux interface {
 	AddressTxIoCsv(address string) ([][]string, error)
 	Height() int64
 	AllAgendas() (map[string]dbtypes.MileStone, error)
+	GetTicketInfo(txid string) (*apitypes.TicketInfo, error)
 }
 
 // dcrdata application context used by all route handlers
@@ -750,6 +751,24 @@ func (c *appContext) getTxVoteInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, vinfo, c.getIndentQuery(r))
+}
+
+// For /tx/{txid}/tinfo
+func (c *appContext) getTxTicketInfo(w http.ResponseWriter, r *http.Request) {
+	txid, err := m.GetTxIDCtx(r)
+	if err != nil {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+	tinfo, err := c.AuxDataSource.GetTicketInfo(txid.String())
+	if err != nil {
+		err = fmt.Errorf("unable to get ticket info for tx %v: %v",
+			txid, err)
+		apiLog.Error(err)
+		http.Error(w, err.Error(), 422)
+		return
+	}
+	writeJSON(w, tinfo, c.getIndentQuery(r))
 }
 
 // getTransactionInputs serves []TxIn

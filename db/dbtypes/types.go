@@ -15,8 +15,8 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrdata/v4/db/dbtypes/internal"
-	"github.com/decred/dcrdata/v4/txhelpers"
+	"github.com/decred/dcrdata/db/dbtypes/internal"
+	"github.com/decred/dcrdata/txhelpers"
 )
 
 var (
@@ -1369,12 +1369,12 @@ type Block struct {
 }
 
 type BlockDataBasic struct {
-	Height     uint32  `json:"height,omitemtpy"`
-	Size       uint32  `json:"size,omitemtpy"`
-	Hash       string  `json:"hash,omitemtpy"`
-	Difficulty float64 `json:"diff,omitemtpy"`
-	StakeDiff  float64 `json:"sdiff,omitemtpy"`
-	Time       TimeDef `json:"time,omitemtpy"`
+	Height     uint32  `json:"height,omitempty"`
+	Size       uint32  `json:"size,omitempty"`
+	Hash       string  `json:"hash,omitempty"`
+	Difficulty float64 `json:"diff,omitempty"`
+	StakeDiff  float64 `json:"sdiff,omitempty"`
+	Time       TimeDef `json:"time,omitempty"`
 	NumTx      uint32  `json:"txlength,omitempty"`
 }
 

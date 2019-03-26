@@ -13,11 +13,11 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
-	apitypes "github.com/decred/dcrdata/v4/api/types"
-	"github.com/decred/dcrdata/v4/blockdata"
-	"github.com/decred/dcrdata/v4/db/dbtypes"
-	"github.com/decred/dcrdata/v4/rpcutils"
-	"github.com/decred/dcrdata/v4/txhelpers"
+	apitypes "github.com/decred/dcrdata/api/types"
+	"github.com/decred/dcrdata/blockdata"
+	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/rpcutils"
+	"github.com/decred/dcrdata/txhelpers"
 )
 
 const (

@@ -21,12 +21,12 @@ import (
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
-	"github.com/decred/dcrdata/v4/db/dbtypes"
+	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/txhelpers"
 	"github.com/decred/dcrdata/v4/exchanges"
 	"github.com/decred/dcrdata/v4/explorer/types"
 	"github.com/decred/dcrdata/v4/gov/agendas"
 	pitypes "github.com/decred/dcrdata/v4/gov/politeia/types"
-	"github.com/decred/dcrdata/v4/txhelpers"
 	humanize "github.com/dustin/go-humanize"
 )
 

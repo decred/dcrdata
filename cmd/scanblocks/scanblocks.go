@@ -12,10 +12,10 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient/v2"
-	apitypes "github.com/decred/dcrdata/v4/api/types"
-	"github.com/decred/dcrdata/v4/db/dbtypes"
-	"github.com/decred/dcrdata/v4/rpcutils"
-	"github.com/decred/dcrdata/v4/txhelpers"
+	apitypes "github.com/decred/dcrdata/api/types"
+	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/rpcutils"
+	"github.com/decred/dcrdata/txhelpers"
 	"github.com/decred/slog"
 )
 

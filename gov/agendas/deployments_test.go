@@ -12,7 +12,7 @@ import (
 	"github.com/asdine/storm"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson/v2"
-	"github.com/decred/dcrdata/v4/db/dbtypes"
+	"github.com/decred/dcrdata/db/dbtypes"
 )
 
 var db *storm.DB

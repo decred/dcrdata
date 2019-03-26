@@ -14,9 +14,9 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrdata/rpcutils"
+	"github.com/decred/dcrdata/txhelpers"
 	"github.com/decred/dcrdata/v4/api/insight"
-	"github.com/decred/dcrdata/v4/rpcutils"
-	"github.com/decred/dcrdata/v4/txhelpers"
 	"github.com/decred/dcrwallet/wallet/udb"
 )
 

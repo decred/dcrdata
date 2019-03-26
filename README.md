@@ -11,6 +11,7 @@ and middleware are written in Go. On the front end, Webpack enables the use of
 modern javascript features, as well as SCSS for styling.
 
 - [dcrdata](#dcrdata)
+  - [Release Status](#release-status)
   - [Repository Overview](#repository-overview)
   - [Requirements](#requirements)
   - [Docker Support](#docker-support)
@@ -56,6 +57,16 @@ modern javascript features, as well as SCSS for styling.
   - [Plans](#plans)
   - [Contributing](#contributing)
   - [License](#license)
+
+## Release Status
+
+Always run the Current release or on the Current stable branch. Do not use `master` in production.
+
+|               | Branch         | Release tag    |
+| ------------- | -------------- | -------------- |
+| Current       | `4.0-stable`   | `v4.0.0`       |
+| Legacy        | `3.2-stable`   | `v3.1.2`       |
+| Development   | `master`       | N/A            |
 
 ## Repository Overview
 
@@ -584,17 +595,18 @@ the `/api` path prefix.
 | Size (bytes) array                      | `/block/range/X/Y/size`   | `[]int32`                |
 | Size array with step `S`                | `/block/range/X/Y/S/size` | `[]int32`                |
 
-| Transaction T (transaction id)      | Path                         | Type              |
-| ----------------------------------- | ---------------------------- | ----------------- |
-| Transaction details                 | `/tx/T?spends=[true\|false]` | `types.Tx`        |
-| Transaction details w/o block info  | `/tx/trimmed/T`              | `types.TrimmedTx` |
-| Inputs                              | `/tx/T/in`                   | `[]types.TxIn`    |
-| Details for input at index `X`      | `/tx/T/in/X`                 | `types.TxIn`      |
-| Outputs                             | `/tx/T/out`                  | `[]types.TxOut`   |
-| Details for output at index `X`     | `/tx/T/out/X`                | `types.TxOut`     |
-| Vote info (ssgen transactions only) | `/tx/T/vinfo`                | `types.VoteInfo`  |
-| Serialized bytes of the transaction | `/tx/hex/T`                  | `string`          |
-| Same as `/tx/trimmed/T`             | `/tx/decoded/T`              | `types.TrimmedTx` |
+| Transaction T (transaction id)       | Path                         | Type               |
+| ------------------------------------ | ---------------------------- | ------------------ |
+| Transaction details                  | `/tx/T?spends=[true\|false]` | `types.Tx`         |
+| Transaction details w/o block info   | `/tx/trimmed/T`              | `types.TrimmedTx`  |
+| Inputs                               | `/tx/T/in`                   | `[]types.TxIn`     |
+| Details for input at index `X`       | `/tx/T/in/X`                 | `types.TxIn`       |
+| Outputs                              | `/tx/T/out`                  | `[]types.TxOut`    |
+| Details for output at index `X`      | `/tx/T/out/X`                | `types.TxOut`      |
+| Vote info (ssgen transactions only)  | `/tx/T/vinfo`                | `types.VoteInfo`   |
+| Ticket info (sstx transactions only) | `/tx/T/tinfo`                | `types.TicketInfo` |
+| Serialized bytes of the transaction  | `/tx/hex/T`                  | `string`           |
+| Same as `/tx/trimmed/T`              | `/tx/decoded/T`              | `types.TrimmedTx`  |
 
 | Transactions (batch)                                    | Path                        | Type                |
 | ------------------------------------------------------- | --------------------------- | ------------------- |

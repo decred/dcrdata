@@ -20,9 +20,9 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/wire"
-	apitypes "github.com/decred/dcrdata/v4/api/types"
-	"github.com/decred/dcrdata/v4/rpcutils"
-	"github.com/decred/dcrdata/v4/txhelpers"
+	apitypes "github.com/decred/dcrdata/api/types"
+	"github.com/decred/dcrdata/txhelpers"
+	"github.com/decred/dcrdata/rpcutils"
 )
 
 // PoolInfoCache contains a map of block hashes to ticket pool info data at that
