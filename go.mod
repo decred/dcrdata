@@ -19,7 +19,7 @@ require (
 	github.com/decred/dcrdata/blockdata v1.0.1
 	github.com/decred/dcrdata/db/dbtypes v1.0.1
 	github.com/decred/dcrdata/db/dcrpg v1.0.0
-	github.com/decred/dcrdata/dcrrates v1.0.0
+	github.com/decred/dcrdata/exchanges v1.0.0
 	github.com/decred/dcrdata/gov/politeia v1.0.0
 	github.com/decred/dcrdata/middleware v1.0.1
 	github.com/decred/dcrdata/rpcutils v1.0.1
@@ -42,7 +42,6 @@ require (
 	github.com/shiena/ansicolor v0.0.0-20151119151921-a422bbe96644
 	github.com/sirupsen/logrus v1.2.0
 	golang.org/x/net v0.0.0-20190326090315-15845e8f865b
-	google.golang.org/grpc v1.19.1
 )
 
 replace (
@@ -52,6 +51,7 @@ replace (
 	github.com/decred/dcrdata/db/dbtypes => ./db/dbtypes
 	github.com/decred/dcrdata/db/dcrpg => ./db/dcrpg
 	github.com/decred/dcrdata/dcrrates => ./dcrrates
+	github.com/decred/dcrdata/exchanges => ./exchanges
 	github.com/decred/dcrdata/gov/politeia => ./gov/politeia
 	github.com/decred/dcrdata/middleware => ./middleware
 	github.com/decred/dcrdata/rpcutils => ./rpcutils
