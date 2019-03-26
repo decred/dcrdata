@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	exptypes "github.com/decred/dcrdata/v4/explorer/types"
+	exptypes "github.com/decred/dcrdata/explorer/types"
 	client "github.com/decred/dcrdata/v4/pubsub/psclient"
 	pstypes "github.com/decred/dcrdata/v4/pubsub/types"
 	"golang.org/x/net/websocket"

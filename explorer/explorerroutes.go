@@ -23,9 +23,9 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/exchanges"
+	"github.com/decred/dcrdata/explorer/types"
 	pitypes "github.com/decred/dcrdata/gov/politeia/types"
 	"github.com/decred/dcrdata/txhelpers"
-	"github.com/decred/dcrdata/v4/explorer/types"
 	"github.com/decred/dcrdata/v4/gov/agendas"
 	humanize "github.com/dustin/go-humanize"
 )

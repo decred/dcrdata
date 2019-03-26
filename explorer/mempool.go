@@ -4,7 +4,7 @@
 
 package explorer
 
-import "github.com/decred/dcrdata/v4/explorer/types"
+import "github.com/decred/dcrdata/explorer/types"
 
 // matchMempoolVins filters relevant mempool transaction inputs whose previous
 // outpoints match the specified transaction id.

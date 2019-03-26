@@ -18,9 +18,9 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient/v2"
 	apitypes "github.com/decred/dcrdata/api/types"
+	exptypes "github.com/decred/dcrdata/explorer/types"
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/txhelpers"
-	exptypes "github.com/decred/dcrdata/v4/explorer/types"
 	humanize "github.com/dustin/go-humanize"
 )
 

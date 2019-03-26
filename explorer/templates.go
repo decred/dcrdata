@@ -19,7 +19,7 @@ import (
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrdata/db/dbtypes"
-	"github.com/decred/dcrdata/v4/explorer/types"
+	"github.com/decred/dcrdata/explorer/types"
 	humanize "github.com/dustin/go-humanize"
 )
 
