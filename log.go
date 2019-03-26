@@ -11,11 +11,11 @@ import (
 
 	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrdata/blockdata"
+	"github.com/decred/dcrdata/db/dcrpg"
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/stakedb"
 	"github.com/decred/dcrdata/v4/api"
 	"github.com/decred/dcrdata/v4/api/insight"
-	"github.com/decred/dcrdata/v4/db/dcrpg"
 	"github.com/decred/dcrdata/v4/db/dcrsqlite"
 	"github.com/decred/dcrdata/v4/exchanges"
 	"github.com/decred/dcrdata/v4/explorer"

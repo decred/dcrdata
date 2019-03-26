@@ -20,6 +20,7 @@ require (
 	github.com/decred/dcrdata/blockdata v1.0.0
 	github.com/decred/dcrdata/db/cache v1.0.0
 	github.com/decred/dcrdata/db/dbtypes v1.0.0
+	github.com/decred/dcrdata/db/dcrpg v1.0.0
 	github.com/decred/dcrdata/rpcutils v1.0.0
 	github.com/decred/dcrdata/semver v1.0.0
 	github.com/decred/dcrdata/stakedb v1.0.0
@@ -52,6 +53,7 @@ replace (
 	github.com/decred/dcrdata/blockdata => ./blockdata
 	github.com/decred/dcrdata/db/cache => ./db/cache
 	github.com/decred/dcrdata/db/dbtypes => ./db/dbtypes
+	github.com/decred/dcrdata/db/dcrpg => ./db/dcrpg
 	github.com/decred/dcrdata/rpcutils => ./rpcutils
 	github.com/decred/dcrdata/semver => ./semver
 	github.com/decred/dcrdata/stakedb => ./stakedb

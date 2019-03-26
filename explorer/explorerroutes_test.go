@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrdata/v4/db/dcrpg"
+	"github.com/decred/dcrdata/db/dcrpg"
 	"github.com/decred/dcrdata/v4/db/dcrsqlite"
 	"github.com/decred/dcrdata/v4/explorer/types"
 )
