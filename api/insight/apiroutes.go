@@ -22,9 +22,9 @@ import (
 	"github.com/decred/dcrd/rpcclient/v2"
 	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/db/dcrpg"
 	"github.com/decred/dcrdata/semver"
 	"github.com/decred/dcrdata/txhelpers"
-	"github.com/decred/dcrdata/v4/db/dcrpg"
 	m "github.com/decred/dcrdata/v4/middleware"
 )
 

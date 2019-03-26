@@ -32,7 +32,7 @@ import (
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/stakedb"
 	"github.com/decred/dcrdata/txhelpers"
-	"github.com/decred/dcrdata/v4/db/dcrpg/internal"
+	"github.com/decred/dcrdata/db/dcrpg/internal"
 	humanize "github.com/dustin/go-humanize"
 )
 
