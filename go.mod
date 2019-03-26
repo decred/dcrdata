@@ -15,7 +15,7 @@ require (
 	github.com/decred/dcrd/rpcclient/v2 v2.0.0
 	github.com/decred/dcrd/txscript v1.0.2
 	github.com/decred/dcrd/wire v1.2.0
-	github.com/decred/dcrdata/api/types v1.0.4
+	github.com/decred/dcrdata/api/types v1.0.5
 	github.com/decred/dcrdata/blockdata v1.0.0
 	github.com/decred/dcrdata/db/dbtypes v1.0.0
 	github.com/decred/dcrdata/db/dcrpg v1.0.0
