@@ -18,6 +18,7 @@ require (
 	github.com/decred/dcrd/wire v1.2.0
 	github.com/decred/dcrdata/api/types v1.0.4
 	github.com/decred/dcrdata/blockdata v1.0.0
+	github.com/decred/dcrdata/db/cache v1.0.0
 	github.com/decred/dcrdata/db/dbtypes v1.0.0
 	github.com/decred/dcrdata/rpcutils v1.0.0
 	github.com/decred/dcrdata/semver v1.0.0
@@ -49,6 +50,7 @@ require (
 replace (
 	github.com/decred/dcrdata/api/types => ./api/types
 	github.com/decred/dcrdata/blockdata => ./blockdata
+	github.com/decred/dcrdata/db/cache => ./db/cache
 	github.com/decred/dcrdata/db/dbtypes => ./db/dbtypes
 	github.com/decred/dcrdata/rpcutils => ./rpcutils
 	github.com/decred/dcrdata/semver => ./semver
