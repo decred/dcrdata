@@ -172,10 +172,7 @@ keyNavToggle.querySelector('.text').textContent = keyNavEnabled() ? 'Disable Hot
 document.addEventListener('turbolinks:load', function (e) {
   closeMenu(e)
   if (keyNavEnabled()) {
-    delete searchBar.autofocus
     keyNav(e, true)
-  } else {
-    searchBar.focus()
   }
 })
 
