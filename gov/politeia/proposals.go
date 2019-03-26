@@ -265,19 +265,15 @@ func (db *ProposalDB) updateInProgressProposals() (int, error) {
 	var count int
 
 	for _, val := range inProgress {
-		// Do not update if the new proposals status is NotAuthorized.
-		if val.VoteStatus == statuses[0] {
-			continue
-		}
-
 		proposal, err := piclient.RetrieveProposalByToken(db.client, db.APIURLpath,
 			val.Censorship.Token)
 		if err != nil {
 			return 0, fmt.Errorf("RetrieveProposalByToken failed: %v ", err)
 		}
 
-		// If the last update has not changed do not make the update.
-		if proposal.Timestamp == val.Timestamp {
+		// Do not update if the new proposals status is NotAuthorized or If the
+		// last update has not changed.
+		if proposal.VoteStatus == statuses[0] || proposal.Timestamp == val.Timestamp {
 			continue
 		}
 
