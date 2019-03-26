@@ -19,13 +19,13 @@ require (
 	github.com/decred/dcrdata/blockdata v1.0.1
 	github.com/decred/dcrdata/db/dbtypes v1.0.1
 	github.com/decred/dcrdata/db/dcrpg v1.0.0
+	github.com/decred/dcrdata/gov/politeia v1.0.0
 	github.com/decred/dcrdata/middleware v1.0.1
 	github.com/decred/dcrdata/rpcutils v1.0.1
 	github.com/decred/dcrdata/semver v1.0.0
 	github.com/decred/dcrdata/stakedb v1.0.1
 	github.com/decred/dcrdata/txhelpers v1.0.1
 	github.com/decred/dcrwallet/wallet v1.2.0
-	github.com/decred/politeia v0.0.0-20190325135210-6d7b23a66d77
 	github.com/decred/slog v1.0.0
 	github.com/didip/tollbooth v4.0.1-0.20180415195142-b10a036da5f0+incompatible
 	github.com/didip/tollbooth_chi v0.0.0-20170928041846-6ab5f3083f3d
@@ -51,6 +51,7 @@ replace (
 	github.com/decred/dcrdata/db/cache => ./db/cache
 	github.com/decred/dcrdata/db/dbtypes => ./db/dbtypes
 	github.com/decred/dcrdata/db/dcrpg => ./db/dcrpg
+	github.com/decred/dcrdata/gov/politeia => ./gov/politeia
 	github.com/decred/dcrdata/middleware => ./middleware
 	github.com/decred/dcrdata/rpcutils => ./rpcutils
 	github.com/decred/dcrdata/semver => ./semver
