@@ -863,9 +863,9 @@ func (c *insightApiContext) getBlockSummaryByTime(w http.ResponseWriter, r *http
 		blockDate = todayAM
 	} else {
 		var err error
-		blockDate, err = time.Parse(blockDateStr, ymdFormat)
+		blockDate, err = time.Parse(ymdFormat, blockDateStr)
 		if err != nil {
-			writeInsightError(w, fmt.Sprintf("Unable to retrieve block summary using time %s: %v", blockDate, err))
+			writeInsightError(w, fmt.Sprintf("Unable to retrieve block summary using time %s: %v", blockDateStr, err))
 			return
 		}
 		blockDate = blockDate.UTC()
