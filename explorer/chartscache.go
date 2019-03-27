@@ -184,8 +184,12 @@ func timeArrSourceSlicingIndex(timeArr []dbtypes.TimeDef, ancestorTime int64) (i
 	}
 
 	index = len(timeArr) - 1
-	for ; index > 0; index-- {
+	for ; index >= 0; index-- {
 		if timeArr[index].UNIX() <= ancestorTime {
+			if index+1 <= len(timeArr) {
+				// return index of entry before ancestor.
+				index++
+			}
 			return
 		}
 	}
@@ -202,8 +206,12 @@ func heightArrSourceSlicingIndex(heightsArr []uint64, ancestorHeight uint64) (in
 	}
 
 	index = len(heightsArr) - 1
-	for ; index > 0; index-- {
+	for ; index >= 0; index-- {
 		if heightsArr[index] <= ancestorHeight {
+			if index+1 <= len(heightsArr) {
+				// return index of entry before ancestor.
+				index++
+			}
 			return
 		}
 	}
