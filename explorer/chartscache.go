@@ -175,6 +175,42 @@ func (m *ChainMonitor) ReorgHandler() {
 	}
 }
 
+// timeArrSourceSlicingIndex returns the index that is to be used to slice the
+// rest of the cache charts dataset. The time array used is the x-axis dataset
+// for the specific chart.
+func timeArrSourceSlicingIndex(timeArr []dbtypes.TimeDef, ancestorTime int64) (index int) {
+	if ancestorTime == 0 || len(timeArr) == 0 {
+		return
+	}
+
+	index = len(timeArr) - 1
+	for ; index > 0; index-- {
+		if timeArr[index].UNIX() <= ancestorTime {
+			return
+		}
+	}
+
+	return
+}
+
+// heightArrSourceSlicingIndex returns the index that is to be used to slice the
+// rest of the cache charts dataset. The height array used is the x-axis dataset
+// for the specific chart.
+func heightArrSourceSlicingIndex(heightsArr []uint64, ancestorHeight uint64) (index int) {
+	if ancestorHeight == 0 || len(heightsArr) == 0 {
+		return
+	}
+
+	index = len(heightsArr) - 1
+	for ; index > 0; index-- {
+		if heightsArr[index] <= ancestorHeight {
+			return
+		}
+	}
+
+	return
+}
+
 // DropChartsDataToAncestor drops all the chart data entries since the common
 // ancestor block height.
 func (exp *explorerUI) DropChartsDataToAncestor(ancestorHeight uint64) error {
@@ -190,12 +226,8 @@ func (exp *explorerUI) DropChartsDataToAncestor(ancestorHeight uint64) error {
 	// "avg-block-size" chart data.
 	data := cacheData[dbtypes.AvgBlockSize]
 	if data != nil {
-		var index = len(data.Time) - 1
-		for ; index > 0; index-- {
-			if data.Time[index].UNIX() <= ancestorTime {
-				break
-			}
-		}
+		var index = timeArrSourceSlicingIndex(data.Time, ancestorTime)
+
 		cacheData[dbtypes.AvgBlockSize].Time = cacheData[dbtypes.AvgBlockSize].Time[:index]
 		cacheData[dbtypes.AvgBlockSize].Size = cacheData[dbtypes.AvgBlockSize].Size[:index]
 	}
@@ -203,12 +235,8 @@ func (exp *explorerUI) DropChartsDataToAncestor(ancestorHeight uint64) error {
 	// "blockchain-size" chart data.
 	data = cacheData[dbtypes.BlockChainSize]
 	if data != nil {
-		var index = len(data.Time) - 1
-		for ; index > 0; index-- {
-			if data.Time[index].UNIX() <= ancestorTime {
-				break
-			}
-		}
+		var index = timeArrSourceSlicingIndex(data.Time, ancestorTime)
+
 		cacheData[dbtypes.BlockChainSize].Time = cacheData[dbtypes.BlockChainSize].Time[:index]
 		cacheData[dbtypes.BlockChainSize].ChainSize = cacheData[dbtypes.BlockChainSize].ChainSize[:index]
 	}
@@ -216,12 +244,8 @@ func (exp *explorerUI) DropChartsDataToAncestor(ancestorHeight uint64) error {
 	// "chainwork" chart data.
 	data = cacheData[dbtypes.ChainWork]
 	if data != nil {
-		var index = len(data.Time) - 1
-		for ; index > 0; index-- {
-			if data.Time[index].UNIX() <= ancestorTime {
-				break
-			}
-		}
+		var index = timeArrSourceSlicingIndex(data.Time, ancestorTime)
+
 		cacheData[dbtypes.ChainWork].Time = cacheData[dbtypes.ChainWork].Time[:index]
 		cacheData[dbtypes.ChainWork].ChainWork = cacheData[dbtypes.ChainWork].ChainWork[:index]
 	}
@@ -229,12 +253,8 @@ func (exp *explorerUI) DropChartsDataToAncestor(ancestorHeight uint64) error {
 	// "coin-supply" chart data.
 	data = cacheData[dbtypes.CoinSupply]
 	if data != nil {
-		var index = len(data.Time) - 1
-		for ; index > 0; index-- {
-			if data.Time[index].UNIX() <= ancestorTime {
-				break
-			}
-		}
+		var index = timeArrSourceSlicingIndex(data.Time, ancestorTime)
+
 		cacheData[dbtypes.CoinSupply].Time = cacheData[dbtypes.CoinSupply].Time[:index]
 		cacheData[dbtypes.CoinSupply].ValueF = cacheData[dbtypes.CoinSupply].ValueF[:index]
 	}
@@ -242,12 +262,8 @@ func (exp *explorerUI) DropChartsDataToAncestor(ancestorHeight uint64) error {
 	// "duration-btw-blocks" chart data.
 	data = cacheData[dbtypes.DurationBTW]
 	if data != nil {
-		var index = len(data.Height) - 1
-		for ; index > 0; index-- {
-			if data.Height[index] <= ancestorHeight {
-				break
-			}
-		}
+		var index = heightArrSourceSlicingIndex(data.Height, ancestorHeight)
+
 		cacheData[dbtypes.DurationBTW].Height = cacheData[dbtypes.DurationBTW].Height[:index]
 		cacheData[dbtypes.DurationBTW].ValueF = cacheData[dbtypes.DurationBTW].ValueF[:index]
 	}
@@ -255,12 +271,8 @@ func (exp *explorerUI) DropChartsDataToAncestor(ancestorHeight uint64) error {
 	// "hashrate" chart data.
 	data = cacheData[dbtypes.HashRate]
 	if data != nil {
-		var index = len(data.Time) - 1
-		for ; index > 0; index-- {
-			if data.Time[index].UNIX() <= ancestorTime {
-				break
-			}
-		}
+		var index = timeArrSourceSlicingIndex(data.Time, ancestorTime)
+
 		cacheData[dbtypes.HashRate].Time = cacheData[dbtypes.HashRate].Time[:index]
 		cacheData[dbtypes.HashRate].NetHash = cacheData[dbtypes.HashRate].NetHash[:index]
 	}
@@ -268,12 +280,8 @@ func (exp *explorerUI) DropChartsDataToAncestor(ancestorHeight uint64) error {
 	// "pow-difficulty" chart data.
 	data = cacheData[dbtypes.POWDifficulty]
 	if data != nil {
-		var index = len(data.Time) - 1
-		for ; index > 0; index-- {
-			if data.Time[index].UNIX() <= ancestorTime {
-				break
-			}
-		}
+		var index = timeArrSourceSlicingIndex(data.Time, ancestorTime)
+
 		cacheData[dbtypes.POWDifficulty].Time = cacheData[dbtypes.POWDifficulty].Time[:index]
 		cacheData[dbtypes.POWDifficulty].Difficulty = cacheData[dbtypes.POWDifficulty].Difficulty[:index]
 	}
@@ -281,12 +289,8 @@ func (exp *explorerUI) DropChartsDataToAncestor(ancestorHeight uint64) error {
 	// "ticket-by-outputs-windows" chart data.
 	data = cacheData[dbtypes.TicketByWindows]
 	if data != nil {
-		var index = len(data.Height) - 1
-		for ; index > 0; index-- {
-			if data.Height[index] <= ancestorHeight {
-				break
-			}
-		}
+		var index = heightArrSourceSlicingIndex(data.Height, ancestorHeight)
+
 		cacheData[dbtypes.TicketByWindows].Height = cacheData[dbtypes.TicketByWindows].Height[:index]
 		cacheData[dbtypes.TicketByWindows].Solo = cacheData[dbtypes.TicketByWindows].Solo[:index]
 		cacheData[dbtypes.TicketByWindows].Pooled = cacheData[dbtypes.TicketByWindows].Pooled[:index]
@@ -295,12 +299,8 @@ func (exp *explorerUI) DropChartsDataToAncestor(ancestorHeight uint64) error {
 	// "ticket-price" chart data.
 	data = cacheData[dbtypes.TicketPrice]
 	if data != nil {
-		var index = len(data.Time) - 1
-		for ; index > 0; index-- {
-			if data.Time[index].UNIX() <= ancestorTime {
-				break
-			}
-		}
+		var index = timeArrSourceSlicingIndex(data.Time, ancestorTime)
+
 		cacheData[dbtypes.TicketPrice].Time = cacheData[dbtypes.TicketPrice].Time[:index]
 		cacheData[dbtypes.TicketPrice].ValueF = cacheData[dbtypes.TicketPrice].ValueF[:index]
 	}
@@ -308,12 +308,8 @@ func (exp *explorerUI) DropChartsDataToAncestor(ancestorHeight uint64) error {
 	// "ticket-by-outputs-blocks" chart data.
 	data = cacheData[dbtypes.TicketsByBlocks]
 	if data != nil {
-		var index = len(data.Height) - 1
-		for ; index > 0; index-- {
-			if data.Height[index] <= ancestorHeight {
-				break
-			}
-		}
+		var index = heightArrSourceSlicingIndex(data.Height, ancestorHeight)
+
 		cacheData[dbtypes.TicketsByBlocks].Height = cacheData[dbtypes.TicketsByBlocks].Height[:index]
 		cacheData[dbtypes.TicketsByBlocks].Solo = cacheData[dbtypes.TicketsByBlocks].Solo[:index]
 		cacheData[dbtypes.TicketsByBlocks].Pooled = cacheData[dbtypes.TicketsByBlocks].Pooled[:index]
@@ -322,12 +318,8 @@ func (exp *explorerUI) DropChartsDataToAncestor(ancestorHeight uint64) error {
 	// "ticket-spend-type" chart data.
 	data = cacheData[dbtypes.TicketSpendT]
 	if data != nil {
-		var index = len(data.Height) - 1
-		for ; index > 0; index-- {
-			if data.Height[index] <= ancestorHeight {
-				break
-			}
-		}
+		var index = heightArrSourceSlicingIndex(data.Height, ancestorHeight)
+
 		cacheData[dbtypes.TicketSpendT].Height = cacheData[dbtypes.TicketSpendT].Height[:index]
 		cacheData[dbtypes.TicketSpendT].Unspent = cacheData[dbtypes.TicketSpendT].Unspent[:index]
 		cacheData[dbtypes.TicketSpendT].Revoked = cacheData[dbtypes.TicketSpendT].Revoked[:index]
@@ -336,12 +328,8 @@ func (exp *explorerUI) DropChartsDataToAncestor(ancestorHeight uint64) error {
 	// "tx-per-block" chart data.
 	data = cacheData[dbtypes.TxPerBlock]
 	if data != nil {
-		var index = len(data.Height) - 1
-		for ; index > 0; index-- {
-			if data.Height[index] <= ancestorHeight {
-				break
-			}
-		}
+		var index = heightArrSourceSlicingIndex(data.Height, ancestorHeight)
+
 		cacheData[dbtypes.TxPerBlock].Height = cacheData[dbtypes.TxPerBlock].Height[:index]
 		cacheData[dbtypes.TxPerBlock].Count = cacheData[dbtypes.TxPerBlock].Count[:index]
 	}
@@ -349,12 +337,8 @@ func (exp *explorerUI) DropChartsDataToAncestor(ancestorHeight uint64) error {
 	// "tx-per-day" chart data.
 	data = cacheData[dbtypes.TxPerDay]
 	if data != nil {
-		var index = len(data.Time) - 1
-		for ; index > 0; index-- {
-			if data.Time[index].UNIX() <= ancestorTime {
-				break
-			}
-		}
+		var index = timeArrSourceSlicingIndex(data.Time, ancestorTime)
+
 		cacheData[dbtypes.TxPerDay].Time = cacheData[dbtypes.TxPerDay].Time[:index]
 		cacheData[dbtypes.TxPerDay].Count = cacheData[dbtypes.TxPerDay].Count[:index]
 	}
@@ -362,12 +346,8 @@ func (exp *explorerUI) DropChartsDataToAncestor(ancestorHeight uint64) error {
 	// "fee-per-block" chart data.
 	data = cacheData[dbtypes.FeePerBlock]
 	if data != nil {
-		var index = len(data.Height) - 1
-		for ; index > 0; index-- {
-			if data.Height[index] <= ancestorHeight {
-				break
-			}
-		}
+		var index = heightArrSourceSlicingIndex(data.Height, ancestorHeight)
+
 		cacheData[dbtypes.FeePerBlock].Height = cacheData[dbtypes.FeePerBlock].Height[:index]
 		cacheData[dbtypes.FeePerBlock].SizeF = cacheData[dbtypes.FeePerBlock].SizeF[:index]
 	}
@@ -375,12 +355,8 @@ func (exp *explorerUI) DropChartsDataToAncestor(ancestorHeight uint64) error {
 	// "ticket-pool-size" chart data.
 	data = cacheData[dbtypes.TicketPoolSize]
 	if data != nil {
-		var index = len(data.Time) - 1
-		for ; index > 0; index-- {
-			if data.Time[index].UNIX() <= ancestorTime {
-				break
-			}
-		}
+		var index = timeArrSourceSlicingIndex(data.Time, ancestorTime)
+
 		cacheData[dbtypes.TicketPoolSize].Time = cacheData[dbtypes.TicketPoolSize].Time[:index]
 		cacheData[dbtypes.TicketPoolSize].SizeF = cacheData[dbtypes.TicketPoolSize].SizeF[:index]
 	}
@@ -388,12 +364,8 @@ func (exp *explorerUI) DropChartsDataToAncestor(ancestorHeight uint64) error {
 	// "ticket-pool-value" chart data.
 	data = cacheData[dbtypes.TicketPoolValue]
 	if data != nil {
-		var index = len(data.Time) - 1
-		for ; index > 0; index-- {
-			if data.Time[index].UNIX() <= ancestorTime {
-				break
-			}
-		}
+		var index = timeArrSourceSlicingIndex(data.Time, ancestorTime)
+
 		cacheData[dbtypes.TicketPoolValue].Time = cacheData[dbtypes.TicketPoolValue].Time[:index]
 		cacheData[dbtypes.TicketPoolValue].ValueF = cacheData[dbtypes.TicketPoolValue].ValueF[:index]
 	}
