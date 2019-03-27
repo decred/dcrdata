@@ -4,9 +4,7 @@ require (
 	github.com/asdine/storm v2.2.0+incompatible
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb
-	github.com/davecgh/go-spew v1.1.1
 	github.com/decred/dcrd/blockchain v1.1.1
-	github.com/decred/dcrd/blockchain/stake v1.1.0
 	github.com/decred/dcrd/chaincfg v1.3.0
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.1
 	github.com/decred/dcrd/dcrec v0.0.0-20190130161649-59ed4247a1d5
@@ -19,6 +17,7 @@ require (
 	github.com/decred/dcrdata/blockdata v1.0.1
 	github.com/decred/dcrdata/db/dbtypes v1.0.1
 	github.com/decred/dcrdata/db/dcrpg v1.0.0
+	github.com/decred/dcrdata/db/dcrsqlite v1.0.0
 	github.com/decred/dcrdata/exchanges v1.0.0
 	github.com/decred/dcrdata/explorer/types v1.0.0
 	github.com/decred/dcrdata/gov/politeia v1.0.0
@@ -36,12 +35,10 @@ require (
 	github.com/didip/tollbooth_chi v0.0.0-20170928041846-6ab5f3083f3d
 	github.com/dustin/go-humanize v1.0.0
 	github.com/go-chi/chi v4.0.3-0.20190316151245-d08916613452+incompatible
-	github.com/google/go-cmp v0.2.0
 	github.com/google/gops v0.3.6
 	github.com/googollee/go-socket.io v0.0.0-20181214084611-0ad7206c347a
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/jrick/logrotate v1.0.0
-	github.com/mattn/go-sqlite3 v1.10.0
 	github.com/rs/cors v1.6.0
 	github.com/shiena/ansicolor v0.0.0-20151119151921-a422bbe96644
 	github.com/sirupsen/logrus v1.2.0
@@ -54,6 +51,7 @@ replace (
 	github.com/decred/dcrdata/db/cache => ./db/cache
 	github.com/decred/dcrdata/db/dbtypes => ./db/dbtypes
 	github.com/decred/dcrdata/db/dcrpg => ./db/dcrpg
+	github.com/decred/dcrdata/db/dcrsqlite => ./db/dcrsqlite
 	github.com/decred/dcrdata/dcrrates => ./dcrrates
 	github.com/decred/dcrdata/exchanges => ./exchanges
 	github.com/decred/dcrdata/explorer/types => ./explorer/types
