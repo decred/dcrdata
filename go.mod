@@ -1,7 +1,6 @@
 module github.com/decred/dcrdata/v4
 
 require (
-	github.com/asdine/storm v2.2.0+incompatible
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb
 	github.com/decred/dcrd/blockchain v1.1.1
@@ -20,6 +19,7 @@ require (
 	github.com/decred/dcrdata/db/dcrsqlite v1.0.0
 	github.com/decred/dcrdata/exchanges v1.0.0
 	github.com/decred/dcrdata/explorer/types v1.0.0
+	github.com/decred/dcrdata/gov/agendas v1.0.0
 	github.com/decred/dcrdata/gov/politeia v1.0.0
 	github.com/decred/dcrdata/mempool v1.0.0
 	github.com/decred/dcrdata/middleware v1.0.1
@@ -55,6 +55,7 @@ replace (
 	github.com/decred/dcrdata/dcrrates => ./dcrrates
 	github.com/decred/dcrdata/exchanges => ./exchanges
 	github.com/decred/dcrdata/explorer/types => ./explorer/types
+	github.com/decred/dcrdata/gov/agendas => ./gov/agendas
 	github.com/decred/dcrdata/gov/politeia => ./gov/politeia
 	github.com/decred/dcrdata/mempool => ./mempool
 	github.com/decred/dcrdata/middleware => ./middleware
