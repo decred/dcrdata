@@ -22,6 +22,7 @@ require (
 	github.com/decred/dcrdata/exchanges v1.0.0
 	github.com/decred/dcrdata/explorer/types v1.0.0
 	github.com/decred/dcrdata/gov/politeia v1.0.0
+	github.com/decred/dcrdata/mempool v1.0.0
 	github.com/decred/dcrdata/middleware v1.0.1
 	github.com/decred/dcrdata/pubsub/types v1.0.0
 	github.com/decred/dcrdata/rpcutils v1.0.1
@@ -56,6 +57,7 @@ replace (
 	github.com/decred/dcrdata/exchanges => ./exchanges
 	github.com/decred/dcrdata/explorer/types => ./explorer/types
 	github.com/decred/dcrdata/gov/politeia => ./gov/politeia
+	github.com/decred/dcrdata/mempool => ./mempool
 	github.com/decred/dcrdata/middleware => ./middleware
 	github.com/decred/dcrdata/pubsub/types => ./pubsub/types
 	github.com/decred/dcrdata/rpcutils => ./rpcutils
