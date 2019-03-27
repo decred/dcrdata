@@ -150,22 +150,22 @@ func TestTimeArrSourceSlicingIndex(t *testing.T) {
 		{
 			TimeArr:      []dbtypes.TimeDef{t1, t2, t3, t4, t5, t6},
 			AncestorTime: 1548890641,
-			index:        0,
-		},
-		{
-			TimeArr:      []dbtypes.TimeDef{t1, t2, t3, t4, t5, t6},
-			AncestorTime: 1548932462,
 			index:        1,
 		},
 		{
 			TimeArr:      []dbtypes.TimeDef{t1, t2, t3, t4, t5, t6},
+			AncestorTime: 1548932462,
+			index:        2,
+		},
+		{
+			TimeArr:      []dbtypes.TimeDef{t1, t2, t3, t4, t5, t6},
 			AncestorTime: 1549096518,
-			index:        5,
+			index:        6,
 		},
 		{
 			TimeArr:      []dbtypes.TimeDef{t1, t2, t3, t4, t5, t6},
 			AncestorTime: 1549100000,
-			index:        5,
+			index:        6,
 		},
 	}
 
@@ -201,22 +201,22 @@ func TestHeightArrSourceSlicingIndex(t *testing.T) {
 		{
 			HeightsArr:     []uint64{279156, 279157, 279158, 279159, 279160, 279161},
 			AncestorHeight: 279158,
-			index:          2,
+			index:          3,
 		},
 		{
 			HeightsArr:     []uint64{279156, 279157, 279158, 279159, 279160, 279161},
 			AncestorHeight: 279157,
-			index:          1,
+			index:          2,
 		},
 		{
 			HeightsArr:     []uint64{279156, 279157, 279158, 279159, 279160, 279161},
 			AncestorHeight: 279161,
-			index:          5,
+			index:          6,
 		},
 		{
 			HeightsArr:     []uint64{279156, 279157, 279158, 279159, 279160, 279161},
 			AncestorHeight: 280000,
-			index:          5,
+			index:          6,
 		},
 	}
 
