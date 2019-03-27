@@ -40,7 +40,7 @@ testrepo () {
   mkdir -p ./testutil/dbload/testsconfig/test.data
 
   # Fetch the tests data.
-  git clone https://github.com/dmigwi/bug-free-happiness $TMPDIR
+  git clone https://github.com/dcrlabs/bug-free-happiness $TMPDIR
 
   tar xvf $TMPDIR/sqlitedb/sqlite.tar.xz -C ./testutil/dbload/testsconfig/test.data
   tar xvf $TMPDIR/pgdb/pgsql.tar.xz -C ./testutil/dbload/testsconfig/test.data
