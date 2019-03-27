@@ -11,7 +11,7 @@ import (
 	"github.com/decred/dcrd/dcrjson/v2"
 	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/db/dbtypes"
-	exptypes "github.com/decred/dcrdata/v4/explorer/types"
+	exptypes "github.com/decred/dcrdata/explorer/types"
 )
 
 // MempoolDataCache models the basic data for the mempool cache.

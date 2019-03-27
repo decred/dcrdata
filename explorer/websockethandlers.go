@@ -15,8 +15,8 @@ import (
 
 	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/db/dbtypes"
-	"github.com/decred/dcrdata/v4/explorer/types"
-	pstypes "github.com/decred/dcrdata/v4/pubsub/types"
+	"github.com/decred/dcrdata/explorer/types"
+	pstypes "github.com/decred/dcrdata/pubsub/types"
 	"golang.org/x/net/websocket"
 )
 

@@ -15,8 +15,8 @@ import (
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrdata/exchanges"
 	"github.com/decred/dcrdata/txhelpers"
-	"github.com/decred/dcrdata/v4/exchanges"
 	humanize "github.com/dustin/go-humanize"
 )
 

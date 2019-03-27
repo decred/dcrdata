@@ -7,8 +7,8 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrdata/db/dcrpg"
-	"github.com/decred/dcrdata/v4/db/dcrsqlite"
-	"github.com/decred/dcrdata/v4/explorer/types"
+	"github.com/decred/dcrdata/db/dcrsqlite"
+	"github.com/decred/dcrdata/explorer/types"
 )
 
 const (

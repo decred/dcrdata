@@ -34,8 +34,8 @@ modern javascript features, as well as SCSS for styling.
     - [Hiding the PostgreSQL db Configuration settings.](#hiding-the-postgresql-db-configuration-settings)
     - [Running the Web Interface During Synchronization](#running-the-web-interface-during-synchronization)
   - [System Hardware Requirements](#system-hardware-requirements)
-    - ["lite" Mode (SQLite only)](#lite-mode-sqlite-only)
-    - ["full" Mode (SQLite and PostgreSQL)](#full-mode-sqlite-and-postgresql)
+    - [lite Mode (SQLite only)](#lite-mode-sqlite-only)
+    - [full Mode (SQLite and PostgreSQL)](#full-mode-sqlite-and-postgresql)
   - [dcrdata Daemon](#dcrdata-daemon)
     - [Block Explorer](#block-explorer)
   - [APIs](#apis)
@@ -124,7 +124,7 @@ Always run the Current release or on the Current stable branch. Do not use `mast
 |                         interacting with a chain server via RPC.
 ├── semver              Package semver.
 ├── stakedb             Package stakedb, for tracking tickets.
-├── testutil            Package testutil provides some testing helper functions.
+├── testutil
 │   └── apiload         apiload is an HTTP API load testing application.
 ├── txhelpers           Package txhelpers provides many functions and types for
 |                         processing blocks, transactions, voting, etc.
@@ -463,7 +463,7 @@ software configuration. The most important factor is the storage medium on the
 database machine. An SSD (preferably NVMe, not SATA) is strongly recommended if
 you value your time and system performance.
 
-### "lite" Mode (SQLite only)
+### lite Mode (SQLite only)
 
 Minimum:
 
@@ -471,7 +471,7 @@ Minimum:
 - 2 GB RAM
 - HDD with 4GB free space
 
-### "full" Mode (SQLite and PostgreSQL)
+### full Mode (SQLite and PostgreSQL)
 
 These specifications assume dcrdata and postgres are running on the same machine.
 

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	exptypes "github.com/decred/dcrdata/v4/explorer/types"
-	pstypes "github.com/decred/dcrdata/v4/pubsub/types"
+	exptypes "github.com/decred/dcrdata/explorer/types"
+	pstypes "github.com/decred/dcrdata/pubsub/types"
 	"golang.org/x/net/websocket"
 )
 

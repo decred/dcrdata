@@ -28,11 +28,11 @@ import (
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/exchanges"
+	"github.com/decred/dcrdata/gov/agendas"
 	m "github.com/decred/dcrdata/middleware"
 	"github.com/decred/dcrdata/txhelpers"
-	"github.com/decred/dcrdata/v4/exchanges"
 	"github.com/decred/dcrdata/v4/explorer"
-	"github.com/decred/dcrdata/v4/gov/agendas"
 	notify "github.com/decred/dcrdata/v4/notification"
 	appver "github.com/decred/dcrdata/v4/version"
 )

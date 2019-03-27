@@ -4,7 +4,7 @@ import (
 	"net"
 	"strings"
 
-	exptypes "github.com/decred/dcrdata/v4/explorer/types"
+	exptypes "github.com/decred/dcrdata/explorer/types"
 )
 
 var (
