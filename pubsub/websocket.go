@@ -10,7 +10,7 @@ import (
 	"time"
 
 	exptypes "github.com/decred/dcrdata/explorer/types"
-	pstypes "github.com/decred/dcrdata/v4/pubsub/types"
+	pstypes "github.com/decred/dcrdata/pubsub/types"
 )
 
 type hubSpoke chan pstypes.HubSignal

@@ -11,7 +11,7 @@ import (
 
 	exptypes "github.com/decred/dcrdata/explorer/types"
 	client "github.com/decred/dcrdata/v4/pubsub/psclient"
-	pstypes "github.com/decred/dcrdata/v4/pubsub/types"
+	pstypes "github.com/decred/dcrdata/pubsub/types"
 	"golang.org/x/net/websocket"
 	survey "gopkg.in/AlecAivazis/survey.v1"
 )
