@@ -16,6 +16,7 @@ import (
 	"github.com/decred/dcrdata/gov/politeia"
 	"github.com/decred/dcrdata/mempool"
 	"github.com/decred/dcrdata/middleware"
+	"github.com/decred/dcrdata/pubsub"
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/stakedb"
 	"github.com/decred/dcrdata/v4/api"
@@ -24,7 +25,6 @@ import (
 	"github.com/decred/dcrdata/v4/explorer"
 	"github.com/decred/dcrdata/v4/gov/agendas"
 	notify "github.com/decred/dcrdata/v4/notification"
-	"github.com/decred/dcrdata/v4/pubsub"
 	"github.com/decred/slog"
 	"github.com/jrick/logrotate/rotator"
 )
