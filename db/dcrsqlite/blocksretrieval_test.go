@@ -33,7 +33,7 @@ func TestEmptyDBRetrieveBlockFeeInfo(t *testing.T) {
 		t.Fatalf("Failed to obtain test DB: %v", err)
 	}
 
-	result, err := db.RetrieveBlockFeeInfo(nil)
+	result, err := db.RetrieveBlockFeeInfo(nil, nil)
 	if err != nil {
 		t.Fatalf("RetrieveBlockFeeInfo() failed: default result expected: %v", err)
 	}

@@ -156,9 +156,10 @@ func (m *ChainMonitor) ReorgHandler() {
 				return
 			}
 
+			commonAncestorHeight := uint64(data.NewChainHeight) - uint64(len(data.NewChain))
 			// Drop all entries since since the ancestor block after reorganization
 			// of all PG and Sqlite DB is complete.
-			if err := m.explorer.DropToAncestor(uint64(data.NewChainHeight)); err != nil {
+			if err := m.explorer.DropChartsDataToAncestor(commonAncestorHeight); err != nil {
 				log.Errorf("cache reorg failed: %v", err)
 				return
 			}
@@ -174,23 +175,24 @@ func (m *ChainMonitor) ReorgHandler() {
 	}
 }
 
-// DropToAncestor drops all the chart data entries since the common ancestor
-// block. If the ancestor block is in the last entry added, then the last chart
-// data entry is the only one that is dropped.
-func (exp *explorerUI) DropToAncestor(heightAfterAncestor uint64) error {
-	timeAfterAncestor, err := exp.explorerSource.BlockTimeByHeight(int64(heightAfterAncestor))
+// DropChartsDataToAncestor drops all the chart data entries since the common
+// ancestor block height.
+func (exp *explorerUI) DropChartsDataToAncestor(ancestorHeight uint64) error {
+	ancestorTime, err := exp.explorerSource.BlockTimeByHeight(int64(ancestorHeight))
 	if err != nil {
 		return err
 	}
 
-	cacheData := cacheChartsData.get()
+	cacheChartsData.Lock()
+
+	cacheData := cacheChartsData.Data
 
 	// "avg-block-size" chart data.
-	data, ok := cacheData[dbtypes.AvgBlockSize]
-	if ok {
+	data := cacheData[dbtypes.AvgBlockSize]
+	if data != nil {
 		var index = len(data.Time) - 1
 		for ; index > 0; index-- {
-			if data.Time[index].UNIX() < timeAfterAncestor {
+			if data.Time[index].UNIX() <= ancestorTime {
 				break
 			}
 		}
@@ -199,11 +201,11 @@ func (exp *explorerUI) DropToAncestor(heightAfterAncestor uint64) error {
 	}
 
 	// "blockchain-size" chart data.
-	data, ok = cacheData[dbtypes.BlockChainSize]
-	if ok {
+	data = cacheData[dbtypes.BlockChainSize]
+	if data != nil {
 		var index = len(data.Time) - 1
 		for ; index > 0; index-- {
-			if data.Time[index].UNIX() < timeAfterAncestor {
+			if data.Time[index].UNIX() <= ancestorTime {
 				break
 			}
 		}
@@ -212,11 +214,11 @@ func (exp *explorerUI) DropToAncestor(heightAfterAncestor uint64) error {
 	}
 
 	// "chainwork" chart data.
-	data, ok = cacheData[dbtypes.ChainWork]
-	if ok {
+	data = cacheData[dbtypes.ChainWork]
+	if data != nil {
 		var index = len(data.Time) - 1
 		for ; index > 0; index-- {
-			if data.Time[index].UNIX() < timeAfterAncestor {
+			if data.Time[index].UNIX() <= ancestorTime {
 				break
 			}
 		}
@@ -225,11 +227,11 @@ func (exp *explorerUI) DropToAncestor(heightAfterAncestor uint64) error {
 	}
 
 	// "coin-supply" chart data.
-	data, ok = cacheData[dbtypes.CoinSupply]
-	if ok {
+	data = cacheData[dbtypes.CoinSupply]
+	if data != nil {
 		var index = len(data.Time) - 1
 		for ; index > 0; index-- {
-			if data.Time[index].UNIX() < timeAfterAncestor {
+			if data.Time[index].UNIX() <= ancestorTime {
 				break
 			}
 		}
@@ -238,11 +240,11 @@ func (exp *explorerUI) DropToAncestor(heightAfterAncestor uint64) error {
 	}
 
 	// "duration-btw-blocks" chart data.
-	data, ok = cacheData[dbtypes.DurationBTW]
-	if ok {
+	data = cacheData[dbtypes.DurationBTW]
+	if data != nil {
 		var index = len(data.Height) - 1
 		for ; index > 0; index-- {
-			if data.Height[index] < heightAfterAncestor {
+			if data.Height[index] <= ancestorHeight {
 				break
 			}
 		}
@@ -251,11 +253,11 @@ func (exp *explorerUI) DropToAncestor(heightAfterAncestor uint64) error {
 	}
 
 	// "hashrate" chart data.
-	data, ok = cacheData[dbtypes.HashRate]
-	if ok {
+	data = cacheData[dbtypes.HashRate]
+	if data != nil {
 		var index = len(data.Time) - 1
 		for ; index > 0; index-- {
-			if data.Time[index].UNIX() < timeAfterAncestor {
+			if data.Time[index].UNIX() <= ancestorTime {
 				break
 			}
 		}
@@ -264,11 +266,11 @@ func (exp *explorerUI) DropToAncestor(heightAfterAncestor uint64) error {
 	}
 
 	// "pow-difficulty" chart data.
-	data, ok = cacheData[dbtypes.POWDifficulty]
-	if ok {
+	data = cacheData[dbtypes.POWDifficulty]
+	if data != nil {
 		var index = len(data.Time) - 1
 		for ; index > 0; index-- {
-			if data.Time[index].UNIX() < timeAfterAncestor {
+			if data.Time[index].UNIX() <= ancestorTime {
 				break
 			}
 		}
@@ -277,11 +279,11 @@ func (exp *explorerUI) DropToAncestor(heightAfterAncestor uint64) error {
 	}
 
 	// "ticket-by-outputs-windows" chart data.
-	data, ok = cacheData[dbtypes.TicketByWindows]
-	if ok {
+	data = cacheData[dbtypes.TicketByWindows]
+	if data != nil {
 		var index = len(data.Height) - 1
 		for ; index > 0; index-- {
-			if data.Height[index] < heightAfterAncestor {
+			if data.Height[index] <= ancestorHeight {
 				break
 			}
 		}
@@ -291,11 +293,11 @@ func (exp *explorerUI) DropToAncestor(heightAfterAncestor uint64) error {
 	}
 
 	// "ticket-price" chart data.
-	data, ok = cacheData[dbtypes.TicketPrice]
-	if ok {
+	data = cacheData[dbtypes.TicketPrice]
+	if data != nil {
 		var index = len(data.Time) - 1
 		for ; index > 0; index-- {
-			if data.Time[index].UNIX() < timeAfterAncestor {
+			if data.Time[index].UNIX() <= ancestorTime {
 				break
 			}
 		}
@@ -304,11 +306,11 @@ func (exp *explorerUI) DropToAncestor(heightAfterAncestor uint64) error {
 	}
 
 	// "ticket-by-outputs-blocks" chart data.
-	data, ok = cacheData[dbtypes.TicketsByBlocks]
-	if ok {
+	data = cacheData[dbtypes.TicketsByBlocks]
+	if data != nil {
 		var index = len(data.Height) - 1
 		for ; index > 0; index-- {
-			if data.Height[index] < heightAfterAncestor {
+			if data.Height[index] <= ancestorHeight {
 				break
 			}
 		}
@@ -318,11 +320,11 @@ func (exp *explorerUI) DropToAncestor(heightAfterAncestor uint64) error {
 	}
 
 	// "ticket-spend-type" chart data.
-	data, ok = cacheData[dbtypes.TicketSpendT]
-	if ok {
+	data = cacheData[dbtypes.TicketSpendT]
+	if data != nil {
 		var index = len(data.Height) - 1
 		for ; index > 0; index-- {
-			if data.Height[index] < heightAfterAncestor {
+			if data.Height[index] <= ancestorHeight {
 				break
 			}
 		}
@@ -332,11 +334,11 @@ func (exp *explorerUI) DropToAncestor(heightAfterAncestor uint64) error {
 	}
 
 	// "tx-per-block" chart data.
-	data, ok = cacheData[dbtypes.TxPerBlock]
-	if ok {
+	data = cacheData[dbtypes.TxPerBlock]
+	if data != nil {
 		var index = len(data.Height) - 1
 		for ; index > 0; index-- {
-			if data.Height[index] < heightAfterAncestor {
+			if data.Height[index] <= ancestorHeight {
 				break
 			}
 		}
@@ -345,11 +347,11 @@ func (exp *explorerUI) DropToAncestor(heightAfterAncestor uint64) error {
 	}
 
 	// "tx-per-day" chart data.
-	data, ok = cacheData[dbtypes.TxPerDay]
-	if ok {
+	data = cacheData[dbtypes.TxPerDay]
+	if data != nil {
 		var index = len(data.Time) - 1
 		for ; index > 0; index-- {
-			if data.Time[index].UNIX() < timeAfterAncestor {
+			if data.Time[index].UNIX() <= ancestorTime {
 				break
 			}
 		}
@@ -358,11 +360,11 @@ func (exp *explorerUI) DropToAncestor(heightAfterAncestor uint64) error {
 	}
 
 	// "fee-per-block" chart data.
-	data, ok = cacheData[dbtypes.FeePerBlock]
-	if ok {
+	data = cacheData[dbtypes.FeePerBlock]
+	if data != nil {
 		var index = len(data.Height) - 1
 		for ; index > 0; index-- {
-			if data.Height[index] < heightAfterAncestor {
+			if data.Height[index] <= ancestorHeight {
 				break
 			}
 		}
@@ -371,11 +373,11 @@ func (exp *explorerUI) DropToAncestor(heightAfterAncestor uint64) error {
 	}
 
 	// "ticket-pool-size" chart data.
-	data, ok = cacheData[dbtypes.TicketPoolSize]
-	if ok {
+	data = cacheData[dbtypes.TicketPoolSize]
+	if data != nil {
 		var index = len(data.Time) - 1
 		for ; index > 0; index-- {
-			if data.Time[index].UNIX() < timeAfterAncestor {
+			if data.Time[index].UNIX() <= ancestorTime {
 				break
 			}
 		}
@@ -384,11 +386,11 @@ func (exp *explorerUI) DropToAncestor(heightAfterAncestor uint64) error {
 	}
 
 	// "ticket-pool-value" chart data.
-	data, ok = cacheData[dbtypes.TicketPoolValue]
-	if ok {
+	data = cacheData[dbtypes.TicketPoolValue]
+	if data != nil {
 		var index = len(data.Time) - 1
 		for ; index > 0; index-- {
-			if data.Time[index].UNIX() < timeAfterAncestor {
+			if data.Time[index].UNIX() <= ancestorTime {
 				break
 			}
 		}
@@ -396,8 +398,7 @@ func (exp *explorerUI) DropToAncestor(heightAfterAncestor uint64) error {
 		cacheData[dbtypes.TicketPoolValue].ValueF = cacheData[dbtypes.TicketPoolValue].ValueF[:index]
 	}
 
-	// Update the modified cache data.
-	cacheChartsData.Update(exp.Height(), cacheData)
+	cacheChartsData.Unlock()
 
 	return nil
 }

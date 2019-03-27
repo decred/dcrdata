@@ -42,7 +42,17 @@ var CoinbaseScript = append([]byte{0x00, 0x00}, []byte(CoinbaseFlags)...)
 
 // ReorgData contains details of a chain reorganization, including the full old
 // and new chains, and the common ancestor that should not be included in either
-// chain.
+// chain. Below is the description of the reorg data with the letter indicating
+// the various blocks in the chain:
+// 			A  -> B  -> C
+//   			\  -> B' -> C' -> D'
+// CommonAncestor - Hash of A
+// OldChainHead - Hash of C
+// OldChainHeight - Hieght of C
+// OldChain - Chain from B to C
+// NewChainHead - Hash of D'
+// NewChainHeight - Height of D'
+// NewChain - Chain from B' to D'
 type ReorgData struct {
 	CommonAncestor chainhash.Hash
 	OldChainHead   chainhash.Hash
