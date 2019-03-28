@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+</head>
+
+<body>
+    <div id="updates"></div>
+    <script src="/js/vendor/socket.io.slim.js" type="application/javascript"></script>
+    <script type="application/javascript">
+        var updates = document.getElementById('updates')
+
+        var update = function (str) {
+            var pr = document.createElement('p')
+            pr.textContent = str
+            updates.appendChild(pr)
+        }
+
+        var sio = io(window.location.origin, { path: '/insight/socket.io', transports: ['websocket'], upgrade: false });
+
+        sio.on('connect', function () {
+            update('Connected. Updates will be shown below.')
+            sio.emit('subscribe', 'Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx');
+        })
+
+        sio.on('disconnect', (reason) => {
+            if (reason === 'io server disconnect') {
+                // Disconnection was initiated by the server. Reconnect manually.
+                sio.connect();
+            }
+            // else the socket will automatically try to reconnect
+        });
+
+        sio.on('Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx', function (data) {
+            update("New Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx address event received: " +
+                JSON.stringify(data, null, 4))
+        })
+
+        sio.on('tx', function (data) {
+            update("New transaction received: " + JSON.stringify(data, null, 4))
+        })
+
+        sio.on('block', function (data) {
+            update("New block received: " + JSON.stringify(data, null, 4))
+        })
+
+        sio.on('status', function (data) {
+            update("Status: " + JSON.stringify(data, null, 4))
+        })
+    </script>
+</body>
+
+</html>
