@@ -22,6 +22,25 @@ set -ex
 # Default GOVERSION
 [[ ! "$GOVERSION" ]] && GOVERSION=1.11
 REPO=dcrdata
+ROOTMODULE="github.com/decred/dcrdata"
+ALLMODULES="$ROOTMODULE/api/types
+  $ROOTMODULE/blockdata
+  $ROOTMODULE/db/cache
+  $ROOTMODULE/db/dbtypes
+  $ROOTMODULE/db/dcrpg
+  $ROOTMODULE/db/dcrsqlite
+  $ROOTMODULE/exchanges
+  $ROOTMODULE/explorer/types
+  $ROOTMODULE/gov/agendas
+  $ROOTMODULE/gov/politeia
+  $ROOTMODULE/mempool
+  $ROOTMODULE/middleware
+  $ROOTMODULE/pubsub
+  $ROOTMODULE/pubsub/types
+  $ROOTMODULE/rpcutils
+  $ROOTMODULE/semver
+  $ROOTMODULE/stakedb
+  $ROOTMODULE/txhelpers"
 
 testrepo () {
   TMPDIR=$(mktemp -d)
@@ -40,7 +59,7 @@ testrepo () {
   git clone https://github.com/dcrlabs/bug-free-happiness $TMPDIR/test-data-repo
   tar xvf $TMPDIR/test-data-repo/stakedb/test_ticket_pool.bdgr.tar.xz -C ./stakedb
 
-  env GORACE='halt_on_error=1' go test -v -race ./...
+  env GORACE='halt_on_error=1' go test -v -race ./... $ALLMODULES
 
   # check linters
   golangci-lint run --deadline=10m --disable-all --enable govet --enable staticcheck \
