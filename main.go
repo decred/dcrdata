@@ -480,7 +480,7 @@ func _main(ctx context.Context) error {
 	}
 
 	blockDataSavers = append(blockDataSavers, baseDB)
-	mempoolSavers = append(mempoolSavers, baseDB.MPC)
+	mempoolSavers = append(mempoolSavers, baseDB.MPC) // mempool.MempoolDataCache
 
 	// Allow Ctrl-C to halt startup here.
 	if shutdownRequested(ctx) {

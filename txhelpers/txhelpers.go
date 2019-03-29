@@ -249,6 +249,177 @@ func TxInvolvesAddress(msgTx *wire.MsgTx, addr string, c VerboseTransactionGette
 	return
 }
 
+type MempoolAddressStore map[string]*AddressOutpoints
+
+type TxnsStore map[chainhash.Hash]*TxWithBlockData
+
+// TxOutpointsByAddr sets the Outpoints field for the AddressOutpoints stored in
+// the MempoolAddressStore. For addresses not yet present in the
+// MempoolAddressStore, a new AddressOutpoints is added to the store. The
+// provided MempoolAddressStore must be initialized.
+func TxOutpointsByAddr(txAddrOuts MempoolAddressStore, msgTx *wire.MsgTx, params *chaincfg.Params) (newOuts int, addrs map[string]bool) {
+	if txAddrOuts == nil {
+		panic("TxAddressOutpoints: input map must be initialized: map[string]*AddressOutpoints")
+	}
+
+	// Check the addresses associated with the PkScript of each TxOut
+	txTree := TxTree(msgTx)
+	hash := msgTx.TxHash()
+	addrs = make(map[string]bool)
+	for outIndex, txOut := range msgTx.TxOut {
+		_, txOutAddrs, _, err := txscript.ExtractPkScriptAddrs(txOut.Version,
+			txOut.PkScript, params)
+		if err != nil {
+			fmt.Printf("ExtractPkScriptAddrs: %v", err.Error())
+			continue
+		}
+		if len(txOutAddrs) == 0 {
+			continue
+		}
+		newOuts++
+
+		// Check if we are watching any address for this TxOut
+		for _, txAddr := range txOutAddrs {
+			addr := txAddr.EncodeAddress()
+
+			op := wire.NewOutPoint(&hash, uint32(outIndex), txTree)
+
+			addrOuts := txAddrOuts[addr]
+			if addrOuts == nil {
+				addrOuts = &AddressOutpoints{
+					Address:   addr,
+					Outpoints: []*wire.OutPoint{op},
+				}
+				txAddrOuts[addr] = addrOuts
+				addrs[addr] = true // new
+				continue
+			}
+			if _, found := addrs[addr]; !found {
+				addrs[addr] = false // not new to the address store
+			}
+			addrOuts.Outpoints = append(addrOuts.Outpoints, op)
+		}
+	}
+	return
+}
+
+// TxPrevOutsByAddr sets the PrevOuts field for the AddressOutpoints stored in
+// the MempoolAddressStore. For addresses not yet present in the
+// MempoolAddressStore, a new AddressOutpoints is added to the store. The
+// provided MempoolAddressStore must be initialized. A VerboseTransactionGetter
+// is required to retrieve the pkScripts for the previous outpoints.
+func TxPrevOutsByAddr(txAddrOuts MempoolAddressStore, txnsStore TxnsStore, msgTx *wire.MsgTx, c VerboseTransactionGetter, params *chaincfg.Params) (newPrevOuts int, addrs map[string]bool) {
+	if txAddrOuts == nil {
+		panic("TxPrevOutAddresses: input map must be initialized: map[string]*AddressOutpoints")
+	}
+	if txnsStore == nil {
+		panic("TxPrevOutAddresses: input map must be initialized: map[string]*AddressOutpoints")
+	}
+
+	// Time this process.
+	// defer func(start time.Time) {
+	// 	fmt.Printf("TxPrevOutsByAddr completed in %v\n", time.Since(start))
+	// }(time.Now())
+
+	// Send all the raw transaction requests
+	type promiseGetRawTransaction struct {
+		result rpcclient.FutureGetRawTransactionVerboseResult
+		inIdx  int
+	}
+	promisesGetRawTransaction := make([]promiseGetRawTransaction, 0, len(msgTx.TxIn))
+
+	for inIdx, txIn := range msgTx.TxIn {
+		hash := &txIn.PreviousOutPoint.Hash
+		if zeroHash.IsEqual(hash) {
+			continue // coinbase or stakebase
+		}
+		promisesGetRawTransaction = append(promisesGetRawTransaction, promiseGetRawTransaction{
+			result: c.GetRawTransactionVerboseAsync(hash),
+			inIdx:  inIdx,
+		})
+	}
+
+	addrs = make(map[string]bool)
+
+	// For each TxIn of this transaction, inspect the previous outpoint.
+	for i := range promisesGetRawTransaction {
+		// Previous outpoint for this TxIn
+		inIdx := promisesGetRawTransaction[i].inIdx
+		prevOut := &msgTx.TxIn[inIdx].PreviousOutPoint
+		hash := prevOut.Hash
+
+		prevTxRaw, err := promisesGetRawTransaction[i].result.Receive()
+		if err != nil {
+			fmt.Printf("Unable to get raw transaction for %v: %v\n", hash, err)
+			return
+		}
+
+		if prevTxRaw.Txid != hash.String() {
+			fmt.Printf("%v != %v", prevTxRaw.Txid, hash.String())
+			continue
+		}
+
+		prevTx, err := MsgTxFromHex(prevTxRaw.Hex)
+		if err != nil {
+			fmt.Printf("MsgTxFromHex failed: %s\n", err)
+			continue
+		}
+		txHash := prevTx.TxHash()
+
+		// prevOut.Index indicates which output.
+		txOut := prevTx.TxOut[prevOut.Index]
+		// Extract the addresses from this output's PkScript.
+		_, txAddrs, _, err := txscript.ExtractPkScriptAddrs(
+			txOut.Version, txOut.PkScript, params)
+		if err != nil {
+			fmt.Printf("ExtractPkScriptAddrs: %v\n", err.Error())
+			continue
+		}
+
+		if len(txAddrs) == 0 {
+			continue
+		}
+
+		newPrevOuts++
+
+		txnsStore[txHash] = &TxWithBlockData{
+			Tx:          prevTx,
+			BlockHeight: prevTxRaw.BlockHeight,
+			BlockHash:   prevTxRaw.BlockHash,
+		}
+
+		outpoint := wire.NewOutPoint(&txHash,
+			prevOut.Index, TxTree(prevTx))
+		prevOutExtended := PrevOut{
+			TxSpending:       msgTx.TxHash(),
+			InputIndex:       inIdx,
+			PreviousOutpoint: outpoint,
+		}
+
+		// For each address that matches the address of interest, record this
+		// previous outpoint and the containing transactions.
+		for _, txAddr := range txAddrs {
+			addr := txAddr.EncodeAddress()
+
+			addrOuts := txAddrOuts[addr]
+			if addrOuts == nil {
+				addrOuts = &AddressOutpoints{
+					Address:  addr,
+					PrevOuts: []PrevOut{prevOutExtended},
+				}
+				addrs[addr] = true // new
+				txAddrOuts[addr] = addrOuts
+				continue
+			}
+			if _, found := addrs[addr]; !found {
+				addrs[addr] = false // not new to the address store
+			}
+			addrOuts.PrevOuts = append(addrOuts.PrevOuts, prevOutExtended)
+		}
+	}
+	return
+}
+
 // TxConsumesOutpointWithAddress checks a transaction for inputs that spend an
 // outpoint paying to the given address. Returned are the identified input
 // indexes and the corresponding previous outpoints determined.

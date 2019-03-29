@@ -27,6 +27,10 @@ type MempoolDataSaver interface {
 	StoreMPData(*StakeData, []exptypes.MempoolTx, *exptypes.MempoolInfo)
 }
 
+type MempoolAddressChecker interface {
+	UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error)
+}
+
 // MempoolMonitor processes new transactions as they are added to mempool, and
 // forwards the processed data on channels assigned during construction. An
 // inventory of transactions in the current mempool is maintained to prevent
@@ -386,3 +390,7 @@ func (p *MempoolMonitor) CollectAndStore() error {
 
 	return nil
 }
+
+// func (p *MempoolMonitor) UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error) {
+
+// }
