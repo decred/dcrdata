@@ -109,6 +109,18 @@ func Test_fromToForSlice(t *testing.T) {
 			wantErr:   false,
 		},
 		{
+			testName: "ok, at limit",
+			args: args{
+				from:        0,
+				to:          999,
+				sliceLength: 1000,
+				txLimit:     1000,
+			},
+			wantStart: 0,
+			wantEnd:   1000,
+			wantErr:   false,
+		},
+		{
 			testName: "ok, one element",
 			args: args{
 				from:        1,
