@@ -33,7 +33,7 @@ const (
 
 // BlockHashPathAndIndexCtx is a middleware that embeds the value at the url
 // part {blockhash}, and the corresponding block index, into a request context.
-func (c *insightApiContext) BlockHashPathAndIndexCtx(next http.Handler) http.Handler {
+func (c *InsightApiContext) BlockHashPathAndIndexCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := m.BlockHashPathAndIndexCtx(r, c.BlockData.ChainDB)
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -43,7 +43,7 @@ func (c *insightApiContext) BlockHashPathAndIndexCtx(next http.Handler) http.Han
 // StatusCtx is a middleware that embeds into the request context the data for
 // the "?q=x" URL query, where x is "getInfo" or "getDifficulty" or
 // "getBestBlockHash" or "getLastBlockHash".
-func (c *insightApiContext) StatusInfoCtx(next http.Handler) http.Handler {
+func (c *InsightApiContext) StatusInfoCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := m.StatusInfoCtx(r, c.BlockData.ChainDB)
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -51,7 +51,7 @@ func (c *insightApiContext) StatusInfoCtx(next http.Handler) http.Handler {
 
 }
 
-func (c *insightApiContext) getBlockHashCtx(r *http.Request) (string, error) {
+func (c *InsightApiContext) getBlockHashCtx(r *http.Request) (string, error) {
 	hash, err := m.GetBlockHashCtx(r)
 	if err != nil {
 		idx := int64(m.GetBlockIndexCtx(r))
@@ -64,7 +64,7 @@ func (c *insightApiContext) getBlockHashCtx(r *http.Request) (string, error) {
 	return hash, nil
 }
 
-func (c *insightApiContext) getBlockChainHashCtx(r *http.Request) (*chainhash.Hash, error) {
+func (c *InsightApiContext) getBlockChainHashCtx(r *http.Request) (*chainhash.Hash, error) {
 	hashStr, err := c.getBlockHashCtx(r)
 	if err != nil {
 		return nil, err
@@ -145,7 +145,7 @@ func FromToPaginationCtx(next http.Handler) http.Handler {
 }
 
 // ValidatePostCtx will confirm Post content length is valid.
-func (c *insightApiContext) ValidatePostCtx(next http.Handler) http.Handler {
+func (c *InsightApiContext) ValidatePostCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		contentLengthString := r.Header.Get("Content-Length")
 		contentLength, err := strconv.Atoi(contentLengthString)

@@ -12,14 +12,14 @@ import (
 )
 
 // TxConverter converts dcrd-tx to insight tx
-func (c *insightApiContext) TxConverter(txs []*dcrjson.TxRawResult) ([]apitypes.InsightTx, error) {
+func (c *InsightApiContext) TxConverter(txs []*dcrjson.TxRawResult) ([]apitypes.InsightTx, error) {
 	return c.DcrToInsightTxns(txs, false, false, false)
 }
 
 // DcrToInsightTxns converts a dcrjson TxRawResult to a InsightTx. The asm,
 // scriptSig, and spending status may be skipped by setting the appropriate
 // input arguments.
-func (c *insightApiContext) DcrToInsightTxns(txs []*dcrjson.TxRawResult, noAsm, noScriptSig, noSpent bool) ([]apitypes.InsightTx, error) {
+func (c *InsightApiContext) DcrToInsightTxns(txs []*dcrjson.TxRawResult, noAsm, noScriptSig, noSpent bool) ([]apitypes.InsightTx, error) {
 	newTxs := make([]apitypes.InsightTx, 0, len(txs))
 	for _, tx := range txs {
 		// Build new InsightTx
@@ -140,7 +140,7 @@ func (c *insightApiContext) DcrToInsightTxns(txs []*dcrjson.TxRawResult, noAsm, 
 }
 
 // DcrToInsightBlock converts a dcrjson.GetBlockVerboseResult to Insight block.
-func (c *insightApiContext) DcrToInsightBlock(inBlocks []*dcrjson.GetBlockVerboseResult) ([]*apitypes.InsightBlockResult, error) {
+func (c *InsightApiContext) DcrToInsightBlock(inBlocks []*dcrjson.GetBlockVerboseResult) ([]*apitypes.InsightBlockResult, error) {
 	RewardAtBlock := func(blocknum int64, voters uint16) float64 {
 		subsidyCache := blockchain.NewSubsidyCache(0, c.params)
 		work := blockchain.CalcBlockWorkSubsidy(subsidyCache, blocknum, voters, c.params)

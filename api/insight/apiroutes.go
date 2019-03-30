@@ -24,37 +24,31 @@ import (
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/db/dcrpg"
 	m "github.com/decred/dcrdata/middleware"
-	"github.com/decred/dcrdata/txhelpers"
+	"github.com/decred/dcrdata/rpcutils"
 )
-
-// DataSourceLite specifies an interface for collecting data from the built-in
-// databases (i.e. SQLite, storm, ffldb)
-type DataSourceLite interface {
-	UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error)
-}
 
 const defaultReqPerSecLimit = 20.0
 
-type insightApiContext struct {
+type InsightApiContext struct {
 	nodeClient     *rpcclient.Client
 	BlockData      *dcrpg.ChainDBRPC
 	params         *chaincfg.Params
-	MemPool        DataSourceLite
+	mp             rpcutils.MempoolAddressChecker
 	status         *apitypes.Status
 	JSONIndent     string
 	ReqPerSecLimit float64
 	maxCSVAddrs    int
 }
 
-// NewInsightContext Constructor for insightApiContext
+// NewInsightContext is the constructor for InsightApiContext.
 func NewInsightContext(client *rpcclient.Client, blockData *dcrpg.ChainDBRPC, params *chaincfg.Params,
-	memPoolData DataSourceLite, JSONIndent string, maxAddrs int, status *apitypes.Status) *insightApiContext {
+	memPoolData rpcutils.MempoolAddressChecker, JSONIndent string, maxAddrs int, status *apitypes.Status) *InsightApiContext {
 
-	newContext := insightApiContext{
-		nodeClient:     client,
+	newContext := InsightApiContext{
+		nodeClient: client,
 		BlockData:      blockData,
 		params:         params,
-		MemPool:        memPoolData,
+		mp:             memPoolData,
 		status:         status,
 		ReqPerSecLimit: defaultReqPerSecLimit,
 		maxCSVAddrs:    maxAddrs,
@@ -62,13 +56,19 @@ func NewInsightContext(client *rpcclient.Client, blockData *dcrpg.ChainDBRPC, pa
 	return &newContext
 }
 
+// UseMempoolChecker assigns a MempoolAddressChecker for searching mempool for
+// transactions involving a certain address.
+func (c *InsightApiContext) UseMempoolChecker(mp rpcutils.MempoolAddressChecker) {
+	c.mp = mp
+}
+
 // SetReqRateLimit is used to set the requests/second/IP for the Insight API's
 // rate limiter.
-func (c *insightApiContext) SetReqRateLimit(reqPerSecLimit float64) {
+func (c *InsightApiContext) SetReqRateLimit(reqPerSecLimit float64) {
 	c.ReqPerSecLimit = reqPerSecLimit
 }
 
-func (c *insightApiContext) getIndentQuery(r *http.Request) (indent string) {
+func (c *InsightApiContext) getIndentQuery(r *http.Request) (indent string) {
 	useIndentation := r.URL.Query().Get("indent")
 	if useIndentation == "1" || useIndentation == "true" {
 		indent = c.JSONIndent
@@ -104,7 +104,7 @@ func writeInsightNotFound(w http.ResponseWriter, str string) {
 	io.WriteString(w, str)
 }
 
-func (c *insightApiContext) getTransaction(w http.ResponseWriter, r *http.Request) {
+func (c *InsightApiContext) getTransaction(w http.ResponseWriter, r *http.Request) {
 	txid, err := m.GetTxIDCtx(r)
 	if err != nil {
 		writeInsightError(w, err.Error())
@@ -133,7 +133,7 @@ func (c *insightApiContext) getTransaction(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, txsNew[0], c.getIndentQuery(r))
 }
 
-func (c *insightApiContext) getTransactionHex(w http.ResponseWriter, r *http.Request) {
+func (c *InsightApiContext) getTransactionHex(w http.ResponseWriter, r *http.Request) {
 	txid, err := m.GetTxIDCtx(r)
 	if err != nil {
 		writeInsightError(w, err.Error())
@@ -153,7 +153,7 @@ func (c *insightApiContext) getTransactionHex(w http.ResponseWriter, r *http.Req
 	writeJSON(w, hexOutput, c.getIndentQuery(r))
 }
 
-func (c *insightApiContext) getBlockSummary(w http.ResponseWriter, r *http.Request) {
+func (c *InsightApiContext) getBlockSummary(w http.ResponseWriter, r *http.Request) {
 	// Attempt to get hash or height of block from URL path.
 	hash, err := m.GetBlockHashCtx(r)
 	if err != nil {
@@ -192,7 +192,7 @@ func (c *insightApiContext) getBlockSummary(w http.ResponseWriter, r *http.Reque
 	writeJSON(w, blockInsight, c.getIndentQuery(r))
 }
 
-func (c *insightApiContext) getBlockHash(w http.ResponseWriter, r *http.Request) {
+func (c *InsightApiContext) getBlockHash(w http.ResponseWriter, r *http.Request) {
 	idx := m.GetBlockIndexCtx(r)
 	if idx < 0 {
 		writeInsightError(w, "No index found in query")
@@ -223,7 +223,7 @@ func (c *insightApiContext) getBlockHash(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, blockOutput, c.getIndentQuery(r))
 }
 
-func (c *insightApiContext) getRawBlock(w http.ResponseWriter, r *http.Request) {
+func (c *InsightApiContext) getRawBlock(w http.ResponseWriter, r *http.Request) {
 
 	hash, err := m.GetBlockHashCtx(r)
 	if err != nil {
@@ -273,7 +273,7 @@ func (c *insightApiContext) getRawBlock(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, blockJSON, c.getIndentQuery(r))
 }
 
-func (c *insightApiContext) broadcastTransactionRaw(w http.ResponseWriter, r *http.Request) {
+func (c *InsightApiContext) broadcastTransactionRaw(w http.ResponseWriter, r *http.Request) {
 	// Check for rawtx.
 	rawHexTx, err := m.GetRawHexTx(r)
 	if err != nil {
@@ -306,7 +306,7 @@ func (c *insightApiContext) broadcastTransactionRaw(w http.ResponseWriter, r *ht
 	writeJSON(w, txidJSON, c.getIndentQuery(r))
 }
 
-func (c *insightApiContext) getAddressesTxnOutput(w http.ResponseWriter, r *http.Request) {
+func (c *InsightApiContext) getAddressesTxnOutput(w http.ResponseWriter, r *http.Request) {
 	addresses, err := m.GetAddressCtx(r, c.params, c.maxCSVAddrs) // Required
 	if err != nil {
 		writeInsightError(w, err.Error())
@@ -328,7 +328,7 @@ func (c *insightApiContext) getAddressesTxnOutput(w http.ResponseWriter, r *http
 			continue
 		}
 
-		addressOuts, _, err := c.MemPool.UnconfirmedTxnsForAddress(address)
+		addressOuts, _, err := c.mp.UnconfirmedTxnsForAddress(address)
 		if err != nil {
 			apiLog.Errorf("Error getting unconfirmed transactions: %v", err)
 			continue
@@ -405,7 +405,7 @@ func (c *insightApiContext) getAddressesTxnOutput(w http.ResponseWriter, r *http
 	writeJSON(w, txnOutputs, c.getIndentQuery(r))
 }
 
-func (c *insightApiContext) getTransactions(w http.ResponseWriter, r *http.Request) {
+func (c *InsightApiContext) getTransactions(w http.ResponseWriter, r *http.Request) {
 	hash, blockerr := m.GetBlockHashCtx(r)
 	addresses, addrerr := m.GetAddressCtx(r, c.params, 1)
 
@@ -486,7 +486,7 @@ func (c *insightApiContext) getTransactions(w http.ResponseWriter, r *http.Reque
 			return
 		}
 
-		addressOuts, _, err := c.MemPool.UnconfirmedTxnsForAddress(address)
+		addressOuts, _, err := c.mp.UnconfirmedTxnsForAddress(address)
 		var UnconfirmedTxs []chainhash.Hash
 
 		if err != nil {
@@ -552,7 +552,7 @@ func (c *insightApiContext) getTransactions(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Request) {
+func (c *InsightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Request) {
 	addresses, err := m.GetAddressCtx(r, c.params, c.maxCSVAddrs) // Required
 	if err != nil {
 		writeInsightError(w, err.Error())
@@ -593,7 +593,7 @@ func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Reque
 			writeInsightError(w, fmt.Sprintf("Address is invalid (%s)", addr))
 			return
 		}
-		addressOuts, _, err := c.MemPool.UnconfirmedTxnsForAddress(address.String())
+		addressOuts, _, err := c.mp.UnconfirmedTxnsForAddress(address.String())
 		if err != nil {
 			writeInsightError(w, fmt.Sprintf("Error gathering mempool transactions (%s)", err))
 			return
@@ -680,7 +680,7 @@ func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Reque
 	writeJSON(w, addressOutput, c.getIndentQuery(r))
 }
 
-func (c *insightApiContext) getAddressBalance(w http.ResponseWriter, r *http.Request) {
+func (c *InsightApiContext) getAddressBalance(w http.ResponseWriter, r *http.Request) {
 	addresses, err := m.GetAddressCtx(r, c.params, 1)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
@@ -701,7 +701,7 @@ func (c *insightApiContext) getAddressBalance(w http.ResponseWriter, r *http.Req
 	writeJSON(w, addressInfo.TotalUnspent, c.getIndentQuery(r))
 }
 
-func (c *insightApiContext) getSyncInfo(w http.ResponseWriter, r *http.Request) {
+func (c *InsightApiContext) getSyncInfo(w http.ResponseWriter, r *http.Request) {
 	errorResponse := func(err error) {
 		// To insure JSON encodes an error properly as a string, and no error as
 		// null, use a pointer to a string.
@@ -741,7 +741,7 @@ func (c *insightApiContext) getSyncInfo(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, syncInfo, c.getIndentQuery(r))
 }
 
-func (c *insightApiContext) getStatusInfo(w http.ResponseWriter, r *http.Request) {
+func (c *InsightApiContext) getStatusInfo(w http.ResponseWriter, r *http.Request) {
 	statusInfo := m.GetStatusInfoCtx(r)
 
 	// best block idx is also embedded through the middleware.  We could use
@@ -850,7 +850,7 @@ func dateFromStr(format, dateStr string) (date time.Time, isToday bool, err erro
 	return
 }
 
-func (c *insightApiContext) getBlockSummaryByTime(w http.ResponseWriter, r *http.Request) {
+func (c *InsightApiContext) getBlockSummaryByTime(w http.ResponseWriter, r *http.Request) {
 	// Format of the blockDate URL param, and of the pagination parameters
 	blockDateStr := m.GetBlockDateCtx(r)
 	ymdFormat := "2006-01-02"
@@ -912,7 +912,7 @@ func (c *insightApiContext) getBlockSummaryByTime(w http.ResponseWriter, r *http
 	writeJSON(w, summaryOutput, c.getIndentQuery(r))
 }
 
-func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Request) {
+func (c *InsightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Request) {
 	addresses, err := m.GetAddressCtx(r, c.params, 1)
 	if err != nil {
 		writeInsightError(w, err.Error())
@@ -977,7 +977,7 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 	// Get unconfirmed transactions.
 	var unconfirmedBalanceSat int64
 	var unconfirmedTxs []chainhash.Hash
-	addressOuts, _, err := c.MemPool.UnconfirmedTxnsForAddress(address)
+	addressOuts, _, err := c.mp.UnconfirmedTxnsForAddress(address)
 	if err != nil {
 		apiLog.Errorf("Error in getting unconfirmed transactions")
 	}
@@ -1120,7 +1120,7 @@ func fromToForSlice(from, to, sliceLength, txLimit int64) (int64, int64, error) 
 	return start, end, nil
 }
 
-func (c *insightApiContext) getEstimateFee(w http.ResponseWriter, r *http.Request) {
+func (c *InsightApiContext) getEstimateFee(w http.ResponseWriter, r *http.Request) {
 	nbBlocks := GetNbBlocksCtx(r)
 	if nbBlocks == 0 {
 		nbBlocks = 2
@@ -1143,7 +1143,7 @@ func (c *insightApiContext) getEstimateFee(w http.ResponseWriter, r *http.Reques
 }
 
 // GetPeerStatus handles requests for node peer info (i.e. getpeerinfo RPC).
-func (c *insightApiContext) GetPeerStatus(w http.ResponseWriter, r *http.Request) {
+func (c *InsightApiContext) GetPeerStatus(w http.ResponseWriter, r *http.Request) {
 	// Use a RPC call to tell if we are connected or not
 	_, err := c.nodeClient.GetPeerInfo()
 	connected := err == nil
