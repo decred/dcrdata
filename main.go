@@ -191,8 +191,9 @@ func _main(ctx context.Context) error {
 		// for the string buffer of the Address field.
 		rowCap := cfg.AddrCacheCap / int(32+reflect.TypeOf(dbtypes.AddressRowCompact{}).Size())
 		log.Infof("Address cache capacity: %d rows, %d bytes", rowCap, cfg.AddrCacheCap)
+		mpChecker := rpcutils.NewMempoolAddressChecker(dcrdClient, activeChain)
 		chainDB, err := dcrpg.NewChainDBWithCancel(ctx, &dbi, activeChain,
-			baseDB.GetStakeDB(), !cfg.NoDevPrefetch, cfg.HidePGConfig, rowCap)
+			baseDB.GetStakeDB(), !cfg.NoDevPrefetch, cfg.HidePGConfig, rowCap, mpChecker)
 		if chainDB != nil {
 			defer chainDB.Close()
 		}
@@ -751,12 +752,13 @@ func _main(ctx context.Context) error {
 
 	// SyncStatusAPIIntercept returns a json response if the sync status page is
 	// enabled (no the full explorer while syncing).
+	var insightApp *insight.InsightApiContext
 	webMux.With(explore.SyncStatusAPIIntercept).Group(func(r chi.Router) {
 		// Mount the dcrdata's REST API.
 		r.Mount("/api", apiMux.Mux)
 		// Setup and mount the Insight API.
 		if usePG {
-			insightApp := insight.NewInsightContext(dcrdClient, auxDB,
+			insightApp = insight.NewInsightContext(dcrdClient, auxDB,
 				activeChain, baseDB, cfg.IndentJSON, cfg.MaxCSVAddrs, app.Status)
 			insightApp.SetReqRateLimit(cfg.InsightReqRateLimit)
 			insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP, cfg.CompressAPI)
@@ -1199,6 +1201,9 @@ func _main(ctx context.Context) error {
 		requestShutdown()
 		return fmt.Errorf("mpm.CollectAndStore: %v", err)
 	}
+
+	auxDB.UseMempoolChecker(mpm)
+	insightApp.UseMempoolChecker(mpm)
 
 	// Begin listening on notify.NtfnChans.NewTxChan, and forwarding mempool
 	// events to psHub via the channels from HubRelays().

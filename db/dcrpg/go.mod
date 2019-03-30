@@ -3,8 +3,6 @@ module github.com/decred/dcrdata/db/dcrpg
 go 1.12
 
 require (
-	github.com/AndreasBriese/bbloom v0.0.0-20190306092124-e2d15f34fcf9 // indirect
-	github.com/DataDog/zstd v1.3.5 // indirect
 	github.com/chappjc/trylock v1.0.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/decred/dcrd/blockchain/stake v1.1.0
@@ -24,9 +22,11 @@ require (
 	github.com/decred/dcrdata/stakedb v1.0.1
 	github.com/decred/dcrdata/txhelpers v1.0.1
 	github.com/decred/slog v1.0.0
-	github.com/dgryski/go-farm v0.0.0-20190323231341-8198c7b169ec // indirect
 	github.com/dustin/go-humanize v1.0.0
 	github.com/lib/pq v1.0.0
-	github.com/pkg/errors v0.8.1 // indirect
-	google.golang.org/appengine v1.5.0 // indirect
+)
+
+replace (
+	github.com/decred/dcrdata/rpcutils => ../../rpcutils
+	github.com/decred/dcrdata/txhelpers => ../../txhelpers
 )
