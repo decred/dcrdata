@@ -56,7 +56,7 @@ func loadConfig() (*config, error) {
 	cfg := defaultConfig
 
 	preCfg := cfg
-	preParser := flags.NewParser(&preCfg, flags.HelpFlag|flags.PassDoubleDash)
+	preParser := flags.NewParser(&preCfg, flags.HelpFlag|flags.PassDoubleDash|flags.IgnoreUnknown)
 	_, err := preParser.Parse()
 
 	if err != nil {
@@ -71,7 +71,7 @@ func loadConfig() (*config, error) {
 		return nil, err
 	}
 
-	parser := flags.NewParser(&cfg, flags.Default)
+	parser := flags.NewParser(&cfg, flags.Default|flags.IgnoreUnknown)
 
 	if preCfg.AppDirectory != dcrrates.DefaultAppDirectory {
 		preCfg.AppDirectory = cleanAndExpandPath(preCfg.AppDirectory)

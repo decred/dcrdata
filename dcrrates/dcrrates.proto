@@ -21,4 +21,27 @@ message ExchangeRateUpdate {
   double change = 5;
   int64 stamp = 6;
   map<string, double> indices = 7;
+  message DepthPoint {
+    double quantity = 1;
+    double price = 2;
+  }
+  message DepthData {
+    int64 time = 1;
+    repeated DepthPoint bids = 2;
+    repeated DepthPoint asks = 3;
+  }
+  DepthData depth = 8;
+  message Candlestick {
+    double high = 1;
+    double low = 2;
+    double open = 3;
+    double close = 4;
+    double volume = 5;
+    int64 start = 6;
+  }
+  message Candlesticks {
+    string bin = 1;
+    repeated Candlestick sticks = 2;
+  }
+  repeated Candlesticks candlesticks = 9;
 }

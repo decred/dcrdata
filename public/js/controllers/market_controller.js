@@ -1,0 +1,511 @@
+import { Controller } from 'stimulus'
+import TurboQuery from '../helpers/turbolinks_helper'
+import { getDefault } from '../helpers/module_helper'
+import humanize from '../helpers/humanize_helper'
+import { darkEnabled } from '../services/theme_service'
+import globalEventBus from '../services/event_bus_service'
+import axios from 'axios'
+
+var Dygraph
+const candlestick = 'candlestick'
+const depth = 'depth'
+const history = 'history'
+const binance = 'binance'
+const anHour = '1h'
+const minuteMap = {
+  '30m': 30,
+  '1h': 60,
+  '1d': 1440,
+  '1mo': 43200
+}
+
+var availableCandlesticks, availableDepths
+
+function validDepthExchange (token) {
+  return availableDepths.indexOf(token) > -1
+}
+
+function hasBin (xc, bin) {
+  return availableCandlesticks[xc].indexOf(bin) !== -1
+}
+
+var requestCounter = 0
+var responseCache = {}
+
+function cacheKey (...parts) {
+  return parts.join('-')
+}
+
+function hasCache (k) {
+  if (!responseCache[k]) return false
+  var expiration = new Date(responseCache[k].data.expiration)
+  return expiration > new Date()
+}
+
+const lightStroke = '#333'
+const darkStroke = '#ddd'
+var chartStroke = lightStroke
+var conversionFactor = 1
+var settings = {}
+
+const commonChartOpts = {
+  strokeWidth: 3,
+  gridLineColor: '#77777744',
+  axisLineColor: 'transparent',
+  underlayCallback: (ctx, area, dygraph) => {
+    ctx.lineWidth = 1
+    ctx.strokeStyle = chartStroke
+    ctx.strokeRect(area.x, area.y, area.w, area.h)
+  },
+  axisLabelFontSize: 15,
+  // these should be set to avoid Dygraph strangeness
+  labels: [' ', ' '], // To avoid an annoying console message,
+  xlabel: ' ',
+  ylabel: ' '
+}
+
+function adjustAxis (axis, zoomInPercentage, bias) {
+  var delta = axis[1] - axis[0]
+  var increment = delta * zoomInPercentage
+  var foo = [increment * bias, increment * (1 - bias)]
+  return [axis[0] + foo[0], axis[1] - foo[1]]
+}
+
+function gScroll (event, g, context) {
+  var percentage = event.detail ? event.detail * -1 / 1000 : event.wheelDelta / 1000
+
+  if (!(event.offsetX && event.offsetY)) {
+    event.offsetX = event.layerX - event.target.offsetLeft
+    event.offsetY = event.layerY - event.target.offsetTop
+  }
+
+  var xOffset = g.toDomCoords(g.xAxisRange()[0], null)[0]
+  var x = event.offsetX - xOffset
+  var w = g.toDomCoords(g.xAxisRange()[1], null)[0] - xOffset
+  var xPct = w === 0 ? 0 : (x / w)
+
+  g.updateOptions({
+    dateWindow: adjustAxis(g.xAxisRange(), percentage, xPct)
+  })
+  event.preventDefault()
+  event.stopPropagation()
+}
+
+function candlestickPlotter (e) {
+  if (e.seriesIndex !== 0) return
+
+  var area = e.plotArea
+  var ctx = e.drawingContext
+  ctx.strokeStyle = chartStroke
+  ctx.lineWidth = 1
+
+  var sets = e.allSeriesPoints
+  if (sets.length < 2) {
+    // do nothing
+    return
+  }
+
+  var barWidth = area.w * Math.abs(sets[0][1].x - sets[0][0].x) * 0.8
+  let opens, closes, highs, lows
+  [opens, closes, highs, lows] = sets
+  let open, close, high, low
+  for (let i = 0; i < sets[0].length; i++) {
+    ctx.strokeStyle = '#777'
+    open = opens[i]
+    close = closes[i]
+    high = highs[i]
+    low = lows[i]
+    var centerX = area.x + open.x * area.w
+    var topY = area.h * high.y + area.y
+    var bottomY = area.h * low.y + area.y
+    ctx.beginPath()
+    ctx.moveTo(centerX, topY)
+    ctx.lineTo(centerX, bottomY)
+    ctx.stroke()
+
+    ctx.strokeStyle = 'black'
+
+    var top
+    if (open.yval > close.yval) {
+      ctx.fillStyle = '#f93f39'
+      top = area.h * open.y + area.y
+    } else {
+      ctx.fillStyle = '#1acc84'
+      top = area.h * close.y + area.y
+    }
+    var h = area.h * Math.abs(open.y - close.y)
+    var left = centerX - barWidth / 2
+    ctx.fillRect(left, top, barWidth, h)
+    ctx.strokeRect(left, top, barWidth, h)
+  }
+}
+
+var stickZoom
+function calcStickWindow (start, end, bin) {
+  var halfBin = minuteMap[bin] / 2
+  start = new Date(start.getTime())
+  end = new Date(end.getTime())
+  return [
+    start.setMinutes(start.getMinutes() - halfBin),
+    end.setMinutes(end.getMinutes() + halfBin)
+  ]
+}
+
+export default class extends Controller {
+  static get targets () {
+    return ['chartSelect', 'exchanges', 'bin', 'chart', 'legend', 'conversion',
+      'xcName', 'xcLogo', 'actions']
+  }
+
+  async connect () {
+    this.query = new TurboQuery()
+    settings = TurboQuery.nullTemplate(['chart', 'xc', 'bin'])
+    this.query.update(settings)
+    this.processors = {
+      candlestick: this._processCandlesticks.bind(this),
+      history: this.processHistory,
+      depth: this.processDepth
+    }
+    commonChartOpts.labelsDiv = this.legendTarget
+    this.converted = false
+    this.conversionFactor = parseFloat(this.conversionTarget.dataset.factor)
+    this.currencyCode = this.conversionTarget.dataset.code
+    this.binButtons = this.binTarget.querySelectorAll('button')
+
+    availableCandlesticks = {}
+    availableDepths = []
+    this.exchangeOptions = []
+    var opts = this.exchangesTarget.options
+    for (let i = 0; i < opts.length; i++) {
+      let option = opts[i]
+      this.exchangeOptions.push(option)
+      if (option.dataset.sticks) {
+        availableCandlesticks[option.value] = option.dataset.bins.split(';')
+      }
+      if (option.dataset.depth) availableDepths.push(option.value)
+    }
+
+    if (settings.chart == null) {
+      settings.chart = depth
+    }
+    if (settings.xc == null) {
+      settings.xc = binance
+    }
+    this.setExchangeName()
+    if (settings.bin == null) {
+      settings.bin = anHour
+    }
+
+    this.setButtons()
+
+    this.resize = this._resize.bind(this)
+    window.addEventListener('resize', this.resize)
+    this.processNightMode = this._processNightMode.bind(this)
+    globalEventBus.on('NIGHT_MODE', this.processNightMode)
+    if (darkEnabled()) chartStroke = darkStroke
+
+    this.fetchInitialData()
+  }
+
+  disconnect () {
+    responseCache = {}
+    window.removeEventListener('resize', this.resize)
+    globalEventBus.off('NIGHT_MODE', this.processNightMode)
+  }
+
+  _resize () {
+    if (this.graph) {
+      this.graph.resize()
+    }
+  }
+
+  async fetchInitialData () {
+    Dygraph = await getDefault(
+      import(/* webpackChunkName: "dygraphs" */ '../vendor/dygraphs.min.js')
+    )
+    var dummyGraph = new Dygraph(document.createElement('div'), [[0, 1]], { labels: ['', ''] })
+
+    // A little hack to start with the default interaction model. Updating the
+    // interactionModel with updateOptions later does not appear to work.
+    var model = dummyGraph.getOption('interactionModel')
+    model.mousewheel = gScroll
+    model.mousedown = (event, g, context) => {
+      // End panning even if the mouseup event is not on the chart.
+      var mouseup = () => {
+        context.isPanning = false
+        document.removeEventListener('mouseup', mouseup)
+      }
+      document.addEventListener('mouseup', mouseup)
+      context.initializeMouseDown(event, g, context)
+      Dygraph.startPan(event, g, context)
+    }
+    model.mouseup = (event, g, context) => {
+      if (!context.isPanning) return
+      Dygraph.endPan(event, g, context)
+      context.isPanning = false // I think Dygraph is supposed to set this, but they don't.
+    }
+    model.mousemove = (event, g, context) => {
+      if (!context.isPanning) return
+      Dygraph.movePan(event, g, context)
+    }
+    commonChartOpts.interactionModel = model
+
+    this.graph = new Dygraph(this.chartTarget, [[0, 0], [0, 1]], commonChartOpts)
+    this.fetchChart()
+  }
+
+  async fetchChart () {
+    var url = null
+    requestCounter++
+    var thisRequest = requestCounter
+    var bin = settings.bin
+    var xc = settings.xc
+    var chart = settings.chart
+    var ck
+    if (chart === history || chart === candlestick) {
+      ck = cacheKey(xc, bin)
+      if (!(xc in availableCandlesticks)) {
+        console.warn('invalid candlestick exchange:', xc)
+        return
+      }
+      if (availableCandlesticks[xc].indexOf(bin) === -1) {
+        console.warn('invalid bin:', bin)
+        return
+      }
+      url = `/api/chart/market/${xc}/candlestick/${bin}`
+    } else if (chart === depth) {
+      ck = cacheKey(xc, depth)
+      if (!validDepthExchange(xc)) {
+        console.warn('invalid depth exchange:', xc)
+        return
+      }
+      url = `/api/chart/market/${xc}/depth`
+    }
+    if (!url) {
+      console.warn('invalid chart:', chart)
+      return
+    }
+
+    var response
+    if (hasCache(ck)) {
+      response = responseCache[ck]
+    } else {
+      response = await axios.get(url)
+      responseCache[ck] = response
+      if (thisRequest !== requestCounter) {
+        // new request was issued while waiting.
+        return
+      }
+    }
+    this.graph.updateOptions(this.processors[chart](response.data))
+    this.query.replace(settings)
+    if (settings.chart !== candlestick) this.graph.resetZoom()
+  }
+
+  _processCandlesticks (response) {
+    var halfDuration = minuteMap[settings.bin] / 2
+    var data = response.sticks.map(stick => {
+      var t = new Date(stick.start)
+      t.setMinutes(t.getMinutes() + halfDuration)
+      return [t, stick.open, stick.close, stick.high, stick.low]
+    })
+    if (data.length === 0) return
+    // limit to 50 points to start. Too many candlesticks = bad.
+    var start = data[0][0]
+    if (data.length > 50) {
+      start = data[data.length - 50][0]
+    }
+    stickZoom = calcStickWindow(start, data[data.length - 1][0], settings.bin)
+    return {
+      file: data,
+      labels: ['time', 'open', 'close', 'high', 'low'],
+      xlabel: 'Time',
+      ylabel: `Price (${this.converted ? this.currencyCode : 'BTC'})`,
+      dateWindow: stickZoom,
+      plotter: candlestickPlotter,
+      axes: {
+        x: {
+          axisLabelFormatter: Dygraph.dateAxisLabelFormatter
+        },
+        y: {
+          axisLabelFormatter: humanize.threeSigFigs
+        }
+      }
+    }
+  }
+
+  processHistory (response) {
+    var halfDuration = minuteMap[settings.bin] / 2
+    return {
+      file: response.sticks.map(stick => {
+        var t = new Date(stick.start)
+        t.setMinutes(t.getMinutes() + halfDuration)
+        // Not sure what the best way to reduce a candlestick to a single number
+        // Trying this simple approach for now.
+        var avg = (stick.open + stick.close + stick.high + stick.low) / 4
+        return [t, avg]
+      }),
+      labels: ['time', 'price'],
+      xlabel: 'Time',
+      ylabel: `Price (${this.converted ? this.currencyCode : 'BTC'})`,
+      colors: [chartStroke],
+      plotter: Dygraph.Plotters.linePlotter,
+      axes: {
+        x: {
+          axisLabelFormatter: Dygraph.dateAxisLabelFormatter
+        },
+        y: {
+          axisLabelFormatter: humanize.threeSigFigs
+        }
+      }
+    }
+  }
+
+  processDepth (response) {
+    var pts = []
+    var accumulator = 0
+    response.data.bids.forEach(pt => {
+      accumulator += pt.quantity
+      pts.push([pt.price, null, accumulator])
+    })
+    pts.reverse()
+    accumulator = 0
+    response.data.asks.forEach(pt => {
+      accumulator += pt.quantity
+      pts.push([pt.price, accumulator, null])
+    })
+    return {
+      labels: ['price', 'cumulative sell', 'cumulative buy'],
+      file: pts,
+      fillGraph: true,
+      colors: ['#ed6d47', '#41be53'],
+      xlabel: `Price (${this.converted ? this.currencyCode : 'BTC'})`,
+      ylabel: 'Volume (DCR)',
+      plotter: null,
+      axes: {
+        x: {
+          axisLabelFormatter: (x) => {
+            return humanize.threeSigFigs(x * conversionFactor)
+          }
+        },
+        y: {
+          axisLabelFormatter: humanize.threeSigFigs
+        }
+      }
+    }
+  }
+
+  justifyBins () {
+    var bins = availableCandlesticks[settings.xc]
+    if (bins.indexOf(settings.bin) === -1) {
+      settings.bin = bins[0]
+      this.setBinSelection()
+    }
+  }
+
+  setButtons () {
+    this.chartSelectTarget.value = settings.chart
+    this.exchangesTarget.value = settings.xc
+    var isDepth = settings.chart === depth
+    if (isDepth) {
+      this.binTarget.classList.add('d-hide')
+    } else {
+      this.binTarget.classList.remove('d-hide')
+      this.binButtons.forEach(button => {
+        if (hasBin(settings.xc, button.name)) {
+          button.classList.remove('d-hide')
+        } else {
+          button.classList.add('d-hide')
+        }
+      })
+      this.setBinSelection()
+    }
+    this.exchangeOptions.forEach(option => {
+      if (isDepth) option.disabled = !option.dataset.depth
+      if (!isDepth) option.disabled = !option.dataset.sticks
+    })
+  }
+
+  setBinSelection () {
+    var bin = settings.bin
+    this.binButtons.forEach(button => {
+      if (button.name === bin) {
+        button.classList.add('btn-selected')
+      } else {
+        button.classList.remove('btn-selected')
+      }
+    })
+  }
+
+  changeGraph (e) {
+    var target = e.target || e.srcElement
+    settings.chart = target.value
+    if (settings.chart === depth) {
+      if (availableDepths.indexOf(settings.xc) === -1) {
+        // No depth chart available for the selected exchange.
+        settings.xc = availableDepths[0]
+        this.exchangesTarget.value = settings.xc
+      }
+    } else if (!(settings.xc in availableCandlesticks)) {
+      settings.xc = Object.keys(availableCandlesticks)[0]
+      this.exchangesTarget.value = settings.xc
+    }
+    this.justifyBins()
+    this.setButtons()
+    this.fetchChart()
+  }
+
+  changeExchange () {
+    settings.xc = this.exchangesTarget.value
+    this.setExchangeName()
+    if (settings.chart !== depth) this.justifyBins()
+    this.setButtons()
+    this.fetchChart()
+    this.resetZoom()
+  }
+
+  changeBin (e) {
+    var btn = e.target || e.srcElement
+    if (btn.nodeName !== 'BUTTON' || !this.graph) return
+    settings.bin = btn.name
+    this.justifyBins()
+    this.setBinSelection()
+    this.fetchChart()
+  }
+
+  resetZoom () {
+    if (settings.chart === candlestick) {
+      this.graph.updateOptions({ dateWindow: stickZoom })
+    } else {
+      this.graph.resetZoom()
+    }
+  }
+
+  setConversion (e) {
+    var btn = e.target || e.srcElement
+    if (btn.nodeName !== 'BUTTON' || !this.graph) return
+    this.conversionTarget.querySelectorAll('button').forEach(b => b.classList.remove('btn-selected'))
+    btn.classList.add('btn-selected')
+    var cLabel = 'BTC'
+    if (e.target.name === 'BTC') {
+      this.converted = false
+      conversionFactor = 1
+    } else {
+      this.converted = true
+      conversionFactor = this.conversionFactor
+      cLabel = this.currencyCode
+    }
+    this.graph.updateOptions({ xlabel: `Price (${cLabel})` })
+  }
+
+  setExchangeName () {
+    this.xcLogoTarget.className = `exchange-logo ${settings.xc}`
+    this.xcNameTarget.textContent = humanize.capitalize(settings.xc)
+  }
+
+  _processNightMode (data) {
+    if (!this.graph) return
+    chartStroke = data.nightMode ? darkStroke : lightStroke
+    this.graph.updateOptions({ colors: [chartStroke] })
+  }
+}

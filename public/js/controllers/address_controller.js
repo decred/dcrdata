@@ -173,7 +173,6 @@ export default class extends Controller {
 
     // Get initial view settings from the url
     ctrl.query.update(settings)
-    ctrl.query.update(ctrl.settings)
     ctrl.setChartType()
     if (settings.flow) ctrl.setFlowChecks()
     if (settings.zoom !== null) {

@@ -209,6 +209,11 @@ func NewAPIRouter(app *appContext, useRealIP, compressLarge bool) apiMux {
 
 	mux.Route("/chart", func(r chi.Router) {
 		// Return default chart data (ticket price)
+		r.Route("/market/{token}", func(rd chi.Router) {
+			rd.Use(m.ExchangeTokenContext)
+			rd.With(m.StickWidthContext).Get("/candlestick/{bin}", app.getCandlestickChart)
+			rd.Get("/depth", app.getDepthChart)
+		})
 		r.Get("/", app.getTicketPriceChartData)
 		r.With(m.ChartTypeCtx).Get("/{charttype}", app.ChartTypeData)
 	})

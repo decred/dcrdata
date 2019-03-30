@@ -349,7 +349,7 @@ func New(cfg *ExplorerConfig) *explorerUI {
 	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
 		"rawtx", "status", "parameters", "agenda", "agendas", "charts",
 		"sidechains", "disapproved", "ticketpool", "nexthome", "statistics",
-		"windows", "timelisting", "addresstable", "proposals", "proposal"}
+		"windows", "timelisting", "addresstable", "proposals", "proposal", "market"}
 
 	for _, name := range tmpls {
 		if err := exp.templates.addTemplate(name); err != nil {

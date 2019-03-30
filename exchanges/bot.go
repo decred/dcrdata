@@ -56,6 +56,8 @@ type ExchangeBot struct {
 	DcrBtcExchanges map[string]Exchange
 	IndexExchanges  map[string]Exchange
 	Exchanges       map[string]Exchange
+	versionedCharts map[string]*versionedChart
+	chartVersions   map[string]int
 	// BtcIndex is the (typically fiat) currency to which the DCR price should be
 	// converted by default. Other conversions are available via a lookup in
 	// indexMap, but with slightly lower performance.
@@ -75,9 +77,9 @@ type ExchangeBot struct {
 	// A gRPC connection
 	masterConnection *grpc.ClientConn
 	TLSCredentials   credentials.TransportCredentials
-	// udpateChans and quitChans hold update and exit channels requested by the
-	// user.
-	updateChans []chan *UpdateSignal
+	// Channels equested by the user.
+	updateChans []chan *ExchangeUpdate
+	indexChans  []chan *IndexUpdate
 	quitChans   []chan struct{}
 	// exchangeChan and indexChan are passed to the individual exchanges and
 	// receive updates after a refresh is triggered.
@@ -94,6 +96,7 @@ type ExchangeBot struct {
 // base currency, and a volume-averaged price and total volume in DCR.
 type ExchangeBotState struct {
 	BtcIndex    string                    `json:"btc_index"`
+	BtcPrice    float64                   `json:"btc_fiat_price"`
 	Price       float64                   `json:"price"`
 	Volume      float64                   `json:"volume"`
 	DcrBtc      map[string]*ExchangeState `json:"dcr_btc_exchanges"`
@@ -116,27 +119,32 @@ func (state ExchangeBotState) copy() *ExchangeBotState {
 	return &state
 }
 
-// UpdateSignal is the update sent over the update channels, and includes an
-// ExchangeBotState and a JSON-encoded byte array of the state.
-// Token is the exchange which triggered the update.
-type UpdateSignal struct {
-	Token string
-	State *ExchangeBotState
-	Bytes []byte
+// BtcToFiat converts an amount of Bitcoin to fiat using the current calculated
+// exchange rate.
+func (state *ExchangeBotState) BtcToFiat(btc float64) float64 {
+	return state.BtcPrice * btc
 }
 
-// TriggerState is the ExchangeState for the exchange that triggered the update.
-func (signal UpdateSignal) TriggerState() (xcState *ExchangeState, err error) {
-	if IsDcrExchange(signal.Token) {
-		xcState = signal.State.DcrBtc[signal.Token]
-	} else if IsBtcIndex(signal.Token) {
-		xcState = signal.State.FiatIndices[signal.Token]
+// ExchangeState doesn't have a Token field, so if the states are returned as a
+// slice (rather than ranging over a map), a token is needed.
+type tokenedExchange struct {
+	Token string
+	State *ExchangeState
+}
+
+// VolumeOrderedExchanges returned a list of tokenedExchange sorted by volume.
+func (state *ExchangeBotState) VolumeOrderedExchanges() []*tokenedExchange {
+	xcList := make([]*tokenedExchange, 0, len(state.DcrBtc))
+	for token, state := range state.DcrBtc {
+		xcList = append(xcList, &tokenedExchange{
+			Token: token,
+			State: state,
+		})
 	}
-	if xcState == nil {
-		// This is unlikely without major code changes. Here for good measure.
-		return nil, fmt.Errorf("No exchange state found for %s", signal.Token)
-	}
-	return
+	sort.Slice(xcList, func(i, j int) bool {
+		return xcList[i].State.Volume > xcList[j].State.Volume
+	})
+	return xcList
 }
 
 // FiatIndices maps currency codes to Bitcoin exchange rates.
@@ -157,8 +165,37 @@ type BotChannels struct {
 
 // UpdateChannels are requested by the user with ExchangeBot.UpdateChannels.
 type UpdateChannels struct {
-	Update chan *UpdateSignal
-	Quit   chan struct{}
+	Exchange chan *ExchangeUpdate
+	Index    chan *IndexUpdate
+	Quit     chan struct{}
+}
+
+// The chart data structures that are actually encoded and cached.
+type candlestickResponse struct {
+	BtcIndex   string       `json:"index"`
+	Price      float64      `json:"price"`
+	Sticks     Candlesticks `json:"sticks"`
+	Expiration time.Time    `json:"expiration"`
+}
+
+type depthResponse struct {
+	BtcIndex   string     `json:"index"`
+	Price      float64    `json:"price"`
+	Data       *DepthData `json:"data"`
+	Expiration time.Time  `json:"expiration"`
+}
+
+// versionedChart is a bytes-encoded representation of a chart's data with a
+// version number that can be compared for use in caching.
+type versionedChart struct {
+	chartID string
+	dataID  int
+	time    time.Time
+	chart   []byte
+}
+
+func genCacheID(parts ...string) string {
+	return strings.Join(parts, "-")
 }
 
 // NewExchangeBot constructs a new ExchangeBot with the provided configuration.
@@ -195,6 +232,8 @@ func NewExchangeBot(config *ExchangeBotConfig) (*ExchangeBot, error) {
 		DcrBtcExchanges: make(map[string]Exchange),
 		IndexExchanges:  make(map[string]Exchange),
 		Exchanges:       make(map[string]Exchange),
+		versionedCharts: make(map[string]*versionedChart),
+		chartVersions:   make(map[string]int),
 		BtcIndex:        config.BtcIndex,
 		indexMap:        make(map[string]FiatIndices),
 		currentState: ExchangeBotState{
@@ -208,7 +247,8 @@ func NewExchangeBot(config *ExchangeBotConfig) (*ExchangeBot, error) {
 		DataExpiry:        dataExpiry,
 		RequestExpiry:     requestExpiry,
 		minTick:           5 * time.Second,
-		updateChans:       []chan *UpdateSignal{},
+		updateChans:       []chan *ExchangeUpdate{},
+		indexChans:        []chan *IndexUpdate{},
 		quitChans:         []chan struct{}{},
 		exchangeChan:      make(chan *ExchangeUpdate, 16),
 		indexChan:         make(chan *IndexUpdate, 16),
@@ -327,13 +367,8 @@ func (bot *ExchangeBot) Start(ctx context.Context, wg *sync.WaitGroup) {
 					// Send the update through the Exchange so that appropriate attributes
 					// are set.
 					if IsDcrExchange(update.Token) {
-						bot.Exchanges[update.Token].Update(&ExchangeState{
-							Price:      update.GetPrice(),
-							BaseVolume: update.GetBaseVolume(),
-							Volume:     update.GetVolume(),
-							Change:     update.GetChange(),
-							Stamp:      update.GetStamp(),
-						})
+						state := exchangeStateFromProto(update)
+						bot.Exchanges[update.Token].Update(state)
 					} else if IsBtcIndex(update.Token) {
 						bot.Exchanges[update.Token].UpdateIndices(update.GetIndices())
 					}
@@ -366,14 +401,14 @@ out:
 				log.Warnf("Error encountered in exchange update: %v", err)
 				continue
 			}
-			bot.signalUpdate(update.Token)
+			bot.signalExchangeUpdate(update)
 		case update := <-bot.indexChan:
 			err := bot.updateIndices(update)
 			if err != nil {
 				log.Warnf("Error encountered in index update: %v", err)
 				continue
 			}
-			bot.signalUpdate(update.Token)
+			bot.signalIndexUpdate(update)
 		case <-tick.C:
 			bot.Cycle()
 		case <-ctx.Done():
@@ -438,28 +473,35 @@ func (bot *ExchangeBot) subscribedExchanges() []string {
 // UpdateChannels creates an UpdateChannels, which holds a channel to receive
 // exchange updates and a channel which is closed when the start loop exits.
 func (bot *ExchangeBot) UpdateChannels() *UpdateChannels {
-	update := make(chan *UpdateSignal, 16)
+	update := make(chan *ExchangeUpdate, 16)
+	index := make(chan *IndexUpdate, 16)
 	quit := make(chan struct{})
 	bot.mtx.Lock()
 	defer bot.mtx.Unlock()
 	bot.updateChans = append(bot.updateChans, update)
+	bot.indexChans = append(bot.indexChans, index)
 	bot.quitChans = append(bot.quitChans, quit)
 	return &UpdateChannels{
-		Update: update,
-		Quit:   quit,
+		Exchange: update,
+		Index:    index,
+		Quit:     quit,
 	}
 }
 
 // Send an update to any channels requested with bot.UpdateChannels().
-func (bot *ExchangeBot) signalUpdate(token string) {
-	signal := &UpdateSignal{
-		Token: token,
-		State: bot.State(),
-		Bytes: bot.StateBytes(),
-	}
+func (bot *ExchangeBot) signalExchangeUpdate(update *ExchangeUpdate) {
 	for _, ch := range bot.updateChans {
 		select {
-		case ch <- signal:
+		case ch <- update:
+		default:
+		}
+	}
+}
+
+func (bot *ExchangeBot) signalIndexUpdate(update *IndexUpdate) {
+	for _, ch := range bot.indexChans {
+		select {
+		case ch <- update:
 		default:
 		}
 	}
@@ -512,6 +554,13 @@ func (bot *ExchangeBot) StateBytes() []byte {
 	return bot.currentStateBytes
 }
 
+func (bot *ExchangeBot) jsonify(thing interface{}) ([]byte, error) {
+	if bot.config.Indent {
+		return json.MarshalIndent(thing, "", "    ")
+	}
+	return json.Marshal(thing)
+}
+
 // ConvertedStateBytes gives a JSON-encoded byte array of the currentState
 // with a base of the provided currency code, if available.
 func (bot *ExchangeBot) ConvertedStateBytes(symbol string) ([]byte, error) {
@@ -519,16 +568,7 @@ func (bot *ExchangeBot) ConvertedStateBytes(symbol string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	var jsonBytes []byte
-	if bot.config.Indent {
-		jsonBytes, err = json.MarshalIndent(state, "", "    ")
-	} else {
-		jsonBytes, err = json.Marshal(state)
-	}
-	if err != nil {
-		return nil, err
-	}
-	return jsonBytes, nil
+	return bot.jsonify(state)
 }
 
 // AvailableIndices creates a fresh slice of all available index currency codes.
@@ -564,6 +604,23 @@ func (bot *ExchangeBot) Indices(token string) FiatIndices {
 	return indices
 }
 
+func (bot *ExchangeBot) incrementChart(chartId string) {
+	_, found := bot.chartVersions[chartId]
+	if found {
+		bot.chartVersions[chartId]++
+	} else {
+		bot.chartVersions[chartId] = 0
+	}
+}
+
+func (bot *ExchangeBot) cachedChartVersion(chartId string) int {
+	cid, found := bot.chartVersions[chartId]
+	if !found {
+		return -1
+	}
+	return cid
+}
+
 // processState is a helper function to process a slice of ExchangeState into
 // a price, and optionally a volume sum, and perform some cleanup along the way.
 // If volumeAveraged is false, all exchanges are given equal weight in the avg.
@@ -596,7 +653,15 @@ func (bot *ExchangeBot) processState(states map[string]*ExchangeState, volumeAve
 func (bot *ExchangeBot) updateExchange(update *ExchangeUpdate) error {
 	bot.mtx.Lock()
 	defer bot.mtx.Unlock()
-	bot.currentState.DcrBtc[update.Token] = update.State
+	if update.State.Candlesticks != nil {
+		for bin := range update.State.Candlesticks {
+			bot.incrementChart(genCacheID(update.Token, string(bin)))
+		}
+	}
+	if update.State.Depth != nil {
+		bot.incrementChart(genCacheID(update.Token, "depth"))
+	}
+	bot.currentState.DcrBtc[update.Token] = bot.currentState.DcrBtc[update.Token].project(update.State)
 	return bot.updateState()
 }
 
@@ -627,6 +692,7 @@ func (bot *ExchangeBot) updateState() error {
 	} else {
 		bot.failed = false
 		bot.currentState.Price = dcrPrice * btcPrice
+		bot.currentState.BtcPrice = btcPrice
 		bot.currentState.Volume = volume
 	}
 
@@ -638,10 +704,11 @@ func (bot *ExchangeBot) updateState() error {
 		jsonBytes, err = json.Marshal(bot.currentState)
 	}
 	if err != nil {
-		return fmt.Errorf("Failed to write bytes")
+		return fmt.Errorf("Failed to write bytes: %v", err)
 	}
 	bot.currentStateBytes = jsonBytes
 	bot.stateCopy = bot.currentState.copy()
+
 	return nil
 }
 
@@ -721,4 +788,114 @@ func (bot *ExchangeBot) Conversion(dcrVal float64) *Conversion {
 		}
 	}
 	return nil
+}
+
+// Fetch the pre-encoded JSON chart data from the cache, if it exists and is not
+// expired. Data is considered expired only when newer data has been received,
+// but not necessarily requested/encoded yet. Boolean `hit` indicates success.
+func (bot *ExchangeBot) fetchFromCache(chartID string) (data []byte, bestVersion int, hit bool) {
+	bot.mtx.RLock()
+	defer bot.mtx.RUnlock()
+	bestVersion = bot.cachedChartVersion(chartID)
+	cache, found := bot.versionedCharts[chartID]
+	if found {
+		if cache.dataID == bestVersion {
+			return cache.chart, bestVersion, true
+		}
+	}
+	return data, bestVersion, false
+}
+
+// QuickSticks returns the up-to-date candlestick data for the specified
+// exchange and bin width, pulling from the cache if appropriate.
+func (bot *ExchangeBot) QuickSticks(token string, rawBin string) ([]byte, error) {
+	chartID := genCacheID(token, rawBin)
+	bin := candlestickKey(rawBin)
+	data, bestVersion, isGood := bot.fetchFromCache(chartID)
+	if isGood {
+		return data, nil
+	}
+
+	// No hit on cache. Re-encode.
+
+	bot.mtx.Lock()
+	defer bot.mtx.Unlock()
+	state, found := bot.currentState.DcrBtc[token]
+	if !found {
+		return []byte{}, fmt.Errorf("Failed to find DCR exchange state for %s", token)
+	}
+	if state.Candlesticks == nil {
+		return []byte{}, fmt.Errorf("Failed to find candlesticks for %s", token)
+	}
+
+	sticks, found := state.Candlesticks[bin]
+	if !found {
+		return []byte{}, fmt.Errorf("Failed to find candlesticks for %s and bin %s", token, rawBin)
+	}
+	if len(sticks) == 0 {
+		return []byte{}, fmt.Errorf("Empty candlesticks for %s and bin %s", token, rawBin)
+	}
+
+	expiration := sticks[len(sticks)-1].Start.Add(2 * bin.duration())
+
+	chart, err := bot.jsonify(&candlestickResponse{
+		BtcIndex:   bot.BtcIndex,
+		Price:      bot.currentState.Price,
+		Sticks:     sticks,
+		Expiration: expiration,
+	})
+	if err != nil {
+		return []byte{}, fmt.Errorf("JSON encode error for %s and bin %s", token, rawBin)
+	}
+
+	vChart := &versionedChart{
+		chartID: chartID,
+		dataID:  bestVersion,
+		time:    expiration,
+		chart:   chart,
+	}
+
+	bot.versionedCharts[chartID] = vChart
+	return vChart.chart, nil
+}
+
+// QuickDepth returns the up-to-date depth chart data for the specified
+// exchange, pulling from the cache if appropriate.
+func (bot *ExchangeBot) QuickDepth(token string) ([]byte, error) {
+	chartID := genCacheID(token, "depth")
+	data, bestVersion, isGood := bot.fetchFromCache(chartID)
+	if isGood {
+		return data, nil
+	}
+
+	// No hit on cache. Re-encode.
+
+	bot.mtx.Lock()
+	defer bot.mtx.Unlock()
+	state, found := bot.currentState.DcrBtc[token]
+	if !found {
+		return []byte{}, fmt.Errorf("Failed to find DCR exchange state for %s", token)
+	}
+	if state.Depth == nil {
+		return []byte{}, fmt.Errorf("Failed to find depth for %s", token)
+	}
+	chart, err := bot.jsonify(&depthResponse{
+		BtcIndex:   bot.BtcIndex,
+		Price:      bot.currentState.Price,
+		Data:       state.Depth,
+		Expiration: state.Depth.Time.Add(bot.RequestExpiry),
+	})
+	if err != nil {
+		return []byte{}, fmt.Errorf("JSON encode error for %s depth chart", token)
+	}
+
+	vChart := &versionedChart{
+		chartID: chartID,
+		dataID:  bestVersion,
+		time:    state.Depth.Time,
+		chart:   chart,
+	}
+
+	bot.versionedCharts[chartID] = vChart
+	return vChart.chart, nil
 }

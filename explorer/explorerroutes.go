@@ -2045,6 +2045,32 @@ func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+// MarketPage is the page handler for the "/agendas" path.
+func (exp *explorerUI) MarketPage(w http.ResponseWriter, r *http.Request) {
+
+	log.Warnf("Reloading templates in explorer.MarketPage. Remove this for production.")
+	exp.reloadTemplates()
+
+	str, err := exp.templates.execTemplateToString("market", struct {
+		*CommonPageData
+		DepthMarkets []string
+		StickMarkets map[string]string
+		XcState      *exchanges.ExchangeBotState
+	}{
+		CommonPageData: exp.commonData(),
+		XcState:        exp.getExchangeState(),
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
 // commonData grabs the common page data that is available to every page.
 // This is particularly useful for extras.tmpl, parts of which
 // are used on every page

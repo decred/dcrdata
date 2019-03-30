@@ -52,6 +52,8 @@ const (
 	ctxChartGrouping
 	ctxTp
 	ctxAgendaId
+	ctxXcToken
+	ctxStickWidth
 )
 
 type DataSource interface {
@@ -828,4 +830,44 @@ func GetLatestVoteVersionCtx(r *http.Request) int {
 		return -1
 	}
 	return ver
+}
+
+// ExchangeTokenContext pulls the exchange token from the URL.
+func ExchangeTokenContext(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		token := chi.URLParam(r, "token")
+		ctx := context.WithValue(r.Context(), ctxXcToken, token)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// RetrieveExchangeTokenCtx tries to fetch the exchange token from the request
+// context.
+func RetrieveExchangeTokenCtx(r *http.Request) string {
+	token, ok := r.Context().Value(ctxXcToken).(string)
+	if !ok {
+		apiLog.Error("non-string encountered in exchange token context")
+		return ""
+	}
+	return token
+}
+
+// ExchangeTokenContext pulls the bin width from the URL.
+func StickWidthContext(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		bin := chi.URLParam(r, "bin")
+		ctx := context.WithValue(r.Context(), ctxStickWidth, bin)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// RetrieveStickWidthCtx tries to fetch the candlestick width from the request
+// context.
+func RetrieveStickWidthCtx(r *http.Request) string {
+	bin, ok := r.Context().Value(ctxStickWidth).(string)
+	if !ok {
+		apiLog.Error("non-string encountered in candlestick width context")
+		return ""
+	}
+	return bin
 }

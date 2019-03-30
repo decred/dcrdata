@@ -242,6 +242,15 @@ func writeJSON(w http.ResponseWriter, thing interface{}, indent string) {
 	}
 }
 
+// writeJSONBytes prepares the headers for pre-encoded JSON.
+func writeJSONBytes(w http.ResponseWriter, data []byte) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_, err := w.Write(data)
+	if err != nil {
+		apiLog.Infof("ResponseWriter.Write error: %v", err)
+	}
+}
+
 // Measures length, sets common headers, formats, and sends CSV data.
 func writeCSV(w http.ResponseWriter, rows [][]string, filename string, useCRLF bool) {
 	w.Header().Set("Content-Disposition",
@@ -1579,6 +1588,49 @@ func (c *appContext) ChartTypeData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, chartData, c.getIndentQuery(r))
+}
+
+// route: /market/{token}/candlestick/{bin}
+func (c *appContext) getCandlestickChart(w http.ResponseWriter, r *http.Request) {
+	if c.LiteMode {
+		http.Error(w, "not available in lite mode", 422)
+		return
+	}
+	token := m.RetrieveExchangeTokenCtx(r)
+	bin := m.RetrieveStickWidthCtx(r)
+	if token == "" || bin == "" {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	chart, err := c.xcBot.QuickSticks(token, bin)
+	if err != nil {
+		apiLog.Infof("QuickSticks error: %v")
+		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		return
+	}
+	writeJSONBytes(w, chart)
+}
+
+// route: /market/{token}/depth
+func (c *appContext) getDepthChart(w http.ResponseWriter, r *http.Request) {
+	if c.LiteMode {
+		http.Error(w, "not available in lite mode", 422)
+		return
+	}
+	token := m.RetrieveExchangeTokenCtx(r)
+	if token == "" {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	chart, err := c.xcBot.QuickDepth(token)
+	if err != nil {
+		apiLog.Infof("QuickDepth error: %v")
+		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		return
+	}
+	writeJSONBytes(w, chart)
 }
 
 func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Request) {

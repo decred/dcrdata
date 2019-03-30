@@ -7,3 +7,5 @@ require (
 	github.com/decred/slog v1.0.0
 	google.golang.org/grpc v1.19.1
 )
+
+replace github.com/decred/dcrdata/dcrrates => ../dcrrates
