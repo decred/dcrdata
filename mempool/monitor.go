@@ -6,6 +6,7 @@ package mempool
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
 	"time"
@@ -27,8 +28,9 @@ type MempoolDataSaver interface {
 	StoreMPData(*StakeData, []exptypes.MempoolTx, *exptypes.MempoolInfo)
 }
 
-type MempoolAddressChecker interface {
-	UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error)
+type MempoolAddressStore struct {
+	mtx   sync.Mutex
+	store txhelpers.MempoolAddressStore
 }
 
 // MempoolMonitor processes new transactions as they are added to mempool, and
@@ -46,6 +48,8 @@ type MempoolMonitor struct {
 	ctx        context.Context
 	mpoolInfo  MempoolInfo
 	inventory  *exptypes.MempoolInfo
+	addrMap    MempoolAddressStore
+	txnsStore  txhelpers.TxnsStore
 	lastBlock  BlockID
 	params     *chaincfg.Params
 	collector  *MempoolDataCollector
@@ -83,10 +87,10 @@ func NewMempoolMonitor(ctx context.Context, collector *MempoolDataCollector,
 	}
 
 	// Gather data and fill in MempoolMonitor's internal data fields.
-	_, _, _, err := p.Refresh()
-	if err != nil {
-		return nil
-	}
+	// _, _, _, err := p.Refresh()
+	// if err != nil {
+	// 	return nil
+	// }
 
 	return p
 }
@@ -172,6 +176,43 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 				continue // back to waiting for new tx signal
 			}
 
+			// Set Outpoints in the addrMap.
+			p.addrMap.mtx.Lock()
+			if p.addrMap.store == nil {
+				p.addrMap.store = make(txhelpers.MempoolAddressStore)
+			}
+			newOuts, addressesOut := txhelpers.TxOutpointsByAddr(p.addrMap.store, msgTx, p.params)
+			var newOutAddrs int
+			for _, isNew := range addressesOut {
+				if isNew {
+					newOutAddrs++
+				}
+			}
+
+			// Set PrevOuts in the addrMap, and related txns data in txnsStore.
+			if p.txnsStore == nil {
+				p.txnsStore = make(txhelpers.TxnsStore)
+			}
+			newPrevOuts, addressesIn := txhelpers.TxPrevOutsByAddr(p.addrMap.store, p.txnsStore, msgTx, client, p.params)
+			var newInAddrs int
+			for _, isNew := range addressesIn {
+				if isNew {
+					newInAddrs++
+				}
+			}
+			p.addrMap.mtx.Unlock()
+
+			// Store the current mempool transaction, block info zeroed.
+			p.txnsStore[msgTx.TxHash()] = &txhelpers.TxWithBlockData{
+				Tx:          msgTx,
+				MemPoolTime: s.Time,
+			}
+
+			log.Debugf("New transaction (%s: %s) added %d new and %d previous outpoints, "+
+				"%d out addrs (%d new), %d prev out addrs (%d new).",
+				txType, hash, newOuts, newPrevOuts,
+				len(addressesOut), newOutAddrs, len(addressesIn), newInAddrs)
+
 			// Iterate the state id.
 			p.inventory.Ident++
 
@@ -200,7 +241,7 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 			fee, _ := txhelpers.TxFeeRate(msgTx)
 
 			tx := exptypes.MempoolTx{
-				TxID:      msgTx.TxHash().String(),
+				TxID:      hash,
 				Fees:      fee.ToCoin(),
 				VinCount:  len(msgTx.TxIn),
 				VoutCount: len(msgTx.TxOut),
@@ -210,7 +251,7 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 				Time:      s.Time,
 				Size:      int32(len(s.Hex) / 2),
 				TotalOut:  txhelpers.TotalOutFromMsgTx(msgTx).ToCoin(),
-				Type:      txhelpers.DetermineTxTypeString(msgTx),
+				Type:      txType,
 				VoteInfo:  voteInfo,
 			}
 
@@ -331,12 +372,15 @@ func (p *MempoolMonitor) sendTx(tx *exptypes.MempoolTx, timeout time.Duration) {
 func (p *MempoolMonitor) Refresh() (*StakeData, []exptypes.MempoolTx, *exptypes.MempoolInfo, error) {
 	// Collect mempool data (currently ticket fees)
 	log.Trace("Gathering new mempool data.")
-	stakeData, txs, err := p.collector.Collect()
+	stakeData, txs, addrOuts, txnsStore, err := p.collector.Collect()
 	if err != nil {
 		log.Errorf("mempool data collection failed: %v", err.Error())
 		// stakeData is nil when err != nil
 		return nil, nil, nil, err
 	}
+
+	log.Infof("%d addresses in mempool pertaining to %d transactions",
+		len(addrOuts), len(txnsStore))
 
 	// Pre-sort the txs so other consumers will not have to do it.
 	sort.Sort(exptypes.MPTxsByTime(txs))
@@ -358,7 +402,12 @@ func (p *MempoolMonitor) Refresh() (*StakeData, []exptypes.MempoolTx, *exptypes.
 		inventory.Ident = p.inventory.ID() + 1
 	}
 	p.inventory = inventory
+	p.txnsStore = txnsStore
 	p.mtx.Unlock()
+
+	p.addrMap.mtx.Lock()
+	p.addrMap.store = addrOuts
+	p.addrMap.mtx.Unlock()
 
 	// Insert new ticket counter into stakeData structure.
 	stakeData.NewTickets = uint32(newTickets)
@@ -391,6 +440,66 @@ func (p *MempoolMonitor) CollectAndStore() error {
 	return nil
 }
 
-// func (p *MempoolMonitor) UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error) {
+// UnconfirmedTxnsForAddress satisfies the rpcutils.MempoolAddressChecker
+// interface for MempoolMonitor.
+func (p *MempoolMonitor) UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error) {
+	p.addrMap.mtx.Lock()
+	defer p.addrMap.mtx.Unlock()
+	addrStore := p.addrMap.store
+	if addrStore == nil {
+		return nil, 0, fmt.Errorf("uininitialized MempoolAddressStore")
+	}
 
-// }
+	// Time this process.
+	defer func(start time.Time) {
+		fmt.Printf("(*MempoolMonitor).UnconfirmedTxnsForAddress completed in %v\n", time.Since(start))
+	}(time.Now())
+
+	// Retrieve the AddressOutpoints for this address.
+	outs := addrStore[address]
+	if outs == nil {
+		return txhelpers.NewAddressOutpoints(address), 0, nil
+	}
+
+	// TxnsStore for this address may have been filled out previously.
+	if outs.TxnsStore != nil {
+		return outs, int64(len(outs.TxnsStore)), nil
+	}
+
+	outs.TxnsStore = make(txhelpers.TxnsStore)
+
+	// Fill out the TxnsStore and count unconfirmed transactions
+	seenTxHashes := make(map[chainhash.Hash]struct{})
+	for op := range outs.Outpoints {
+		hash := outs.Outpoints[op].Hash
+		// New transaction for this address?
+		if _, found := seenTxHashes[hash]; found {
+			// Another (prev)out for an already seen transactoin.
+			continue
+		}
+
+		txData := p.txnsStore[hash]
+		if txData == nil {
+			log.Warnf("Unable to locate in TxnsStore: %v", hash)
+			continue
+		}
+		outs.TxnsStore[hash] = txData
+	}
+
+	for ip := range outs.PrevOuts {
+		hash := outs.PrevOuts[ip].PreviousOutpoint.Hash
+		// New transaction for this address?
+		if _, found := seenTxHashes[hash]; found {
+			// Another (prev)out for an already seen transactoin.
+			continue
+		}
+
+		txData := p.txnsStore[hash]
+		if txData == nil {
+			log.Warnf("Unable to locate in TxnsStore: %v", hash)
+		}
+		outs.TxnsStore[hash] = txData
+	}
+
+	return outs, int64(len(outs.TxnsStore)), nil
+}

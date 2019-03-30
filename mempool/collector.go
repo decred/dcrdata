@@ -43,19 +43,21 @@ func NewMempoolDataCollector(dcrdChainSvr *rpcclient.Client, params *chaincfg.Pa
 
 // mempoolTxns retrieves all transactions and returns them as a
 // []exptypes.MempoolTx. See also ParseTxns, which may process this slice.
-func (t *MempoolDataCollector) mempoolTxns() ([]exptypes.MempoolTx, error) {
+func (t *MempoolDataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.MempoolAddressStore, txhelpers.TxnsStore, error) {
 	mempooltxs, err := t.dcrdChainSvr.GetRawMempoolVerbose(dcrjson.GRMAll)
 	if err != nil {
-		return nil, fmt.Errorf("GetRawMempoolVerbose failed: %v", err)
+		return nil, nil, nil, fmt.Errorf("GetRawMempoolVerbose failed: %v", err)
 	}
 
 	blockHash, _, err := t.dcrdChainSvr.GetBestBlock()
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	blockhash := blockHash.String()
 
 	txs := make([]exptypes.MempoolTx, 0, len(mempooltxs))
+	addrMap := make(txhelpers.MempoolAddressStore)
+	txnsStore := make(txhelpers.TxnsStore)
 
 	for hashStr, tx := range mempooltxs {
 		hash, err := chainhash.NewHashFromStr(hashStr)
@@ -78,6 +80,19 @@ func (t *MempoolDataCollector) mempoolTxns() ([]exptypes.MempoolTx, error) {
 		if err != nil {
 			log.Errorf("Failed to decode transaction hex: %v", err)
 			continue
+		}
+
+		// Set Outpoints in the addrMap.
+		txhelpers.TxOutpointsByAddr(addrMap, msgTx, t.activeChain)
+
+		// Set PrevOuts in the addrMap, and related txns data in txnsStore.
+		txhelpers.TxPrevOutsByAddr(addrMap, txnsStore, msgTx, t.dcrdChainSvr, t.activeChain)
+
+		// Store the current mempool transaction with MemPoolTime from GRM, and
+		// block info zeroed.
+		txnsStore[msgTx.TxHash()] = &txhelpers.TxWithBlockData{
+			Tx:          msgTx,
+			MemPoolTime: tx.Time,
 		}
 
 		totalOut := 0.0
@@ -127,7 +142,7 @@ func (t *MempoolDataCollector) mempoolTxns() ([]exptypes.MempoolTx, error) {
 		})
 	}
 
-	return txs, nil
+	return txs, addrMap, txnsStore, nil
 }
 
 // Collect is the main handler for collecting mempool data. Data collection is
@@ -135,7 +150,7 @@ func (t *MempoolDataCollector) mempoolTxns() ([]exptypes.MempoolTx, error) {
 // and fee info. Transactions of all types in mempool are returned as a
 // []exptypes.MempoolTx, corresponding to the same data provided by the
 // unexported mempoolTxns method.
-func (t *MempoolDataCollector) Collect() (*StakeData, []exptypes.MempoolTx, error) {
+func (t *MempoolDataCollector) Collect() (*StakeData, []exptypes.MempoolTx, txhelpers.MempoolAddressStore, txhelpers.TxnsStore, error) {
 	// In case of a very fast block, make sure previous call to collect is not
 	// still running, or dcrd may be mad.
 	t.mtx.Lock()
@@ -154,28 +169,28 @@ func (t *MempoolDataCollector) Collect() (*StakeData, []exptypes.MempoolTx, erro
 	// mempoolTickets[ticketHashes[0].String()].Fee
 	mempoolTickets, err := c.GetRawMempoolVerbose(dcrjson.GRMTickets)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	mempoolVotes, err := c.GetRawMempoolVerbose(dcrjson.GRMVotes)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	numVotes := len(mempoolVotes)
 
 	// Grab the current stake difficulty (ticket price).
 	stakeDiff, err := c.GetStakeDifficulty()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	hash, height, err := c.GetBestBlock()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	header, err := c.GetBlockHeaderVerbose(hash)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	blockTime := header.Time
 
@@ -183,13 +198,13 @@ func (t *MempoolDataCollector) Collect() (*StakeData, []exptypes.MempoolTx, erro
 	var numFeeWindows, numFeeBlocks uint32 = 0, 0
 	feeInfo, err := c.TicketFeeInfo(&numFeeBlocks, &numFeeWindows)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	// All transactions in mempool.
-	allTxns, err := t.mempoolTxns()
+	allTxns, addrMap, txnsStore, err := t.mempoolTxns()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	now := time.Now()
@@ -282,7 +297,7 @@ func (t *MempoolDataCollector) Collect() (*StakeData, []exptypes.MempoolTx, erro
 		StakeDiff:         stakeDiff.CurrentStakeDifficulty,
 	}
 
-	return mpoolData, allTxns, err
+	return mpoolData, allTxns, addrMap, txnsStore, err
 }
 
 // NumLatestMempoolTxns is the maximum number of mempool transactions that will
