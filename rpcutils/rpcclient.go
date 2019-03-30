@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strconv"
+	"time"
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -547,10 +548,32 @@ func GetChainWork(client *rpcclient.Client, hash *chainhash.Hash) (string, error
 // 	return addressOutpoints, numUnconfirmed, err
 // }
 
+type MempoolAddressChecker interface {
+	UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error)
+}
+
+type mempoolAddressChecker struct {
+	client *rpcclient.Client
+	params *chaincfg.Params
+}
+
+func (m *mempoolAddressChecker) UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error) {
+	return UnconfirmedTxnsForAddress(m.client, address, m.params)
+}
+
+func NewMempoolAddressChecker(client *rpcclient.Client, params *chaincfg.Params) MempoolAddressChecker {
+	return &mempoolAddressChecker{client, params}
+}
+
 // UnconfirmedTxnsForAddress returns the chainhash.Hash of all transactions in
 // mempool that (1) pay to the given address, or (2) spend a previous outpoint
 // that paid to the address.
 func UnconfirmedTxnsForAddress(client *rpcclient.Client, address string, params *chaincfg.Params) (*txhelpers.AddressOutpoints, int64, error) {
+	// Time this process.
+	defer func(start time.Time) {
+		fmt.Printf("rpcutils.UnconfirmedTxnsForAddress completed in %v\n", time.Since(start))
+	}(time.Now())
+
 	// Mempool transactions
 	var numUnconfirmed int64
 	mempoolTxns, err := client.GetRawMempoolVerbose(dcrjson.GRMAll)
