@@ -1053,12 +1053,14 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 	// Final raw tx slice extraction
 	if txcount := int64(len(rawTxs)); txcount > 0 {
 		txLimit := int64(1000)
+		// "from" and "to" are zero-based indexes for inclusive range bounds.
 		from := GetFromCtx(r)
 		to, ok := GetToCtx(r)
 		if !ok || to < from {
-			to = from + txLimit
+			to = from + txLimit - 1 // to is inclusive
 		}
 
+		// [from, to] --(limits)--> [start,end)
 		start, end, err := fromToForSlice(from, to, txcount, txLimit)
 		if err != nil {
 			writeInsightError(w, err.Error())
