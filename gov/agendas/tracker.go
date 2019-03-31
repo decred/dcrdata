@@ -187,8 +187,8 @@ func (tracker *VoteTracker) Refresh() {
 	tracker.update(voteInfo, blocksToAdd, stakeInfo, stakeVersion)
 }
 
-// Version returns the current best know vote version.
-// Since versoion could technically be updated without turning off dcrdata,
+// Version returns the current best known vote version.
+// Since version could technically be updated without turning off dcrdata,
 // the field must be protected.
 func (tracker *VoteTracker) Version() uint32 {
 	tracker.mtx.RLock()
@@ -202,10 +202,10 @@ func (tracker *VoteTracker) refreshRCI() (*dcrjson.GetVoteInfoResult, error) {
 	oldVersion := tracker.Version()
 	v := oldVersion
 	var err error
-	var voteInfo *dcrjson.GetVoteInfoResult
+	var voteInfo, vinfo *dcrjson.GetVoteInfoResult
 
 	for {
-		vinfo, err := tracker.node.GetVoteInfo(v)
+		vinfo, err = tracker.node.GetVoteInfo(v)
 		if err != nil {
 			break
 		}
@@ -364,8 +364,8 @@ func (tracker *VoteTracker) newVoteSummary() *VoteSummary {
 		agendaSummary.IsActive = status == statusActive
 		agendaSummary.IsVoting = status == statusStarted
 		agendaSummary.IsDefined = status == statusDefined
-		for idx := range agenda.Choices {
-			choice := &agenda.Choices[idx]
+		for idy := range agenda.Choices {
+			choice := &agenda.Choices[idy]
 			if choice.IsNo {
 				agendaSummary.Nay = choice.Count
 			} else if choice.IsAbstain {
