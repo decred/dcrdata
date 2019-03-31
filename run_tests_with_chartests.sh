@@ -30,6 +30,10 @@ testrepo () {
 
   go version
 
+  ROOTPATH=$(go list -m -f {{.Dir}} 2>/dev/null)
+  ROOTPATHPATTERN=$(echo $ROOTPATH | sed 's/\\/\\\\/g' | sed 's/\//\\\//g')
+  MODPATHS=$(go list -m -f {{.Dir}} all 2>/dev/null | grep "^$ROOTPATHPATTERN")
+
   # Test application install
   go build
   (cd cmd/rebuilddb && go build)
@@ -53,7 +57,10 @@ testrepo () {
   # Pre-populate the pg db with test data.
   ./testutil/dbload/dbload
 
-  env GORACE='halt_on_error=1' go test --tags=chartests -v -race ./...
+  # run tests on all modules
+  for MODPATH in $MODPATHS; do
+    env GORACE='halt_on_error=1' go test -v -race $(cd $MODPATH && go list -m)
+  done
 
   # Drop the tests db.
   psql -U postgres -c "DROP DATABASE IF EXISTS dcrdata_mainnet_test"
