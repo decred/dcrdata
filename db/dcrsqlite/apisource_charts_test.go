@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/decred/dcrdata/v4/db/dbtypes"
+	"github.com/decred/dcrdata/db/dbtypes"
 	tc "github.com/decred/dcrdata/v4/testutil/dbload/testsconfig"
 	_ "github.com/mattn/go-sqlite3"
 )

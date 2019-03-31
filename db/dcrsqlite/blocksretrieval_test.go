@@ -13,7 +13,7 @@ func TestEmptyDBRetrieveAllPoolValAndSize(t *testing.T) {
 		t.Fatalf("Failed to obtain test DB: %v", err)
 	}
 
-	var err error
+	var result = new(dbtypes.ChartsData)
 	result.Time, result.SizeF, result.ValueF, err = db.RetrievePoolAllValueAndSize(result.Time,
 		result.SizeF, result.ValueF)
 	if err != nil {
@@ -33,15 +33,22 @@ func TestEmptyDBRetrieveBlockFeeInfo(t *testing.T) {
 		t.Fatalf("Failed to obtain test DB: %v", err)
 	}
 
-	result, err := db.RetrieveBlockFeeInfo(nil, nil)
+	heightArr, feeArr, err := db.RetrieveBlockFeeInfo(nil, nil)
 	if err != nil {
 		t.Fatalf("RetrieveBlockFeeInfo() failed: default result expected: %v", err)
 	}
 
-	var defaultChartsData dbtypes.ChartsData
-	if !cmp.Equal(*result, defaultChartsData) {
-		t.Fatalf("RetrieveBlockFeeInfo() failed: default result expected:\n%v",
-			cmp.Diff(*result, defaultChartsData))
+	var defaultHeights []uint64
+	var defaultFees []float64
+
+	if !cmp.Equal(heightArr, defaultHeights) {
+		t.Fatalf("RetrieveBlockFeeInfo() failed: default result for heights array expected:\n%v",
+			cmp.Diff(heightArr, defaultHeights))
+	}
+
+	if !cmp.Equal(feeArr, defaultFees) {
+		t.Fatalf("RetrieveBlockFeeInfo() failed: default result for fees array expected:\n%v",
+			cmp.Diff(feeArr, defaultFees))
 	}
 }
 
