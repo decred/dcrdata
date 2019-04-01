@@ -381,6 +381,9 @@ func TxPrevOutsByAddr(txAddrOuts MempoolAddressStore, txnsStore TxnsStore, msgTx
 		}
 
 		if len(txAddrs) == 0 {
+			fmt.Printf("pkScript of a previous transaction output "+
+				"(%v:%d) unexpectedly encoded no addresses.",
+				prevOut.Hash, prevOut.Index)
 			continue
 		}
 
