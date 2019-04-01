@@ -407,10 +407,20 @@ type VinPrevOut struct {
 
 // end copy-paste from dcrjson
 
-// Status indicates the state of the server, including the API version and the
-// software version.
+// Status indicates the state of the server. All fields are mutex protected and
+// and should be set with the getters and setters.
 type Status struct {
-	sync.RWMutex    `json:"-"`
+	sync.RWMutex
+	ready           bool
+	dbHeight        uint32
+	dbLastBlockTime int64
+	height          uint32
+	nodeConnections int64
+	api             APIStatus
+}
+
+// APIStatus is for the JSON-formatted response at /status.
+type APIStatus struct {
 	Ready           bool   `json:"ready"`
 	DBHeight        uint32 `json:"db_height"`
 	DBLastBlockTime int64  `json:"db_block_time"`
@@ -421,11 +431,77 @@ type Status struct {
 	NetworkName     string `json:"network_name"`
 }
 
-// GetHeight returns the last stored block height.
-func (s *Status) GetHeight() uint32 {
+// NewStatus is the constructor for a new Status.
+func NewStatus(nodeHeight uint32, conns int64, apiVersion int, dcrdataVersion, netName string) *Status {
+	return &Status{
+		height:          nodeHeight,
+		nodeConnections: conns,
+		api: APIStatus{
+			APIVersion:     apiVersion,
+			DcrdataVersion: dcrdataVersion,
+			NetworkName:    netName,
+		},
+	}
+}
+
+// API is a method for creating an APIStatus from Status.
+func (s *Status) API() APIStatus {
 	s.RLock()
 	defer s.RUnlock()
-	return s.Height
+	return APIStatus{
+		Ready:           s.ready,
+		DBHeight:        s.dbHeight,
+		DBLastBlockTime: s.dbLastBlockTime,
+		Height:          s.height,
+		NodeConnections: s.nodeConnections,
+		APIVersion:      s.api.APIVersion,
+		DcrdataVersion:  s.api.DcrdataVersion,
+		NetworkName:     s.api.NetworkName,
+	}
+}
+
+// Height is the last known node height.
+func (s *Status) Height() uint32 {
+	s.RLock()
+	defer s.RUnlock()
+	return s.height
+}
+
+// SetHeight stores the node height. Additionally, Status.ready is set to true
+// if Status.height is the same as Status.dbHeight.
+func (s *Status) SetHeight(height uint32) {
+	s.Lock()
+	defer s.Unlock()
+	s.ready = height == s.dbHeight
+	s.height = height
+}
+
+// SetHeightAndConnections simultaneously sets the node height and node
+// connection count. Status.ready is set to true if the height and dbHeight are
+// the same.
+func (s *Status) SetHeightAndConnections(height uint32, conns int64) {
+	s.Lock()
+	defer s.Unlock()
+	s.nodeConnections = conns
+	s.ready = height == s.dbHeight
+	s.height = height
+}
+
+// SetReady sets the ready state.
+func (s *Status) SetReady(ready bool) {
+	s.Lock()
+	defer s.Unlock()
+	s.ready = ready
+}
+
+// DBUpdate updates both the height and time of the best DB block. Status.ready
+// is set to true if Status.height is the same as Status.dbHeight.
+func (s *Status) DBUpdate(height uint32, blockTime int64) {
+	s.Lock()
+	defer s.Unlock()
+	s.dbHeight = height
+	s.dbLastBlockTime = blockTime
+	s.ready = s.dbHeight == height
 }
 
 // CoinSupply models the coin supply at a certain best block.

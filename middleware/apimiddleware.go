@@ -30,7 +30,6 @@ type contextKey int
 
 const (
 	ctxAPIDocs contextKey = iota
-	ctxAPIStatus
 	CtxAddress
 	ctxBlockIndex0
 	ctxBlockIndex
@@ -800,11 +799,6 @@ func BlockIndexLatestCtx(r *http.Request, source DataSource) context.Context {
 	}
 
 	return context.WithValue(r.Context(), ctxBlockIndex, int(idx)) // Must be int!
-}
-
-// StatusCtx embeds the specified apitypes.Status into a request context.
-func StatusCtx(r *http.Request, status *apitypes.Status) context.Context {
-	return context.WithValue(r.Context(), ctxAPIStatus, status)
 }
 
 // GetBlockHeightCtx returns the block height for the block index or hash

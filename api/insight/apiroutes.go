@@ -24,7 +24,6 @@ import (
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/db/dcrpg"
 	m "github.com/decred/dcrdata/middleware"
-	"github.com/decred/dcrdata/semver"
 	"github.com/decred/dcrdata/txhelpers"
 )
 
@@ -41,7 +40,7 @@ type insightApiContext struct {
 	BlockData      *dcrpg.ChainDBRPC
 	params         *chaincfg.Params
 	MemPool        DataSourceLite
-	Status         apitypes.Status
+	status         *apitypes.Status
 	JSONIndent     string
 	ReqPerSecLimit float64
 	maxCSVAddrs    int
@@ -49,23 +48,14 @@ type insightApiContext struct {
 
 // NewInsightContext Constructor for insightApiContext
 func NewInsightContext(client *rpcclient.Client, blockData *dcrpg.ChainDBRPC, params *chaincfg.Params,
-	memPoolData DataSourceLite, JSONIndent string, maxAddrs int) *insightApiContext {
-	conns, _ := client.GetConnectionCount()
-	nodeHeight, _ := client.GetBlockCount()
-	version := semver.NewSemver(1, 0, 0)
+	memPoolData DataSourceLite, JSONIndent string, maxAddrs int, status *apitypes.Status) *insightApiContext {
 
 	newContext := insightApiContext{
-		nodeClient: client,
-		BlockData:  blockData,
-		params:     params,
-		MemPool:    memPoolData,
-		Status: apitypes.Status{
-			Height:          uint32(nodeHeight),
-			NodeConnections: conns,
-			APIVersion:      APIVersion,
-			DcrdataVersion:  version.String(),
-			NetworkName:     params.Name,
-		},
+		nodeClient:     client,
+		BlockData:      blockData,
+		params:         params,
+		MemPool:        memPoolData,
+		status:         status,
 		ReqPerSecLimit: defaultReqPerSecLimit,
 		maxCSVAddrs:    maxAddrs,
 	}
@@ -483,7 +473,7 @@ func (c *insightApiContext) getTransactions(w http.ResponseWriter, r *http.Reque
 		}
 		addresses := []string{address}
 		rawTxs, recentTxs, err :=
-			c.BlockData.ChainDB.InsightAddressTransactions(addresses, int64(c.Status.GetHeight()-2))
+			c.BlockData.ChainDB.InsightAddressTransactions(addresses, int64(c.status.Height()-2))
 		if dbtypes.IsTimeoutErr(err) {
 			apiLog.Errorf("InsightAddressTransactions: %v", err)
 			http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -583,7 +573,7 @@ func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Reque
 	var UnconfirmedTxs []chainhash.Hash
 
 	rawTxs, recentTxs, err :=
-		c.BlockData.ChainDB.InsightAddressTransactions(addresses, int64(c.Status.GetHeight()-2))
+		c.BlockData.ChainDB.InsightAddressTransactions(addresses, int64(c.status.Height()-2))
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("InsightAddressTransactions: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -794,10 +784,10 @@ func (c *insightApiContext) getStatusInfo(w http.ResponseWriter, r *http.Request
 			writeInsightError(w, fmt.Sprintf("Error getting block hash %d (%s)", infoResult.Blocks, err))
 			return
 		}
-		lastblockhash, err := c.nodeClient.GetBlockHash(int64(c.Status.GetHeight()))
+		lastblockhash, err := c.nodeClient.GetBlockHash(int64(c.status.Height()))
 		if err != nil {
-			apiLog.Errorf("Error getting block hash %d (%s)", c.Status.GetHeight(), err)
-			writeInsightError(w, fmt.Sprintf("Error getting block hash %d (%s)", c.Status.GetHeight(), err))
+			apiLog.Errorf("Error getting block hash %d (%s)", c.status.Height(), err)
+			writeInsightError(w, fmt.Sprintf("Error getting block hash %d (%s)", c.status.Height(), err))
 			return
 		}
 
@@ -969,7 +959,7 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 
 	// Get confirmed transactions.
 	rawTxs, recentTxs, err :=
-		c.BlockData.ChainDB.InsightAddressTransactions(addresses, int64(c.Status.GetHeight()-2))
+		c.BlockData.ChainDB.InsightAddressTransactions(addresses, int64(c.status.Height()-2))
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("InsightAddressTransactions: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
