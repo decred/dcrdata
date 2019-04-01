@@ -30,7 +30,6 @@ type contextKey int
 
 const (
 	ctxAPIDocs contextKey = iota
-	ctxAPIStatus
 	CtxAddress
 	ctxBlockIndex0
 	ctxBlockIndex

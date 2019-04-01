@@ -434,7 +434,6 @@ type APIStatus struct {
 // NewStatus is the constructor for a new Status.
 func NewStatus(nodeHeight uint32, conns int64, apiVersion int, dcrdataVersion, netName string) *Status {
 	return &Status{
-		RWMutex:         sync.RWMutex{},
 		height:          nodeHeight,
 		nodeConnections: conns,
 		api: APIStatus{
@@ -478,8 +477,8 @@ func (s *Status) SetHeight(height uint32) {
 }
 
 // SetHeightAndConnections simultaneously sets the node height and node
-// and connection count. Status.ready is set to true if the height and dbHeight
-// are the same.
+// connection count. Status.ready is set to true if the height and dbHeight are
+// the same.
 func (s *Status) SetHeightAndConnections(height uint32, conns int64) {
 	s.Lock()
 	defer s.Unlock()
