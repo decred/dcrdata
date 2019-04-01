@@ -258,11 +258,10 @@ type TxnsStore map[chainhash.Hash]*TxWithBlockData
 // TxOutpointsByAddr sets the Outpoints field for the AddressOutpoints stored in
 // the input MempoolAddressStore. For addresses not yet present in the
 // MempoolAddressStore, a new AddressOutpoints is added to the store. The
-// provided MempoolAddressStore must be initialized. The number of outpoints
-// paying to addresses in the provided transaction are counted and returned. The
-// addresses paid to by the transaction are listed in the output addrs map,
-// where the value of the stored bool indicates the address is new to the
-// MempoolAddressStore.
+// provided MempoolAddressStore must be initialized. The number of msgTx outputs
+// that pay to any address are counted and returned. The addresses paid to by
+// the transaction are listed in the output addrs map, where the value of the
+// stored bool indicates the address is new to the MempoolAddressStore.
 func TxOutpointsByAddr(txAddrOuts MempoolAddressStore, msgTx *wire.MsgTx, params *chaincfg.Params) (newOuts int, addrs map[string]bool) {
 	if txAddrOuts == nil {
 		panic("TxAddressOutpoints: input map must be initialized: map[string]*AddressOutpoints")
