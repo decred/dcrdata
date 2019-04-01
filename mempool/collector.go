@@ -42,7 +42,8 @@ func NewMempoolDataCollector(dcrdChainSvr *rpcclient.Client, params *chaincfg.Pa
 }
 
 // mempoolTxns retrieves all transactions and returns them as a
-// []exptypes.MempoolTx. See also ParseTxns, which may process this slice.
+// []exptypes.MempoolTx. See also ParseTxns, which may process this slice. A
+// fresh MempoolAddressStore and TxnsStore are also generated.
 func (t *MempoolDataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.MempoolAddressStore, txhelpers.TxnsStore, error) {
 	mempooltxs, err := t.dcrdChainSvr.GetRawMempoolVerbose(dcrjson.GRMAll)
 	if err != nil {

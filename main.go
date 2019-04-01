@@ -1192,14 +1192,13 @@ func _main(ctx context.Context) error {
 	signalToExplorer, mpDataToExplorer := explore.MempoolSignals()
 	mempoolSigOuts := []chan<- pstypes.HubSignal{signalToPSHub, signalToExplorer}
 	newTxOuts := []chan<- *exptypes.MempoolTx{mpDataToPSHub, mpDataToExplorer}
-	mpm := mempool.NewMempoolMonitor(ctx, mpoolCollector, mempoolSavers,
-		activeChain, &wg, notify.NtfnChans.NewTxChan, mempoolSigOuts, newTxOuts)
-
-	// Collect and store initial mempool data before starting the monitor.
-	if err = mpm.CollectAndStore(); err != nil {
+	mpm, err := mempool.NewMempoolMonitor(ctx, mpoolCollector, mempoolSavers,
+		activeChain, &wg, notify.NtfnChans.NewTxChan, mempoolSigOuts, newTxOuts, true)
+	// Ensure the initial collect/store succeeded.
+	if err != nil {
 		// Shutdown goroutines.
 		requestShutdown()
-		return fmt.Errorf("mpm.CollectAndStore: %v", err)
+		return fmt.Errorf("NewMempoolMonitor: %v", err)
 	}
 
 	auxDB.UseMempoolChecker(mpm)

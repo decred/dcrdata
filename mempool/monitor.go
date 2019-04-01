@@ -71,8 +71,8 @@ type MempoolMonitor struct {
 // via the newTxOutChan following an appropriate signal on hubRelay.
 func NewMempoolMonitor(ctx context.Context, collector *MempoolDataCollector,
 	savers []MempoolDataSaver, params *chaincfg.Params, wg *sync.WaitGroup,
-	newTxInChan <-chan *dcrjson.TxRawResult,
-	signalOuts []chan<- pstypes.HubSignal, newTxOutChans []chan<- *exptypes.MempoolTx) *MempoolMonitor {
+	newTxInChan <-chan *dcrjson.TxRawResult, signalOuts []chan<- pstypes.HubSignal,
+	newTxOutChans []chan<- *exptypes.MempoolTx, initialStore bool) (*MempoolMonitor, error) {
 
 	// Make the skeleton MempoolMonitor.
 	p := &MempoolMonitor{
@@ -86,13 +86,11 @@ func NewMempoolMonitor(ctx context.Context, collector *MempoolDataCollector,
 		wg:         wg,
 	}
 
-	// Gather data and fill in MempoolMonitor's internal data fields.
-	// _, _, _, err := p.Refresh()
-	// if err != nil {
-	// 	return nil
-	// }
-
-	return p
+	if initialStore {
+		return p, p.CollectAndStore()
+	}
+	_, _, _, err := p.Refresh()
+	return p, err
 }
 
 // LastBlockHash returns the hash of the most recently stored block.
