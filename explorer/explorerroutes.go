@@ -2047,10 +2047,6 @@ func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 
 // MarketPage is the page handler for the "/agendas" path.
 func (exp *explorerUI) MarketPage(w http.ResponseWriter, r *http.Request) {
-
-	log.Warnf("Reloading templates in explorer.MarketPage. Remove this for production.")
-	exp.reloadTemplates()
-
 	str, err := exp.templates.execTemplateToString("market", struct {
 		*CommonPageData
 		DepthMarkets []string

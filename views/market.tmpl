@@ -72,9 +72,12 @@
                   <div class="col-12 text-center">
                       <div class="fs18 font-weight-bold d-flex align-items-center justify-content-center"><div class="exchange-logo {{$token}} mr-1"></div> <span class="d-inline-block">{{toTitleCase $token}}</span></div>
                       {{if eq $botState.BtcIndex "USD"}}
-                          <span class="fs18 font-weight-bold d-inline-block pt-1" style="vertical-align:top;">$</span>
+                          <span class="fs16 font-weight-bold d-inline-block pt-1 valign-top">$</span>
                       {{end}}
-                      <span class="fs24">{{printf "%.2f" $state.Price}}</span> <span class="fs16 text-secondary">{{$botState.BtcIndex}}</span>
+                      <span class="fs24">{{printf "%.2f" $state.Price}}</span> <span class="fs16 text-secondary">{{$botState.BtcIndex}}</span><br>
+                      {{if eq $token "coindesk"}}
+                        <a class="fs12" href="https://www.coindesk.com/price/bitcoin">Powered by CoinDesk</a>
+                      {{end}}
                   </div>
               {{end}}
             </div>
