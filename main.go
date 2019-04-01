@@ -595,6 +595,35 @@ func _main(ctx context.Context) error {
 	blockDataSavers = append(blockDataSavers, psHub)
 	mempoolSavers = append(mempoolSavers, psHub) // individial transactions are from mempool monitor
 
+	// Create the mempool data collector.
+	mpoolCollector := mempool.NewMempoolDataCollector(dcrdClient, activeChain)
+	if mpoolCollector == nil {
+		// Shutdown goroutines.
+		requestShutdown()
+		return fmt.Errorf("Failed to create mempool data collector")
+	}
+
+	// The MempoolMonitor receives notifications of new transactions on
+	// notify.NtfnChans.NewTxChan, and of new blocks on the same channel with a
+	// nil transaction message. The mempool monitor will process the
+	// transactions, and forward new ones on via the mpDataToPSHub with an
+	// appropriate signal to the underlying WebSocketHub on signalToPSHub.
+	signalToPSHub, mpDataToPSHub := psHub.HubRelays()
+	signalToExplorer, mpDataToExplorer := explore.MempoolSignals()
+	mempoolSigOuts := []chan<- pstypes.HubSignal{signalToPSHub, signalToExplorer}
+	newTxOuts := []chan<- *exptypes.MempoolTx{mpDataToPSHub, mpDataToExplorer}
+	mpm, err := mempool.NewMempoolMonitor(ctx, mpoolCollector, mempoolSavers,
+		activeChain, &wg, notify.NtfnChans.NewTxChan, mempoolSigOuts, newTxOuts, true)
+	// Ensure the initial collect/store succeeded.
+	if err != nil {
+		// Shutdown goroutines.
+		requestShutdown()
+		return fmt.Errorf("NewMempoolMonitor: %v", err)
+	}
+
+	// Use the MempoolMonitor in aux DB to get unconfirmed transaction data.
+	auxDB.UseMempoolChecker(mpm)
+
 	// Prepare for sync by setting up the channels for status/progress updates
 	// (barLoad) or full explorer page updates (latestBlockHash).
 
@@ -758,8 +787,8 @@ func _main(ctx context.Context) error {
 		r.Mount("/api", apiMux.Mux)
 		// Setup and mount the Insight API.
 		if usePG {
-			insightApp = insight.NewInsightContext(dcrdClient, auxDB,
-				activeChain, baseDB, cfg.IndentJSON, cfg.MaxCSVAddrs, app.Status)
+			insightApp = insight.NewInsightApi(dcrdClient, auxDB,
+				activeChain, mpm, cfg.IndentJSON, cfg.MaxCSVAddrs, app.Status)
 			insightApp.SetReqRateLimit(cfg.InsightReqRateLimit)
 			insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP, cfg.CompressAPI)
 			r.Mount("/insight/api", insightMux.Mux)
@@ -1174,35 +1203,6 @@ func _main(ctx context.Context) error {
 		// before initiating a cache update after all other reorgs have completed.
 		go chartsCacheMonitor.ReorgHandler()
 	}
-
-	// Create the mempool data collector.
-	mpoolCollector := mempool.NewMempoolDataCollector(dcrdClient, activeChain)
-	if mpoolCollector == nil {
-		// Shutdown goroutines.
-		requestShutdown()
-		return fmt.Errorf("Failed to create mempool data collector")
-	}
-
-	// The MempoolMonitor receives notifications of new transactions on
-	// notify.NtfnChans.NewTxChan, and of new blocks on the same channel with a
-	// nil transaction message. The mempool monitor will process the
-	// transactions, and forward new ones on via the mpDataToPSHub with an
-	// appropriate signal to the underlying WebSocketHub on signalToPSHub.
-	signalToPSHub, mpDataToPSHub := psHub.HubRelays()
-	signalToExplorer, mpDataToExplorer := explore.MempoolSignals()
-	mempoolSigOuts := []chan<- pstypes.HubSignal{signalToPSHub, signalToExplorer}
-	newTxOuts := []chan<- *exptypes.MempoolTx{mpDataToPSHub, mpDataToExplorer}
-	mpm, err := mempool.NewMempoolMonitor(ctx, mpoolCollector, mempoolSavers,
-		activeChain, &wg, notify.NtfnChans.NewTxChan, mempoolSigOuts, newTxOuts, true)
-	// Ensure the initial collect/store succeeded.
-	if err != nil {
-		// Shutdown goroutines.
-		requestShutdown()
-		return fmt.Errorf("NewMempoolMonitor: %v", err)
-	}
-
-	auxDB.UseMempoolChecker(mpm)
-	insightApp.UseMempoolChecker(mpm)
 
 	// Begin listening on notify.NtfnChans.NewTxChan, and forwarding mempool
 	// events to psHub via the channels from HubRelays().

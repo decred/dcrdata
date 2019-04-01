@@ -42,8 +42,8 @@ type InsightApi struct {
 	maxCSVAddrs    int
 }
 
-// NewInsightContext is the constructor for InsightApi.
-func NewInsightContext(client *rpcclient.Client, blockData *dcrpg.ChainDBRPC, params *chaincfg.Params,
+// NewInsightApi is the constructor for InsightApi.
+func NewInsightApi(client *rpcclient.Client, blockData *dcrpg.ChainDBRPC, params *chaincfg.Params,
 	memPoolData rpcutils.MempoolAddressChecker, JSONIndent string, maxAddrs int, status *apitypes.Status) *InsightApi {
 
 	newContext := InsightApi{
@@ -56,12 +56,6 @@ func NewInsightContext(client *rpcclient.Client, blockData *dcrpg.ChainDBRPC, pa
 		maxCSVAddrs:    maxAddrs,
 	}
 	return &newContext
-}
-
-// UseMempoolChecker assigns a MempoolAddressChecker for searching mempool for
-// transactions involving a certain address.
-func (iapi *InsightApi) UseMempoolChecker(mp rpcutils.MempoolAddressChecker) {
-	iapi.mp = mp
 }
 
 // SetReqRateLimit is used to set the requests/second/IP for the Insight API's

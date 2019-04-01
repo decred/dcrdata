@@ -1760,19 +1760,6 @@ func (db *WiredDB) GetExplorerAddress(address string, count, offset int64) (*dbt
 	return addrData, addrType, nil
 }
 
-// CountUnconfirmedTransactions returns the number of unconfirmed transactions
-// involving the specified address, given a maximum possible unconfirmed.
-func (db *WiredDB) CountUnconfirmedTransactions(address string) (int64, error) {
-	_, numUnconfirmed, err := db.UnconfirmedTxnsForAddress(address)
-	return numUnconfirmed, err
-}
-
-// UnconfirmedTxnsForAddress routes through rpcutils with appropriate
-// arguments. Returns mempool inputs/outputs associated with the given address.
-func (db *WiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error) {
-	return rpcutils.UnconfirmedTxnsForAddress(db.client, address, db.params)
-}
-
 // GetMempool gets all transactions from the mempool for explorer and adds the
 // total out for all the txs and vote info for the votes. The returned slice
 // will be nil if the GetRawMempoolVerbose RPC fails. A zero-length non-nil

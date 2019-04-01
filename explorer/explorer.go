@@ -70,7 +70,6 @@ type explorerDataSourceLite interface {
 	SendRawTransaction(txhex string) (string, error)
 	GetHeight() (int64, error)
 	GetChainParams() *chaincfg.Params
-	UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error)
 	GetMempool() []types.MempoolTx
 	TxHeight(txid *chainhash.Hash) (height int64)
 	BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
