@@ -22,25 +22,6 @@ set -ex
 # Default GOVERSION
 [[ ! "$GOVERSION" ]] && GOVERSION=1.11
 REPO=dcrdata
-ROOTMODULE="github.com/decred/dcrdata"
-ALLMODULES="$ROOTMODULE/api/types
-  $ROOTMODULE/blockdata
-  $ROOTMODULE/db/cache
-  $ROOTMODULE/db/dbtypes
-  $ROOTMODULE/db/dcrpg
-  $ROOTMODULE/db/dcrsqlite
-  $ROOTMODULE/exchanges
-  $ROOTMODULE/explorer/types
-  $ROOTMODULE/gov/agendas
-  $ROOTMODULE/gov/politeia
-  $ROOTMODULE/mempool
-  $ROOTMODULE/middleware
-  $ROOTMODULE/pubsub
-  $ROOTMODULE/pubsub/types
-  $ROOTMODULE/rpcutils
-  $ROOTMODULE/semver
-  $ROOTMODULE/stakedb
-  $ROOTMODULE/txhelpers"
 
 testrepo () {
   TMPDIR=$(mktemp -d)
@@ -48,6 +29,10 @@ testrepo () {
   export GO111MODULE=on
 
   go version
+
+  ROOTPATH=$(go list -m -f {{.Dir}} 2>/dev/null)
+  ROOTPATHPATTERN=$(echo $ROOTPATH | sed 's/\\/\\\\/g' | sed 's/\//\\\//g')
+  MODPATHS=$(go list -m -f {{.Dir}} all 2>/dev/null | grep "^$ROOTPATHPATTERN")
 
   # Test application install
   go build
@@ -59,13 +44,23 @@ testrepo () {
   git clone https://github.com/dcrlabs/bug-free-happiness $TMPDIR/test-data-repo
   tar xvf $TMPDIR/test-data-repo/stakedb/test_ticket_pool.bdgr.tar.xz -C ./stakedb
 
-  env GORACE='halt_on_error=1' go test -v -race ./... $ALLMODULES
+  # run tests on all modules
+  for MODPATH in $MODPATHS; do
+    env GORACE='halt_on_error=1' go test -v -race $(cd $MODPATH && go list -m)
+  done
 
   # check linters
-  golangci-lint run --deadline=10m --disable-all --enable govet --enable staticcheck \
-    --enable gosimple --enable unconvert --enable ineffassign --enable structcheck \
-    --enable goimports --enable misspell --enable unparam
-
+  golangci-lint run --deadline=10m \
+    --disable-all \
+    --enable govet \
+    --enable staticcheck \
+    --enable gosimple \
+    --enable unconvert \
+    --enable ineffassign \
+    --enable structcheck \
+    --enable goimports \
+    --enable misspell \
+    --enable unparam
 
   # webpack
   npm install
