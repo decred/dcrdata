@@ -458,12 +458,9 @@ func (p *MempoolMonitor) UnconfirmedTxnsForAddress(address string) (*txhelpers.A
 		return txhelpers.NewAddressOutpoints(address), 0, nil
 	}
 
-	// TxnsStore for this address may have been filled out previously.
-	if outs.TxnsStore != nil {
-		return outs, int64(len(outs.TxnsStore)), nil
+	if outs.TxnsStore == nil {
+		outs.TxnsStore = make(txhelpers.TxnsStore)
 	}
-
-	outs.TxnsStore = make(txhelpers.TxnsStore)
 
 	// Fill out the TxnsStore and count unconfirmed transactions. Note that the
 	// values stored in TxnsStore are pointers, and they are already allocated
@@ -490,6 +487,17 @@ func (p *MempoolMonitor) UnconfirmedTxnsForAddress(address string) (*txhelpers.A
 
 	// Process the transaction hashes for the consumed previous outpoints.
 	for ip := range outs.PrevOuts {
+		// Store the previous outpoint's spending transaction first.
+		spendingTx := outs.PrevOuts[ip].TxSpending
+		if _, found := outs.TxnsStore[spendingTx]; !found {
+			txData := p.txnsStore[spendingTx]
+			if txData == nil {
+				log.Warnf("Unable to locate in TxnsStore: %v", spendingTx)
+			}
+			outs.TxnsStore[spendingTx] = txData
+		}
+
+		// The funding transaction for the previous outpoint.
 		hash := outs.PrevOuts[ip].PreviousOutpoint.Hash
 		// New transaction for this address?
 		if _, found := outs.TxnsStore[hash]; found {

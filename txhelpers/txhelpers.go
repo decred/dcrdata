@@ -326,11 +326,6 @@ func TxPrevOutsByAddr(txAddrOuts MempoolAddressStore, txnsStore TxnsStore, msgTx
 		panic("TxPrevOutAddresses: input map must be initialized: map[string]*AddressOutpoints")
 	}
 
-	// Time this process.
-	// defer func(start time.Time) {
-	// 	fmt.Printf("TxPrevOutsByAddr completed in %v\n", time.Since(start))
-	// }(time.Now())
-
 	// Send all the raw transaction requests
 	type promiseGetRawTransaction struct {
 		result rpcclient.FutureGetRawTransactionVerboseResult
@@ -374,7 +369,6 @@ func TxPrevOutsByAddr(txAddrOuts MempoolAddressStore, txnsStore TxnsStore, msgTx
 			fmt.Printf("TxPrevOutsByAddr: MsgTxFromHex failed: %s\n", err)
 			continue
 		}
-		txHash := prevTx.TxHash()
 
 		// prevOut.Index indicates which output.
 		txOut := prevTx.TxOut[prevOut.Index]
@@ -393,13 +387,13 @@ func TxPrevOutsByAddr(txAddrOuts MempoolAddressStore, txnsStore TxnsStore, msgTx
 		newPrevOuts++
 
 		// Put the previous outpoint's transaction in the txnsStore.
-		txnsStore[txHash] = &TxWithBlockData{
+		txnsStore[hash] = &TxWithBlockData{
 			Tx:          prevTx,
 			BlockHeight: prevTxRaw.BlockHeight,
 			BlockHash:   prevTxRaw.BlockHash,
 		}
 
-		outpoint := wire.NewOutPoint(&txHash,
+		outpoint := wire.NewOutPoint(&hash,
 			prevOut.Index, TxTree(prevTx))
 		prevOutExtended := PrevOut{
 			TxSpending:       msgTx.TxHash(),
@@ -407,7 +401,7 @@ func TxPrevOutsByAddr(txAddrOuts MempoolAddressStore, txnsStore TxnsStore, msgTx
 			PreviousOutpoint: outpoint,
 		}
 
-		// For each address paid to by this previously outpoint, record the
+		// For each address paid to by this previous outpoint, record the
 		// previous outpoint and the containing transactions.
 		for _, txAddr := range txAddrs {
 			addr := txAddr.EncodeAddress()
@@ -487,7 +481,6 @@ func TxConsumesOutpointWithAddress(msgTx *wire.MsgTx, addr string,
 			fmt.Printf("MsgTxFromHex failed: %s\n", err)
 			continue
 		}
-		txHash := prevTx.TxHash()
 
 		// prevOut.Index indicates which output.
 		txOut := prevTx.TxOut[prevOut.Index]
@@ -504,7 +497,7 @@ func TxConsumesOutpointWithAddress(msgTx *wire.MsgTx, addr string,
 		for _, txAddr := range txAddrs {
 			addrstr := txAddr.EncodeAddress()
 			if addr == addrstr {
-				outpoint := wire.NewOutPoint(&txHash,
+				outpoint := wire.NewOutPoint(&hash,
 					prevOut.Index, TxTree(prevTx))
 				prevOuts = append(prevOuts, PrevOut{
 					TxSpending:       msgTx.TxHash(),

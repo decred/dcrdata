@@ -1912,7 +1912,7 @@ SPENDING_TX_DUPLICATE_CHECK:
 		}
 		spendingTx, ok := addressUTXOs.TxnsStore[f.TxSpending]
 		if !ok {
-			log.Errorf("An outpoint's transaction is not available in TxnStore.")
+			log.Errorf("A previous outpoint's spending transaction is not available in TxnStore.")
 			continue
 		}
 		if spendingTx.Confirmed() {
