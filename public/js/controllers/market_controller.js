@@ -464,6 +464,15 @@ export default class extends Controller {
     this.resetZoom()
   }
 
+  setExchange (e) {
+    var node = e.target || e.srcElement
+    while (node && node.nodeName !== 'TR') node = node.parentNode
+    if (!node || !node.dataset || !node.dataset.token) return
+    console.log(node.dataset.token)
+    this.exchangesTarget.value = node.dataset.token
+    this.changeExchange()
+  }
+
   changeBin (e) {
     var btn = e.target || e.srcElement
     if (btn.nodeName !== 'BUTTON' || !this.graph) return

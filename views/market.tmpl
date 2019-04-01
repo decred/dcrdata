@@ -39,7 +39,7 @@
                       <td class="text-right font-weight-bold">{{$botState.BtcIndex}}</td>
                     </tr>
                     {{range $token, $state := $botState.DcrBtc}}
-                        <tr class="fs">
+                        <tr class="fs hover-row" data-action="click->market#setExchange" data-token="{{$token}}">
                             <td class="py-2 fs18 font-weight-bold"><div class="exchange-logo {{$token}} mr-2"></div> {{toTitleCase $token}}</td>
                             <td class="pl-4 fs16 py-2 text-right">
                                 {{threeSigFigs $state.Volume}}
