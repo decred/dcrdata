@@ -28,6 +28,7 @@ type MempoolDataSaver interface {
 	StoreMPData(*StakeData, []exptypes.MempoolTx, *exptypes.MempoolInfo)
 }
 
+// MempoolAddressStore wraps txhelpers.MempoolAddressStore with a Mutex.
 type MempoolAddressStore struct {
 	mtx   sync.Mutex
 	store txhelpers.MempoolAddressStore
@@ -206,7 +207,7 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 				MemPoolTime: s.Time,
 			}
 
-			log.Debugf("New transaction (%s: %s) added %d new and %d previous outpoints, "+
+			log.Tracef("New transaction (%s: %s) added %d new and %d previous outpoints, "+
 				"%d out addrs (%d new), %d prev out addrs (%d new).",
 				txType, hash, newOuts, newPrevOuts,
 				len(addressesOut), newOutAddrs, len(addressesIn), newInAddrs)
@@ -377,7 +378,7 @@ func (p *MempoolMonitor) Refresh() (*StakeData, []exptypes.MempoolTx, *exptypes.
 		return nil, nil, nil, err
 	}
 
-	log.Infof("%d addresses in mempool pertaining to %d transactions",
+	log.Debugf("%d addresses in mempool pertaining to %d transactions",
 		len(addrOuts), len(txnsStore))
 
 	// Pre-sort the txs so other consumers will not have to do it.
@@ -438,8 +439,11 @@ func (p *MempoolMonitor) CollectAndStore() error {
 	return nil
 }
 
-// UnconfirmedTxnsForAddress satisfies the rpcutils.MempoolAddressChecker
-// interface for MempoolMonitor.
+// UnconfirmedTxnsForAddress indexes (1) outpoints in mempool that pay to the
+// given address, (2) previous outpoint being consumed that paid to the address,
+// and (3) all relevant transactions. See txhelpers.AddressOutpoints for more
+// information. The number of unconfirmed transactions is also returned. This
+// satisfies the rpcutils.MempoolAddressChecker interface for MempoolMonitor.
 func (p *MempoolMonitor) UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error) {
 	p.addrMap.mtx.Lock()
 	defer p.addrMap.mtx.Unlock()
@@ -447,11 +451,6 @@ func (p *MempoolMonitor) UnconfirmedTxnsForAddress(address string) (*txhelpers.A
 	if addrStore == nil {
 		return nil, 0, fmt.Errorf("uininitialized MempoolAddressStore")
 	}
-
-	// Time this process.
-	defer func(start time.Time) {
-		fmt.Printf("(*MempoolMonitor).UnconfirmedTxnsForAddress completed in %v\n", time.Since(start))
-	}(time.Now())
 
 	// Retrieve the AddressOutpoints for this address.
 	outs := addrStore[address]
@@ -466,13 +465,18 @@ func (p *MempoolMonitor) UnconfirmedTxnsForAddress(address string) (*txhelpers.A
 
 	outs.TxnsStore = make(txhelpers.TxnsStore)
 
-	// Fill out the TxnsStore and count unconfirmed transactions
-	seenTxHashes := make(map[chainhash.Hash]struct{})
+	// Fill out the TxnsStore and count unconfirmed transactions. Note that the
+	// values stored in TxnsStore are pointers, and they are already allocated
+	// and stored in MempoolMonitor.txnsStore. This code makes a similar
+	// transaction map for just the transactions related to the address.
+
+	// Process the transaction hashes for the new outpoints.
 	for op := range outs.Outpoints {
 		hash := outs.Outpoints[op].Hash
 		// New transaction for this address?
-		if _, found := seenTxHashes[hash]; found {
-			// Another (prev)out for an already seen transactoin.
+		if _, found := outs.TxnsStore[hash]; found {
+			// This is another (prev)out for an already seen transaction, so
+			// there is no need to retrieve it from MempoolMonitor.txnsStore.
 			continue
 		}
 
@@ -484,11 +488,13 @@ func (p *MempoolMonitor) UnconfirmedTxnsForAddress(address string) (*txhelpers.A
 		outs.TxnsStore[hash] = txData
 	}
 
+	// Process the transaction hashes for the consumed previous outpoints.
 	for ip := range outs.PrevOuts {
 		hash := outs.PrevOuts[ip].PreviousOutpoint.Hash
 		// New transaction for this address?
-		if _, found := seenTxHashes[hash]; found {
-			// Another (prev)out for an already seen transactoin.
+		if _, found := outs.TxnsStore[hash]; found {
+			// This is another (prev)out for an already seen transaction, so
+			// there is no need to retrieve it from MempoolMonitor.txnsStore.
 			continue
 		}
 

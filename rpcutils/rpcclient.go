@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strconv"
-	"time"
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -506,48 +505,6 @@ func GetChainWork(client *rpcclient.Client, hash *chainhash.Hash) (string, error
 	return header.ChainWork, nil
 }
 
-// func txnAddressOutpoints(txns map[string]dcrjson.GetRawMempoolVerboseResult, params *chaincfg.Params) (map[string]*txhelpers.AddressOutpoints, int64, error) {
-// 	addrsOuts := make(map[string]*txhelpers.AddressOutpoints)
-// 	// Check each transaction for involvement with provided address.
-// 	//addressOutpoints := txhelpers.NewAddressOutpoints(address)
-// 	for hash, tx := range txns {
-// 		// Transaction details from dcrd
-// 		txhash, err := chainhash.NewHashFromStr(hash)
-// 		if err != nil {
-// 			log.Errorf("Invalid transaction hash %s", hash)
-// 			return addrsOuts, 0, err
-// 		}
-
-// 		Tx, err := client.GetRawTransaction(txhash)
-// 		if err != nil {
-// 			log.Warnf("Unable to GetRawTransaction(%s): %v", hash, err)
-// 			return
-// 		}
-// 		// Scan transaction for inputs/outputs involving the address of interest
-// 		outpoints, prevouts, prevTxns := txhelpers.TxInvolvesAddress(Tx.MsgTx(),
-// 			address, client, params)
-// 		if len(outpoints) == 0 && len(prevouts) == 0 {
-// 			continue
-// 		}
-// 		// Update previous outpoint txn slice with mempool time
-// 		for f := range prevTxns {
-// 			prevTxns[f].MemPoolTime = tx.Time
-// 		}
-
-// 		// Add present transaction to previous outpoint txn slice
-// 		numUnconfirmed++
-// 		thisTxUnconfirmed := &txhelpers.TxWithBlockData{
-// 			Tx:          Tx.MsgTx(),
-// 			MemPoolTime: tx.Time,
-// 		}
-// 		prevTxns = append(prevTxns, thisTxUnconfirmed)
-// 		// Merge the I/Os and the transactions into results
-// 		addressOutpoints.Update(prevTxns, outpoints, prevouts)
-// 	}
-
-// 	return addressOutpoints, numUnconfirmed, err
-// }
-
 type MempoolAddressChecker interface {
 	UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error)
 }
@@ -569,11 +526,6 @@ func NewMempoolAddressChecker(client *rpcclient.Client, params *chaincfg.Params)
 // mempool that (1) pay to the given address, or (2) spend a previous outpoint
 // that paid to the address.
 func UnconfirmedTxnsForAddress(client *rpcclient.Client, address string, params *chaincfg.Params) (*txhelpers.AddressOutpoints, int64, error) {
-	// Time this process.
-	defer func(start time.Time) {
-		fmt.Printf("rpcutils.UnconfirmedTxnsForAddress completed in %v\n", time.Since(start))
-	}(time.Now())
-
 	// Mempool transactions
 	var numUnconfirmed int64
 	mempoolTxns, err := client.GetRawMempoolVerbose(dcrjson.GRMAll)
