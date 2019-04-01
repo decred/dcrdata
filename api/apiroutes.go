@@ -1575,8 +1575,8 @@ func (c *appContext) getTicketPriceChartData(w http.ResponseWriter, r *http.Requ
 }
 
 func (c *appContext) ChartTypeData(w http.ResponseWriter, r *http.Request) {
-	if c.LiteMode {
-		http.Error(w, "not available in lite mode", 422)
+	if c.xcBot == nil {
+		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
 		return
 	}
 
@@ -1592,8 +1592,8 @@ func (c *appContext) ChartTypeData(w http.ResponseWriter, r *http.Request) {
 
 // route: /market/{token}/candlestick/{bin}
 func (c *appContext) getCandlestickChart(w http.ResponseWriter, r *http.Request) {
-	if c.LiteMode {
-		http.Error(w, "not available in lite mode", 422)
+	if c.xcBot == nil {
+		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
 		return
 	}
 	token := m.RetrieveExchangeTokenCtx(r)
