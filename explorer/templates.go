@@ -239,6 +239,77 @@ func threeSigFigs(v float64) string {
 	return fmt.Sprintf("%.8f", math.Round(v*1e8)/1e8)
 }
 
+type periodMap struct {
+	y          string
+	mo         string
+	d          string
+	h          string
+	min        string
+	s          string
+	sep        string
+	pluralizer func(string, int) string
+}
+
+var shortPeriods = &periodMap{
+	y:   "y",
+	mo:  "mo",
+	d:   "d",
+	h:   "h",
+	min: "m",
+	s:   "s",
+	sep: " ",
+	pluralizer: func(s string, count int) string {
+		return s
+	},
+}
+
+var longPeriods = &periodMap{
+	y:   " year",
+	mo:  " month",
+	d:   " day",
+	h:   " hour",
+	min: " minutes",
+	s:   " seconds",
+	sep: ", ",
+	pluralizer: func(s string, count int) string {
+		if count == 1 {
+			return s
+		}
+		return s + "s"
+	},
+}
+
+func formattedDuration(duration time.Duration, str *periodMap) string {
+	durationyr := int(duration / (time.Hour * 24 * 365))
+	durationmo := int((duration / (time.Hour * 24 * 30)) % 12)
+	pl := str.pluralizer
+	i := strconv.Itoa
+	if durationyr != 0 {
+		return i(durationyr) + "y " + i(durationmo) + "mo"
+	}
+
+	durationdays := int((duration / time.Hour / 24) % 30)
+	if durationmo != 0 {
+		return i(durationmo) + pl(str.mo, durationmo) + str.sep + i(durationdays) + pl(str.d, durationdays)
+	}
+
+	durationhr := int((duration / time.Hour) % 24)
+	if durationdays != 0 {
+		return i(durationdays) + pl(str.d, durationdays) + str.sep + i(durationhr) + pl(str.h, durationhr)
+	}
+
+	durationmin := int(duration.Minutes()) % 60
+	if durationhr != 0 {
+		return i(durationhr) + pl(str.h, durationhr) + str.sep + i(durationmin) + pl(str.min, durationmin)
+	}
+
+	durationsec := int(duration.Seconds()) % 60
+	if (durationhr == 0) && (durationmin != 0) {
+		return i(durationmin) + pl(str.min, durationmin) + str.sep + i(durationsec) + pl(str.s, durationsec)
+	}
+	return i(durationsec) + pl(str.s, durationsec)
+}
+
 func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 	netTheme := "theme-" + strings.ToLower(netName(params))
 
@@ -286,6 +357,9 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			return (float64(a) / float64(b)) * 100
 		},
 		"x100": func(v float64) float64 {
+			return v * 100
+		},
+		"f32x100": func(v float32) float32 {
 			return v * 100
 		},
 		"int64": toInt64,
@@ -339,20 +413,14 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			return str + "remaining"
 		},
 		"amountAsDecimalPartsTrimmed": amountAsDecimalPartsTrimmed,
-		"TimeDurationFormat": func(duration time.Duration) (formatedDuration string) {
-			durationhr := int(duration.Minutes() / 60)
-			durationmin := int(duration.Minutes()) % 60
-			durationsec := int(duration.Seconds()) % 60
-			if durationhr != 0 {
-				formatedDuration = strconv.Itoa(durationhr) + " hrs " + strconv.Itoa(durationmin) + " min " + strconv.Itoa(durationsec) + " sec"
-				return
-			} else if (durationhr == 0) && (durationmin != 0) {
-				formatedDuration = strconv.Itoa(durationmin) + " min " + strconv.Itoa(durationsec) + " sec"
-				return
-			} else {
-				formatedDuration = strconv.Itoa(durationsec) + " sec"
-			}
-			return
+		"secondsToLongDurationString": func(d int64) string {
+			return formattedDuration(time.Duration(d)*time.Second, longPeriods)
+		},
+		"secondsToShortDurationString": func(d int64) string {
+			return formattedDuration(time.Duration(d)*time.Second, shortPeriods)
+		},
+		"durationToShortDurationString": func(d time.Duration) string {
+			return formattedDuration(d, shortPeriods)
 		},
 		"convertByteArrayToString": func(arr []byte) (inString string) {
 			inString = hex.EncodeToString(arr)

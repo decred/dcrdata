@@ -1792,10 +1792,12 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 
 	str, err := exp.templates.execTemplateToString("agendas", struct {
 		*CommonPageData
-		Agendas []*agendas.AgendaTagged
+		Agendas       []*agendas.AgendaTagged
+		VotingSummary *agendas.VoteSummary
 	}{
 		CommonPageData: exp.commonData(),
 		Agendas:        agenda,
+		VotingSummary:  exp.voteTracker.Summary(),
 	})
 
 	if err != nil {

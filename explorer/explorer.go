@@ -198,6 +198,7 @@ type explorerUI struct {
 	blockData        explorerDataSourceLite
 	explorerSource   explorerDataSource
 	agendasSource    agendaBackend
+	voteTracker      *agendas.VoteTracker
 	proposalsSource  politeiaBackend
 	dbsSyncing       atomic.Value
 	liteMode         bool
@@ -275,6 +276,7 @@ type ExplorerConfig struct {
 	Viewsfolder       string
 	XcBot             *exchanges.ExchangeBot
 	AgendasSource     agendaBackend
+	Tracker           *agendas.VoteTracker
 	ProposalsSource   politeiaBackend
 	PoliteiaURL       string
 	MainnetLink       string
@@ -293,6 +295,7 @@ func New(cfg *ExplorerConfig) *explorerUI {
 	exp.devPrefetch = cfg.DevPrefetch
 	exp.xcBot = cfg.XcBot
 	exp.agendasSource = cfg.AgendasSource
+	exp.voteTracker = cfg.Tracker
 	exp.proposalsSource = cfg.ProposalsSource
 	exp.politeiaAPIURL = cfg.PoliteiaURL
 	explorerLinks.Mainnet = cfg.MainnetLink
@@ -548,6 +551,9 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 		dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin(),
 		float64(newBlockData.Height),
 		blockData.CurrentStakeDiff.CurrentStakeDifficulty)
+
+	// Trigger a vote info refresh
+	go exp.voteTracker.Refresh()
 
 	// Update pageData with block data and chain (home) info.
 	p := exp.pageData
