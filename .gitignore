@@ -41,7 +41,6 @@ v3
 v4
 tmp/runner-build
 node_modules/
-package-lock.json
 public/dist/
 public/js/dist/
 public/**/*.gz
