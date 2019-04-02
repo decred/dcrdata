@@ -2,7 +2,6 @@
 <!DOCTYPE html>
 <html lang="en">
 {{template "html-head" printf "Decred Block %d" .Data.Height}}
-<body class="{{ theme }}">
     {{ template "navbar" . }}
     <div class="container main" data-controller="time">
     {{with .Data}}
