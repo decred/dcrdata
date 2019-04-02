@@ -44,13 +44,13 @@
                             <td class="pl-2 fs16 py-2 text-right" data-type="volume">
                                 {{threeSigFigs .State.Volume}}
                             </td>
-                            <td class="pl-3 fs16 py-2 text-right" data-type="price" data-price="{{.State.Price}}">
+                            <td class="pl-3 fs16 py-2 text-right" data-type="price">
                                 {{threeSigFigs .State.Price}}
                             </td>
                             <td class="fs16 px-2" data-type="arrow">
-                              {{if gt .State.Change 0.0}}
+                              {{if ge .State.Change 0.0}}
                                   <span class="dcricon-arrow-up text-green"></span>
-                              {{else if lt .State.Change 0.0}}
+                              {{else}}
                                   <span class="dcricon-arrow-down text-danger"></span>
                               {{end}}
                             </td>

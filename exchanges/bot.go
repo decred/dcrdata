@@ -77,7 +77,7 @@ type ExchangeBot struct {
 	// A gRPC connection
 	masterConnection *grpc.ClientConn
 	TLSCredentials   credentials.TransportCredentials
-	// Channels equested by the user.
+	// Channels requested by the user.
 	updateChans []chan *ExchangeUpdate
 	indexChans  []chan *IndexUpdate
 	quitChans   []chan struct{}
@@ -170,7 +170,7 @@ type UpdateChannels struct {
 	Quit     chan struct{}
 }
 
-// NewUpdateChannels creates a new initialized set of UpdateChannels
+// NewUpdateChannels creates a new initialized set of UpdateChannels.
 func NewUpdateChannels() *UpdateChannels {
 	channels := new(UpdateChannels)
 	channels.Exchange = make(chan *ExchangeUpdate, 16)
@@ -179,7 +179,8 @@ func NewUpdateChannels() *UpdateChannels {
 	return channels
 }
 
-// The chart data structures that are actually encoded and cached.
+// The chart data structures that are encoded and cached are the
+// candlestickResponse and the depthResponse.
 type candlestickResponse struct {
 	BtcIndex   string       `json:"index"`
 	Price      float64      `json:"price"`
@@ -194,7 +195,7 @@ type depthResponse struct {
 	Expiration time.Time  `json:"expiration"`
 }
 
-// versionedChart is a bytes-encoded representation of a chart's data with a
+// versionedChart holds a pre-encoded byte slice of a chart's data along with a
 // version number that can be compared for use in caching.
 type versionedChart struct {
 	chartID string

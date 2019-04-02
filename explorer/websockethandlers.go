@@ -42,11 +42,28 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 		}
 		defer closeWS()
 
+		send := func(webData WebSocketMessage) error {
+			err := ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
+			if err != nil && !pstypes.IsWSClosedErr(err) {
+				log.Warnf("SetWriteDeadline failed: %v", err)
+			}
+			if err := websocket.JSON.Send(ws, webData); err != nil {
+				// Do not log error if connection is just closed
+				if !pstypes.IsWSClosedErr(err) {
+					log.Debugf("Failed to send web socket message %s: %v", webData.EventId, err)
+				}
+				// If the send failed, the client is probably gone, so close
+				// the connection and quit.
+				return fmt.Errorf("Send fail")
+			}
+			return nil
+		}
+
 		var xcChans *exchanges.UpdateChannels
-		var sendXcUpdate func(bool, string, float64, float64)
+		var sendXcUpdate func(bool, string, *exchanges.ExchangeState) error
 		if exp.xcBot != nil {
 			xcChans = exp.xcBot.UpdateChannels()
-			sendXcUpdate = func(isFiat bool, token string, price, volume float64) {
+			sendXcUpdate = func(isFiat bool, token string, updater *exchanges.ExchangeState) error {
 				buff := new(bytes.Buffer)
 				enc := json.NewEncoder(buff)
 				webData := WebSocketMessage{
@@ -57,8 +74,9 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 				err := enc.Encode(&WebsocketExchangeUpdate{
 					Updater: WebsocketMiniExchange{
 						Token:  token,
-						Price:  price,
-						Volume: volume,
+						Price:  updater.Price,
+						Volume: updater.Volume,
+						Change: updater.Change,
 					},
 					IsFiatIndex: isFiat,
 					BtcIndex:    exp.xcBot.BtcIndex,
@@ -72,21 +90,14 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					log.Errorf("json.Encode(*WebsocketExchangeUpdate) failed: %v", err)
 				}
 
-				err = ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
-				if err != nil && !pstypes.IsWSClosedErr(err) {
-					log.Warnf("SetWriteDeadline failed: %v", err)
+				err = send(webData)
+				if err != nil {
+					return err
 				}
-				if err := websocket.JSON.Send(ws, webData); err != nil {
-					// Do not log error if connection is just closed
-					if !pstypes.IsWSClosedErr(err) {
-						log.Debugf("Failed to encode WebSocketMessage exchange update: %v", err)
-					}
-					// If the send failed, the client is probably gone, so close
-					// the connection and quit.
-					return
-				}
+				return nil
 			}
 		} else {
+			// Create a set of dummy chans.
 			xcChans = exchanges.NewUpdateChannels()
 		}
 
@@ -258,19 +269,8 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 
 				webData.EventId = msg.EventId + "Resp"
 
-				// send the response back on the websocket
-				err = ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
-				if err != nil && !pstypes.IsWSClosedErr(err) {
-					log.Warnf("SetWriteDeadline failed: %v", err)
-				}
-				if err = websocket.JSON.Send(ws, webData); err != nil {
-					// Do not log error if connection is just closed.
-					if !pstypes.IsWSClosedErr(err) {
-						log.Debugf("Failed to encode WebSocketMessage (reply) %s: %v",
-							webData.EventId, err)
-					}
-					// If the send failed, the client is probably gone, so close
-					// the connection and quit.
+				err = send(webData)
+				if err != nil {
 					return
 				}
 			}
@@ -351,29 +351,25 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					}
 
 				}
-
-				err := ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
-				if err != nil && !pstypes.IsWSClosedErr(err) {
-					log.Warnf("SetWriteDeadline failed: %v", err)
-				}
-				if err := websocket.JSON.Send(ws, webData); err != nil {
-					// Do not log error if connection is just closed
-					if !pstypes.IsWSClosedErr(err) {
-						log.Debugf("Failed to encode WebSocketMessage (push) %v: %v", sig, err)
-					}
-					// If the send failed, the client is probably gone, so close
-					// the connection and quit.
+				err := send(webData)
+				if err != nil {
 					return
 				}
 			case update := <-xcChans.Exchange:
-				sendXcUpdate(false, update.Token, update.State.Price, update.State.Volume)
+				err := sendXcUpdate(false, update.Token, update.State)
+				if err != nil {
+					return
+				}
 			case update := <-xcChans.Index:
 				indexState, found := exp.xcBot.State().FiatIndices[update.Token]
 				if !found {
 					log.Errorf("Index state not found when preparing websocket udpate")
 					continue
 				}
-				sendXcUpdate(true, update.Token, indexState.Price, indexState.Volume)
+				err := sendXcUpdate(true, update.Token, indexState)
+				if err != nil {
+					return
+				}
 			case <-xcChans.Quit:
 				xcChans.Quit = make(chan struct{})
 				log.Warnf("ExchangeBot has quit.")
