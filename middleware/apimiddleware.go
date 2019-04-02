@@ -38,7 +38,6 @@ const (
 	ctxTxHash
 	ctxTxns
 	ctxTxInOutIndex
-	ctxSearch
 	ctxN
 	ctxCount
 	ctxOffset
@@ -616,17 +615,6 @@ func apiDocs(mux *chi.Mux) func(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
-}
-
-// SearchPathCtx returns a http.HandlerFunc that embeds the value at the url part
-// {search} into the request context (Still need this for the error page)
-// TODO: make new error system
-func SearchPathCtx(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		str := chi.URLParam(r, "search")
-		ctx := context.WithValue(r.Context(), ctxSearch, str)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
 }
 
 // APIDirectory is the actual handler used with apiDocs

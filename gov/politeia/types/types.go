@@ -134,6 +134,8 @@ const (
 	//   * PropStatusPublic
 	//   * PropStatusAbandoned
 	VettedState
+
+	// UnknownState indicates a proposal state that is unrecognized.
 	UnknownState
 )
 

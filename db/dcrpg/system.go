@@ -224,7 +224,7 @@ func CheckCurrentTimeZone(db *sql.DB) (currentTZ string, err error) {
 	return
 }
 
-// CheckCurrentTimeZone queries for the default postgres time zone. This is the
+// CheckDefaultTimeZone queries for the default postgres time zone. This is the
 // value that would be observed if postgres were restarted using its current
 // configuration. The currently set time zone is also returned.
 func CheckDefaultTimeZone(db *sql.DB) (defaultTZ, currentTZ string, err error) {

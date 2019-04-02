@@ -24,8 +24,8 @@ import (
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/db/dbtypes"
-	"github.com/decred/dcrdata/txhelpers"
 	"github.com/decred/dcrdata/db/dcrpg/internal"
+	"github.com/decred/dcrdata/txhelpers"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/lib/pq"
 )

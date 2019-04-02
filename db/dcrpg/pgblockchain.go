@@ -262,34 +262,34 @@ func NewChainDBRPC(chaindb *ChainDB, cl *rpcclient.Client) (*ChainDBRPC, error) 
 
 // SyncChainDBAsync calls (*ChainDB).SyncChainDBAsync after a nil pointer check
 // on the ChainDBRPC receiver.
-func (db *ChainDBRPC) SyncChainDBAsync(ctx context.Context, res chan dbtypes.SyncResult,
+func (pgb *ChainDBRPC) SyncChainDBAsync(ctx context.Context, res chan dbtypes.SyncResult,
 	client rpcutils.MasterBlockGetter, updateAllAddresses, updateAllVotes, newIndexes bool,
 	updateExplorer chan *chainhash.Hash, barLoad chan *dbtypes.ProgressBarLoad) {
 	// Allowing db to be nil simplifies logic in caller.
-	if db == nil {
+	if pgb == nil {
 		res <- dbtypes.SyncResult{
 			Height: -1,
 			Error:  fmt.Errorf("ChainDB (psql) disabled"),
 		}
 		return
 	}
-	db.ChainDB.SyncChainDBAsync(ctx, res, client, updateAllAddresses,
+	pgb.ChainDB.SyncChainDBAsync(ctx, res, client, updateAllAddresses,
 		updateAllVotes, newIndexes, updateExplorer, barLoad)
 }
 
 // Store satisfies BlockDataSaver. Blocks stored this way are considered valid
 // and part of mainchain. This calls (*ChainDB).Store after a nil pointer check
 // on the ChainDBRPC receiver
-func (db *ChainDBRPC) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
+func (pgb *ChainDBRPC) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
 	// Allowing db to be nil simplifies logic in caller.
-	if db == nil {
+	if pgb == nil {
 		return nil
 	}
 
 	// update blockchain state
-	db.UpdateChainState(blockData.BlockchainInfo)
+	pgb.UpdateChainState(blockData.BlockchainInfo)
 
-	return db.ChainDB.Store(blockData, msgBlock)
+	return pgb.ChainDB.Store(blockData, msgBlock)
 }
 
 // UpdateChainState calls (*ChainDB).UpdateChainState after a nil pointer check
@@ -305,9 +305,9 @@ func (pgb *ChainDBRPC) UpdateChainState(blockChainInfo *dcrjson.GetBlockChainInf
 // DB. Side chains known to dcrd are listed via the getchaintips RPC. Each block
 // presence in the postgres DB is checked, and any missing block is returned in
 // a SideChain along with a count of the total number of missing blocks.
-func (db *ChainDBRPC) MissingSideChainBlocks() ([]dbtypes.SideChain, int, error) {
+func (pgb *ChainDBRPC) MissingSideChainBlocks() ([]dbtypes.SideChain, int, error) {
 	// First get the side chain tips (head blocks).
-	tips, err := rpcutils.SideChains(db.Client)
+	tips, err := rpcutils.SideChains(pgb.Client)
 	if err != nil {
 		return nil, 0, fmt.Errorf("unable to get chain tips from node: %v", err)
 	}
@@ -321,7 +321,7 @@ func (db *ChainDBRPC) MissingSideChainBlocks() ([]dbtypes.SideChain, int, error)
 		sideHeight := tips[it].Height
 		log.Tracef("Getting full side chain with tip %s at %d.", tips[it].Hash, sideHeight)
 
-		sideChain, err := rpcutils.SideChainFull(db.Client, tips[it].Hash)
+		sideChain, err := rpcutils.SideChainFull(pgb.Client, tips[it].Hash)
 		if err != nil {
 			return nil, 0, fmt.Errorf("unable to get side chain blocks for chain tip %s: %v",
 				tips[it].Hash, err)
@@ -332,7 +332,7 @@ func (db *ChainDBRPC) MissingSideChainBlocks() ([]dbtypes.SideChain, int, error)
 		// For each block in the side chain, check if it already stored.
 		for is := range sideChain {
 			// Check for the block hash in the DB.
-			sideHeightDB, err := db.BlockHeight(sideChain[is])
+			sideHeightDB, err := pgb.BlockHeight(sideChain[is])
 			if err == sql.ErrNoRows {
 				// This block is NOT already in the DB.
 				blocksToStore[it].Hashes = append(blocksToStore[it].Hashes, sideChain[is])
@@ -1742,14 +1742,14 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 }
 
 // AddressData returns comprehensive, paginated information for an address.
-func (db *ChainDBRPC) AddressData(address string, limitN, offsetAddrOuts int64,
+func (pgb *ChainDBRPC) AddressData(address string, limitN, offsetAddrOuts int64,
 	txnType dbtypes.AddrTxnViewType) (addrData *dbtypes.AddressInfo, err error) {
 	merged, err := txnType.IsMerged()
 	if err != nil {
 		return nil, err
 	}
 
-	addrHist, balance, err := db.AddressHistory(address, limitN, offsetAddrOuts, txnType)
+	addrHist, balance, err := pgb.AddressHistory(address, limitN, offsetAddrOuts, txnType)
 	if dbtypes.IsTimeoutErr(err) {
 		return nil, err
 	}
@@ -1801,7 +1801,7 @@ func (db *ChainDBRPC) AddressData(address string, limitN, offsetAddrOuts int64,
 		}
 		if addrData.IsMerged {
 			// For merged views, check the cache and fall back on a DB query.
-			count, err := db.mergedTxnCount(address, txnType)
+			count, err := pgb.mergedTxnCount(address, txnType)
 			if err != nil {
 				return nil, err
 			}
@@ -1827,7 +1827,7 @@ func (db *ChainDBRPC) AddressData(address string, limitN, offsetAddrOuts int64,
 		}
 
 		// Query database for transaction details.
-		err = db.FillAddressTransactions(addrData)
+		err = pgb.FillAddressTransactions(addrData)
 		if dbtypes.IsTimeoutErr(err) {
 			return nil, err
 		}
@@ -1837,7 +1837,7 @@ func (db *ChainDBRPC) AddressData(address string, limitN, offsetAddrOuts int64,
 	}
 
 	// Check for unconfirmed transactions.
-	addressUTXOs, numUnconfirmed, err := db.mp.UnconfirmedTxnsForAddress(address)
+	addressUTXOs, numUnconfirmed, err := pgb.mp.UnconfirmedTxnsForAddress(address)
 	if err != nil || addressUTXOs == nil {
 		return nil, fmt.Errorf("UnconfirmedTxnsForAddress failed for address %s: %v", address, err)
 	}
@@ -1962,7 +1962,7 @@ SPENDING_TX_DUPLICATE_CHECK:
 	addrData.Balance.TotalUnspent += (received - sent)
 
 	// Sort by date and calculate block height.
-	addrData.PostProcess(uint32(db.Height()))
+	addrData.PostProcess(uint32(pgb.Height()))
 
 	return
 }
@@ -3838,6 +3838,6 @@ func ticketpoolStatusSlice(ss dbtypes.TicketPoolStatus, N int) []dbtypes.TicketP
 
 // GetChainWork fetches the dcrjson.BlockHeaderVerbose and returns only the
 // ChainWork attribute as a hex-encoded string, without 0x prefix.
-func (db *ChainDBRPC) GetChainWork(hash *chainhash.Hash) (string, error) {
-	return rpcutils.GetChainWork(db.Client, hash)
+func (pgb *ChainDBRPC) GetChainWork(hash *chainhash.Hash) (string, error) {
+	return rpcutils.GetChainWork(pgb.Client, hash)
 }

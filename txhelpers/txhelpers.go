@@ -4,7 +4,6 @@
 
 // Package txhelpers contains helper functions for working with transactions and
 // blocks (e.g. checking for a transaction in a block).
-
 package txhelpers
 
 import (
@@ -48,7 +47,7 @@ var CoinbaseScript = append([]byte{0x00, 0x00}, []byte(CoinbaseFlags)...)
 //   			\  -> B' -> C' -> D'
 // CommonAncestor - Hash of A
 // OldChainHead - Hash of C
-// OldChainHeight - Hieght of C
+// OldChainHeight - Height of C
 // OldChain - Chain from B to C
 // NewChainHead - Hash of D'
 // NewChainHeight - Height of D'
