@@ -33,9 +33,9 @@ const (
 
 // BlockHashPathAndIndexCtx is a middleware that embeds the value at the url
 // part {blockhash}, and the corresponding block index, into a request context.
-func (c *insightApiContext) BlockHashPathAndIndexCtx(next http.Handler) http.Handler {
+func (iapi *InsightApi) BlockHashPathAndIndexCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := m.BlockHashPathAndIndexCtx(r, c.BlockData.ChainDB)
+		ctx := m.BlockHashPathAndIndexCtx(r, iapi.BlockData.ChainDB)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -43,19 +43,19 @@ func (c *insightApiContext) BlockHashPathAndIndexCtx(next http.Handler) http.Han
 // StatusCtx is a middleware that embeds into the request context the data for
 // the "?q=x" URL query, where x is "getInfo" or "getDifficulty" or
 // "getBestBlockHash" or "getLastBlockHash".
-func (c *insightApiContext) StatusInfoCtx(next http.Handler) http.Handler {
+func (iapi *InsightApi) StatusInfoCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := m.StatusInfoCtx(r, c.BlockData.ChainDB)
+		ctx := m.StatusInfoCtx(r, iapi.BlockData.ChainDB)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 
 }
 
-func (c *insightApiContext) getBlockHashCtx(r *http.Request) (string, error) {
+func (iapi *InsightApi) getBlockHashCtx(r *http.Request) (string, error) {
 	hash, err := m.GetBlockHashCtx(r)
 	if err != nil {
 		idx := int64(m.GetBlockIndexCtx(r))
-		hash, err = c.BlockData.ChainDB.GetBlockHash(idx)
+		hash, err = iapi.BlockData.ChainDB.GetBlockHash(idx)
 		if err != nil {
 			apiLog.Errorf("Unable to GetBlockHash: %v", err)
 			return "", err
@@ -64,8 +64,8 @@ func (c *insightApiContext) getBlockHashCtx(r *http.Request) (string, error) {
 	return hash, nil
 }
 
-func (c *insightApiContext) getBlockChainHashCtx(r *http.Request) (*chainhash.Hash, error) {
-	hashStr, err := c.getBlockHashCtx(r)
+func (iapi *InsightApi) getBlockChainHashCtx(r *http.Request) (*chainhash.Hash, error) {
+	hashStr, err := iapi.getBlockHashCtx(r)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func FromToPaginationCtx(next http.Handler) http.Handler {
 }
 
 // ValidatePostCtx will confirm Post content length is valid.
-func (c *insightApiContext) ValidatePostCtx(next http.Handler) http.Handler {
+func (iapi *InsightApi) ValidatePostCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		contentLengthString := r.Header.Get("Content-Length")
 		contentLength, err := strconv.Atoi(contentLengthString)
@@ -154,9 +154,9 @@ func (c *insightApiContext) ValidatePostCtx(next http.Handler) http.Handler {
 			return
 		}
 		// Broadcast Tx has the largest possible body.  Cap max content length
-		// to c.params.MaxTxSize * 2 plus some arbitrary extra for JSON
+		// to iapi.params.MaxTxSize * 2 plus some arbitrary extra for JSON
 		// encapsulation.
-		maxPayload := (c.params.MaxTxSize * 2) + 50
+		maxPayload := (iapi.params.MaxTxSize * 2) + 50
 		if contentLength > maxPayload {
 			writeInsightError(w, fmt.Sprintf("Maximum Content-Length is %d", maxPayload))
 			return

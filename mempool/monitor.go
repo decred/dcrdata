@@ -6,6 +6,7 @@ package mempool
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
 	"time"
@@ -27,6 +28,12 @@ type MempoolDataSaver interface {
 	StoreMPData(*StakeData, []exptypes.MempoolTx, *exptypes.MempoolInfo)
 }
 
+// MempoolAddressStore wraps txhelpers.MempoolAddressStore with a Mutex.
+type MempoolAddressStore struct {
+	mtx   sync.Mutex
+	store txhelpers.MempoolAddressStore
+}
+
 // MempoolMonitor processes new transactions as they are added to mempool, and
 // forwards the processed data on channels assigned during construction. An
 // inventory of transactions in the current mempool is maintained to prevent
@@ -42,6 +49,8 @@ type MempoolMonitor struct {
 	ctx        context.Context
 	mpoolInfo  MempoolInfo
 	inventory  *exptypes.MempoolInfo
+	addrMap    MempoolAddressStore
+	txnsStore  txhelpers.TxnsStore
 	lastBlock  BlockID
 	params     *chaincfg.Params
 	collector  *MempoolDataCollector
@@ -63,8 +72,8 @@ type MempoolMonitor struct {
 // via the newTxOutChan following an appropriate signal on hubRelay.
 func NewMempoolMonitor(ctx context.Context, collector *MempoolDataCollector,
 	savers []MempoolDataSaver, params *chaincfg.Params, wg *sync.WaitGroup,
-	newTxInChan <-chan *dcrjson.TxRawResult,
-	signalOuts []chan<- pstypes.HubSignal, newTxOutChans []chan<- *exptypes.MempoolTx) *MempoolMonitor {
+	newTxInChan <-chan *dcrjson.TxRawResult, signalOuts []chan<- pstypes.HubSignal,
+	newTxOutChans []chan<- *exptypes.MempoolTx, initialStore bool) (*MempoolMonitor, error) {
 
 	// Make the skeleton MempoolMonitor.
 	p := &MempoolMonitor{
@@ -78,13 +87,11 @@ func NewMempoolMonitor(ctx context.Context, collector *MempoolDataCollector,
 		wg:         wg,
 	}
 
-	// Gather data and fill in MempoolMonitor's internal data fields.
-	_, _, _, err := p.Refresh()
-	if err != nil {
-		return nil
+	if initialStore {
+		return p, p.CollectAndStore()
 	}
-
-	return p
+	_, _, _, err := p.Refresh()
+	return p, err
 }
 
 // LastBlockHash returns the hash of the most recently stored block.
@@ -168,6 +175,43 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 				continue // back to waiting for new tx signal
 			}
 
+			// Set Outpoints in the addrMap.
+			p.addrMap.mtx.Lock()
+			if p.addrMap.store == nil {
+				p.addrMap.store = make(txhelpers.MempoolAddressStore)
+			}
+			newOuts, addressesOut := txhelpers.TxOutpointsByAddr(p.addrMap.store, msgTx, p.params)
+			var newOutAddrs int
+			for _, isNew := range addressesOut {
+				if isNew {
+					newOutAddrs++
+				}
+			}
+
+			// Set PrevOuts in the addrMap, and related txns data in txnsStore.
+			if p.txnsStore == nil {
+				p.txnsStore = make(txhelpers.TxnsStore)
+			}
+			newPrevOuts, addressesIn := txhelpers.TxPrevOutsByAddr(p.addrMap.store, p.txnsStore, msgTx, client, p.params)
+			var newInAddrs int
+			for _, isNew := range addressesIn {
+				if isNew {
+					newInAddrs++
+				}
+			}
+			p.addrMap.mtx.Unlock()
+
+			// Store the current mempool transaction, block info zeroed.
+			p.txnsStore[msgTx.TxHash()] = &txhelpers.TxWithBlockData{
+				Tx:          msgTx,
+				MemPoolTime: s.Time,
+			}
+
+			log.Tracef("New transaction (%s: %s) added %d new and %d previous outpoints, "+
+				"%d out addrs (%d new), %d prev out addrs (%d new).",
+				txType, hash, newOuts, newPrevOuts,
+				len(addressesOut), newOutAddrs, len(addressesIn), newInAddrs)
+
 			// Iterate the state id.
 			p.inventory.Ident++
 
@@ -196,7 +240,7 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 			fee, _ := txhelpers.TxFeeRate(msgTx)
 
 			tx := exptypes.MempoolTx{
-				TxID:      msgTx.TxHash().String(),
+				TxID:      hash,
 				Fees:      fee.ToCoin(),
 				VinCount:  len(msgTx.TxIn),
 				VoutCount: len(msgTx.TxOut),
@@ -206,7 +250,7 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 				Time:      s.Time,
 				Size:      int32(len(s.Hex) / 2),
 				TotalOut:  txhelpers.TotalOutFromMsgTx(msgTx).ToCoin(),
-				Type:      txhelpers.DetermineTxTypeString(msgTx),
+				Type:      txType,
 				VoteInfo:  voteInfo,
 			}
 
@@ -327,12 +371,15 @@ func (p *MempoolMonitor) sendTx(tx *exptypes.MempoolTx, timeout time.Duration) {
 func (p *MempoolMonitor) Refresh() (*StakeData, []exptypes.MempoolTx, *exptypes.MempoolInfo, error) {
 	// Collect mempool data (currently ticket fees)
 	log.Trace("Gathering new mempool data.")
-	stakeData, txs, err := p.collector.Collect()
+	stakeData, txs, addrOuts, txnsStore, err := p.collector.Collect()
 	if err != nil {
 		log.Errorf("mempool data collection failed: %v", err.Error())
 		// stakeData is nil when err != nil
 		return nil, nil, nil, err
 	}
+
+	log.Debugf("%d addresses in mempool pertaining to %d transactions",
+		len(addrOuts), len(txnsStore))
 
 	// Pre-sort the txs so other consumers will not have to do it.
 	sort.Sort(exptypes.MPTxsByTime(txs))
@@ -354,7 +401,12 @@ func (p *MempoolMonitor) Refresh() (*StakeData, []exptypes.MempoolTx, *exptypes.
 		inventory.Ident = p.inventory.ID() + 1
 	}
 	p.inventory = inventory
+	p.txnsStore = txnsStore
 	p.mtx.Unlock()
+
+	p.addrMap.mtx.Lock()
+	p.addrMap.store = addrOuts
+	p.addrMap.mtx.Unlock()
 
 	// Insert new ticket counter into stakeData structure.
 	stakeData.NewTickets = uint32(newTickets)
@@ -385,4 +437,81 @@ func (p *MempoolMonitor) CollectAndStore() error {
 	}
 
 	return nil
+}
+
+// UnconfirmedTxnsForAddress indexes (1) outpoints in mempool that pay to the
+// given address, (2) previous outpoint being consumed that paid to the address,
+// and (3) all relevant transactions. See txhelpers.AddressOutpoints for more
+// information. The number of unconfirmed transactions is also returned. This
+// satisfies the rpcutils.MempoolAddressChecker interface for MempoolMonitor.
+func (p *MempoolMonitor) UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error) {
+	p.addrMap.mtx.Lock()
+	defer p.addrMap.mtx.Unlock()
+	addrStore := p.addrMap.store
+	if addrStore == nil {
+		return nil, 0, fmt.Errorf("uininitialized MempoolAddressStore")
+	}
+
+	// Retrieve the AddressOutpoints for this address.
+	outs := addrStore[address]
+	if outs == nil {
+		return txhelpers.NewAddressOutpoints(address), 0, nil
+	}
+
+	if outs.TxnsStore == nil {
+		outs.TxnsStore = make(txhelpers.TxnsStore)
+	}
+
+	// Fill out the TxnsStore and count unconfirmed transactions. Note that the
+	// values stored in TxnsStore are pointers, and they are already allocated
+	// and stored in MempoolMonitor.txnsStore. This code makes a similar
+	// transaction map for just the transactions related to the address.
+
+	// Process the transaction hashes for the new outpoints.
+	for op := range outs.Outpoints {
+		hash := outs.Outpoints[op].Hash
+		// New transaction for this address?
+		if _, found := outs.TxnsStore[hash]; found {
+			// This is another (prev)out for an already seen transaction, so
+			// there is no need to retrieve it from MempoolMonitor.txnsStore.
+			continue
+		}
+
+		txData := p.txnsStore[hash]
+		if txData == nil {
+			log.Warnf("Unable to locate in TxnsStore: %v", hash)
+			continue
+		}
+		outs.TxnsStore[hash] = txData
+	}
+
+	// Process the transaction hashes for the consumed previous outpoints.
+	for ip := range outs.PrevOuts {
+		// Store the previous outpoint's spending transaction first.
+		spendingTx := outs.PrevOuts[ip].TxSpending
+		if _, found := outs.TxnsStore[spendingTx]; !found {
+			txData := p.txnsStore[spendingTx]
+			if txData == nil {
+				log.Warnf("Unable to locate in TxnsStore: %v", spendingTx)
+			}
+			outs.TxnsStore[spendingTx] = txData
+		}
+
+		// The funding transaction for the previous outpoint.
+		hash := outs.PrevOuts[ip].PreviousOutpoint.Hash
+		// New transaction for this address?
+		if _, found := outs.TxnsStore[hash]; found {
+			// This is another (prev)out for an already seen transaction, so
+			// there is no need to retrieve it from MempoolMonitor.txnsStore.
+			continue
+		}
+
+		txData := p.txnsStore[hash]
+		if txData == nil {
+			log.Warnf("Unable to locate in TxnsStore: %v", hash)
+		}
+		outs.TxnsStore[hash] = txData
+	}
+
+	return outs, int64(len(outs.TxnsStore)), nil
 }

@@ -29,10 +29,10 @@ import (
 	"github.com/decred/dcrdata/blockdata"
 	"github.com/decred/dcrdata/db/cache"
 	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/db/dcrpg/internal"
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/stakedb"
 	"github.com/decred/dcrdata/txhelpers"
-	"github.com/decred/dcrdata/db/dcrpg/internal"
 	humanize "github.com/dustin/go-humanize"
 )
 
@@ -191,6 +191,7 @@ type ChainDB struct {
 	ctx                context.Context
 	queryTimeout       time.Duration
 	db                 *sql.DB
+	mp                 rpcutils.MempoolAddressChecker
 	chainParams        *chaincfg.Params
 	devAddress         string
 	dupChecks          bool
@@ -429,10 +430,10 @@ type DBInfo struct {
 // parameters. By default, duplicate row checks on insertion are enabled. See
 // NewChainDBWithCancel to enable context cancellation of running queries.
 func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeDatabase,
-	devPrefetch, hidePGConfig bool, addrCacheCap int) (*ChainDB, error) {
+	devPrefetch, hidePGConfig bool, addrCacheCap int, mp rpcutils.MempoolAddressChecker) (*ChainDB, error) {
 	ctx := context.Background()
 	chainDB, err := NewChainDBWithCancel(ctx, dbi, params, stakeDB,
-		devPrefetch, hidePGConfig, addrCacheCap)
+		devPrefetch, hidePGConfig, addrCacheCap, mp)
 	if err != nil {
 		return nil, err
 	}
@@ -447,7 +448,7 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeData
 // (context.Background()) except by the pg timeouts. If it is necessary to
 // cancel queries with CTRL+C, for example, use NewChainDBWithCancel.
 func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Params,
-	stakeDB *stakedb.StakeDatabase, devPrefetch, hidePGConfig bool, addrCacheCap int) (*ChainDB, error) {
+	stakeDB *stakedb.StakeDatabase, devPrefetch, hidePGConfig bool, addrCacheCap int, mp rpcutils.MempoolAddressChecker) (*ChainDB, error) {
 	// Connect to the PostgreSQL daemon and return the *sql.DB.
 	db, err := Connect(dbi.Host, dbi.Port, dbi.User, dbi.Pass, dbi.DBName)
 	if err != nil {
@@ -548,6 +549,7 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 		ctx:                ctx,
 		queryTimeout:       queryTimeout,
 		db:                 db,
+		mp:                 mp,
 		chainParams:        params,
 		devAddress:         devSubsidyAddress,
 		dupChecks:          true,
@@ -579,6 +581,12 @@ func (pgb *ChainDB) InitUtxoCache(utxos []dbtypes.UTXO) {
 // creating or loading a StakeDatabase, such as when dropping tables.
 func (pgb *ChainDB) UseStakeDB(stakeDB *stakedb.StakeDatabase) {
 	pgb.stakeDB = stakeDB
+}
+
+// UseMempoolChecker assigns a MempoolAddressChecker for searching mempool for
+// transactions involving a certain address.
+func (pgb *ChainDB) UseMempoolChecker(mp rpcutils.MempoolAddressChecker) {
+	pgb.mp = mp
 }
 
 // EnableDuplicateCheckOnInsert specifies whether SQL insertions should check
@@ -1829,7 +1837,7 @@ func (db *ChainDBRPC) AddressData(address string, limitN, offsetAddrOuts int64,
 	}
 
 	// Check for unconfirmed transactions.
-	addressUTXOs, numUnconfirmed, err := rpcutils.UnconfirmedTxnsForAddress(db.Client, address, db.chainParams)
+	addressUTXOs, numUnconfirmed, err := db.mp.UnconfirmedTxnsForAddress(address)
 	if err != nil || addressUTXOs == nil {
 		return nil, fmt.Errorf("UnconfirmedTxnsForAddress failed for address %s: %v", address, err)
 	}
@@ -1904,7 +1912,7 @@ SPENDING_TX_DUPLICATE_CHECK:
 		}
 		spendingTx, ok := addressUTXOs.TxnsStore[f.TxSpending]
 		if !ok {
-			log.Errorf("An outpoint's transaction is not available in TxnStore.")
+			log.Errorf("A previous outpoint's spending transaction is not available in TxnStore.")
 			continue
 		}
 		if spendingTx.Confirmed() {

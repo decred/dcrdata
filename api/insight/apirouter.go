@@ -25,7 +25,7 @@ const APIVersion = 0
 
 // NewInsightApiRouter returns a new HTTP path router, ApiMux, for the Insight
 // API, app.
-func NewInsightApiRouter(app *insightApiContext, useRealIP, compression bool) ApiMux {
+func NewInsightApiRouter(app *InsightApi, useRealIP, compression bool) ApiMux {
 	// chi router
 	mux := chi.NewRouter()
 

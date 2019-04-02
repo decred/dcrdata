@@ -19,8 +19,8 @@ import (
 	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types"
-	"github.com/decred/dcrdata/txhelpers"
 	"github.com/decred/dcrdata/semver"
+	"github.com/decred/dcrdata/txhelpers"
 )
 
 // Any of the following dcrd RPC API versions are deemed compatible with
@@ -503,6 +503,23 @@ func GetChainWork(client *rpcclient.Client, hash *chainhash.Hash) (string, error
 		return "", err
 	}
 	return header.ChainWork, nil
+}
+
+type MempoolAddressChecker interface {
+	UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error)
+}
+
+type mempoolAddressChecker struct {
+	client *rpcclient.Client
+	params *chaincfg.Params
+}
+
+func (m *mempoolAddressChecker) UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error) {
+	return UnconfirmedTxnsForAddress(m.client, address, m.params)
+}
+
+func NewMempoolAddressChecker(client *rpcclient.Client, params *chaincfg.Params) MempoolAddressChecker {
+	return &mempoolAddressChecker{client, params}
 }
 
 // UnconfirmedTxnsForAddress returns the chainhash.Hash of all transactions in

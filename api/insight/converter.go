@@ -12,14 +12,14 @@ import (
 )
 
 // TxConverter converts dcrd-tx to insight tx
-func (c *insightApiContext) TxConverter(txs []*dcrjson.TxRawResult) ([]apitypes.InsightTx, error) {
-	return c.DcrToInsightTxns(txs, false, false, false)
+func (iapi *InsightApi) TxConverter(txs []*dcrjson.TxRawResult) ([]apitypes.InsightTx, error) {
+	return iapi.DcrToInsightTxns(txs, false, false, false)
 }
 
 // DcrToInsightTxns converts a dcrjson TxRawResult to a InsightTx. The asm,
 // scriptSig, and spending status may be skipped by setting the appropriate
 // input arguments.
-func (c *insightApiContext) DcrToInsightTxns(txs []*dcrjson.TxRawResult, noAsm, noScriptSig, noSpent bool) ([]apitypes.InsightTx, error) {
+func (iapi *InsightApi) DcrToInsightTxns(txs []*dcrjson.TxRawResult, noAsm, noScriptSig, noSpent bool) ([]apitypes.InsightTx, error) {
 	newTxs := make([]apitypes.InsightTx, 0, len(txs))
 	for _, tx := range txs {
 		// Build new InsightTx
@@ -60,7 +60,7 @@ func (c *insightApiContext) DcrToInsightTxns(txs []*dcrjson.TxRawResult, noAsm, 
 
 			// Note: this only gathers information from the database, which does
 			// not include mempool transactions.
-			_, addresses, value, err := c.BlockData.ChainDB.AddressIDsByOutpoint(vin.Txid, vin.Vout)
+			_, addresses, value, err := iapi.BlockData.ChainDB.AddressIDsByOutpoint(vin.Txid, vin.Vout)
 			if err == nil {
 				if len(addresses) > 0 {
 					// Update Vin due to DCRD AMOUNTIN - START
@@ -124,7 +124,7 @@ func (c *insightApiContext) DcrToInsightTxns(txs []*dcrjson.TxRawResult, noAsm, 
 			// Populate the spending status of all vouts. Note: this only
 			// gathers information from the database, which does not include
 			// mempool transactions.
-			addrFull, err := c.BlockData.ChainDB.SpendDetailsForFundingTx(txNew.Txid)
+			addrFull, err := iapi.BlockData.ChainDB.SpendDetailsForFundingTx(txNew.Txid)
 			if err != nil {
 				return nil, err
 			}
@@ -140,12 +140,12 @@ func (c *insightApiContext) DcrToInsightTxns(txs []*dcrjson.TxRawResult, noAsm, 
 }
 
 // DcrToInsightBlock converts a dcrjson.GetBlockVerboseResult to Insight block.
-func (c *insightApiContext) DcrToInsightBlock(inBlocks []*dcrjson.GetBlockVerboseResult) ([]*apitypes.InsightBlockResult, error) {
+func (iapi *InsightApi) DcrToInsightBlock(inBlocks []*dcrjson.GetBlockVerboseResult) ([]*apitypes.InsightBlockResult, error) {
 	RewardAtBlock := func(blocknum int64, voters uint16) float64 {
-		subsidyCache := blockchain.NewSubsidyCache(0, c.params)
-		work := blockchain.CalcBlockWorkSubsidy(subsidyCache, blocknum, voters, c.params)
-		stake := blockchain.CalcStakeVoteSubsidy(subsidyCache, blocknum, c.params) * int64(voters)
-		tax := blockchain.CalcBlockTaxSubsidy(subsidyCache, blocknum, voters, c.params)
+		subsidyCache := blockchain.NewSubsidyCache(0, iapi.params)
+		work := blockchain.CalcBlockWorkSubsidy(subsidyCache, blocknum, voters, iapi.params)
+		stake := blockchain.CalcStakeVoteSubsidy(subsidyCache, blocknum, iapi.params) * int64(voters)
+		tax := blockchain.CalcBlockTaxSubsidy(subsidyCache, blocknum, voters, iapi.params)
 		return dcrutil.Amount(work + stake + tax).ToCoin()
 	}
 
