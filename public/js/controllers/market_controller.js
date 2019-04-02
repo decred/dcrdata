@@ -8,8 +8,10 @@ import axios from 'axios'
 
 var Dygraph
 const candlestick = 'candlestick'
+const orders = 'orders'
 const depth = 'depth'
 const history = 'history'
+const volume = 'volume'
 const binance = 'binance'
 const anHour = '1h'
 const minuteMap = {
@@ -29,12 +31,16 @@ function hasBin (xc, bin) {
   return availableCandlesticks[xc].indexOf(bin) !== -1
 }
 
+function usesOrderbook(chart) {
+  return chart === depth || chart === orders
+}
+
+function usesCandlesticks(chart) {
+  return chart === candlestick || chart === volume || chart === history
+}
+
 var requestCounter = 0
 var responseCache = {}
-
-function cacheKey (...parts) {
-  return parts.join('-')
-}
 
 function hasCache (k) {
   if (!responseCache[k]) return false
@@ -49,7 +55,6 @@ var conversionFactor = 1
 var settings = {}
 
 const commonChartOpts = {
-  strokeWidth: 3,
   gridLineColor: '#77777744',
   axisLineColor: 'transparent',
   underlayCallback: (ctx, area, dygraph) => {
@@ -61,7 +66,15 @@ const commonChartOpts = {
   // these should be set to avoid Dygraph strangeness
   labels: [' ', ' '], // To avoid an annoying console message,
   xlabel: ' ',
-  ylabel: ' '
+  ylabel: ' ',
+  pointSize: 6
+}
+
+const chartResetOpts = {
+  fillGraph: false,
+  strokeWidth: 2,
+  drawPoints: false,
+  logscale: false
 }
 
 function adjustAxis (axis, zoomInPercentage, bias) {
@@ -154,7 +167,7 @@ function calcStickWindow (start, end, bin) {
 export default class extends Controller {
   static get targets () {
     return ['chartSelect', 'exchanges', 'bin', 'chart', 'legend', 'conversion',
-      'xcName', 'xcLogo', 'actions']
+      'xcName', 'xcLogo', 'actions', 'sticksOnly', 'depthOnly']
   }
 
   async connect () {
@@ -162,9 +175,11 @@ export default class extends Controller {
     settings = TurboQuery.nullTemplate(['chart', 'xc', 'bin'])
     this.query.update(settings)
     this.processors = {
-      candlestick: this._processCandlesticks.bind(this),
+      orders: this.processOrders,
+      candlestick: this.processCandlesticks,
       history: this.processHistory,
-      depth: this.processDepth
+      depth: this.processDepth,
+      volume: this.processVolume
     }
     commonChartOpts.labelsDiv = this.legendTarget
     this.converted = false
@@ -183,6 +198,12 @@ export default class extends Controller {
         availableCandlesticks[option.value] = option.dataset.bins.split(';')
       }
       if (option.dataset.depth) availableDepths.push(option.value)
+    }
+
+    this.chartOptions = []
+    opts = this.chartSelectTarget.options
+    for (let i = 0; i < opts.length; i++) {
+      this.chartOptions.push(opts[i])
     }
 
     if (settings.chart == null) {
@@ -261,9 +282,7 @@ export default class extends Controller {
     var bin = settings.bin
     var xc = settings.xc
     var chart = settings.chart
-    var ck
-    if (chart === history || chart === candlestick) {
-      ck = cacheKey(xc, bin)
+    if (chart === history || chart === candlestick || chart === volume) {
       if (!(xc in availableCandlesticks)) {
         console.warn('invalid candlestick exchange:', xc)
         return
@@ -273,8 +292,7 @@ export default class extends Controller {
         return
       }
       url = `/api/chart/market/${xc}/candlestick/${bin}`
-    } else if (chart === depth) {
-      ck = cacheKey(xc, depth)
+    } else if (usesOrderbook(chart)) {
       if (!validDepthExchange(xc)) {
         console.warn('invalid depth exchange:', xc)
         return
@@ -287,22 +305,23 @@ export default class extends Controller {
     }
 
     var response
-    if (hasCache(ck)) {
-      response = responseCache[ck]
+    if (hasCache(url)) {
+      response = responseCache[url]
     } else {
       response = await axios.get(url)
-      responseCache[ck] = response
+      responseCache[url] = response
       if (thisRequest !== requestCounter) {
         // new request was issued while waiting.
         return
       }
     }
+    this.graph.updateOptions(chartResetOpts, true)
     this.graph.updateOptions(this.processors[chart](response.data))
     this.query.replace(settings)
-    if (settings.chart !== candlestick) this.graph.resetZoom()
+    this.resetZoom()
   }
 
-  _processCandlesticks (response) {
+  processCandlesticks (response) {
     var halfDuration = minuteMap[settings.bin] / 2
     var data = response.sticks.map(stick => {
       var t = new Date(stick.start)
@@ -320,7 +339,7 @@ export default class extends Controller {
       file: data,
       labels: ['time', 'open', 'close', 'high', 'low'],
       xlabel: 'Time',
-      ylabel: `Price (${this.converted ? this.currencyCode : 'BTC'})`,
+      ylabel: `Price (BTC)`,
       dateWindow: stickZoom,
       plotter: candlestickPlotter,
       axes: {
@@ -347,7 +366,7 @@ export default class extends Controller {
       }),
       labels: ['time', 'price'],
       xlabel: 'Time',
-      ylabel: `Price (${this.converted ? this.currencyCode : 'BTC'})`,
+      ylabel: `Price (BTC)`,
       colors: [chartStroke],
       plotter: Dygraph.Plotters.linePlotter,
       axes: {
@@ -357,7 +376,33 @@ export default class extends Controller {
         y: {
           axisLabelFormatter: humanize.threeSigFigs
         }
-      }
+      },
+      strokeWidth: 3
+    }
+  }
+
+  processVolume (response) {
+    var halfDuration = minuteMap[settings.bin] / 2
+    return {
+      file: response.sticks.map(stick => {
+        var t = new Date(stick.start)
+        t.setMinutes(t.getMinutes() + halfDuration)
+        return [t, stick.volume]
+      }),
+      labels: ['time', 'volume'],
+      xlabel: 'Time',
+      ylabel: `Volume (DCR / ${settings.bin})`,
+      colors: [chartStroke],
+      plotter: Dygraph.Plotters.linePlotter,
+      axes: {
+        x: {
+          axisLabelFormatter: Dygraph.dateAxisLabelFormatter
+        },
+        y: {
+          axisLabelFormatter: humanize.threeSigFigs
+        }
+      },
+      strokeWidth: 3,
     }
   }
 
@@ -381,7 +426,7 @@ export default class extends Controller {
       colors: ['#ed6d47', '#41be53'],
       xlabel: `Price (${this.converted ? this.currencyCode : 'BTC'})`,
       ylabel: 'Volume (DCR)',
-      plotter: null,
+      plotter: null, // Don't use Dygraph.linePlotter here. fillGraph won't work.
       axes: {
         x: {
           axisLabelFormatter: (x) => {
@@ -392,6 +437,38 @@ export default class extends Controller {
           axisLabelFormatter: humanize.threeSigFigs
         }
       }
+    }
+  }
+
+  processOrders (response) {
+    var pts = []
+    response.data.bids.forEach(pt => {
+      pts.push([pt.price, null, pt.quantity])
+    })
+    pts.reverse() // necessary for Dygraph zoom to be correct
+    response.data.asks.forEach(pt => {
+      pts.push([pt.price, pt.quantity, null])
+    })
+    return {
+      labels: ['price', 'sell', 'buy'],
+      file: pts,
+      colors: ['#ed6d47', '#41be53'],
+      xlabel: `Price (${this.converted ? this.currencyCode : 'BTC'})`,
+      ylabel: 'Volume (DCR)',
+      plotter: null,
+      axes: {
+        x: {
+          axisLabelFormatter: (x) => {
+            return humanize.threeSigFigs(x * conversionFactor)
+          }
+        },
+        y: {
+          axisLabelFormatter: humanize.threeSigFigs
+        }
+      },
+      strokeWidth: 0,
+      drawPoints: true,
+      logscale: true
     }
   }
 
@@ -406,8 +483,7 @@ export default class extends Controller {
   setButtons () {
     this.chartSelectTarget.value = settings.chart
     this.exchangesTarget.value = settings.xc
-    var isDepth = settings.chart === depth
-    if (isDepth) {
+    if (usesOrderbook(settings.chart)) {
       this.binTarget.classList.add('d-hide')
     } else {
       this.binTarget.classList.remove('d-hide')
@@ -420,9 +496,13 @@ export default class extends Controller {
       })
       this.setBinSelection()
     }
-    this.exchangeOptions.forEach(option => {
-      if (isDepth) option.disabled = !option.dataset.depth
-      if (!isDepth) option.disabled = !option.dataset.sticks
+    var sticksDisabled = !availableCandlesticks[settings.xc]
+    this.sticksOnlyTargets.forEach(option => {
+      option.disabled = sticksDisabled
+    })
+    var depthDisabled = !validDepthExchange(settings.xc)
+    this.depthOnlyTargets.forEach(option => {
+      option.disabled = depthDisabled
     })
   }
 
@@ -440,17 +520,9 @@ export default class extends Controller {
   changeGraph (e) {
     var target = e.target || e.srcElement
     settings.chart = target.value
-    if (settings.chart === depth) {
-      if (availableDepths.indexOf(settings.xc) === -1) {
-        // No depth chart available for the selected exchange.
-        settings.xc = availableDepths[0]
-        this.exchangesTarget.value = settings.xc
-      }
-    } else if (!(settings.xc in availableCandlesticks)) {
-      settings.xc = Object.keys(availableCandlesticks)[0]
-      this.exchangesTarget.value = settings.xc
+    if (usesCandlesticks(settings.chart)){
+      this.justifyBins()
     }
-    this.justifyBins()
     this.setButtons()
     this.fetchChart()
   }
@@ -458,7 +530,15 @@ export default class extends Controller {
   changeExchange () {
     settings.xc = this.exchangesTarget.value
     this.setExchangeName()
-    if (settings.chart !== depth) this.justifyBins()
+    if (usesCandlesticks(settings.chart)) {
+      if (!availableCandlesticks[settings.xc]) {
+        // exchange does not have candlestick data
+        // show the depth chart.
+        settings.chart = depth
+      } else {
+        this.justifyBins()
+      }
+    }
     this.setButtons()
     this.fetchChart()
     this.resetZoom()
@@ -468,7 +548,6 @@ export default class extends Controller {
     var node = e.target || e.srcElement
     while (node && node.nodeName !== 'TR') node = node.parentNode
     if (!node || !node.dataset || !node.dataset.token) return
-    console.log(node.dataset.token)
     this.exchangesTarget.value = node.dataset.token
     this.changeExchange()
   }
@@ -515,6 +594,8 @@ export default class extends Controller {
   _processNightMode (data) {
     if (!this.graph) return
     chartStroke = data.nightMode ? darkStroke : lightStroke
-    this.graph.updateOptions({ colors: [chartStroke] })
+    if (settings.chart === history || settings.chart == volume) {
+      this.graph.updateOptions({ colors: [chartStroke] })
+    }
   }
 }
