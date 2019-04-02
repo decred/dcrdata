@@ -415,7 +415,9 @@
                         </div>
                         {{if $conv}}
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
-                            <div class="fs13 text-secondary">Exchange Rate</div>
+                            <div class="fs13 text-secondary">
+                                <a class="no-underline" href="/market">Exchange Rate</a>
+                            </div>
                             <div class="mono lh1rem fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
                                 <span class="d-inline-block" data-target="homepage.exchangeRate">{{$conv.ExchangeRate.TwoDecimals}}</span>
                                 <span class="pl-1 unit lh15rem">{{$conv.ExchangeRate.Index}}</span>
