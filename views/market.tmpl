@@ -22,7 +22,7 @@
             {{if eq $botState.BtcIndex "USD"}}
                 <span class="fs18 font-weight-bold d-inline-block pt-1" style="vertical-align:top;">$</span>
             {{end}}
-            <span class="fs28">{{printf "%.2f" $botState.Price}}</span> <span class="fs16 text-secondary">{{$botState.BtcIndex}}</span>
+            <span class="fs28" data-target="market.price">{{printf "%.2f" $botState.Price}}</span> <span class="fs16 text-secondary">{{$botState.BtcIndex}}</span>
         </div>
 
 
@@ -38,24 +38,24 @@
                       <td></td>
                       <td class="text-right font-weight-bold">{{$botState.BtcIndex}}</td>
                     </tr>
-                    {{range $token, $state := $botState.DcrBtc}}
-                        <tr class="fs hover-row" data-action="click->market#setExchange" data-token="{{$token}}">
-                            <td class="py-2 fs18 font-weight-bold"><div class="exchange-logo {{$token}} mr-2"></div> {{toTitleCase $token}}</td>
-                            <td class="pl-2 fs16 py-2 text-right">
-                                {{threeSigFigs $state.Volume}}
+                    {{range $botState.VolumeOrderedExchanges}}
+                        <tr class="fs hover-row" data-target="market.xcRow" data-action="click->market#setExchange" data-token="{{.Token}}">
+                            <td class="py-2 fs18 font-weight-bold"><div class="exchange-logo {{.Token}} mr-2"></div> {{toTitleCase .Token}}</td>
+                            <td class="pl-2 fs16 py-2 text-right" data-type="volume">
+                                {{threeSigFigs .State.Volume}}
                             </td>
-                            <td class="pl-3 fs16 py-2 text-right">
-                                {{threeSigFigs $state.Price}}
+                            <td class="pl-3 fs16 py-2 text-right" data-type="price" data-price="{{.State.Price}}">
+                                {{threeSigFigs .State.Price}}
                             </td>
-                            <td class="fs16 px-2">
-                              {{if gt $state.Change 0.0}}
+                            <td class="fs16 px-2" data-type="arrow">
+                              {{if gt .State.Change 0.0}}
                                   <span class="dcricon-arrow-up text-green"></span>
-                              {{else if lt $state.Change 0.0}}
+                              {{else if lt .State.Change 0.0}}
                                   <span class="dcricon-arrow-down text-danger"></span>
                               {{end}}
                             </td>
-                            <td class="pl-1 fs16 py-2 text-right">
-                                {{printf "%.2f" ($botState.BtcToFiat $state.Price)}}
+                            <td class="pl-1 fs16 py-2 text-right" data-type="fiat">
+                                {{printf "%.2f" ($botState.BtcToFiat .State.Price)}}
                             </td>
                         </tr>
                     {{end}}
@@ -74,7 +74,7 @@
                       {{if eq $botState.BtcIndex "USD"}}
                           <span class="fs16 font-weight-bold d-inline-block pt-1 valign-top">$</span>
                       {{end}}
-                      <span class="fs24">{{printf "%.2f" $state.Price}}</span> <span class="fs16 text-secondary">{{$botState.BtcIndex}}</span><br>
+                      <span class="fs24" data-price="{{$state.Price}}" data-token="{{$token}}" data-target="market.xcIndex">{{printf "%.2f" $state.Price}}</span> <span class="fs16 text-secondary">{{$botState.BtcIndex}}</span><br>
                       {{if eq $token "coindesk"}}
                         <a class="fs12" href="https://www.coindesk.com/price/bitcoin">Powered by CoinDesk</a>
                       {{end}}
@@ -173,6 +173,7 @@
                 >
                   <label>Actions</label>
                   <button data-action="click->market#resetZoom">Reset zoom</button>
+                  <button class="d-hide" data-target="market.refresh" data-action="click->market#refreshChart">Refresh</button>
                 </div>
             </div>
 

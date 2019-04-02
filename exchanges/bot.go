@@ -170,6 +170,15 @@ type UpdateChannels struct {
 	Quit     chan struct{}
 }
 
+// NewUpdateChannels creates a new initialized set of UpdateChannels
+func NewUpdateChannels() *UpdateChannels {
+	channels := new(UpdateChannels)
+	channels.Exchange = make(chan *ExchangeUpdate, 16)
+	channels.Index = make(chan *IndexUpdate, 16)
+	channels.Quit = make(chan struct{})
+	return channels
+}
+
 // The chart data structures that are actually encoded and cached.
 type candlestickResponse struct {
 	BtcIndex   string       `json:"index"`

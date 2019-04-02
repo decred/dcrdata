@@ -15,6 +15,7 @@ import (
 
 	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/exchanges"
 	"github.com/decred/dcrdata/explorer/types"
 	pstypes "github.com/decred/dcrdata/pubsub/types"
 	"golang.org/x/net/websocket"
@@ -40,6 +41,54 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		defer closeWS()
+
+		var xcChans *exchanges.UpdateChannels
+		var sendXcUpdate func(bool, string, float64, float64)
+		if exp.xcBot != nil {
+			xcChans = exp.xcBot.UpdateChannels()
+			sendXcUpdate = func(isFiat bool, token string, price, volume float64) {
+				buff := new(bytes.Buffer)
+				enc := json.NewEncoder(buff)
+				webData := WebSocketMessage{
+					EventId: exchangeUpdateID,
+					Message: "error",
+				}
+				xcState := exp.xcBot.State()
+				err := enc.Encode(&WebsocketExchangeUpdate{
+					Updater: WebsocketMiniExchange{
+						Token:  token,
+						Price:  price,
+						Volume: volume,
+					},
+					IsFiatIndex: isFiat,
+					BtcIndex:    exp.xcBot.BtcIndex,
+					Price:       xcState.Price,
+					BtcPrice:    xcState.BtcPrice,
+					Volume:      xcState.Volume,
+				})
+				if err == nil {
+					webData.Message = buff.String()
+				} else {
+					log.Errorf("json.Encode(*WebsocketExchangeUpdate) failed: %v", err)
+				}
+
+				err = ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
+				if err != nil && !pstypes.IsWSClosedErr(err) {
+					log.Warnf("SetWriteDeadline failed: %v", err)
+				}
+				if err := websocket.JSON.Send(ws, webData); err != nil {
+					// Do not log error if connection is just closed
+					if !pstypes.IsWSClosedErr(err) {
+						log.Debugf("Failed to encode WebSocketMessage exchange update: %v", err)
+					}
+					// If the send failed, the client is probably gone, so close
+					// the connection and quit.
+					return
+				}
+			}
+		} else {
+			xcChans = exchanges.NewUpdateChannels()
+		}
 
 		requestLimit := 1 << 20
 		// set the max payload size to 1 MB
@@ -316,6 +365,18 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					// the connection and quit.
 					return
 				}
+			case update := <-xcChans.Exchange:
+				sendXcUpdate(false, update.Token, update.State.Price, update.State.Volume)
+			case update := <-xcChans.Index:
+				indexState, found := exp.xcBot.State().FiatIndices[update.Token]
+				if !found {
+					log.Errorf("Index state not found when preparing websocket udpate")
+					continue
+				}
+				sendXcUpdate(true, update.Token, indexState.Price, indexState.Volume)
+			case <-xcChans.Quit:
+				xcChans.Quit = make(chan struct{})
+				log.Warnf("ExchangeBot has quit.")
 			case <-exp.wsHub.quitWSHandler:
 				break loop
 			}

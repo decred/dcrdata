@@ -49,6 +49,11 @@ function hasCache (k) {
   return expiration > new Date()
 }
 
+function clearCache (k) {
+  if (!responseCache[k]) return
+  delete responseCache[k]
+}
+
 const lightStroke = '#333'
 const darkStroke = '#ddd'
 var chartStroke = lightStroke
@@ -215,7 +220,8 @@ function calcStickWindow (start, end, bin) {
 export default class extends Controller {
   static get targets () {
     return ['chartSelect', 'exchanges', 'bin', 'chart', 'legend', 'conversion',
-      'xcName', 'xcLogo', 'actions', 'sticksOnly', 'depthOnly', 'chartLoader']
+      'xcName', 'xcLogo', 'actions', 'sticksOnly', 'depthOnly', 'chartLoader'
+      , 'xcRow', 'xcIndex', 'price', 'refresh']
   }
 
   async connect () {
@@ -234,6 +240,7 @@ export default class extends Controller {
     this.conversionFactor = parseFloat(this.conversionTarget.dataset.factor)
     this.currencyCode = this.conversionTarget.dataset.code
     this.binButtons = this.binTarget.querySelectorAll('button')
+    this.lastUrl = null
 
     availableCandlesticks = {}
     availableDepths = []
@@ -271,6 +278,8 @@ export default class extends Controller {
     window.addEventListener('resize', this.resize)
     this.processNightMode = this._processNightMode.bind(this)
     globalEventBus.on('NIGHT_MODE', this.processNightMode)
+    this.processXcUpdate = this._processXcUpdate.bind(this)
+    globalEventBus.on('EXCHANGE_UPDATE', this.processXcUpdate)
     if (darkEnabled()) chartStroke = darkStroke
 
     this.fetchInitialData()
@@ -280,6 +289,7 @@ export default class extends Controller {
     responseCache = {}
     window.removeEventListener('resize', this.resize)
     globalEventBus.off('NIGHT_MODE', this.processNightMode)
+    globalEventBus.off('EXCHANGE_UPDATE', this.processXcUpdate)
   }
 
   _resize () {
@@ -377,6 +387,8 @@ export default class extends Controller {
     this.query.replace(settings)
     this.resetZoom()
     this.chartLoaderTarget.classList.remove('loading')
+    this.refreshTarget.classList.add('d-hide')
+    this.lastUrl = url
   }
 
   processCandlesticks (response) {
@@ -629,6 +641,10 @@ export default class extends Controller {
     }
   }
 
+  refreshChart () {
+    this.fetchChart()
+  }
+
   setConversion (e) {
     var btn = e.target || e.srcElement
     if (btn.nodeName !== 'BUTTON' || !this.graph) return
@@ -659,6 +675,68 @@ export default class extends Controller {
     }
     if (settings.chart === orders) {
       this.graph.setAnnotations([])
+    }
+  }
+
+  getExchangeRow (token) {
+    var rows = this.xcRowTargets
+    for (let i = 0; i < rows.length; i++) {
+      let tr = rows[i]
+      if (tr.dataset.token === token) {
+        let row = {}
+        tr.querySelectorAll('td').forEach(td => {
+          switch (td.dataset.type) {
+            case 'price':
+              row.price = td
+              break
+            case 'volume':
+              row.volume = td
+              break
+            case 'fiat':
+              row.fiat = td
+              break
+            case 'arrow':
+              row.arrow = td.firstChild
+              break
+          }
+        })
+        return row
+      }
+    }
+    return null
+  }
+
+  _processXcUpdate (update) {
+    if (update.fiat) {
+      this.xcIndexTargets.forEach(span => {
+        if (span.dataset.token === update.updater.token) {
+          span.textContent = update.updater.price.toFixed(2)
+        }
+      })
+    } else {
+      let row = this.getExchangeRow(update.updater.token)
+      row.volume.textContent = humanize.threeSigFigs(update.updater.volume)
+      let oldPrice = row.price.dataset.price
+      let newPrice = update.updater.price
+      row.price.textContent = humanize.threeSigFigs(newPrice)
+      row.price.dataset.price = newPrice
+      row.fiat.textContent = (update.updater.price * update.btc_price).toFixed(2)
+      if (newPrice > oldPrice) {
+        row.arrow.className = 'dcricon-arrow-up text-green'
+      } else {
+        row.arrow.className = 'dcricon-arrow-down text-danger'
+      }
+    }
+    this.priceTarget.textContent = update.price.toFixed(2)
+    if (settings.xc !== update.updater.token) return
+    if (usesOrderbook(settings.chart)) {
+      clearCache(this.lastUrl)
+      this.refreshTarget.classList.remove('d-hide')
+    } else if (usesCandlesticks(settings.chart)) {
+      // Check to make sure cache is expired.
+      if (!this.hasCache(this.lastUrl)) {
+        this.refreshTarget.classList.remove('d-hide')
+      }
     }
   }
 }
