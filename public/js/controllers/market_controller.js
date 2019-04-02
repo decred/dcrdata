@@ -20,6 +20,7 @@ const minuteMap = {
   '1d': 1440,
   '1mo': 43200
 }
+const PIPI = 2 * Math.PI
 
 var availableCandlesticks, availableDepths
 
@@ -31,11 +32,11 @@ function hasBin (xc, bin) {
   return availableCandlesticks[xc].indexOf(bin) !== -1
 }
 
-function usesOrderbook(chart) {
+function usesOrderbook (chart) {
   return chart === depth || chart === orders
 }
 
-function usesCandlesticks(chart) {
+function usesCandlesticks (chart) {
   return chart === candlestick || chart === volume || chart === history
 }
 
@@ -52,17 +53,17 @@ const lightStroke = '#333'
 const darkStroke = '#ddd'
 var chartStroke = lightStroke
 var conversionFactor = 1
+var gridColor = '#7774'
 var settings = {}
 
 const commonChartOpts = {
-  gridLineColor: '#77777744',
+  gridLineColor: gridColor,
   axisLineColor: 'transparent',
   underlayCallback: (ctx, area, dygraph) => {
     ctx.lineWidth = 1
-    ctx.strokeStyle = chartStroke
+    ctx.strokeStyle = gridColor
     ctx.strokeRect(area.x, area.y, area.w, area.h)
   },
-  axisLabelFontSize: 15,
   // these should be set to avoid Dygraph strangeness
   labels: [' ', ' '], // To avoid an annoying console message,
   xlabel: ' ',
@@ -74,7 +75,9 @@ const chartResetOpts = {
   fillGraph: false,
   strokeWidth: 2,
   drawPoints: false,
-  logscale: false
+  logscale: false,
+  xRangePad: 0,
+  yRangePad: 0
 }
 
 function adjustAxis (axis, zoomInPercentage, bias) {
@@ -140,16 +143,61 @@ function candlestickPlotter (e) {
 
     var top
     if (open.yval > close.yval) {
-      ctx.fillStyle = '#f93f39'
+      ctx.fillStyle = '#f93f39cc'
       top = area.h * open.y + area.y
     } else {
-      ctx.fillStyle = '#1acc84'
+      ctx.fillStyle = '#1acc84cc'
       top = area.h * close.y + area.y
     }
     var h = area.h * Math.abs(open.y - close.y)
     var left = centerX - barWidth / 2
     ctx.fillRect(left, top, barWidth, h)
     ctx.strokeRect(left, top, barWidth, h)
+  }
+}
+
+function drawOrderPt (ctx, pt, r) {
+  ctx.beginPath()
+  ctx.arc(pt.x, pt.y, r, 0, PIPI)
+  ctx.fill()
+  // ctx.beginPath()
+  // ctx.arc(pt.x, pt.y, r, 0, PIPI)
+  ctx.stroke()
+}
+
+function orderXY (area, pt) {
+  return {
+    x: area.x + pt.x * area.w,
+    y: area.y + pt.y * area.h
+  }
+}
+
+const orderPtSize = 7
+
+function orderPlotter (e) {
+  if (e.seriesIndex !== 0) return
+
+  var area = e.plotArea
+  var ctx = e.drawingContext
+
+  let buyColor, sellColor
+  [buyColor, sellColor] = e.dygraph.getColors()
+
+  let buys, sells
+  [buys, sells] = e.allSeriesPoints
+  ctx.lineWidth = 1.5
+  ctx.strokeStyle = chartStroke
+  for (let i = 0; i < buys.length; i++) {
+    let buy = buys[i]
+    let sell = sells[i]
+    if (buy) {
+      ctx.fillStyle = buyColor
+      drawOrderPt(ctx, orderXY(area, buy), orderPtSize)
+    }
+    if (sell) {
+      ctx.fillStyle = sellColor
+      drawOrderPt(ctx, orderXY(area, sell), orderPtSize)
+    }
   }
 }
 
@@ -167,7 +215,7 @@ function calcStickWindow (start, end, bin) {
 export default class extends Controller {
   static get targets () {
     return ['chartSelect', 'exchanges', 'bin', 'chart', 'legend', 'conversion',
-      'xcName', 'xcLogo', 'actions', 'sticksOnly', 'depthOnly']
+      'xcName', 'xcLogo', 'actions', 'sticksOnly', 'depthOnly', 'chartLoader']
   }
 
   async connect () {
@@ -282,7 +330,7 @@ export default class extends Controller {
     var bin = settings.bin
     var xc = settings.xc
     var chart = settings.chart
-    if (chart === history || chart === candlestick || chart === volume) {
+    if (usesCandlesticks(chart)) {
       if (!(xc in availableCandlesticks)) {
         console.warn('invalid candlestick exchange:', xc)
         return
@@ -304,6 +352,8 @@ export default class extends Controller {
       return
     }
 
+    this.chartLoaderTarget.classList.add('loading')
+
     var response
     if (hasCache(url)) {
       response = responseCache[url]
@@ -312,13 +362,21 @@ export default class extends Controller {
       responseCache[url] = response
       if (thisRequest !== requestCounter) {
         // new request was issued while waiting.
+        this.chartLoaderTarget.classList.remove('loading')
         return
       }
+    }
+    // Fiat conversion only available for order books for now.
+    if (usesOrderbook(chart)) {
+      this.conversionTarget.classList.remove('d-hide')
+    } else {
+      this.conversionTarget.classList.add('d-hide')
     }
     this.graph.updateOptions(chartResetOpts, true)
     this.graph.updateOptions(this.processors[chart](response.data))
     this.query.replace(settings)
     this.resetZoom()
+    this.chartLoaderTarget.classList.remove('loading')
   }
 
   processCandlesticks (response) {
@@ -402,7 +460,7 @@ export default class extends Controller {
           axisLabelFormatter: humanize.threeSigFigs
         }
       },
-      strokeWidth: 3,
+      strokeWidth: 3
     }
   }
 
@@ -452,10 +510,10 @@ export default class extends Controller {
     return {
       labels: ['price', 'sell', 'buy'],
       file: pts,
-      colors: ['#ed6d47', '#41be53'],
+      colors: ['#f93f39cc', '#1acc84cc'],
       xlabel: `Price (${this.converted ? this.currencyCode : 'BTC'})`,
       ylabel: 'Volume (DCR)',
-      plotter: null,
+      plotter: orderPlotter,
       axes: {
         x: {
           axisLabelFormatter: (x) => {
@@ -468,7 +526,9 @@ export default class extends Controller {
       },
       strokeWidth: 0,
       drawPoints: true,
-      logscale: true
+      logscale: true,
+      xRangePad: 15,
+      yRangePad: 15
     }
   }
 
@@ -520,7 +580,7 @@ export default class extends Controller {
   changeGraph (e) {
     var target = e.target || e.srcElement
     settings.chart = target.value
-    if (usesCandlesticks(settings.chart)){
+    if (usesCandlesticks(settings.chart)) {
       this.justifyBins()
     }
     this.setButtons()
@@ -594,8 +654,11 @@ export default class extends Controller {
   _processNightMode (data) {
     if (!this.graph) return
     chartStroke = data.nightMode ? darkStroke : lightStroke
-    if (settings.chart === history || settings.chart == volume) {
+    if (settings.chart === history || settings.chart === volume) {
       this.graph.updateOptions({ colors: [chartStroke] })
+    }
+    if (settings.chart === orders) {
+      this.graph.setAnnotations([])
     }
   }
 }

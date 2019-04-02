@@ -17,7 +17,7 @@
 
 
         {{- /* PRICE */ -}}
-        <div class="ml-4 mr-2 my-4 p-2 p-lg-4 bg-white text-center">
+        <div class="ml-3 ml-lg-4 mr-2 my-4 p-2 p-lg-4 bg-white text-center">
             <div class="text-center fs18 text-secondary">1 DCR =</div>
             {{if eq $botState.BtcIndex "USD"}}
                 <span class="fs18 font-weight-bold d-inline-block pt-1" style="vertical-align:top;">$</span>
@@ -27,7 +27,7 @@
 
 
         {{- /* DCR/BTC MARKETS */ -}}
-        <div class="ml-4 mr-2 my-4 p-2 p-lg-4 bg-white">
+        <div class="ml-3 ml-lg-4 mr-2 my-4 p-2 p-lg-4 bg-white">
             <div colspan="4" class="fs24 text-center pb-4"><span class="dcricon-coin-negative fs24 mr-2"></span> Decred Markets</div>
             <table class="mx-auto mx-lg-3">
                 <tbody>
@@ -41,10 +41,10 @@
                     {{range $token, $state := $botState.DcrBtc}}
                         <tr class="fs hover-row" data-action="click->market#setExchange" data-token="{{$token}}">
                             <td class="py-2 fs18 font-weight-bold"><div class="exchange-logo {{$token}} mr-2"></div> {{toTitleCase $token}}</td>
-                            <td class="pl-4 fs16 py-2 text-right">
+                            <td class="pl-2 fs16 py-2 text-right">
                                 {{threeSigFigs $state.Volume}}
                             </td>
-                            <td class="pl-4 fs16 py-2 text-right">
+                            <td class="pl-3 fs16 py-2 text-right">
                                 {{threeSigFigs $state.Price}}
                             </td>
                             <td class="fs16 px-2">
@@ -54,7 +54,7 @@
                                   <span class="dcricon-arrow-down text-danger"></span>
                               {{end}}
                             </td>
-                            <td class="pl-2 fs16 py-2 text-right">
+                            <td class="pl-1 fs16 py-2 text-right">
                                 {{printf "%.2f" ($botState.BtcToFiat $state.Price)}}
                             </td>
                         </tr>
@@ -65,7 +65,7 @@
 
 
         {{- /* BITCOIN INDICES */ -}}
-        <div class="ml-4 mr-2 my-4 py-4 bg-white">
+        <div class="ml-3 ml-lg-4 mr-2 my-4 py-4 bg-white">
             <div colspan="4" class="fs24 d-flex align-items-center justify-content-center pb-3"><div class="exchange-logo bitcoin mr-2"></div> <span>Bitcoin Indices</span></div>
             <div class="row">
               {{range $token, $state := $botState.FiatIndices}}
@@ -87,7 +87,8 @@
 
     {{- /* RIGHT COLUMN */ -}}
     <div class="row flex-grow-0 flex-lg-grow-1 col-24 col-lg mx-0">
-        <div class="ml-4 ml-lg-2 mr-2 mr-lg-4 mb-4 mt-1 mt-lg-4 flex-grow-1 d-flex flex-column bg-white px-2 px-lg-5 py-2 py-lg-4">
+        <div class="ml-3 ml-lg-1 mr-2 mr-lg-4 mb-4 mt-1 mt-lg-4 flex-grow-1 d-flex flex-column bg-white px-2 px-lg-5 py-2 py-lg-3 position-relative">
+        <div class="loader-v2 loading" data-target="market.chartLoader"></div>
 
 
             {{- /* CHART ONTROLS */ -}}
@@ -177,7 +178,7 @@
 
 
             {{- /* CHART */ -}}
-            <div class="flex-grow-1 pl-4 pr-2 pr-lg-4 mb-2" style="min-height: 250px;">
+            <div class="flex-grow-1 pl-4 pr-2 pr-lg-4 mb-2 market-chart-box">
               <div class="h-100 w-100 position-relative market-chart">
                 <div class="market-chart-title d-none d-sm-block">
                     <div  data-target="market.xcLogo"></div>
