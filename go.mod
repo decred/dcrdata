@@ -10,7 +10,7 @@ require (
 	github.com/decred/dcrd/dcrjson/v2 v2.0.0
 	github.com/decred/dcrd/dcrutil v1.2.1-0.20190118223730-3a5281156b73
 	github.com/decred/dcrd/rpcclient/v2 v2.0.0
-	github.com/decred/dcrd/txscript v1.0.3-0.20190328014953-d8c19637977c
+	github.com/decred/dcrd/txscript v1.0.3-0.20190402182842-879eebce3333
 	github.com/decred/dcrd/wire v1.2.0
 	github.com/decred/dcrdata/api/types v1.0.6
 	github.com/decred/dcrdata/blockdata v1.0.1
