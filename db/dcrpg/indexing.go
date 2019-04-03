@@ -239,7 +239,7 @@ func IndexTicketsTableOnHashes(db *sql.DB) (err error) {
 	return
 }
 
-func DeindexTicketsTableOnHash(db *sql.DB) (err error) {
+func DeindexTicketsTableOnHashes(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.DeindexTicketsTableOnHashes)
 	return
 }
@@ -435,7 +435,11 @@ func (pgb *ChainDB) DeindexAll() error {
 	return err
 }
 
-// IndexAll creates indexes in most tables.
+// IndexAll creates most indexes in the tables. Exceptions: (1) Use
+// IndexAddressTable to create IndexAddressTableOnVoutID and
+// IndexAddressTableOnAddress. (2) Use IndexTicketsTable to create
+// IndexTicketsTableOnHashes, IndexTicketsTableOnPoolStatus, and
+// IndexTicketsTableOnTxDbID.
 func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 	allIndexes := []indexingInfo{
 		// blocks table
@@ -475,6 +479,8 @@ func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 		{Msg: "addresses table on tx hash", IndexFunc: IndexAddressTableOnTxHash},
 		{Msg: "addresses table on matching tx hash", IndexFunc: IndexMatchingTxHashOnTableAddress},
 		{Msg: "addresses table on block time", IndexFunc: IndexBlockTimeOnTableAddress},
+
+		// See IndexTicketsTable to create the tickets table indexes.
 	}
 
 	for _, val := range allIndexes {
@@ -526,7 +532,7 @@ func (pgb *ChainDB) IndexTicketsTable(barLoad chan *dbtypes.ProgressBarLoad) err
 // ticket pool status and tx DB ID columns.
 func (pgb *ChainDB) DeindexTicketsTable() error {
 	ticketsTablesDeIndexes := []deIndexingInfo{
-		{DeindexTicketsTableOnHash},
+		{DeindexTicketsTableOnHashes},
 		{DeindexTicketsTableOnPoolStatus},
 		{DeindexTicketsTableOnTxDbID},
 	}
@@ -570,6 +576,7 @@ func (pgb *ChainDB) IndexAddressTable(barLoad chan *dbtypes.ProgressBarLoad) err
 		{Msg: "matching tx hash", IndexFunc: IndexMatchingTxHashOnTableAddress},
 		{Msg: "block time", IndexFunc: IndexBlockTimeOnTableAddress},
 		{Msg: "vout Db ID", IndexFunc: IndexAddressTableOnVoutID},
+		//{Msg: "tx hash", IndexFunc: IndexAddressTableOnTxHash},
 	}
 
 	for _, val := range addressesTableIndexes {
@@ -598,6 +605,7 @@ func (pgb *ChainDB) DeindexAddressTable() error {
 		{DeindexMatchingTxHashOnTableAddress},
 		{DeindexBlockTimeOnTableAddress},
 		{DeindexAddressTableOnVoutID},
+		//{DeindexAddressTableOnTxHash},
 	}
 
 	var err error

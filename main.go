@@ -870,8 +870,22 @@ func _main(ctx context.Context) error {
 		sqliteSyncRes := make(chan dbtypes.SyncResult)
 		pgSyncRes := make(chan dbtypes.SyncResult)
 
+		// Use either the plain rpcclient.Client or a rpcutils.BlockPrefetchClient.
+		var bf rpcutils.BlockFetcher
+		if cfg.BlockPrefetch {
+			pfc := rpcutils.NewBlockPrefetchClient(dcrdClient)
+			defer func() {
+				pfc.Stop()
+				log.Debugf("Block prefetcher hits = %d, misses = %d.",
+					pfc.Hits(), pfc.Misses())
+			}()
+			bf = pfc
+		} else {
+			bf = dcrdClient
+		}
+
 		// Synchronization between DBs via rpcutils.BlockGate
-		smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
+		smartClient := rpcutils.NewBlockGate(bf, 4)
 
 		// stakedb (in baseDB) connects blocks *after* ChainDB retrieves them,
 		// but it has to get a notification channel first to receive them. The

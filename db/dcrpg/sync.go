@@ -138,29 +138,6 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 		return -1, fmt.Errorf("GetBestBlock failed: %v", err)
 	}
 
-	// Total and rate statistics
-	var totalTxs, totalVins, totalVouts, totalAddresses int64
-	var lastTxs, lastVins, lastVouts int64
-	tickTime := 20 * time.Second
-	ticker := time.NewTicker(tickTime)
-	startTime := time.Now()
-	o := sync.Once{}
-	speedReporter := func() {
-		ticker.Stop()
-		totalElapsed := time.Since(startTime).Seconds()
-		if int64(totalElapsed) == 0 {
-			return
-		}
-		totalVoutPerSec := totalVouts / int64(totalElapsed)
-		totalTxPerSec := totalTxs / int64(totalElapsed)
-		if totalTxs == 0 {
-			return
-		}
-		log.Infof("Avg. speed: %d tx/s, %d vout/s", totalTxPerSec, totalVoutPerSec)
-	}
-	speedReport := func() { o.Do(speedReporter) }
-	defer speedReport()
-
 	lastBlock, err := db.HeightDB()
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -247,12 +224,35 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 		})
 	}
 
-	timeStart := time.Now()
+	// Total and rate statistics
+	var totalTxs, totalVins, totalVouts, totalAddresses int64
+	var lastTxs, lastVins, lastVouts int64
+	tickTime := 20 * time.Second
+	ticker := time.NewTicker(tickTime)
+	startTime := time.Now()
+	o := sync.Once{}
+	speedReporter := func() {
+		ticker.Stop()
+		totalElapsed := time.Since(startTime).Seconds()
+		if int64(totalElapsed) == 0 {
+			return
+		}
+		totalVoutPerSec := totalVouts / int64(totalElapsed)
+		totalTxPerSec := totalTxs / int64(totalElapsed)
+		if totalTxs == 0 {
+			return
+		}
+		log.Infof("Avg. speed: %d tx/s, %d vout/s", totalTxPerSec, totalVoutPerSec)
+	}
+	speedReport := func() { o.Do(speedReporter) }
+	defer speedReport()
 
-	// Start rebuilding
+	lastProgressUpdateTime := startTime
+
+	// Start syncing blocks.
 	startHeight := lastBlock + 1
 	for ib := startHeight; ib <= nodeHeight; ib++ {
-		// check for quit signal
+		// Check for quit signal.
 		select {
 		case <-ctx.Done():
 			log.Infof("Rescan cancelled at height %d.", ib)
@@ -260,6 +260,7 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 		default:
 		}
 
+		// Progress logging
 		if (ib-1)%rescanLogBlockChunk == 0 || ib == startHeight {
 			if ib == 0 {
 				log.Infof("Scanning genesis block into auxiliary chain db.")
@@ -272,7 +273,8 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 
 				if barLoad != nil {
 					// Full mode is definitely running so no need to check.
-					timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endRangeBlock-ib))
+					timeTakenPerBlock := (time.Since(lastProgressUpdateTime).Seconds() /
+						float64(endRangeBlock-ib))
 					sendProgressUpdate(&dbtypes.ProgressBarLoad{
 						From:      ib,
 						To:        nodeHeight,
@@ -280,10 +282,12 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 						Msg:       initialLoadSyncStatusMsg,
 						BarID:     dbtypes.InitialDBLoad,
 					})
-					timeStart = time.Now()
+					lastProgressUpdateTime = time.Now()
 				}
 			}
 		}
+
+		// Speed report
 		select {
 		case <-ticker.C:
 			blocksPerSec := float64(ib-lastBlock) / tickTime.Seconds()
@@ -308,7 +312,7 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 			return ib - 1, fmt.Errorf("UpdateToBlock (%d) failed: %v", ib, err)
 		}
 
-		// Wait for our StakeDatabase to connect the block
+		// Wait for our StakeDatabase to connect the block.
 		var blockHash *chainhash.Hash
 		select {
 		case blockHash = <-waitChan:
@@ -340,10 +344,10 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 			return ib - 1, fmt.Errorf("GetChainWork failed (%s): %v", blockHash, err)
 		}
 
-		// Store data from this block in the database
+		// Store data from this block in the database.
 		isValid, isMainchain := true, true
-		// updateExisting is ignored if dupCheck=false, but true since this is
-		// processing main chain blocks.
+		// updateExisting is ignored if dupCheck=false, but set it to true since
+		// SyncChainDB is processing main chain blocks.
 		updateExisting := true
 		numVins, numVouts, numAddresses, err := db.StoreBlock(block.MsgBlock(), winners, isValid,
 			isMainchain, updateExisting, !updateAllAddresses, !updateAllVotes, chainWork)
@@ -354,7 +358,7 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 		totalVouts += numVouts
 		totalAddresses += numAddresses
 
-		// Total transactions is the sum of regular and stake transactions
+		// Total transactions is the sum of regular and stake transactions.
 		totalTxs += int64(len(block.STransactions()) + len(block.Transactions()))
 
 		// Update explorer pages at intervals of 20 blocks if the update channel
@@ -366,11 +370,14 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 			}
 		}
 
-		// Update height, the end condition for the loop
+		// Update node height, the end condition for the loop.
 		if nodeHeight, err = client.NodeHeight(); err != nil {
 			return ib, fmt.Errorf("GetBestBlock failed: %v", err)
 		}
 	}
+
+	// Final speed report
+	speedReport()
 
 	// After the last call to StoreBlock, synchronously update the project fund
 	// and clear the general address balance cache.
@@ -387,8 +394,8 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 		BarID: dbtypes.InitialDBLoad,
 	})
 
-	speedReport()
-
+	// To build indexes, there must be duplicate rows in terms of the
+	// constraints defined by the unique indexes.
 	if reindexing {
 		// Duplicate transactions, vins, and vouts can end up in the tables when
 		// identical transactions are included in multiple blocks. This happens
@@ -398,11 +405,12 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 			return 0, err
 		}
 
-		// Create indexes
+		// Create all indexes.
 		if err = db.IndexAll(barLoad); err != nil {
 			return nodeHeight, fmt.Errorf("IndexAll failed: %v", err)
 		}
-		// Only reindex addresses and tickets tables here if not doing it below
+
+		// Only reindex addresses and tickets tables here if not doing it below.
 		if !updateAllAddresses {
 			err = db.IndexAddressTable(barLoad)
 		}
@@ -411,7 +419,7 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 		}
 	}
 
-	// Batch update addresses table with spending info
+	// Batch update addresses table with spending info.
 	if updateAllAddresses {
 		// Remove existing indexes not on funding txns
 		_ = db.DeindexAddressTable() // ignore errors for non-existent indexes
@@ -427,7 +435,7 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 		}
 	}
 
-	// Batch update tickets table with spending info
+	// Batch update tickets table with spending info.
 	if updateAllVotes {
 		// Remove indexes not on funding txns (remove on tickets table indexes)
 		_ = db.DeindexTicketsTable() // ignore errors for non-existent indexes

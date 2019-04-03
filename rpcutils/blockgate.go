@@ -9,7 +9,6 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/rpcclient/v2"
 )
 
 // BlockGetter is an interface for requesting blocks
@@ -37,7 +36,7 @@ type MasterBlockGetter interface {
 // BlockGate is an implementation of MasterBlockGetter with cache
 type BlockGate struct {
 	mtx           sync.RWMutex
-	client        *rpcclient.Client
+	client        BlockFetcher
 	height        int64
 	fetchToHeight int64
 	hashAtHeight  map[int64]chainhash.Hash
@@ -75,12 +74,13 @@ func heightInQueue(q heightHashQueue, height int64) bool {
 	return false
 }
 
-// Ensure BlockGate satisfies BlockGetter.
+// Ensure BlockGate satisfies BlockGetter and MasterBlockGetter.
 var _ BlockGetter = (*BlockGate)(nil)
+var _ MasterBlockGetter = (*BlockGate)(nil)
 
 // NewBlockGate constructs a new BlockGate, wrapping an RPC client, with a
 // specified block cache capacity.
-func NewBlockGate(client *rpcclient.Client, capacity int) *BlockGate {
+func NewBlockGate(client BlockFetcher, capacity int) *BlockGate {
 	return &BlockGate{
 		client:        client,
 		height:        -1,
@@ -367,6 +367,6 @@ func (g *BlockGate) GetChainWork(hash *chainhash.Hash) (string, error) {
 }
 
 // Client is just an access function to get the BlockGate's RPC client.
-func (g *BlockGate) Client() *rpcclient.Client {
+func (g *BlockGate) Client() BlockFetcher {
 	return g.client
 }
