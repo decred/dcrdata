@@ -870,10 +870,22 @@ func _main(ctx context.Context) error {
 		sqliteSyncRes := make(chan dbtypes.SyncResult)
 		pgSyncRes := make(chan dbtypes.SyncResult)
 
+		// Use either the plain rpcclient.Client or a rpcutils.BlockPrefetchClient.
+		var bf rpcutils.BlockFetcher
+		if cfg.BlockPrefetch {
+			pfc := rpcutils.NewBlockPrefetchClient(dcrdClient)
+			defer func() {
+				pfc.Stop()
+				log.Debugf("Block prefetcher hits = %d, misses = %d.",
+					pfc.Hits(), pfc.Misses())
+			}()
+			bf = pfc
+		} else {
+			bf = dcrdClient
+		}
+
 		// Synchronization between DBs via rpcutils.BlockGate
-		pf := rpcutils.NewBlockPrefetchClient(dcrdClient)
-		defer pf.Stop()
-		smartClient := rpcutils.NewBlockGate(pf, 4)
+		smartClient := rpcutils.NewBlockGate(bf, 4)
 
 		// stakedb (in baseDB) connects blocks *after* ChainDB retrieves them,
 		// but it has to get a notification channel first to receive them. The
@@ -891,10 +903,6 @@ func _main(ctx context.Context) error {
 		// db/dcrpg/sync.go.
 		go auxDB.SyncChainDBAsync(ctx, pgSyncRes, smartClient,
 			updateAddys, updateVotes, newPGInds, latestBlockHash, barLoad)
-
-		defer func() {
-			log.Debugf("Block prefetcher hits = %d, misses = %d.", pf.Hits(), pf.Misses())
-		}()
 
 		// Wait for the results from both of these DBs.
 		return waitForSync(ctx, sqliteSyncRes, pgSyncRes, usePG)
