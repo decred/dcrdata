@@ -3608,10 +3608,20 @@ func (pgb *ChainDB) storeBlockTxnTree(msgBlock *MsgBlockPG, txTree int8,
 		}
 	}
 
+	// Check the new vins, inserting spending address rows, and (if
+	// updateAddressesSpendingInfo) update matching_tx_hash in corresponding
+	// funding rows.
+	dbTx, err := pgb.db.Begin()
+	if err != nil {
+		txRes.err = fmt.Errorf(`unable to begin database transaction: %v`, err)
+		return txRes
+	}
+
 	// Insert each new AddressRow, absent MatchingTxHash (spending txn since
 	// these new address rows are *funding*).
-	_, err = InsertAddressRows(pgb.db, dbAddressRowsFlat, pgb.dupChecks, updateExistingRecords)
+	_, err = InsertAddressRowsDbTx(dbTx, dbAddressRowsFlat, pgb.dupChecks, updateExistingRecords)
 	if err != nil {
+		_ = dbTx.Rollback()
 		log.Error("InsertAddressRows:", err)
 		txRes.err = err
 		return txRes
@@ -3620,15 +3630,6 @@ func (pgb *ChainDB) storeBlockTxnTree(msgBlock *MsgBlockPG, txTree int8,
 	txRes.addresses = make(map[string]struct{})
 	for _, ad := range dbAddressRowsFlat {
 		txRes.addresses[ad.Address] = struct{}{}
-	}
-
-	// Check the new vins, inserting spending address rows, and (if
-	// updateAddressesSpendingInfo) update matching_tx_hash in corresponding
-	// funding rows.
-	dbTx, err := pgb.db.Begin()
-	if err != nil {
-		txRes.err = fmt.Errorf(`unable to begin database transaction: %v`, err)
-		return txRes
 	}
 
 	for it, tx := range dbTransactions {
@@ -3662,6 +3663,7 @@ func (pgb *ChainDB) storeBlockTxnTree(msgBlock *MsgBlockPG, txTree int8,
 				updateExistingRecords, validMainchain, vin.TxType, updateAddressesSpendingInfo,
 				tx.BlockTime)
 			if err != nil {
+				_ = dbTx.Rollback()
 				txRes.err = fmt.Errorf(`insertSpendingAddressRow: %v + %v (rollback)`,
 					err, dbTx.Rollback())
 				return txRes

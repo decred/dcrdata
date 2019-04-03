@@ -1228,20 +1228,13 @@ func InsertAddressRow(db *sql.DB, dbA *dbtypes.AddressRow, dupCheck, updateExist
 	return id, err
 }
 
-// InsertAddressRows inserts multiple transaction inputs or outputs for certain
-// addresses ([]AddressRow). The row IDs of the inserted data are returned.
-func InsertAddressRows(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck, updateExistingRecords bool) ([]uint64, error) {
-	// Begin a new transaction.
-	dbtx, err := db.Begin()
-	if err != nil {
-		return nil, fmt.Errorf("unable to begin database transaction: %v", err)
-	}
-
+// InsertAddressRowsDbTx is like InsertAddressRows, except that it takes a
+// sql.Tx. The caller is required to Commit or Rollback the transaction
+// depending on the returned error value.
+func InsertAddressRowsDbTx(dbTx *sql.Tx, dbAs []*dbtypes.AddressRow, dupCheck, updateExistingRecords bool) ([]uint64, error) {
 	// Prepare the addresses row insert statement.
-	stmt, err := dbtx.Prepare(internal.MakeAddressRowInsertStatement(dupCheck, updateExistingRecords))
+	stmt, err := dbTx.Prepare(internal.MakeAddressRowInsertStatement(dupCheck, updateExistingRecords))
 	if err != nil {
-		log.Errorf("AddressRow INSERT prepare: %v", err)
-		_ = dbtx.Rollback() // try, but we want the Prepare error back
 		return nil, err
 	}
 
@@ -1258,9 +1251,6 @@ func InsertAddressRows(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck, updateE
 				continue
 			}
 			_ = stmt.Close() // try, but we want the QueryRow error back
-			if errRoll := dbtx.Rollback(); errRoll != nil {
-				log.Errorf("Rollback failed: %v", errRoll)
-			}
 			return nil, err
 		}
 		ids = append(ids, id)
@@ -1268,6 +1258,24 @@ func InsertAddressRows(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck, updateE
 
 	// Close prepared statement. Ignore errors as we'll Commit regardless.
 	_ = stmt.Close()
+
+	return ids, nil
+}
+
+// InsertAddressRows inserts multiple transaction inputs or outputs for certain
+// addresses ([]AddressRow). The row IDs of the inserted data are returned.
+func InsertAddressRows(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck, updateExistingRecords bool) ([]uint64, error) {
+	// Begin a new transaction.
+	dbtx, err := db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("unable to begin database transaction: %v", err)
+	}
+
+	ids, err := InsertAddressRowsDbTx(dbtx, dbAs, dupCheck, updateExistingRecords)
+	if err != nil {
+		_ = dbtx.Rollback() // try, but we want the Prepare error back
+		return nil, err
+	}
 
 	return ids, dbtx.Commit()
 }
