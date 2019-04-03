@@ -1845,6 +1845,47 @@ func InsertVin(db *sql.DB, dbVin dbtypes.VinTxProperty, checked bool, updateOnCo
 	return
 }
 
+// InsertVinsStmt is like InsertVins, except that it takes a sql.Stmt. The
+// caller is required to Close the transaction.
+func InsertVinsStmt(stmt *sql.Stmt, dbVins dbtypes.VinTxPropertyARRAY, checked bool, doUpsert bool) ([]uint64, error) {
+	// TODO/Question: Should we skip inserting coinbase txns, which have same PrevTxHash?
+	ids := make([]uint64, 0, len(dbVins))
+	for _, vin := range dbVins {
+		var id uint64
+		err := stmt.QueryRow(vin.TxID, vin.TxIndex, vin.TxTree,
+			vin.PrevTxHash, vin.PrevTxIndex, vin.PrevTxTree,
+			vin.ValueIn, vin.IsValid, vin.IsMainchain, vin.Time, vin.TxType).Scan(&id)
+		if err != nil {
+			return ids, fmt.Errorf("InsertVins INSERT exec failed: %v", err)
+		}
+		ids = append(ids, id)
+	}
+
+	return ids, nil
+}
+
+// InsertVinsDbTxn is like InsertVins, except that it takes a sql.Tx. The caller
+// is required to Commit or Rollback the transaction depending on the returned
+// error value.
+func InsertVinsDbTxn(dbTx *sql.Tx, dbVins dbtypes.VinTxPropertyARRAY, checked bool, doUpsert bool) ([]uint64, error) {
+	stmt, err := dbTx.Prepare(internal.MakeVinInsertStatement(checked, doUpsert))
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO/Question: Should we skip inserting coinbase txns, which have same PrevTxHash?
+
+	ids, err := InsertVinsStmt(stmt, dbVins, checked, doUpsert)
+	errClose := stmt.Close()
+	if err != nil {
+		return nil, err
+	}
+	if errClose != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
 // InsertVins is like InsertVin, except that it operates on a slice of vin data.
 func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY, checked bool, updateOnConflict ...bool) ([]uint64, error) {
 	dbtx, err := db.Begin()
@@ -1856,33 +1897,12 @@ func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY, checked bool, upd
 	if len(updateOnConflict) > 0 {
 		doUpsert = updateOnConflict[0]
 	}
-	stmt, err := dbtx.Prepare(internal.MakeVinInsertStatement(checked, doUpsert))
+
+	ids, err := InsertVinsDbTxn(dbtx, dbVins, checked, doUpsert)
 	if err != nil {
-		log.Errorf("Vin INSERT prepare: %v", err)
 		_ = dbtx.Rollback() // try, but we want the Prepare error back
 		return nil, err
 	}
-
-	// TODO/Question: Should we skip inserting coinbase txns, which have same PrevTxHash?
-
-	ids := make([]uint64, 0, len(dbVins))
-	for _, vin := range dbVins {
-		var id uint64
-		err = stmt.QueryRow(vin.TxID, vin.TxIndex, vin.TxTree,
-			vin.PrevTxHash, vin.PrevTxIndex, vin.PrevTxTree,
-			vin.ValueIn, vin.IsValid, vin.IsMainchain, vin.Time, vin.TxType).Scan(&id)
-		if err != nil {
-			_ = stmt.Close() // try, but we want the QueryRow error back
-			if errRoll := dbtx.Rollback(); errRoll != nil {
-				log.Errorf("Rollback failed: %v", errRoll)
-			}
-			return ids, fmt.Errorf("InsertVins INSERT exec failed: %v", err)
-		}
-		ids = append(ids, id)
-	}
-
-	// Close prepared statement. Ignore errors as we'll Commit regardless.
-	_ = stmt.Close()
 
 	return ids, dbtx.Commit()
 }
@@ -1911,31 +1931,14 @@ func InsertVout(db *sql.DB, dbVout *dbtypes.Vout, checked bool, updateOnConflict
 	return id, err
 }
 
-// InsertVouts is like InsertVout, except that it operates on a slice of vout
-// data.
-func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool, updateOnConflict ...bool) ([]uint64, []dbtypes.AddressRow, error) {
-	// All inserts in atomic DB transaction
-	dbtx, err := db.Begin()
-	if err != nil {
-		return nil, nil, fmt.Errorf("unable to begin database transaction: %v", err)
-	}
-
-	doUpsert := true
-	if len(updateOnConflict) > 0 {
-		doUpsert = updateOnConflict[0]
-	}
-	stmt, err := dbtx.Prepare(internal.MakeVoutInsertStatement(checked, doUpsert))
-	if err != nil {
-		log.Errorf("Vout INSERT prepare: %v", err)
-		_ = dbtx.Rollback() // try, but we want the Prepare error back
-		return nil, nil, err
-	}
-
+// InsertVoutsStmt is like InsertVouts, except that it takes a sql.Stmt. The
+// caller is required to Close the statement.
+func InsertVoutsStmt(stmt *sql.Stmt, dbVouts []*dbtypes.Vout, checked bool, doUpsert bool) ([]uint64, []dbtypes.AddressRow, error) {
 	addressRows := make([]dbtypes.AddressRow, 0, len(dbVouts)) // may grow with multisig
 	ids := make([]uint64, 0, len(dbVouts))
 	for _, vout := range dbVouts {
 		var id uint64
-		err = stmt.QueryRow(
+		err := stmt.QueryRow(
 			vout.TxHash, vout.TxIndex, vout.TxTree, vout.Value, vout.Version,
 			vout.ScriptPubKey, vout.ScriptPubKeyData.ReqSigs,
 			vout.ScriptPubKeyData.Type,
@@ -1943,10 +1946,6 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool, updateOnConf
 		if err != nil {
 			if err == sql.ErrNoRows {
 				continue
-			}
-			_ = stmt.Close() // try, but we want the QueryRow error back
-			if errRoll := dbtx.Rollback(); errRoll != nil {
-				log.Errorf("Rollback failed: %v", errRoll)
 			}
 			return nil, nil, err
 		}
@@ -1965,10 +1964,51 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool, updateOnConf
 		ids = append(ids, id)
 	}
 
-	// Close prepared statement. Ignore errors as we'll Commit regardless.
-	_ = stmt.Close()
+	return ids, addressRows, nil
+}
 
-	return ids, addressRows, dbtx.Commit()
+// InsertVoutsDbTxn is like InsertVouts, except that it takes a sql.Tx. The
+// caller is required to Commit or Rollback the transaction depending on the
+// returned error value.
+func InsertVoutsDbTxn(dbTx *sql.Tx, dbVouts []*dbtypes.Vout, checked bool, doUpsert bool) ([]uint64, []dbtypes.AddressRow, error) {
+	stmt, err := dbTx.Prepare(internal.MakeVoutInsertStatement(checked, doUpsert))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ids, addressRows, err := InsertVoutsStmt(stmt, dbVouts, checked, doUpsert)
+	errClose := stmt.Close()
+	if err != nil {
+		return nil, nil, err
+	}
+	if errClose != nil {
+		return nil, nil, err
+	}
+
+	return ids, addressRows, stmt.Close()
+}
+
+// InsertVouts is like InsertVout, except that it operates on a slice of vout
+// data.
+func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool, updateOnConflict ...bool) ([]uint64, []dbtypes.AddressRow, error) {
+	// All inserts in atomic DB transaction
+	dbTx, err := db.Begin()
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to begin database transaction: %v", err)
+	}
+
+	doUpsert := true
+	if len(updateOnConflict) > 0 {
+		doUpsert = updateOnConflict[0]
+	}
+
+	ids, addressRows, err := InsertVoutsDbTxn(dbTx, dbVouts, checked, doUpsert)
+	if err != nil {
+		_ = dbTx.Rollback() // try, but we want the Prepare error back
+		return nil, nil, err
+	}
+
+	return ids, addressRows, dbTx.Commit()
 }
 
 func RetrievePkScriptByVinID(ctx context.Context, db *sql.DB, vinID uint64) (pkScript []byte, ver uint16, err error) {
@@ -2603,6 +2643,46 @@ func InsertTx(db *sql.DB, dbTx *dbtypes.Tx, checked, updateExistingRecords bool)
 		dbTx.NumVout, dbtypes.UInt64Array(dbTx.VoutDbIds),
 		dbTx.IsValidBlock, dbTx.IsMainchainBlock).Scan(&id)
 	return id, err
+}
+
+func InsertTxnsStmt(stmt *sql.Stmt, dbTxns []*dbtypes.Tx, checked, updateExistingRecords bool) ([]uint64, error) {
+	ids := make([]uint64, 0, len(dbTxns))
+	for _, tx := range dbTxns {
+		var id uint64
+		err := stmt.QueryRow(
+			tx.BlockHash, tx.BlockHeight, tx.BlockTime, tx.Time,
+			tx.TxType, tx.Version, tx.Tree, tx.TxID, tx.BlockIndex,
+			tx.Locktime, tx.Expiry, tx.Size, tx.Spent, tx.Sent, tx.Fees,
+			tx.NumVin, dbtypes.UInt64Array(tx.VinDbIds),
+			tx.NumVout, dbtypes.UInt64Array(tx.VoutDbIds), tx.IsValidBlock,
+			tx.IsMainchainBlock).Scan(&id)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				continue
+			}
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
+func InsertTxnsDbTxn(dbTx *sql.Tx, dbTxns []*dbtypes.Tx, checked, updateExistingRecords bool) ([]uint64, error) {
+	stmt, err := dbTx.Prepare(internal.MakeTxInsertStatement(checked, updateExistingRecords))
+	if err != nil {
+		return nil, err
+	}
+
+	ids, err := InsertTxnsStmt(stmt, dbTxns, checked, updateExistingRecords)
+	// Try to close the statement even if the inserts failed.
+	errClose := stmt.Close()
+	if err != nil {
+		return nil, err
+	}
+	if errClose != nil {
+		return nil, err
+	}
+	return ids, nil
 }
 
 func InsertTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked, updateExistingRecords bool) ([]uint64, error) {
