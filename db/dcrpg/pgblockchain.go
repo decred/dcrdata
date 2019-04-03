@@ -3373,6 +3373,18 @@ func (pgb *ChainDB) storeBlockTxnTree(msgBlock *MsgBlockPG, txTree int8,
 		txDbIDs:  txDbIDs,
 	}
 
+	// Flatten the address rows into a single slice, and update the utxoCache.
+	var dbAddressRowsFlat []*dbtypes.AddressRow
+	var wg sync.WaitGroup
+	processAddressRows := func() {
+		dbAddressRowsFlat = pgb.flattenAddressRows(dbAddressRows, dbTransactions,
+			isMainchain && isValid)
+		wg.Done()
+	}
+	// Do this in parallel with stake tree tree data insertion.
+	wg.Add(1)
+	go processAddressRows()
+
 	// For a side chain block, set Validators to an empty slice so that there
 	// will be no misses even if there are less than 5 votes. Any Validators
 	// that do not match a spent ticket hash in InsertVotes are considered
@@ -3544,69 +3556,7 @@ func (pgb *ChainDB) storeBlockTxnTree(msgBlock *MsgBlockPG, txTree int8,
 		} // updateTicketsSpendingInfo
 	} // txTree == wire.TxTreeStake
 
-	// Store txn block time and mainchain validity status in AddressRows, and
-	// set IsFunding to true since InsertVouts is supplying the AddressRows.
-	dbAddressRowsFlat := make([]*dbtypes.AddressRow, 0, totalAddressRows)
-	for it, tx := range dbTransactions {
-		// A UTXO may have multiple addresses associated with it, so check each
-		// addresses table row for multiple entries for the same output of this
-		// txn. This can only happen if the output's pkScript is a P2PK or P2PKH
-		// multisignature script. This does not refer to P2SH, where a single
-		// address corresponds to the redeem script hash even though the script
-		// may be a multi-signature script.
-		utxos := make([]*dbtypes.UTXO, tx.NumVout)
-		for iv := range dbAddressRows[it] {
-			// Transaction that pays to the address
-			dba := &dbAddressRows[it][iv]
-
-			// Do not store zero-value output data.
-			if dba.Value == 0 {
-				continue
-			}
-
-			// Set addresses row fields not set by InsertVouts: TxBlockTime,
-			// IsFunding, ValidMainChain, and MatchingTxHash. Only
-			// MatchingTxHash goes unset initially, later set by
-			// insertAddrSpendingTxUpdateMatchedFunding (called by
-			// SetSpendingForFundingOP below, and other places).
-			dba.TxBlockTime = tx.BlockTime
-			dba.IsFunding = true // from vouts
-			dba.ValidMainChain = isMainchain && isValid
-
-			// Funding tx hash, vout id, value, and address are already assigned
-			// by InsertVouts. Only the block time and is_funding was needed.
-			dbAddressRowsFlat = append(dbAddressRowsFlat, dba)
-
-			// See if this output has already been assigned to a UTXO.
-			utxo := utxos[dba.TxVinVoutIndex]
-			if utxo == nil {
-				// New UTXO. Initialize with this address.
-				utxos[dba.TxVinVoutIndex] = &dbtypes.UTXO{
-					TxHash:  tx.TxID,
-					TxIndex: dba.TxVinVoutIndex,
-					UTXOData: dbtypes.UTXOData{
-						Addresses: []string{dba.Address},
-						Value:     int64(dba.Value),
-					},
-				}
-				continue
-			}
-
-			// Existing UTXO. Append address for this likely-bare multisig output.
-			utxo.UTXOData.Addresses = append(utxo.UTXOData.Addresses, dba.Address)
-			log.Infof(" ============== BARE MULTISIG: %s:%d ============== ",
-				dba.TxHash, dba.TxVinVoutIndex)
-		}
-
-		// Store each output of this transaction in the UTXO cache.
-		for _, utxo := range utxos {
-			// Skip any that were not set (e.g. zero-value, no address, etc.).
-			if utxo == nil {
-				continue
-			}
-			pgb.utxoCache.Set(utxo.TxHash, utxo.TxIndex, utxo.Addresses, utxo.Value)
-		}
-	}
+	wg.Wait()
 
 	// Check the new vins, inserting spending address rows, and (if
 	// updateAddressesSpendingInfo) update matching_tx_hash in corresponding
@@ -3677,6 +3627,77 @@ func (pgb *ChainDB) storeBlockTxnTree(msgBlock *MsgBlockPG, txTree int8,
 	return txRes
 }
 
+func (pgb *ChainDB) flattenAddressRows(dbAddressRows [][]dbtypes.AddressRow, txns []*dbtypes.Tx, validMainchain bool) []*dbtypes.AddressRow {
+	var totalAddressRows int
+	for it := range dbAddressRows {
+		totalAddressRows += len(dbAddressRows[it])
+	}
+	// Store txn block time and mainchain validity status in AddressRows, and
+	// set IsFunding to true since InsertVouts is supplying the AddressRows.
+	dbAddressRowsFlat := make([]*dbtypes.AddressRow, 0, totalAddressRows)
+	for it, tx := range txns {
+		// A UTXO may have multiple addresses associated with it, so check each
+		// addresses table row for multiple entries for the same output of this
+		// txn. This can only happen if the output's pkScript is a P2PK or P2PKH
+		// multisignature script. This does not refer to P2SH, where a single
+		// address corresponds to the redeem script hash even though the script
+		// may be a multi-signature script.
+		utxos := make([]*dbtypes.UTXO, tx.NumVout)
+		for iv := range dbAddressRows[it] {
+			// Transaction that pays to the address
+			dba := &dbAddressRows[it][iv]
+
+			// Do not store zero-value output data.
+			if dba.Value == 0 {
+				continue
+			}
+
+			// Set addresses row fields not set by InsertVouts: TxBlockTime,
+			// IsFunding, ValidMainChain, and MatchingTxHash. Only
+			// MatchingTxHash goes unset initially, later set by
+			// insertAddrSpendingTxUpdateMatchedFunding (called by
+			// SetSpendingForFundingOP below, and other places).
+			dba.TxBlockTime = tx.BlockTime
+			dba.IsFunding = true // from vouts
+			dba.ValidMainChain = validMainchain
+
+			// Funding tx hash, vout id, value, and address are already assigned
+			// by InsertVouts. Only the block time and is_funding was needed.
+			dbAddressRowsFlat = append(dbAddressRowsFlat, dba)
+
+			// See if this output has already been assigned to a UTXO.
+			utxo := utxos[dba.TxVinVoutIndex]
+			if utxo == nil {
+				// New UTXO. Initialize with this address.
+				utxos[dba.TxVinVoutIndex] = &dbtypes.UTXO{
+					TxHash:  tx.TxID,
+					TxIndex: dba.TxVinVoutIndex,
+					UTXOData: dbtypes.UTXOData{
+						Addresses: []string{dba.Address},
+						Value:     int64(dba.Value),
+					},
+				}
+				continue
+			}
+
+			// Existing UTXO. Append address for this likely-bare multisig output.
+			utxo.UTXOData.Addresses = append(utxo.UTXOData.Addresses, dba.Address)
+			log.Infof(" ============== BARE MULTISIG: %s:%d ============== ",
+				dba.TxHash, dba.TxVinVoutIndex)
+		}
+
+		// Store each output of this transaction in the UTXO cache.
+		for _, utxo := range utxos {
+			// Skip any that were not set (e.g. zero-value, no address, etc.).
+			if utxo == nil {
+				continue
+			}
+			pgb.utxoCache.Set(utxo.TxHash, utxo.TxIndex, utxo.Addresses, utxo.Value)
+		}
+	}
+	return dbAddressRowsFlat
+}
+
 // CollectTicketSpendDBInfo processes the stake transactions in msgBlock, which
 // correspond to the transaction data in dbTxns, and extracts data for votes and
 // revokes, including the spent ticket hash and DB row ID.
@@ -3693,13 +3714,6 @@ func (pgb *ChainDB) CollectTicketSpendDBInfo(dbTxns []*dbtypes.Tx, txDbIDs []uin
 	}
 
 	for i, tx := range dbTxns {
-		// Ensure the transaction slices correspond.
-		msgTx := msgTxns[i]
-		if tx.TxID != msgTx.TxHash().String() {
-			err = fmt.Errorf("txid of dbtypes.Tx does not match that of msgTx")
-			return
-		}
-
 		// Filter for votes and revokes only.
 		var stakeSubmissionVinInd int
 		var spendType dbtypes.TicketSpendType
@@ -3711,6 +3725,13 @@ func (pgb *ChainDB) CollectTicketSpendDBInfo(dbTxns []*dbtypes.Tx, txDbIDs []uin
 			spendType = dbtypes.TicketRevoked
 		default:
 			continue
+		}
+
+		// Ensure the transaction slices correspond.
+		msgTx := msgTxns[i]
+		if tx.TxID != msgTx.TxHash().String() {
+			err = fmt.Errorf("txid of dbtypes.Tx does not match that of msgTx")
+			return
 		}
 
 		if stakeSubmissionVinInd >= len(msgTx.TxIn) {
