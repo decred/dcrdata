@@ -72,8 +72,8 @@ func NewBlockPrefetchClient(f BlockFetcher) *BlockPrefetchClient {
 	return p
 }
 
-// Stop shutsdown the fetcher goroutine. The BlockPrefetchClient may not be used
-// after this.
+// Stop shuts down the fetcher goroutine. The BlockPrefetchClient may not be
+// used after this.
 func (p *BlockPrefetchClient) Stop() {
 	p.Lock()
 	close(p.retargetChan)
@@ -87,7 +87,7 @@ func (p *BlockPrefetchClient) Hits() uint64 {
 	return p.hits
 }
 
-// Hits safely returns the number of prefetch misses.
+// Misses safely returns the number of prefetch misses.
 func (p *BlockPrefetchClient) Misses() uint64 {
 	p.Lock()
 	defer p.Unlock()
@@ -147,16 +147,16 @@ func (p *BlockPrefetchClient) GetBlockData(hash *chainhash.Hash) (*wire.MsgBlock
 	return msgBlock, headerResult, err
 }
 
-// GetBlock retrieve the wire.MsgBlock for the block with the specified hash.
+// GetBlock retrieves the wire.MsgBlock for the block with the specified hash.
 // See GetBlockData for details on how this interacts with the prefetcher.
 func (p *BlockPrefetchClient) GetBlock(hash *chainhash.Hash) (*wire.MsgBlock, error) {
 	msgBlock, _, err := p.GetBlockData(hash)
 	return msgBlock, err
 }
 
-// GetBlock retrieve the dcrjson.GetBlockHeaderVerboseResult for the block with
-// the specified hash. See GetBlockData for details on how this interacts with
-// the prefetcher
+// GetBlockHeaderVerbose retrieves the dcrjson.GetBlockHeaderVerboseResult for
+// the block with the specified hash. See GetBlockData for details on how this
+// interacts with the prefetcher
 func (p *BlockPrefetchClient) GetBlockHeaderVerbose(hash *chainhash.Hash) (*dcrjson.GetBlockHeaderVerboseResult, error) {
 	_, headerResult, err := p.GetBlockData(hash)
 	return headerResult, err
