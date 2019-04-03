@@ -30,7 +30,7 @@ import (
 	humanize "github.com/dustin/go-humanize"
 )
 
-// Information from the request cookies.
+// Cookies contains information from the request cookies.
 type Cookies struct {
 	DarkMode bool
 }
@@ -2052,10 +2052,11 @@ func (exp *explorerUI) commonData(r *http.Request) *CommonPageData {
 	tip, err := exp.blockData.GetTip()
 	if err != nil {
 		log.Errorf("Failed to get the chain tip from the database.: %v", err)
+		return nil
 	}
-	darkMode, ckErr := r.Cookie("dcrdataDarkBG")
+	darkMode, err := r.Cookie("dcrdataDarkBG")
 	if err != nil && err != http.ErrNoCookie {
-		log.Errorf("Cookie dcrdataDarkBG retrieval error: %v", ckErr)
+		log.Errorf("Cookie dcrdataDarkBG retrieval error: %v", err)
 	}
 	return &CommonPageData{
 		Tip:           tip,
