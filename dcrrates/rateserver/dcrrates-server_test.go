@@ -4,6 +4,8 @@
 package main
 
 import (
+	"flag"
+	"os"
 	"testing"
 
 	"github.com/decred/dcrdata/dcrrates"
@@ -53,6 +55,11 @@ func (w certWriterStub) WriteCertificate(certPath string, cert []byte) error {
 // TestDefaultAltDNSNames ensures that there are no additional hostnames added
 // by default during the configuration load phase.
 func TestDefaultAltDNSNames(t *testing.T) {
+	// Parse the -test.* flags before removing them from the command line
+	// arguments list, which we do to allow go-flags to succeed.
+	flag.Parse()
+	os.Args = os.Args[:1]
+
 	cfg, err := loadConfig()
 	if err != nil {
 		t.Fatalf("Failed to load dcrd config: %s", err)
