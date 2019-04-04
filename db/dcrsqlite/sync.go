@@ -317,8 +317,14 @@ func (db *WiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGette
 		}
 
 		// Ensure the blockGetter gave us the correct block.
+		if !blockhash.IsEqual(block.Hash()) {
+			panic(fmt.Sprintf("about to connect the wrong block: wanted %s, got %s",
+				blockhash.String(), block.Hash().String()))
+		}
+
 		if i != block.Height() {
-			panic(fmt.Sprintf("about to connect the wrong block: wanted %d, got %d", i, block.Height()))
+			panic(fmt.Sprintf("about to connect the wrong block: wanted %d, got %d (%s)",
+				i, block.Height(), block.Hash().String()))
 		}
 
 		// Advance stakedb height, which should always be less than or equal to
