@@ -2053,7 +2053,7 @@ func (exp *explorerUI) MarketPage(w http.ResponseWriter, r *http.Request) {
 		StickMarkets map[string]string
 		XcState      *exchanges.ExchangeBotState
 	}{
-		CommonPageData: exp.commonData(),
+		CommonPageData: exp.commonData(r),
 		XcState:        exp.getExchangeState(),
 	})
 

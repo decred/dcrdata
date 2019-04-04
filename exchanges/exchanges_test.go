@@ -85,7 +85,7 @@ out:
 		}
 	}
 
-	if !bot.IsFailed() {
+	if bot.IsFailed() {
 		log.Infof("ExchangeBot is in failed state")
 	}
 
