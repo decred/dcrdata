@@ -103,7 +103,7 @@ out:
 	}
 
 	log.Infof("%d Bitcoin indices available", len(bot.AvailableIndices()))
-	log.Infof("final state is %d kB", len(bot.StateBytes())/1024)
+	log.Infof("final state is %d kiB", len(bot.StateBytes())/1024)
 
 	shutdown()
 	wg.Wait()

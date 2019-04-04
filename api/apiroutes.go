@@ -242,12 +242,13 @@ func writeJSON(w http.ResponseWriter, thing interface{}, indent string) {
 	}
 }
 
-// writeJSONBytes prepares the headers for pre-encoded JSON.
+// writeJSONBytes prepares the headers for pre-encoded JSON and writes the JSON
+// bytes.
 func writeJSONBytes(w http.ResponseWriter, data []byte) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_, err := w.Write(data)
 	if err != nil {
-		apiLog.Infof("ResponseWriter.Write error: %v", err)
+		apiLog.Warnf("ResponseWriter.Write error: %v", err)
 	}
 }
 
@@ -1605,7 +1606,7 @@ func (c *appContext) getCandlestickChart(w http.ResponseWriter, r *http.Request)
 
 	chart, err := c.xcBot.QuickSticks(token, bin)
 	if err != nil {
-		apiLog.Infof("QuickSticks error: %v")
+		apiLog.Infof("QuickSticks error: %v", err)
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return
 	}
@@ -1626,7 +1627,7 @@ func (c *appContext) getDepthChart(w http.ResponseWriter, r *http.Request) {
 
 	chart, err := c.xcBot.QuickDepth(token)
 	if err != nil {
-		apiLog.Infof("QuickDepth error: %v")
+		apiLog.Infof("QuickDepth error: %v", err)
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return
 	}

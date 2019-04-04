@@ -53,7 +53,7 @@ type GRPCStream interface {
 // subscription is received.
 func sendStateList(client RateClient, states map[string]*exchanges.ExchangeState) (err error) {
 	for token, state := range states {
-		err = client.SendExchangeUpdate(makeExchangeUpdate(&exchanges.ExchangeUpdate{
+		err = client.SendExchangeUpdate(makeExchangeRateUpdate(&exchanges.ExchangeUpdate{
 			Token: token,
 			State: state,
 		}))
@@ -155,7 +155,7 @@ func NewRateClient(stream GRPCStream, exchanges []string) RateClient {
 }
 
 // Translate from the ExchangeBot's type to the gRPC type.
-func makeExchangeUpdate(update *exchanges.ExchangeUpdate) *dcrrates.ExchangeRateUpdate {
+func makeExchangeRateUpdate(update *exchanges.ExchangeUpdate) *dcrrates.ExchangeRateUpdate {
 	state := update.State
 	protoUpdate := &dcrrates.ExchangeRateUpdate{
 		Token:      update.Token,

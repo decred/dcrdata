@@ -99,15 +99,13 @@ func main() {
 	sendUpdate := func(update *dcrrates.ExchangeRateUpdate) {
 		rateServer.clientLock.RLock()
 		for _, client := range rateServer.clients {
-			err = client.SendExchangeUpdate(update)
+			err := client.SendExchangeUpdate(update)
 			if err != nil {
-				log.Warnf("send error: %v")
+				log.Warnf("send error: %v", err)
 			}
 		}
 		rateServer.clientLock.RUnlock()
 	}
-
-	var grpcUpdate *dcrrates.ExchangeRateUpdate
 
 	// Start the main loop in a goroutine, shutting down the grpcServer when done.
 	go func() {
@@ -118,15 +116,13 @@ func main() {
 				break out
 			case update := <-xcSignals.Exchange:
 				printUpdate(update.Token)
-				grpcUpdate = makeExchangeUpdate(update)
-				sendUpdate(grpcUpdate)
+				sendUpdate(makeExchangeRateUpdate(update))
 			case update := <-xcSignals.Index:
 				printUpdate(update.Token)
-				grpcUpdate = &dcrrates.ExchangeRateUpdate{
+				sendUpdate(&dcrrates.ExchangeRateUpdate{
 					Token:   update.Token,
 					Indices: update.Indices,
-				}
-				sendUpdate(grpcUpdate)
+				})
 			case <-xcSignals.Quit:
 				log.Infof("ExchangeBot Quit signal received.")
 				break out
@@ -134,9 +130,8 @@ func main() {
 		}
 		shutdown()
 		grpcServer.Stop()
-		wg.Wait()
 	}()
 
 	grpcServer.Serve(listener)
-
+	wg.Wait()
 }

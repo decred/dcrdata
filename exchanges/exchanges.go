@@ -250,33 +250,21 @@ func (state *ExchangeState) copy() *ExchangeState {
 	return newState
 }
 
-// Create a new exchange state that projects the fields from `top` over a copy
-// of the receiver.
-func (state *ExchangeState) project(top *ExchangeState) *ExchangeState {
-	// Starting with a copy of top since the value fields must be copied from
-	// the top anyway.
-	bottom := top.copy()
-
-	// Start with the current set of candlesticks, and overwrite with any new
-	// entries.
-	var sticks map[candlestickKey]Candlesticks
-	if state != nil {
-		sticks = state.Candlesticks
+// Grab any candlesticks from the top that are not in the receiver. Candlesticks
+// are historical data, so never need to be discarded.
+func (state *ExchangeState) stealSticks(top *ExchangeState) {
+	if len(top.Candlesticks) == 0 {
+		return
 	}
-	if sticks == nil && top.Candlesticks != nil {
-		sticks = make(map[candlestickKey]Candlesticks)
+	if state.Candlesticks == nil {
+		state.Candlesticks = make(map[candlestickKey]Candlesticks)
 	}
-	for bin, newSticks := range top.Candlesticks {
-		sticks[bin] = newSticks
+	for bin := range top.Candlesticks {
+		_, have := state.Candlesticks[bin]
+		if !have {
+			state.Candlesticks[bin] = top.Candlesticks[bin]
+		}
 	}
-	bottom.Candlesticks = sticks
-
-	// Careful not to overwrite with nil unless data is expired.
-	if bottom.Depth == nil && state.Depth != nil && state.Depth.IsFresh() {
-		bottom.Depth = state.Depth
-	}
-
-	return bottom
 }
 
 // Parse an ExchangeState from a protocol buffer message.
@@ -454,7 +442,8 @@ func (xc *CommonExchange) Update(state *ExchangeState) {
 	xc.mtx.Lock()
 	defer xc.mtx.Unlock()
 	xc.lastUpdate = time.Now()
-	xc.currentState = xc.currentState.project(state)
+	state.stealSticks(xc.currentState)
+	xc.currentState = state
 	xc.channels.exchange <- &ExchangeUpdate{
 		Token: xc.token,
 		State: state,

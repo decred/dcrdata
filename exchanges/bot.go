@@ -132,7 +132,8 @@ type tokenedExchange struct {
 	State *ExchangeState
 }
 
-// VolumeOrderedExchanges returned a list of tokenedExchange sorted by volume.
+// VolumeOrderedExchanges returns a list of tokenedExchange sorted by volume,
+// highest volume first.
 func (state *ExchangeBotState) VolumeOrderedExchanges() []*tokenedExchange {
 	xcList := make([]*tokenedExchange, 0, len(state.DcrBtc))
 	for token, state := range state.DcrBtc {
@@ -172,11 +173,11 @@ type UpdateChannels struct {
 
 // NewUpdateChannels creates a new initialized set of UpdateChannels.
 func NewUpdateChannels() *UpdateChannels {
-	channels := new(UpdateChannels)
-	channels.Exchange = make(chan *ExchangeUpdate, 16)
-	channels.Index = make(chan *IndexUpdate, 16)
-	channels.Quit = make(chan struct{})
-	return channels
+	return &UpdateChannels{
+		Exchange: make(chan *ExchangeUpdate, 16),
+		Index:    make(chan *IndexUpdate, 16),
+		Quit:     make(chan struct{}),
+	}
 }
 
 // The chart data structures that are encoded and cached are the
@@ -504,6 +505,7 @@ func (bot *ExchangeBot) signalExchangeUpdate(update *ExchangeUpdate) {
 		select {
 		case ch <- update:
 		default:
+			log.Warnf("Failed to write update to exchange update channel")
 		}
 	}
 }
@@ -671,7 +673,7 @@ func (bot *ExchangeBot) updateExchange(update *ExchangeUpdate) error {
 	if update.State.Depth != nil {
 		bot.incrementChart(genCacheID(update.Token, "depth"))
 	}
-	bot.currentState.DcrBtc[update.Token] = bot.currentState.DcrBtc[update.Token].project(update.State)
+	bot.currentState.DcrBtc[update.Token] = update.State
 	return bot.updateState()
 }
 
@@ -808,12 +810,10 @@ func (bot *ExchangeBot) fetchFromCache(chartID string) (data []byte, bestVersion
 	defer bot.mtx.RUnlock()
 	bestVersion = bot.cachedChartVersion(chartID)
 	cache, found := bot.versionedCharts[chartID]
-	if found {
-		if cache.dataID == bestVersion {
-			return cache.chart, bestVersion, true
-		}
+	if found && cache.dataID == bestVersion {
+		return cache.chart, bestVersion, true
 	}
-	return data, bestVersion, false
+	return
 }
 
 // QuickSticks returns the up-to-date candlestick data for the specified
@@ -832,18 +832,18 @@ func (bot *ExchangeBot) QuickSticks(token string, rawBin string) ([]byte, error)
 	defer bot.mtx.Unlock()
 	state, found := bot.currentState.DcrBtc[token]
 	if !found {
-		return []byte{}, fmt.Errorf("Failed to find DCR exchange state for %s", token)
+		return nil, fmt.Errorf("Failed to find DCR exchange state for %s", token)
 	}
 	if state.Candlesticks == nil {
-		return []byte{}, fmt.Errorf("Failed to find candlesticks for %s", token)
+		return nil, fmt.Errorf("Failed to find candlesticks for %s", token)
 	}
 
 	sticks, found := state.Candlesticks[bin]
 	if !found {
-		return []byte{}, fmt.Errorf("Failed to find candlesticks for %s and bin %s", token, rawBin)
+		return nil, fmt.Errorf("Failed to find candlesticks for %s and bin %s", token, rawBin)
 	}
 	if len(sticks) == 0 {
-		return []byte{}, fmt.Errorf("Empty candlesticks for %s and bin %s", token, rawBin)
+		return nil, fmt.Errorf("Empty candlesticks for %s and bin %s", token, rawBin)
 	}
 
 	expiration := sticks[len(sticks)-1].Start.Add(2 * bin.duration())
@@ -855,7 +855,7 @@ func (bot *ExchangeBot) QuickSticks(token string, rawBin string) ([]byte, error)
 		Expiration: expiration,
 	})
 	if err != nil {
-		return []byte{}, fmt.Errorf("JSON encode error for %s and bin %s", token, rawBin)
+		return nil, fmt.Errorf("JSON encode error for %s and bin %s", token, rawBin)
 	}
 
 	vChart := &versionedChart{
