@@ -316,6 +316,17 @@ func (db *WiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGette
 			db.waitChan = blockGetter.WaitForHeight(i + 1)
 		}
 
+		// Ensure the blockGetter gave us the correct block.
+		if !blockhash.IsEqual(block.Hash()) {
+			panic(fmt.Sprintf("about to connect the wrong block: wanted %s, got %s",
+				blockhash.String(), block.Hash().String()))
+		}
+
+		if i != block.Height() {
+			panic(fmt.Sprintf("about to connect the wrong block: wanted %d, got %d (%s)",
+				i, block.Height(), block.Hash().String()))
+		}
+
 		// Advance stakedb height, which should always be less than or equal to
 		// SQLite height, except when SQLite is empty since stakedb always has
 		// genesis, as enforced by the rewinding code in this function.

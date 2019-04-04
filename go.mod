@@ -4,9 +4,9 @@ require (
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb
 	github.com/decred/dcrd/blockchain v1.1.1
-	github.com/decred/dcrd/chaincfg v1.3.0
+	github.com/decred/dcrd/chaincfg v1.4.0
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.1
-	github.com/decred/dcrd/dcrec v0.0.0-20190130161649-59ed4247a1d5
+	github.com/decred/dcrd/dcrec v0.0.0-20190402182842-879eebce3333
 	github.com/decred/dcrd/dcrjson/v2 v2.0.0
 	github.com/decred/dcrd/dcrutil v1.2.1-0.20190118223730-3a5281156b73
 	github.com/decred/dcrd/rpcclient/v2 v2.0.0
@@ -14,7 +14,7 @@ require (
 	github.com/decred/dcrd/wire v1.2.0
 	github.com/decred/dcrdata/api/types v1.0.6
 	github.com/decred/dcrdata/blockdata v1.0.1
-	github.com/decred/dcrdata/db/dbtypes v1.0.1
+	github.com/decred/dcrdata/db/dbtypes v1.0.2-0.20190404134533-26b1a4335e4a
 	github.com/decred/dcrdata/db/dcrpg v1.0.0
 	github.com/decred/dcrdata/db/dcrsqlite v1.0.0
 	github.com/decred/dcrdata/exchanges v1.0.0
@@ -43,7 +43,7 @@ require (
 	github.com/rs/cors v1.6.0
 	github.com/shiena/ansicolor v0.0.0-20151119151921-a422bbe96644
 	github.com/sirupsen/logrus v1.2.0
-	golang.org/x/net v0.0.0-20190326090315-15845e8f865b
+	golang.org/x/net v0.0.0-20190403144856-b630fd6fe46b
 )
 
 replace (
