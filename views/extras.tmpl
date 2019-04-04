@@ -19,7 +19,7 @@
         <link rel="apple-touch-icon" sizes="144x144" href="/images/favicon/apple-touch-icon-144x144.png?v=yHh3NA">
         <link rel="apple-touch-icon" sizes="152x152" href="/images/favicon/apple-touch-icon-152x152.png?v=yHh3NA">
         <link rel="apple-touch-icon" sizes="180x180" href="/images/favicon/apple-touch-icon-180x180.png?v=yHh3NA">
-        
+
         <!-- Browser -->
         <link rel="icon" href="/images/favicon/favicon.ico?v=yHh3NA">
         <link rel="icon" href="/images/favicon/favicon-32x32.png?v=yHh3NA" type="image/png" sizes="32x32">
@@ -27,7 +27,7 @@
 
         <!-- Android PWA -->
         <link rel="manifest" href="/images/favicon/manifest.json?v=yHh3NA">
-        
+
         <!-- Safari -->
         <link rel="mask-icon" href="/images/favicon/safari-pinned-tab.svg?v=yHh3NA" color="#091440">
 
@@ -45,6 +45,7 @@
 {{end}}
 
 {{define "navbar"}}
+<body class="{{ theme }}{{if .Cookies.DarkMode}} darkBG{{end}}">
 <header class="top-nav"
         id="navBar"
         data-blocktime="{{.BlockTimeUnix}}">

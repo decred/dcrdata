@@ -3,9 +3,8 @@
 <html lang="en">
 
 {{template "html-head" "Decred Windows List"}}
-<body class="{{ theme }}" data-controller="pagenavigation">
     {{template "navbar" . }}
-    <div class="container main">
+    <div data-controller="pagenavigation" class="container main">
         <h4>Ticket Price Windows</h4><h6>The ticket price and mining difficulty are adjusted every {{$.WindowSize}} blocks on {{toLowerCase .NetName}} (~12 hours).</h6>
 
         {{block "windowsPagination" .}}

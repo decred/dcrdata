@@ -1,11 +1,11 @@
 {{define "mempool"}}
 <!DOCTYPE html>
 <html lang="en">
-    {{template "html-head" printf "Decred Mempool"}}
-    <body data-controller="mempool time" class="{{ theme }}">
-        {{template "navbar" . }}
+{{template "html-head" printf "Decred Mempool"}}
+    {{template "navbar" . }}
         {{with .Mempool}}
         <div class="container main"
+        data-controller="mempool time"
         data-target="mempool.mempool"
         {{template "mempoolDump" .}}
         >

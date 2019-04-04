@@ -30,6 +30,11 @@ import (
 	humanize "github.com/dustin/go-humanize"
 )
 
+// Cookies contains information from the request cookies.
+type Cookies struct {
+	DarkMode bool
+}
+
 // CommonPageData is the basis for data structs used for HTML templates.
 // explorerUI.commonData returns an initialized instance or CommonPageData,
 // which itself should be used to initialize page data template structs.
@@ -41,6 +46,7 @@ type CommonPageData struct {
 	DevAddress    string
 	Links         *links
 	NetName       string
+	Cookies       Cookies
 }
 
 // Status page strings
@@ -174,7 +180,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 		Blocks      []*types.BlockBasic
 		Conversions *homeConversions
 	}{
-		CommonPageData: exp.commonData(),
+		CommonPageData: exp.commonData(r),
 		Info:           homeInfo,
 		Mempool:        inv,
 		BestBlock:      bestBlock,
@@ -214,7 +220,7 @@ func (exp *explorerUI) SideChains(w http.ResponseWriter, r *http.Request) {
 		*CommonPageData
 		Data []*dbtypes.BlockStatus
 	}{
-		CommonPageData: exp.commonData(),
+		CommonPageData: exp.commonData(r),
 		Data:           sideBlocks,
 	})
 
@@ -245,7 +251,7 @@ func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request)
 		*CommonPageData
 		Data []*dbtypes.BlockStatus
 	}{
-		CommonPageData: exp.commonData(),
+		CommonPageData: exp.commonData(r),
 		Data:           disapprovedBlocks,
 	})
 
@@ -304,7 +310,7 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 		Mempool *types.TrimmedMempoolInfo
 		Blocks  []*types.TrimmedBlockInfo
 	}{
-		CommonPageData: exp.commonData(),
+		CommonPageData: exp.commonData(r),
 		Info:           exp.pageData.HomeInfo,
 		Mempool:        mempoolInfo,
 		Blocks:         trimmedBlocks,
@@ -369,7 +375,7 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 		OffsetWindow int64
 		Limit        int64
 	}{
-		CommonPageData: exp.commonData(),
+		CommonPageData: exp.commonData(r),
 		Data:           windows,
 		WindowSize:     exp.ChainParams.StakeDiffWindowSize,
 		BestWindow:     int64(bestWindow),
@@ -479,7 +485,7 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 		Limit        int64
 		BestGrouping int64
 	}{
-		CommonPageData: exp.commonData(),
+		CommonPageData: exp.commonData(r),
 		Data:           data,
 		TimeGrouping:   val,
 		Offset:         int64(offset),
@@ -557,7 +563,7 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 		Rows       int64
 		WindowSize int64
 	}{
-		CommonPageData: exp.commonData(),
+		CommonPageData: exp.commonData(r),
 		Data:           summaries,
 		BestBlock:      bestBlockHeight,
 		Rows:           int64(rows),
@@ -627,7 +633,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		Data           *types.BlockInfo
 		FiatConversion *exchanges.Conversion
 	}{
-		CommonPageData: exp.commonData(),
+		CommonPageData: exp.commonData(r),
 		Data:           data,
 	}
 
@@ -659,7 +665,7 @@ func (exp *explorerUI) Mempool(w http.ResponseWriter, r *http.Request) {
 		*CommonPageData
 		Mempool *types.MempoolInfo
 	}{
-		CommonPageData: exp.commonData(),
+		CommonPageData: exp.commonData(r),
 		Mempool:        inv,
 	})
 	inv.RUnlock()
@@ -682,7 +688,7 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	str, err := exp.templates.execTemplateToString("ticketpool", exp.commonData())
+	str, err := exp.templates.execTemplateToString("ticketpool", exp.commonData(r))
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
@@ -1165,7 +1171,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			Fees  *exchanges.Conversion
 		}
 	}{
-		CommonPageData:       exp.commonData(),
+		CommonPageData:       exp.commonData(r),
 		Data:                 tx,
 		Blocks:               blocks,
 		BlockInds:            blockInds,
@@ -1289,7 +1295,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 
 	// Execute the HTML template.
 	pageData := AddressPageData{
-		CommonPageData: exp.commonData(),
+		CommonPageData: exp.commonData(r),
 		Data:           addrData,
 		IsLiteMode:     exp.liteMode,
 		CRLFDownload:   UseCRLF,
@@ -1448,7 +1454,7 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("rawtx", struct {
 		*CommonPageData
 	}{
-		CommonPageData: exp.commonData(),
+		CommonPageData: exp.commonData(r),
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
@@ -1471,7 +1477,7 @@ func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("charts", struct {
 		*CommonPageData
 	}{
-		CommonPageData: exp.commonData(),
+		CommonPageData: exp.commonData(r),
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
@@ -1594,6 +1600,8 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	exp.StatusPage(w, "search failed", message, "", ExpStatusNotFound)
 }
 
+var dummyRequest = new(http.Request)
+
 // StatusPage provides a page for displaying status messages and exception
 // handling without redirecting. Be sure to return after calling StatusPage if
 // this completes the processing of the calling http handler.
@@ -1605,7 +1613,7 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code, message, addition
 		Message        string
 		AdditionalInfo string
 	}{
-		CommonPageData: exp.commonData(),
+		CommonPageData: exp.commonData(dummyRequest),
 		StatusType:     sType,
 		Code:           code,
 		Message:        message,
@@ -1671,7 +1679,7 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 		*CommonPageData
 		ExtendedParams
 	}{
-		CommonPageData: exp.commonData(),
+		CommonPageData: exp.commonData(r),
 		ExtendedParams: ExtendedParams{
 			MaximumBlockSize:     maxBlockSize,
 			AddressPrefix:        addrPrefix,
@@ -1760,7 +1768,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 		TimeRemaining string
 		TotalVotes    uint32
 	}{
-		CommonPageData: exp.commonData(),
+		CommonPageData: exp.commonData(r),
 		Ai:             agendaInfo,
 		QuorumVotes:    qVotes,
 		RuleChangeI:    ruleChangeI,
@@ -1795,7 +1803,7 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 		Agendas       []*agendas.AgendaTagged
 		VotingSummary *agendas.VoteSummary
 	}{
-		CommonPageData: exp.commonData(),
+		CommonPageData: exp.commonData(r),
 		Agendas:        agenda,
 		VotingSummary:  exp.voteTracker.Summary(),
 	})
@@ -1834,7 +1842,7 @@ func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
 		Data        *pitypes.ProposalInfo
 		PoliteiaURL string
 	}{
-		CommonPageData: exp.commonData(),
+		CommonPageData: exp.commonData(r),
 		Data:           proposalInfo,
 		PoliteiaURL:    exp.politeiaAPIURL,
 	})
@@ -1891,7 +1899,7 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 		TotalCount    int64
 		PoliteiaURL   string
 	}{
-		CommonPageData: exp.commonData(),
+		CommonPageData: exp.commonData(r),
 		Proposals:      proposals,
 		VotesStatus:    pitypes.VotesStatuses(),
 		Offset:         int64(offset),
@@ -2023,7 +2031,7 @@ func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 		*CommonPageData
 		Stats types.StatsInfo
 	}{
-		CommonPageData: exp.commonData(),
+		CommonPageData: exp.commonData(r),
 		Stats:          stats,
 	})
 
@@ -2040,10 +2048,15 @@ func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 // commonData grabs the common page data that is available to every page.
 // This is particularly useful for extras.tmpl, parts of which
 // are used on every page
-func (exp *explorerUI) commonData() *CommonPageData {
+func (exp *explorerUI) commonData(r *http.Request) *CommonPageData {
 	tip, err := exp.blockData.GetTip()
 	if err != nil {
 		log.Errorf("Failed to get the chain tip from the database.: %v", err)
+		return nil
+	}
+	darkMode, err := r.Cookie("dcrdataDarkBG")
+	if err != nil && err != http.ErrNoCookie {
+		log.Errorf("Cookie dcrdataDarkBG retrieval error: %v", err)
 	}
 	return &CommonPageData{
 		Tip:           tip,
@@ -2053,5 +2066,8 @@ func (exp *explorerUI) commonData() *CommonPageData {
 		DevAddress:    exp.pageData.HomeInfo.DevAddress,
 		NetName:       exp.NetName,
 		Links:         explorerLinks,
+		Cookies: Cookies{
+			DarkMode: darkMode != nil && darkMode.Value == "1",
+		},
 	}
 }
