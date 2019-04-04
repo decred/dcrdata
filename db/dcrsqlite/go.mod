@@ -23,3 +23,5 @@ require (
 	github.com/google/go-cmp v0.2.0
 	github.com/mattn/go-sqlite3 v1.10.0
 )
+
+replace github.com/decred/dcrdata/db/dbtypes => ../dbtypes
