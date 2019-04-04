@@ -809,9 +809,9 @@ func (bot *ExchangeBot) fetchFromCache(chartID string) (data []byte, bestVersion
 	bot.mtx.RLock()
 	defer bot.mtx.RUnlock()
 	bestVersion = bot.cachedChartVersion(chartID)
-	cache, found := bot.versionedCharts[chartID]
-	if found && cache.dataID == bestVersion {
-		return cache.chart, bestVersion, true
+	cache, hit := bot.versionedCharts[chartID]
+	if hit && cache.dataID == bestVersion {
+		data = cache.chart
 	}
 	return
 }
