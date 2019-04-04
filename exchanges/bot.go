@@ -186,14 +186,14 @@ type candlestickResponse struct {
 	BtcIndex   string       `json:"index"`
 	Price      float64      `json:"price"`
 	Sticks     Candlesticks `json:"sticks"`
-	Expiration time.Time    `json:"expiration"`
+	Expiration int64        `json:"expiration"`
 }
 
 type depthResponse struct {
 	BtcIndex   string     `json:"index"`
 	Price      float64    `json:"price"`
 	Data       *DepthData `json:"data"`
-	Expiration time.Time  `json:"expiration"`
+	Expiration int64      `json:"expiration"`
 }
 
 // versionedChart holds a pre-encoded byte slice of a chart's data along with a
@@ -852,7 +852,7 @@ func (bot *ExchangeBot) QuickSticks(token string, rawBin string) ([]byte, error)
 		BtcIndex:   bot.BtcIndex,
 		Price:      bot.currentState.Price,
 		Sticks:     sticks,
-		Expiration: expiration,
+		Expiration: expiration.Unix(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("JSON encode error for %s and bin %s", token, rawBin)
@@ -893,7 +893,7 @@ func (bot *ExchangeBot) QuickDepth(token string) ([]byte, error) {
 		BtcIndex:   bot.BtcIndex,
 		Price:      bot.currentState.Price,
 		Data:       state.Depth,
-		Expiration: state.Depth.Time.Add(bot.RequestExpiry),
+		Expiration: state.Depth.Time.Add(bot.RequestExpiry).Unix(),
 	})
 	if err != nil {
 		return []byte{}, fmt.Errorf("JSON encode error for %s depth chart", token)
