@@ -120,13 +120,17 @@ func (p *BlockPrefetchClient) GetBlockData(hash *chainhash.Hash) (*wire.MsgBlock
 		defer p.Unlock()
 		return p.current.msgBlock, p.current.headerResult, nil
 	}
+
 	// If the block is already fetched, and next, return it and retarget with a
 	// new range starting at this block's height.
 	if p.next.hash == *hash /*p.haveBlockHash(*hash)*/ {
+		// Grab the result before retarget() changes p.next (via fetcher ->
+		// RetrieveAndStoreNext -> storeNext).
+		msgBlock, headerResult := p.next.msgBlock, p.next.headerResult
 		go retargetAndUnlock(p.next.headerResult.NextHash)
 		p.hits++
 		// Return the requested block.
-		return p.next.msgBlock, p.next.headerResult, nil
+		return msgBlock, headerResult, nil
 	}
 
 	p.misses++
