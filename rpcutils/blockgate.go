@@ -215,6 +215,15 @@ func (g *BlockGate) updateToBlock(height int64) (*dcrutil.Block, error) {
 		return nil, fmt.Errorf("GetBlock (%d) failed: %v", height, err)
 	}
 
+	if block.Height() != height {
+		return nil, fmt.Errorf("GetBlock (%d) returned block at height %d",
+			height, block.Height())
+	}
+	if !hash.IsEqual(block.Hash()) {
+		return nil, fmt.Errorf("GetBlock (%s) returned block with hash %s",
+			hash.String(), block.Hash().String())
+	}
+
 	g.height = height
 	g.hashAtHeight[height] = *hash
 	g.blockWithHash[*hash] = block
