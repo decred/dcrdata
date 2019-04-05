@@ -206,6 +206,13 @@ func _main(ctx context.Context) error {
 			return err
 		}
 
+		if cfg.DropIndexes {
+			log.Info("Dropping all table indexing and quitting...")
+			err = auxDB.DeindexAll()
+			requestShutdown()
+			return err
+		}
+
 		if err = auxDB.VersionCheck(dcrdClient); err != nil {
 			return err
 		}

@@ -9,8 +9,8 @@ import (
 	"fmt"
 
 	"github.com/decred/dcrdata/db/dbtypes"
-	"github.com/decred/dcrdata/semver"
 	"github.com/decred/dcrdata/db/dcrpg/internal"
+	"github.com/decred/dcrdata/semver"
 )
 
 var createTableStatements = map[string]string{
@@ -176,6 +176,52 @@ func DropTables(db *sql.DB) {
 func DropTestingTable(db *sql.DB) error {
 	_, err := db.Exec(`DROP TABLE IF EXISTS testing;`)
 	return err
+}
+
+// AnalyzeAllTables performs an ANALYZE on all tables after setting
+// default_statistics_target for the transaction.
+func AnalyzeAllTables(db *sql.DB, statisticsTarget int) error {
+	dbTx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transactions: %v", err)
+	}
+
+	_, err = dbTx.Exec(fmt.Sprintf("SET LOCAL default_statistics_target TO %d;", statisticsTarget))
+	if err != nil {
+		_ = dbTx.Rollback()
+		return fmt.Errorf("failed to set default_statistics_target: %v", err)
+	}
+
+	_, err = dbTx.Exec(`ANALYZE;`)
+	if err != nil {
+		_ = dbTx.Rollback()
+		return fmt.Errorf("failed to ANALYZE all tables: %v", err)
+	}
+
+	return dbTx.Commit()
+}
+
+// AnalyzeTable performs an ANALYZE on the specified table after setting
+// default_statistics_target for the transaction.
+func AnalyzeTable(db *sql.DB, table string, statisticsTarget int) error {
+	dbTx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transactions: %v", err)
+	}
+
+	_, err = dbTx.Exec(fmt.Sprintf("SET LOCAL default_statistics_target TO %d;", statisticsTarget))
+	if err != nil {
+		_ = dbTx.Rollback()
+		return fmt.Errorf("failed to set default_statistics_target: %v", err)
+	}
+
+	_, err = dbTx.Exec(fmt.Sprintf(`ANALYZE %s;`, table))
+	if err != nil {
+		_ = dbTx.Rollback()
+		return fmt.Errorf("failed to ANALYZE all tables: %v", err)
+	}
+
+	return dbTx.Commit()
 }
 
 func CreateTypes(db *sql.DB) error {
@@ -368,45 +414,6 @@ func CheckColumnDataType(db *sql.DB, table, column string) (dataType string, err
 		FROM information_schema.columns
 		WHERE table_name=$1 AND column_name=$2`,
 		table, column).Scan(&dataType)
-	return
-}
-
-// CheckCurrentTimeZone queries for the currently set postgres time zone.
-func CheckCurrentTimeZone(db *sql.DB) (currentTZ string, err error) {
-	if err = db.QueryRow(`SHOW TIME ZONE`).Scan(&currentTZ); err != nil {
-		err = fmt.Errorf("unable to query current time zone: %v", err)
-	}
-	return
-}
-
-// CheckCurrentTimeZone queries for the default postgres time zone. This is the
-// value that would be observed if postgres were restarted using its current
-// configuration. The currently set time zone is also returned.
-func CheckDefaultTimeZone(db *sql.DB) (defaultTZ, currentTZ string, err error) {
-	// Remember the current time zone before switching to default.
-	currentTZ, err = CheckCurrentTimeZone(db)
-	if err != nil {
-		return
-	}
-
-	// Switch to DEFAULT/LOCAL.
-	_, err = db.Exec(`SET TIME ZONE DEFAULT`)
-	if err != nil {
-		err = fmt.Errorf("failed to set time zone to UTC: %v", err)
-		return
-	}
-
-	// Get the default time zone now that it is current.
-	defaultTZ, err = CheckCurrentTimeZone(db)
-	if err != nil {
-		return
-	}
-
-	// Switch back to initial time zone.
-	_, err = db.Exec(fmt.Sprintf(`SET TIME ZONE %s`, currentTZ))
-	if err != nil {
-		err = fmt.Errorf("failed to set time zone back to %s: %v", currentTZ, err)
-	}
 	return
 }
 
