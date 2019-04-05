@@ -489,6 +489,20 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 		log.Infof("postgres server settings:\n%v", servSettings)
 	}
 
+	// Check the synchronous_commit setting.
+	syncCommit, err := RetrieveSysSettingSyncCommit(db)
+	if err != nil {
+		return nil, err
+	}
+	if syncCommit != "off" {
+		log.Warnf(`PERFORMANCE ISSUE! The synchronous_commit setting is = "%s". `+
+			`" We will atttempt to set it to "off".`, syncCommit)
+		// Turn off synchronous_commit.
+		if err = SetSynchronousCommit(db, "off"); err != nil {
+			return nil, fmt.Errorf("failed to set synchronous_commit: %v", err)
+		}
+	}
+
 	// Attempt to get DB best block height from tables, but if the tables are
 	// empty or not yet created, it is not an error.
 	bestHeight, bestHash, _, err := RetrieveBestBlockHeight(ctx, db)
