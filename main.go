@@ -13,6 +13,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -764,11 +765,11 @@ func _main(ctx context.Context) error {
 		http.ServeFile(w, r, "./public/images/favicon.ico")
 	})
 	cacheControlMaxAge := int64(cfg.CacheControlMaxAge)
-	FileServer(webMux, "/js", http.Dir("./public/js"), cacheControlMaxAge)
-	FileServer(webMux, "/css", http.Dir("./public/css"), cacheControlMaxAge)
-	FileServer(webMux, "/fonts", http.Dir("./public/fonts"), cacheControlMaxAge)
-	FileServer(webMux, "/images", http.Dir("./public/images"), cacheControlMaxAge)
-	FileServer(webMux, "/dist", http.Dir("./public/dist"), cacheControlMaxAge)
+	FileServer(webMux, "/js", "./public/js", cacheControlMaxAge)
+	FileServer(webMux, "/css", "./public/css", cacheControlMaxAge)
+	FileServer(webMux, "/fonts", "./public/fonts", cacheControlMaxAge)
+	FileServer(webMux, "/images", "./public/images", cacheControlMaxAge)
+	FileServer(webMux, "/dist", "./public/dist", cacheControlMaxAge)
 
 	// HTTP profiler
 	if cfg.HTTPProfile {
@@ -1343,21 +1344,59 @@ func listenAndServeProto(ctx context.Context, wg *sync.WaitGroup, listen, proto 
 }
 
 // FileServer conveniently sets up a http.FileServer handler to serve static
-// files from a http.FileSystem.
-func FileServer(r chi.Router, path string, root http.FileSystem, cacheControlMaxAge int64) {
-	if strings.ContainsAny(path, "{}*") {
+// files from path on the file system. Directory listings are denied, as are URL
+// paths containing "..".
+func FileServer(r chi.Router, pathRoot, fsRoot string, cacheControlMaxAge int64) {
+	if strings.ContainsAny(pathRoot, "{}*") {
 		panic("FileServer does not permit URL parameters.")
 	}
 
-	fs := http.StripPrefix(path, http.FileServer(root))
+	// Define a http.HandlerFunc to serve files but not directory indexes.
+	hf := func(w http.ResponseWriter, r *http.Request) {
+		// Ensure the path begins with "/".
+		upath := r.URL.Path
+		if strings.Contains(upath, "..") {
+			http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+		}
+		if !strings.HasPrefix(upath, "/") {
+			upath = "/" + upath
+			r.URL.Path = upath
+		}
+		// Strip the path prefix and clean the path.
+		upath = path.Clean(strings.TrimPrefix(upath, pathRoot))
 
-	if path != "/" && path[len(path)-1] != '/' {
-		r.Get(path, http.RedirectHandler(path+"/", 301).ServeHTTP)
-		path += "/"
+		// Deny directory listings (http.ServeFile recognizes index.html and
+		// attempts to serve the directory contents instead).
+		if strings.HasSuffix(upath, "/index.html") {
+			http.NotFound(w, r)
+			return
+		}
+
+		// Generate the full file system path and test for existence.
+		fullFilePath := filepath.Join(fsRoot, upath)
+		fi, err := os.Stat(fullFilePath)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		// Deny directory listings
+		if fi.IsDir() {
+			http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+		}
+
+		http.ServeFile(w, r, fullFilePath)
 	}
-	path += "*"
 
-	r.With(m.CacheControl(cacheControlMaxAge)).Get(path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fs.ServeHTTP(w, r)
-	}))
+	// For the chi.Mux, make sure a path that ends in "/" and append a "*".
+	muxRoot := pathRoot
+	if pathRoot != "/" && pathRoot[len(pathRoot)-1] != '/' {
+		r.Get(pathRoot, http.RedirectHandler(pathRoot+"/", 301).ServeHTTP)
+		muxRoot += "/"
+	}
+	muxRoot += "*"
+
+	// Mount the http.HandlerFunc on the pathRoot.
+	log.Debugf(`Serving files in "%s" on "%s".`, fsRoot, muxRoot)
+	r.With(m.CacheControl(cacheControlMaxAge)).Get(muxRoot, hf)
 }
