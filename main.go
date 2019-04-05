@@ -1357,6 +1357,7 @@ func FileServer(r chi.Router, pathRoot, fsRoot string, cacheControlMaxAge int64)
 		upath := r.URL.Path
 		if strings.Contains(upath, "..") {
 			http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+			return
 		}
 		if !strings.HasPrefix(upath, "/") {
 			upath = "/" + upath
@@ -1383,6 +1384,7 @@ func FileServer(r chi.Router, pathRoot, fsRoot string, cacheControlMaxAge int64)
 		// Deny directory listings
 		if fi.IsDir() {
 			http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+			return
 		}
 
 		http.ServeFile(w, r, fullFilePath)
@@ -1397,6 +1399,5 @@ func FileServer(r chi.Router, pathRoot, fsRoot string, cacheControlMaxAge int64)
 	muxRoot += "*"
 
 	// Mount the http.HandlerFunc on the pathRoot.
-	log.Debugf(`Serving files in "%s" on "%s".`, fsRoot, muxRoot)
 	r.With(m.CacheControl(cacheControlMaxAge)).Get(muxRoot, hf)
 }
