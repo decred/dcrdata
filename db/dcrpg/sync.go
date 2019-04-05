@@ -18,6 +18,8 @@ import (
 )
 
 const (
+	quickStatsTarget         = 250
+	deepStatsTarget          = 1000
 	rescanLogBlockChunk      = 500
 	initialLoadSyncStatusMsg = "(Full Mode) Syncing stake, base and auxiliary DBs..."
 	addressesSyncStatusMsg   = "Syncing addresses table with spending info..."
@@ -182,6 +184,9 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 		// with the tables' constraints.
 		db.EnableDuplicateCheckOnInsert(true)
 	}
+
+	// When reindexing or adding a large amount of data, ANALYZE tables.
+	requireAnalyze := reindexing || nodeHeight-lastBlock > 10000
 
 	// Safely send sync status updates on barLoad channel, and set the channel
 	// to nil if the buffer is full.
@@ -394,13 +399,16 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 		BarID: dbtypes.InitialDBLoad,
 	})
 
-	// To build indexes, there must be duplicate rows in terms of the
-	// constraints defined by the unique indexes.
+	// Index and analyze tables.
+	var analyzed bool
 	if reindexing {
-		// Duplicate transactions, vins, and vouts can end up in the tables when
-		// identical transactions are included in multiple blocks. This happens
-		// when a block is invalidated and the transactions are subsequently
-		// re-mined in another block. Remove these before indexing.
+		// To build indexes, there must NOT be duplicate rows in terms of the
+		// constraints defined by the unique indexes. Duplicate transactions,
+		// vins, and vouts can end up in the tables when identical transactions
+		// are included in multiple blocks. This happens when a block is
+		// invalidated and the transactions are subsequently re-mined in another
+		// block. Remove these before indexing.
+		log.Infof("Finding and removing duplicate table rows before indexing...")
 		if err = db.DeleteDuplicates(barLoad); err != nil {
 			return 0, err
 		}
@@ -412,15 +420,34 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 
 		// Only reindex addresses and tickets tables here if not doing it below.
 		if !updateAllAddresses {
-			err = db.IndexAddressTable(barLoad)
+			if err = db.IndexAddressTable(barLoad); err != nil {
+				return nodeHeight, fmt.Errorf("IndexAddressTable failed: %v", err)
+			}
 		}
 		if !updateAllVotes {
-			err = db.IndexTicketsTable(barLoad)
+			if err = db.IndexTicketsTable(barLoad); err != nil {
+				return nodeHeight, fmt.Errorf("IndexTicketsTable failed: %v", err)
+			}
 		}
+
+		// Deep ANALYZE all tables.
+		log.Infof("Performing an ANALYZE(%d) on all tables...", deepStatsTarget)
+		if err = AnalyzeAllTables(db.db, deepStatsTarget); err != nil {
+			return nodeHeight, fmt.Errorf("failed to ANALYZE tables: %v", err)
+		}
+		analyzed = true
 	}
 
 	// Batch update addresses table with spending info.
 	if updateAllAddresses {
+		// Analyze vins and table first.
+		if !analyzed {
+			log.Infof("Performing an ANALYZE(%d) on vins table...", deepStatsTarget)
+			if err = AnalyzeTable(db.db, "vins", deepStatsTarget); err != nil {
+				return nodeHeight, fmt.Errorf("failed to ANALYZE vins table: %v", err)
+			}
+		}
+
 		// Remove existing indexes not on funding txns
 		_ = db.DeindexAddressTable() // ignore errors for non-existent indexes
 		log.Infof("Populating spending tx info in address table...")
@@ -433,10 +460,24 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 		if err = db.IndexAddressTable(barLoad); err != nil {
 			log.Errorf("IndexAddressTable FAILED: %v", err)
 		}
+
+		// Deep ANALYZE the newly indexed addresses table.
+		log.Infof("Performing an ANALYZE(%d) on addresses table...", deepStatsTarget)
+		if err = AnalyzeTable(db.db, "addresses", deepStatsTarget); err != nil {
+			return nodeHeight, fmt.Errorf("failed to ANALYZE addresses table: %v", err)
+		}
 	}
 
 	// Batch update tickets table with spending info.
 	if updateAllVotes {
+		// Analyze vins table first.
+		if !analyzed {
+			log.Infof("Performing an ANALYZE(%d) on vins table...", deepStatsTarget)
+			if err = AnalyzeTable(db.db, "vins", deepStatsTarget); err != nil {
+				return nodeHeight, fmt.Errorf("failed to ANALYZE vins table: %v", err)
+			}
+		}
+
 		// Remove indexes not on funding txns (remove on tickets table indexes)
 		_ = db.DeindexTicketsTable() // ignore errors for non-existent indexes
 		db.EnableDuplicateCheckOnInsert(false)
@@ -449,6 +490,21 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 		log.Infof("Updated %d rows of address table", numTicketsUpdated)
 		if err = db.IndexTicketsTable(barLoad); err != nil {
 			log.Errorf("IndexTicketsTable FAILED: %v", err)
+		}
+
+		// Deep ANALYZE the newly indexed tickets table.
+		log.Infof("Performing an ANALYZE(%d) on tickets table...", deepStatsTarget)
+		if err = AnalyzeTable(db.db, "tickets", deepStatsTarget); err != nil {
+			return nodeHeight, fmt.Errorf("failed to ANALYZE tickets table: %v", err)
+		}
+	}
+
+	// Quickly ANALYZE all tables if not already done after indexing.
+	if !analyzed && requireAnalyze {
+		// Analyze all tables.
+		log.Infof("Performing an ANALYZE(%d) on all tables...", quickStatsTarget)
+		if err = AnalyzeAllTables(db.db, quickStatsTarget); err != nil {
+			return nodeHeight, fmt.Errorf("failed to ANALYZE tables: %v", err)
 		}
 	}
 

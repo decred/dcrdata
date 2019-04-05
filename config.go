@@ -133,6 +133,7 @@ type config struct {
 	PGQueryTimeout time.Duration `short:"T" long:"pgtimeout" description:"Timeout (a time.Duration string) for most PostgreSQL queries used for user initiated queries."`
 	HidePGConfig   bool          `long:"hidepgconfig" description:"Blocks logging of the PostgreSQL db configuration on system start up."`
 	AddrCacheCap   int           `long:"addr-cache-cap" description:"Address cache capacity in bytes."`
+	DropIndexes    bool          `long:"drop-inds" short:"D" description:"Drop all table indexes and exit."`
 
 	NoDevPrefetch    bool `long:"no-dev-prefetch" description:"Disable automatic dev fund balance query on new blocks. When true, the query will still be run on demand, but not automatically after new blocks are connected." env:"DCRDATA_DISABLE_DEV_PREFETCH"`
 	SyncAndQuit      bool `long:"sync-and-quit" description:"Sync to the best block and exit. Do not start the explorer or API." env:"DCRDATA_ENABLE_SYNC_N_QUIT"`

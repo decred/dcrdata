@@ -203,7 +203,7 @@ func RetrieveSysSettingsConfFile(db *sql.DB) (PGSettings, error) {
 	return retrieveSysSettings(internal.RetrieveSysSettingsConfFile, db)
 }
 
-// RetrieveSysSettingsPerformance a performance-related settings.
+// RetrieveSysSettingsPerformance retrieves performance-related settings.
 func RetrieveSysSettingsPerformance(db *sql.DB) (PGSettings, error) {
 	return retrieveSysSettings(internal.RetrieveSysSettingsPerformance, db)
 }
@@ -214,4 +214,43 @@ func RetrieveSysSettingsPerformance(db *sql.DB) (PGSettings, error) {
 // in debugging connectivity issues or other DB errors.
 func RetrieveSysSettingsServer(db *sql.DB) (PGSettings, error) {
 	return retrieveSysSettings(internal.RetrieveSysSettingsServer, db)
+}
+
+// CheckCurrentTimeZone queries for the currently set postgres time zone.
+func CheckCurrentTimeZone(db *sql.DB) (currentTZ string, err error) {
+	if err = db.QueryRow(`SHOW TIME ZONE`).Scan(&currentTZ); err != nil {
+		err = fmt.Errorf("unable to query current time zone: %v", err)
+	}
+	return
+}
+
+// CheckCurrentTimeZone queries for the default postgres time zone. This is the
+// value that would be observed if postgres were restarted using its current
+// configuration. The currently set time zone is also returned.
+func CheckDefaultTimeZone(db *sql.DB) (defaultTZ, currentTZ string, err error) {
+	// Remember the current time zone before switching to default.
+	currentTZ, err = CheckCurrentTimeZone(db)
+	if err != nil {
+		return
+	}
+
+	// Switch to DEFAULT/LOCAL.
+	_, err = db.Exec(`SET TIME ZONE DEFAULT`)
+	if err != nil {
+		err = fmt.Errorf("failed to set time zone to UTC: %v", err)
+		return
+	}
+
+	// Get the default time zone now that it is current.
+	defaultTZ, err = CheckCurrentTimeZone(db)
+	if err != nil {
+		return
+	}
+
+	// Switch back to initial time zone.
+	_, err = db.Exec(fmt.Sprintf(`SET TIME ZONE %s`, currentTZ))
+	if err != nil {
+		err = fmt.Errorf("failed to set time zone back to %s: %v", currentTZ, err)
+	}
+	return
 }
