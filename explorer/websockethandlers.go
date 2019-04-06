@@ -15,7 +15,6 @@ import (
 
 	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/db/dbtypes"
-	"github.com/decred/dcrdata/exchanges"
 	"github.com/decred/dcrdata/explorer/types"
 	pstypes "github.com/decred/dcrdata/pubsub/types"
 	"golang.org/x/net/websocket"
@@ -26,8 +25,10 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 	wsHandler := websocket.Handler(func(ws *websocket.Conn) {
 		// Create channel to signal updated data availability
 		updateSig := make(hubSpoke, 3)
+		// Create a channel for exchange updates
+		xcChan := make(exchangeChannel, 3)
 		// register websocket client with our signal channel
-		clientData := exp.wsHub.RegisterClient(&updateSig)
+		clientData := exp.wsHub.RegisterClient(&updateSig, xcChan)
 		// unregister (and close signal channel) before return
 		defer exp.wsHub.UnregisterClient(&updateSig)
 
@@ -57,48 +58,6 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 				return fmt.Errorf("Send fail")
 			}
 			return nil
-		}
-
-		var xcChans *exchanges.UpdateChannels
-		var sendXcUpdate func(bool, string, *exchanges.ExchangeState) error
-		if exp.xcBot != nil {
-			xcChans = exp.xcBot.UpdateChannels()
-			sendXcUpdate = func(isFiat bool, token string, updater *exchanges.ExchangeState) error {
-				buff := new(bytes.Buffer)
-				enc := json.NewEncoder(buff)
-				webData := WebSocketMessage{
-					EventId: exchangeUpdateID,
-					Message: "error",
-				}
-				xcState := exp.xcBot.State()
-				err := enc.Encode(&WebsocketExchangeUpdate{
-					Updater: WebsocketMiniExchange{
-						Token:  token,
-						Price:  updater.Price,
-						Volume: updater.Volume,
-						Change: updater.Change,
-					},
-					IsFiatIndex: isFiat,
-					BtcIndex:    exp.xcBot.BtcIndex,
-					Price:       xcState.Price,
-					BtcPrice:    xcState.BtcPrice,
-					Volume:      xcState.Volume,
-				})
-				if err == nil {
-					webData.Message = buff.String()
-				} else {
-					log.Errorf("json.Encode(*WebsocketExchangeUpdate) failed: %v", err)
-				}
-
-				err = send(webData)
-				if err != nil {
-					return err
-				}
-				return nil
-			}
-		} else {
-			// Create a set of dummy chans.
-			xcChans = exchanges.NewUpdateChannels()
 		}
 
 		requestLimit := 1 << 20
@@ -355,24 +314,23 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 				if err != nil {
 					return
 				}
-			case update := <-xcChans.Exchange:
-				err := sendXcUpdate(false, update.Token, update.State)
+			case update := <-xcChan:
+				buff := new(bytes.Buffer)
+				enc := json.NewEncoder(buff)
+				webData := WebSocketMessage{
+					EventId: exchangeUpdateID,
+					Message: "error",
+				}
+				err := enc.Encode(update)
+				if err == nil {
+					webData.Message = buff.String()
+				} else {
+					log.Errorf("json.Encode(*WebsocketExchangeUpdate) failed: %v", err)
+				}
+				err = send(webData)
 				if err != nil {
 					return
 				}
-			case update := <-xcChans.Index:
-				indexState, found := exp.xcBot.State().FiatIndices[update.Token]
-				if !found {
-					log.Errorf("Index state not found when preparing websocket udpate")
-					continue
-				}
-				err := sendXcUpdate(true, update.Token, indexState)
-				if err != nil {
-					return
-				}
-			case <-xcChans.Quit:
-				xcChans.Quit = make(chan struct{})
-				log.Warnf("ExchangeBot has quit.")
 			case <-exp.wsHub.quitWSHandler:
 				break loop
 			}
