@@ -291,7 +291,7 @@ export default class extends Controller {
   static get targets () {
     return ['chartSelect', 'exchanges', 'bin', 'chart', 'legend', 'conversion',
       'xcName', 'xcLogo', 'actions', 'sticksOnly', 'depthOnly', 'chartLoader',
-      'xcRow', 'xcIndex', 'price', 'refresh']
+      'xcRow', 'xcIndex', 'price', 'refresh', 'age', 'ageSpan']
   }
 
   async connect () {
@@ -449,8 +449,12 @@ export default class extends Controller {
     // Fiat conversion only available for order books for now.
     if (usesOrderbook(chart)) {
       this.conversionTarget.classList.remove('d-hide')
+      this.ageSpanTarget.dataset.age = response.data.data.time
+      this.ageSpanTarget.textContent = humanize.timeSince(response.data.data.time)
+      this.ageTarget.classList.remove('d-hide')
     } else {
       this.conversionTarget.classList.add('d-hide')
+      this.ageTarget.classList.add('d-hide')
     }
     this.graph.updateOptions(chartResetOpts, true)
     this.graph.updateOptions(this.processors[chart](response.data))

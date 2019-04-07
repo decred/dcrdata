@@ -188,14 +188,14 @@ type DepthPoint struct {
 
 // DepthData is an exchanges order book for use in a depth chart.
 type DepthData struct {
-	Time time.Time    `json:"time"`
+	Time int64        `json:"time"`
 	Bids []DepthPoint `json:"bids"`
 	Asks []DepthPoint `json:"asks"`
 }
 
 // IsFresh will be true if the data is older than depthDataExpiration.
 func (depth *DepthData) IsFresh() bool {
-	if time.Now().Sub(depth.Time) < depthDataExpiration {
+	if time.Duration(time.Now().Unix()-depth.Time)*time.Second < depthDataExpiration {
 		return true
 	}
 	return false
@@ -295,7 +295,7 @@ func exchangeStateFromProto(proto *dcrrates.ExchangeRateUpdate) *ExchangeState {
 	updateDepth := proto.GetDepth()
 	if updateDepth != nil {
 		depth := &DepthData{
-			Time: time.Unix(updateDepth.Time, 0),
+			Time: updateDepth.Time,
 			Bids: make([]DepthPoint, 0, len(updateDepth.Bids)),
 			Asks: make([]DepthPoint, 0, len(updateDepth.Asks)),
 		}
@@ -803,7 +803,7 @@ func (r *BinanceDepthResponse) translate() *DepthData {
 		return nil
 	}
 	depth := new(DepthData)
-	depth.Time = time.Now()
+	depth.Time = time.Now().Unix()
 	var err error
 	depth.Asks, err = parseBinanceDepthPoints(r.Asks)
 	if err != nil {
@@ -991,7 +991,7 @@ func (r *BittrexDepthResponse) translate() *DepthData {
 		return nil
 	}
 	depth := new(DepthData)
-	depth.Time = time.Now()
+	depth.Time = time.Now().Unix()
 	depth.Asks = r.Result.Sell.makePts()
 	depth.Bids = r.Result.Buy.makePts()
 	return depth
@@ -1427,7 +1427,7 @@ func (dragonex *DragonExchange) Refresh() {
 	var depth *DepthData
 	if sellErr == nil && buyErr == nil {
 		depth = &DepthData{
-			Time: time.Now(),
+			Time: time.Now().Unix(),
 			Bids: depthBuyResponse.Data.translate(),
 			Asks: depthSellResponse.Data.translate(),
 		}
@@ -1624,7 +1624,7 @@ func (huobi *HuobiExchange) Refresh() {
 		log.Errorf("Huobi server depth response error. status: %s", depthResponse.Status)
 	} else {
 		depth = &DepthData{
-			Time: time.Unix(depthResponse.Ts/1000, 0),
+			Time: depthResponse.Ts / 1000,
 			Bids: depthResponse.Tick.Bids.translate(),
 			Asks: depthResponse.Tick.Asks.translate(),
 		}
@@ -1773,7 +1773,7 @@ func (r *PoloniexDepthResponse) translate() *DepthData {
 		return nil
 	}
 	depth := new(DepthData)
-	depth.Time = time.Now()
+	depth.Time = time.Now().Unix()
 	var err error
 	depth.Asks, err = r.Asks.translate()
 	if err != nil {

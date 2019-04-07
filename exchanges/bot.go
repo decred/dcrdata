@@ -894,7 +894,7 @@ func (bot *ExchangeBot) QuickDepth(token string) ([]byte, error) {
 		BtcIndex:   bot.BtcIndex,
 		Price:      bot.currentState.Price,
 		Data:       state.Depth,
-		Expiration: state.Depth.Time.Add(bot.RequestExpiry).Unix(),
+		Expiration: state.Depth.Time + int64(bot.RequestExpiry.Seconds()),
 	})
 	if err != nil {
 		return []byte{}, fmt.Errorf("JSON encode error for %s depth chart", token)
@@ -903,7 +903,7 @@ func (bot *ExchangeBot) QuickDepth(token string) ([]byte, error) {
 	vChart := &versionedChart{
 		chartID: chartID,
 		dataID:  bestVersion,
-		time:    state.Depth.Time,
+		time:    time.Unix(state.Depth.Time, 0),
 		chart:   chart,
 	}
 

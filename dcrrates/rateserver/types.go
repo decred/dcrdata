@@ -188,7 +188,7 @@ func makeExchangeRateUpdate(update *exchanges.ExchangeUpdate) *dcrrates.Exchange
 
 	if state.Depth != nil {
 		depth := &dcrrates.ExchangeRateUpdate_DepthData{
-			Time: state.Depth.Time.Unix(),
+			Time: state.Depth.Time,
 			Bids: make([]*dcrrates.ExchangeRateUpdate_DepthPoint, 0, len(state.Depth.Bids)),
 			Asks: make([]*dcrrates.ExchangeRateUpdate_DepthPoint, 0, len(state.Depth.Asks)),
 		}
