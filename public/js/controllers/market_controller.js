@@ -21,6 +21,12 @@ const minuteMap = {
   '1mo': 43200
 }
 const PIPI = 2 * Math.PI
+const prettyDurations = {
+  '30m': '30 min',
+  '1h': 'hour',
+  '1d': 'day',
+  '1mo': 'month'
+}
 
 var availableCandlesticks, availableDepths
 
@@ -461,7 +467,7 @@ export default class extends Controller {
       }),
       labels: ['time', 'volume'],
       xlabel: 'Time',
-      ylabel: `Volume (DCR / ${settings.bin})`,
+      ylabel: `Volume (DCR / ${prettyDurations[settings.bin]})`,
       colors: [chartStroke],
       plotter: Dygraph.Plotters.linePlotter,
       axes: {
