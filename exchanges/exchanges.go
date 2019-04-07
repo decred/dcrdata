@@ -81,7 +81,9 @@ var (
 	}
 	BinanceURLs = URLs{
 		Price: "https://api.binance.com/api/v1/ticker/24hr?symbol=DCRBTC",
-		Depth: "https://api.binance.com/api/v1/depth?symbol=DCRBTC",
+		// Binance returns a maximum of 1000 depth chart points. This seems like it
+		// is the entire order book at least sometimes.
+		Depth: "https://api.binance.com/api/v1/depth?symbol=DCRBTC&limit=1000",
 		Candlesticks: map[candlestickKey]string{
 			hourKey:  "https://api.binance.com/api/v1/klines?symbol=DCRBTC&interval=1h",
 			dayKey:   "https://api.binance.com/api/v1/klines?symbol=DCRBTC&interval=1d",
@@ -90,10 +92,20 @@ var (
 	}
 	BittrexURLs = URLs{
 		Price: "https://bittrex.com/api/v1.1/public/getmarketsummary?market=btc-dcr",
+		// Bittrex gives no documentation on the amount of data that will be
+		// returned, and has no parameters to get more data.
 		Depth: "https://bittrex.com/api/v1.1/public/getorderbook?market=btc-dcr&type=both",
+		// Kline data is not in official docs. Found in development API v2.0
+		// Unofficial docs: https://github.com/thebotguys/golang-bittrex-api/wiki/Bittrex-API-Reference-(Unofficial)
+		// When v3 goes public, candlesticks will be /markets/{marketName}/candles
+		Candlesticks: map[candlestickKey]string{
+			hourKey: "https://bittrex.com/api/v2.0/pub/market/GetTicks?marketName=BTC-DCR&tickInterval=hour",
+			dayKey:  "https://bittrex.com/api/v2.0/pub/market/GetTicks?marketName=BTC-DCR&tickInterval=day",
+		},
 	}
 	DragonExURLs = URLs{
 		Price: "https://openapi.dragonex.io/api/v1/market/real/?symbol_id=1520101",
+		// DragonEx depth chart has no parameters for configuring amount of data.
 		Depth: "https://openapi.dragonex.io/api/v1/market/%s/?symbol_id=1520101", // Separate buy and sell endpoints
 		Candlesticks: map[candlestickKey]string{
 			hourKey: "https://openapi.dragonex.io/api/v1/market/kline/?symbol_id=1520101&count=100&kline_type=5",
@@ -102,6 +114,8 @@ var (
 	}
 	HuobiURLs = URLs{
 		Price: "https://api.huobi.pro/market/detail/merged?symbol=dcrbtc",
+		// Huobi's only depth parameter defines bin size, 'step0' seems to mean bin
+		// width of zero.
 		Depth: "https://api.huobi.pro/market/depth?symbol=dcrbtc&type=step0",
 		Candlesticks: map[candlestickKey]string{
 			hourKey:  "https://api.huobi.pro/market/history/kline?symbol=dcrbtc&period=60min&size=2000",
@@ -111,6 +125,7 @@ var (
 	}
 	PoloniexURLs = URLs{
 		Price: "https://poloniex.com/public?command=returnTicker",
+		// Maximum value of 100 for depth parameter.
 		Depth: "https://poloniex.com/public?command=returnOrderBook&currencyPair=BTC_DCR&depth=100",
 		Candlesticks: map[candlestickKey]string{
 			halfHourKey: "https://poloniex.com/public?command=returnChartData&currencyPair=BTC_DCR&period=1800&start=0&resolution=auto",
@@ -894,6 +909,13 @@ func NewBittrex(client *http.Client, channels *BotChannels) (bittrex Exchange, e
 		return
 	}
 
+	for dur, url := range BittrexURLs.Candlesticks {
+		reqs.candlesticks[dur], err = http.NewRequest(http.MethodGet, url, nil)
+		if err != nil {
+			return
+		}
+	}
+
 	bittrex = &BittrexExchange{
 		CommonExchange: newCommonExchange(Bittrex, client, reqs, channels),
 		MarketName:     "BTC-DCR",
@@ -975,6 +997,49 @@ func (r *BittrexDepthResponse) translate() *DepthData {
 	return depth
 }
 
+// BittrexCandlestick models a single candlestick in the Bittrex API response.
+type BittrexCandlestick struct {
+	Open       float64 `json:"O"`
+	High       float64 `json:"H"`
+	Low        float64 `json:"L"`
+	Close      float64 `json:"C"`
+	Volume     float64 `json:"V"`
+	Time       string  `json:"T"`
+	BaseVolume float64 `json:"BV"`
+}
+
+// BittrexCandlesticks is a slice of BittrexCandlestick
+type BittrexCandlesticks []BittrexCandlestick
+
+func (rawSticks BittrexCandlesticks) translate() Candlesticks {
+	sticks := make(Candlesticks, 0, len(rawSticks))
+	for _, stick := range rawSticks {
+		t, err := time.Parse(time.RFC3339, stick.Time+"Z")
+		if err != nil {
+			log.Errorf("Failed to parse time from bittrex candlestick. Given: %s", stick.Time)
+			return sticks
+		}
+		sticks = append(sticks, Candlestick{
+			High:   stick.High,
+			Low:    stick.Low,
+			Open:   stick.Open,
+			Close:  stick.Close,
+			Volume: stick.Volume,
+			Start:  t,
+		})
+	}
+	return sticks
+}
+
+// BittrexCandlestickResponse models the response from the Bittrex kline data
+// endpoint.
+type BittrexCandlestickResponse struct {
+	Success     bool                `json:"success"`
+	Message     string              `json:"message"`
+	Result      BittrexCandlesticks `json:"result"`
+	Explanation *string             `json:"explanation"`
+}
+
 // Refresh retrieves and parses API data from Bittrex.
 // Bittrex provides timestamps in a string format that is not quite RFC 3339.
 func (bittrex *BittrexExchange) Refresh() {
@@ -999,6 +1064,7 @@ func (bittrex *BittrexExchange) Refresh() {
 		return
 	}
 
+	// Depth chart
 	depthResponse := new(BittrexDepthResponse)
 	err = bittrex.fetch(bittrex.requests.depth, depthResponse)
 	if err != nil {
@@ -1006,12 +1072,41 @@ func (bittrex *BittrexExchange) Refresh() {
 	}
 	depth := depthResponse.translate()
 
+	// Check for expired candlesticks
+	state := bittrex.state()
+	candlesticks := map[candlestickKey]Candlesticks{}
+	for bin, req := range bittrex.requests.candlesticks {
+		oldSticks, found := state.Candlesticks[bin]
+		if !found || oldSticks.needsUpdate(bin) {
+			log.Tracef("Signalling candlestick update for %s, bin size %s", bittrex.token, bin)
+			response := new(BittrexCandlestickResponse)
+			err := bittrex.fetch(req, response)
+			if err != nil {
+				log.Errorf("Error retrieving candlestick data from Bittrex for bin size %s: %v", string(bin), err)
+				continue
+			}
+			if !response.Success {
+				log.Errorf("DragonEx server error while fetching candlestick data. Message: %s", response.Message)
+			}
+
+			sticks := response.Result.translate()
+			if !found || sticks.time().After(oldSticks.time()) {
+				candlesticks[bin] = sticks
+			}
+		}
+	}
+
+	for bin, sticks := range candlesticks {
+		log.Infof("%d sticks for bin size %s", len(sticks), string(bin))
+	}
+
 	bittrex.Update(&ExchangeState{
-		Price:      result.Last,
-		BaseVolume: result.BaseVolume,
-		Volume:     result.Volume,
-		Change:     result.Last - result.PrevDay,
-		Depth:      depth,
+		Price:        result.Last,
+		BaseVolume:   result.BaseVolume,
+		Volume:       result.Volume,
+		Change:       result.Last - result.PrevDay,
+		Depth:        depth,
+		Candlesticks: candlesticks,
 	})
 }
 

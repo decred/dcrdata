@@ -118,6 +118,70 @@ function gScroll (event, g, context) {
   event.stopPropagation()
 }
 
+function candlestickStats (bids, asks) {
+  var bidEdge = bids[0].price
+  var askEdge = asks[0].price
+  return {
+    bidEdge: bidEdge,
+    askEdge: askEdge,
+    gap: askEdge - bidEdge,
+    midGap: (bidEdge + askEdge) / 2
+  }
+}
+
+var dummyOrderbook = {
+  pts: [[0, 0, 0]],
+  outliers: {
+    asks: [],
+    bids: []
+  }
+}
+
+function processOrderbook (response, accumulate) {
+  var pts = []
+  var accumulator = 0
+  var bids = response.data.bids
+  var asks = response.data.asks
+  if (!bids || !asks) {
+    console.warn('no bid/ask data in API response')
+    return dummyOrderbook
+  }
+  if (!bids.length || !asks.length) {
+    console.warn('empty bid/ask data in API response')
+    return dummyOrderbook
+  }
+  var stats = candlestickStats(bids, asks)
+  // Just track outliers for now. May display value in the future.
+  var outliers = {
+    asks: [],
+    bids: []
+  }
+  var cutoff = 0.1 * stats.midGap // Low cutoff of 10% market.
+  bids.forEach(pt => {
+    if (pt.price < cutoff) {
+      outliers.bids.push(pt)
+      return
+    }
+    accumulator = accumulate ? accumulator + pt.quantity : pt.quantity
+    pts.push([pt.price, null, accumulator])
+  })
+  pts.reverse()
+  accumulator = 0
+  cutoff = stats.midGap * 2 // Hard cutoff of 2 * market price
+  asks.forEach(pt => {
+    if (pt.price > cutoff) {
+      outliers.asks.push(pt)
+      return
+    }
+    accumulator = accumulate ? accumulator + pt.quantity : pt.quantity
+    pts.push([pt.price, accumulator, null])
+  })
+  return {
+    pts: pts,
+    outliers: outliers
+  }
+}
+
 function candlestickPlotter (e) {
   if (e.seriesIndex !== 0) return
 
@@ -483,21 +547,10 @@ export default class extends Controller {
   }
 
   processDepth (response) {
-    var pts = []
-    var accumulator = 0
-    response.data.bids.forEach(pt => {
-      accumulator += pt.quantity
-      pts.push([pt.price, null, accumulator])
-    })
-    pts.reverse()
-    accumulator = 0
-    response.data.asks.forEach(pt => {
-      accumulator += pt.quantity
-      pts.push([pt.price, accumulator, null])
-    })
+    var data = processOrderbook(response, true)
     return {
       labels: ['price', 'cumulative sell', 'cumulative buy'],
-      file: pts,
+      file: data.pts,
       fillGraph: true,
       colors: ['#ed6d47', '#41be53'],
       xlabel: `Price (${this.converted ? this.currencyCode : 'BTC'})`,
@@ -517,17 +570,10 @@ export default class extends Controller {
   }
 
   processOrders (response) {
-    var pts = []
-    response.data.bids.forEach(pt => {
-      pts.push([pt.price, null, pt.quantity])
-    })
-    pts.reverse() // necessary for Dygraph zoom to be correct
-    response.data.asks.forEach(pt => {
-      pts.push([pt.price, pt.quantity, null])
-    })
+    var data = processOrderbook(response, false)
     return {
       labels: ['price', 'sell', 'buy'],
-      file: pts,
+      file: data.pts,
       colors: ['#f93f39cc', '#1acc84cc'],
       xlabel: `Price (${this.converted ? this.currencyCode : 'BTC'})`,
       ylabel: 'Volume (DCR)',
