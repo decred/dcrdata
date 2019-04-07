@@ -25,7 +25,7 @@ const (
 	// faster.
 	DefaultCurrency = "USD"
 	// DefaultDataExpiry is the amount of time between calls to the exchange API.
-	DefaultDataExpiry = "20m"
+	DefaultDataExpiry = "5m"
 	// DefaultRequestExpiry : Any data older than RequestExpiry will be discarded.
 	DefaultRequestExpiry = "60m"
 
