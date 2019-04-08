@@ -122,7 +122,7 @@ function adjustAxis (axis, zoomInPercentage, bias) {
 }
 
 function gScroll (event, g, context) {
-  var percentage = event.detail ? event.detail * -1 / 1000 : event.wheelDelta / 1000
+  var percentage = event.detail ? event.detail * -1 / 1000 : event.wheelDelta ? event.wheelDelta / 1000 : event.deltaY / -25
 
   if (!(event.offsetX && event.offsetY)) {
     event.offsetX = event.layerX - event.target.offsetLeft
@@ -410,7 +410,7 @@ export default class extends Controller {
     // A little hack to start with the default interaction model. Updating the
     // interactionModel with updateOptions later does not appear to work.
     var model = dummyGraph.getOption('interactionModel')
-    model.mousewheel = gScroll
+    model.wheel = gScroll
     model.mousedown = (event, g, context) => {
       // End panning even if the mouseup event is not on the chart.
       var mouseup = () => {

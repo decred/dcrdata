@@ -9,15 +9,15 @@
 
 {{- if $botState -}}
 
-<div class="d-flex align-items-top mb-4 row" data-controller="market">
+<div class="row w-100 align-items-top mb-4" data-controller="market">
 
 
     {{- /* LEFT COLUMN */ -}}
-    <div class="col-24 col-lg-auto">
+    <div class="col-24 col-lg-auto p-0">
 
 
         {{- /* PRICE */ -}}
-        <div class="ml-3 ml-lg-4 mr-2 my-4 p-2 p-lg-4 bg-white text-center">
+        <div class="ml-4 mr-2 my-4 p-2 p-lg-4 bg-white text-center">
             <div class="text-center fs18 text-secondary">1 DCR =</div>
             {{if eq $botState.BtcIndex "USD"}}
                 <span class="fs18 font-weight-bold d-inline-block pt-1" style="vertical-align:top;">$</span>
@@ -27,7 +27,7 @@
 
 
         {{- /* DCR/BTC MARKETS */ -}}
-        <div class="ml-3 ml-lg-4 mr-2 my-4 p-2 p-lg-4 bg-white">
+        <div class="ml-4 mr-2 my-4 p-2 p-lg-4 bg-white">
             <div colspan="4" class="fs24 text-center pb-4"><span class="dcricon-coin-negative fs24 mr-2"></span> Decred Markets</div>
             <table class="mx-auto mx-lg-3">
                 <tbody>
@@ -65,7 +65,7 @@
 
 
         {{- /* BITCOIN INDICES */ -}}
-        <div class="ml-3 ml-lg-4 mr-2 my-4 py-4 bg-white">
+        <div class="ml-4 mr-2 my-4 py-4 bg-white">
             <div colspan="4" class="fs24 d-flex align-items-center justify-content-center pb-3"><div class="exchange-logo bitcoin mr-2"></div> <span>Bitcoin Indices</span></div>
             <div class="row">
               {{range $token, $state := $botState.FiatIndices}}
@@ -86,8 +86,8 @@
 
 
     {{- /* RIGHT COLUMN */ -}}
-    <div class="row flex-grow-0 flex-lg-grow-1 col-24 col-lg mx-0">
-        <div class="ml-3 ml-lg-1 mr-2 mr-lg-4 mb-4 mt-1 mt-lg-4 flex-grow-1 d-flex flex-column bg-white px-2 px-lg-5 py-2 py-lg-3 position-relative">
+    <div class="row flex-grow-0 flex-lg-grow-1 col-24 col-lg mx-0 p-0">
+        <div class="ml-4 ml-lg-3 mr-2 mr-lg-3 mb-4 mt-1 mt-lg-4 flex-grow-1 d-flex flex-column bg-white px-2 px-lg-5 py-2 py-lg-3 position-relative">
         <div class="loader-v2 loading" data-target="market.chartLoader"></div>
 
 
