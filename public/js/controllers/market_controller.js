@@ -34,7 +34,8 @@ const exchangeLinks = {
   dragonex: 'https://dragonex.io/en-us/trade/index/dcr_btc',
   huobi: 'https://www.hbg.com/en-us/exchange/?s=dcr_btc'
 }
-
+var focused = true
+var refreshAvailable = false
 var availableCandlesticks, availableDepths
 
 function validDepthExchange (token) {
@@ -298,7 +299,7 @@ export default class extends Controller {
   static get targets () {
     return ['chartSelect', 'exchanges', 'bin', 'chart', 'legend', 'conversion',
       'xcName', 'xcLogo', 'actions', 'sticksOnly', 'depthOnly', 'chartLoader',
-      'xcRow', 'xcIndex', 'price', 'refresh', 'age', 'ageSpan', 'link']
+      'xcRow', 'xcIndex', 'price', 'age', 'ageSpan', 'link']
   }
 
   async connect () {
@@ -353,6 +354,10 @@ export default class extends Controller {
 
     this.resize = this._resize.bind(this)
     window.addEventListener('resize', this.resize)
+    this.tabFocus = this._tabFocus.bind(this)
+    window.addEventListener('focus', this.tabFocus)
+    this.tabBlur = this._tabBlur.bind(this)
+    window.addEventListener('blur', this.tabBlur)
     this.processNightMode = this._processNightMode.bind(this)
     globalEventBus.on('NIGHT_MODE', this.processNightMode)
     this.processXcUpdate = this._processXcUpdate.bind(this)
@@ -365,6 +370,8 @@ export default class extends Controller {
   disconnect () {
     responseCache = {}
     window.removeEventListener('resize', this.resize)
+    window.removeEventListener('focus', this.tabFocus)
+    window.removeEventListener('blur', this.tabBlur)
     globalEventBus.off('NIGHT_MODE', this.processNightMode)
     globalEventBus.off('EXCHANGE_UPDATE', this.processXcUpdate)
   }
@@ -373,6 +380,15 @@ export default class extends Controller {
     if (this.graph) {
       this.graph.resize()
     }
+  }
+
+  _tabFocus () {
+    focused = true
+    if (refreshAvailable) this.refreshChart()
+  }
+
+  _tabBlur () {
+    focused = false
   }
 
   async fetchInitialData () {
@@ -410,7 +426,7 @@ export default class extends Controller {
     this.fetchChart()
   }
 
-  async fetchChart () {
+  async fetchChart (isRefresh) {
     var url = null
     requestCounter++
     var thisRequest = requestCounter
@@ -466,10 +482,10 @@ export default class extends Controller {
     this.graph.updateOptions(chartResetOpts, true)
     this.graph.updateOptions(this.processors[chart](response.data))
     this.query.replace(settings)
-    this.resetZoom()
+    if (!isRefresh) this.resetZoom()
     this.chartLoaderTarget.classList.remove('loading')
-    this.refreshTarget.classList.add('d-hide')
     this.lastUrl = url
+    refreshAvailable = false
   }
 
   processCandlesticks (response) {
@@ -491,7 +507,6 @@ export default class extends Controller {
       labels: ['time', 'open', 'close', 'high', 'low'],
       xlabel: 'Time',
       ylabel: `Price (BTC)`,
-      dateWindow: stickZoom,
       plotter: candlestickPlotter,
       axes: {
         x: {
@@ -705,7 +720,11 @@ export default class extends Controller {
   }
 
   refreshChart () {
-    this.fetchChart()
+    refreshAvailable = true
+    if (!focused) {
+      return
+    }
+    this.fetchChart(true)
   }
 
   setConversion (e) {
@@ -795,11 +814,11 @@ export default class extends Controller {
     if (settings.xc !== xc.token) return
     if (usesOrderbook(settings.chart)) {
       clearCache(this.lastUrl)
-      this.refreshTarget.classList.remove('d-hide')
+      this.refreshChart()
     } else if (usesCandlesticks(settings.chart)) {
       // Only show refresh button if cache is expired
       if (!hasCache(this.lastUrl)) {
-        this.refreshTarget.classList.remove('d-hide')
+        this.refreshChart()
       }
     }
   }
