@@ -149,12 +149,23 @@ func mainCore() error {
 	}
 
 	// Create/load stake database (which includes the separate ticket pool DB).
-	stakeDB, _, err := stakedb.NewStakeDatabase(client, activeChain, "rebuild_data")
+	sdbDir := "rebuild_data"
+	stakeDB, stakeDBHeight, err := stakedb.NewStakeDatabase(client, activeChain, sdbDir)
 	if err != nil {
-		return fmt.Errorf("Unable to create stake DB: %v", err)
+		log.Errorf("Unable to create stake DB: %v", err)
+		if stakeDBHeight >= 0 {
+			log.Infof("Attempting to recover stake DB...")
+			stakeDB, err = stakedb.LoadAndRecover(client, activeChain, sdbDir, stakeDBHeight-288)
+			stakeDBHeight = int64(stakeDB.Height())
+		}
+		if err != nil {
+			if stakeDB != nil {
+				_ = stakeDB.Close()
+			}
+			return fmt.Errorf("StakeDatabase recovery failed: %v", err)
+		}
 	}
 	defer stakeDB.Close()
-	stakeDBHeight := int64(stakeDB.Height())
 
 	// Provide the stake database to the ChainDB for all of it's ticket tracking
 	// needs.

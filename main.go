@@ -148,6 +148,7 @@ func _main(ctx context.Context) error {
 		if stakeDBHeight >= 0 {
 			log.Infof("Attempting to recover stake DB...")
 			stakeDB, err = stakedb.LoadAndRecover(dcrdClient, activeChain, cfg.DataDir, stakeDBHeight-288)
+			//stakeDBHeight = int64(stakeDB.Height())
 		}
 		if err != nil {
 			if stakeDB != nil {
@@ -418,22 +419,22 @@ func _main(ctx context.Context) error {
 	// it is ahead of pgDB. For pgDB to receive notification from
 	// StakeDatabase when the required blocks are connected, the
 	// StakeDatabase must be at the same height or lower than pgDB.
-	stakedbHeight := int64(stakeDB.Height())
-	if stakedbHeight > heightDB {
-		// Have baseDB rewind it's the StakeDatabase. stakedbHeight is
+	stakeDBHeight = int64(stakeDB.Height())
+	if stakeDBHeight > heightDB {
+		// Have baseDB rewind it's the StakeDatabase. stakeDBHeight is
 		// always rewound to a height of zero even when lastBlockPG is -1,
 		// hence we rewind to heightDB.
 		log.Infof("Rewinding StakeDatabase from block %d to %d.",
-			stakedbHeight, heightDB)
-		stakedbHeight, err = baseDB.RewindStakeDB(ctx, heightDB)
+			stakeDBHeight, heightDB)
+		stakeDBHeight, err = baseDB.RewindStakeDB(ctx, heightDB)
 		if err != nil {
 			return fmt.Errorf("RewindStakeDB failed: %v", err)
 		}
 
 		// Verify that the StakeDatabase is at the intended height.
-		if stakedbHeight != heightDB {
+		if stakeDBHeight != heightDB {
 			return fmt.Errorf("failed to rewind stakedb: got %d, expecting %d",
-				stakedbHeight, heightDB)
+				stakeDBHeight, heightDB)
 		}
 	}
 

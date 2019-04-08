@@ -75,12 +75,29 @@ func mainCore() int {
 		return 2
 	}
 
+	// StakeDatabase
+	sdbDir := "rebuild_data"
+	stakeDB, stakeDBHeight, err := stakedb.NewStakeDatabase(client, activeChain, sdbDir)
+	if err != nil {
+		log.Errorf("Unable to create stake DB: %v", err)
+		if stakeDBHeight >= 0 {
+			log.Infof("Attempting to recover stake DB...")
+			stakeDB, err = stakedb.LoadAndRecover(client, activeChain, sdbDir, stakeDBHeight-288)
+		}
+		if err != nil {
+			if stakeDB != nil {
+				_ = stakeDB.Close()
+			}
+			log.Errorf("StakeDatabase recovery failed: %v", err)
+			return 1
+		}
+	}
+	defer stakeDB.Close()
+
 	// Sqlite output
 	dbInfo := dcrsqlite.DBInfo{FileName: cfg.DBFileName}
-	//sqliteDB, err := dcrsqlite.InitDB(&dbInfo)
-	sqliteDB, cleanupDB, err := dcrsqlite.InitWiredDB(&dbInfo, nil, client,
-		activeChain, "rebuild_data", func() {})
-	defer cleanupDB()
+	sqliteDB, err := dcrsqlite.InitWiredDB(&dbInfo, stakeDB, nil, client,
+		activeChain, func() {})
 	if err != nil {
 		log.Errorf("Unable to initialize SQLite database: %v", err)
 	}
