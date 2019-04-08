@@ -49,6 +49,10 @@ var focused = true
 var refreshAvailable = false
 var availableCandlesticks, availableDepths
 
+function screenIsBig () {
+  return window.screen.availWidth >= 992
+}
+
 function validDepthExchange (token) {
   return availableDepths.indexOf(token) > -1
 }
@@ -266,7 +270,8 @@ function orderXY (area, pt) {
   }
 }
 
-const orderPtSize = 7
+var orderPtSize = 7
+if (!screenIsBig()) orderPtSize = 4
 
 function orderPlotter (e) {
   if (e.seriesIndex !== 0) return
@@ -279,8 +284,8 @@ function orderPlotter (e) {
 
   let buys, sells
   [buys, sells] = e.allSeriesPoints
-  ctx.lineWidth = 1.5
-  ctx.strokeStyle = chartStroke
+  ctx.lineWidth = 1
+  ctx.strokeStyle = darkEnabled() ? 'black' : 'white'
   for (let i = 0; i < buys.length; i++) {
     let buy = buys[i]
     let sell = sells[i]
@@ -386,6 +391,7 @@ export default class extends Controller {
 
   _resize () {
     if (this.graph) {
+      orderPtSize = screenIsBig() ? 7 : 4
       this.graph.resize()
     }
   }
