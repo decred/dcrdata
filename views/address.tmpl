@@ -40,18 +40,10 @@
               <span class="text-secondary fs13">Balance</span>
               <br>
               <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal font-weight-bold">
-                {{if .Fullmode}}
-                      {{if .Balance}}
-                          {{template "decimalParts" (amountAsDecimalParts .Balance.TotalUnspent true)}}<span class="text-secondary fs14">DCR</span>
-                      {{else}}
-                      <span class="fs18">0</span> <span class="text-secondary fs14">DCR</span>
-                      {{end}}
+                {{if .Balance}}
+                    {{template "decimalParts" (amountAsDecimalParts .Balance.TotalUnspent true)}}<span class="text-secondary fs14">DCR</span>
                 {{else}}
-                    {{if ge .KnownTransactions .MaxTxLimit}}
-                      unavailable
-                    {{else}}
-                      {{.AmountUnspent.ToCoin}}
-                    {{end}}
+                <span class="fs18">0</span> <span class="text-secondary fs14">DCR</span>
                 {{end}}
               </span>
               <br>
@@ -62,50 +54,30 @@
             <div class="d-inline-block text-left pr-2 pb-3">
               <span class="text-secondary fs13">Received</span>
               <br>
-              {{if .Fullmode}}
-                  <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal font-weight-bold">
-                      {{if .Balance}}
-                          {{$received := add .Balance.TotalSpent .Balance.TotalUnspent}}
-                          {{template "decimalParts" (amountAsDecimalParts $received true)}} <span class="text-secondary fs14">DCR</span>
-                      {{else}}
-                          <span class="fs18">0</span> <span class="text-secondary fs14">DCR</span>
-                      {{end}}
-                  </span>
-                  <br>
-                  <span class="text-secondary fs16 lh1rem">{{intComma (add .Balance.NumSpent .Balance.NumUnspent)}} outputs</span>
-              {{else}}
-                  <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal font-weight-bold">
-                      {{if ge .KnownTransactions .MaxTxLimit}}
-                        unavailable
-                      {{else}}
-                        {{.AmountReceived.ToCoin}}
-                      {{end}}
-                  </span>
-              {{end}}
+                <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal font-weight-bold">
+                    {{if .Balance}}
+                        {{$received := add .Balance.TotalSpent .Balance.TotalUnspent}}
+                        {{template "decimalParts" (amountAsDecimalParts $received true)}} <span class="text-secondary fs14">DCR</span>
+                    {{else}}
+                        <span class="fs18">0</span> <span class="text-secondary fs14">DCR</span>
+                    {{end}}
+                </span>
+                <br>
+                <span class="text-secondary fs16 lh1rem">{{intComma (add .Balance.NumSpent .Balance.NumUnspent)}} outputs</span>
               </span>
             </div>
             <div class="d-inline-block text-left pr-2 pb-3">
               <span class="text-secondary fs13">Spent</span>
               <br>
-              {{if .Fullmode}}
-                  <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal font-weight-bold">
-                  {{if .Balance}}
-                      {{template "decimalParts" (amountAsDecimalParts .Balance.TotalSpent true)}} <span class="text-secondary fs14">DCR</span>
-                  {{else}}
-                      <span class="fs18">0</span> <span class="text-secondary fs14">DCR</span>
-                  {{end}}
-                  </span>
-                  <br>
-                  <span class="text-secondary fs16 lh1rem">{{intComma .Balance.NumSpent}} inputs</span>
-              {{else}}
-                  <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal font-weight-bold">
-                  {{if ge .KnownTransactions .MaxTxLimit}}
-                      unavailable
-                  {{else}}
-                      {{.AmountSent.ToCoin}}
-                  {{end}}
-                  </span>
-              {{end}}
+                <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal font-weight-bold">
+                {{if .Balance}}
+                    {{template "decimalParts" (amountAsDecimalParts .Balance.TotalSpent true)}} <span class="text-secondary fs14">DCR</span>
+                {{else}}
+                    <span class="fs18">0</span> <span class="text-secondary fs14">DCR</span>
+                {{end}}
+                </span>
+                <br>
+                <span class="text-secondary fs16 lh1rem">{{intComma .Balance.NumSpent}} inputs</span>
             </div>
             <span></span>
           </div>
@@ -214,9 +186,6 @@
               <span class="fs12 nowrap text-right" data-target="address.range">
                   showing {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumTransactions)}} of
                       <span data-target="address.txnCount" data-txn-count="{{$TxnCount}}">{{intComma $TxnCount}}</span> transactions
-                  {{if and (not .Fullmode) (ge .KnownTransactions .MaxTxLimit)}}
-                  <sup>*</sup>
-                  {{end}}
               </span>
               <nav aria-label="address transactions navigation"
                     data-limit="{{.Limit}}"
@@ -266,8 +235,7 @@
                 name="txntype"
                 data-target="address.txntype"
                 data-action="change->address#changeTxType"
-                class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if not .Fullmode}}disabled{{end}}"
-                {{if not .Fullmode}}disabled="disabled"{{end}}
+                class="form-control-sm mb-2 mr-sm-2 mb-sm-0"
             >
                 <option {{if eq $txType "all"}}selected{{end}} value="all">All</option>
                 <option {{if eq $txType "credit"}}selected{{end}} value="credit">Credits</option>
@@ -278,11 +246,6 @@
             </select>
           </div>
         </div>
-        {{if and (not .Fullmode) (ge .KnownTransactions .MaxTxLimit)}}
-          <div>
-              *Limit of {{.MaxTxLimit}} transactions shown in lite mode.
-          </div>
-        {{end}}
         <div
             class="hidden d-flex align-items-center justify-content-end"
         >

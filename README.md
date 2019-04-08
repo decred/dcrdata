@@ -34,8 +34,8 @@ modern javascript features, as well as SCSS for styling.
     - [Hiding the PostgreSQL db Configuration settings.](#hiding-the-postgresql-db-configuration-settings)
     - [Running the Web Interface During Synchronization](#running-the-web-interface-during-synchronization)
   - [System Hardware Requirements](#system-hardware-requirements)
-    - [lite Mode (SQLite only)](#lite-mode-sqlite-only)
-    - [full Mode (SQLite and PostgreSQL)](#full-mode-sqlite-and-postgresql)
+    - [dcrdata only (PostgreSQL on other host)](#dcrdata-only-postgresql-on-other-host)
+    - [dcrdata and PostgreSQL on same host](#dcrdata-and-postgresql-on-same-host)
   - [dcrdata Daemon](#dcrdata-daemon)
     - [Block Explorer](#block-explorer)
   - [APIs](#apis)
@@ -404,13 +404,12 @@ these indexes.
 
 ### Starting dcrdata
 
-Launch the dcrdata daemon and allow the databases to process new blocks. In
-"lite" mode (without `--pg`), only a SQLite DB is populated, which usually
-requires 30-60 minutes. In "full" mode (with `--pg`), concurrent synchronization
-of both SQLite and PostgreSQL databases is performed, requiring from 2-8 hours.
-See [System Hardware Requirements](#System-Hardware-Requirements) for more
-information. Please reread [Configuring PostgreSQL (**IMPORTANT!** Seriously,
-read this.)](#configuring-postgresql-important-seriously-read-this) of you have
+Launch the dcrdata daemon and allow the databases to process new blocks.
+Concurrent synchronization of both SQLite and PostgreSQL databases is performed,
+typically requiring between 1.5 to 8 hours. See [System Hardware
+Requirements](#System-Hardware-Requirements) for more information. Please reread
+[Configuring PostgreSQL (**IMPORTANT!** Seriously, read
+this.)](#configuring-postgresql-important-seriously-read-this) of you have
 performance issues.
 
 On subsequent launches, only blocks new to dcrdata are processed.
@@ -458,12 +457,12 @@ load processor intensive pages like ticketpool._
 
 ## System Hardware Requirements
 
-The time required to sync in "full" mode varies greatly with system hardware and
-software configuration. The most important factor is the storage medium on the
-database machine. An SSD (preferably NVMe, not SATA) is strongly recommended if
-you value your time and system performance.
+The time required to sync varies greatly with system hardware and software
+configuration. The most important factor is the storage medium on the database
+machine. An SSD (preferably NVMe, not SATA) is strongly recommended if you value
+your time and system performance.
 
-### lite Mode (SQLite only)
+### dcrdata only (PostgreSQL on other host)
 
 Minimum:
 
@@ -471,7 +470,7 @@ Minimum:
 - 2 GB RAM
 - HDD with 4GB free space
 
-### full Mode (SQLite and PostgreSQL)
+### dcrdata and PostgreSQL on same host
 
 These specifications assume dcrdata and postgres are running on the same machine.
 
@@ -487,9 +486,6 @@ Recommend:
 - 8+ GB RAM
 - SSD (NVMe preferred) with 60 GB free space
 
-If PostgreSQL is running on a separate machine, the minimum "lite" mode
-requirements may be applied to the dcrdata machine, while the recommended
-"full" mode requirements should be applied to the PostgreSQL host.
 
 ## dcrdata Daemon
 
@@ -515,12 +511,6 @@ server on this port.
 Note that while dcrdata can be started with HTTPS support, it is recommended to
 employ a reverse proxy such as Nginx ("engine x"). See sample-nginx.conf for an
 example Nginx configuration.
-
-To save time and tens of gigabytes of disk storage space, dcrdata runs by
-default in a reduced functionality ("lite") mode that does not require
-PostgreSQL. To enable the PostgreSQL backend (and the expanded functionality),
-dcrdata may be started with the `--pg` switch. See `--help` or `sample-dcrdata.conf`
-for additional PostgreSQL configuration settings.
 
 ## APIs
 

@@ -348,13 +348,13 @@ var TimeIntervals = [NumIntervals]TimeBasedGrouping{
 
 const (
 	// InitialDBLoad is a sync where data is first loaded from the chain db into
-	// the respective dbs currently supported. Runs on both liteMode and fullMode.
-	// InitialDBLoad value references the first progress bar id on the status page.
+	// the respective dbs currently supported. InitialDBLoad value references
+	// the first progress bar id on the status page.
 	InitialDBLoad = "initial-load"
-	// AddressesTableSync is a sync that runs immediately after initialDBLoad. Data
-	// previously loaded into vins table is sync'd with the addresses table.
-	// Runs only in fullMode. AddressesTableSync value references the second
-	// progress bar id on the status page.
+	// AddressesTableSync is a sync that runs immediately after initialDBLoad.
+	// Data previously loaded into vins table is sync'd with the addresses
+	// table. AddressesTableSync value references the second progress bar id on
+	// the status page.
 	AddressesTableSync = "addresses-sync"
 )
 
@@ -1501,7 +1501,6 @@ type AddressInfo struct {
 
 	// Page parameters
 	MaxTxLimit    int64
-	Fullmode      bool
 	Path          string
 	Limit, Offset int64  // ?n=Limit&start=Offset
 	TxnType       string // ?txntype=TxnType
@@ -1523,11 +1522,11 @@ type AddressInfo struct {
 	AmountSent      dcrutil.Amount
 	AmountUnspent   dcrutil.Amount
 
-	// Balance is used in full mode, describing all known transactions
+	// Balance summarizes spend and unspent amounts for all known transactions.
 	Balance *AddressBalance
 
-	// KnownTransactions refers to the total transaction count in the DB when in
-	// full mode, the sum of funding (crediting) and spending (debiting) txns.
+	// KnownTransactions refers to the total transaction count in the DB, the
+	// sum of funding (crediting) and spending (debiting) txns.
 	KnownTransactions int64
 	KnownFundingTxns  int64
 	KnownSpendingTxns int64

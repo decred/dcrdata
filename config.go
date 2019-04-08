@@ -557,10 +557,8 @@ func loadConfig() (*config, error) {
 	log.Infof("Log folder:  %s", cfg.LogDir)
 	log.Infof("Config file: %s", configFile)
 
-	// If import-sidechains is true, but not running in full mode, warn the user
-	// that side chain import cannot be performed.
-	if !cfg.FullMode && cfg.ImportSideChains {
-		log.Warn("Unable to import side chains in lite mode!")
+	if cfg.FullMode {
+		log.Warn("The --pg switch is deprecated since full-mode is now required.")
 	}
 
 	// Disable dev balance prefetch if network has invalid script.

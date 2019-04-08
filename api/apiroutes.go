@@ -122,7 +122,6 @@ type appContext struct {
 	Params        *chaincfg.Params
 	BlockData     DataSourceLite
 	AuxDataSource DataSourceAux
-	LiteMode      bool
 	Status        *apitypes.Status
 	JSONIndent    string
 	xcBot         *exchanges.ExchangeBot
@@ -138,16 +137,17 @@ func NewContext(client *rpcclient.Client, params *chaincfg.Params, dataSource Da
 	conns, _ := client.GetConnectionCount()
 	nodeHeight, _ := client.GetBlockCount()
 
-	// auxDataSource is an interface that could have a value of pointer type,
-	// and if either is nil this means lite mode.
-	liteMode := auxDataSource == nil || reflect.ValueOf(auxDataSource).IsNil()
+	// auxDataSource is an interface that could have a value of pointer type.
+	if auxDataSource == nil || reflect.ValueOf(auxDataSource).IsNil() {
+		log.Errorf("NewContext: a DataSourceAux is required.")
+		return nil
+	}
 
 	return &appContext{
 		nodeClient:    client,
 		Params:        params,
 		BlockData:     dataSource,
 		AuxDataSource: auxDataSource,
-		LiteMode:      liteMode,
 		xcBot:         xcBot,
 		AgendaDB:      agendasDBInstance,
 		Status:        apitypes.NewStatus(uint32(nodeHeight), conns, APIVersion, appver.Version(), params.Name),
@@ -552,11 +552,6 @@ func (c *appContext) getVoteInfo(w http.ResponseWriter, r *http.Request) {
 // output that is spent. For unspent outputs, the Spend field remains a nil
 // pointer.
 func (c *appContext) setOutputSpends(txid string, vouts []apitypes.Vout) error {
-	if c.LiteMode {
-		apiLog.Warnf("Not setting spending transaction data in lite mode.")
-		return nil
-	}
-
 	// For each output of this transaction, look up any spending transactions,
 	// and the index of the spending transaction input.
 	spendHashes, spendVinInds, voutInds, err := c.AuxDataSource.SpendingTransactions(txid)
@@ -608,13 +603,12 @@ func (c *appContext) getTransaction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Look up any spending transactions for each output of this transaction.
-	// This is only done in full mode, and when the client requests spends with
-	// the URL query ?spends=true.
+	// Look up any spending transactions for each output of this transaction
+	// when the client requests spends with the URL query ?spends=true.
 	spendParam := r.URL.Query().Get("spends")
 	withSpends := spendParam == "1" || strings.EqualFold(spendParam, "true")
 
-	if withSpends && !c.LiteMode {
+	if withSpends {
 		if err := c.setTxSpends(tx); err != nil {
 			apiLog.Errorf("Unable to get spending transaction info for outputs of %s: %v", txid, err)
 			http.Error(w, http.StatusText(http.StatusInternalServerError),
@@ -652,13 +646,12 @@ func (c *appContext) getDecodedTx(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Look up any spending transactions for each output of this transaction.
-	// This is only done in full mode, and when the client requests spends with
-	// the URL query ?spends=true.
+	// Look up any spending transactions for each output of this transaction
+	// when the client requests spends with the URL query ?spends=true.
 	spendParam := r.URL.Query().Get("spends")
 	withSpends := spendParam == "1" || strings.EqualFold(spendParam, "true")
 
-	if withSpends && !c.LiteMode {
+	if withSpends {
 		if err := c.setTrimmedTxSpends(tx); err != nil {
 			apiLog.Errorf("Unable to get spending transaction info for outputs of %s: %v", txid, err)
 			http.Error(w, http.StatusText(http.StatusInternalServerError),
@@ -677,9 +670,8 @@ func (c *appContext) getTransactions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Look up any spending transactions for each output of this transaction.
-	// This is only done in full mode, and when the client requests spends with
-	// the URL query ?spends=true.
+	// Look up any spending transactions for each output of this transaction
+	// when the client requests spends with the URL query ?spends=true.
 	spendParam := r.URL.Query().Get("spends")
 	withSpends := spendParam == "1" || strings.EqualFold(spendParam, "true")
 
@@ -692,7 +684,7 @@ func (c *appContext) getTransactions(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if withSpends && !c.LiteMode {
+		if withSpends {
 			if err := c.setTxSpends(tx); err != nil {
 				apiLog.Errorf("Unable to get spending transaction info for outputs of %s: %v",
 					txids[i], err)
@@ -995,12 +987,6 @@ func (c *appContext) getSSTxDetails(w http.ResponseWriter, r *http.Request) {
 // getTicketPoolCharts pulls the initial data to populate the /ticketpool page
 // charts.
 func (c *appContext) getTicketPoolCharts(w http.ResponseWriter, r *http.Request) {
-	if c.LiteMode {
-		// not available in lite mode
-		http.Error(w, "not available in lite mode", 422)
-		return
-	}
-
 	timeChart, priceChart, donutChart, height, err := c.AuxDataSource.TicketPoolVisualization(dbtypes.AllGrouping)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("TicketPoolVisualization: %v", err)
@@ -1028,12 +1014,6 @@ func (c *appContext) getTicketPoolCharts(w http.ResponseWriter, r *http.Request)
 }
 
 func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request) {
-	if c.LiteMode {
-		// not available in lite mode
-		http.Error(w, "not available in lite mode", 422)
-		return
-	}
-
 	tp := m.GetTpCtx(r)
 	// default to day if no grouping was sent
 	if tp == "" {
@@ -1068,12 +1048,6 @@ func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request)
 }
 
 func (c *appContext) getProposalChartData(w http.ResponseWriter, r *http.Request) {
-	if c.LiteMode {
-		// not available in lite mode
-		http.Error(w, "not available in lite mode", 422)
-		return
-	}
-
 	token := m.GetProposalTokenCtx(r)
 	votesData, err := c.AuxDataSource.ProposalVotes(token)
 	if dbtypes.IsTimeoutErr(err) {
@@ -1108,12 +1082,6 @@ func (c *appContext) getBlockSize(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) blockSubsidies(w http.ResponseWriter, r *http.Request) {
-	if c.LiteMode {
-		// not available in lite mode
-		http.Error(w, "not available in lite mode", 422)
-		return
-	}
-
 	idx, err := c.getBlockHeightCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -1448,12 +1416,6 @@ func (c *appContext) getStakeDiffRange(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
-	if c.LiteMode {
-		// not available in lite mode
-		http.Error(w, "not available in lite mode", 422)
-		return
-	}
-
 	addresses, err := m.GetAddressCtx(r, c.Params, 1)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
@@ -1479,11 +1441,6 @@ func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
 // Handler for address activity CSV file download.
 // /download/address/io/{address}?cr=[true|false]
 func (c *appContext) addressIoCsv(w http.ResponseWriter, r *http.Request) {
-	if c.LiteMode {
-		http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
-		return
-	}
-
 	addresses, err := m.GetAddressCtx(r, c.Params, 1)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
@@ -1516,11 +1473,6 @@ func (c *appContext) addressIoCsv(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Request) {
-	if c.LiteMode {
-		http.Error(w, "not available in lite mode", 422)
-		return
-	}
-
 	addresses, err := m.GetAddressCtx(r, c.Params, 1)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
@@ -1551,11 +1503,6 @@ func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Reques
 }
 
 func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.Request) {
-	if c.LiteMode {
-		http.Error(w, "not available in lite mode", 422)
-		return
-	}
-
 	addresses, err := m.GetAddressCtx(r, c.Params, 1)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
@@ -1586,11 +1533,6 @@ func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.R
 }
 
 func (c *appContext) getTicketPriceChartData(w http.ResponseWriter, r *http.Request) {
-	if c.LiteMode {
-		http.Error(w, "not available in lite mode", 422)
-		return
-	}
-
 	chartData, ok := explorer.ChartTypeData("ticket-price")
 	if !ok {
 		http.NotFound(w, r)
@@ -1601,11 +1543,6 @@ func (c *appContext) getTicketPriceChartData(w http.ResponseWriter, r *http.Requ
 }
 
 func (c *appContext) ChartTypeData(w http.ResponseWriter, r *http.Request) {
-	if c.LiteMode {
-		http.Error(w, "not available in lite mode", 422)
-		return
-	}
-
 	chartType := m.GetChartTypeCtx(r)
 	chartData, ok := explorer.ChartTypeData(chartType)
 	if !ok {
@@ -1671,8 +1608,6 @@ func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Reque
 	skip := int64(m.GetMCtx(r))
 	if count <= 0 {
 		count = 10
-	} else if c.LiteMode && count > 2000 {
-		count = 2000
 	} else if count > 8000 {
 		count = 8000
 	}
@@ -1680,17 +1615,13 @@ func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Reque
 		skip = 0
 	}
 
-	var txs *apitypes.Address
-	if c.LiteMode {
-		txs = c.BlockData.GetAddressTransactionsWithSkip(address, int(count), int(skip))
-	} else {
-		txs, err = c.AuxDataSource.AddressTransactionDetails(address, count, skip, dbtypes.AddrTxnAll)
-		if dbtypes.IsTimeoutErr(err) {
-			apiLog.Errorf("AddressTransactionDetails: %v", err)
-			http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
-			return
-		}
+	txs, err := c.AuxDataSource.AddressTransactionDetails(address, count, skip, dbtypes.AddrTxnAll)
+	if dbtypes.IsTimeoutErr(err) {
+		apiLog.Errorf("AddressTransactionDetails: %v", err)
+		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
+		return
 	}
+
 	if txs == nil || err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -1710,8 +1641,6 @@ func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Re
 	skip := int64(m.GetMCtx(r))
 	if count <= 0 {
 		count = 10
-	} else if c.LiteMode && count > 2000 {
-		count = 2000
 	} else if count > 8000 {
 		count = 8000
 	}
@@ -1719,13 +1648,8 @@ func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Re
 		skip = 0
 	}
 
-	//var txs []*apitypes.AddressTxRaw
 	// TODO: add postgresql powered method
-	//if c.LiteMode {
 	txs := c.BlockData.GetAddressTransactionsRawWithSkip(address, int(count), int(skip))
-	// } else {
-	// 	txs, err = c.AuxDataSource.AddressTransactionRawDetails(address, count, skip, dbtypes.AddrTxnAll)
-	// }
 	if txs == nil {
 		http.Error(w, http.StatusText(422), 422)
 		return

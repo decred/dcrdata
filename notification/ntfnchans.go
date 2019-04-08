@@ -49,7 +49,7 @@ var NtfnChans struct {
 }
 
 // MakeNtfnChans create notification channels based on config
-func MakeNtfnChans(postgresEnabled bool) {
+func MakeNtfnChans() {
 	// If we're monitoring for blocks OR collecting block data, these channels
 	// are necessary to handle new block notifications. Otherwise, leave them
 	// as nil so that both a send (below) blocks and a receive (in
@@ -86,10 +86,8 @@ func MakeNtfnChans(postgresEnabled bool) {
 	// New mempool tx chan for general purpose mempool monitor/collector/saver.
 	NtfnChans.NewTxChan = make(chan *dcrjson.TxRawResult, newTxChanBuffer)
 
-	if postgresEnabled {
-		NtfnChans.InsightNewTxChan = make(chan *insight.NewTx, expNewTxChanBuffer)
-		NtfnChans.ReorgChartsCache = make(chan *txhelpers.ReorgData)
-	}
+	NtfnChans.InsightNewTxChan = make(chan *insight.NewTx, expNewTxChanBuffer)
+	NtfnChans.ReorgChartsCache = make(chan *txhelpers.ReorgData)
 }
 
 // CloseNtfnChans close all notification channels

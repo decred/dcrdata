@@ -202,8 +202,7 @@ func (db *WiredDB) CheckConnectivity() error {
 // MasterBlockGetter, fetchToHeight should be one past the best block in the aux
 // DB, thus putting WiredDB sync into "catch up" mode where it just pulls blocks
 // from RPC until it matches the auxDB height and coordination begins.
-func (db *WiredDB) SyncDBAsync(ctx context.Context, res chan dbtypes.SyncResult, blockGetter rpcutils.BlockGetter, fetchToHeight int64,
-	updateExplorer chan *chainhash.Hash, barLoad chan *dbtypes.ProgressBarLoad) {
+func (db *WiredDB) SyncDBAsync(ctx context.Context, res chan dbtypes.SyncResult, blockGetter rpcutils.BlockGetter, fetchToHeight int64) {
 	// Ensure the db is working.
 	if err := db.CheckConnectivity(); err != nil {
 		res <- dbtypes.SyncResult{
@@ -224,7 +223,7 @@ func (db *WiredDB) SyncDBAsync(ctx context.Context, res chan dbtypes.SyncResult,
 	// Begin sync in a goroutine, and return the result when done on the
 	// provided channel.
 	go func() {
-		height, err := db.resyncDB(ctx, blockGetter, fetchToHeight, updateExplorer, barLoad)
+		height, err := db.resyncDB(ctx, blockGetter, fetchToHeight)
 		res <- dbtypes.SyncResult{
 			Height: height,
 			Error:  err,
@@ -245,7 +244,7 @@ func (db *WiredDB) SyncDB(ctx context.Context, blockGetter rpcutils.BlockGetter,
 		log.Debugf("Setting block gate height to %d", fetchToHeight)
 		db.initWaitChan(blockGetter.WaitForHeight(fetchToHeight))
 	}
-	return db.resyncDB(ctx, blockGetter, fetchToHeight, nil, nil)
+	return db.resyncDB(ctx, blockGetter, fetchToHeight)
 }
 
 func (db *WiredDB) GetStakeDB() *stakedb.StakeDatabase {
@@ -1650,7 +1649,6 @@ func (db *WiredDB) GetExplorerAddress(address string, count, offset int64) (*dbt
 			UnconfirmedTxns: new(dbtypes.AddressTransactions),
 			Limit:           count,
 			Offset:          offset,
-			Fullmode:        true,
 		}, addrType, nil
 	case txhelpers.AddressErrorWrongNet:
 		// Set the net name field so a user can be properly directed.

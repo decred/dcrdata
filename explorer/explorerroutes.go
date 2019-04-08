@@ -53,7 +53,6 @@ type CommonPageData struct {
 const (
 	defaultErrorCode    = "Something went wrong..."
 	defaultErrorMessage = "Try refreshing... it usually fixes things."
-	fullModeRequired    = "Full-functionality mode is required for this page."
 	wrongNetwork        = "Wrong Network"
 )
 
@@ -330,12 +329,6 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 
 // StakeDiffWindows is the page handler for the "/ticketpricewindows" path.
 func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) {
-	if exp.liteMode {
-		exp.StatusPage(w, fullModeRequired,
-			"Windows page cannot run in lite mode.", "", ExpStatusNotSupported)
-		return
-	}
-
 	offsetWindow, err := strconv.ParseUint(r.URL.Query().Get("offset"), 10, 64)
 	if err != nil {
 		offsetWindow = 0
@@ -417,13 +410,6 @@ func (exp *explorerUI) YearBlocksListing(w http.ResponseWriter, r *http.Request)
 // TimeBasedBlocksListing is the main handler for "/day", "/week", "/month" and
 // "/year".
 func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter, r *http.Request) {
-	if exp.liteMode {
-		exp.StatusPage(w, fullModeRequired,
-			"Time based blocks listing page cannot run in lite mode.", "",
-			ExpStatusNotSupported)
-		return
-	}
-
 	grouping := dbtypes.TimeGroupingFromStr(val)
 	i, err := dbtypes.TimeBasedGroupingToInterval(grouping)
 	if err != nil {
@@ -541,19 +527,17 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !exp.liteMode {
-		for _, s := range summaries {
-			blockStatus, err := exp.explorerSource.BlockStatus(s.Hash)
-			if exp.timeoutErrorPage(w, err, "BlockStatus") {
-				return
-			}
-			if err != nil && err != sql.ErrNoRows {
-				log.Warnf("Unable to retrieve chain status for block %s: %v",
-					s.Hash, err)
-			}
-			s.Valid = blockStatus.IsValid
-			s.MainChain = blockStatus.IsMainchain
+	for _, s := range summaries {
+		blockStatus, err := exp.explorerSource.BlockStatus(s.Hash)
+		if exp.timeoutErrorPage(w, err, "BlockStatus") {
+			return
 		}
+		if err != nil && err != sql.ErrNoRows {
+			log.Warnf("Unable to retrieve chain status for block %s: %v",
+				s.Hash, err)
+		}
+		s.Valid = blockStatus.IsValid
+		s.MainChain = blockStatus.IsMainchain
 	}
 
 	str, err := exp.templates.execTemplateToString("explorer", struct {
@@ -604,29 +588,26 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		data.TxAvailable = false
 	}
 
-	// In full mode, retrieve missed votes, main/side chain status, and
-	// stakeholder approval.
-	if !exp.liteMode {
-		var err error
-		data.Misses, err = exp.explorerSource.BlockMissedVotes(hash)
-		if exp.timeoutErrorPage(w, err, "BlockMissedVotes") {
-			return
-		}
-		if err != nil && err != sql.ErrNoRows {
-			log.Warnf("Unable to retrieve missed votes for block %s: %v", hash, err)
-		}
-
-		var blockStatus dbtypes.BlockStatus
-		blockStatus, err = exp.explorerSource.BlockStatus(hash)
-		if exp.timeoutErrorPage(w, err, "BlockStatus") {
-			return
-		}
-		if err != nil && err != sql.ErrNoRows {
-			log.Warnf("Unable to retrieve chain status for block %s: %v", hash, err)
-		}
-		data.Valid = blockStatus.IsValid
-		data.MainChain = blockStatus.IsMainchain
+	// Retrieve missed votes, main/side chain status, and stakeholder approval.
+	var err error
+	data.Misses, err = exp.explorerSource.BlockMissedVotes(hash)
+	if exp.timeoutErrorPage(w, err, "BlockMissedVotes") {
+		return
 	}
+	if err != nil && err != sql.ErrNoRows {
+		log.Warnf("Unable to retrieve missed votes for block %s: %v", hash, err)
+	}
+
+	var blockStatus dbtypes.BlockStatus
+	blockStatus, err = exp.explorerSource.BlockStatus(hash)
+	if exp.timeoutErrorPage(w, err, "BlockStatus") {
+		return
+	}
+	if err != nil && err != sql.ErrNoRows {
+		log.Warnf("Unable to retrieve chain status for block %s: %v", hash, err)
+	}
+	data.Valid = blockStatus.IsValid
+	data.MainChain = blockStatus.IsMainchain
 
 	pageData := struct {
 		*CommonPageData
@@ -682,12 +663,6 @@ func (exp *explorerUI) Mempool(w http.ResponseWriter, r *http.Request) {
 
 // Ticketpool is the page handler for the "/ticketpool" path.
 func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
-	if exp.liteMode {
-		exp.StatusPage(w, fullModeRequired,
-			"Ticketpool page cannot run in lite mode", "", ExpStatusNotSupported)
-		return
-	}
-
 	str, err := exp.templates.execTemplateToString("ticketpool", exp.commonData(r))
 
 	if err != nil {
@@ -723,14 +698,8 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 
 	tx := exp.blockData.GetExplorerTx(hash)
 	// If dcrd has no information about the transaction, pull the transaction
-	// details from the full mode database.
+	// details from the auxiliary DB database.
 	if tx == nil {
-		if exp.liteMode {
-			log.Errorf("Unable to get transaction %s", hash)
-			exp.StatusPage(w, defaultErrorCode, "could not find that transaction",
-				"", ExpStatusNotFound)
-			return
-		}
 		// Search for occurrences of the transaction in the database.
 		dbTxs, err := exp.explorerSource.Transaction(hash)
 		if exp.timeoutErrorPage(w, err, "Transaction") {
@@ -946,7 +915,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Set ticket-related parameters for both full and lite mode.
+	// Set ticket-related parameters.
 	if tx.IsTicket() {
 		blocksLive := tx.Confirmations - int64(exp.ChainParams.TicketMaturity)
 		tx.TicketInfo.TicketPoolSize = int64(exp.ChainParams.TicketPoolSize) *
@@ -964,179 +933,165 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			float64(exp.ChainParams.TicketExpiry)) * expirationInDays
 	}
 
-	// In full mode, create list of blocks in which the transaction was mined,
-	// and get additional ticket details and pool status.
-	var blocks []*dbtypes.BlockStatus
-	var blockInds []uint32
+	// For any coinbase transactions look up the total block fees to include
+	// as part of the inputs.
+	if tx.Type == "Coinbase" {
+		data := exp.blockData.GetExplorerBlock(tx.BlockHash)
+		if data == nil {
+			log.Errorf("Unable to get block %s", tx.BlockHash)
+		} else {
+			// BlockInfo.MiningFee is coin (float64), while
+			// TxInfo.BlockMiningFee is int64 (atoms), so convert. If the
+			// float64 is somehow invalid, use the default zero value.
+			feeAmt, _ := dcrutil.NewAmount(data.MiningFee)
+			tx.BlockMiningFee = int64(feeAmt)
+		}
+	}
+
+	// Details on all the blocks containing this transaction
+	blocks, blockInds, err := exp.explorerSource.TransactionBlocks(tx.TxID)
+	if exp.timeoutErrorPage(w, err, "TransactionBlocks") {
+		return
+	}
+	if err != nil {
+		log.Errorf("Unable to retrieve blocks for transaction %s: %v",
+			hash, err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, tx.TxID, ExpStatusError)
+		return
+	}
+
+	// See if any of these blocks are mainchain and stakeholder-approved
+	// (a.k.a. valid).
 	var isConfirmedMainchain bool
-	if exp.liteMode {
-		blocks = append(blocks, &dbtypes.BlockStatus{
-			Hash:        tx.BlockHash,
-			Height:      uint32(tx.BlockHeight),
-			IsMainchain: true,
-			IsValid:     true,
-		})
-		blockInds = []uint32{tx.BlockIndex}
-	} else {
-		// For any coinbase transactions look up the total block fees to include
-		// as part of the inputs.
-		if tx.Type == "Coinbase" {
-			data := exp.blockData.GetExplorerBlock(tx.BlockHash)
-			if data == nil {
-				log.Errorf("Unable to get block %s", tx.BlockHash)
-			} else {
-				// BlockInfo.MiningFee is coin (float64), while
-				// TxInfo.BlockMiningFee is int64 (atoms), so convert. If the
-				// float64 is somehow invalid, use the default zero value.
-				feeAmt, _ := dcrutil.NewAmount(data.MiningFee)
-				tx.BlockMiningFee = int64(feeAmt)
-			}
+	for ib := range blocks {
+		if blocks[ib].IsValid && blocks[ib].IsMainchain {
+			isConfirmedMainchain = true
+			break
 		}
+	}
 
-		// Details on all the blocks containing this transaction
-		var err error
-		blocks, blockInds, err = exp.explorerSource.TransactionBlocks(tx.TxID)
-		if exp.timeoutErrorPage(w, err, "TransactionBlocks") {
+	// For each output of this transaction, look up any spending transactions,
+	// and the index of the spending transaction input.
+	spendingTxHashes, spendingTxVinInds, voutInds, err :=
+		exp.explorerSource.SpendingTransactions(hash)
+	if exp.timeoutErrorPage(w, err, "SpendingTransactions") {
+		return
+	}
+	if err != nil {
+		log.Errorf("Unable to retrieve spending transactions for %s: %v", hash, err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, hash, ExpStatusError)
+		return
+	}
+	for i, vout := range voutInds {
+		if int(vout) >= len(tx.SpendingTxns) {
+			log.Errorf("Invalid spending transaction data (%s:%d)", hash, vout)
+			continue
+		}
+		tx.SpendingTxns[vout] = types.TxInID{
+			Hash:  spendingTxHashes[i],
+			Index: spendingTxVinInds[i],
+		}
+	}
+
+	if tx.IsTicket() {
+		spendStatus, poolStatus, err := exp.explorerSource.PoolStatusForTicket(hash)
+		if exp.timeoutErrorPage(w, err, "PoolStatusForTicket") {
 			return
 		}
-		if err != nil {
-			log.Errorf("Unable to retrieve blocks for transaction %s: %v",
+		if err != nil && err != sql.ErrNoRows {
+			log.Errorf("Unable to retrieve ticket spend and pool status for %s: %v",
 				hash, err)
-			exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, tx.TxID, ExpStatusError)
+			exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 			return
-		}
-
-		// See if any of these blocks are mainchain and stakeholder-approved
-		// (a.k.a. valid).
-		for ib := range blocks {
-			if blocks[ib].IsValid && blocks[ib].IsMainchain {
-				isConfirmedMainchain = true
-				break
+		} else if err == sql.ErrNoRows {
+			if tx.Confirmations != 0 {
+				log.Warnf("Spend and pool status not found for ticket %s: %v", hash, err)
 			}
-		}
-
-		// For each output of this transaction, look up any spending transactions,
-		// and the index of the spending transaction input.
-		spendingTxHashes, spendingTxVinInds, voutInds, err :=
-			exp.explorerSource.SpendingTransactions(hash)
-		if exp.timeoutErrorPage(w, err, "SpendingTransactions") {
-			return
-		}
-		if err != nil {
-			log.Errorf("Unable to retrieve spending transactions for %s: %v", hash, err)
-			exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, hash, ExpStatusError)
-			return
-		}
-		for i, vout := range voutInds {
-			if int(vout) >= len(tx.SpendingTxns) {
-				log.Errorf("Invalid spending transaction data (%s:%d)", hash, vout)
-				continue
-			}
-			tx.SpendingTxns[vout] = types.TxInID{
-				Hash:  spendingTxHashes[i],
-				Index: spendingTxVinInds[i],
-			}
-		}
-		if tx.IsTicket() {
-			spendStatus, poolStatus, err := exp.explorerSource.PoolStatusForTicket(hash)
-			if exp.timeoutErrorPage(w, err, "PoolStatusForTicket") {
-				return
-			}
-			if err != nil && err != sql.ErrNoRows {
-				log.Errorf("Unable to retrieve ticket spend and pool status for %s: %v",
-					hash, err)
-				exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
-				return
-			} else if err == sql.ErrNoRows {
-				if tx.Confirmations != 0 {
-					log.Warnf("Spend and pool status not found for ticket %s: %v", hash, err)
-				}
+		} else {
+			if tx.Mature == "False" {
+				tx.TicketInfo.PoolStatus = "immature"
 			} else {
-				if tx.Mature == "False" {
-					tx.TicketInfo.PoolStatus = "immature"
-				} else {
-					tx.TicketInfo.PoolStatus = poolStatus.String()
-				}
-				tx.TicketInfo.SpendStatus = spendStatus.String()
-
-				// For missed tickets, get the block in which it should have voted.
-				if poolStatus == dbtypes.PoolStatusMissed {
-					tx.TicketInfo.LotteryBlock, _, err = exp.explorerSource.TicketMiss(hash)
-					if err != nil && err != sql.ErrNoRows {
-						log.Errorf("Unable to retrieve miss information for ticket %s: %v",
-							hash, err)
-						exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
-						return
-					} else if err == sql.ErrNoRows {
-						log.Warnf("No mainchain miss data for ticket %s: %v",
-							hash, err)
-					}
-				}
-
-				// Ticket luck and probability of voting.
-				// blockLive < 0 for immature tickets
-				blocksLive := tx.Confirmations - int64(exp.ChainParams.TicketMaturity)
-				if tx.TicketInfo.SpendStatus == "Voted" {
-					// Blocks from eligible until voted (actual luck)
-					txhash, err := chainhash.NewHashFromStr(tx.SpendingTxns[0].Hash)
-					if err != nil {
-						exp.StatusPage(w, defaultErrorCode, err.Error(), "", ExpStatusError)
-						return
-					}
-					tx.TicketInfo.TicketLiveBlocks = exp.blockData.TxHeight(txhash) -
-						tx.BlockHeight - int64(exp.ChainParams.TicketMaturity) - 1
-				} else if tx.Confirmations >= int64(exp.ChainParams.TicketExpiry+
-					uint32(exp.ChainParams.TicketMaturity)) { // Expired
-					// Blocks ticket was active before expiring (actual no luck)
-					tx.TicketInfo.TicketLiveBlocks = int64(exp.ChainParams.TicketExpiry)
-				} else { // Active
-					// Blocks ticket has been active and eligible to vote
-					tx.TicketInfo.TicketLiveBlocks = blocksLive
-				}
-				tx.TicketInfo.BestLuck = tx.TicketInfo.TicketExpiry / int64(exp.ChainParams.TicketPoolSize)
-				tx.TicketInfo.AvgLuck = tx.TicketInfo.BestLuck - 1
-				if tx.TicketInfo.TicketLiveBlocks == int64(exp.ChainParams.TicketExpiry) {
-					tx.TicketInfo.VoteLuck = 0
-				} else {
-					tx.TicketInfo.VoteLuck = float64(tx.TicketInfo.BestLuck) -
-						(float64(tx.TicketInfo.TicketLiveBlocks) / float64(exp.ChainParams.TicketPoolSize))
-				}
-				if tx.TicketInfo.VoteLuck >= float64(tx.TicketInfo.BestLuck-
-					(1/int64(exp.ChainParams.TicketPoolSize))) {
-					tx.TicketInfo.LuckStatus = "Perfection"
-				} else if tx.TicketInfo.VoteLuck > (float64(tx.TicketInfo.BestLuck) - 0.25) {
-					tx.TicketInfo.LuckStatus = "Very Lucky!"
-				} else if tx.TicketInfo.VoteLuck > (float64(tx.TicketInfo.BestLuck) - 0.75) {
-					tx.TicketInfo.LuckStatus = "Good Luck"
-				} else if tx.TicketInfo.VoteLuck > (float64(tx.TicketInfo.BestLuck) - 1.25) {
-					tx.TicketInfo.LuckStatus = "Normal"
-				} else if tx.TicketInfo.VoteLuck > (float64(tx.TicketInfo.BestLuck) * 0.50) {
-					tx.TicketInfo.LuckStatus = "Bad Luck"
-				} else if tx.TicketInfo.VoteLuck > 0 {
-					tx.TicketInfo.LuckStatus = "Horrible Luck!"
-				} else if tx.TicketInfo.VoteLuck == 0 {
-					tx.TicketInfo.LuckStatus = "No Luck"
-				}
-
-				// Chance for a ticket to NOT be voted in a given time frame:
-				// C = (1 - P)^N
-				// Where: P is the probability of a vote in one block. (votes
-				// per block / current ticket pool size)
-				// N is the number of blocks before ticket expiry. (ticket
-				// expiry in blocks - (number of blocks since ticket purchase -
-				// ticket maturity))
-				// C is the probability (chance)
-				exp.pageData.RLock()
-				pVote := float64(exp.ChainParams.TicketsPerBlock) /
-					float64(exp.pageData.HomeInfo.PoolInfo.Size)
-				exp.pageData.RUnlock()
-
-				remainingBlocksLive := float64(exp.ChainParams.TicketExpiry) -
-					float64(blocksLive)
-				tx.TicketInfo.Probability = 100 * math.Pow(1-pVote, remainingBlocksLive)
+				tx.TicketInfo.PoolStatus = poolStatus.String()
 			}
-		} // tx.IsTicket()
-	} // !exp.liteMode
+			tx.TicketInfo.SpendStatus = spendStatus.String()
+
+			// For missed tickets, get the block in which it should have voted.
+			if poolStatus == dbtypes.PoolStatusMissed {
+				tx.TicketInfo.LotteryBlock, _, err = exp.explorerSource.TicketMiss(hash)
+				if err != nil && err != sql.ErrNoRows {
+					log.Errorf("Unable to retrieve miss information for ticket %s: %v",
+						hash, err)
+					exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+					return
+				} else if err == sql.ErrNoRows {
+					log.Warnf("No mainchain miss data for ticket %s: %v",
+						hash, err)
+				}
+			}
+
+			// Ticket luck and probability of voting.
+			// blockLive < 0 for immature tickets
+			blocksLive := tx.Confirmations - int64(exp.ChainParams.TicketMaturity)
+			if tx.TicketInfo.SpendStatus == "Voted" {
+				// Blocks from eligible until voted (actual luck)
+				txhash, err := chainhash.NewHashFromStr(tx.SpendingTxns[0].Hash)
+				if err != nil {
+					exp.StatusPage(w, defaultErrorCode, err.Error(), "", ExpStatusError)
+					return
+				}
+				tx.TicketInfo.TicketLiveBlocks = exp.blockData.TxHeight(txhash) -
+					tx.BlockHeight - int64(exp.ChainParams.TicketMaturity) - 1
+			} else if tx.Confirmations >= int64(exp.ChainParams.TicketExpiry+
+				uint32(exp.ChainParams.TicketMaturity)) { // Expired
+				// Blocks ticket was active before expiring (actual no luck)
+				tx.TicketInfo.TicketLiveBlocks = int64(exp.ChainParams.TicketExpiry)
+			} else { // Active
+				// Blocks ticket has been active and eligible to vote
+				tx.TicketInfo.TicketLiveBlocks = blocksLive
+			}
+			tx.TicketInfo.BestLuck = tx.TicketInfo.TicketExpiry / int64(exp.ChainParams.TicketPoolSize)
+			tx.TicketInfo.AvgLuck = tx.TicketInfo.BestLuck - 1
+			if tx.TicketInfo.TicketLiveBlocks == int64(exp.ChainParams.TicketExpiry) {
+				tx.TicketInfo.VoteLuck = 0
+			} else {
+				tx.TicketInfo.VoteLuck = float64(tx.TicketInfo.BestLuck) -
+					(float64(tx.TicketInfo.TicketLiveBlocks) / float64(exp.ChainParams.TicketPoolSize))
+			}
+			if tx.TicketInfo.VoteLuck >= float64(tx.TicketInfo.BestLuck-
+				(1/int64(exp.ChainParams.TicketPoolSize))) {
+				tx.TicketInfo.LuckStatus = "Perfection"
+			} else if tx.TicketInfo.VoteLuck > (float64(tx.TicketInfo.BestLuck) - 0.25) {
+				tx.TicketInfo.LuckStatus = "Very Lucky!"
+			} else if tx.TicketInfo.VoteLuck > (float64(tx.TicketInfo.BestLuck) - 0.75) {
+				tx.TicketInfo.LuckStatus = "Good Luck"
+			} else if tx.TicketInfo.VoteLuck > (float64(tx.TicketInfo.BestLuck) - 1.25) {
+				tx.TicketInfo.LuckStatus = "Normal"
+			} else if tx.TicketInfo.VoteLuck > (float64(tx.TicketInfo.BestLuck) * 0.50) {
+				tx.TicketInfo.LuckStatus = "Bad Luck"
+			} else if tx.TicketInfo.VoteLuck > 0 {
+				tx.TicketInfo.LuckStatus = "Horrible Luck!"
+			} else if tx.TicketInfo.VoteLuck == 0 {
+				tx.TicketInfo.LuckStatus = "No Luck"
+			}
+
+			// Chance for a ticket to NOT be voted in a given time frame:
+			// C = (1 - P)^N
+			// Where: P is the probability of a vote in one block. (votes
+			// per block / current ticket pool size)
+			// N is the number of blocks before ticket expiry. (ticket
+			// expiry in blocks - (number of blocks since ticket purchase -
+			// ticket maturity))
+			// C is the probability (chance)
+			exp.pageData.RLock()
+			pVote := float64(exp.ChainParams.TicketsPerBlock) /
+				float64(exp.pageData.HomeInfo.PoolInfo.Size)
+			exp.pageData.RUnlock()
+
+			remainingBlocksLive := float64(exp.ChainParams.TicketExpiry) -
+				float64(blocksLive)
+			tx.TicketInfo.Probability = 100 * math.Pow(1-pVote, remainingBlocksLive)
+		}
+	} // tx.IsTicket()
 
 	// Prepare the string to display for previous outpoint.
 	for idx := range tx.Vin {
@@ -1205,7 +1160,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	type AddressPageData struct {
 		*CommonPageData
 		Data         *dbtypes.AddressInfo
-		IsLiteMode   bool
 		CRLFDownload bool
 		FiatBalance  *exchanges.Conversion
 	}
@@ -1267,7 +1221,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			IsDummyAddress:  true,
 			Balance:         new(dbtypes.AddressBalance),
 			UnconfirmedTxns: new(dbtypes.AddressTransactions),
-			Fullmode:        true,
 		}
 	} else {
 		addrData, err = exp.AddressListData(address, txnType, limitN, offsetAddrOuts)
@@ -1284,10 +1237,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	addrData.Path = r.URL.Path
 
 	// If exchange monitoring is active, prepare a fiat balance conversion
-	var conversion *exchanges.Conversion
-	if exp.xcBot != nil && !exp.liteMode {
-		conversion = exp.xcBot.Conversion(dcrutil.Amount(addrData.Balance.TotalUnspent).ToCoin())
-	}
+	conversion := exp.xcBot.Conversion(dcrutil.Amount(addrData.Balance.TotalUnspent).ToCoin())
 
 	// For Windows clients only, link to downloads with CRLF (\r\n) line
 	// endings.
@@ -1297,7 +1247,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	pageData := AddressPageData{
 		CommonPageData: exp.commonData(r),
 		Data:           addrData,
-		IsLiteMode:     exp.liteMode,
 		CRLFDownload:   UseCRLF,
 		FiatBalance:    conversion,
 	}
@@ -1416,34 +1365,15 @@ func parseAddressParams(r *http.Request) (address string, txnType dbtypes.AddrTx
 // AddressListData grabs a size-limited and type-filtered set of inputs/outputs
 // for a given address.
 func (exp *explorerUI) AddressListData(address string, txnType dbtypes.AddrTxnViewType, limitN, offsetAddrOuts int64) (addrData *dbtypes.AddressInfo, err error) {
-	if exp.liteMode {
-		addrData, _, addrErr := exp.blockData.GetExplorerAddress(address,
-			limitN, offsetAddrOuts)
-		// The specific AddressError values from ValidateAddress were already
-		// handled, but there may be other errors from GetExplorerAddress (e.g.
-		// from searchrawtransactions).
-		if addrErr != txhelpers.AddressErrorNoError {
-			err = fmt.Errorf("Unknown error retrieving data for that address.")
-			return nil, err
-		}
-
-		if addrData == nil {
-			log.Errorf("Unable to get address %s", address)
-			err = fmt.Errorf("could not find that address")
-			return nil, err
-		}
-		addrData.TxnType = txnType.String()
-	} else {
-		// Get addresses table rows for the address.
-		addrData, err = exp.explorerSource.AddressData(address, limitN,
-			offsetAddrOuts, txnType)
-		if dbtypes.IsTimeoutErr(err) { //exp.timeoutErrorPage(w, err, "TicketsPriceByHeight") {
-			return nil, err
-		} else if err != nil {
-			log.Errorf("AddressData error encountered: %v", err)
-			err = fmt.Errorf(defaultErrorMessage)
-			return nil, err
-		}
+	// Get addresses table rows for the address.
+	addrData, err = exp.explorerSource.AddressData(address, limitN,
+		offsetAddrOuts, txnType)
+	if dbtypes.IsTimeoutErr(err) { //exp.timeoutErrorPage(w, err, "TicketsPriceByHeight") {
+		return nil, err
+	} else if err != nil {
+		log.Errorf("AddressData error encountered: %v", err)
+		err = fmt.Errorf(defaultErrorMessage)
+		return nil, err
 	}
 	return
 }
@@ -1468,12 +1398,6 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 
 // Charts handles the charts displays showing the various charts plotted.
 func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
-	if exp.liteMode {
-		exp.StatusPage(w, fullModeRequired,
-			"Charts page cannot run in lite mode", "", ExpStatusNotSupported)
-		return
-	}
-
 	str, err := exp.templates.execTemplateToString("charts", struct {
 		*CommonPageData
 	}{
@@ -1507,8 +1431,8 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Attempt to get a block hash by calling GetBlockHash of WiredDB or
-	// BlockHash of ChainDB (if full mode) to see if the URL query value is a
-	// block index. Then redirect to the block page if it is.
+	// BlockHash of ChainDB to see if the URL query value is a block index. Then
+	// redirect to the block page if it is.
 	idx, err := strconv.ParseInt(searchStr, 10, 0)
 	if err == nil {
 		_, err = exp.blockData.GetBlockHash(idx)
@@ -1516,12 +1440,10 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/block/"+searchStr, http.StatusPermanentRedirect)
 			return
 		}
-		if !exp.liteMode {
-			_, err = exp.explorerSource.BlockHash(idx)
-			if err == nil {
-				http.Redirect(w, r, "/block/"+searchStr, http.StatusPermanentRedirect)
-				return
-			}
+		_, err = exp.explorerSource.BlockHash(idx)
+		if err == nil {
+			http.Redirect(w, r, "/block/"+searchStr, http.StatusPermanentRedirect)
+			return
 		}
 		exp.StatusPage(w, "search failed", "Block "+searchStr+
 			" has not yet been mined", searchStr, ExpStatusNotFound)
@@ -1543,16 +1465,13 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Try aux DB if in full mode.
-	if !exp.liteMode {
-		// This is be unnecessarily duplicative and possible very
-		// slow for a very active addresss.
-		addrHist, _, _ := exp.explorerSource.AddressHistory(searchStr,
-			1, 0, dbtypes.AddrTxnAll)
-		if len(addrHist) > 0 {
-			http.Redirect(w, r, "/address/"+searchStr, http.StatusPermanentRedirect)
-			return
-		}
+	// This is be unnecessarily duplicative and possible very slow for a very
+	// active addresss.
+	addrHist, _, _ := exp.explorerSource.AddressHistory(searchStr,
+		1, 0, dbtypes.AddrTxnAll)
+	if len(addrHist) > 0 {
+		http.Redirect(w, r, "/address/"+searchStr, http.StatusPermanentRedirect)
+		return
 	}
 
 	// Remaining possibilities are hashes, so verify the string is a hash.
@@ -1566,9 +1485,9 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	// Attempt to get a block index by calling GetBlockHeight to see if the
 	// value is a block hash and then redirect to the block page if it is.
 	_, err = exp.blockData.GetBlockHeight(searchStr)
-	// If block search failed, and dcrdata is in full mode, check the aux DB,
-	// which has data for side chain and orphaned blocks.
-	if err != nil && !exp.liteMode {
+	// If block search failed, check the aux DB, which has data for side chain
+	// and orphaned blocks.
+	if err != nil {
 		_, err = exp.explorerSource.BlockHeight(searchStr)
 	}
 	if err == nil {
@@ -1585,15 +1504,13 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Also check the aux DB as it may have transactions from orphaned blocks.
-	if !exp.liteMode {
-		dbTxs, err := exp.explorerSource.Transaction(searchStr)
-		if err != nil && err != sql.ErrNoRows {
-			log.Errorf("Searching for transaction failed: %v", err)
-		}
-		if dbTxs != nil {
-			http.Redirect(w, r, "/tx/"+searchStr, http.StatusPermanentRedirect)
-			return
-		}
+	dbTxs, err := exp.explorerSource.Transaction(searchStr)
+	if err != nil && err != sql.ErrNoRows {
+		log.Errorf("Searching for transaction failed: %v", err)
+	}
+	if dbTxs != nil {
+		http.Redirect(w, r, "/tx/"+searchStr, http.StatusPermanentRedirect)
+		return
 	}
 
 	message := "The search did not find any matching address, block, or transaction: " + searchStr
@@ -1699,11 +1616,6 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 
 // AgendaPage is the page handler for the "/agenda" path.
 func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
-	if exp.liteMode {
-		exp.StatusPage(w, fullModeRequired, "Agenda page not available in lite mode.",
-			"", ExpStatusNotSupported)
-		return
-	}
 	errPageInvalidAgenda := func(err error) {
 		log.Errorf("Template execute failure: %v", err)
 		exp.StatusPage(w, defaultErrorCode, "the agenda ID given seems to not exist",

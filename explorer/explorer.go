@@ -200,7 +200,6 @@ type explorerUI struct {
 	voteTracker      *agendas.VoteTracker
 	proposalsSource  politeiaBackend
 	dbsSyncing       atomic.Value
-	liteMode         bool
 	devPrefetch      bool
 	templates        templates
 	wsHub            *WebsocketHub
@@ -305,11 +304,10 @@ func New(cfg *ExplorerConfig) *explorerUI {
 	explorerLinks.MainnetSearch = cfg.MainnetLink + "search?search="
 	explorerLinks.TestnetSearch = cfg.TestnetLink + "search?search="
 
-	// explorerDataSource is an interface that could have a value of pointer
-	// type, and if either is nil this means lite mode.
+	// explorerDataSource is an interface that could have a value of pointer type.
 	if exp.explorerSource == nil || reflect.ValueOf(exp.explorerSource).IsNil() {
-		log.Debugf("Primary data source not available. Operating explorer in lite mode.")
-		exp.liteMode = true
+		log.Errorf("An explorerDataSource (PostgreSQL backend) is required.")
+		return nil
 	}
 
 	if cfg.UseRealIP {
@@ -372,24 +370,20 @@ func New(cfg *ExplorerConfig) *explorerUI {
 	return exp
 }
 
-// PrepareCharts pre-populates charts data when in full mode. Since by the time
-// PrepareCharts is invoked, exp.Height() hasn't been set yet, use 1 as the default
-// height that will be updated with the accurate value once the background sync
-// is complete.
+// PrepareCharts pre-populates charts data. Since by the time PrepareCharts is
+// invoked, exp.Height() hasn't been set yet, use 1 as the default height that
+// will be updated with the accurate value once the background sync is complete.
 func (exp *explorerUI) PrepareCharts(cacheDumpPath string) {
 	t := time.Now()
-	if !exp.liteMode {
-		var defHeight int64 = 1
 
-		if err := ReadCacheFile(cacheDumpPath, defHeight); err != nil {
-			log.Debugf("Cache dump data loading failed: %v", err)
+	if err := ReadCacheFile(cacheDumpPath, 1); err != nil {
+		log.Debugf("Cache dump data loading failed: %v", err)
 
-			// If the cache data loading fails, the db querying will be triggered.
-			exp.prePopulateChartsData()
-		}
-
-		log.Debugf("Completed the initial charts cache scanning in %v", time.Since(t))
+		// If the cache data loading fails, the db querying will be triggered.
+		exp.prePopulateChartsData()
 	}
+
+	log.Debugf("Completed the initial charts cache scanning in %v", time.Since(t))
 }
 
 // Height returns the height of the current block data.
@@ -445,11 +439,6 @@ func (exp *explorerUI) MempoolSignals() (chan<- pstypes.HubSignal, chan<- *types
 // prePopulateChartsData should run in the background the first time the system
 // is initialized if cache data loading failed and when new blocks are added.
 func (exp *explorerUI) prePopulateChartsData() {
-	if exp.liteMode {
-		log.Warnf("Charts are not supported in lite mode!")
-		return
-	}
-
 	// Prevent multiple concurrent updates, but do not lock the cacheChartsData
 	// to avoid blocking Store.
 	exp.ChartUpdate.Lock()
@@ -621,12 +610,12 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 
 	p.Unlock()
 
-	if !exp.liteMode && exp.devPrefetch {
+	if exp.devPrefetch {
 		go exp.updateDevFundBalance()
 	}
 
-	// Do not run updates if blockchain sync is running or lite mode is on.
-	if !exp.AreDBsSyncing() && !exp.liteMode {
+	// Do not run updates if blockchain sync is running.
+	if !exp.AreDBsSyncing() {
 		// Politeia updates happen hourly thus if every blocks takes an average
 		// of 5 minutes to mine then 12 blocks take approximately 1hr.
 		// https://docs.decred.org/advanced/navigating-politeia-data/#voting-and-comment-data
@@ -679,11 +668,6 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 }
 
 func (exp *explorerUI) updateDevFundBalance() {
-	if exp.liteMode {
-		log.Warnf("Full balances not supported in lite mode.")
-		return
-	}
-
 	// yield processor to other goroutines
 	runtime.Gosched()
 

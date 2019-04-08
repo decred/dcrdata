@@ -21,8 +21,7 @@ import (
 )
 
 const (
-	rescanLogBlockChunk      = 1000
-	initialLoadSyncStatusMsg = "(Lite Mode) Syncing stake and base DBs..."
+	rescanLogBlockChunk = 1000
 )
 
 // DBHeights returns the best block heights of: SQLite database tables (block
@@ -148,11 +147,9 @@ func (db *WiredDB) RewindStakeDB(ctx context.Context, toHeight int64, quiet ...b
 	return
 }
 
-func (db *WiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGetter,
-	fetchToHeight int64, updateExplorer chan *chainhash.Hash,
-	barLoad chan *dbtypes.ProgressBarLoad) (int64, error) {
-	// Determine if we're in lite mode, when we are the "master" who sets the
-	// pace rather than waiting on other consumers to get done with the stakedb.
+func (db *WiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGetter, fetchToHeight int64) (int64, error) {
+	// Determine if we are the "master" block getter who sets the pace rather
+	// than waiting on other consumers to get done with the stakedb.
 	master := blockGetter == nil || blockGetter.(*rpcutils.BlockGate) == nil
 
 	// Get chain servers's best block.
@@ -244,41 +241,6 @@ func (db *WiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGette
 		return height, nil
 	}
 
-	// Safely send sync status updates on barLoad channel, and set the channel
-	// to nil if the buffer is full.
-	sendProgressUpdate := func(p *dbtypes.ProgressBarLoad) {
-		if barLoad == nil {
-			return
-		}
-		select {
-		case barLoad <- p:
-		default:
-			log.Debugf("(*WiredDB).resyncDB: barLoad chan closed or full. Halting sync progress updates.")
-			barLoad = nil
-		}
-	}
-
-	// Safely send new block hash on updateExplorer channel, and set the channel
-	// to nil if the buffer is full.
-	sendPageData := func(hash *chainhash.Hash) {
-		if updateExplorer == nil {
-			return
-		}
-		select {
-		case updateExplorer <- hash:
-		default:
-			log.Debugf("(*WiredDB).resyncDB: updateExplorer chan closed or full. Halting explorer updates.")
-			updateExplorer = nil
-		}
-	}
-
-	// Initialize the progress bars on the sync status page.
-	sendProgressUpdate(&dbtypes.ProgressBarLoad{
-		Msg:   initialLoadSyncStatusMsg,
-		BarID: dbtypes.InitialDBLoad,
-	})
-
-	timeStart := time.Now()
 	for i := startHeight; i <= height; i++ {
 		// check for quit signal
 		select {
@@ -350,21 +312,6 @@ func (db *WiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGette
 				}
 				log.Infof("Scanning blocks %d to %d (%d live)...",
 					i, endRangeBlock, db.sDB.PoolSize())
-
-				// Update sync progress bar.
-				if barLoad != nil {
-					timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endRangeBlock-i))
-					progress := &dbtypes.ProgressBarLoad{
-						From:      i,
-						To:        height,
-						Timestamp: int64(timeTakenPerBlock * float64(height-endRangeBlock)), //timeToComplete
-						Msg:       initialLoadSyncStatusMsg,
-						BarID:     dbtypes.InitialDBLoad,
-					}
-					sendProgressUpdate(progress)
-
-					timeStart = time.Now()
-				}
 			}
 		}
 
@@ -446,9 +393,6 @@ func (db *WiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGette
 
 		// Update API status and explorer page, if explorer updates are enabled.
 		if i%100 == 0 {
-			// Explorer pages
-			sendPageData(&blockhash)
-
 			// API status
 			select {
 			case db.updateStatusChan <- uint32(i):
@@ -461,14 +405,6 @@ func (db *WiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGette
 			return i, fmt.Errorf("rpcclient.GetBestBlock failed: %v", err)
 		}
 	} // for i := startHeight ...
-
-	sendProgressUpdate(&dbtypes.ProgressBarLoad{
-		From:     height,
-		To:       height,
-		Msg:      initialLoadSyncStatusMsg,
-		BarID:    dbtypes.InitialDBLoad,
-		Subtitle: "sync complete",
-	})
 
 	// Update the DB height with the API status.
 	select {

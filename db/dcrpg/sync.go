@@ -21,15 +21,15 @@ const (
 	quickStatsTarget         = 250
 	deepStatsTarget          = 1000
 	rescanLogBlockChunk      = 500
-	initialLoadSyncStatusMsg = "(Full Mode) Syncing stake, base and auxiliary DBs..."
+	initialLoadSyncStatusMsg = "Syncing stake, base and auxiliary DBs..."
 	addressesSyncStatusMsg   = "Syncing addresses table with spending info..."
 )
 
 /////////// Coordinated synchronization of base DB and auxiliary DB. ///////////
 //
-// In full mode, a challenge is to keep base and aux DBs syncing at the same
-// height. One of the main reasons is that there is one StakeDatabase, which is
-// shared between the two, and both DBs need access to it for each height.
+// A challenge is to keep base and aux DBs syncing at the same height. One of
+// the main reasons is that there is one StakeDatabase, which is shared between
+// the two, and both DBs need access to it for each height.
 //
 // rpcutils.BlockGetter is an interface with basic accessor methods like Block
 // and WaitForHash that can request current data and channels for future data,
@@ -39,10 +39,10 @@ const (
 // which will get the block via RPC and signal to all channels configured for
 // that block.
 //
-// In full mode, ChainDB has the MasterBlockGetter and WiredDB has the
-// BlockGetter. The way ChainDB is in charge of requesting blocks on demand from
-// RPC without getting ahead of WiredDB during sync is that StakeDatabase has a
-// very similar coordination mechanism (WaitForHeight).
+// ChainDB has the MasterBlockGetter and WiredDB has the BlockGetter. The way
+// ChainDB is in charge of requesting blocks on demand from RPC without getting
+// ahead of WiredDB during sync is that StakeDatabase has a very similar
+// coordination mechanism (WaitForHeight).
 //
 // 1. In main, we make a new `rpcutils.BlockGate`, a concrete type that
 //    implements `MasterBlockGetter` and thus `BlockGetter` too.  This
@@ -277,7 +277,6 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 				log.Infof("Processing blocks %d to %d...", ib, endRangeBlock)
 
 				if barLoad != nil {
-					// Full mode is definitely running so no need to check.
 					timeTakenPerBlock := (time.Since(lastProgressUpdateTime).Seconds() /
 						float64(endRangeBlock-ib))
 					sendProgressUpdate(&dbtypes.ProgressBarLoad{

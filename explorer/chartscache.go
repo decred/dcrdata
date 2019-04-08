@@ -99,8 +99,8 @@ func WriteCacheFile(filePath string) (err error) {
 }
 
 // ReadCacheFile reads the contents of the charts cache dump file encoded in
-// .gob format if it exists returns an error if otherwise. It then deletes
-// the read *.gob cache dump file.
+// .gob format if it exists returns an error if otherwise. It then deletes the
+// read *.gob cache dump file.
 func ReadCacheFile(filePath string, height int64) error {
 	file, err := os.Open(filePath)
 	if err != nil {
