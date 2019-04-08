@@ -37,6 +37,7 @@ import (
 	pstypes "github.com/decred/dcrdata/pubsub/types"
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/semver"
+	"github.com/decred/dcrdata/stakedb"
 	"github.com/decred/dcrdata/txhelpers"
 	"github.com/decred/dcrdata/v4/api"
 	"github.com/decred/dcrdata/v4/api/insight"
@@ -140,13 +141,28 @@ func _main(ctx context.Context) error {
 		return fmt.Errorf("expected network %s, got %s", activeNet.Net, curnet)
 	}
 
-	// SQLite output
+	// StakeDatabase
+	stakeDB, stakeDBHeight, err := stakedb.NewStakeDatabase(dcrdClient, activeChain, cfg.DataDir)
+	if err != nil {
+		log.Errorf("Unable to create stake DB: %v", err)
+		if stakeDBHeight >= 0 {
+			log.Infof("Attempting to recover stake DB...")
+			stakeDB, err = stakedb.LoadAndRecover(dcrdClient, activeChain, cfg.DataDir, stakeDBHeight-288)
+		}
+		if err != nil {
+			if stakeDB != nil {
+				_ = stakeDB.Close()
+			}
+			return fmt.Errorf("StakeDatabase recovery failed: %v", err)
+		}
+	}
+	defer stakeDB.Close()
+
+	// SQLite
 	dbPath := filepath.Join(cfg.DataDir, cfg.DBFileName)
 	dbInfo := dcrsqlite.DBInfo{FileName: dbPath}
-	baseDB, cleanupDB, err := dcrsqlite.InitWiredDB(&dbInfo,
-		notify.NtfnChans.UpdateStatusDBHeight, dcrdClient, activeChain, cfg.DataDir,
-		requestShutdown)
-	defer cleanupDB()
+	baseDB, err := dcrsqlite.InitWiredDB(&dbInfo, stakeDB,
+		notify.NtfnChans.UpdateStatusDBHeight, dcrdClient, activeChain, requestShutdown)
 	if err != nil {
 		return fmt.Errorf("Unable to initialize SQLite database: %v", err)
 	}
@@ -195,7 +211,7 @@ func _main(ctx context.Context) error {
 	log.Infof("Address cache capacity: %d rows, %d bytes", rowCap, cfg.AddrCacheCap)
 	mpChecker := rpcutils.NewMempoolAddressChecker(dcrdClient, activeChain)
 	chainDB, err := dcrpg.NewChainDBWithCancel(ctx, &dbi, activeChain,
-		baseDB.GetStakeDB(), !cfg.NoDevPrefetch, cfg.HidePGConfig, rowCap,
+		stakeDB, !cfg.NoDevPrefetch, cfg.HidePGConfig, rowCap,
 		mpChecker, parser)
 	if chainDB != nil {
 		defer chainDB.Close()
@@ -402,7 +418,7 @@ func _main(ctx context.Context) error {
 	// it is ahead of pgDB. For pgDB to receive notification from
 	// StakeDatabase when the required blocks are connected, the
 	// StakeDatabase must be at the same height or lower than pgDB.
-	stakedbHeight := int64(baseDB.GetStakeDB().Height())
+	stakedbHeight := int64(stakeDB.Height())
 	if stakedbHeight > heightDB {
 		// Have baseDB rewind it's the StakeDatabase. stakedbHeight is
 		// always rewound to a height of zero even when lastBlockPG is -1,
@@ -452,7 +468,7 @@ func _main(ctx context.Context) error {
 	// data from disk. The cache is updated on each block connect.
 	tpcSize := int(blocksBehind) + 200
 	log.Debugf("Setting ticket pool cache capacity to %d blocks", tpcSize)
-	err = baseDB.GetStakeDB().SetPoolCacheCapacity(tpcSize)
+	err = stakeDB.SetPoolCacheCapacity(tpcSize)
 	if err != nil {
 		return err
 	}
@@ -474,7 +490,7 @@ func _main(ctx context.Context) error {
 	pgDB.UpdateChainState(bci)
 
 	// Block data collector. Needs a StakeDatabase too.
-	collector := blockdata.NewCollector(dcrdClient, activeChain, baseDB.GetStakeDB())
+	collector := blockdata.NewCollector(dcrdClient, activeChain, stakeDB)
 	if collector == nil {
 		return fmt.Errorf("Failed to create block data collector")
 	}
@@ -1118,8 +1134,7 @@ func _main(ctx context.Context) error {
 		notify.NtfnChans.ReorgChanBlockData)
 
 	// Blockchain monitor for the stake DB
-	sdbChainMonitor := baseDB.NewStakeDBChainMonitor(ctx, &wg,
-		notify.NtfnChans.ReorgChanStakeDB)
+	sdbChainMonitor := stakeDB.NewChainMonitor(ctx, &wg, notify.NtfnChans.ReorgChanStakeDB)
 
 	// Blockchain monitor for the wired sqlite DB
 	WiredDBChainMonitor := baseDB.NewChainMonitor(ctx, collector, &wg,

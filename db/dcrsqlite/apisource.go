@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
@@ -45,70 +44,44 @@ type WiredDB struct {
 	waitChan chan chainhash.Hash
 }
 
-func newWiredDB(DB *DB, statusC chan uint32, cl *rpcclient.Client,
-	p *chaincfg.Params, datadir string) (*WiredDB, func() error) {
+func newWiredDB(DB *DB, stakeDB *stakedb.StakeDatabase, statusC chan uint32, cl *rpcclient.Client, p *chaincfg.Params) *WiredDB {
 	// Initialize the block summary cache.
 	DB.BlockCache = apitypes.NewAPICache(1e4)
 
-	wDB := &WiredDB{
+	return &WiredDB{
 		DBDataSaver: &DBDataSaver{DB, statusC},
 		MPC:         new(mempool.MempoolDataCache),
 		client:      cl,
 		params:      p,
+		sDB:         stakeDB,
 	}
-
-	var err error
-	var height int64
-	wDB.sDB, height, err = stakedb.NewStakeDatabase(cl, p, datadir)
-	if err != nil {
-		log.Errorf("Unable to create stake DB: %v", err)
-		if height >= 0 {
-			log.Infof("Attempting to recover stake DB...")
-			wDB.sDB, err = stakedb.LoadAndRecover(cl, p, datadir, height-288)
-		}
-		if err != nil {
-			if wDB.sDB != nil {
-				_ = wDB.sDB.Close()
-			}
-			log.Errorf("StakeDatabase recovery failed: %v", err)
-			return wDB, func() error { return nil }
-		}
-	}
-	return wDB, wDB.sDB.Close
 }
 
 // NewWiredDB creates a new WiredDB from a *sql.DB, a node client, network
 // parameters, and a status update channel. It calls dcrsqlite.NewDB to create a
 // new DB that wrapps the sql.DB.
-func NewWiredDB(db *sql.DB, statusC chan uint32, cl *rpcclient.Client,
-	p *chaincfg.Params, datadir string, shutdown func()) (*WiredDB, func() error, error) {
+func NewWiredDB(db *sql.DB, stakeDB *stakedb.StakeDatabase, statusC chan uint32, cl *rpcclient.Client,
+	p *chaincfg.Params, shutdown func()) (*WiredDB, error) {
 	// Create the sqlite.DB
 	DB, err := NewDB(db, shutdown)
 	if err != nil || DB == nil {
-		return nil, func() error { return nil }, err
+		return nil, err
 	}
-	// Create the WiredDB
-	wDB, cleanup := newWiredDB(DB, statusC, cl, p, datadir)
-	if wDB.sDB == nil {
-		err = fmt.Errorf("failed to create StakeDatabase")
-	}
-	return wDB, cleanup, err
+
+	// Create the WiredDB.
+	return newWiredDB(DB, stakeDB, statusC, cl, p), nil
 }
 
 // InitWiredDB creates a new WiredDB from a file containing the data for a
 // sql.DB. The other parameters are same as those for NewWiredDB.
-func InitWiredDB(dbInfo *DBInfo, statusC chan uint32, cl *rpcclient.Client,
-	p *chaincfg.Params, datadir string, shutdown func()) (*WiredDB, func() error, error) {
+func InitWiredDB(dbInfo *DBInfo, stakeDB *stakedb.StakeDatabase, statusC chan uint32, cl *rpcclient.Client,
+	p *chaincfg.Params, shutdown func()) (*WiredDB, error) {
 	db, err := InitDB(dbInfo, shutdown)
 	if err != nil {
-		return nil, func() error { return nil }, err
+		return nil, err
 	}
 
-	wDB, cleanup := newWiredDB(db, statusC, cl, p, datadir)
-	if wDB.sDB == nil {
-		err = fmt.Errorf("failed to create StakeDatabase")
-	}
-	return wDB, cleanup, err
+	return newWiredDB(db, stakeDB, statusC, cl, p), nil
 }
 
 func (db *WiredDB) EnableCache() {
@@ -117,11 +90,6 @@ func (db *WiredDB) EnableCache() {
 
 func (db *WiredDB) DisableCache() {
 	db.BlockCache.Disable()
-}
-
-func (db *WiredDB) NewStakeDBChainMonitor(ctx context.Context, wg *sync.WaitGroup,
-	reorgChan chan *txhelpers.ReorgData) *stakedb.ChainMonitor {
-	return db.sDB.NewChainMonitor(ctx, wg, reorgChan)
 }
 
 func (db *WiredDB) ChargePoolInfoCache(startHeight int64) error {
@@ -245,10 +213,6 @@ func (db *WiredDB) SyncDB(ctx context.Context, blockGetter rpcutils.BlockGetter,
 		db.initWaitChan(blockGetter.WaitForHeight(fetchToHeight))
 	}
 	return db.resyncDB(ctx, blockGetter, fetchToHeight)
-}
-
-func (db *WiredDB) GetStakeDB() *stakedb.StakeDatabase {
-	return db.sDB
 }
 
 func (db *WiredDB) GetHeight() (int64, error) {
