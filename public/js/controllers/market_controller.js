@@ -27,6 +27,13 @@ const prettyDurations = {
   '1d': 'day',
   '1mo': 'month'
 }
+const exchangeLinks = {
+  binance: 'https://www.binance.com/en/trade/DCR_BTC',
+  bittrex: 'https://bittrex.com/Market/Index?MarketName=BTC-DCR',
+  poloniex: 'https://poloniex.com/exchange#btc_dcr',
+  dragonex: 'https://dragonex.io/en-us/trade/index/dcr_btc',
+  huobi: 'https://www.hbg.com/en-us/exchange/?s=dcr_btc'
+}
 
 var availableCandlesticks, availableDepths
 
@@ -291,7 +298,7 @@ export default class extends Controller {
   static get targets () {
     return ['chartSelect', 'exchanges', 'bin', 'chart', 'legend', 'conversion',
       'xcName', 'xcLogo', 'actions', 'sticksOnly', 'depthOnly', 'chartLoader',
-      'xcRow', 'xcIndex', 'price', 'refresh', 'age', 'ageSpan']
+      'xcRow', 'xcIndex', 'price', 'refresh', 'age', 'ageSpan', 'link']
   }
 
   async connect () {
@@ -720,7 +727,10 @@ export default class extends Controller {
 
   setExchangeName () {
     this.xcLogoTarget.className = `exchange-logo ${settings.xc}`
-    this.xcNameTarget.textContent = humanize.capitalize(settings.xc)
+    var prettyName = humanize.capitalize(settings.xc)
+    this.xcNameTarget.textContent = prettyName
+    this.linkTarget.href = exchangeLinks[settings.xc]
+    this.linkTarget.textContent = `Visit ${prettyName}`
   }
 
   _processNightMode (data) {
