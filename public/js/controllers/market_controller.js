@@ -114,6 +114,10 @@ const chartResetOpts = {
   yRangePad: 0
 }
 
+function convertedThreeSigFigs (x) {
+  return humanize.threeSigFigs(x * conversionFactor)
+}
+
 function adjustAxis (axis, zoomInPercentage, bias) {
   var delta = axis[1] - axis[0]
   var increment = delta * zoomInPercentage
@@ -523,7 +527,8 @@ export default class extends Controller {
           axisLabelFormatter: Dygraph.dateAxisLabelFormatter
         },
         y: {
-          axisLabelFormatter: humanize.threeSigFigs
+          axisLabelFormatter: humanize.threeSigFigs,
+          valueFormatter: humanize.threeSigFigs
         }
       }
     }
@@ -550,7 +555,8 @@ export default class extends Controller {
           axisLabelFormatter: Dygraph.dateAxisLabelFormatter
         },
         y: {
-          axisLabelFormatter: humanize.threeSigFigs
+          axisLabelFormatter: humanize.threeSigFigs,
+          valueFormatter: humanize.threeSigFigs
         }
       },
       strokeWidth: 3
@@ -575,7 +581,8 @@ export default class extends Controller {
           axisLabelFormatter: Dygraph.dateAxisLabelFormatter
         },
         y: {
-          axisLabelFormatter: humanize.threeSigFigs
+          axisLabelFormatter: humanize.threeSigFigs,
+          valueFormatter: humanize.threeSigFigs
         }
       },
       strokeWidth: 3
@@ -594,12 +601,11 @@ export default class extends Controller {
       plotter: null, // Don't use Dygraph.linePlotter here. fillGraph won't work.
       axes: {
         x: {
-          axisLabelFormatter: (x) => {
-            return humanize.threeSigFigs(x * conversionFactor)
-          }
+          axisLabelFormatter: convertedThreeSigFigs
         },
         y: {
-          axisLabelFormatter: humanize.threeSigFigs
+          axisLabelFormatter: humanize.threeSigFigs,
+          valueFormatter: humanize.threeSigFigs
         }
       }
     }
@@ -616,12 +622,11 @@ export default class extends Controller {
       plotter: orderPlotter,
       axes: {
         x: {
-          axisLabelFormatter: (x) => {
-            return humanize.threeSigFigs(x * conversionFactor)
-          }
+          axisLabelFormatter: convertedThreeSigFigs
         },
         y: {
-          axisLabelFormatter: humanize.threeSigFigs
+          axisLabelFormatter: humanize.threeSigFigs,
+          valueFormatter: humanize.threeSigFigs
         }
       },
       strokeWidth: 0,
