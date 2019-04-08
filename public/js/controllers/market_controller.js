@@ -34,6 +34,17 @@ const exchangeLinks = {
   dragonex: 'https://dragonex.io/en-us/trade/index/dcr_btc',
   huobi: 'https://www.hbg.com/en-us/exchange/?s=dcr_btc'
 }
+var hidden, visibilityChange
+if (typeof document.hidden !== 'undefined') { // Opera 12.10 and Firefox 18 and later support
+  hidden = 'hidden'
+  visibilityChange = 'visibilitychange'
+} else if (typeof document.msHidden !== 'undefined') {
+  hidden = 'msHidden'
+  visibilityChange = 'msvisibilitychange'
+} else if (typeof document.webkitHidden !== 'undefined') {
+  hidden = 'webkitHidden'
+  visibilityChange = 'webkitvisibilitychange'
+}
 var focused = true
 var refreshAvailable = false
 var availableCandlesticks, availableDepths
@@ -354,10 +365,8 @@ export default class extends Controller {
 
     this.resize = this._resize.bind(this)
     window.addEventListener('resize', this.resize)
-    this.tabFocus = this._tabFocus.bind(this)
-    window.addEventListener('focus', this.tabFocus)
-    this.tabBlur = this._tabBlur.bind(this)
-    window.addEventListener('blur', this.tabBlur)
+    this.tabVis = this._tabVis.bind(this)
+    document.addEventListener(visibilityChange, this.tabVis)
     this.processNightMode = this._processNightMode.bind(this)
     globalEventBus.on('NIGHT_MODE', this.processNightMode)
     this.processXcUpdate = this._processXcUpdate.bind(this)
@@ -370,8 +379,7 @@ export default class extends Controller {
   disconnect () {
     responseCache = {}
     window.removeEventListener('resize', this.resize)
-    window.removeEventListener('focus', this.tabFocus)
-    window.removeEventListener('blur', this.tabBlur)
+    document.removeEventListener(visibilityChange, this.tabVis)
     globalEventBus.off('NIGHT_MODE', this.processNightMode)
     globalEventBus.off('EXCHANGE_UPDATE', this.processXcUpdate)
   }
@@ -382,13 +390,9 @@ export default class extends Controller {
     }
   }
 
-  _tabFocus () {
-    focused = true
-    if (refreshAvailable) this.refreshChart()
-  }
-
-  _tabBlur () {
-    focused = false
+  _tabVis () {
+    focused = !document[hidden]
+    if (focused && refreshAvailable) this.refreshChart()
   }
 
   async fetchInitialData () {
