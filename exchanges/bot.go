@@ -343,6 +343,8 @@ func (bot *ExchangeBot) Start(ctx context.Context, wg *sync.WaitGroup) {
 
 	config := bot.config
 
+	reconnectionAttempt := 0
+
 	if config.MasterBot != "" {
 		stream, err := bot.connectMasterBot(ctx, 0)
 		if err != nil {
@@ -360,19 +362,28 @@ func (bot *ExchangeBot) Start(ctx context.Context, wg *sync.WaitGroup) {
 						if ctx.Err() != nil {
 							return
 						}
-						log.Errorf("DCRRates error. Attempting to reconnect in 1 minute: %v", err)
+						log.Errorf("DCRRates error. Attempting to reconnect in 10 seconds: %v", err)
+						delay := 10 * time.Second
+						delayString := "10 seconds"
 						// Try to reconnect every minute until a connection is made.
 						for {
-							stream, err = bot.connectMasterBot(ctx, time.Minute)
+							reconnectionAttempt++
+							stream, err = bot.connectMasterBot(ctx, delay)
 							if err == nil {
 								break
 							} else {
 								if ctx.Err() != nil {
 									return
 								}
-								log.Errorf("Failed to reconnect to DCR Rates. Attempting to reconnect in 1 minute: %v", err)
+								if reconnectionAttempt > 12 { // ~ two minutes
+									delay = time.Minute
+									delayString = "1 minute"
+								}
+								log.Errorf("Failed to reconnect to DCRRates. Attempting to reconnect in %s: %v", delayString, err)
 							}
 						}
+						log.Infof("DCRRates connection re-established.")
+						reconnectionAttempt = 0
 						continue
 					}
 					// Send the update through the Exchange so that appropriate attributes
