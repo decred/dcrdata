@@ -247,7 +247,16 @@
 
   .dygraph-ylabel,
   .dygraph-xlabel {
-    font-size: 16px;
+    font-size: 13px;
+  }
+}
+
+@media (min-width: 992px) {
+  .market-chart {
+    .dygraph-ylabel,
+    .dygraph-xlabel {
+      font-size: 16px;
+    }
   }
 }
 
