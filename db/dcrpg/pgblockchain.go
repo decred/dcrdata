@@ -495,7 +495,7 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 		return nil, err
 	}
 	if syncCommit != "off" {
-		log.Warnf(`PERFORMANCE ISSUE! The synchronous_commit setting is = "%s". `+
+		log.Warnf(`PERFORMANCE ISSUE! The synchronous_commit setting is "%s". `+
 			`Changing it to "off".`, syncCommit)
 		// Turn off synchronous_commit.
 		if err = SetSynchronousCommit(db, "off"); err != nil {
