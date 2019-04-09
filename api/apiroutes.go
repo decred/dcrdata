@@ -27,12 +27,12 @@ import (
 	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types"
+	"github.com/decred/dcrdata/db/cache"
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/exchanges"
 	"github.com/decred/dcrdata/gov/agendas"
 	m "github.com/decred/dcrdata/middleware"
 	"github.com/decred/dcrdata/txhelpers"
-	"github.com/decred/dcrdata/v5/explorer"
 	notify "github.com/decred/dcrdata/v5/notification"
 	appver "github.com/decred/dcrdata/v5/version"
 )
@@ -127,32 +127,46 @@ type appContext struct {
 	xcBot         *exchanges.ExchangeBot
 	AgendaDB      *agendas.AgendaDB
 	maxCSVAddrs   int
+	charts        *cache.ChartData
+}
+
+// AppContextConfig is the configuration for the appContext and the only
+// argument to its constructor.
+type AppContextConfig struct {
+	Client            *rpcclient.Client
+	Params            *chaincfg.Params
+	DataSource        DataSourceLite
+	DBSource          DataSourceAux
+	JsonIndent        string
+	XcBot             *exchanges.ExchangeBot
+	AgendasDBInstance *agendas.AgendaDB
+	MaxAddrs          int
+	Charts            *cache.ChartData
 }
 
 // NewContext constructs a new appContext from the RPC client, primary and
 // auxiliary data sources, and JSON indentation string.
-func NewContext(client *rpcclient.Client, params *chaincfg.Params, dataSource DataSourceLite,
-	auxDataSource DataSourceAux, jsonIndent string, xcBot *exchanges.ExchangeBot,
-	agendasDBInstance *agendas.AgendaDB, maxAddrs int) *appContext {
-	conns, _ := client.GetConnectionCount()
-	nodeHeight, _ := client.GetBlockCount()
+func NewContext(cfg *AppContextConfig) *appContext {
+	conns, _ := cfg.Client.GetConnectionCount()
+	nodeHeight, _ := cfg.Client.GetBlockCount()
 
 	// auxDataSource is an interface that could have a value of pointer type.
-	if auxDataSource == nil || reflect.ValueOf(auxDataSource).IsNil() {
+	if cfg.DBSource == nil || reflect.ValueOf(cfg.DBSource).IsNil() {
 		log.Errorf("NewContext: a DataSourceAux is required.")
 		return nil
 	}
 
 	return &appContext{
-		nodeClient:    client,
-		Params:        params,
-		BlockData:     dataSource,
-		AuxDataSource: auxDataSource,
-		xcBot:         xcBot,
-		AgendaDB:      agendasDBInstance,
-		Status:        apitypes.NewStatus(uint32(nodeHeight), conns, APIVersion, appver.Version(), params.Name),
-		JSONIndent:    jsonIndent,
-		maxCSVAddrs:   maxAddrs,
+		nodeClient:    cfg.Client,
+		Params:        cfg.Params,
+		BlockData:     cfg.DataSource,
+		AuxDataSource: cfg.DBSource,
+		xcBot:         cfg.XcBot,
+		AgendaDB:      cfg.AgendasDBInstance,
+		Status:        apitypes.NewStatus(uint32(nodeHeight), conns, APIVersion, appver.Version(), cfg.Params.Name),
+		JSONIndent:    cfg.JsonIndent,
+		maxCSVAddrs:   cfg.MaxAddrs,
+		charts:        cfg.Charts,
 	}
 }
 
@@ -1532,25 +1546,16 @@ func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.R
 	writeJSON(w, data, c.getIndentQuery(r))
 }
 
-func (c *appContext) getTicketPriceChartData(w http.ResponseWriter, r *http.Request) {
-	chartData, ok := explorer.ChartTypeData("ticket-price")
-	if !ok {
-		http.NotFound(w, r)
-		log.Warnf(`No data matching "ticket-price" chart Type was found`)
-		return
-	}
-	writeJSON(w, chartData, c.getIndentQuery(r))
-}
-
 func (c *appContext) ChartTypeData(w http.ResponseWriter, r *http.Request) {
 	chartType := m.GetChartTypeCtx(r)
-	chartData, ok := explorer.ChartTypeData(chartType)
-	if !ok {
+	zoom := r.URL.Query().Get("zoom")
+	chartData, err := c.charts.Chart(chartType, zoom)
+	if err != nil {
 		http.NotFound(w, r)
-		log.Warnf(`No data matching "%s" chart Type was found`, chartType)
+		log.Warnf(`Error fetching chart %s at zoom level '%s': %v`, chartType, zoom, err)
 		return
 	}
-	writeJSON(w, chartData, c.getIndentQuery(r))
+	writeJSONBytes(w, chartData)
 }
 
 // route: /market/{token}/candlestick/{bin}

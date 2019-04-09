@@ -24,6 +24,7 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/blockdata"
+	"github.com/decred/dcrdata/db/cache"
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/exchanges"
 	"github.com/decred/dcrdata/explorer/types"
@@ -73,7 +74,7 @@ type explorerDataSourceLite interface {
 	GetMempool() []types.MempoolTx
 	TxHeight(txid *chainhash.Hash) (height int64)
 	BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
-	SqliteChartsData(data map[string]*dbtypes.ChartsData) error
+	SqliteChartsData(*cache.ChartData) error
 	GetExplorerFullBlocks(start int, end int) []*types.BlockInfo
 	Difficulty() (float64, error)
 	RetreiveDifficulty(timestamp int64) float64
@@ -95,8 +96,8 @@ type explorerDataSource interface {
 	FillAddressTransactions(addrInfo *dbtypes.AddressInfo) error
 	BlockMissedVotes(blockHash string) ([]string, error)
 	TicketMiss(ticketHash string) (string, int64, error)
-	PgChartsData(oldData map[string]*dbtypes.ChartsData) error
-	TicketsPriceByHeight() (*dbtypes.ChartsData, error)
+	PgChartsData(*cache.ChartData) error
+	// TicketsPriceByHeight() (*dbtypes.ChartsData, error)
 	SideChainBlocks() ([]*dbtypes.BlockStatus, error)
 	DisapprovedBlocks() ([]*dbtypes.BlockStatus, error)
 	BlockStatus(hash string) (dbtypes.BlockStatus, error)
@@ -211,7 +212,6 @@ type explorerUI struct {
 	Version          string
 	NetName          string
 	MeanVotingBlocks int64
-	ChartUpdate      sync.Mutex
 	xcBot            *exchanges.ExchangeBot
 	xcDone           chan struct{}
 	// displaySyncStatusPage indicates if the sync status page is the only web
@@ -221,6 +221,8 @@ type explorerUI struct {
 
 	invsMtx sync.RWMutex
 	invs    *types.MempoolInfo
+
+	charts *cache.ChartData
 }
 
 // AreDBsSyncing is a thread-safe way to fetch the boolean in dbsSyncing.
@@ -284,6 +286,7 @@ type ExplorerConfig struct {
 	PoliteiaURL       string
 	MainnetLink       string
 	TestnetLink       string
+	Charts            *cache.ChartData
 }
 
 // New returns an initialized instance of explorerUI
@@ -302,6 +305,7 @@ func New(cfg *ExplorerConfig) *explorerUI {
 	exp.voteTracker = cfg.Tracker
 	exp.proposalsSource = cfg.ProposalsSource
 	exp.politeiaAPIURL = cfg.PoliteiaURL
+	exp.charts = cfg.Charts
 	explorerLinks.Mainnet = cfg.MainnetLink
 	explorerLinks.Testnet = cfg.TestnetLink
 	explorerLinks.MainnetSearch = cfg.MainnetLink + "search?search="
@@ -373,18 +377,16 @@ func New(cfg *ExplorerConfig) *explorerUI {
 	return exp
 }
 
-// PrepareCharts pre-populates charts data. Since by the time PrepareCharts is
-// invoked, exp.Height() hasn't been set yet, use 1 as the default height that
-// will be updated with the accurate value once the background sync is complete.
+// PrepareCharts pre-populates charts data.
 func (exp *explorerUI) PrepareCharts(cacheDumpPath string) {
 	t := time.Now()
 
-	if err := ReadCacheFile(cacheDumpPath, 1); err != nil {
+	if err := exp.charts.ReadCacheFile(cacheDumpPath); err != nil {
 		log.Debugf("Cache dump data loading failed: %v", err)
-
-		// If the cache data loading fails, the db querying will be triggered.
-		exp.prePopulateChartsData()
 	}
+
+	// Bring the charts up to date.
+	exp.prePopulateChartsData()
 
 	log.Debugf("Completed the initial charts cache scanning in %v", time.Since(t))
 }
@@ -444,12 +446,18 @@ func (exp *explorerUI) MempoolSignal() chan<- pstypes.HubMessage {
 func (exp *explorerUI) prePopulateChartsData() {
 	// Prevent multiple concurrent updates, but do not lock the cacheChartsData
 	// to avoid blocking Store.
-	exp.ChartUpdate.Lock()
-	defer exp.ChartUpdate.Unlock()
+
+	if exp.charts == nil {
+		log.Errorf("prePopulateChartsData: unitialized ChartData")
+		return
+	}
 
 	// Avoid needlessly updating charts data.
-	expHeight := exp.Height()
-	if expHeight == cacheChartsData.Height() {
+	// HeightDB will return -1 for empty database. TipStats will also return -1
+	// for uninitialized datasets.
+	expHeight, _ := exp.explorerSource.HeightDB()
+	h, _ := exp.charts.TipStats()
+	if expHeight == int64(h) {
 		log.Debugf("Not updating charts data again for height %d.", expHeight)
 		return
 	}
@@ -459,23 +467,7 @@ func (exp *explorerUI) prePopulateChartsData() {
 	log.Info("Pre-populating the charts data")
 	log.Debugf("Retrieving charts data from aux DB.")
 
-	chartsData := cacheChartsData.get()
-	pgData := make(map[string]*dbtypes.ChartsData)
-	sqliteData := make(map[string]*dbtypes.ChartsData)
-
-	if chartsData != nil {
-		// Pick all the PgCharts
-		for _, chartName := range dbtypes.PgCharts {
-			pgData[chartName] = chartsData[chartName]
-		}
-
-		// Pick all the sqliteCharts
-		for _, chartName := range dbtypes.SqliteCharts {
-			sqliteData[chartName] = chartsData[chartName]
-		}
-	}
-
-	err := exp.explorerSource.PgChartsData(pgData)
+	err := exp.explorerSource.PgChartsData(exp.charts)
 	if err != nil {
 		if dbtypes.IsTimeoutErr(err) {
 			log.Warnf("GetPgChartsData DB timeout: %v", err)
@@ -488,18 +480,16 @@ func (exp *explorerUI) prePopulateChartsData() {
 
 	log.Debugf("Retrieving charts data from base DB.")
 
-	err = exp.blockData.SqliteChartsData(sqliteData)
+	err = exp.blockData.SqliteChartsData(exp.charts)
 	if err != nil {
 		log.Errorf("Invalid SQLite data found: %v", err)
 		return
 	}
 
-	// Append the sqlite chart data
-	for k, v := range sqliteData {
-		pgData[k] = v
+	err = exp.charts.Lengthen()
+	if err != nil {
+		log.Errorf("(ChartsData).Lengthen: %v", err)
 	}
-
-	cacheChartsData.Update(expHeight, pgData)
 
 	log.Infof("Done pre-populating the charts data in %v.", time.Since(startTime))
 }
@@ -647,10 +637,8 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 			}()
 		}
 
-		// If incorrect cache height was set, fetch the charts updates and set
-		// the correct block height. Also fetch agenda db updates consecutively
-		// after intervals of 5 blocks.
-		if cacheChartsData.Height() == -1 || newBlockData.Height%5 == 0 {
+		// Refresh the charts every 5 blocks.
+		if newBlockData.Height%5 == 0 {
 			go exp.prePopulateChartsData()
 		}
 	}

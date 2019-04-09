@@ -214,7 +214,6 @@ func NewAPIRouter(app *appContext, useRealIP, compressLarge bool) apiMux {
 			rd.With(m.StickWidthContext).Get("/candlestick/{bin}", app.getCandlestickChart)
 			rd.Get("/depth", app.getDepthChart)
 		})
-		r.Get("/", app.getTicketPriceChartData)
 		r.With(m.ChartTypeCtx).Get("/{charttype}", app.ChartTypeData)
 	})
 

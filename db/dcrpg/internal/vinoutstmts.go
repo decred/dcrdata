@@ -128,17 +128,18 @@ const (
 	SetVinsTableCoinSupplyUpgrade = `UPDATE vins SET is_valid = $1, block_time = $3, value_in = $4
 		WHERE tx_hash = $5 AND tx_index = $6 AND tx_tree = $7;`
 
-	// SelectCoinSupply fetches the coin supply as of the latest block, where
-	// sum represents the generated coins for all stakebase and only
-	// stake-validated coinbase transactions.
-	SelectCoinSupply = `SELECT block_time, sum(value_in)
-		FROM vins 
-		WHERE prev_tx_hash = '0000000000000000000000000000000000000000000000000000000000000000'
-		AND block_time > $1
-		AND NOT (is_valid = false AND tx_tree = 0)
-		AND is_mainchain
-		GROUP BY block_time
-		ORDER BY block_time;`
+	// SelectCoinSupply returns the same rows as SelectCoinSupply,
+	// but sorted by block height. The JOIN makes the initial query (height > 0)
+	// substantially longer, but subsequent queries are reasonable.
+	SelectCoinSupply = `SELECT vins.block_time, sum(vins.value_in)
+		FROM vins JOIN transactions
+		ON vins.tx_hash = transactions.tx_hash
+		WHERE vins.prev_tx_hash = '0000000000000000000000000000000000000000000000000000000000000000'
+		AND transactions.block_height > $1
+		AND NOT (vins.is_valid = false AND vins.tx_tree = 0)
+		AND vins.is_mainchain
+		GROUP BY vins.block_time, transactions.block_height
+		ORDER BY transactions.block_height;`
 
 	CreateVinType = `CREATE TYPE vin_t AS (
 		prev_tx_hash TEXT,

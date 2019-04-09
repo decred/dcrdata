@@ -10,7 +10,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"math"
 	"math/big"
 	"strconv"
 	"strings"
@@ -23,6 +22,7 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types"
+	"github.com/decred/dcrdata/db/cache"
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/db/dcrpg/internal"
 	"github.com/decred/dcrdata/txhelpers"
@@ -2987,161 +2987,144 @@ func RetrieveTxnsBlocks(ctx context.Context, db *sql.DB, txHash string) (blockHa
 
 // ----- Historical Charts on /charts page -----
 
-// retrieveTicketsPriceByHeight fetches the ticket-price and pow-difficulty
-// charts data source from the blocks table. These data is fetched at an
-// interval of chaincfg.Params.StakeDiffWindowSize.
-func retrieveTicketsPriceByHeight(ctx context.Context, db *sql.DB, interval int64,
-	timeArr []dbtypes.TimeDef, priceArr, powArr []float64) ([]dbtypes.TimeDef,
-	[]float64, []float64, error) {
-	var since time.Time
-	if c := len(timeArr); c > 0 {
-		since = timeArr[c-1].T
-	}
+// retrieveBlockStats sets or updates a few per-block datasets.
+// SELECT height, time, chainwork, numtx FROM blocks WHERE is_mainchain AND
+// time > $1 ORDER BY height;
+func retrieveBlockStats(ctx context.Context, db *sql.DB, lastHeight int32, charts *cache.ChartData) error {
+	chartState := charts.StateID()
 
-	rows, err := db.QueryContext(ctx, internal.SelectBlocksTicketsPrice, interval, since)
+	rows, err := db.QueryContext(ctx, internal.SelectBlockStats, lastHeight)
 	if err != nil {
-		return timeArr, priceArr, powArr, err
+		return err
 	}
 	defer closeRows(rows)
 
+	// In order to store chainwork values as uint64, they are represented
+	// as exahash (10^18) for work, and terahash/s (10^12) for hashrate.
+	bigExa := big.NewInt(int64(1e18))
+	badRows := 0
+	// badRow is used to log chainwork errors without returning an error from
+	// retrieveBlockStats.
+	badRow := func() {
+		badRows++
+	}
+
+	var timeDef dbtypes.TimeDef
+	var workhex string
+	var count, size, height uint64
+	charts.Lock()
+	defer charts.Unlock()
+	blocks := charts.Blocks
+	if !charts.ValidState(chartState) {
+		// Database was updated by someone else while the query was running
+		return fmt.Errorf("retrieveBlockStats: blocks data has changed during query. aborting update")
+	}
+	for rows.Next() {
+		// Get the chainwork.
+		err = rows.Scan(&height, &size, &timeDef, &workhex, &count)
+		if err != nil {
+			return err
+		}
+
+		bigwork, ok := new(big.Int).SetString(workhex, 16)
+		if !ok {
+			badRow()
+			continue
+		}
+		bigwork.Div(bigwork, bigExa)
+		if !bigwork.IsUint64() {
+			badRow()
+			// Something is wrong, but pretend that no work was done to keep the
+			// datasets sized properly.
+			bigwork = big.NewInt(int64(blocks.Chainwork[len(blocks.Chainwork)-1]))
+		}
+		blocks.Chainwork = append(blocks.Chainwork, bigwork.Uint64())
+		blocks.TxCount = append(blocks.TxCount, count)
+		blocks.Time = append(blocks.Time, uint64(timeDef.T.Unix()))
+		blocks.BlockSize = append(blocks.BlockSize, size)
+	}
+	if badRows > 0 {
+		log.Errorf("%d rows have invalid chainwork values.", badRows)
+	}
+	chainLen := len(blocks.Chainwork)
+	if uint64(chainLen-1) != height {
+		return fmt.Errorf("retrieveBlockStats: height misalignment. last height = %d. data length = %d", height, chainLen)
+	}
+	if len(blocks.Time) != chainLen || len(blocks.TxCount) != chainLen {
+		return fmt.Errorf("retrieveBlockStats: data length misalignment. len(chainwork) = %d, len(stamps) = %d, len(counts) = %d",
+			chainLen, len(blocks.Time), len(blocks.TxCount))
+	}
+
+	return nil
+}
+
+//  retrieveWindowStats(ctx context.Context, db *sql.DB, interval int64,
+// timeArr []dbtypes.TimeDef, priceArr, powArr []float64) ([]dbtypes.TimeDef,
+// []float64, []float64, error) {
+
+// retrieveWindowStats fetches the ticket-price and pow-difficulty
+// charts data source from the blocks table. These data is fetched at an
+// interval of chaincfg.Params.StakeDiffWindowSize.
+func retrieveWindowStats(ctx context.Context, db *sql.DB, interval int64, lastHeight int32, charts *cache.ChartData) error {
+	chartState := charts.StateID()
+
+	rows, err := db.QueryContext(ctx, internal.SelectBlocksTicketsPrice, interval, lastHeight)
+	if err != nil {
+		return err
+	}
+	defer closeRows(rows)
+
+	charts.Lock()
+	defer charts.Unlock()
+	if !charts.ValidState(chartState) {
+		// Database was updated by someone else while the query was running
+		return fmt.Errorf("retrieveWindowStats: blocks data has changed during query. aborting update")
+	}
+	windows := charts.Windows
 	for rows.Next() {
 		var timestamp time.Time
 		var price uint64
 		var difficulty float64
 		if err = rows.Scan(&price, &timestamp, &difficulty); err != nil {
-			return timeArr, priceArr, powArr, err
+			return err
 		}
-
-		powArr = append(powArr, difficulty)
-		timeArr = append(timeArr, dbtypes.NewTimeDef(timestamp))
-		priceArr = append(priceArr, dcrutil.Amount(price).ToCoin())
+		windows.TicketPrice = append(windows.TicketPrice, price)
+		windows.PowDiff = append(windows.PowDiff, difficulty)
+		windows.Time = append(windows.Time, uint64(timestamp.Unix()))
 	}
 
-	return timeArr, priceArr, powArr, nil
+	return nil
 }
 
 // retrieveCoinSupply fetches the coin supply data from the vins table.
-func retrieveCoinSupply(ctx context.Context, db *sql.DB, timeArr []dbtypes.TimeDef,
-	sumArr, estimateArr []float64, params *chaincfg.Params) ([]dbtypes.TimeDef,
-	[]float64, []float64, error) {
-	var sum, estimate float64
-	var since, premineTime time.Time
+func retrieveCoinSupply(ctx context.Context, db *sql.DB, lastHeight int32, charts *cache.ChartData) error {
+	chartState := charts.StateID()
 
-	premineBlockInd := 1
-	reward := dcrutil.Amount(params.BaseSubsidy).ToCoin()
-	targetBlockTime := params.TargetTimePerBlock.Minutes()
-	inflationRate := float64(params.MulSubsidy) / float64(params.DivSubsidy)
-	subsidyReduction := float64(params.SubsidyReductionInterval)
-	maxCoinSupply := dcrutil.Amount(txhelpers.UltimateSubsidy(params)).ToCoin()
-
-	// timeArr and estimateArr may contain extra datasets than sumArr that allows
-	// the inflation axis to be extended to one month more than the actual supply
-	// if maximum supply has not yet been reached.
-	if c := len(sumArr); c > 0 && len(timeArr) >= c && len(estimateArr) >= c {
-		since = timeArr[c-1].T
-		sum = sumArr[c-1]
-		estimate = estimateArr[c-1]
-
-		// Delete extra data added before.
-		estimateArr = estimateArr[:c]
-		timeArr = timeArr[:c]
-
-		// Preset the premine Time.
-		if c > 1 {
-			premineTime = timeArr[premineBlockInd].T
-		}
-	} else {
-		// If the arrays do not have the same number of elements, drop all elements.
-		// Retrieve and accumulate all data since genesis.
-		sumArr = sumArr[:0]
-		timeArr = timeArr[:0]
-		estimateArr = estimateArr[:0]
-	}
-
-	rows, err := db.QueryContext(ctx, internal.SelectCoinSupply, since)
+	rows, err := db.QueryContext(ctx, internal.SelectCoinSupply, lastHeight)
 	if err != nil {
-		return timeArr, sumArr, estimateArr, err
+		return err
 	}
 
 	defer closeRows(rows)
 
-	var actualReward float64
-	var estimatedBlockHeight int
-
-	stakelessFactor := (1 - float64(params.StakeRewardProportion)/10)
-
-	supplyEstimate := func(estimatedBlockHeight int) float64 {
-		// Before the stakeValidation height, all the POS rewards (30% of block reward)
-		// are lost since no votes are cast for those blocks.
-		if int64(estimatedBlockHeight) < params.StakeValidationHeight {
-			actualReward = reward * stakelessFactor
-		} else {
-			actualReward = reward
-		}
-
-		subsidyInterval := math.Floor(float64(estimatedBlockHeight) / subsidyReduction)
-		estimate += (actualReward * math.Pow(inflationRate, subsidyInterval))
-
-		return estimate
+	charts.Lock()
+	defer charts.Unlock()
+	blocks := charts.Blocks
+	if !charts.ValidState(chartState) {
+		// Database was updated by someone else while the query was running
+		return fmt.Errorf("retrieveCoinSupply: blocks data has changed during query. aborting update")
 	}
-
-	var timestamp time.Time
 	for rows.Next() {
-		var coins int64
-		if err = rows.Scan(&timestamp, &coins); err != nil {
-			return timeArr, sumArr, estimateArr, err
+		var value int64
+		var timestamp time.Time
+		if err = rows.Scan(&timestamp, &value); err != nil {
+			return err
 		}
 
-		if coins < 0 {
-			coins = 0
-		}
-
-		sum += dcrutil.Amount(coins).ToCoin()
-		sumArr = append(sumArr, sum)
-		timeArr = append(timeArr, dbtypes.NewTimeDef(timestamp))
-
-		// When running a fresh full data query the initial estimate value that
-		// is also the premined coins and preminTime are set when the sumArr
-		// has the premine coins added.
-		if len(sumArr) == premineBlockInd+1 {
-			premineTime = timestamp
-
-			// sum value here is the same as the premined coins value.
-			estimate = sum
-		}
-
-		var timeDiff = timestamp.Sub(premineTime).Minutes()
-		var estimatedBlockHeight = int(timeDiff / targetBlockTime)
-		if estimatedBlockHeight < len(timeArr)-1 {
-			estimatedBlockHeight = len(timeArr) - 1
-		}
-
-		// On genesis block no coins exists yet thus estimate is also zero.
-		if coins == 0 {
-			estimateArr = append(estimateArr, 0)
-		} else {
-			estimateArr = append(estimateArr, supplyEstimate(estimatedBlockHeight))
-		}
+		blocks.NewAtoms = append(blocks.NewAtoms, uint64(value))
 	}
 
-	// One month has 730 hours
-	hoursInOneMonth := 730 * time.Hour
-
-	// Append inflation data for the next one month from the current actual supply.
-	blocksInOneMonth := int(hoursInOneMonth.Minutes() / targetBlockTime)
-	for i := 1; i < blocksInOneMonth; i++ {
-		estimateCalculated := supplyEstimate(estimatedBlockHeight + i)
-		// If estimateCalculated is greater than max supply exit.
-		if estimateCalculated > maxCoinSupply {
-			break
-		}
-
-		estimateArr = append(estimateArr, estimateCalculated)
-		timestamp = timestamp.Add(params.TargetTimePerBlock)
-		timeArr = append(timeArr, dbtypes.NewTimeDef(timestamp))
-	}
-
-	return timeArr, sumArr, estimateArr, nil
+	return nil
 }
 
 // retrieveTicketSpendTypePerBlock fetches data for ticket-spend-type chart from
@@ -3171,90 +3154,6 @@ func retrieveTicketSpendTypePerBlock(ctx context.Context, db *sql.DB, heightArr,
 		revokedArr = append(revokedArr, revoked)
 	}
 	return heightArr, unSpentArr, revokedArr, nil
-}
-
-// retrieveBlocksByHeight fetches data for  tx-per-block and duration-btw-blocks
-// charts from the blocks table.
-func retrieveBlocksByHeight(ctx context.Context, db *sql.DB, heightArr,
-	blocksCountArr []uint64, durationArr []float64) ([]uint64, []uint64, []float64, error) {
-	// Checks if a prevTimestamp should be fetched before the update process can
-	// proceed.
-	var isFetchPrevTime bool
-
-	var since uint64
-	if c := len(heightArr); c > 1 {
-		// since previous timestamp is not available, go back 2 steps to set since.
-		since = heightArr[c-2]
-		isFetchPrevTime = true
-	}
-
-	rows, err := db.QueryContext(ctx, internal.SelectBlocksByHeight, since)
-	if err != nil {
-		return heightArr, blocksCountArr, durationArr, err
-	}
-
-	defer closeRows(rows)
-	var prevTimestamp dbtypes.TimeDef
-
-	for rows.Next() {
-		var timestamp dbtypes.TimeDef
-		var blocksCount, blockHeight uint64
-		if err = rows.Scan(&timestamp, &blocksCount, &blockHeight); err != nil {
-			return heightArr, blocksCountArr, durationArr, err
-		}
-
-		// Ignore setting the other values if blockHeight is zero or
-		// prevTimestamp has not been set.
-		if isFetchPrevTime || blockHeight == 0 {
-			prevTimestamp = timestamp
-			// prevent execution of this if statement later.
-			isFetchPrevTime = false
-			continue
-		}
-
-		heightArr = append(heightArr, blockHeight)
-		blocksCountArr = append(blocksCountArr, blocksCount)
-
-		duration := math.Abs(prevTimestamp.T.Sub(timestamp.T).Seconds())
-		durationArr = append(durationArr, duration)
-
-		prevTimestamp = timestamp
-	}
-	return heightArr, blocksCountArr, durationArr, nil
-}
-
-// retrieveBlockByTime fetches data for blockchain-size and avg-block-size
-// charts from the blocks table.
-func retrieveBlockByTime(ctx context.Context, db *sql.DB, timeArr []dbtypes.TimeDef,
-	chainSizeArr, avgSizeArr []uint64) ([]dbtypes.TimeDef, []uint64, []uint64, error) {
-	var since dbtypes.TimeDef
-	var chainsize uint64
-
-	if c := len(timeArr); c > 0 {
-		since = timeArr[c-1]
-		chainsize = chainSizeArr[c-1]
-	}
-
-	rows, err := db.QueryContext(ctx, internal.SelectBlocksByTime, since)
-	if err != nil {
-		return timeArr, chainSizeArr, avgSizeArr, err
-	}
-	defer closeRows(rows)
-
-	for rows.Next() {
-		var timestamp time.Time
-		var blockSize uint64
-		if err = rows.Scan(&timestamp, &blockSize); err != nil {
-			return timeArr, chainSizeArr, avgSizeArr, err
-		}
-
-		chainsize += blockSize
-		timeArr = append(timeArr, dbtypes.NewTimeDef(timestamp))
-		avgSizeArr = append(avgSizeArr, blockSize)
-		chainSizeArr = append(chainSizeArr, chainsize)
-	}
-
-	return timeArr, chainSizeArr, avgSizeArr, nil
 }
 
 // retrieveTxPerDay fetches data for tx-per-day chart from the blocks table.
@@ -3345,112 +3244,6 @@ func retrieveTicketByOutputCount(ctx context.Context, db *sql.DB, interval int64
 	}
 
 	return heightArr, soloArr, pooledArr, nil
-}
-
-// retrieveChainWork assembles both block-by-block chainwork data
-// and a rolling average for network hashrate data.
-func retrieveChainWork(ctx context.Context, db *sql.DB, data [2]*dbtypes.ChartsData) ([2]*dbtypes.ChartsData, error) {
-	var since time.Time
-	var workdata, hashrates *dbtypes.ChartsData
-
-	if data[0] == nil || data[1] == nil {
-		workdata = new(dbtypes.ChartsData)
-		hashrates = new(dbtypes.ChartsData)
-	} else if c := len(data[0].Time); c > 0 && len(data[1].Time) > 0 {
-		since = data[0].Time[c-1].T
-		workdata = data[0]
-		hashrates = data[1]
-	}
-
-	// Grab all chainwork points in rows of (time, chainwork).
-	rows, err := db.QueryContext(ctx, internal.SelectChainWork, since)
-	if err != nil {
-		return data, err
-	}
-	defer closeRows(rows)
-
-	// Assemble chainwork and hashrate simultaneously.
-	// Chainwork is stored as a 32-byte hex string, so in order to
-	// do math, math/big types are used.
-	var blocktime dbtypes.TimeDef
-	var workhex string
-
-	// In order to store these large values as uint64, they are represented
-	// as exahash (10^18) for work, and terahash/s (10^12) for hashrate.
-	bigExa := big.NewInt(int64(1e18))
-	bigTera := big.NewInt(int64(1e12))
-
-	// chainWorkPt is stored for a rolling average.
-	type chainWorkPt struct {
-		work *big.Int
-		time time.Time
-	}
-	// How many blocks to average across for hashrate.
-	// 120 is the default returned by the RPC method `getnetworkhashps`.
-	var averagingLength = 120
-	// points is used as circular storage.
-	points := make([]chainWorkPt, averagingLength)
-	var thisPt, lastPt chainWorkPt
-	var idx, workingIdx, lastIdx int
-	badRows := 0
-
-	badRow := func() {
-		badRows++
-		idx++
-	}
-
-	exawork := big.NewInt(0)
-	for rows.Next() {
-		// Get the chainwork.
-		err = rows.Scan(&blocktime, &workhex)
-		if err != nil {
-			return data, err
-		}
-
-		bigwork, ok := new(big.Int).SetString(workhex, 16)
-		if !ok {
-			badRow()
-			continue
-		}
-		exawork.Set(bigwork)
-		exawork.Div(bigwork, bigExa)
-		if !exawork.IsUint64() {
-			badRow()
-			continue
-		}
-		workdata.ChainWork = append(workdata.ChainWork, exawork.Uint64())
-		workdata.Time = append(workdata.Time, blocktime)
-
-		workingIdx = idx % averagingLength
-		points[workingIdx] = chainWorkPt{bigwork, blocktime.T.UTC()}
-		if idx >= averagingLength {
-			// lastIdx is actually the point averagingLength blocks ago.
-			lastIdx = (workingIdx + 1) % averagingLength
-			lastPt = points[lastIdx]
-			thisPt = points[workingIdx]
-			diff := new(big.Int)
-			diff.Set(thisPt.work)
-			diff.Sub(diff, lastPt.work)
-			rate := diff.Div(diff, big.NewInt(int64(thisPt.time.Sub(lastPt.time).Seconds())))
-			rate.Div(rate, bigTera)
-			if !rate.IsUint64() {
-				badRow()
-				continue
-			}
-			tDef := dbtypes.NewTimeDef(thisPt.time)
-			hashrates.Time = append(hashrates.Time, tDef)
-			hashrates.NetHash = append(hashrates.NetHash, rate.Uint64())
-		}
-		idx++
-	}
-	if badRows > 0 {
-		log.Errorf("%d rows have invalid chainwork values.", badRows)
-	}
-
-	data[0] = workdata
-	data[1] = hashrates
-
-	return data, nil
 }
 
 // --- Proposals and Proposal_votes tables ---

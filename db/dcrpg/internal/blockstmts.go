@@ -110,8 +110,13 @@ const (
 	SelectBlocksTicketsPrice = `SELECT sbits, time, difficulty
 		FROM blocks
 		WHERE height % $1 = 0
-		AND time > $2
-		ORDER BY time;`
+		AND height > $2
+		ORDER BY height;`
+
+	SelectGenesisTime = `SELECT time
+		FROM blocks
+		WHERE height = 0
+		AND is_mainchain`
 
 	SelectWindowsByLimit = `SELECT (height/$1)*$1 AS window_start,
 		MAX(difficulty) AS difficulty,
@@ -142,20 +147,6 @@ const (
 		GROUP BY index_value
 		ORDER BY index_value DESC
 		LIMIT $2 OFFSET $3;`
-
-	// SelectBlocksByTime returns data for blockchain-size and avg-block-size
-	SelectBlocksByTime = `SELECT time, size
-		FROM blocks
-		WHERE time > $1
-		AND is_mainchain
-		ORDER BY time;`
-
-	// SelectBlocksByHeight returns data for duration-btw-blocks and tx-per-block
-	SelectBlocksByHeight = `SELECT time, numtx, height
-		FROM blocks
-		WHERE height > $1
-		AND is_mainchain
-		ORDER BY height;`
 
 	SelectBlocksPreviousHash = `SELECT previous_hash FROM blocks WHERE hash = $1;`
 
@@ -223,11 +214,10 @@ const (
 	UpdateBlockNextByHash     = `UPDATE block_chain SET next_hash = $2 WHERE this_hash = $1;`
 	UpdateBlockNextByNextHash = `UPDATE block_chain SET next_hash = $2 WHERE next_hash = $1;`
 
-	// SelectChainWork retrieves block timestamp and chainwork.
-	SelectChainWork = `SELECT time, chainwork
+	SelectBlockStats = `SELECT height, size, time, chainwork, numtx
 		FROM blocks
 		WHERE is_mainchain
-		AND time > $1
+		AND height > $1
 		ORDER BY height;`
 
 	// TODO: index block_chain where needed
