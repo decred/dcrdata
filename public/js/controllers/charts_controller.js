@@ -11,6 +11,7 @@ import globalEventBus from '../services/event_bus_service'
 
 var selectedChart
 let Dygraph // lazy loaded on connect
+let minedCoins
 
 const blockTime = 5 * 60 * 1000
 const blockScales = ['tx-per-block', 'fee-per-block', 'duration-btw-blocks',
@@ -99,8 +100,30 @@ function difficultyFunc (gData) {
   return map(gData.time, (n, i) => { return [new Date(n), gData.difficulty[i]] })
 }
 
+function getSubsidyInterval (index, timeDiff) {
+  var estimatedBlockHieight = Math.floor(timeDiff / blockTime)
+  if (estimatedBlockHieight <= index) {
+    estimatedBlockHieight = index
+  }
+  return Math.floor(estimatedBlockHieight / 6144)
+}
+
+function coinsEstimate (currentTimeIndex, graphData) {
+  var premineCoins = 1680000
+  if (currentTimeIndex > 2) {
+    var intialTime = new Date(graphData[0]).getTime()
+    var currentTime = new Date(graphData[currentTimeIndex]).getTime()
+    var diff = currentTime - intialTime
+    var subsidyInterval = getSubsidyInterval(currentTimeIndex - 1, diff)
+    var reward = 31.19582664
+    var inflationRate = 0.9900990099009901 // = 100 ÷ 101
+    minedCoins += (reward * Math.pow(inflationRate, subsidyInterval))
+  }
+  return premineCoins + minedCoins
+}
+
 function supplyFunc (gData) {
-  return map(gData.time, (n, i) => { return [new Date(n), gData.valuef[i]] })
+  return map(gData.time, (n, i) => { return [new Date(n), coinsEstimate(gData.time, i), gData.valuef[i]] })
 }
 
 function timeBtwBlocksFunc (gData) {
@@ -325,7 +348,7 @@ export default class extends Controller {
 
       case 'coin-supply': // supply graph
         d = supplyFunc(data)
-        assign(gOptions, mapDygraphOptions(d, ['Date', 'Coin Supply'], true, 'Coin Supply (DCR)', 'Date', undefined, true, false))
+        assign(gOptions, mapDygraphOptions(d, ['Date', 'Projected', 'Actual'], true, 'Coin Supply (DCR)', 'Date', undefined, true, false))
         break
 
       case 'fee-per-block': // block fee graph
