@@ -496,10 +496,17 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 	}
 	if syncCommit != "off" {
 		log.Warnf(`PERFORMANCE ISSUE! The synchronous_commit setting is = "%s". `+
-			`" We will atttempt to set it to "off".`, syncCommit)
+			`Changing it to "off".`, syncCommit)
 		// Turn off synchronous_commit.
 		if err = SetSynchronousCommit(db, "off"); err != nil {
 			return nil, fmt.Errorf("failed to set synchronous_commit: %v", err)
+		}
+		// Verify that the setting was changed.
+		if syncCommit, err = RetrieveSysSettingSyncCommit(db); err != nil {
+			return nil, err
+		}
+		if syncCommit != "off" {
+			log.Errorf(`Failed to set synchronous_commit="off". Check PostgreSQL user permissions.`)
 		}
 	}
 
