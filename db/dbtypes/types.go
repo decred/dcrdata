@@ -803,7 +803,7 @@ func (ar *AddressRow) IsMerged() bool {
 // stored as chainhash.Hash ([32]byte) for efficiency and data locality. The
 // fields of AddressRow that only pertain to merged views (AtomsCredit,
 // AtomsDebit, and MergedTxCount) are omitted. VinVoutDbID is also omitted since
-// it is only used when inserting data (see InsertVouts and storeTxns).
+// it is only used when inserting data (see InsertVouts and storeBlockTxnTree).
 type AddressRowCompact struct {
 	Address        string
 	TxBlockTime    int64

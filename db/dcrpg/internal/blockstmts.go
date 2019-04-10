@@ -201,8 +201,9 @@ const (
 	UpdateLastBlockValid = `UPDATE blocks SET is_valid = $2 WHERE id = $1;`
 	UpdateBlockMainchain = `UPDATE blocks SET is_mainchain = $2 WHERE hash = $1 RETURNING previous_hash;`
 
-	// block_chain table. The primary key is not a SERIAL, but rather the row ID
-	// of the block in the blocks table.
+	// CreateBlockPrevNextTable creates a new table named block_chain. The
+	// primary key is not a SERIAL, but rather the row ID of the block in the
+	// blocks table.
 	CreateBlockPrevNextTable = `CREATE TABLE IF NOT EXISTS block_chain (
 		block_db_id INT8 PRIMARY KEY,
 		prev_hash TEXT NOT NULL,

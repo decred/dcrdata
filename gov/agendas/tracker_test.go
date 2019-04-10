@@ -20,49 +20,49 @@ func (source dataSourceStub) GetStakeVersionInfo(version int32) (*dcrjson.GetSta
 		CurrentHeight: h,
 		Hash:          strconv.Itoa(int(version)),
 		Intervals: []dcrjson.VersionInterval{
-			dcrjson.VersionInterval{
+			{
 				StartHeight: h - 500,
 				EndHeight:   h + 500,
 				PoSVersions: []dcrjson.VersionCount{
-					dcrjson.VersionCount{
+					{
 						Version: uint32(version),
 						Count:   5,
 					},
-					dcrjson.VersionCount{
+					{
 						Version: uint32(version),
 						Count:   100000,
 					},
 				},
 				VoteVersions: []dcrjson.VersionCount{
-					dcrjson.VersionCount{
+					{
 						Version: uint32(version),
 						Count:   5,
 					},
-					dcrjson.VersionCount{
+					{
 						Version: uint32(version),
 						Count:   100000,
 					},
 				},
 			},
-			dcrjson.VersionInterval{
+			{
 				StartHeight: h - 1500,
 				EndHeight:   h - 501,
 				PoSVersions: []dcrjson.VersionCount{
-					dcrjson.VersionCount{
+					{
 						Version: uint32(version),
 						Count:   5,
 					},
-					dcrjson.VersionCount{
+					{
 						Version: uint32(version),
 						Count:   100000,
 					},
 				},
 				VoteVersions: []dcrjson.VersionCount{
-					dcrjson.VersionCount{
+					{
 						Version: uint32(version),
 						Count:   5,
 					},
-					dcrjson.VersionCount{
+					{
 						Version: uint32(version),
 						Count:   100000,
 					},
@@ -86,7 +86,7 @@ func (source dataSourceStub) GetVoteInfo(version uint32) (*dcrjson.GetVoteInfoRe
 		Quorum:        4032,
 		TotalVotes:    10000,
 		Agendas: []dcrjson.Agenda{
-			dcrjson.Agenda{
+			{
 				ID:             "test agenda",
 				Description:    "agenda for testing",
 				Mask:           6,
@@ -95,7 +95,7 @@ func (source dataSourceStub) GetVoteInfo(version uint32) (*dcrjson.GetVoteInfoRe
 				Status:         "failed",
 				QuorumProgress: 0,
 				Choices: []dcrjson.Choice{
-					dcrjson.Choice{
+					{
 						ID:          "abstain",
 						Description: "abstain voting for change",
 						Bits:        0,
@@ -104,7 +104,7 @@ func (source dataSourceStub) GetVoteInfo(version uint32) (*dcrjson.GetVoteInfoRe
 						Count:       0,
 						Progress:    0,
 					},
-					dcrjson.Choice{
+					{
 						ID:          "no",
 						Description: "keep the existing consensus rules",
 						Bits:        2,
@@ -113,7 +113,7 @@ func (source dataSourceStub) GetVoteInfo(version uint32) (*dcrjson.GetVoteInfoRe
 						Count:       0,
 						Progress:    0,
 					},
-					dcrjson.Choice{
+					{
 						ID:          "yes",
 						Description: "change to the new consensus rules",
 						Bits:        4,

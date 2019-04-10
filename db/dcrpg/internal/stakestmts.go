@@ -163,8 +163,9 @@ const (
 
 	// votes table
 
-	// block_time field is needed to plot "Cumulative Vote Choices" agendas chart
-	// that plots cumulative votes count against time over the voting period.
+	// CreateVotesTable creates a new table named votes. block_time field is
+	// needed to plot "Cumulative Vote Choices" agendas chart that plots
+	// cumulative votes count against time over the voting period.
 	CreateVotesTable = `CREATE TABLE IF NOT EXISTS votes (
 		id SERIAL PRIMARY KEY,
 		height INT4,

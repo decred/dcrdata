@@ -35,6 +35,7 @@ require (
 )
 
 replace (
+	github.com/decred/dcrdata/db/dbtypes => ../dbtypes
 	github.com/decred/dcrdata/rpcutils => ../../rpcutils
 	github.com/decred/dcrdata/txhelpers => ../../txhelpers
 )

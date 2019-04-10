@@ -18,8 +18,7 @@ import (
 type contextKey int
 
 const (
-	ctxSearch contextKey = iota
-	ctxBlockIndex
+	ctxBlockIndex contextKey = iota
 	ctxBlockHash
 	ctxTxHash
 	ctxTxInOut

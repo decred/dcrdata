@@ -40,8 +40,8 @@ func (iapi *InsightApi) BlockHashPathAndIndexCtx(next http.Handler) http.Handler
 	})
 }
 
-// StatusCtx is a middleware that embeds into the request context the data for
-// the "?q=x" URL query, where x is "getInfo" or "getDifficulty" or
+// StatusInfoCtx is a middleware that embeds into the request context the data
+// for the "?q=x" URL query, where x is "getInfo" or "getDifficulty" or
 // "getBestBlockHash" or "getLastBlockHash".
 func (iapi *InsightApi) StatusInfoCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -165,7 +165,8 @@ func (iapi *InsightApi) ValidatePostCtx(next http.Handler) http.Handler {
 	})
 }
 
-// Process params given in post body for an addrs endpoint
+// PostAddrsTxsCtx middleware processes parameters given in the POST request
+// body for an addrs endpoint.
 func PostAddrsTxsCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req apitypes.InsightMultiAddrsTx
@@ -182,7 +183,7 @@ func PostAddrsTxsCtx(next http.Handler) http.Handler {
 			writeInsightError(w, fmt.Sprintf("Failed to parse request: %v", err))
 			return
 		}
-		// Successful extraction of Body JSON
+		// Successful extraction of body JSON.
 		ctx := context.WithValue(r.Context(), m.CtxAddress, req.Addresses)
 
 		if req.From != "" {
@@ -221,7 +222,8 @@ func PostAddrsTxsCtx(next http.Handler) http.Handler {
 	})
 }
 
-// Process params given in post body for an addrs Utxo endpoint
+// PostAddrsUtxoCtx middleware processes parameters given in the POST request
+// body for an addrs utxo endpoint.
 func PostAddrsUtxoCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		req := apitypes.InsightAddr{}
