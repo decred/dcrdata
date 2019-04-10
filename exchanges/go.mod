@@ -15,4 +15,5 @@ require (
 	google.golang.org/appengine v1.4.0 // indirect
 	google.golang.org/genproto v0.0.0-20190415143225-d1146b9035b9 // indirect
 	google.golang.org/grpc v1.20.0
+	github.com/gorilla/websocket v1.4.0
 )

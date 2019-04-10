@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -57,6 +58,7 @@ type URLs struct {
 	Price        string
 	Depth        string
 	Candlesticks map[candlestickKey]string
+	Websocket    string
 }
 
 type requests struct {
@@ -131,6 +133,7 @@ var (
 			halfHourKey: "https://poloniex.com/public?command=returnChartData&currencyPair=BTC_DCR&period=1800&start=0&resolution=auto",
 			dayKey:      "https://poloniex.com/public?command=returnChartData&currencyPair=BTC_DCR&period=86400&start=0&resolution=auto",
 		},
+		Websocket: "wss://api2.poloniex.com",
 	}
 )
 
@@ -367,6 +370,7 @@ type Exchange interface {
 	Token() string
 	Hurry(time.Duration)
 	Update(*ExchangeState)
+	SilentUpdate(*ExchangeState) // skip passing update to the update channel
 	UpdateIndices(FiatIndices)
 }
 
@@ -384,6 +388,15 @@ type CommonExchange struct {
 	lastRequest  time.Time
 	requests     requests
 	channels     *BotChannels
+	wsMtx        sync.RWMutex
+	ws           websocketFeed
+	wsSync       struct {
+		err      error
+		errCount int
+		update   time.Time
+		fail     time.Time
+	}
+	wsProcessor WebsocketProcessor
 }
 
 // LastUpdate gets a time.Time of the last successful exchange update.
@@ -449,11 +462,24 @@ func (xc *CommonExchange) fail(msg string, err error) {
 
 // Update sends an updated ExchangeState to the ExchangeBot.
 func (xc *CommonExchange) Update(state *ExchangeState) {
+	xc.update(state, true)
+}
+
+// SilentUpdate stores the update for internal use, but does not signal an
+// update to the ExchangeBot.
+func (xc *CommonExchange) SilentUpdate(state *ExchangeState) {
+	xc.update(state, false)
+}
+
+func (xc *CommonExchange) update(state *ExchangeState, send bool) {
 	xc.mtx.Lock()
 	defer xc.mtx.Unlock()
 	xc.lastUpdate = time.Now()
 	state.stealSticks(xc.currentState)
 	xc.currentState = state
+	if !send {
+		return
+	}
 	xc.channels.exchange <- &ExchangeUpdate{
 		Token: xc.token,
 		State: state,
@@ -490,6 +516,98 @@ func (xc *CommonExchange) state() *ExchangeState {
 	xc.mtx.RLock()
 	defer xc.mtx.RUnlock()
 	return xc.currentState
+}
+
+// WebsocketProcessor is a callback for new websocket messages from the server.
+type WebsocketProcessor func([]byte)
+
+// Only the fields are protected for these, so okay to grab them like this.
+func (xc *CommonExchange) websocket() (websocketFeed, WebsocketProcessor) {
+	xc.mtx.RLock()
+	defer xc.mtx.RUnlock()
+	return xc.ws, xc.wsProcessor
+}
+
+// Creates a websocket connection and starts a listen loop. Closes any existing
+// connections for this exchange.
+func (xc *CommonExchange) connectWebsocket(processor WebsocketProcessor, cfg *socketConfig) error {
+	ws, err := newSocketConnection(cfg)
+	if err != nil {
+		return err
+	}
+
+	xc.wsMtx.Lock()
+	if xc.ws != nil {
+		select {
+		case <-xc.ws.Done():
+		default:
+			xc.ws.Close()
+		}
+	}
+	xc.wsProcessor = processor
+	xc.ws = ws
+	xc.wsMtx.Unlock()
+
+	xc.startWebsocket()
+	return nil
+}
+
+// The listen loop for a websocket connection.
+func (xc *CommonExchange) startWebsocket() {
+	ws, processor := xc.websocket()
+	go func() {
+		for {
+			message, err := ws.Read()
+			if err != nil {
+				xc.setWsFail(err)
+				return
+			}
+			processor(message)
+		}
+	}()
+}
+
+func (xc *CommonExchange) wsSend(msg interface{}) error {
+	ws, _ := xc.websocket()
+	return ws.Write(msg)
+}
+
+// Checks whether the websocketFeed Done channel is closed.
+func (xc *CommonExchange) wsListening() bool {
+	ws, _ := xc.websocket()
+	if ws == nil {
+		return false
+	}
+	select {
+	case <-ws.Done():
+		return false
+	default:
+		return true
+	}
+}
+
+// Log the error and time, and increment the error counter.
+func (xc *CommonExchange) setWsFail(err error) {
+	xc.wsMtx.Lock()
+	defer xc.wsMtx.Unlock()
+	log.Errorf("%s websocket error: %v", xc.token, err)
+	xc.wsSync.err = err
+	xc.wsSync.errCount++
+	xc.wsSync.fail = time.Now()
+}
+
+// Checks whether the websocket is in a failed state.
+func (xc *CommonExchange) wsFailed() bool {
+	xc.wsMtx.RLock()
+	defer xc.wsMtx.RUnlock()
+	return xc.wsSync.fail.After(xc.wsSync.update)
+}
+
+// The count of errors logged since the last success-triggered reset.
+func (xc *CommonExchange) wsErrorCount() int {
+	xc.wsMtx.RLock()
+	defer xc.wsMtx.RUnlock()
+	return xc.wsSync.errCount
 }
 
 // Used to initialize the embedding exchanges.
@@ -1091,10 +1209,6 @@ func (bittrex *BittrexExchange) Refresh() {
 		}
 	}
 
-	for bin, sticks := range candlesticks {
-		log.Infof("%d sticks for bin size %s", len(sticks), string(bin))
-	}
-
 	bittrex.Update(&ExchangeState{
 		Price:        result.Last,
 		BaseVolume:   result.BaseVolume,
@@ -1661,10 +1775,22 @@ func (huobi *HuobiExchange) Refresh() {
 	})
 }
 
+type poloniexOrder struct {
+	volume float64
+	price  float64
+}
+
+// poloniexOrders maps a price value to a volume. Poloniex has 8-decimal
+// precision, so int64(price*1e8) will uniquely identify a price bin.
+type poloniexOrders map[int64]*poloniexOrder
+
 // PoloniexExchange is a U.S.-based exchange.
 type PoloniexExchange struct {
 	*CommonExchange
 	CurrencyPair string
+	orderMtx     sync.RWMutex
+	buys         poloniexOrders
+	asks         poloniexOrders
 }
 
 // NewPoloniex constructs a PoloniexExchange.
@@ -1687,10 +1813,19 @@ func NewPoloniex(client *http.Client, channels *BotChannels) (poloniex Exchange,
 		}
 	}
 
-	poloniex = &PoloniexExchange{
+	p := &PoloniexExchange{
 		CommonExchange: newCommonExchange(Poloniex, client, reqs, channels),
 		CurrencyPair:   "BTC_DCR",
+		asks:           make(poloniexOrders),
+		buys:           make(poloniexOrders),
 	}
+	go func() {
+		<-channels.done
+		if p.ws != nil {
+			p.ws.Close()
+		}
+	}()
+	poloniex = p
 	return
 }
 
@@ -1816,9 +1951,386 @@ func (r PoloniexCandlestickResponse) translate( /*bin candlestickKey*/ ) Candles
 	return sticks
 }
 
+// All poloniex websocket subscriptions messages have this form.
+type poloniexWsSubscription struct {
+	Command string `json:"command"`
+	Channel int    `json:"channel"`
+}
+
+var poloniexOrderbookSubscription = poloniexWsSubscription{
+	Command: "subscribe",
+	Channel: 162,
+}
+
+// The final structure to parse in the initial websocket message is a map of the
+// form {"12.3456":"23.4567", "12.4567":"123.4567", ...} where the price is
+// a string-float and is the key to string-float volumes.
+func (poloniex *PoloniexExchange) parseOrderMap(book map[string]interface{}, orders poloniexOrders) error {
+	for p, v := range book {
+		price, err := strconv.ParseFloat(p, 64)
+		if err != nil {
+			return fmt.Errorf("Failed to parse float from poloniex orderbook price. given %s: %v", p, err)
+		}
+		vStr, ok := v.(string)
+		if !ok {
+			return fmt.Errorf("Failed to cast poloniex orderbook volume to string. given %s", v)
+		}
+		volume, err := strconv.ParseFloat(vStr, 64)
+		if err != nil {
+			return fmt.Errorf("Failed to parse float from poloniex orderbook volume string. given %s: %v", p, err)
+		}
+		binKey := int64(price * 1e8)
+		orders[binKey] = &poloniexOrder{
+			price:  price,
+			volume: volume,
+		}
+	}
+	return nil
+}
+
+// This initial websocket message is a full orderbook.
+func (poloniex *PoloniexExchange) processWsOrderbook(responseList []interface{}) {
+	subList, ok := responseList[0].([]interface{})
+	if !ok {
+		poloniex.setWsFail(fmt.Errorf("Failed to parse 0th element of poloniex response array"))
+		return
+	}
+	if len(subList) < 2 {
+		poloniex.setWsFail(fmt.Errorf("Unexpected sub-list length in poloniex websocket response: %d", len(subList)))
+		return
+	}
+	d, ok := subList[1].(map[string]interface{})
+	if !ok {
+		poloniex.setWsFail(fmt.Errorf("Failed to parse response map from poloniex websocket response"))
+		return
+	}
+	orderBook, ok := d["orderBook"].([]interface{})
+	if !ok {
+		poloniex.setWsFail(fmt.Errorf("Failed to parse orderbook list from poloniex websocket response"))
+		return
+	}
+	if len(orderBook) < 2 {
+		poloniex.setWsFail(fmt.Errorf("Unexpected orderBook list length in poloniex websocket response: %d", len(subList)))
+		return
+	}
+	asks, ok := orderBook[0].(map[string]interface{})
+	if !ok {
+		poloniex.setWsFail(fmt.Errorf("Failed to parse asks from poloniex orderbook"))
+		return
+	}
+
+	buys, ok := orderBook[1].(map[string]interface{})
+	if !ok {
+		poloniex.setWsFail(fmt.Errorf("Failed to parse buys from poloniex orderbook"))
+		return
+	}
+
+	poloniex.orderMtx.Lock()
+	defer poloniex.orderMtx.Unlock()
+	err := poloniex.parseOrderMap(asks, poloniex.asks)
+	if err != nil {
+		poloniex.setWsFail(err)
+		return
+	}
+
+	err = poloniex.parseOrderMap(buys, poloniex.buys)
+	if err != nil {
+		poloniex.setWsFail(err)
+		return
+	}
+}
+
+// A helper for merging a source map into a target map. Poloniex order in the
+// source map with volume 0 will trigger a deletion from the target map.
+func mergePoloniexDepthUpdates(target, source poloniexOrders) {
+	for bin, pt := range source {
+		if pt.volume == 0 {
+			delete(source, bin)
+			delete(target, bin)
+			continue
+		}
+		target[bin] = pt
+	}
+}
+
+// Merge order updates under a write lock.
+func (poloniex *PoloniexExchange) accumulateOrders(asks, buys poloniexOrders) {
+	poloniex.orderMtx.Lock()
+	defer poloniex.orderMtx.Unlock()
+	mergePoloniexDepthUpdates(poloniex.asks, asks)
+	mergePoloniexDepthUpdates(poloniex.buys, buys)
+}
+
+const (
+	poloniexHeartbeatCode       = 1010
+	poloniexInitialOrderbookKey = "i"
+	poloniexOrderUpdateKey      = "o"
+	poloniexTradeUpdateKey      = "t"
+	poloniexAskDirection        = 0
+	poloniexBuyDirection        = 1
+	poloniexMaxErrors           = 5
+)
+
+// Poloniex has a string code in the result array indicating what type of
+// message it is.
+func firstCode(responseList []interface{}) string {
+	firstElement, ok := responseList[0].([]interface{})
+	if !ok {
+		log.Errorf("parse failure in poloniex websocket message")
+		return ""
+	}
+	if len(firstElement) < 1 {
+		log.Errorf("unexpected number of parameters in poloniex websocket message")
+		return ""
+	}
+	updateType, ok := firstElement[0].(string)
+	if !ok {
+		log.Errorf("failed to type convert poloniex message update type")
+		return ""
+	}
+	return updateType
+}
+
+// For Poloniex message "o", an update to the orderbook.
+func processPoloniexOrderbookUpdate(updateParams []interface{}) (*poloniexOrder, int, error) {
+	floatDir, ok := updateParams[1].(float64)
+	if !ok {
+		return nil, -1, fmt.Errorf("failed to type convert poloniex orderbook update direction")
+	}
+	direction := int(floatDir)
+	priceStr, ok := updateParams[2].(string)
+	if !ok {
+		return nil, -1, fmt.Errorf("failed to type convert poloniex orderbook update price")
+	}
+	price, err := strconv.ParseFloat(priceStr, 64)
+	if err != nil {
+		return nil, -1, fmt.Errorf("failed to convert poloniex orderbook update price to float: %v", err)
+	}
+	volStr, ok := updateParams[3].(string)
+	if !ok {
+		return nil, -1, fmt.Errorf("failed to type convert poloniex orderbook update volume")
+	}
+	volume, err := strconv.ParseFloat(volStr, 64)
+	if err != nil {
+		return nil, -1, fmt.Errorf("failed to convert poloniex orderbook update volume to float: %v", err)
+	}
+	return &poloniexOrder{
+		price:  price,
+		volume: volume,
+	}, direction, nil
+}
+
+// For Poloniex message "t", a trade. This seems to be used rarely and
+// sporadically, but it is used. For the BTC_DCR endpoint, almost all updates
+// are of the "o" type.
+func (poloniex *PoloniexExchange) processTrade(tradeParams []interface{}) (*poloniexOrder, int, error) {
+	if len(tradeParams) != 6 {
+		return nil, -1, fmt.Errorf("Not enough parameters in poloniex trade notification. given: %d", len(tradeParams))
+	}
+	floatDir, ok := tradeParams[2].(float64)
+	if !ok {
+		return nil, -1, fmt.Errorf("failed to type convert poloniex orderbook update direction")
+	}
+	direction := (int(floatDir) + 1) % 2
+	priceStr, ok := tradeParams[3].(string)
+	if !ok {
+		return nil, -1, fmt.Errorf("failed to type convert poloniex orderbook update price")
+	}
+	price, err := strconv.ParseFloat(priceStr, 64)
+	if err != nil {
+		return nil, -1, fmt.Errorf("failed to convert poloniex orderbook update price to float: %v", err)
+	}
+	volStr, ok := tradeParams[4].(string)
+	if !ok {
+		return nil, -1, fmt.Errorf("failed to type convert poloniex orderbook update volume")
+	}
+	volume, err := strconv.ParseFloat(volStr, 64)
+	if err != nil {
+		return nil, -1, fmt.Errorf("failed to convert poloniex orderbook update volume to float: %v", err)
+	}
+	binKey := int64(price * 1e8)
+	var existingOrder *poloniexOrder
+	var found bool
+	if direction == poloniexAskDirection {
+		existingOrder, found = poloniex.asks[binKey]
+	} else {
+		existingOrder, found = poloniex.buys[binKey]
+	}
+	if !found {
+		return nil, -1, fmt.Errorf("no order found to match reported poloniex trade")
+	}
+
+	order := &poloniexOrder{
+		price:  price,
+		volume: existingOrder.volume - volume,
+	}
+	return order, direction, nil
+}
+
+// Poloniex's WebsocketProcessor. Handles messages of type "i", "o", and "t".
+func (poloniex *PoloniexExchange) processWsMessage(raw []byte) {
+	msg := make([]interface{}, 0)
+	err := json.Unmarshal(raw, &msg)
+	if err != nil {
+		poloniex.setWsFail(err)
+		return
+	}
+	if len(msg) == 1 {
+		// Likely a heatbeat
+		code, ok := msg[0].(float64)
+		if !ok {
+			poloniex.setWsFail(fmt.Errorf("non-integer single-element poloniex response of implicit type %T", msg[0]))
+			return
+		}
+		intCode := int(code)
+		if intCode == poloniexHeartbeatCode {
+			return
+		}
+		poloniex.setWsFail(fmt.Errorf("unknown code in single-element poloniex response: %d", intCode))
+		return
+	}
+	if len(msg) < 3 {
+		poloniex.setWsFail(fmt.Errorf("poloniex websocket message had unexpected length %d", len(msg)))
+		return
+	}
+
+	responseList, ok := msg[2].([]interface{})
+	if !ok {
+		poloniex.setWsFail(fmt.Errorf("poloniex websocket message type assertion failure: %T", msg[2]))
+		return
+	}
+
+	code := firstCode(responseList)
+
+	if code == poloniexInitialOrderbookKey {
+		poloniex.processWsOrderbook(responseList)
+		state := poloniex.state()
+		if state != nil { // Only send update if price has been fetched
+			depth := poloniex.wsDepths()
+			poloniex.Update(&ExchangeState{
+				Price:        state.Price,
+				BaseVolume:   state.BaseVolume,
+				Volume:       state.Volume,
+				Change:       state.Change,
+				Depth:        depth,
+				Candlesticks: state.Candlesticks,
+			})
+		}
+		return
+	}
+
+	if code != poloniexOrderUpdateKey && code != poloniexTradeUpdateKey {
+		poloniex.setWsFail(fmt.Errorf("Unexpected code in first element of poloniex websocket response list: %s", code))
+		return
+	}
+
+	poloniex.orderMtx.RLock()
+	newAsks := make(poloniexOrders)
+	newBids := make(poloniexOrders)
+	for _, update := range responseList {
+		updateParams, ok := update.([]interface{})
+		if !ok {
+			poloniex.setWsFail(fmt.Errorf("failed to type convert poloniex orderbook update array"))
+			return
+		}
+		if len(updateParams) < 4 {
+			poloniex.setWsFail(fmt.Errorf("unexpected number of parameters in poloniex orderboook update"))
+			return
+		}
+		updateType, ok := updateParams[0].(string)
+		if !ok {
+			poloniex.setWsFail(fmt.Errorf("failed to type convert poloniex orderbook update type"))
+			return
+		}
+
+		var order *poloniexOrder
+		var direction int
+		if updateType == poloniexOrderUpdateKey {
+			order, direction, err = processPoloniexOrderbookUpdate(updateParams)
+			if err != nil {
+				poloniex.setWsFail(err)
+			}
+		} else if updateType == poloniexTradeUpdateKey {
+			order, direction, err = poloniex.processTrade(updateParams)
+			if err != nil {
+				poloniex.setWsFail(err)
+				// Order book is outdated, need to trigger a reconnection
+				log.Warnf("corrupt orderbook detected. closing websocket. reconnecting at next refresh")
+				ws, _ := poloniex.websocket()
+				ws.Close()
+				poloniex.connectWs()
+			}
+		}
+
+		if direction == poloniexAskDirection {
+			newAsks[int64(order.price*1e8)] = order
+		} else if direction == poloniexBuyDirection {
+			newBids[int64(order.price*1e8)] = order
+		} else {
+			poloniex.setWsFail(fmt.Errorf("Unknown poloniex update direction indicator: %d", direction))
+			return
+		}
+	}
+	poloniex.orderMtx.RUnlock()
+	poloniex.accumulateOrders(newAsks, newBids)
+}
+
+// Pull out the int64 bin keys from the map.
+func poloniexBinKeys(book poloniexOrders) []int64 {
+	keys := make([]int64, 0, len(book))
+	for k := range book {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+// Convert the intermediate orderbook to a DepthData.
+func (poloniex *PoloniexExchange) wsDepths() *DepthData {
+	poloniex.orderMtx.RLock()
+	defer poloniex.orderMtx.RUnlock()
+	askKeys := poloniexBinKeys(poloniex.asks)
+	sort.Slice(askKeys, func(i, j int) bool {
+		return askKeys[i] < askKeys[j]
+	})
+	buyKeys := poloniexBinKeys(poloniex.buys)
+	sort.Slice(buyKeys, func(i, j int) bool {
+		return buyKeys[i] > buyKeys[j]
+	})
+	a := make([]DepthPoint, 0, len(askKeys))
+	for _, bin := range askKeys {
+		pt := poloniex.asks[bin]
+		a = append(a, DepthPoint{
+			Quantity: pt.volume,
+			Price:    pt.price,
+		})
+	}
+	b := make([]DepthPoint, 0, len(buyKeys))
+	for _, bin := range buyKeys {
+		pt := poloniex.buys[bin]
+		b = append(b, DepthPoint{
+			Quantity: pt.volume,
+			Price:    pt.price,
+		})
+	}
+	return &DepthData{
+		Time: time.Now().Unix(),
+		Asks: a,
+		Bids: b,
+	}
+}
+
+// Create a websocket connection and send the orderbook subscription.
+func (poloniex *PoloniexExchange) connectWs() {
+	poloniex.connectWebsocket(poloniex.processWsMessage, &socketConfig{
+		address: PoloniexURLs.Websocket,
+	})
+	poloniex.wsSend(poloniexOrderbookSubscription)
+}
+
 // Refresh retrieves and parses API data from Poloniex.
 func (poloniex *PoloniexExchange) Refresh() {
 	poloniex.LogRequest()
+
 	var response map[string]*PoloniexPair
 	err := poloniex.fetch(poloniex.requests.price, &response)
 	if err != nil {
@@ -1853,12 +2365,41 @@ func (poloniex *PoloniexExchange) Refresh() {
 	oldPrice := price / (1 + percentChange)
 
 	// Depth chart
-	depthResponse := new(PoloniexDepthResponse)
-	err = poloniex.fetch(poloniex.requests.depth, depthResponse)
-	if err != nil {
-		log.Errorf("Poloniex depth chart fetch error: %v", err)
+	// Check to see if the websocket has been initialized
+	var skipHttp, skipBotUpdate bool
+	var depth *DepthData
+	if !poloniex.wsListening() {
+		if poloniex.wsFailed() {
+			errCount := poloniex.wsErrorCount()
+			if errCount < poloniexMaxErrors {
+				// Try to connect, but don't wait for the response. Grab the order
+				// book over HTTP anyway.
+				poloniex.connectWs()
+			} else if errCount == poloniexMaxErrors {
+				log.Errorf("Poloniex websocket being disabled. Too many errors")
+			}
+		} else {
+			// Connection has not been initialized. Trigger a silent update, since an
+			// update will be triggered on initial websocket message, which contains
+			// the full orderbook.
+			skipHttp = true
+			skipBotUpdate = true
+			log.Tracef("Initializing websocket connection for poloniex")
+		}
+	} else { // Websocket is listening
+		depth = poloniex.wsDepths()
+		skipHttp = true
 	}
-	depth := depthResponse.translate()
+
+	// If not expecting depth data from the websocket, grab it from HTTP
+	if !skipHttp {
+		depthResponse := new(PoloniexDepthResponse)
+		err = poloniex.fetch(poloniex.requests.depth, depthResponse)
+		if err != nil {
+			log.Errorf("Poloniex depth chart fetch error: %v", err)
+		}
+		depth = depthResponse.translate()
+	}
 
 	// Candlesticks
 	state := poloniex.state()
@@ -1882,12 +2423,19 @@ func (poloniex *PoloniexExchange) Refresh() {
 		}
 	}
 
-	poloniex.Update(&ExchangeState{
+	update := &ExchangeState{
 		Price:        price,
 		BaseVolume:   baseVolume,
 		Volume:       volume,
 		Change:       price - oldPrice,
 		Depth:        depth,
 		Candlesticks: candlesticks,
-	})
+	}
+	if skipBotUpdate {
+		poloniex.SilentUpdate(update)
+		poloniex.connectWs()
+	} else {
+		poloniex.Update(update)
+	}
+
 }
