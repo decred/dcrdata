@@ -100,30 +100,8 @@ function difficultyFunc (gData) {
   return map(gData.time, (n, i) => { return [new Date(n), gData.difficulty[i]] })
 }
 
-function getSubsidyInterval (index, timeDiff) {
-  var estimatedBlockHieight = Math.floor(timeDiff / blockTime)
-  if (estimatedBlockHieight <= index) {
-    estimatedBlockHieight = index
-  }
-  return Math.floor(estimatedBlockHieight / 6144)
-}
-
-function coinsEstimate (currentTimeIndex, graphData) {
-  var premineCoins = 1680000
-  if (currentTimeIndex > 2) {
-    var intialTime = new Date(graphData[0]).getTime()
-    var currentTime = new Date(graphData[currentTimeIndex]).getTime()
-    var diff = currentTime - intialTime
-    var subsidyInterval = getSubsidyInterval(currentTimeIndex - 1, diff)
-    var reward = 31.19582664
-    var inflationRate = 0.9900990099009901 // = 100 ÷ 101
-    minedCoins += (reward * Math.pow(inflationRate, subsidyInterval))
-  }
-  return premineCoins + minedCoins
-}
-
 function supplyFunc (gData) {
-  return map(gData.time, (n, i) => { return [new Date(n), coinsEstimate(gData.time, i), gData.valuef[i]] })
+  return map(gData.time, (n, i) => { return [new Date(n), gData.recieve[i], gData.valuef[i]] })
 }
 
 function timeBtwBlocksFunc (gData) {

@@ -2981,18 +2981,37 @@ func retrieveTicketsPriceByHeight(ctx context.Context, db *sql.DB, interval int6
 
 // retrieveCoinSupply fetches the coin supply data from the vins table.
 func retrieveCoinSupply(ctx context.Context, db *sql.DB, timeArr []dbtypes.TimeDef,
-	sumArr []float64) ([]dbtypes.TimeDef, []float64, error) {
-	var sum float64
-	var since time.Time
+	sumArr, estimateArr []float64, params *chaincfg.Params) ([]dbtypes.TimeDef,
+	[]float64, []float64, error) {
+	var since, initialTime time.Time
+	var sum, estimate, preminedCoins float64
 
-	if c := len(timeArr); c > 0 {
+	var reward = dcrutil.Amount(params.BaseSubsidy).ToCoin()
+	var targerBlockTime = float64(params.TargetTimePerBlock)
+	var inflationRate = float64(params.MulSubsidy) / float64(params.DivSubsidy)
+	var subsidyReduction = float64(params.SubsidyReductionInterval)
+
+	if c := len(timeArr); c > 0 && len(sumArr) == c && len(estimateArr) == c {
 		since = timeArr[c-1].T
 		sum = sumArr[c-1]
+		estimate = estimateArr[c-1]
+	} else {
+		// if the count of elems in all arrays doesn't match drops all entries.
+		timeArr = timeArr[:0]
+		sumArr = sumArr[:0]
+		estimateArr = estimateArr[:0]
+	}
+
+	// premine coins are usually found of the premines block (at height 1).
+	// Its usually the second block after the genesis block.
+	if len(sumArr) > 1 && len(timeArr) > 0 {
+		preminedCoins = sumArr[1]
+		initialTime = timeArr[1].T
 	}
 
 	rows, err := db.QueryContext(ctx, internal.SelectCoinSupply, since)
 	if err != nil {
-		return timeArr, sumArr, err
+		return timeArr, sumArr, estimateArr, err
 	}
 
 	defer closeRows(rows)
@@ -3001,7 +3020,7 @@ func retrieveCoinSupply(ctx context.Context, db *sql.DB, timeArr []dbtypes.TimeD
 		var value int64
 		var timestamp time.Time
 		if err = rows.Scan(&timestamp, &value); err != nil {
-			return timeArr, sumArr, err
+			return timeArr, sumArr, estimateArr, err
 		}
 
 		if value < 0 {
@@ -3011,9 +3030,26 @@ func retrieveCoinSupply(ctx context.Context, db *sql.DB, timeArr []dbtypes.TimeD
 		sum += dcrutil.Amount(value).ToCoin()
 		timeArr = append(timeArr, dbtypes.NewTimeDef(timestamp))
 		sumArr = append(sumArr, sum)
+
+		// if preminedCoins and initial time wasn't set it.
+		if len(sumArr) == 2 && preminedCoins == 0 {
+			preminedCoins = sum
+			initialTime = timestamp.T
+		}
+
+		var timeDiff = float64(timestamp.T.Sub(initialTime))
+		var estimatedBlockHeight = int(timeDiff / targerBlockTime)
+		if estimatedBlockHeight <= len(timeArr)-1 {
+			estimatedBlockHeight = len(timeArr) - 1
+		}
+
+		subsidyInterval := math.Floor(float64(estimatedBlockHeight) / subsidyReduction)
+		estimate += (reward * math.Pow(inflationRate, subsidyInterval))
+
+		estimateArr = append(estimateArr, estimate)
 	}
 
-	return timeArr, sumArr, nil
+	return timeArr, sumArr, estimateArr, nil
 }
 
 // retrieveTicketSpendTypePerBlock fetches data for ticket-spend-type chart from
