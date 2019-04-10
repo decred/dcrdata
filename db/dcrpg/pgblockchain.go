@@ -3328,10 +3328,8 @@ func (pgb *ChainDB) storeTxns(txns []*dbtypes.Tx, vouts [][]*dbtypes.Vout, vins 
 		}
 		numIns += len(Tx.VinDbIds)
 
-		// return the transactions vout slice if processing stake tree
-		//if txTree == wire.TxTreeStake {
+		// Return the transactions vout slice.
 		Tx.Vouts = vouts[it]
-		//}
 	}
 
 	// Get the tx PK IDs for storage in the blocks, tickets, and votes table.
@@ -3352,8 +3350,8 @@ func (pgb *ChainDB) storeBlockTxnTree(msgBlock *MsgBlockPG, txTree int8,
 	chainParams *chaincfg.Params, isValid, isMainchain bool,
 	updateExistingRecords, updateAddressesSpendingInfo,
 	updateTicketsSpendingInfo bool) storeTxnsResult {
-	// For the given block, transaction tree, and network, extract the
-	// transactions, vins, and vouts.
+	// For the given block and transaction tree, extract the transactions, vins,
+	// and vouts.
 	dbTransactions, dbTxVouts, dbTxVins := dbtypes.ExtractBlockTransactions(
 		msgBlock.MsgBlock, txTree, chainParams, isValid, isMainchain)
 
@@ -3558,7 +3556,7 @@ func (pgb *ChainDB) storeBlockTxnTree(msgBlock *MsgBlockPG, txTree int8,
 
 	wg.Wait()
 
-	// Check the new vins, inserting spending address rows, and (if
+	// Begin a database transaction to insert spending address rows, and (if
 	// updateAddressesSpendingInfo) update matching_tx_hash in corresponding
 	// funding rows.
 	dbTx, err := pgb.db.Begin()
@@ -3589,7 +3587,7 @@ func (pgb *ChainDB) storeBlockTxnTree(msgBlock *MsgBlockPG, txTree int8,
 			// Transaction that spends an outpoint paying to >=0 addresses
 			vin := &txVins[iv]
 
-			// Skip coinbase inputs (they are generated and thus have no
+			// Skip coinbase inputs (they are new coins and thus have no
 			// previous outpoint funding them).
 			if bytes.Equal(zeroHashStringBytes, []byte(vin.PrevTxHash)) {
 				continue
@@ -3727,7 +3725,7 @@ func (pgb *ChainDB) CollectTicketSpendDBInfo(dbTxns []*dbtypes.Tx, txDbIDs []uin
 			continue
 		}
 
-		// Ensure the transaction slices correspond.
+		// Ensure the transactions in dbTxns and msgBlock.STransactions correspond.
 		msgTx := msgTxns[i]
 		if tx.TxID != msgTx.TxHash().String() {
 			err = fmt.Errorf("txid of dbtypes.Tx does not match that of msgTx")
