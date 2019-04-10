@@ -216,6 +216,18 @@ func RetrieveSysSettingsServer(db *sql.DB) (PGSettings, error) {
 	return retrieveSysSettings(internal.RetrieveSysSettingsServer, db)
 }
 
+// RetrieveSysSettingSyncCommit retrieves the synchronous_commit setting.
+func RetrieveSysSettingSyncCommit(db *sql.DB) (syncCommit string, err error) {
+	err = db.QueryRow(internal.RetrieveSyncCommitSetting).Scan(&syncCommit)
+	return
+}
+
+// SetSynchronousCommit sets the synchronous_commit setting.
+func SetSynchronousCommit(db *sql.DB, syncCommit string) error {
+	_, err := db.Exec(fmt.Sprintf(`SET synchronous_commit TO %s;`, syncCommit))
+	return err
+}
+
 // CheckCurrentTimeZone queries for the currently set postgres time zone.
 func CheckCurrentTimeZone(db *sql.DB) (currentTZ string, err error) {
 	if err = db.QueryRow(`SHOW TIME ZONE`).Scan(&currentTZ); err != nil {

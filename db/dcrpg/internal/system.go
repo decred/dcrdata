@@ -48,5 +48,7 @@ const (
 			OR name='jit'
 			OR name='jit_provider';`
 
+	RetrieveSyncCommitSetting = `SELECT setting FROM pg_settings WHERE name='synchronous_commit';`
+
 	RetrievePGVersion = `SELECT version();`
 )
