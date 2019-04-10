@@ -25,8 +25,10 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 	wsHandler := websocket.Handler(func(ws *websocket.Conn) {
 		// Create channel to signal updated data availability
 		updateSig := make(hubSpoke, 3)
+		// Create a channel for exchange updates
+		xcChan := make(exchangeChannel, 3)
 		// register websocket client with our signal channel
-		clientData := exp.wsHub.RegisterClient(&updateSig)
+		clientData := exp.wsHub.RegisterClient(&updateSig, xcChan)
 		// unregister (and close signal channel) before return
 		defer exp.wsHub.UnregisterClient(&updateSig)
 
@@ -40,6 +42,23 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		defer closeWS()
+
+		send := func(webData WebSocketMessage) error {
+			err := ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
+			if err != nil && !pstypes.IsWSClosedErr(err) {
+				log.Warnf("SetWriteDeadline failed: %v", err)
+			}
+			if err := websocket.JSON.Send(ws, webData); err != nil {
+				// Do not log error if connection is just closed
+				if !pstypes.IsWSClosedErr(err) {
+					log.Debugf("Failed to send web socket message %s: %v", webData.EventId, err)
+				}
+				// If the send failed, the client is probably gone, so close
+				// the connection and quit.
+				return fmt.Errorf("Send fail")
+			}
+			return nil
+		}
 
 		requestLimit := 1 << 20
 		// set the max payload size to 1 MB
@@ -209,19 +228,8 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 
 				webData.EventId = msg.EventId + "Resp"
 
-				// send the response back on the websocket
-				err = ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
-				if err != nil && !pstypes.IsWSClosedErr(err) {
-					log.Warnf("SetWriteDeadline failed: %v", err)
-				}
-				if err = websocket.JSON.Send(ws, webData); err != nil {
-					// Do not log error if connection is just closed.
-					if !pstypes.IsWSClosedErr(err) {
-						log.Debugf("Failed to encode WebSocketMessage (reply) %s: %v",
-							webData.EventId, err)
-					}
-					// If the send failed, the client is probably gone, so close
-					// the connection and quit.
+				err = send(webData)
+				if err != nil {
 					return
 				}
 			}
@@ -302,18 +310,25 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					}
 
 				}
-
-				err := ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
-				if err != nil && !pstypes.IsWSClosedErr(err) {
-					log.Warnf("SetWriteDeadline failed: %v", err)
+				err := send(webData)
+				if err != nil {
+					return
 				}
-				if err := websocket.JSON.Send(ws, webData); err != nil {
-					// Do not log error if connection is just closed
-					if !pstypes.IsWSClosedErr(err) {
-						log.Debugf("Failed to encode WebSocketMessage (push) %v: %v", sig, err)
-					}
-					// If the send failed, the client is probably gone, so close
-					// the connection and quit.
+			case update := <-xcChan:
+				buff := new(bytes.Buffer)
+				enc := json.NewEncoder(buff)
+				webData := WebSocketMessage{
+					EventId: exchangeUpdateID,
+					Message: "error",
+				}
+				err := enc.Encode(update)
+				if err == nil {
+					webData.Message = buff.String()
+				} else {
+					log.Errorf("json.Encode(*WebsocketExchangeUpdate) failed: %v", err)
+				}
+				err = send(webData)
+				if err != nil {
 					return
 				}
 			case <-exp.wsHub.quitWSHandler:

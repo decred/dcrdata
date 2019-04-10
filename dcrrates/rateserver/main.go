@@ -88,6 +88,25 @@ func main() {
 	grpcServer := grpc.NewServer(grpc.Creds(creds))
 	dcrrates.RegisterDCRRatesServer(grpcServer, rateServer)
 
+	printUpdate := func(token string) {
+		msg := fmt.Sprintf("Update received from %s", token)
+		if !xcBot.IsFailed() {
+			msg += fmt.Sprintf(". Current price: %.2f %s", xcBot.Price(), xcBot.BtcIndex)
+		}
+		log.Infof(msg)
+	}
+
+	sendUpdate := func(update *dcrrates.ExchangeRateUpdate) {
+		rateServer.clientLock.RLock()
+		for _, client := range rateServer.clients {
+			err := client.SendExchangeUpdate(update)
+			if err != nil {
+				log.Warnf("send error: %v", err)
+			}
+		}
+		rateServer.clientLock.RUnlock()
+	}
+
 	// Start the main loop in a goroutine, shutting down the grpcServer when done.
 	go func() {
 	out:
@@ -95,38 +114,15 @@ func main() {
 			select {
 			case <-killSwitch:
 				break out
-			case update := <-xcSignals.Update:
-				var grpcUpdate *dcrrates.ExchangeRateUpdate
-				msg := fmt.Sprintf("Update received from %s", update.Token)
-				if !xcBot.IsFailed() {
-					msg += fmt.Sprintf(". Current price: %.2f %s", xcBot.Price(), xcBot.BtcIndex)
-				}
-				log.Infof(msg)
-				if exchanges.IsDcrExchange(update.Token) {
-					state, err := update.TriggerState()
-					if err != nil {
-						log.Errorf("Failed to get TriggerState: %v", err)
-						continue
-					}
-					grpcUpdate = makeExchangeUpdate(update.Token, state)
-					if err != nil {
-						log.Errorf("No exchange state for %s found in update", update.Token)
-						continue
-					}
-				} else {
-					grpcUpdate = &dcrrates.ExchangeRateUpdate{
-						Token:   update.Token,
-						Indices: xcBot.Indices(update.Token),
-					}
-				}
-				rateServer.clientLock.RLock()
-				for _, client := range rateServer.clients {
-					err = client.SendExchangeUpdate(grpcUpdate)
-					if err != nil {
-						log.Warnf("send error: %v")
-					}
-				}
-				rateServer.clientLock.RUnlock()
+			case update := <-xcSignals.Exchange:
+				printUpdate(update.Token)
+				sendUpdate(makeExchangeRateUpdate(update))
+			case update := <-xcSignals.Index:
+				printUpdate(update.Token)
+				sendUpdate(&dcrrates.ExchangeRateUpdate{
+					Token:   update.Token,
+					Indices: update.Indices,
+				})
 			case <-xcSignals.Quit:
 				log.Infof("ExchangeBot Quit signal received.")
 				break out
@@ -134,9 +130,8 @@ func main() {
 		}
 		shutdown()
 		grpcServer.Stop()
-		wg.Wait()
 	}()
 
 	grpcServer.Serve(listener)
-
+	wg.Wait()
 }

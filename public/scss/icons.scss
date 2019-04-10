@@ -90,3 +90,51 @@
 .dcricon-search::before {
   content: "\e908";
 }
+
+.dcricon-arrow-up::before {
+  content: "\e911";
+}
+
+.dcricon-arrow-down::before {
+  content: "\e910";
+}
+
+.exchange-logo {
+  vertical-align: middle;
+  display: inline-block;
+  width: 25px;
+  height: 25px;
+  background: url("/images/exchange-logos-25.svg") no-repeat;
+}
+
+.exchange-logo.bitcoin {
+  background-position: 0 0;
+}
+
+.exchange-logo.coinbase {
+  background-position: 0 -25px;
+}
+
+.exchange-logo.coindesk {
+  background-position: 0 -50px;
+}
+
+.exchange-logo.binance {
+  background-position: 0 -75px;
+}
+
+.exchange-logo.bittrex {
+  background-position: 0 -100px;
+}
+
+.exchange-logo.poloniex {
+  background-position: 0 -125px;
+}
+
+.exchange-logo.huobi {
+  background-position: 0 -150px;
+}
+
+.exchange-logo.dragonex {
+  background-position: 0 -175px;
+}

@@ -35,7 +35,7 @@ func (m *ExchangeSubscription) Reset()         { *m = ExchangeSubscription{} }
 func (m *ExchangeSubscription) String() string { return proto.CompactTextString(m) }
 func (*ExchangeSubscription) ProtoMessage()    {}
 func (*ExchangeSubscription) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dcrrates_dcd22285f4ba2133, []int{0}
+	return fileDescriptor_dcrrates_9bf93ce756f00f36, []int{0}
 }
 func (m *ExchangeSubscription) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ExchangeSubscription.Unmarshal(m, b)
@@ -70,23 +70,25 @@ func (m *ExchangeSubscription) GetExchanges() []string {
 }
 
 type ExchangeRateUpdate struct {
-	Token                string             `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
-	Price                float64            `protobuf:"fixed64,2,opt,name=price,proto3" json:"price,omitempty"`
-	BaseVolume           float64            `protobuf:"fixed64,3,opt,name=baseVolume,proto3" json:"baseVolume,omitempty"`
-	Volume               float64            `protobuf:"fixed64,4,opt,name=volume,proto3" json:"volume,omitempty"`
-	Change               float64            `protobuf:"fixed64,5,opt,name=change,proto3" json:"change,omitempty"`
-	Stamp                int64              `protobuf:"varint,6,opt,name=stamp,proto3" json:"stamp,omitempty"`
-	Indices              map[string]float64 `protobuf:"bytes,7,rep,name=indices,proto3" json:"indices,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"fixed64,2,opt,name=value,proto3"`
-	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
-	XXX_unrecognized     []byte             `json:"-"`
-	XXX_sizecache        int32              `json:"-"`
+	Token                string                             `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	Price                float64                            `protobuf:"fixed64,2,opt,name=price,proto3" json:"price,omitempty"`
+	BaseVolume           float64                            `protobuf:"fixed64,3,opt,name=baseVolume,proto3" json:"baseVolume,omitempty"`
+	Volume               float64                            `protobuf:"fixed64,4,opt,name=volume,proto3" json:"volume,omitempty"`
+	Change               float64                            `protobuf:"fixed64,5,opt,name=change,proto3" json:"change,omitempty"`
+	Stamp                int64                              `protobuf:"varint,6,opt,name=stamp,proto3" json:"stamp,omitempty"`
+	Indices              map[string]float64                 `protobuf:"bytes,7,rep,name=indices,proto3" json:"indices,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"fixed64,2,opt,name=value,proto3"`
+	Depth                *ExchangeRateUpdate_DepthData      `protobuf:"bytes,8,opt,name=depth,proto3" json:"depth,omitempty"`
+	Candlesticks         []*ExchangeRateUpdate_Candlesticks `protobuf:"bytes,9,rep,name=candlesticks,proto3" json:"candlesticks,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                           `json:"-"`
+	XXX_unrecognized     []byte                             `json:"-"`
+	XXX_sizecache        int32                              `json:"-"`
 }
 
 func (m *ExchangeRateUpdate) Reset()         { *m = ExchangeRateUpdate{} }
 func (m *ExchangeRateUpdate) String() string { return proto.CompactTextString(m) }
 func (*ExchangeRateUpdate) ProtoMessage()    {}
 func (*ExchangeRateUpdate) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dcrrates_dcd22285f4ba2133, []int{1}
+	return fileDescriptor_dcrrates_9bf93ce756f00f36, []int{1}
 }
 func (m *ExchangeRateUpdate) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ExchangeRateUpdate.Unmarshal(m, b)
@@ -155,10 +157,252 @@ func (m *ExchangeRateUpdate) GetIndices() map[string]float64 {
 	return nil
 }
 
+func (m *ExchangeRateUpdate) GetDepth() *ExchangeRateUpdate_DepthData {
+	if m != nil {
+		return m.Depth
+	}
+	return nil
+}
+
+func (m *ExchangeRateUpdate) GetCandlesticks() []*ExchangeRateUpdate_Candlesticks {
+	if m != nil {
+		return m.Candlesticks
+	}
+	return nil
+}
+
+type ExchangeRateUpdate_DepthPoint struct {
+	Quantity             float64  `protobuf:"fixed64,1,opt,name=quantity,proto3" json:"quantity,omitempty"`
+	Price                float64  `protobuf:"fixed64,2,opt,name=price,proto3" json:"price,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ExchangeRateUpdate_DepthPoint) Reset()         { *m = ExchangeRateUpdate_DepthPoint{} }
+func (m *ExchangeRateUpdate_DepthPoint) String() string { return proto.CompactTextString(m) }
+func (*ExchangeRateUpdate_DepthPoint) ProtoMessage()    {}
+func (*ExchangeRateUpdate_DepthPoint) Descriptor() ([]byte, []int) {
+	return fileDescriptor_dcrrates_9bf93ce756f00f36, []int{1, 1}
+}
+func (m *ExchangeRateUpdate_DepthPoint) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ExchangeRateUpdate_DepthPoint.Unmarshal(m, b)
+}
+func (m *ExchangeRateUpdate_DepthPoint) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ExchangeRateUpdate_DepthPoint.Marshal(b, m, deterministic)
+}
+func (dst *ExchangeRateUpdate_DepthPoint) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ExchangeRateUpdate_DepthPoint.Merge(dst, src)
+}
+func (m *ExchangeRateUpdate_DepthPoint) XXX_Size() int {
+	return xxx_messageInfo_ExchangeRateUpdate_DepthPoint.Size(m)
+}
+func (m *ExchangeRateUpdate_DepthPoint) XXX_DiscardUnknown() {
+	xxx_messageInfo_ExchangeRateUpdate_DepthPoint.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ExchangeRateUpdate_DepthPoint proto.InternalMessageInfo
+
+func (m *ExchangeRateUpdate_DepthPoint) GetQuantity() float64 {
+	if m != nil {
+		return m.Quantity
+	}
+	return 0
+}
+
+func (m *ExchangeRateUpdate_DepthPoint) GetPrice() float64 {
+	if m != nil {
+		return m.Price
+	}
+	return 0
+}
+
+type ExchangeRateUpdate_DepthData struct {
+	Time                 int64                            `protobuf:"varint,1,opt,name=time,proto3" json:"time,omitempty"`
+	Bids                 []*ExchangeRateUpdate_DepthPoint `protobuf:"bytes,2,rep,name=bids,proto3" json:"bids,omitempty"`
+	Asks                 []*ExchangeRateUpdate_DepthPoint `protobuf:"bytes,3,rep,name=asks,proto3" json:"asks,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                         `json:"-"`
+	XXX_unrecognized     []byte                           `json:"-"`
+	XXX_sizecache        int32                            `json:"-"`
+}
+
+func (m *ExchangeRateUpdate_DepthData) Reset()         { *m = ExchangeRateUpdate_DepthData{} }
+func (m *ExchangeRateUpdate_DepthData) String() string { return proto.CompactTextString(m) }
+func (*ExchangeRateUpdate_DepthData) ProtoMessage()    {}
+func (*ExchangeRateUpdate_DepthData) Descriptor() ([]byte, []int) {
+	return fileDescriptor_dcrrates_9bf93ce756f00f36, []int{1, 2}
+}
+func (m *ExchangeRateUpdate_DepthData) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ExchangeRateUpdate_DepthData.Unmarshal(m, b)
+}
+func (m *ExchangeRateUpdate_DepthData) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ExchangeRateUpdate_DepthData.Marshal(b, m, deterministic)
+}
+func (dst *ExchangeRateUpdate_DepthData) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ExchangeRateUpdate_DepthData.Merge(dst, src)
+}
+func (m *ExchangeRateUpdate_DepthData) XXX_Size() int {
+	return xxx_messageInfo_ExchangeRateUpdate_DepthData.Size(m)
+}
+func (m *ExchangeRateUpdate_DepthData) XXX_DiscardUnknown() {
+	xxx_messageInfo_ExchangeRateUpdate_DepthData.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ExchangeRateUpdate_DepthData proto.InternalMessageInfo
+
+func (m *ExchangeRateUpdate_DepthData) GetTime() int64 {
+	if m != nil {
+		return m.Time
+	}
+	return 0
+}
+
+func (m *ExchangeRateUpdate_DepthData) GetBids() []*ExchangeRateUpdate_DepthPoint {
+	if m != nil {
+		return m.Bids
+	}
+	return nil
+}
+
+func (m *ExchangeRateUpdate_DepthData) GetAsks() []*ExchangeRateUpdate_DepthPoint {
+	if m != nil {
+		return m.Asks
+	}
+	return nil
+}
+
+type ExchangeRateUpdate_Candlestick struct {
+	High                 float64  `protobuf:"fixed64,1,opt,name=high,proto3" json:"high,omitempty"`
+	Low                  float64  `protobuf:"fixed64,2,opt,name=low,proto3" json:"low,omitempty"`
+	Open                 float64  `protobuf:"fixed64,3,opt,name=open,proto3" json:"open,omitempty"`
+	Close                float64  `protobuf:"fixed64,4,opt,name=close,proto3" json:"close,omitempty"`
+	Volume               float64  `protobuf:"fixed64,5,opt,name=volume,proto3" json:"volume,omitempty"`
+	Start                int64    `protobuf:"varint,6,opt,name=start,proto3" json:"start,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ExchangeRateUpdate_Candlestick) Reset()         { *m = ExchangeRateUpdate_Candlestick{} }
+func (m *ExchangeRateUpdate_Candlestick) String() string { return proto.CompactTextString(m) }
+func (*ExchangeRateUpdate_Candlestick) ProtoMessage()    {}
+func (*ExchangeRateUpdate_Candlestick) Descriptor() ([]byte, []int) {
+	return fileDescriptor_dcrrates_9bf93ce756f00f36, []int{1, 3}
+}
+func (m *ExchangeRateUpdate_Candlestick) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ExchangeRateUpdate_Candlestick.Unmarshal(m, b)
+}
+func (m *ExchangeRateUpdate_Candlestick) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ExchangeRateUpdate_Candlestick.Marshal(b, m, deterministic)
+}
+func (dst *ExchangeRateUpdate_Candlestick) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ExchangeRateUpdate_Candlestick.Merge(dst, src)
+}
+func (m *ExchangeRateUpdate_Candlestick) XXX_Size() int {
+	return xxx_messageInfo_ExchangeRateUpdate_Candlestick.Size(m)
+}
+func (m *ExchangeRateUpdate_Candlestick) XXX_DiscardUnknown() {
+	xxx_messageInfo_ExchangeRateUpdate_Candlestick.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ExchangeRateUpdate_Candlestick proto.InternalMessageInfo
+
+func (m *ExchangeRateUpdate_Candlestick) GetHigh() float64 {
+	if m != nil {
+		return m.High
+	}
+	return 0
+}
+
+func (m *ExchangeRateUpdate_Candlestick) GetLow() float64 {
+	if m != nil {
+		return m.Low
+	}
+	return 0
+}
+
+func (m *ExchangeRateUpdate_Candlestick) GetOpen() float64 {
+	if m != nil {
+		return m.Open
+	}
+	return 0
+}
+
+func (m *ExchangeRateUpdate_Candlestick) GetClose() float64 {
+	if m != nil {
+		return m.Close
+	}
+	return 0
+}
+
+func (m *ExchangeRateUpdate_Candlestick) GetVolume() float64 {
+	if m != nil {
+		return m.Volume
+	}
+	return 0
+}
+
+func (m *ExchangeRateUpdate_Candlestick) GetStart() int64 {
+	if m != nil {
+		return m.Start
+	}
+	return 0
+}
+
+type ExchangeRateUpdate_Candlesticks struct {
+	Bin                  string                            `protobuf:"bytes,1,opt,name=bin,proto3" json:"bin,omitempty"`
+	Sticks               []*ExchangeRateUpdate_Candlestick `protobuf:"bytes,2,rep,name=sticks,proto3" json:"sticks,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                          `json:"-"`
+	XXX_unrecognized     []byte                            `json:"-"`
+	XXX_sizecache        int32                             `json:"-"`
+}
+
+func (m *ExchangeRateUpdate_Candlesticks) Reset()         { *m = ExchangeRateUpdate_Candlesticks{} }
+func (m *ExchangeRateUpdate_Candlesticks) String() string { return proto.CompactTextString(m) }
+func (*ExchangeRateUpdate_Candlesticks) ProtoMessage()    {}
+func (*ExchangeRateUpdate_Candlesticks) Descriptor() ([]byte, []int) {
+	return fileDescriptor_dcrrates_9bf93ce756f00f36, []int{1, 4}
+}
+func (m *ExchangeRateUpdate_Candlesticks) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ExchangeRateUpdate_Candlesticks.Unmarshal(m, b)
+}
+func (m *ExchangeRateUpdate_Candlesticks) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ExchangeRateUpdate_Candlesticks.Marshal(b, m, deterministic)
+}
+func (dst *ExchangeRateUpdate_Candlesticks) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ExchangeRateUpdate_Candlesticks.Merge(dst, src)
+}
+func (m *ExchangeRateUpdate_Candlesticks) XXX_Size() int {
+	return xxx_messageInfo_ExchangeRateUpdate_Candlesticks.Size(m)
+}
+func (m *ExchangeRateUpdate_Candlesticks) XXX_DiscardUnknown() {
+	xxx_messageInfo_ExchangeRateUpdate_Candlesticks.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ExchangeRateUpdate_Candlesticks proto.InternalMessageInfo
+
+func (m *ExchangeRateUpdate_Candlesticks) GetBin() string {
+	if m != nil {
+		return m.Bin
+	}
+	return ""
+}
+
+func (m *ExchangeRateUpdate_Candlesticks) GetSticks() []*ExchangeRateUpdate_Candlestick {
+	if m != nil {
+		return m.Sticks
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterType((*ExchangeSubscription)(nil), "dcrrates.ExchangeSubscription")
 	proto.RegisterType((*ExchangeRateUpdate)(nil), "dcrrates.ExchangeRateUpdate")
 	proto.RegisterMapType((map[string]float64)(nil), "dcrrates.ExchangeRateUpdate.IndicesEntry")
+	proto.RegisterType((*ExchangeRateUpdate_DepthPoint)(nil), "dcrrates.ExchangeRateUpdate.DepthPoint")
+	proto.RegisterType((*ExchangeRateUpdate_DepthData)(nil), "dcrrates.ExchangeRateUpdate.DepthData")
+	proto.RegisterType((*ExchangeRateUpdate_Candlestick)(nil), "dcrrates.ExchangeRateUpdate.Candlestick")
+	proto.RegisterType((*ExchangeRateUpdate_Candlesticks)(nil), "dcrrates.ExchangeRateUpdate.Candlesticks")
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -260,27 +504,40 @@ var _DCRRates_serviceDesc = grpc.ServiceDesc{
 	Metadata: "dcrrates.proto",
 }
 
-func init() { proto.RegisterFile("dcrrates.proto", fileDescriptor_dcrrates_dcd22285f4ba2133) }
+func init() { proto.RegisterFile("dcrrates.proto", fileDescriptor_dcrrates_9bf93ce756f00f36) }
 
-var fileDescriptor_dcrrates_dcd22285f4ba2133 = []byte{
-	// 302 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x91, 0x4b, 0x6b, 0xfa, 0x40,
-	0x14, 0xc5, 0x99, 0xe4, 0xef, 0xeb, 0xfe, 0x4b, 0x29, 0x17, 0x29, 0x83, 0x88, 0x04, 0x57, 0xe9,
-	0x46, 0x8a, 0xdd, 0x14, 0xb7, 0xd6, 0x85, 0xbb, 0x32, 0x7d, 0xac, 0x3b, 0x49, 0x2e, 0x6d, 0x50,
-	0x27, 0x61, 0x66, 0x14, 0xfd, 0x44, 0xfd, 0x9a, 0x65, 0x32, 0x89, 0x0d, 0x08, 0xdd, 0xe5, 0x77,
-	0x4e, 0xe6, 0x9e, 0xfb, 0x80, 0xeb, 0x2c, 0xd5, 0x5a, 0x5a, 0x32, 0xb3, 0x52, 0x17, 0xb6, 0xc0,
-	0x7e, 0xc3, 0xd3, 0x67, 0x18, 0xae, 0x8e, 0xe9, 0x97, 0x54, 0x9f, 0xf4, 0xb2, 0x4f, 0x4c, 0xaa,
-	0xf3, 0xd2, 0xe6, 0x85, 0xc2, 0x11, 0xf4, 0x13, 0x9b, 0xae, 0x55, 0x46, 0x47, 0xce, 0x22, 0x16,
-	0x0f, 0xc4, 0x99, 0x71, 0x0c, 0x03, 0xaa, 0xdf, 0x18, 0x1e, 0x44, 0x61, 0x3c, 0x10, 0xbf, 0xc2,
-	0xf4, 0x3b, 0x00, 0x6c, 0x4a, 0x0a, 0x69, 0xe9, 0xad, 0xcc, 0xa4, 0x25, 0x1c, 0x42, 0xc7, 0x16,
-	0x1b, 0x52, 0x75, 0x35, 0x0f, 0x4e, 0x2d, 0x75, 0x9e, 0x12, 0x0f, 0x22, 0x16, 0x33, 0xe1, 0x01,
-	0x27, 0x00, 0x89, 0x34, 0xf4, 0x5e, 0x6c, 0xf7, 0x3b, 0xe2, 0x61, 0x65, 0xb5, 0x14, 0xbc, 0x85,
-	0xee, 0xc1, 0x7b, 0xff, 0x2a, 0xaf, 0x26, 0xa7, 0xfb, 0x5c, 0xde, 0xf1, 0xba, 0x27, 0x97, 0x62,
-	0xac, 0xdc, 0x95, 0xbc, 0x1b, 0xb1, 0x38, 0x14, 0x1e, 0x70, 0x09, 0xbd, 0x5c, 0x65, 0x79, 0x4a,
-	0x86, 0xf7, 0xa2, 0x30, 0xfe, 0x3f, 0xbf, 0x9b, 0x9d, 0xd7, 0x74, 0x39, 0xc0, 0x6c, 0xed, 0xff,
-	0x5d, 0x29, 0xab, 0x4f, 0xa2, 0x79, 0x39, 0x5a, 0xc0, 0x55, 0xdb, 0xc0, 0x1b, 0x08, 0x37, 0x74,
-	0xaa, 0x87, 0x74, 0x9f, 0x2e, 0xfc, 0x20, 0xb7, 0xfb, 0xf3, 0x88, 0x15, 0x2c, 0x82, 0x47, 0x36,
-	0xff, 0x80, 0xfe, 0xd3, 0x52, 0xb8, 0x08, 0x83, 0xaf, 0x80, 0xf5, 0xfe, 0x13, 0x6a, 0xc2, 0x0d,
-	0x4e, 0x2e, 0x3b, 0x6a, 0x5f, 0x69, 0x34, 0xfe, 0xab, 0xe3, 0x7b, 0x96, 0x74, 0xab, 0x73, 0x3f,
-	0xfc, 0x04, 0x00, 0x00, 0xff, 0xff, 0x9e, 0xcb, 0x89, 0xa8, 0x00, 0x02, 0x00, 0x00,
+var fileDescriptor_dcrrates_9bf93ce756f00f36 = []byte{
+	// 501 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x54, 0xcb, 0x6a, 0xdc, 0x30,
+	0x14, 0x45, 0xe3, 0x79, 0xf9, 0xce, 0x50, 0x8a, 0x08, 0x45, 0x98, 0x10, 0x4c, 0x16, 0xad, 0xbb,
+	0x19, 0xca, 0x74, 0x53, 0xd2, 0x52, 0x0a, 0x33, 0x59, 0x64, 0x51, 0x08, 0xea, 0x63, 0x5d, 0xd9,
+	0x16, 0x19, 0x31, 0x1e, 0xc9, 0xb5, 0x34, 0x69, 0xb2, 0xed, 0xb6, 0x5f, 0xd0, 0xbf, 0x2d, 0x7a,
+	0xd8, 0x75, 0x48, 0x49, 0x27, 0xbb, 0x7b, 0xae, 0x74, 0xee, 0xe3, 0xe8, 0xd8, 0xf0, 0xa4, 0x2c,
+	0x9a, 0x86, 0x19, 0xae, 0x17, 0x75, 0xa3, 0x8c, 0xc2, 0xd3, 0x16, 0x9f, 0x5e, 0xc2, 0xd1, 0xf9,
+	0x4d, 0xb1, 0x61, 0xf2, 0x8a, 0x7f, 0xda, 0xe7, 0xba, 0x68, 0x44, 0x6d, 0x84, 0x92, 0x38, 0x81,
+	0x69, 0x6e, 0x8a, 0x0b, 0x59, 0xf2, 0x1b, 0x82, 0x52, 0x94, 0xc5, 0xb4, 0xc3, 0xf8, 0x18, 0x62,
+	0x1e, 0x38, 0x9a, 0x0c, 0xd2, 0x28, 0x8b, 0xe9, 0xdf, 0xc4, 0xe9, 0xcf, 0x09, 0xe0, 0xb6, 0x24,
+	0x65, 0x86, 0x7f, 0xa9, 0x4b, 0x66, 0x38, 0x3e, 0x82, 0x91, 0x51, 0x5b, 0x2e, 0x43, 0x35, 0x0f,
+	0x6c, 0xb6, 0x6e, 0x44, 0xc1, 0xc9, 0x20, 0x45, 0x19, 0xa2, 0x1e, 0xe0, 0x13, 0x80, 0x9c, 0x69,
+	0xfe, 0x55, 0x55, 0xfb, 0x1d, 0x27, 0x91, 0x3b, 0xea, 0x65, 0xf0, 0x33, 0x18, 0x5f, 0xfb, 0xb3,
+	0xa1, 0x3b, 0x0b, 0xc8, 0xe6, 0x7d, 0x5f, 0x32, 0xf2, 0x79, 0x8f, 0x6c, 0x17, 0x6d, 0xd8, 0xae,
+	0x26, 0xe3, 0x14, 0x65, 0x11, 0xf5, 0x00, 0xaf, 0x60, 0x22, 0x64, 0x29, 0x0a, 0xae, 0xc9, 0x24,
+	0x8d, 0xb2, 0xd9, 0xf2, 0xe5, 0xa2, 0x93, 0xe9, 0xfe, 0x02, 0x8b, 0x0b, 0x7f, 0xf7, 0x5c, 0x9a,
+	0xe6, 0x96, 0xb6, 0x4c, 0xfc, 0x0e, 0x46, 0x25, 0xaf, 0xcd, 0x86, 0x4c, 0x53, 0x94, 0xcd, 0x96,
+	0xcf, 0x1f, 0x2c, 0xb1, 0xb6, 0x37, 0xd7, 0xcc, 0x30, 0xea, 0x49, 0xf8, 0x23, 0xcc, 0x0b, 0x26,
+	0xcb, 0x8a, 0x6b, 0x23, 0x8a, 0xad, 0x26, 0xf1, 0x01, 0x73, 0xac, 0x7a, 0x04, 0x7a, 0x87, 0x9e,
+	0x9c, 0xc1, 0xbc, 0x3f, 0x25, 0x7e, 0x0a, 0xd1, 0x96, 0xdf, 0x06, 0xc5, 0x6d, 0x68, 0x95, 0xb8,
+	0x66, 0xd5, 0xbe, 0xd3, 0xdb, 0x81, 0xb3, 0xc1, 0x1b, 0x94, 0xbc, 0x07, 0x70, 0xe3, 0x5d, 0x2a,
+	0x21, 0x8d, 0x7d, 0xfe, 0xef, 0x7b, 0x26, 0x8d, 0x30, 0x9e, 0x8e, 0x68, 0x87, 0xff, 0xfd, 0x66,
+	0xc9, 0x6f, 0x04, 0x71, 0xb7, 0x1f, 0xc6, 0x30, 0x34, 0x62, 0xc7, 0x1d, 0x37, 0xa2, 0x2e, 0xc6,
+	0x6f, 0x61, 0x98, 0x8b, 0xd2, 0x3b, 0x66, 0xb6, 0x7c, 0xf1, 0x7f, 0xa5, 0xdc, 0x28, 0xd4, 0x91,
+	0x2c, 0x99, 0xe9, 0xad, 0x26, 0xd1, 0x23, 0xc9, 0x96, 0x94, 0xfc, 0x42, 0x30, 0xeb, 0xc9, 0x66,
+	0xa7, 0xdb, 0x88, 0xab, 0x4d, 0xd8, 0xcc, 0xc5, 0x56, 0xab, 0x4a, 0xfd, 0x08, 0x3b, 0xd9, 0xd0,
+	0xde, 0x52, 0x35, 0x97, 0xc1, 0x7f, 0x2e, 0xb6, 0xbb, 0x17, 0x95, 0xd2, 0xad, 0xf1, 0x3c, 0xe8,
+	0xf9, 0x71, 0x74, 0xc7, 0x8f, 0xde, 0x77, 0x8d, 0xe9, 0xf9, 0xae, 0x31, 0x49, 0x0e, 0xf3, 0xfe,
+	0x1b, 0xda, 0xce, 0xb9, 0x68, 0xbf, 0x0b, 0x1b, 0xe2, 0x0f, 0x30, 0x0e, 0x86, 0xf0, 0x5a, 0x65,
+	0x87, 0x1a, 0x82, 0x06, 0xde, 0xf2, 0x1b, 0x4c, 0xd7, 0x2b, 0x6a, 0x2f, 0x69, 0xfc, 0x19, 0x70,
+	0xf8, 0xb4, 0x73, 0xde, 0xd2, 0x35, 0x3e, 0xb9, 0x5f, 0xb3, 0xff, 0x03, 0x48, 0x8e, 0x1f, 0xea,
+	0xf9, 0x0a, 0xe5, 0x63, 0xf7, 0x27, 0x79, 0xfd, 0x27, 0x00, 0x00, 0xff, 0xff, 0x3c, 0xa6, 0x5c,
+	0xed, 0x5b, 0x04, 0x00, 0x00,
 }

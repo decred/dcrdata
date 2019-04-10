@@ -173,7 +173,7 @@ function mapDygraphOptions (data, labelsVal, isDrawPoint, yLabel, xLabel, titleN
     title: titleName,
     fillGraph: false,
     stackedGraph: false,
-    plotter: Dygraph.Plotters.linePlotter
+    plotter: null
   }, nightModeOptions(darkEnabled()))
 }
 

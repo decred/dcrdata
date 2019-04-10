@@ -7,6 +7,11 @@ html {
   text-rendering: optimizelegibility !important;
   padding-top: 45px;
   padding-bottom: 34px;
+  height: 100%;
+}
+
+body {
+  min-height: 100%;
 }
 
 ::placeholder {

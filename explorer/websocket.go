@@ -49,7 +49,7 @@ type WebSocketMessage struct {
 // WebsocketHub is responsible for closing all connections registered with it.
 // If the event loop is running, calling (*WebsocketHub).Stop() will handle it.
 type WebsocketHub struct {
-	clients          map[*hubSpoke]*client
+	clients          map[*hubSpoke]*clientHubSpoke
 	numClients       atomic.Value
 	Register         chan *clientHubSpoke
 	Unregister       chan *hubSpoke
@@ -61,6 +61,7 @@ type WebsocketHub struct {
 	sendBufferChan   chan int
 	quitWSHandler    chan struct{}
 	dbsSyncing       atomic.Value
+	xcChan           exchangeChannel
 }
 
 // AreDBsSyncing is a thread-safe way to fetch the boolean in dbsSyncing.
@@ -81,11 +82,12 @@ type client struct {
 
 type hubSignal = pstypes.HubSignal
 type hubSpoke chan hubSignal
+type exchangeChannel chan *WebsocketExchangeUpdate
 
 // NewWebsocketHub creates a new WebsocketHub
 func NewWebsocketHub() *WebsocketHub {
 	return &WebsocketHub{
-		clients:          make(map[*hubSpoke]*client),
+		clients:          make(map[*hubSpoke]*clientHubSpoke),
 		Register:         make(chan *clientHubSpoke),
 		Unregister:       make(chan *hubSpoke),
 		HubRelay:         make(chan hubSignal),
@@ -94,12 +96,14 @@ func NewWebsocketHub() *WebsocketHub {
 		bufferTickerChan: make(chan int, clientSignalSize),
 		sendBufferChan:   make(chan int, clientSignalSize),
 		quitWSHandler:    make(chan struct{}),
+		xcChan:           make(exchangeChannel, 16),
 	}
 }
 
 type clientHubSpoke struct {
 	cl *client
 	c  *hubSpoke
+	xc exchangeChannel
 }
 
 // NumClients returns the number of clients connected to the websocket hub.
@@ -115,15 +119,15 @@ func (wsh *WebsocketHub) setNumClients(n int) {
 
 // RegisterClient registers a websocket connection with the hub, and returns a
 // pointer to the new client data object.
-func (wsh *WebsocketHub) RegisterClient(c *hubSpoke) *client {
+func (wsh *WebsocketHub) RegisterClient(c *hubSpoke, xcChan exchangeChannel) *client {
 	cl := new(client)
-	wsh.Register <- &clientHubSpoke{cl, c}
+	wsh.Register <- &clientHubSpoke{cl, c, xcChan}
 	return cl
 }
 
 // registerClient should only be called from the run loop
 func (wsh *WebsocketHub) registerClient(ch *clientHubSpoke) {
-	wsh.clients[ch.c] = ch.cl
+	wsh.clients[ch.c] = ch
 	wsh.setNumClients(len(wsh.clients))
 	log.Debugf("Registered new websocket client (%d).", wsh.NumClients())
 }
@@ -285,14 +289,18 @@ func (wsh *WebsocketHub) run() {
 				log.Debugf("Signaling %d new tx to %d clients", len(txs), len(wsh.clients))
 			}
 			for signal, client := range wsh.clients {
-				client.Lock()
-				client.newTxs = txs
-				client.Unlock()
+				client.cl.Lock()
+				client.cl.newTxs = txs
+				client.cl.Unlock()
 				select {
 				case *signal <- sigNewTx:
 				default:
 					wsh.unregisterClient(signal)
 				}
+			}
+		case update := <-wsh.xcChan:
+			for _, client := range wsh.clients {
+				client.xc <- update
 			}
 		}
 	}
@@ -340,4 +348,26 @@ func (wsh *WebsocketHub) periodicBufferSend() {
 			}
 		}
 	}
+}
+
+const exchangeUpdateID = "exchange"
+
+// WebsocketMiniExchange is minimal info regarding the exchange that triggered
+// an update.
+type WebsocketMiniExchange struct {
+	Token  string  `json:"token"`
+	Price  float64 `json:"price"`
+	Volume float64 `json:"volume"`
+	Change float64 `json:"change"`
+}
+
+// WebsocketExchangeUpdate is an update to the exchange state to send over the
+// websocket.
+type WebsocketExchangeUpdate struct {
+	Updater     WebsocketMiniExchange `json:"updater"`
+	IsFiatIndex bool                  `json:"fiat"`
+	BtcIndex    string                `json:"index"`
+	Price       float64               `json:"price"`
+	BtcPrice    float64               `json:"btc_price"`
+	Volume      float64               `json:"volume"`
 }

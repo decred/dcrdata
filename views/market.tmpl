@@ -1,0 +1,207 @@
+{{define "market" -}}
+{{- $botState := .XcState -}}
+<!DOCTYPE html>
+<html lang="en">
+{{template "html-head" "Decred Market Data"}}
+<body class="{{ theme }}" style="background-color: #3d5873;">
+
+{{- template "navbar" . -}}
+
+{{- if $botState -}}
+
+<div class="row w-100 align-items-top mb-4" data-controller="market">
+
+
+    {{- /* LEFT COLUMN */ -}}
+    <div class="col-24 col-lg-auto p-0">
+
+
+        {{- /* PRICE */ -}}
+        <div class="ml-4 mr-2 my-4 p-2 p-lg-4 bg-white text-center">
+            <div class="text-center fs18 text-secondary">1 DCR =</div>
+            {{if eq $botState.BtcIndex "USD"}}
+                <span class="fs18 font-weight-bold d-inline-block pt-1" style="vertical-align:top;">$</span>
+            {{end}}
+            <span class="fs28" data-target="market.price">{{printf "%.2f" $botState.Price}}</span> <span class="fs16 text-secondary">{{$botState.BtcIndex}}</span>
+        </div>
+
+
+        {{- /* DCR/BTC MARKETS */ -}}
+        <div class="ml-4 mr-2 my-4 p-2 p-lg-4 bg-white">
+            <div colspan="4" class="fs24 text-center pb-4"><span class="dcricon-coin-negative fs24 mr-2"></span> Decred Markets</div>
+            <table class="mx-auto mx-lg-3">
+                <tbody>
+                    <tr class="fs14 lh1rem">
+                      <td></td>
+                      <td class="text-right font-weight-bold">DCR Vol.</td>
+                      <td class="text-right font-weight-bold">BTC</td>
+                      <td></td>
+                      <td class="text-right font-weight-bold">{{$botState.BtcIndex}}</td>
+                    </tr>
+                    {{range $botState.VolumeOrderedExchanges}}
+                        <tr class="fs hover-row" data-target="market.xcRow" data-action="click->market#setExchange" data-token="{{.Token}}">
+                            <td class="py-2 fs18 font-weight-bold"><div class="exchange-logo {{.Token}} mr-2"></div> {{toTitleCase .Token}}</td>
+                            <td class="pl-2 fs16 py-2 text-right" data-type="volume">
+                                {{threeSigFigs .State.Volume}}
+                            </td>
+                            <td class="pl-3 fs16 py-2 text-right" data-type="price">
+                                {{threeSigFigs .State.Price}}
+                            </td>
+                            <td class="fs16 px-2" data-type="arrow">
+                              {{if ge .State.Change 0.0}}
+                                  <span class="dcricon-arrow-up text-green"></span>
+                              {{else}}
+                                  <span class="dcricon-arrow-down text-danger"></span>
+                              {{end}}
+                            </td>
+                            <td class="pl-1 fs16 py-2 text-right" data-type="fiat">
+                                {{printf "%.2f" ($botState.BtcToFiat .State.Price)}}
+                            </td>
+                        </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+
+
+        {{- /* BITCOIN INDICES */ -}}
+        <div class="ml-4 mr-2 my-4 py-4 bg-white">
+            <div colspan="4" class="fs24 d-flex align-items-center justify-content-center pb-3"><div class="exchange-logo bitcoin mr-2"></div> <span>Bitcoin Indices</span></div>
+            <div class="row">
+              {{range $token, $state := $botState.FiatIndices}}
+                  <div class="col-12 text-center">
+                      <div class="fs18 font-weight-bold d-flex align-items-center justify-content-center"><div class="exchange-logo {{$token}} mr-1"></div> <span class="d-inline-block">{{toTitleCase $token}}</span></div>
+                      {{if eq $botState.BtcIndex "USD"}}
+                          <span class="fs16 font-weight-bold d-inline-block pt-1 valign-top">$</span>
+                      {{end}}
+                      <span class="fs24" data-price="{{$state.Price}}" data-token="{{$token}}" data-target="market.xcIndex">{{printf "%.2f" $state.Price}}</span> <span class="fs16 text-secondary">{{$botState.BtcIndex}}</span><br>
+                      {{if eq $token "coindesk"}}
+                        <a class="fs12" href="https://www.coindesk.com/price/bitcoin">Powered by CoinDesk</a>
+                      {{end}}
+                  </div>
+              {{end}}
+            </div>
+        </div>
+    </div>
+
+
+    {{- /* RIGHT COLUMN */ -}}
+    <div class="row flex-grow-0 flex-lg-grow-1 col-24 col-lg mx-0 p-0">
+        <div class="ml-4 ml-lg-3 mr-2 mr-lg-3 mb-4 mt-1 mt-lg-4 flex-grow-1 d-flex flex-column bg-white px-2 px-lg-5 py-2 py-lg-3 position-relative">
+        <div class="loader-v2 loading" data-target="market.chartLoader"></div>
+
+
+            {{- /* CHART ONTROLS */ -}}
+            <div class="d-flex flex-shrink-1 align-items-top justify-content-around justify-content-lg-center flex-wrap px-1 px-lg-3 mb-2">
+
+
+                {{- /* EXCHANGE SELECTION */ -}}
+                <div class="btn-set bg-white d-inline-flex flex-nowrap mx-2 mx-lg-4">
+                    <label>Exchange</label>
+                    <select
+                        class="chart-box d-inline-flex"
+                        data-target="market.exchanges"
+                        data-action="change->market#changeExchange"
+                    >
+                        {{range $botState.VolumeOrderedExchanges}}
+                          <option
+                              value="{{.Token}}"
+                              {{if .State.HasCandlesticks}}
+                                  data-sticks="1"
+                                  data-bins="{{.State.StickList}}"
+                              {{end}}
+                              {{if .State.HasDepth}}
+                                  data-depth="1"
+                              {{end}}
+                              >{{toTitleCase .Token}}
+                          </option>
+                        {{end}}
+                    </select>
+                </div>
+
+
+                {{- /* CHART TYPE SELECTION */ -}}
+                <div class="btn-set bg-white d-inline-flex flex-nowrap mx-2 mx-lg-4">
+                    <label>Chart</label>
+                    <select
+                        class="chart-box d-inline-flex"
+                        data-target="market.chartSelect"
+                        data-action="change->market#changeGraph"
+                    >
+                        <option value="depth" data-target="market.depthOnly">Depth Chart</option>
+                        <option value="orders" data-target="market.depthOnly">Order Book</option>
+                        <option value="candlestick" data-target="market.sticksOnly">Candlesticks</option>
+                        <option value="history" data-target="market.sticksOnly" selected>Market History</option>
+                        <option value="volume" data-target="market.sticksOnly">Volume</option>
+
+                    </select>
+                </div>
+
+
+                {{- /* BIN SIZE SELECTIONS */ -}}
+                <div
+                    class="btn-set bg-white d-inline-flex flex-nowrap mx-2 mx-lg-4"
+                    data-target="market.bin"
+                    data-action="click->market#changeBin"
+                >
+                  <label class="text-nowrap">Bin Size</label>
+                  <button name="30m" data-fixed="1">30m</button>
+                  <button name="1h" class="btn-selected">Hour</button>
+                  <button name="1d">Day</button>
+                  <button name="1mo">Month</button>
+                </div>
+
+
+                {{- /* DISPLAY CURRENCY */ -}}
+                <div
+                    class="btn-set bg-white d-inline-flex flex-nowrap mx-2 mx-lg-4"
+                    data-target="market.conversion"
+                    data-factor="{{$botState.BtcPrice}}"
+                    data-code="{{$botState.BtcIndex}}"
+                    data-action="click->market#setConversion"
+                >
+                  <label>Index</label>
+                  <button class="btn-selected" name="BTC">BTC</button>
+                  <button name="fiat">{{$botState.BtcIndex}}</button>
+                </div>
+
+
+                {{- /* OTHER CHART OPTIONS */ -}}
+                <div
+                    class="btn-set bg-white d-inline-flex flex-nowrap mx-2 mx-lg-4"
+                    data-target="market.actions"
+                >
+                  <label>Actions</label>
+                  <button data-action="click->market#resetZoom">Reset zoom</button>
+                  <button><a data-target="market.link" href="" target="_blank"></a></button>
+                </div>
+            </div>
+
+
+            {{- /* CHART */ -}}
+            <div class="flex-grow-1 pl-3 pr-4 mb-2 market-chart-box d-flex">
+              <div class="d-flex w-100 position-relative market-chart">
+                <div class="market-chart-title d-none d-sm-block">
+                    <div  data-target="market.xcLogo"></div>
+                    <span data-target="market.xcName"></span>
+                </div>
+                <div class="market-chart-legend" data-target="market.legend"></div>
+                <div class="position-absolute w-100 h-100" data-target="market.chart"></div>
+              </div>
+            </div>
+            <div class="text-center py-2 py-lg-0 text-lg-right px-4 fs13 d-hide" data-target="market.age">updated <span data-controller="time" data-target="time.age market.ageSpan" data-age="0"></span> ago</div>
+        </div>
+    </div>
+</div>
+
+{{- else -}} {{/* EXCHANGE MONITORING DISABLED */}}
+
+    <h5 class="py-5 text-center">Exchange monitoring disabled</h5>
+
+{{- end -}}
+
+{{- template "footer" . -}}
+
+</body>
+</html>
+{{end}}

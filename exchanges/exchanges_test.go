@@ -18,6 +18,7 @@ import (
 
 func testExchanges(asSlave bool, t *testing.T) {
 	UseLogger(slog.NewBackend(os.Stdout).Logger("EXE"))
+	log.SetLevel(slog.LevelTrace)
 
 	// Skip this test during automated testing.
 	if os.Getenv("GORACE") != "" {
@@ -68,9 +69,12 @@ func testExchanges(asSlave bool, t *testing.T) {
 out:
 	for {
 		select {
-		case update := <-ch.Update:
+		case update := <-ch.Exchange:
 			updated = append(updated, update.Token)
-			log.Infof("Update received from %s", update.Token)
+			log.Infof("Update received from exchange %s", update.Token)
+		case update := <-ch.Index:
+			updated = append(updated, update.Token)
+			log.Infof("Update received from index %s", update.Token)
 		case <-ch.Quit:
 			t.Errorf("Exchange bot has quit.")
 			break out
@@ -81,8 +85,8 @@ out:
 		}
 	}
 
-	if !bot.IsFailed() {
-		log.Infof("Final state: %s", string(bot.StateBytes()))
+	if bot.IsFailed() {
+		log.Infof("ExchangeBot is in failed state")
 	}
 
 	logMissing := func(token string) {
@@ -99,7 +103,7 @@ out:
 	}
 
 	log.Infof("%d Bitcoin indices available", len(bot.AvailableIndices()))
-	log.Infof(string(bot.StateBytes()))
+	log.Infof("final state is %d kiB", len(bot.StateBytes())/1024)
 
 	shutdown()
 	wg.Wait()

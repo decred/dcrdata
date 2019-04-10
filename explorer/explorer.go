@@ -211,6 +211,7 @@ type explorerUI struct {
 	MeanVotingBlocks int64
 	ChartUpdate      sync.Mutex
 	xcBot            *exchanges.ExchangeBot
+	xcDone           chan struct{}
 	// displaySyncStatusPage indicates if the sync status page is the only web
 	// page that should be accessible during DB synchronization.
 	displaySyncStatusPage atomic.Value
@@ -263,6 +264,7 @@ func (exp *explorerUI) StopWebsocketHub() {
 	}
 	log.Info("Stopping websocket hub.")
 	exp.wsHub.Stop()
+	close(exp.xcDone)
 }
 
 // ExplorerConfig is the configuration settings for explorerUI.
@@ -293,6 +295,7 @@ func New(cfg *ExplorerConfig) *explorerUI {
 	exp.Version = cfg.AppVersion
 	exp.devPrefetch = cfg.DevPrefetch
 	exp.xcBot = cfg.XcBot
+	exp.xcDone = make(chan struct{})
 	exp.agendasSource = cfg.AgendasSource
 	exp.voteTracker = cfg.Tracker
 	exp.proposalsSource = cfg.ProposalsSource
@@ -349,7 +352,7 @@ func New(cfg *ExplorerConfig) *explorerUI {
 	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
 		"rawtx", "status", "parameters", "agenda", "agendas", "charts",
 		"sidechains", "disapproved", "ticketpool", "nexthome", "statistics",
-		"windows", "timelisting", "addresstable", "proposals", "proposal"}
+		"windows", "timelisting", "addresstable", "proposals", "proposal", "market"}
 
 	for _, name := range tmpls {
 		if err := exp.templates.addTemplate(name); err != nil {
@@ -363,6 +366,8 @@ func New(cfg *ExplorerConfig) *explorerUI {
 	exp.wsHub = NewWebsocketHub()
 
 	go exp.wsHub.run()
+
+	go exp.watchExchanges()
 
 	return exp
 }
@@ -831,6 +836,54 @@ func (exp *explorerUI) simulateASR(StartingDCRBalance float64, IntegerTicketQty 
 	ASR = (BlocksPerYear / (simblock - CurrentBlockNum)) * SimulationReward
 	ReturnTable += fmt.Sprintf("ASR over 365 Days is %.2f.\n", ASR)
 	return
+}
+
+func (exp *explorerUI) watchExchanges() {
+	if exp.xcBot == nil {
+		return
+	}
+	xcChans := exp.xcBot.UpdateChannels()
+
+	sendXcUpdate := func(isFiat bool, token string, updater *exchanges.ExchangeState) {
+		xcState := exp.xcBot.State()
+		update := &WebsocketExchangeUpdate{
+			Updater: WebsocketMiniExchange{
+				Token:  token,
+				Price:  updater.Price,
+				Volume: updater.Volume,
+				Change: updater.Change,
+			},
+			IsFiatIndex: isFiat,
+			BtcIndex:    exp.xcBot.BtcIndex,
+			Price:       xcState.Price,
+			BtcPrice:    xcState.BtcPrice,
+			Volume:      xcState.Volume,
+		}
+		select {
+		case exp.wsHub.xcChan <- update:
+		default:
+			log.Warnf("Failed to send WebsocketExchangeUpdate on WebsocketHub channel")
+		}
+	}
+
+	for {
+		select {
+		case update := <-xcChans.Exchange:
+			sendXcUpdate(false, update.Token, update.State)
+		case update := <-xcChans.Index:
+			indexState, found := exp.xcBot.State().FiatIndices[update.Token]
+			if !found {
+				log.Errorf("Index state not found when preparing websocket udpate")
+				continue
+			}
+			sendXcUpdate(true, update.Token, indexState)
+		case <-xcChans.Quit:
+			log.Warnf("ExchangeBot has quit.")
+			return
+		case <-exp.xcDone:
+			return
+		}
+	}
 }
 
 func (exp *explorerUI) getExchangeState() *exchanges.ExchangeBotState {

@@ -51,9 +51,12 @@ type GRPCStream interface {
 
 // sendStateList is a helper for parsing the ExchangeBotState when a new client
 // subscription is received.
-func sendStateList(client RateClient, updates map[string]*exchanges.ExchangeState) (err error) {
-	for token, update := range updates {
-		err = client.SendExchangeUpdate(makeExchangeUpdate(token, update))
+func sendStateList(client RateClient, states map[string]*exchanges.ExchangeState) (err error) {
+	for token, state := range states {
+		err = client.SendExchangeUpdate(makeExchangeRateUpdate(&exchanges.ExchangeUpdate{
+			Token: token,
+			State: state,
+		}))
 		if err != nil {
 			log.Errorf("SendExchangeUpdate error for %s: %v", token, err)
 			return
@@ -152,15 +155,59 @@ func NewRateClient(stream GRPCStream, exchanges []string) RateClient {
 }
 
 // Translate from the ExchangeBot's type to the gRPC type.
-func makeExchangeUpdate(token string, state *exchanges.ExchangeState) *dcrrates.ExchangeRateUpdate {
-	return &dcrrates.ExchangeRateUpdate{
-		Token:      token,
+func makeExchangeRateUpdate(update *exchanges.ExchangeUpdate) *dcrrates.ExchangeRateUpdate {
+	state := update.State
+	protoUpdate := &dcrrates.ExchangeRateUpdate{
+		Token:      update.Token,
 		Price:      state.Price,
 		BaseVolume: state.BaseVolume,
 		Volume:     state.Volume,
 		Change:     state.Change,
 		Stamp:      state.Stamp,
 	}
+	if state.Candlesticks != nil {
+		protoUpdate.Candlesticks = make([]*dcrrates.ExchangeRateUpdate_Candlesticks, 0, len(state.Candlesticks))
+		for bin, sticks := range state.Candlesticks {
+			candlesticks := &dcrrates.ExchangeRateUpdate_Candlesticks{
+				Bin:    string(bin),
+				Sticks: make([]*dcrrates.ExchangeRateUpdate_Candlestick, 0, len(sticks)),
+			}
+			for _, stick := range sticks {
+				candlesticks.Sticks = append(candlesticks.Sticks, &dcrrates.ExchangeRateUpdate_Candlestick{
+					High:   stick.High,
+					Low:    stick.Low,
+					Open:   stick.Open,
+					Close:  stick.Close,
+					Volume: stick.Volume,
+					Start:  stick.Start.Unix(),
+				})
+			}
+			protoUpdate.Candlesticks = append(protoUpdate.Candlesticks, candlesticks)
+		}
+	}
+
+	if state.Depth != nil {
+		depth := &dcrrates.ExchangeRateUpdate_DepthData{
+			Time: state.Depth.Time,
+			Bids: make([]*dcrrates.ExchangeRateUpdate_DepthPoint, 0, len(state.Depth.Bids)),
+			Asks: make([]*dcrrates.ExchangeRateUpdate_DepthPoint, 0, len(state.Depth.Asks)),
+		}
+		for _, pt := range state.Depth.Bids {
+			depth.Bids = append(depth.Bids, &dcrrates.ExchangeRateUpdate_DepthPoint{
+				Quantity: pt.Quantity,
+				Price:    pt.Price,
+			})
+		}
+		for _, pt := range state.Depth.Asks {
+			depth.Asks = append(depth.Asks, &dcrrates.ExchangeRateUpdate_DepthPoint{
+				Quantity: pt.Quantity,
+				Price:    pt.Price,
+			})
+		}
+		protoUpdate.Depth = depth
+	}
+
+	return protoUpdate
 }
 
 // SendExchangeUpdate sends the update if the client is subscribed to the exchange.

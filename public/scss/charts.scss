@@ -83,7 +83,7 @@
   align-items: center;
   justify-content: center;
   z-index: 20;
-  background-color: rgba(128, 128, 128, 0.5);
+  background-color: rgba(128, 128, 128, 0.4);
 }
 
 .loader-v2::after {
@@ -95,6 +95,7 @@
   background-size: contain;
   -webkit-animation: spin 0.8s ease-in-out infinite; /* Safari */
   animation: spin 0.8s ease-in-out infinite;
+  opacity: 0.6;
 }
 
 .loader-v2.loading {
@@ -119,18 +120,18 @@
   height: fit-content;
 }
 
-.btn-group-compact {
-  font-size: 0.875rem;
+.btn-set {
   border-top-style: solid;
   border-width: 1px;
   border-color: #333;
   position: relative;
-  padding-top: 1em;
+  padding-top: 0.6em;
   margin: 1em 0;
+  font-size: 14px;
 }
 
-.btn-group-compact > button {
-  display: inline-flex;
+.btn-set > button {
+  box-sizing: content-box;
   padding: 0 0.2em;
   margin: 0 0.1em;
   height: 1.5em;
@@ -140,28 +141,26 @@
   border-radius: 2px;
   background: transparent;
   transition: all 0.1s cubic-bezier(0.25, 0.8, 0.25, 1);
-  font-size: 14px;
 }
 
-.btn-group-compact > button.btn-selected {
+.btn-set > button:focus {
+  outline: none;
+}
+
+.btn-set > button.btn-selected {
   background-color: white;
   border: 1px solid #aaa;
 }
 
-.btn-group-compact > label {
+.btn-set > label {
   position: absolute;
-  left: 0.5em;
-  top: -0.5em;
+  top: -0.7em;
   line-height: 1em;
-  font-size: 14px;
   font-weight: bolder;
-  background-color: $card-bg-secondary;
+  background-color: inherit;
   z-index: 10;
-  padding: 0 0.3em;
-}
-
-body.darkBG .btn-group-compact > label {
-  background-color: $card-bg-secondary-dark;
+  padding-right: 0.3em;
+  font-size: 13px;
 }
 
 .btn-active,
@@ -228,6 +227,37 @@ body.darkBG .btn-group-compact > label {
 
 .dygraph-xlabel {
   text-align: center;
+}
+
+.market-chart-box {
+  position: relative;
+  min-height: 225px;
+}
+
+.market-chart {
+  .dygraph-xlabel {
+    text-align: center;
+    padding: 0.3em 0;
+  }
+
+  .dygraph-ylabel {
+    position: relative;
+    bottom: 1.5em;
+  }
+
+  .dygraph-ylabel,
+  .dygraph-xlabel {
+    font-size: 13px;
+  }
+}
+
+@media (min-width: 992px) {
+  .market-chart {
+    .dygraph-ylabel,
+    .dygraph-xlabel {
+      font-size: 16px;
+    }
+  }
 }
 
 .dygraph-label-rotate-left {
@@ -433,6 +463,11 @@ input ~ .checkmark {
   height: 2em;
   line-height: 2em;
   padding-right: 0.5em;
+  border: 1px solid gray;
+}
+
+.chart-box:focus {
+  outline: none;
 }
 
 .loader {
@@ -497,22 +532,45 @@ input ~ .checkmark {
   height: 135px;
 }
 
+.market-chart-legend {
+  position: absolute;
+  top: 5px;
+  font-size: 14px;
+  right: 10px;
+  padding: 0.2em 1em;
+}
+
+.market-chart-title {
+  position: absolute;
+  top: 5px;
+  left: 65px;
+  font-size: 22px;
+  padding: 0 0.4em;
+  z-index: 10;
+  background-color: #fffa;
+  border: 1px solid #7774;
+}
+
 body.darkBG {
   .address_chart_wrap {
     background-color: #333;
   }
 
-  .btn-group-compact {
+  .btn-set {
     border-color: #ddd;
   }
 
-  .btn-group-compact > button {
+  .btn-set > button {
     background-color: #333;
     color: white;
   }
 
-  .btn-group-compact > button.btn-selected {
+  .btn-set > button.btn-selected {
     padding: 0.2 0.7em;
-    background-color: #34a;
+    background-color: #34a7;
+  }
+
+  .market-chart-title {
+    background-color: #333a;
   }
 }

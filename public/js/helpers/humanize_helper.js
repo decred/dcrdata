@@ -176,6 +176,10 @@ var humanize = {
       return div
     }
     return div.outerHTML
+  },
+  capitalize: function (s) {
+    if (typeof s !== 'string') return ''
+    return s.charAt(0).toUpperCase() + s.slice(1)
   }
 }
 

@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	defaultExchangeRefresh = "20m"
+	defaultExchangeRefresh = "5m"
 	defaultExchangeExpiry  = "60m"
 	defaultListen          = ":7778"
 	defaultBtcIndex        = "USD"
