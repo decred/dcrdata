@@ -28,7 +28,6 @@ import (
 	"github.com/decred/dcrdata/db/dcrpg"
 	"github.com/decred/dcrdata/db/dcrsqlite"
 	"github.com/decred/dcrdata/exchanges"
-	exptypes "github.com/decred/dcrdata/explorer/types"
 	"github.com/decred/dcrdata/gov/agendas"
 	"github.com/decred/dcrdata/gov/politeia"
 	"github.com/decred/dcrdata/mempool"
@@ -627,12 +626,11 @@ func _main(ctx context.Context) error {
 	// nil transaction message. The mempool monitor will process the
 	// transactions, and forward new ones on via the mpDataToPSHub with an
 	// appropriate signal to the underlying WebSocketHub on signalToPSHub.
-	signalToPSHub, mpDataToPSHub := psHub.HubRelays()
-	signalToExplorer, mpDataToExplorer := explore.MempoolSignals()
-	mempoolSigOuts := []chan<- pstypes.HubSignal{signalToPSHub, signalToExplorer}
-	newTxOuts := []chan<- *exptypes.MempoolTx{mpDataToPSHub, mpDataToExplorer}
+	signalToPSHub := psHub.HubRelay()
+	signalToExplorer := explore.MempoolSignal()
+	mempoolSigOuts := []chan<- pstypes.HubMessage{signalToPSHub, signalToExplorer}
 	mpm, err := mempool.NewMempoolMonitor(ctx, mpoolCollector, mempoolSavers,
-		activeChain, &wg, notify.NtfnChans.NewTxChan, mempoolSigOuts, newTxOuts, true)
+		activeChain, &wg, notify.NtfnChans.NewTxChan, mempoolSigOuts, true)
 	// Ensure the initial collect/store succeeded.
 	if err != nil {
 		// Shutdown goroutines.

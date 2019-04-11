@@ -51,7 +51,7 @@ func New(ws *websocket.Conn) *Client {
 // after validating it. The response is returned.
 func (c *Client) Subscribe(event string) (*pstypes.WebSocketMessage, error) {
 	// Validate the event type.
-	_, ok := pstypes.Subscriptions[event]
+	_, _, ok := pstypes.ValidateSubscription(event)
 	if !ok {
 		return nil, fmt.Errorf("invalid subscription %s", event)
 	}
@@ -72,7 +72,7 @@ func (c *Client) Subscribe(event string) (*pstypes.WebSocketMessage, error) {
 // name after validating it. The response is returned.
 func (c *Client) Unsubscribe(event string) (*pstypes.WebSocketMessage, error) {
 	// Validate the event type.
-	_, ok := pstypes.Subscriptions[event]
+	_, _, ok := pstypes.ValidateSubscription(event)
 	if !ok {
 		return nil, fmt.Errorf("invalid subscription %s", event)
 	}
@@ -125,6 +125,10 @@ func DecodeMsg(msg *pstypes.WebSocketMessage) (interface{}, error) {
 	// Event types with a raw string Message field
 	case "subscribeResp", "unsubscribeResp", "ping":
 		return msg.Message, nil
+	case "address":
+		var am pstypes.AddressMessage
+		err := json.Unmarshal([]byte(msg.Message), &am)
+		return &am, err
 	case "newtx":
 		var newtxs pstypes.TxList
 		err := json.Unmarshal([]byte(msg.Message), &newtxs)
@@ -214,4 +218,18 @@ func DecodeMsgNewBlock(msg *pstypes.WebSocketMessage) (*exptypes.WebsocketBlock,
 		return nil, fmt.Errorf("content of Message was not of type *exptypes.WebsocketBlock")
 	}
 	return newBlock, nil
+}
+
+// DecodeMsgNewAddressTx attempts to decode the Message content of the given
+// WebSocketMessage as an address message (*DecodeMsgNewAddressTx).
+func DecodeMsgNewAddressTx(msg *pstypes.WebSocketMessage) (*pstypes.AddressMessage, error) {
+	nb, err := DecodeMsg(msg)
+	if err != nil {
+		return nil, err
+	}
+	am, ok := nb.(*pstypes.AddressMessage)
+	if !ok {
+		return nil, fmt.Errorf("content of Message was not of type *pstypes.AddressMessage")
+	}
+	return am, nil
 }

@@ -58,9 +58,8 @@ type MempoolMonitor struct {
 
 	// Incoming data
 	newTxIn <-chan *dcrjson.TxRawResult
-	// Outgoing signal and data
-	signalOuts []chan<- pstypes.HubSignal
-	newTxOuts  []chan<- *exptypes.MempoolTx
+	// Outgoing message
+	signalOuts []chan<- pstypes.HubMessage
 
 	wg *sync.WaitGroup
 }
@@ -72,8 +71,8 @@ type MempoolMonitor struct {
 // via the newTxOutChan following an appropriate signal on hubRelay.
 func NewMempoolMonitor(ctx context.Context, collector *MempoolDataCollector,
 	savers []MempoolDataSaver, params *chaincfg.Params, wg *sync.WaitGroup,
-	newTxInChan <-chan *dcrjson.TxRawResult, signalOuts []chan<- pstypes.HubSignal,
-	newTxOutChans []chan<- *exptypes.MempoolTx, initialStore bool) (*MempoolMonitor, error) {
+	newTxInChan <-chan *dcrjson.TxRawResult, signalOuts []chan<- pstypes.HubMessage,
+	initialStore bool) (*MempoolMonitor, error) {
 
 	// Make the skeleton MempoolMonitor.
 	p := &MempoolMonitor{
@@ -83,7 +82,6 @@ func NewMempoolMonitor(ctx context.Context, collector *MempoolDataCollector,
 		dataSavers: savers,
 		newTxIn:    newTxInChan,
 		signalOuts: signalOuts,
-		newTxOuts:  newTxOutChans,
 		wg:         wg,
 	}
 
@@ -137,7 +135,7 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 				_ = p.CollectAndStore()
 				log.Debugf("New Block - sending SigMempoolUpdate to hub relay...")
 				// p.signalOuts <- pstypes.SigMempoolUpdate
-				p.hubSend(pstypes.SigMempoolUpdate, time.Second*10)
+				p.hubSend(pstypes.SigMempoolUpdate, nil, time.Second*10)
 				continue
 			}
 
@@ -180,9 +178,11 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 			if p.addrMap.store == nil {
 				p.addrMap.store = make(txhelpers.MempoolAddressStore)
 			}
+			txAddresses := make(map[string]struct{})
 			newOuts, addressesOut := txhelpers.TxOutpointsByAddr(p.addrMap.store, msgTx, p.params)
 			var newOutAddrs int
-			for _, isNew := range addressesOut {
+			for addr, isNew := range addressesOut {
+				txAddresses[addr] = struct{}{}
 				if isNew {
 					newOutAddrs++
 				}
@@ -194,12 +194,22 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 			}
 			newPrevOuts, addressesIn := txhelpers.TxPrevOutsByAddr(p.addrMap.store, p.txnsStore, msgTx, client, p.params)
 			var newInAddrs int
-			for _, isNew := range addressesIn {
+			for addr, isNew := range addressesIn {
+				txAddresses[addr] = struct{}{}
 				if isNew {
 					newInAddrs++
 				}
 			}
 			p.addrMap.mtx.Unlock()
+
+			// Send address signals.
+			for addr := range txAddresses {
+				log.Tracef("Signaling address tx mempool event to hub relays...")
+				p.hubSend(pstypes.SigAddressTx, &pstypes.AddressMessage{
+					Address: addr,
+					TxHash:  hash,
+				}, time.Second*10)
+			}
 
 			// Store the current mempool transaction, block info zeroed.
 			p.txnsStore[msgTx.TxHash()] = &txhelpers.TxWithBlockData{
@@ -333,11 +343,8 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 			p.mtx.RUnlock()
 
 			// Broadcast the new transaction.
-			log.Tracef("Signaling mempool event to hub relays...")
-			p.hubSend(pstypes.SigNewTx, time.Second*10)
-
-			log.Tracef("Sending tx data on tx out channels...")
-			p.sendTx(&tx, time.Second*10)
+			log.Tracef("Signaling new tx to hub relays...")
+			p.hubSend(pstypes.SigNewTx, &tx, time.Second*10)
 
 		case <-p.ctx.Done():
 			log.Debugf("Quitting TxHandler (new tx in mempool) handler.")
@@ -346,22 +353,12 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 	}
 }
 
-func (p *MempoolMonitor) hubSend(sig pstypes.HubSignal, timeout time.Duration) {
+func (p *MempoolMonitor) hubSend(sig pstypes.HubSignal, msg interface{}, timeout time.Duration) {
 	for _, sigout := range p.signalOuts {
 		select {
-		case sigout <- sig:
+		case sigout <- pstypes.HubMessage{Signal: sig, Msg: msg}:
 		case <-time.After(timeout):
 			log.Errorf("send to signalOuts (%v) failed: Timeout waiting for WebsocketHub.", sig)
-		}
-	}
-}
-
-func (p *MempoolMonitor) sendTx(tx *exptypes.MempoolTx, timeout time.Duration) {
-	for _, newTxOut := range p.newTxOuts {
-		select {
-		case newTxOut <- tx:
-		case <-time.After(timeout):
-			log.Errorf("send to newTxOut failed: Timeout.")
 		}
 	}
 }

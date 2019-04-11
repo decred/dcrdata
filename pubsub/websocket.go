@@ -5,6 +5,7 @@
 package pubsub
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -13,7 +14,7 @@ import (
 	pstypes "github.com/decred/dcrdata/pubsub/types"
 )
 
-type hubSpoke chan pstypes.HubSignal
+type hubSpoke chan pstypes.HubMessage
 
 const (
 	pingInterval = 45 * time.Second
@@ -36,6 +37,7 @@ var (
 	sigMempoolUpdate    = pstypes.SigMempoolUpdate
 	sigPingAndUserCount = pstypes.SigPingAndUserCount
 	sigNewTx            = pstypes.SigNewTx
+	sigAddressTx        = pstypes.SigAddressTx
 	sigSyncStatus       = pstypes.SigSyncStatus
 )
 
@@ -68,8 +70,7 @@ type WebsocketHub struct {
 	numClients         atomic.Value
 	Register           chan *clientHubSpoke
 	Unregister         chan *hubSpoke
-	HubRelay           chan pstypes.HubSignal
-	NewTxChan          chan *exptypes.MempoolTx
+	HubRelay           chan pstypes.HubMessage
 	bufferTickerChan   chan int
 	timeToSendTxBuffer atomic.Value
 	quitWSHandler      chan struct{}
@@ -100,33 +101,76 @@ func (wsh *WebsocketHub) SetReady(ready bool) {
 type client struct {
 	sync.RWMutex
 	subs   map[pstypes.HubSignal]struct{}
+	addrs  map[string]struct{}
 	newTxs *txList
 }
 
 func newClient() *client {
 	return &client{
 		subs:   make(map[pstypes.HubSignal]struct{}, 16),
+		addrs:  make(map[string]struct{}, 16),
 		newTxs: newTxList(NewTxBufferSize),
 	}
 }
 
-func (c *client) isSubscribed(sig pstypes.HubSignal) bool {
+func (c *client) isSubscribed(msg pstypes.HubMessage) bool {
 	c.RLock()
 	defer c.RUnlock()
-	_, subd := c.subs[sig]
+
+	_, subd := c.subs[msg.Signal]
+	if !subd {
+		return subd
+	}
+
+	switch msg.Signal {
+	case pstypes.SigAddressTx:
+		am, ok := msg.Msg.(*pstypes.AddressMessage)
+		if !ok {
+			log.Errorf("n AddressMessage (SigAddressTx): %T", msg.Msg)
+			return false
+		}
+		_, subd = c.addrs[am.Address]
+	default:
+	}
+
 	return subd
 }
 
-func (c *client) subscribe(sig pstypes.HubSignal) {
+func (c *client) subscribe(msg pstypes.HubMessage) error {
 	c.Lock()
 	defer c.Unlock()
-	c.subs[sig] = struct{}{}
+
+	switch msg.Signal {
+	case pstypes.SigAddressTx:
+		am, ok := msg.Msg.(*pstypes.AddressMessage)
+		if !ok {
+			return fmt.Errorf("msg.Msg not a string (SigAddressTx): %T", msg.Msg)
+		}
+		c.addrs[am.Address] = struct{}{}
+	default:
+	}
+
+	c.subs[msg.Signal] = struct{}{}
+	return nil
 }
 
-func (c *client) unsubscribe(sig pstypes.HubSignal) {
+func (c *client) unsubscribe(msg pstypes.HubMessage) error {
 	c.Lock()
 	defer c.Unlock()
-	delete(c.subs, sig)
+
+	switch msg.Signal {
+	case pstypes.SigAddressTx:
+		am, ok := msg.Msg.(*pstypes.AddressMessage)
+		if !ok {
+			return fmt.Errorf("msg.Msg not an AddressMessage (SigAddressTx): %T", msg.Msg)
+		}
+		delete(c.addrs, am.Address)
+	default:
+	}
+
+	delete(c.subs, msg.Signal)
+
+	return nil
 }
 
 func (c *client) unsubscribeAll() {
@@ -134,6 +178,9 @@ func (c *client) unsubscribeAll() {
 	defer c.Unlock()
 	for sub := range c.subs {
 		delete(c.subs, sub)
+	}
+	for addr := range c.addrs {
+		delete(c.addrs, addr)
 	}
 }
 
@@ -143,8 +190,7 @@ func NewWebsocketHub() *WebsocketHub {
 		clients:          make(map[*hubSpoke]*client),
 		Register:         make(chan *clientHubSpoke),
 		Unregister:       make(chan *hubSpoke),
-		HubRelay:         make(chan pstypes.HubSignal),
-		NewTxChan:        make(chan *exptypes.MempoolTx, 1),
+		HubRelay:         make(chan pstypes.HubMessage),
 		bufferTickerChan: make(chan int, clientSignalSize),
 		quitWSHandler:    make(chan struct{}),
 		requestLimit:     MaxPayloadBytes, // 1 MB
@@ -235,7 +281,7 @@ func (wsh *WebsocketHub) pingClients() chan<- struct{} {
 		for {
 			select {
 			case <-ticker.C:
-				wsh.HubRelay <- sigPingAndUserCount
+				wsh.HubRelay <- pstypes.HubMessage{Signal: sigPingAndUserCount}
 			case _, ok := <-stopPing:
 				if ok {
 					log.Errorf("Do not send on stopPing channel, only close it.")
@@ -250,9 +296,6 @@ func (wsh *WebsocketHub) pingClients() chan<- struct{} {
 
 // Stop kills the run() loop and unregisters all clients (connections).
 func (wsh *WebsocketHub) Stop() {
-	// Close the receiving new tx channel. Senders should use a select with a
-	// default or timer/timeout case to avoid a panic.
-	close(wsh.NewTxChan)
 	// End the run() loop, allowing in progress operations to complete.
 	wsh.quitWSHandler <- struct{}{}
 	// Lastly close the hub relay channel sine the quitWSHandler signal is
@@ -277,8 +320,6 @@ func (wsh *WebsocketHub) Run() {
 
 	defer func() {
 		// Drain the receiving channels if they were not already closed by Stop.
-		for range wsh.NewTxChan {
-		}
 		for range wsh.HubRelay {
 		}
 	}()
@@ -288,20 +329,26 @@ func (wsh *WebsocketHub) Run() {
 	for {
 		//events:
 		select {
-		case hubSignal, ok := <-wsh.HubRelay:
+		case hubMsg, ok := <-wsh.HubRelay:
 			if !ok {
 				log.Debugf("wsh.HubRelay closed.")
 				return
 			}
 			// Number of connected clients
 			clientsCount := len(wsh.clients)
-			// Even of there are no connected clients, it is necessary to
-			// process the hubSignal below since signals may be followed by data
-			// sent on other channels (e.g. NewTxChan).
 
-			var newtx *exptypes.MempoolTx
+			// No clients, skip the rest.
+			if clientsCount == 0 {
+				break
+			}
+
+			if !hubMsg.IsValid() {
+				log.Warnf("Invalid message on HubRelay: %v:%v", hubMsg.Signal.String(), hubMsg.Msg)
+				break
+			}
+
 			var someTxBuffersReady bool
-			switch hubSignal {
+			switch hubMsg.Signal {
 			case sigNewBlock:
 				// Do not log when explorer update status is active.
 				if !wsh.Ready() {
@@ -311,10 +358,17 @@ func (wsh *WebsocketHub) Run() {
 				log.Tracef("Signaling ping/user count to %d websocket clients.", clientsCount)
 			case sigMempoolUpdate:
 				log.Infof("Signaling mempool inventory refresh to %d websocket clients.", clientsCount)
+			case sigAddressTx:
+				// AddressMessage already validated, but check again.
+				addrMsg, ok := hubMsg.Msg.(*pstypes.AddressMessage)
+				if !ok || addrMsg == nil {
+					log.Errorf("sigAddressTx did not store a *AddressMessage in Msg.")
+					continue
+				}
 			case sigNewTx:
 				log.Tracef("Received sigNewTx")
-				newtx = <-wsh.NewTxChan
-				if newtx == nil { // channel likely closed by Stop so quit signal can operate
+				newtx, ok := hubMsg.Msg.(*exptypes.MempoolTx)
+				if !ok || newtx == nil {
 					continue
 				}
 				log.Tracef("Received new tx %s. Queueing in each client's send buffer...", newtx.Hash)
@@ -325,16 +379,11 @@ func (wsh *WebsocketHub) Run() {
 			case sigSyncStatus:
 				// TODO
 			default:
-				log.Errorf("Unknown hub signal: %v", hubSignal)
+				log.Errorf("Unknown hub signal: %v", hubMsg.Signal)
 				continue // break events
 			}
 
-			// No clients, skip the rest.
-			if clientsCount == 0 {
-				break
-			}
-
-			if hubSignal == sigNewTx {
+			if hubMsg.Signal == sigNewTx {
 				// Only signal clients if there are tx buffers ready to send or
 				// the ticker has fired.
 				if !(someTxBuffersReady || wsh.TimeToSendTxBuffer()) {
@@ -344,20 +393,20 @@ func (wsh *WebsocketHub) Run() {
 
 			// Send the signal to all clients.
 			for spoke, client := range wsh.clients {
-				if !client.isSubscribed(hubSignal) {
-					log.Tracef("Client not subscribed to %s.", hubSignal.String())
+				if !client.isSubscribed(hubMsg) {
+					log.Tracef("Client not subscribed to %s.", hubMsg.Signal.String())
 					continue
 				}
 
 				// Signal or unregister the client.
 				select {
-				case *spoke <- hubSignal:
+				case *spoke <- hubMsg:
 				default:
 					wsh.unregisterClient(spoke)
 				}
 			}
 
-			if hubSignal == sigNewTx {
+			if hubMsg.Signal == sigNewTx {
 				// The Tx buffers were just sent.
 				wsh.SetTimeToSendTxBuffer(false)
 			}

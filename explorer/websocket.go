@@ -35,6 +35,7 @@ var (
 	sigMempoolUpdate    = pstypes.SigMempoolUpdate
 	sigPingAndUserCount = pstypes.SigPingAndUserCount
 	sigNewTx            = pstypes.SigNewTx
+	sigAddressTx        = pstypes.SigAddressTx
 	sigSyncStatus       = pstypes.SigSyncStatus
 )
 
@@ -53,8 +54,7 @@ type WebsocketHub struct {
 	numClients       atomic.Value
 	Register         chan *clientHubSpoke
 	Unregister       chan *hubSpoke
-	HubRelay         chan hubSignal
-	NewTxChan        chan *types.MempoolTx
+	HubRelay         chan hubMessage
 	newTxBuffer      []*types.MempoolTx
 	bufferMtx        sync.Mutex
 	bufferTickerChan chan int
@@ -81,7 +81,8 @@ type client struct {
 }
 
 type hubSignal = pstypes.HubSignal
-type hubSpoke chan hubSignal
+type hubMessage = pstypes.HubMessage
+type hubSpoke chan hubMessage
 type exchangeChannel chan *WebsocketExchangeUpdate
 
 // NewWebsocketHub creates a new WebsocketHub
@@ -90,8 +91,7 @@ func NewWebsocketHub() *WebsocketHub {
 		clients:          make(map[*hubSpoke]*clientHubSpoke),
 		Register:         make(chan *clientHubSpoke),
 		Unregister:       make(chan *hubSpoke),
-		HubRelay:         make(chan hubSignal),
-		NewTxChan:        make(chan *types.MempoolTx),
+		HubRelay:         make(chan hubMessage),
 		newTxBuffer:      make([]*types.MempoolTx, 0, newTxBufferSize),
 		bufferTickerChan: make(chan int, clientSignalSize),
 		sendBufferChan:   make(chan int, clientSignalSize),
@@ -178,7 +178,7 @@ func (wsh *WebsocketHub) pingClients() chan<- struct{} {
 		for {
 			select {
 			case <-ticker.C:
-				wsh.HubRelay <- sigPingAndUserCount
+				wsh.HubRelay <- pstypes.HubMessage{Signal: sigPingAndUserCount}
 			case _, ok := <-stopPing:
 				if !ok {
 					log.Errorf("Do not send on stopPing channel, only close it.")
@@ -224,11 +224,15 @@ func (wsh *WebsocketHub) run() {
 	for {
 	events:
 		select {
-		case hubSignal := <-wsh.HubRelay:
-			var newtx *types.MempoolTx
+		case hubMsg := <-wsh.HubRelay:
 			clientsCount := len(wsh.clients)
 
-			switch hubSignal {
+			if !hubMsg.IsValid() {
+				log.Warnf("Invalid message on HubRelay: %v:%v", hubMsg.Signal.String(), hubMsg.Msg)
+				break
+			}
+
+			switch hubMsg.Signal {
 			case sigNewBlock:
 				// Do not log when explorer update status is active.
 				if !wsh.AreDBsSyncing() && clientsCount > 0 /* TODO put clientsCount first after testing */ {
@@ -241,26 +245,35 @@ func (wsh *WebsocketHub) run() {
 					log.Infof("Signaling mempool update to %d websocket clients.", clientsCount)
 				}
 			case sigNewTx:
-				newtx = <-wsh.NewTxChan
+				newtx, ok := hubMsg.Msg.(*types.MempoolTx)
+				if !ok || newtx == nil {
+					continue
+				}
 				log.Tracef("Received new tx %s", newtx.Hash)
 				wsh.MaybeSendTxns(newtx)
+			case sigAddressTx, sigSubscribe, sigUnsubscribe:
+				// explorer's WebsocketHub does not have address subscriptions,
+				// so do not relay address signals to any clients.
+				break events
 			case sigSyncStatus:
 			default:
-				log.Errorf("Unknown hub signal: %v", hubSignal)
+				log.Errorf("Unknown hub signal: %v", hubMsg.Signal)
 				break events
 			}
+
 			for client := range wsh.clients {
 				// Don't signal the client on new tx, another case handles that
-				if hubSignal == sigNewTx {
+				if hubMsg.Signal == sigNewTx {
 					break
 				}
 				// Signal or unregister the client
 				select {
-				case *client <- hubSignal:
+				case *client <- pstypes.HubMessage{Signal: hubMsg.Signal}:
 				default:
 					wsh.unregisterClient(client)
 				}
 			}
+
 		case ch := <-wsh.Register:
 			wsh.registerClient(ch)
 		case c := <-wsh.Unregister:
@@ -293,7 +306,7 @@ func (wsh *WebsocketHub) run() {
 				client.cl.newTxs = txs
 				client.cl.Unlock()
 				select {
-				case *signal <- sigNewTx:
+				case *signal <- pstypes.HubMessage{Signal: sigNewTx}:
 				default:
 					wsh.unregisterClient(signal)
 				}
@@ -302,8 +315,8 @@ func (wsh *WebsocketHub) run() {
 			for _, client := range wsh.clients {
 				client.xc <- update
 			}
-		}
-	}
+		} // select a.k.a events:
+	} // for {
 }
 
 // MaybeSendTxns adds a mempool transaction to the client broadcast buffer. If
