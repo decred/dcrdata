@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/decred/dcrd/dcrutil"
 	exptypes "github.com/decred/dcrdata/explorer/types"
 	client "github.com/decred/dcrdata/pubsub/psclient"
 	pstypes "github.com/decred/dcrdata/pubsub/types"
@@ -44,7 +45,7 @@ func main() {
 
 	// Subscribe/unsubscribe to several events.
 	var currentSubs []string
-	allSubs := []string{"ping", "newtx", "newblock", "mempool"}
+	allSubs := []string{"ping", "newtx", "newblock", "mempool", "address:Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx", "address"}
 	subscribe := func(newsubs []string) error {
 		for _, sub := range newsubs {
 			if subd, _ := strInSlice(currentSubs, sub); subd {
@@ -112,12 +113,33 @@ func main() {
 			err := survey.AskOne(actionPrompt, &a.action, nil)
 			if err != nil {
 				log.Fatal(err)
+				go func() { promptAgain <- struct{}{} }()
+				continue
 			}
 
 			switch a.action {
 			case "subscribe":
-				subPrompt.Default = AnotInB(allSubs, currentSubs)
+				subPrompt.Default = AnotInB(allSubs, append(currentSubs, "address"))
 				_ = survey.AskOne(subPrompt, &a.data, nil)
+				data := make([]string, 0, len(a.data))
+				for i := range a.data {
+					if a.data[i] == "address" {
+						var addr string
+						err = survey.AskOne(&survey.Input{Message: "Type the address."}, &addr, nil)
+						if err != nil {
+							log.Fatal(err)
+							continue
+						}
+						_, err = dcrutil.DecodeAddress(addr)
+						if err != nil {
+							log.Fatalf("Invalid address %s: %v", addr, err)
+							continue
+						}
+
+						data = append(data, a.data[i]+":"+addr)
+					}
+				}
+				a.data = data
 			case "unsubscribe":
 				unsubPrompt.Options = currentSubs
 				_ = survey.AskOne(unsubPrompt, &a.data, nil)
@@ -190,6 +212,9 @@ func main() {
 				resp.EventId, m.NumAll, t)
 		case *pstypes.TxList:
 			log.Printf("Message (%s): TxList(len=%d)", resp.EventId, len(*m))
+		case *pstypes.AddressMessage:
+			log.Printf("Message (%s): AddressMessage(address=%s, txHash=%s)",
+				resp.EventId, m.Address, m.TxHash)
 		default:
 			log.Printf("Message of type %v unhandled.", resp.EventId)
 		}

@@ -4,6 +4,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/decred/dcrd/dcrutil"
 	exptypes "github.com/decred/dcrdata/explorer/types"
 )
 
@@ -40,6 +41,15 @@ type WebSocketMessage struct {
 	Message string `json:"message"`
 }
 
+type AddressMessage struct {
+	Address string `json:"address"`
+	TxHash  string `json:"transaction"`
+}
+
+func (am AddressMessage) String() string {
+	return am.Address + ":" + am.TxHash
+}
+
 type TxList []*exptypes.MempoolTx
 
 type HubSignal int
@@ -51,7 +61,9 @@ const (
 	SigMempoolUpdate
 	SigPingAndUserCount
 	SigNewTx
+	SigAddressTx
 	SigSyncStatus
+	SigUnknown
 )
 
 var Subscriptions = map[string]HubSignal{
@@ -59,6 +71,7 @@ var Subscriptions = map[string]HubSignal{
 	"mempool":        SigMempoolUpdate,
 	"ping":           SigPingAndUserCount,
 	"newtx":          SigNewTx,
+	"address":        SigAddressTx,
 	"blockchainSync": SigSyncStatus,
 }
 
@@ -70,7 +83,42 @@ var eventIDs = map[HubSignal]string{
 	SigMempoolUpdate:    "mempool",
 	SigPingAndUserCount: "ping",
 	SigNewTx:            "newtx",
+	SigAddressTx:        "address",
 	SigSyncStatus:       "blockchainSync",
+	SigUnknown:          "unknown",
+}
+
+func ValidateSubscription(event string) (sub HubSignal, msg interface{}, valid bool) {
+	sig, msgStr := event, ""
+	idx := strings.Index(event, ":")
+	if idx != -1 {
+		sig = event[:idx]
+		if idx+1 < len(event) {
+			msgStr = event[idx+1:]
+		}
+	}
+
+	sub, valid = Subscriptions[sig]
+	if !valid {
+		return SigUnknown, nil, valid
+	}
+
+	switch sub {
+	case SigAddressTx:
+		if _, err := dcrutil.DecodeAddress(msgStr); err != nil {
+			return SigUnknown, nil, false
+		}
+		msg = &AddressMessage{
+			Address: msgStr,
+		}
+	default:
+		// Other signals do not have a message.
+		if msgStr != "" {
+			return SigUnknown, nil, false
+		}
+	}
+
+	return
 }
 
 func (s HubSignal) String() string {
@@ -86,10 +134,43 @@ func (s HubSignal) IsValid() bool {
 	return found
 }
 
-// var (
-// 	SigNewBlock         = "newblock" // exptypes.WebsocketBlock
-// 	SigMempoolUpdate    = "mempool"  // exptypes.MempoolShort
-// 	SigPingAndUserCount = "ping"     // string (number of connected clients)
-// 	SigNewTx            = "newtx"    // TxList a.k.a. []*exptypes.MempoolTx
-// 	//SigSyncStatus       = "blockchainSync"
-// )
+type HubMessage struct {
+	Signal HubSignal
+	Msg    interface{}
+}
+
+func (m HubMessage) IsValid() bool {
+	_, found := eventIDs[m.Signal]
+	if !found {
+		return false
+	}
+
+	ok := true
+	switch m.Signal {
+	case SigAddressTx:
+		_, ok = m.Msg.(*AddressMessage)
+	case SigNewTx:
+		_, ok = m.Msg.(*exptypes.MempoolTx)
+	}
+
+	return ok
+}
+
+func (m HubMessage) String() string {
+	if !m.IsValid() {
+		return "invalid"
+	}
+
+	sigStr := m.Signal.String()
+
+	switch m.Signal {
+	case SigAddressTx:
+		am := m.Msg.(*AddressMessage)
+		sigStr += ":" + am.String()
+	case SigNewTx:
+		tx := m.Msg.(*exptypes.MempoolTx)
+		sigStr += ":" + tx.Hash
+	}
+
+	return sigStr
+}

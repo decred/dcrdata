@@ -1,6 +1,11 @@
 module github.com/decred/dcrdata/mempool
 
-go 1.12
+go 1.11
+
+replace (
+	github.com/decred/dcrdata/pubsub/types => ../pubsub/types
+	github.com/decred/dcrdata/txhelpers => ../txhelpers
+)
 
 require (
 	github.com/AndreasBriese/bbloom v0.0.0-20190306092124-e2d15f34fcf9 // indirect
@@ -25,5 +30,3 @@ require (
 	github.com/google/go-cmp v0.2.0 // indirect
 	github.com/pkg/errors v0.8.1 // indirect
 )
-
-replace github.com/decred/dcrdata/txhelpers => ../txhelpers

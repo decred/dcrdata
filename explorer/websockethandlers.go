@@ -263,7 +263,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 				}
 				buff := new(bytes.Buffer)
 				enc := json.NewEncoder(buff)
-				switch sig {
+				switch sig.Signal {
 				case sigNewBlock:
 					exp.pageData.RLock()
 					err := enc.Encode(types.WebsocketBlock{
@@ -309,11 +309,15 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 						log.Errorf("json.Encode([]SyncStatusInfo) failed: %v", err)
 					}
 
+				default:
+					log.Errorf("RootWebsocket: Unhandled signal: %v", sig)
 				}
+
 				err := send(webData)
 				if err != nil {
 					return
 				}
+
 			case update := <-xcChan:
 				buff := new(bytes.Buffer)
 				enc := json.NewEncoder(buff)
@@ -331,11 +335,12 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 				if err != nil {
 					return
 				}
+
 			case <-exp.wsHub.quitWSHandler:
 				break loop
-			}
-		}
-	})
+			} // select
+		} // for a.k.a. loop:
+	}) // wsHandler := websocket.Handler(func(ws *websocket.Conn) {
 
 	wsHandler.ServeHTTP(w, r)
 }

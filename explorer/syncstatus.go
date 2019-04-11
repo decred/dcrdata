@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrdata/db/dbtypes"
+	pstypes "github.com/decred/dcrdata/pubsub/types"
 )
 
 // SyncStatusInfo defines information for a single progress bar.
@@ -80,7 +81,7 @@ func (exp *explorerUI) BeginSyncStatusUpdates(barLoad chan *dbtypes.ProgressBarL
 			select {
 			case <-timer.C:
 				log.Trace("Sending progress bar signal.")
-				exp.wsHub.HubRelay <- sigSyncStatus
+				exp.wsHub.HubRelay <- pstypes.HubMessage{Signal: sigSyncStatus}
 
 			case <-stopTimer:
 				log.Debug("Stopping progress bar signals.")
@@ -102,7 +103,7 @@ func (exp *explorerUI) BeginSyncStatusUpdates(barLoad chan *dbtypes.ProgressBarL
 			// Send the one last signal so that the websocket can send the final
 			// confirmation that syncing is done and home page auto reload should
 			// happen.
-			exp.wsHub.HubRelay <- sigSyncStatus
+			exp.wsHub.HubRelay <- pstypes.HubMessage{Signal: sigSyncStatus}
 			exp.EnableSyncStatusPage(false)
 		}()
 

@@ -430,10 +430,10 @@ func (exp *explorerUI) MempoolID() uint64 {
 	return exp.invs.ID()
 }
 
-// MempoolSignals returns the mempool signal and data channels, which are to be
-// used by the mempool package's MempoolMonitor as send only channels.
-func (exp *explorerUI) MempoolSignals() (chan<- pstypes.HubSignal, chan<- *types.MempoolTx) {
-	return exp.wsHub.HubRelay, exp.wsHub.NewTxChan
+// MempoolSignal returns the mempool signal channel, which is to be used by the
+// mempool package's MempoolMonitor as a send-only channel.
+func (exp *explorerUI) MempoolSignal() chan<- pstypes.HubMessage {
+	return exp.wsHub.HubRelay
 }
 
 // prePopulateChartsData should run in the background the first time the system
@@ -656,7 +656,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 	// block Store(), and do not hang forever in a goroutine waiting to send.
 	go func() {
 		select {
-		case exp.wsHub.HubRelay <- sigNewBlock:
+		case exp.wsHub.HubRelay <- pstypes.HubMessage{Signal: sigNewBlock}:
 		case <-time.After(time.Second * 10):
 			log.Errorf("sigNewBlock send failed: Timeout waiting for WebsocketHub.")
 		}
