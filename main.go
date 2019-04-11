@@ -161,6 +161,8 @@ func _main(ctx context.Context) error {
 	log.Infof("SQLite DB successfully opened: %s", cfg.DBFileName)
 	defer baseDB.Close()
 
+	baseDB.DB.SetMaxOpenConns(cfg.SQLiteMaxConns)
+
 	if err = baseDB.ReportHeights(); err != nil {
 		return fmt.Errorf("Possible SQLite corruption: %v", err)
 	}
