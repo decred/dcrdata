@@ -9,7 +9,6 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson/v2"
-	"github.com/decred/dcrd/wire"
 )
 
 const (
@@ -128,14 +127,30 @@ type VoteTracker struct {
 }
 
 // NewVoteTracker is a constructor for a VoteTracker.
-func NewVoteTracker(params *chaincfg.Params, node VoteDataSource, counter voteCounter) (*VoteTracker, error) {
+func NewVoteTracker(params *chaincfg.Params, node VoteDataSource, counter voteCounter,
+	activeVersions map[uint32][]chaincfg.ConsensusDeployment) (*VoteTracker, error) {
+	var lastStakeVersion uint32
+	var starttime uint64
+
+	// Consensus deployments that share a stake version as the key should also
+	// have matching starttime.
+	for stakeVersion, val := range activeVersions {
+		if lastStakeVersion == 0 {
+			lastStakeVersion = stakeVersion
+			starttime = val[0].StartTime
+		} else if val[0].StartTime >= starttime {
+			lastStakeVersion = stakeVersion
+			starttime = val[0].StartTime
+		}
+	}
+
 	tracker := &VoteTracker{
 		mtx:            sync.RWMutex{},
 		node:           node,
 		voteCounter:    counter,
 		countCache:     make(map[string]*voteCount),
 		params:         params,
-		version:        wire.ProtocolVersion,
+		version:        lastStakeVersion,
 		ringIndex:      -1,
 		blockRing:      make([]int32, params.BlockUpgradeNumToCheck),
 		minerThreshold: float32(params.BlockRejectNumRequired) / float32(params.BlockUpgradeNumToCheck),
@@ -204,6 +219,7 @@ func (tracker *VoteTracker) refreshRCI() (*dcrjson.GetVoteInfoResult, error) {
 	var err error
 	var voteInfo, vinfo *dcrjson.GetVoteInfoResult
 
+	// Retrieves the voteinfo for the last stake version supported.
 	for {
 		vinfo, err = tracker.node.GetVoteInfo(v)
 		if err != nil {
