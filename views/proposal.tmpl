@@ -199,7 +199,19 @@
                     <div id="votes-by-time" class="proposal-chart-align mt-1"></div>
                     <div id="votes-by-time-legend" class="dygraph-legend proposal-chart-legend"></div>
                 </div>
+                <span  data-controller="time" class="text-center">Last Piparser Sync:
+                    <span data-target="time.age" data-age="{{$.LastSyncTime}}"></span>
+                </span>
             </div>
+        {{else}}
+            <table class="table container">
+                <tr>
+                    <td class="text-center">No Proposal votes data found</td>
+                </tr>
+            </table>
+            <span  data-controller="time" class="text-center">Last Piparser Sync:
+                <span data-target="time.age" data-age="{{$.LastSyncTime}}"></span>
+            </span>
         {{end}}
     {{end}}
     {{template "footer" . }}

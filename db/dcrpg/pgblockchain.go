@@ -942,6 +942,12 @@ func (pgb *ChainDB) proposalsUpdateHandler() {
 	}()
 }
 
+// LastPiParserSync returns the time the piparser sync proposals and proposal_votes
+// table.
+func (pgb *ChainDB) LastPiParserSync() (time.Time, error) {
+	return retrieveLastCommitTime(pgb.db)
+}
+
 // PiProposalsHistory queries the politeia's proposal updates via the parser tool
 // and pushes them to the proposals and proposal_votes tables.
 func (pgb *ChainDB) PiProposalsHistory() (int64, error) {

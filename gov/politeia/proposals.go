@@ -267,7 +267,11 @@ func (db *ProposalDB) updateInProgressProposals() (int, error) {
 		proposal, err := piclient.RetrieveProposalByToken(db.client, db.APIURLpath,
 			val.Censorship.Token)
 		if err != nil {
-			return 0, fmt.Errorf("RetrieveProposalByToken failed: %v ", err)
+			// Since the proposal tokens bieng update here already in the proposals.db
+			// ignore errors returned since they will still be updated when data
+			// is available.
+			log.Error("RetrieveProposalByToken failed: %v ", err)
+			continue
 		}
 
 		// Do not update if the new proposals status is NotAuthorized or If the

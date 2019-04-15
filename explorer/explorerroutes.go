@@ -1735,7 +1735,7 @@ func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
 	// Attempts to retrieve a proposal token from URL path.
 	proposalID, err := strconv.Atoi(getProposalTokenCtx(r))
 	if err != nil {
-		log.Errorf("Template execute failure: %v", err)
+		log.Errorf("strconv.Atoi failed: %v", err)
 		exp.StatusPage(w, defaultErrorCode, "invalid proposal ID used ",
 			"", ExpStatusNotFound)
 		return
@@ -1743,8 +1743,16 @@ func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
 
 	proposalInfo, err := exp.proposalsSource.ProposalByID(proposalID)
 	if err != nil {
-		log.Errorf("Template execute failure: %v", err)
+		log.Errorf("exp.proposalsSource.ProposalByID failed: %v", err)
 		exp.StatusPage(w, defaultErrorCode, "the proposal token does not exist",
+			"", ExpStatusNotFound)
+		return
+	}
+
+	lastParserSyncTime, err := exp.explorerSource.LastPiParserSync()
+	if err != nil {
+		log.Errorf("exp.explorerSource.LastPiParserSync failed: %v", err)
+		exp.StatusPage(w, defaultErrorCode, "last parser sync time fetch failed",
 			"", ExpStatusNotFound)
 		return
 	}
@@ -1770,11 +1778,13 @@ func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
 		Data          *pitypes.ProposalInfo
 		PoliteiaURL   string
 		TimeRemaining string
+		LastSyncTime  int64
 	}{
 		CommonPageData: exp.commonData(r),
 		Data:           proposalInfo,
 		PoliteiaURL:    exp.politeiaAPIURL,
 		TimeRemaining:  timeLeft,
+		LastSyncTime:   lastParserSyncTime.UTC().Unix(),
 	})
 
 	if err != nil {
