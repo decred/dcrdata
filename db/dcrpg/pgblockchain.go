@@ -33,6 +33,7 @@ import (
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/stakedb"
 	"github.com/decred/dcrdata/txhelpers"
+	pitypes "github.com/dmigwi/go-piparser/proposals/types"
 	humanize "github.com/dustin/go-humanize"
 )
 
@@ -57,6 +58,13 @@ type ticketPoolDataCache struct {
 	PriceGraphCache map[dbtypes.TimeBasedGrouping]*dbtypes.PoolTicketsData
 	// DonutGraphCache persist data for the Number of tickets outputs pie chart.
 	DonutGraphCache map[dbtypes.TimeBasedGrouping]*dbtypes.PoolTicketsData
+}
+
+// ProposalsFetcher defines the interface of the proposals plug-n-play data source.
+type ProposalsFetcher interface {
+	UpdateSignal() <-chan struct{}
+	ProposalsHistory() ([]*pitypes.History, error)
+	ProposalsHistorySince(since time.Time) ([]*pitypes.History, error)
 }
 
 // ticketPoolGraphsCache persists the latest ticketpool data queried from the db.
@@ -207,6 +215,7 @@ type ChainDB struct {
 	tpUpdatePermission map[dbtypes.TimeBasedGrouping]*trylock.Mutex
 	utxoCache          utxoStore
 	deployments        *ChainDeployments
+	piparser           ProposalsFetcher
 }
 
 // ChainDeployments is mutex-protected blockchain deployment data.
@@ -429,11 +438,14 @@ type DBInfo struct {
 // NewChainDB constructs a ChainDB for the given connection and Decred network
 // parameters. By default, duplicate row checks on insertion are enabled. See
 // NewChainDBWithCancel to enable context cancellation of running queries.
+// proposalsUpdateChan is used to manage politeia update notifications trigger
+// between the notifier and the handler method.
 func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeDatabase,
-	devPrefetch, hidePGConfig bool, addrCacheCap int, mp rpcutils.MempoolAddressChecker) (*ChainDB, error) {
+	devPrefetch, hidePGConfig bool, addrCacheCap int, mp rpcutils.MempoolAddressChecker,
+	parser ProposalsFetcher) (*ChainDB, error) {
 	ctx := context.Background()
 	chainDB, err := NewChainDBWithCancel(ctx, dbi, params, stakeDB,
-		devPrefetch, hidePGConfig, addrCacheCap, mp)
+		devPrefetch, hidePGConfig, addrCacheCap, mp, parser)
 	if err != nil {
 		return nil, err
 	}
@@ -448,7 +460,8 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeData
 // (context.Background()) except by the pg timeouts. If it is necessary to
 // cancel queries with CTRL+C, for example, use NewChainDBWithCancel.
 func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Params,
-	stakeDB *stakedb.StakeDatabase, devPrefetch, hidePGConfig bool, addrCacheCap int, mp rpcutils.MempoolAddressChecker) (*ChainDB, error) {
+	stakeDB *stakedb.StakeDatabase, devPrefetch, hidePGConfig bool, addrCacheCap int,
+	mp rpcutils.MempoolAddressChecker, parser ProposalsFetcher) (*ChainDB, error) {
 	// Connect to the PostgreSQL daemon and return the *sql.DB.
 	db, err := Connect(dbi.Host, dbi.Port, dbi.User, dbi.Pass, dbi.DBName)
 	if err != nil {
@@ -566,7 +579,7 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 	addrCache := cache.NewAddressCache(addrCacheCap)
 	addrCache.ProjectAddress = devSubsidyAddress
 
-	return &ChainDB{
+	chainDB := &ChainDB{
 		ctx:                ctx,
 		queryTimeout:       queryTimeout,
 		db:                 db,
@@ -584,7 +597,13 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 		tpUpdatePermission: tpUpdatePermissions,
 		utxoCache:          newUtxoStore(5e4),
 		deployments:        new(ChainDeployments),
-	}, nil
+		piparser:           parser,
+	}
+
+	// Start the proposal updates handler async method.
+	chainDB.proposalsUpdateHandler()
+
+	return chainDB, nil
 }
 
 // Close closes the underlying sql.DB connection to the database.
@@ -620,7 +639,8 @@ func (pgb *ChainDB) EnableDuplicateCheckOnInsert(dupCheck bool) {
 }
 
 // SetupTables creates the required tables and type, and prints table versions
-// stored in the table comments when debug level logging is enabled.
+// stored in the table comments when debug level logging is enabled. It also
+// handles creation of any new or missing tables.
 func (pgb *ChainDB) SetupTables() error {
 	return setupTables(pgb.db)
 }
@@ -899,6 +919,99 @@ func (pgb *ChainDB) VotesInBlock(hash string) (int16, error) {
 		return -1, err
 	}
 	return voters, nil
+}
+
+// proposalsUpdateHandler runs in the background asynchronous to retrieve the
+// politeia proposal updates that the piparser tool signaled.
+func (pgb *ChainDB) proposalsUpdateHandler() {
+	// Do not initiate the async update if invalid piparser instance was found.
+	if pgb.piparser == nil {
+		log.Debug("invalid piparser instance was found: async update stopped")
+		return
+	}
+
+	go func() {
+		for range pgb.piparser.UpdateSignal() {
+			count, err := pgb.PiProposalsHistory()
+			if err != nil {
+				log.Error("pgb.PiProposalsHistory failed : %v", err)
+			} else {
+				log.Infof("%d politeia's proposal commits were processed", count)
+			}
+		}
+	}()
+}
+
+// PiProposalsHistory queries the politeia's proposal updates via the parser tool
+// and pushes them to the proposals and proposal_votes tables.
+func (pgb *ChainDB) PiProposalsHistory() (int64, error) {
+	if pgb.piparser == nil {
+		return -1, fmt.Errorf("invalid piparser instance was found")
+	}
+
+	var isChecked bool
+	var proposalsData []*pitypes.History
+
+	lastUpdate, err := retrieveLastCommitTime(pgb.db)
+	switch {
+	case err == sql.ErrNoRows:
+		// No records exists yet fetch all the history.
+		proposalsData, err = pgb.piparser.ProposalsHistory()
+
+	case err != nil:
+		return -1, fmt.Errorf("retrieveLastCommitTime failed :%v", err)
+
+	default:
+		// Fetch the updates since the last insert only.
+		proposalsData, err = pgb.piparser.ProposalsHistorySince(lastUpdate)
+		isChecked = true
+	}
+
+	if err != nil {
+		return -1, fmt.Errorf("politeia proposals fetch failed: %v", err)
+	}
+
+	var commitsCount int64
+
+	for _, entry := range proposalsData {
+		if entry.CommitSHA == "" {
+			// If missing commit sha ignore the entry.
+			continue
+		}
+
+		// Multiple tokens votes data can be packed in a single Politeia's commit.
+		for _, val := range entry.Patch {
+			if val.Token == "" {
+				// If missing token ignore it.
+				continue
+			}
+
+			id, err := InsertProposal(pgb.db, val.Token, entry.Author,
+				entry.CommitSHA, entry.Date, isChecked)
+			if err != nil {
+				return -1, fmt.Errorf("InsertProposal failed: %v", err)
+			}
+
+			for _, vote := range val.VotesInfo {
+				_, err = InsertProposalVote(pgb.db, id, vote.Ticket,
+					string(vote.VoteBit), isChecked)
+				if err != nil {
+					return -1, fmt.Errorf("InsertProposalVote failed: %v", err)
+				}
+			}
+		}
+		commitsCount++
+	}
+
+	return commitsCount, err
+}
+
+// ProposalVotes retrieves all the votes data associated with the provided token.
+func (pgb *ChainDB) ProposalVotes(proposalToken string) (*dbtypes.ProposalChartsData, error) {
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	defer cancel()
+	chartsData, err := retrieveProposalVotesData(ctx, pgb.db, proposalToken)
+	return chartsData, pgb.replaceCancelError(err)
 }
 
 // SpendingTransactions retrieves all transactions spending outpoints from the

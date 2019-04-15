@@ -113,6 +113,7 @@ type DataSourceAux interface {
 	Height() int64
 	AllAgendas() (map[string]dbtypes.MileStone, error)
 	GetTicketInfo(txid string) (*apitypes.TicketInfo, error)
+	ProposalVotes(proposalToken string) (*dbtypes.ProposalChartsData, error)
 }
 
 // dcrdata application context used by all route handlers
@@ -1064,6 +1065,30 @@ func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request)
 	}
 
 	writeJSON(w, tpResponse, c.getIndentQuery(r))
+}
+
+func (c *appContext) getProposalChartData(w http.ResponseWriter, r *http.Request) {
+	if c.LiteMode {
+		// not available in lite mode
+		http.Error(w, "not available in lite mode", 422)
+		return
+	}
+
+	token := m.GetProposalTokenCtx(r)
+	votesData, err := c.AuxDataSource.ProposalVotes(token)
+	if dbtypes.IsTimeoutErr(err) {
+		apiLog.Errorf("ProposalVotes: %v", err)
+		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
+		return
+	}
+	if err != nil {
+		apiLog.Errorf("Unable to get proposals votes for token %s : %v", token, err)
+		http.Error(w, http.StatusText(http.StatusUnprocessableEntity),
+			http.StatusUnprocessableEntity)
+		return
+	}
+
+	writeJSON(w, votesData, c.getIndentQuery(r))
 }
 
 func (c *appContext) getBlockSize(w http.ResponseWriter, r *http.Request) {

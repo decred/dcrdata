@@ -54,6 +54,8 @@ const (
 	agendasTablePruningUpdate
 	agendaVotesTableCreationUpdate
 	votesTableBlockTimeUpdate
+	proposalsTableTokensUpdate
+	proposalVotesTableTicketsIndex
 )
 
 type TableUpgradeType struct {
@@ -378,6 +380,23 @@ func (pgb *ChainDB) UpgradeTables(dcrdClient *rpcclient.Client,
 			return isSuccess, er
 		}
 
+		// Go on to next upgrade
+		fallthrough
+
+	// Upgrade from 3.10.0 --> 3.11.0
+	case version.major == 3 && version.minor == 10 && version.patch == 0:
+		toVersion = TableVersion{3, 11, 0}
+
+		theseUpgrades := []TableUpgradeType{
+			{"proposals", proposalsTableTokensUpdate},
+			{"proposal_votes", proposalVotesTableTicketsIndex},
+		}
+
+		isSuccess, er := pgb.initiatePgUpgrade(nil, theseUpgrades)
+		if !isSuccess {
+			return isSuccess, er
+		}
+
 	// Go on to next upgrade
 	// fallthrough
 	// or be done
@@ -527,13 +546,22 @@ func (pgb *ChainDB) handleUpgrades(client *rpcclient.Client,
 	case votesTableBlockTimeUpdate:
 		tableReady, err = addVotesBlockTimeColumn(pgb.db)
 		tableName, upgradeTypeStr = "votes", "new block_time column"
+	case proposalsTableTokensUpdate:
+		// All missing auxiliary db tables are created by SetupTables() before
+		// any upgrades are run. New db creation code will not be added since
+		// it will be unnecessary.
+		tableReady = true
+		tableName, upgradeTypeStr = "proposal and proposal_votes", "new tables"
+	case proposalVotesTableTicketsIndex:
+		tableReady = true
+		tableName, upgradeTypeStr = "tickets", "new index"
 	default:
 		return false, fmt.Errorf(`upgrade "%v" is unknown`, tableUpgrade)
 	}
 
 	// Ensure new columns were added successfully.
 	if err != nil || !tableReady {
-		return false, fmt.Errorf("failed to prepare table %s for %s upgrade: %v",
+		return false, fmt.Errorf("failed to prepare table(s) %s for %s upgrade: %v",
 			tableName, upgradeTypeStr, err)
 	}
 
@@ -621,7 +649,8 @@ func (pgb *ChainDB) handleUpgrades(client *rpcclient.Client,
 		log.Infof("This an extremely I/O intensive operation on the database machine. It can take from 30-90 minutes.")
 		rowsUpdated, err = updateAllAddressesValidMainchain(pgb.db)
 
-	case votesTableBlockHashIndex, ticketsTableBlockTimeUpgrade, addressesTableBlockTimeSortedIndex:
+	case votesTableBlockHashIndex, ticketsTableBlockTimeUpgrade, addressesTableBlockTimeSortedIndex,
+		proposalVotesTableTicketsIndex:
 		// no upgrade, just "reindex"
 	case vinsTxHistogramUpgrade, addressesTxHistogramUpgrade:
 		var height int64
@@ -660,6 +689,10 @@ func (pgb *ChainDB) handleUpgrades(client *rpcclient.Client,
 		agendaVotesTableCreationUpdate, votesTableBlockTimeUpdate:
 		// agendaVotesTableCreationUpdate and votesTableBlockTimeUpdate dbs
 		// population is fully handled by agendasTablePruningUpdate
+	case proposalsTableTokensUpdate:
+		// Handles update for proposals and proposal_votes table.
+		log.Info("Syncing Politeia's proposals votes data. This might take a while...")
+		rowsUpdated, err = pgb.PiProposalsHistory()
 
 	default:
 		return false, fmt.Errorf(`upgrade "%v" unknown`, tableUpgrade)
@@ -722,6 +755,18 @@ func (pgb *ChainDB) handleUpgrades(client *rpcclient.Client,
 		log.Infof("Index the votes table on Block Height...")
 		if err = IndexVotesTableOnHeight(pgb.db); err != nil {
 			return false, fmt.Errorf("failed to index votes table on Height: %v", err)
+		}
+
+	case proposalsTableTokensUpdate:
+		log.Infof("Index the proposals table on Token and Time...")
+		if err = IndexProposalsTableOnToken(pgb.db); err != nil {
+			return false, fmt.Errorf("failed to index proposals table: %v", err)
+		}
+
+	case proposalVotesTableTicketsIndex:
+		log.Infof("Index the proposals votes table on Proposals ID...")
+		if err = IndexProposalVotesTableOnProposalsID(pgb.db); err != nil {
+			return false, fmt.Errorf("failed to index proposal votes table: %v", err)
 		}
 	}
 

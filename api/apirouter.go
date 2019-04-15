@@ -224,6 +224,10 @@ func NewAPIRouter(app *appContext, useRealIP, compressLarge bool) apiMux {
 		r.Get("/charts", app.getTicketPoolCharts)
 	})
 
+	mux.Route("/proposal", func(r chi.Router) {
+		r.With(m.ProposalTokenCtx).Get("/{token}", app.getProposalChartData)
+	})
+
 	mux.Route("/exchanges", func(r chi.Router) {
 		r.Get("/", app.getExchanges)
 		r.Get("/codes", app.getCurrencyCodes)

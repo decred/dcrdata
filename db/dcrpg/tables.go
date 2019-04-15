@@ -14,18 +14,20 @@ import (
 )
 
 var createTableStatements = map[string]string{
-	"blocks":       internal.CreateBlockTable,
-	"transactions": internal.CreateTransactionTable,
-	"vins":         internal.CreateVinTable,
-	"vouts":        internal.CreateVoutTable,
-	"block_chain":  internal.CreateBlockPrevNextTable,
-	"addresses":    internal.CreateAddressTable,
-	"tickets":      internal.CreateTicketsTable,
-	"votes":        internal.CreateVotesTable,
-	"misses":       internal.CreateMissesTable,
-	"agendas":      internal.CreateAgendasTable,
-	"agenda_votes": internal.CreateAgendaVotesTable,
-	"testing":      internal.CreateTestingTable,
+	"blocks":         internal.CreateBlockTable,
+	"transactions":   internal.CreateTransactionTable,
+	"vins":           internal.CreateVinTable,
+	"vouts":          internal.CreateVoutTable,
+	"block_chain":    internal.CreateBlockPrevNextTable,
+	"addresses":      internal.CreateAddressTable,
+	"tickets":        internal.CreateTicketsTable,
+	"votes":          internal.CreateVotesTable,
+	"misses":         internal.CreateMissesTable,
+	"agendas":        internal.CreateAgendasTable,
+	"agenda_votes":   internal.CreateAgendaVotesTable,
+	"testing":        internal.CreateTestingTable,
+	"proposals":      internal.CreateProposalsTable,
+	"proposal_votes": internal.CreateProposalVotesTable,
 }
 
 var createTypeStatements = map[string]string{
@@ -49,24 +51,26 @@ type dropDuplicatesInfo struct {
 // re-indexing and a duplicate scan/purge.
 const (
 	tableMajor = 3
-	tableMinor = 10
+	tableMinor = 11
 	tablePatch = 0
 )
 
 // TODO eliminiate this map since we're actually versioning each table the same.
 var requiredVersions = map[string]TableVersion{
-	"blocks":       NewTableVersion(tableMajor, tableMinor, tablePatch),
-	"transactions": NewTableVersion(tableMajor, tableMinor, tablePatch),
-	"vins":         NewTableVersion(tableMajor, tableMinor, tablePatch),
-	"vouts":        NewTableVersion(tableMajor, tableMinor, tablePatch),
-	"block_chain":  NewTableVersion(tableMajor, tableMinor, tablePatch),
-	"addresses":    NewTableVersion(tableMajor, tableMinor, tablePatch),
-	"tickets":      NewTableVersion(tableMajor, tableMinor, tablePatch),
-	"votes":        NewTableVersion(tableMajor, tableMinor, tablePatch),
-	"misses":       NewTableVersion(tableMajor, tableMinor, tablePatch),
-	"agendas":      NewTableVersion(tableMajor, tableMinor, tablePatch),
-	"agenda_votes": NewTableVersion(tableMajor, tableMinor, tablePatch),
-	"testing":      NewTableVersion(tableMajor, tableMinor, tablePatch),
+	"blocks":         NewTableVersion(tableMajor, tableMinor, tablePatch),
+	"transactions":   NewTableVersion(tableMajor, tableMinor, tablePatch),
+	"vins":           NewTableVersion(tableMajor, tableMinor, tablePatch),
+	"vouts":          NewTableVersion(tableMajor, tableMinor, tablePatch),
+	"block_chain":    NewTableVersion(tableMajor, tableMinor, tablePatch),
+	"addresses":      NewTableVersion(tableMajor, tableMinor, tablePatch),
+	"tickets":        NewTableVersion(tableMajor, tableMinor, tablePatch),
+	"votes":          NewTableVersion(tableMajor, tableMinor, tablePatch),
+	"misses":         NewTableVersion(tableMajor, tableMinor, tablePatch),
+	"agendas":        NewTableVersion(tableMajor, tableMinor, tablePatch),
+	"agenda_votes":   NewTableVersion(tableMajor, tableMinor, tablePatch),
+	"testing":        NewTableVersion(tableMajor, tableMinor, tablePatch),
+	"proposals":      NewTableVersion(tableMajor, tableMinor, tablePatch),
+	"proposal_votes": NewTableVersion(tableMajor, tableMinor, tablePatch),
 }
 
 // TableVersion models a table version by major.minor.patch

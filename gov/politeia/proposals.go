@@ -224,7 +224,7 @@ func (db *ProposalDB) CheckProposalsUpdates() error {
 	// Add the sum of the newly added proposals.
 	numRecords += n
 
-	log.Infof("%d proposal records (politeia proposals) were updated", numRecords)
+	log.Infof("%d proposal records (politeia proposals-storm) were updated", numRecords)
 
 	return nil
 }
@@ -255,7 +255,6 @@ func (db *ProposalDB) updateInProgressProposals() (int, error) {
 			q.Eq("VoteStatus", statuses[2]),
 		),
 	).Find(&inProgress)
-
 	// Return an error only if the said error is not 'not found' error.
 	if err != nil && err != storm.ErrNotFound {
 		return 0, err

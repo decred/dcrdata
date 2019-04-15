@@ -44,6 +44,7 @@ import (
 	"github.com/decred/dcrdata/v4/explorer"
 	notify "github.com/decred/dcrdata/v4/notification"
 	"github.com/decred/dcrdata/v4/version"
+	"github.com/dmigwi/go-piparser/proposals"
 	"github.com/go-chi/chi"
 	"github.com/google/gops/agent"
 )
@@ -171,6 +172,16 @@ func _main(ctx context.Context) error {
 	var auxDB *dcrpg.ChainDBRPC
 	var newPGIndexes, updateAllAddresses, updateAllVotes bool
 	if usePG {
+		log.Infof("Setting up the Politeia's proposals clone repository. Please wait...")
+
+		// repoName and repoOwner are set to empty string so that the defaults can be used.
+		parser, err := proposals.NewParser("", "", cfg.DataDir)
+		if err != nil {
+			// since this piparser isn't a requirement to run the explorer, its
+			// failure should not block the system from running.
+			log.Error(err)
+		}
+
 		pgHost, pgPort := cfg.PGHost, ""
 		if !strings.HasPrefix(pgHost, "/") {
 			pgHost, pgPort, err = net.SplitHostPort(cfg.PGHost)
@@ -196,7 +207,8 @@ func _main(ctx context.Context) error {
 		log.Infof("Address cache capacity: %d rows, %d bytes", rowCap, cfg.AddrCacheCap)
 		mpChecker := rpcutils.NewMempoolAddressChecker(dcrdClient, activeChain)
 		chainDB, err := dcrpg.NewChainDBWithCancel(ctx, &dbi, activeChain,
-			baseDB.GetStakeDB(), !cfg.NoDevPrefetch, cfg.HidePGConfig, rowCap, mpChecker)
+			baseDB.GetStakeDB(), !cfg.NoDevPrefetch, cfg.HidePGConfig, rowCap,
+			mpChecker, parser)
 		if chainDB != nil {
 			defer chainDB.Close()
 		}
@@ -216,6 +228,18 @@ func _main(ctx context.Context) error {
 			return err
 		}
 
+		if cfg.DropIndexes {
+			log.Info("Dropping all table indexing and quitting...")
+			err = auxDB.DeindexAll()
+			requestShutdown()
+			return err
+		}
+
+		// VersionCheck compares the current & required auxiliary db table
+		// versions and recommends the action to take based on the difference
+		// between the two versions. Actions that trigger supported upgrades
+		// and indexes are run automatically otherwise an error indicating db
+		// rebuild action or failure to complete the automated action is returned.
 		if err = auxDB.VersionCheck(dcrdClient); err != nil {
 			return err
 		}
@@ -1080,6 +1104,23 @@ func _main(ctx context.Context) error {
 		// That may have taken a while, check again for new blocks from network.
 		if err = ensureSync(); err != nil {
 			return err
+		}
+	}
+
+	// It initiates the updates fetch process for the proposal votes data after
+	// sync for the other tables is complete. It is only run if the system is on
+	// full mode. An error in fetching the updates should not stop the system
+	// functionality since it could be attributed to the external systems used.
+	if usePG {
+		log.Info("Running updates retrieval for Politeia's Proposals. Please wait...")
+
+		// Fetch updates for Politiea's Proposal history data via the parser.
+		commitsCount, err := auxDB.PiProposalsHistory()
+		if err != nil {
+			log.Errorf("auxDB.PiProposalsHistory failed : %v", err)
+		} else {
+			log.Infof("%d politeia's proposal (auxiliary db) commits were processed",
+				commitsCount)
 		}
 	}
 
