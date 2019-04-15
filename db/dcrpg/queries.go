@@ -2997,8 +2997,8 @@ func retrieveCoinSupply(ctx context.Context, db *sql.DB, timeArr []dbtypes.TimeD
 		estimate = estimateArr[c-1]
 	} else {
 		// if the count of elems in all arrays doesn't match drops all entries.
-		timeArr = timeArr[:0]
 		sumArr = sumArr[:0]
+		timeArr = timeArr[:0]
 		estimateArr = estimateArr[:0]
 	}
 
@@ -3007,6 +3007,9 @@ func retrieveCoinSupply(ctx context.Context, db *sql.DB, timeArr []dbtypes.TimeD
 	if len(sumArr) > 1 && len(timeArr) > 0 {
 		preminedCoins = sumArr[1]
 		initialTime = timeArr[1].T
+
+		// subtract the premine coins from the prev estimate
+		estimate -= preminedCoins
 	}
 
 	rows, err := db.QueryContext(ctx, internal.SelectCoinSupply, since)
@@ -3028,27 +3031,28 @@ func retrieveCoinSupply(ctx context.Context, db *sql.DB, timeArr []dbtypes.TimeD
 		}
 
 		sum += dcrutil.Amount(value).ToCoin()
-		timeArr = append(timeArr, dbtypes.NewTimeDef(timestamp))
 		sumArr = append(sumArr, sum)
+		timeArr = append(timeArr, dbtypes.NewTimeDef(timestamp))
 
 		// if preminedCoins and initial time wasn't set it.
 		if len(sumArr) == 2 && preminedCoins == 0 {
 			preminedCoins = sum
-			initialTime = timestamp.T
+			initialTime = timestamp
 		}
 
-		var timeDiff = float64(timestamp.T.Sub(initialTime))
+		var timeDiff = float64(timestamp.Sub(initialTime))
 		var estimatedBlockHeight = int(timeDiff / targerBlockTime)
 		if estimatedBlockHeight <= len(timeArr)-1 {
 			estimatedBlockHeight = len(timeArr) - 1
 		}
 
 		subsidyInterval := math.Floor(float64(estimatedBlockHeight) / subsidyReduction)
-		estimate += (reward * math.Pow(inflationRate, subsidyInterval))
+		if value > 0 {
+			estimate += (reward * math.Pow(inflationRate, subsidyInterval))
+		}
 
-		estimateArr = append(estimateArr, estimate)
+		estimateArr = append(estimateArr, estimate+preminedCoins)
 	}
-
 	return timeArr, sumArr, estimateArr, nil
 }
 

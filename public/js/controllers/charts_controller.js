@@ -8,10 +8,10 @@ import { getDefault } from '../helpers/module_helper'
 import axios from 'axios'
 import TurboQuery from '../helpers/turbolinks_helper'
 import globalEventBus from '../services/event_bus_service'
+import dompurify from 'dompurify'
 
 var selectedChart
 let Dygraph // lazy loaded on connect
-let minedCoins
 
 const blockTime = 5 * 60 * 1000
 const blockScales = ['tx-per-block', 'fee-per-block', 'duration-btw-blocks',
@@ -38,38 +38,71 @@ function usingWindowUnits () {
   return selectedChart === 'ticket-by-outputs-windows'
 }
 
+function intComma (amount) {
+  return amount.toLocaleString(undefined, { maximumFractionDigits: 0 })
+}
+
 function legendFormatter (data) {
+  var html = ''
   if (data.x == null) {
-    return `<div class="d-flex flex-wrap justify-content-center align-items-center">
+    html = `<div class="d-flex flex-wrap justify-content-center align-items-center">
             <div class="pr-3">${this.getLabels()[0]}: N/A</div>
             <div class="d-flex flex-wrap">
             ${map(data.series, (series) => {
     return `<div class="pr-2">${series.dashHTML} ${series.labelHTML}</div>`
   }).join('')}
             </div>
-        </div>
-        `
-  }
-
-  let xAxisAdditionalInfo
-  if (usingWindowUnits()) {
-    let start = data.x * 144
-    let end = start + 143
-    xAxisAdditionalInfo = ` (Blocks ${start} &mdash; ${end})`
+        </div>`
   } else {
-    xAxisAdditionalInfo = ''
+    let xAxisAdditionalInfo
+    if (usingWindowUnits()) {
+      let start = data.x * 144
+      let end = start + 143
+      xAxisAdditionalInfo = ` (Blocks ${start} &mdash; ${end})`
+    } else {
+      xAxisAdditionalInfo = ''
+    }
+
+    data.series.sort((a, b) => {
+      if (a.y > b.y) { return -1 }
+      if (a.y < b.y) { return 1 }
+      return 0
+    })
+
+    var percentChange = ''
+    if (data.series.length === 2 &&
+        (data.series[0].label.toLowerCase().includes('coin supply') ||
+        data.series[1].label.toLowerCase().includes('coin supply'))) {
+      let predicted, actual
+      data.series.map((s) => {
+        if (s.label.toLowerCase().includes('predicted')) {
+          predicted = s.y
+        } else if (s.label.toLowerCase().includes('actual')) {
+          actual = s.y
+        }
+      })
+
+      let change = 0
+      if (predicted > 0) {
+        change = (((actual - predicted) / predicted) * 100).toFixed(2)
+      }
+      percentChange = `<div class="pr-2">&nbsp;&nbsp;Change: ${change} %</div>`
+    }
+
+    html = `<div class="d-flex flex-wrap justify-content-center align-items-center">
+          <div class="pr-3">${this.getLabels()[0]}: ${data.xHTML}${xAxisAdditionalInfo}</div>
+          <div class="d-flex flex-wrap">
+          ${map(data.series, (series) => {
+    if (!series.isVisible) return
+    let yVal = series.label.toLowerCase().includes('coin supply') ? intComma(series.y) + ' DCR' : series.yHTML
+    return `<div class="pr-2">${series.dashHTML} ${series.labelHTML}: ${yVal}</div>`
+  }).join('') + percentChange}
+          </div>
+      </div>`
   }
 
-  return `<div class="d-flex flex-wrap justify-content-center align-items-center">
-        <div class="pr-3">${this.getLabels()[0]}: ${data.xHTML}${xAxisAdditionalInfo}</div>
-        <div class="d-flex flex-wrap">
-        ${map(data.series, (series) => {
-    if (!series.isVisible) return
-    return `<div class="pr-2">${series.dashHTML} ${series.labelHTML}: ${series.yHTML}</div>`
-  }).join('')}
-        </div>
-    </div>
-    `
+  dompurify.sanitize(html)
+  return html
 }
 
 function nightModeOptions (nightModeOn) {
@@ -101,7 +134,7 @@ function difficultyFunc (gData) {
 }
 
 function supplyFunc (gData) {
-  return map(gData.time, (n, i) => { return [new Date(n), gData.recieve[i], gData.valuef[i]] })
+  return map(gData.time, (n, i) => { return [new Date(n), gData.valuef[i], gData.received[i]] })
 }
 
 function timeBtwBlocksFunc (gData) {
@@ -326,7 +359,7 @@ export default class extends Controller {
 
       case 'coin-supply': // supply graph
         d = supplyFunc(data)
-        assign(gOptions, mapDygraphOptions(d, ['Date', 'Projected', 'Actual'], true, 'Coin Supply (DCR)', 'Date', undefined, true, false))
+        assign(gOptions, mapDygraphOptions(d, ['Date', 'Predicted Coin Supply', 'Actual Coin Supply'], true, 'Coin Supply (DCR)', 'Date', undefined, true, false))
         break
 
       case 'fee-per-block': // block fee graph
@@ -428,9 +461,11 @@ export default class extends Controller {
     } else {
       this.lastZoom = Zoom.project(this.settings.zoom, oldLimits, this.limits)
     }
-    this.chartsView.updateOptions({
-      dateWindow: [this.lastZoom.start, this.lastZoom.end]
-    })
+    if (this.lastZoom) {
+      this.chartsView.updateOptions({
+        dateWindow: [this.lastZoom.start, this.lastZoom.end]
+      })
+    }
     this.settings.zoom = Zoom.encode(this.lastZoom)
     this.query.replace(this.settings)
     await animationFrame()
