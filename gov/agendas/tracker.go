@@ -9,7 +9,6 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson/v2"
-	"github.com/decred/dcrd/wire"
 )
 
 const (
@@ -128,14 +127,30 @@ type VoteTracker struct {
 }
 
 // NewVoteTracker is a constructor for a VoteTracker.
-func NewVoteTracker(params *chaincfg.Params, node VoteDataSource, counter voteCounter) (*VoteTracker, error) {
+func NewVoteTracker(params *chaincfg.Params, node VoteDataSource, counter voteCounter,
+	activeVersions map[uint32][]chaincfg.ConsensusDeployment) (*VoteTracker, error) {
+	var latestStakeVersion uint32
+	var starttime uint64
+
+	// Consensus deployments that share a stake version as the key should also
+	// have matching starttime.
+	for stakeVersion, val := range activeVersions {
+		if latestStakeVersion == 0 {
+			latestStakeVersion = stakeVersion
+			starttime = val[0].StartTime
+		} else if val[0].StartTime >= starttime {
+			latestStakeVersion = stakeVersion
+			starttime = val[0].StartTime
+		}
+	}
+
 	tracker := &VoteTracker{
 		mtx:            sync.RWMutex{},
 		node:           node,
 		voteCounter:    counter,
 		countCache:     make(map[string]*voteCount),
 		params:         params,
-		version:        wire.ProtocolVersion,
+		version:        latestStakeVersion,
 		ringIndex:      -1,
 		blockRing:      make([]int32, params.BlockUpgradeNumToCheck),
 		minerThreshold: float32(params.BlockRejectNumRequired) / float32(params.BlockUpgradeNumToCheck),
@@ -204,6 +219,7 @@ func (tracker *VoteTracker) refreshRCI() (*dcrjson.GetVoteInfoResult, error) {
 	var err error
 	var voteInfo, vinfo *dcrjson.GetVoteInfoResult
 
+	// Retrieves the voteinfo for the last stake version supported.
 	for {
 		vinfo, err = tracker.node.GetVoteInfo(v)
 		if err != nil {
@@ -272,17 +288,17 @@ func (tracker *VoteTracker) refreshSVIs(voteInfo *dcrjson.GetVoteInfoResult) (*d
 }
 
 // The cached voteCount for the given agenda, or nil if not found.
-func (tracker *VoteTracker) cachedCounts(agendaId string) *voteCount {
+func (tracker *VoteTracker) cachedCounts(agendaID string) *voteCount {
 	tracker.mtx.RLock()
 	defer tracker.mtx.RUnlock()
-	return tracker.countCache[agendaId]
+	return tracker.countCache[agendaID]
 }
 
 // Cache the voteCount for the given agenda.
-func (tracker *VoteTracker) cacheVoteCounts(agendaId string, counts *voteCount) {
+func (tracker *VoteTracker) cacheVoteCounts(agendaID string, counts *voteCount) {
 	tracker.mtx.Lock()
 	defer tracker.mtx.Unlock()
-	tracker.countCache[agendaId] = counts
+	tracker.countCache[agendaID] = counts
 }
 
 // Once all resources have been retrieved from dcrd, update VoteTracker fields.
