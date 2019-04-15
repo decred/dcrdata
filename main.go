@@ -564,7 +564,8 @@ func _main(ctx context.Context) error {
 	}()
 
 	// A vote tracker tracks current block and stake versions and votes.
-	tracker, err := agendas.NewVoteTracker(activeChain, dcrdClient, auxDB.AgendaVoteCounts)
+	tracker, err := agendas.NewVoteTracker(activeChain, dcrdClient,
+		auxDB.AgendaVoteCounts, activeChain.Deployments)
 	if err != nil {
 		return fmt.Errorf("Unable to initialize vote tracker: %v", err)
 	}

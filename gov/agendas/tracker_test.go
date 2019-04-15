@@ -152,7 +152,8 @@ func counter(hash string) (uint32, uint32, uint32, error) {
 }
 
 func TestVoteTracker(t *testing.T) {
-	tracker, err := NewVoteTracker(&chaincfg.MainNetParams, dataSourceStub{}, counter)
+	data := map[uint32][]chaincfg.ConsensusDeployment{4: []chaincfg.ConsensusDeployment{{StartTime: 1493164800}}}
+	tracker, err := NewVoteTracker(&chaincfg.MainNetParams, dataSourceStub{}, counter, data)
 	if err != nil {
 		t.Errorf("NewVoteTracker error: %v", err)
 	}
