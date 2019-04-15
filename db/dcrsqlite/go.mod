@@ -2,6 +2,8 @@ module github.com/decred/dcrdata/db/dcrsqlite
 
 go 1.12
 
+replace github.com/decred/dcrdata/stakedb => ../../stakedb
+
 require (
 	github.com/Sereal/Sereal v0.0.0-20190226181601-237c2cca198f // indirect
 	github.com/decred/dcrd/blockchain/stake v1.1.0

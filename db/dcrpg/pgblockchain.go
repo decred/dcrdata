@@ -1893,7 +1893,6 @@ func (pgb *ChainDBRPC) AddressData(address string, limitN, offsetAddrOuts int64,
 		addrData.Limit = limitN
 		addrData.TxnType = txnType.String()
 		addrData.Address = address
-		addrData.Fullmode = true
 	}
 
 	if err == sql.ErrNoRows || (err == nil && len(addrHist) == 0) {
@@ -1921,7 +1920,8 @@ func (pgb *ChainDBRPC) AddressData(address string, limitN, offsetAddrOuts int64,
 			}
 			addrData = new(dbtypes.AddressInfo)
 		}
-		// Balances and txn counts (partial unless in full mode)
+
+		// Balances and txn counts
 		populateTemplate()
 		addrData.Balance = balance
 		addrData.KnownTransactions = (balance.NumSpent * 2) + balance.NumUnspent
@@ -3930,7 +3930,6 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses(barLoad chan *dbtypes.Progr
 		}
 
 		if barLoad != nil {
-			// Full mode is definitely running so no need to check.
 			timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endChunk-i))
 			barLoad <- &dbtypes.ProgressBarLoad{
 				From:      int64(i),

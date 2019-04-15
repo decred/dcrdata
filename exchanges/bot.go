@@ -803,6 +803,9 @@ func (c *Conversion) TwoDecimals() string {
 // Conversion attempts to multiply the supplied float with the default index.
 // Nil pointer will be returned if there is no valid exchangeState.
 func (bot *ExchangeBot) Conversion(dcrVal float64) *Conversion {
+	if bot == nil {
+		return nil
+	}
 	xcState := bot.State()
 	if xcState != nil {
 		return &Conversion{

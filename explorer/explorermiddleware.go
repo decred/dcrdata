@@ -35,11 +35,7 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 		if err != nil {
 			// Not a height, try it as a hash.
 			hash = chi.URLParam(r, "blockhash")
-			if exp.liteMode {
-				height, err = exp.blockData.GetBlockHeight(hash)
-			} else {
-				height, err = exp.explorerSource.BlockHeight(hash)
-			}
+			height, err = exp.explorerSource.BlockHeight(hash)
 			if exp.timeoutErrorPage(w, err, "BlockHashPathOrIndexCtx>BlockHeight") {
 				return
 			}
@@ -52,19 +48,7 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 			}
 		} else {
 			// Check best DB block to recognize future blocks.
-			var maxHeight int64
-			if exp.liteMode {
-				maxHeight, err = exp.blockData.GetHeight()
-				if err != nil {
-					log.Errorf("GetHeight() failed: %v", err)
-					exp.StatusPage(w, defaultErrorCode,
-						"an unexpected error had occurred while retrieving the best block",
-						"", ExpStatusNotFound)
-					return
-				}
-			} else {
-				maxHeight = exp.explorerSource.Height()
-			}
+			maxHeight := exp.explorerSource.Height()
 
 			if height > maxHeight {
 				expectedTime := time.Duration(height-maxHeight) * exp.ChainParams.TargetTimePerBlock
@@ -76,13 +60,9 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 
 			hash, err = exp.blockData.GetBlockHash(height)
 			if err != nil {
-				f := "GetBlockHash"
-				if !exp.liteMode {
-					hash, err = exp.explorerSource.BlockHash(height)
-					f = "BlockHash"
-				}
+				hash, err = exp.explorerSource.BlockHash(height)
 				if err != nil {
-					log.Errorf("%s(%d) failed: %v", f, height, err)
+					log.Errorf("(*ChainDB).BlockHash(%d) failed: %v", height, err)
 					exp.StatusPage(w, defaultErrorCode, "could not find that block",
 						string(height), ExpStatusNotFound)
 					return
