@@ -439,6 +439,74 @@ const (
 		INNER JOIN votes ON agenda_votes.votes_row_id = votes.id
 		WHERE agenda_votes.agendas_row_id = (SELECT id from agendas WHERE name = $4)
 		AND votes.height >= $5 AND votes.height <= $6 `
+
+	// Proposals Table
+
+	CreateProposalsTable = `CREATE TABLE IF NOT EXISTS proposals (
+		id SERIAL PRIMARY KEY,
+		token TEXT NOT NULL,
+		author TEXT,
+		commit_sha TEXT NOT NULL,
+		time TIMESTAMPTZ
+	);`
+
+	// Insert
+
+	insertProposalsRow = `INSERT INTO proposals (token, author, commit_sha, time)
+		VALUES ($1, $2, $3, $4) `
+
+	InsertProposalsRow = insertProposalsRow + `RETURNING id;`
+
+	UpsertProposalsRow = insertProposalsRow + `ON CONFLICT (token, time)
+		DO UPDATE SET commit_sha = $3, time = $4  RETURNING id;`
+
+	// Index
+
+	IndexProposalsTableOnToken = `CREATE UNIQUE INDEX ` + IndexOfProposalsTableOnToken +
+		` ON proposals(token, time);`
+
+	DeindexProposalsTableOnToken = `DROP INDEX ` + IndexOfProposalsTableOnToken + `;`
+
+	// Select
+
+	SelectProposalsLastCommitTime = `Select time
+		FROM proposals
+		ORDER BY time DESC
+		LIMIT 1;`
+
+	// Proposal Votes table
+
+	CreateProposalVotesTable = `CREATE TABLE IF NOT EXISTS proposal_votes (
+		id SERIAL PRIMARY KEY,
+		proposals_row_id INT8,
+		ticket TEXT NOT NULL,
+		choice TEXT NOT NULL
+	);`
+
+	// Insert
+
+	insertProposalVotesRow = `INSERT INTO proposal_votes (proposals_row_id, ticket, choice)
+		VALUES ($1, $2, $3) `
+
+	InsertProposalVotesRow = insertProposalVotesRow + `RETURNING id;`
+
+	// Index
+
+	IndexProposalVotesTableOnProposalsID = `CREATE INDEX ` + IndexOfProposalVotesTableOnProposalsID +
+		` ON proposal_votes(proposals_row_id);`
+
+	DeindexProposalVotesTableOnProposalsID = `DROP INDEX ` + IndexOfProposalVotesTableOnProposalsID + `;`
+
+	// Select
+
+	SelectProposalVotesChartData = `SELECT proposals.time,
+		COUNT(CASE WHEN proposal_votes.choice = 'No' THEN 1 ElSE NULL END) as no,
+		COUNT(CASE WHEN proposal_votes.choice = 'Yes' THEN 1 ElSE NULL END) as yes
+		FROM proposal_votes
+		INNER JOIN proposals on proposals.id = proposal_votes.proposals_row_id
+		WHERE proposals.token = $1
+		GROUP BY proposals.time
+		ORDER BY proposals.time;`
 )
 
 // MakeTicketInsertStatement returns the appropriate tickets insert statement
@@ -504,6 +572,16 @@ func MakeAgendaVotesInsertStatement(checked bool) string {
 		return UpsertAgendaVotesRow
 	}
 	return InsertAgendaVotesRow
+}
+
+// MakeProposalsInsertStatement returns the appropriate proposals insert statement for
+// the desired conflict checking and handling behavior. See the description of
+// MakeTicketInsertStatement for details.
+func MakeProposalsInsertStatement(checked bool) string {
+	if checked {
+		return UpsertProposalsRow
+	}
+	return InsertProposalsRow
 }
 
 // MakeSelectTicketsByPurchaseDate returns the selectTicketsByPurchaseDate query

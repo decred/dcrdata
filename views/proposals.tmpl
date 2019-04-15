@@ -52,15 +52,14 @@
                                 data-action="change->pagenavigation#setPageSize"
                                 data-offset="{{$.Offset}}"
                                 data-offsetkey="offset"
-                                class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $pending 10}}disabled{{end}}"
-                                {{if lt $pending 10}}disabled="disabled"{{end}}
+                                class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $pending 20}}disabled{{end}}"
+                                {{if lt $pending 20}}disabled="disabled"{{end}}
                             >
-                            {{if ge $pending 10}}<option {{if eq $count 10}}selected{{end}} value="10">10</option>{{end}}
                             {{if ge $pending 20}}<option {{if eq $count 20}}selected{{end}} value="20">20</option>{{end}}
                             {{if ge $pending 30}}<option {{if eq $count 30}}selected{{end}} value="30">30</option>{{end}}
                             {{if ge $pending 50}}<option {{if eq $count 50}}selected{{end}} value="50">50</option>{{end}}
-                            {{if eq $.TotalCount $count 10 20 30 50}}{{else}}<option value="{{$.TotalCount}}">{{$.TotalCount}}</option>{{end}}
-                            {{if eq $count 10 20 30 50}}{{else}}<option selected value="{{$count}}">{{$count}}</option>{{end}}
+                            {{if eq $.TotalCount $count 20 30 50}}{{else}}<option value="{{$.TotalCount}}">{{$.TotalCount}}</option>{{end}}
+                            {{if eq $count 20 30 50}}{{else}}<option selected value="{{$count}}">{{$count}}</option>{{end}}
                             </select>
                         </span>
                         <span class="fs12 nowrap text-right">
@@ -109,13 +108,11 @@
                         <th class="text-left">Author</th>
                         <th class="text-left">Proposal Status</th>
                         <th class="text-left">Vote Status</th>
-                        <th class="text-right">Published</th>
+                        <th class="text-right">Age</th>
                         <th class="text-right">Updated</th>
-                        <th class="text-right">Version</th>
-                        <th class="text-right">Comments</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody data-controller="time">
                 {{range $i, $v := .Proposals}}
                 {{with $v}}
                     <tr>
@@ -127,17 +124,15 @@
                         <td class="text-left">
                             {{if .VoteStatus}}{{with .VoteStatus}}{{.ShortDesc}}{{end}}{{else}}N/A{{end}}
                         </td>
-                        <td class="text-right">{{timeWithoutDateAndTimeZone .PublishedDate}}</td>
+                        <td class="text-right" data-target="time.age" data-age="{{.Timestamp}}"></td>
                         <td class="text-right">{{timeWithoutDateAndTimeZone .Timestamp}}</td>
-                        <td class="text-right">v{{.Version}}</td>
-                        <td class="text-right">{{.NumComments}}</td>
                     </tr>
                 {{end}}
                 {{end}}
                 </tbody>
             </table>
 
-            {{if gt .Limit 10}}
+            {{if gt .Limit 20}}
                 {{template "proposalsPagination" .}}
             {{end}}
             {{end}}

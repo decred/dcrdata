@@ -1266,6 +1266,13 @@ type ChartsData struct {
 	NetHash     []uint64  `json:"nethash,omitempty"`
 }
 
+// ProposalChartsData defines the data used to plot proposal votes charts.
+type ProposalChartsData struct {
+	Yes  []uint64  `json:"yes,omitempty"`
+	No   []uint64  `json:"no,omitempty"`
+	Time []TimeDef `json:"time,omitempty"`
+}
+
 // ScriptPubKeyData is part of the result of decodescript(ScriptPubKeyHex)
 type ScriptPubKeyData struct {
 	ReqSigs   uint32   `json:"reqSigs"`

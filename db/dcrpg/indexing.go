@@ -300,6 +300,30 @@ func DeindexAgendaVotesTableOnAgendaID(db *sql.DB) (err error) {
 	return
 }
 
+// proposals table indexes
+
+func IndexProposalsTableOnToken(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexProposalsTableOnToken)
+	return
+}
+
+func DeindexProposalsTableOnToken(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexProposalsTableOnToken)
+	return
+}
+
+// proposal votes table indexes
+
+func IndexProposalVotesTableOnProposalsID(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexProposalVotesTableOnProposalsID)
+	return
+}
+
+func DeindexProposalVotesTableOnProposalsID(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexProposalVotesTableOnProposalsID)
+	return
+}
+
 // Delete duplicates
 
 func (pgb *ChainDB) DeleteDuplicateVins() (int64, error) {
@@ -417,8 +441,14 @@ func (pgb *ChainDB) DeindexAll() error {
 		// agendas table
 		{DeindexAgendasTableOnAgendaID},
 
-		// agenda votes
+		// agenda votes table
 		{DeindexAgendaVotesTableOnAgendaID},
+
+		// proposals table
+		{DeindexProposalsTableOnToken},
+
+		// proposal votes table
+		{DeindexProposalVotesTableOnProposalsID},
 	}
 
 	var err error
@@ -480,7 +510,11 @@ func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 		{Msg: "addresses table on matching tx hash", IndexFunc: IndexMatchingTxHashOnTableAddress},
 		{Msg: "addresses table on block time", IndexFunc: IndexBlockTimeOnTableAddress},
 
-		// See IndexTicketsTable to create the tickets table indexes.
+		// proposals table
+		{Msg: "proposals table on Token+Time", IndexFunc: IndexProposalsTableOnToken},
+
+		// Proposals votes table
+		{Msg: "Proposals votes table on Proposals ID", IndexFunc: IndexProposalVotesTableOnProposalsID},
 	}
 
 	for _, val := range allIndexes {

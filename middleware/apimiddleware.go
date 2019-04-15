@@ -51,6 +51,7 @@ const (
 	ctxChartGrouping
 	ctxTp
 	ctxAgendaId
+	ctxProposalToken
 	ctxXcToken
 	ctxStickWidth
 )
@@ -143,6 +144,17 @@ func GetTpCtx(r *http.Request) string {
 	tp, ok := r.Context().Value(ctxTp).(string)
 	if !ok {
 		apiLog.Trace("ticket pool interval not set")
+		return ""
+	}
+	return tp
+}
+
+// GetProposalTokenCtx retrieves the ctxProposalToken data from the request context.
+// If the value is not set, an empty string is returned.
+func GetProposalTokenCtx(r *http.Request) string {
+	tp, ok := r.Context().Value(ctxProposalToken).(string)
+	if !ok {
+		apiLog.Trace("proposal token hash not set")
 		return ""
 	}
 	return tp
@@ -535,6 +547,16 @@ func TicketPoolCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tp := chi.URLParam(r, "tp")
 		ctx := context.WithValue(r.Context(), ctxTp, tp)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// ProposalTokenCtx returns a http.HandlerFunc that embeds the value at the url
+// part {token} into the request context
+func ProposalTokenCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		token := chi.URLParam(r, "token")
+		ctx := context.WithValue(r.Context(), ctxProposalToken, token)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

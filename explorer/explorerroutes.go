@@ -1837,14 +1837,32 @@ func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Proposals whose voting hasn't commenced do not have an end height assigned yet.
+	// Ignore the error returned since the endheight variable will be a zero value.
+	endHeight, _ := strconv.ParseInt(proposalInfo.ProposalVotes.Endheight, 10, 64)
+
+	var timeLeft string
+
+	if blocksLeft := endHeight - exp.Height(); blocksLeft > 0 {
+		// 1 block is estimated to take approx. 5 minutes on mainnet to mine.
+		var minPerblock = exp.ChainParams.TargetTimePerBlock
+
+		hoursLeft := int((time.Duration(blocksLeft) * minPerblock).Hours())
+		if hoursLeft > 0 {
+			timeLeft = fmt.Sprintf("%v days %v hours", hoursLeft/24, hoursLeft%24)
+		}
+	}
+
 	str, err := exp.templates.execTemplateToString("proposal", struct {
 		*CommonPageData
-		Data        *pitypes.ProposalInfo
-		PoliteiaURL string
+		Data          *pitypes.ProposalInfo
+		PoliteiaURL   string
+		TimeRemaining string
 	}{
 		CommonPageData: exp.commonData(r),
 		Data:           proposalInfo,
 		PoliteiaURL:    exp.politeiaAPIURL,
+		TimeRemaining:  timeLeft,
 	})
 
 	if err != nil {
@@ -1862,8 +1880,8 @@ func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 	rowsCount, err := strconv.ParseUint(r.URL.Query().Get("rows"), 10, 64)
 	if err != nil || rowsCount == 0 {
-		// Number of rows displayed to the by default should be 10.
-		rowsCount = 10
+		// Number of rows displayed to the by default should be 20.
+		rowsCount = 20
 	}
 
 	// Ignore the error if it ever happens.

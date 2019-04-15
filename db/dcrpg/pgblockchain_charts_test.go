@@ -9,16 +9,32 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrdata/db/dbtypes"
 	tc "github.com/decred/dcrdata/v4/testutil/dbload/testsconfig"
+	pitypes "github.com/dmigwi/go-piparser/proposals/types"
 )
 
 var (
 	db           *ChainDB
 	addrCacheCap int = 1e4
 )
+
+type parserInstance struct{}
+
+func (p *parserInstance) UpdateSignal() <-chan struct{} {
+	return make(chan struct{})
+}
+
+func (p *parserInstance) ProposalsHistory() ([]*pitypes.History, error) {
+	return []*pitypes.History{}, nil
+}
+
+func (p *parserInstance) ProposalsHistorySince(since time.Time) ([]*pitypes.History, error) {
+	return []*pitypes.History{}, nil
+}
 
 func openDB() (func() error, error) {
 	dbi := DBInfo{
@@ -29,7 +45,8 @@ func openDB() (func() error, error) {
 		DBName: tc.PGChartsTestsDBName,
 	}
 	var err error
-	db, err = NewChainDB(&dbi, &chaincfg.MainNetParams, nil, true, true, addrCacheCap)
+	db, err = NewChainDB(&dbi, &chaincfg.MainNetParams, nil, true, true, addrCacheCap,
+		nil, new(parserInstance))
 	cleanUp := func() error { return nil }
 	if db != nil {
 		cleanUp = db.Close

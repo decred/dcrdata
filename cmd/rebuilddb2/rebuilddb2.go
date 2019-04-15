@@ -22,6 +22,7 @@ import (
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/stakedb"
 	"github.com/decred/slog"
+	"github.com/dmigwi/go-piparser/proposals"
 )
 
 var (
@@ -122,9 +123,19 @@ func mainCore() error {
 		Pass:   cfg.DBPass,
 		DBName: cfg.DBName,
 	}
+
+	log.Infof("Setting up the Politeia's proposals clone repository. Please wait...")
+
+	// repoName and repoOwner are set to empty string so that the defaults can be used.
+	parser, err := proposals.NewParser("", "", cfg.LogDir)
+	if err != nil {
+		return err
+	}
+
 	// Construct a ChainDB without a stakeDB to allow quick dropping of tables.
 	mpChecker := rpcutils.NewMempoolAddressChecker(client, activeChain)
-	db, err := dcrpg.NewChainDB(&dbi, activeChain, nil, false, cfg.HidePGConfig, 0, mpChecker)
+	db, err := dcrpg.NewChainDB(&dbi, activeChain, nil, false, cfg.HidePGConfig, 0,
+		mpChecker, parser)
 	if db != nil {
 		defer db.Close()
 	}

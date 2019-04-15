@@ -23,6 +23,7 @@ require (
 	github.com/decred/dcrdata/stakedb v1.0.1
 	github.com/decred/dcrdata/txhelpers v1.0.1
 	github.com/decred/slog v1.0.0
+	github.com/dmigwi/go-piparser/proposals v0.0.0-20190411222856-0732954b2d46
 	github.com/dustin/go-humanize v1.0.0
 	github.com/golang/protobuf v1.3.1 // indirect
 	github.com/golang/snappy v0.0.1 // indirect

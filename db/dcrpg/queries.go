@@ -1779,14 +1779,14 @@ func retrieveTxHistoryByType(ctx context.Context, db *sql.DB, addr, timeInterval
 
 	items := new(dbtypes.ChartsData)
 	for rows.Next() {
-		var blockTime dbtypes.TimeDef
+		var blockTime time.Time
 		var sentRtx, receivedRtx, tickets, votes, revokeTx uint64
 		err = rows.Scan(&blockTime, &sentRtx, &receivedRtx, &tickets, &votes, &revokeTx)
 		if err != nil {
 			return nil, err
 		}
 
-		items.Time = append(items.Time, blockTime)
+		items.Time = append(items.Time, dbtypes.NewTimeDef(blockTime))
 		items.SentRtx = append(items.SentRtx, sentRtx)
 		items.ReceivedRtx = append(items.ReceivedRtx, receivedRtx)
 		items.Tickets = append(items.Tickets, tickets)
@@ -1811,14 +1811,14 @@ func retrieveTxHistoryByAmountFlow(ctx context.Context, db *sql.DB, addr, timeIn
 	defer closeRows(rows)
 
 	for rows.Next() {
-		var blockTime dbtypes.TimeDef
+		var blockTime time.Time
 		var received, sent uint64
 		err = rows.Scan(&blockTime, &received, &sent)
 		if err != nil {
 			return nil, err
 		}
 
-		items.Time = append(items.Time, blockTime)
+		items.Time = append(items.Time, dbtypes.NewTimeDef(blockTime))
 		items.Received = append(items.Received, dcrutil.Amount(received).ToCoin())
 		items.Sent = append(items.Sent, dcrutil.Amount(sent).ToCoin())
 		// Net represents the difference between the received and sent amount for a
@@ -2589,7 +2589,7 @@ func retrieveAgendaVoteChoices(ctx context.Context, db *sql.DB, agendaID string,
 	var a, y, n, t uint64
 	totalVotes := new(dbtypes.AgendaVoteChoices)
 	for rows.Next() {
-		var blockTime dbtypes.TimeDef
+		var blockTime time.Time
 		var abstain, yes, no, total, height uint64
 		if byType == 0 {
 			err = rows.Scan(&blockTime, &yes, &abstain, &no, &total)
@@ -2606,7 +2606,7 @@ func retrieveAgendaVoteChoices(ctx context.Context, db *sql.DB, agendaID string,
 			y += yes
 			n += no
 			t += total
-			totalVotes.Time = append(totalVotes.Time, blockTime)
+			totalVotes.Time = append(totalVotes.Time, dbtypes.NewTimeDef(blockTime))
 		} else {
 			a = abstain
 			y = yes
@@ -2881,7 +2881,7 @@ func RetrieveTxBlockTimeByHash(ctx context.Context, db *sql.DB, txHash string) (
 	return
 }
 
-// RetrieveTxsByBlockHash retrieves all transactoins in a given block. This is
+// RetrieveTxsByBlockHash retrieves all transactions in a given block. This is
 // used by update functions, so care should be taken to not timeout in these
 // cases.
 func RetrieveTxsByBlockHash(ctx context.Context, db *sql.DB, blockHash string) (ids []uint64, txs []string,
@@ -2964,7 +2964,7 @@ func retrieveTicketsPriceByHeight(ctx context.Context, db *sql.DB, interval int6
 	defer closeRows(rows)
 
 	for rows.Next() {
-		var timestamp dbtypes.TimeDef
+		var timestamp time.Time
 		var price uint64
 		var difficulty float64
 		if err = rows.Scan(&price, &timestamp, &difficulty); err != nil {
@@ -2972,7 +2972,7 @@ func retrieveTicketsPriceByHeight(ctx context.Context, db *sql.DB, interval int6
 		}
 
 		powArr = append(powArr, difficulty)
-		timeArr = append(timeArr, timestamp)
+		timeArr = append(timeArr, dbtypes.NewTimeDef(timestamp))
 		priceArr = append(priceArr, dcrutil.Amount(price).ToCoin())
 	}
 
@@ -2999,7 +2999,7 @@ func retrieveCoinSupply(ctx context.Context, db *sql.DB, timeArr []dbtypes.TimeD
 
 	for rows.Next() {
 		var value int64
-		var timestamp dbtypes.TimeDef
+		var timestamp time.Time
 		if err = rows.Scan(&timestamp, &value); err != nil {
 			return timeArr, sumArr, err
 		}
@@ -3009,7 +3009,7 @@ func retrieveCoinSupply(ctx context.Context, db *sql.DB, timeArr []dbtypes.TimeD
 		}
 
 		sum += dcrutil.Amount(value).ToCoin()
-		timeArr = append(timeArr, timestamp)
+		timeArr = append(timeArr, dbtypes.NewTimeDef(timestamp))
 		sumArr = append(sumArr, sum)
 	}
 
@@ -3114,14 +3114,14 @@ func retrieveBlockByTime(ctx context.Context, db *sql.DB, timeArr []dbtypes.Time
 	defer closeRows(rows)
 
 	for rows.Next() {
-		var timestamp dbtypes.TimeDef
+		var timestamp time.Time
 		var blockSize uint64
 		if err = rows.Scan(&timestamp, &blockSize); err != nil {
 			return timeArr, chainSizeArr, avgSizeArr, err
 		}
 
 		chainsize += blockSize
-		timeArr = append(timeArr, timestamp)
+		timeArr = append(timeArr, dbtypes.NewTimeDef(timestamp))
 		avgSizeArr = append(avgSizeArr, blockSize)
 		chainSizeArr = append(chainSizeArr, chainsize)
 	}
@@ -3150,13 +3150,13 @@ func retrieveTxPerDay(ctx context.Context, db *sql.DB, timeArr []dbtypes.TimeDef
 	defer closeRows(rows)
 
 	for rows.Next() {
-		var blockTime dbtypes.TimeDef
+		var blockTime time.Time
 		var count uint64
 		if err = rows.Scan(&blockTime, &count); err != nil {
 			return timeArr, txCountArr, err
 		}
 
-		timeArr = append(timeArr, blockTime)
+		timeArr = append(timeArr, dbtypes.NewTimeDef(blockTime))
 		txCountArr = append(txCountArr, count)
 	}
 	return timeArr, txCountArr, nil
@@ -3323,6 +3323,60 @@ func retrieveChainWork(ctx context.Context, db *sql.DB, data [2]*dbtypes.ChartsD
 	data[1] = hashrates
 
 	return data, nil
+}
+
+// --- Proposals and Proposal_votes tables ---
+
+// InsertProposal adds the proposal details per commit to the proposal table.
+func InsertProposal(db *sql.DB, tokenHash, author, commit string,
+	timestamp time.Time, checked bool) (uint64, error) {
+	insertStatement := internal.MakeProposalsInsertStatement(checked)
+	var id uint64
+	err := db.QueryRow(insertStatement, tokenHash, author, commit, timestamp).Scan(&id)
+	return id, err
+}
+
+// InsertProposalVote add the proposal votes entries to the proposal_votes table.
+func InsertProposalVote(db *sql.DB, proposalRowID uint64, ticket, choice string,
+	checked bool) (uint64, error) {
+	var id uint64
+	err := db.QueryRow(internal.InsertProposalVotesRow, proposalRowID, ticket, choice).Scan(&id)
+	return id, err
+}
+
+// retrieveLastCommitTime returns the last commit timestamp whole proposal votes
+// data was fetched and updated in both proposals and proposal_votes table.
+func retrieveLastCommitTime(db *sql.DB) (timestamp time.Time, err error) {
+	err = db.QueryRow(internal.SelectProposalsLastCommitTime).Scan(&timestamp)
+	return
+}
+
+// retrieveProposalVotesData returns the votes datat associated with the
+// provided proposal token.
+func retrieveProposalVotesData(ctx context.Context, db *sql.DB,
+	proposalToken string) (*dbtypes.ProposalChartsData, error) {
+	rows, err := db.QueryContext(ctx, internal.SelectProposalVotesChartData, proposalToken)
+	if err != nil {
+		return nil, err
+	}
+
+	defer closeRows(rows)
+
+	data := new(dbtypes.ProposalChartsData)
+	for rows.Next() {
+		var yes, no uint64
+		var timestamp time.Time
+
+		if err = rows.Scan(&timestamp, &no, &yes); err != nil {
+			return nil, err
+		}
+
+		data.No = append(data.No, no)
+		data.Yes = append(data.Yes, yes)
+		data.Time = append(data.Time, dbtypes.NewTimeDef(timestamp))
+	}
+
+	return data, err
 }
 
 // --- blocks and block_chain tables ---

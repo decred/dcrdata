@@ -1,6 +1,6 @@
 .dygraph-legend {
   position: absolute;
-  font-size: 14px;
+  font-size: 13px;
   z-index: 10;
   background: white;
   line-height: normal;
@@ -11,6 +11,7 @@
   border-radius: 5px;
   font-weight: bold;
   width: fit-content !important;
+  height: fit-content !important;
 }
 
 .dygraph-rangesel-bgcanvas {
@@ -573,4 +574,19 @@ body.darkBG {
   .market-chart-title {
     background-color: #333a;
   }
+}
+
+.proposal-chart-legend {
+  left: 85%;
+}
+
+.proposal-chart-align {
+  height: 20vh !important;
+  margin: 0 auto 0 auto;
+  width: 70%;
+}
+
+.proposal-charts-align {
+  margin: auto;
+  height: inherit;
 }
