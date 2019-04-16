@@ -16,7 +16,7 @@ import (
 	"github.com/asdine/storm/q"
 	"github.com/decred/dcrdata/gov/politeia/piclient"
 	pitypes "github.com/decred/dcrdata/gov/politeia/types"
-	piapi "github.com/decred/politeia/politeiawww/api/v1"
+	piapi "github.com/decred/politeia/politeiawww/api/www/v1"
 )
 
 // errDef defines the default error returned if the proposals db was not

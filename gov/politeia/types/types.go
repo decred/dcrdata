@@ -3,7 +3,7 @@
 
 package types
 
-import piapi "github.com/decred/politeia/politeiawww/api/v1"
+import piapi "github.com/decred/politeia/politeiawww/api/www/v1"
 
 // ProposalInfo holds the proposal details as document here
 // https://github.com/decred/politeia/blob/master/politeiawww/api/v1/api.md#proposal.
