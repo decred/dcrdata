@@ -20,6 +20,7 @@ require (
 	github.com/decred/dcrdata/rpcutils v1.0.2-0.20190416163815-b92d2b40c258
 	github.com/decred/dcrdata/semver v1.0.0
 	github.com/decred/dcrdata/stakedb v1.0.1
+	github.com/decred/dcrdata/testutil/dbconfig v1.0.0
 	github.com/decred/dcrdata/txhelpers v1.0.2-0.20190416163815-b92d2b40c258
 	github.com/decred/slog v1.0.0
 	github.com/dmigwi/go-piparser/proposals v0.0.0-20190415205832-3992790812af
