@@ -12,7 +12,7 @@ import (
 	"regexp"
 
 	pitypes "github.com/decred/dcrdata/gov/politeia/types"
-	piapi "github.com/decred/politeia/politeiawww/api/v1"
+	piapi "github.com/decred/politeia/politeiawww/api/www/v1"
 )
 
 // HandleGetRequests accepts a http client and API URL path as arguments. If the
