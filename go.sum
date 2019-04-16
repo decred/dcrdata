@@ -138,9 +138,12 @@ github.com/decred/dcrdata/api/types v1.0.7-0.20190416161849-2b481f245b77 h1:eURr
 github.com/decred/dcrdata/api/types v1.0.7-0.20190416161849-2b481f245b77/go.mod h1:9GtTpFxeQTPsGcn6jXyBg5oZW1azUdzSDwkrd37XGPo=
 github.com/decred/dcrdata/api/types v1.0.7-0.20190416163815-b92d2b40c258 h1:YmlspeMtNM2BE/KDbEF82To93RSagGshNfBQ+u/ZUzo=
 github.com/decred/dcrdata/api/types v1.0.7-0.20190416163815-b92d2b40c258/go.mod h1:9GtTpFxeQTPsGcn6jXyBg5oZW1azUdzSDwkrd37XGPo=
+github.com/decred/dcrdata/api/types v1.0.7-0.20190416202529-23d1eb95ca1b h1:iDflthE2JQhzckqjtNls4U9eEnRB9SQf9h4UtlpRq6I=
+github.com/decred/dcrdata/api/types v1.0.7-0.20190416202529-23d1eb95ca1b/go.mod h1:SoKatDkG+xdL5T7lKyKaO2c7JgvKVikZiBZDCJBbS6g=
 github.com/decred/dcrdata/db/cache v1.0.1 h1:sqE2RXy6jNhhWdRHASJZyHsaipYRpDlGxEHN8OtLe6U=
 github.com/decred/dcrdata/db/cache v1.0.1/go.mod h1:WPkmV72Cal2OOjt4bG35XrjzSqspxMqvWAGpwUUw1B4=
 github.com/decred/dcrdata/db/dbtypes v1.0.1/go.mod h1:d9qVcMl+l5rOEY7zJB5nqQ0WDEHof9vWlW/9hpK0xpc=
+github.com/decred/dcrdata/db/dbtypes v1.0.2-0.20190416155607-25afe5d5e790/go.mod h1:yPNF/Tsj3pLBxofu2Pr70hqejMYpCZHvcudkexvq0hQ=
 github.com/decred/dcrdata/db/dbtypes v1.0.2-0.20190416161849-2b481f245b77 h1:PxR/ImnTxhwLufu/MAjFQuC8VftZMcEY4yXiT8aWGr8=
 github.com/decred/dcrdata/db/dbtypes v1.0.2-0.20190416161849-2b481f245b77/go.mod h1:yPNF/Tsj3pLBxofu2Pr70hqejMYpCZHvcudkexvq0hQ=
 github.com/decred/dcrdata/db/dbtypes v1.0.2-0.20190416163815-b92d2b40c258 h1:hAxkVngxN0rQhlxDziDLCVNu8Inw5P4ig57MjMy6T0k=
