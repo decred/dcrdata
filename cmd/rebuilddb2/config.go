@@ -14,7 +14,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrdata/v4/netparams"
+	"github.com/decred/dcrdata/v5/netparams"
 	flags "github.com/jessevdk/go-flags"
 )
 

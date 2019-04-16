@@ -16,7 +16,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/txhelpers"
-	"github.com/decred/dcrdata/v4/api/insight"
+	"github.com/decred/dcrdata/v5/api/insight"
 	"github.com/decred/dcrwallet/wallet/udb"
 )
 
