@@ -5,6 +5,7 @@ go 1.12
 replace github.com/decred/dcrdata/stakedb => ../../stakedb
 
 require (
+	github.com/boltdb/bolt v1.3.1 // indirect
 	github.com/decred/dcrd/blockchain/stake v1.1.0
 	github.com/decred/dcrd/chaincfg v1.4.0
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.1
