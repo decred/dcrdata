@@ -28,7 +28,7 @@ require (
 	github.com/decred/dcrdata/rpcutils v1.0.2-0.20190416204615-70a58657e02f
 	github.com/decred/dcrdata/semver v1.0.0
 	github.com/decred/dcrdata/stakedb v1.0.1
-	github.com/decred/dcrdata/txhelpers v1.0.2-0.20190416163815-b92d2b40c258
+	github.com/decred/dcrdata/txhelpers v1.0.2-0.20190416204615-70a58657e02f
 	github.com/decred/dcrwallet/wallet v1.2.0
 	github.com/decred/slog v1.0.0
 	github.com/dgryski/go-farm v0.0.0-20190416075124-e1214b5e05dc // indirect

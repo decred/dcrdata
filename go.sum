@@ -192,6 +192,7 @@ github.com/decred/dcrdata/rpcutils v1.0.2-0.20190416204615-70a58657e02f h1:nXVy/
 github.com/decred/dcrdata/rpcutils v1.0.2-0.20190416204615-70a58657e02f/go.mod h1:C3AHmGnowefElk25N32tQKwBuJ2tP6zyJIlsnsDLNiM=
 github.com/decred/dcrdata/semver v1.0.0 h1:DBqYU/x+4LqHq/3r4xKdF6xG5ewktG2KDC+g/p3f8mc=
 github.com/decred/dcrdata/semver v1.0.0/go.mod h1:z+nQqiAd9fYkHhBLbejysZ2FPHtgkrErWDgMf+JlZWE=
+github.com/decred/dcrdata/testutil/dbconfig v1.0.0/go.mod h1:ULWGbJMk5n/KvPe3/frMWM8BPhU0uLiKKhSYkYb9stE=
 github.com/decred/dcrdata/txhelpers v1.0.1/go.mod h1:oZOlm7v82oD5SIy1wlOBG0OT92CMfmKg05wk+2qaSaM=
 github.com/decred/dcrdata/txhelpers v1.0.2-0.20190415153927-351272ba94ab/go.mod h1:IyxuqUxIPrHnOmRy9DCl90oqw7FxYHde/fkIkF21B7w=
 github.com/decred/dcrdata/txhelpers v1.0.2-0.20190416155607-25afe5d5e790/go.mod h1:IyxuqUxIPrHnOmRy9DCl90oqw7FxYHde/fkIkF21B7w=
@@ -199,6 +200,8 @@ github.com/decred/dcrdata/txhelpers v1.0.2-0.20190416161040-1dc819eb191d h1:v6dv
 github.com/decred/dcrdata/txhelpers v1.0.2-0.20190416161040-1dc819eb191d/go.mod h1:IyxuqUxIPrHnOmRy9DCl90oqw7FxYHde/fkIkF21B7w=
 github.com/decred/dcrdata/txhelpers v1.0.2-0.20190416163815-b92d2b40c258 h1:OwI0BkoStisbMQvilCF+NXZIFkNU3EvfA7uUU/YwMwI=
 github.com/decred/dcrdata/txhelpers v1.0.2-0.20190416163815-b92d2b40c258/go.mod h1:IyxuqUxIPrHnOmRy9DCl90oqw7FxYHde/fkIkF21B7w=
+github.com/decred/dcrdata/txhelpers v1.0.2-0.20190416204615-70a58657e02f h1:UHK/F4XLVGFisd1qbP8ILmJG8AM6ShzgfhCTNH/iExw=
+github.com/decred/dcrdata/txhelpers v1.0.2-0.20190416204615-70a58657e02f/go.mod h1:IyxuqUxIPrHnOmRy9DCl90oqw7FxYHde/fkIkF21B7w=
 github.com/decred/dcrtime v0.0.0-20180808181920-4c91c4cbed09/go.mod h1:ix2x3x3d4LivVPyh1l+ZVNjxuycrXyGZolnuVqVfywY=
 github.com/decred/dcrwallet v1.2.3-0.20190128160919-849f7c01c12d h1:29CvbLfATHA5XDxr6w4Z3hYx/tqM+tgnj63LJhUVCCU=
 github.com/decred/dcrwallet v1.2.3-0.20190128160919-849f7c01c12d/go.mod h1:jtNUWAO6lg2t2UHOlT9fmjuxD8os9JMljZNEXaw95Tg=
