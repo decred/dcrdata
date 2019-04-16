@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/db/dcrpg
 
-go 1.12
+go 1.11
 
 require (
 	github.com/Sereal/Sereal v0.0.0-20190226181601-237c2cca198f // indirect
@@ -14,14 +14,14 @@ require (
 	github.com/decred/dcrd/rpcclient/v2 v2.0.0
 	github.com/decred/dcrd/txscript v1.0.3-0.20190402182842-879eebce3333
 	github.com/decred/dcrd/wire v1.2.0
-	github.com/decred/dcrdata/api/types v1.0.6
+	github.com/decred/dcrdata/api/types v1.0.7-0.20190416161849-2b481f245b77
 	github.com/decred/dcrdata/blockdata v1.0.1
 	github.com/decred/dcrdata/db/cache v1.0.1
-	github.com/decred/dcrdata/db/dbtypes v1.0.2-0.20190402170540-10fdc522fdb0
-	github.com/decred/dcrdata/rpcutils v1.0.1
+	github.com/decred/dcrdata/db/dbtypes v1.0.2-0.20190416161849-2b481f245b77
+	github.com/decred/dcrdata/rpcutils v1.0.2-0.20190416161849-2b481f245b77
 	github.com/decred/dcrdata/semver v1.0.0
 	github.com/decred/dcrdata/stakedb v1.0.1
-	github.com/decred/dcrdata/txhelpers v1.0.1
+	github.com/decred/dcrdata/txhelpers v1.0.2-0.20190416161040-1dc819eb191d
 	github.com/decred/slog v1.0.0
 	github.com/dmigwi/go-piparser/proposals v0.0.0-20190411222856-0732954b2d46
 	github.com/dustin/go-humanize v1.0.0
@@ -32,11 +32,4 @@ require (
 	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/stretchr/testify v1.3.0 // indirect
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
-	golang.org/x/net v0.0.0-20190328230028-74de082e2cca // indirect
-)
-
-replace (
-	github.com/decred/dcrdata/db/dbtypes => ../dbtypes
-	github.com/decred/dcrdata/rpcutils => ../../rpcutils
-	github.com/decred/dcrdata/txhelpers => ../../txhelpers
 )
