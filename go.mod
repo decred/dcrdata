@@ -12,20 +12,20 @@ require (
 	github.com/decred/dcrd/rpcclient/v2 v2.0.0
 	github.com/decred/dcrd/txscript v1.0.3-0.20190402182842-879eebce3333
 	github.com/decred/dcrd/wire v1.2.0
-	github.com/decred/dcrdata/api/types v1.0.7-0.20190416202529-23d1eb95ca1b
+	github.com/decred/dcrdata/api/types v1.0.7-0.20190416204615-70a58657e02f
 	github.com/decred/dcrdata/blockdata v1.0.1
-	github.com/decred/dcrdata/db/dbtypes v1.0.2-0.20190416164834-6cc8af88525b
+	github.com/decred/dcrdata/db/dbtypes v1.0.2-0.20190416204615-70a58657e02f
 	github.com/decred/dcrdata/db/dcrpg v1.0.1-0.20190416163815-b92d2b40c258
 	github.com/decred/dcrdata/db/dcrsqlite v1.0.1-0.20190416165439-dcbde78387e2
 	github.com/decred/dcrdata/exchanges v1.0.1-0.20190416155607-25afe5d5e790
-	github.com/decred/dcrdata/explorer/types v1.0.1-0.20190416163815-b92d2b40c258
+	github.com/decred/dcrdata/explorer/types v1.0.1-0.20190416204615-70a58657e02f
 	github.com/decred/dcrdata/gov/agendas v1.0.1-0.20190416163815-b92d2b40c258
 	github.com/decred/dcrdata/gov/politeia v1.0.1-0.20190416163815-b92d2b40c258
 	github.com/decred/dcrdata/mempool v1.0.0
 	github.com/decred/dcrdata/middleware v1.0.2-0.20190416165439-dcbde78387e2
 	github.com/decred/dcrdata/pubsub v1.0.1-0.20190416165439-dcbde78387e2
-	github.com/decred/dcrdata/pubsub/types v1.0.1-0.20190416165439-dcbde78387e2
-	github.com/decred/dcrdata/rpcutils v1.0.2-0.20190416163815-b92d2b40c258
+	github.com/decred/dcrdata/pubsub/types v1.0.1-0.20190416204615-70a58657e02f
+	github.com/decred/dcrdata/rpcutils v1.0.2-0.20190416204615-70a58657e02f
 	github.com/decred/dcrdata/semver v1.0.0
 	github.com/decred/dcrdata/stakedb v1.0.1
 	github.com/decred/dcrdata/txhelpers v1.0.2-0.20190416163815-b92d2b40c258

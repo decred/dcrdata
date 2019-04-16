@@ -13,17 +13,17 @@ require (
 	github.com/decred/dcrd/rpcclient/v2 v2.0.0
 	github.com/decred/dcrd/txscript v1.0.3-0.20190402182842-879eebce3333
 	github.com/decred/dcrd/wire v1.2.0
-	github.com/decred/dcrdata/api/types v1.0.7-0.20190416202529-23d1eb95ca1b
+	github.com/decred/dcrdata/api/types v1.0.7-0.20190416204615-70a58657e02f
 	github.com/decred/dcrdata/blockdata v1.0.1
 	github.com/decred/dcrdata/db/cache v1.0.1
-	github.com/decred/dcrdata/db/dbtypes v1.0.2-0.20190416164834-6cc8af88525b
-	github.com/decred/dcrdata/rpcutils v1.0.2-0.20190416163815-b92d2b40c258
+	github.com/decred/dcrdata/db/dbtypes v1.0.2-0.20190416204615-70a58657e02f
+	github.com/decred/dcrdata/rpcutils v1.0.2-0.20190416204615-70a58657e02f
 	github.com/decred/dcrdata/semver v1.0.0
 	github.com/decred/dcrdata/stakedb v1.0.1
 	github.com/decred/dcrdata/testutil/dbconfig v1.0.0
-	github.com/decred/dcrdata/txhelpers v1.0.2-0.20190416163815-b92d2b40c258
+	github.com/decred/dcrdata/txhelpers v1.0.2-0.20190416204615-70a58657e02f
 	github.com/decred/slog v1.0.0
 	github.com/dmigwi/go-piparser/proposals v0.0.0-20190415205832-3992790812af
 	github.com/dustin/go-humanize v1.0.0
-	github.com/lib/pq v1.0.0
+	github.com/lib/pq v1.1.0
 )
