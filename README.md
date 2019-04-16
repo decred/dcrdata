@@ -252,8 +252,8 @@ desirable to set the "pre" and "dev" values to different strings, such as
 
 ```sh
 GO111MODULE=on go build -o dcrdata -v -ldflags \
-    "-X github.com/decred/dcrdata/v4/version.appPreRelease=beta \
-     -X github.com/decred/dcrdata/v4/version.appBuild=`git rev-parse --short HEAD`"
+    "-X github.com/decred/dcrdata/v5/version.appPreRelease=beta \
+     -X github.com/decred/dcrdata/v5/version.appBuild=`git rev-parse --short HEAD`"
 ```
 
 This produces a string like `dcrdata version 4.0.0-beta+25777e23 (Go version go1.12.1)`.

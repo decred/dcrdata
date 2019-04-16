@@ -32,9 +32,9 @@ import (
 	"github.com/decred/dcrdata/gov/agendas"
 	m "github.com/decred/dcrdata/middleware"
 	"github.com/decred/dcrdata/txhelpers"
-	"github.com/decred/dcrdata/v4/explorer"
-	notify "github.com/decred/dcrdata/v4/notification"
-	appver "github.com/decred/dcrdata/v4/version"
+	"github.com/decred/dcrdata/v5/explorer"
+	notify "github.com/decred/dcrdata/v5/notification"
+	appver "github.com/decred/dcrdata/v5/version"
 )
 
 // DataSourceLite specifies an interface for collecting data from the built-in

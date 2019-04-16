@@ -10,7 +10,7 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 
 	"github.com/decred/dcrdata/txhelpers"
-	"github.com/decred/dcrdata/v4/api/insight"
+	"github.com/decred/dcrdata/v5/api/insight"
 )
 
 const (
