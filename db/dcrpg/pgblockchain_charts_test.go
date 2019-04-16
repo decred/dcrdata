@@ -13,7 +13,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrdata/db/dbtypes"
-	tc "github.com/decred/dcrdata/v5/testutil/dbload/testsconfig"
+	tc "github.com/decred/dcrdata/testutil/dbconfig"
 	pitypes "github.com/dmigwi/go-piparser/proposals/types"
 )
 

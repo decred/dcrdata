@@ -6,7 +6,7 @@ import (
 	"log"
 	"path/filepath"
 
-	tc "github.com/decred/dcrdata/v4/testutil/dbload/testsconfig"
+	tc "github.com/decred/dcrdata/testutil/dbconfig"
 	_ "github.com/lib/pq"
 )
 
