@@ -82,7 +82,7 @@ func RetrieveAllProposals(client *http.Client, APIRootPath, URLParams string) (
 	// Append the votes status information to the respective proposals if it exists.
 	for _, val := range publicProposals.Data {
 		for k := range votesInfo.Data {
-			if val.Censorship.Token == votesInfo.Data[k].Token {
+			if val.TokenVal == votesInfo.Data[k].Token {
 				val.ProposalVotes = votesInfo.Data[k]
 				// exits the second loop after finding a match.
 				break

@@ -1733,26 +1733,10 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 // ProposalPage is the page handler for the "/proposal" path.
 func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
 	// Attempts to retrieve a proposal token from URL path.
-	proposalID, err := strconv.Atoi(getProposalTokenCtx(r))
+	proposalInfo, err := exp.proposalsSource.ProposalByID(getProposalTokenCtx(r))
 	if err != nil {
-		log.Errorf("strconv.Atoi failed: %v", err)
-		exp.StatusPage(w, defaultErrorCode, "invalid proposal ID used ",
-			"", ExpStatusNotFound)
-		return
-	}
-
-	proposalInfo, err := exp.proposalsSource.ProposalByID(proposalID)
-	if err != nil {
-		log.Errorf("exp.proposalsSource.ProposalByID failed: %v", err)
+		log.Errorf("Template execute failure: %v", err)
 		exp.StatusPage(w, defaultErrorCode, "the proposal token does not exist",
-			"", ExpStatusNotFound)
-		return
-	}
-
-	lastParserSyncTime, err := exp.explorerSource.LastPiParserSync()
-	if err != nil {
-		log.Errorf("exp.explorerSource.LastPiParserSync failed: %v", err)
-		exp.StatusPage(w, defaultErrorCode, "last parser sync time fetch failed",
 			"", ExpStatusNotFound)
 		return
 	}
@@ -1778,13 +1762,11 @@ func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
 		Data          *pitypes.ProposalInfo
 		PoliteiaURL   string
 		TimeRemaining string
-		LastSyncTime  int64
 	}{
 		CommonPageData: exp.commonData(r),
 		Data:           proposalInfo,
 		PoliteiaURL:    exp.politeiaAPIURL,
 		TimeRemaining:  timeLeft,
-		LastSyncTime:   lastParserSyncTime.UTC().Unix(),
 	})
 
 	if err != nil {
@@ -1838,6 +1820,8 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 		Limit         int64
 		TotalCount    int64
 		PoliteiaURL   string
+		LastVotesSync int64
+		LastPropSync  int64
 	}{
 		CommonPageData: exp.commonData(r),
 		Proposals:      proposals,
@@ -1847,6 +1831,8 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 		VStatusFilter:  filterBy,
 		TotalCount:     int64(count),
 		PoliteiaURL:    exp.politeiaAPIURL,
+		LastVotesSync:  exp.explorerSource.LastPiParserSync().UTC().Unix(),
+		LastPropSync:   exp.proposalsSource.LastProposalsSync(),
 	})
 
 	if err != nil {

@@ -16,24 +16,35 @@ import (
 	"github.com/asdine/storm/q"
 	"github.com/decred/dcrdata/gov/politeia/piclient"
 	pitypes "github.com/decred/dcrdata/gov/politeia/types"
+	"github.com/decred/dcrdata/semver"
 	piapi "github.com/decred/politeia/politeiawww/api/www/v1"
 )
 
-// errDef defines the default error returned if the proposals db was not
-// initialized correctly.
-var errDef = fmt.Errorf("ProposalDB was not initialized correctly")
+var (
+	// errDef defines the default error returned if the proposals db was not
+	// initialized correctly.
+	errDef = fmt.Errorf("ProposalDB was not initialized correctly")
+
+	// dbVersion is the current required version of the proposals.db.
+	dbVersion = semver.NewSemver(1, 0, 0)
+)
+
+// dbinfo defines the property that holds the db version.
+const dbinfo = "_proposals.db_"
 
 // ProposalDB defines the common data needed to query the proposals db.
 type ProposalDB struct {
 	mtx        sync.RWMutex
 	dbP        *storm.DB
 	client     *http.Client
+	lastSync   int64
 	APIURLpath string
 }
 
 // NewProposalsDB opens an exiting database or creates a new DB instance with
 // the provided file name. Returns an initialized instance of proposals DB, http
-// client and the formatted politeia API URL path to be used.
+// client and the formatted politeia API URL path to be used. It also checks the
+// db version, Reindexes the db if need be and sets the required db version.
 func NewProposalsDB(politeiaURL, dbPath string) (*ProposalDB, error) {
 	if politeiaURL == "" {
 		return nil, fmt.Errorf("missing politeia API URL")
@@ -51,6 +62,28 @@ func NewProposalsDB(politeiaURL, dbPath string) (*ProposalDB, error) {
 	db, err := storm.Open(dbPath)
 	if err != nil {
 		return nil, err
+	}
+
+	// Checks if the correct db version has been set.
+	var version string
+	err = db.Get(dbinfo, "version", &version)
+	if err != nil && err != storm.ErrNotFound {
+		return nil, err
+	}
+
+	if version != dbVersion.String() {
+		// If db has no data, no need to reindex it.
+		if err != storm.ErrNotFound {
+			if err = db.ReIndex(&pitypes.ProposalInfo{}); err != nil {
+				return nil, fmt.Errorf("ReIndex failed: %v", err)
+			}
+		}
+
+		// Set the required db version.
+		err = db.Set(dbinfo, "version", dbVersion.String())
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Create the http client used to query the API endpoints.
@@ -112,8 +145,7 @@ func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
 			break
 		}
 
-		copyURLParams = fmt.Sprintf("%s?after=%v", URLParams,
-			data.Data[pageSize-1].Censorship.Token)
+		copyURLParams = fmt.Sprintf("%s?after=%v", URLParams, data.Data[pageSize-1].TokenVal)
 	}
 
 	// Save all the proposals
@@ -164,7 +196,7 @@ func (db *ProposalDB) AllProposals(offset, rowsCount int,
 }
 
 // ProposalByID returns the single proposal identified by the provided id.
-func (db *ProposalDB) ProposalByID(proposalID int) (proposal *pitypes.ProposalInfo, err error) {
+func (db *ProposalDB) ProposalByID(proposalID string) (*pitypes.ProposalInfo, error) {
 	if db == nil || db.dbP == nil {
 		return nil, errDef
 	}
@@ -172,19 +204,22 @@ func (db *ProposalDB) ProposalByID(proposalID int) (proposal *pitypes.ProposalIn
 	db.mtx.RLock()
 	defer db.mtx.RUnlock()
 
-	var proposals []*pitypes.ProposalInfo
-
-	err = db.dbP.Find("ID", proposalID, &proposals, storm.Limit(1))
-	if err != nil {
+	var pInfo pitypes.ProposalInfo
+	if err := db.dbP.Select(q.Eq("TokenVal", proposalID)).Limit(1).First(&pInfo); err != nil {
 		log.Errorf("Failed to fetch data from Proposals DB: %v", err)
 		return nil, err
 	}
 
-	if len(proposals) > 0 && proposals[0] != nil {
-		proposal = proposals[0]
-	}
+	return &pInfo, nil
+}
 
-	return
+// LastProposalsSync returns the last time a sync to update the proposals was run
+// but not necessarily the last time updates were synced in proposals.db.
+func (db *ProposalDB) LastProposalsSync() int64 {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
+	return db.lastSync
 }
 
 // CheckProposalsUpdates updates the proposal changes if they exist and updates
@@ -195,7 +230,12 @@ func (db *ProposalDB) CheckProposalsUpdates() error {
 	}
 
 	db.mtx.Lock()
-	defer db.mtx.Unlock()
+	defer func() {
+		// Update the lastSync before the function exits.
+
+		db.lastSync = time.Now().UTC().Unix()
+		db.mtx.Unlock()
+	}()
 
 	// Retrieve and update all current proposals whose vote statuses is either
 	// NotAuthorized, Authorized and Started
@@ -212,8 +252,8 @@ func (db *ProposalDB) CheckProposalsUpdates() error {
 	}
 
 	var queryParam string
-	if len(lastProposal) > 0 && lastProposal[0].Censorship.Token != "" {
-		queryParam = fmt.Sprintf("?after=%s", lastProposal[0].Censorship.Token)
+	if len(lastProposal) > 0 && lastProposal[0].TokenVal != "" {
+		queryParam = fmt.Sprintf("?after=%s", lastProposal[0].TokenVal)
 	}
 
 	n, err := db.saveProposals(queryParam)
@@ -264,13 +304,12 @@ func (db *ProposalDB) updateInProgressProposals() (int, error) {
 	var count int
 
 	for _, val := range inProgress {
-		proposal, err := piclient.RetrieveProposalByToken(db.client, db.APIURLpath,
-			val.Censorship.Token)
+		proposal, err := piclient.RetrieveProposalByToken(db.client, db.APIURLpath, val.TokenVal)
 		if err != nil {
-			// Since the proposal tokens bieng update here already in the proposals.db
-			// ignore errors returned since they will still be updated when data
-			// is available.
-			log.Error("RetrieveProposalByToken failed: %v ", err)
+			// Since the proposal tokens bieng updated here are already in the
+			// proposals.db. Do not return errors found since they will still be
+			// updated when the data is available.
+			log.Errorf("RetrieveProposalByToken failed: %v ", err)
 			continue
 		}
 
@@ -280,12 +319,11 @@ func (db *ProposalDB) updateInProgressProposals() (int, error) {
 			continue
 		}
 
-		proposal.ID = val.ID
+		proposal.TokenVal = val.TokenVal
 
 		err = db.dbP.Update(proposal)
 		if err != nil {
-			return 0, fmt.Errorf("Update for %s failed with error: %v ",
-				val.Censorship.Token, err)
+			return 0, fmt.Errorf("Update for %s failed with error: %v ", val.TokenVal, err)
 		}
 
 		count++

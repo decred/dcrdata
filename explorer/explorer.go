@@ -110,14 +110,15 @@ type explorerDataSource interface {
 	TimeBasedIntervals(timeGrouping dbtypes.TimeBasedGrouping, limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error)
 	AgendasVotesSummary(agendaID string) (summary *dbtypes.AgendaSummary, err error)
 	BlockTimeByHeight(height int64) (int64, error)
-	LastPiParserSync() (time.Time, error)
+	LastPiParserSync() time.Time
 }
 
 // politeiaBackend implements methods that manage proposals db data.
 type politeiaBackend interface {
+	LastProposalsSync() int64
 	CheckProposalsUpdates() error
 	AllProposals(offset, rowsCount int, filterByVoteStatus ...int) (proposals []*pitypes.ProposalInfo, totalCount int, err error)
-	ProposalByID(proposalID int) (proposal *pitypes.ProposalInfo, err error)
+	ProposalByID(proposalID string) (*pitypes.ProposalInfo, error)
 }
 
 // agendaBackend implements methods that manage agendas db data.
