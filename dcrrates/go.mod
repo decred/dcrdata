@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/dcrrates
 
-go 1.12
+go 1.11
 
 require (
 	github.com/decred/dcrd/dcrutil v1.2.0
