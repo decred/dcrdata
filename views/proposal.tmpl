@@ -203,6 +203,12 @@
                             chart-options="{tooltipTemplate: '<%=label%>: <%= numeral(value).format('($00[.]00)') %> - <%= numeral(circumference / 6.283).format('(0[.][00]%)') %>'"
                         ></canvas>
                     </div>
+                 {{else}}
+                    <table class="table container">
+                        <tr>
+                            <td class="text-center">No proposal votes data found.</td>
+                        </tr>
+                    </table>
                 {{end}}
             </div>
         </div>
