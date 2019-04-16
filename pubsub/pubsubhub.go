@@ -432,7 +432,7 @@ loop:
 				// ping and send user count
 				pushMsg.Message = strconv.Itoa(psh.wsHub.NumClients())
 
-			case sigNewTx:
+			case sigNewTxs:
 				// Marshal this client's tx buffer if it is not empty.
 				clientData.newTxs.Lock()
 				if len(clientData.newTxs.t) == 0 {

@@ -50,7 +50,7 @@ export default class extends Controller {
     ws.send('getmempooltxs', mempoolData.id)
     this.mempool = new Mempool(mempoolData, this.voteTallyTargets)
     this.setBars(this.mempool.totals())
-    ws.registerEvtHandler('newtx', (evt) => {
+    ws.registerEvtHandler('newtxs', (evt) => {
       var txs = JSON.parse(evt)
       this.mempool.mergeTxs(txs)
       this.setMempoolFigures()
@@ -77,7 +77,7 @@ export default class extends Controller {
   }
 
   disconnect () {
-    ws.deregisterEvtHandlers('newtx')
+    ws.deregisterEvtHandlers('newtxs')
     ws.deregisterEvtHandlers('mempool')
     ws.deregisterEvtHandlers('getmempooltxsResp')
     globalEventBus.off('BLOCK_RECEIVED', this.processBlock)

@@ -37,6 +37,7 @@ var (
 	sigMempoolUpdate    = pstypes.SigMempoolUpdate
 	sigPingAndUserCount = pstypes.SigPingAndUserCount
 	sigNewTx            = pstypes.SigNewTx
+	sigNewTxs           = pstypes.SigNewTxs
 	sigAddressTx        = pstypes.SigAddressTx
 	sigSyncStatus       = pstypes.SigSyncStatus
 )
@@ -389,6 +390,8 @@ func (wsh *WebsocketHub) Run() {
 				if !(someTxBuffersReady || wsh.TimeToSendTxBuffer()) {
 					break
 				}
+				// Outgoing message is a slice of transactions.
+				hubMsg.Signal = sigNewTxs
 			}
 
 			// Send the signal to all clients.

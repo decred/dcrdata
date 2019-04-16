@@ -250,7 +250,8 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 				}
 
 				if !sig.IsValid() {
-					break loop
+					log.Errorf("invalid signal to send: %s / %d", sig.Signal.String(), int(sig.Signal))
+					continue
 				}
 
 				log.Tracef("signaling client: %p", &updateSig)
@@ -291,7 +292,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 				case sigPingAndUserCount:
 					// ping and send user count
 					webData.Message = strconv.Itoa(exp.wsHub.NumClients())
-				case sigNewTx:
+				case sigNewTxs:
 					clientData.RLock()
 					err := enc.Encode(clientData.newTxs)
 					clientData.RUnlock()

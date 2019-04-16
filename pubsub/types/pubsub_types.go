@@ -2,6 +2,7 @@ package types
 
 import (
 	"net"
+	"strconv"
 	"strings"
 
 	"github.com/decred/dcrd/dcrutil"
@@ -61,6 +62,7 @@ const (
 	SigMempoolUpdate
 	SigPingAndUserCount
 	SigNewTx
+	SigNewTxs
 	SigAddressTx
 	SigSyncStatus
 	SigUnknown
@@ -70,7 +72,7 @@ var Subscriptions = map[string]HubSignal{
 	"newblock":       SigNewBlock,
 	"mempool":        SigMempoolUpdate,
 	"ping":           SigPingAndUserCount,
-	"newtx":          SigNewTx,
+	"newtxs":         SigNewTxs,
 	"address":        SigAddressTx,
 	"blockchainSync": SigSyncStatus,
 }
@@ -83,6 +85,7 @@ var eventIDs = map[HubSignal]string{
 	SigMempoolUpdate:    "mempool",
 	SigPingAndUserCount: "ping",
 	SigNewTx:            "newtx",
+	SigNewTxs:           "newtxs",
 	SigAddressTx:        "address",
 	SigSyncStatus:       "blockchainSync",
 	SigUnknown:          "unknown",
@@ -151,6 +154,8 @@ func (m HubMessage) IsValid() bool {
 		_, ok = m.Msg.(*AddressMessage)
 	case SigNewTx:
 		_, ok = m.Msg.(*exptypes.MempoolTx)
+	case SigNewTxs:
+		_, ok = m.Msg.([]*exptypes.MempoolTx)
 	}
 
 	return ok
@@ -170,6 +175,9 @@ func (m HubMessage) String() string {
 	case SigNewTx:
 		tx := m.Msg.(*exptypes.MempoolTx)
 		sigStr += ":" + tx.Hash
+	case SigNewTxs:
+		txs := m.Msg.([]*exptypes.MempoolTx)
+		sigStr += ":len=" + strconv.Itoa(len(txs))
 	}
 
 	return sigStr

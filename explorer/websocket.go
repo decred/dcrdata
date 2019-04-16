@@ -35,6 +35,7 @@ var (
 	sigMempoolUpdate    = pstypes.SigMempoolUpdate
 	sigPingAndUserCount = pstypes.SigPingAndUserCount
 	sigNewTx            = pstypes.SigNewTx
+	sigNewTxs           = pstypes.SigNewTxs
 	sigAddressTx        = pstypes.SigAddressTx
 	sigSyncStatus       = pstypes.SigSyncStatus
 )
@@ -306,7 +307,7 @@ func (wsh *WebsocketHub) run() {
 				client.cl.newTxs = txs
 				client.cl.Unlock()
 				select {
-				case *signal <- pstypes.HubMessage{Signal: sigNewTx}:
+				case *signal <- pstypes.HubMessage{Signal: sigNewTxs, Msg: txs}:
 				default:
 					wsh.unregisterClient(signal)
 				}
