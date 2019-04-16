@@ -39,6 +39,7 @@ dcrdata-testdata
 .vendor-new
 v3
 v4
+v5
 tmp/runner-build
 node_modules/
 public/dist/
@@ -48,10 +49,9 @@ testutil/apiload/results/
 testutil/apiload/apiload.conf
 testutil/apiload/apiload
 testutil/dbload/dbload
-testutil/dbload/testsconfig/test.data
+testutil/dbconfig/test.data
 pubsub/democlient/democlient
 dcrrates/rateserver/rateserver
 dcrrates/rateserver/logs/
 *.sql
 *.gob
-dbload
