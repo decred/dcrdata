@@ -5,6 +5,7 @@
 package piclient
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -13,6 +14,24 @@ import (
 
 	pitypes "github.com/decred/dcrdata/gov/politeia/types"
 	piapi "github.com/decred/politeia/politeiawww/api/www/v1"
+)
+
+var (
+	// nullProposalData defines a case scenario where the proposal could have had
+	// a null pointer attached to it.
+	nullProposalData = []byte(`{"proposal": null}`)
+
+	// nullVotesData defines a case scenario where the votes could have had a null
+	// pointer attached to it.
+	nullVotesData = []byte(`{"votes": null}`)
+
+	// nullProposalsData defines a case scenario where the proposals array could
+	// have had a null pointer attached to it.
+	nullProposalsData = []byte(`{"proposals": null}`)
+
+	// nullVotesStatusData defines a case scenario where the votesstatus array
+	// could have had a null pointer attached to it.
+	nullVotesStatusData = []byte(`{"votesstatus": null}`)
 )
 
 // HandleGetRequests accepts a http client and API URL path as arguments. If the
@@ -60,6 +79,12 @@ func RetrieveAllProposals(client *http.Client, APIRootPath, URLParams string) (
 		return nil, err
 	}
 
+	// Check if proposals data with null entry were returned as part of the
+	// proposals details.
+	if bytes.Equal(data, nullProposalsData) {
+		return nil, fmt.Errorf("invalid proposals array with null data found")
+	}
+
 	var publicProposals pitypes.Proposals
 	err = json.Unmarshal(data, &publicProposals)
 	if err != nil || len(publicProposals.Data) == 0 {
@@ -71,6 +96,12 @@ func RetrieveAllProposals(client *http.Client, APIRootPath, URLParams string) (
 	data, err = HandleGetRequests(client, URLpath)
 	if err != nil {
 		return nil, err
+	}
+
+	// Check if votesstatuses data with null entry were returned as part of the
+	// votesstatus details.
+	if bytes.Equal(data, nullVotesStatusData) {
+		return nil, fmt.Errorf("invalid votesstatus array with null data found")
 	}
 
 	var votesInfo pitypes.Votes
@@ -103,6 +134,11 @@ func RetrieveProposalByToken(client *http.Client, APIRootPath, token string) (*p
 		return nil, fmt.Errorf("retrieving %s proposal details failed: %v", token, err)
 	}
 
+	// Check if null proposal data was returned as part of the proposal details.
+	if bytes.Equal(data, nullProposalData) {
+		return nil, fmt.Errorf("invalid proposal with null data found for %s", token)
+	}
+
 	var proposal pitypes.Proposal
 	err = json.Unmarshal(data, &proposal)
 	if err != nil {
@@ -115,6 +151,12 @@ func RetrieveProposalByToken(client *http.Client, APIRootPath, token string) (*p
 	if err != nil {
 		return nil, fmt.Errorf("retrieving %s proposal vote status failed: %v", token, err)
 	}
+
+	// Check if null votes data was returned as part of the proposal votes details.
+	if bytes.Equal(data, nullVotesData) {
+		return nil, fmt.Errorf("invalid votes with null data found for %s", token)
+	}
+
 	err = json.Unmarshal(data, &proposal.Data.ProposalVotes)
 	if err != nil {
 		return nil, err

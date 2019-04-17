@@ -35,12 +35,12 @@ type ProposalInfo struct {
 	// Files           []AttachmentFile   `json:"files"`
 }
 
-// Proposals defines an array of proposals as returned by RouteAllVetted route.
+// Proposals defines an array of proposals payload as returned by RouteAllVetted route.
 type Proposals struct {
 	Data []*ProposalInfo `json:"proposals"`
 }
 
-// Proposal defines a object proposals as returned by RouteProposalDetails route.
+// Proposal defines a proposal payload as returned by RouteProposalDetails route.
 type Proposal struct {
 	Data *ProposalInfo `json:"proposal"`
 }
