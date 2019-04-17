@@ -57,7 +57,24 @@ require (
 )
 
 replace (
+	github.com/decred/dcrdata/api/types => ./api/types
 	github.com/decred/dcrdata/blockdata => ./blockdata
+	github.com/decred/dcrdata/db/cache => ./db/cache
+	github.com/decred/dcrdata/db/dbtypes => ./db/dbtypes
+	github.com/decred/dcrdata/db/dcrpg => ./db/dcrpg
+	github.com/decred/dcrdata/db/dcrsqlite => ./db/dcrsqlite
+	github.com/decred/dcrdata/dcrrates => ./dcrrates
+	github.com/decred/dcrdata/exchanges => ./exchanges
+	github.com/decred/dcrdata/explorer/types => ./explorer/types
+	github.com/decred/dcrdata/gov/agendas => ./gov/agendas
+	github.com/decred/dcrdata/gov/politeia => ./gov/politeia
 	github.com/decred/dcrdata/mempool => ./mempool
+	github.com/decred/dcrdata/middleware => ./middleware
+	github.com/decred/dcrdata/pubsub => ./pubsub
+	github.com/decred/dcrdata/pubsub/types => ./pubsub/types
+	github.com/decred/dcrdata/rpcutils => ./rpcutils
+	github.com/decred/dcrdata/semver => ./semver
 	github.com/decred/dcrdata/stakedb => ./stakedb
+	github.com/decred/dcrdata/testutil/dbconfig => ./testutil/dbconfig
+	github.com/decred/dcrdata/txhelpers => ./txhelpers
 )

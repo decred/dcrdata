@@ -347,7 +347,7 @@ func (psh *PubSubHub) sendLoop(conn *connection) {
 
 loop:
 	for {
-		// Wait for signal from the hub to update.
+		// Wait for signal from the WebSocketHub to update.
 		select {
 		case sig, ok := <-updateSigChan:
 			// Check if the update channel was closed. Either the websocket
@@ -359,11 +359,13 @@ loop:
 			}
 
 			if !sig.IsValid() {
-				return
+				log.Errorf("invalid signal to send: %s / %d", sig.Signal.String(), int(sig.Signal))
+				continue loop
 			}
 
 			if !clientData.isSubscribed(sig) {
-				log.Warnf("Client not subscribed for %s events. WebSocketHub messed up?", sig.Signal.String())
+				log.Errorf("Client not subscribed for %s events. "+
+					"WebSocketHub should have caught this.", sig.Signal.String())
 				continue loop // break
 			}
 
@@ -440,6 +442,7 @@ loop:
 					continue loop // break sigselect
 				}
 				err := enc.Encode(clientData.newTxs.t)
+
 				// Reinit the tx buffer.
 				clientData.newTxs.t = make(pstypes.TxList, 0, NewTxBufferSize)
 				clientData.newTxs.Unlock()
@@ -447,7 +450,12 @@ loop:
 					log.Warnf("Encode([]*exptypes.MempoolTx) failed: %v", err)
 				}
 
+				// Although signaling between WebsocketHub and PubSubHub has
+				// used a sigNewTx signal, the outgoing message to the client is
+				// a "newtxs" (sigNewTxs), with a slice of txns.
+				//pushMsg.EventId = sigNewTxs.String()
 				pushMsg.Message = buff.String()
+				fmt.Println("pushMsg.Message", pushMsg.Message)
 
 			// case sigSyncStatus:
 			// 	err := enc.Encode(explorer.SyncStatus())
@@ -473,6 +481,7 @@ loop:
 				}
 				// If the send failed, the client is probably gone, quit the
 				// send loop, unregistering the client from the websocket hub.
+				log.Errorf("websocket.JSON.Send of %v failed: %v", pushMsg, err)
 				return
 			}
 
