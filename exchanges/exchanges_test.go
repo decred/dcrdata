@@ -249,6 +249,7 @@ func TestPoloniexWebsocket(t *testing.T) {
 
 	poloniex := PoloniexExchange{
 		CommonExchange: &CommonExchange{
+			token: Poloniex,
 			currentState: &ExchangeState{
 				Price: 1,
 			},
@@ -314,6 +315,7 @@ func TestPoloniexLiveWebsocket(t *testing.T) {
 
 	poloniex := PoloniexExchange{
 		CommonExchange: &CommonExchange{
+			token: Poloniex,
 			currentState: &ExchangeState{
 				Price: 1,
 			},

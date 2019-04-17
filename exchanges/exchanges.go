@@ -2148,23 +2148,11 @@ func (poloniex *PoloniexExchange) processTrade(tradeParams []interface{}) (*polo
 	if err != nil {
 		return nil, -1, fmt.Errorf("failed to convert poloniex orderbook update volume to float: %v", err)
 	}
-	binKey := int64(price * 1e8)
-	var existingOrder *poloniexOrder
-	var found bool
-	if direction == poloniexAskDirection {
-		existingOrder, found = poloniex.asks[binKey]
-	} else {
-		existingOrder, found = poloniex.buys[binKey]
-	}
-	if !found {
-		return nil, -1, fmt.Errorf("no order found to match reported poloniex trade")
-	}
-
-	order := &poloniexOrder{
+	trade := &poloniexOrder{
 		price:  price,
-		volume: existingOrder.volume - volume,
+		volume: volume,
 	}
-	return order, direction, nil
+	return trade, direction, nil
 }
 
 // Poloniex's WebsocketProcessor. Handles messages of type "i", "o", and "t".
@@ -2251,15 +2239,8 @@ func (poloniex *PoloniexExchange) processWsMessage(raw []byte) {
 				poloniex.setWsFail(err)
 			}
 		} else if updateType == poloniexTradeUpdateKey {
-			order, direction, err = poloniex.processTrade(updateParams)
-			if err != nil {
-				poloniex.setWsFail(err)
-				// Order book is outdated, need to trigger a reconnection
-				log.Warnf("corrupt orderbook detected. closing websocket. reconnecting at next refresh")
-				ws, _ := poloniex.websocket()
-				ws.Close()
-				poloniex.connectWs()
-			}
+			continue
+			// trade, direction, err = poloniex.processTrade(updateParams)
 		}
 
 		if direction == poloniexAskDirection {
