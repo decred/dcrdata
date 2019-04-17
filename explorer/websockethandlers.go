@@ -259,7 +259,8 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 				// Write block data to websocket client
 
 				webData := WebSocketMessage{
-					EventId: sig.String(),
+					// Use HubSignal's string, not HubMessage's string, which is decorated.
+					EventId: sig.Signal.String(),
 					Message: "error",
 				}
 				buff := new(bytes.Buffer)
@@ -293,6 +294,8 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					// ping and send user count
 					webData.Message = strconv.Itoa(exp.wsHub.NumClients())
 				case sigNewTxs:
+					// Do not use any tx slice in sig.Msg. Instead use client's
+					// new transactions slice, newTxs.
 					clientData.RLock()
 					err := enc.Encode(clientData.newTxs)
 					clientData.RUnlock()
