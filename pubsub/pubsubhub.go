@@ -450,12 +450,7 @@ loop:
 					log.Warnf("Encode([]*exptypes.MempoolTx) failed: %v", err)
 				}
 
-				// Although signaling between WebsocketHub and PubSubHub has
-				// used a sigNewTx signal, the outgoing message to the client is
-				// a "newtxs" (sigNewTxs), with a slice of txns.
-				//pushMsg.EventId = sigNewTxs.String()
 				pushMsg.Message = buff.String()
-				fmt.Println("pushMsg.Message", pushMsg.Message)
 
 			// case sigSyncStatus:
 			// 	err := enc.Encode(explorer.SyncStatus())
