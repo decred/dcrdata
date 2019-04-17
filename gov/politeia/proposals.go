@@ -101,6 +101,8 @@ func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
 
 		// Break if no valid data was found.
 		if data == nil || data.Data == nil {
+			// Should help detect when API changes are effected on Politeia's end.
+			log.Warnf("invalid or empty data entries were returned")
 			break
 		}
 
@@ -267,19 +269,33 @@ func (db *ProposalDB) updateInProgressProposals() (int, error) {
 	for _, val := range inProgress {
 		proposal, err := piclient.RetrieveProposalByToken(db.client, db.APIURLpath,
 			val.Censorship.Token)
+		// Do not update if:
+		// 1. piclient.RetrieveProposalByToken returned an error
 		if err != nil {
 			return 0, fmt.Errorf("RetrieveProposalByToken failed: %v ", err)
-		}
-
-		// Do not update if the new proposals status is NotAuthorized or If the
-		// last update has not changed.
-		if proposal.VoteStatus == statuses[0] || proposal.Timestamp == val.Timestamp {
+			// Since the proposal tokens bieng updated here are already in the
+			// proposals.db. Do not return errors found since they will still be
+			// updated when the data is available.
+			log.Errorf("RetrieveProposalByToken failed: %v ", err)
 			continue
 		}
 
-		proposal.ID = val.ID
+		// 2. The new proposals status is NotAuthorized(has not changed).
+		// 3. The last update timestamp has not changed.
+		if proposal.Data.VoteStatus == statuses[0] || proposal.Data.Timestamp == val.Timestamp {
+			continue
+		}
 
-		err = db.dbP.Update(proposal)
+		// 4. Some or all data returned was empty or invalid.
+		if proposal.Data.VoteStatus < statuses[0] || proposal.Data.Timestamp < val.Timestamp {
+			// Should help detect when API changes are effected on Politeia's end.
+			log.Warnf("invalid or empty data entries were returned for %v", val.Token)
+			continue
+		}
+
+		proposal.Data.ID = val.ID
+
+		err = db.dbP.Update(proposal.Data)
 		if err != nil {
 			return 0, fmt.Errorf("Update for %s failed with error: %v ",
 				val.Censorship.Token, err)

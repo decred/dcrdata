@@ -35,6 +35,11 @@ type Proposals struct {
 	Data []*ProposalInfo `json:"proposals"`
 }
 
+// Proposal defines a object proposals as returned by RouteProposalDetails route.
+type Proposal struct {
+	Data *ProposalInfo `json:"proposal"`
+}
+
 // CensorshipRecord is an entry that was created when the proposal was submitted.
 // https://github.com/decred/politeia/blob/master/politeiawww/api/v1/api.md#censorship-record
 type CensorshipRecord struct {
