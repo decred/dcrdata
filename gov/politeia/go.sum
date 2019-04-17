@@ -75,6 +75,7 @@ github.com/decred/dcrdata/db/cache v1.0.1/go.mod h1:WPkmV72Cal2OOjt4bG35XrjzSqsp
 github.com/decred/dcrdata/db/dbtypes v1.0.1/go.mod h1:d9qVcMl+l5rOEY7zJB5nqQ0WDEHof9vWlW/9hpK0xpc=
 github.com/decred/dcrdata/db/dcrpg v1.0.0/go.mod h1:b1YmLNZH2p7evVJU6hapsW5Mup5Xtvx3OK48jQa6PYE=
 github.com/decred/dcrdata/rpcutils v1.0.1/go.mod h1:ZQ3lZzgIiyE75+4CL3d8rDGJZLxd+ftbgWX1jAPSco8=
+github.com/decred/dcrdata/semver v1.0.0 h1:DBqYU/x+4LqHq/3r4xKdF6xG5ewktG2KDC+g/p3f8mc=
 github.com/decred/dcrdata/semver v1.0.0/go.mod h1:z+nQqiAd9fYkHhBLbejysZ2FPHtgkrErWDgMf+JlZWE=
 github.com/decred/dcrdata/stakedb v1.0.1/go.mod h1:zEJ8qEtmxJLRK3IAfbpleAW2qvpWuldeBrLpz/amQjE=
 github.com/decred/dcrdata/txhelpers v1.0.1/go.mod h1:oZOlm7v82oD5SIy1wlOBG0OT92CMfmKg05wk+2qaSaM=

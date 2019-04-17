@@ -116,7 +116,7 @@
                 {{range $i, $v := .Proposals}}
                 {{with $v}}
                     <tr>
-                        <td class="text-left"><a href="/proposal/{{.TokenVal}}">{{.Name}}</a></td>
+                        <td class="text-left"><a href="/proposal/{{.RefID}}">{{.Name}}</a></td>
                         <td class="text-left">{{.Username}}</td>
                         {{with .Status}}
                             <td class="text-left">{{toTitleCase .String}}</td>

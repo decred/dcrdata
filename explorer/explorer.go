@@ -118,7 +118,8 @@ type politeiaBackend interface {
 	LastProposalsSync() int64
 	CheckProposalsUpdates() error
 	AllProposals(offset, rowsCount int, filterByVoteStatus ...int) (proposals []*pitypes.ProposalInfo, totalCount int, err error)
-	ProposalByID(proposalID string) (*pitypes.ProposalInfo, error)
+	ProposalByToken(proposalToken string) (*pitypes.ProposalInfo, error)
+	ProposalByRefID(RefID string) (*pitypes.ProposalInfo, error)
 }
 
 // agendaBackend implements methods that manage agendas db data.

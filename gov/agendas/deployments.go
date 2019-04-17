@@ -8,6 +8,7 @@ package agendas
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/asdine/storm"
 	"github.com/decred/dcrd/chaincfg"
@@ -88,11 +89,13 @@ func NewAgendasDB(client DeploymentSource, dbPath string) (*AgendaDB, error) {
 		return nil, err
 	}
 
+	// Check if the versions match.
 	if version != dbVersion.String() {
-		// If db has no data, no need to reindex it.
-		if err != storm.ErrNotFound {
-			if err = db.ReIndex(&AgendaTagged{}); err != nil {
-				return nil, fmt.Errorf("ReIndex failed: %v", err)
+		// Attempt to delete AgendaTagged bucket.
+		if err = db.Drop(&AgendaTagged{}); err != nil {
+			// If error due bucket not found was returned ignore it.
+			if !strings.Contains(err.Error(), "not found") {
+				return nil, fmt.Errorf("delete bucket struct failed: %v", err)
 			}
 		}
 
@@ -101,6 +104,7 @@ func NewAgendasDB(client DeploymentSource, dbPath string) (*AgendaDB, error) {
 		if err != nil {
 			return nil, err
 		}
+		log.Infof("agendas.db version %v was set", dbVersion)
 	}
 
 	return &AgendaDB{sdb: db, rpcClient: client}, nil

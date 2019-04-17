@@ -34,7 +34,7 @@ require (
 	github.com/dgryski/go-farm v0.0.0-20190416075124-e1214b5e05dc // indirect
 	github.com/didip/tollbooth v4.0.1-0.20180415195142-b10a036da5f0+incompatible
 	github.com/didip/tollbooth_chi v0.0.0-20170928041846-6ab5f3083f3d
-	github.com/dmigwi/go-piparser/proposals v0.0.0-20190411222856-0732954b2d46
+	github.com/dmigwi/go-piparser/proposals v0.0.0-20190415205832-3992790812af
 	github.com/dustin/go-humanize v1.0.0
 	github.com/go-chi/chi v4.0.3-0.20190316151245-d08916613452+incompatible
 	github.com/google/gops v0.3.6

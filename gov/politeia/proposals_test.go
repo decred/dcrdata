@@ -22,6 +22,7 @@ var tempDir string
 // initial sample proposal made.
 var firstProposal = &pitypes.ProposalInfo{
 	Name:      "Initial Test proposal",
+	RefID:     "initial-test-proposal",
 	State:     2,
 	Status:    4,
 	Timestamp: 1541904469,
@@ -228,6 +229,7 @@ func mockServer() *httptest.Server {
 var mockedPayload = &pitypes.ProposalInfo{
 	ID:          2,
 	Name:        "Change language: PoS Mining to PoS Voting, Stakepool to Voting Service Provider",
+	RefID:       "change-language-pos-mining-to-pos-voting-stakepool-to-voting-service-provider",
 	State:       2,
 	Status:      4,
 	Timestamp:   1539880429,
@@ -355,9 +357,9 @@ func TestStuff(t *testing.T) {
 		}
 	})
 
-	// Testing proposal retrieval by ID
-	t.Run("Test_ProposalByID", func(t *testing.T) {
-		proposal, err := newDBInstance.ProposalByID(firstProposal.TokenVal)
+	// Testing proposal retrieval by Token
+	t.Run("Test_ProposalByToken", func(t *testing.T) {
+		proposal, err := newDBInstance.ProposalByToken(firstProposal.TokenVal)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -366,4 +368,63 @@ func TestStuff(t *testing.T) {
 			t.Fatal("expected the initialProposal to match the retrieved but it did not")
 		}
 	})
+
+	// Testing proposal retrieval by RefID
+	t.Run("Test_ProposalByRefID", func(t *testing.T) {
+		proposal, err := newDBInstance.ProposalByRefID("initial-test-proposal")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if !reflect.DeepEqual(proposal, firstProposal) {
+			t.Fatal("expected the initialProposal to match the retrieved but it did not")
+		}
+	})
+}
+
+func TestGenerateCustomID(t *testing.T) {
+	type testData struct {
+		title    string
+		token    string
+		customID string
+		isError  bool
+	}
+
+	td := []testData{
+		{
+			title:    "",
+			customID: "",
+			isError:  true,
+		},
+		{
+			title:    "Decred Bug Bounty Proposal",
+			customID: "decred-bug-bounty-proposal",
+		},
+		{
+			title:    "Smart Reach Partnership Proposal -- Jan 2019",
+			customID: "smart-reach-partnership-proposal-jan-2019",
+		},
+		{
+			title:    "Proposed Statement Of Work (SOW) For Decred Blockchain Wallet Tutorial Campaign",
+			customID: "proposed-statement-of-work-sow-for-decred-blockchain-wallet-tutorial-campaign",
+		},
+	}
+
+	for i, val := range td {
+		t.Run("Test_#"+strconv.Itoa(i), func(t *testing.T) {
+			newID, err := generateCustomID(val.title)
+
+			if err != nil && !val.isError {
+				t.Fatalf("expected no error but found (%v)", err)
+			}
+
+			if err == nil && val.isError {
+				t.Fatal("expected an error but found none")
+			}
+
+			if newID != val.customID {
+				t.Fatalf("expected the new ID to be (%s) but found (%v)", val.customID, newID)
+			}
+		})
+	}
 }

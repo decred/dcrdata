@@ -10,29 +10,39 @@ import piapi "github.com/decred/politeia/politeiawww/api/www/v1"
 // It also holds the votes status details. The ID field is auto incremented by
 // the db.
 type ProposalInfo struct {
-	ID               int                `json:"id" storm:"id,increment"`
-	Name             string             `json:"name"`
-	State            ProposalStateType  `json:"state"`
-	Status           ProposalStatusType `json:"status"`
-	Timestamp        uint64             `json:"timestamp"`
-	UserID           string             `json:"userid"`
-	Username         string             `json:"username"`
-	PublicKey        string             `json:"publickey"`
-	Signature        string             `json:"signature"`
-	Version          string             `json:"version"`
-	NumComments      int32              `json:"numcomments"`
-	StatusChangeMsg  string             `json:"statuschangemessage"`
-	PublishedDate    uint64             `json:"publishedat" storm:"index"`
-	CensoredDate     uint64             `json:"censoredat"`
-	AbandonedDate    uint64             `json:"abandonedat"`
+	ID              int                `json:"id" storm:"id,increment"`
+	Name            string             `json:"name"`
+	State           ProposalStateType  `json:"state"`
+	Status          ProposalStatusType `json:"status"`
+	Timestamp       uint64             `json:"timestamp"`
+	UserID          string             `json:"userid"`
+	Username        string             `json:"username"`
+	PublicKey       string             `json:"publickey"`
+	Signature       string             `json:"signature"`
+	Version         string             `json:"version"`
+	NumComments     int32              `json:"numcomments"`
+	StatusChangeMsg string             `json:"statuschangemessage"`
+	PublishedDate   uint64             `json:"publishedat" storm:"index"`
+	CensoredDate    uint64             `json:"censoredat"`
+	AbandonedDate   uint64             `json:"abandonedat"`
+	// RefID was added to create an easily readable part of the URL that helps
+	// to reference the proposals details page. Storm db ignores entries with
+	// duplicate pk but returns "ErrAlreadyExists" error if the field other than
+	// the pk has the tag "unique".
+	RefID            string `storm:"unique"`
 	CensorshipRecord `json:"censorshiprecord"`
 	ProposalVotes    `json:"votes"`
 	// Files           []AttachmentFile   `json:"files"`
 }
 
-// Proposals defines an array of proposals as returned by RouteAllVetted.
+// Proposals defines an array of proposals as returned by RouteAllVetted route.
 type Proposals struct {
 	Data []*ProposalInfo `json:"proposals"`
+}
+
+// Proposal defines a object proposals as returned by RouteProposalDetails route.
+type Proposal struct {
+	Data *ProposalInfo `json:"proposal"`
 }
 
 // CensorshipRecord is an entry that was created when the proposal was submitted.
