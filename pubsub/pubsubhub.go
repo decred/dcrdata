@@ -347,7 +347,7 @@ func (psh *PubSubHub) sendLoop(conn *connection) {
 
 loop:
 	for {
-		// Wait for signal from the hub to update.
+		// Wait for signal from the WebSocketHub to update.
 		select {
 		case sig, ok := <-updateSigChan:
 			// Check if the update channel was closed. Either the websocket
@@ -359,11 +359,13 @@ loop:
 			}
 
 			if !sig.IsValid() {
-				return
+				log.Errorf("invalid signal to send: %s / %d", sig.Signal.String(), int(sig.Signal))
+				continue loop
 			}
 
 			if !clientData.isSubscribed(sig) {
-				log.Warnf("Client not subscribed for %s events. WebSocketHub messed up?", sig.Signal.String())
+				log.Errorf("Client not subscribed for %s events. "+
+					"WebSocketHub should have caught this.", sig.Signal.String())
 				continue loop // break
 			}
 
@@ -432,7 +434,7 @@ loop:
 				// ping and send user count
 				pushMsg.Message = strconv.Itoa(psh.wsHub.NumClients())
 
-			case sigNewTx:
+			case sigNewTxs:
 				// Marshal this client's tx buffer if it is not empty.
 				clientData.newTxs.Lock()
 				if len(clientData.newTxs.t) == 0 {
@@ -440,6 +442,7 @@ loop:
 					continue loop // break sigselect
 				}
 				err := enc.Encode(clientData.newTxs.t)
+
 				// Reinit the tx buffer.
 				clientData.newTxs.t = make(pstypes.TxList, 0, NewTxBufferSize)
 				clientData.newTxs.Unlock()
@@ -473,6 +476,7 @@ loop:
 				}
 				// If the send failed, the client is probably gone, quit the
 				// send loop, unregistering the client from the websocket hub.
+				log.Errorf("websocket.JSON.Send of %v failed: %v", pushMsg, err)
 				return
 			}
 

@@ -45,7 +45,7 @@ func main() {
 
 	// Subscribe/unsubscribe to several events.
 	var currentSubs []string
-	allSubs := []string{"ping", "newtx", "newblock", "mempool", "address:Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx", "address"}
+	allSubs := []string{"ping", "newtxs", "newblock", "mempool", "address:Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx", "address"}
 	subscribe := func(newsubs []string) error {
 		for _, sub := range newsubs {
 			if subd, _ := strInSlice(currentSubs, sub); subd {
@@ -137,6 +137,8 @@ func main() {
 						}
 
 						data = append(data, a.data[i]+":"+addr)
+					} else {
+						data = append(data, a.data[i])
 					}
 				}
 				a.data = data
@@ -192,6 +194,7 @@ func main() {
 			if pstypes.IsIOTimeoutErr(err) {
 				continue
 			}
+			fmt.Printf("ReceiveMsg failed: %v", err)
 			return
 		}
 

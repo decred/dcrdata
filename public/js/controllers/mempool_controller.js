@@ -99,7 +99,7 @@ export default class extends Controller {
       'Revocation': this.numRevocationTarget,
       'Regular': this.numRegularTarget
     }
-    ws.registerEvtHandler('newtx', (evt) => {
+    ws.registerEvtHandler('newtxs', (evt) => {
       let txs = JSON.parse(evt)
       this.mempool.mergeTxs(txs)
       this.renderNewTxns(txs)
@@ -127,7 +127,7 @@ export default class extends Controller {
   }
 
   disconnect () {
-    ws.deregisterEvtHandlers('newtx')
+    ws.deregisterEvtHandlers('newtxs')
     ws.deregisterEvtHandlers('mempool')
     ws.deregisterEvtHandlers('getmempooltxsResp')
   }

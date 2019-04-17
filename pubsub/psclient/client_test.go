@@ -147,8 +147,8 @@ var msgMempool5Latest = &pstypes.WebSocketMessage{
 	}`,
 }
 
-var msgNewTx5 = &pstypes.WebSocketMessage{
-	EventId: "newtx",
+var msgNewTxs5 = &pstypes.WebSocketMessage{
+	EventId: "newtxs",
 	Message: `[
 		{
 			"txid": "0c5bb28d9c33c5e73fd2d60a8dfad2b0a62c68af5be6dee0a9cc3734b897d22b",
@@ -715,7 +715,7 @@ func TestDecodeMsgUnknown(t *testing.T) {
 }
 
 func TestDecodeMsg(t *testing.T) {
-	Msg, err := DecodeMsg(msgNewTx5)
+	Msg, err := DecodeMsg(msgNewTxs5)
 	if err != nil {
 		t.Fatalf("failed to decode message: %v", err)
 	}
@@ -736,7 +736,7 @@ func TestDecodeMsg(t *testing.T) {
 }
 
 func TestDecodeMsgTxList(t *testing.T) {
-	txlist, err := DecodeMsgTxList(msgNewTx5)
+	txlist, err := DecodeMsgTxList(msgNewTxs5)
 	if err != nil {
 		t.Fatalf("failed to decode message: %v", err)
 	}

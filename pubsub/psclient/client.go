@@ -129,7 +129,7 @@ func DecodeMsg(msg *pstypes.WebSocketMessage) (interface{}, error) {
 		var am pstypes.AddressMessage
 		err := json.Unmarshal([]byte(msg.Message), &am)
 		return &am, err
-	case "newtx":
+	case "newtxs":
 		var newtxs pstypes.TxList
 		err := json.Unmarshal([]byte(msg.Message), &newtxs)
 		return &newtxs, err
@@ -179,7 +179,7 @@ func DecodeMsgUnsubscribeResponse(msg *pstypes.WebSocketMessage) (string, error)
 }
 
 // DecodeMsgTxList attempts to decode the Message content of the given
-// WebSocketMessage as a newtx message (*pstypes.TxList).
+// WebSocketMessage as a newtxs message (*pstypes.TxList).
 func DecodeMsgTxList(msg *pstypes.WebSocketMessage) (*pstypes.TxList, error) {
 	txl, err := DecodeMsg(msg)
 	if err != nil {

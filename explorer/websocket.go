@@ -35,6 +35,7 @@ var (
 	sigMempoolUpdate    = pstypes.SigMempoolUpdate
 	sigPingAndUserCount = pstypes.SigPingAndUserCount
 	sigNewTx            = pstypes.SigNewTx
+	sigNewTxs           = pstypes.SigNewTxs
 	sigAddressTx        = pstypes.SigAddressTx
 	sigSyncStatus       = pstypes.SigSyncStatus
 )
@@ -262,11 +263,15 @@ func (wsh *WebsocketHub) run() {
 			}
 
 			for client := range wsh.clients {
-				// Don't signal the client on new tx, another case handles that
+				// Don't signal to PubSubHub on new tx. The sendBufferChan case
+				// in the outer select statement handles sending the tx slices
+				// to each subscribed client.
 				if hubMsg.Signal == sigNewTx {
 					break
 				}
-				// Signal or unregister the client
+
+				// Signal to the client's PubSubHub send loop, or unregister the
+				// client.
 				select {
 				case *client <- pstypes.HubMessage{Signal: hubMsg.Signal}:
 				default:
@@ -276,8 +281,10 @@ func (wsh *WebsocketHub) run() {
 
 		case ch := <-wsh.Register:
 			wsh.registerClient(ch)
+
 		case c := <-wsh.Unregister:
 			wsh.unregisterClient(c)
+
 		case _, ok := <-wsh.quitWSHandler:
 			if !ok {
 				log.Error("close channel already closed. This should not happen.")
@@ -285,7 +292,7 @@ func (wsh *WebsocketHub) run() {
 			}
 			close(wsh.quitWSHandler)
 
-			// end the buffer interval send loop
+			// End the buffer interval send loop.
 			wsh.bufferTickerChan <- tickerSigStop
 
 		case <-wsh.sendBufferChan:
@@ -294,23 +301,37 @@ func (wsh *WebsocketHub) run() {
 				wsh.bufferMtx.Unlock()
 				continue
 			}
+
+			// Copy the transaction slice and make a new empty buffer.
 			txs := make([]*types.MempoolTx, len(wsh.newTxBuffer))
 			copy(txs, wsh.newTxBuffer)
 			wsh.newTxBuffer = make([]*types.MempoolTx, 0, newTxBufferSize)
 			wsh.bufferMtx.Unlock()
+
 			if len(wsh.clients) > 0 {
 				log.Debugf("Signaling %d new tx to %d clients", len(txs), len(wsh.clients))
 			}
-			for signal, client := range wsh.clients {
+			for clientSpoke, client := range wsh.clients {
+				// Each client gets the same tx slice. In the future each client
+				// may have a different slice of new transactions.
 				client.cl.Lock()
 				client.cl.newTxs = txs
 				client.cl.Unlock()
+
+				// Inform the client's websocket connection handler
+				// (RootWebsocket) of the new transactions, but send a nil slice
+				// in the message since the client accesses the tx slice stored
+				// in its newTxs field.
 				select {
-				case *signal <- pstypes.HubMessage{Signal: sigNewTx}:
+				case *clientSpoke <- pstypes.HubMessage{
+					Signal: sigNewTxs,
+					Msg:    ([]*types.MempoolTx)(nil), // client has the data in its newTxs field
+				}:
 				default:
-					wsh.unregisterClient(signal)
+					wsh.unregisterClient(clientSpoke)
 				}
 			}
+
 		case update := <-wsh.xcChan:
 			for _, client := range wsh.clients {
 				client.xc <- update

@@ -37,6 +37,7 @@ var (
 	sigMempoolUpdate    = pstypes.SigMempoolUpdate
 	sigPingAndUserCount = pstypes.SigPingAndUserCount
 	sigNewTx            = pstypes.SigNewTx
+	sigNewTxs           = pstypes.SigNewTxs
 	sigAddressTx        = pstypes.SigAddressTx
 	sigSyncStatus       = pstypes.SigSyncStatus
 )
@@ -389,10 +390,21 @@ func (wsh *WebsocketHub) Run() {
 				if !(someTxBuffersReady || wsh.TimeToSendTxBuffer()) {
 					break
 				}
+
+				// In PubSubHub, the outgoing client message will be a
+				// SigNewTxs, with a slice of transactions. Since the single new
+				// transaction received from the mempool monitor is already
+				// added to each client's slice, just relay a sigNewTxs to
+				// PubSubHub with a nil slice to be a valid message.
+				hubMsg.Signal = sigNewTxs
+				hubMsg.Msg = ([]*exptypes.MempoolTx)(nil) // PubSubHub accesses each client's own slice.
 			}
 
-			// Send the signal to all clients.
+			// Send the signal to PubSubHub.
 			for spoke, client := range wsh.clients {
+				// Verify the client subscription before bothering PubSubHub.
+				// This is why the signal must be changed from sigNewTx to
+				// sigNewTxs.
 				if !client.isSubscribed(hubMsg) {
 					log.Tracef("Client not subscribed to %s.", hubMsg.Signal.String())
 					continue
@@ -406,7 +418,7 @@ func (wsh *WebsocketHub) Run() {
 				}
 			}
 
-			if hubMsg.Signal == sigNewTx {
+			if hubMsg.Signal == sigNewTxs {
 				// The Tx buffers were just sent.
 				wsh.SetTimeToSendTxBuffer(false)
 			}
