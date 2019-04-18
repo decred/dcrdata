@@ -95,7 +95,7 @@ func RetrieveAllProposals(client *http.Client, APIRootPath, URLParams string) (
 
 // RetrieveProposalByToken returns a single proposal identified by the token
 // hash provided if it exists. Data returned is queried from Politeia API.
-func RetrieveProposalByToken(client *http.Client, APIRootPath, token string) (*pitypes.ProposalInfo, error) {
+func RetrieveProposalByToken(client *http.Client, APIRootPath, token string) (*pitypes.Proposal, error) {
 	// Constructs the full proposal's URl and fetch is data.
 	proposalRoute := APIRootPath + DropURLRegex(piapi.RouteProposalDetails, token)
 	data, err := HandleGetRequests(client, proposalRoute)
@@ -103,10 +103,15 @@ func RetrieveProposalByToken(client *http.Client, APIRootPath, token string) (*p
 		return nil, fmt.Errorf("retrieving %s proposal details failed: %v", token, err)
 	}
 
-	var proposal pitypes.ProposalInfo
+	var proposal pitypes.Proposal
 	err = json.Unmarshal(data, &proposal)
 	if err != nil {
 		return nil, err
+	}
+
+	// Check if null proposal data was returned as part of the proposal details.
+	if proposal.Data == nil {
+		return nil, fmt.Errorf("invalid proposal with null data found for %s", token)
 	}
 
 	// Constructs the full votes status URL and fetch its data.
@@ -116,7 +121,7 @@ func RetrieveProposalByToken(client *http.Client, APIRootPath, token string) (*p
 		return nil, fmt.Errorf("retrieving %s proposal vote status failed: %v", token, err)
 	}
 
-	err = json.Unmarshal(data, &proposal.ProposalVotes)
+	err = json.Unmarshal(data, &proposal.Data.ProposalVotes)
 	if err != nil {
 		return nil, err
 	}
