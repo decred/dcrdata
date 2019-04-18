@@ -30,9 +30,14 @@ type ProposalInfo struct {
 	// Files           []AttachmentFile   `json:"files"`
 }
 
-// Proposals defines an array of proposals as returned by RouteAllVetted.
+// Proposals defines an array of proposals payload as returned by RouteAllVetted route.
 type Proposals struct {
 	Data []*ProposalInfo `json:"proposals"`
+}
+
+// Proposal defines a proposal payload as returned by RouteProposalDetails route.
+type Proposal struct {
+	Data *ProposalInfo `json:"proposal"`
 }
 
 // CensorshipRecord is an entry that was created when the proposal was submitted.
