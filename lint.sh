@@ -1,13 +1,20 @@
 #!/usr/bin/env bash
+#
+# Lint all modules.
+#
+#   lint.sh - lints all modules in the repository root, or the current folder if
+#   not in a git workspace.
+#
+#   lint.sh [folder] - lints all modules in the specified folder.
 
 REPO=`git rev-parse --show-toplevel 2> /dev/null`
 if [[ $? != 0 ]]; then
     REPO=`pwd`
 fi
 
+# Root is the input argument, or REPO if no input argument.
 ROOT=${1:-$REPO}
-
-echo $ROOT
+echo "Linting all modules under" $ROOT
 
 set -e
 
