@@ -195,10 +195,8 @@ type DepthData struct {
 
 // IsFresh will be true if the data is older than depthDataExpiration.
 func (depth *DepthData) IsFresh() bool {
-	if time.Duration(time.Now().Unix()-depth.Time)*time.Second < depthDataExpiration {
-		return true
-	}
-	return false
+	return time.Duration(time.Now().Unix()-depth.Time)*
+		time.Second < depthDataExpiration
 }
 
 // Candlestick is the record of price change over some bin width of time.
@@ -228,10 +226,7 @@ func (sticks Candlesticks) needsUpdate(bin candlestickKey) bool {
 		return true
 	}
 	lastStick := sticks[len(sticks)-1]
-	if time.Now().After(lastStick.Start.Add(bin.duration() * 2)) {
-		return true
-	}
-	return false
+	return time.Now().After(lastStick.Start.Add(bin.duration() * 2))
 }
 
 // ExchangeState is the simple template for a price. The only member that is
@@ -1279,7 +1274,7 @@ func badDragonexStickElement(key string, err error) Candlesticks {
 	return Candlesticks{}
 }
 
-func (data DragonExCandlestickData) translate(cKey candlestickKey) Candlesticks {
+func (data DragonExCandlestickData) translate( /*cKey candlestickKey*/ ) Candlesticks {
 	sticks := make(Candlesticks, 0, len(data.Lists))
 	var idx int
 	var err error
@@ -1451,7 +1446,7 @@ func (dragonex *DragonExchange) Refresh() {
 				log.Errorf("DragonEx server error while fetching candlestick data. Message: %s", response.Msg)
 			}
 
-			sticks := response.Data.translate(bin)
+			sticks := response.Data.translate()
 			if !found || sticks.time().After(oldSticks.time()) {
 				candlesticks[bin] = sticks
 			}
@@ -1806,7 +1801,7 @@ type PoloniexCandlestickPt struct {
 
 type PoloniexCandlestickResponse []*PoloniexCandlestickPt
 
-func (r PoloniexCandlestickResponse) translate(bin candlestickKey) Candlesticks {
+func (r PoloniexCandlestickResponse) translate( /*bin candlestickKey*/ ) Candlesticks {
 	sticks := make(Candlesticks, 0, len(r))
 	for _, stick := range r {
 		sticks = append(sticks, Candlestick{
@@ -1880,7 +1875,7 @@ func (poloniex *PoloniexExchange) Refresh() {
 				continue
 			}
 
-			sticks := response.translate(bin)
+			sticks := response.translate()
 			if !found || sticks.time().After(oldSticks.time()) {
 				candlesticks[bin] = sticks
 			}

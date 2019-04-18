@@ -1140,7 +1140,7 @@ func (ac *AddressCache) StoreRowsCompact(addr string, rows []dbtypes.AddressRowC
 	ac.mtx.Lock()
 	defer ac.mtx.Unlock()
 
-	if block != nil && rows == nil {
+	if rows == nil {
 		rows = []dbtypes.AddressRowCompact{}
 	}
 
