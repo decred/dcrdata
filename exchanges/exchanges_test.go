@@ -6,7 +6,6 @@ package exchanges
 import (
 	"context"
 	"fmt"
-	// "encoding/json"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -222,12 +221,13 @@ func (p *fakePoloniexWebsocket) Done() chan struct{} {
 
 func (p *fakePoloniexWebsocket) Read() ([]byte, error) {
 	poloniexReadCount++
-	if poloniexReadCount == 1 {
+	switch poloniexReadCount {
+	case 1:
 		return initialPoloniexOrderbook, nil
-	} else if poloniexReadCount == 2 {
+	case 2:
 		time.Sleep(100 * time.Millisecond)
 		return poloniexEmptyUpdate, nil
-	} else if poloniexReadCount == 3 {
+	case 3:
 		time.Sleep(100 * time.Millisecond)
 		return poloniexOrderbookUpdate, nil
 	}

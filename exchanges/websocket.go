@@ -53,7 +53,8 @@ func (client *socketClient) Read() (msg []byte, err error) {
 }
 
 // Write is a wrapper for gorilla WriteMessage. Satisfies websocketFeed.Write.
-// Writes are sequenced with a mutex lock for per-connection multi-threaded use.
+// JSON marshaling is performed before sending. Writes are sequenced with a
+// mutex lock for per-connection multi-threaded use.
 func (client *socketClient) Write(msg interface{}) error {
 	client.writeMtx.Lock()
 	defer client.writeMtx.Unlock()

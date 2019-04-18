@@ -2122,7 +2122,9 @@ func processPoloniexOrderbookUpdate(updateParams []interface{}) (*poloniexOrder,
 
 // For Poloniex message "t", a trade. This seems to be used rarely and
 // sporadically, but it is used. For the BTC_DCR endpoint, almost all updates
-// are of the "o" type.
+// are of the "o" type, an orderbook update. The docs are unclear about whether a trade updates the
+// order book, but testing seems to indicate that a "t" message is for trades
+// that occur off of the orderbook.
 func (poloniex *PoloniexExchange) processTrade(tradeParams []interface{}) (*poloniexOrder, int, error) {
 	if len(tradeParams) != 6 {
 		return nil, -1, fmt.Errorf("Not enough parameters in poloniex trade notification. given: %d", len(tradeParams))
@@ -2163,7 +2165,8 @@ func (poloniex *PoloniexExchange) processWsMessage(raw []byte) {
 		poloniex.setWsFail(err)
 		return
 	}
-	if len(msg) == 1 {
+	switch len(msg) {
+	case 1:
 		// Likely a heatbeat
 		code, ok := msg[0].(float64)
 		if !ok {
@@ -2176,84 +2179,87 @@ func (poloniex *PoloniexExchange) processWsMessage(raw []byte) {
 		}
 		poloniex.setWsFail(fmt.Errorf("unknown code in single-element poloniex response: %d", intCode))
 		return
-	}
-	if len(msg) < 3 {
+	case 3:
+		responseList, ok := msg[2].([]interface{})
+		if !ok {
+			poloniex.setWsFail(fmt.Errorf("poloniex websocket message type assertion failure: %T", msg[2]))
+			return
+		}
+
+		if len(responseList) == 0 {
+			poloniex.setWsFail(fmt.Errorf("zero-length response list received from poloniex"))
+			return
+		}
+
+		code := firstCode(responseList)
+
+		if code == poloniexInitialOrderbookKey {
+			poloniex.processWsOrderbook(responseList)
+			state := poloniex.state()
+			if state != nil { // Only send update if price has been fetched
+				depth := poloniex.wsDepths()
+				poloniex.Update(&ExchangeState{
+					Price:        state.Price,
+					BaseVolume:   state.BaseVolume,
+					Volume:       state.Volume,
+					Change:       state.Change,
+					Depth:        depth,
+					Candlesticks: state.Candlesticks,
+				})
+			}
+			return
+		}
+
+		if code != poloniexOrderUpdateKey && code != poloniexTradeUpdateKey {
+			poloniex.setWsFail(fmt.Errorf("Unexpected code in first element of poloniex websocket response list: %s", code))
+			return
+		}
+
+		newAsks := make(poloniexOrders)
+		newBids := make(poloniexOrders)
+		for _, update := range responseList {
+			updateParams, ok := update.([]interface{})
+			if !ok {
+				poloniex.setWsFail(fmt.Errorf("failed to type convert poloniex orderbook update array"))
+				return
+			}
+			if len(updateParams) < 4 {
+				poloniex.setWsFail(fmt.Errorf("unexpected number of parameters in poloniex orderboook update"))
+				return
+			}
+			updateType, ok := updateParams[0].(string)
+			if !ok {
+				poloniex.setWsFail(fmt.Errorf("failed to type convert poloniex orderbook update type"))
+				return
+			}
+
+			var order *poloniexOrder
+			var direction int
+			if updateType == poloniexOrderUpdateKey {
+				order, direction, err = processPoloniexOrderbookUpdate(updateParams)
+				if err != nil {
+					poloniex.setWsFail(err)
+				}
+			} else if updateType == poloniexTradeUpdateKey {
+				continue
+				// trade, direction, err = poloniex.processTrade(updateParams)
+			}
+
+			switch direction {
+			case poloniexAskDirection:
+				newAsks[int64(order.price*1e8)] = order
+			case poloniexBuyDirection:
+				newBids[int64(order.price*1e8)] = order
+			default:
+				poloniex.setWsFail(fmt.Errorf("Unknown poloniex update direction indic`ator: %d", direction))
+				return
+			}
+		}
+		poloniex.accumulateOrders(newAsks, newBids)
+	default:
 		poloniex.setWsFail(fmt.Errorf("poloniex websocket message had unexpected length %d", len(msg)))
 		return
 	}
-
-	responseList, ok := msg[2].([]interface{})
-	if !ok {
-		poloniex.setWsFail(fmt.Errorf("poloniex websocket message type assertion failure: %T", msg[2]))
-		return
-	}
-
-	code := firstCode(responseList)
-
-	if code == poloniexInitialOrderbookKey {
-		poloniex.processWsOrderbook(responseList)
-		state := poloniex.state()
-		if state != nil { // Only send update if price has been fetched
-			depth := poloniex.wsDepths()
-			poloniex.Update(&ExchangeState{
-				Price:        state.Price,
-				BaseVolume:   state.BaseVolume,
-				Volume:       state.Volume,
-				Change:       state.Change,
-				Depth:        depth,
-				Candlesticks: state.Candlesticks,
-			})
-		}
-		return
-	}
-
-	if code != poloniexOrderUpdateKey && code != poloniexTradeUpdateKey {
-		poloniex.setWsFail(fmt.Errorf("Unexpected code in first element of poloniex websocket response list: %s", code))
-		return
-	}
-
-	poloniex.orderMtx.RLock()
-	newAsks := make(poloniexOrders)
-	newBids := make(poloniexOrders)
-	for _, update := range responseList {
-		updateParams, ok := update.([]interface{})
-		if !ok {
-			poloniex.setWsFail(fmt.Errorf("failed to type convert poloniex orderbook update array"))
-			return
-		}
-		if len(updateParams) < 4 {
-			poloniex.setWsFail(fmt.Errorf("unexpected number of parameters in poloniex orderboook update"))
-			return
-		}
-		updateType, ok := updateParams[0].(string)
-		if !ok {
-			poloniex.setWsFail(fmt.Errorf("failed to type convert poloniex orderbook update type"))
-			return
-		}
-
-		var order *poloniexOrder
-		var direction int
-		if updateType == poloniexOrderUpdateKey {
-			order, direction, err = processPoloniexOrderbookUpdate(updateParams)
-			if err != nil {
-				poloniex.setWsFail(err)
-			}
-		} else if updateType == poloniexTradeUpdateKey {
-			continue
-			// trade, direction, err = poloniex.processTrade(updateParams)
-		}
-
-		if direction == poloniexAskDirection {
-			newAsks[int64(order.price*1e8)] = order
-		} else if direction == poloniexBuyDirection {
-			newBids[int64(order.price*1e8)] = order
-		} else {
-			poloniex.setWsFail(fmt.Errorf("Unknown poloniex update direction indicator: %d", direction))
-			return
-		}
-	}
-	poloniex.orderMtx.RUnlock()
-	poloniex.accumulateOrders(newAsks, newBids)
 }
 
 // Pull out the int64 bin keys from the map.
