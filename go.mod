@@ -12,23 +12,23 @@ require (
 	github.com/decred/dcrd/rpcclient/v2 v2.0.0
 	github.com/decred/dcrd/txscript v1.0.3-0.20190402182842-879eebce3333
 	github.com/decred/dcrd/wire v1.2.0
-	github.com/decred/dcrdata/api/types v1.0.6
-	github.com/decred/dcrdata/blockdata v1.0.1
-	github.com/decred/dcrdata/db/dbtypes v1.0.2-0.20190404134533-26b1a4335e4a
-	github.com/decred/dcrdata/db/dcrpg v1.0.0
-	github.com/decred/dcrdata/db/dcrsqlite v1.0.0
+	github.com/decred/dcrdata/api/types v1.0.7-0.20190418034050-08c2119ba59f
+	github.com/decred/dcrdata/blockdata v1.0.2-0.20190418034050-08c2119ba59f
+	github.com/decred/dcrdata/db/dbtypes v1.0.2-0.20190418034050-08c2119ba59f
+	github.com/decred/dcrdata/db/dcrpg v1.0.1-0.20190418034050-08c2119ba59f
+	github.com/decred/dcrdata/db/dcrsqlite v1.0.1-0.20190418034050-08c2119ba59f
 	github.com/decred/dcrdata/exchanges v1.0.0
 	github.com/decred/dcrdata/explorer/types v1.0.0
-	github.com/decred/dcrdata/gov/agendas v1.0.0
-	github.com/decred/dcrdata/gov/politeia v1.0.0
-	github.com/decred/dcrdata/mempool v1.0.0
-	github.com/decred/dcrdata/middleware v1.0.1
+	github.com/decred/dcrdata/gov/agendas v1.0.1-0.20190418034050-08c2119ba59f
+	github.com/decred/dcrdata/gov/politeia v1.0.1-0.20190418034050-08c2119ba59f
+	github.com/decred/dcrdata/mempool v1.0.1-0.20190418034050-08c2119ba59f
+	github.com/decred/dcrdata/middleware v1.0.2-0.20190418034050-08c2119ba59f
 	github.com/decred/dcrdata/pubsub v1.0.0
 	github.com/decred/dcrdata/pubsub/types v1.0.0
-	github.com/decred/dcrdata/rpcutils v1.0.1
+	github.com/decred/dcrdata/rpcutils v1.0.2-0.20190418034050-08c2119ba59f
 	github.com/decred/dcrdata/semver v1.0.0
 	github.com/decred/dcrdata/stakedb v1.0.1
-	github.com/decred/dcrdata/txhelpers v1.0.1
+	github.com/decred/dcrdata/txhelpers v1.0.2-0.20190418034050-08c2119ba59f
 	github.com/decred/dcrwallet/wallet v1.2.0
 	github.com/decred/slog v1.0.0
 	github.com/didip/tollbooth v4.0.1-0.20180415195142-b10a036da5f0+incompatible
@@ -44,26 +44,4 @@ require (
 	github.com/shiena/ansicolor v0.0.0-20151119151921-a422bbe96644
 	github.com/sirupsen/logrus v1.2.0
 	golang.org/x/net v0.0.0-20190403144856-b630fd6fe46b
-)
-
-replace (
-	github.com/decred/dcrdata/api/types => ./api/types
-	github.com/decred/dcrdata/blockdata => ./blockdata
-	github.com/decred/dcrdata/db/cache => ./db/cache
-	github.com/decred/dcrdata/db/dbtypes => ./db/dbtypes
-	github.com/decred/dcrdata/db/dcrpg => ./db/dcrpg
-	github.com/decred/dcrdata/db/dcrsqlite => ./db/dcrsqlite
-	github.com/decred/dcrdata/dcrrates => ./dcrrates
-	github.com/decred/dcrdata/exchanges => ./exchanges
-	github.com/decred/dcrdata/explorer/types => ./explorer/types
-	github.com/decred/dcrdata/gov/agendas => ./gov/agendas
-	github.com/decred/dcrdata/gov/politeia => ./gov/politeia
-	github.com/decred/dcrdata/mempool => ./mempool
-	github.com/decred/dcrdata/middleware => ./middleware
-	github.com/decred/dcrdata/pubsub => ./pubsub
-	github.com/decred/dcrdata/pubsub/types => ./pubsub/types
-	github.com/decred/dcrdata/rpcutils => ./rpcutils
-	github.com/decred/dcrdata/semver => ./semver
-	github.com/decred/dcrdata/stakedb => ./stakedb
-	github.com/decred/dcrdata/txhelpers => ./txhelpers
 )
