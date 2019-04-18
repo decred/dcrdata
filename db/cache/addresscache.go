@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	apitypes "github.com/decred/dcrdata/api/types"
+	apitypes "github.com/decred/dcrdata/api/types/v2"
 	"github.com/decred/dcrdata/db/dbtypes"
 )
 
