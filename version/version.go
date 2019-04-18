@@ -1,4 +1,4 @@
-// Copyright (c) 2018 The Decred developers
+// Copyright (c) 2018-2019 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -26,7 +26,7 @@ const (
 	AppName  string = "dcrdata"
 	AppMajor uint   = 4
 	AppMinor uint   = 0
-	AppPatch uint   = 2
+	AppPatch uint   = 3
 )
 
 // go build -v -o dcrdata -ldflags "-X github.com/decred/dcrdata/v4/version.appPreRelease= -X github.com/decred/dcrdata/v4/version.appBuild=`git rev-parse --short HEAD`"
