@@ -521,7 +521,8 @@ func (xc *CommonExchange) state() *ExchangeState {
 // WebsocketProcessor is a callback for new websocket messages from the server.
 type WebsocketProcessor func([]byte)
 
-// Only the fields are protected for these, so okay to grab them like this.
+// Only the fields are protected for these. (websocketFeed).Write has
+// concurrency control.
 func (xc *CommonExchange) websocket() (websocketFeed, WebsocketProcessor) {
 	xc.mtx.RLock()
 	defer xc.mtx.RUnlock()
@@ -1789,6 +1790,7 @@ type PoloniexExchange struct {
 	*CommonExchange
 	CurrencyPair string
 	orderMtx     sync.RWMutex
+	orderSeq     int64
 	buys         poloniexOrders
 	asks         poloniexOrders
 }
@@ -1989,7 +1991,7 @@ func (poloniex *PoloniexExchange) parseOrderMap(book map[string]interface{}, ord
 }
 
 // This initial websocket message is a full orderbook.
-func (poloniex *PoloniexExchange) processWsOrderbook(responseList []interface{}) {
+func (poloniex *PoloniexExchange) processWsOrderbook(sequenceID int64, responseList []interface{}) {
 	subList, ok := responseList[0].([]interface{})
 	if !ok {
 		poloniex.setWsFail(fmt.Errorf("Failed to parse 0th element of poloniex response array"))
@@ -2027,6 +2029,7 @@ func (poloniex *PoloniexExchange) processWsOrderbook(responseList []interface{})
 
 	poloniex.orderMtx.Lock()
 	defer poloniex.orderMtx.Unlock()
+	poloniex.orderSeq = sequenceID
 	err := poloniex.parseOrderMap(asks, poloniex.asks)
 	if err != nil {
 		poloniex.setWsFail(err)
@@ -2054,9 +2057,14 @@ func mergePoloniexDepthUpdates(target, source poloniexOrders) {
 }
 
 // Merge order updates under a write lock.
-func (poloniex *PoloniexExchange) accumulateOrders(asks, buys poloniexOrders) {
+func (poloniex *PoloniexExchange) accumulateOrders(sequenceID int64, asks, buys poloniexOrders) {
 	poloniex.orderMtx.Lock()
 	defer poloniex.orderMtx.Unlock()
+	poloniex.orderSeq++
+	if sequenceID != poloniex.orderSeq {
+		poloniex.setWsFail(fmt.Errorf("poloniex sequence id failure. expected %d, received %d", poloniex.orderSeq, sequenceID))
+		return
+	}
 	mergePoloniexDepthUpdates(poloniex.asks, asks)
 	mergePoloniexDepthUpdates(poloniex.buys, buys)
 }
@@ -2192,9 +2200,15 @@ func (poloniex *PoloniexExchange) processWsMessage(raw []byte) {
 		}
 
 		code := firstCode(responseList)
+		rawSeq, ok := msg[1].(float64)
+		if !ok {
+			poloniex.setWsFail(fmt.Errorf("poloniex websocket sequence id type assertion failure: %T", msg[2]))
+			return
+		}
+		seq := int64(rawSeq)
 
 		if code == poloniexInitialOrderbookKey {
-			poloniex.processWsOrderbook(responseList)
+			poloniex.processWsOrderbook(seq, responseList)
 			state := poloniex.state()
 			if state != nil { // Only send update if price has been fetched
 				depth := poloniex.wsDepths()
@@ -2255,7 +2269,7 @@ func (poloniex *PoloniexExchange) processWsMessage(raw []byte) {
 				return
 			}
 		}
-		poloniex.accumulateOrders(newAsks, newBids)
+		poloniex.accumulateOrders(seq, newAsks, newBids)
 	default:
 		poloniex.setWsFail(fmt.Errorf("poloniex websocket message had unexpected length %d", len(msg)))
 		return

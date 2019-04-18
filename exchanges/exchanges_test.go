@@ -171,7 +171,7 @@ var poloniexEmptyUpdate = []byte(`[
 
 var poloniexOrderbookUpdate = []byte(`[
     14,
-    85537933,
+    8768,
     [
         [
             "o",
@@ -190,7 +190,7 @@ var poloniexOrderbookUpdate = []byte(`[
 
 var poloniexTrade = []byte(`[
     14,
-    85537933,
+    8769,
     [
 			[
 					"t",
