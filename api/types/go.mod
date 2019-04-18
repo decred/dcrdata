@@ -1,4 +1,4 @@
-module github.com/decred/dcrdata/api/types
+module github.com/decred/dcrdata/api/types/v2
 
 go 1.11
 
