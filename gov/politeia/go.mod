@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/gov/politeia
 
-go 1.12
+go 1.11
 
 require (
 	github.com/asdine/storm v2.2.0+incompatible
