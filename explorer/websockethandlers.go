@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	apitypes "github.com/decred/dcrdata/api/types"
+	apitypes "github.com/decred/dcrdata/api/types/v2"
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/explorer/types"
 	pstypes "github.com/decred/dcrdata/pubsub/types"

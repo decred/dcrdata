@@ -20,10 +20,10 @@ import (
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient/v2"
-	apitypes "github.com/decred/dcrdata/api/types"
+	apitypes "github.com/decred/dcrdata/api/types/v2"
 	"github.com/decred/dcrdata/db/dbtypes"
-	"github.com/decred/dcrdata/db/dcrpg"
-	m "github.com/decred/dcrdata/middleware"
+	"github.com/decred/dcrdata/db/dcrpg/v2"
+	m "github.com/decred/dcrdata/middleware/v2"
 	"github.com/decred/dcrdata/rpcutils"
 )
 
