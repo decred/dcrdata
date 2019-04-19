@@ -63,7 +63,7 @@ func RetrieveAllProposals(client *http.Client, APIRootPath, URLParams string) (
 	var publicProposals pitypes.Proposals
 	err = json.Unmarshal(data, &publicProposals)
 	if err != nil || len(publicProposals.Data) == 0 {
-		return nil, err
+		return &publicProposals, err
 	}
 
 	// Constructs the full vote status API URL
