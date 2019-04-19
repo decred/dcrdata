@@ -163,6 +163,11 @@ func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
 			break
 		}
 
+		if len(data.Data) == 0 {
+			// No updates found.
+			break
+		}
+
 		publicProposals.Data = append(publicProposals.Data, data.Data...)
 
 		// Break the loop when number the proposals returned are not equal to
