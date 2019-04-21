@@ -1,0 +1,46 @@
+{{define "mining-calculations"}}
+<!DOCTYPE html>
+<html lang="en">
+{{ template "html-head" "Attack Cost Calculator"}}
+{{template "navbar" . }}
+    <div class="container py-1" >
+        <div class="row">
+            <div class="col-md-24 p-0">
+                <div class="bg-white mb-1 py-2 px-3 my-0">
+                    <div class="d-inline-block position-relative p-2">
+                        <span class="card-icon dcricon-twoblocks h1 mr-2"></span> <span class="h4 my-3">Attack Cost Calculator</span>
+                    </div>
+                <div class="mt-2 my-3 h5">
+                   The current hash rate is  <span class="font-weight-bold">{{printf "%.3f" .HashRate}}</span> Ph/s as of block  {{$.Height}} </span>
+                </div>
+                <div class="mt-2 my-3 h5  pr-3">
+                    The target hash rate is  {{printf "%.3f" .HashRate}} Ph/s *0.51 =
+                    <span class="font-weight-bold">{{printf "%.3f" .TargetHashrate}} Ph/s.</span>
+                </div>
+                <div class="mt-2 my-3 h5">
+                    The device is DR5 Blake256R14 specifications are 34 Th/s, consumes 1610W of power and costs $1,282 per unit <a href="https://www.cryptocompare.com/mining/bitmain/antminer-dr5-blake256r14-34ths/" target="_blank">See More</a>
+               </div>
+                <div class="mt-2 my-3 h5">
+                    In order to aquire a <span class="font-weight-bold">{{printf "%.3f" .TargetHashrate}}</span> Ph/s hashrate, it would take <span class="font-weight-bold">{{ int64Comma .DeviceMiner }}</span> DCR5s at 34 Th/s each. It would cost <span class="font-weight-bold">${{ int64Comma .DeviceCost}}</span> to buy them.
+                 </div>
+                 <div class="mt-2 my-3 h5 pr-3"> Total kWh per day:  ({{ int64Comma .DeviceMiner }} * 1610W *24 hours)/1000 =
+                    <span class="font-weight-bold">{{int64Comma .TotalKWhPerday}} kWh</span>.
+                </div>
+                <div class="mt-2 my-3 h5">
+                    Costs of daily electricity consumption for <span class="font-weight-bold">{{ int64Comma .DeviceMiner }}</span> DR5s:  {{int64Comma .TotalKWhPerday}} kWh * $0.03 per kWh =
+                      <span class="font-weight-bold">${{ int64Comma .DailyElectricity}}</span>.
+                </div>
+                 <div class="mt-2 my-3 h5 pr-3">Cost to mine <span class="font-weight-bold">{{ int64Comma .DeviceMiner }}</span> DR5s for 10 days:  ${{ int64Comma .DailyElectricity}} * 10 =
+                      <span class="font-weight-bold">${{ int64Comma .TotalElectricity}}</span>.
+                </div>
+                <div class="mt-2 my-3 h5 pr-3">Total 10 day PoW attack cost:  ${{ int64Comma .DeviceCost}} +  ${{ int64Comma .TotalElectricity}} =
+                   <span class="font-weight-bold">${{ int64Comma .TotalCost }}</span>.
+                </div>
+            </div>
+        </div>
+    </div>
+  {{ template "footer" . }}
+
+</body>
+</html>
+{{end}}

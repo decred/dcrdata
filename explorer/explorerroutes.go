@@ -31,6 +31,12 @@ import (
 	"github.com/decred/dcrdata/txhelpers/v3"
 
 	humanize "github.com/dustin/go-humanize"
+	"io"
+	"math"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
 )
 
 var dummyRequest = new(http.Request)
@@ -2215,4 +2221,61 @@ func calcPages(rows, pageSize, offset int, link string) pageNumbers {
 	}
 
 	return nums
+}
+
+// mining calculations 51%. is the page handler for the "/tool-mining-calculations" path.
+func (exp *explorerUI) MiningCalculations(nodeHeight int64, block *wire.BlockHeader, w http.ResponseWriter, r *http.Request) {
+	//get height block DB
+	height, _ := exp.blockData.GetHeight()
+	var HashRate float64
+	if height > nodeHeight {
+		HashRate = exp.pageData.HomeInfo.HashRate
+
+	} else {
+		height = nodeHeight
+		diffRatio := txhelpers.GetDifficultyRatio(block.Bits, exp.ChainParams)
+		targetTimePerBlock := float64(exp.ChainParams.TargetTimePerBlock)
+		HashRate = dbtypes.CalculateHashRate(diffRatio, targetTimePerBlock)
+	}
+	TargetHashrate := 0.51 * HashRate
+	DeviceMiner := math.Ceil(TargetHashrate * 1000 / 34)
+	DeviceCost := int64(DeviceMiner * 1282)
+	TotalKWhPerday := (DeviceMiner * 1610 * 24) / 1000
+	DailyElectricity := int64(TotalKWhPerday * 0.03)
+	TotalElectricity := DailyElectricity * 10
+	TotalCost := TotalElectricity + DeviceCost
+	str, err := exp.templates.execTemplateToString("mining-calculations", struct {
+		*CommonPageData
+		HashRate         float64
+		TargetHashrate   float64
+		DeviceMiner      int64
+		DeviceCost       int64
+		TotalKWhPerday   int64
+		DailyElectricity int64
+		TotalElectricity int64
+		TotalCost        int64
+	    Height     		 int64
+	}{
+		CommonPageData:   exp.commonData(r),
+		HashRate:         HashRate,
+		TargetHashrate:   TargetHashrate,
+		DeviceMiner:      int64(DeviceMiner),
+		DeviceCost:       DeviceCost,
+		TotalKWhPerday:   int64(TotalKWhPerday),
+		DailyElectricity: DailyElectricity,
+		TotalElectricity: TotalElectricity,
+		TotalCost:        TotalCost,
+		Height:     height,
+	})
+
+	//exp.pageData.RUnlock()
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+
 }
