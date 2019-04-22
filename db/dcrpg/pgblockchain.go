@@ -2845,8 +2845,7 @@ func (pgb *ChainDB) windowStats(interval int64, lastHeight int32, charts *cache.
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 
-	var err error
-	err = retrieveWindowStats(ctx, pgb.db, interval, lastHeight, charts)
+	err := retrieveWindowStats(ctx, pgb.db, interval, lastHeight, charts)
 	if err != nil {
 		err = fmt.Errorf("windowStats: %v", pgb.replaceCancelError(err))
 		return err
@@ -2860,8 +2859,7 @@ func (pgb *ChainDB) blockStats(lastHeight int32, charts *cache.ChartData) error 
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 
-	var err error
-	err = retrieveBlockStats(ctx, pgb.db, lastHeight, charts)
+	err := retrieveBlockStats(ctx, pgb.db, lastHeight, charts)
 	if err != nil {
 		err = fmt.Errorf("blockStats: %v", pgb.replaceCancelError(err))
 		return err
@@ -2875,8 +2873,7 @@ func (pgb *ChainDB) coinSupply(lastHeight int32, charts *cache.ChartData) error 
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 
-	var err error
-	err = retrieveCoinSupply(ctx, pgb.db, lastHeight, charts)
+	err := retrieveCoinSupply(ctx, pgb.db, lastHeight, charts)
 	if err != nil {
 		return fmt.Errorf("coinSupply: %v", pgb.replaceCancelError(err))
 	}

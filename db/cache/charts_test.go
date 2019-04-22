@@ -2,7 +2,7 @@ package cache
 
 import (
 	"context"
-	// "encoding/json"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -18,6 +18,11 @@ import (
 )
 
 var tempDir string
+
+func printJson(thing interface{}) {
+	s, _ := json.MarshalIndent(thing, "", "    ")
+	fmt.Println(string(s))
+}
 
 // TestMain setups the tempDir and cleans it up after tests.
 func TestMain(m *testing.M) {
@@ -129,49 +134,48 @@ func TestChartsCache(t *testing.T) {
 		compFloats := seedFloats()
 		compTimes := seedTimes()
 
-		comp("Height", charts.Blocks.Height, compUints, false)
-		comp("Time", charts.Blocks.Time, compTimes, false)
-		comp("PoolSize", charts.Blocks.PoolSize, compUints, false)
-		comp("PoolValue", charts.Blocks.PoolValue, compFloats, false)
-		comp("BlockSize", charts.Blocks.BlockSize, compUints, false)
-		comp("TxCount", charts.Blocks.TxCount, compUints, false)
-		comp("NewAtoms", charts.Blocks.NewAtoms, compUints, false)
-		comp("Chainwork", charts.Blocks.Chainwork, compUints, false)
-		comp("Fees", charts.Blocks.Fees, compUints, false)
+		comp("Height before read", charts.Blocks.Height, compUints, false)
+		comp("Time before read", charts.Blocks.Time, compTimes, false)
+		comp("PoolSize before read", charts.Blocks.PoolSize, compUints, false)
+		comp("PoolValue before read", charts.Blocks.PoolValue, compFloats, false)
+		comp("BlockSize before read", charts.Blocks.BlockSize, compUints, false)
+		comp("TxCount before read", charts.Blocks.TxCount, compUints, false)
+		comp("NewAtoms before read", charts.Blocks.NewAtoms, compUints, false)
+		comp("Chainwork before read", charts.Blocks.Chainwork, compUints, false)
+		comp("Fees before read", charts.Blocks.Fees, compUints, false)
 
 		err := charts.ReadCacheFile(gobPath)
 		if err != nil {
 			t.Fatalf("expected no error but found: %v", err)
 		}
 
-		comp("Height", charts.Blocks.Height, compUints, true)
-		comp("Time", charts.Blocks.Time, compTimes, true)
-		comp("PoolSize", charts.Blocks.PoolSize, compUints, true)
-		comp("PoolValue", charts.Blocks.PoolValue, compFloats, true)
-		comp("BlockSize", charts.Blocks.BlockSize, compUints, true)
-		comp("TxCount", charts.Blocks.TxCount, compUints, true)
-		comp("NewAtoms", charts.Blocks.NewAtoms, compUints, true)
-		comp("Chainwork", charts.Blocks.Chainwork, compUints, true)
-		comp("Fees", charts.Blocks.Fees, compUints, true)
-	})
+		comp("Height after read", charts.Blocks.Height, compUints, true)
+		comp("Time after read", charts.Blocks.Time, compTimes, true)
+		comp("PoolSize after read", charts.Blocks.PoolSize, compUints, true)
+		comp("PoolValue after read", charts.Blocks.PoolValue, compFloats, true)
+		comp("BlockSize after read", charts.Blocks.BlockSize, compUints, true)
+		comp("TxCount after read", charts.Blocks.TxCount, compUints, true)
+		comp("NewAtoms after read", charts.Blocks.NewAtoms, compUints, true)
+		comp("Chainwork after read", charts.Blocks.Chainwork, compUints, true)
+		comp("Fees after read", charts.Blocks.Fees, compUints, true)
 
-	t.Run("Lengthen", func(t *testing.T) {
-		err := charts.Lengthen()
-		if err != nil {
-			t.Fatalf("Lengthen error: %v", err)
-		}
-
-		// Time is expected to be the midnight associated with the beginning of the
-		// day.
-		comp("Time", charts.Days.Time, ChartUints{0, aDay, 2 * aDay}, true)
-		comp("PoolSize", charts.Days.PoolSize, uintDaysAvg, true)
-		comp("PoolValue", charts.Days.PoolValue, floatDaysAvg, true)
-		comp("BlockSize", charts.Days.BlockSize, uintDaysSum, true)
-		comp("TxCount", charts.Days.TxCount, uintDaysSum, true)
-		comp("NewAtoms", charts.Days.NewAtoms, uintDaysSum, true)
+		// Lengthen is called during ReadCacheFile, so Days should be properly calculated
+		comp("Time after Lengthen", charts.Days.Time, ChartUints{0, aDay, 2 * aDay}, true)
+		comp("PoolSize after Lengthen", charts.Days.PoolSize, uintDaysAvg, true)
+		comp("PoolValue after Lengthen", charts.Days.PoolValue, floatDaysAvg, true)
+		comp("BlockSize after Lengthen", charts.Days.BlockSize, uintDaysSum, true)
+		comp("TxCount after Lengthen", charts.Days.TxCount, uintDaysSum, true)
+		comp("NewAtoms after Lengthen", charts.Days.NewAtoms, uintDaysSum, true)
 		// Chainwork will just be the last entry from each day
-		comp("Chainwork", charts.Days.Chainwork, ChartUints{2, 4, 6}, true)
-		comp("Fees", charts.Days.Fees, uintDaysSum, true)
+		comp("Chainwork after Lengthen", charts.Days.Chainwork, ChartUints{2, 4, 6}, true)
+		comp("Fees after Lengthen", charts.Days.Fees, uintDaysSum, true)
+
+		// An additional call to lengthen should not add any data.
+		timeLen := len(charts.Days.Time)
+		charts.Lengthen()
+		if len(charts.Days.Time) != timeLen {
+			t.Fatalf("Second call to Lengthen resulted in unexpected new data.")
+		}
 	})
 
 	t.Run("get_chart", func(t *testing.T) {
@@ -199,6 +203,7 @@ func TestChartsCache(t *testing.T) {
 	t.Run("Reorg", func(t *testing.T) {
 		c := make(chan *txhelpers.ReorgData, 2)
 		dummyWg := new(sync.WaitGroup)
+		dummyWg.Add(1)
 		go charts.ReorgHandler(dummyWg, c)
 		// This should cause the blocks to truncate to length 2, the days to
 		// drop to length 1, and the windows to drop to length 0.
@@ -213,15 +218,19 @@ func TestChartsCache(t *testing.T) {
 			NewChainHeight: 2,
 			WG:             wg,
 		}
+		var timedOut bool
 		go func() {
 			select {
 			case <-time.NewTimer(1 * time.Second).C:
-				t.Fatalf("timed out waiting for waitgroup")
+				timedOut = true
 				wg.Done()
 			case <-ctx.Done():
 			}
 		}()
 		wg.Wait()
+		if timedOut {
+			t.Fatalf("timed out waiting for waitgroup")
+		}
 		shutdown()
 		if len(charts.Blocks.Time) != 2 {
 			t.Fatalf("blocks length %d after reorg test. expected 2", len(charts.Blocks.Time))
@@ -233,8 +242,4 @@ func TestChartsCache(t *testing.T) {
 			t.Fatalf("windows length %d after reorg test. expected 0", len(charts.Windows.Time))
 		}
 	})
-
-	// s, _ := json.MarshalIndent(charts.Days, "", "    ")
-	// fmt.Printf("%d blocks\n", len(charts.Blocks.Time))
-	// fmt.Println(string(s))
 }

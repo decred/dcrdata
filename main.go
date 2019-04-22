@@ -1155,10 +1155,6 @@ func _main(ctx context.Context) error {
 		return fmt.Errorf("Failed to enable dcrpg ChainMonitor. *ChainDB is nil.")
 	}
 
-	// // Blockchain monitor for the charts cache.
-	// chartsCacheMonitor := explore.NewCacheChainMonitor(ctx, &wg,
-	// 	notify.NtfnChans.ReorgChartsCache)
-
 	// Setup the synchronous handler functions called by the collectionQueue via
 	// OnBlockConnected.
 	collectionQueue.SetSynchronousHandlers([]func(*chainhash.Hash) error{

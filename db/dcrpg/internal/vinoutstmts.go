@@ -128,9 +128,8 @@ const (
 	SetVinsTableCoinSupplyUpgrade = `UPDATE vins SET is_valid = $1, block_time = $3, value_in = $4
 		WHERE tx_hash = $5 AND tx_index = $6 AND tx_tree = $7;`
 
-	// SelectCoinSupply returns the same rows as SelectCoinSupply,
-	// but sorted by block height. The JOIN makes the initial query (height > 0)
-	// substantially longer, but subsequent queries are reasonable.
+	// SelectCoinSupply fetches the newly minted atoms per block by filtering
+	// for stakebase and stake-validated coinbase transactions.
 	SelectCoinSupply = `SELECT vins.block_time, sum(vins.value_in)
 		FROM vins JOIN transactions
 		ON vins.tx_hash = transactions.tx_hash

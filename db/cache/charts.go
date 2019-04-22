@@ -97,8 +97,8 @@ func (data ChartFloats) Length() int {
 	return len(data)
 }
 
-// Truncate reduces the length of the underlying dataset. It satisfies the
-// lengther interface.
+// Truncate makes a subset of the underlying dataset. It satisfies the lengther
+// interface.
 func (data ChartFloats) Truncate(l int) lengther {
 	return data[:l]
 }
@@ -140,8 +140,8 @@ func (data ChartUints) Length() int {
 	return len(data)
 }
 
-// Truncate reduces the length of the underlying dataset. It satisfies the
-// lengther interface.
+// Truncate makes a subset of the underlying dataset. It satisfies the lengther
+// interface.
 func (data ChartUints) Truncate(l int) lengther {
 	return data[:l]
 }
@@ -251,7 +251,9 @@ func newWindowSet(size int) *windowSet {
 	}
 }
 
-// ChartGobject is the storage object for saving to a gob file.
+// ChartGobject is the storage object for saving to a gob file. ChartData itself
+// has a lot of extraneous fields, and also embeds sync.RWMutex, so is not
+// suitable for gobbing.
 type ChartGobject struct {
 	Height      ChartUints
 	Time        ChartUints
@@ -299,12 +301,11 @@ type ChartData struct {
 	Blocks   *zoomSet
 	Windows  *windowSet
 	Days     *zoomSet
-	params   *chaincfg.Params
 	cacheMtx sync.RWMutex
 	cache    map[string]*cachedChart
 }
 
-// check that the length of all arguments is equal.
+// Check that the length of all arguments is equal.
 func validateLengths(lens ...lengther) (int, error) {
 	lenLen := len(lens)
 	if lenLen == 0 {
@@ -319,7 +320,7 @@ func validateLengths(lens ...lengther) (int, error) {
 	return firstLen, nil
 }
 
-// reduce the timestamp to the previous midnight.
+// Reduce the timestamp to the previous midnight.
 func midnight(t uint64) (mid uint64) {
 	if t > 0 {
 		mid = t - t%aDay
@@ -327,11 +328,13 @@ func midnight(t uint64) (mid uint64) {
 	return
 }
 
-// Lengthen performs data validation and populatees the Days field. If there is
+// Lengthen performs data validation and populates the Days zoomSet. If there is
 // an update to a zoomSet or windowSet, the cacheID will be incremented.
 func (charts *ChartData) Lengthen() error {
 	charts.Lock()
 	defer charts.Unlock()
+
+	// Make sure the database has set an equal number of blocks in each data set.
 	blocks := charts.Blocks
 	blockLen, err := validateLengths(blocks.Time, blocks.PoolSize,
 		blocks.PoolValue, blocks.BlockSize, blocks.TxCount,
@@ -346,7 +349,6 @@ func (charts *ChartData) Lengthen() error {
 	windowsLen, err := validateLengths(charts.Windows.Time, charts.Windows.PowDiff, charts.Windows.TicketPrice)
 	if err != nil {
 		return fmt.Errorf("window zoom: %v", err)
-		return err
 	} else if windowsLen == 0 {
 		return fmt.Errorf("unexpected zero-length window data")
 	}
@@ -361,13 +363,16 @@ func (charts *ChartData) Lengthen() error {
 		start = midnight(charts.genesis)
 	}
 	intervals := [][2]int{}
-	if end > start {
+	// If there is day or more worth of new data, append to the Days zoomSet by
+	// finding the first and last+1 blocks of each new day, and taking averages
+	// or sums of the blocks in the interval.
+	if end > start+aDay {
 		next := start + aDay
 		startIdx := -1
 		for i, t := range blocks.Time {
 			if t < start {
 				continue
-			} else if t >= next || t > end {
+			} else if t >= next {
 				intervals = append(intervals, [2]int{startIdx, i})
 				days.Time = append(days.Time, start)
 				start = next
@@ -390,11 +395,12 @@ func (charts *ChartData) Lengthen() error {
 			days.Fees = append(days.Fees, blocks.Fees.Sum(interval[0], interval[1]))
 		}
 	}
+
+	// Check that all relevant datasets have been updated to the same length.
 	daysLen, err := validateLengths(days.PoolSize, days.PoolValue, days.BlockSize,
 		days.TxCount, days.NewAtoms, days.Chainwork, days.Fees)
 	if err != nil {
 		return fmt.Errorf("day zoom: %v", err)
-		return err
 	} else if daysLen == 0 {
 		return fmt.Errorf("unexpected zero-length day-binned data")
 	}
@@ -553,7 +559,7 @@ func (charts *ChartData) TipStats() (int32, uint64) {
 }
 
 // StateID returns a unique (enough) ID associted with the state of the Blocks
-// data in a thread safe way.
+// data in a thread-safe way.
 func (charts *ChartData) StateID() uint64 {
 	charts.RLock()
 	defer charts.RUnlock()

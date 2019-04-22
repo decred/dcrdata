@@ -1,6 +1,5 @@
 import { Controller } from 'stimulus'
 import { map, assign, merge } from 'lodash-es'
-// import { barChartPlotter } from '../helpers/chart_helper'
 import Zoom from '../helpers/zoom_helper'
 import { darkEnabled } from '../services/theme_service'
 import { animationFrame } from '../helpers/animation_helper'
@@ -14,7 +13,7 @@ var selectedChart
 let Dygraph // lazy loaded on connect
 
 const blockTime = 5 * 60 * 1000
-const blockScales = []
+const atomsToDCR = 1e-8
 const windowScales = ['ticket-price', 'pow-difficulty']
 var userBins = {}
 
@@ -71,11 +70,12 @@ function nightModeOptions (nightModeOn) {
   }
 }
 
-function zipYvDate (gData) {
+function zipYvDate (gData, coefficient) {
+  coefficient = coefficient || 1
   return map(gData.x, (n, i) => {
     return [
       new Date(n * 1000),
-      gData.y[i]
+      gData.y[i] * coefficient
     ]
   })
 }
@@ -210,7 +210,7 @@ export default class extends Controller {
     }
     switch (chartName) {
       case 'ticket-price': // price graph
-        d = zipYvDate(data)
+        d = zipYvDate(data, atomsToDCR)
         gOptions.stepPlot = true
         assign(gOptions, mapDygraphOptions(d, ['Date', 'Ticket Price'], true, 'Price (DCR)', 'Date', undefined, false, false))
         break
@@ -229,7 +229,7 @@ export default class extends Controller {
         break
 
       case 'ticket-pool-value': // pool value graph
-        d = zipYvDate(data)
+        d = zipYvDate(data, atomsToDCR)
         assign(gOptions, mapDygraphOptions(d, ['Date', 'Ticket Pool Value'], true, 'Ticket Pool Value', 'Date',
           undefined, true, false))
         break
@@ -262,12 +262,12 @@ export default class extends Controller {
         break
 
       case 'coin-supply': // supply graph
-        d = zipYvDate(data)
+        d = zipYvDate(data, atomsToDCR)
         assign(gOptions, mapDygraphOptions(d, ['Date', 'Coin Supply'], true, 'Coin Supply (DCR)', 'Date', undefined, true, false))
         break
 
       case 'fees': // block fee graph
-        d = zipYvDate(data)
+        d = zipYvDate(data, atomsToDCR)
         assign(gOptions, mapDygraphOptions(d, ['Block Height', 'Total Fee'], false, 'Total Fee (DCR)', 'Block Height',
           undefined, true, false))
         break
