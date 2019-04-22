@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"reflect"
 	"sync"
 	"time"
 
@@ -289,7 +288,7 @@ func (db *ProposalDB) updateInProgressProposals() (int, error) {
 		proposal.Data.ID = val.ID
 
 		// 2. The new proposal data has not changed.
-		if reflect.DeepEqual(*proposal.Data, *val) {
+		if val.IsEqual(proposal.Data) {
 			continue
 		}
 
