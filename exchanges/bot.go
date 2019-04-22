@@ -162,6 +162,7 @@ type IndexUpdate struct {
 type BotChannels struct {
 	index    chan *IndexUpdate
 	exchange chan *ExchangeUpdate
+	done     chan struct{}
 }
 
 // UpdateChannels are requested by the user with ExchangeBot.UpdateChannels.
@@ -300,9 +301,13 @@ func NewExchangeBot(config *ExchangeBotConfig) (*ExchangeBot, error) {
 		return false
 	}
 
+	quit := make(chan struct{})
+	bot.quitChans = append(bot.quitChans, quit)
+
 	channels := &BotChannels{
 		index:    bot.indexChan,
 		exchange: bot.exchangeChan,
+		done:     quit,
 	}
 
 	buildExchange := func(token string, constructor func(*http.Client, *BotChannels) (Exchange, error), xcMap map[string]Exchange) {
