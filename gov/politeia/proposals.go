@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -393,8 +392,7 @@ func (db *ProposalDB) updateInProgressProposals() (int, error) {
 		proposal.Data.RefID = val.RefID
 
 		// 2. The new proposal data has not changed.
-		//    - reflect.DeepEqual used because ProposalInfo has []Results.
-		if reflect.DeepEqual(*proposal.Data, *val) {
+		if val.IsEqual(proposal.Data) {
 			continue
 		}
 

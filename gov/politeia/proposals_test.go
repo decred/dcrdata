@@ -385,7 +385,6 @@ func TestStuff(t *testing.T) {
 func TestGenerateCustomID(t *testing.T) {
 	type testData struct {
 		title    string
-		token    string
 		customID string
 		isError  bool
 	}

@@ -189,3 +189,18 @@ func VotesStatuses() map[VoteStatusType]string {
 	}
 	return m
 }
+
+// IsEqual compares CensorshipRecord, Name, State, NumComments, StatusChangeMsg,
+// Timestamp, CensoredDate, AbandonedDate, PublishedDate, Token, VoteStatus,
+// TotalVotes and count of VoteResults between the two ProposalsInfo structs passed.
+func (a *ProposalInfo) IsEqual(b *ProposalInfo) bool {
+	if a.CensorshipRecord != b.CensorshipRecord || a.Name != b.Name || a.State != b.State ||
+		a.NumComments != b.NumComments || a.StatusChangeMsg != b.StatusChangeMsg ||
+		a.Status != b.Status || a.Timestamp != b.Timestamp || a.Token != b.Token ||
+		a.CensoredDate != b.CensoredDate || a.AbandonedDate != b.AbandonedDate ||
+		a.VoteStatus != b.VoteStatus || a.TotalVotes != b.TotalVotes ||
+		a.PublishedDate != b.PublishedDate || len(a.VoteResults) != len(b.VoteResults) {
+		return false
+	}
+	return true
+}
