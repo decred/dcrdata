@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -388,21 +389,21 @@ func (db *ProposalDB) updateInProgressProposals() (int, error) {
 			continue
 		}
 
-		// 2. The new proposals status is NotAuthorized(has not changed).
-		// 3. The last update timestamp has not changed.
-		if proposal.Data.VoteStatus == statuses[0] || proposal.Data.Timestamp == val.Timestamp {
+		proposal.Data.ID = val.ID
+		proposal.Data.RefID = val.RefID
+
+		// 2. The new proposal data has not changed.
+		//    - reflect.DeepEqual used because ProposalInfo has []Results.
+		if reflect.DeepEqual(*proposal.Data, *val) {
 			continue
 		}
 
 		// 4. Some or all data returned was empty or invalid.
-		if proposal.Data.VoteStatus < statuses[0] || proposal.Data.Timestamp < val.Timestamp {
+		if proposal.Data.TokenVal == "" || proposal.Data.TotalVotes < val.TotalVotes {
 			// Should help detect when API changes are effected on Politeia's end.
 			log.Warnf("invalid or empty data entries were returned for %v", val.TokenVal)
 			continue
 		}
-
-		proposal.Data.ID = val.ID
-		proposal.Data.RefID = val.RefID
 
 		err = db.dbP.Update(proposal.Data)
 		if err != nil {
