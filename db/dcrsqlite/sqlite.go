@@ -987,7 +987,7 @@ func (db *DB) RetrievePoolValAndSizeRange(ind0, ind1 int64) ([]float64, []float6
 // RetrievePoolAllValueAndSize returns all the pool value and the pool size
 // charts data needed to plot ticket-pool-size and ticket-pool value charts on
 // charts page.
-func (db *DB) RetrievePoolAllValueAndSize(lastHeight int32, charts *cache.ChartData) error {
+func (db *DB) RetrievePoolAllValueAndSize(charts *cache.ChartData) error {
 	chartState := charts.StateID()
 
 	stmt, err := db.Prepare(db.getAllPoolValSize)
@@ -996,7 +996,7 @@ func (db *DB) RetrievePoolAllValueAndSize(lastHeight int32, charts *cache.ChartD
 	}
 	defer stmt.Close()
 
-	rows, err := stmt.Query(lastHeight)
+	rows, err := stmt.Query(charts.PoolSizeTip())
 	if err != nil {
 		log.Errorf("Query failed: %v", err)
 		return err
@@ -1031,7 +1031,7 @@ func (db *DB) RetrievePoolAllValueAndSize(lastHeight int32, charts *cache.ChartD
 
 // RetrieveBlockFeeInfo retrieves the block fee chart data over time. This data
 // is used to plot block-fee-chart on the /charts page.
-func (db *DB) RetrieveBlockFeeInfo(lastHeight int32, charts *cache.ChartData) error {
+func (db *DB) RetrieveBlockFeeInfo(charts *cache.ChartData) error {
 	chartState := charts.StateID()
 	stmt, err := db.Prepare(db.getAllFeeInfoPerBlock)
 	if err != nil {
@@ -1039,7 +1039,7 @@ func (db *DB) RetrieveBlockFeeInfo(lastHeight int32, charts *cache.ChartData) er
 	}
 	defer stmt.Close()
 
-	rows, err := stmt.Query(lastHeight)
+	rows, err := stmt.Query(charts.FeesTip())
 	if err != nil {
 		log.Errorf("Query failed: %v", err)
 		return err

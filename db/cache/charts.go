@@ -296,13 +296,14 @@ func encodeChartResponse(x, y interface{}) ([]byte, error) {
 // Days data is auto-generated from the Blocks data during Lengthen-ing.
 type ChartData struct {
 	sync.RWMutex
-	ctx      context.Context
-	genesis  uint64
-	Blocks   *zoomSet
-	Windows  *windowSet
-	Days     *zoomSet
-	cacheMtx sync.RWMutex
-	cache    map[string]*cachedChart
+	ctx          context.Context
+	genesis      uint64
+	DiffInterval int32
+	Blocks       *zoomSet
+	Windows      *windowSet
+	Days         *zoomSet
+	cacheMtx     sync.RWMutex
+	cache        map[string]*cachedChart
 }
 
 // Check that the length of all arguments is equal.
@@ -546,16 +547,15 @@ func (charts *ChartData) gobject() *ChartGobject {
 	}
 }
 
-// TipStats returns both the height and time of the best block known in
-// (ChartData).Blocks.
-func (charts *ChartData) TipStats() (int32, uint64) {
+// TipTime returns the time of the best block known to (ChartData).Blocks.
+func (charts *ChartData) TipTime() uint64 {
 	charts.RLock()
 	defer charts.RUnlock()
 	var t uint64
 	if len(charts.Blocks.Time) != 0 {
 		t = charts.Blocks.Time[len(charts.Blocks.Time)-1]
 	}
-	return int32(len(charts.Blocks.Time)) - 1, t
+	return t
 }
 
 // StateID returns a unique (enough) ID associted with the state of the Blocks
@@ -582,12 +582,39 @@ func (charts *ChartData) ValidState(stateID uint64) bool {
 	return charts.stateID() == stateID
 }
 
-// FeesTip is the height of the Fees data. Until SQLite is dropped, the Fees
-// dataset is updated by a different database package than other Blocks fields.
+// FeesTip is the height of the Fees data.
+func (charts *ChartData) Height() int32 {
+	charts.RLock()
+	defer charts.RUnlock()
+	return int32(len(charts.Blocks.Time)) - 1
+}
+
+// FeesTip is the height of the Fees data.
 func (charts *ChartData) FeesTip() int32 {
 	charts.RLock()
 	defer charts.RUnlock()
 	return int32(len(charts.Blocks.Fees)) - 1
+}
+
+// NewAtomsTip is the height of the NewAtoms data.
+func (charts *ChartData) NewAtomsTip() int32 {
+	charts.RLock()
+	defer charts.RUnlock()
+	return int32(len(charts.Blocks.NewAtoms)) - 1
+}
+
+// TicketPriceTip is the height of the TicketPrice data.
+func (charts *ChartData) TicketPriceTip() int32 {
+	charts.RLock()
+	defer charts.RUnlock()
+	return int32(len(charts.Windows.TicketPrice))*charts.DiffInterval - 1
+}
+
+// PoolSizeTip is the height of the PoolSize data.
+func (charts *ChartData) PoolSizeTip() int32 {
+	charts.RLock()
+	defer charts.RUnlock()
+	return int32(len(charts.Blocks.PoolSize)) - 1
 }
 
 // NewChartData constructs a new ChartData.
@@ -599,12 +626,13 @@ func NewChartData(height uint32, genesis time.Time, chainParams *chaincfg.Params
 	days := int(int64(time.Since(genesis)/time.Hour/24)) * 5 / 4
 	windows := int(int64(height)/chainParams.StakeDiffWindowSize+1) * 5 / 4
 	return &ChartData{
-		ctx:     ctx,
-		genesis: uint64(genesis.Unix()),
-		Blocks:  newZoomSet(size),
-		Windows: newWindowSet(windows),
-		Days:    newZoomSet(days),
-		cache:   make(map[string]*cachedChart),
+		ctx:          ctx,
+		genesis:      uint64(genesis.Unix()),
+		DiffInterval: int32(chainParams.StakeDiffWindowSize),
+		Blocks:       newZoomSet(size),
+		Windows:      newWindowSet(windows),
+		Days:         newZoomSet(days),
+		cache:        make(map[string]*cachedChart),
 	}
 }
 
@@ -676,8 +704,8 @@ var chartMakers = map[string]ChartMaker{
 	TicketPoolValue: poolValueChart,
 }
 
-// Chart will return a JSON-encoded []byte chart of the provided type and
-// ZoomLevel.
+// Chart will return a JSON-encoded []byte chartResponse of the provided type
+// and ZoomLevel.
 func (charts *ChartData) Chart(chartID, zoomString string) ([]byte, error) {
 	zoom := ParseZoom(zoomString)
 	cache, found, cacheID := charts.getCache(chartID, zoom)
@@ -729,7 +757,7 @@ func accumulate(data ChartUints) ChartUints {
 
 // Translate the uints to a slice of the differences between each. The provided
 // data is assumed to be monotinically increasing. The first element is always
-// 0 to keep the size unchanged.
+// 0 to keep the data length unchanged.
 func btw(data ChartUints) ChartUints {
 	d := make(ChartUints, 0, len(data))
 	dataLen := len(data)
@@ -798,7 +826,7 @@ func durationBTWChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 // hashrate converts the provided chainwork data to hashrate data. Since
 // hashrates are averaged over HashrateAvgLength blocks, the returned slice
 // is HashrateAvgLength shorter than the provided chainwork. A time slice is
-// provided as well, and a truncated time slice with the same length as the
+// required as well, and a truncated time slice with the same length as the
 // hashrate slice is returned.
 func hashrate(time, chainwork ChartUints) (ChartUints, ChartUints) {
 	hrLen := len(chainwork) - HashrateAvgLength

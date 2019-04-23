@@ -455,8 +455,7 @@ func (exp *explorerUI) prePopulateChartsData() {
 	// HeightDB will return -1 for empty database. TipStats will also return -1
 	// for uninitialized datasets.
 	expHeight, _ := exp.explorerSource.HeightDB()
-	h, _ := exp.charts.TipStats()
-	if expHeight == int64(h) {
+	if expHeight == int64(exp.charts.Height()) {
 		log.Debugf("Not updating charts data again for height %d.", expHeight)
 		return
 	}

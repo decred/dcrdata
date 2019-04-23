@@ -963,14 +963,12 @@ func (db *WiredDB) GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []float64)
 // data.
 func (db *WiredDB) SqliteChartsData(charts *cache.ChartData) (err error) {
 
-	lastHeight := charts.FeesTip()
-
-	err = db.RetrieveBlockFeeInfo(lastHeight, charts)
+	err = db.RetrieveBlockFeeInfo(charts)
 	if err != nil {
 		return
 	}
 
-	err = db.RetrievePoolAllValueAndSize(lastHeight, charts)
+	err = db.RetrievePoolAllValueAndSize(charts)
 	if err != nil {
 		return
 	}

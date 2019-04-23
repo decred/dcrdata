@@ -2990,10 +2990,10 @@ func RetrieveTxnsBlocks(ctx context.Context, db *sql.DB, txHash string) (blockHa
 // retrieveBlockStats sets or updates a few per-block datasets.
 // SELECT height, time, chainwork, numtx FROM blocks WHERE is_mainchain AND
 // time > $1 ORDER BY height;
-func retrieveBlockStats(ctx context.Context, db *sql.DB, lastHeight int32, charts *cache.ChartData) error {
+func retrieveBlockStats(ctx context.Context, db *sql.DB, charts *cache.ChartData) error {
 	chartState := charts.StateID()
 
-	rows, err := db.QueryContext(ctx, internal.SelectBlockStats, lastHeight)
+	rows, err := db.QueryContext(ctx, internal.SelectBlockStats, charts.Height())
 	if err != nil {
 		return err
 	}
@@ -3065,10 +3065,10 @@ func retrieveBlockStats(ctx context.Context, db *sql.DB, lastHeight int32, chart
 // retrieveWindowStats fetches the ticket-price and pow-difficulty
 // charts data source from the blocks table. These data is fetched at an
 // interval of chaincfg.Params.StakeDiffWindowSize.
-func retrieveWindowStats(ctx context.Context, db *sql.DB, interval int64, lastHeight int32, charts *cache.ChartData) error {
+func retrieveWindowStats(ctx context.Context, db *sql.DB, charts *cache.ChartData) error {
 	chartState := charts.StateID()
 
-	rows, err := db.QueryContext(ctx, internal.SelectBlocksTicketsPrice, interval, lastHeight)
+	rows, err := db.QueryContext(ctx, internal.SelectBlocksTicketsPrice, charts.DiffInterval, charts.TicketPriceTip())
 	if err != nil {
 		return err
 	}
@@ -3097,10 +3097,10 @@ func retrieveWindowStats(ctx context.Context, db *sql.DB, interval int64, lastHe
 }
 
 // retrieveCoinSupply fetches the coin supply data from the vins table.
-func retrieveCoinSupply(ctx context.Context, db *sql.DB, lastHeight int32, charts *cache.ChartData) error {
+func retrieveCoinSupply(ctx context.Context, db *sql.DB, charts *cache.ChartData) error {
 	chartState := charts.StateID()
 
-	rows, err := db.QueryContext(ctx, internal.SelectCoinSupply, lastHeight)
+	rows, err := db.QueryContext(ctx, internal.SelectCoinSupply, charts.NewAtomsTip())
 	if err != nil {
 		return err
 	}

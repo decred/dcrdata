@@ -2841,11 +2841,11 @@ func (pgb *ChainDB) TicketsByInputCount() (*dbtypes.PoolTicketsData, error) {
 }
 
 // windowStats fetches the charts data from retrieveWindowStats.
-func (pgb *ChainDB) windowStats(interval int64, lastHeight int32, charts *cache.ChartData) error {
+func (pgb *ChainDB) windowStats(charts *cache.ChartData) error {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 
-	err := retrieveWindowStats(ctx, pgb.db, interval, lastHeight, charts)
+	err := retrieveWindowStats(ctx, pgb.db, charts)
 	if err != nil {
 		err = fmt.Errorf("windowStats: %v", pgb.replaceCancelError(err))
 		return err
@@ -2855,11 +2855,11 @@ func (pgb *ChainDB) windowStats(interval int64, lastHeight int32, charts *cache.
 }
 
 // blockStats sets or updates a series of per-block datasets.
-func (pgb *ChainDB) blockStats(lastHeight int32, charts *cache.ChartData) error {
+func (pgb *ChainDB) blockStats(charts *cache.ChartData) error {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 
-	err := retrieveBlockStats(ctx, pgb.db, lastHeight, charts)
+	err := retrieveBlockStats(ctx, pgb.db, charts)
 	if err != nil {
 		err = fmt.Errorf("blockStats: %v", pgb.replaceCancelError(err))
 		return err
@@ -2869,11 +2869,11 @@ func (pgb *ChainDB) blockStats(lastHeight int32, charts *cache.ChartData) error 
 }
 
 // coinSupply fetches the coin supply chart data from retrieveCoinSupply.
-func (pgb *ChainDB) coinSupply(lastHeight int32, charts *cache.ChartData) error {
+func (pgb *ChainDB) coinSupply(charts *cache.ChartData) error {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 
-	err := retrieveCoinSupply(ctx, pgb.db, lastHeight, charts)
+	err := retrieveCoinSupply(ctx, pgb.db, charts)
 	if err != nil {
 		return fmt.Errorf("coinSupply: %v", pgb.replaceCancelError(err))
 	}
@@ -2965,28 +2965,27 @@ func (pgb *ChainDB) getChartData(data map[string]*dbtypes.ChartsData,
 // chart data is not empty, only the change since the last update is queried
 // and pushed.
 func (pgb *ChainDB) PgChartsData(charts *cache.ChartData) (err error) {
-	lastHeight, t := charts.TipStats()
-	since := time.Unix(int64(t), 0)
+	t := charts.TipTime()
+	tOld := time.Unix(int64(t), 0)
 
-	err = pgb.blockStats(lastHeight, charts)
+	err = pgb.blockStats(charts)
 	if err != nil {
 		return
 	}
 
-	_, t = charts.TipStats()
-	if since.Equal(time.Unix(int64(t), 0)) {
+	t = charts.TipTime()
+	if tOld.Equal(time.Unix(int64(t), 0)) {
 		// nothing was updated, log a warning, but no error
 		log.Warnf("PgChartsData: no new data found")
 		return
 	}
 
-	err = pgb.coinSupply(lastHeight, charts)
+	err = pgb.coinSupply(charts)
 	if err != nil {
 		return
 	}
 
-	err = pgb.windowStats(pgb.chainParams.StakeDiffWindowSize, lastHeight,
-		charts)
+	err = pgb.windowStats(charts)
 
 	// tByAllBlocks := pgb.getChartData(data, dbtypes.TicketsByBlocks)
 	// tByAllBlocks.Height, tByAllBlocks.Solo, tByAllBlocks.Pooled, err = pgb.ticketsByBlocks(tByAllBlocks.Height,
