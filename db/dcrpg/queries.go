@@ -2983,33 +2983,40 @@ func retrieveTicketsPriceByHeight(ctx context.Context, db *sql.DB, interval int6
 func retrieveCoinSupply(ctx context.Context, db *sql.DB, timeArr []dbtypes.TimeDef,
 	sumArr, estimateArr []float64, params *chaincfg.Params) ([]dbtypes.TimeDef,
 	[]float64, []float64, error) {
-	var since, initialTime time.Time
-	var sum, estimate, preminedCoins float64
+	var sum, estimate float64
+	var since, premineTime time.Time
 
-	var reward = dcrutil.Amount(params.BaseSubsidy).ToCoin()
-	var targerBlockTime = float64(params.TargetTimePerBlock)
-	var inflationRate = float64(params.MulSubsidy) / float64(params.DivSubsidy)
-	var subsidyReduction = float64(params.SubsidyReductionInterval)
+	premineBlockInd := 1
+	reward := dcrutil.Amount(params.BaseSubsidy).ToCoin()
+	targetBlockTime := params.TargetTimePerBlock.Minutes()
+	inflationRate := float64(params.MulSubsidy) / float64(params.DivSubsidy)
+	subsidyReduction := float64(params.SubsidyReductionInterval)
 
-	if c := len(timeArr); c > 0 && len(sumArr) == c && len(estimateArr) == c {
+	// https://github.com/decred/dcrd/blob/5076a00512a521cea3c51b443b50970804dbe712/blockchain/subsidy_test.go#L52-L54
+	maxCoinSupply := 20999999.99800912
+
+	// timeArr and estimateArr may contain extra datasets than sumArr that allows
+	// the inflation axis to be extended to one month more than the actual supply
+	// if maximum supply has not yet been reached.
+	if c := len(sumArr); c > 0 && len(timeArr) >= c && len(estimateArr) >= c {
 		since = timeArr[c-1].T
 		sum = sumArr[c-1]
 		estimate = estimateArr[c-1]
+
+		// Delete extra data added before.
+		estimateArr = estimateArr[:c]
+		timeArr = timeArr[:c]
+
+		// Preset the premine Time.
+		if c > 1 {
+			premineTime = timeArr[premineBlockInd].T
+		}
 	} else {
-		// if the count of elems in all arrays doesn't match drops all entries.
+		// If the arrays do not have the same number of elements, drop all elements.
+		// Retrieve and accumulate all data since genesis.
 		sumArr = sumArr[:0]
 		timeArr = timeArr[:0]
 		estimateArr = estimateArr[:0]
-	}
-
-	// premine coins are usually found of the premines block (at height 1).
-	// Its usually the second block after the genesis block.
-	if len(sumArr) > 1 && len(timeArr) > 0 {
-		preminedCoins = sumArr[1]
-		initialTime = timeArr[1].T
-
-		// subtract the premine coins from the prev estimate
-		estimate -= preminedCoins
 	}
 
 	rows, err := db.QueryContext(ctx, internal.SelectCoinSupply, since)
@@ -3019,40 +3026,80 @@ func retrieveCoinSupply(ctx context.Context, db *sql.DB, timeArr []dbtypes.TimeD
 
 	defer closeRows(rows)
 
-	for rows.Next() {
-		var value int64
-		var timestamp time.Time
-		if err = rows.Scan(&timestamp, &value); err != nil {
-			return timeArr, sumArr, estimateArr, err
-		}
+	var actualReward float64
+	var estimatedBlockHeight int
 
-		if value < 0 {
-			value = 0
-		}
-
-		sum += dcrutil.Amount(value).ToCoin()
-		sumArr = append(sumArr, sum)
-		timeArr = append(timeArr, dbtypes.NewTimeDef(timestamp))
-
-		// if preminedCoins and initial time wasn't set it.
-		if len(sumArr) == 2 && preminedCoins == 0 {
-			preminedCoins = sum
-			initialTime = timestamp
-		}
-
-		var timeDiff = float64(timestamp.Sub(initialTime))
-		var estimatedBlockHeight = int(timeDiff / targerBlockTime)
-		if estimatedBlockHeight <= len(timeArr)-1 {
-			estimatedBlockHeight = len(timeArr) - 1
+	supplyEstimate := func(estimatedBlockHeight int) float64 {
+		// Before the stakeValidation height, all the POS rewards (30% of block reward)
+		// are lost since no votes are cast for those blocks.
+		if int64(estimatedBlockHeight) < params.StakeValidationHeight {
+			actualReward = reward * 0.7
+		} else {
+			actualReward = reward
 		}
 
 		subsidyInterval := math.Floor(float64(estimatedBlockHeight) / subsidyReduction)
-		if value > 0 {
-			estimate += (reward * math.Pow(inflationRate, subsidyInterval))
+		estimate += (actualReward * math.Pow(inflationRate, subsidyInterval))
+
+		return estimate
+	}
+
+	var timestamp time.Time
+	for rows.Next() {
+		var coins int64
+		if err = rows.Scan(&timestamp, &coins); err != nil {
+			return timeArr, sumArr, estimateArr, err
 		}
 
-		estimateArr = append(estimateArr, estimate+preminedCoins)
+		if coins < 0 {
+			coins = 0
+		}
+
+		sum += dcrutil.Amount(coins).ToCoin()
+		sumArr = append(sumArr, sum)
+		timeArr = append(timeArr, dbtypes.NewTimeDef(timestamp))
+
+		// When running a fresh full data query the initial estimate value that
+		// is also the premined coins and preminTime are set when the sumArr
+		// has the premine coins added.
+		if len(sumArr) == premineBlockInd+1 {
+			premineTime = timestamp
+
+			// sum value here is the same as the premined coins value.
+			estimate = sum
+		}
+
+		var timeDiff = timestamp.Sub(premineTime).Minutes()
+		var estimatedBlockHeight = int(timeDiff / targetBlockTime)
+		if estimatedBlockHeight < len(timeArr)-1 {
+			estimatedBlockHeight = len(timeArr) - 1
+		}
+
+		// On genesis block no coins exists yet thus estimate is also zero.
+		if coins == 0 {
+			estimateArr = append(estimateArr, 0)
+		} else {
+			estimateArr = append(estimateArr, supplyEstimate(estimatedBlockHeight))
+		}
 	}
+
+	// One month has 730 hours
+	hoursInOneMonth := 730 * time.Hour
+
+	// Append inflation data for the next one month from the current actual supply.
+	blocksInOneMonth := int(hoursInOneMonth.Minutes() / targetBlockTime)
+	for i := 1; i < blocksInOneMonth; i++ {
+		estimateCalculated := supplyEstimate(estimatedBlockHeight + i)
+		// If estimateCalculated is greater than max supply exit.
+		if estimateCalculated > maxCoinSupply {
+			break
+		}
+
+		estimateArr = append(estimateArr, estimateCalculated)
+		timestamp = timestamp.Add(params.TargetTimePerBlock)
+		timeArr = append(timeArr, dbtypes.NewTimeDef(timestamp))
+	}
+
 	return timeArr, sumArr, estimateArr, nil
 }
 

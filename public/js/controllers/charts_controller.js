@@ -86,7 +86,10 @@ function legendFormatter (data) {
       if (predicted > 0) {
         change = (((actual - predicted) / predicted) * 100).toFixed(2)
       }
-      percentChange = `<div class="pr-2">&nbsp;&nbsp;Change: ${change} %</div>`
+
+      if (!isNaN(change)) {
+        percentChange = `<div class="pr-2">&nbsp;&nbsp;Change: ${change} %</div>`
+      }
     }
 
     html = `<div class="d-flex flex-wrap justify-content-center align-items-center">
@@ -134,7 +137,7 @@ function difficultyFunc (gData) {
 }
 
 function supplyFunc (gData) {
-  return map(gData.time, (n, i) => { return [new Date(n), gData.valuef[i], gData.received[i]] })
+  return map(gData.time, (n, i) => { return [new Date(n), gData.valuef[i], gData.received[i] ? gData.received[i] : null] })
 }
 
 function timeBtwBlocksFunc (gData) {

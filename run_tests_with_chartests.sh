@@ -62,6 +62,9 @@ testrepo () {
     env GORACE='halt_on_error=1' go test -v -race -tags chartests $(cd $MODPATH && go list -m)
   done
 
+  # check linters
+  ./lint.sh
+
   # Drop the tests db.
   psql -U postgres -c "DROP DATABASE IF EXISTS dcrdata_mainnet_test"
 
