@@ -940,6 +940,28 @@ func (pgb *ChainDB) BlockChainDbIDNoCancel(hash string) (dbID uint64, err error)
 	return pgb.blockChainDbID(context.Background(), hash)
 }
 
+// RegisterCharts registers chart data fetchers and appenders with the provided
+// ChartData.
+func (pgb *ChainDB) RegisterCharts(charts *cache.ChartData) {
+	charts.AddUpdater(cache.ChartUpdater{
+		Tag:      "basic blocks",
+		Fetcher:  pgb.chartBlocks,
+		Appender: appendChartBlocks,
+	})
+
+	charts.AddUpdater(cache.ChartUpdater{
+		Tag:      "coin supply",
+		Fetcher:  pgb.coinSupply,
+		Appender: appendCoinSupply,
+	})
+
+	charts.AddUpdater(cache.ChartUpdater{
+		Tag:      "window stats",
+		Fetcher:  pgb.windowStats,
+		Appender: appendWindowStats,
+	})
+}
+
 // TransactionBlocks retrieves the blocks in which the specified transaction
 // appears, along with the index of the transaction in each of the blocks. The
 // next and previous block hashes are NOT SET in each BlockStatus.
@@ -2841,44 +2863,44 @@ func (pgb *ChainDB) TicketsByInputCount() (*dbtypes.PoolTicketsData, error) {
 }
 
 // windowStats fetches the charts data from retrieveWindowStats.
-func (pgb *ChainDB) windowStats(charts *cache.ChartData) error {
+// This is the Fetcher half of a pair that make up a cache.ChartUpdater. The
+// Appender half is appendWindowStats.
+func (pgb *ChainDB) windowStats(charts *cache.ChartData) (*sql.Rows, func(), error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
-	defer cancel()
 
-	err := retrieveWindowStats(ctx, pgb.db, charts)
+	rows, err := retrieveWindowStats(ctx, pgb.db, charts)
 	if err != nil {
-		err = fmt.Errorf("windowStats: %v", pgb.replaceCancelError(err))
-		return err
+		return nil, cancel, fmt.Errorf("windowStats: %v", pgb.replaceCancelError(err))
 	}
 
-	return nil
+	return rows, cancel, nil
 }
 
 // chartBlocks sets or updates a series of per-block datasets.
-func (pgb *ChainDB) chartBlocks(charts *cache.ChartData) error {
+// This is the Fetcher half of a pair that make up a cache.ChartUpdater. The
+// Appender half is appendChartBlocks.
+func (pgb *ChainDB) chartBlocks(charts *cache.ChartData) (*sql.Rows, func(), error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
-	defer cancel()
 
-	err := retrieveChartBlocks(ctx, pgb.db, charts)
+	rows, err := retrieveChartBlocks(ctx, pgb.db, charts)
 	if err != nil {
-		err = fmt.Errorf("chartBlocks: %v", pgb.replaceCancelError(err))
-		return err
+		return nil, cancel, fmt.Errorf("chartBlocks: %v", pgb.replaceCancelError(err))
 	}
-
-	return nil
+	return rows, cancel, nil
 }
 
 // coinSupply fetches the coin supply chart data from retrieveCoinSupply.
-func (pgb *ChainDB) coinSupply(charts *cache.ChartData) error {
+// This is the Fetcher half of a pair that make up a cache.ChartUpdater. The
+// Appender half is appendCoinSupply.
+func (pgb *ChainDB) coinSupply(charts *cache.ChartData) (*sql.Rows, func(), error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
-	defer cancel()
 
-	err := retrieveCoinSupply(ctx, pgb.db, charts)
+	rows, err := retrieveCoinSupply(ctx, pgb.db, charts)
 	if err != nil {
-		return fmt.Errorf("coinSupply: %v", pgb.replaceCancelError(err))
+		return nil, cancel, fmt.Errorf("coinSupply: %v", pgb.replaceCancelError(err))
 	}
 
-	return nil
+	return rows, cancel, nil
 }
 
 // txPerDay fetches the tx-per-day chart data from retrieveTxPerDay.
@@ -2957,58 +2979,6 @@ func (pgb *ChainDB) getChartData(data map[string]*dbtypes.ChartsData,
 		cData = new(dbtypes.ChartsData)
 	}
 	return cData
-}
-
-// PgChartsData accepts an array of the old charts data that needs update.
-// If any of the charts has no entries, its records from the oldest to the
-// most recent are queries from the db pushed into the chart's data. If a given
-// chart data is not empty, only the change since the last update is queried
-// and pushed.
-func (pgb *ChainDB) PgChartsData(charts *cache.ChartData) (err error) {
-	t := charts.TipTime()
-	tOld := time.Unix(int64(t), 0)
-
-	err = pgb.chartBlocks(charts)
-	if err != nil {
-		return
-	}
-
-	t = charts.TipTime()
-	if tOld.Equal(time.Unix(int64(t), 0)) {
-		// nothing was updated, log a warning, but no error
-		log.Warnf("PgChartsData: no new data found")
-		return
-	}
-
-	err = pgb.coinSupply(charts)
-	if err != nil {
-		return
-	}
-
-	err = pgb.windowStats(charts)
-
-	// tByAllBlocks := pgb.getChartData(data, dbtypes.TicketsByBlocks)
-	// tByAllBlocks.Height, tByAllBlocks.Solo, tByAllBlocks.Pooled, err = pgb.ticketsByBlocks(tByAllBlocks.Height,
-	// 	tByAllBlocks.Solo, tByAllBlocks.Pooled)
-	// if err != nil {
-	// 	return
-	// }
-	//
-	// ticketsByWin := pgb.getChartData(data, dbtypes.TicketByWindows)
-	// ticketsByWin.Height, ticketsByWin.Solo, ticketsByWin.Pooled, err = pgb.ticketsByTPWindows(ticketsByWin.Height,
-	// 	ticketsByWin.Solo, ticketsByWin.Pooled)
-	// if err != nil {
-	// 	return
-	// }
-	//
-	// ticketSpendT := pgb.getChartData(data, dbtypes.TicketSpendT)
-	// ticketSpendT.Height, ticketSpendT.Unspent, ticketSpendT.Revoked, err = pgb.ticketSpendTypePerBlock(ticketSpendT.Height,
-	// 	ticketSpendT.Unspent, ticketSpendT.Revoked)
-	// if err != nil {
-	// 	return
-	// }
-
-	return
 }
 
 // SetVinsMainchainByBlock first retrieves for all transactions in the specified

@@ -2988,15 +2988,17 @@ func RetrieveTxnsBlocks(ctx context.Context, db *sql.DB, txHash string) (blockHa
 // ----- Historical Charts on /charts page -----
 
 // retrieveChartBlocks sets or updates a few per-block datasets.
-// SELECT height, time, chainwork, numtx FROM blocks WHERE is_mainchain AND
-// time > $1 ORDER BY height;
-func retrieveChartBlocks(ctx context.Context, db *sql.DB, charts *cache.ChartData) error {
-	chartState := charts.StateID()
-
+func retrieveChartBlocks(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
 	rows, err := db.QueryContext(ctx, internal.SelectBlockStats, charts.Height())
 	if err != nil {
-		return err
+		return nil, err
 	}
+	return rows, nil
+}
+
+// Append the results from retrieveChartBlocks to the provided ChartData.
+// This is the Appender half of a pair that make up a cache.ChartUpdater.
+func appendChartBlocks(charts *cache.ChartData, rows *sql.Rows) error {
 	defer closeRows(rows)
 
 	// In order to store chainwork values as uint64, they are represented
@@ -3012,16 +3014,12 @@ func retrieveChartBlocks(ctx context.Context, db *sql.DB, charts *cache.ChartDat
 	var timeDef dbtypes.TimeDef
 	var workhex string
 	var count, size, height uint64
-	charts.Lock()
-	defer charts.Unlock()
+	var rowCount int32
 	blocks := charts.Blocks
-	if !charts.ValidState(chartState) {
-		// Database was updated by someone else while the query was running
-		return fmt.Errorf("retrieveChartBlocks: blocks data has changed during query. aborting update")
-	}
 	for rows.Next() {
+		rowCount++
 		// Get the chainwork.
-		err = rows.Scan(&height, &size, &timeDef, &workhex, &count)
+		err := rows.Scan(&height, &size, &timeDef, &workhex, &count)
 		if err != nil {
 			return err
 		}
@@ -3047,7 +3045,7 @@ func retrieveChartBlocks(ctx context.Context, db *sql.DB, charts *cache.ChartDat
 		log.Errorf("%d rows have invalid chainwork values.", badRows)
 	}
 	chainLen := len(blocks.Chainwork)
-	if uint64(chainLen-1) != height {
+	if rowCount > 0 && uint64(chainLen-1) != height {
 		return fmt.Errorf("retrieveChartBlocks: height misalignment. last height = %d. data length = %d", height, chainLen)
 	}
 	if len(blocks.Time) != chainLen || len(blocks.TxCount) != chainLen {
@@ -3065,27 +3063,24 @@ func retrieveChartBlocks(ctx context.Context, db *sql.DB, charts *cache.ChartDat
 // retrieveWindowStats fetches the ticket-price and pow-difficulty
 // charts data source from the blocks table. These data is fetched at an
 // interval of chaincfg.Params.StakeDiffWindowSize.
-func retrieveWindowStats(ctx context.Context, db *sql.DB, charts *cache.ChartData) error {
-	chartState := charts.StateID()
-
+func retrieveWindowStats(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
 	rows, err := db.QueryContext(ctx, internal.SelectBlocksTicketsPrice, charts.DiffInterval, charts.TicketPriceTip())
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer closeRows(rows)
+	return rows, nil
+}
 
-	charts.Lock()
-	defer charts.Unlock()
-	if !charts.ValidState(chartState) {
-		// Database was updated by someone else while the query was running
-		return fmt.Errorf("retrieveWindowStats: blocks data has changed during query. aborting update")
-	}
+// Appends the results from retrieveWindowStats to the provided ChartData.
+// This is the Appender half of a pair that make up a cache.ChartUpdater.
+func appendWindowStats(charts *cache.ChartData, rows *sql.Rows) error {
+	defer closeRows(rows)
 	windows := charts.Windows
 	for rows.Next() {
 		var timestamp time.Time
 		var price uint64
 		var difficulty float64
-		if err = rows.Scan(&price, &timestamp, &difficulty); err != nil {
+		if err := rows.Scan(&price, &timestamp, &difficulty); err != nil {
 			return err
 		}
 		windows.TicketPrice = append(windows.TicketPrice, price)
@@ -3097,33 +3092,28 @@ func retrieveWindowStats(ctx context.Context, db *sql.DB, charts *cache.ChartDat
 }
 
 // retrieveCoinSupply fetches the coin supply data from the vins table.
-func retrieveCoinSupply(ctx context.Context, db *sql.DB, charts *cache.ChartData) error {
-	chartState := charts.StateID()
-
+func retrieveCoinSupply(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
 	rows, err := db.QueryContext(ctx, internal.SelectCoinSupply, charts.NewAtomsTip())
 	if err != nil {
-		return err
+		return nil, err
 	}
+	return rows, nil
+}
 
+// Append the results from retrieveCoinSupply to the provided ChartData.
+// This is the Appender half of a pair that make up a cache.ChartUpdater.
+func appendCoinSupply(charts *cache.ChartData, rows *sql.Rows) error {
 	defer closeRows(rows)
-
-	charts.Lock()
-	defer charts.Unlock()
 	blocks := charts.Blocks
-	if !charts.ValidState(chartState) {
-		// Database was updated by someone else while the query was running
-		return fmt.Errorf("retrieveCoinSupply: blocks data has changed during query. aborting update")
-	}
 	for rows.Next() {
 		var value int64
 		var timestamp time.Time
-		if err = rows.Scan(&timestamp, &value); err != nil {
+		if err := rows.Scan(&timestamp, &value); err != nil {
 			return err
 		}
 
 		blocks.NewAtoms = append(blocks.NewAtoms, uint64(value))
 	}
-
 	return nil
 }
 

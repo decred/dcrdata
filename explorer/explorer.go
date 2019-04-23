@@ -74,7 +74,6 @@ type explorerDataSourceLite interface {
 	GetMempool() []types.MempoolTx
 	TxHeight(txid *chainhash.Hash) (height int64)
 	BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
-	SqliteChartsData(*cache.ChartData) error
 	GetExplorerFullBlocks(start int, end int) []*types.BlockInfo
 	Difficulty() (float64, error)
 	RetreiveDifficulty(timestamp int64) float64
@@ -96,7 +95,6 @@ type explorerDataSource interface {
 	FillAddressTransactions(addrInfo *dbtypes.AddressInfo) error
 	BlockMissedVotes(blockHash string) ([]string, error)
 	TicketMiss(ticketHash string) (string, int64, error)
-	PgChartsData(*cache.ChartData) error
 	SideChainBlocks() ([]*dbtypes.BlockStatus, error)
 	DisapprovedBlocks() ([]*dbtypes.BlockStatus, error)
 	BlockStatus(hash string) (dbtypes.BlockStatus, error)
@@ -376,20 +374,6 @@ func New(cfg *ExplorerConfig) *explorerUI {
 	return exp
 }
 
-// PrepareCharts pre-populates charts data.
-func (exp *explorerUI) PrepareCharts(cacheDumpPath string) {
-	t := time.Now()
-
-	if err := exp.charts.ReadCacheFile(cacheDumpPath); err != nil {
-		log.Debugf("Cache dump data loading failed: %v", err)
-	}
-
-	// Bring the charts up to date.
-	exp.prePopulateChartsData()
-
-	log.Debugf("Completed the initial charts cache scanning in %v", time.Since(t))
-}
-
 // Height returns the height of the current block data.
 func (exp *explorerUI) Height() int64 {
 	exp.pageData.RLock()
@@ -438,58 +422,6 @@ func (exp *explorerUI) MempoolID() uint64 {
 // mempool package's MempoolMonitor as a send-only channel.
 func (exp *explorerUI) MempoolSignal() chan<- pstypes.HubMessage {
 	return exp.wsHub.HubRelay
-}
-
-// prePopulateChartsData should run in the background the first time the system
-// is initialized if cache data loading failed and when new blocks are added.
-func (exp *explorerUI) prePopulateChartsData() {
-	// Prevent multiple concurrent updates, but do not lock the cacheChartsData
-	// to avoid blocking Store.
-
-	if exp.charts == nil {
-		log.Errorf("prePopulateChartsData: unitialized ChartData")
-		return
-	}
-
-	// Avoid needlessly updating charts data.
-	// HeightDB will return -1 for empty database. TipStats will also return -1
-	// for uninitialized datasets.
-	expHeight, _ := exp.explorerSource.HeightDB()
-	if expHeight == int64(exp.charts.Height()) {
-		log.Debugf("Not updating charts data again for height %d.", expHeight)
-		return
-	}
-
-	startTime := time.Now()
-
-	log.Info("Pre-populating the charts data")
-	log.Debugf("Retrieving charts data from aux DB.")
-
-	err := exp.explorerSource.PgChartsData(exp.charts)
-	if err != nil {
-		if dbtypes.IsTimeoutErr(err) {
-			log.Warnf("GetPgChartsData DB timeout: %v", err)
-			return
-		}
-
-		log.Errorf("Invalid PG data found: %v", err)
-		return
-	}
-
-	log.Debugf("Retrieving charts data from base DB.")
-
-	err = exp.blockData.SqliteChartsData(exp.charts)
-	if err != nil {
-		log.Errorf("Invalid SQLite data found: %v", err)
-		return
-	}
-
-	err = exp.charts.Lengthen()
-	if err != nil {
-		log.Errorf("(ChartsData).Lengthen: %v", err)
-	}
-
-	log.Infof("Done pre-populating the charts data in %v.", time.Since(startTime))
 }
 
 // StoreMPData stores mempool data. It is advisable to pass a copy of the
@@ -637,7 +569,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 
 		// Refresh the charts every 5 blocks.
 		if newBlockData.Height%5 == 0 {
-			go exp.prePopulateChartsData()
+			go exp.charts.Update()
 		}
 	}
 

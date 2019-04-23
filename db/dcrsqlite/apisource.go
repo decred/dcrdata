@@ -93,6 +93,21 @@ func (db *WiredDB) DisableCache() {
 	db.BlockCache.Disable()
 }
 
+// RegisterCharts registers chart data fetchers and appenders with the provided
+// ChartData.
+func (db *WiredDB) RegisterCharts(charts *cache.ChartData) {
+	charts.AddUpdater(cache.ChartUpdater{
+		Tag:      "fee info",
+		Fetcher:  db.RetrieveBlockFeeRows,
+		Appender: db.AppendBlockFeeRows,
+	})
+	charts.AddUpdater(cache.ChartUpdater{
+		Tag:      "pool info",
+		Fetcher:  db.RetrievePoolAllValueAndSize,
+		Appender: db.AppendPoolAllValueAndSize,
+	})
+}
+
 func (db *WiredDB) ChargePoolInfoCache(startHeight int64) error {
 	if startHeight < 0 {
 		startHeight = 0
@@ -954,26 +969,6 @@ func (db *WiredDB) GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []float64)
 		return nil, nil
 	}
 	return poolvals, poolsizes
-}
-
-// SqliteChartsData takes the old sqlite charts' data that requires an update.
-// If any of the chart's data has no entries, records from the oldest to the
-// most recent are queried from the db and updated. If some entries were found,
-// only the change since the last update is queried and pushed to the charts'
-// data.
-func (db *WiredDB) SqliteChartsData(charts *cache.ChartData) (err error) {
-
-	err = db.RetrieveBlockFeeInfo(charts)
-	if err != nil {
-		return
-	}
-
-	err = db.RetrievePoolAllValueAndSize(charts)
-	if err != nil {
-		return
-	}
-
-	return
 }
 
 func (db *WiredDB) GetSDiff(idx int) float64 {

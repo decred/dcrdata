@@ -5,6 +5,7 @@ package cache
 
 import (
 	"context"
+	"database/sql"
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
@@ -13,6 +14,8 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrdata/blockdata"
 	"github.com/decred/dcrdata/txhelpers"
 )
 
@@ -103,6 +106,14 @@ func (data ChartFloats) Truncate(l int) lengther {
 	return data[:l]
 }
 
+// If the data is longer than max, return a subset of length max.
+func (data ChartFloats) snip(max int) ChartFloats {
+	if len(data) < max {
+		max = len(data)
+	}
+	return data[:max]
+}
+
 // Avg is the average value of a segment of the dataset.
 func (data ChartFloats) Avg(s, e int) float64 {
 	if e <= s {
@@ -144,6 +155,14 @@ func (data ChartUints) Length() int {
 // interface.
 func (data ChartUints) Truncate(l int) lengther {
 	return data[:l]
+}
+
+// If the data is longer than max, return a subset of length max.
+func (data ChartUints) snip(max int) ChartUints {
+	if len(data) < max {
+		max = len(data)
+	}
+	return data[:max]
 }
 
 // Avg is the average value of a segment of the dataset.
@@ -192,20 +211,17 @@ type zoomSet struct {
 	Fees      ChartUints
 }
 
-// snip truncates the zoomSet to a provided length.
-func (set *zoomSet) snip(length int) {
-	if length < 0 {
-		length = 0
-	}
-	set.Height = set.Height[:length]
-	set.Time = set.Time[:length]
-	set.PoolSize = set.PoolSize[:length]
-	set.PoolValue = set.PoolValue[:length]
-	set.BlockSize = set.BlockSize[:length]
-	set.TxCount = set.TxCount[:length]
-	set.NewAtoms = set.NewAtoms[:length]
-	set.Chainwork = set.Chainwork[:length]
-	set.Fees = set.Fees[:length]
+// Snip truncates the zoomSet to a provided length.
+func (set *zoomSet) Snip(length int) {
+	set.Height = set.Height.snip(length)
+	set.Time = set.Time.snip(length)
+	set.PoolSize = set.PoolSize.snip(length)
+	set.PoolValue = set.PoolValue.snip(length)
+	set.BlockSize = set.BlockSize.snip(length)
+	set.TxCount = set.TxCount.snip(length)
+	set.NewAtoms = set.NewAtoms.snip(length)
+	set.Chainwork = set.Chainwork.snip(length)
+	set.Fees = set.Fees.snip(length)
 }
 
 // Constructor for a sized zoomSet.
@@ -232,14 +248,11 @@ type windowSet struct {
 	TicketPrice ChartUints
 }
 
-// snip truncates the windowSet to a provided length.
-func (set *windowSet) snip(length int) {
-	if length < 0 {
-		length = 0
-	}
-	set.Time = set.Time[:length]
-	set.PowDiff = set.PowDiff[:length]
-	set.TicketPrice = set.TicketPrice[:length]
+// Snip truncates the windowSet to a provided length.
+func (set *windowSet) Snip(length int) {
+	set.Time = set.Time.snip(length)
+	set.PowDiff = set.PowDiff.snip(length)
+	set.TicketPrice = set.TicketPrice.snip(length)
 }
 
 // Constructor for a sized windowSet.
@@ -289,6 +302,18 @@ func encodeChartResponse(x, y interface{}) ([]byte, error) {
 	})
 }
 
+// ChartUpdater is a pair of functions for fetching and appending chart data.
+// The two steps are divided so that ChartData can check whether another thread
+// has updated the data during the query, and abandon an update with appropriate
+// messaging.
+type ChartUpdater struct {
+	Tag string
+	// In addition to the sql.Rows and an error, the fetcher should return a
+	// context.CancelFunc if appropriate, else a dummy.
+	Fetcher  func(*ChartData) (*sql.Rows, func(), error)
+	Appender func(*ChartData, *sql.Rows) error
+}
+
 // ChartData is a set of data used for charts. It provides methods for
 // managing data validation and update concurrency, but does not perform any
 // data retrieval and must be used with care to keep the data valid. The Blocks
@@ -304,19 +329,28 @@ type ChartData struct {
 	Days         *zoomSet
 	cacheMtx     sync.RWMutex
 	cache        map[string]*cachedChart
+	updaters     []ChartUpdater
 }
 
 // Check that the length of all arguments is equal.
-func validateLengths(lens ...lengther) (int, error) {
+func ValidateLengths(lens ...lengther) (int, error) {
 	lenLen := len(lens)
 	if lenLen == 0 {
 		return 0, nil
 	}
 	firstLen := lens[0].Length()
+	shortest := firstLen
 	for i, l := range lens[1:lenLen] {
-		if l.Length() != firstLen {
-			return firstLen, fmt.Errorf("validateLengths: lengther index %d has mismatched length %d != %d", i+1, l.Length(), firstLen)
+		dLen := l.Length()
+		if dLen < firstLen {
+			log.Warnf("charts.ValidateLengths: dataset at index %d has mismatched length %d != %d", i+1, dLen, firstLen)
+			if dLen < shortest {
+				shortest = dLen
+			}
 		}
+	}
+	if shortest < firstLen {
+		return shortest, fmt.Errorf("data length mismatch")
 	}
 	return firstLen, nil
 }
@@ -337,20 +371,25 @@ func (charts *ChartData) Lengthen() error {
 
 	// Make sure the database has set an equal number of blocks in each data set.
 	blocks := charts.Blocks
-	blockLen, err := validateLengths(blocks.Time, blocks.PoolSize,
+	shortest, err := ValidateLengths(blocks.Time, blocks.PoolSize,
 		blocks.PoolValue, blocks.BlockSize, blocks.TxCount,
 		blocks.NewAtoms, blocks.Chainwork)
 	if err != nil {
-		return fmt.Errorf("block zoom: %v", err)
-	} else if blockLen == 0 {
+		log.Warnf("ChartData.Lengthen: block data length mismatch detected. truncating blocks length to %d", shortest)
+		blocks.Snip(shortest)
+	}
+	if shortest == 0 {
 		// No blocks yet. Not an error.
 		return nil
 	}
 
-	windowsLen, err := validateLengths(charts.Windows.Time, charts.Windows.PowDiff, charts.Windows.TicketPrice)
+	windows := charts.Windows
+	shortest, err = ValidateLengths(windows.Time, windows.PowDiff, windows.TicketPrice)
 	if err != nil {
-		return fmt.Errorf("window zoom: %v", err)
-	} else if windowsLen == 0 {
+		log.Warnf("ChartData.Lengthen: window data length mismatch detected. truncating windows length to %d", shortest)
+		charts.Windows.Snip(shortest)
+	}
+	if shortest == 0 {
 		return fmt.Errorf("unexpected zero-length window data")
 	}
 
@@ -398,7 +437,7 @@ func (charts *ChartData) Lengthen() error {
 	}
 
 	// Check that all relevant datasets have been updated to the same length.
-	daysLen, err := validateLengths(days.PoolSize, days.PoolValue, days.BlockSize,
+	daysLen, err := ValidateLengths(days.PoolSize, days.PoolValue, days.BlockSize,
 		days.TxCount, days.NewAtoms, days.Chainwork, days.Fees)
 	if err != nil {
 		return fmt.Errorf("day zoom: %v", err)
@@ -413,10 +452,9 @@ func (charts *ChartData) Lengthen() error {
 	if len(intervals) > 0 {
 		days.cacheID++
 	}
-	// For the block data, the cacheID is the last timestamp.
+	// For blocks and windows, the cacheID is the last timestamp.
 	charts.Blocks.cacheID = blocks.Time[len(blocks.Time)-1]
-	// For the diff window data, use the data length as the cacheID.
-	charts.Windows.cacheID = uint64(windowsLen)
+	charts.Windows.cacheID = windows.Time[len(windows.Time)-1]
 	return nil
 }
 
@@ -434,15 +472,15 @@ func (charts *ChartData) ReorgHandler(wg *sync.WaitGroup, c chan *txhelpers.Reor
 			commonAncestorHeight := uint64(data.NewChainHeight) - uint64(len(data.NewChain))
 			charts.Lock()
 			defer charts.Unlock()
-			charts.Blocks.snip(int(commonAncestorHeight) + 1)
+			charts.Blocks.Snip(int(commonAncestorHeight) + 1)
 			// Snip the last two days
 			daysLen := len(charts.Days.Time)
 			daysLen -= 2
-			charts.Days.snip(daysLen)
+			charts.Days.Snip(daysLen)
 			// Drop the last window
 			windowsLen := len(charts.Windows.Time)
 			windowsLen--
-			charts.Windows.snip(windowsLen)
+			charts.Windows.Snip(windowsLen)
 			data.WG.Done()
 
 		case <-charts.ctx.Done():
@@ -458,9 +496,9 @@ func isfileExists(filePath string) bool {
 	return !os.IsNotExist(err)
 }
 
-// WriteCacheFile creates the charts cache in the provided file path if it
+// writeCacheFile creates the charts cache in the provided file path if it
 // doesn't exists. It dumps the ChartsData contents using the .gob encoding.
-func (charts *ChartData) WriteCacheFile(filePath string) (err error) {
+func (charts *ChartData) writeCacheFile(filePath string) (err error) {
 	var file *os.File
 	if !isfileExists(filePath) {
 		file, err = os.Create(filePath)
@@ -480,10 +518,10 @@ func (charts *ChartData) WriteCacheFile(filePath string) (err error) {
 	return encoder.Encode(charts.gobject())
 }
 
-// ReadCacheFile reads the contents of the charts cache dump file encoded in
+// readCacheFile reads the contents of the charts cache dump file encoded in
 // .gob format if it exists returns an error if otherwise. It then deletes
 // the read *.gob cache dump file.
-func (charts *ChartData) ReadCacheFile(filePath string) error {
+func (charts *ChartData) readCacheFile(filePath string) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return err
@@ -522,11 +560,42 @@ func (charts *ChartData) ReadCacheFile(filePath string) error {
 	err = charts.Lengthen()
 	if err != nil {
 		log.Warnf("problem detected during (*ChartData).Lengthen. clearing datasets: %v", err)
-		charts.Blocks.snip(0)
-		charts.Windows.snip(0)
-		charts.Days.snip(0)
+		charts.Blocks.Snip(0)
+		charts.Windows.Snip(0)
+		charts.Days.Snip(0)
 	}
 
+	return nil
+}
+
+// Load loads chart data from the gob file at the specified path and performs an
+// update.
+func (charts *ChartData) Load(cacheDumpPath string) {
+	t := time.Now()
+
+	if err := charts.readCacheFile(cacheDumpPath); err != nil {
+		log.Debugf("Cache dump data loading failed: %v", err)
+	}
+
+	// Bring the charts up to date.
+	charts.Update()
+
+	log.Debugf("Completed the initial chart load in %d s", time.Since(t).Seconds())
+}
+
+// Dump dumps a ChartGobject to a gob file at the given path.
+func (charts *ChartData) Dump(dumpPath string) {
+	err := charts.writeCacheFile(dumpPath)
+	if err != nil {
+		log.Errorf("ChartData.writeCacheFile failed: %v", err)
+	} else {
+		log.Debug("Dumping the charts cache data was successful")
+	}
+}
+
+// Store triggers an Update. Satisfies blockdata.BlockDataSaver.
+func (charts *ChartData) Store(_ *blockdata.BlockData, _ *wire.MsgBlock) error {
+	charts.Update()
 	return nil
 }
 
@@ -578,7 +647,7 @@ func (charts *ChartData) stateID() uint64 {
 
 // ValidState checks whether the provided chartID is still valid. ValidState
 // should be used under at least a (*ChartData).RLock.
-func (charts *ChartData) ValidState(stateID uint64) bool {
+func (charts *ChartData) validState(stateID uint64) bool {
 	return charts.stateID() == stateID
 }
 
@@ -620,6 +689,40 @@ func (charts *ChartData) PoolSizeTip() int32 {
 	return int32(len(charts.Blocks.PoolSize)) - 1
 }
 
+// AddUpdater adds a ChartUpdater to the Updaters slice. Updaters are run
+// sequentially during (*ChartData).Update.
+func (charts *ChartData) AddUpdater(updater ChartUpdater) {
+	charts.updaters = append(charts.updaters, updater)
+}
+
+// Update refreshes chart data by calling the ChartUpdaters sequentially. The
+// Update is abandoned with a warning if stateID changes while running a Fetcher
+// (likely due to a new update starting during a query).
+func (charts *ChartData) Update() {
+	for _, updater := range charts.updaters {
+		stateID := charts.StateID()
+		rows, cancel, err := updater.Fetcher(charts)
+		defer cancel()
+		if err != nil {
+			log.Warnf("error encountered during charts %s update. aborting update: %v", updater.Tag, err)
+			return
+		}
+		charts.Lock()
+		if !charts.validState(stateID) {
+			log.Warnf("state change detected during charts %s update. aborting update", updater.Tag)
+			charts.Unlock()
+			return
+		}
+		err = updater.Appender(charts, rows)
+		if err != nil {
+			log.Warnf("error detected during charts %s append: %v", updater.Tag, err)
+			charts.Unlock()
+			return
+		}
+		charts.Unlock()
+	}
+}
+
 // NewChartData constructs a new ChartData.
 func NewChartData(height uint32, genesis time.Time, chainParams *chaincfg.Params, ctx context.Context) *ChartData {
 	// Start datasets at 25% larger than height. This matches golangs default
@@ -636,6 +739,7 @@ func NewChartData(height uint32, genesis time.Time, chainParams *chaincfg.Params
 		Windows:      newWindowSet(windows),
 		Days:         newZoomSet(days),
 		cache:        make(map[string]*cachedChart),
+		updaters:     make([]ChartUpdater, 0),
 	}
 }
 

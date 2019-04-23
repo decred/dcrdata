@@ -398,6 +398,8 @@ func _main(ctx context.Context) error {
 	}
 
 	charts := cache.NewChartData(uint32(lastBlockPG), time.Unix(pgDB.GenesisStamp(), 0), activeChain, ctx)
+	pgDB.RegisterCharts(charts)
+	baseDB.RegisterCharts(charts)
 
 	// Allow WiredDB/stakedb to catch up to the pgDB, but after
 	// fetchToHeight, WiredDB must receive block signals from pgDB, and
@@ -1085,18 +1087,13 @@ func _main(ctx context.Context) error {
 	// cache population. This charts pre-population is faster than db querying
 	// and can be done before the monitors are fully set up.
 	dumpPath := filepath.Join(cfg.DataDir, cfg.ChartsCacheDump)
-	explore.PrepareCharts(dumpPath)
+	charts.Load(dumpPath)
+	// Add charts after explorer and any databases.
+	blockDataSavers = append(blockDataSavers, charts)
 
 	// This dumps the cache charts data into a file for future use on system
 	// exit.
-	defer func() {
-		er := charts.WriteCacheFile(dumpPath)
-		if er != nil {
-			log.Errorf("WriteCacheFile failed: %v", er)
-		} else {
-			log.Debug("Dumping the charts cache data was successful")
-		}
-	}()
+	defer charts.Dump(dumpPath)
 
 	// Enable new blocks being stored into the base DB's cache.
 	baseDB.EnableCache()

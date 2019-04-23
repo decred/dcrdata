@@ -984,36 +984,36 @@ func (db *DB) RetrievePoolValAndSizeRange(ind0, ind1 int64) ([]float64, []float6
 	return poolvals, poolsizes, nil
 }
 
+func dummyCancel() {}
+
 // RetrievePoolAllValueAndSize returns all the pool value and the pool size
 // charts data needed to plot ticket-pool-size and ticket-pool value charts on
-// charts page.
-func (db *DB) RetrievePoolAllValueAndSize(charts *cache.ChartData) error {
-	chartState := charts.StateID()
-
+// the charts page. This is the Fetcher half of a pair that make up a
+// cache.ChartUpdater.
+func (db *DB) RetrievePoolAllValueAndSize(charts *cache.ChartData) (*sql.Rows, func(), error) {
 	stmt, err := db.Prepare(db.getAllPoolValSize)
 	if err != nil {
-		return err
+		return nil, dummyCancel, err
 	}
 	defer stmt.Close()
 
 	rows, err := stmt.Query(charts.PoolSizeTip())
 	if err != nil {
 		log.Errorf("Query failed: %v", err)
-		return err
+		return nil, dummyCancel, err
 	}
-	defer rows.Close()
+	return rows, dummyCancel, nil
+}
 
-	charts.Lock()
-	defer charts.Unlock()
+// Append the result from RetrievePoolAllValueAndSize to the provided ChartData.
+// This is the Appender half of a pair that make up a cache.ChartUpdater.
+func (db *DB) AppendPoolAllValueAndSize(charts *cache.ChartData, rows *sql.Rows) error {
+	defer rows.Close()
 	blocks := charts.Blocks
-	if !charts.ValidState(chartState) {
-		// Database was updated by someone else while the query was running
-		return fmt.Errorf("RetrievePoolAllValueAndSize: blocks data has changed during query. aborting update")
-	}
 	for rows.Next() {
 		var pval, psize float64
 		var timestamp int64
-		if err = rows.Scan(&psize, &pval, &timestamp); err != nil {
+		if err := rows.Scan(&psize, &pval, &timestamp); err != nil {
 			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
 			return err
 		}
@@ -1029,34 +1029,34 @@ func (db *DB) RetrievePoolAllValueAndSize(charts *cache.ChartData) error {
 	return nil
 }
 
-// RetrieveBlockFeeInfo retrieves the block fee chart data over time. This data
-// is used to plot block-fee-chart on the /charts page.
-func (db *DB) RetrieveBlockFeeInfo(charts *cache.ChartData) error {
-	chartState := charts.StateID()
+// RetrieveBlockFeeRows retrieves any block fee data that is newer than the data
+// in the provided ChartData. This data is used to plot fees on the /charts page.
+// This is the Fetcher half of a pair that make up a cache.ChartUpdater.
+func (db *DB) RetrieveBlockFeeRows(charts *cache.ChartData) (*sql.Rows, func(), error) {
 	stmt, err := db.Prepare(db.getAllFeeInfoPerBlock)
 	if err != nil {
-		return err
+		return nil, dummyCancel, err
 	}
 	defer stmt.Close()
 
 	rows, err := stmt.Query(charts.FeesTip())
 	if err != nil {
 		log.Errorf("Query failed: %v", err)
-		return err
+		return nil, dummyCancel, err
 	}
-	defer rows.Close()
 
-	charts.Lock()
-	defer charts.Unlock()
+	return rows, dummyCancel, nil
+}
+
+// Append the result from RetrieveBlockFeeRows to the provided ChartData. This
+// is the Appender half of a pair that make up a cache.ChartUpdater.
+func (db *DB) AppendBlockFeeRows(charts *cache.ChartData, rows *sql.Rows) error {
+	defer rows.Close()
 	blocks := charts.Blocks
-	if !charts.ValidState(chartState) {
-		// Database was updated by someone else while the query was running
-		return fmt.Errorf("RetrieveBlockFeeInfo: blocks data has changed during query. aborting update")
-	}
 	for rows.Next() {
 		var feeMed float64
 		var blockHeight uint64
-		if err = rows.Scan(&blockHeight, &feeMed); err != nil {
+		if err := rows.Scan(&blockHeight, &feeMed); err != nil {
 			log.Errorf("Unable to scan for FeeInfoPerBlock fields: %v", err)
 			return err
 		}

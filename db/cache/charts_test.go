@@ -81,7 +81,7 @@ func TestChartsCache(t *testing.T) {
 	charts.Windows.TicketPrice = ChartUints{0}
 
 	t.Run("Read_a_non-existent_gob_dump", func(t *testing.T) {
-		err := charts.ReadCacheFile(filepath.Join(tempDir, "log1.gob"))
+		err := charts.readCacheFile(filepath.Join(tempDir, "log1.gob"))
 		if err == nil {
 			t.Fatal("expected an error but found none")
 		}
@@ -95,7 +95,7 @@ func TestChartsCache(t *testing.T) {
 			t.Fatalf("expected no error but found: %v", err)
 		}
 
-		err = charts.ReadCacheFile(path)
+		err = charts.readCacheFile(path)
 		if err == nil {
 			t.Fatal("expected an error but found non")
 		}
@@ -109,14 +109,14 @@ func TestChartsCache(t *testing.T) {
 			t.Fatalf("expected no error but found: %v", err)
 		}
 
-		err = charts.WriteCacheFile(path)
+		err = charts.writeCacheFile(path)
 		if err == nil {
 			t.Fatal("expected an error but found non")
 		}
 	})
 
 	t.Run("Write_to_an_non_existent_file", func(t *testing.T) {
-		err := charts.WriteCacheFile(gobPath)
+		err := charts.writeCacheFile(gobPath)
 		if err != nil {
 			t.Fatalf("expected no error but found: %v", err)
 		}
@@ -129,7 +129,7 @@ func TestChartsCache(t *testing.T) {
 
 	t.Run("Read_from_an_existing_gob_encoded_file", func(t *testing.T) {
 		// Empty the charts data
-		charts.Blocks.snip(0)
+		charts.Blocks.Snip(0)
 		compUints := seedUints()
 		compFloats := seedFloats()
 		compTimes := seedTimes()
@@ -144,7 +144,7 @@ func TestChartsCache(t *testing.T) {
 		comp("Chainwork before read", charts.Blocks.Chainwork, compUints, false)
 		comp("Fees before read", charts.Blocks.Fees, compUints, false)
 
-		err := charts.ReadCacheFile(gobPath)
+		err := charts.readCacheFile(gobPath)
 		if err != nil {
 			t.Fatalf("expected no error but found: %v", err)
 		}
@@ -159,7 +159,7 @@ func TestChartsCache(t *testing.T) {
 		comp("Chainwork after read", charts.Blocks.Chainwork, compUints, true)
 		comp("Fees after read", charts.Blocks.Fees, compUints, true)
 
-		// Lengthen is called during ReadCacheFile, so Days should be properly calculated
+		// Lengthen is called during readCacheFile, so Days should be properly calculated
 		comp("Time after Lengthen", charts.Days.Time, ChartUints{0, aDay, 2 * aDay}, true)
 		comp("PoolSize after Lengthen", charts.Days.PoolSize, uintDaysAvg, true)
 		comp("PoolValue after Lengthen", charts.Days.PoolValue, floatDaysAvg, true)
