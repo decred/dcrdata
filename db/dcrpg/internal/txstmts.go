@@ -1,3 +1,7 @@
+// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2017, Jonathan Chappelow
+// See LICENSE for details.
+
 package internal
 
 import (
@@ -243,19 +247,6 @@ var (
 		GROUP BY count
 		ORDER BY count;`
 )
-
-// func makeTxInsertStatement(voutDbIDs, vinDbIDs []uint64, vouts []*dbtypes.Vout, checked bool) string {
-// 	voutDbIDsBIGINT := makeARRAYOfBIGINTs(voutDbIDs)
-// 	vinDbIDsBIGINT := makeARRAYOfBIGINTs(vinDbIDs)
-// 	voutCompositeARRAY := makeARRAYOfVouts(vouts)
-// 	var insert string
-// 	if checked {
-// 		insert = insertTxRowChecked
-// 	} else {
-// 		insert = insertTxRow
-// 	}
-// 	return fmt.Sprintf(insert, voutDbIDsBIGINT, voutCompositeARRAY, vinDbIDsBIGINT)
-// }
 
 // MakeTxInsertStatement returns the appropriate transaction insert statement
 // for the desired conflict checking and handling behavior. For checked=false,

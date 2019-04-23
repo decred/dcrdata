@@ -1,12 +1,8 @@
+// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2017, Jonathan Chappelow
+// See LICENSE for details.
+
 package internal
-
-import (
-	"encoding/hex"
-	"fmt"
-
-	"github.com/decred/dcrdata/db/dbtypes"
-	"github.com/lib/pq"
-)
 
 const (
 	// vins
@@ -108,7 +104,7 @@ const (
 		ON vouts.tx_hash=vins.prev_tx_hash
 			AND vouts.tx_index=vins.prev_tx_index
 		WHERE vins.prev_tx_hash IS NULL                   -- unspent
-			AND cardinality(script_addresses)>0
+			AND array_length(script_addresses, 1)>0
 			AND value>0;`
 
 	SetIsValidIsMainchainByTxHash = `UPDATE vins SET is_valid = $1, is_mainchain = $2
@@ -139,15 +135,6 @@ const (
 		AND vins.is_mainchain
 		GROUP BY vins.block_time, transactions.block_height
 		ORDER BY transactions.block_height;`
-
-	CreateVinType = `CREATE TYPE vin_t AS (
-		prev_tx_hash TEXT,
-		prev_tx_index INTEGER,
-		prev_tx_tree SMALLINT,
-		htlc_seq_VAL INTEGER,
-		value_in DOUBLE PRECISION,
-		script_hex BYTEA
-	);`
 
 	// vouts
 
@@ -224,15 +211,6 @@ const (
 
 	RetrieveVoutValue  = `SELECT value FROM vouts WHERE tx_hash=$1 and tx_index=$2;`
 	RetrieveVoutValues = `SELECT value, tx_index, tx_tree FROM vouts WHERE tx_hash=$1;`
-
-	CreateVoutType = `CREATE TYPE vout_t AS (
-		value INT8,
-		version INT2,
-		pkscript BYTEA,
-		script_req_sigs INT4,
-		script_type TEXT,
-		script_addresses TEXT[]
-	);`
 )
 
 // MakeVinInsertStatement returns the appropriate vins insert statement for the
@@ -254,22 +232,6 @@ func MakeVinInsertStatement(checked, updateOnConflict bool) string {
 	return InsertVinRowOnConflictDoNothing
 }
 
-var (
-	voutCopyStmt = pq.CopyIn("vouts",
-		"tx_hash", "tx_index", "tx_tree", "value", "version",
-		"pkscript", "script_req_sigs", " script_type", "script_addresses")
-	vinCopyStmt = pq.CopyIn("vins",
-		"tx_hash", "tx_index", "prev_tx_hash", "prev_tx_index")
-)
-
-func MakeVoutCopyInStatement() string {
-	return voutCopyStmt
-}
-
-func MakeVinCopyInStatement() string {
-	return vinCopyStmt
-}
-
 // MakeVoutInsertStatement returns the appropriate vouts insert statement for
 // the desired conflict checking and handling behavior. For checked=false, no ON
 // CONFLICT checks will be performed, and the value of updateOnConflict is
@@ -287,18 +249,4 @@ func MakeVoutInsertStatement(checked, updateOnConflict bool) string {
 		return UpsertVoutRow
 	}
 	return InsertVoutRowOnConflictDoNothing
-}
-
-func makeARRAYOfVouts(vouts []*dbtypes.Vout) string {
-	rowSubStmts := make([]string, 0, len(vouts))
-	for i := range vouts {
-		hexPkScript := hex.EncodeToString(vouts[i].ScriptPubKey)
-		rowSubStmts = append(rowSubStmts,
-			fmt.Sprintf(`ROW(%d, %d, decode('%s','hex'), %d, '%s', %s)`,
-				vouts[i].Value, vouts[i].Version, hexPkScript,
-				vouts[i].ScriptPubKeyData.ReqSigs, vouts[i].ScriptPubKeyData.Type,
-				makeARRAYOfTEXT(vouts[i].ScriptPubKeyData.Addresses)))
-	}
-
-	return makeARRAYOfUnquotedTEXT(rowSubStmts) + "::vout_t[]"
 }

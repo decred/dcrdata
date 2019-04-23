@@ -3,13 +3,24 @@
 The `dcrpg` package provides types and functions for manipulating PostgreSQL
 tables, and storing blocks, transactions, inputs, and outputs.
 
+## Supported Database Software
+
+PostgreSQL versions 10.5 to 11.x are fully supported. The bulk of the testing
+and performance optimization is done with PostgreSQL in mind.
+
+[Experimental support for CockroachDB](https://github.com/decred/dcrdata/issues/1291)
+was added for dcrdata 5.0. However, compared to a well-configure PostgreSQL
+backend, CoackroachDB performance is suboptimal. See the
+[CockroachDB support issue](https://github.com/decred/dcrdata/issues/1291) for
+more information.
+
 ## Performance and Bulk Loading
 
 When performing a bulk data import, it is wise to first drop any existing
 indexes and create them again after insertion is completed.  Functions are
 provided to create and drop the indexes.
 
-PostgreSQL performance will be poor, particuarly during bulk import, unless
+PostgreSQL performance will be poor, particularly during bulk import, unless
 synchronous transaction commits are disabled via the `synchronous_commit = off`
 configuration setting in your postgresql.conf. There are numerous
 [PostreSQL tuning settings](https://wiki.postgresql.org/wiki/Tuning_Your_PostgreSQL_Server),

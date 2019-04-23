@@ -1,3 +1,7 @@
+// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2017, Jonathan Chappelow
+// See LICENSE for details.
+
 package internal
 
 import (
@@ -219,8 +223,6 @@ const (
 		WHERE is_mainchain
 		AND height > $1
 		ORDER BY height;`
-
-	// TODO: index block_chain where needed
 )
 
 func MakeBlockInsertStatement(block *dbtypes.Block, checked bool) string {

@@ -27,11 +27,12 @@ modern javascript features, as well as SCSS for styling.
     - [From v2.x or earlier](#from-v2x-or-earlier)
   - [Getting Started](#getting-started)
     - [Configuring PostgreSQL (**IMPORTANT!** Seriously, read this.)](#configuring-postgresql-important-seriously-read-this)
+    - [CockroachDB Support (experimental)](#cockroachdb-support-experimental)
     - [Creating the dcrdata Configuration File](#creating-the-dcrdata-configuration-file)
     - [Using Environment Variables for Configuration](#using-environment-variables-for-configuration)
     - [Indexing the Blockchain](#indexing-the-blockchain)
     - [Starting dcrdata](#starting-dcrdata)
-    - [Hiding the PostgreSQL db Configuration settings.](#hiding-the-postgresql-db-configuration-settings)
+    - [Hiding the PostgreSQL Settings Table](#hiding-the-postgresql-settings-table)
     - [Running the Web Interface During Synchronization](#running-the-web-interface-during-synchronization)
   - [System Hardware Requirements](#system-hardware-requirements)
     - [dcrdata only (PostgreSQL on other host)](#dcrdata-only-postgresql-on-other-host)
@@ -142,7 +143,9 @@ Always run the Current release or on the Current stable branch. Do not use `mast
   dcrd version is compatible. dcrdata v3.1.x and later required dcrd v1.4.x or a
   later version with JSON-RPC server version 5.x.y.
 - (For "full" mode) PostgreSQL 10.5+. Version 11.x is supported and recommended
-  for improved performance with a number of tasks.
+  for improved performance with a number of tasks. Support for CockroachDB is an
+  experimental feature. See [CockroachDB Support (experimental)](#cockroachdb-support-experimental)
+  for details.
 
 ## Docker Support
 
@@ -349,6 +352,23 @@ On Linux, you may wish to use a unix domain socket instead of a TCP connection.
 The path to the socket depends on the system, but it is commonly
 `/var/run/postgresql`. Just set this path in `pghost`.
 
+### CockroachDB Support (experimental)
+
+While dcrdata now provides [support for CockroachDB](https://github.com/decred/dcrdata/issues/1291),
+this is an experimental feature with caveats:
+
+- Compared to a well-configure PostgreSQL backend, CoackroachDB performance is
+  suboptimal. See the [CockroachDB issue](https://github.com/decred/dcrdata/issues/1291)
+  for more information.
+- The bulk of the testing and performance optimization is done with PostgreSQL
+  in mind.
+
+If you decide to use CockroachDB with dcrdata, (1) do not do so in production
+and (2) expect some bugs and relatively poor performance.
+
+See [dcrdata's CockroachDB wiki page](https://github.com/decred/dcrdata/wiki/CockroachDB)
+for more information.
+
 ### Creating the dcrdata Configuration File
 
 Begin with the sample configuration file. With the default `appdata` directory
@@ -422,10 +442,10 @@ Unlike dcrdata.conf, which must be placed in the `appdata` folder or explicitly
 set with `-C`, the "public" and "views" folders _must_ be in the same folder as
 the `dcrdata` executable.
 
-### Hiding the PostgreSQL db Configuration settings.
+### Hiding the PostgreSQL Settings Table
 
-By default postgres configuration settings are logged on system start up.
-`--hidepgconfig` flag blocks the logging on dcrdata start up.
+By default, postgres settings are displayed in a table on start up of dcrdata.
+To block display of this table, use the `--hidepgconfig` switch..
 
 ### Running the Web Interface During Synchronization
 
@@ -485,7 +505,6 @@ Recommend:
 - 2+ CPU cores
 - 8+ GB RAM
 - SSD (NVMe preferred) with 60 GB free space
-
 
 ## dcrdata Daemon
 

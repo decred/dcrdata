@@ -56,6 +56,13 @@ func SetDBBestBlock(db *sql.DB, hash string, height int64) error {
 	return nil
 }
 
+// IBDComplete indicates whether initial block download was completed according
+// to the meta.ibd_complete flag.
+func IBDComplete(db *sql.DB) (ibdComplete bool, err error) {
+	err = db.QueryRow(internal.SelectMetaDBIbdComplete).Scan(&ibdComplete)
+	return
+}
+
 // SetIBDComplete set the ibd_complete (Initial Block Download complete) flag in
 // the meta table.
 func SetIBDComplete(db SqlExecutor, ibdComplete bool) error {
@@ -2335,8 +2342,9 @@ func RetrieveVoutsByIDs(ctx context.Context, db *sql.DB, voutDbIDs []uint64) ([]
 	return vouts, nil
 }
 
+// RetrieveUTXOs gets the entire UTXO set from the vouts and vins tables.
 func RetrieveUTXOs(ctx context.Context, db *sql.DB) ([]dbtypes.UTXO, error) {
-	height, _, _, err := RetrieveBestBlockHeight(ctx, db)
+	_, height, err := DBBestBlock(ctx, db)
 	if err != nil {
 		return nil, err
 	}
@@ -3284,6 +3292,11 @@ func retrieveProposalVotesData(ctx context.Context, db *sql.DB,
 
 // --- blocks and block_chain tables ---
 
+// InsertBlock inserts the specified dbtypes.Block as with the given
+// valid/mainchain status. If checked is true, an upsert statement is used so
+// that a unique constraint violation will result in an update instead of
+// attempting to insert a duplicate row. If checked is false and there is a
+// duplicate row, an error will be returned.
 func InsertBlock(db *sql.DB, dbBlock *dbtypes.Block, isValid, isMainchain, checked bool) (uint64, error) {
 	insertStatement := internal.MakeBlockInsertStatement(dbBlock, checked)
 	var id uint64

@@ -1,3 +1,6 @@
+// Copyright (c) 2019, The Decred developers
+// See LICENSE for details.
+
 package internal
 
 const (
@@ -31,6 +34,8 @@ const (
 
 	SetMetaDBBestBlock = `UPDATE meta
 		SET best_block_height = $1, best_block_hash = $2;`
+
+	SelectMetaDBIbdComplete = `SELECT ibd_complete FROM meta;`
 
 	SetMetaDBIbdComplete = `UPDATE meta
 		SET ibd_complete = $1;`

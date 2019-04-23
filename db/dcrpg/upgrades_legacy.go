@@ -862,7 +862,7 @@ func (pgb *ChainDB) handleUpgrades(client BlockGetter, tableUpgrade tableUpgrade
 	switch tableUpgrade {
 	case vinsTableCoinSupplyUpgrade, agendasTableUpgrade, agendasTablePruningUpdate:
 		// height is the best block where this table upgrade should stop at.
-		height, err := pgb.HeightDB()
+		height, err := pgb.HeightDBLegacy()
 		if err != nil {
 			return false, err
 		}
@@ -945,7 +945,7 @@ func (pgb *ChainDB) handleUpgrades(client BlockGetter, tableUpgrade tableUpgrade
 	case vinsTxHistogramUpgrade, addressesTxHistogramUpgrade:
 		var height int64
 		// height is the best block where this table upgrade should stop at.
-		height, err = pgb.HeightDB()
+		height, err = pgb.HeightDBLegacy()
 		if err != nil {
 			return false, err
 		}
