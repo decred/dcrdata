@@ -2854,14 +2854,14 @@ func (pgb *ChainDB) windowStats(charts *cache.ChartData) error {
 	return nil
 }
 
-// blockStats sets or updates a series of per-block datasets.
-func (pgb *ChainDB) blockStats(charts *cache.ChartData) error {
+// chartBlocks sets or updates a series of per-block datasets.
+func (pgb *ChainDB) chartBlocks(charts *cache.ChartData) error {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 
-	err := retrieveBlockStats(ctx, pgb.db, charts)
+	err := retrieveChartBlocks(ctx, pgb.db, charts)
 	if err != nil {
-		err = fmt.Errorf("blockStats: %v", pgb.replaceCancelError(err))
+		err = fmt.Errorf("chartBlocks: %v", pgb.replaceCancelError(err))
 		return err
 	}
 
@@ -2968,7 +2968,7 @@ func (pgb *ChainDB) PgChartsData(charts *cache.ChartData) (err error) {
 	t := charts.TipTime()
 	tOld := time.Unix(int64(t), 0)
 
-	err = pgb.blockStats(charts)
+	err = pgb.chartBlocks(charts)
 	if err != nil {
 		return
 	}

@@ -2987,10 +2987,10 @@ func RetrieveTxnsBlocks(ctx context.Context, db *sql.DB, txHash string) (blockHa
 
 // ----- Historical Charts on /charts page -----
 
-// retrieveBlockStats sets or updates a few per-block datasets.
+// retrieveChartBlocks sets or updates a few per-block datasets.
 // SELECT height, time, chainwork, numtx FROM blocks WHERE is_mainchain AND
 // time > $1 ORDER BY height;
-func retrieveBlockStats(ctx context.Context, db *sql.DB, charts *cache.ChartData) error {
+func retrieveChartBlocks(ctx context.Context, db *sql.DB, charts *cache.ChartData) error {
 	chartState := charts.StateID()
 
 	rows, err := db.QueryContext(ctx, internal.SelectBlockStats, charts.Height())
@@ -3004,7 +3004,7 @@ func retrieveBlockStats(ctx context.Context, db *sql.DB, charts *cache.ChartData
 	bigExa := big.NewInt(int64(1e18))
 	badRows := 0
 	// badRow is used to log chainwork errors without returning an error from
-	// retrieveBlockStats.
+	// retrieveChartBlocks.
 	badRow := func() {
 		badRows++
 	}
@@ -3017,7 +3017,7 @@ func retrieveBlockStats(ctx context.Context, db *sql.DB, charts *cache.ChartData
 	blocks := charts.Blocks
 	if !charts.ValidState(chartState) {
 		// Database was updated by someone else while the query was running
-		return fmt.Errorf("retrieveBlockStats: blocks data has changed during query. aborting update")
+		return fmt.Errorf("retrieveChartBlocks: blocks data has changed during query. aborting update")
 	}
 	for rows.Next() {
 		// Get the chainwork.
@@ -3048,10 +3048,10 @@ func retrieveBlockStats(ctx context.Context, db *sql.DB, charts *cache.ChartData
 	}
 	chainLen := len(blocks.Chainwork)
 	if uint64(chainLen-1) != height {
-		return fmt.Errorf("retrieveBlockStats: height misalignment. last height = %d. data length = %d", height, chainLen)
+		return fmt.Errorf("retrieveChartBlocks: height misalignment. last height = %d. data length = %d", height, chainLen)
 	}
 	if len(blocks.Time) != chainLen || len(blocks.TxCount) != chainLen {
-		return fmt.Errorf("retrieveBlockStats: data length misalignment. len(chainwork) = %d, len(stamps) = %d, len(counts) = %d",
+		return fmt.Errorf("retrieveChartBlocks: data length misalignment. len(chainwork) = %d, len(stamps) = %d, len(counts) = %d",
 			chainLen, len(blocks.Time), len(blocks.TxCount))
 	}
 

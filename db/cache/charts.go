@@ -582,7 +582,10 @@ func (charts *ChartData) ValidState(stateID uint64) bool {
 	return charts.stateID() == stateID
 }
 
-// FeesTip is the height of the Fees data.
+// Height is the height of the blocks data. Data is assumed to be complete and
+// without extraneous entries, which means that the (zoomSet).Height does not
+// need to be populated for (ChartData).Blocks because the height is just
+// len(Blocks.*)-1.
 func (charts *ChartData) Height() int32 {
 	charts.RLock()
 	defer charts.RUnlock()
@@ -863,12 +866,12 @@ func hashRateChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 	return nil, InvalidZoomErr
 }
 
-func powDifficultyChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
+func powDifficultyChart(charts *ChartData, _ ZoomLevel) ([]byte, error) {
 	// Pow Difficulty only has window level zoom, so all others are ignored.
 	return charts.encodeXY(charts.Windows.Time, charts.Windows.PowDiff)
 }
 
-func ticketPriceChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
+func ticketPriceChart(charts *ChartData, _ ZoomLevel) ([]byte, error) {
 	// Ticket price only has window level zoom, so all others are ignored.
 	return charts.encodeXY(charts.Windows.Time, charts.Windows.TicketPrice)
 }
