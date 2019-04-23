@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -191,6 +192,18 @@ type cacheLocks struct {
 	rows       *cache.CacheLock
 	rowsMerged *cache.CacheLock
 	utxo       *cache.CacheLock
+}
+
+// BlockGetter implements a few basic blockchain data retrieval functions. It is
+// like rpcutils.BlockFetcher except that it must also implement
+// GetBlockChainInfo.
+type BlockGetter interface {
+	// rpcutils.BlockFetcher implements GetBestBlock, GetBlock, GetBlockHash,
+	// and GetBlockHeaderVerbose.
+	rpcutils.BlockFetcher
+
+	// GetBlockChainInfo is required for a legacy upgrade involving agendas.
+	GetBlockChainInfo() (*dcrjson.GetBlockChainInfoResult, error)
 }
 
 // ChainDB provides an interface for storing and manipulating extracted
@@ -439,13 +452,14 @@ type DBInfo struct {
 // parameters. By default, duplicate row checks on insertion are enabled. See
 // NewChainDBWithCancel to enable context cancellation of running queries.
 // proposalsUpdateChan is used to manage politeia update notifications trigger
-// between the notifier and the handler method.
+// between the notifier and the handler method. A non-nil BlockGetter is only
+// needed if database upgrades are required.
 func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeDatabase,
 	devPrefetch, hidePGConfig bool, addrCacheCap int, mp rpcutils.MempoolAddressChecker,
-	parser ProposalsFetcher) (*ChainDB, error) {
+	parser ProposalsFetcher, bg BlockGetter) (*ChainDB, error) {
 	ctx := context.Background()
 	chainDB, err := NewChainDBWithCancel(ctx, dbi, params, stakeDB,
-		devPrefetch, hidePGConfig, addrCacheCap, mp, parser)
+		devPrefetch, hidePGConfig, addrCacheCap, mp, parser, bg)
 	if err != nil {
 		return nil, err
 	}
@@ -458,10 +472,11 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeData
 // insertion are enabled. See EnableDuplicateCheckOnInsert to change this
 // behavior. NewChainDB creates context that cannot be cancelled
 // (context.Background()) except by the pg timeouts. If it is necessary to
-// cancel queries with CTRL+C, for example, use NewChainDBWithCancel.
+// cancel queries with CTRL+C, for example, use NewChainDBWithCancel. A non-nil
+// BlockGetter is only needed if database upgrades are required.
 func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Params,
 	stakeDB *stakedb.StakeDatabase, devPrefetch, hidePGConfig bool, addrCacheCap int,
-	mp rpcutils.MempoolAddressChecker, parser ProposalsFetcher) (*ChainDB, error) {
+	mp rpcutils.MempoolAddressChecker, parser ProposalsFetcher, bg BlockGetter) (*ChainDB, error) {
 	// Connect to the PostgreSQL daemon and return the *sql.DB.
 	db, err := Connect(dbi.Host, dbi.Port, dbi.User, dbi.Pass, dbi.DBName)
 	if err != nil {
@@ -523,24 +538,143 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 		}
 	}
 
-	// Attempt to get DB best block height from tables, but if the tables are
-	// empty or not yet created, it is not an error.
-	bestHeight, bestHash, _, err := RetrieveBestBlockHeight(ctx, db)
-	if err != nil && !(err == sql.ErrNoRows ||
-		strings.HasSuffix(err.Error(), "does not exist")) {
+	// Perform any necessary database schema upgrades.
+	var doLegacyUpgrade bool
+	dbVer, compatAction, err := versionCheck(db)
+	switch err {
+	case nil:
+		if compatAction == OK {
+			// meta table present and no upgrades required
+			log.Infof("DB schema version %v", dbVer)
+			break
+		}
+
+		// Upgrades required
+		if bg == nil || reflect.ValueOf(bg).IsNil() {
+			return nil, fmt.Errorf("a BlockGetter is required for database upgrades")
+		}
+		// Do upgrades required by meta table versioning.
+		log.Infof("DB schema version %v upgrading to version %v", dbVer, targetDatabaseVersion)
+		success, err := UpgradeDatabase(db, bg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to upgrade database: %v", err)
+		}
+		if !success {
+			return nil, fmt.Errorf("failed to upgrade database (upgrade not supported?)")
+		}
+	case tablesNotFoundErr:
+		// Empty database (no blocks table). Proceed to setupTables.
+		log.Infof(`Empty database "%s". Creating tables...`, dbi.DBName)
+		if err = CreateTables(db); err != nil {
+			return nil, fmt.Errorf("failed to create tables: %v", err)
+		}
+		err = insertMetaData(db, &metaData{
+			netName:         params.Name,
+			currencyNet:     uint32(params.Net),
+			bestBlockHeight: -1,
+			dbVer:           *targetDatabaseVersion,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("insertMetaData failed: %v", err)
+		}
+	case metaNotFoundErr:
+		log.Infof("Legacy DB versioning found.")
+		doLegacyUpgrade = true
+		if bg == nil || reflect.ValueOf(bg).IsNil() {
+			return nil, fmt.Errorf("a BlockGetter is required for database upgrades")
+		}
+		// Create any missing tables with version comments for legacy upgrades.
+		if err = CreateTablesLegacy(db); err != nil {
+			return nil, fmt.Errorf("failed to create tables with legacy versioning: %v", err)
+		}
+	default:
 		return nil, err
 	}
 
-	// Development subsidy address of the current network
-	var devSubsidyAddress string
-	if devSubsidyAddress, err = dbtypes.DevSubsidyAddress(params); err != nil {
+	// Get the best block height from the blocks table.
+	bestHeight, bestHash, err := RetrieveBestBlock(context.Background(), db)
+	if err != nil {
+		return nil, err
+	}
+	// NOTE: Once legacy versioned tables are no longer in use, use the height
+	// and hash from DBBestBlock instead.
+
+	// Unless legacy table versioning is still in use, verify that the best
+	// block in the meta table is the same as in the blocks table. If the blocks
+	// table is ahead of the meta table, it is likely that the data for the best
+	// block was not fully inserted into all tables. Purge data back to the meta
+	// table's best block height. Also purge if the hashes do not match.
+	if !doLegacyUpgrade {
+		dbHash, dbHeightInit, err := DBBestBlock(db)
+		if err != nil {
+			return nil, err
+		}
+
+		// Best block height in the transactions table (written to even before
+		// the blocks table).
+		bestTxsBlockHeight, bestTxsBlockHash, err :=
+			RetrieveTxsBestBlockMainchain(context.Background(), db)
+		if err != nil {
+			return nil, err
+		}
+
+		if bestTxsBlockHeight > bestHeight {
+			bestHeight = bestTxsBlockHeight
+			bestHash = bestTxsBlockHash
+		}
+
+		// The meta table's best block height should never end up larger than
+		// the blocks table's best block height, but purge a block anyway since
+		// something went awry. This will update the best block in the meta
+		// table to match the blocks table, allowing dcrdata to start.
+		if dbHeightInit > bestHeight {
+			log.Warnf("Best block height in meta table (%d) "+
+				"greater than best height in blocks table (%d)!",
+				dbHeightInit, bestHeight)
+			_, bestHeight, bestHash, err = DeleteBestBlock(ctx, db)
+			if err != nil {
+				return nil, err
+			}
+			dbHash, dbHeightInit, err = DBBestBlock(db)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// Purge blocks if the best block hashes do not match, and until the
+		// best block height in the data tables is less than or equal to the
+		// starting height in the meta table.
+		log.Debugf("meta height %d / blocks height %d", dbHeightInit, bestHeight)
+		for dbHash != bestHash || dbHeightInit < bestHeight {
+			log.Warnf("Purging best block %s (%d).", bestHash, bestHeight)
+
+			// Delete the best block across all tables, updating the best block
+			// in the meta table.
+			_, bestHeight, bestHash, err = DeleteBestBlock(ctx, db)
+			if err != nil {
+				return nil, err
+			}
+			if bestHeight == -1 {
+				break
+			}
+
+			// Now dbHash must equal bestHash. If not, DeleteBestBlock failed to
+			// update the meta table.
+			dbHash, _, err = DBBestBlock(db)
+			if err != nil {
+				return nil, err
+			}
+			if dbHash != bestHash {
+				return nil, fmt.Errorf("best block hash in meta and blocks tables do not match: "+
+					"%s != %s", dbHash, bestHash)
+			}
+		}
+	}
+
+	// Project fund address of the current network
+	var projectFundAddress string
+	if projectFundAddress, err = dbtypes.DevSubsidyAddress(params); err != nil {
 		log.Warnf("ChainDB.NewChainDB: %v", err)
-	}
-
-	if err = setupTables(db); err != nil {
-		log.Warnf("ATTENTION! %v", err)
-		// TODO: Actually handle the upgrades/reindexing somewhere.
-		return nil, err
 	}
 
 	log.Infof("Pre-loading unspent ticket info for InsertVote optimization.")
@@ -570,14 +704,14 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 	log.Infof("Setting PostgreSQL DB statement timeout to %v.", queryTimeout)
 
 	bestBlock := &BestBlock{
-		height: int64(bestHeight),
+		height: bestHeight,
 		hash:   bestHash,
 	}
 
-	// Create the address cache with an arbitrary capacity. The project fund
+	// Create the address cache with the given capacity. The project fund
 	// address is set to prevent purging its data when cache reaches capacity.
 	addrCache := cache.NewAddressCache(addrCacheCap)
-	addrCache.ProjectAddress = devSubsidyAddress
+	addrCache.ProjectAddress = projectFundAddress
 
 	chainDB := &ChainDB{
 		ctx:                ctx,
@@ -585,7 +719,7 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 		db:                 db,
 		mp:                 mp,
 		chainParams:        params,
-		devAddress:         devSubsidyAddress,
+		devAddress:         projectFundAddress,
 		dupChecks:          true,
 		bestBlock:          bestBlock,
 		lastBlock:          make(map[chainhash.Hash]uint64),
@@ -598,6 +732,40 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 		utxoCache:          newUtxoStore(5e4),
 		deployments:        new(ChainDeployments),
 		piparser:           parser,
+	}
+
+	// If loading a DB with the legacy versioning system, fully upgrade prior to
+	// migrating to meta table versioning.
+	if doLegacyUpgrade {
+		log.Infof("Performing legacy DB version check and upgrade.")
+		if err = chainDB.VersionCheck(bg); err != nil {
+			return chainDB, fmt.Errorf("legacy DB version check/upgrade failed: %v", err)
+		}
+
+		log.Infof("Migrating DB versioning scheme to meta table versioning...")
+		if err = CreateTable(db, "meta"); err != nil {
+			return chainDB, fmt.Errorf(`failed to create "meta" table: %v`, err)
+		}
+		err = insertMetaData(db, &metaData{
+			netName:         params.Name,
+			currencyNet:     uint32(params.Net),
+			bestBlockHeight: bestBlock.height,
+			bestBlockHash:   bestBlock.hash,
+			dbVer:           *legacyDatabaseVersion,
+			ibdComplete:     true, // We don't know this, but assume it is done.
+		})
+		if err != nil {
+			return chainDB, fmt.Errorf("insertMetaData failed: %v", err)
+		}
+
+		// Now run any upgrades from legacyDatabaseVersion to
+		// targetDatabaseVersion.
+		success, err := UpgradeDatabase(db, bg)
+		if err != nil {
+			return chainDB, fmt.Errorf("failed to upgrade legacy database: %v", err)
+		} else if !success {
+			return chainDB, fmt.Errorf("failed to upgrade legacy database (upgrade not supported?)")
+		}
 	}
 
 	// Start the proposal updates handler async method.
@@ -638,61 +806,56 @@ func (pgb *ChainDB) EnableDuplicateCheckOnInsert(dupCheck bool) {
 	pgb.dupChecks = dupCheck
 }
 
-// SetupTables creates the required tables and type, and prints table versions
-// stored in the table comments when debug level logging is enabled. It also
-// handles creation of any new or missing tables.
-func (pgb *ChainDB) SetupTables() error {
-	return setupTables(pgb.db)
-}
+var (
+	// metaNotFoundErr is the error from versionCheck when the meta table does
+	// not exist.
+	metaNotFoundErr = errors.New("meta table not found")
 
-func setupTables(db *sql.DB) error {
-	if err := CreateTypes(db); err != nil {
-		return err
-	}
+	// tablesNotFoundErr is the error from versionCheck when any of the tables
+	// do not exist.
+	tablesNotFoundErr = errors.New("tables not found")
+)
 
-	return CreateTables(db)
-}
-
-// VersionCheck checks the current version of all known tables and notifies when
-// an upgrade is required. If there is no automatic upgrade supported, an error
-// is returned when any table is not of the correct version.
-// A smart client is passed to implement the supported upgrades if need be.
-func (pgb *ChainDB) VersionCheck(client *rpcclient.Client) error {
-	vers := TableVersions(pgb.db)
-	for tab, ver := range vers {
-		log.Debugf("Table %s: v%s", tab, ver)
-	}
-
-	var needsUpgrade []TableUpgrade
-	tableUpgrades := TableUpgradesRequired(vers)
-
-	for _, val := range tableUpgrades {
-		switch val.UpgradeType {
-		case Upgrade, Reindex:
-			// Select the all tables that need an upgrade or reindex.
-			needsUpgrade = append(needsUpgrade, val)
-
-		case Unknown, Rebuild:
-			// All the tables require rebuilding.
-			return fmt.Errorf("rebuild of PostgreSQL tables required (drop with rebuilddb2 -D)")
+// versionCheck attempts to retrieve the database version from the meta table,
+// along with a CompatAction upgrade plan. If any of the regular data tables do
+// not exist, a tablesNotFoundErr error is returned to indicated that the tables
+// do not exist (or are partially created.) If the data tables exist but the
+// meta table does not exist, a metaNotFoundErr error is returned to indicate
+// that the legacy table versioning system is in use.
+func versionCheck(db *sql.DB) (*DatabaseVersion, CompatAction, error) {
+	// Check for the regular data tables to detect an empty database.
+	for tableName := range createTableStatements {
+		if tableName == "meta" {
+			continue
+		}
+		exists, err := TableExists(db, tableName)
+		if err != nil {
+			return nil, Unknown, err
+		}
+		if !exists {
+			return nil, Unknown, tablesNotFoundErr
 		}
 	}
 
-	if len(needsUpgrade) == 0 {
-		// All tables have the correct version.
-		log.Debugf("All tables at correct version (%v)", tableUpgrades[0].RequiredVer)
-		return nil
-	}
-
-	// UpgradeTables adds the pending db upgrades and reindexes.
-	_, err := pgb.UpgradeTables(client, needsUpgrade[0].CurrentVer,
-		needsUpgrade[0].RequiredVer)
+	// The meta table stores the database schema version.
+	exists, err := TableExists(db, "meta")
 	if err != nil {
-		return err
+		return nil, Unknown, err
+	}
+	// If there is no meta table, this could indicate the legacy table
+	// versioning system is still in used. Return the MetaNotFoundErr error.
+	if !exists {
+		return nil, Unknown, metaNotFoundErr
 	}
 
-	// Upgrade was successful.
-	return nil
+	// Retrieve the database version from the meta table.
+	dbVer, err := DBVersion(db)
+	if err != nil {
+		return nil, Unknown, fmt.Errorf("DBVersion failure: %v", err)
+	}
+
+	// Return the version, and an upgrade plan to reach targetDatabaseVersion.
+	return &dbVer, dbVer.NeededToReach(targetDatabaseVersion), nil
 }
 
 // DropTables drops (deletes) all of the known dcrdata tables.
@@ -2571,12 +2734,12 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 func (pgb *ChainDB) PurgeBestBlocks(N int64) (*dbtypes.DeletionSummary, int64, error) {
 	res, height, _, err := DeleteBlocks(pgb.ctx, N, pgb.db)
 	if err != nil {
-		return nil, int64(height), pgb.replaceCancelError(err)
+		return nil, height, pgb.replaceCancelError(err)
 	}
 
 	summary := dbtypes.DeletionSummarySlice(res).Reduce()
 
-	return &summary, int64(height), err
+	return &summary, height, err
 }
 
 // TxHistoryData fetches the address history chart data for specified chart
@@ -3239,14 +3402,6 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	}
 	pgb.lastBlock[msgBlock.BlockHash()] = blockDbID
 
-	if isMainchain {
-		// Update best block height and hash.
-		pgb.bestBlock.mtx.Lock()
-		pgb.bestBlock.height = int64(dbBlock.Height)
-		pgb.bestBlock.hash = dbBlock.Hash
-		pgb.bestBlock.mtx.Unlock()
-	}
-
 	// Insert the block in the block_chain table with the previous block hash
 	// and an empty string for the next block hash, which may be updated when a
 	// new block extends this chain.
@@ -3268,6 +3423,19 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 		return
 	}
 
+	if isMainchain {
+		// Update best block height and hash.
+		pgb.bestBlock.mtx.Lock()
+		pgb.bestBlock.height = int64(dbBlock.Height)
+		pgb.bestBlock.hash = dbBlock.Hash
+		pgb.bestBlock.mtx.Unlock()
+
+		// Update the best block in the meta table.
+		if err = pgb.SetDBBestBlock(); err != nil {
+			err = fmt.Errorf("SetDBBestBlock: %v", err)
+		}
+	}
+
 	// If not in batch sync, lazy update the dev fund balance, and expire cache
 	// data for the affected addresses.
 	if !pgb.InBatchSync {
@@ -3277,6 +3445,13 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	}
 
 	return
+}
+
+// SetDBBestBlock stores ChainDB's BestBlock data in the meta table.
+func (pgb *ChainDB) SetDBBestBlock() error {
+	pgb.bestBlock.mtx.RLock()
+	defer pgb.bestBlock.mtx.RUnlock()
+	return SetDBBestBlock(pgb.db, pgb.bestBlock.hash, pgb.bestBlock.height)
 }
 
 // UpdateLastBlock set the previous block's next block hash in the block_chain

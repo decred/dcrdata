@@ -10,10 +10,10 @@ import (
 
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/db/dcrpg/internal"
-	"github.com/decred/dcrdata/semver"
 )
 
 var createTableStatements = map[string]string{
+	"meta":           internal.CreateMetaTable,
 	"blocks":         internal.CreateBlockTable,
 	"transactions":   internal.CreateTransactionTable,
 	"vins":           internal.CreateVinTable,
@@ -42,118 +42,20 @@ type dropDuplicatesInfo struct {
 	DropDupsFunc func() (int64, error)
 }
 
-// The tables are versioned as follows. The major version is the same for all
-// the tables. A bump of this version is used to signal that all tables should
-// be dropped and rebuilt. The minor versions may be different, and they are
-// used to indicate a change requiring a table upgrade, which would be handled
-// by dcrdata or rebuilddb2. The patch versions may also be different. They
-// indicate a change of a table's index or constraint, which may require
-// re-indexing and a duplicate scan/purge.
-const (
-	tableMajor = 3
-	tableMinor = 11
-	tablePatch = 0
-)
-
-// TODO eliminiate this map since we're actually versioning each table the same.
-var requiredVersions = map[string]TableVersion{
-	"blocks":         NewTableVersion(tableMajor, tableMinor, tablePatch),
-	"transactions":   NewTableVersion(tableMajor, tableMinor, tablePatch),
-	"vins":           NewTableVersion(tableMajor, tableMinor, tablePatch),
-	"vouts":          NewTableVersion(tableMajor, tableMinor, tablePatch),
-	"block_chain":    NewTableVersion(tableMajor, tableMinor, tablePatch),
-	"addresses":      NewTableVersion(tableMajor, tableMinor, tablePatch),
-	"tickets":        NewTableVersion(tableMajor, tableMinor, tablePatch),
-	"votes":          NewTableVersion(tableMajor, tableMinor, tablePatch),
-	"misses":         NewTableVersion(tableMajor, tableMinor, tablePatch),
-	"agendas":        NewTableVersion(tableMajor, tableMinor, tablePatch),
-	"agenda_votes":   NewTableVersion(tableMajor, tableMinor, tablePatch),
-	"testing":        NewTableVersion(tableMajor, tableMinor, tablePatch),
-	"proposals":      NewTableVersion(tableMajor, tableMinor, tablePatch),
-	"proposal_votes": NewTableVersion(tableMajor, tableMinor, tablePatch),
-}
-
-// TableVersion models a table version by major.minor.patch
-type TableVersion struct {
-	major, minor, patch uint32
-}
-
-// CompatibilityAction defines the action to be taken once the current and the
-// required pg table versions are compared.
-type CompatibilityAction int8
-
-const (
-	Rebuild CompatibilityAction = iota
-	Upgrade
-	Reindex
-	OK
-	Unknown
-)
-
-// TableVersionCompatible indicates if the table versions are compatible
-// (equal), and if not, what is the required action (rebuild, upgrade, or
-// reindex).
-func TableVersionCompatible(required, actual TableVersion) CompatibilityAction {
-	switch {
-	case required.major != actual.major:
-		return Rebuild
-	case required.minor != actual.minor:
-		return Upgrade
-	case required.patch != actual.patch:
-		return Reindex
-	default:
-		return OK
-	}
-}
-
-func (s TableVersion) String() string {
-	return fmt.Sprintf("%d.%d.%d", s.major, s.minor, s.patch)
-}
-
-// String implements Stringer for CompatibilityAction.
-func (v CompatibilityAction) String() string {
-	actions := map[CompatibilityAction]string{
-		Rebuild: "rebuild",
-		Upgrade: "upgrade",
-		Reindex: "reindex",
-		OK:      "ok",
-	}
-	if actionStr, ok := actions[v]; ok {
-		return actionStr
-	}
-	return "unknown"
-}
-
-// NewTableVersion returns a new TableVersion with the version major.minor.patch
-func NewTableVersion(major, minor, patch uint32) TableVersion {
-	return TableVersion{major, minor, patch}
-}
-
-// TableUpgrade is used to define a required upgrade for a table
-type TableUpgrade struct {
-	TableName               string
-	UpgradeType             CompatibilityAction
-	CurrentVer, RequiredVer TableVersion
-}
-
-func (s TableUpgrade) String() string {
-	return fmt.Sprintf("Table %s requires %s (%s -> %s).", s.TableName,
-		s.UpgradeType, s.CurrentVer, s.RequiredVer)
-}
-
 // TableExists checks if the specified table exists.
 func TableExists(db *sql.DB, tableName string) (bool, error) {
 	rows, err := db.Query(`select relname from pg_class where relname = $1`,
 		tableName)
-	if err == nil {
-		defer func() {
-			if e := rows.Close(); e != nil {
-				log.Errorf("Close of Query failed: %v", e)
-			}
-		}()
-		return rows.Next(), nil
+	if err != nil {
+		return false, err
 	}
-	return false, err
+
+	defer func() {
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+	}()
+	return rows.Next(), nil
 }
 
 func dropTable(db *sql.DB, tableName string) error {
@@ -166,7 +68,7 @@ func DropTables(db *sql.DB) {
 	for tableName := range createTableStatements {
 		log.Infof("DROPPING the \"%s\" table.", tableName)
 		if err := dropTable(db, tableName); err != nil {
-			log.Errorf("DROP TABLE %s failed.", tableName)
+			log.Errorf(`DROP TABLE "%s" failed.`, tableName)
 		}
 	}
 
@@ -243,11 +145,6 @@ func CreateTypes(db *sql.DB) error {
 			if err != nil {
 				return err
 			}
-			_, err = db.Exec(fmt.Sprintf(`COMMENT ON TYPE %s
-				IS 'v1';`, typeName))
-			if err != nil {
-				return err
-			}
 		} else {
 			log.Tracef("Type \"%s\" exist.", typeName)
 		}
@@ -281,135 +178,46 @@ func ClearTestingTable(db *sql.DB) error {
 // CreateTables creates all tables required by dcrdata if they do not already
 // exist.
 func CreateTables(db *sql.DB) error {
-	var err error
+	// Create all of the data tables.
 	for tableName, createCommand := range createTableStatements {
-		var exists bool
-		exists, err = TableExists(db, tableName)
+		err := createTable(db, tableName, createCommand)
 		if err != nil {
 			return err
-		}
-
-		tableVersion, ok := requiredVersions[tableName]
-		if !ok {
-			return fmt.Errorf("no version assigned to table %s", tableName)
-		}
-
-		if !exists {
-			log.Infof("Creating the \"%s\" table.", tableName)
-			_, err = db.Exec(createCommand)
-			if err != nil {
-				return err
-			}
-			_, err = db.Exec(fmt.Sprintf(`COMMENT ON TABLE %s IS 'v%s';`,
-				tableName, tableVersion))
-			if err != nil {
-				return err
-			}
-		} else {
-			log.Tracef("Table \"%s\" exist.", tableName)
 		}
 	}
 
 	return ClearTestingTable(db)
 }
 
-// CreateTable creates one of the known tables by name
+// CreateTable creates one of the known tables by name.
 func CreateTable(db *sql.DB, tableName string) error {
-	var err error
 	createCommand, tableNameFound := createTableStatements[tableName]
 	if !tableNameFound {
 		return fmt.Errorf("table name %s unknown", tableName)
 	}
-	tableVersion, ok := requiredVersions[tableName]
-	if !ok {
-		return fmt.Errorf("no version assigned to table %s", tableName)
-	}
 
-	var exists bool
-	exists, err = TableExists(db, tableName)
+	return createTable(db, tableName, createCommand)
+}
+
+// createTable creates a table with the given name using the provided SQL
+// statement, if it does not already exist.
+func createTable(db *sql.DB, tableName, stmt string) error {
+	exists, err := TableExists(db, tableName)
 	if err != nil {
 		return err
 	}
 
 	if !exists {
-		log.Infof("Creating the \"%s\" table.", tableName)
-		_, err = db.Exec(createCommand)
-		if err != nil {
-			return err
-		}
-		_, err = db.Exec(fmt.Sprintf(`COMMENT ON TABLE %s IS 'v%s';`,
-			tableName, tableVersion))
+		log.Infof(`Creating the "%s" table.`, tableName)
+		_, err = db.Exec(stmt)
 		if err != nil {
 			return err
 		}
 	} else {
-		log.Tracef("Table \"%s\" exist.", tableName)
+		log.Tracef(`Table "%s" exists.`, tableName)
 	}
 
 	return err
-}
-
-// TableUpgradesRequired builds a list of table upgrade information for each
-// of the supported auxiliary db tables. The upgrade information includes the
-// table name, its current & required table versions and the action to be taken
-// after comparing the current & required versions.
-func TableUpgradesRequired(versions map[string]TableVersion) []TableUpgrade {
-	var tableUpgrades []TableUpgrade
-	for t := range createTableStatements {
-		var ok bool
-		var req, act TableVersion
-		if req, ok = requiredVersions[t]; !ok {
-			log.Errorf("required version unknown for table %s", t)
-			tableUpgrades = append(tableUpgrades, TableUpgrade{
-				TableName:   t,
-				UpgradeType: Unknown,
-			})
-			continue
-		}
-		if act, ok = versions[t]; !ok {
-			log.Errorf("current version unknown for table %s", t)
-			tableUpgrades = append(tableUpgrades, TableUpgrade{
-				TableName:   t,
-				UpgradeType: Rebuild,
-				RequiredVer: req,
-			})
-			continue
-		}
-		versionCompatibility := TableVersionCompatible(req, act)
-		tableUpgrades = append(tableUpgrades, TableUpgrade{
-			TableName:   t,
-			UpgradeType: versionCompatibility,
-			CurrentVer:  act,
-			RequiredVer: req,
-		})
-	}
-	return tableUpgrades
-}
-
-// TableVersions retrieve and maps the tables names in the auxiliary db to their
-// current table versions.
-func TableVersions(db *sql.DB) map[string]TableVersion {
-	versions := map[string]TableVersion{}
-	for tableName := range createTableStatements {
-		// Retrieve the table description.
-		var desc string
-		err := db.QueryRow(`select obj_description($1::regclass);`, tableName).Scan(&desc)
-		if err != nil {
-			log.Errorf("Query of table %s description failed: %v", tableName, err)
-			continue
-		}
-
-		// Attempt to parse a version out of the table description.
-		sv, err := semver.ParseVersionStr(desc)
-		if err != nil {
-			log.Errorf("Failed to parse version from table description %s: %v",
-				desc, err)
-			continue
-		}
-
-		versions[tableName] = NewTableVersion(sv.Split())
-	}
-	return versions
 }
 
 // CheckColumnDataType gets the data type of specified table column .

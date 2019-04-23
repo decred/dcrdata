@@ -30,6 +30,41 @@ import (
 	"github.com/lib/pq"
 )
 
+// DBBestBlock retrieves the best block hash and height from the meta table.
+func DBBestBlock(db *sql.DB) (hash string, height int64, err error) {
+	err = db.QueryRow(internal.SelectMetaDBBestBlock).Scan(&height, &hash)
+	return
+}
+
+// SetDBBestBlock sets the best block hash and height in the meta table.
+func SetDBBestBlock(db *sql.DB, hash string, height int64) error {
+	numRows, err := sqlExec(db, internal.SetMetaDBBestBlock,
+		"failed to update best block in meta table: ", height, hash)
+	if err != nil {
+		return err
+	}
+	if numRows != 1 {
+		return fmt.Errorf("failed to update exactly 1 row in meta table (%d)",
+			numRows)
+	}
+	return nil
+}
+
+// SetIBDComplete set the ibd_complete (Initial Block Download complete) flag in
+// the meta table.
+func SetIBDComplete(db *sql.DB, ibdComplete bool) error {
+	numRows, err := sqlExec(db, internal.SetMetaDBIbdComplete,
+		"failed to update ibd_complete in meta table: ", ibdComplete)
+	if err != nil {
+		return err
+	}
+	if numRows != 1 {
+		return fmt.Errorf("failed to update exactly 1 row in meta table (%d)",
+			numRows)
+	}
+	return nil
+}
+
 // outputCountType defines the modes of the output count chart data.
 // outputCountByAllBlocks defines count per block i.e. solo and pooled tickets
 // count per block. outputCountByTicketPoolWindow defines the output count per
@@ -3404,9 +3439,23 @@ func InsertBlockPrevNext(db *sql.DB, blockDbID uint64,
 	return err
 }
 
-// RetrieveBestBlockHeight gets the best block height (main chain only).
+// RetrieveBestBlockHeight gets the best block height and hash (main chain
+// only). Be sure to check for sql.ErrNoRows.
 func RetrieveBestBlockHeight(ctx context.Context, db *sql.DB) (height uint64, hash string, id uint64, err error) {
 	err = db.QueryRowContext(ctx, internal.RetrieveBestBlockHeight).Scan(&id, &hash, &height)
+	return
+}
+
+// RetrieveBestBlock gets the best block height and hash (main chain only). If
+// there are no results from the query, the height is -1 and err is nil.
+func RetrieveBestBlock(ctx context.Context, db *sql.DB) (height int64, hash string, err error) {
+	var bbHeight uint64
+	bbHeight, hash, _, err = RetrieveBestBlockHeight(ctx, db)
+	height = int64(bbHeight)
+	if err != nil && err == sql.ErrNoRows {
+		height = -1
+		err = nil
+	}
 	return
 }
 

@@ -99,6 +99,34 @@ func deleteBlockFromChain(dbTx *sql.Tx, hash string) (err error) {
 	return UpdateBlockNextByHash(dbTx, prevHash, "")
 }
 
+// RetrieveTxsBlocksAboveHeight returns all distinct mainchain block heights and
+// hashes referenced in the transactions table above the given height.
+func RetrieveTxsBlocksAboveHeight(ctx context.Context, db *sql.DB, height int64) (heights []int64, hashes []string, err error) {
+	var rows *sql.Rows
+	rows, err = db.QueryContext(ctx, internal.SelectTxsBlocksAboveHeight, height)
+	if err != nil {
+		return
+	}
+
+	for rows.Next() {
+		var height int64
+		var hash string
+		if err = rows.Scan(&height, &hash); err != nil {
+			return nil, nil, err
+		}
+		heights = append(heights, height)
+		hashes = append(hashes, hash)
+	}
+	return
+}
+
+// RetrieveTxsBestBlockMainchain returns the best mainchain block's height from
+// the transactions table.
+func RetrieveTxsBestBlockMainchain(ctx context.Context, db *sql.DB) (height int64, hash string, err error) {
+	err = db.QueryRowContext(ctx, internal.SelectTxsBestBlock).Scan(&height, &hash)
+	return
+}
+
 // DeleteBlockData removes all data for the specified block from every table.
 // Data are removed from tables in the following order: vins, vouts, addresses,
 // transactions, tickets, votes, misses, blocks, block_chain.
@@ -217,8 +245,8 @@ func DeleteBlockData(ctx context.Context, db *sql.DB, hash string) (res dbtypes.
 // table via DeleteBlockData. The returned height and hash are for the best
 // block after successful data removal, or the initial best block if removal
 // fails as indicated by a non-nil error value.
-func DeleteBestBlock(ctx context.Context, db *sql.DB) (res dbtypes.DeletionSummary, height uint64, hash string, err error) {
-	height, hash, _, err = RetrieveBestBlockHeight(ctx, db)
+func DeleteBestBlock(ctx context.Context, db *sql.DB) (res dbtypes.DeletionSummary, height int64, hash string, err error) {
+	height, hash, err = RetrieveBestBlock(ctx, db)
 	if err != nil {
 		return
 	}
@@ -228,33 +256,33 @@ func DeleteBestBlock(ctx context.Context, db *sql.DB) (res dbtypes.DeletionSumma
 		return
 	}
 
-	height, hash, _, err = RetrieveBestBlockHeight(ctx, db)
+	height, hash, err = RetrieveBestBlock(ctx, db)
+	if err != nil {
+		return
+	}
+
+	err = SetDBBestBlock(db, hash, height)
 	return
 }
 
 // DeleteBlocks removes all data for the N best blocks in the DB from every
 // table via repeated calls to DeleteBestBlock.
-func DeleteBlocks(ctx context.Context, N int64, db *sql.DB) (res []dbtypes.DeletionSummary, height uint64, hash string, err error) {
+func DeleteBlocks(ctx context.Context, N int64, db *sql.DB) (res []dbtypes.DeletionSummary, height int64, hash string, err error) {
 	// If N is less than 1, get the current best block height and hash, then
 	// return.
 	if N < 1 {
-		height, hash, _, err = RetrieveBestBlockHeight(ctx, db)
-		if err == sql.ErrNoRows {
-			err = nil
-		}
+		height, hash, err = RetrieveBestBlock(ctx, db)
 		return
 	}
 
 	for i := int64(0); i < N; i++ {
 		var resi dbtypes.DeletionSummary
 		resi, height, hash, err = DeleteBestBlock(ctx, db)
-		// Continue if err == sql.ErrNoRows or nil.
-		if err != nil && err != sql.ErrNoRows {
+		if err != nil {
 			return
 		}
 		res = append(res, resi)
 		if hash == "" {
-			err = nil // do not return sql.ErrNoRows
 			break
 		}
 		if (i%100 == 0 && i > 0) || i == N-1 {
