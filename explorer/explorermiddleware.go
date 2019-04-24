@@ -28,6 +28,12 @@ const (
 	ctxProposalToken
 )
 
+const (
+	darkModeCoookie   = "dcrdataDarkBG"
+	darkModeFormKey   = "darkmode"
+	requestURIFormKey = "requestURI"
+)
+
 func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		height, err := strconv.ParseInt(chi.URLParam(r, "blockhash"), 10, 0)
@@ -198,5 +204,36 @@ func ProposalPathCtx(next http.Handler) http.Handler {
 		proposalToken := chi.URLParam(r, "proposalToken")
 		ctx := context.WithValue(r.Context(), ctxProposalToken, proposalToken)
 		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// MenuFormParser parses a form submission from the navigation menu.
+func MenuFormParser(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.FormValue(darkModeFormKey) != "" {
+			cookie, err := r.Cookie(darkModeCoookie)
+			if err != nil && err != http.ErrNoCookie {
+				log.Errorf("Cookie dcrdataDarkBG retrieval error: %v", err)
+			} else {
+				if err == http.ErrNoCookie {
+					cookie = &http.Cookie{
+						Name:   darkModeCoookie,
+						Value:  "1",
+						MaxAge: 0,
+					}
+				} else {
+					cookie.Value = "0"
+					cookie.MaxAge = -1
+				}
+				http.SetCookie(w, cookie)
+				requestURI := r.FormValue(requestURIFormKey)
+				if requestURI == "" {
+					requestURI = "/"
+				}
+				http.Redirect(w, r, requestURI, http.StatusFound)
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
 	})
 }

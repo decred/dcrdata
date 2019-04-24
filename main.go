@@ -851,6 +851,9 @@ func _main(ctx context.Context) error {
 		r.Get("/statistics", func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/stats", http.StatusPermanentRedirect)
 		})
+		// MenuFormParser will typically redirect, but going to the homepage as a
+		// fallback.
+		r.With(explorer.MenuFormParser).Post("/set", explore.Home)
 	})
 
 	// Start the web server.
