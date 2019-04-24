@@ -73,9 +73,10 @@ func TestMain(m *testing.M) {
 // It also checks the order and duplicates in the x-axis dataset.
 func TestPgCharts(t *testing.T) {
 	charts := cache.NewChartData(0, time.Now(), &chaincfg.MainNetParams, context.Background())
+	charts.DiffInterval = 10
 	db.RegisterCharts(charts)
-	charts.Update()
 	blocks := charts.Blocks
+	windows := charts.Windows
 
 	validate := func(tag string) {
 		// Not checking NewAtoms right now, as the test database does not appear to
@@ -84,25 +85,34 @@ func TestPgCharts(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s blocks length validation error: %v", tag, err)
 		}
+		_, err = cache.ValidateLengths(windows.TicketPrice, windows.PowDiff, windows.Time)
+		if err != nil {
+			t.Fatalf("%s windows length validation error: %v", tag, err)
+		}
 	}
 
-	if len(blocks.Time) == 0 {
-		t.Fatalf("no data deposited in Time array")
-	}
-	// The database will not validate because it does not start at block height 0.
-	// This means that Update will not progress past the Blocks update right now.
-	// To do: implement windows data testing
 	charts.Update()
 	validate("initial update")
+	blocksLen := len(blocks.Time)
+	windowsLen := len(windows.Time)
+
+	if blocksLen > int(charts.DiffInterval) && windowsLen == 0 {
+		t.Fatalf("unexpected empty windows data")
+	}
 
 	blocks.Snip(50)
+	windows.Snip(5)
 	validate("post-snip")
 
 	charts.Update()
-	// The data set lengths will actually be incorrect because the test
-	// database is not zero-indexed, but the lengths should still all be equal
-	// so validateLengths will not return an error.
 	validate("second update")
+
+	if blocksLen != len(blocks.Time) {
+		t.Fatalf("unexpected blocks data length %d != %d", blocksLen, len(blocks.Time))
+	}
+	if windowsLen != len(windows.Time) {
+		t.Fatalf("unexpected windows data length %d != %d", windowsLen, len(windows.Time))
+	}
 }
 	charts.Update()
 	validate("second update")

@@ -81,8 +81,6 @@ func TestMain(m *testing.M) {
 func TestSqliteCharts(t *testing.T) {
 	charts := cache.NewChartData(0, time.Now(), &chaincfg.MainNetParams, context.Background())
 	db.RegisterCharts(charts)
-
-	charts.Update()
 	blocks := charts.Blocks
 
 	validate := func(tag string) {
@@ -91,22 +89,18 @@ func TestSqliteCharts(t *testing.T) {
 			t.Fatalf("%s blocks length validation error: %v", tag, err)
 		}
 	}
-
-	if len(blocks.Fees) == 0 {
-		t.Fatalf("no data deposited in Time array")
-	}
-	// The database will not validate because it does not start at block height 0.
-	// This means that Update will not progress past the Blocks update right now.
 	charts.Update()
 	validate("initial update")
+	feesLen := len(blocks.Fees)
 
 	blocks.Snip(50)
 	validate("post-snip")
 
 	charts.Update()
-	// The data set lengths will actually be incorrect because the test
-	// database is not zero-indexed, but the lengths should still all be equal
-	// so validateLengths will not return an error.
 	validate("second update")
+
+	if feesLen != len(blocks.Fees) {
+		t.Fatalf("unexpected fees data length %d != %d", feesLen, len(blocks.Fees))
+	}
 
 }
