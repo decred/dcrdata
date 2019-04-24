@@ -28,10 +28,7 @@ const (
 	DurationBTW     = "duration-btw-blocks"
 	HashRate        = "hashrate"
 	POWDifficulty   = "pow-difficulty"
-	TicketByWindows = "ticket-by-outputs-windows"
 	TicketPrice     = "ticket-price"
-	TicketsByBlocks = "ticket-by-outputs-blocks"
-	TicketSpendT    = "ticket-spend-type"
 	TxCount         = "tx-count"
 	Fees            = "fees"
 	TicketPoolSize  = "ticket-pool-size"
@@ -794,20 +791,15 @@ func (charts *ChartData) cacheChart(chartID string, zoom ZoomLevel, data []byte)
 type ChartMaker func(charts *ChartData, zoom ZoomLevel) ([]byte, error)
 
 var chartMakers = map[string]ChartMaker{
-	BlockSize:      blockSizeChart,
-	BlockChainSize: blockchainSizeChart,
-	ChainWork:      chainWorkChart,
-	CoinSupply:     coinSupplyChart,
-	DurationBTW:    durationBTWChart,
-	HashRate:       hashRateChart,
-	POWDifficulty:  powDifficultyChart,
-	// TicketByWindows: TicketByWindowsChart,
-	TicketPrice: ticketPriceChart,
-	// TicketsByBlocks: ,
-	// TicketSpendT: ,
-	TxCount: txCountChart,
-	// TxPerDay: ,
-	// FeePerBlock: ,
+	BlockSize:       blockSizeChart,
+	BlockChainSize:  blockchainSizeChart,
+	ChainWork:       chainWorkChart,
+	CoinSupply:      coinSupplyChart,
+	DurationBTW:     durationBTWChart,
+	HashRate:        hashRateChart,
+	POWDifficulty:   powDifficultyChart,
+	TicketPrice:     ticketPriceChart,
+	TxCount:         txCountChart,
 	Fees:            feesChart,
 	TicketPoolSize:  ticketPoolSizeChart,
 	TicketPoolValue: poolValueChart,
