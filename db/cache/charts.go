@@ -310,7 +310,8 @@ type ChartUpdater struct {
 	Tag string
 	// In addition to the sql.Rows and an error, the fetcher should return a
 	// context.CancelFunc if appropriate, else a dummy.
-	Fetcher  func(*ChartData) (*sql.Rows, func(), error)
+	Fetcher func(*ChartData) (*sql.Rows, func(), error)
+	// The Appender will be run under mutex lock.
 	Appender func(*ChartData, *sql.Rows) error
 }
 
@@ -320,7 +321,7 @@ type ChartUpdater struct {
 // and Windows fields must be updated by (presumably) a database package. The
 // Days data is auto-generated from the Blocks data during Lengthen-ing.
 type ChartData struct {
-	sync.RWMutex
+	mtx          sync.RWMutex
 	ctx          context.Context
 	genesis      uint64
 	DiffInterval int32
@@ -366,8 +367,8 @@ func midnight(t uint64) (mid uint64) {
 // Lengthen performs data validation and populates the Days zoomSet. If there is
 // an update to a zoomSet or windowSet, the cacheID will be incremented.
 func (charts *ChartData) Lengthen() error {
-	charts.Lock()
-	defer charts.Unlock()
+	charts.mtx.Lock()
+	defer charts.mtx.Unlock()
 
 	// Make sure the database has set an equal number of blocks in each data set.
 	blocks := charts.Blocks
@@ -470,8 +471,8 @@ func (charts *ChartData) ReorgHandler(wg *sync.WaitGroup, c chan *txhelpers.Reor
 				return
 			}
 			commonAncestorHeight := uint64(data.NewChainHeight) - uint64(len(data.NewChain))
-			charts.Lock()
-			defer charts.Unlock()
+			charts.mtx.Lock()
+			defer charts.mtx.Unlock()
 			charts.Blocks.Snip(int(commonAncestorHeight) + 1)
 			// Snip the last two days
 			daysLen := len(charts.Days.Time)
@@ -513,8 +514,8 @@ func (charts *ChartData) writeCacheFile(filePath string) (err error) {
 	defer file.Close()
 
 	encoder := gob.NewEncoder(file)
-	charts.RLock()
-	defer charts.RUnlock()
+	charts.mtx.RLock()
+	defer charts.mtx.RUnlock()
 	return encoder.Encode(charts.gobject())
 }
 
@@ -542,7 +543,7 @@ func (charts *ChartData) readCacheFile(filePath string) error {
 		return err
 	}
 
-	charts.Lock()
+	charts.mtx.Lock()
 	charts.Blocks.Height = gobject.Height
 	charts.Blocks.Time = gobject.Time
 	charts.Blocks.PoolSize = gobject.PoolSize
@@ -555,7 +556,7 @@ func (charts *ChartData) readCacheFile(filePath string) error {
 	charts.Windows.Time = gobject.WindowTime
 	charts.Windows.PowDiff = gobject.PowDiff
 	charts.Windows.TicketPrice = gobject.TicketPrice
-	charts.Unlock()
+	charts.mtx.Unlock()
 
 	err = charts.Lengthen()
 	if err != nil {
@@ -618,8 +619,8 @@ func (charts *ChartData) gobject() *ChartGobject {
 
 // TipTime returns the time of the best block known to (ChartData).Blocks.
 func (charts *ChartData) TipTime() uint64 {
-	charts.RLock()
-	defer charts.RUnlock()
+	charts.mtx.RLock()
+	defer charts.mtx.RUnlock()
 	var t uint64
 	if len(charts.Blocks.Time) != 0 {
 		t = charts.Blocks.Time[len(charts.Blocks.Time)-1]
@@ -630,8 +631,8 @@ func (charts *ChartData) TipTime() uint64 {
 // StateID returns a unique (enough) ID associted with the state of the Blocks
 // data in a thread-safe way.
 func (charts *ChartData) StateID() uint64 {
-	charts.RLock()
-	defer charts.RUnlock()
+	charts.mtx.RLock()
+	defer charts.mtx.RUnlock()
 	return charts.stateID()
 }
 
@@ -656,36 +657,36 @@ func (charts *ChartData) validState(stateID uint64) bool {
 // need to be populated for (ChartData).Blocks because the height is just
 // len(Blocks.*)-1.
 func (charts *ChartData) Height() int32 {
-	charts.RLock()
-	defer charts.RUnlock()
+	charts.mtx.RLock()
+	defer charts.mtx.RUnlock()
 	return int32(len(charts.Blocks.Time)) - 1
 }
 
 // FeesTip is the height of the Fees data.
 func (charts *ChartData) FeesTip() int32 {
-	charts.RLock()
-	defer charts.RUnlock()
+	charts.mtx.RLock()
+	defer charts.mtx.RUnlock()
 	return int32(len(charts.Blocks.Fees)) - 1
 }
 
 // NewAtomsTip is the height of the NewAtoms data.
 func (charts *ChartData) NewAtomsTip() int32 {
-	charts.RLock()
-	defer charts.RUnlock()
+	charts.mtx.RLock()
+	defer charts.mtx.RUnlock()
 	return int32(len(charts.Blocks.NewAtoms)) - 1
 }
 
 // TicketPriceTip is the height of the TicketPrice data.
 func (charts *ChartData) TicketPriceTip() int32 {
-	charts.RLock()
-	defer charts.RUnlock()
+	charts.mtx.RLock()
+	defer charts.mtx.RUnlock()
 	return int32(len(charts.Windows.TicketPrice))*charts.DiffInterval - 1
 }
 
 // PoolSizeTip is the height of the PoolSize data.
 func (charts *ChartData) PoolSizeTip() int32 {
-	charts.RLock()
-	defer charts.RUnlock()
+	charts.mtx.RLock()
+	defer charts.mtx.RUnlock()
 	return int32(len(charts.Blocks.PoolSize)) - 1
 }
 
@@ -702,24 +703,25 @@ func (charts *ChartData) Update() {
 	for _, updater := range charts.updaters {
 		stateID := charts.StateID()
 		rows, cancel, err := updater.Fetcher(charts)
-		defer cancel()
 		if err != nil {
-			log.Warnf("error encountered during charts %s update. aborting update: %v", updater.Tag, err)
-			return
+			err = fmt.Errorf("error encountered during charts %s update. aborting update: %v", updater.Tag, err)
+		} else {
+			charts.mtx.Lock()
+			if !charts.validState(stateID) {
+				err = fmt.Errorf("state change detected during charts %s update. aborting update", updater.Tag)
+			} else {
+				err = updater.Appender(charts, rows)
+				if err != nil {
+					err = fmt.Errorf("error detected during charts %s append. aborting update: %v", updater.Tag, err)
+				}
+			}
+			charts.mtx.Unlock()
 		}
-		charts.Lock()
-		if !charts.validState(stateID) {
-			log.Warnf("state change detected during charts %s update. aborting update", updater.Tag)
-			charts.Unlock()
-			return
-		}
-		err = updater.Appender(charts, rows)
+		cancel()
 		if err != nil {
-			log.Warnf("error detected during charts %s append: %v", updater.Tag, err)
-			charts.Unlock()
+			log.Warnf("%v", err)
 			return
 		}
-		charts.Unlock()
 	}
 }
 
@@ -825,9 +827,9 @@ func (charts *ChartData) Chart(chartID, zoomString string) ([]byte, error) {
 	}
 	// Do the locking here, rather than in encodeXY, so that the helper functions
 	// (accumulate, btw) are run under lock.
-	charts.RLock()
+	charts.mtx.RLock()
 	data, err := maker(charts, zoom)
-	charts.RUnlock()
+	charts.mtx.RUnlock()
 	if err != nil {
 		return nil, err
 	}
