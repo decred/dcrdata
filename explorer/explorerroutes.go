@@ -47,6 +47,7 @@ type CommonPageData struct {
 	Links         *links
 	NetName       string
 	Cookies       Cookies
+	RequestURI    string
 }
 
 // Status page strings
@@ -2006,7 +2007,7 @@ func (exp *explorerUI) commonData(r *http.Request) *CommonPageData {
 		log.Errorf("Failed to get the chain tip from the database.: %v", err)
 		return nil
 	}
-	darkMode, err := r.Cookie("dcrdataDarkBG")
+	darkMode, err := r.Cookie(darkModeCoookie)
 	if err != nil && err != http.ErrNoCookie {
 		log.Errorf("Cookie dcrdataDarkBG retrieval error: %v", err)
 	}
@@ -2021,5 +2022,6 @@ func (exp *explorerUI) commonData(r *http.Request) *CommonPageData {
 		Cookies: Cookies{
 			DarkMode: darkMode != nil && darkMode.Value == "1",
 		},
+		RequestURI: r.URL.RequestURI(),
 	}
 }

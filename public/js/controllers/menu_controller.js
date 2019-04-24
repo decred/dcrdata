@@ -19,6 +19,7 @@ export default class extends Controller {
 
   connect () {
     this.clickout = this._clickout.bind(this)
+    document.querySelectorAll('.menu-submit').forEach(button => { button.disabled = true })
   }
 
   _clickout (e) {

@@ -167,6 +167,20 @@ body.darkBG {
     }
   }
 
+  .menu-submit {
+    border: none;
+    text-decoration: none;
+    background: transparent;
+    color: inherit;
+  }
+
+  .menu-submit:hover,
+  .menu-submit:focus {
+    outline: none;
+    text-decoration: none;
+    background: transparent;
+  }
+
   a.jsonly,
   span.jsonly {
     display: none;
