@@ -68,12 +68,6 @@ testrepo () {
   # Drop the tests db.
   psql -U postgres -c "DROP DATABASE IF EXISTS dcrdata_mainnet_test"
 
-  # check linters
-  golangci-lint run --deadline=10m --disable-all --enable govet --enable staticcheck \
-    --enable gosimple --enable unconvert --enable ineffassign --enable structcheck \
-    --enable goimports --enable misspell --enable unparam
-
-
   # webpack
   npm install
   npm run build

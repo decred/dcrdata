@@ -2991,9 +2991,7 @@ func retrieveCoinSupply(ctx context.Context, db *sql.DB, timeArr []dbtypes.TimeD
 	targetBlockTime := params.TargetTimePerBlock.Minutes()
 	inflationRate := float64(params.MulSubsidy) / float64(params.DivSubsidy)
 	subsidyReduction := float64(params.SubsidyReductionInterval)
-
-	// https://github.com/decred/dcrd/blob/5076a00512a521cea3c51b443b50970804dbe712/blockchain/subsidy_test.go#L52-L54
-	maxCoinSupply := 20999999.99800912
+	maxCoinSupply := dcrutil.Amount(txhelpers.UltimateSubsidy(params)).ToCoin()
 
 	// timeArr and estimateArr may contain extra datasets than sumArr that allows
 	// the inflation axis to be extended to one month more than the actual supply
@@ -3029,11 +3027,13 @@ func retrieveCoinSupply(ctx context.Context, db *sql.DB, timeArr []dbtypes.TimeD
 	var actualReward float64
 	var estimatedBlockHeight int
 
+	stakelessFactor := (1 - float64(params.StakeRewardProportion)/10)
+
 	supplyEstimate := func(estimatedBlockHeight int) float64 {
 		// Before the stakeValidation height, all the POS rewards (30% of block reward)
 		// are lost since no votes are cast for those blocks.
 		if int64(estimatedBlockHeight) < params.StakeValidationHeight {
-			actualReward = reward * 0.7
+			actualReward = reward * stakelessFactor
 		} else {
 			actualReward = reward
 		}
