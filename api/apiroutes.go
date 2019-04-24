@@ -114,6 +114,7 @@ type DataSourceAux interface {
 	AllAgendas() (map[string]dbtypes.MileStone, error)
 	GetTicketInfo(txid string) (*apitypes.TicketInfo, error)
 	ProposalVotes(proposalToken string) (*dbtypes.ProposalChartsData, error)
+	PowerlessTickets() (*apitypes.PowerlessTickets, error)
 }
 
 // dcrdata application context used by all route handlers
@@ -934,6 +935,17 @@ func (c *appContext) getStakeDiffSummary(w http.ResponseWriter, r *http.Request)
 	}
 
 	writeJSON(w, stakeDiff, c.getIndentQuery(r))
+}
+
+// Encodes apitypes.PowerlessTickets, which is missed or expired tickets sorted
+// by revocation status.
+func (c *appContext) getPowerlessTickets(w http.ResponseWriter, r *http.Request) {
+	tickets, err := c.AuxDataSource.PowerlessTickets()
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, tickets, c.getIndentQuery(r))
 }
 
 func (c *appContext) getStakeDiffCurrent(w http.ResponseWriter, r *http.Request) {

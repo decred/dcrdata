@@ -127,12 +127,10 @@ const (
 		WHERE pool_status = 0 AND tickets.is_mainchain = TRUE
 		GROUP BY timestamp ORDER BY timestamp;`
 
-	SelectTicketSpendTypeByBlock = `SELECT block_height,
-		SUM(CASE WHEN spend_type = 0 THEN 1 ELSE 0 END) as unspent,
-		SUM(CASE WHEN spend_type = 1 THEN 1 ELSE 0 END) as revoked
+	SelectTicketSpendTypeByBlock = `SELECT block_height, spend_type, price
 		FROM tickets
 		WHERE block_height > $1
-		GROUP BY block_height
+		AND pool_status > 1
 		ORDER BY block_height;`
 
 	// Updates

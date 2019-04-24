@@ -2918,25 +2918,18 @@ func (pgb *ChainDB) txPerDay(timeArr []dbtypes.TimeDef, txCountArr []uint64) (
 	return timeArr, txCountArr, err
 }
 
-// ticketSpendTypePerBlock fetches the tickets spend type chart data from
-// retrieveTicketSpendTypePerBlock.
-func (pgb *ChainDB) ticketSpendTypePerBlock(heightArr, unSpentArr, revokedArr []uint64) (
-	[]uint64, []uint64, []uint64, error) {
+// PowerlessTickets fetches all missed and expired tickets, sorted by revocation
+// status.
+func (pgb *ChainDB) PowerlessTickets() (*apitypes.PowerlessTickets, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
-
-	var err error
-	heightArr, unSpentArr, revokedArr, err = retrieveTicketSpendTypePerBlock(ctx,
-		pgb.db, heightArr, unSpentArr, revokedArr)
-	if err != nil {
-		err = fmt.Errorf("ticketSpendTypePerBlock: %v", pgb.replaceCancelError(err))
-	}
-
-	return heightArr, unSpentArr, revokedArr, err
+	return retrievePowerlessTickets(ctx, pgb.db)
 }
 
 // ticketsByBlocks fetches the tickets by blocks output count chart data from
 // retrieveTicketByOutputCount
+// This chart has been deprecated. Leaving ticketsByBlocks for possible future
+// re-appropriation, says buck54321 on April 24, 2019.
 func (pgb *ChainDB) ticketsByBlocks(heightArr, soloArr, pooledArr []uint64) ([]uint64,
 	[]uint64, []uint64, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
@@ -2954,6 +2947,8 @@ func (pgb *ChainDB) ticketsByBlocks(heightArr, soloArr, pooledArr []uint64) ([]u
 
 // ticketsByTPWindows fetches the tickets by ticket pool windows count chart data
 // from retrieveTicketByOutputCount.
+// This chart has been deprecated. Leaving ticketsByTPWindows for possible
+// future re-appropriation, says buck54321 on April 24, 2019.
 func (pgb *ChainDB) ticketsByTPWindows(heightArr, soloArr, pooledArr []uint64) ([]uint64,
 	[]uint64, []uint64, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)

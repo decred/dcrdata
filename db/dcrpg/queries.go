@@ -3117,33 +3117,42 @@ func appendCoinSupply(charts *cache.ChartData, rows *sql.Rows) error {
 	return nil
 }
 
-// retrieveTicketSpendTypePerBlock fetches data for ticket-spend-type chart from
-// the tickets table.
-func retrieveTicketSpendTypePerBlock(ctx context.Context, db *sql.DB, heightArr,
-	unSpentArr, revokedArr []uint64) ([]uint64, []uint64, []uint64, error) {
-	var since uint64
-	if c := len(heightArr); c > 0 {
-		since = heightArr[c-1]
-	}
-
-	rows, err := db.QueryContext(ctx, internal.SelectTicketSpendTypeByBlock, since)
+// retrievePowerlessTickets fetches missed or expired tickets sorted by
+// revocation status.
+func retrievePowerlessTickets(ctx context.Context, db *sql.DB) (*apitypes.PowerlessTickets, error) {
+	rows, err := db.QueryContext(ctx, internal.SelectTicketSpendTypeByBlock, -1)
 	if err != nil {
-		return heightArr, unSpentArr, revokedArr, err
+		return nil, err
 	}
-
 	defer closeRows(rows)
 
-	for rows.Next() {
-		var height, unspent, revoked uint64
-		if err = rows.Scan(&height, &unspent, &revoked); err != nil {
-			return heightArr, unSpentArr, revokedArr, err
-		}
+	unspentType := int16(dbtypes.TicketUnspent)
+	revokedType := int16(dbtypes.TicketRevoked)
+	revoked := make([]apitypes.PowerlessTicket, 0)
+	unspent := make([]apitypes.PowerlessTicket, 0)
 
-		heightArr = append(heightArr, height)
-		unSpentArr = append(unSpentArr, unspent)
-		revokedArr = append(revokedArr, revoked)
+	for rows.Next() {
+		var height uint32
+		var spendType int16
+		var price float64
+		if err = rows.Scan(&height, &spendType, &price); err != nil {
+			return nil, err
+		}
+		ticket := apitypes.PowerlessTicket{
+			Height: height,
+			Price:  price,
+		}
+		switch spendType {
+		case unspentType:
+			unspent = append(unspent, ticket)
+		case revokedType:
+			revoked = append(revoked, ticket)
+		}
 	}
-	return heightArr, unSpentArr, revokedArr, nil
+	return &apitypes.PowerlessTickets{
+		Revoked: revoked,
+		Unspent: unspent,
+	}, nil
 }
 
 // retrieveTxPerDay fetches data for tx-per-day chart from the blocks table.

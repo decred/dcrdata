@@ -132,6 +132,7 @@ func NewAPIRouter(app *appContext, useRealIP, compressLarge bool) apiMux {
 			rd.With(m.BlockIndexPathCtx).Get("/b/{idx}", app.getStakeDiff)
 			rd.With(m.BlockIndex0PathCtx, m.BlockIndexPathCtx).Get("/r/{idx0}/{idx}", app.getStakeDiffRange)
 		})
+		r.Get("/powerless", app.getPowerlessTickets)
 	})
 
 	mux.Route("/tx", func(r chi.Router) {

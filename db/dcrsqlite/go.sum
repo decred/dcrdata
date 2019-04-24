@@ -105,8 +105,6 @@ github.com/decred/dcrdata/db/dbtypes v1.0.1/go.mod h1:d9qVcMl+l5rOEY7zJB5nqQ0WDE
 github.com/decred/dcrdata/db/dbtypes v1.0.2-0.20190416155607-25afe5d5e790/go.mod h1:yPNF/Tsj3pLBxofu2Pr70hqejMYpCZHvcudkexvq0hQ=
 github.com/decred/dcrdata/db/dbtypes v1.0.2-0.20190416164834-6cc8af88525b h1:c5tcjk41TaElCMmJ8sdGYTgcbjJFyi/h2t5PMhiP56I=
 github.com/decred/dcrdata/db/dbtypes v1.0.2-0.20190416164834-6cc8af88525b/go.mod h1:yPNF/Tsj3pLBxofu2Pr70hqejMYpCZHvcudkexvq0hQ=
-github.com/decred/dcrdata/db/dbtypes v1.0.2-0.20190416202529-23d1eb95ca1b h1:3v8c5sSzdOBex4KlVEy3ZeTSKhpnTMOJXvmVqNpvArQ=
-github.com/decred/dcrdata/db/dbtypes v1.0.2-0.20190416202529-23d1eb95ca1b/go.mod h1:yPNF/Tsj3pLBxofu2Pr70hqejMYpCZHvcudkexvq0hQ=
 github.com/decred/dcrdata/db/dcrpg v1.0.0 h1:ebRfU8carJYn6X7fLH/tlm+iRILt/lY9vA+oVB92QP8=
 github.com/decred/dcrdata/db/dcrpg v1.0.0/go.mod h1:b1YmLNZH2p7evVJU6hapsW5Mup5Xtvx3OK48jQa6PYE=
 github.com/decred/dcrdata/dcrrates v1.0.0 h1:yxl2gfthS6brVefg6w5X8iv6ukglL+ITtR22Un+Y0No=

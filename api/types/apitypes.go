@@ -699,6 +699,20 @@ type TicketPoolChartsData struct {
 	Mempool     *PriceCountTime          `json:"mempool"`
 }
 
+// PowerlessTicket is the purchase block height and value of a missed or expired
+// ticket.
+type PowerlessTicket struct {
+	Height uint32  `json:"h"`
+	Price  float64 `json:"p"`
+}
+
+// PowerlessTickets contains expired and missed tickets sorted into slices of
+// unspent and revoked.
+type PowerlessTickets struct {
+	Unspent []PowerlessTicket `json:"unspent"`
+	Revoked []PowerlessTicket `json:"revoked"`
+}
+
 // PriceCountTime is a basic set of information about ticket in the mempool.
 type PriceCountTime struct {
 	Price float64         `json:"price"`
