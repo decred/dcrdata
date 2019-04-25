@@ -49,21 +49,18 @@ func TestMain(m *testing.M) {
 	var err error
 	tempDir, err = ioutil.TempDir(os.TempDir(), "onchain")
 	if err != nil {
-		log.Error(err)
-		return
+		panic(err)
 	}
 
 	db, err = storm.Open(filepath.Join(tempDir, "test.db"))
 	if err != nil {
-		log.Error(err)
-		return
+		panic(err)
 	}
 
 	//  Save the first sample agendaInfo
 	err = db.Save(firstAgendaInfo)
 	if err != nil {
-		log.Error(err)
-		return
+		panic(err)
 	}
 
 	returnVal := m.Run()

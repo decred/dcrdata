@@ -25,7 +25,7 @@ const (
 	ctxTxInOutId
 	ctxAddress
 	ctxAgendaId
-	ctxProposalToken
+	ctxProposalRefID
 )
 
 const (
@@ -152,9 +152,9 @@ func getAgendaIDCtx(r *http.Request) string {
 }
 
 func getProposalTokenCtx(r *http.Request) string {
-	hash, ok := r.Context().Value(ctxProposalToken).(string)
+	hash, ok := r.Context().Value(ctxProposalRefID).(string)
 	if !ok {
-		log.Trace("Proposal token not set")
+		log.Trace("Proposal ref ID not set")
 		return ""
 	}
 	return hash
@@ -198,11 +198,11 @@ func AgendaPathCtx(next http.Handler) http.Handler {
 	})
 }
 
-// ProposalPathCtx embeds "proposalToken" into the request context
+// ProposalPathCtx embeds "proposalrefID" into the request context
 func ProposalPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		proposalToken := chi.URLParam(r, "proposalToken")
-		ctx := context.WithValue(r.Context(), ctxProposalToken, proposalToken)
+		proposalRefID := chi.URLParam(r, "proposalrefid")
+		ctx := context.WithValue(r.Context(), ctxProposalRefID, proposalRefID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

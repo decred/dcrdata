@@ -9,6 +9,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"regexp"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,24 +19,35 @@ import (
 	"github.com/asdine/storm/q"
 	"github.com/decred/dcrdata/gov/politeia/piclient"
 	pitypes "github.com/decred/dcrdata/gov/politeia/types"
+	"github.com/decred/dcrdata/semver"
 	piapi "github.com/decred/politeia/politeiawww/api/www/v1"
 )
 
-// errDef defines the default error returned if the proposals db was not
-// initialized correctly.
-var errDef = fmt.Errorf("ProposalDB was not initialized correctly")
+var (
+	// errDef defines the default error returned if the proposals db was not
+	// initialized correctly.
+	errDef = fmt.Errorf("ProposalDB was not initialized correctly")
+
+	// dbVersion is the current required version of the proposals.db.
+	dbVersion = semver.NewSemver(1, 0, 0)
+)
+
+// dbinfo defines the property that holds the db version.
+const dbinfo = "_proposals.db_"
 
 // ProposalDB defines the common data needed to query the proposals db.
 type ProposalDB struct {
 	mtx        sync.RWMutex
 	dbP        *storm.DB
 	client     *http.Client
+	lastSync   int64
 	APIURLpath string
 }
 
 // NewProposalsDB opens an exiting database or creates a new DB instance with
 // the provided file name. Returns an initialized instance of proposals DB, http
-// client and the formatted politeia API URL path to be used.
+// client and the formatted politeia API URL path to be used. It also checks the
+// db version, Reindexes the db if need be and sets the required db version.
 func NewProposalsDB(politeiaURL, dbPath string) (*ProposalDB, error) {
 	if politeiaURL == "" {
 		return nil, fmt.Errorf("missing politeia API URL")
@@ -53,6 +67,30 @@ func NewProposalsDB(politeiaURL, dbPath string) (*ProposalDB, error) {
 		return nil, err
 	}
 
+	// Checks if the correct db version has been set.
+	var version string
+	err = db.Get(dbinfo, "version", &version)
+	if err != nil && err != storm.ErrNotFound {
+		return nil, err
+	}
+
+	if version != dbVersion.String() {
+		// Attempt to delete the ProposalInfo bucket.
+		if err = db.Drop(&pitypes.ProposalInfo{}); err != nil {
+			// If error due bucket not found was returned, ignore it.
+			if !strings.Contains(err.Error(), "not found") {
+				return nil, fmt.Errorf("delete bucket struct failed: %v", err)
+			}
+		}
+
+		// Set the required db version.
+		err = db.Set(dbinfo, "version", dbVersion.String())
+		if err != nil {
+			return nil, err
+		}
+		log.Infof("proposals.db version %v was set", dbVersion)
+	}
+
 	// Create the http client used to query the API endpoints.
 	c := &http.Client{
 		Transport: &http.Transport{
@@ -60,7 +98,7 @@ func NewProposalsDB(politeiaURL, dbPath string) (*ProposalDB, error) {
 			IdleConnTimeout:    5 * time.Second,
 			DisableCompression: false,
 		},
-		Timeout: 10 * time.Second,
+		Timeout: 30 * time.Second,
 	}
 
 	// politeiaURL should just be the domain part of the url without the API versioning.
@@ -84,6 +122,25 @@ func (db *ProposalDB) Close() error {
 	return db.dbP.Close()
 }
 
+// generateCustomID generates a custom ID that is used to reference the proposals
+// from the frontend. The ID generated from the title by having all its
+// punctuation marks replaced with a hyphen and the string converted to lowercase.
+// According to Politeia, a proposal title has a max length of 80 characters thus
+// the new ID should have a max length of 80 characters.
+func generateCustomID(title string) (string, error) {
+	if title == "" {
+		return "", fmt.Errorf("ID not generated: invalid title found")
+	}
+	// regex selects only the alphanumeric characters.
+	reg, err := regexp.Compile("[^a-zA-Z0-9]+")
+	if err != nil {
+		return "", err
+	}
+
+	// Replace all punctuation marks with a hyphen and make it lower case.
+	return reg.ReplaceAllString(strings.ToLower(title), "-"), nil
+}
+
 // saveProposals adds the proposals data to the db.
 func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
 	copyURLParams := URLParams
@@ -101,6 +158,13 @@ func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
 
 		// Break if no valid data was found.
 		if data == nil || data.Data == nil {
+			// Should help detect when API changes are effected on Politeia's end.
+			log.Warn("invalid or empty data entries were returned")
+			break
+		}
+
+		if len(data.Data) == 0 {
+			// No updates found.
 			break
 		}
 
@@ -112,13 +176,33 @@ func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
 			break
 		}
 
-		copyURLParams = fmt.Sprintf("%s?after=%v", URLParams,
-			data.Data[pageSize-1].Censorship.Token)
+		copyURLParams = fmt.Sprintf("%s?after=%v", URLParams, data.Data[pageSize-1].TokenVal)
 	}
 
 	// Save all the proposals
 	for i, val := range publicProposals.Data {
-		if err := db.dbP.Save(val); err != nil {
+		var err error
+		if val.RefID, err = generateCustomID(val.Name); err != nil {
+			return 0, err
+		}
+
+		err = db.dbP.Save(val)
+
+		// In the rare case scenario that the current proposal has a duplicate refID
+		// append an integer value to it till it becomes unique.
+		if err == storm.ErrAlreadyExists {
+			c := 1
+			for {
+				val.RefID += strconv.Itoa(c)
+				err = db.dbP.Save(val)
+				if err == nil || err != storm.ErrAlreadyExists {
+					break
+				}
+				c++
+			}
+		}
+
+		if err != nil {
 			return i, fmt.Errorf("save operation failed: %v", err)
 		}
 	}
@@ -163,8 +247,8 @@ func (db *ProposalDB) AllProposals(offset, rowsCount int,
 	return
 }
 
-// ProposalByID returns the single proposal identified by the provided id.
-func (db *ProposalDB) ProposalByID(proposalID int) (proposal *pitypes.ProposalInfo, err error) {
+// ProposalByToken returns the single proposal identified by the provided token.
+func (db *ProposalDB) ProposalByToken(proposalToken string) (*pitypes.ProposalInfo, error) {
 	if db == nil || db.dbP == nil {
 		return nil, errDef
 	}
@@ -172,19 +256,43 @@ func (db *ProposalDB) ProposalByID(proposalID int) (proposal *pitypes.ProposalIn
 	db.mtx.RLock()
 	defer db.mtx.RUnlock()
 
-	var proposals []*pitypes.ProposalInfo
+	return db.proposal("TokenVal", proposalToken)
+}
 
-	err = db.dbP.Find("ID", proposalID, &proposals, storm.Limit(1))
+// ProposalByRefID returns the single proposal identified by the provided refID.
+// RefID is generated from the proposal name and used as the descriptive part of
+// the URL to proposal details page on the
+func (db *ProposalDB) ProposalByRefID(RefID string) (*pitypes.ProposalInfo, error) {
+	if db == nil || db.dbP == nil {
+		return nil, errDef
+	}
+
+	db.mtx.RLock()
+	defer db.mtx.RUnlock()
+
+	return db.proposal("RefID", RefID)
+}
+
+// proposal runs the query with searchBy and searchTerm parameters provided and
+// returns the result.
+func (db *ProposalDB) proposal(searchBy, searchTerm string) (*pitypes.ProposalInfo, error) {
+	var pInfo pitypes.ProposalInfo
+	err := db.dbP.Select(q.Eq(searchBy, searchTerm)).Limit(1).First(&pInfo)
 	if err != nil {
 		log.Errorf("Failed to fetch data from Proposals DB: %v", err)
 		return nil, err
 	}
 
-	if len(proposals) > 0 && proposals[0] != nil {
-		proposal = proposals[0]
-	}
+	return &pInfo, nil
+}
 
-	return
+// LastProposalsSync returns the last time a sync to update the proposals was run
+// but not necessarily the last time updates were synced in proposals.db.
+func (db *ProposalDB) LastProposalsSync() int64 {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
+	return db.lastSync
 }
 
 // CheckProposalsUpdates updates the proposal changes if they exist and updates
@@ -195,7 +303,12 @@ func (db *ProposalDB) CheckProposalsUpdates() error {
 	}
 
 	db.mtx.Lock()
-	defer db.mtx.Unlock()
+	defer func() {
+		// Update the lastSync before the function exits.
+
+		db.lastSync = time.Now().UTC().Unix()
+		db.mtx.Unlock()
+	}()
 
 	// Retrieve and update all current proposals whose vote statuses is either
 	// NotAuthorized, Authorized and Started
@@ -212,8 +325,8 @@ func (db *ProposalDB) CheckProposalsUpdates() error {
 	}
 
 	var queryParam string
-	if len(lastProposal) > 0 && lastProposal[0].Censorship.Token != "" {
-		queryParam = fmt.Sprintf("?after=%s", lastProposal[0].Censorship.Token)
+	if len(lastProposal) > 0 && lastProposal[0].TokenVal != "" {
+		queryParam = fmt.Sprintf("?after=%s", lastProposal[0].TokenVal)
 	}
 
 	n, err := db.saveProposals(queryParam)
@@ -264,24 +377,35 @@ func (db *ProposalDB) updateInProgressProposals() (int, error) {
 	var count int
 
 	for _, val := range inProgress {
-		proposal, err := piclient.RetrieveProposalByToken(db.client, db.APIURLpath,
-			val.Censorship.Token)
+		proposal, err := piclient.RetrieveProposalByToken(db.client, db.APIURLpath, val.TokenVal)
+		// Do not update if:
+		// 1. piclient.RetrieveProposalByToken returned an error
 		if err != nil {
-			return 0, fmt.Errorf("RetrieveProposalByToken failed: %v ", err)
-		}
-
-		// Do not update if the new proposals status is NotAuthorized or If the
-		// last update has not changed.
-		if proposal.VoteStatus == statuses[0] || proposal.Timestamp == val.Timestamp {
+			// Since the proposal tokens bieng updated here are already in the
+			// proposals.db. Do not return errors found since they will still be
+			// updated when the data is available.
+			log.Errorf("RetrieveProposalByToken failed: %v ", err)
 			continue
 		}
 
-		proposal.ID = val.ID
+		proposal.Data.ID = val.ID
+		proposal.Data.RefID = val.RefID
 
-		err = db.dbP.Update(proposal)
+		// 2. The new proposal data has not changed.
+		if val.IsEqual(proposal.Data) {
+			continue
+		}
+
+		// 4. Some or all data returned was empty or invalid.
+		if proposal.Data.TokenVal == "" || proposal.Data.TotalVotes < val.TotalVotes {
+			// Should help detect when API changes are effected on Politeia's end.
+			log.Warnf("invalid or empty data entries were returned for %v", val.TokenVal)
+			continue
+		}
+
+		err = db.dbP.Update(proposal.Data)
 		if err != nil {
-			return 0, fmt.Errorf("Update for %s failed with error: %v ",
-				val.Censorship.Token, err)
+			return 0, fmt.Errorf("Update for %s failed with error: %v ", val.TokenVal, err)
 		}
 
 		count++

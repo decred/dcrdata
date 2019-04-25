@@ -176,8 +176,8 @@ func _main(ctx context.Context) error {
 	}
 
 	log.Infof("Setting up the Politeia's proposals clone repository. Please wait...")
-	// repoName and repoOwner are set to empty string so that the defaults can be used.
-	parser, err := proposals.NewParser("", "", cfg.DataDir)
+	// If repoName and repoOwner are set to empty strings the defaults are used.
+	parser, err := proposals.NewParser(cfg.PiPropRepoOwner, cfg.PiPropRepoName, cfg.DataDir)
 	if err != nil {
 		// since this piparser isn't a requirement to run the explorer, its
 		// failure should not block the system from running.
@@ -841,7 +841,7 @@ func _main(ctx context.Context) error {
 		r.Get("/agendas", explore.AgendasPage)
 		r.With(explorer.AgendaPathCtx).Get("/agenda/{agendaid}", explore.AgendaPage)
 		r.Get("/proposals", explore.ProposalsPage)
-		r.With(explorer.ProposalPathCtx).Get("/proposal/{proposalToken}", explore.ProposalPage)
+		r.With(explorer.ProposalPathCtx).Get("/proposal/{proposalrefid}", explore.ProposalPage)
 		r.Get("/decodetx", explore.DecodeTxPage)
 		r.Get("/search", explore.Search)
 		r.Get("/charts", explore.Charts)

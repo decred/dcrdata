@@ -22,6 +22,7 @@ var tempDir string
 // initial sample proposal made.
 var firstProposal = &pitypes.ProposalInfo{
 	Name:      "Initial Test proposal",
+	RefID:     "initial-test-proposal",
 	State:     2,
 	Status:    4,
 	Timestamp: 1541904469,
@@ -30,8 +31,8 @@ var firstProposal = &pitypes.ProposalInfo{
 	PublicKey: "c7580e9d13a21a2046557f7ef0148a5be89fbe8db8c",
 	Signature: "8a1b69eb08b413b3ad3161c9b43b6a65a25c537f6151866d391a352",
 	Version:   "6",
-	Censorship: pitypes.CensorshipRecord{
-		Token:      "0aaab331075d08cb03333d5a1bef04b99a708dcbfebc8f8c94040ceb1676e684",
+	CensorshipRecord: pitypes.CensorshipRecord{
+		TokenVal:   "0aaab331075d08cb03333d5a1bef04b99a708dcbfebc8f8c94040ceb1676e684",
 		MerkleRoot: "cfaf772010b439db2fa175b407f7c61fc7b06fbd844192a89551abe40791b6bb",
 		Signature:  "6f8a7740c518972c4dc607e877afc794be9f99a1c4790837a7104b7eb6228d4db219",
 	},
@@ -45,21 +46,18 @@ func TestMain(m *testing.M) {
 	var err error
 	tempDir, err = ioutil.TempDir(os.TempDir(), "offchain")
 	if err != nil {
-		log.Error(err)
-		return
+		panic(err)
 	}
 
 	db, err = storm.Open(filepath.Join(tempDir, "test.db"))
 	if err != nil {
-		log.Error(err)
-		return
+		panic(err)
 	}
 
 	//  Save the first sample proposal
 	err = db.Save(firstProposal)
 	if err != nil {
-		log.Error(err)
-		return
+		panic(err)
 	}
 
 	returnVal := m.Run()
@@ -231,6 +229,7 @@ func mockServer() *httptest.Server {
 var mockedPayload = &pitypes.ProposalInfo{
 	ID:          2,
 	Name:        "Change language: PoS Mining to PoS Voting, Stakepool to Voting Service Provider",
+	RefID:       "change-language-pos-mining-to-pos-voting-stakepool-to-voting-service-provider",
 	State:       2,
 	Status:      4,
 	Timestamp:   1539880429,
@@ -242,8 +241,8 @@ var mockedPayload = &pitypes.ProposalInfo{
 	// Files:         []pitypes.AttachmentFile{},
 	Version:       "1",
 	PublishedDate: 1539898457,
-	Censorship: pitypes.CensorshipRecord{
-		Token:      "522652954ea7998f3fca95b9c4ca8907820eb785877dcf7fba92307131818c75",
+	CensorshipRecord: pitypes.CensorshipRecord{
+		TokenVal:   "522652954ea7998f3fca95b9c4ca8907820eb785877dcf7fba92307131818c75",
 		MerkleRoot: "20c9234c50e0dc78d28003fd57995192a16ca73349f5d97be456128984e463fc",
 		Signature:  "d1d44788cdf8d838aad97aa829b2f27f8a32897010d6373c9d3ca1a42820dcafe2615c1904558c6628c5f9165691ead087c0cb2ada023b9aa3f76b6c587ac90e",
 	},
@@ -318,13 +317,13 @@ func TestStuff(t *testing.T) {
 				t.Fatal("expected the proposal not to be nil but was nil")
 			}
 
-			switch data.Censorship.Token {
-			case firstProposal.Censorship.Token:
+			switch data.TokenVal {
+			case firstProposal.TokenVal:
 				if !reflect.DeepEqual(data, firstProposal) {
 					t.Fatal("expected the initialProposal to match the retrieved but it did not")
 				}
 
-			case mockedPayload.Censorship.Token:
+			case mockedPayload.TokenVal:
 				if !reflect.DeepEqual(data, mockedPayload) {
 					t.Fatal("expected the Second Proposal to match the retrieved but it did not")
 				}
@@ -358,9 +357,9 @@ func TestStuff(t *testing.T) {
 		}
 	})
 
-	// Testing proposal retrieval by ID
-	t.Run("Test_ProposalByID", func(t *testing.T) {
-		proposal, err := newDBInstance.ProposalByID(1)
+	// Testing proposal retrieval by Token
+	t.Run("Test_ProposalByToken", func(t *testing.T) {
+		proposal, err := newDBInstance.ProposalByToken(firstProposal.TokenVal)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -369,4 +368,62 @@ func TestStuff(t *testing.T) {
 			t.Fatal("expected the initialProposal to match the retrieved but it did not")
 		}
 	})
+
+	// Testing proposal retrieval by RefID
+	t.Run("Test_ProposalByRefID", func(t *testing.T) {
+		proposal, err := newDBInstance.ProposalByRefID("initial-test-proposal")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if !reflect.DeepEqual(proposal, firstProposal) {
+			t.Fatal("expected the initialProposal to match the retrieved but it did not")
+		}
+	})
+}
+
+func TestGenerateCustomID(t *testing.T) {
+	type testData struct {
+		title    string
+		customID string
+		isError  bool
+	}
+
+	td := []testData{
+		{
+			title:    "",
+			customID: "",
+			isError:  true,
+		},
+		{
+			title:    "Decred Bug Bounty Proposal",
+			customID: "decred-bug-bounty-proposal",
+		},
+		{
+			title:    "Smart Reach Partnership Proposal -- Jan 2019",
+			customID: "smart-reach-partnership-proposal-jan-2019",
+		},
+		{
+			title:    "Proposed Statement Of Work (SOW) For Decred Blockchain Wallet Tutorial Campaign",
+			customID: "proposed-statement-of-work-sow-for-decred-blockchain-wallet-tutorial-campaign",
+		},
+	}
+
+	for i, val := range td {
+		t.Run("Test_#"+strconv.Itoa(i), func(t *testing.T) {
+			newID, err := generateCustomID(val.title)
+
+			if err != nil && !val.isError {
+				t.Fatalf("expected no error but found (%v)", err)
+			}
+
+			if err == nil && val.isError {
+				t.Fatal("expected an error but found none")
+			}
+
+			if newID != val.customID {
+				t.Fatalf("expected the new ID to be (%s) but found (%v)", val.customID, newID)
+			}
+		})
+	}
 }

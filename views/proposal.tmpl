@@ -20,7 +20,7 @@
                             <td class="text-right pr-2 py-2 vam nowrap xs-w117 font-weight-bold">Token:</td>
                             <td>
                                 <span class="break-word py-1 lh1rem">
-                                    <a href="{{$.PoliteiaURL}}/proposals/{{.Censorship.Token}}">{{.Censorship.Token}}</a>
+                                    <a href="{{$.PoliteiaURL}}/proposals/{{.TokenVal}}">{{.TokenVal}}</a>
                                 </span>
                             </td>
                         </tr>
@@ -185,7 +185,7 @@
                 class="proposal-charts-align"
                 data-controller="proposal"
                 data-target="proposal.token"
-                data-hash="{{$.Data.Censorship.Token}}"
+                data-hash="{{$.Data.TokenVal}}"
                 >
                 <div class="d-flex proposal-chart-responsive">
                     <div id="percent-of-votes" class="proposal-chart-align"></div>
@@ -200,6 +200,12 @@
                     <div id="votes-by-time-legend" class="dygraph-legend proposal-chart-legend"></div>
                 </div>
             </div>
+        {{else}}
+            <table class="table container">
+                <tr>
+                    <td class="text-center">No proposal votes data found.</td>
+                </tr>
+            </table>
         {{end}}
     {{end}}
     {{template "footer" . }}

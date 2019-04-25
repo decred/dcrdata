@@ -216,6 +216,7 @@ type ChainDB struct {
 	utxoCache          utxoStore
 	deployments        *ChainDeployments
 	piparser           ProposalsFetcher
+	proposalsSync      lastSync
 }
 
 // ChainDeployments is mutex-protected blockchain deployment data.
@@ -229,6 +230,12 @@ type BestBlock struct {
 	mtx    sync.RWMutex
 	height int64
 	hash   string
+}
+
+// lastSync defines the latest sync time for the proposal votes sync.
+type lastSync struct {
+	mtx      sync.RWMutex
+	syncTime time.Time
 }
 
 func (pgb *ChainDB) timeoutError() string {
@@ -942,12 +949,27 @@ func (pgb *ChainDB) proposalsUpdateHandler() {
 	}()
 }
 
+// LastPiParserSync returns last time value when the piparser run sync on proposals
+// and proposal_votes table.
+func (pgb *ChainDB) LastPiParserSync() time.Time {
+	pgb.proposalsSync.mtx.RLock()
+	defer pgb.proposalsSync.mtx.RUnlock()
+	return pgb.proposalsSync.syncTime
+}
+
 // PiProposalsHistory queries the politeia's proposal updates via the parser tool
 // and pushes them to the proposals and proposal_votes tables.
 func (pgb *ChainDB) PiProposalsHistory() (int64, error) {
 	if pgb.piparser == nil {
 		return -1, fmt.Errorf("invalid piparser instance was found")
 	}
+
+	pgb.proposalsSync.mtx.Lock()
+
+	// set the sync time
+	pgb.proposalsSync.syncTime = time.Now().UTC()
+
+	pgb.proposalsSync.mtx.Unlock()
 
 	var isChecked bool
 	var proposalsData []*pitypes.History

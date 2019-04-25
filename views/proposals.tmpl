@@ -31,7 +31,7 @@
 
                     <table class="table">
                         <tr>
-                            <td>No Proposal found for {{ .NetName }}</td>
+                            <td>No proposal found for {{ .NetName }}.</td>
                         </tr>
                     </table>
                 {{ else }}
@@ -99,7 +99,7 @@
                         </nav>
                     </div>
                 {{end}}
-            <div>
+            </div>
 
             <table class="table table-mono-cells my-2">
                 <thead>
@@ -116,7 +116,7 @@
                 {{range $i, $v := .Proposals}}
                 {{with $v}}
                     <tr>
-                        <td class="text-left"><a href="/proposal/{{.ID}}">{{.Name}}</a></td>
+                        <td class="text-left"><a href="/proposal/{{.RefID}}">{{.Name}}</a></td>
                         <td class="text-left">{{.Username}}</td>
                         {{with .Status}}
                             <td class="text-left">{{toTitleCase .String}}</td>
@@ -131,6 +131,14 @@
                 {{end}}
                 </tbody>
             </table>
+            <div class="text-center mb-0 fs11">
+                <span class="mr-2">Proposals Sync:&nbsp;
+                    <span data-controller="time" data-target="time.age" data-age="{{$.LastPropSync}}"></span>&nbsp;Ago
+                </span>
+                <span>Votes Sync:&nbsp;
+                    <span data-controller="time" data-target="time.age" data-age="{{$.LastVotesSync}}"></span>&nbsp;Ago
+                </span>
+            </div>
 
             {{if gt .Limit 20}}
                 {{template "proposalsPagination" .}}

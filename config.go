@@ -122,6 +122,8 @@ type config struct {
 	ProposalsFileName  string `long:"proposalsdbfile" description:"Proposals DB file name (default is proposals.db)." env:"DCRDATA_PROPOSALS_DB_FILE_NAME"`
 	PoliteiaAPIURL     string `long:"politeiaurl" description:"Defines the root API politeia URL (defaults to https://proposals.decred.org)."`
 	ChartsCacheDump    string `long:"chartscache" description:"Defines the file name that holds the charts cache data on system exit."`
+	PiPropRepoOwner    string `long:"piproposalsowner" description:"Defines the owner to the github repo where politeia's proposals are pushed."`
+	PiPropRepoName     string `long:"piproposalsrepo" description:"Defines the name of the github repo where politeia's proposals are pushed."`
 
 	PurgeNBestBlocks int  `long:"purge-n-blocks" description:"Purge all data for the N best blocks, using the best block across all DBs if they are out of sync."`
 	FastSQLitePurge  bool `long:"fast-sqlite-purge" description:"Purge all data for the blocks above the specified height."`

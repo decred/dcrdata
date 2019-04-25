@@ -1514,7 +1514,14 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	message := "The search did not find any matching address, block, or transaction: " + searchStr
+	// Check if the search term references a proposal token.
+	proposalInfo, err := exp.proposalsSource.ProposalByToken(searchStr)
+	if err == nil && proposalInfo.RefID != "" {
+		http.Redirect(w, r, "/proposal/"+proposalInfo.RefID, http.StatusPermanentRedirect)
+		return
+	}
+
+	message := "The search did not find any matching address, block, transaction or proposal token: " + searchStr
 	exp.StatusPage(w, "search failed", message, "", ExpStatusNotFound)
 }
 
@@ -1733,16 +1740,8 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 
 // ProposalPage is the page handler for the "/proposal" path.
 func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
-	// Attempts to retrieve a proposal token from URL path.
-	proposalID, err := strconv.Atoi(getProposalTokenCtx(r))
-	if err != nil {
-		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, "invalid proposal ID used ",
-			"", ExpStatusNotFound)
-		return
-	}
-
-	proposalInfo, err := exp.proposalsSource.ProposalByID(proposalID)
+	// Attempts to retrieve a proposal refID from the URL path.
+	proposalInfo, err := exp.proposalsSource.ProposalByRefID(getProposalTokenCtx(r))
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.StatusPage(w, defaultErrorCode, "the proposal token does not exist",
@@ -1829,6 +1828,8 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 		Limit         int64
 		TotalCount    int64
 		PoliteiaURL   string
+		LastVotesSync int64
+		LastPropSync  int64
 	}{
 		CommonPageData: exp.commonData(r),
 		Proposals:      proposals,
@@ -1838,6 +1839,8 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 		VStatusFilter:  filterBy,
 		TotalCount:     int64(count),
 		PoliteiaURL:    exp.politeiaAPIURL,
+		LastVotesSync:  exp.explorerSource.LastPiParserSync().UTC().Unix(),
+		LastPropSync:   exp.proposalsSource.LastProposalsSync(),
 	})
 
 	if err != nil {

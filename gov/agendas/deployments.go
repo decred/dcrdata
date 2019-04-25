@@ -8,11 +8,13 @@ package agendas
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/asdine/storm"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/semver"
 )
 
 // AgendaDB represents the data for the stored DB.
@@ -38,9 +40,17 @@ type AgendaTagged struct {
 	VoteVersion    uint32                   `json:"voteversion"`
 }
 
-// errDefault defines an error message returned if the agenda db wasn't properly
-// initialized.
-var errDefault = fmt.Errorf("AgendaDB was not initialized correctly")
+var (
+	// errDefault defines an error message returned if the agenda db wasn't properly
+	// initialized.
+	errDefault = fmt.Errorf("AgendaDB was not initialized correctly")
+
+	// dbVersion is the current required version of the agendas.db.
+	dbVersion = semver.NewSemver(1, 0, 0)
+)
+
+// dbinfo defines the property that holds the db version.
+const dbinfo = "_agendas.db_"
 
 // DeploymentSource provides a cleaner way to track the rpcclient methods used
 // in this package. It also allows usage of alternative implementations to
@@ -51,6 +61,8 @@ type DeploymentSource interface {
 
 // NewAgendasDB opens an existing database or create a new one using with the
 // specified file name. An initialized agendas db connection is returned.
+// It also checks the db version, Reindexes the db if need be and sets the
+// required db version.
 func NewAgendasDB(client DeploymentSource, dbPath string) (*AgendaDB, error) {
 	if dbPath == "" {
 		return nil, fmt.Errorf("empty db Path found")
@@ -68,6 +80,31 @@ func NewAgendasDB(client DeploymentSource, dbPath string) (*AgendaDB, error) {
 	db, err := storm.Open(dbPath)
 	if err != nil {
 		return nil, err
+	}
+
+	// Checks if the correct db version has been set.
+	var version string
+	err = db.Get(dbinfo, "version", &version)
+	if err != nil && err != storm.ErrNotFound {
+		return nil, err
+	}
+
+	// Check if the versions match.
+	if version != dbVersion.String() {
+		// Attempt to delete AgendaTagged bucket.
+		if err = db.Drop(&AgendaTagged{}); err != nil {
+			// If error due bucket not found was returned ignore it.
+			if !strings.Contains(err.Error(), "not found") {
+				return nil, fmt.Errorf("delete bucket struct failed: %v", err)
+			}
+		}
+
+		// Set the required db version.
+		err = db.Set(dbinfo, "version", dbVersion.String())
+		if err != nil {
+			return nil, err
+		}
+		log.Infof("agendas.db version %v was set", dbVersion)
 	}
 
 	return &AgendaDB{sdb: db, rpcClient: client}, nil

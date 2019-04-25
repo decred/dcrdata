@@ -6,7 +6,7 @@ package types
 import piapi "github.com/decred/politeia/politeiawww/api/www/v1"
 
 // ProposalInfo holds the proposal details as document here
-// https://github.com/decred/politeia/blob/master/politeiawww/api/v1/api.md#proposal.
+// https://github.com/decred/politeia/blob/master/politeiawww/api/www/v1/api.md#user-proposals.
 // It also holds the votes status details. The ID field is auto incremented by
 // the db.
 type ProposalInfo struct {
@@ -20,31 +20,41 @@ type ProposalInfo struct {
 	PublicKey       string             `json:"publickey"`
 	Signature       string             `json:"signature"`
 	Version         string             `json:"version"`
-	Censorship      CensorshipRecord   `json:"censorshiprecord"`
 	NumComments     int32              `json:"numcomments"`
 	StatusChangeMsg string             `json:"statuschangemessage"`
 	PublishedDate   uint64             `json:"publishedat" storm:"index"`
 	CensoredDate    uint64             `json:"censoredat"`
 	AbandonedDate   uint64             `json:"abandonedat"`
-	ProposalVotes   `json:"votes"`
+	// RefID was added to create an easily readable part of the URL that helps
+	// to reference the proposals details page. Storm db ignores entries with
+	// duplicate pk but returns "ErrAlreadyExists" error if the field other than
+	// the pk has the tag "unique".
+	RefID            string `storm:"unique"`
+	CensorshipRecord `json:"censorshiprecord"`
+	ProposalVotes    `json:"votes"`
 	// Files           []AttachmentFile   `json:"files"`
 }
 
-// Proposals defines an array of proposals as returned by RouteAllVetted.
+// Proposals defines an array of proposals payload as returned by RouteAllVetted route.
 type Proposals struct {
 	Data []*ProposalInfo `json:"proposals"`
 }
 
+// Proposal defines a proposal payload as returned by RouteProposalDetails route.
+type Proposal struct {
+	Data *ProposalInfo `json:"proposal"`
+}
+
 // CensorshipRecord is an entry that was created when the proposal was submitted.
-// https://github.com/decred/politeia/blob/master/politeiawww/api/v1/api.md#censorship-record
+// https://github.com/decred/politeia/blob/master/politeiawww/api/www/v1/api.md#censorship-record
 type CensorshipRecord struct {
-	Token      string `json:"token" storm:"unique"`
+	TokenVal   string `json:"token" storm:"unique"`
 	MerkleRoot string `json:"merkle"`
 	Signature  string `json:"signature"`
 }
 
 // AttachmentFile are files and documents submitted as proposal details.
-// https://github.com/decred/politeia/blob/master/politeiawww/api/v1/api.md#file
+// https://github.com/decred/politeia/blob/master/politeiawww/api/www/v1/api.md#file
 type AttachmentFile struct {
 	Name      string `json:"name"`
 	MimeType  string `json:"mime"`
@@ -53,7 +63,7 @@ type AttachmentFile struct {
 }
 
 // ProposalVotes defines the proposal status(Votes infor for the public proposals).
-// https://github.com/decred/politeia/blob/master/politeiawww/api/v1/api.md#proposal-vote-status
+// https://github.com/decred/politeia/blob/master/politeiawww/api/www/v1/api.md#proposal-vote-status
 type ProposalVotes struct {
 	Token              string         `json:"token"`
 	VoteStatus         VoteStatusType `json:"status"`
@@ -84,7 +94,7 @@ type VoteOption struct {
 }
 
 // ProposalStatusType defines the various proposal statuses available as referenced
-// in https://github.com/decred/politeia/blob/master/politeiawww/api/v1/v1.go
+// in https://github.com/decred/politeia/blob/master/politeiawww/api/www/v1/v1.go
 type ProposalStatusType piapi.PropStatusT
 
 func (p ProposalStatusType) String() string {
@@ -92,7 +102,7 @@ func (p ProposalStatusType) String() string {
 }
 
 // VoteStatusType defines the various vote statuses available as referenced in
-// https://github.com/decred/politeia/blob/master/politeiawww/api/v1/v1.go
+// https://github.com/decred/politeia/blob/master/politeiawww/api/www/v1/v1.go
 type VoteStatusType piapi.PropVoteStatusT
 
 // ShorterDesc maps the short description to there respective vote status type.
@@ -178,4 +188,19 @@ func VotesStatuses() map[VoteStatusType]string {
 		m[VoteStatusType(k)] = val
 	}
 	return m
+}
+
+// IsEqual compares CensorshipRecord, Name, State, NumComments, StatusChangeMsg,
+// Timestamp, CensoredDate, AbandonedDate, PublishedDate, Token, VoteStatus,
+// TotalVotes and count of VoteResults between the two ProposalsInfo structs passed.
+func (a *ProposalInfo) IsEqual(b *ProposalInfo) bool {
+	if a.CensorshipRecord != b.CensorshipRecord || a.Name != b.Name || a.State != b.State ||
+		a.NumComments != b.NumComments || a.StatusChangeMsg != b.StatusChangeMsg ||
+		a.Status != b.Status || a.Timestamp != b.Timestamp || a.Token != b.Token ||
+		a.CensoredDate != b.CensoredDate || a.AbandonedDate != b.AbandonedDate ||
+		a.VoteStatus != b.VoteStatus || a.TotalVotes != b.TotalVotes ||
+		a.PublishedDate != b.PublishedDate || len(a.VoteResults) != len(b.VoteResults) {
+		return false
+	}
+	return true
 }
