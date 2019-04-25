@@ -30,9 +30,15 @@ import (
 	"github.com/lib/pq"
 )
 
-// DBBestBlock retrieves the best block hash and height from the meta table.
-func DBBestBlock(db *sql.DB) (hash string, height int64, err error) {
-	err = db.QueryRow(internal.SelectMetaDBBestBlock).Scan(&height, &hash)
+// DBBestBlock retrieves the best block hash and height from the meta table. The
+// error value will never be sql.ErrNoRows; instead with height == -1 indicating
+// no data in the meta table.
+func DBBestBlock(ctx context.Context, db *sql.DB) (hash string, height int64, err error) {
+	err = db.QueryRowContext(ctx, internal.SelectMetaDBBestBlock).Scan(&height, &hash)
+	if err == sql.ErrNoRows {
+		err = nil
+		height = -1
+	}
 	return
 }
 

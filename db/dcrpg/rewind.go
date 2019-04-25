@@ -121,9 +121,14 @@ func RetrieveTxsBlocksAboveHeight(ctx context.Context, db *sql.DB, height int64)
 }
 
 // RetrieveTxsBestBlockMainchain returns the best mainchain block's height from
-// the transactions table.
+// the transactions table. If the table is empty, a height of -1, an empty hash
+// string, and a nil error are returned
 func RetrieveTxsBestBlockMainchain(ctx context.Context, db *sql.DB) (height int64, hash string, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectTxsBestBlock).Scan(&height, &hash)
+	if err == sql.ErrNoRows {
+		err = nil
+		height = -1
+	}
 	return
 }
 

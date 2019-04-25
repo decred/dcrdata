@@ -592,9 +592,9 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 	}
 
 	// Get the best block height from the blocks table.
-	bestHeight, bestHash, err := RetrieveBestBlock(context.Background(), db)
+	bestHeight, bestHash, err := RetrieveBestBlock(ctx, db)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("RetrieveBestBlock: %v", err)
 	}
 	// NOTE: Once legacy versioned tables are no longer in use, use the height
 	// and hash from DBBestBlock instead.
@@ -605,15 +605,15 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 	// block was not fully inserted into all tables. Purge data back to the meta
 	// table's best block height. Also purge if the hashes do not match.
 	if !doLegacyUpgrade {
-		dbHash, dbHeightInit, err := DBBestBlock(db)
+		dbHash, dbHeightInit, err := DBBestBlock(ctx, db)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("DBBestBlock: %v", err)
 		}
 
 		// Best block height in the transactions table (written to even before
 		// the blocks table).
 		bestTxsBlockHeight, bestTxsBlockHash, err :=
-			RetrieveTxsBestBlockMainchain(context.Background(), db)
+			RetrieveTxsBestBlockMainchain(ctx, db)
 		if err != nil {
 			return nil, err
 		}
@@ -633,11 +633,11 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 				dbHeightInit, bestHeight)
 			_, bestHeight, bestHash, err = DeleteBestBlock(ctx, db)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("DeleteBestBlock: %v", err)
 			}
-			dbHash, dbHeightInit, err = DBBestBlock(db)
+			dbHash, dbHeightInit, err = DBBestBlock(ctx, db)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("DBBestBlock: %v", err)
 			}
 		}
 
@@ -652,7 +652,7 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 			// in the meta table.
 			_, bestHeight, bestHash, err = DeleteBestBlock(ctx, db)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("DeleteBestBlock: %v", err)
 			}
 			if bestHeight == -1 {
 				break
@@ -660,9 +660,9 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 
 			// Now dbHash must equal bestHash. If not, DeleteBestBlock failed to
 			// update the meta table.
-			dbHash, _, err = DBBestBlock(db)
+			dbHash, _, err = DBBestBlock(ctx, db)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("DBBestBlock: %v", err)
 			}
 			if dbHash != bestHash {
 				return nil, fmt.Errorf("best block hash in meta and blocks tables do not match: "+
