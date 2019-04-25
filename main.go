@@ -209,10 +209,12 @@ func _main(ctx context.Context) error {
 	// for the string buffer of the Address field.
 	rowCap := cfg.AddrCacheCap / int(32+reflect.TypeOf(dbtypes.AddressRowCompact{}).Size())
 	log.Infof("Address cache capacity: %d rows, %d bytes", rowCap, cfg.AddrCacheCap)
+
+	// Open and upgrade the database.
 	mpChecker := rpcutils.NewMempoolAddressChecker(dcrdClient, activeChain)
 	chainDB, err := dcrpg.NewChainDBWithCancel(ctx, &dbi, activeChain,
 		stakeDB, !cfg.NoDevPrefetch, cfg.HidePGConfig, rowCap,
-		mpChecker, parser)
+		mpChecker, parser, dcrdClient)
 	if chainDB != nil {
 		defer chainDB.Close()
 	}
@@ -220,6 +222,7 @@ func _main(ctx context.Context) error {
 		return err
 	}
 
+	// Wrap ChainDB with an RPC client. TODO: redefine or remove ChainDBRPC.
 	pgDB, err := dcrpg.NewChainDBRPC(chainDB, dcrdClient)
 	if err != nil {
 		return err
@@ -229,15 +232,6 @@ func _main(ctx context.Context) error {
 		log.Info("Dropping all table indexing and quitting...")
 		err = pgDB.DeindexAll()
 		requestShutdown()
-		return err
-	}
-
-	// VersionCheck compares the current & required auxiliary db table
-	// versions and recommends the action to take based on the difference
-	// between the two versions. Actions that trigger supported upgrades
-	// and indexes are run automatically otherwise an error indicating db
-	// rebuild action or failure to complete the automated action is returned.
-	if err = pgDB.VersionCheck(dcrdClient); err != nil {
 		return err
 	}
 
@@ -370,7 +364,7 @@ func _main(ctx context.Context) error {
 			NBase := baseDBHeight - purgeToBlock
 			log.Infof("Purging SQLite data for the %d best blocks...", NBase)
 			nRemovedSummary, _, heightDB, _, err = baseDB.PurgeBestBlocks(NBase)
-			if err != nil && err != sql.ErrNoRows {
+			if err != nil {
 				return fmt.Errorf("failed to purge %d blocks from SQLite: %v",
 					NBase, err)
 			}
@@ -386,14 +380,14 @@ func _main(ctx context.Context) error {
 		NAux := pgDBHeight - purgeToBlock
 		log.Infof("Purging PostgreSQL data for the %d best blocks...", NAux)
 		s, heightDB, err := pgDB.PurgeBestBlocks(NAux)
-		if err != nil && err != sql.ErrNoRows {
+		if err != nil {
 			return fmt.Errorf("Failed to purge %d blocks from PostgreSQL: %v",
 				NAux, err)
 		}
 		if s != nil {
 			log.Infof("Successfully purged data for %d blocks from PostgreSQL "+
 				"(new height = %d):\n%v", s.Blocks, heightDB, s)
-		} // otherwise likely err == sql.ErrNoRows
+		} // otherwise likely sql.ErrNoRows (heightDB was already -1)
 	}
 
 	// Get the last block added to the aux DB.

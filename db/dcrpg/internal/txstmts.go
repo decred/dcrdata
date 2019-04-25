@@ -133,6 +133,18 @@ const (
 		FROM transactions
 		WHERE block_height BETWEEN $1 AND $2;`
 
+	SelectTxsBlocksAboveHeight = `SELECT DISTINCT ON(block_height)
+			block_height, block_hash
+		FROM transactions
+		WHERE block_height>$1
+			AND is_mainchain;`
+
+	SelectTxsBestBlock = `SELECT block_height, block_hash
+		FROM transactions
+		WHERE is_mainchain
+		ORDER BY block_height DESC
+		LIMIT 1;`
+
 	SelectRegularTxnsVinsVoutsByBlock = `SELECT vin_db_ids, vout_db_ids, is_mainchain
 		FROM transactions WHERE block_hash = $1 AND tree = 0;`
 

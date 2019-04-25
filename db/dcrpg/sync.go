@@ -188,6 +188,13 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 	// When reindexing or adding a large amount of data, ANALYZE tables.
 	requireAnalyze := reindexing || nodeHeight-lastBlock > 10000
 
+	if reindexing || updateAllAddresses || updateAllVotes {
+		// Set meta.ibd_complete = FALSE.
+		if err = SetIBDComplete(db.db, false); err != nil {
+			return nodeHeight, fmt.Errorf("failed to set meta.ibd_complete: %v", err)
+		}
+	}
+
 	// Safely send sync status updates on barLoad channel, and set the channel
 	// to nil if the buffer is full.
 	sendProgressUpdate := func(p *dbtypes.ProgressBarLoad) {
@@ -510,6 +517,11 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 	// After sync and indexing, must use upsert statement, which checks for
 	// duplicate entries and updates instead of throwing and error and panicing.
 	db.EnableDuplicateCheckOnInsert(true)
+
+	// Set meta.ibd_complete = TRUE.
+	if err = SetIBDComplete(db.db, true); err != nil {
+		return nodeHeight, fmt.Errorf("failed to set meta.ibd_complete: %v", err)
+	}
 
 	if barLoad != nil {
 		barID := dbtypes.InitialDBLoad

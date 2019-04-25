@@ -63,7 +63,7 @@ func openDB() (func() error, error) {
 		DBName: "dcrdata_mainnet_test",
 	}
 	var err error
-	db, err = NewChainDB(&dbi, &chaincfg.MainNetParams, nil, true, true, addrCacheCap)
+	db, err = NewChainDB(&dbi, &chaincfg.MainNetParams, nil, true, true, addrCacheCap, nil)
 	cleanUp := func() error { return nil }
 	if db != nil {
 		cleanUp = db.Close
