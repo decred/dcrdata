@@ -23,7 +23,6 @@ require (
 	github.com/decred/dcrdata/testutil/dbconfig v1.0.0
 	github.com/decred/dcrdata/txhelpers v1.0.2-0.20190416204615-70a58657e02f
 	github.com/decred/slog v1.0.0
-	github.com/dmigwi/go-piparser/proposals v0.0.0-20190415205832-3992790812af
 	github.com/dustin/go-humanize v1.0.0
 	github.com/lib/pq v1.1.0
 )

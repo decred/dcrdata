@@ -246,10 +246,8 @@ github.com/didip/tollbooth v4.0.1-0.20180415195142-b10a036da5f0+incompatible h1:
 github.com/didip/tollbooth v4.0.1-0.20180415195142-b10a036da5f0+incompatible/go.mod h1:A9b0665CE6l1KmzpDws2++elm/CsuWBMa5Jv4WY0PEY=
 github.com/didip/tollbooth_chi v0.0.0-20170928041846-6ab5f3083f3d h1:vs5Nf6IE0N/PwGJ8//zRed4gpCdcr99K2HzX7RuLOQ8=
 github.com/didip/tollbooth_chi v0.0.0-20170928041846-6ab5f3083f3d/go.mod h1:YWyIfq3y4ArRfWZ9XksmuusP+7Mad+T0iFZ0kv0XG/M=
-github.com/dmigwi/go-piparser/proposals v0.0.0-20190411222856-0732954b2d46 h1:7KNcotki/7608UlREIiMt2Hvt1buNquIjc0y502r/Oc=
-github.com/dmigwi/go-piparser/proposals v0.0.0-20190411222856-0732954b2d46/go.mod h1:W32k3EjyoIwHKldGzl4Do26mlHQDtvM8R7nKiKJ81K4=
-github.com/dmigwi/go-piparser/proposals v0.0.0-20190415205832-3992790812af h1:pQhTnsKtQ/qmW0qu4d2RRSC+HTp3N+kOsI9+ynZlPEk=
-github.com/dmigwi/go-piparser/proposals v0.0.0-20190415205832-3992790812af/go.mod h1:bVFHMc7PF69eSpDREy2MnoZYr8YMQjGDEUJudtQUEis=
+github.com/dmigwi/go-piparser/proposals v0.0.0-20190426030541-8412e0f44f55 h1:OdHelch2TXiEFTcV75lw+PhQkI8rKOdQ6j6b0TtchT8=
+github.com/dmigwi/go-piparser/proposals v0.0.0-20190426030541-8412e0f44f55/go.mod h1:bVFHMc7PF69eSpDREy2MnoZYr8YMQjGDEUJudtQUEis=
 github.com/dustin/go-humanize v1.0.0 h1:VSnTsYCnlFHaM2/igO1h6X3HA71jcobQuxemgkq4zYo=
 github.com/dustin/go-humanize v1.0.0/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
 github.com/envoyproxy/go-control-plane v0.6.9/go.mod h1:SBwIajubJHhxtWwsL9s8ss4safvEdbitLhGGK48rN6g=
