@@ -3,10 +3,12 @@ package explorer
 import (
 	"context"
 	"encoding/gob"
+	"fmt"
 	"os"
 	"sync"
 
 	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/semver"
 	"github.com/decred/dcrdata/txhelpers"
 )
 
@@ -18,6 +20,15 @@ type chartDataCache struct {
 	sync.RWMutex
 	updateHeight int64
 	Data         map[string]*dbtypes.ChartsData
+}
+
+// cacheVersion helps detect when cache data stored has its structure changed.
+var cacheVersion = semver.NewSemver(1, 0, 1)
+
+// cacheData defines the cache data contents to be written into a .gob file.
+type cacheData struct {
+	Version string
+	Data    map[string]*dbtypes.ChartsData
 }
 
 // cacheChartsData holds the prepopulated data that is used to draw the charts.
@@ -95,7 +106,7 @@ func WriteCacheFile(filePath string) (err error) {
 	defer file.Close()
 
 	encoder := gob.NewEncoder(file)
-	return encoder.Encode(cacheChartsData.get())
+	return encoder.Encode(cacheData{cacheVersion.String(), cacheChartsData.get()})
 }
 
 // ReadCacheFile reads the contents of the charts cache dump file encoded in
@@ -114,7 +125,7 @@ func ReadCacheFile(filePath string, height int64) error {
 		os.RemoveAll(filePath)
 	}()
 
-	var data = make(map[string]*dbtypes.ChartsData)
+	var data cacheData
 
 	decoder := gob.NewDecoder(file)
 	err = decoder.Decode(&data)
@@ -122,7 +133,14 @@ func ReadCacheFile(filePath string, height int64) error {
 		return err
 	}
 
-	cacheChartsData.Update(height, data)
+	// If required cache version was found in the .gob file update the cache
+	// otherwise return an error.
+	if data.Version == cacheVersion.String() {
+		cacheChartsData.Update(height, data.Data)
+	} else {
+		return fmt.Errorf("expected cache version v%s but found v%s",
+			cacheVersion, data.Version)
+	}
 
 	return nil
 }

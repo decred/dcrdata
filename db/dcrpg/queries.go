@@ -3022,39 +3022,126 @@ func retrieveTicketsPriceByHeight(ctx context.Context, db *sql.DB, interval int6
 
 // retrieveCoinSupply fetches the coin supply data from the vins table.
 func retrieveCoinSupply(ctx context.Context, db *sql.DB, timeArr []dbtypes.TimeDef,
-	sumArr []float64) ([]dbtypes.TimeDef, []float64, error) {
-	var sum float64
-	var since time.Time
+	sumArr, estimateArr []float64, params *chaincfg.Params) ([]dbtypes.TimeDef,
+	[]float64, []float64, error) {
+	var sum, estimate float64
+	var since, premineTime time.Time
 
-	if c := len(timeArr); c > 0 {
+	premineBlockInd := 1
+	reward := dcrutil.Amount(params.BaseSubsidy).ToCoin()
+	targetBlockTime := params.TargetTimePerBlock.Minutes()
+	inflationRate := float64(params.MulSubsidy) / float64(params.DivSubsidy)
+	subsidyReduction := float64(params.SubsidyReductionInterval)
+	maxCoinSupply := dcrutil.Amount(txhelpers.UltimateSubsidy(params)).ToCoin()
+
+	// timeArr and estimateArr may contain extra datasets than sumArr that allows
+	// the inflation axis to be extended to one month more than the actual supply
+	// if maximum supply has not yet been reached.
+	if c := len(sumArr); c > 0 && len(timeArr) >= c && len(estimateArr) >= c {
 		since = timeArr[c-1].T
 		sum = sumArr[c-1]
+		estimate = estimateArr[c-1]
+
+		// Delete extra data added before.
+		estimateArr = estimateArr[:c]
+		timeArr = timeArr[:c]
+
+		// Preset the premine Time.
+		if c > 1 {
+			premineTime = timeArr[premineBlockInd].T
+		}
+	} else {
+		// If the arrays do not have the same number of elements, drop all elements.
+		// Retrieve and accumulate all data since genesis.
+		sumArr = sumArr[:0]
+		timeArr = timeArr[:0]
+		estimateArr = estimateArr[:0]
 	}
 
 	rows, err := db.QueryContext(ctx, internal.SelectCoinSupply, since)
 	if err != nil {
-		return timeArr, sumArr, err
+		return timeArr, sumArr, estimateArr, err
 	}
 
 	defer closeRows(rows)
 
-	for rows.Next() {
-		var value int64
-		var timestamp time.Time
-		if err = rows.Scan(&timestamp, &value); err != nil {
-			return timeArr, sumArr, err
+	var actualReward float64
+	var estimatedBlockHeight int
+
+	stakelessFactor := (1 - float64(params.StakeRewardProportion)/10)
+
+	supplyEstimate := func(estimatedBlockHeight int) float64 {
+		// Before the stakeValidation height, all the POS rewards (30% of block reward)
+		// are lost since no votes are cast for those blocks.
+		if int64(estimatedBlockHeight) < params.StakeValidationHeight {
+			actualReward = reward * stakelessFactor
+		} else {
+			actualReward = reward
 		}
 
-		if value < 0 {
-			value = 0
-		}
+		subsidyInterval := math.Floor(float64(estimatedBlockHeight) / subsidyReduction)
+		estimate += (actualReward * math.Pow(inflationRate, subsidyInterval))
 
-		sum += dcrutil.Amount(value).ToCoin()
-		timeArr = append(timeArr, dbtypes.NewTimeDef(timestamp))
-		sumArr = append(sumArr, sum)
+		return estimate
 	}
 
-	return timeArr, sumArr, nil
+	var timestamp time.Time
+	for rows.Next() {
+		var coins int64
+		if err = rows.Scan(&timestamp, &coins); err != nil {
+			return timeArr, sumArr, estimateArr, err
+		}
+
+		if coins < 0 {
+			coins = 0
+		}
+
+		sum += dcrutil.Amount(coins).ToCoin()
+		sumArr = append(sumArr, sum)
+		timeArr = append(timeArr, dbtypes.NewTimeDef(timestamp))
+
+		// When running a fresh full data query the initial estimate value that
+		// is also the premined coins and preminTime are set when the sumArr
+		// has the premine coins added.
+		if len(sumArr) == premineBlockInd+1 {
+			premineTime = timestamp
+
+			// sum value here is the same as the premined coins value.
+			estimate = sum
+		}
+
+		var timeDiff = timestamp.Sub(premineTime).Minutes()
+		var estimatedBlockHeight = int(timeDiff / targetBlockTime)
+		if estimatedBlockHeight < len(timeArr)-1 {
+			estimatedBlockHeight = len(timeArr) - 1
+		}
+
+		// On genesis block no coins exists yet thus estimate is also zero.
+		if coins == 0 {
+			estimateArr = append(estimateArr, 0)
+		} else {
+			estimateArr = append(estimateArr, supplyEstimate(estimatedBlockHeight))
+		}
+	}
+
+	// One month has 730 hours
+	hoursInOneMonth := 730 * time.Hour
+
+	// Append inflation data for the next one month from the current actual supply.
+	blocksInOneMonth := int(hoursInOneMonth.Minutes() / targetBlockTime)
+	for i := 1; i < blocksInOneMonth; i++ {
+		estimateCalculated := supplyEstimate(estimatedBlockHeight + i)
+		// If estimateCalculated is greater than max supply exit.
+		if estimateCalculated > maxCoinSupply {
+			break
+		}
+
+		estimateArr = append(estimateArr, estimateCalculated)
+		timestamp = timestamp.Add(params.TargetTimePerBlock)
+		timeArr = append(timeArr, dbtypes.NewTimeDef(timestamp))
+	}
+
+	return timeArr, sumArr, estimateArr, nil
 }
 
 // retrieveTicketSpendTypePerBlock fetches data for ticket-spend-type chart from

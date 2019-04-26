@@ -248,6 +248,7 @@ func TestPgChartsData(t *testing.T) {
 	}
 	dataCopy[name].Time = dataCopy[name].Time[:coinC]
 	dataCopy[name].ValueF = dataCopy[name].ValueF[:coinC]
+	dataCopy[name].Received = dataCopy[name].Received[:coinC]
 
 	name = dbtypes.DurationBTW
 	durC := len(dataCopy[name].Height)

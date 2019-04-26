@@ -2875,18 +2875,19 @@ func (pgb *ChainDB) ticketsPriceByHeight(timeArr []dbtypes.TimeDef,
 }
 
 // coinSupply fetches the coin supply chart data from retrieveCoinSupply.
-func (pgb *ChainDB) coinSupply(timeArr []dbtypes.TimeDef, sumArr []float64) (
-	[]dbtypes.TimeDef, []float64, error) {
+func (pgb *ChainDB) coinSupply(timeArr []dbtypes.TimeDef, sumArr, estimateArr []float64) (
+	[]dbtypes.TimeDef, []float64, []float64, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 
 	var err error
-	timeArr, sumArr, err = retrieveCoinSupply(ctx, pgb.db, timeArr, sumArr)
+	timeArr, sumArr, estimateArr, err = retrieveCoinSupply(ctx, pgb.db,
+		timeArr, sumArr, estimateArr, pgb.chainParams)
 	if err != nil {
 		err = fmt.Errorf("coinSupply: %v", pgb.replaceCancelError(err))
 	}
 
-	return timeArr, sumArr, err
+	return timeArr, sumArr, estimateArr, err
 }
 
 // blocksByTime fetches the charts data from retrieveBlockByTime.
@@ -3026,7 +3027,8 @@ func (pgb *ChainDB) PgChartsData(data map[string]*dbtypes.ChartsData) (err error
 	}
 
 	supply := pgb.getChartData(data, dbtypes.CoinSupply)
-	supply.Time, supply.ValueF, err = pgb.coinSupply(supply.Time, supply.ValueF)
+	supply.Time, supply.Received, supply.ValueF, err = pgb.coinSupply(supply.Time,
+		supply.Received, supply.ValueF)
 	if err != nil {
 		return
 	}
