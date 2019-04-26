@@ -106,6 +106,11 @@ func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
 			break
 		}
 
+		if len(data.Data) == 0 {
+			// No updates found.
+			break
+		}
+
 		publicProposals.Data = append(publicProposals.Data, data.Data...)
 
 		// Break the loop when number the proposals returned are not equal to
@@ -279,20 +284,20 @@ func (db *ProposalDB) updateInProgressProposals() (int, error) {
 			continue
 		}
 
-		// 2. The new proposals status is NotAuthorized(has not changed).
-		// 3. The last update timestamp has not changed.
-		if proposal.Data.VoteStatus == statuses[0] || proposal.Data.Timestamp == val.Timestamp {
+		// Add the generated field.
+		proposal.Data.ID = val.ID
+
+		// 2. The new proposal data has not changed.
+		if val.IsEqual(proposal.Data) {
 			continue
 		}
 
-		// 4. Some or all data returned was empty or invalid.
-		if proposal.Data.VoteStatus < statuses[0] || proposal.Data.Timestamp < val.Timestamp {
+		// 3. Some or all data returned was empty or invalid.
+		if proposal.Data.Censorship.Token == "" || proposal.Data.TotalVotes < val.TotalVotes {
 			// Should help detect when API changes are effected on Politeia's end.
 			log.Warnf("invalid or empty data entries were returned for %v", val.Token)
 			continue
 		}
-
-		proposal.Data.ID = val.ID
 
 		err = db.dbP.Update(proposal.Data)
 		if err != nil {
