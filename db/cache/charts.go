@@ -14,8 +14,6 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/blockdata"
 	"github.com/decred/dcrdata/txhelpers"
 )
 
@@ -591,10 +589,9 @@ func (charts *ChartData) Dump(dumpPath string) {
 	}
 }
 
-// Store triggers an Update. Satisfies blockdata.BlockDataSaver.
-func (charts *ChartData) Store(_ *blockdata.BlockData, _ *wire.MsgBlock) error {
+// TriggerUpdate triggers (*ChartData).Update.
+func (charts *ChartData) TriggerUpdate(_ string, _ uint32) {
 	charts.Update()
-	return nil
 }
 
 func (charts *ChartData) gobject() *ChartGobject {

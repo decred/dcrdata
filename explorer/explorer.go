@@ -24,7 +24,6 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/blockdata"
-	"github.com/decred/dcrdata/db/cache"
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/exchanges"
 	"github.com/decred/dcrdata/explorer/types"
@@ -218,8 +217,6 @@ type explorerUI struct {
 
 	invsMtx sync.RWMutex
 	invs    *types.MempoolInfo
-
-	charts *cache.ChartData
 }
 
 // AreDBsSyncing is a thread-safe way to fetch the boolean in dbsSyncing.
@@ -283,7 +280,6 @@ type ExplorerConfig struct {
 	PoliteiaURL       string
 	MainnetLink       string
 	TestnetLink       string
-	Charts            *cache.ChartData
 }
 
 // New returns an initialized instance of explorerUI
@@ -302,7 +298,6 @@ func New(cfg *ExplorerConfig) *explorerUI {
 	exp.voteTracker = cfg.Tracker
 	exp.proposalsSource = cfg.ProposalsSource
 	exp.politeiaAPIURL = cfg.PoliteiaURL
-	exp.charts = cfg.Charts
 	explorerLinks.Mainnet = cfg.MainnetLink
 	explorerLinks.Testnet = cfg.TestnetLink
 	explorerLinks.MainnetSearch = cfg.MainnetLink + "search?search="
@@ -565,11 +560,6 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 					log.Error(err)
 				}
 			}()
-		}
-
-		// Refresh the charts every 5 blocks.
-		if newBlockData.Height%5 == 0 {
-			go exp.charts.Update()
 		}
 	}
 

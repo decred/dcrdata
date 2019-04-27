@@ -592,7 +592,6 @@ func _main(ctx context.Context) error {
 		PoliteiaURL:       cfg.PoliteiaAPIURL,
 		MainnetLink:       cfg.MainnetLink,
 		TestnetLink:       cfg.TestnetLink,
-		Charts:            charts,
 	})
 	// TODO: allow views config
 	if explore == nil {
@@ -1088,8 +1087,8 @@ func _main(ctx context.Context) error {
 	// and can be done before the monitors are fully set up.
 	dumpPath := filepath.Join(cfg.DataDir, cfg.ChartsCacheDump)
 	charts.Load(dumpPath)
-	// Add charts after explorer and any databases.
-	blockDataSavers = append(blockDataSavers, charts)
+	// Add charts saver method after explorer and any databases.
+	blockDataSavers = append(blockDataSavers, blockdata.BlockTrigger{charts.TriggerUpdate})
 
 	// This dumps the cache charts data into a file for future use on system
 	// exit.
