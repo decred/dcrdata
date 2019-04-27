@@ -13,7 +13,6 @@ import (
 	"github.com/decred/dcrdata/db/cache"
 	tc "github.com/decred/dcrdata/testutil/dbconfig"
 	pitypes "github.com/dmigwi/go-piparser/proposals/types"
-	"github.com/decred/dcrdata/rpcutils"
 )
 
 var (
@@ -45,7 +44,7 @@ func openDB() (func() error, error) {
 	}
 	var err error
 	db, err = NewChainDB(&dbi, &chaincfg.MainNetParams, nil, true, true, addrCacheCap,
-		nil, new(parserInstance), rpcutils.BlockPrefetchClient{})
+		nil, new(parserInstance), nil)
 	cleanUp := func() error { return nil }
 	if db != nil {
 		cleanUp = db.Close
@@ -104,16 +103,6 @@ func TestPgCharts(t *testing.T) {
 	windows.Snip(5)
 	validate("post-snip")
 
-	charts.Update()
-	validate("second update")
-
-	if blocksLen != len(blocks.Time) {
-		t.Fatalf("unexpected blocks data length %d != %d", blocksLen, len(blocks.Time))
-	}
-	if windowsLen != len(windows.Time) {
-		t.Fatalf("unexpected windows data length %d != %d", windowsLen, len(windows.Time))
-	}
-}
 	charts.Update()
 	validate("second update")
 

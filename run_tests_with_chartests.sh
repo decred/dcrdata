@@ -46,8 +46,10 @@ testrepo () {
   # Fetch the tests data.
   git clone https://github.com/dcrlabs/bug-free-happiness $TMPDIR
 
-  tar xvf $TMPDIR/sqlitedb/sqlite.tar.xz -C ./testutil/dbload/testsconfig/test.data
-  tar xvf $TMPDIR/pgdb/pgsql.tar.xz -C ./testutil/dbload/testsconfig/test.data
+  BLOCK_RANGE="0-199"
+
+  tar xvf $TMPDIR/sqlitedb/sqlite_"$BLOCK_RANGE".tar.xz -C ./testutil/dbload/testsconfig/test.data
+  tar xvf $TMPDIR/pgdb/pgsql_"$BLOCK_RANGE".tar.xz -C ./testutil/dbload/testsconfig/test.data
   tar xvf $TMPDIR/stakedb/test_ticket_pool.bdgr.tar.xz -C ./stakedb
 
   # Set up the tests db.

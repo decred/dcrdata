@@ -29,4 +29,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.10.0
 )
 
-replace github.com/decred/dcrdata/db/cache => ../cache
+replace (
+	github.com/decred/dcrdata/db/cache => ../cache
+	github.com/decred/dcrdata/testutil/dbconfig => ../../testutil/dbconfig
+)
