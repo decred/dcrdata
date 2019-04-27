@@ -571,7 +571,7 @@ func _main(ctx context.Context) error {
 	// Initiate the sync status monitor and the coordinating goroutines if the
 	// sync status is activated, otherwise coordinate updating the full set of
 	// explorer pages.
-	if !displaySyncStatusPage {
+	if displaySyncStatusPage {
 		// Start goroutines that keep the update the shared progress bar data,
 		// and signal the websocket hub to send progress updates to clients.
 		barLoad = make(chan *dbtypes.ProgressBarLoad, 2)
@@ -711,7 +711,6 @@ func _main(ctx context.Context) error {
 			r.Get("/insight/socket.io/", insightSocketServer.ServeHTTP)
 		}
 	})
-
 	// HTTP Error 503 StatusServiceUnavailable for file requests before sync.
 	webMux.With(explore.SyncStatusFileIntercept).Group(func(r chi.Router) {
 		r.Mount("/download", fileMux.Mux)
@@ -755,7 +754,7 @@ func _main(ctx context.Context) error {
 		// MenuFormParser will typically redirect, but going to the homepage as a
 		// fallback.
 		r.With(explorer.MenuFormParser).Post("/set", explore.Home)
-		r.Get("/51attackcost", func(w http.ResponseWriter, r *http.Request) {
+		r.Get("/51-attack-cost", func(w http.ResponseWriter, r *http.Request) {
 			//node height from chain server
 			explore.MiningCalculations(nodeHeight, block, w, r)
 		})

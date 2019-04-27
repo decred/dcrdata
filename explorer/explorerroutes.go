@@ -2227,45 +2227,82 @@ func calcPages(rows, pageSize, offset int, link string) pageNumbers {
 func (exp *explorerUI) MiningCalculations(nodeHeight int64, block *wire.BlockHeader, w http.ResponseWriter, r *http.Request) {
 	//get height block DB
 	height, _ := exp.blockData.GetHeight()
-	var HashRate float64
+	var (
+		HashRate       float64
+		TicketPoolSize uint32
+		TicketPrice    float64
+		Price          float64 = 0
+	)
+	if exp.xcBot != nil {
+		//get latest price DCR
+		ExchangeRate := exp.xcBot.Conversion(1.0)
+		Price = ExchangeRate.Value
+	}
+	if Price == 0 {
+		Price = 24.42
+	}
 	if height > nodeHeight {
 		HashRate = exp.pageData.HomeInfo.HashRate
+		PoolInfo := exp.pageData.HomeInfo.PoolInfo
+		TicketPoolSize = PoolInfo.Size
+		TicketPrice = PoolInfo.Value
 
 	} else {
 		height = nodeHeight
+		TicketPoolSize = block.PoolSize
+		TicketPrice = dcrutil.Amount(block.SBits).ToCoin()
 		diffRatio := txhelpers.GetDifficultyRatio(block.Bits, exp.ChainParams)
 		targetTimePerBlock := float64(exp.ChainParams.TargetTimePerBlock)
 		HashRate = dbtypes.CalculateHashRate(diffRatio, targetTimePerBlock)
 	}
+
 	TargetHashrate := 0.51 * HashRate
 	DeviceMiner := math.Ceil(TargetHashrate * 1000 / 34)
-	DeviceCost := int64(DeviceMiner * 1282)
+	DeviceCost := DeviceMiner * 1282
 	TotalKWhPerday := (DeviceMiner * 1610 * 24) / 1000
-	DailyElectricity := int64(TotalKWhPerday * 0.03)
+	DailyElectricity := TotalKWhPerday * 0.03
 	TotalElectricity := DailyElectricity * 10
-	TotalCost := TotalElectricity + DeviceCost
+	TotalCostPow := TotalElectricity + DeviceCost
+	TicketSizeAttach := math.Ceil(0.6 * float64(TicketPoolSize))
+	TotalPosDCR := TicketPrice * TicketSizeAttach
+	TotalCostPos := Price * TotalPosDCR
+	TotalCost := TotalCostPow + TotalCostPos
 	str, err := exp.templates.execTemplateToString("mining-calculations", struct {
 		*CommonPageData
 		HashRate         float64
 		TargetHashrate   float64
 		DeviceMiner      int64
-		DeviceCost       int64
-		TotalKWhPerday   int64
-		DailyElectricity int64
-		TotalElectricity int64
-		TotalCost        int64
-	    Height     		 int64
+		DeviceCost       float64
+		TotalKWhPerday   float64
+		DailyElectricity float64
+		TotalElectricity float64
+		TotalCostPow     float64
+		Height           int64
+		TicketPoolSize   int64
+		TicketPrice      float64
+		Price            float64
+		TicketSizeAttach float64
+		TotalPosDCR      float64
+		TotalCostPos     float64
+		TotalCost        float64
 	}{
 		CommonPageData:   exp.commonData(r),
 		HashRate:         HashRate,
 		TargetHashrate:   TargetHashrate,
 		DeviceMiner:      int64(DeviceMiner),
 		DeviceCost:       DeviceCost,
-		TotalKWhPerday:   int64(TotalKWhPerday),
+		TotalKWhPerday:   TotalKWhPerday,
 		DailyElectricity: DailyElectricity,
 		TotalElectricity: TotalElectricity,
+		TotalCostPow:     TotalCostPow,
+		Height:           height,
+		TicketPoolSize:   int64(TicketPoolSize),
+		TicketPrice:      TicketPrice,
+		Price:            Price,
+		TicketSizeAttach: TicketSizeAttach,
+		TotalPosDCR:      TotalPosDCR,
+		TotalCostPos:     TotalCostPos,
 		TotalCost:        TotalCost,
-		Height:     height,
 	})
 
 	//exp.pageData.RUnlock()
