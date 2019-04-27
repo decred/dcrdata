@@ -3,7 +3,7 @@
 <html lang="en">
 {{ template "html-head" "Attack Cost Calculator"}}
 {{template "navbar" . }}
-    <div class="container py-1" >
+    <div class="container py-1"  data-controller="calculator">
         <div class="row">
             <div class="col-md-24 p-0">
                 <div class="bg-white mb-1 py-2 px-3 my-0">
@@ -21,25 +21,32 @@
                     The device is DR5 Blake256R14 specifications are 34 Th/s, consumes 1610W of power and costs $1,282 per unit <a href="https://www.cryptocompare.com/mining/bitmain/antminer-dr5-blake256r14-34ths/" target="_blank">See More</a>
                </div>
                 <div class="mt-2 my-3 h5">
-                    In order to aquire a <span class="font-weight-bold">{{printf "%.3f" .TargetHashrate}}</span> Ph/s hashrate, it would take <span class="font-weight-bold">{{ int64Comma .DeviceMiner }}</span> DCR5s at 34 Th/s each. It would cost <span class="font-weight-bold">${{ int64Comma .DeviceCost}}</span> to buy them.
+                    In order to aquire a <span class="font-weight-bold">{{printf "%.3f" .TargetHashrate}}</span> Ph/s hashrate, it would take <span class="font-weight-bold">{{ int64Comma .DeviceMiner }}</span> DCR5s at 34 Th/s each. It would cost <span class="font-weight-bold">${{template "decimalParts" (float64AsDecimalParts .DeviceCost 0 true)}}</span> to buy them.
                  </div>
                  <div class="mt-2 my-3 h5 pr-3"> Total kWh per day:  ({{ int64Comma .DeviceMiner }} * 1610W *24 hours)/1000 =
-                    <span class="font-weight-bold">{{int64Comma .TotalKWhPerday}} kWh</span>.
+                    <span class="font-weight-bold">{{template "decimalParts" (float64AsDecimalParts .TotalKWhPerday 2 true)}}</span> kWh.
                 </div>
                 <div class="mt-2 my-3 h5">
-                    Costs of daily electricity consumption for <span class="font-weight-bold">{{ int64Comma .DeviceMiner }}</span> DR5s:  {{int64Comma .TotalKWhPerday}} kWh * $0.03 per kWh =
-                      <span class="font-weight-bold">${{ int64Comma .DailyElectricity}}</span>.
+                    Costs of daily electricity consumption for <span class="font-weight-bold">{{ int64Comma .DeviceMiner }}</span> DR5s:  {{template "decimalParts" (float64AsDecimalParts .TotalKWhPerday 2 true)}} kWh * $0.03 per kWh =
+                      <span class="font-weight-bold">${{template "decimalParts" (float64AsDecimalParts .TotalKWhPerday 2 true)}}</span>.
                 </div>
-                 <div class="mt-2 my-3 h5 pr-3">Cost to mine <span class="font-weight-bold">{{ int64Comma .DeviceMiner }}</span> DR5s for 10 days:  ${{ int64Comma .DailyElectricity}} * 10 =
-                      <span class="font-weight-bold">${{ int64Comma .TotalElectricity}}</span>.
+                 <div class="mt-2 my-3 h5 pr-3">Cost to mine <span class="font-weight-bold">{{ int64Comma .DeviceMiner }}</span> DR5s for 10 days:  ${{template "decimalParts" (float64AsDecimalParts .TotalKWhPerday  2 true)}} * 10 =
+                      <span class="font-weight-bold">${{ template "decimalParts" (float64AsDecimalParts .TotalElectricity  1 true)}}</span>.
                 </div>
-                <div class="mt-2 my-3 h5 pr-3">Total 10 day PoW attack cost:  ${{ int64Comma .DeviceCost}} +  ${{ int64Comma .TotalElectricity}} =
-                   <span class="font-weight-bold">${{ int64Comma .TotalCost }}</span>.
+                <div class="mt-2 my-3 h5 pr-3">Total 10 day PoW attack cost:  ${{  template "decimalParts" (float64AsDecimalParts .DeviceCost 0 true)}} +  ${{template "decimalParts" (float64AsDecimalParts  .TotalElectricity 1 true)}} =
+                   <span class="font-weight-bold">{{ template "decimalParts" (float64AsDecimalParts .TotalCostPow 1 true)}}</span>.
                 </div>
+                <div class="mt-2 my-3 h5 pr-3">Every block 5 tickets vote and 3/5 tickets are required for the block to be valid. Current ticket pool size is <span class="font-weight-bold"> {{ int64Comma .TicketPoolSize }} </span> tickets. Current ticket price is <span class="font-weight-bold">  {{template "decimalParts" (float64AsDecimalParts .TicketPrice 3 true)}} </span>DCR.</div>
+                <div class="mt-2 my-3 h5 pr-3">We assume that an attacker would need to aquire <span class="font-weight-bold">60%</span> of the ticket pool to do the attack.</div>
+                <div class="mt-2 my-3 h5 pr-3">Tickets needed to attack is {{ int64Comma .TicketPoolSize }} * 0.60 = <span class="font-weight-bold">{{ template "decimalParts" (float64AsDecimalParts .TicketSizeAttach  0 true)}} </span> tickets.</div>
+                <div class="mt-2 my-3 h5 pr-3">Funds needed to buy <span class="font-weight-bold">${{ template "decimalParts" (float64AsDecimalParts .TicketSizeAttach  0 true)}} </span> tickets is ${{ template "decimalParts" (float64AsDecimalParts .TicketSizeAttach  1 true)}} * {{template "decimalParts" (float64AsDecimalParts .TicketPrice 3 true)}} = <span class="font-weight-bold">{{ template "decimalParts" (float64AsDecimalParts .TotalPosDCR 2 true)}} </span> DCR.</div>
+                <div class="mt-2 my-3 h5 pr-3">Each DCR cost is <span class="font-weight-bold">${{printf "%.2f"  .Price }}</span>. </div>
+                <div class="mt-2 my-3 h5 pr-3">Total PoS attack cost: ${{ printf "%.2f" .Price}} * {{template "decimalParts" (float64AsDecimalParts .TotalPosDCR 2 true)}} = <span class="font-weight-bold">${{ template "decimalParts" (float64AsDecimalParts .TotalCostPos 2 true)}} </span>.</div>
+                <div class="mt-2 my-3 h5 pr-3">Total attack cost is ${{template "decimalParts" (float64AsDecimalParts .TotalCostPow 1 true)}}  + ${{template "decimalParts" (float64AsDecimalParts .TotalCostPos 2 true)}}  = <span class="font-weight-bold"> ${{template "decimalParts" (float64AsDecimalParts .TotalCost 2 true)}}<span>.</div>
             </div>
         </div>
     </div>
-  {{ template "footer" . }}
+ {{ template "footer" . }}
 
 </body>
 </html>
