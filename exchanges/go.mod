@@ -3,6 +3,7 @@ module github.com/decred/dcrdata/exchanges
 go 1.11
 
 require (
+	github.com/carterjones/signalr v0.3.5
 	github.com/decred/dcrd/chaincfg v1.4.0 // indirect
 	github.com/decred/dcrd/dcrec v0.0.0-20190413175304-e69a789183f3 // indirect
 	github.com/decred/dcrd/dcrec/edwards v0.0.0-20190413175304-e69a789183f3 // indirect

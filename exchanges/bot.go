@@ -625,7 +625,8 @@ func (bot *ExchangeBot) StateBytes() []byte {
 	return bot.currentStateBytes
 }
 
-func (bot *ExchangeBot) jsonify(thing interface{}) ([]byte, error) {
+// Encodes the thing as JSON, with indentation if configured.
+func (bot *ExchangeBot) encodeJSON(thing interface{}) ([]byte, error) {
 	if bot.config.Indent {
 		return json.MarshalIndent(thing, "", "    ")
 	}
@@ -639,7 +640,7 @@ func (bot *ExchangeBot) ConvertedStateBytes(symbol string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return bot.jsonify(state)
+	return bot.encodeJSON(state)
 }
 
 // AvailableIndices creates a fresh slice of all available index currency codes.
@@ -912,7 +913,7 @@ func (bot *ExchangeBot) QuickSticks(token string, rawBin string) ([]byte, error)
 
 	expiration := sticks[len(sticks)-1].Start.Add(2 * bin.duration())
 
-	chart, err := bot.jsonify(&candlestickResponse{
+	chart, err := bot.encodeJSON(&candlestickResponse{
 		BtcIndex:   bot.BtcIndex,
 		Price:      bot.currentState.Price,
 		Sticks:     sticks,
@@ -1038,7 +1039,7 @@ func (bot *ExchangeBot) QuickDepth(token string) (chart []byte, err error) {
 		if agDepth == nil {
 			return nil, fmt.Errorf("Failed to find depth for %s", token)
 		}
-		chart, err = bot.jsonify(agDepth)
+		chart, err = bot.encodeJSON(agDepth)
 	} else {
 		bot.mtx.Lock()
 		defer bot.mtx.Unlock()
@@ -1049,7 +1050,7 @@ func (bot *ExchangeBot) QuickDepth(token string) (chart []byte, err error) {
 		if xcState.Depth == nil {
 			return nil, fmt.Errorf("Failed to find depth for %s", token)
 		}
-		chart, err = bot.jsonify(&depthResponse{
+		chart, err = bot.encodeJSON(&depthResponse{
 			BtcIndex:   bot.BtcIndex,
 			Price:      bot.currentState.Price,
 			Data:       xcState.Depth,

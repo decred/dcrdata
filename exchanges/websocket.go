@@ -5,15 +5,19 @@ package exchanges
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
 
+	"github.com/carterjones/signalr"
+	"github.com/carterjones/signalr/hubs"
 	"github.com/gorilla/websocket"
 )
 
 const (
 	wsWriteTimeout = 5 * time.Second
+	fauxBrowserUA  = "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36"
 )
 
 // An interface wraps the websocket to enable testing.
@@ -89,6 +93,120 @@ func newSocketConnection(cfg *socketConfig) (websocketFeed, error) {
 	}
 	return &socketClient{
 		conn: conn,
+		done: make(chan struct{}),
+	}, nil
+}
+
+// Dump the signalr.Message to something readable.
+func dumpSignalrMsg(msg signalr.Message) {
+	fmt.Println("=================================")
+	fmt.Printf("C: %s\n", jsonify(msg.C))
+	fmt.Printf("S: %s\n", jsonify(msg.S))
+	fmt.Printf("G: %s\n", jsonify(msg.G))
+	fmt.Printf("I: %s\n", jsonify(msg.I))
+	fmt.Printf("E: %s\n", jsonify(msg.E))
+	s, _ := msg.R.MarshalJSON()
+	fmt.Printf("R: %s\n", string(s))
+	s, _ = msg.H.MarshalJSON()
+	fmt.Printf("H: %s\n", string(s))
+	s, _ = msg.D.MarshalJSON()
+	fmt.Printf("D: %s\n", string(s))
+	s, _ = msg.T.MarshalJSON()
+	fmt.Printf("T: %s\n", string(s))
+	for _, hubMsg := range msg.M {
+		fmt.Printf("  M: %s\n", hubMsg.M)
+		for _, arg := range hubMsg.A {
+			fmt.Printf("    A: %s\n", jsonify(arg))
+		}
+	}
+	fmt.Println("=================================")
+}
+
+// The interface for a signalr connection.
+type signalrClient interface {
+	Send(hubs.ClientMsg) error
+	Close()
+	IsOpen() bool
+}
+
+type signalrConfig struct {
+	host           string
+	protocol       string
+	endpoint       string
+	connectionData string
+	params         map[string]string
+	msgHandler     signalr.MsgHandler // func(msg signalr.Message)
+	errHandler     signalr.ErrHandler // func(err error)
+}
+
+// A wrapper for the signalr.Client. Satisfies signalrClient.
+type signalrConnection struct {
+	c       *signalr.Client
+	done    chan struct{}
+	sendMtx sync.Mutex
+}
+
+// Send sends the ClientMsg on the connection. A mutex makes Send thread-safe.
+func (conn *signalrConnection) Send(msg hubs.ClientMsg) error {
+	conn.sendMtx.Lock()
+	defer conn.sendMtx.Unlock()
+	return conn.c.Send(msg)
+}
+
+// Close closes the underlying signalr connection.
+func (conn *signalrConnection) Close() {
+	// Underlying connection Close can block, so measures should be taken prevent
+	// calls to Close on an already closed connection.
+	select {
+	case <-conn.done:
+	default:
+		close(conn.done)
+	}
+	done := make(chan struct{})
+	go func() {
+		conn.c.Close()
+		done <- struct{}{}
+	}()
+
+	select {
+	case <-done:
+	case <-time.NewTimer(time.Second).C:
+		log.Errorf("signalrConnection.Close: Close timed out")
+	}
+}
+
+// Checks whether Close has been called on this connection.
+func (conn *signalrConnection) IsOpen() bool {
+	select {
+	case <-conn.done:
+		return false
+	default:
+		return true
+	}
+}
+
+// Create a new signalr connection. Returns the signalrClient interface rather
+// than the signalrConnection.
+func newSignalrConnection(cfg *signalrConfig) (signalrClient, error) {
+	// Prepare a SignalR client.
+	c := signalr.New(
+		cfg.host,
+		cfg.protocol,
+		cfg.endpoint,
+		cfg.connectionData,
+		cfg.params,
+	)
+
+	// Set the user agent to one that looks like a browser.
+	c.Headers["User-Agent"] = fauxBrowserUA
+
+	// Start the connection.
+	err := c.Run(cfg.msgHandler, cfg.errHandler)
+	if err != nil {
+		return nil, err
+	}
+	return &signalrConnection{
+		c:    c,
 		done: make(chan struct{}),
 	}, nil
 }

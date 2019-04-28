@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/carterjones/signalr"
+	"github.com/carterjones/signalr/hubs"
 	"github.com/decred/dcrdata/dcrrates"
 )
 
@@ -105,6 +107,9 @@ var (
 			hourKey: "https://bittrex.com/api/v2.0/pub/market/GetTicks?marketName=BTC-DCR&tickInterval=hour",
 			dayKey:  "https://bittrex.com/api/v2.0/pub/market/GetTicks?marketName=BTC-DCR&tickInterval=day",
 		},
+		// Bittrex uses SignalR, which retrieves the actual websocket enpoint via
+		// HTTP.
+		Websocket: "socket.bittrex.com",
 	}
 	DragonExURLs = URLs{
 		Price: "https://openapi.dragonex.io/api/v1/market/real/?symbol_id=1520101",
@@ -179,6 +184,19 @@ func Tokens() []string {
 	return tokens
 }
 
+// Quickly encode the thing to a JSON-encoded string.
+func jsonify(thing interface{}) string {
+	s, _ := json.MarshalIndent(thing, "", "    ")
+	return string(s)
+}
+
+// Most exchanges bin price values on a float precision of 8 decimal points.
+// eightPtKey reliably converts the float to an int64 that is unique for a price
+// bin.
+func eightPtKey(rate float64) int64 {
+	return int64(math.Round(rate * 1e8))
+}
+
 // Set a hard limit of an hour old for order book data. This could also be
 // based on some multiple of ExchangeBotConfig.requestExpiry, but should have
 // some reasonable limit anyway.
@@ -231,15 +249,6 @@ func (sticks Candlesticks) needsUpdate(bin candlestickKey) bool {
 	}
 	lastStick := sticks[len(sticks)-1]
 	return time.Now().After(lastStick.Start.Add(bin.duration() * 2))
-}
-
-// Most exchanges bin price values on a float precision of 8 decimal points.
-// eightPtKey reliably converts the float to an int64 that is unique for a price
-// bin.
-func eightPtKey(rate float64) int64 {
-	// Bittrex values are sometimes parsed with floating point error that can
-	// affect the key if you simply use int64(rate).
-	return int64(math.Round(rate * 1e8))
 }
 
 // ExchangeState is the simple template for a price. The only member that is
@@ -400,13 +409,22 @@ type CommonExchange struct {
 	channels     *BotChannels
 	wsMtx        sync.RWMutex
 	ws           websocketFeed
+	sr           signalrClient
 	wsSync       struct {
 		err      error
 		errCount int
 		update   time.Time
 		fail     time.Time
 	}
+	// wsProcessor is only used for websockets, not SignalR. For SignalR, the
+	// callback function is passed as part of the signalrConfig.
 	wsProcessor WebsocketProcessor
+	// Exchanges that use websockets or signalr to maintain a live orderbook can
+	// use the buy and sell slices to leverage some useful methods on
+	// CommonExchange.
+	orderMtx sync.RWMutex
+	buys     wsOrders
+	asks     wsOrders
 }
 
 // LastUpdate gets a time.Time of the last successful exchange update.
@@ -539,6 +557,13 @@ func (xc *CommonExchange) websocket() (websocketFeed, WebsocketProcessor) {
 	return xc.ws, xc.wsProcessor
 }
 
+// Grab the SignalR client, which is nil for most exchanges.
+func (xc *CommonExchange) signalr() signalrClient {
+	xc.mtx.RLock()
+	defer xc.mtx.RUnlock()
+	return xc.sr
+}
+
 // Creates a websocket connection and starts a listen loop. Closes any existing
 // connections for this exchange.
 func (xc *CommonExchange) connectWebsocket(processor WebsocketProcessor, cfg *socketConfig) error {
@@ -578,6 +603,8 @@ func (xc *CommonExchange) startWebsocket() {
 	}()
 }
 
+// wsSend sends a message on a standard websocket connection. For SignalR
+// connections, use xc.sr.Send directly.
 func (xc *CommonExchange) wsSend(msg interface{}) error {
 	ws, _ := xc.websocket()
 	return ws.Write(msg)
@@ -587,7 +614,11 @@ func (xc *CommonExchange) wsSend(msg interface{}) error {
 func (xc *CommonExchange) wsListening() bool {
 	ws, _ := xc.websocket()
 	if ws == nil {
-		return false
+		sr := xc.signalr()
+		if sr == nil {
+			return false
+		}
+		return sr.IsOpen()
 	}
 	select {
 	case <-ws.Done():
@@ -599,12 +630,24 @@ func (xc *CommonExchange) wsListening() bool {
 
 // Log the error and time, and increment the error counter.
 func (xc *CommonExchange) setWsFail(err error) {
+	sr := xc.signalr()
+	if sr != nil && !xc.wsFailed() {
+		sr.Close()
+	}
 	xc.wsMtx.Lock()
 	defer xc.wsMtx.Unlock()
 	log.Errorf("%s websocket error: %v", xc.token, err)
 	xc.wsSync.err = err
 	xc.wsSync.errCount++
 	xc.wsSync.fail = time.Now()
+}
+
+// Set the updated flag. The websocket is considered failed if the failed flag
+// is later than the updated flag.
+func (xc *CommonExchange) wsUpdated() {
+	xc.wsMtx.Lock()
+	defer xc.wsMtx.Unlock()
+	xc.wsSync.update = time.Now()
 }
 
 // Checks whether the websocket is in a failed state.
@@ -621,6 +664,111 @@ func (xc *CommonExchange) wsErrorCount() int {
 	return xc.wsSync.errCount
 }
 
+// For exchanges that have SignalR-wrapped websockets, connectSignalr will be
+// used instead of connectWebsocket.
+func (xc *CommonExchange) connectSignalr(cfg *signalrConfig) (err error) {
+	if cfg.errHandler == nil {
+		cfg.errHandler = xc.setWsFail
+	}
+	xc.wsMtx.Lock()
+	defer xc.wsMtx.Unlock()
+	if xc.sr != nil && !xc.wsSync.fail.After(xc.wsSync.update) {
+		xc.sr.Close()
+	}
+	xc.sr, err = newSignalrConnection(cfg)
+	return
+}
+
+const wsMaxErrors = 5
+
+// An intermediate order representation used to track an orderbook over a
+// websocket connection.
+type wsOrder struct {
+	price  float64
+	volume float64
+}
+type wsOrders map[int64]*wsOrder
+
+// Pull out the int64 bin keys from the map.
+func wsOrderBinKeys(book wsOrders) []int64 {
+	keys := make([]int64, 0, len(book))
+	for k := range book {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+// Convert the intermediate websocket orderbook to a DepthData. This function
+// should be called under at least an orderMtx.RLock.
+func (xc *CommonExchange) wsDepthSnapshot() *DepthData {
+	askKeys := wsOrderBinKeys(xc.asks)
+	sort.Slice(askKeys, func(i, j int) bool {
+		return askKeys[i] < askKeys[j]
+	})
+	buyKeys := wsOrderBinKeys(xc.buys)
+	sort.Slice(buyKeys, func(i, j int) bool {
+		return buyKeys[i] > buyKeys[j]
+	})
+	a := make([]DepthPoint, 0, len(askKeys))
+	for _, bin := range askKeys {
+		pt := xc.asks[bin]
+		a = append(a, DepthPoint{
+			Quantity: pt.volume,
+			Price:    pt.price,
+		})
+	}
+	b := make([]DepthPoint, 0, len(buyKeys))
+	for _, bin := range buyKeys {
+		pt := xc.buys[bin]
+		b = append(b, DepthPoint{
+			Quantity: pt.volume,
+			Price:    pt.price,
+		})
+	}
+	return &DepthData{
+		Time: time.Now().Unix(),
+		Asks: a,
+		Bids: b,
+	}
+}
+
+// Grab a wsDepthSnapshot under RLock.
+func (xc *CommonExchange) wsDepths() *DepthData {
+	xc.orderMtx.RLock()
+	defer xc.orderMtx.RUnlock()
+	return xc.wsDepthSnapshot()
+}
+
+// For exchanges that have a websocket-synced orderbook, wsDepthStatus will
+// return the DepthData. tryHttp will be true if the websocket is in a
+// questionable state. The value of initializing will be true if this is the
+// initial connection.
+func (xc *CommonExchange) wsDepthStatus(connector func()) (tryHttp, initializing bool, depth *DepthData) {
+	if !xc.wsListening() {
+		if xc.wsFailed() {
+			tryHttp = true
+			errCount := xc.wsErrorCount()
+			if errCount < wsMaxErrors {
+				// Try to connect, but don't wait for the response. Grab the order
+				// book over HTTP anyway.
+				connector()
+			} else if errCount == wsMaxErrors {
+				log.Errorf("%s websocket being disabled. Too many errors", xc.token)
+			}
+		} else {
+			// Connection has not been initialized. Trigger a silent update, since an
+			// update will be triggered on initial websocket message, which contains
+			// the full orderbook.
+			initializing = true
+			log.Tracef("Initializing websocket connection for %s", xc.token)
+			connector()
+		}
+	} else { // Websocket is listening
+		depth = xc.wsDepths()
+	}
+	return
+}
+
 // Used to initialize the embedding exchanges.
 func newCommonExchange(token string, client *http.Client,
 	reqs requests, channels *BotChannels) *CommonExchange {
@@ -634,6 +782,8 @@ func newCommonExchange(token string, client *http.Client,
 		lastFail:     tZero,
 		lastRequest:  tZero,
 		requests:     reqs,
+		asks:         make(wsOrders),
+		buys:         make(wsOrders),
 	}
 }
 
@@ -1017,7 +1167,10 @@ func (binance *BinanceExchange) Refresh() {
 // BittrexExchange is an unregulated U.S. crypto exchange with good volume.
 type BittrexExchange struct {
 	*CommonExchange
-	MarketName string
+	MarketName  string
+	queue       []*BittrexOrderbookUpdate
+	obRequested bool
+	orderSeq    int64
 }
 
 // NewBittrex constructs a BittrexExchange.
@@ -1043,6 +1196,7 @@ func NewBittrex(client *http.Client, channels *BotChannels) (bittrex Exchange, e
 	bittrex = &BittrexExchange{
 		CommonExchange: newCommonExchange(Bittrex, client, reqs, channels),
 		MarketName:     "BTC-DCR",
+		queue:          make([]*BittrexOrderbookUpdate, 0),
 	}
 	return
 }
@@ -1164,6 +1318,262 @@ type BittrexCandlestickResponse struct {
 	Explanation *string             `json:"explanation"`
 }
 
+// BITTREX WEBSOCKET
+// Docs at https://bittrex.github.io/api/v1-1#method-SubscribeToExchangeDeltas
+// See https://github.com/n0mad01/node.bittrex.api/issues/66
+// and https://github.com/n0mad01/node.bittrex.api/issues/23
+// for some additional information beyond the docs.
+// The update subscription is sent before the full order book request, so
+// updates received before the order book must be checked to see if their
+// nonce is sequential to the order book nonce. It is not an error if the
+// update nonce is smaller than the initial order book nonce, in which case the
+// update is simply ignored. Updates can and will come out of order, so a queue
+// must be maintained. A missing update will not result in an error until the
+// queue is maxBittrexQueueSize length.
+
+// A few websocket (SignalR) constants.
+const (
+	BittrexOrderAdd = iota
+	BittrexOrderRemove
+	BittrexOrderUpdate
+	maxBittrexQueueSize = 50
+	updateMsgKey        = "updateExchangeState"
+)
+
+var (
+	bittrexWsOrderUpdateRequest = hubs.ClientMsg{
+		H: "corehub",
+		M: "SubscribeToExchangeDeltas", // SubscribeToExchangeDeltas, QueryExchangeState
+		A: []interface{}{"BTC-DCR"},
+	}
+	bittrexWsOrdersRequest = hubs.ClientMsg{
+		H: "corehub",
+		M: "QueryExchangeState", // SubscribeToExchangeDeltas, QueryExchangeState
+		A: []interface{}{"BTC-DCR"},
+		I: 1, //
+	}
+)
+
+// BittrexWsOrder models an order book update from the Bittrex websocket.
+type BittrexWsOrder struct {
+	Quantity float64 `json:"Quantity"`
+	Rate     float64 `json:"Rate"`
+	Type     int8    `json:"Type"` // 0 = ADD, 1 = REMOVE, 2 = UPDATE
+}
+
+// BittrexWsFill models an off-book trade notification from the Bittrex
+// websocket.
+type BittrexWsFill struct {
+	OrderType string  `json:"OrderType"`
+	Rate      float64 `json:"Rate"`
+	Quantity  float64 `json:"Quantity"`
+	TimeStamp string  `json:"TimeStamp"`
+}
+
+// BittrexOrderbookUpdate models the websocket update from the Bittrex websocket.
+type BittrexOrderbookUpdate struct {
+	Nonce      int64             `json:"Nonce"`
+	MarketName string            `json:"MarketName"`
+	Buys       []*BittrexWsOrder `json:"Buys"`
+	Sells      []*BittrexWsOrder `json:"Sells"`
+	Fills      []*BittrexWsFill  `json:"Fills"`
+}
+
+// Process an update at a single rate.
+func (bittrex *BittrexExchange) processBittrexOrderbookPoint(order *BittrexWsOrder, book wsOrders) {
+	k := eightPtKey(order.Rate)
+
+	switch order.Type {
+	case BittrexOrderAdd, BittrexOrderUpdate:
+		book[k] = &wsOrder{
+			price:  order.Rate,
+			volume: order.Quantity,
+		}
+	case BittrexOrderRemove:
+		_, found := book[k]
+		if !found {
+			bittrex.setWsFail(fmt.Errorf("no order found for bittrex orderbook removal-type update at key %d\n", k))
+			return
+		}
+		delete(book, k)
+	default:
+		bittrex.setWsFail(fmt.Errorf("unknown Bittrex order update type %d", order.Type))
+	}
+}
+
+// Translate the order updates from the websocket into the intermediate
+// orderbook type.
+func translateBittrexOrderbook(orders []*BittrexWsOrder) wsOrders {
+	book := make(wsOrders)
+	for _, order := range orders {
+		book[eightPtKey(order.Rate)] = &wsOrder{
+			price:  order.Rate,
+			volume: order.Quantity,
+		}
+	}
+	return book
+}
+
+// Add an orderbook update to the queue. Also sorts the queue and checks for
+// too many queued updates. Returns the nonce of the first update after sorting.
+func (bittrex *BittrexExchange) queueOrderbookUpdate(update *BittrexOrderbookUpdate) int64 {
+	bittrex.queue = append(bittrex.queue, update)
+	sort.Slice(bittrex.queue, func(i, j int) bool {
+		return bittrex.queue[i].Nonce < bittrex.queue[j].Nonce
+	})
+	if len(bittrex.queue) > maxBittrexQueueSize {
+		bittrex.setWsFail(fmt.Errorf("bittrex order update queue size exceeded"))
+		bittrex.queue = make([]*BittrexOrderbookUpdate, 0)
+		return -1
+	}
+	return bittrex.queue[0].Nonce
+}
+
+func (bittrex *BittrexExchange) processQueue() {
+	queue := bittrex.queue
+	bittrex.queue = make([]*BittrexOrderbookUpdate, 0)
+	for _, update := range queue {
+		bittrex.processOrderbookUpdate(update)
+	}
+}
+
+// Process an update. Queues the order if it is not sequential.
+func (bittrex *BittrexExchange) processOrderbookUpdate(update *BittrexOrderbookUpdate) {
+	if update.Nonce <= bittrex.orderSeq {
+		// Not necessarily an error. Simply discard.
+		return
+	}
+	if update.Nonce != bittrex.orderSeq+1 {
+		nextNonce := bittrex.queueOrderbookUpdate(update)
+		if nextNonce <= bittrex.orderSeq+1 {
+			bittrex.processQueue()
+		}
+		return
+	}
+	bittrex.orderSeq++
+
+	for _, ask := range update.Sells {
+		bittrex.processBittrexOrderbookPoint(ask, bittrex.asks)
+	}
+	for _, buy := range update.Buys {
+		bittrex.processBittrexOrderbookPoint(buy, bittrex.buys)
+	}
+}
+
+// Handle the initial orderbook from the websocket.
+func (bittrex *BittrexExchange) processFullOrderbook(book *BittrexOrderbookUpdate) {
+	bittrex.orderMtx.Lock()
+	defer bittrex.orderMtx.Unlock()
+	bittrex.buys = translateBittrexOrderbook(book.Buys)
+	bittrex.asks = translateBittrexOrderbook(book.Sells)
+	bittrex.orderSeq = book.Nonce
+	bittrex.processQueue()
+	bittrex.queue = make([]*BittrexOrderbookUpdate, 0)
+	state := bittrex.state()
+	if state != nil { // Only send update if price has been fetched
+		depth := bittrex.wsDepthSnapshot()
+		bittrex.Update(&ExchangeState{
+			Price:        state.Price,
+			BaseVolume:   state.BaseVolume,
+			Volume:       state.Volume,
+			Change:       state.Change,
+			Depth:        depth,
+			Candlesticks: state.Candlesticks,
+		})
+	}
+	bittrex.wsUpdated()
+}
+
+// Handles an update to the orderbook.
+func (bittrex *BittrexExchange) processNextUpdate(update *BittrexOrderbookUpdate) {
+	bittrex.orderMtx.Lock()
+	defer bittrex.orderMtx.Unlock()
+	if bittrex.orderSeq == 0 { // initial orderbook has not been received yet.
+		if !bittrex.obRequested {
+			bittrex.requestOrderbook()
+		}
+		bittrex.queueOrderbookUpdate(update)
+		return
+	}
+	bittrex.processOrderbookUpdate(update)
+}
+
+// Handle the SignalR message. The message can be either a full orderbook at
+// msg.R (msg.I == "1"), or a list of updates in msg.M[i].A.
+func (bittrex *BittrexExchange) msgHandler(msg signalr.Message) {
+	if msg.I == "1" {
+		book := new(BittrexOrderbookUpdate)
+		// the signalr client has already decoded the order book into an interface{}.
+		// Rather than try to match implicit types, just re-encode to []bytes and
+		// decode into the known structure.
+		bookBytes, err := msg.R.MarshalJSON()
+		if err != nil {
+			log.Errorf("bittrex orderbook re-encode error: %v", err)
+			return
+		}
+		err = json.Unmarshal(bookBytes, book)
+		if err != nil {
+			bittrex.setWsFail(fmt.Errorf("Bittrex order book Unmarshal error: %v", err))
+			return
+		}
+		if book.Nonce == 0 {
+			bittrex.setWsFail(fmt.Errorf("nil orderbook received from Bittrex"))
+			return
+		}
+		bittrex.processFullOrderbook(book)
+	}
+
+	for _, hubMsg := range msg.M {
+		if hubMsg.M != updateMsgKey {
+			log.Warnf("bittrex websocket update of unknown type %s", hubMsg.M)
+		}
+		for _, arg := range hubMsg.A {
+			update := new(BittrexOrderbookUpdate)
+			aBytes, err := json.Marshal(arg)
+			if err != nil {
+				log.Errorf("bittrex orderbook update re-encode error: %v", err)
+				return
+			}
+			err = json.Unmarshal(aBytes, update)
+			if err != nil {
+				bittrex.setWsFail(fmt.Errorf("Bittrex order book update Unmarshal error: %v", err))
+				return
+			}
+			bittrex.processNextUpdate(update)
+		}
+	}
+}
+
+// Connect to the websocket and send the update subscription. Delay sending the
+// full orderbook subscription until the first delta is received because sending
+// it too soon can cause missed updates.
+// Even if there is no action on the bittrex ordebook, they will periodically
+// send empty updates, which will trigger the full order book request.
+func (bittrex *BittrexExchange) connectWs() {
+	err := bittrex.connectSignalr(&signalrConfig{
+		host:           BittrexURLs.Websocket,
+		protocol:       "1.5",
+		endpoint:       "/signalr",
+		connectionData: `[{"name":"c2"}]`,
+		params:         nil,
+		msgHandler:     bittrex.msgHandler,
+	})
+	if err != nil {
+		bittrex.setWsFail(err)
+		return
+	}
+	bittrex.obRequested = false
+	// Subscribe to the feed. The full orderbook will be requested once the first
+	// delta is received.
+	bittrex.sr.Send(bittrexWsOrderUpdateRequest)
+}
+
+// Request the full orderbook.
+func (bittrex *BittrexExchange) requestOrderbook() {
+	bittrex.obRequested = true
+	bittrex.sr.Send(bittrexWsOrdersRequest)
+}
+
 // Refresh retrieves and parses API data from Bittrex.
 // Bittrex provides timestamps in a string format that is not quite RFC 3339.
 func (bittrex *BittrexExchange) Refresh() {
@@ -1188,13 +1598,18 @@ func (bittrex *BittrexExchange) Refresh() {
 		return
 	}
 
-	// Depth chart
-	depthResponse := new(BittrexDepthResponse)
-	err = bittrex.fetch(bittrex.requests.depth, depthResponse)
-	if err != nil {
-		log.Errorf("Failed to retrieve Bittrex depth chart data: %v", err)
+	// Check for a depth chart from the websocket orderbook.
+	tryHttp, wsStarting, depth := bittrex.wsDepthStatus(bittrex.connectWs)
+
+	// // If not expecting depth data from the websocket, grab it from HTTP
+	if tryHttp {
+		depthResponse := new(BittrexDepthResponse)
+		err = bittrex.fetch(bittrex.requests.depth, depthResponse)
+		if err != nil {
+			log.Errorf("Failed to retrieve Bittrex depth chart data: %v", err)
+		}
+		depth = depthResponse.translate()
 	}
-	depth := depthResponse.translate()
 
 	// Check for expired candlesticks
 	state := bittrex.state()
@@ -1220,14 +1635,20 @@ func (bittrex *BittrexExchange) Refresh() {
 		}
 	}
 
-	bittrex.Update(&ExchangeState{
+	update := &ExchangeState{
 		Price:        result.Last,
 		BaseVolume:   result.BaseVolume,
 		Volume:       result.Volume,
 		Change:       result.Last - result.PrevDay,
 		Depth:        depth,
 		Candlesticks: candlesticks,
-	})
+	}
+
+	if wsStarting {
+		bittrex.SilentUpdate(update)
+	} else {
+		bittrex.Update(update)
+	}
 }
 
 // DragonExchange is a Singapore-based crytocurrency exchange.
@@ -1786,23 +2207,11 @@ func (huobi *HuobiExchange) Refresh() {
 	})
 }
 
-type poloniexOrder struct {
-	volume float64
-	price  float64
-}
-
-// poloniexOrders maps a price value to a volume. Poloniex has 8-decimal
-// precision, so int64(price*1e8) will uniquely identify a price bin.
-type poloniexOrders map[int64]*poloniexOrder
-
 // PoloniexExchange is a U.S.-based exchange.
 type PoloniexExchange struct {
 	*CommonExchange
 	CurrencyPair string
-	orderMtx     sync.RWMutex
 	orderSeq     int64
-	buys         poloniexOrders
-	asks         poloniexOrders
 }
 
 // NewPoloniex constructs a PoloniexExchange.
@@ -1828,13 +2237,12 @@ func NewPoloniex(client *http.Client, channels *BotChannels) (poloniex Exchange,
 	p := &PoloniexExchange{
 		CommonExchange: newCommonExchange(Poloniex, client, reqs, channels),
 		CurrencyPair:   "BTC_DCR",
-		asks:           make(poloniexOrders),
-		buys:           make(poloniexOrders),
 	}
 	go func() {
 		<-channels.done
-		if p.ws != nil {
-			p.ws.Close()
+		ws, _ := p.websocket()
+		if ws != nil {
+			ws.Close()
 		}
 	}()
 	poloniex = p
@@ -1977,7 +2385,7 @@ var poloniexOrderbookSubscription = poloniexWsSubscription{
 // The final structure to parse in the initial websocket message is a map of the
 // form {"12.3456":"23.4567", "12.4567":"123.4567", ...} where the price is
 // a string-float and is the key to string-float volumes.
-func (poloniex *PoloniexExchange) parseOrderMap(book map[string]interface{}, orders poloniexOrders) error {
+func (poloniex *PoloniexExchange) parseOrderMap(book map[string]interface{}, orders wsOrders) error {
 	for p, v := range book {
 		price, err := strconv.ParseFloat(p, 64)
 		if err != nil {
@@ -1991,8 +2399,8 @@ func (poloniex *PoloniexExchange) parseOrderMap(book map[string]interface{}, ord
 		if err != nil {
 			return fmt.Errorf("Failed to parse float from poloniex orderbook volume string. given %s: %v", p, err)
 		}
-		binKey := int64(price * 1e8)
-		orders[binKey] = &poloniexOrder{
+		binKey := eightPtKey(price)
+		orders[binKey] = &wsOrder{
 			price:  price,
 			volume: volume,
 		}
@@ -2051,11 +2459,12 @@ func (poloniex *PoloniexExchange) processWsOrderbook(sequenceID int64, responseL
 		poloniex.setWsFail(err)
 		return
 	}
+	poloniex.wsUpdated()
 }
 
 // A helper for merging a source map into a target map. Poloniex order in the
 // source map with volume 0 will trigger a deletion from the target map.
-func mergePoloniexDepthUpdates(target, source poloniexOrders) {
+func mergePoloniexDepthUpdates(target, source wsOrders) {
 	for bin, pt := range source {
 		if pt.volume == 0 {
 			delete(source, bin)
@@ -2067,7 +2476,7 @@ func mergePoloniexDepthUpdates(target, source poloniexOrders) {
 }
 
 // Merge order updates under a write lock.
-func (poloniex *PoloniexExchange) accumulateOrders(sequenceID int64, asks, buys poloniexOrders) {
+func (poloniex *PoloniexExchange) accumulateOrders(sequenceID int64, asks, buys wsOrders) {
 	poloniex.orderMtx.Lock()
 	defer poloniex.orderMtx.Unlock()
 	poloniex.orderSeq++
@@ -2086,7 +2495,6 @@ const (
 	poloniexTradeUpdateKey      = "t"
 	poloniexAskDirection        = 0
 	poloniexBuyDirection        = 1
-	poloniexMaxErrors           = 5
 )
 
 // Poloniex has a string code in the result array indicating what type of
@@ -2110,7 +2518,7 @@ func firstCode(responseList []interface{}) string {
 }
 
 // For Poloniex message "o", an update to the orderbook.
-func processPoloniexOrderbookUpdate(updateParams []interface{}) (*poloniexOrder, int, error) {
+func processPoloniexOrderbookUpdate(updateParams []interface{}) (*wsOrder, int, error) {
 	floatDir, ok := updateParams[1].(float64)
 	if !ok {
 		return nil, -1, fmt.Errorf("failed to type convert poloniex orderbook update direction")
@@ -2132,7 +2540,7 @@ func processPoloniexOrderbookUpdate(updateParams []interface{}) (*poloniexOrder,
 	if err != nil {
 		return nil, -1, fmt.Errorf("failed to convert poloniex orderbook update volume to float: %v", err)
 	}
-	return &poloniexOrder{
+	return &wsOrder{
 		price:  price,
 		volume: volume,
 	}, direction, nil
@@ -2143,7 +2551,7 @@ func processPoloniexOrderbookUpdate(updateParams []interface{}) (*poloniexOrder,
 // are of the "o" type, an orderbook update. The docs are unclear about whether a trade updates the
 // order book, but testing seems to indicate that a "t" message is for trades
 // that occur off of the orderbook.
-func (poloniex *PoloniexExchange) processTrade(tradeParams []interface{}) (*poloniexOrder, int, error) {
+func (poloniex *PoloniexExchange) processTrade(tradeParams []interface{}) (*wsOrder, int, error) {
 	if len(tradeParams) != 6 {
 		return nil, -1, fmt.Errorf("Not enough parameters in poloniex trade notification. given: %d", len(tradeParams))
 	}
@@ -2168,7 +2576,7 @@ func (poloniex *PoloniexExchange) processTrade(tradeParams []interface{}) (*polo
 	if err != nil {
 		return nil, -1, fmt.Errorf("failed to convert poloniex orderbook update volume to float: %v", err)
 	}
-	trade := &poloniexOrder{
+	trade := &wsOrder{
 		price:  price,
 		volume: volume,
 	}
@@ -2239,8 +2647,8 @@ func (poloniex *PoloniexExchange) processWsMessage(raw []byte) {
 			return
 		}
 
-		newAsks := make(poloniexOrders)
-		newBids := make(poloniexOrders)
+		newAsks := make(wsOrders)
+		newBids := make(wsOrders)
 		for _, update := range responseList {
 			updateParams, ok := update.([]interface{})
 			if !ok {
@@ -2257,7 +2665,7 @@ func (poloniex *PoloniexExchange) processWsMessage(raw []byte) {
 				return
 			}
 
-			var order *poloniexOrder
+			var order *wsOrder
 			var direction int
 			if updateType == poloniexOrderUpdateKey {
 				order, direction, err = processPoloniexOrderbookUpdate(updateParams)
@@ -2271,9 +2679,9 @@ func (poloniex *PoloniexExchange) processWsMessage(raw []byte) {
 
 			switch direction {
 			case poloniexAskDirection:
-				newAsks[int64(order.price*1e8)] = order
+				newAsks[eightPtKey(order.price)] = order
 			case poloniexBuyDirection:
-				newBids[int64(order.price*1e8)] = order
+				newBids[eightPtKey(order.price)] = order
 			default:
 				poloniex.setWsFail(fmt.Errorf("Unknown poloniex update direction indic`ator: %d", direction))
 				return
@@ -2286,55 +2694,15 @@ func (poloniex *PoloniexExchange) processWsMessage(raw []byte) {
 	}
 }
 
-// Pull out the int64 bin keys from the map.
-func poloniexBinKeys(book poloniexOrders) []int64 {
-	keys := make([]int64, 0, len(book))
-	for k := range book {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
-// Convert the intermediate orderbook to a DepthData.
-func (poloniex *PoloniexExchange) wsDepths() *DepthData {
-	poloniex.orderMtx.RLock()
-	defer poloniex.orderMtx.RUnlock()
-	askKeys := poloniexBinKeys(poloniex.asks)
-	sort.Slice(askKeys, func(i, j int) bool {
-		return askKeys[i] < askKeys[j]
-	})
-	buyKeys := poloniexBinKeys(poloniex.buys)
-	sort.Slice(buyKeys, func(i, j int) bool {
-		return buyKeys[i] > buyKeys[j]
-	})
-	a := make([]DepthPoint, 0, len(askKeys))
-	for _, bin := range askKeys {
-		pt := poloniex.asks[bin]
-		a = append(a, DepthPoint{
-			Quantity: pt.volume,
-			Price:    pt.price,
-		})
-	}
-	b := make([]DepthPoint, 0, len(buyKeys))
-	for _, bin := range buyKeys {
-		pt := poloniex.buys[bin]
-		b = append(b, DepthPoint{
-			Quantity: pt.volume,
-			Price:    pt.price,
-		})
-	}
-	return &DepthData{
-		Time: time.Now().Unix(),
-		Asks: a,
-		Bids: b,
-	}
-}
-
 // Create a websocket connection and send the orderbook subscription.
 func (poloniex *PoloniexExchange) connectWs() {
-	poloniex.connectWebsocket(poloniex.processWsMessage, &socketConfig{
+	err := poloniex.connectWebsocket(poloniex.processWsMessage, &socketConfig{
 		address: PoloniexURLs.Websocket,
 	})
+	if err != nil {
+		log.Errorf("connectWs: %v", err)
+		return
+	}
 	poloniex.wsSend(poloniexOrderbookSubscription)
 }
 
@@ -2375,35 +2743,11 @@ func (poloniex *PoloniexExchange) Refresh() {
 	}
 	oldPrice := price / (1 + percentChange)
 
-	// Depth chart
-	// Check to see if the websocket has been initialized
-	var skipHttp, skipBotUpdate bool
-	var depth *DepthData
-	if !poloniex.wsListening() {
-		if poloniex.wsFailed() {
-			errCount := poloniex.wsErrorCount()
-			if errCount < poloniexMaxErrors {
-				// Try to connect, but don't wait for the response. Grab the order
-				// book over HTTP anyway.
-				poloniex.connectWs()
-			} else if errCount == poloniexMaxErrors {
-				log.Errorf("Poloniex websocket being disabled. Too many errors")
-			}
-		} else {
-			// Connection has not been initialized. Trigger a silent update, since an
-			// update will be triggered on initial websocket message, which contains
-			// the full orderbook.
-			skipHttp = true
-			skipBotUpdate = true
-			log.Tracef("Initializing websocket connection for poloniex")
-		}
-	} else { // Websocket is listening
-		depth = poloniex.wsDepths()
-		skipHttp = true
-	}
+	// Check for a depth chart from the websocket orderbook.
+	tryHttp, wsStarting, depth := poloniex.wsDepthStatus(poloniex.connectWs)
 
 	// If not expecting depth data from the websocket, grab it from HTTP
-	if !skipHttp {
+	if tryHttp {
 		depthResponse := new(PoloniexDepthResponse)
 		err = poloniex.fetch(poloniex.requests.depth, depthResponse)
 		if err != nil {
@@ -2442,9 +2786,8 @@ func (poloniex *PoloniexExchange) Refresh() {
 		Depth:        depth,
 		Candlesticks: candlesticks,
 	}
-	if skipBotUpdate {
+	if wsStarting {
 		poloniex.SilentUpdate(update)
-		poloniex.connectWs()
 	} else {
 		poloniex.Update(update)
 	}

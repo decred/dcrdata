@@ -5,6 +5,7 @@ package exchanges
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -13,13 +14,27 @@ import (
 	"testing"
 	"time"
 
+	"github.com/carterjones/signalr"
+	"github.com/carterjones/signalr/hubs"
 	"github.com/decred/dcrdata/dcrrates"
 	"github.com/decred/slog"
 )
 
+func enableTestLog() {
+	if log == slog.Disabled {
+		UseLogger(slog.NewBackend(os.Stdout).Logger("EXE"))
+		log.SetLevel(slog.LevelTrace)
+	}
+}
+
+func makeKillSwitch() chan os.Signal {
+	killSwitch := make(chan os.Signal, 1)
+	signal.Notify(killSwitch, os.Interrupt)
+	return killSwitch
+}
+
 func testExchanges(asSlave, quickTest bool, t *testing.T) {
-	UseLogger(slog.NewBackend(os.Stdout).Logger("EXE"))
-	log.SetLevel(slog.LevelTrace)
+	enableTestLog()
 
 	// Skip this test during automated testing.
 	if os.Getenv("GORACE") != "" {
@@ -28,8 +43,7 @@ func testExchanges(asSlave, quickTest bool, t *testing.T) {
 
 	ctx, shutdown := context.WithCancel(context.Background())
 
-	killSwitch := make(chan os.Signal, 1)
-	signal.Notify(killSwitch, os.Interrupt)
+	killSwitch := makeKillSwitch()
 
 	wg := new(sync.WaitGroup)
 
@@ -272,11 +286,8 @@ func (p *fakePoloniexWebsocket) Close() {
 	close(poloniexDoneChannel)
 }
 
-func TestPoloniexWebsocket(t *testing.T) {
-	UseLogger(slog.NewBackend(os.Stdout).Logger("EXE"))
-	log.SetLevel(slog.LevelTrace)
-
-	poloniex := PoloniexExchange{
+func newTestPoloniexExchange() *PoloniexExchange {
+	return &PoloniexExchange{
 		CommonExchange: &CommonExchange{
 			token: Poloniex,
 			currentState: &ExchangeState{
@@ -285,11 +296,17 @@ func TestPoloniexWebsocket(t *testing.T) {
 			channels: &BotChannels{
 				exchange: make(chan *ExchangeUpdate, 2),
 			},
-			ws: &fakePoloniexWebsocket{},
+			asks: make(wsOrders),
+			buys: make(wsOrders),
 		},
-		buys: make(poloniexOrders),
-		asks: make(poloniexOrders),
 	}
+}
+
+func TestPoloniexWebsocket(t *testing.T) {
+	enableTestLog()
+
+	poloniex := newTestPoloniexExchange()
+	poloniex.ws = &fakePoloniexWebsocket{}
 
 	checkLengths := func(askLen, buyLen int) {
 		if len(poloniex.asks) != askLen || len(poloniex.buys) != buyLen {
@@ -311,8 +328,8 @@ func TestPoloniexWebsocket(t *testing.T) {
 	}
 
 	poloniex.wsProcessor = poloniex.processWsMessage
-	poloniex.buys = make(poloniexOrders)
-	poloniex.asks = make(poloniexOrders)
+	poloniex.buys = make(wsOrders)
+	poloniex.asks = make(wsOrders)
 	poloniex.currentState = &ExchangeState{Price: 1}
 	poloniex.startWebsocket()
 	time.Sleep(300 * time.Millisecond)
@@ -334,28 +351,16 @@ func TestPoloniexWebsocket(t *testing.T) {
 }
 
 func TestPoloniexLiveWebsocket(t *testing.T) {
-	UseLogger(slog.NewBackend(os.Stdout).Logger("EXE"))
-	log.SetLevel(slog.LevelTrace)
+	enableTestLog()
 
 	// Skip this test during automated testing.
 	if os.Getenv("GORACE") != "" {
-		t.Skip("Skipping exchange test")
+		t.Skip("Skipping Poloniex websocket test")
 	}
 
-	poloniex := PoloniexExchange{
-		CommonExchange: &CommonExchange{
-			token: Poloniex,
-			currentState: &ExchangeState{
-				Price: 1,
-			},
-			channels: &BotChannels{
-				exchange: make(chan *ExchangeUpdate, 2),
-			},
-		},
-		buys: make(poloniexOrders),
-		asks: make(poloniexOrders),
-	}
+	killSwitch := makeKillSwitch()
 
+	poloniex := newTestPoloniexExchange()
 	var msgs int
 	processor := func(b []byte) {
 		msgs++
@@ -380,10 +385,243 @@ func TestPoloniexLiveWebsocket(t *testing.T) {
 		poloniex.wsSend(poloniexOrderbookSubscription)
 	}
 	testConnectWs()
-	time.Sleep(30 * time.Second)
+	select {
+	case <-time.NewTimer(30 * time.Second).C:
+	case <-killSwitch:
+		t.Errorf("ctrl+c detected")
+		return
+	}
 	// Test reconnection
 	poloniex.ws.Close()
 	testConnectWs()
-	time.Sleep(30 * time.Second)
+	select {
+	case <-time.NewTimer(30 * time.Second).C:
+	case <-killSwitch:
+		t.Errorf("ctrl+c detected")
+		return
+	}
 	log.Infof("%d messages received", msgs)
+}
+
+var (
+	bittrexSignalrTemplate = signalr.Message{}
+	bittrexMsgTemplate     = hubs.ClientMsg{}
+	bittrexTestUpdateChan  = make(chan *BittrexOrderbookUpdate)
+)
+
+type testBittrexConnection struct {
+	xc *BittrexExchange
+}
+
+func (conn testBittrexConnection) Close() {}
+
+func (conn testBittrexConnection) IsOpen() bool {
+	// Doesn't matter right now.
+	return false
+}
+
+func (conn testBittrexConnection) Send(subscription hubs.ClientMsg) error {
+	if subscription.M == "SubscribeToExchangeDeltas" {
+		go func() {
+			for update := range bittrexTestUpdateChan {
+				if update == nil {
+					return
+				}
+				conn.xc.msgHandler(signalr.Message{
+					M: []hubs.ClientMsg{
+						hubs.ClientMsg{
+							M: updateMsgKey,
+							A: []interface{}{update},
+						},
+					},
+				})
+			}
+		}()
+	}
+	if subscription.M == "QueryExchangeState" {
+		go func() {
+			book := BittrexOrderbookUpdate{
+				Nonce:      2,
+				MarketName: "BTC-DCR",
+				Buys: []*BittrexWsOrder{
+					&BittrexWsOrder{
+						Quantity: 5.,
+						Rate:     5.,
+						Type:     BittrexOrderAdd,
+					},
+					&BittrexWsOrder{
+						Quantity: 5.,
+						Rate:     6.,
+						Type:     BittrexOrderAdd,
+					},
+				},
+				Sells: []*BittrexWsOrder{
+					&BittrexWsOrder{
+						Quantity: 5.,
+						Rate:     105.,
+						Type:     BittrexOrderAdd,
+					},
+					&BittrexWsOrder{
+						Quantity: 5.,
+						Rate:     106.,
+						Type:     BittrexOrderAdd,
+					},
+				},
+				Fills: []*BittrexWsFill{},
+			}
+			msgBytes, _ := json.Marshal(book)
+			conn.xc.msgHandler(signalr.Message{
+				I: "1",
+				R: json.RawMessage(msgBytes),
+			})
+		}()
+	}
+	return nil
+}
+
+func newTestBittrexExchange() *BittrexExchange {
+	bittrex := &BittrexExchange{
+		CommonExchange: &CommonExchange{
+			token: Bittrex,
+			currentState: &ExchangeState{
+				Price: 1,
+			},
+			channels: &BotChannels{
+				exchange: make(chan *ExchangeUpdate, 2),
+			},
+			asks: make(wsOrders),
+			buys: make(wsOrders),
+		},
+		queue: make([]*BittrexOrderbookUpdate, 0),
+	}
+	bittrex.sr = testBittrexConnection{xc: bittrex}
+	return bittrex
+}
+
+func TestBittrexWebsocket(t *testing.T) {
+	defer close(bittrexTestUpdateChan)
+
+	bittrex := newTestBittrexExchange()
+
+	template := func() BittrexOrderbookUpdate {
+		return BittrexOrderbookUpdate{
+			Buys:  []*BittrexWsOrder{},
+			Sells: []*BittrexWsOrder{},
+			Fills: []*BittrexWsFill{},
+		}
+	}
+
+	bittrex.sr.Send(bittrexWsOrderUpdateRequest)
+	checkUpdate := func(test string, update *BittrexOrderbookUpdate, askLen, buyLen int) {
+		bittrexTestUpdateChan <- update
+		// That should trigger the order book to be requested
+		<-time.NewTimer(time.Millisecond * 100).C
+		// Check that the initial orderbook was processed.
+		bittrex.orderMtx.RLock()
+		defer bittrex.orderMtx.RUnlock()
+		if len(bittrex.asks) != askLen {
+			t.Fatalf("bittrex asks slice has unexpected length %d for test ''%s'", len(bittrex.asks), test)
+		}
+		if len(bittrex.buys) != buyLen {
+			t.Fatalf("bittrex buys slice has unexpected length %d for test ''%s'", len(bittrex.buys), test)
+		}
+	}
+
+	// Set up a buy order that should be ignored because the nonce is lower than
+	// the initial nonce is too low. This update should be queued and eventually
+	// discarded.
+	update := template()
+	update.Buys = []*BittrexWsOrder{
+		&BittrexWsOrder{
+			Quantity: 5.,
+			Rate:     4.,
+			Type:     BittrexOrderAdd,
+		},
+	}
+	update.Nonce = 2
+	checkUpdate("add early nonce", &update, 2, 2)
+
+	// Remove a buy order
+	update = template()
+	update.Nonce = 3
+	update.Buys = []*BittrexWsOrder{
+		&BittrexWsOrder{
+			Quantity: 0.,
+			Rate:     5.,
+			Type:     BittrexOrderRemove,
+		},
+	}
+	checkUpdate("remove buy", &update, 2, 1)
+
+	// Add a sell order
+	update = template()
+	update.Nonce = 4
+	update.Sells = []*BittrexWsOrder{
+		&BittrexWsOrder{
+			Quantity: 0.,
+			Rate:     107.,
+			Type:     BittrexOrderAdd,
+		},
+	}
+	checkUpdate("add sell", &update, 3, 1)
+
+	// Update a sell order
+	update = template()
+	update.Nonce = 5
+	update.Sells = []*BittrexWsOrder{
+		&BittrexWsOrder{
+			Quantity: 0.,
+			Rate:     107.,
+			Type:     BittrexOrderUpdate,
+		},
+	}
+	checkUpdate("update sell", &update, 3, 1)
+
+	if bittrex.wsFailed() {
+		t.Fatalf("bittrex websocket unexpectedly failed")
+	}
+
+	// Add too many out of order updates. Should trigger a failed state.
+	for i := 0; i < maxBittrexQueueSize+1; i++ {
+		update := template()
+		update.Nonce = 1000
+		bittrexTestUpdateChan <- &update
+	}
+	<-time.NewTimer(time.Millisecond * 100).C
+	if !bittrex.wsFailed() {
+		t.Fatalf("bittrex not in failed state as expected")
+	}
+}
+
+func TestBittrexLiveWebsocket(t *testing.T) {
+	enableTestLog()
+
+	// Skip this test during automated testing.
+	if os.Getenv("GORACE") != "" {
+		t.Skip("Skipping Bittrex websocket test")
+	}
+
+	killSwitch := makeKillSwitch()
+
+	bittrex := newTestBittrexExchange()
+
+	bittrex.connectWs()
+	defer bittrex.sr.Close()
+
+	testDuration := 450
+	log.Infof("listening for %d seconds", testDuration)
+	select {
+	case <-time.NewTimer(time.Second * time.Duration(testDuration)).C:
+	case <-killSwitch:
+		t.Errorf("ctrl+c detected")
+		return
+	}
+	if bittrex.wsFailed() {
+		bittrex.sr.Close()
+		t.Fatalf("bittrex connection in failed state")
+	}
+
+	depths := bittrex.wsDepths()
+	log.Infof("%d asks", len(depths.Asks))
+	log.Infof("%d bids", len(depths.Bids))
 }
