@@ -3114,6 +3114,10 @@ func appendCoinSupply(charts *cache.ChartData, rows *sql.Rows) error {
 
 		blocks.NewAtoms = append(blocks.NewAtoms, uint64(value))
 	}
+	// Set the genesis block to zero because the DB stores it as -1
+	if len(blocks.NewAtoms) > 0 {
+		blocks.NewAtoms[0] = 0
+	}
 	return nil
 }
 

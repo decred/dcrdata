@@ -12,6 +12,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -29,6 +30,13 @@ import (
 	"github.com/decred/dcrdata/txhelpers"
 	humanize "github.com/dustin/go-humanize"
 )
+
+var dummyRequest = new(http.Request)
+
+func init() {
+	// URL should be set because commonData call a method on it.
+	dummyRequest.URL, _ = url.Parse("/")
+}
 
 // Cookies contains information from the request cookies.
 type Cookies struct {
@@ -1401,8 +1409,10 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("charts", struct {
 		*CommonPageData
+		Premine int64
 	}{
 		CommonPageData: exp.commonData(r),
+		Premine:        exp.premine,
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
@@ -1524,8 +1534,6 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	message := "The search did not find any matching address, block, transaction or proposal token: " + searchStr
 	exp.StatusPage(w, "search failed", message, "", ExpStatusNotFound)
 }
-
-var dummyRequest = new(http.Request)
 
 // StatusPage provides a page for displaying status messages and exception
 // handling without redirecting. Be sure to return after calling StatusPage if

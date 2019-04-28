@@ -4,7 +4,13 @@
 {{template "html-head" "Decred Charts"}}
     {{template "navbar" . }}
 
-    <div data-controller="charts" data-charts-tps="{{.ChainParams.TicketExpiry}}">
+    <div data-controller="charts"
+         data-charts-tps="{{.ChainParams.TicketExpiry}}"
+         data-charts-svh="{{.ChainParams.StakeValidationHeight}}"
+         data-charts-pos="{{.ChainParams.StakeRewardProportion}}"
+         data-charts-premine="{{.Premine}}"
+         data-charts-bs="{{.ChainParams.BaseSubsidy}}"
+         data-charts-sri="{{.ChainParams.SubsidyReductionInterval}}">
 
         <div class="container main">
 

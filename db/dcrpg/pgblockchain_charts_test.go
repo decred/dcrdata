@@ -95,6 +95,10 @@ func TestPgCharts(t *testing.T) {
 	blocksLen := len(blocks.Time)
 	windowsLen := len(windows.Time)
 
+	if blocksLen == 0 {
+		t.Fatalf("unexpected empty blocks data")
+	}
+
 	if blocksLen > int(charts.DiffInterval) && windowsLen == 0 {
 		t.Fatalf("unexpected empty windows data")
 	}

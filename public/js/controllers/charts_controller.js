@@ -13,8 +13,12 @@ var selectedChart
 let Dygraph // lazy loaded on connect
 
 const blockTime = 5 * 60 * 1000
+const aDay = 86400 * 1000
+const aMonth = aDay * 30
 const atomsToDCR = 1e-8
 const windowScales = ['ticket-price', 'pow-difficulty']
+var ticketPoolSizeTarget, premine, stakeValHeight, stakeShare
+var baseSubsidy, subsidyInterval
 var userBins = {}
 
 function usesWindowUnits (chart) {
@@ -25,30 +29,49 @@ function intComma (amount) {
   return amount.toLocaleString(undefined, { maximumFractionDigits: 0 })
 }
 
+function blockReward (height) {
+  if (height >= stakeValHeight) return baseSubsidy * Math.pow(100 / 101.0, Math.floor(height / subsidyInterval))
+  if (height > 1) return baseSubsidy * (1 - stakeShare)
+  if (height === 1) return premine
+  return 0
+}
+
 function legendFormatter (data) {
   var html = ''
   if (data.x == null) {
+    let dashLabels = data.series.reduce((nodes, series) => {
+      return nodes + `<div class="pr-2">${series.dashHTML} ${series.labelHTML}</div>`
+    }, '')
     html = `<div class="d-flex flex-wrap justify-content-center align-items-center">
-            <div class="pr-3">${this.getLabels()[0]}: N/A</div>
-            <div class="d-flex flex-wrap">
-            ${map(data.series, (series) => {
-    return `<div class="pr-2">${series.dashHTML} ${series.labelHTML}</div>`
-  }).join('')}
-            </div>
-        </div>
-        `
-  }
+              <div class="pr-3">${this.getLabels()[0]}: N/A</div>
+              <div class="d-flex flex-wrap">
+              ${dashLabels}
+              </div>
+            </div>`
+  } else {
+    data.series.sort((a, b) => a.y > b.y ? -1 : 1)
+    var extraHTML = ''
+    // The circulation chart has an additional legend entry showing percent
+    // difference.
+    if (data.series.length === 2 && data.series[1].label === 'Coin Supply') {
+      let predicted = data.series[0].y
+      let actual = data.series[1].y
+      let change = (((actual - predicted) / predicted) * 100).toFixed(2)
+      extraHTML = `<div class="pr-2">&nbsp;&nbsp;Change: ${change} %</div>`
+    }
 
-  return `<div class="d-flex flex-wrap justify-content-center align-items-center">
-        <div class="pr-3">${this.getLabels()[0]}: ${data.xHTML}</div>
-        <div class="d-flex flex-wrap">
-        ${map(data.series, (series) => {
-    if (!series.isVisible) return
-    let yVal = series.label.toLowerCase().includes('coin supply') ? intComma(series.y) + ' DCR' : series.yHTML
-    return `<div class="pr-2">${series.dashHTML} ${series.labelHTML}: ${yVal}</div>`
-  }).join('') + percentChange}
-          </div>
-      </div>`
+    let yVals = data.series.reduce((nodes, series) => {
+      if (!series.isVisible) return nodes
+      let yVal = series.label.toLowerCase().includes('coin supply') ? intComma(series.y) + ' DCR' : series.yHTML
+      return nodes + `<div class="pr-2">${series.dashHTML} ${series.labelHTML}: ${yVal}</div>`
+    }, '')
+
+    html = `<div class="d-flex flex-wrap justify-content-center align-items-center">
+                <div class="pr-3">${this.getLabels()[0]}: ${data.xHTML}</div>
+                <div class="d-flex flex-wrap">
+                ${yVals}
+                </div>
+            </div>${extraHTML}`
   }
 
   dompurify.sanitize(html)
@@ -72,30 +95,45 @@ function nightModeOptions (nightModeOn) {
 
 function zipYvDate (gData, coefficient) {
   coefficient = coefficient || 1
-  return map(gData.x, (n, i) => {
+  return map(gData.x, (t, i) => {
     return [
-      new Date(n * 1000),
+      new Date(t * 1000),
       gData.y[i] * coefficient
     ]
   })
 }
 
-function poolSizeFunc (gData, networkTarget) {
+function poolSizeFunc (gData) {
   var data = map(gData.x, (n, i) => { return [new Date(n), gData.y[i], null] })
   if (data.length) {
-    data[0][2] = networkTarget
-    data[data.length - 1][2] = networkTarget
+    data[0][2] = ticketPoolSizeTarget
+    data[data.length - 1][2] = ticketPoolSizeTarget
   }
   return data
 }
 
-// function ticketSpendTypeFunc (gData) {
-//   return map(gData.height, (n, i) => { return [n, gData.unspent[i], gData.revoked[i]] })
-// }
-//
-// function ticketByOutputCountFunc (gData) {
-//   return map(gData.height, (n, i) => { return [n, gData.solo[i], gData.pooled[i]] })
-// }
+function circulationFunc (gData, blocks) {
+  var circ = 0
+  var h = -1
+  var addDough = (newHeight) => {
+    while (h < newHeight) {
+      h++
+      circ += blockReward(h) * atomsToDCR
+    }
+  }
+  var data = map(gData.x, (t, i) => {
+    addDough(blocks ? i : gData.z[i])
+    return [new Date(t * 1000), gData.y[i] * atomsToDCR, circ]
+  })
+  var stamp = data[data.length - 1][0].getTime()
+  var end = stamp + aMonth
+  while (stamp < end) {
+    addDough(h + aDay / blockTime)
+    data.push([new Date(stamp), null, circ])
+    stamp += aDay
+  }
+  return data
+}
 
 function mapDygraphOptions (data, labelsVal, isDrawPoint, yLabel, xLabel, titleName, labelsMG, labelsMG2) {
   return merge({
@@ -132,7 +170,13 @@ export default class extends Controller {
 
   async connect () {
     this.query = new TurboQuery()
-    this.ticketPoolSizeTarget = parseInt(this.data.get('tps'))
+    ticketPoolSizeTarget = parseInt(this.data.get('tps'))
+    premine = parseInt(this.data.get('premine'))
+    stakeValHeight = parseInt(this.data.get('svh'))
+    stakeShare = parseInt(this.data.get('pos')) / 10.0
+    baseSubsidy = parseInt(this.data.get('bs'))
+    subsidyInterval = parseInt(this.data.get('sri'))
+
     this.settings = TurboQuery.nullTemplate(['chart', 'zoom', 'scale', 'bin'])
     this.query.update(this.settings)
     if (this.settings.zoom) {
@@ -216,7 +260,7 @@ export default class extends Controller {
         break
 
       case 'ticket-pool-size': // pool size graph
-        d = poolSizeFunc(data, this.ticketPoolSizeTarget)
+        d = poolSizeFunc(data)
         assign(gOptions, mapDygraphOptions(d, ['Date', 'Ticket Pool Size', 'Network Target'], false, 'Ticket Pool Size', 'Date', undefined, true, false))
         gOptions.series = {
           'Network Target': {
@@ -250,20 +294,14 @@ export default class extends Controller {
           undefined, false, false))
         break
 
-        // case 'tx-per-day': // tx per day graph
-        //   d = zipYvDate(data)
-        //   assign(gOptions, mapDygraphOptions(d, ['Date', 'Number of Transactions Per Day'], true, '# of Transactions', 'Date',
-        //     undefined, true, false))
-        //   break
-
       case 'pow-difficulty': // difficulty graph
         d = zipYvDate(data)
         assign(gOptions, mapDygraphOptions(d, ['Date', 'Difficulty'], true, 'Difficulty', 'Date', undefined, true, false))
         break
 
       case 'coin-supply': // supply graph
-        d = zipYvDate(data, atomsToDCR)
-        assign(gOptions, mapDygraphOptions(d, ['Date', 'Coin Supply'], true, 'Coin Supply (DCR)', 'Date', undefined, true, false))
+        d = circulationFunc(data, this.settings.bin === 'block')
+        assign(gOptions, mapDygraphOptions(d, ['Date', 'Coin Supply', 'Predicted Coin Supply'], true, 'Coin Supply (DCR)', 'Date', undefined, true, false))
         break
 
       case 'fees': // block fee graph
@@ -277,43 +315,6 @@ export default class extends Controller {
         assign(gOptions, mapDygraphOptions(d, ['Block Height', 'Duration Between Block'], false, 'Duration Between Block (seconds)', 'Block Height',
           undefined, false, false))
         break
-
-        // case 'ticket-spend-type': // Tickets spendtype per block graph
-        //   d = ticketSpendTypeFunc(data)
-        //   assign(gOptions, mapDygraphOptions(d, ['Block Height', 'Unspent', 'Revoked'], false, '# of Tickets Spend Type', 'Block Height',
-        //     undefined, false, false), {
-        //     fillGraph: true,
-        //     stackedGraph: true,
-        //     plotter: barChartPlotter
-        //   })
-        //   break
-
-        // case 'ticket-by-outputs-windows': // Tickets by output count graph for ticket windows
-        //   d = ticketByOutputCountFunc(data)
-        //   assign(gOptions, mapDygraphOptions(d, ['Window', '3 Outputs (likely Solo)', '5 Outputs (likely Pooled)'], false, '# of Tickets By Output Count', 'Ticket Price Window',
-        //     undefined, false, false), {
-        //     fillGraph: true,
-        //     stackedGraph: true,
-        //     plotter: barChartPlotter
-        //   })
-        //   break
-        // case 'ticket-by-outputs-blocks': // Tickets by output count graph for all blocks
-        //   d = ticketByOutputCountFunc(data)
-        //   assign(gOptions, mapDygraphOptions(
-        //     d,
-        //     ['Block Height', 'Solo', 'Pooled'],
-        //     false,
-        //     '# of Tickets By Output Count',
-        //     'Block Height',
-        //     undefined,
-        //     false,
-        //     false
-        //   ), {
-        //     fillGraph: true,
-        //     stackedGraph: true,
-        //     plotter: barChartPlotter
-        //   })
-        //   break
 
       case 'chainwork': // Total chainwork over time
         d = zipYvDate(data)

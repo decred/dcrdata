@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -59,7 +60,9 @@ func ParseZoom(zoom string) ZoomLevel {
 }
 
 const (
-	aDay              = 86400
+	aDay = 86400
+	// HashrateAvgLength is the number of blocks used the rolling average for
+	// the network hashrate calculation.
 	HashrateAvgLength = 120
 )
 
@@ -283,19 +286,8 @@ type cachedChart struct {
 	data    []byte
 }
 
-// A generic x-y structure for []byte encoding.
-type chartResponse struct {
-	X interface{} `json:"x"`
-	Y interface{} `json:"y"`
-}
-
-// Encode the provided slices to a JSON-encoded []byte.
-func encodeChartResponse(x, y interface{}) ([]byte, error) {
-	return json.Marshal(chartResponse{
-		X: x,
-		Y: y,
-	})
-}
+// A generic structure for JSON encoding keyed data sets.
+type chartResponse map[string]interface{}
 
 // ChartUpdater is a pair of functions for fetching and appending chart data.
 // The two steps are divided so that ChartData can check whether another thread
@@ -429,12 +421,13 @@ func (charts *ChartData) Lengthen() error {
 			days.NewAtoms = append(days.NewAtoms, blocks.NewAtoms.Sum(interval[0], interval[1]))
 			days.Chainwork = append(days.Chainwork, blocks.Chainwork[interval[1]])
 			days.Fees = append(days.Fees, blocks.Fees.Sum(interval[0], interval[1]))
+			days.Height = append(days.Height, uint64(interval[1]-1))
 		}
 	}
 
 	// Check that all relevant datasets have been updated to the same length.
 	daysLen, err := ValidateLengths(days.PoolSize, days.PoolValue, days.BlockSize,
-		days.TxCount, days.NewAtoms, days.Chainwork, days.Fees)
+		days.TxCount, days.NewAtoms, days.Chainwork, days.Fees, days.Height)
 	if err != nil {
 		return fmt.Errorf("day zoom: %v", err)
 	} else if daysLen == 0 {
@@ -826,20 +819,34 @@ func (charts *ChartData) Chart(chartID, zoomString string) ([]byte, error) {
 	return data, nil
 }
 
-// encode the slices using encodeChartResponse. The length is truncated to the
-// smaller of x or y.
-func (charts *ChartData) encodeXY(x, y lengther) ([]byte, error) {
-	smaller := x.Length()
-	dataLen := y.Length()
-	if dataLen < smaller {
-		smaller = dataLen
-	}
-	bytes, err := encodeChartResponse(x.Truncate(smaller), y.Truncate(smaller))
-	if err != nil {
-		return nil, err
-	}
+// Keys used for the chartResponse data sets.
+var responseKeys = []string{"x", "y", "z"}
 
-	return bytes, nil
+// Encode the slices. The set lengths are truncated to the smallest of the
+// arguments.
+func (charts *ChartData) encode(sets ...lengther) ([]byte, error) {
+	if len(sets) == 0 {
+		return nil, fmt.Errorf("encode called without arguments")
+	}
+	smaller := sets[0].Length()
+	for _, x := range sets {
+		l := x.Length()
+		if l < smaller {
+			smaller = l
+		}
+	}
+	response := make(chartResponse)
+	for i := range sets {
+		rk := responseKeys[i%len(responseKeys)]
+		// If the length of the responseKeys array has been exceeded, add a integer
+		// suffix to the response key. The key progression is x, y, z, x1, y1, z1,
+		// x2, ...
+		if i >= len(responseKeys) {
+			rk += strconv.Itoa(i / len(responseKeys))
+		}
+		response[rk] = sets[i]
+	}
+	return json.Marshal(response)
 }
 
 // Each point is translated to the sum of all points before and itself.
@@ -874,9 +881,9 @@ func btw(data ChartUints) ChartUints {
 func blockSizeChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 	switch zoom {
 	case BlockZoom:
-		return charts.encodeXY(charts.Blocks.Time, charts.Blocks.BlockSize)
+		return charts.encode(charts.Blocks.Time, charts.Blocks.BlockSize)
 	case DayZoom:
-		return charts.encodeXY(charts.Days.Time, charts.Days.BlockSize)
+		return charts.encode(charts.Days.Time, charts.Days.BlockSize)
 	}
 	return nil, InvalidZoomErr
 }
@@ -884,9 +891,9 @@ func blockSizeChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 func blockchainSizeChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 	switch zoom {
 	case BlockZoom:
-		return charts.encodeXY(charts.Blocks.Time, accumulate(charts.Blocks.BlockSize))
+		return charts.encode(charts.Blocks.Time, accumulate(charts.Blocks.BlockSize))
 	case DayZoom:
-		return charts.encodeXY(charts.Days.Time, accumulate(charts.Days.BlockSize))
+		return charts.encode(charts.Days.Time, accumulate(charts.Days.BlockSize))
 	}
 	return nil, InvalidZoomErr
 }
@@ -894,9 +901,9 @@ func blockchainSizeChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 func chainWorkChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 	switch zoom {
 	case BlockZoom:
-		return charts.encodeXY(charts.Blocks.Time, charts.Blocks.Chainwork)
+		return charts.encode(charts.Blocks.Time, charts.Blocks.Chainwork)
 	case DayZoom:
-		return charts.encodeXY(charts.Days.Time, charts.Days.Chainwork)
+		return charts.encode(charts.Days.Time, charts.Days.Chainwork)
 	}
 	return nil, InvalidZoomErr
 }
@@ -904,9 +911,9 @@ func chainWorkChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 func coinSupplyChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 	switch zoom {
 	case BlockZoom:
-		return charts.encodeXY(charts.Blocks.Time, accumulate(charts.Blocks.NewAtoms))
+		return charts.encode(charts.Blocks.Time, accumulate(charts.Blocks.NewAtoms))
 	case DayZoom:
-		return charts.encodeXY(charts.Days.Time, accumulate(charts.Days.NewAtoms))
+		return charts.encode(charts.Days.Time, accumulate(charts.Days.NewAtoms), charts.Days.Height)
 	}
 	return nil, InvalidZoomErr
 }
@@ -914,9 +921,9 @@ func coinSupplyChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 func durationBTWChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 	switch zoom {
 	case BlockZoom:
-		return charts.encodeXY(charts.Blocks.Time, btw(charts.Blocks.Time))
+		return charts.encode(charts.Blocks.Time, btw(charts.Blocks.Time))
 	case DayZoom:
-		return charts.encodeXY(charts.Days.Time, btw(charts.Days.Time))
+		return charts.encode(charts.Days.Time, btw(charts.Days.Time))
 	}
 	return nil, InvalidZoomErr
 }
@@ -953,30 +960,30 @@ func hashRateChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 	switch zoom {
 	case BlockZoom:
 		t, y := hashrate(charts.Blocks.Time, charts.Blocks.Chainwork)
-		return charts.encodeXY(t, y)
+		return charts.encode(t, y)
 	case DayZoom:
 		t, y := hashrate(charts.Days.Time, charts.Days.Chainwork)
-		return charts.encodeXY(t, y)
+		return charts.encode(t, y)
 	}
 	return nil, InvalidZoomErr
 }
 
 func powDifficultyChart(charts *ChartData, _ ZoomLevel) ([]byte, error) {
 	// Pow Difficulty only has window level zoom, so all others are ignored.
-	return charts.encodeXY(charts.Windows.Time, charts.Windows.PowDiff)
+	return charts.encode(charts.Windows.Time, charts.Windows.PowDiff)
 }
 
 func ticketPriceChart(charts *ChartData, _ ZoomLevel) ([]byte, error) {
 	// Ticket price only has window level zoom, so all others are ignored.
-	return charts.encodeXY(charts.Windows.Time, charts.Windows.TicketPrice)
+	return charts.encode(charts.Windows.Time, charts.Windows.TicketPrice)
 }
 
 func txCountChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 	switch zoom {
 	case BlockZoom:
-		return charts.encodeXY(charts.Blocks.Time, charts.Blocks.TxCount)
+		return charts.encode(charts.Blocks.Time, charts.Blocks.TxCount)
 	case DayZoom:
-		return charts.encodeXY(charts.Days.Time, charts.Days.TxCount)
+		return charts.encode(charts.Days.Time, charts.Days.TxCount)
 	}
 	return nil, InvalidZoomErr
 }
@@ -984,9 +991,9 @@ func txCountChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 func feesChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 	switch zoom {
 	case BlockZoom:
-		return charts.encodeXY(charts.Blocks.Time, charts.Blocks.Fees)
+		return charts.encode(charts.Blocks.Time, charts.Blocks.Fees)
 	case DayZoom:
-		return charts.encodeXY(charts.Days.Time, charts.Days.Fees)
+		return charts.encode(charts.Days.Time, charts.Days.Fees)
 	}
 	return nil, InvalidZoomErr
 }
@@ -994,9 +1001,9 @@ func feesChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 func ticketPoolSizeChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 	switch zoom {
 	case BlockZoom:
-		return charts.encodeXY(charts.Blocks.Time, charts.Blocks.PoolSize)
+		return charts.encode(charts.Blocks.Time, charts.Blocks.PoolSize)
 	case DayZoom:
-		return charts.encodeXY(charts.Days.Time, charts.Days.PoolSize)
+		return charts.encode(charts.Days.Time, charts.Days.PoolSize)
 	}
 	return nil, InvalidZoomErr
 }
@@ -1004,9 +1011,9 @@ func ticketPoolSizeChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 func poolValueChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 	switch zoom {
 	case BlockZoom:
-		return charts.encodeXY(charts.Blocks.Time, charts.Blocks.PoolValue)
+		return charts.encode(charts.Blocks.Time, charts.Blocks.PoolValue)
 	case DayZoom:
-		return charts.encodeXY(charts.Days.Time, charts.Days.PoolValue)
+		return charts.encode(charts.Days.Time, charts.Days.PoolValue)
 	}
 	return nil, InvalidZoomErr
 }

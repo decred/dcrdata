@@ -1088,7 +1088,7 @@ func _main(ctx context.Context) error {
 	dumpPath := filepath.Join(cfg.DataDir, cfg.ChartsCacheDump)
 	charts.Load(dumpPath)
 	// Add charts saver method after explorer and any databases.
-	blockDataSavers = append(blockDataSavers, blockdata.BlockTrigger{charts.TriggerUpdate})
+	blockDataSavers = append(blockDataSavers, blockdata.BlockTrigger{Saver: charts.TriggerUpdate})
 
 	// This dumps the cache charts data into a file for future use on system
 	// exit.
