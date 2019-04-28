@@ -79,7 +79,7 @@ const UnknownChartErr = ChartError("unkown chart")
 
 // InvalidZoomErr is returned when a ChartMaker receives an unknown ZoomLevel.
 // In practice, this should be impossible, since ParseZoom returns a default
-// if a supplied zoom specifier is invalid, and window-zoomed ChartMaker's
+// if a supplied zoom specifier is invalid, and window-zoomed ChartMakers
 // ignore the zoom flag.
 const InvalidZoomErr = ChartError("invalid zoom")
 
@@ -222,10 +222,10 @@ func (set *zoomSet) Snip(length int) {
 	set.Fees = set.Fees.snip(length)
 }
 
-// Constructor for a sized zoomSet.
-func newZoomSet(size int) *zoomSet {
+// Constructor for a sized zoomSet for blocks, which has has no Height slice
+// since the height is implicit for block-binned data.
+func newBlockSet(size int) *zoomSet {
 	return &zoomSet{
-		Height:    newChartUints(size),
 		Time:      newChartUints(size),
 		PoolSize:  newChartUints(size),
 		PoolValue: newChartFloats(size),
@@ -235,6 +235,13 @@ func newZoomSet(size int) *zoomSet {
 		Chainwork: newChartUints(size),
 		Fees:      newChartUints(size),
 	}
+}
+
+// Constructor for a sized zoomSet for day-binned data.
+func newDaySet(size int) *zoomSet {
+	set := newBlockSet(size)
+	set.Height = newChartUints(size)
+	return set
 }
 
 // windowSet is for data that only changes at the difficulty change interval,
@@ -604,17 +611,6 @@ func (charts *ChartData) gobject() *ChartGobject {
 	}
 }
 
-// TipTime returns the time of the best block known to (ChartData).Blocks.
-func (charts *ChartData) TipTime() uint64 {
-	charts.mtx.RLock()
-	defer charts.mtx.RUnlock()
-	var t uint64
-	if len(charts.Blocks.Time) != 0 {
-		t = charts.Blocks.Time[len(charts.Blocks.Time)-1]
-	}
-	return t
-}
-
 // StateID returns a unique (enough) ID associted with the state of the Blocks
 // data in a thread-safe way.
 func (charts *ChartData) StateID() uint64 {
@@ -724,9 +720,9 @@ func NewChartData(height uint32, genesis time.Time, chainParams *chaincfg.Params
 		ctx:          ctx,
 		genesis:      uint64(genesis.Unix()),
 		DiffInterval: int32(chainParams.StakeDiffWindowSize),
-		Blocks:       newZoomSet(size),
+		Blocks:       newBlockSet(size),
 		Windows:      newWindowSet(windows),
-		Days:         newZoomSet(days),
+		Days:         newDaySet(days),
 		cache:        make(map[string]*cachedChart),
 		updaters:     make([]ChartUpdater, 0),
 	}
@@ -777,7 +773,7 @@ func (charts *ChartData) cacheChart(chartID string, zoom ZoomLevel, data []byte)
 }
 
 // ChartMaker is a function that accepts a chart type and ZoomLevel, and returns
-// a JSON-encoded []byte chartResponse.
+// a JSON-encoded chartResponse.
 type ChartMaker func(charts *ChartData, zoom ZoomLevel) ([]byte, error)
 
 var chartMakers = map[string]ChartMaker{
@@ -795,7 +791,7 @@ var chartMakers = map[string]ChartMaker{
 	TicketPoolValue: poolValueChart,
 }
 
-// Chart will return a JSON-encoded []byte chartResponse of the provided type
+// Chart will return a JSON-encoded chartResponse of the provided type
 // and ZoomLevel.
 func (charts *ChartData) Chart(chartID, zoomString string) ([]byte, error) {
 	zoom := ParseZoom(zoomString)
@@ -844,7 +840,7 @@ func (charts *ChartData) encode(sets ...lengther) ([]byte, error) {
 		if i >= len(responseKeys) {
 			rk += strconv.Itoa(i / len(responseKeys))
 		}
-		response[rk] = sets[i]
+		response[rk] = sets[i].Truncate(smaller)
 	}
 	return json.Marshal(response)
 }
@@ -861,7 +857,7 @@ func accumulate(data ChartUints) ChartUints {
 }
 
 // Translate the uints to a slice of the differences between each. The provided
-// data is assumed to be monotinically increasing. The first element is always
+// data is assumed to be monotonically increasing. The first element is always
 // 0 to keep the data length unchanged.
 func btw(data ChartUints) ChartUints {
 	d := make(ChartUints, 0, len(data))
