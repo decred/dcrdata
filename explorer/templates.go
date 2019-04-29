@@ -446,6 +446,18 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		},
 		"toLowerCase": strings.ToLower,
 		"toTitleCase": strings.Title,
+		"prefixPath": func(prefix, path string) string {
+			if path == "" {
+				if strings.HasSuffix(prefix, "/") {
+					return strings.TrimRight(prefix, "/") + "/"
+				}
+				return prefix
+			}
+			if prefix == "" {
+				return path
+			}
+			return strings.TrimRight(prefix, "/") + "/" + strings.TrimLeft(path, "/")
+		},
 		"fetchRowLinkURL": func(groupingStr string, start, end time.Time) string {
 			// fetchRowLinkURL creates links url to be used in the blocks list views
 			// in heirachical order i.e. /years -> /months -> weeks -> /days -> /blocks

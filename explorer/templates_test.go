@@ -4,6 +4,53 @@ import (
 	"testing"
 )
 
+func TestPrefixPath(t *testing.T) {
+	funcs := makeTemplateFuncMap(nil)
+
+	prefixPath, ok := funcs["prefixPath"]
+	if !ok {
+		t.Fatalf(`Template function map does not contain "prefixPath".`)
+	}
+
+	prefixPathFn, ok := prefixPath.(func(prefix, path string) string)
+	if !ok {
+		t.Fatalf(`Template function "prefixPath" is not of type "func(prefix, path string) string".`)
+	}
+
+	testData := []struct {
+		prefix string
+		path   string
+		out    string
+	}{
+		{"", "", ""},
+		{"", "/", "/"},
+		{"/", "", "/"},
+		{"/", "/path", "/path"},
+		{"/", "path", "/path"},
+		{"//", "//", "/"},
+		{"//", "/", "/"},
+		{"/", "//", "/"},
+		{"/", "/", "/"},
+		{"", "/path", "/path"},
+		{"stuff", "/", "stuff/"},
+		{"stuff", "", "stuff"},
+		{"/things", "", "/things"},
+		{"/insight", "/api/status", "/insight/api/status"},
+		{"/insight", "api/status", "/insight/api/status"},
+		{"/insight/", "api/status", "/insight/api/status"},
+		{"/insight/", "/api/status", "/insight/api/status"},
+		{"insight", "api/status", "insight/api/status"},
+	}
+
+	for i := range testData {
+		actual := prefixPathFn(testData[i].prefix, testData[i].path)
+		if actual != testData[i].out {
+			t.Errorf(`prefixPathFn("%s", "%s") returned "%s", expected "%s"`,
+				testData[i].prefix, testData[i].path, actual, testData[i].out)
+		}
+	}
+}
+
 func TestHashStart(t *testing.T) {
 	funcs := makeTemplateFuncMap(nil)
 

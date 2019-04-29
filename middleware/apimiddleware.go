@@ -13,6 +13,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -175,6 +176,33 @@ func GetRawHexTx(r *http.Request) (string, error) {
 		return "", fmt.Errorf("failed to deserialize tx: %v", err)
 	}
 	return rawHexTx, nil
+}
+
+// OriginalRequestURI checks the X-Original-Request-URI HTTP request header for
+// a valid URI, and patches the request URL's Path and RawPath. This may be
+// useful in the event that a reverse proxy maps requests on path A to path B,
+// but the request handler requires the original path A (e.g. generating links
+// relative to path A).
+func OriginalRequestURI(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origRequestURI := r.Header.Get("X-Original-Request-URI")
+		if origRequestURI != "" {
+			// Create a temporary URL to parse and (un)escape the URI provided in
+			// the X-Original-Request-URI requests header.
+			newURL, err := url.Parse(origRequestURI)
+			if err != nil {
+				apiLog.Debugf("X-Original-Request-URI (%s) is not a valid URI: %v",
+					origRequestURI, err)
+				next.ServeHTTP(w, r)
+				return
+			}
+			// Patch the the Requests URL's Path and RawPath so that
+			// (*http.Request).URL.RequestURI() may assemble escaped path?query.
+			r.URL.Path = newURL.Path
+			r.URL.RawPath = newURL.RawPath
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // PostBroadcastTxCtx is middleware that checks for parameters given in POST
