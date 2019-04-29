@@ -30,6 +30,9 @@ const (
 	DefaultRequestExpiry = "60m"
 
 	defaultDCRRatesPort = "7778"
+
+	aggregatedOrderbookKey = "aggregated"
+	orderbookKey           = "depth"
 )
 
 var grpcClient dcrrates.DCRRatesClient
@@ -125,6 +128,11 @@ func (state *ExchangeBotState) BtcToFiat(btc float64) float64 {
 	return state.BtcPrice * btc
 }
 
+// FiatToBtc converts an amount of fiat in the default index to a value in BTC.
+func (state *ExchangeBotState) FiatToBtc(fiat float64) float64 {
+	return fiat / state.BtcPrice
+}
+
 // ExchangeState doesn't have a Token field, so if the states are returned as a
 // slice (rather than ranging over a map), a token is needed.
 type tokenedExchange struct {
@@ -146,6 +154,39 @@ func (state *ExchangeBotState) VolumeOrderedExchanges() []*tokenedExchange {
 		return xcList[i].State.Volume > xcList[j].State.Volume
 	})
 	return xcList
+}
+
+// A price bin for the aggregated orderbook. The Volumes array will be length
+// N = number of depth-reporting exchanges. If any exchange has an order book
+// entry at price Price, then an agBookPt should be created. If a different
+// exchange does not have an order at Price, there will be a 0 in Volumes at
+// the exchange's index. An exchange's index in Volumes is set by it's index
+// in (aggregateOrderbook).Tokens.
+type agBookPt struct {
+	Price   float64   `json:"price"`
+	Volumes []float64 `json:"volumes"`
+}
+
+// The aggregated depth data. Similar to DepthData, but with agBookPts instead.
+// For aggregateData, the Time will indicate the most recent time at which an
+// exchange with non-nil DepthData was updated.
+type aggregateData struct {
+	Time int64      `json:"time"`
+	Bids []agBookPt `json:"bids"`
+	Asks []agBookPt `json:"asks"`
+}
+
+// An aggregated orderbook. Combines all data from the DepthData of each
+// Exchange. For aggregatedOrderbook, the Expiration is set to the time of the
+// most recent DepthData was updated plus an additional
+// (ExchangeBot).RequestExpiry, though new data may be available before then.
+type aggregateOrderbook struct {
+	BtcIndex    string        `json:"btc_index"`
+	Price       float64       `json:"price"`
+	Tokens      []string      `json:"tokens"`
+	UpdateTimes []int64       `json:"update_times"`
+	Data        aggregateData `json:"data"`
+	Expiration  int64         `json:"expiration"`
 }
 
 // FiatIndices maps currency codes to Bitcoin exchange rates.
@@ -202,7 +243,6 @@ type depthResponse struct {
 type versionedChart struct {
 	chartID string
 	dataID  int
-	time    time.Time
 	chart   []byte
 }
 
@@ -687,7 +727,8 @@ func (bot *ExchangeBot) updateExchange(update *ExchangeUpdate) error {
 		}
 	}
 	if update.State.Depth != nil {
-		bot.incrementChart(genCacheID(update.Token, "depth"))
+		bot.incrementChart(genCacheID(update.Token, orderbookKey))
+		bot.incrementChart(genCacheID(aggregatedOrderbookKey, orderbookKey))
 	}
 	bot.currentState.DcrBtc[update.Token] = update.State
 	return bot.updateState()
@@ -881,7 +922,6 @@ func (bot *ExchangeBot) QuickSticks(token string, rawBin string) ([]byte, error)
 	vChart := &versionedChart{
 		chartID: chartID,
 		dataID:  bestVersion,
-		time:    expiration,
 		chart:   chart,
 	}
 
@@ -889,40 +929,133 @@ func (bot *ExchangeBot) QuickSticks(token string, rawBin string) ([]byte, error)
 	return vChart.chart, nil
 }
 
+// Move the DepthPoint array into a map whose entries are agBookPt, inserting
+// the (DepthPoint).Quantity values at xcIndex of Volumes. Creates Volumes
+// if it does not yet exist.
+func mapifyDepthPoints(source []DepthPoint, target map[int64]agBookPt, xcIndex, ptCount int) {
+	for _, pt := range source {
+		k := eightPtKey(pt.Price)
+		_, found := target[k]
+		if !found {
+			target[k] = agBookPt{
+				Price:   pt.Price,
+				Volumes: make([]float64, ptCount),
+			}
+		}
+		target[k].Volumes[xcIndex] = pt.Quantity
+	}
+}
+
+// A list of eightPtKey keys from an orderbook tracking map. Used for sorting.
+func agBookMapKeys(book map[int64]agBookPt) []int64 {
+	keys := make([]int64, 0, len(book))
+	for k := range book {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+// After the aggregate orderbook map is fully assembled, sort the keys and
+// process the map into a list of lists.
+func unmapAgOrders(book map[int64]agBookPt, reverse bool) []agBookPt {
+	orderedBook := make([]agBookPt, 0, len(book))
+	keys := agBookMapKeys(book)
+	if reverse {
+		sort.Slice(keys, func(i, j int) bool { return keys[j] < keys[i] })
+	} else {
+		sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+	}
+	for _, k := range keys {
+		orderedBook = append(orderedBook, book[k])
+	}
+	return orderedBook
+}
+
+// Make an aggregate orderbook from all depth data.
+func (bot *ExchangeBot) aggOrderbook() *aggregateOrderbook {
+	state := bot.State()
+	if state == nil {
+		return nil
+	}
+	numXc := len(state.DcrBtc)
+	tokens := make([]string, 0, numXc)
+	updateTimes := make([]int64, 0, numXc)
+	bids := make(map[int64]agBookPt)
+	asks := make(map[int64]agBookPt)
+
+	i := -1
+	oldestUpdate := time.Now().Unix()
+	var newestTime int64
+	for token, xcState := range state.DcrBtc {
+		i++
+		if !xcState.HasDepth() {
+			continue
+		}
+		depth := xcState.Depth
+		if depth.Time < oldestUpdate {
+			oldestUpdate = depth.Time
+		}
+		if depth.Time > newestTime {
+			newestTime = depth.Time
+		}
+		tokens = append(tokens, token)
+		updateTimes = append(updateTimes, depth.Time)
+		mapifyDepthPoints(depth.Bids, bids, i, numXc)
+		mapifyDepthPoints(depth.Asks, asks, i, numXc)
+	}
+	return &aggregateOrderbook{
+		Tokens:      tokens,
+		BtcIndex:    bot.BtcIndex,
+		Price:       state.Price,
+		UpdateTimes: updateTimes,
+		Data: aggregateData{
+			Time: newestTime,
+			Bids: unmapAgOrders(bids, true),
+			Asks: unmapAgOrders(asks, false),
+		},
+		Expiration: oldestUpdate + int64(bot.RequestExpiry.Seconds()),
+	}
+}
+
 // QuickDepth returns the up-to-date depth chart data for the specified
 // exchange, pulling from the cache if appropriate.
-func (bot *ExchangeBot) QuickDepth(token string) ([]byte, error) {
-	chartID := genCacheID(token, "depth")
+func (bot *ExchangeBot) QuickDepth(token string) (chart []byte, err error) {
+	chartID := genCacheID(token, orderbookKey)
 	data, bestVersion, isGood := bot.fetchFromCache(chartID)
 	if isGood {
 		return data, nil
 	}
 
-	// No hit on cache. Re-encode.
-
-	bot.mtx.Lock()
-	defer bot.mtx.Unlock()
-	state, found := bot.currentState.DcrBtc[token]
-	if !found {
-		return []byte{}, fmt.Errorf("Failed to find DCR exchange state for %s", token)
+	if token == aggregatedOrderbookKey {
+		agDepth := bot.aggOrderbook()
+		if agDepth == nil {
+			return nil, fmt.Errorf("Failed to find depth for %s", token)
+		}
+		chart, err = bot.jsonify(agDepth)
+	} else {
+		bot.mtx.Lock()
+		defer bot.mtx.Unlock()
+		xcState, found := bot.currentState.DcrBtc[token]
+		if !found {
+			return nil, fmt.Errorf("Failed to find DCR exchange state for %s", token)
+		}
+		if xcState.Depth == nil {
+			return nil, fmt.Errorf("Failed to find depth for %s", token)
+		}
+		chart, err = bot.jsonify(&depthResponse{
+			BtcIndex:   bot.BtcIndex,
+			Price:      bot.currentState.Price,
+			Data:       xcState.Depth,
+			Expiration: xcState.Depth.Time + int64(bot.RequestExpiry.Seconds()),
+		})
 	}
-	if state.Depth == nil {
-		return []byte{}, fmt.Errorf("Failed to find depth for %s", token)
-	}
-	chart, err := bot.jsonify(&depthResponse{
-		BtcIndex:   bot.BtcIndex,
-		Price:      bot.currentState.Price,
-		Data:       state.Depth,
-		Expiration: state.Depth.Time + int64(bot.RequestExpiry.Seconds()),
-	})
 	if err != nil {
-		return []byte{}, fmt.Errorf("JSON encode error for %s depth chart", token)
+		return nil, fmt.Errorf("JSON encode error for %s depth chart", token)
 	}
 
 	vChart := &versionedChart{
 		chartID: chartID,
 		dataID:  bestVersion,
-		time:    time.Unix(state.Depth.Time, 0),
 		chart:   chart,
 	}
 

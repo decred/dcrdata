@@ -17,7 +17,7 @@ import (
 	"github.com/decred/slog"
 )
 
-func testExchanges(asSlave bool, t *testing.T) {
+func testExchanges(asSlave, quickTest bool, t *testing.T) {
 	UseLogger(slog.NewBackend(os.Stdout).Logger("EXE"))
 	log.SetLevel(slog.LevelTrace)
 
@@ -59,22 +59,41 @@ func testExchanges(asSlave bool, t *testing.T) {
 		t.Fatalf("Error creating bot. Shutting down: %v", err)
 	}
 
+	updateCounts := make(map[string]int)
+	for token := range bot.Exchanges {
+		updateCounts[token] = 0
+	}
+	logUpdate := func(token string) {
+		if !quickTest {
+			return
+		}
+		updateCounts[token]++
+		lowest := updateCounts[token]
+		for _, v := range updateCounts {
+			if v < lowest {
+				lowest = v
+			}
+		}
+		if lowest > 0 {
+			log.Infof("Quick test conditions met. Shutting down early")
+			shutdown()
+		}
+	}
+
 	wg.Add(1)
 	go bot.Start(ctx, wg)
 
 	quitTimer := time.NewTimer(time.Minute * 7)
-	var updated []string
-
 	ch := bot.UpdateChannels()
 
 out:
 	for {
 		select {
 		case update := <-ch.Exchange:
-			updated = append(updated, update.Token)
+			logUpdate(update.Token)
 			log.Infof("Update received from exchange %s", update.Token)
 		case update := <-ch.Index:
-			updated = append(updated, update.Token)
+			logUpdate(update.Token)
 			log.Infof("Update received from index %s", update.Token)
 		case <-ch.Quit:
 			t.Errorf("Exchange bot has quit.")
@@ -91,7 +110,7 @@ out:
 	}
 
 	logMissing := func(token string) {
-		for _, xc := range updated {
+		for xc := range updateCounts {
 			if xc == token {
 				return
 			}
@@ -103,6 +122,12 @@ out:
 		logMissing(token)
 	}
 
+	depth, err := bot.QuickDepth(aggregatedOrderbookKey)
+	if err != nil {
+		t.Errorf("Failed to create aggregated orderbook")
+	}
+	log.Infof("aggregated orderbook size: %d kiB", len(depth)/1024)
+
 	log.Infof("%d Bitcoin indices available", len(bot.AvailableIndices()))
 	log.Infof("final state is %d kiB", len(bot.StateBytes())/1024)
 
@@ -111,13 +136,17 @@ out:
 }
 
 func TestExchanges(t *testing.T) {
-	testExchanges(false, t)
+	testExchanges(false, false, t)
 }
 
 func TestSlaveBot(t *testing.T) {
 	// Points to DCRData on local machine port 7778.
 	// Start server with --exchange-refresh=1m --exchange-expiry=2m
-	testExchanges(true, t)
+	testExchanges(true, false, t)
+}
+
+func TestQuickExchanges(t *testing.T) {
+	testExchanges(false, true, t)
 }
 
 var initialPoloniexOrderbook = []byte(`[

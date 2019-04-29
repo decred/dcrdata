@@ -7,11 +7,14 @@ import globalEventBus from '../services/event_bus_service'
 import axios from 'axios'
 
 var Dygraph
+const SELL = 1
+const BUY = 2
 const candlestick = 'candlestick'
 const orders = 'orders'
 const depth = 'depth'
 const history = 'history'
 const volume = 'volume'
+const aggregatedKey = 'aggregated'
 const binance = 'binance'
 const anHour = '1h'
 const minuteMap = {
@@ -50,7 +53,7 @@ var refreshAvailable = false
 var availableCandlesticks, availableDepths
 
 function screenIsBig () {
-  return window.screen.availWidth >= 992
+  return window.innerWidth >= 992
 }
 
 function validDepthExchange (token) {
@@ -87,8 +90,43 @@ const lightStroke = '#333'
 const darkStroke = '#ddd'
 var chartStroke = lightStroke
 var conversionFactor = 1
+var currencyCode = 'BTC'
 var gridColor = '#7774'
 var settings = {}
+
+var colorNumerator = 0
+var colorDenominator = 2
+var hslS = '50%'
+var hslL = '50%'
+var hslOffset = 45 // 0 <= x < 360
+var exchangeHues = {}
+var hsl = (h) => `hsl(${(h + hslOffset) % 360},${hslS},${hslL})`
+// Generates colors on the hue sequence 0, 1/2, 1/4, 3/4, 1/8, 3/8, 5/8, 7/8, 1/16, ...
+function generateHue () {
+  while (colorDenominator < 512) { // Should generate a little more than 100 unique values
+    if (colorNumerator === 0) {
+      colorNumerator += 1
+      return hsl(0)
+    }
+    if (colorNumerator >= colorDenominator) {
+      colorNumerator = 1 // reset the numerator
+      colorDenominator *= 2 // double the denominator
+      continue
+    }
+    let hue = colorNumerator / colorDenominator * 360
+    colorNumerator += 2
+    return hsl(hue)
+  }
+  colorNumerator = 0
+  colorDenominator = 2
+  return generateHue()
+}
+
+function getHue (token) {
+  if (exchangeHues[token]) return exchangeHues[token]
+  exchangeHues[token] = generateHue()
+  return exchangeHues[token]
+}
 
 const commonChartOpts = {
   gridLineColor: gridColor,
@@ -111,11 +149,16 @@ const chartResetOpts = {
   drawPoints: false,
   logscale: false,
   xRangePad: 0,
-  yRangePad: 0
+  yRangePad: 0,
+  stackedGraph: false
 }
 
 function convertedThreeSigFigs (x) {
   return humanize.threeSigFigs(x * conversionFactor)
+}
+
+function convertedEightDecimals (x) {
+  return (x * conversionFactor).toFixed(8)
 }
 
 function adjustAxis (axis, zoomInPercentage, bias) {
@@ -145,7 +188,7 @@ function gScroll (event, g, context) {
   event.stopPropagation()
 }
 
-function candlestickStats (bids, asks) {
+function orderbookStats (bids, asks) {
   var bidEdge = bids[0].price
   var askEdge = asks[0].price
   return {
@@ -164,11 +207,107 @@ var dummyOrderbook = {
   }
 }
 
-function processOrderbook (response, accumulate) {
-  var pts = []
+function sizedArray (len, v) {
+  var a = []
+  for (let i = 0; i < len; i++) {
+    a.push(v)
+  }
+  return a
+}
+
+function rangedPts (pts, cutoff) {
+  var l = []
+  var outliers = []
+  pts.forEach(pt => {
+    if (cutoff(pt)) {
+      outliers.push(pt)
+      return
+    }
+    l.push(pt)
+  })
+  return { pts: l, outliers: outliers }
+}
+
+function translateDepthSide (pts, idx, cutoff) {
+  var sorted = rangedPts(pts, cutoff)
   var accumulator = 0
+  var translated = sorted.pts.map(pt => {
+    accumulator += pt.quantity
+    pt = [pt.price, null, null]
+    pt[idx] = accumulator
+    return pt
+  })
+  return { pts: translated, outliers: sorted.outliers }
+}
+
+function translateDepthPoint (pt, offset, accumulator) {
+  var l = sizedArray(pt.volumes.length + 1, null)
+  l[0] = pt.price
+  pt.volumes.forEach((vol, i) => {
+    accumulator[i] += vol
+    l[offset + i + 1] = accumulator[i]
+  })
+  return l
+}
+
+function needsDummyPoint (pt, offset, accumulator) {
+  var xcCount = pt.volumes.length
+  for (let i = 0; i < xcCount; i++) {
+    if (pt.volumes[i] && accumulator[i] === 0) return { price: pt.price + offset, volumes: sizedArray(xcCount, 0) }
+  }
+  return false
+}
+
+function translateAggregatedDepthSide (pts, idx, cutoff) {
+  var sorted = rangedPts(pts, cutoff)
+  var xcCount = pts[0].volumes.length
+  var offset = idx === SELL ? 0 : xcCount
+  var zeroWidth = idx === SELL ? -1e-8 : 1e-8
+  var xcAccumulator = sizedArray(xcCount, 0)
+  var l = []
+  sorted.pts.forEach(pt => {
+    let zeros = needsDummyPoint(pt, zeroWidth, xcAccumulator)
+    if (zeros) {
+      l.push(translateDepthPoint(zeros, offset, xcAccumulator))
+    }
+    l.push(translateDepthPoint(pt, offset, xcAccumulator))
+  })
+  return { pts: l, outliers: sorted.outliers }
+}
+
+function translateOrderbookSide (pts, idx, cutoff) {
+  var sorted = rangedPts(pts, cutoff)
+  var translated = sorted.pts.map(pt => {
+    let l = [pt.price, null, null]
+    l[idx] = pt.quantity
+    return l
+  })
+  return { pts: translated, outliers: sorted.outliers }
+}
+
+function sumPt (pt) {
+  return pt.volumes.reduce((a, v) => { return a + v }, 0)
+}
+
+function translateAggregatedOrderbookSide (pts, idx, cutoff) {
+  var sorted = rangedPts(pts, cutoff)
+  var translated = sorted.pts.map(pt => {
+    let l = [pt.price, null, null]
+    l[idx] = sumPt(pt)
+    return l
+  })
+  return { pts: translated, outliers: sorted.outliers }
+}
+
+function processOrderbook (response, translator) {
   var bids = response.data.bids
   var asks = response.data.asks
+  if (!response.tokens) {
+    // Add the dummy points to make the chart line connect to the baseline and
+    // because otherwise Dygraph has a bug that adds an offset to the asks side.
+    bids.splice(0, 0, { price: bids[0].price + 1e-8, quantity: 0 })
+    asks.splice(0, 0, { price: asks[0].price - 1e-8, quantity: 0 })
+  }
   if (!bids || !asks) {
     console.warn('no bid/ask data in API response')
     return dummyOrderbook
@@ -177,35 +316,16 @@ function processOrderbook (response, accumulate) {
     console.warn('empty bid/ask data in API response')
     return dummyOrderbook
   }
-  var stats = candlestickStats(bids, asks)
-  // Just track outliers for now. May display value in the future.
-  var outliers = {
-    asks: [],
-    bids: []
-  }
+  var stats = orderbookStats(bids, asks)
   var cutoff = 0.1 * stats.midGap // Low cutoff of 10% market.
-  bids.forEach(pt => {
-    if (pt.price < cutoff) {
-      outliers.bids.push(pt)
-      return
-    }
-    accumulator = accumulate ? accumulator + pt.quantity : pt.quantity
-    pts.push([pt.price, null, accumulator])
-  })
-  pts.reverse()
-  accumulator = 0
+  var buys = translator(bids, BUY, pt => pt.price < cutoff)
+  buys.pts.reverse()
   cutoff = stats.midGap * 2 // Hard cutoff of 2 * market price
-  asks.forEach(pt => {
-    if (pt.price > cutoff) {
-      outliers.asks.push(pt)
-      return
-    }
-    accumulator = accumulate ? accumulator + pt.quantity : pt.quantity
-    pts.push([pt.price, accumulator, null])
-  })
+  var sells = translator(asks, SELL, pt => pt.price > cutoff)
   return {
-    pts: pts,
-    outliers: outliers
+    pts: buys.pts.concat(sells.pts),
+    outliers: buys.outliers.concat(sells.outliers),
+    stats: stats
   }
 }
 
@@ -216,7 +336,6 @@ function candlestickPlotter (e) {
   var ctx = e.drawingContext
   ctx.strokeStyle = chartStroke
   ctx.lineWidth = 1
-
   var sets = e.allSeriesPoints
   if (sets.length < 2) {
     // do nothing
@@ -240,9 +359,7 @@ function candlestickPlotter (e) {
     ctx.moveTo(centerX, topY)
     ctx.lineTo(centerX, bottomY)
     ctx.stroke()
-
     ctx.strokeStyle = 'black'
-
     var top
     if (open.yval > close.yval) {
       ctx.fillStyle = '#f93f39cc'
@@ -258,16 +375,27 @@ function candlestickPlotter (e) {
   }
 }
 
-function drawOrderPt (ctx, pt, r) {
+function drawOrderPt (ctx, pt) {
+  return drawPt(ctx, pt, orderPtSize, true)
+}
+
+function drawPt (ctx, pt, size, bordered) {
   ctx.beginPath()
-  ctx.arc(pt.x, pt.y, r, 0, PIPI)
+  ctx.arc(pt.x, pt.y, size, 0, PIPI)
   ctx.fill()
-  // ctx.beginPath()
-  // ctx.arc(pt.x, pt.y, r, 0, PIPI)
+  if (bordered) ctx.stroke()
+}
+
+function drawLine (ctx, start, end) {
+  ctx.beginPath()
+  ctx.moveTo(start.x, start.y)
+  ctx.lineTo(end.x, end.y)
   ctx.stroke()
 }
 
-function orderXY (area, pt) {
+function makePt (x, y) { return { x: x, y: y } }
+
+function canvasXY (area, pt) {
   return {
     x: area.x + pt.x * area.w,
     y: area.y + pt.y * area.h
@@ -295,13 +423,95 @@ function orderPlotter (e) {
     let sell = sells[i]
     if (buy) {
       ctx.fillStyle = buyColor
-      drawOrderPt(ctx, orderXY(area, buy), orderPtSize)
+      drawOrderPt(ctx, canvasXY(area, buy))
     }
     if (sell) {
       ctx.fillStyle = sellColor
-      drawOrderPt(ctx, orderXY(area, sell), orderPtSize)
+      drawOrderPt(ctx, canvasXY(area, sell))
     }
   }
+}
+
+const greekCapDelta = String.fromCharCode(916)
+
+function depthLegendPlotter (e) {
+  var tokens = e.dygraph.getOption('tokens')
+  var stats = e.dygraph.getOption('stats')
+
+  var area = e.plotArea
+  var ctx = e.drawingContext
+
+  var dark = darkEnabled()
+  var big = screenIsBig()
+  var mg = e.dygraph.toDomCoords(stats.midGap, 0)
+  var midGap = makePt(mg[0], mg[1])
+  var fontSize = big ? 15 : 13
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'top'
+  ctx.font = `${fontSize}px arial`
+  ctx.lineWidth = 1
+  var textColor = dark ? '#eee' : '#222'
+  ctx.strokeStyle = textColor
+  let boxColor = dark ? '#2225' : '#fff5'
+
+  var gapText = `${greekCapDelta} : ${humanize.threeSigFigs(stats.gap * conversionFactor)} ${currencyCode}`
+  var boxW = ctx.measureText(gapText).width
+  var rowHeight = fontSize * 1.5
+  var rowPad = big ? (rowHeight - fontSize) / 2 : (rowHeight - fontSize) / 3
+  var boxPad = big ? rowHeight / 3 : rowHeight / 5
+  var x
+  let y = big ? fontSize * 2 : fontSize
+
+  // If it's an aggregated chart, start with a color legend
+  if (tokens) {
+    // If this is an aggregated chart, draw the color legend first
+    let ptSize = fontSize / 3
+    let legW = 0
+    tokens.forEach(token => {
+      let w = ctx.measureText(token).width + rowHeight// leave space for dot
+      if (w > legW) legW = w
+    })
+    x = midGap.x - legW / 2
+    let boxH = rowHeight * tokens.length
+    ctx.fillStyle = boxColor
+    let rect = makePt(x - boxPad, y - boxPad)
+    let dims = makePt(legW + boxPad * 4, boxH + boxPad * 2)
+    ctx.fillRect(rect.x, rect.y, dims.x, dims.y)
+    ctx.strokeRect(rect.x, rect.y, dims.x, dims.y)
+    tokens.forEach(token => {
+      ctx.fillStyle = getHue(token)
+      drawPt(ctx, makePt(x + rowHeight / 2, y + rowHeight / 2 - 1), ptSize)
+      ctx.fillStyle = textColor
+      ctx.fillText(token, x + rowPad + rowHeight, y + rowPad)
+      y += rowHeight
+    })
+    y += boxPad * 3
+  } else {
+    y += area.h / 4
+    x = midGap.x - boxW / 2 - 25
+  }
+  // Label the gap size.
+  rowHeight -= 2 // just looks better
+  ctx.fillStyle = boxColor
+  let rect = makePt(x - boxPad, y - boxPad)
+  let dims = makePt(boxW + boxPad * 3, rowHeight + boxPad * 2)
+  ctx.fillRect(rect.x, rect.y, dims.x, dims.y)
+  ctx.strokeRect(rect.x, rect.y, dims.x, dims.y)
+  ctx.fillStyle = textColor
+  ctx.fillText(gapText, x + rowPad, y + rowPad)
+  // Draw a line from the box to the gap
+  drawLine(ctx,
+    makePt(x + boxW / 2, y + rowHeight + boxPad * 2 + boxPad),
+    makePt(midGap.x, midGap.y - boxPad))
+}
+
+function depthPlotter (e) {
+  // Let Dygraph do the bulk of the work
+  Dygraph.Plotters.fillPlotter(e)
+  Dygraph.Plotters.linePlotter(e)
+
+  // Callout box with color legend
+  if (e.seriesIndex === e.allSeriesPoints.length - 1) depthLegendPlotter(e)
 }
 
 var stickZoom
@@ -319,7 +529,7 @@ export default class extends Controller {
   static get targets () {
     return ['chartSelect', 'exchanges', 'bin', 'chart', 'legend', 'conversion',
       'xcName', 'xcLogo', 'actions', 'sticksOnly', 'depthOnly', 'chartLoader',
-      'xcRow', 'xcIndex', 'price', 'age', 'ageSpan', 'link']
+      'xcRow', 'xcIndex', 'price', 'age', 'ageSpan', 'link', 'aggOption']
   }
 
   async connect () {
@@ -330,7 +540,7 @@ export default class extends Controller {
       orders: this.processOrders,
       candlestick: this.processCandlesticks,
       history: this.processHistory,
-      depth: this.processDepth,
+      depth: this.processDepth.bind(this),
       volume: this.processVolume
     }
     commonChartOpts.labelsDiv = this.legendTarget
@@ -382,6 +592,7 @@ export default class extends Controller {
     globalEventBus.on('EXCHANGE_UPDATE', this.processXcUpdate)
     if (darkEnabled()) chartStroke = darkStroke
 
+    this.setNameDisplay()
     this.fetchInitialData()
   }
 
@@ -397,6 +608,15 @@ export default class extends Controller {
     if (this.graph) {
       orderPtSize = screenIsBig() ? 7 : 4
       this.graph.resize()
+    }
+    this.setNameDisplay()
+  }
+
+  setNameDisplay () {
+    if (screenIsBig()) {
+      this.xcNameTarget.classList.remove('d-hide')
+    } else {
+      this.xcNameTarget.classList.add('d-hide')
     }
   }
 
@@ -590,7 +810,10 @@ export default class extends Controller {
   }
 
   processDepth (response) {
-    var data = processOrderbook(response, true)
+    if (response.tokens) {
+      return this.processAggregateDepth(response)
+    }
+    var data = processOrderbook(response, translateDepthSide)
     return {
       labels: ['price', 'cumulative sell', 'cumulative buy'],
       file: data.pts,
@@ -598,10 +821,52 @@ export default class extends Controller {
       colors: ['#ed6d47', '#41be53'],
       xlabel: `Price (${this.converted ? this.currencyCode : 'BTC'})`,
       ylabel: 'Volume (DCR)',
-      plotter: null, // Don't use Dygraph.linePlotter here. fillGraph won't work.
+      tokens: null,
+      stats: data.stats,
+      plotter: depthPlotter, // Don't use Dygraph.linePlotter here. fillGraph won't work.
       axes: {
         x: {
-          axisLabelFormatter: convertedThreeSigFigs
+          axisLabelFormatter: convertedThreeSigFigs,
+          valueFormatter: convertedEightDecimals
+        },
+        y: {
+          axisLabelFormatter: humanize.threeSigFigs,
+          valueFormatter: humanize.threeSigFigs
+        }
+      }
+    }
+  }
+
+  processAggregateDepth (response) {
+    var data = processOrderbook(response, translateAggregatedDepthSide)
+    var tokens = response.tokens
+    var xcCount = tokens.length
+    var keys = sizedArray(xcCount * 2 + 1, null)
+    keys[0] = 'price'
+    var colors = sizedArray(xcCount * 2, null)
+    for (let i = 0; i < xcCount; i++) {
+      let token = tokens[i]
+      let color = getHue(token)
+      keys[i + 1] = ` ${token} sell`
+      keys[xcCount + i + 1] = ` ${token} buy`
+      colors[i] = color
+      colors[xcCount + i] = color
+    }
+    return {
+      labels: keys,
+      file: data.pts,
+      colors: colors,
+      xlabel: `Price (${this.converted ? this.currencyCode : 'BTC'})`,
+      ylabel: 'Volume (DCR)',
+      plotter: depthPlotter,
+      fillGraph: true,
+      stackedGraph: true,
+      tokens: tokens,
+      stats: data.stats,
+      axes: {
+        x: {
+          axisLabelFormatter: convertedThreeSigFigs,
+          valueFormatter: convertedEightDecimals
         },
         y: {
           axisLabelFormatter: humanize.threeSigFigs,
@@ -612,7 +877,7 @@ export default class extends Controller {
   }
 
   processOrders (response) {
-    var data = processOrderbook(response, false)
+    var data = processOrderbook(response, response.tokens ? translateAggregatedOrderbookSide : translateOrderbookSide)
     return {
       labels: ['price', 'sell', 'buy'],
       file: data.pts,
@@ -650,8 +915,10 @@ export default class extends Controller {
     this.exchangesTarget.value = settings.xc
     if (usesOrderbook(settings.chart)) {
       this.binTarget.classList.add('d-hide')
+      this.aggOptionTarget.disabled = false
     } else {
       this.binTarget.classList.remove('d-hide')
+      this.aggOptionTarget.disabled = true
       this.binButtons.forEach(button => {
         if (hasBin(settings.xc, button.name)) {
           button.classList.remove('d-hide')
@@ -751,9 +1018,11 @@ export default class extends Controller {
     if (e.target.name === 'BTC') {
       this.converted = false
       conversionFactor = 1
+      currencyCode = 'BTC'
     } else {
       this.converted = true
       conversionFactor = this.conversionFactor
+      currencyCode = this.currencyCode
       cLabel = this.currencyCode
     }
     this.graph.updateOptions({ xlabel: `Price (${cLabel})` })
@@ -763,8 +1032,14 @@ export default class extends Controller {
     this.xcLogoTarget.className = `exchange-logo ${settings.xc}`
     var prettyName = humanize.capitalize(settings.xc)
     this.xcNameTarget.textContent = prettyName
-    this.linkTarget.href = exchangeLinks[settings.xc]
-    this.linkTarget.textContent = `Visit ${prettyName}`
+    var href = exchangeLinks[settings.xc]
+    if (href) {
+      this.linkTarget.href = href
+      this.linkTarget.textContent = `Visit ${prettyName}`
+      this.linkTarget.parentNode.classList.remove('d-hide')
+    } else {
+      this.linkTarget.parentNode.classList.add('d-hide')
+    }
   }
 
   _processNightMode (data) {
@@ -773,7 +1048,7 @@ export default class extends Controller {
     if (settings.chart === history || settings.chart === volume) {
       this.graph.updateOptions({ colors: [chartStroke] })
     }
-    if (settings.chart === orders) {
+    if (settings.chart === orders || settings.chart === depth) {
       this.graph.setAnnotations([])
     }
   }
@@ -808,13 +1083,13 @@ export default class extends Controller {
 
   _processXcUpdate (update) {
     let xc = update.updater
-    if (update.fiat) {
+    if (update.fiat) { // btc-fiat exchange update
       this.xcIndexTargets.forEach(span => {
         if (span.dataset.token === xc.token) {
           span.textContent = xc.price.toFixed(2)
         }
       })
-    } else {
+    } else { // dcr-btc exchange update
       let row = this.getExchangeRow(xc.token)
       row.volume.textContent = humanize.threeSigFigs(xc.volume)
       row.price.textContent = humanize.threeSigFigs(xc.price)
@@ -825,8 +1100,18 @@ export default class extends Controller {
         row.arrow.className = 'dcricon-arrow-down text-danger'
       }
     }
-    this.priceTarget.textContent = update.price.toFixed(2)
-    if (settings.xc !== xc.token) return
+    // Update the big displayed value and the aggregated row
+    var fmtPrice = update.price.toFixed(2)
+    this.priceTarget.textContent = fmtPrice
+    var aggRow = this.getExchangeRow(aggregatedKey)
+    aggRow.price.textContent = humanize.threeSigFigs(update.price / update.btc_price)
+    aggRow.volume.textContent = humanize.threeSigFigs(update.volume)
+    aggRow.fiat.textContent = fmtPrice
+    // Auto-update the chart if it makes sense.
+    if (settings.xc !== aggregatedKey && settings.xc !== xc.token) return
+    if (settings.xc === aggregatedKey &&
+        hasCache(this.lastUrl) &&
+        responseCache[this.lastUrl].data.tokens.indexOf(update.updater) === -1) return
     if (usesOrderbook(settings.chart)) {
       clearCache(this.lastUrl)
       this.refreshChart()

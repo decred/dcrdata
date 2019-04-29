@@ -59,6 +59,19 @@
                             </td>
                         </tr>
                     {{end}}
+                    <tr class="fs sum-row hover-row" data-target="market.xcRow" data-action="click->market#setExchange" data-token="aggregated">
+                        <td class="py-2 fs18 font-weight-bold"><div class="exchange-logo aggregated mr-2"></div> Aggregate</td>
+                        <td class="pl-2 fs16 py-2 text-right" data-type="volume">
+                            {{threeSigFigs $botState.Volume}}
+                        </td>
+                        <td class="pl-3 fs16 py-2 text-right" data-type="price">
+                            {{threeSigFigs ($botState.FiatToBtc $botState.Price)}}
+                        </td>
+                        <td></td> {{- /* no arrow for aggregated data */ -}}
+                        <td class="pl-1 fs16 py-2 text-right" data-type="fiat">
+                            {{printf "%.2f" $botState.Price}}
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -116,6 +129,12 @@
                               >{{toTitleCase .Token}}
                           </option>
                         {{end}}
+                        <option
+                            data-target="market.aggOption"
+                            value="aggregated"
+                            data-depth="1"
+                            >Aggregated
+                        </option>
                     </select>
                 </div>
 
@@ -181,7 +200,7 @@
             {{- /* CHART */ -}}
             <div class="flex-grow-1 pl-3 pr-4 mb-2 market-chart-box d-flex">
               <div class="d-flex w-100 position-relative market-chart">
-                <div class="market-chart-title d-none d-sm-block">
+                <div class="market-chart-title d-inline-flex align-items-center d-none d-sm-block">
                     <div  data-target="market.xcLogo"></div>
                     <span data-target="market.xcName"></span>
                 </div>
