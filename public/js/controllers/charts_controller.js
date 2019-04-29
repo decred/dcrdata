@@ -18,7 +18,7 @@ const aMonth = aDay * 30
 const atomsToDCR = 1e-8
 const windowScales = ['ticket-price', 'pow-difficulty']
 var ticketPoolSizeTarget, premine, stakeValHeight, stakeShare
-var baseSubsidy, subsidyInterval
+var baseSubsidy, subsidyInterval, subsidyExponent
 var userBins = {}
 
 function usesWindowUnits (chart) {
@@ -30,7 +30,7 @@ function intComma (amount) {
 }
 
 function blockReward (height) {
-  if (height >= stakeValHeight) return baseSubsidy * Math.pow(100 / 101.0, Math.floor(height / subsidyInterval))
+  if (height >= stakeValHeight) return baseSubsidy * Math.pow(subsidyExponent, Math.floor(height / subsidyInterval))
   if (height > 1) return baseSubsidy * (1 - stakeShare)
   if (height === 1) return premine
   return 0
@@ -176,6 +176,7 @@ export default class extends Controller {
     stakeShare = parseInt(this.data.get('pos')) / 10.0
     baseSubsidy = parseInt(this.data.get('bs'))
     subsidyInterval = parseInt(this.data.get('sri'))
+    subsidyExponent = parseFloat(this.data.get('mulSubsidy')) / parseFloat(this.data.get('divSubsidy'))
 
     this.settings = TurboQuery.nullTemplate(['chart', 'zoom', 'scale', 'bin'])
     this.query.update(this.settings)

@@ -318,13 +318,7 @@ func New(cfg *ExplorerConfig) *explorerUI {
 	exp.ChainParams = params
 	exp.NetName = netName(exp.ChainParams)
 	exp.MeanVotingBlocks = txhelpers.CalcMeanVotingBlocks(params)
-
-	var premine int64
-	ledger := params.BlockOneLedger
-	for i := range ledger {
-		premine += ledger[i].Amount
-	}
-	exp.premine = premine
+	exp.premine = params.BlockOneSubsidy()
 
 	// Development subsidy address of the current network
 	devSubsidyAddress, err := dbtypes.DevSubsidyAddress(params)
