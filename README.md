@@ -62,11 +62,11 @@ modern javascript features, as well as SCSS for styling.
 
 Always run the Current release or on the Current stable branch. Do not use `master` in production.
 
-|               | Branch         | Release tag    |
-| ------------- | -------------- | -------------- |
-| Current       | `4.0-stable`   | `v4.0.0`       |
-| Legacy        | `3.2-stable`   | `v3.1.2`       |
-| Development   | `master`       | N/A            |
+|               | Series         | Branch         | Latest release tag |
+| ------------- | -------------- | -------------- | ------------------ |
+| Current       | 4.1            | `4.1-stable`   | `release-v4.1.0`   |
+| Legacy        | 4.0            | `4.0-stable`   | `v4.0.2`           |
+| Development   | 5.0            | `master`       | N/A                |
 
 ## Repository Overview
 
