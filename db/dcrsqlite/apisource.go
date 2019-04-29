@@ -20,6 +20,7 @@ import (
 	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types"
+	"github.com/decred/dcrdata/db/cache"
 	"github.com/decred/dcrdata/db/dbtypes"
 	exptypes "github.com/decred/dcrdata/explorer/types"
 	"github.com/decred/dcrdata/mempool"
@@ -90,6 +91,21 @@ func (db *WiredDB) EnableCache() {
 
 func (db *WiredDB) DisableCache() {
 	db.BlockCache.Disable()
+}
+
+// RegisterCharts registers chart data fetchers and appenders with the provided
+// ChartData.
+func (db *WiredDB) RegisterCharts(charts *cache.ChartData) {
+	charts.AddUpdater(cache.ChartUpdater{
+		Tag:      "fee info",
+		Fetcher:  db.RetrieveBlockFeeRows,
+		Appender: db.AppendBlockFeeRows,
+	})
+	charts.AddUpdater(cache.ChartUpdater{
+		Tag:      "pool info",
+		Fetcher:  db.RetrievePoolAllValueAndSize,
+		Appender: db.AppendPoolAllValueAndSize,
+	})
 }
 
 func (db *WiredDB) ChargePoolInfoCache(startHeight int64) error {
@@ -953,45 +969,6 @@ func (db *WiredDB) GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []float64)
 		return nil, nil
 	}
 	return poolvals, poolsizes
-}
-
-// SqliteChartsData takes the old sqlite charts' data that requires an update.
-// If any of the chart's data has no entries, records from the oldest to the
-// most recent are queried from the db and updated. If some entries were found,
-// only the change since the last update is queried and pushed to the charts'
-// data.
-func (db *WiredDB) SqliteChartsData(data map[string]*dbtypes.ChartsData) (err error) {
-	feeData := data[dbtypes.FeePerBlock]
-	if feeData == nil {
-		feeData = new(dbtypes.ChartsData)
-	}
-	feeData.Height, feeData.SizeF, err = db.RetrieveBlockFeeInfo(feeData.Height, feeData.SizeF)
-	if err != nil {
-		return
-	}
-
-	poolSize := data[dbtypes.TicketPoolSize]
-	if poolSize == nil {
-		poolSize = new(dbtypes.ChartsData)
-	}
-
-	poolValue := data[dbtypes.TicketPoolValue]
-	if poolValue == nil {
-		poolValue = new(dbtypes.ChartsData)
-	}
-
-	poolSize.Time, poolSize.SizeF, poolValue.ValueF, err = db.RetrievePoolAllValueAndSize(poolSize.Time,
-		poolSize.SizeF, poolValue.ValueF)
-	if err != nil {
-		return
-	}
-
-	poolValue.Time = poolSize.Time
-
-	data[dbtypes.FeePerBlock] = feeData
-	data[dbtypes.TicketPoolSize] = poolSize
-	data[dbtypes.TicketPoolValue] = poolValue
-	return
 }
 
 func (db *WiredDB) GetSDiff(idx int) float64 {

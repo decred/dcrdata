@@ -24,6 +24,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrdata/blockdata"
+	"github.com/decred/dcrdata/db/cache"
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/db/dcrpg"
 	"github.com/decred/dcrdata/db/dcrsqlite"
@@ -396,6 +397,10 @@ func _main(ctx context.Context) error {
 		return fmt.Errorf("Unable to get height from PostgreSQL DB: %v", err)
 	}
 
+	charts := cache.NewChartData(uint32(lastBlockPG), time.Unix(pgDB.GenesisStamp(), 0), activeChain, ctx)
+	pgDB.RegisterCharts(charts)
+	baseDB.RegisterCharts(charts)
+
 	// Allow WiredDB/stakedb to catch up to the pgDB, but after
 	// fetchToHeight, WiredDB must receive block signals from pgDB, and
 	// stakedb must send connect signals to pgDB.
@@ -662,27 +667,6 @@ func _main(ctx context.Context) error {
 	displaySyncStatusPage := blocksBehind > int64(cfg.SyncStatusLimit) || // over limit
 		updateAllAddresses || newPGIndexes // maintenance or initial sync
 
-	// charts data cache dump file path.
-	dumpPath := filepath.Join(cfg.DataDir, cfg.ChartsCacheDump)
-
-	// Pre-populate charts data using the dumped cache data in the .gob file path
-	// provided instead of querying the data from the dbs.
-	// Should be invoked before explore.Store to avoid double charts data
-	// cache population. This charts pre-population is faster than db querying
-	// and can be done before the monitors are fully set up.
-	explore.PrepareCharts(dumpPath)
-
-	// This dumps the cache charts data into a file for future use on system
-	// exit.
-	defer func() {
-		er := explorer.WriteCacheFile(dumpPath)
-		if er != nil {
-			log.Errorf("WriteCacheFile failed: %v", er)
-		} else {
-			log.Debug("Dumping the charts cache data was successful")
-		}
-	}()
-
 	// Initiate the sync status monitor and the coordinating goroutines if the
 	// sync status is activated, otherwise coordinate updating the full set of
 	// explorer pages.
@@ -746,8 +730,17 @@ func _main(ctx context.Context) error {
 	blockDataSavers = append(blockDataSavers, insightSocketServer)
 
 	// Start dcrdata's JSON web API.
-	app := api.NewContext(dcrdClient, activeChain, baseDB, pgDB, cfg.IndentJSON,
-		xcBot, agendasInstance, cfg.MaxCSVAddrs)
+	app := api.NewContext(&api.AppContextConfig{
+		Client:            dcrdClient,
+		Params:            activeChain,
+		DataSource:        baseDB,
+		DBSource:          pgDB,
+		JsonIndent:        cfg.IndentJSON,
+		XcBot:             xcBot,
+		AgendasDBInstance: agendasInstance,
+		MaxAddrs:          cfg.MaxCSVAddrs,
+		Charts:            charts,
+	})
 	// Start the notification hander for keeping /status up-to-date.
 	wg.Add(1)
 	go app.StatusNtfnHandler(ctx, &wg)
@@ -1087,6 +1080,20 @@ func _main(ctx context.Context) error {
 	explore.SetDBsSyncing(false)
 	psHub.SetReady(true)
 
+	// Pre-populate charts data using the dumped cache data in the .gob file path
+	// provided instead of querying the data from the dbs.
+	// Should be invoked before explore.Store to avoid double charts data
+	// cache population. This charts pre-population is faster than db querying
+	// and can be done before the monitors are fully set up.
+	dumpPath := filepath.Join(cfg.DataDir, cfg.ChartsCacheDump)
+	charts.Load(dumpPath)
+	// Add charts saver method after explorer and any databases.
+	blockDataSavers = append(blockDataSavers, blockdata.BlockTrigger{Saver: charts.TriggerUpdate})
+
+	// This dumps the cache charts data into a file for future use on system
+	// exit.
+	defer charts.Dump(dumpPath)
+
 	// Enable new blocks being stored into the base DB's cache.
 	baseDB.EnableCache()
 
@@ -1143,10 +1150,6 @@ func _main(ctx context.Context) error {
 	if pgDBChainMonitor == nil {
 		return fmt.Errorf("Failed to enable dcrpg ChainMonitor. *ChainDB is nil.")
 	}
-
-	// Blockchain monitor for the charts cache.
-	chartsCacheMonitor := explore.NewCacheChainMonitor(ctx, &wg,
-		notify.NtfnChans.ReorgChartsCache)
 
 	// Setup the synchronous handler functions called by the collectionQueue via
 	// OnBlockConnected.
@@ -1220,7 +1223,7 @@ func _main(ctx context.Context) error {
 	wg.Add(1)
 	// charts cache drops all the records added since the common ancestor
 	// before initiating a cache update after all other reorgs have completed.
-	go chartsCacheMonitor.ReorgHandler()
+	go charts.ReorgHandler(&wg, notify.NtfnChans.ReorgChartsCache)
 
 	// Begin listening on notify.NtfnChans.NewTxChan, and forwarding mempool
 	// events to psHub via the channels from HubRelays().

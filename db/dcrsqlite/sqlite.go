@@ -17,6 +17,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/blockdata"
+	"github.com/decred/dcrdata/db/cache"
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/slog"
 	sqlite3 "github.com/mattn/go-sqlite3" // register sqlite driver with database/sql
@@ -153,8 +154,8 @@ func NewDB(db *sql.DB, shutdown func()) (*DB, error) {
 		`FROM %s WHERE height BETWEEN ? AND ? AND is_mainchain = 1`, TableNameSummaries)
 	d.getPoolValSizeRangeSQL = fmt.Sprintf(`SELECT poolsize, poolval `+
 		`FROM %s WHERE height BETWEEN ? AND ? AND is_mainchain = 1`, TableNameSummaries)
-	d.getAllPoolValSize = fmt.Sprintf(`SELECT poolsize, poolval, time, COUNT(*) `+
-		`FROM %s WHERE is_mainchain = 1 AND time > $1 GROUP BY time HAVING COUNT(*) = 1`,
+	d.getAllPoolValSize = fmt.Sprintf(`SELECT poolsize, poolval, time `+
+		`FROM %s WHERE is_mainchain = 1 AND height > $1`,
 		TableNameSummaries)
 	d.getWinnersSQL = fmt.Sprintf(`SELECT hash, winners FROM %s
 		WHERE height = ? AND is_mainchain = 1`, TableNameSummaries)
@@ -255,6 +256,7 @@ func NewDB(db *sql.DB, shutdown func()) (*DB, error) {
 		`SELECT %[1]s.height, fee_med FROM %[1]s
 		 JOIN %[2]s ON %[1]s.hash = %[2]s.hash
 		 WHERE %[1]s.height > $1
+		 AND %[2]s.is_mainchain=1
 		 ORDER BY %[1]s.height;`,
 		TableNameStakeInfo, TableNameSummaries)
 
@@ -982,86 +984,88 @@ func (db *DB) RetrievePoolValAndSizeRange(ind0, ind1 int64) ([]float64, []float6
 	return poolvals, poolsizes, nil
 }
 
+func dummyCancel() {}
+
 // RetrievePoolAllValueAndSize returns all the pool value and the pool size
 // charts data needed to plot ticket-pool-size and ticket-pool value charts on
-// charts page.
-func (db *DB) RetrievePoolAllValueAndSize(timeArr []dbtypes.TimeDef, poolSizeArr,
-	poolValArr []float64) ([]dbtypes.TimeDef, []float64, []float64, error) {
-	var since int64
-	if c := len(timeArr); c > 0 {
-		since = timeArr[c-1].UNIX()
-	}
-
+// the charts page. This is the Fetcher half of a pair that make up a
+// cache.ChartUpdater.
+func (db *DB) RetrievePoolAllValueAndSize(charts *cache.ChartData) (*sql.Rows, func(), error) {
 	stmt, err := db.Prepare(db.getAllPoolValSize)
 	if err != nil {
-		return timeArr, poolSizeArr, poolValArr, err
+		return nil, dummyCancel, err
 	}
 	defer stmt.Close()
 
-	rows, err := stmt.Query(since)
+	rows, err := stmt.Query(charts.PoolSizeTip())
 	if err != nil {
 		log.Errorf("Query failed: %v", err)
-		return timeArr, poolSizeArr, poolValArr, err
+		return nil, dummyCancel, err
 	}
-	defer rows.Close()
+	return rows, dummyCancel, nil
+}
 
+// Append the result from RetrievePoolAllValueAndSize to the provided ChartData.
+// This is the Appender half of a pair that make up a cache.ChartUpdater.
+func (db *DB) AppendPoolAllValueAndSize(charts *cache.ChartData, rows *sql.Rows) error {
+	defer rows.Close()
+	blocks := charts.Blocks
 	for rows.Next() {
 		var pval, psize float64
-		var timestamp, count int64
-		if err = rows.Scan(&psize, &pval, &timestamp, &count); err != nil {
+		var timestamp int64
+		if err := rows.Scan(&psize, &pval, &timestamp); err != nil {
 			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
-			return timeArr, poolSizeArr, poolValArr, err
+			return err
 		}
 
 		if timestamp == 0 {
 			continue
 		}
 
-		timeArr = append(timeArr, dbtypes.NewTimeDefFromUNIX(timestamp))
-		poolSizeArr = append(poolSizeArr, psize)
-		poolValArr = append(poolValArr, pval)
+		blocks.PoolSize = append(blocks.PoolSize, uint64(psize))
+		blocks.PoolValue = append(blocks.PoolValue, pval)
 	}
 
-	return timeArr, poolSizeArr, poolValArr, nil
+	return nil
 }
 
-// RetrieveBlockFeeInfo retrieves the block fee chart data over time. This data
-// is used to plot block-fee-chart on the /charts page.
-func (db *DB) RetrieveBlockFeeInfo(height []uint64, fee []float64) ([]uint64, []float64, error) {
-	var since uint64
-	if c := len(height); c > 0 {
-		since = height[c-1]
-	}
-
+// RetrieveBlockFeeRows retrieves any block fee data that is newer than the data
+// in the provided ChartData. This data is used to plot fees on the /charts page.
+// This is the Fetcher half of a pair that make up a cache.ChartUpdater.
+func (db *DB) RetrieveBlockFeeRows(charts *cache.ChartData) (*sql.Rows, func(), error) {
 	stmt, err := db.Prepare(db.getAllFeeInfoPerBlock)
 	if err != nil {
-		return height, fee, err
+		return nil, dummyCancel, err
 	}
 	defer stmt.Close()
 
-	rows, err := stmt.Query(since)
+	rows, err := stmt.Query(charts.FeesTip())
 	if err != nil {
 		log.Errorf("Query failed: %v", err)
-		return height, fee, err
+		return nil, dummyCancel, err
 	}
-	defer rows.Close()
 
+	return rows, dummyCancel, nil
+}
+
+// Append the result from RetrieveBlockFeeRows to the provided ChartData. This
+// is the Appender half of a pair that make up a cache.ChartUpdater.
+func (db *DB) AppendBlockFeeRows(charts *cache.ChartData, rows *sql.Rows) error {
+	defer rows.Close()
+	blocks := charts.Blocks
 	for rows.Next() {
 		var feeMed float64
 		var blockHeight uint64
-		if err = rows.Scan(&blockHeight, &feeMed); err != nil {
+		if err := rows.Scan(&blockHeight, &feeMed); err != nil {
 			log.Errorf("Unable to scan for FeeInfoPerBlock fields: %v", err)
-			return height, fee, err
-		}
-		if blockHeight == 0 && feeMed == 0 {
-			continue
+			return err
 		}
 
-		fee = append(fee, feeMed)
-		height = append(height, blockHeight)
+		// Converting to atoms.
+		blocks.Fees = append(blocks.Fees, uint64(feeMed*1e8))
 	}
 
-	return height, fee, nil
+	return nil
 }
 
 // RetrieveSDiffRange returns an array of stake difficulties for block range ind0 to

@@ -318,7 +318,7 @@ export default class extends Controller {
   }
 
   setupTooltips () {
-    // check for emtpy tx rows and set custom tooltip
+    // check for empty tx rows and set custom tooltip
     this.txsTargets.forEach((div) => {
       if (div.childeElementCount === 0) {
         div.title = 'No regular transaction in block'

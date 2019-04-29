@@ -22,6 +22,7 @@ const (
 	PGChartsTestsUser   = "dcrdata"
 	PGChartsTestsPass   = ""
 	PGChartsTestsDBName = "dcrdata_mainnet_test"
+	defaultRange        = "0-199"
 )
 
 // SqliteDbFilePath returns the absolute sqlite db filepath when accessed from
@@ -35,7 +36,11 @@ func SqliteDbFilePath() (string, error) {
 // SqliteDumpDataFilePath returns the path to the sqlite db dump data filepath
 // when accessed from dcrsqlite package.
 func SqliteDumpDataFilePath() (string, error) {
-	return filepath.Abs("../../testutil/dbload/testsconfig/test.data/sqlite_dump.sql")
+	blockRange := os.Getenv("BLOCK_RANGE")
+	if blockRange == "" {
+		blockRange = defaultRange
+	}
+	return filepath.Abs("../../testutil/dbload/testsconfig/test.data/sqlite_" + blockRange + ".sql")
 }
 
 // Migrations enables a custom migration runner to be used to load data from a

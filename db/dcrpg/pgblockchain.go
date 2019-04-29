@@ -940,6 +940,28 @@ func (pgb *ChainDB) BlockChainDbIDNoCancel(hash string) (dbID uint64, err error)
 	return pgb.blockChainDbID(context.Background(), hash)
 }
 
+// RegisterCharts registers chart data fetchers and appenders with the provided
+// ChartData.
+func (pgb *ChainDB) RegisterCharts(charts *cache.ChartData) {
+	charts.AddUpdater(cache.ChartUpdater{
+		Tag:      "basic blocks",
+		Fetcher:  pgb.chartBlocks,
+		Appender: appendChartBlocks,
+	})
+
+	charts.AddUpdater(cache.ChartUpdater{
+		Tag:      "coin supply",
+		Fetcher:  pgb.coinSupply,
+		Appender: appendCoinSupply,
+	})
+
+	charts.AddUpdater(cache.ChartUpdater{
+		Tag:      "window stats",
+		Fetcher:  pgb.windowStats,
+		Appender: appendWindowStats,
+	})
+}
+
 // TransactionBlocks retrieves the blocks in which the specified transaction
 // appears, along with the index of the transaction in each of the blocks. The
 // next and previous block hashes are NOT SET in each BlockStatus.
@@ -2822,24 +2844,6 @@ func (pgb *ChainDB) TxHistoryData(address string, addrChart dbtypes.HistoryChart
 	return
 }
 
-// TicketsPriceByHeight returns the ticket price by height chart data. This is
-// the default chart that appears at charts page.
-func (pgb *ChainDB) TicketsPriceByHeight() (*dbtypes.ChartsData, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
-	defer cancel()
-
-	var err error
-	data := new(dbtypes.ChartsData)
-
-	data.Time, data.ValueF, _, err = retrieveTicketsPriceByHeight(ctx, pgb.db,
-		pgb.chainParams.StakeDiffWindowSize, data.Time, data.ValueF, []float64{})
-	if err != nil {
-		return nil, pgb.replaceCancelError(err)
-	}
-
-	return data, nil
-}
-
 // TicketsByPrice returns chart data for tickets grouped by price. maturityBlock
 // is used to define when tickets are considered live.
 func (pgb *ChainDB) TicketsByPrice(maturityBlock int64) (*dbtypes.PoolTicketsData, error) {
@@ -2858,69 +2862,45 @@ func (pgb *ChainDB) TicketsByInputCount() (*dbtypes.PoolTicketsData, error) {
 	return ptd, pgb.replaceCancelError(err)
 }
 
-// ticketsPriceByHeight fetches the charts data from retrieveTicketsPriceByHeight.
-func (pgb *ChainDB) ticketsPriceByHeight(timeArr []dbtypes.TimeDef,
-	priceArr, powArr []float64) ([]dbtypes.TimeDef, []float64, []float64, error) {
+// windowStats fetches the charts data from retrieveWindowStats.
+// This is the Fetcher half of a pair that make up a cache.ChartUpdater. The
+// Appender half is appendWindowStats.
+func (pgb *ChainDB) windowStats(charts *cache.ChartData) (*sql.Rows, func(), error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
-	defer cancel()
 
-	var err error
-	timeArr, priceArr, powArr, err = retrieveTicketsPriceByHeight(ctx, pgb.db,
-		pgb.chainParams.StakeDiffWindowSize, timeArr, priceArr, powArr)
+	rows, err := retrieveWindowStats(ctx, pgb.db, charts)
 	if err != nil {
-		err = fmt.Errorf("ticketsPriceByHeight: %v", pgb.replaceCancelError(err))
+		return nil, cancel, fmt.Errorf("windowStats: %v", pgb.replaceCancelError(err))
 	}
 
-	return timeArr, priceArr, powArr, err
+	return rows, cancel, nil
+}
+
+// chartBlocks sets or updates a series of per-block datasets.
+// This is the Fetcher half of a pair that make up a cache.ChartUpdater. The
+// Appender half is appendChartBlocks.
+func (pgb *ChainDB) chartBlocks(charts *cache.ChartData) (*sql.Rows, func(), error) {
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+
+	rows, err := retrieveChartBlocks(ctx, pgb.db, charts)
+	if err != nil {
+		return nil, cancel, fmt.Errorf("chartBlocks: %v", pgb.replaceCancelError(err))
+	}
+	return rows, cancel, nil
 }
 
 // coinSupply fetches the coin supply chart data from retrieveCoinSupply.
-func (pgb *ChainDB) coinSupply(timeArr []dbtypes.TimeDef, sumArr, estimateArr []float64) (
-	[]dbtypes.TimeDef, []float64, []float64, error) {
+// This is the Fetcher half of a pair that make up a cache.ChartUpdater. The
+// Appender half is appendCoinSupply.
+func (pgb *ChainDB) coinSupply(charts *cache.ChartData) (*sql.Rows, func(), error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
-	defer cancel()
 
-	var err error
-	timeArr, sumArr, estimateArr, err = retrieveCoinSupply(ctx, pgb.db,
-		timeArr, sumArr, estimateArr, pgb.chainParams)
+	rows, err := retrieveCoinSupply(ctx, pgb.db, charts)
 	if err != nil {
-		err = fmt.Errorf("coinSupply: %v", pgb.replaceCancelError(err))
+		return nil, cancel, fmt.Errorf("coinSupply: %v", pgb.replaceCancelError(err))
 	}
 
-	return timeArr, sumArr, estimateArr, err
-}
-
-// blocksByTime fetches the charts data from retrieveBlockByTime.
-func (pgb *ChainDB) blocksByTime(timeArr []dbtypes.TimeDef, chainSizeArr,
-	avgSizeArr []uint64) ([]dbtypes.TimeDef, []uint64, []uint64, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
-	defer cancel()
-
-	var err error
-	timeArr, chainSizeArr, avgSizeArr, err = retrieveBlockByTime(ctx, pgb.db,
-		timeArr, chainSizeArr, avgSizeArr)
-	if err != nil {
-		err = fmt.Errorf("blocksByTime: %v", pgb.replaceCancelError(err))
-	}
-
-	return timeArr, chainSizeArr, avgSizeArr, err
-}
-
-// blocksByHeight appends context and fetches the charts data from
-// retrieveBlocksByHeight.
-func (pgb *ChainDB) blocksByHeight(heightArr, blocksCountArr []uint64,
-	durationArr []float64) ([]uint64, []uint64, []float64, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
-	defer cancel()
-
-	var err error
-	heightArr, blocksCountArr, durationArr, err = retrieveBlocksByHeight(ctx,
-		pgb.db, heightArr, blocksCountArr, durationArr)
-	if err != nil {
-		err = fmt.Errorf("blocksByHeight: %v", pgb.replaceCancelError(err))
-	}
-
-	return heightArr, blocksCountArr, durationArr, err
+	return rows, cancel, nil
 }
 
 // txPerDay fetches the tx-per-day chart data from retrieveTxPerDay.
@@ -2938,25 +2918,18 @@ func (pgb *ChainDB) txPerDay(timeArr []dbtypes.TimeDef, txCountArr []uint64) (
 	return timeArr, txCountArr, err
 }
 
-// ticketSpendTypePerBlock fetches the tickets spend type chart data from
-// retrieveTicketSpendTypePerBlock.
-func (pgb *ChainDB) ticketSpendTypePerBlock(heightArr, unSpentArr, revokedArr []uint64) (
-	[]uint64, []uint64, []uint64, error) {
+// PowerlessTickets fetches all missed and expired tickets, sorted by revocation
+// status.
+func (pgb *ChainDB) PowerlessTickets() (*apitypes.PowerlessTickets, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
-
-	var err error
-	heightArr, unSpentArr, revokedArr, err = retrieveTicketSpendTypePerBlock(ctx,
-		pgb.db, heightArr, unSpentArr, revokedArr)
-	if err != nil {
-		err = fmt.Errorf("ticketSpendTypePerBlock: %v", pgb.replaceCancelError(err))
-	}
-
-	return heightArr, unSpentArr, revokedArr, err
+	return retrievePowerlessTickets(ctx, pgb.db)
 }
 
 // ticketsByBlocks fetches the tickets by blocks output count chart data from
 // retrieveTicketByOutputCount
+// This chart has been deprecated. Leaving ticketsByBlocks for possible future
+// re-appropriation, says buck54321 on April 24, 2019.
 func (pgb *ChainDB) ticketsByBlocks(heightArr, soloArr, pooledArr []uint64) ([]uint64,
 	[]uint64, []uint64, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
@@ -2974,6 +2947,8 @@ func (pgb *ChainDB) ticketsByBlocks(heightArr, soloArr, pooledArr []uint64) ([]u
 
 // ticketsByTPWindows fetches the tickets by ticket pool windows count chart data
 // from retrieveTicketByOutputCount.
+// This chart has been deprecated. Leaving ticketsByTPWindows for possible
+// future re-appropriation, says buck54321 on April 24, 2019.
 func (pgb *ChainDB) ticketsByTPWindows(heightArr, soloArr, pooledArr []uint64) ([]uint64,
 	[]uint64, []uint64, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
@@ -2990,19 +2965,6 @@ func (pgb *ChainDB) ticketsByTPWindows(heightArr, soloArr, pooledArr []uint64) (
 	return heightArr, soloArr, pooledArr, err
 }
 
-// chainWork fetches the chainwork charts data from
-func (pgb *ChainDB) chainWork(data [2]*dbtypes.ChartsData) ([2]*dbtypes.ChartsData, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
-	defer cancel()
-
-	chainData, err := retrieveChainWork(ctx, pgb.db, data)
-	if err != nil {
-		err = fmt.Errorf("chainWork: %v", pgb.replaceCancelError(err))
-	}
-
-	return chainData, err
-}
-
 // getChartData returns the chart data if it exists and initializes a new chart
 // data instance if otherwise.
 func (pgb *ChainDB) getChartData(data map[string]*dbtypes.ChartsData,
@@ -3012,103 +2974,6 @@ func (pgb *ChainDB) getChartData(data map[string]*dbtypes.ChartsData,
 		cData = new(dbtypes.ChartsData)
 	}
 	return cData
-}
-
-// PgChartsData accepts an array of the old charts data that needs update.
-// If any of the charts has no entries, its records from the oldest to the
-// most recent are queries from the db pushed into the chart's data. If a given
-// chart data is not empty, only the change since the last update is queried
-// and pushed.
-func (pgb *ChainDB) PgChartsData(data map[string]*dbtypes.ChartsData) (err error) {
-	txRate := pgb.getChartData(data, dbtypes.TxPerDay)
-	txRate.Time, txRate.Count, err = pgb.txPerDay(txRate.Time, txRate.Count)
-	if err != nil {
-		return
-	}
-
-	supply := pgb.getChartData(data, dbtypes.CoinSupply)
-	supply.Time, supply.Received, supply.ValueF, err = pgb.coinSupply(supply.Time,
-		supply.Received, supply.ValueF)
-	if err != nil {
-		return
-	}
-
-	chainData := [2]*dbtypes.ChartsData{
-		data[dbtypes.ChainWork],
-		data[dbtypes.HashRate],
-	}
-
-	chainData, err = pgb.chainWork(chainData)
-	if err != nil {
-		return
-	}
-
-	avgSize := pgb.getChartData(data, dbtypes.AvgBlockSize)
-	blockSize := pgb.getChartData(data, dbtypes.BlockChainSize)
-	blockSize.Time, blockSize.ChainSize, avgSize.Size, err = pgb.blocksByTime(blockSize.Time,
-		blockSize.ChainSize, avgSize.Size)
-	if err != nil {
-		return
-	}
-
-	avgSize.Time = blockSize.Time
-
-	durPerB := pgb.getChartData(data, dbtypes.DurationBTW)
-	txPerB := pgb.getChartData(data, dbtypes.TxPerBlock)
-	txPerB.Height, txPerB.Count, durPerB.ValueF, err = pgb.blocksByHeight(txPerB.Height,
-		txPerB.Count, durPerB.ValueF)
-	if err != nil {
-		return
-	}
-
-	durPerB.Height = txPerB.Height
-
-	tickets := pgb.getChartData(data, dbtypes.TicketPrice)
-	diff := pgb.getChartData(data, dbtypes.POWDifficulty)
-	tickets.Time, tickets.ValueF, diff.Difficulty, err = pgb.ticketsPriceByHeight(tickets.Time,
-		tickets.ValueF, diff.Difficulty)
-	if err != nil {
-		return
-	}
-
-	diff.Time = tickets.Time
-
-	tByAllBlocks := pgb.getChartData(data, dbtypes.TicketsByBlocks)
-	tByAllBlocks.Height, tByAllBlocks.Solo, tByAllBlocks.Pooled, err = pgb.ticketsByBlocks(tByAllBlocks.Height,
-		tByAllBlocks.Solo, tByAllBlocks.Pooled)
-	if err != nil {
-		return
-	}
-
-	ticketsByWin := pgb.getChartData(data, dbtypes.TicketByWindows)
-	ticketsByWin.Height, ticketsByWin.Solo, ticketsByWin.Pooled, err = pgb.ticketsByTPWindows(ticketsByWin.Height,
-		ticketsByWin.Solo, ticketsByWin.Pooled)
-	if err != nil {
-		return
-	}
-
-	ticketSpendT := pgb.getChartData(data, dbtypes.TicketSpendT)
-	ticketSpendT.Height, ticketSpendT.Unspent, ticketSpendT.Revoked, err = pgb.ticketSpendTypePerBlock(ticketSpendT.Height,
-		ticketSpendT.Unspent, ticketSpendT.Revoked)
-	if err != nil {
-		return
-	}
-
-	data[dbtypes.AvgBlockSize] = avgSize
-	data[dbtypes.BlockChainSize] = blockSize
-	data[dbtypes.ChainWork] = chainData[0]
-	data[dbtypes.CoinSupply] = supply
-	data[dbtypes.DurationBTW] = durPerB
-	data[dbtypes.HashRate] = chainData[1]
-	data[dbtypes.POWDifficulty] = diff
-	data[dbtypes.TicketByWindows] = ticketsByWin
-	data[dbtypes.TicketPrice] = tickets
-	data[dbtypes.TicketsByBlocks] = tByAllBlocks
-	data[dbtypes.TicketSpendT] = ticketSpendT
-	data[dbtypes.TxPerBlock] = txPerB
-	data[dbtypes.TxPerDay] = txRate
-
-	return
 }
 
 // SetVinsMainchainByBlock first retrieves for all transactions in the specified
@@ -4256,4 +4121,12 @@ func ticketpoolStatusSlice(ss dbtypes.TicketPoolStatus, N int) []dbtypes.TicketP
 // ChainWork attribute as a hex-encoded string, without 0x prefix.
 func (pgb *ChainDBRPC) GetChainWork(hash *chainhash.Hash) (string, error) {
 	return rpcutils.GetChainWork(pgb.Client, hash)
+}
+
+// GenesisStamp returns the stamp of the lowest mainchain block in the database.
+func (pgb *ChainDB) GenesisStamp() int64 {
+	tDef := dbtypes.NewTimeDefFromUNIX(0)
+	// Ignoring error and returning zero time.
+	pgb.db.QueryRowContext(pgb.ctx, internal.SelectGenesisTime).Scan(&tDef)
+	return tDef.T.Unix()
 }

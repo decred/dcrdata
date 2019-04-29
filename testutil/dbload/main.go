@@ -4,11 +4,14 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 
 	tc "github.com/decred/dcrdata/testutil/dbconfig"
 	_ "github.com/lib/pq"
 )
+
+const defaultBlockRange = "0-199"
 
 type client struct {
 	db *sql.DB
@@ -44,7 +47,11 @@ func main() {
 
 // Path returns the path to the pg dump file.
 func (c *client) Path() string {
-	str, err := filepath.Abs("testutil/dbload/testsconfig/test.data/pgsql_dump.sql")
+	blockRange := os.Getenv("BLOCK_RANGE")
+	if blockRange == "" {
+		blockRange = defaultBlockRange
+	}
+	str, err := filepath.Abs("testutil/dbload/testsconfig/test.data/pgsql_" + blockRange + ".sql")
 	if err != nil {
 		panic(err)
 	}

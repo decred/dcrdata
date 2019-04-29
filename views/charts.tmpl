@@ -4,7 +4,15 @@
 {{template "html-head" "Decred Charts"}}
     {{template "navbar" . }}
 
-    <div data-controller="charts" data-charts-tps="{{.ChainParams.TicketExpiry}}">
+    <div data-controller="charts"
+         data-charts-tps="{{.ChainParams.TicketExpiry}}"
+         data-charts-svh="{{.ChainParams.StakeValidationHeight}}"
+         data-charts-pos="{{.ChainParams.StakeRewardProportion}}"
+         data-charts-premine="{{.Premine}}"
+         data-charts-bs="{{.ChainParams.BaseSubsidy}}"
+         data-charts-sri="{{.ChainParams.SubsidyReductionInterval}}"
+         data-charts-mul-subsidy="{{.ChainParams.MulSubsidy}}"
+         data-charts-div-subsidy="{{.ChainParams.DivSubsidy}}">
 
         <div class="container main">
 
@@ -20,20 +28,19 @@
                             data-action="charts#selectChart"
                             style="width: 250px"
                         >
-                            <option name="ticket-price" value="ticket-price">Ticket Price</option>
-                            <option name="ticket-pool-size" value="ticket-pool-size">Ticket Pool Size</option>
-                            <option name="ticket-pool-value" value="ticket-pool-value">Ticket Pool Value</option>
-                            <option name="avg-block-size" value="avg-block-size">Average Block Size</option>
-                            <option name="blockchain-size" value="blockchain-size">Blockchain Size</option>
-                            <option name="tx-per-block" value="tx-per-block">Transactions Per Block</option>
-                            <option name="tx-per-day" value="tx-per-day">Transactions Per Day</option>
-                            <option name="pow-difficulty" value="pow-difficulty">PoW Difficulty</option>
-                            <option name="coin-supply" value="coin-supply">Coin Supply</option>
-                            <option name="fee-per-block" value="fee-per-block">Total Fee Per Block</option>
-                            <option name="duration-btw-blocks" value="duration-btw-blocks">Duration Between Blocks</option>
-                            <option name="ticket-spend-type" value="ticket-spend-type">Ticket Spend Types</option>
+                            <option value="ticket-price">Ticket Price</option>
+                            <option value="ticket-pool-size">Ticket Pool Size</option>
+                            <option value="ticket-pool-value">Ticket Pool Value</option>
+                            <option value="block-size">Block Size</option>
+                            <option value="blockchain-size">Blockchain Size</option>
+                            <option value="tx-count">Transaction Count</option>
+                            <option value="pow-difficulty">PoW Difficulty</option>
+                            <option value="coin-supply">Circulation</option>
+                            <option value="fees">Fees</option>
+                            <option value="duration-btw-blocks">Duration Between Blocks</option>
+                            <!-- <option value="ticket-spend-type">Ticket Spend Types</option>
                             <option name="ticket-by-outputs-windows" value="ticket-by-outputs-windows">Ticket Outputs by Price Window</option>
-                            <option name="ticket-by-outputs-blocks" value="ticket-by-outputs-blocks">Ticket Outputs by Block</option>
+                            <option name="ticket-by-outputs-blocks" value="ticket-by-outputs-blocks">Ticket Outputs by Block</option> -->
                             <option name="chainwork" value="chainwork">Total Work</option>
                             <option name="hashrate" value="hashrate">Network Hashrate</option>
                         </select>
@@ -95,19 +102,31 @@
                     </div>
                 </div>
 
-                <div class="chart-control-wrapper mr-2 mb-1" data-target="charts.zoomSelector">
-                    <div class="chart-control-label">MOVING AVG</div>
+                <div class="chart-control-wrapper mr-2 mb-1" data-target="charts.binSelector">
+                    <div class="chart-control-label">BIN</div>
                     <div class="chart-control">
-                        <input
-                            type="number"
-                            min="1"
-                            max="10000"
-                            class="form-control"
-                            style="max-width: 80px"
-                            placeholder="&mdash;"
-                            data-target="charts.rollPeriodInput"
-                            data-action="change->charts#onRollPeriodChange"
+                        <ul
+                            class="nav nav-pills"
                         >
+                            <li class="nav-item">
+                                <a
+                                    class="nav-link active"
+                                    href="javascript:void(0);"
+                                    data-target="charts.binSize"
+                                    data-action="click->charts#setBin"
+                                    data-bin="day"
+                                >Day</a>
+                            </li>
+                            <li class="nav-item">
+                                <a
+                                    class="nav-link"
+                                    href="javascript:void(0);"
+                                    data-target="charts.binSize"
+                                    data-action="click->charts#setBin"
+                                    data-bin="block"
+                                >Block</a>
+                            </li>
+                        </ul>
                     </div>
                 </div>
 
