@@ -104,7 +104,7 @@ function zipYvDate (gData, coefficient) {
 }
 
 function poolSizeFunc (gData) {
-  var data = map(gData.x, (n, i) => { return [new Date(n), gData.y[i], null] })
+  var data = map(gData.x, (n, i) => { return [new Date(n * 1000), gData.y[i], null] })
   if (data.length) {
     data[0][2] = ticketPoolSizeTarget
     data[data.length - 1][2] = ticketPoolSizeTarget
