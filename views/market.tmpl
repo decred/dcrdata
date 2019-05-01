@@ -184,6 +184,15 @@
                   <button name="fiat">{{$botState.BtcIndex}}</button>
                 </div>
 
+                {{- /* AGGREGATE DEPTH STACKING */ -}}
+                <div
+                    class="btn-set bg-white d-inline-flex flex-nowrap mx-2 mx-lg-4"
+                    data-target="market.aggStack"
+                >
+                  <label>Stacking</label>
+                  <button class="btn-selected" data-action="click->market#setStacking" name="on">On</button>
+                  <button data-action="click->market#setStacking" name="off">Off</button>
+                </div>
 
                 {{- /* OTHER CHART OPTIONS */ -}}
                 <div

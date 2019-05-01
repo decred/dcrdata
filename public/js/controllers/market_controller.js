@@ -49,6 +49,7 @@ if (typeof document.hidden !== 'undefined') { // Opera 12.10 and Firefox 18 and 
   visibilityChange = 'webkitvisibilitychange'
 }
 var focused = true
+var aggStacking = true
 var refreshAvailable = false
 var availableCandlesticks, availableDepths
 
@@ -96,7 +97,7 @@ var settings = {}
 
 var colorNumerator = 0
 var colorDenominator = 2
-var hslS = '50%'
+var hslS = '100%'
 var hslL = '50%'
 var hslOffset = 45 // 0 <= x < 360
 var exchangeHues = {}
@@ -450,9 +451,8 @@ function depthLegendPlotter (e) {
   ctx.textBaseline = 'top'
   ctx.font = `${fontSize}px arial`
   ctx.lineWidth = 1
-  var textColor = dark ? '#eee' : '#222'
-  ctx.strokeStyle = textColor
-  let boxColor = dark ? '#2225' : '#fff5'
+  ctx.strokeStyle = chartStroke
+  let boxColor = dark ? '#2228' : '#fff8'
 
   var gapText = `${greekCapDelta} : ${humanize.threeSigFigs(stats.gap * conversionFactor)} ${currencyCode}`
   var boxW = ctx.measureText(gapText).width
@@ -481,7 +481,7 @@ function depthLegendPlotter (e) {
     tokens.forEach(token => {
       ctx.fillStyle = getHue(token)
       drawPt(ctx, makePt(x + rowHeight / 2, y + rowHeight / 2 - 1), ptSize)
-      ctx.fillStyle = textColor
+      ctx.fillStyle = chartStroke
       ctx.fillText(token, x + rowPad + rowHeight, y + rowPad)
       y += rowHeight
     })
@@ -497,7 +497,7 @@ function depthLegendPlotter (e) {
   let dims = makePt(boxW + boxPad * 3, rowHeight + boxPad * 2)
   ctx.fillRect(rect.x, rect.y, dims.x, dims.y)
   ctx.strokeRect(rect.x, rect.y, dims.x, dims.y)
-  ctx.fillStyle = textColor
+  ctx.fillStyle = chartStroke
   ctx.fillText(gapText, x + rowPad, y + rowPad)
   // Draw a line from the box to the gap
   drawLine(ctx,
@@ -506,8 +506,15 @@ function depthLegendPlotter (e) {
 }
 
 function depthPlotter (e) {
-  // Let Dygraph do the bulk of the work
   Dygraph.Plotters.fillPlotter(e)
+  var tokens = e.dygraph.getOption('tokens')
+  if (tokens && e.dygraph.getOption('stackedGraph')) {
+    if (e.seriesIndex === 0 || e.seriesIndex === tokens.length) {
+      e.color = chartStroke
+    } else {
+      e.color = 'transparent'
+    }
+  }
   Dygraph.Plotters.linePlotter(e)
 
   // Callout box with color legend
@@ -529,7 +536,8 @@ export default class extends Controller {
   static get targets () {
     return ['chartSelect', 'exchanges', 'bin', 'chart', 'legend', 'conversion',
       'xcName', 'xcLogo', 'actions', 'sticksOnly', 'depthOnly', 'chartLoader',
-      'xcRow', 'xcIndex', 'price', 'age', 'ageSpan', 'link', 'aggOption']
+      'xcRow', 'xcIndex', 'price', 'age', 'ageSpan', 'link', 'aggOption',
+      'aggStack']
   }
 
   async connect () {
@@ -574,6 +582,10 @@ export default class extends Controller {
     }
     if (settings.xc == null) {
       settings.xc = binance
+    }
+    if (settings.stack) {
+      settings.stack = parseInt(settings.stack)
+      if (settings.stack === 0) aggStacking = false
     }
     this.setExchangeName()
     if (settings.bin == null) {
@@ -859,8 +871,8 @@ export default class extends Controller {
       xlabel: `Price (${this.converted ? this.currencyCode : 'BTC'})`,
       ylabel: 'Volume (DCR)',
       plotter: depthPlotter,
-      fillGraph: true,
-      stackedGraph: true,
+      fillGraph: aggStacking,
+      stackedGraph: aggStacking,
       tokens: tokens,
       stats: data.stats,
       axes: {
@@ -936,6 +948,13 @@ export default class extends Controller {
     this.depthOnlyTargets.forEach(option => {
       option.disabled = depthDisabled
     })
+    if (settings.xc === aggregatedKey && settings.chart === depth) {
+      this.aggStackTarget.classList.remove('d-hide')
+      settings.stack = aggStacking ? 1 : 0
+    } else {
+      this.aggStackTarget.classList.add('d-hide')
+      settings.stack = null
+    }
   }
 
   setBinSelection () {
@@ -1079,6 +1098,15 @@ export default class extends Controller {
       }
     }
     return null
+  }
+
+  setStacking (e) {
+    var btn = e.target || e.srcElement
+    if (btn.nodeName !== 'BUTTON' || !this.graph) return
+    this.aggStackTarget.querySelectorAll('button').forEach(b => b.classList.remove('btn-selected'))
+    btn.classList.add('btn-selected')
+    aggStacking = btn.name === 'on'
+    this.graph.updateOptions({ stackedGraph: aggStacking, fillGraph: aggStacking })
   }
 
   _processXcUpdate (update) {
