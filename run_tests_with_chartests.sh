@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # usage:
-# ./run_tests.sh                         # local, go 1.11
-# ./run_tests.sh docker                  # docker, go 1.11
-# ./run_tests.sh podman                  # podman, go 1.11
+# ./run_tests.sh                         # local, go 1.12
+# ./run_tests.sh docker                  # docker, go 1.12
+# ./run_tests.sh podman                  # podman, go 1.12
 
 set -ex
 
@@ -20,7 +20,7 @@ set -ex
 # static checker.
 
 # Default GOVERSION
-[[ ! "$GOVERSION" ]] && GOVERSION=1.11
+[[ ! "$GOVERSION" ]] && GOVERSION=1.12
 REPO=dcrdata
 
 testrepo () {
