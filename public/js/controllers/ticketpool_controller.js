@@ -292,10 +292,10 @@ export default class extends Controller {
         },
         type: 'doughnut',
         data: {
-          labels: ['Solo', 'VSP Tickets', 'TixSplit'],
+          labels: ['3 Outputs', '5 Outputs', 'More than 5 Outputs'],
           datasets: [{
             data: d,
-            label: 'Solo Tickets',
+            label: 'Tickets Outputs',
             backgroundColor: ['#2971FF', '#FF8C00', '#41BF53'],
             borderColor: ['white', 'white', 'white'],
             borderWidth: 0.5
