@@ -24,11 +24,21 @@ replace (
 )
 
 require (
+	github.com/decred/dcrd/dcrec v0.0.0-20190429225806-70c14042d837 // indirect
+	github.com/decred/dcrd/dcrec/edwards v0.0.0-20190429225806-70c14042d837 // indirect
 	github.com/decred/dcrd/dcrutil v1.2.1-0.20190118223730-3a5281156b73
-	github.com/decred/dcrdata/explorer/types v1.0.1-0.20190416204615-70a58657e02f
-	github.com/decred/dcrdata/pubsub v1.0.1-0.20190416214715-6f7f00b15252
-	github.com/decred/dcrdata/pubsub/types v1.0.1-0.20190416204615-70a58657e02f
+	github.com/decred/dcrdata/explorer/types v1.0.1-0.20190501025527-02d6f8e648f7
+	github.com/decred/dcrdata/pubsub v1.0.1-0.20190501025527-02d6f8e648f7
+	github.com/decred/dcrdata/pubsub/types v1.0.1-0.20190501025527-02d6f8e648f7
+	github.com/decred/dcrdata/txhelpers v1.1.0 // indirect
+	github.com/google/go-cmp v0.3.0 // indirect
 	github.com/jessevdk/go-flags v1.4.0
-	golang.org/x/net v0.0.0-20190415214537-1da14a5a36f2
+	github.com/kr/pty v1.1.4 // indirect
+	golang.org/x/crypto v0.0.0-20190426145343-a29dc8fdc734 // indirect
+	golang.org/x/net v0.0.0-20190502183928-7f726cade0ab
+	golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 // indirect
+	golang.org/x/text v0.3.2 // indirect
+	google.golang.org/genproto v0.0.0-20190502173448-54afdca5d873 // indirect
+	google.golang.org/grpc v1.20.1 // indirect
 	gopkg.in/AlecAivazis/survey.v1 v1.8.2
 )
