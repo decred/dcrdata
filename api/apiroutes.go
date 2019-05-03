@@ -1013,7 +1013,7 @@ func (c *appContext) getSSTxDetails(w http.ResponseWriter, r *http.Request) {
 // getTicketPoolCharts pulls the initial data to populate the /ticketpool page
 // charts.
 func (c *appContext) getTicketPoolCharts(w http.ResponseWriter, r *http.Request) {
-	timeChart, priceChart, donutChart, height, err := c.AuxDataSource.TicketPoolVisualization(dbtypes.AllGrouping)
+	timeChart, priceChart, outputsChart, height, err := c.AuxDataSource.TicketPoolVisualization(dbtypes.AllGrouping)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("TicketPoolVisualization: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1028,11 +1028,11 @@ func (c *appContext) getTicketPoolCharts(w http.ResponseWriter, r *http.Request)
 	mp := c.BlockData.GetMempoolPriceCountTime()
 
 	response := &apitypes.TicketPoolChartsData{
-		ChartHeight: uint64(height),
-		TimeChart:   timeChart,
-		PriceChart:  priceChart,
-		DonutChart:  donutChart,
-		Mempool:     mp,
+		ChartHeight:  uint64(height),
+		TimeChart:    timeChart,
+		PriceChart:   priceChart,
+		OutputsChart: outputsChart,
+		Mempool:      mp,
 	}
 
 	writeJSON(w, response, c.getIndentQuery(r))

@@ -31,17 +31,11 @@
           <input data-target="ticketpool.bars" data-action="click->ticketpool#onBarsChange" type="button" class="btn btn_sm 1m" value="Month" name="mo">
         </div>
 
-        <div id="tickets_by_purchase_date" class="tickets"></div>
-
+        <div id="tickets_by_purchase_date" class="tp-charts"></div>
         <br>
-        <div id="tickets_by_purchase_price" class="tickets"></div>
-
+        <div id="tickets_by_purchase_price" class="tp-charts"></div>
         <br>
-        <div id="tickets_by_type_doughnut" class="doughnutGraph">
-          <canvas id="doughnutGraph" width="220" height="180"
-                  chart-options="{tooltipTemplate: '<%=label%>: <%= numeral(value).format('($00[.]00)') %> - <%= numeral(circumference / 6.283).format('(0[.][00]%)') %>'">
-          </canvas>
-        </div>
+        <div id="tickets_by_outputs_count" class="tp-charts"></div>
       </div>
     </div>
     {{ template "footer" . }}

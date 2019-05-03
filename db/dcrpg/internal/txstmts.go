@@ -190,12 +190,13 @@ const (
 		) b
 		WHERE block_hash = b.hash;`
 
-	SelectTicketsByType = `SELECT
-		width_bucket(num_vout, array[3, 5, 6]) as ticket_bucket,
-		count(*)
-		FROM transactions JOIN tickets
-		ON transactions.id=purchase_tx_db_id WHERE pool_status=0
-		AND tickets.is_mainchain = TRUE GROUP BY ticket_bucket;`
+	SelectTicketsByType = `SELECT block_time, num_vout
+		FROM transactions
+		JOIN tickets
+		ON transactions.id=purchase_tx_db_id
+		WHERE pool_status=0
+		AND tickets.is_mainchain = TRUE
+		ORDER BY block_time;`
 
 	SelectTxnByDbID = `SELECT block_hash, block_height, tx_hash FROM transactions WHERE id = $1;`
 
