@@ -710,11 +710,15 @@ func (charts *ChartData) Update() {
 
 // NewChartData constructs a new ChartData.
 func NewChartData(height uint32, genesis time.Time, chainParams *chaincfg.Params, ctx context.Context) *ChartData {
+	// Allocate datasets for at least as many blocks as in a sdiff window.
+	if int64(height) < chainParams.StakeDiffWindowSize {
+		height = uint32(chainParams.StakeDiffWindowSize)
+	}
 	// Start datasets at 25% larger than height. This matches golangs default
 	// capacity size increase for slice lengths > 1024
 	// https://github.com/golang/go/blob/87e48c5afdcf5e01bb2b7f51b7643e8901f4b7f9/src/runtime/slice.go#L100-L112
 	size := int(height * 5 / 4)
-	days := int(int64(time.Since(genesis)/time.Hour/24)) * 5 / 4
+	days := int(time.Since(genesis)/time.Hour/24)*5/4 + 1 // at least one day
 	windows := int(int64(height)/chainParams.StakeDiffWindowSize+1) * 5 / 4
 	return &ChartData{
 		ctx:          ctx,

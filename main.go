@@ -397,10 +397,6 @@ func _main(ctx context.Context) error {
 		return fmt.Errorf("Unable to get height from PostgreSQL DB: %v", err)
 	}
 
-	charts := cache.NewChartData(uint32(lastBlockPG), time.Unix(pgDB.GenesisStamp(), 0), activeChain, ctx)
-	pgDB.RegisterCharts(charts)
-	baseDB.RegisterCharts(charts)
-
 	// Allow WiredDB/stakedb to catch up to the pgDB, but after
 	// fetchToHeight, WiredDB must receive block signals from pgDB, and
 	// stakedb must send connect signals to pgDB.
@@ -411,6 +407,11 @@ func _main(ctx context.Context) error {
 	if heightDB < 0 {
 		heightDB = 0
 	}
+
+	charts := cache.NewChartData(uint32(heightDB), time.Unix(pgDB.GenesisStamp(), 0),
+		activeChain, ctx)
+	pgDB.RegisterCharts(charts)
+	baseDB.RegisterCharts(charts)
 
 	// Aux DB height and stakedb height must be equal. StakeDatabase will
 	// catch up automatically if it is behind, but we must rewind it here if
