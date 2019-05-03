@@ -1,4 +1,4 @@
-# Insight API (EXPERIMENTAL)
+# Insight API
 
 The [Insight API](https://github.com/bitpay/insight-api) is accessible via HTTP via REST or WebSocket. 
 

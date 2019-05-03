@@ -1,13 +1,13 @@
 // Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
-//
-// This is tested against Insight API Implementation v5.3.04beta
 
-// Package insight handles the insight api
+// Package insight implements the Insight API.
 package insight
 
 import (
+	"net/http"
+
 	m "github.com/decred/dcrdata/middleware"
 	"github.com/didip/tollbooth"
 	"github.com/didip/tollbooth_chi"
@@ -49,6 +49,10 @@ func NewInsightApiRouter(app *InsightApi, useRealIP, compression bool) ApiMux {
 	if compression {
 		mux.Use(middleware.NewCompressor(3).Handler())
 	}
+
+	mux.With(m.OriginalRequestURI).Get("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, r.URL.Path+"/status", http.StatusSeeOther)
+	})
 
 	// Block endpoints
 	mux.With(BlockDateLimitQueryCtx).Get("/blocks", app.getBlockSummaryByTime)

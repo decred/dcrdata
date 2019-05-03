@@ -576,7 +576,7 @@ func (charts *ChartData) Load(cacheDumpPath string) {
 	// Bring the charts up to date.
 	charts.Update()
 
-	log.Debugf("Completed the initial chart load in %d s", time.Since(t).Seconds())
+	log.Debugf("Completed the initial chart load in %f s", time.Since(t).Seconds())
 }
 
 // Dump dumps a ChartGobject to a gob file at the given path.

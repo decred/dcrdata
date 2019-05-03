@@ -131,6 +131,7 @@ type links struct {
 	CoinbaseComment string
 	POSExplanation  string
 	APIDocs         string
+	InsightAPIDocs  string
 	Github          string
 	License         string
 	NetParams       string
@@ -147,6 +148,7 @@ var explorerLinks = &links{
 	CoinbaseComment: "https://github.com/decred/dcrd/blob/2a18beb4d56fe59d614a7309308d84891a0cba96/chaincfg/genesis.go#L17-L53",
 	POSExplanation:  "https://docs.decred.org/faq/proof-of-stake/general/#9-what-is-proof-of-stake-voting",
 	APIDocs:         "https://github.com/decred/dcrdata#apis",
+	InsightAPIDocs:  "https://github.com/decred/dcrdata/blob/master/api/Insight_API_documentation.md",
 	Github:          "https://github.com/decred/dcrdata",
 	License:         "https://github.com/decred/dcrdata/blob/master/LICENSE",
 	NetParams:       "https://github.com/decred/dcrd/blob/master/chaincfg/params.go",
@@ -351,7 +353,8 @@ func New(cfg *ExplorerConfig) *explorerUI {
 	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
 		"rawtx", "status", "parameters", "agenda", "agendas", "charts",
 		"sidechains", "disapproved", "ticketpool", "nexthome", "statistics",
-		"windows", "timelisting", "addresstable", "proposals", "proposal", "market"}
+		"windows", "timelisting", "addresstable", "proposals", "proposal",
+		"market", "insight_root"}
 
 	for _, name := range tmpls {
 		if err := exp.templates.addTemplate(name); err != nil {
