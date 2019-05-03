@@ -1,0 +1,23 @@
+{{define "insight_root"}}
+<!DOCTYPE html>
+<html lang="en">
+
+{{template "html-head" "Insight API"}}
+    {{template "navbar" . }}
+    <div class="container main">
+        <div>
+            <h2 style="text-align: center; margin-top: 0px">Looking for the Insight API?</h2>
+            <p style="text-align: center; margin-bottom: 5px">
+                The Insight API is available under the API sub-path. (e.g. <a href="{{prefixPath .RequestURI `api/status`}}">{{prefixPath .RequestURI `api/status`}}</a>).
+            </p>
+            <p style="text-align: center; margin-bottom: 5px">
+                For more information, see <a href="{{.Links.InsightAPIDocs}}">dcrdata's documentation of the Insight API.
+            </p>
+        </div>
+    </div>
+
+{{ template "footer" . }}
+
+</body>
+</html>
+{{ end }}

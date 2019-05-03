@@ -761,8 +761,10 @@ func _main(ctx context.Context) error {
 
 	// Configure the URL path to http handler router for the API.
 	apiMux := api.NewAPIRouter(app, cfg.UseRealIP, cfg.CompressAPI)
+
 	// File downloads piggy-back on the API.
 	fileMux := api.NewFileRouter(app, cfg.UseRealIP)
+
 	// Configure the explorer web pages router.
 	webMux := chi.NewRouter()
 	webMux.With(explore.SyncStatusPageIntercept).Group(func(r chi.Router) {
@@ -771,15 +773,27 @@ func _main(ctx context.Context) error {
 	})
 	webMux.Get("/ws", explore.RootWebsocket)
 	webMux.Get("/ps", psHub.WebSocketHandler)
-	webMux.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./public/images/favicon.ico")
-	})
-	cacheControlMaxAge := int64(cfg.CacheControlMaxAge)
-	FileServer(webMux, "/js", "./public/js", cacheControlMaxAge)
-	FileServer(webMux, "/css", "./public/css", cacheControlMaxAge)
-	FileServer(webMux, "/fonts", "./public/fonts", cacheControlMaxAge)
-	FileServer(webMux, "/images", "./public/images", cacheControlMaxAge)
-	FileServer(webMux, "/dist", "./public/dist", cacheControlMaxAge)
+
+	// Make the static assets available under a path with the given prefix.
+	mountAssetPaths := func(pathPrefix string) {
+		if !strings.HasSuffix(pathPrefix, "/") {
+			pathPrefix += "/"
+		}
+
+		webMux.Get(pathPrefix+"favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+			log.Infof("Serving %s", r.URL.String())
+			http.ServeFile(w, r, "./public/images/favicon/favicon.ico")
+		})
+
+		cacheControlMaxAge := int64(cfg.CacheControlMaxAge)
+		FileServer(webMux, pathPrefix+"js", "./public/js", cacheControlMaxAge)
+		FileServer(webMux, pathPrefix+"css", "./public/css", cacheControlMaxAge)
+		FileServer(webMux, pathPrefix+"fonts", "./public/fonts", cacheControlMaxAge)
+		FileServer(webMux, pathPrefix+"images", "./public/images", cacheControlMaxAge)
+		FileServer(webMux, pathPrefix+"dist", "./public/dist", cacheControlMaxAge)
+	}
+	// Mount under root (e.g. /js, /css, etc.).
+	mountAssetPaths("/")
 
 	// HTTP profiler
 	if cfg.HTTPProfile {
@@ -850,6 +864,15 @@ func _main(ctx context.Context) error {
 			http.Redirect(w, r, "/stats", http.StatusPermanentRedirect)
 		})
 	})
+
+	// Configure a page for the bare "/insight" path. This mounts the static
+	// assets under /insight (e.g. /insight/js) to support the page's complete
+	// loading when the root mounter is not accessible, such as the case in
+	// certain reverse proxy configurations that map /insight as the root path.
+	webMux.With(m.OriginalRequestURI).Get("/insight", explore.InsightRootPage)
+	// Serve static assets under /insight for when the a reverse proxy prefixes
+	// all requests with "/insight". (e.g. /insight/js, /insight/css, etc.).
+	mountAssetPaths("/insight")
 
 	// Start the web server.
 	listenAndServeProto(ctx, &wg, cfg.APIListen, cfg.APIProto, webMux)

@@ -234,6 +234,24 @@ func (exp *explorerUI) SideChains(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+// InsightRootPage is the page for the "/insight" path.
+func (exp *explorerUI) InsightRootPage(w http.ResponseWriter, r *http.Request) {
+	str, err := exp.templates.execTemplateToString("insight_root", struct {
+		*CommonPageData
+	}{
+		CommonPageData: exp.commonData(r),
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
 // DisapprovedBlocks is the page handler for the "/disapproved" path.
 func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request) {
 	disapprovedBlocks, err := exp.explorerSource.DisapprovedBlocks()
