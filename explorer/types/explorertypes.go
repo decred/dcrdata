@@ -66,7 +66,6 @@ func (t *TimeDef) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements json.Unmarshaler.
 func (t *TimeDef) UnmarshalJSON(data []byte) error {
-	fmt.Println("explorer/types.(TimeDef).UnmarshalJSON")
 	if t == nil {
 		return fmt.Errorf("TimeDef: UnmarshalJSON on nil pointer")
 	}
