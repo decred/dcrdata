@@ -189,6 +189,8 @@ github.com/decred/dcrdata/mempool/v2 v2.0.0 h1:GZHL8UgsCWiamfCSUQ4DY/aB6m4OXYbyl
 github.com/decred/dcrdata/mempool/v2 v2.0.0/go.mod h1:FIRHQCgF92I/picVJ4lccrLn/c6IsmHx5hZot1Tok3k=
 github.com/decred/dcrdata/middleware/v2 v2.0.1 h1:2bwFvRuBzEvSqeILo3T+UzXCfEeqL1oc61qWrVLPUo8=
 github.com/decred/dcrdata/middleware/v2 v2.0.1/go.mod h1:q9RysoAyYOM56eDARVXzWDcmOdQutmJ0Tc27L0bhWKU=
+github.com/decred/dcrdata/middleware/v2 v2.0.2-0.20190506145717-84bca771d7bf h1:5KyZIq6hC15Qk6e8u0HMt4fUPDoNer74vvQ8JyQ+L8g=
+github.com/decred/dcrdata/middleware/v2 v2.0.2-0.20190506145717-84bca771d7bf/go.mod h1:q9RysoAyYOM56eDARVXzWDcmOdQutmJ0Tc27L0bhWKU=
 github.com/decred/dcrdata/pubsub v1.0.1 h1:UnBe8V+Sn6yg9P7g18AF/487h9RLCM4N4HgV8JfOa3U=
 github.com/decred/dcrdata/pubsub v1.0.1/go.mod h1:88pj3GWYyV/q6EPxIgc52+Yx1KDHxH1uytL9juBCIlk=
 github.com/decred/dcrdata/pubsub/types v1.0.1 h1:NNSLj8veK/hC83pe2dwJ11YDXLhu7VJZY8z55tKWTXQ=

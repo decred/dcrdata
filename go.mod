@@ -22,7 +22,7 @@ require (
 	github.com/decred/dcrdata/gov/agendas v1.1.0
 	github.com/decred/dcrdata/gov/politeia v1.1.0
 	github.com/decred/dcrdata/mempool/v2 v2.0.0
-	github.com/decred/dcrdata/middleware/v2 v2.0.1
+	github.com/decred/dcrdata/middleware/v2 v2.0.2-0.20190506145717-84bca771d7bf
 	github.com/decred/dcrdata/pubsub v1.0.1
 	github.com/decred/dcrdata/pubsub/types v1.0.1
 	github.com/decred/dcrdata/rpcutils v1.1.0
