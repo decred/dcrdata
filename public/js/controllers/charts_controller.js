@@ -29,6 +29,17 @@ function intComma (amount) {
   return amount.toLocaleString(undefined, { maximumFractionDigits: 0 })
 }
 
+function formatHashRate (s) {
+  var rates = ['Hash/s', 'KHash/s', 'MHash/s', 'GHash/s', 'THash/s', 'PHash/s', 'ExHash/s']
+  for (var i = 0; i < rates.length; i++) {
+    var r = Math.pow(1000, i + 1)
+    var val = Math.floor(s / r)
+    if (val <= 1000 || i + 1 === rates.length) {
+      return intComma(val) + ' ' + rates[i]
+    }
+  }
+}
+
 function blockReward (height) {
   if (height >= stakeValHeight) return baseSubsidy * Math.pow(subsidyExponent, Math.floor(height / subsidyInterval))
   if (height > 1) return baseSubsidy * (1 - stakeShare)
@@ -53,7 +64,7 @@ function legendFormatter (data) {
     var extraHTML = ''
     // The circulation chart has an additional legend entry showing percent
     // difference.
-    if (data.series.length === 2 && data.series[1].label === 'Coin Supply') {
+    if (data.series.length === 2 && data.series[1].label.toLowerCase() === 'coin supply') {
       let predicted = data.series[0].y
       let actual = data.series[1].y
       let change = (((actual - predicted) / predicted) * 100).toFixed(2)
@@ -62,7 +73,22 @@ function legendFormatter (data) {
 
     let yVals = data.series.reduce((nodes, series) => {
       if (!series.isVisible) return nodes
-      let yVal = series.label.toLowerCase().includes('coin supply') ? intComma(series.y) + ' DCR' : series.yHTML
+      let yVal = series.yHTML
+      switch (series.label.toLowerCase()) {
+        case 'coin supply':
+          yVal = intComma(series.y) + ' DCR'
+          break
+
+        case 'hashrate':
+          var teraRate = 10 ** 12
+          yVal = formatHashRate(series.y * teraRate)
+          break
+
+        case 'chainwork':
+          var exaRate = 10 ** 18
+          yVal = formatHashRate(series.y * exaRate)
+          break
+      }
       return nodes + `<div class="pr-2">${series.dashHTML} ${series.labelHTML}: ${yVal}</div>`
     }, '')
 
@@ -319,14 +345,13 @@ export default class extends Controller {
 
       case 'chainwork': // Total chainwork over time
         d = zipYvDate(data)
-        assign(gOptions, mapDygraphOptions(d, ['Date', 'Cumulative Chainwork (exahash)'],
-          false, 'Cumulative Chainwork (exahash)', 'Date', undefined, true, false))
+        assign(gOptions, mapDygraphOptions(d, ['Date', 'Cumulative Chainwork'],
+          false, 'Cumulative Chainwork', 'Date', undefined, false, false))
         break
 
       case 'hashrate': // Total chainwork over time
         d = zipYvDate(data)
-        assign(gOptions, mapDygraphOptions(d, ['Date', 'Network Hashrate (terahash/s)'],
-          false, 'Network Hashrate (terahash/s)', 'Date', undefined, true, false))
+        assign(gOptions, mapDygraphOptions(d, ['Date', 'Hashrate'], false, 'Hashrate', 'Date', undefined, false, false))
         break
     }
     this.chartsView.updateOptions(gOptions, false)

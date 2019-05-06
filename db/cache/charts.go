@@ -75,7 +75,7 @@ func (e ChartError) Error() string {
 
 // UnknownChartErr is returned when a chart key is provided that does not match
 // any known chart type constant.
-const UnknownChartErr = ChartError("unkown chart")
+const UnknownChartErr = ChartError("unknown chart")
 
 // InvalidZoomErr is returned when a ChartMaker receives an unknown ZoomLevel.
 // In practice, this should be impossible, since ParseZoom returns a default
@@ -205,7 +205,7 @@ type zoomSet struct {
 	BlockSize ChartUints
 	TxCount   ChartUints
 	NewAtoms  ChartUints
-	Chainwork ChartUints
+	Chainwork ChartFloats
 	Fees      ChartUints
 }
 
@@ -235,7 +235,7 @@ func newBlockSet(size int) *zoomSet {
 		BlockSize: newChartUints(size),
 		TxCount:   newChartUints(size),
 		NewAtoms:  newChartUints(size),
-		Chainwork: newChartUints(size),
+		Chainwork: newChartFloats(size),
 		Fees:      newChartUints(size),
 	}
 }
@@ -286,7 +286,7 @@ type ChartGobject struct {
 	BlockSize   ChartUints
 	TxCount     ChartUints
 	NewAtoms    ChartUints
-	Chainwork   ChartUints
+	Chainwork   ChartFloats
 	Fees        ChartUints
 	WindowTime  ChartUints
 	PowDiff     ChartFloats
@@ -979,14 +979,14 @@ func durationBTWChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 // is HashrateAvgLength shorter than the provided chainwork. A time slice is
 // required as well, and a truncated time slice with the same length as the
 // hashrate slice is returned.
-func hashrate(time, chainwork ChartUints) (ChartUints, ChartUints) {
+func hashrate(time ChartUints, chainwork ChartFloats) (ChartUints, ChartFloats) {
 	hrLen := len(chainwork) - HashrateAvgLength
 	if hrLen <= 0 {
-		return newChartUints(0), newChartUints(0)
+		return newChartUints(0), newChartFloats(0)
 	}
 	t := make(ChartUints, 0, hrLen)
-	y := make(ChartUints, 0, hrLen)
-	var rotator [HashrateAvgLength]uint64
+	y := make(ChartFloats, 0, hrLen)
+	var rotator [HashrateAvgLength]float64
 	for i, work := range chainwork {
 		idx := i % HashrateAvgLength
 		rotator[idx] = work
@@ -996,7 +996,7 @@ func hashrate(time, chainwork ChartUints) (ChartUints, ChartUints) {
 			thisTime := time[i]
 			// 1e6: exahash -> terahash/s
 			t = append(t, thisTime)
-			y = append(y, (work-lastWork)*1e6/(thisTime-lastTime))
+			y = append(y, (work-lastWork)*1e6/float64(thisTime-lastTime))
 		}
 	}
 	return t, y
