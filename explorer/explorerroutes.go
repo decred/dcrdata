@@ -47,6 +47,7 @@ type CommonPageData struct {
 	Links         *links
 	NetName       string
 	Cookies       Cookies
+	RequestURI    string
 }
 
 // Status page strings
@@ -2087,5 +2088,6 @@ func (exp *explorerUI) commonData(r *http.Request) *CommonPageData {
 		Cookies: Cookies{
 			DarkMode: darkMode != nil && darkMode.Value == "1",
 		},
+		RequestURI: r.URL.RequestURI(),
 	}
 }
