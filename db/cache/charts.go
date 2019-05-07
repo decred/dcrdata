@@ -476,7 +476,7 @@ func (charts *ChartData) ReorgHandler(wg *sync.WaitGroup, c chan *txhelpers.Reor
 			defer charts.mtx.Unlock()
 			newHeight := int(commonAncestorHeight) + 1
 			log.Debug("ChartData.ReorgHandler snipping blocks height to %d", newHeight)
-			charts.Blocks.Snip(int(commonAncestorHeight) + 1)
+			charts.Blocks.Snip(newHeight)
 			// Snip the last two days
 			daysLen := len(charts.Days.Time)
 			daysLen -= 2
