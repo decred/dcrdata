@@ -511,6 +511,10 @@ func _main(ctx context.Context) error {
 
 	// ExchangeBot
 	var xcBot *exchanges.ExchangeBot
+	if cfg.EnableExchangeBot && activeChain.Name != "mainnet" {
+		log.Warnf("disabling exchange monitoring. only available on mainnet")
+		cfg.EnableExchangeBot = false
+	}
 	if cfg.EnableExchangeBot {
 		botCfg := exchanges.ExchangeBotConfig{
 			BtcIndex:       cfg.ExchangeCurrency,
