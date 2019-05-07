@@ -243,3 +243,66 @@ func TestChartsCache(t *testing.T) {
 		}
 	})
 }
+
+func TestChartReorg(t *testing.T) {
+	ctx, shutdown := context.WithCancel(context.Background())
+	defer shutdown()
+	newFloats := func() ChartFloats { return ChartFloats{1, 2, 3} }
+	newUints := func() ChartUints { return ChartUints{1, 2, 3} }
+	charts := &ChartData{
+		ctx: ctx,
+	}
+	charts.Windows = &windowSet{
+		cacheID:     0,
+		Time:        newUints(),
+		PowDiff:     newFloats(),
+		TicketPrice: newUints(),
+	}
+	charts.Days = &zoomSet{
+		cacheID:   0,
+		Height:    newUints(),
+		Time:      newUints(),
+		PoolSize:  newUints(),
+		PoolValue: newFloats(),
+		BlockSize: newUints(),
+		TxCount:   newUints(),
+		NewAtoms:  newUints(),
+		Chainwork: newUints(),
+		Fees:      newUints(),
+	}
+	charts.Blocks = &zoomSet{
+		cacheID:   0,
+		Time:      newUints(),
+		PoolSize:  newUints(),
+		PoolValue: newFloats(),
+		BlockSize: newUints(),
+		TxCount:   newUints(),
+		NewAtoms:  newUints(),
+		Chainwork: newUints(),
+		Fees:      newUints(),
+	}
+	// this test reorg will replace the entire chain.
+	reorgData := &txhelpers.ReorgData{
+		NewChainHeight: 2,
+		NewChain:       make([]chainhash.Hash, 3),
+		WG:             new(sync.WaitGroup),
+	}
+	reorgData.WG.Add(1)
+	wg := new(sync.WaitGroup)
+	c := make(chan *txhelpers.ReorgData)
+	wg.Add(1)
+	go charts.ReorgHandler(wg, c)
+	c <- reorgData
+	reorgData.WG.Wait()
+	if charts.Blocks.Time.Length() != 0 {
+		t.Errorf("unexpected blocks length %d", charts.Blocks.Time.Length())
+	}
+	// Reorg snips 2 days
+	if charts.Days.Time.Length() != 1 {
+		t.Errorf("unexpected days length %d", charts.Days.Time.Length())
+	}
+	// Reorg snips last window
+	if charts.Windows.Time.Length() != 2 {
+		t.Errorf("unexpected windows length %d", charts.Windows.Time.Length())
+	}
+}

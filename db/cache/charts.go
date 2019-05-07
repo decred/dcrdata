@@ -211,6 +211,9 @@ type zoomSet struct {
 
 // Snip truncates the zoomSet to a provided length.
 func (set *zoomSet) Snip(length int) {
+	if length < 0 {
+		length = 0
+	}
 	set.Height = set.Height.snip(length)
 	set.Time = set.Time.snip(length)
 	set.PoolSize = set.PoolSize.snip(length)
@@ -255,6 +258,9 @@ type windowSet struct {
 
 // Snip truncates the windowSet to a provided length.
 func (set *windowSet) Snip(length int) {
+	if length < 0 {
+		length = 0
+	}
 	set.Time = set.Time.snip(length)
 	set.PowDiff = set.PowDiff.snip(length)
 	set.TicketPrice = set.TicketPrice.snip(length)
@@ -434,7 +440,7 @@ func (charts *ChartData) Lengthen() error {
 
 	// Check that all relevant datasets have been updated to the same length.
 	daysLen, err := ValidateLengths(days.PoolSize, days.PoolValue, days.BlockSize,
-		days.TxCount, days.NewAtoms, days.Chainwork, days.Fees, days.Height)
+		days.TxCount, days.NewAtoms, days.Chainwork, days.Fees, days.Height, days.Time)
 	if err != nil {
 		return fmt.Errorf("day zoom: %v", err)
 	} else if daysLen == 0 {
@@ -468,14 +474,18 @@ func (charts *ChartData) ReorgHandler(wg *sync.WaitGroup, c chan *txhelpers.Reor
 			commonAncestorHeight := uint64(data.NewChainHeight) - uint64(len(data.NewChain))
 			charts.mtx.Lock()
 			defer charts.mtx.Unlock()
+			newHeight := int(commonAncestorHeight) + 1
+			log.Debug("ChartData.ReorgHandler snipping blocks height to %d", newHeight)
 			charts.Blocks.Snip(int(commonAncestorHeight) + 1)
 			// Snip the last two days
 			daysLen := len(charts.Days.Time)
 			daysLen -= 2
+			log.Debug("ChartData.ReorgHandler snipping days height to %d", daysLen)
 			charts.Days.Snip(daysLen)
 			// Drop the last window
 			windowsLen := len(charts.Windows.Time)
 			windowsLen--
+			log.Debug("ChartData.ReorgHandler snipping windows to height to %d", windowsLen)
 			charts.Windows.Snip(windowsLen)
 			data.WG.Done()
 
