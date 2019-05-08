@@ -712,9 +712,15 @@ func (charts *ChartData) Update() {
 		}
 		cancel()
 		if err != nil {
-			log.Warnf("%v", err)
+			log.Errorf("%v", err)
 			return
 		}
+	}
+
+	// Since the charts db data query is complete. Update chart.Days derived dataset.
+	if err := charts.Lengthen(); err != nil {
+		log.Errorf("(*ChartData).Lengthen failed %v", err)
+		return
 	}
 }
 
@@ -838,9 +844,16 @@ func (charts *ChartData) encode(sets ...lengther) ([]byte, error) {
 	if len(sets) == 0 {
 		return nil, fmt.Errorf("encode called without arguments")
 	}
+
 	smaller := sets[0].Length()
 	for _, x := range sets {
 		l := x.Length()
+
+		// Detect empty datasets and return an error if found.
+		if l == 0 {
+			return nil, fmt.Errorf("empty dataset found")
+		}
+
 		if l < smaller {
 			smaller = l
 		}
