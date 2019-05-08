@@ -870,23 +870,55 @@ func accumulate(data ChartUints) ChartUints {
 	return d
 }
 
-// Translate the uints to a slice of the differences between each. The provided
-// data is assumed to be monotonically increasing. The original dataset minus
-// the first element is returned for convenience.
-func btw(data ChartUints) (ChartUints, ChartUints) {
-	d := make(ChartUints, 0, len(data))
-	dataLen := len(data)
+// Translate the times slice to a slice of differences. The original dataset
+// minus the first element is returned for convenience.
+func blockTimes(blocks ChartUints) (ChartUints, ChartUints) {
+	times := make(ChartUints, 0, len(blocks))
+	dataLen := len(blocks)
 	if dataLen < 2 {
 		// Fewer than two data points is invalid for btw. Return empty data sets so
 		// that the JSON encoding will have the correct type.
-		return d, d
+		return times, times
 	}
-	last := data[0]
-	for _, v := range data[1:] {
-		d = append(d, v-last)
+	last := blocks[0]
+	for _, v := range blocks[1:] {
+		dif := v - last
+		if int64(dif) < 0 {
+			dif = 0
+		}
+		times = append(times, dif)
 		last = v
 	}
-	return data[1:], d
+	return blocks[1:], times
+}
+
+// Take the average block times on the intervals defined by the ticks argument.
+func avgBlockTimes(ticks, blocks ChartUints) (ChartUints, ChartUints) {
+	if len(ticks) < 2 {
+		// Return empty arrays so that JSON-encoding will have the correct type.
+		return ChartUints{}, ChartUints{}
+	}
+	times := make(ChartUints, 0, len(ticks)-1)
+	avgs := make(ChartUints, 0, len(ticks)-1)
+	workingOn := ticks[0]
+	nextIdx := 1
+	next := ticks[nextIdx]
+	lastIdx := 0
+	for i, t := range blocks {
+		if t > next {
+			_, pts := blockTimes(blocks[lastIdx:i])
+			avgs = append(avgs, pts.Avg(0, len(pts)))
+			times = append(times, workingOn)
+			nextIdx++
+			if nextIdx > len(ticks)-1 {
+				break
+			}
+			workingOn = next
+			lastIdx = i
+			next = ticks[nextIdx]
+		}
+	}
+	return times, avgs
 }
 
 func blockSizeChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
@@ -932,11 +964,9 @@ func coinSupplyChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 func durationBTWChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 	switch zoom {
 	case BlockZoom:
-		t, d := btw(charts.Blocks.Time)
-		return charts.encode(t, d)
+		return charts.encode(blockTimes(charts.Blocks.Time))
 	case DayZoom:
-		t, d := btw(charts.Days.Time)
-		return charts.encode(t, d)
+		return charts.encode(avgBlockTimes(charts.Days.Time, charts.Blocks.Time))
 	}
 	return nil, InvalidZoomErr
 }
