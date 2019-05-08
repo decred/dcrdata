@@ -1309,6 +1309,7 @@ type PoolTicketsData struct {
 	Immature []uint64  `json:"immature,omitempty"`
 	Live     []uint64  `json:"live,omitempty"`
 	Outputs  []uint64  `json:"outputs,omitempty"`
+	Count    []uint64  `json:"count,omitempty"`
 }
 
 // Vin models a transaction input.

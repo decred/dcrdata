@@ -3,6 +3,7 @@ import ws from '../services/messagesocket_service'
 import { barChartPlotter } from '../helpers/chart_helper'
 import { getDefault } from '../helpers/module_helper'
 import axios from 'axios'
+import dompurify from 'dompurify'
 
 let Dygraph // lazy loaded on connect
 
@@ -14,6 +15,7 @@ function legendFormatter (data) {
     var labeledData = ' <span style="color: ' + series.color + ';">' + series.labelHTML + ': ' + series.yHTML
     html += '<br>' + series.dashHTML + labeledData + '</span>'
   })
+  dompurify.sanitize(html)
   return html
 }
 
@@ -74,8 +76,17 @@ function priceGraphData (items, memP) {
   return p
 }
 
-function outputsGraphData (items) {
-  return items.time.map((n, i) => { return [new Date(n), items.outputs[i]] })
+function populateOutputs (data) {
+  var totalCount = data.count.reduce((a, n) => { return a + n }, 0)
+  var tableData = '<thead><td># of Outputs</td><td>Count</td><td>% Occurence</td></thead>'
+  data.outputs.map((n, i) => {
+    var count = data.count[i]
+    tableData += '<tr><td class="pr-2 lh1rem vam nowrap xs-w117 font-weight-bold">' + n + '</td>' +
+    '<td><span class="hash lh1rem"> ' + count + ' </span></td>' +
+    '<td><span class="hash lh1rem"> ' + ((count * 100) / totalCount).toFixed(4) + '% </span></td></tr>'
+  })
+  dompurify.sanitize({ IN_PLACE: true }, tableData)
+  return tableData
 }
 
 function getWindow (val) {
@@ -102,7 +113,7 @@ var commonOptions = {
 
 export default class extends Controller {
   static get targets () {
-    return [ 'zoom', 'bars', 'age', 'wrapper' ]
+    return [ 'zoom', 'bars', 'age', 'wrapper', 'outputs' ]
   }
 
   async initialize () {
@@ -110,11 +121,9 @@ export default class extends Controller {
     this.tipHeight = 0
     this.purchasesGraph = null
     this.priceGraph = null
-    this.outputsGraph = null
     this.graphData = {
       'time_chart': null,
-      'price_chart': null,
-      'outputs_chart': null
+      'price_chart': null
     }
     this.zoom = 'all'
     this.bars = 'all'
@@ -122,10 +131,9 @@ export default class extends Controller {
     Dygraph = await getDefault(
       import(/* webpackChunkName: "dygraphs" */ '../vendor/dygraphs.min.js')
     )
-    this.chartCount += 3
+    this.chartCount += 2
     this.purchasesGraph = this.makePurchasesGraph()
     this.priceGraph = this.makePriceGraph()
-    this.outputsGraph = this.makeOutputsGraph()
   }
 
   connect () {
@@ -173,17 +181,13 @@ export default class extends Controller {
       }
     }
     if (data['outputs_chart']) {
-      this.graphData['outputs_chart'] = outputsGraphData(data['outputs_chart'])
-      if (this.outputsGraph !== null) {
-        this.outputsGraph.updateOptions({ 'file': this.graphData['outputs_chart'] })
-      }
+      this.outputsTarget.innerHTML = populateOutputs(data['outputs_chart'])
     }
   }
 
   disconnect () {
     this.purchasesGraph.destroy()
     this.priceGraph.destroy()
-    this.outputsGraph.destroy()
 
     ws.deregisterEvtHandlers('ticketpool')
     ws.deregisterEvtHandlers('getticketpooldataResp')
@@ -250,21 +254,6 @@ export default class extends Controller {
     }
     return new Dygraph(
       document.getElementById('tickets_by_purchase_price'),
-      d, { ...commonOptions, ...p }
-    )
-  }
-
-  makeOutputsGraph () {
-    var d = this.graphData['outputs_chart'] || [[0, 0]]
-    var p = {
-      labels: ['Date', '# of Outputs'],
-      colors: ['#2971FF'],
-      title: 'Ticket Outputs Count Distribution',
-      labelsKMB: true,
-      ylabel: '# of Outputs'
-    }
-    return new Dygraph(
-      document.getElementById('tickets_by_outputs_count'),
       d, { ...commonOptions, ...p }
     )
   }

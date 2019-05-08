@@ -1087,15 +1087,14 @@ func retrieveTicketsGroupedByType(ctx context.Context, db *sql.DB) (*dbtypes.Poo
 
 	tickets := new(dbtypes.PoolTicketsData)
 	for rows.Next() {
-		var txTypeCount uint64
-		var timestamp time.Time
+		var output, count uint64
 
-		if err = rows.Scan(&timestamp, &txTypeCount); err != nil {
+		if err = rows.Scan(&output, &count); err != nil {
 			return nil, fmt.Errorf("retrieveTicketsGroupedByType %v", err)
 		}
 
-		tickets.Time = append(tickets.Time, dbtypes.NewTimeDef(timestamp))
-		tickets.Outputs = append(tickets.Outputs, txTypeCount)
+		tickets.Count = append(tickets.Count, count)
+		tickets.Outputs = append(tickets.Outputs, output)
 	}
 
 	return tickets, nil

@@ -190,13 +190,13 @@ const (
 		) b
 		WHERE block_hash = b.hash;`
 
-	SelectTicketsByType = `SELECT block_time, num_vout
+	SelectTicketsByType = `SELECT DISTINCT num_vout, COUNT(*)
 		FROM transactions
 		JOIN tickets
 		ON transactions.id=purchase_tx_db_id
 		WHERE pool_status=0
 		AND tickets.is_mainchain = TRUE
-		ORDER BY block_time;`
+		GROUP BY num_vout;`
 
 	SelectTxnByDbID = `SELECT block_hash, block_height, tx_hash FROM transactions WHERE id = $1;`
 
