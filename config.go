@@ -56,7 +56,7 @@ var (
 	defaultIndentJSON          = "   "
 	defaultCacheControlMaxAge  = 86400
 	defaultInsightReqRateLimit = 20.0
-	defaultMaxCSVAddrs         = 3
+	defaultMaxCSVAddrs         = 25
 
 	defaultMempoolMinInterval = 2
 	defaultMempoolMaxInterval = 120
