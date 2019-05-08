@@ -216,69 +216,90 @@ func (psh *PubSubHub) receiveLoop(conn *connection) {
 		// Reject messages that exceed the limit.
 		if len(msg.Message) > psh.wsHub.requestLimit {
 			log.Debug("Request size over limit")
-			resp.Message = "Request too large"
+			resp.Message = json.RawMessage(`"Request too large"`) // skip json.Marshal for a string.
 			continue
+		}
+
+		var req pstypes.RequestMessage
+		err = json.Unmarshal(msg.Message, &req)
+		if err != nil {
+			log.Debugf("Unmarshal: %v", err)
+			continue
+		}
+		reqEvent := req.Message
+
+		// Create the ResponseMessage that is marshalled into resp.Message.
+		respMsg := pstypes.ResponseMessage{
+			RequestEventId: req.Message,
+			RequestId:      req.RequestId, // associate the response with the client's request ID
 		}
 
 		// Determine response based on EventId and Message content.
 		switch msg.EventId {
 		case "subscribe":
-			sig, sigMsg, valid := pstypes.ValidateSubscription(msg.Message)
+			sig, sigMsg, valid := pstypes.ValidateSubscription(reqEvent)
 			if !valid {
-				log.Debugf("Invalid subscribe signal: %.40s...", msg.Message)
-				resp.Message = "invalid subscription"
+				log.Debugf("Invalid subscribe signal: %.40s...", reqEvent)
+				respMsg.Data = "error: invalid subscription"
 				break
 			}
 
 			err = conn.client.cl.subscribe(pstypes.HubMessage{Signal: sig, Msg: sigMsg})
 			if err != nil {
-				log.Debugf("Failed to subscribe: %.40s...", msg.Message)
-				resp.Message = "invalid subscription"
+				log.Debugf("Failed to subscribe: %.40s...", reqEvent)
+				respMsg.Data = "error: " + err.Error()
 				break
 			}
-			log.Debugf("Client subscribed for: %v.", msg.Message)
-			resp.Message = msg.Message + " subscribe ok"
+
+			log.Debugf("Client subscribed for: %v.", reqEvent)
+			respMsg.Data = "subscribed to " + reqEvent
+			respMsg.Success = true
 
 		case "unsubscribe":
-			sig, sigMsg, valid := pstypes.ValidateSubscription(msg.Message)
+			sig, sigMsg, valid := pstypes.ValidateSubscription(reqEvent)
 			if !valid {
-				log.Debugf("Invalid unsubscribe signal: %.40s...", msg.Message)
-				resp.Message = "invalid subscription"
+				log.Debugf("Invalid unsubscribe signal: %.40s...", reqEvent)
+				respMsg.Data = "error: invalid subscription"
 				break
 			}
 
 			err = conn.client.cl.unsubscribe(pstypes.HubMessage{Signal: sig, Msg: sigMsg})
 			if err != nil {
-				log.Debugf("Failed to unsubscribe from: %.40s...", msg.Message)
-				resp.Message = "invalid subscription"
+				log.Debugf("Failed to unsubscribe from: %.40s...", reqEvent)
+				respMsg.Data = "error: " + err.Error()
 				break
 			}
-			log.Debugf("Client unsubscribed from: %v.", msg.Message)
-			resp.Message = msg.Message + " unsubscribe ok"
+
+			log.Debugf("Client unsubscribed from: %v.", reqEvent)
+			respMsg.Data = "unsubscribed from " + reqEvent
+			respMsg.Success = true
 
 		case "decodetx":
-			log.Debugf("Received decodetx signal for hex: %.40s...", msg.Message)
-			tx, err := psh.sourceBase.DecodeRawTransaction(msg.Message)
+			log.Debugf("Received decodetx signal for hex: %.40s...", reqEvent)
+			tx, err := psh.sourceBase.DecodeRawTransaction(reqEvent)
 			if err == nil {
-				b, err := json.MarshalIndent(tx, "", "    ")
+				var decoded []byte
+				decoded, err = json.MarshalIndent(tx, "", "    ")
 				if err != nil {
 					log.Warn("Invalid JSON message: ", err)
-					resp.Message = "Error: Could not encode JSON message"
+					respMsg.Data = "error: Could not encode JSON message"
 					break
 				}
-				resp.Message = string(b)
+				respMsg.Success = true
+				respMsg.Data = string(decoded)
 			} else {
-				log.Debugf("Could not decode raw tx")
-				resp.Message = fmt.Sprintf("Error: %v", err)
+				log.Debugf("Could not decode raw tx: %v", err)
+				respMsg.Data = fmt.Sprintf("error: %v", err)
 			}
 
 		case "sendtx":
-			log.Debugf("Received sendtx signal for hex: %.40s...", msg.Message)
-			txid, err := psh.sourceBase.SendRawTransaction(msg.Message)
+			log.Debugf("Received sendtx signal for hex: %.40s...", reqEvent)
+			txid, err := psh.sourceBase.SendRawTransaction(reqEvent)
 			if err != nil {
-				resp.Message = fmt.Sprintf("Error: %v", err)
+				respMsg.Data = fmt.Sprintf("error: %v", err)
 			} else {
-				resp.Message = fmt.Sprintf("Transaction sent: %s", txid)
+				respMsg.Success = true
+				respMsg.Data = txid
 			}
 
 		case "getmempooltxs": // TODO: maybe disable this case
@@ -290,22 +311,31 @@ func (psh *PubSubHub) receiveLoop(conn *connection) {
 			mempoolInfo.Subsidy = psh.state.GeneralInfo.NBlockSubsidy
 			psh.state.mtx.RUnlock()
 
-			b, err := json.Marshal(mempoolInfo)
+			var b []byte
+			b, err = json.Marshal(mempoolInfo)
 			if err != nil {
 				log.Warn("Invalid JSON message: ", err)
-				resp.Message = "Error: Could not encode JSON message"
+				respMsg.Data = "error: Could not encode JSON message"
 				break
 			}
-			resp.Message = string(b)
+			respMsg.Data = string(b)
 
 		case "ping":
-			log.Tracef("We've been pinged: %.40s...", msg.Message)
+			log.Tracef("We've been pinged: %.40s...", reqEvent)
 			// No response to ping
 			continue
 
 		default:
-			log.Warnf("Unrecognized event ID: %v", msg.EventId)
+			log.Warnf("Unrecognized event ID: %v", reqEvent)
 			// ignore unrecognized events
+			continue
+		}
+
+		// Marshal the ResponseMessage into the RawJSON type field, Message, of
+		// the WebSocketMessage.
+		resp.Message, err = json.Marshal(respMsg)
+		if err != nil {
+			log.Warnf("Failed to Marshal subscribe repsonse for %s: %v", reqEvent, err)
 			continue
 		}
 
@@ -395,7 +425,7 @@ loop:
 					log.Warnf("Encode(AddressMessage) failed: %v", err)
 				}
 
-				pushMsg.Message = buff.String()
+				pushMsg.Message = buff.Bytes()
 			case sigNewBlock:
 				psh.state.mtx.RLock()
 				if psh.state.BlockInfo == nil {
@@ -411,7 +441,7 @@ loop:
 					log.Warnf("Encode(WebsocketBlock) failed: %v", err)
 				}
 
-				pushMsg.Message = buff.String()
+				pushMsg.Message = buff.Bytes()
 
 			case sigMempoolUpdate:
 				// You probably want the sigNewTX event. sigMempoolUpdate sends
@@ -428,11 +458,11 @@ loop:
 					log.Warnf("Encode(MempoolShort) failed: %v", err)
 				}
 
-				pushMsg.Message = buff.String()
+				pushMsg.Message = buff.Bytes()
 
 			case sigPingAndUserCount:
 				// ping and send user count
-				pushMsg.Message = strconv.Itoa(psh.wsHub.NumClients())
+				pushMsg.Message = json.RawMessage(strconv.Itoa(psh.wsHub.NumClients())) // No quotes as this is a JSON integer
 
 			case sigNewTxs:
 				// Marshal this client's tx buffer if it is not empty.
@@ -450,7 +480,7 @@ loop:
 					log.Warnf("Encode([]*exptypes.MempoolTx) failed: %v", err)
 				}
 
-				pushMsg.Message = buff.String()
+				pushMsg.Message = buff.Bytes()
 
 			// case sigSyncStatus:
 			// 	err := enc.Encode(explorer.SyncStatus())

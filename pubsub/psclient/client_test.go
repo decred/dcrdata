@@ -1,4 +1,4 @@
-package client
+package psclient
 
 import (
 	"encoding/json"
@@ -10,7 +10,7 @@ import (
 
 var msgMempool5Latest = &pstypes.WebSocketMessage{
 	EventId: "mempool",
-	Message: `{
+	Message: json.RawMessage(`{
 		"block_height": 312590,
 		"block_hash": "00000000000000002c8ce3113b78c76fcccb7ddc6f8c114bae2a054a66959745",
 		"block_time": 1548362218,
@@ -144,12 +144,12 @@ var msgMempool5Latest = &pstypes.WebSocketMessage{
 			"tickets_voted": 0,
 			"max_votes_per_block": 5
 		}
-	}`,
+	}`),
 }
 
 var msgNewTxs5 = &pstypes.WebSocketMessage{
 	EventId: "newtxs",
-	Message: `[
+	Message: json.RawMessage(`[
 		{
 			"txid": "0c5bb28d9c33c5e73fd2d60a8dfad2b0a62c68af5be6dee0a9cc3734b897d22b",
 			"fees": 0.000253,
@@ -261,12 +261,12 @@ var msgNewTxs5 = &pstypes.WebSocketMessage{
 			"Type": "Regular"
 		}
 	]
-	`,
+	`),
 }
 
 var msgNewBlock312592 = &pstypes.WebSocketMessage{
 	EventId: "newblock",
-	Message: `{
+	Message: json.RawMessage(`{
 		"block": {
 			"height": 312592,
 			"hash": "0000000000000000027e6f3738ab0aa01ffb9972b573bb445f4a62f28e02d92a",
@@ -678,7 +678,7 @@ var msgNewBlock312592 = &pstypes.WebSocketMessage{
 			"hash_rate_change_month": 134.0
 		}
 	}
-	`,
+	`),
 }
 
 var block312592Tickets = []string{
@@ -701,7 +701,7 @@ func TestDecodeMsgNil(t *testing.T) {
 func TestDecodeMsgUnknown(t *testing.T) {
 	msg := &pstypes.WebSocketMessage{
 		EventId: "fakeevent",
-		Message: "pointless message",
+		Message: json.RawMessage(`"pointless message"`),
 	}
 	expectedErr := errors.New("unrecognized event type")
 
@@ -786,11 +786,30 @@ func TestDecodeMsgNewBlock(t *testing.T) {
 	}
 }
 
-func TestDecodeMsgString(t *testing.T) {
-	expectedStr := "meow"
+func TestDecodeMsgPing(t *testing.T) {
+	expectedInt := 2
+	MessageJSON, _ := json.Marshal(expectedInt)
 	msgPing := &pstypes.WebSocketMessage{
 		EventId: "ping",
-		Message: expectedStr,
+		Message: MessageJSON,
+	}
+
+	gotInt, err := DecodeMsgPing(msgPing)
+	if err != nil {
+		t.Fatalf("Failed to decode int: %v", err)
+	}
+	if gotInt != expectedInt {
+		t.Errorf("Wrong string decoded: got %d, expected %d",
+			gotInt, expectedInt)
+	}
+}
+
+func TestDecodeMsgString(t *testing.T) {
+	expectedStr := "meow"
+	MessageJSON, _ := json.Marshal(expectedStr)
+	msgPing := &pstypes.WebSocketMessage{
+		EventId: "message",
+		Message: MessageJSON,
 	}
 
 	str, err := DecodeMsgString(msgPing)
@@ -803,40 +822,24 @@ func TestDecodeMsgString(t *testing.T) {
 	}
 }
 
-func TestNewSubscribeMsg(t *testing.T) {
+func Test_newSubscribeMsg(t *testing.T) {
 	subEvent := "cheese"
-	msg := &pstypes.WebSocketMessage{
-		EventId: "subscribe",
-		Message: subEvent,
-	}
+	expectedMsg := `{"event":"subscribe","message":{"request_id":123,"message":"cheese"}}`
 
-	b0, err := json.Marshal(msg)
-	if err != nil {
-		t.Fatalf("Failed to marshal the message: %v", err)
-	}
-
-	b := newSubscribeMsg(subEvent)
-	if b != string(b0) {
+	b := newSubscribeMsg(subEvent, 123)
+	if b != expectedMsg {
 		t.Errorf("Wrong message. Got \"%s\", expected \"%s\".",
-			b, string(b0))
+			b, expectedMsg)
 	}
 }
 
-func TestNewUnsubscribeMsg(t *testing.T) {
+func Test_newUnsubscribeMsg(t *testing.T) {
 	unsubEvent := "banana"
-	msg := &pstypes.WebSocketMessage{
-		EventId: "unsubscribe",
-		Message: unsubEvent,
-	}
+	expectedMsg := `{"event":"unsubscribe","message":{"request_id":456,"message":"banana"}}`
 
-	b0, err := json.Marshal(msg)
-	if err != nil {
-		t.Fatalf("Failed to marshal the message: %v", err)
-	}
-
-	b := newUnsubscribeMsg(unsubEvent)
-	if b != string(b0) {
+	b := newUnsubscribeMsg(unsubEvent, 456)
+	if b != expectedMsg {
 		t.Errorf("Wrong message. Got \"%s\", expected \"%s\".",
-			b, string(b0))
+			b, expectedMsg)
 	}
 }

@@ -31,11 +31,12 @@ require (
 	github.com/decred/dcrdata/pubsub v1.0.1-0.20190501025527-02d6f8e648f7
 	github.com/decred/dcrdata/pubsub/types v1.0.1-0.20190501025527-02d6f8e648f7
 	github.com/decred/dcrdata/txhelpers v1.0.2-0.20190501025527-02d6f8e648f7 // indirect
+	github.com/decred/slog v1.0.0
 	github.com/google/go-cmp v0.3.0 // indirect
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/kr/pty v1.1.4 // indirect
 	golang.org/x/crypto v0.0.0-20190426145343-a29dc8fdc734 // indirect
-	golang.org/x/net v0.0.0-20190502183928-7f726cade0ab
+	golang.org/x/net v0.0.0-20190502183928-7f726cade0ab // indirect
 	golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 // indirect
 	golang.org/x/text v0.3.2 // indirect
 	google.golang.org/genproto v0.0.0-20190502173448-54afdca5d873 // indirect
