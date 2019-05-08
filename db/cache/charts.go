@@ -473,7 +473,6 @@ func (charts *ChartData) ReorgHandler(wg *sync.WaitGroup, c chan *txhelpers.Reor
 			}
 			commonAncestorHeight := uint64(data.NewChainHeight) - uint64(len(data.NewChain))
 			charts.mtx.Lock()
-			defer charts.mtx.Unlock()
 			newHeight := int(commonAncestorHeight) + 1
 			log.Debug("ChartData.ReorgHandler snipping blocks height to %d", newHeight)
 			charts.Blocks.Snip(newHeight)
@@ -487,6 +486,7 @@ func (charts *ChartData) ReorgHandler(wg *sync.WaitGroup, c chan *txhelpers.Reor
 			windowsLen--
 			log.Debug("ChartData.ReorgHandler snipping windows to height to %d", windowsLen)
 			charts.Windows.Snip(windowsLen)
+			charts.mtx.Unlock()
 			data.WG.Done()
 
 		case <-charts.ctx.Done():
