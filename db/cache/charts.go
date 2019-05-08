@@ -60,7 +60,7 @@ func ParseZoom(zoom string) ZoomLevel {
 }
 
 const (
-	aDay = 86400
+	aDay = 86400 // seconds
 	// HashrateAvgLength is the number of blocks used the rolling average for
 	// the network hashrate calculation.
 	HashrateAvgLength = 120
@@ -629,7 +629,7 @@ func (charts *ChartData) StateID() uint64 {
 	return charts.stateID()
 }
 
-// StateID returns a unique (enough) ID associted with the state of the Blocks
+// stateID returns a unique (enough) ID associted with the state of the Blocks
 // data.
 func (charts *ChartData) stateID() uint64 {
 	timeLen := len(charts.Blocks.Time)
@@ -871,21 +871,22 @@ func accumulate(data ChartUints) ChartUints {
 }
 
 // Translate the uints to a slice of the differences between each. The provided
-// data is assumed to be monotonically increasing. The first element is always
-// 0 to keep the data length unchanged.
-func btw(data ChartUints) ChartUints {
+// data is assumed to be monotonically increasing. The original dataset minus
+// the first element is returned for convenience.
+func btw(data ChartUints) (ChartUints, ChartUints) {
 	d := make(ChartUints, 0, len(data))
 	dataLen := len(data)
-	if dataLen == 0 {
-		return d
+	if dataLen < 2 {
+		// Fewer than two data points is invalid for btw. Return empty data sets so
+		// that the JSON encoding will have the correct type.
+		return d, d
 	}
-	d = append(d, 0)
 	last := data[0]
 	for _, v := range data[1:] {
 		d = append(d, v-last)
 		last = v
 	}
-	return d
+	return data[1:], d
 }
 
 func blockSizeChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
@@ -931,9 +932,11 @@ func coinSupplyChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 func durationBTWChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 	switch zoom {
 	case BlockZoom:
-		return charts.encode(charts.Blocks.Time, btw(charts.Blocks.Time))
+		t, d := btw(charts.Blocks.Time)
+		return charts.encode(t, d)
 	case DayZoom:
-		return charts.encode(charts.Days.Time, btw(charts.Days.Time))
+		t, d := btw(charts.Days.Time)
+		return charts.encode(t, d)
 	}
 	return nil, InvalidZoomErr
 }
