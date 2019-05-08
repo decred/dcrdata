@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/json"
 	"net"
 	"strconv"
 	"strings"
@@ -38,13 +39,25 @@ func IsTemporaryErr(err error) bool {
 // WebSocketMessage represents the JSON object used to send and receive typed
 // messages to the web client.
 type WebSocketMessage struct {
-	EventId string `json:"event"`
-	Message string `json:"message"`
+	EventId string          `json:"event"`
+	Message json.RawMessage `json:"message"`
 }
 
 type AddressMessage struct {
 	Address string `json:"address"`
 	TxHash  string `json:"transaction"`
+}
+
+type RequestMessage struct {
+	RequestId int64  `json:"request_id"`
+	Message   string `json:"message"`
+}
+
+type ResponseMessage struct {
+	Success        bool   `json:"success"`
+	RequestEventId string `json:"request_event"`
+	RequestId      int64  `json:"request_id"`
+	Data           string `json:"data"`
 }
 
 func (am AddressMessage) String() string {

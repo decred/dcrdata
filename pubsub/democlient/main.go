@@ -4,6 +4,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -11,9 +12,9 @@ import (
 
 	"github.com/decred/dcrd/dcrutil"
 	exptypes "github.com/decred/dcrdata/explorer/types"
-	client "github.com/decred/dcrdata/pubsub/psclient"
+	"github.com/decred/dcrdata/pubsub/psclient"
 	pstypes "github.com/decred/dcrdata/pubsub/types"
-	"golang.org/x/net/websocket"
+	"github.com/decred/slog"
 	survey "gopkg.in/AlecAivazis/survey.v1"
 )
 
@@ -27,21 +28,24 @@ func main() {
 		return
 	}
 
-	// Create the websocket connection.
-	origin := "/"
-	ws, err := websocket.Dial(cfg.URL, "", origin)
-	if err != nil {
-		log.Fatalf("%v", err)
-		return
+	backend := slog.NewBackend(os.Stdout).Logger("PSCL")
+	backend.SetLevel(slog.LevelDebug)
+	psclient.UseLogger(backend)
+
+	// Create the pubsub client, opening a connection to the URL.
+	ctx, cancel := context.WithCancel(context.Background())
+	opts := psclient.Opts{
+		ReadTimeout:  3 * time.Second,
+		WriteTimeout: 3 * time.Second,
 	}
-	defer ws.Close()
+	cl, err := psclient.New(cfg.URL, ctx, &opts)
+	if err != nil {
+		log.Fatalf("Failed to connect to %s: %v", cfg.URL, err)
+		os.Exit(1)
+	}
+	defer cl.Stop()
 
-	fmt.Printf("You are now connected to %s.\n", cfg.URL)
-
-	// Create the pubsub client.
-	cl := client.New(ws)
-	cl.ReadTimeout = 3 * time.Second
-	cl.WriteTimeout = 3 * time.Second
+	log.Printf("You are now connected to %s.\n", cfg.URL)
 
 	// Subscribe/unsubscribe to several events.
 	var currentSubs []string
@@ -57,7 +61,8 @@ func main() {
 			if err != nil {
 				return fmt.Errorf("Failed to subscribe: %v", err)
 			}
-			log.Printf(resp.Message)
+			// Print the json.RawMessage in the response message
+			log.Printf("Response: success=%v, message=%s\n", resp.Success, resp.Data)
 		}
 		return nil
 	}
@@ -73,7 +78,8 @@ func main() {
 			if err != nil {
 				return fmt.Errorf("Failed to unsubscribe: %v", err)
 			}
-			log.Printf(resp.Message)
+			// Print the json.RawMessage in the response message
+			log.Printf("Response: success=%v, message=%s\n", resp.Success, resp.Data)
 		}
 		return nil
 	}
@@ -83,8 +89,6 @@ func main() {
 		action string
 		data   []string
 	}
-	actionChan := make(chan *actionData, 1)
-	promptAgain := make(chan struct{})
 
 	subPrompt := &survey.MultiSelect{
 		Message: "Subscribe to events:",
@@ -101,9 +105,9 @@ func main() {
 		os.Stdin.Read([]byte{0})
 	}
 
-	// Prompting goroutine that sends the sub/unsub requests to the message loop
+	// Prompting goroutine
 	go func() {
-		for range promptAgain {
+		for {
 			hitEnter()
 			var a actionData
 			actionPrompt := &survey.Select{
@@ -113,7 +117,6 @@ func main() {
 			err := survey.AskOne(actionPrompt, &a.action, nil)
 			if err != nil {
 				log.Fatal(err)
-				go func() { promptAgain <- struct{}{} }()
 				continue
 			}
 
@@ -142,84 +145,65 @@ func main() {
 					}
 				}
 				a.data = data
+
+				err := subscribe(a.data)
+				if err != nil {
+					fmt.Printf("Failed to subscribe: %v", err)
+					continue
+				}
+
 			case "unsubscribe":
 				unsubPrompt.Options = currentSubs
 				_ = survey.AskOne(unsubPrompt, &a.data, nil)
+
+				err := unsubscribe(a.data)
+				if err != nil {
+					fmt.Printf("Failed to unsubscribe: %v", err)
+					continue
+				}
+
 			case "quit":
-				close(promptAgain)
+				cancel()
 				os.Exit(0)
+
 			default:
 				log.Fatalf("invalid action")
 				continue
 			}
-
-			if len(a.data) == 0 {
-				//actionChan <- &actionData{"", nil}
-				go func() { promptAgain <- struct{}{} }()
-				continue
-			}
-
-			log.Printf("Submitting %s request...", a.action)
-			actionChan <- &a
 		}
 	}()
-	promptAgain <- struct{}{}
 
-	// Send/receive messages in an orderly fashion.
+	// Receive subscribed broadcast messages in an orderly fashion.
 	for {
-		select {
-		case a := <-actionChan:
-			switch a.action {
-			case "subscribe":
-				if err = subscribe(a.data); err != nil {
-					log.Fatalf("subscribed failed: %v", err)
-				}
-			case "unsubscribe":
-				if err = unsubscribe(a.data); err != nil {
-					log.Fatalf("subscribed failed: %v", err)
-				}
-			case "quit":
-				close(promptAgain)
-				close(actionChan)
-				os.Exit(0)
-			}
-
-			promptAgain <- struct{}{}
-		default:
-			//log.Println("No actions received. Going on to wait for messages.")
-		}
-
-		resp, err := cl.ReceiveMsg()
-		if err != nil {
-			if pstypes.IsIOTimeoutErr(err) {
-				continue
-			}
+		msg := <-cl.Receive()
+		if msg == nil {
 			fmt.Printf("ReceiveMsg failed: %v", err)
 			return
 		}
 
-		msg, err := client.DecodeMsg(resp)
-		if err != nil {
-			log.Printf("Failed to decode message: %v", err)
-			continue
-		}
-
-		switch m := msg.(type) {
+		switch m := msg.Message.(type) {
+		case *pstypes.ResponseMessage:
+			log.Printf("%s request (ID=%d) success = %v. Data: %v",
+				m.RequestEventId, m.RequestId, m.Success, m.Data)
 		case string:
-			log.Printf("Message (%s): %s", resp.EventId, m)
+			// generic "message"
+			log.Printf("Message (%s): %s", msg.EventId, m)
+		case int:
+			// e.g. "ping"
+			log.Printf("Message (%s): %d", msg.EventId, m)
 		case *exptypes.WebsocketBlock:
-			log.Printf("Message (%s): WebsocketBlock(hash=%s)", resp.EventId, m.Block.Hash)
+			log.Printf("Message (%s): WebsocketBlock(hash=%s)", msg.EventId, m.Block.Hash)
 		case *exptypes.MempoolShort:
 			t := time.Unix(m.Time, 0)
 			log.Printf("Message (%s): MempoolShort(numTx=%d, time=%v)",
-				resp.EventId, m.NumAll, t)
+				msg.EventId, m.NumAll, t)
 		case *pstypes.TxList:
-			log.Printf("Message (%s): TxList(len=%d)", resp.EventId, len(*m))
+			log.Printf("Message (%s): TxList(len=%d)", msg.EventId, len(*m))
 		case *pstypes.AddressMessage:
 			log.Printf("Message (%s): AddressMessage(address=%s, txHash=%s)",
-				resp.EventId, m.Address, m.TxHash)
+				msg.EventId, m.Address, m.TxHash)
 		default:
-			log.Printf("Message of type %v unhandled.", resp.EventId)
+			log.Printf("Message of type %v unhandled.", msg.EventId)
 		}
 	}
 }

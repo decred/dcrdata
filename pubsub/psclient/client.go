@@ -1,8 +1,11 @@
-package client
+package psclient
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
+	"sync"
 	"time"
 
 	exptypes "github.com/decred/dcrdata/explorer/types"
@@ -10,88 +13,334 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+func makeRequestMsg(event string, reqID int64) []byte {
+	event = strings.Trim(event, `"`)
+
+	reqMsg, err := json.Marshal(pstypes.RequestMessage{
+		RequestId: reqID,
+		Message:   event,
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to json.Marshal a RequestMessage: %v", err))
+	}
+	return reqMsg
+}
+
 // newSubscribeMsg creates a new subscribe message equivalent to marshaling a
 // pstypes.WebSocketMessage with EventId set to "subscribe" and Message set to
 // the input string, event. json.Marshal is not used, but tests ensure the
 // correct result.
-func newSubscribeMsg(event string) string {
-	return fmt.Sprintf(`{"event":"subscribe","message":"%s"}`, event)
+func newSubscribeMsg(event string, reqID int64) []byte {
+	subMsg, err := json.Marshal(pstypes.WebSocketMessage{
+		EventId: "subscribe",
+		Message: makeRequestMsg(event, reqID),
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to json.Marshal a WebSocketMessage: %v", err))
+	}
+
+	return subMsg
 }
 
 // newUnsubscribeMsg creates a new unsubscribe message equivalent to marshaling
 // a pstypes.WebSocketMessage with EventId set to "unsubscribe" and Message set
 // to the input string, event. json.Marshal is not used, but tests ensure the
 // correct result.
-func newUnsubscribeMsg(event string) string {
-	return fmt.Sprintf(`{"event":"unsubscribe","message":"%s"}`, event)
+func newUnsubscribeMsg(event string, reqID int64) []byte {
+	unsubMsg, err := json.Marshal(pstypes.WebSocketMessage{
+		EventId: "unsubscribe",
+		Message: makeRequestMsg(event, reqID),
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to json.Marshal a WebSocketMessage: %v", err))
+	}
+
+	return unsubMsg
 }
 
 var defaultTimeout = 10 * time.Second
 
-// Client wraps a *websocket.Conn.
-type Client struct {
-	*websocket.Conn
+// Opts defines the psclient Client options.
+type Opts struct {
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
 }
 
-// New creates a new Client from a *websocket.Conn.
-func New(ws *websocket.Conn) *Client {
+// Client wraps a *websocket.Conn.
+type Client struct {
+	*websocket.Conn
+	ourConn       bool
+	readTimeout   time.Duration
+	writeTimeout  time.Duration
+	reqMtx        sync.Mutex
+	recvMsgChan   chan *ClientMessage
+	nextRequestID int64
+	requests      map[int64]chan *pstypes.ResponseMessage
+	sendMtx       sync.Mutex
+	ctx           context.Context
+	shutdown      context.CancelFunc
+}
+
+// New creates a new Client from a URL.
+func New(url string, ctx context.Context, opts *Opts) (*Client, error) {
+	ws, err := websocket.Dial(url, "", "/")
+	if err != nil {
+		return nil, err
+	}
+
+	readTimeout, writeTimeout := defaultTimeout, defaultTimeout
+	if opts != nil {
+		readTimeout = opts.ReadTimeout
+		writeTimeout = opts.WriteTimeout
+	}
+
+	ctx, shutdown := context.WithCancel(ctx)
+	cl := &Client{
+		Conn:         ws,
+		ourConn:      true,
+		readTimeout:  readTimeout,
+		writeTimeout: writeTimeout,
+		recvMsgChan:  make(chan *ClientMessage, 16),
+		requests:     make(map[int64]chan *pstypes.ResponseMessage),
+		ctx:          ctx,
+		shutdown:     shutdown,
+	}
+
+	go cl.receiver()
+
+	return cl, nil
+}
+
+// NewFromConn creates a new Client from a *websocket.Conn.
+func NewFromConn(ws *websocket.Conn, ctx context.Context, opts *Opts) *Client {
 	if ws == nil {
 		return nil
 	}
-	return &Client{
-		Conn:         ws,
-		ReadTimeout:  defaultTimeout,
-		WriteTimeout: defaultTimeout,
+
+	readTimeout, writeTimeout := defaultTimeout, defaultTimeout
+	if opts != nil {
+		readTimeout = opts.ReadTimeout
+		writeTimeout = opts.WriteTimeout
 	}
+
+	ctx, shutdown := context.WithCancel(ctx)
+	cl := &Client{
+		Conn:         ws,
+		readTimeout:  readTimeout,
+		writeTimeout: writeTimeout,
+		recvMsgChan:  make(chan *ClientMessage, 16),
+		requests:     make(map[int64]chan *pstypes.ResponseMessage),
+		ctx:          ctx,
+		shutdown:     shutdown,
+	}
+
+	go cl.receiver()
+
+	return cl
+}
+
+// Stop shutsdown the Client. If the websocket connection was created during
+// Client construction, it is is shutdown too.
+func (c *Client) Stop() {
+	log.Trace("Stopping psclient Client...")
+
+	// Cancel the Context to stop the receiver loop, which closes the channel.
+	c.shutdown()
+
+	// Close the websocket connection.
+	if c.ourConn {
+		if err := c.Conn.Close(); err != nil {
+			log.Errorf("Failed to Close websocket connection: %v", err)
+		}
+	}
+}
+
+// ClientMessage represents a message for a client connection.  The
+// (*Client).Receive method provides a channel such messages from the server.
+type ClientMessage struct {
+	EventId string
+	Message interface{}
+}
+
+// Receive gets a receive-only *ClientMessage channel, through which all
+// messages from the server to the client should be received.
+func (c *Client) Receive() <-chan *ClientMessage {
+	return c.recvMsgChan
+}
+
+// receiver receives and decodes messages from the server. It is to be run as a
+// goroutine by the constructor of the Client. The decoded ClientMessages are
+// sent on the recvMsgChan, the channel that is obtained via Receive.
+func (c *Client) receiver() {
+	// This goroutine may return on its own (e.g. error), or if the parent
+	// context is cancelled. In case of the former, call the Context's cancel
+	// function. In the latter case, it is a no-op.
+	defer c.shutdown()
+
+	// This goroutine sends on recvMsgChan, so it is responsible for closing it.
+	defer close(c.recvMsgChan)
+
+	for {
+		if c.ctx.Err() != nil {
+			log.Trace("receiver: context canceled...")
+			return
+		}
+
+		resp, err := c.receiveMsg()
+		if err != nil {
+			if pstypes.IsIOTimeoutErr(err) {
+				continue
+			}
+			log.Errorf("ReceiveMsg failed: %v", err)
+			return
+		}
+
+		msg, err := DecodeMsg(resp)
+		if err != nil {
+			log.Errorf("Failed to decode message: %v", err)
+			continue
+		}
+
+		switch m := msg.(type) {
+		case *pstypes.ResponseMessage:
+			log.Debugf("Response to %s request ID=%d received. Success = %v. Data: %v",
+				m.RequestEventId, m.RequestId, m.Success, m.Data)
+			respChan := c.responseChan(m.RequestId)
+			if respChan == nil {
+				log.Errorf("receiver failed to find request ID %d", m.RequestId)
+				continue
+			}
+			go func() {
+				respChan <- m // unbuffered
+				close(respChan)
+				c.deleteRequestID(m.RequestId)
+			}()
+			continue
+		case string:
+			// generic "message"
+			log.Debugf("Message (%s): %s", resp.EventId, m)
+		case int:
+			// e.g. "ping"
+			log.Debugf("Message (%s): %d", resp.EventId, m)
+		case *exptypes.WebsocketBlock:
+			log.Debugf("Message (%s): WebsocketBlock(hash=%s)", resp.EventId, m.Block.Hash)
+		case *exptypes.MempoolShort:
+			t := time.Unix(m.Time, 0)
+			log.Debugf("Message (%s): MempoolShort(numTx=%d, time=%v)",
+				resp.EventId, m.NumAll, t)
+		case *pstypes.TxList:
+			log.Debugf("Message (%s): TxList(len=%d)", resp.EventId, len(*m))
+		case *pstypes.AddressMessage:
+			log.Debugf("Message (%s): AddressMessage(address=%s, txHash=%s)",
+				resp.EventId, m.Address, m.TxHash)
+		default:
+			log.Debugf("Message of type %v unhandled.", resp.EventId)
+			continue
+		}
+
+		c.recvMsgChan <- &ClientMessage{
+			EventId: resp.EventId,
+			Message: msg,
+		}
+	}
+}
+
+func (c *Client) send(msg []byte) error {
+	c.sendMtx.Lock()
+	defer c.sendMtx.Unlock()
+	_ = c.SetWriteDeadline(time.Now().Add(c.writeTimeout))
+	_, err := c.Write(msg)
+	return err
+}
+
+func (c *Client) newRequestID() int64 {
+	c.reqMtx.Lock()
+	reqID := c.nextRequestID
+	c.nextRequestID++
+	c.reqMtx.Unlock()
+	return reqID
+}
+
+func (c *Client) responseChan(reqID int64) chan *pstypes.ResponseMessage {
+	c.reqMtx.Lock()
+	defer c.reqMtx.Unlock()
+	return c.requests[reqID]
+}
+
+func (c *Client) newResponseChan() (chan *pstypes.ResponseMessage, int64) {
+	c.reqMtx.Lock()
+	reqID := c.nextRequestID
+	c.nextRequestID++
+	respChan := make(chan *pstypes.ResponseMessage)
+	c.requests[reqID] = respChan
+	c.reqMtx.Unlock()
+	return respChan, reqID
+}
+
+func (c *Client) deleteRequestID(reqID int64) {
+	c.reqMtx.Lock()
+	delete(c.requests, reqID)
+	c.reqMtx.Unlock()
 }
 
 // Subscribe sends a subscribe type WebSocketMessage for the given event name
 // after validating it. The response is returned.
-func (c *Client) Subscribe(event string) (*pstypes.WebSocketMessage, error) {
+func (c *Client) Subscribe(event string) (*pstypes.ResponseMessage, error) {
 	// Validate the event type.
 	_, _, ok := pstypes.ValidateSubscription(event)
 	if !ok {
 		return nil, fmt.Errorf("invalid subscription %s", event)
 	}
 
+	respChan, reqID := c.newResponseChan()
+	msg := newSubscribeMsg(event, reqID)
+	defer c.deleteRequestID(reqID)
+
 	// Send the subscribe message.
-	msg := newSubscribeMsg(event)
-	_ = c.SetWriteDeadline(time.Now().Add(c.WriteTimeout))
-	_, err := c.Write([]byte(msg))
-	if err != nil {
+	log.Tracef("Sending subscribe %s message...", event)
+	if err := c.send(msg); err != nil {
 		return nil, fmt.Errorf("failed to send subscribe message: %v", err)
 	}
 
+	// Wait for a response with the requestID.
+	log.Tracef("Waiting for subscribe %s response...", event)
+	resp, ok := <-respChan
+	if !ok {
+		return nil, fmt.Errorf("Response channel closed.")
+	}
+
 	// Read the response.
-	return c.ReceiveMsg()
+	return resp, nil
 }
 
 // Unsubscribe sends an unsubscribe type WebSocketMessage for the given event
 // name after validating it. The response is returned.
-func (c *Client) Unsubscribe(event string) (*pstypes.WebSocketMessage, error) {
+func (c *Client) Unsubscribe(event string) (*pstypes.ResponseMessage, error) {
 	// Validate the event type.
 	_, _, ok := pstypes.ValidateSubscription(event)
 	if !ok {
 		return nil, fmt.Errorf("invalid subscription %s", event)
 	}
 
-	// Send the unsubscribe message.
-	msg := newUnsubscribeMsg(event)
-	_ = c.SetWriteDeadline(time.Now().Add(c.WriteTimeout))
-	_, err := c.Write([]byte(msg))
-	if err != nil {
+	respChan, reqID := c.newResponseChan()
+	msg := newUnsubscribeMsg(event, reqID)
+	defer c.deleteRequestID(reqID)
+
+	// Send the subscribe message
+	if err := c.send(msg); err != nil {
 		return nil, fmt.Errorf("failed to send unsubscribe message: %v", err)
 	}
 
+	// Wait for a response with the requestID
+	resp := <-respChan
+
 	// Read the response.
-	return c.ReceiveMsg()
+	return resp, nil
 }
 
-// ReceiveMsgTimeout waits for the specified time Duration for a message,
+// receiveMsgTimeout waits for the specified time Duration for a message,
 // returned decoded into a WebSocketMessage.
-func (c *Client) ReceiveMsgTimeout(timeout time.Duration) (*pstypes.WebSocketMessage, error) {
+func (c *Client) receiveMsgTimeout(timeout time.Duration) (*pstypes.WebSocketMessage, error) {
 	_ = c.SetReadDeadline(time.Now().Add(timeout))
 	msg := new(pstypes.WebSocketMessage)
 	if err := websocket.JSON.Receive(c.Conn, &msg); err != nil {
@@ -100,15 +349,15 @@ func (c *Client) ReceiveMsgTimeout(timeout time.Duration) (*pstypes.WebSocketMes
 	return msg, nil
 }
 
-// ReceiveMsg waits for a message, returned decoded into a WebSocketMessage. The
+// receiveMsg waits for a message, returned decoded into a WebSocketMessage. The
 // Client's configured ReadTimeout is used.
-func (c *Client) ReceiveMsg() (*pstypes.WebSocketMessage, error) {
-	return c.ReceiveMsgTimeout(c.ReadTimeout)
+func (c *Client) receiveMsg() (*pstypes.WebSocketMessage, error) {
+	return c.receiveMsgTimeout(c.readTimeout)
 }
 
-// ReceiveRaw for a message, returned undecoded as a string.
-func (c *Client) ReceiveRaw() (message string, err error) {
-	_ = c.SetReadDeadline(time.Now().Add(c.ReadTimeout))
+// receiveRaw for a message, returned undecoded as a string.
+func (c *Client) receiveRaw() (message string, err error) {
+	_ = c.SetReadDeadline(time.Now().Add(c.readTimeout))
 	err = websocket.Message.Receive(c.Conn, &message)
 	return
 }
@@ -121,25 +370,36 @@ func DecodeMsg(msg *pstypes.WebSocketMessage) (interface{}, error) {
 		return nil, fmt.Errorf("empty message")
 	}
 
+	if strings.HasSuffix(msg.EventId, "Resp") {
+		var rm pstypes.ResponseMessage
+		err := json.Unmarshal(msg.Message, &rm)
+		return &rm, err
+	}
+
 	switch msg.EventId {
-	// Event types with a raw string Message field
-	case "subscribeResp", "unsubscribeResp", "ping":
-		return msg.Message, nil
+	case "message":
+		var message string
+		err := json.Unmarshal(msg.Message, &message)
+		return message, err
+	case "ping":
+		var numClients int
+		err := json.Unmarshal(msg.Message, &numClients)
+		return numClients, err
 	case "address":
 		var am pstypes.AddressMessage
-		err := json.Unmarshal([]byte(msg.Message), &am)
+		err := json.Unmarshal(msg.Message, &am)
 		return &am, err
 	case "newtxs":
 		var newtxs pstypes.TxList
-		err := json.Unmarshal([]byte(msg.Message), &newtxs)
+		err := json.Unmarshal(msg.Message, &newtxs)
 		return &newtxs, err
 	case "newblock":
 		var newblock exptypes.WebsocketBlock
-		err := json.Unmarshal([]byte(msg.Message), &newblock)
+		err := json.Unmarshal(msg.Message, &newblock)
 		return &newblock, err
 	case "mempool":
 		var mpshort exptypes.MempoolShort
-		err := json.Unmarshal([]byte(msg.Message), &mpshort)
+		err := json.Unmarshal(msg.Message, &mpshort)
 		return &mpshort, err
 	default:
 		return nil, fmt.Errorf("unrecognized event type")
@@ -160,22 +420,38 @@ func DecodeMsgString(msg *pstypes.WebSocketMessage) (string, error) {
 	return str, nil
 }
 
+// DecodeMsgInt attempts to decode the Message content of the given
+// WebSocketMessage as an int.
+func DecodeMsgInt(msg *pstypes.WebSocketMessage) (int, error) {
+	s, err := DecodeMsg(msg)
+	if err != nil {
+		return -1, err
+	}
+	i, ok := s.(int)
+	if !ok {
+		return -1, fmt.Errorf("content of Message was not of type int")
+	}
+	return i, nil
+}
+
 // DecodeMsgPing attempts to decode the Message content of the given
-// WebSocketMessage ping response message (string).
-func DecodeMsgPing(msg *pstypes.WebSocketMessage) (string, error) {
-	return DecodeMsgString(msg)
+// WebSocketMessage ping response message (int).
+func DecodeMsgPing(msg *pstypes.WebSocketMessage) (int, error) {
+	return DecodeMsgInt(msg)
 }
 
-// DecodeMsgSubscribeResponse attempts to decode the Message content of the
-// given WebSocketMessage as a subscribe response message (string).
-func DecodeMsgSubscribeResponse(msg *pstypes.WebSocketMessage) (string, error) {
-	return DecodeMsgString(msg)
-}
-
-// DecodeMsgUnsubscribeResponse attempts to decode the Message content of the
-// given WebSocketMessage as an unsubscribe response message (string).
-func DecodeMsgUnsubscribeResponse(msg *pstypes.WebSocketMessage) (string, error) {
-	return DecodeMsgString(msg)
+// DecodeResponseMsg attempts to decode the Message content of the given
+// WebSocketMessage as a request response message (string).
+func DecodeResponseMsg(msg *pstypes.WebSocketMessage) (*pstypes.ResponseMessage, error) {
+	respMsg, err := DecodeMsg(msg)
+	if err != nil {
+		return nil, err
+	}
+	respMessage, ok := respMsg.(*pstypes.ResponseMessage)
+	if !ok {
+		return nil, fmt.Errorf("content of Message was not of type *pstypes.ResponseMessage")
+	}
+	return respMessage, nil
 }
 
 // DecodeMsgTxList attempts to decode the Message content of the given
