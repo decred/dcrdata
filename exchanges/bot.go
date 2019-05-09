@@ -130,6 +130,9 @@ func (state *ExchangeBotState) BtcToFiat(btc float64) float64 {
 
 // FiatToBtc converts an amount of fiat in the default index to a value in BTC.
 func (state *ExchangeBotState) FiatToBtc(fiat float64) float64 {
+	if state.BtcPrice == 0 {
+		return -1
+	}
 	return fiat / state.BtcPrice
 }
 
@@ -160,7 +163,7 @@ func (state *ExchangeBotState) VolumeOrderedExchanges() []*tokenedExchange {
 // N = number of depth-reporting exchanges. If any exchange has an order book
 // entry at price Price, then an agBookPt should be created. If a different
 // exchange does not have an order at Price, there will be a 0 in Volumes at
-// the exchange's index. An exchange's index in Volumes is set by it's index
+// the exchange's index. An exchange's index in Volumes is set by its index
 // in (aggregateOrderbook).Tokens.
 type agBookPt struct {
 	Price   float64   `json:"price"`
@@ -977,20 +980,25 @@ func (bot *ExchangeBot) aggOrderbook() *aggregateOrderbook {
 	if state == nil {
 		return nil
 	}
-	numXc := len(state.DcrBtc)
-	tokens := make([]string, 0, numXc)
-	updateTimes := make([]int64, 0, numXc)
 	bids := make(map[int64]agBookPt)
 	asks := make(map[int64]agBookPt)
 
-	i := -1
 	oldestUpdate := time.Now().Unix()
 	var newestTime int64
+	// First, grab the tokens for exchanges with depth data so that they can be
+	// counted and sorted alphabetically.
+	tokens := []string{}
 	for token, xcState := range state.DcrBtc {
-		i++
 		if !xcState.HasDepth() {
 			continue
 		}
+		tokens = append(tokens, token)
+	}
+	numXc := len(tokens)
+	updateTimes := make([]int64, 0, numXc)
+	sort.Strings(tokens)
+	for i, token := range tokens {
+		xcState := state.DcrBtc[token]
 		depth := xcState.Depth
 		if depth.Time < oldestUpdate {
 			oldestUpdate = depth.Time
@@ -998,7 +1006,6 @@ func (bot *ExchangeBot) aggOrderbook() *aggregateOrderbook {
 		if depth.Time > newestTime {
 			newestTime = depth.Time
 		}
-		tokens = append(tokens, token)
 		updateTimes = append(updateTimes, depth.Time)
 		mapifyDepthPoints(depth.Bids, bids, i, numXc)
 		mapifyDepthPoints(depth.Asks, asks, i, numXc)

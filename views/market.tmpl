@@ -194,13 +194,25 @@
                   <button data-action="click->market#setStacking" name="off">Off</button>
                 </div>
 
+                {{- /* ZOOM */ -}}
+                <div
+                    class="btn-set bg-white d-inline-flex flex-nowrap mx-2 mx-lg-4"
+                    data-target="market.zoom"
+                    data-action="click->market#setZoom"
+                >
+                  <label>Zoom +/-</label>
+                  <button class="btn-selected" name="10">10%</button>
+                  <button name="20">20%</button>
+                  <button name="40">40%</button>
+                  <button name="95">95%</button>
+                </div>
+
                 {{- /* OTHER CHART OPTIONS */ -}}
                 <div
                     class="btn-set bg-white d-inline-flex flex-nowrap mx-2 mx-lg-4"
                     data-target="market.actions"
                 >
                   <label>Actions</label>
-                  <button data-action="click->market#resetZoom">Reset zoom</button>
                   <button><a data-target="market.link" href="" target="_blank" rel="noopener noreferrer"></a></button>
                 </div>
             </div>

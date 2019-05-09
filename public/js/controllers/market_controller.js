@@ -37,6 +37,7 @@ const exchangeLinks = {
   dragonex: 'https://dragonex.io/en-us/trade/index/dcr_btc',
   huobi: 'https://www.hbg.com/en-us/exchange/?s=dcr_btc'
 }
+const defaultZoomPct = 20
 var hidden, visibilityChange
 if (typeof document.hidden !== 'undefined') { // Opera 12.10 and Firefox 18 and later support
   hidden = 'hidden'
@@ -151,7 +152,8 @@ const chartResetOpts = {
   logscale: false,
   xRangePad: 0,
   yRangePad: 0,
-  stackedGraph: false
+  stackedGraph: false,
+  zoomCallback: null
 }
 
 function convertedThreeSigFigs (x) {
@@ -181,10 +183,12 @@ function gScroll (event, g, context) {
   var x = event.offsetX - xOffset
   var w = g.toDomCoords(g.xAxisRange()[1], null)[0] - xOffset
   var xPct = w === 0 ? 0 : (x / w)
-
+  var newWindow = adjustAxis(g.xAxisRange(), percentage, xPct)
   g.updateOptions({
-    dateWindow: adjustAxis(g.xAxisRange(), percentage, xPct)
+    dateWindow: newWindow
   })
+  var zoomCallback = g.getOption('zoomCallback')
+  if (zoomCallback) zoomCallback(newWindow[0], newWindow[1], g.yAxisRanges())
   event.preventDefault()
   event.stopPropagation()
 }
@@ -521,7 +525,7 @@ function depthPlotter (e) {
   if (e.seriesIndex === e.allSeriesPoints.length - 1) depthLegendPlotter(e)
 }
 
-var stickZoom
+var stickZoom, orderZoom
 function calcStickWindow (start, end, bin) {
   var halfBin = minuteMap[bin] / 2
   start = new Date(start.getTime())
@@ -537,7 +541,7 @@ export default class extends Controller {
     return ['chartSelect', 'exchanges', 'bin', 'chart', 'legend', 'conversion',
       'xcName', 'xcLogo', 'actions', 'sticksOnly', 'depthOnly', 'chartLoader',
       'xcRow', 'xcIndex', 'price', 'age', 'ageSpan', 'link', 'aggOption',
-      'aggStack']
+      'aggStack', 'zoom']
   }
 
   async connect () {
@@ -557,6 +561,8 @@ export default class extends Controller {
     this.currencyCode = this.conversionTarget.dataset.code
     this.binButtons = this.binTarget.querySelectorAll('button')
     this.lastUrl = null
+    this.zoomButtons = this.zoomTarget.querySelectorAll('button')
+    this.zoomCallback = this._zoomCallback.bind(this)
 
     availableCandlesticks = {}
     availableDepths = []
@@ -661,6 +667,11 @@ export default class extends Controller {
       if (!context.isPanning) return
       Dygraph.endPan(event, g, context)
       context.isPanning = false // I think Dygraph is supposed to set this, but they don't.
+      var zoomCallback = g.getOption('zoomCallback')
+      if (zoomCallback) {
+        var range = g.xAxisRange()
+        zoomCallback(range[0], range[1], g.yAxisRanges())
+      }
     }
     model.mousemove = (event, g, context) => {
       if (!context.isPanning) return
@@ -679,6 +690,7 @@ export default class extends Controller {
     var bin = settings.bin
     var xc = settings.xc
     var chart = settings.chart
+    var oldZoom = this.graph.xAxisRange()
     if (usesCandlesticks(chart)) {
       if (!(xc in availableCandlesticks)) {
         console.warn('invalid candlestick exchange:', xc)
@@ -728,7 +740,8 @@ export default class extends Controller {
     this.graph.updateOptions(chartResetOpts, true)
     this.graph.updateOptions(this.processors[chart](response.data))
     this.query.replace(settings)
-    if (!isRefresh) this.resetZoom()
+    if (isRefresh) this.graph.updateOptions({ dateWindow: oldZoom })
+    else this.resetZoom()
     this.chartLoaderTarget.classList.remove('loading')
     this.lastUrl = url
     refreshAvailable = false
@@ -836,6 +849,7 @@ export default class extends Controller {
       tokens: null,
       stats: data.stats,
       plotter: depthPlotter, // Don't use Dygraph.linePlotter here. fillGraph won't work.
+      zoomCallback: this.zoomCallback,
       axes: {
         x: {
           axisLabelFormatter: convertedThreeSigFigs,
@@ -875,6 +889,7 @@ export default class extends Controller {
       stackedGraph: aggStacking,
       tokens: tokens,
       stats: data.stats,
+      zoomCallback: this.zoomCallback,
       axes: {
         x: {
           axisLabelFormatter: convertedThreeSigFigs,
@@ -928,9 +943,11 @@ export default class extends Controller {
     if (usesOrderbook(settings.chart)) {
       this.binTarget.classList.add('d-hide')
       this.aggOptionTarget.disabled = false
+      this.zoomTarget.classList.remove('d-hide')
     } else {
       this.binTarget.classList.remove('d-hide')
       this.aggOptionTarget.disabled = true
+      this.zoomTarget.classList.add('d-hide')
       this.binButtons.forEach(button => {
         if (hasBin(settings.xc, button.name)) {
           button.classList.remove('d-hide')
@@ -1015,6 +1032,9 @@ export default class extends Controller {
   resetZoom () {
     if (settings.chart === candlestick) {
       this.graph.updateOptions({ dateWindow: stickZoom })
+    } else if (usesOrderbook(settings.chart)) {
+      if (orderZoom) this.graph.updateOptions({ dateWindow: orderZoom })
+      else this.setZoomPct(defaultZoomPct)
     } else {
       this.graph.resetZoom()
     }
@@ -1055,9 +1075,9 @@ export default class extends Controller {
     if (href) {
       this.linkTarget.href = href
       this.linkTarget.textContent = `Visit ${prettyName}`
-      this.linkTarget.parentNode.classList.remove('d-hide')
+      this.actionsTarget.classList.remove('d-hide')
     } else {
-      this.linkTarget.parentNode.classList.add('d-hide')
+      this.actionsTarget.classList.add('d-hide')
     }
   }
 
@@ -1107,6 +1127,37 @@ export default class extends Controller {
     btn.classList.add('btn-selected')
     aggStacking = btn.name === 'on'
     this.graph.updateOptions({ stackedGraph: aggStacking, fillGraph: aggStacking })
+  }
+
+  setZoom (e) {
+    var btn = e.target || e.srcElement
+    if (btn.nodeName !== 'BUTTON' || !this.graph) return
+    this.setZoomPct(parseInt(btn.name))
+    var stats = this.graph.getOption('stats')
+    var spread = stats.midGap * parseFloat(btn.name) / 100
+    this.graph.updateOptions({ dateWindow: [stats.midGap - spread, stats.midGap + spread] })
+  }
+
+  setZoomPct (pct) {
+    this.zoomButtons.forEach(b => {
+      if (parseInt(b.name) === pct) b.classList.add('btn-selected')
+      else b.classList.remove('btn-selected')
+    })
+    var stats = this.graph.getOption('stats')
+    var spread = stats.midGap * pct / 100
+    var low = stats.midGap - spread
+    var high = stats.midGap + spread
+    var min, max
+    [min, max] = this.graph.xAxisExtremes()
+    if (low < min) low = min
+    if (high > max) high = max
+    orderZoom = [low, high]
+    this.graph.updateOptions({ dateWindow: orderZoom })
+  }
+
+  _zoomCallback (start, end) {
+    orderZoom = [start, end]
+    this.zoomButtons.forEach(b => b.classList.remove('btn-selected'))
   }
 
   _processXcUpdate (update) {
