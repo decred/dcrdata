@@ -1113,6 +1113,13 @@ func (pgb *ChainDB) VotesInBlock(hash string) (int16, error) {
 	return voters, nil
 }
 
+// piparser panics should not cause dcrdata panics.
+func recoverPiparser() {
+	if r := recover(); r != nil {
+		log.Errorf("recovered from piparser panic: %v", r)
+	}
+}
+
 // proposalsUpdateHandler runs in the background asynchronous to retrieve the
 // politeia proposal updates that the piparser tool signaled.
 func (pgb *ChainDB) proposalsUpdateHandler() {
@@ -1123,6 +1130,7 @@ func (pgb *ChainDB) proposalsUpdateHandler() {
 	}
 
 	go func() {
+		defer recoverPiparser()
 		for range pgb.piparser.UpdateSignal() {
 			count, err := pgb.PiProposalsHistory()
 			if err != nil {
