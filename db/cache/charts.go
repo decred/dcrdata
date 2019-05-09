@@ -504,9 +504,8 @@ func isfileExists(filePath string) bool {
 
 // writeCacheFile creates the charts cache in the provided file path if it
 // doesn't exists. It dumps the ChartsData contents using the .gob encoding.
-// Drops the old .gob dump before creating a new one. This should allows a cache
-// dump to always be available especially on case scenarios where the system
-// exists prematurely.
+// Drops the old .gob dump before creating a new one. Delete the old cache here
+// rather than after loading so that a dump will still be available after a crash.
 func (charts *ChartData) writeCacheFile(filePath string) error {
 	if isfileExists(filePath) {
 		// delete the old dump files before creating new ones.
@@ -842,16 +841,9 @@ func (charts *ChartData) encode(sets ...lengther) ([]byte, error) {
 	if len(sets) == 0 {
 		return nil, fmt.Errorf("encode called without arguments")
 	}
-
 	smaller := sets[0].Length()
 	for _, x := range sets {
 		l := x.Length()
-
-		// Detect empty datasets and return an error if found.
-		if l == 0 {
-			return nil, fmt.Errorf("empty dataset found")
-		}
-
 		if l < smaller {
 			smaller = l
 		}
