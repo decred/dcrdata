@@ -181,8 +181,8 @@ type aggregateData struct {
 
 // An aggregated orderbook. Combines all data from the DepthData of each
 // Exchange. For aggregatedOrderbook, the Expiration is set to the time of the
-// most recent DepthData was updated plus an additional
-// (ExchangeBot).RequestExpiry, though new data may be available before then.
+// most recent DepthData update plus an additional (ExchangeBot).RequestExpiry,
+// though new data may be available before then.
 type aggregateOrderbook struct {
 	BtcIndex    string        `json:"btc_index"`
 	Price       float64       `json:"price"`

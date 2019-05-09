@@ -97,31 +97,26 @@ var gridColor = '#7774'
 var settings = {}
 
 var colorNumerator = 0
-var colorDenominator = 2
+var colorDenominator = 1
 var hslS = '100%'
 var hslL = '50%'
-var hslOffset = 45 // 0 <= x < 360
+var hslOffset = 225 // 0 <= x < 360
 var exchangeHues = {}
 var hsl = (h) => `hsl(${(h + hslOffset) % 360},${hslS},${hslL})`
 // Generates colors on the hue sequence 0, 1/2, 1/4, 3/4, 1/8, 3/8, 5/8, 7/8, 1/16, ...
 function generateHue () {
-  while (colorDenominator < 512) { // Should generate a little more than 100 unique values
-    if (colorNumerator === 0) {
-      colorNumerator += 1
-      return hsl(0)
+  if (colorNumerator >= colorDenominator) {
+    colorNumerator = 1 // reset the numerator
+    colorDenominator *= 2 // double the denominator
+    if (colorDenominator >= 512) { // Will generate 256 different hues
+      colorNumerator = 0
+      colorDenominator = 1
     }
-    if (colorNumerator >= colorDenominator) {
-      colorNumerator = 1 // reset the numerator
-      colorDenominator *= 2 // double the denominator
-      continue
-    }
-    let hue = colorNumerator / colorDenominator * 360
-    colorNumerator += 2
-    return hsl(hue)
+    return generateHue()
   }
-  colorNumerator = 0
-  colorDenominator = 2
-  return generateHue()
+  let hue = colorNumerator / colorDenominator * 360
+  colorNumerator += 2
+  return hsl(hue)
 }
 
 function getHue (token) {
