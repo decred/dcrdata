@@ -252,57 +252,82 @@ func TestChartReorg(t *testing.T) {
 	charts := &ChartData{
 		ctx: ctx,
 	}
-	charts.Windows = &windowSet{
-		cacheID:     0,
-		Time:        newUints(),
-		PowDiff:     newFloats(),
-		TicketPrice: newUints(),
-	}
-	charts.Days = &zoomSet{
-		cacheID:   0,
-		Height:    newUints(),
-		Time:      newUints(),
-		PoolSize:  newUints(),
-		PoolValue: newFloats(),
-		BlockSize: newUints(),
-		TxCount:   newUints(),
-		NewAtoms:  newUints(),
-		Chainwork: newUints(),
-		Fees:      newUints(),
-	}
-	charts.Blocks = &zoomSet{
-		cacheID:   0,
-		Time:      newUints(),
-		PoolSize:  newUints(),
-		PoolValue: newFloats(),
-		BlockSize: newUints(),
-		TxCount:   newUints(),
-		NewAtoms:  newUints(),
-		Chainwork: newUints(),
-		Fees:      newUints(),
+	resetCharts := func() {
+		charts.Windows = &windowSet{
+			cacheID:     0,
+			Time:        newUints(),
+			PowDiff:     newFloats(),
+			TicketPrice: newUints(),
+		}
+		charts.Days = &zoomSet{
+			cacheID:   0,
+			Height:    newUints(),
+			Time:      newUints(),
+			PoolSize:  newUints(),
+			PoolValue: newFloats(),
+			BlockSize: newUints(),
+			TxCount:   newUints(),
+			NewAtoms:  newUints(),
+			Chainwork: newUints(),
+			Fees:      newUints(),
+		}
+		charts.Blocks = &zoomSet{
+			cacheID:   0,
+			Time:      newUints(),
+			PoolSize:  newUints(),
+			PoolValue: newFloats(),
+			BlockSize: newUints(),
+			TxCount:   newUints(),
+			NewAtoms:  newUints(),
+			Chainwork: newUints(),
+			Fees:      newUints(),
+		}
 	}
 	// this test reorg will replace the entire chain.
-	reorgData := &txhelpers.ReorgData{
-		NewChainHeight: 2,
-		NewChain:       make([]chainhash.Hash, 3),
-		WG:             new(sync.WaitGroup),
+
+	reorgData := func(newHeight, chainLen int) *txhelpers.ReorgData {
+		d := &txhelpers.ReorgData{
+			NewChainHeight: int32(newHeight),
+			NewChain:       make([]chainhash.Hash, chainLen),
+			WG:             new(sync.WaitGroup),
+		}
+		d.WG.Add(1)
+		return d
 	}
-	reorgData.WG.Add(1)
 	wg := new(sync.WaitGroup)
 	c := make(chan *txhelpers.ReorgData)
 	wg.Add(1)
 	go charts.ReorgHandler(wg, c)
-	c <- reorgData
-	reorgData.WG.Wait()
-	if charts.Blocks.Time.Length() != 0 {
-		t.Errorf("unexpected blocks length %d", charts.Blocks.Time.Length())
+	testReorg := func(newHeight, chainLen, newBlockLen, newDayLen, newWindowLen int) {
+		d := reorgData(newHeight, chainLen)
+		c <- d
+		done := make(chan struct{})
+		go func() {
+			d.WG.Wait()
+			close(done)
+		}()
+		select {
+		case <-time.NewTimer(time.Second).C:
+			t.Fatalf("timed out waiting for reorg test to complete")
+		case <-done:
+		}
+		if charts.Blocks.Time.Length() != newBlockLen {
+			t.Errorf("unexpected blocks length %d", charts.Blocks.Time.Length())
+		}
+		// Reorg snips 2 days
+		if charts.Days.Time.Length() != newDayLen {
+			t.Errorf("unexpected days length %d", charts.Days.Time.Length())
+		}
+		// Reorg snips last window
+		if charts.Windows.Time.Length() != newWindowLen {
+			t.Errorf("unexpected windows length %d", charts.Windows.Time.Length())
+		}
 	}
-	// Reorg snips 2 days
-	if charts.Days.Time.Length() != 1 {
-		t.Errorf("unexpected days length %d", charts.Days.Time.Length())
-	}
-	// Reorg snips last window
-	if charts.Windows.Time.Length() != 2 {
-		t.Errorf("unexpected windows length %d", charts.Windows.Time.Length())
-	}
+	// Test replacing the entire chain.
+	resetCharts()
+	testReorg(2, 3, 0, 1, 2)
+
+	// All but one block.
+	resetCharts()
+	testReorg(2, 2, 1, 1, 2)
 }

@@ -60,7 +60,7 @@ func ParseZoom(zoom string) ZoomLevel {
 }
 
 const (
-	aDay = 86400
+	aDay = 86400 // seconds
 	// HashrateAvgLength is the number of blocks used the rolling average for
 	// the network hashrate calculation.
 	HashrateAvgLength = 120
@@ -473,7 +473,6 @@ func (charts *ChartData) ReorgHandler(wg *sync.WaitGroup, c chan *txhelpers.Reor
 			}
 			commonAncestorHeight := uint64(data.NewChainHeight) - uint64(len(data.NewChain))
 			charts.mtx.Lock()
-			defer charts.mtx.Unlock()
 			newHeight := int(commonAncestorHeight) + 1
 			log.Debug("ChartData.ReorgHandler snipping blocks height to %d", newHeight)
 			charts.Blocks.Snip(newHeight)
@@ -487,6 +486,7 @@ func (charts *ChartData) ReorgHandler(wg *sync.WaitGroup, c chan *txhelpers.Reor
 			windowsLen--
 			log.Debug("ChartData.ReorgHandler snipping windows to height to %d", windowsLen)
 			charts.Windows.Snip(windowsLen)
+			charts.mtx.Unlock()
 			data.WG.Done()
 
 		case <-charts.ctx.Done():
@@ -629,7 +629,7 @@ func (charts *ChartData) StateID() uint64 {
 	return charts.stateID()
 }
 
-// StateID returns a unique (enough) ID associted with the state of the Blocks
+// stateID returns a unique (enough) ID associted with the state of the Blocks
 // data.
 func (charts *ChartData) stateID() uint64 {
 	timeLen := len(charts.Blocks.Time)
@@ -870,22 +870,55 @@ func accumulate(data ChartUints) ChartUints {
 	return d
 }
 
-// Translate the uints to a slice of the differences between each. The provided
-// data is assumed to be monotonically increasing. The first element is always
-// 0 to keep the data length unchanged.
-func btw(data ChartUints) ChartUints {
-	d := make(ChartUints, 0, len(data))
-	dataLen := len(data)
-	if dataLen == 0 {
-		return d
+// Translate the times slice to a slice of differences. The original dataset
+// minus the first element is returned for convenience.
+func blockTimes(blocks ChartUints) (ChartUints, ChartUints) {
+	times := make(ChartUints, 0, len(blocks))
+	dataLen := len(blocks)
+	if dataLen < 2 {
+		// Fewer than two data points is invalid for btw. Return empty data sets so
+		// that the JSON encoding will have the correct type.
+		return times, times
 	}
-	d = append(d, 0)
-	last := data[0]
-	for _, v := range data[1:] {
-		d = append(d, v-last)
+	last := blocks[0]
+	for _, v := range blocks[1:] {
+		dif := v - last
+		if int64(dif) < 0 {
+			dif = 0
+		}
+		times = append(times, dif)
 		last = v
 	}
-	return d
+	return blocks[1:], times
+}
+
+// Take the average block times on the intervals defined by the ticks argument.
+func avgBlockTimes(ticks, blocks ChartUints) (ChartUints, ChartUints) {
+	if len(ticks) < 2 {
+		// Return empty arrays so that JSON-encoding will have the correct type.
+		return ChartUints{}, ChartUints{}
+	}
+	times := make(ChartUints, 0, len(ticks)-1)
+	avgs := make(ChartUints, 0, len(ticks)-1)
+	workingOn := ticks[0]
+	nextIdx := 1
+	next := ticks[nextIdx]
+	lastIdx := 0
+	for i, t := range blocks {
+		if t > next {
+			_, pts := blockTimes(blocks[lastIdx:i])
+			avgs = append(avgs, pts.Avg(0, len(pts)))
+			times = append(times, workingOn)
+			nextIdx++
+			if nextIdx > len(ticks)-1 {
+				break
+			}
+			workingOn = next
+			lastIdx = i
+			next = ticks[nextIdx]
+		}
+	}
+	return times, avgs
 }
 
 func blockSizeChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
@@ -931,9 +964,9 @@ func coinSupplyChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 func durationBTWChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 	switch zoom {
 	case BlockZoom:
-		return charts.encode(charts.Blocks.Time, btw(charts.Blocks.Time))
+		return charts.encode(blockTimes(charts.Blocks.Time))
 	case DayZoom:
-		return charts.encode(charts.Days.Time, btw(charts.Days.Time))
+		return charts.encode(avgBlockTimes(charts.Days.Time, charts.Blocks.Time))
 	}
 	return nil, InvalidZoomErr
 }
