@@ -110,8 +110,8 @@ func TestChartsCache(t *testing.T) {
 		}
 
 		err = charts.writeCacheFile(path)
-		if err == nil {
-			t.Fatal("expected an error but found non")
+		if err != nil {
+			t.Fatalf("expected no error but found: %v", err)
 		}
 	})
 
