@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"reflect"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -1123,6 +1124,18 @@ func (pgb *ChainDB) proposalsUpdateHandler() {
 	}
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Errorf("recovered from piparser panic in proposalsUpdateHandler: %v", r)
+				log.Errorf(string(debug.Stack()))
+				select {
+				case <-time.NewTimer(time.Minute).C:
+					log.Infof("attempting to restart proposalsUpdateHandler")
+					pgb.proposalsUpdateHandler()
+				case <-pgb.ctx.Done():
+				}
+			}
+		}()
 		for range pgb.piparser.UpdateSignal() {
 			count, err := pgb.PiProposalsHistory()
 			if err != nil {
