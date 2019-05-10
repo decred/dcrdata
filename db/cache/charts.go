@@ -504,14 +504,15 @@ func isfileExists(filePath string) bool {
 
 // writeCacheFile creates the charts cache in the provided file path if it
 // doesn't exists. It dumps the ChartsData contents using the .gob encoding.
-func (charts *ChartData) writeCacheFile(filePath string) (err error) {
-	var file *os.File
-	if !isfileExists(filePath) {
-		file, err = os.Create(filePath)
-	} else {
-		file, err = os.Open(filePath)
+// Drops the old .gob dump before creating a new one. Delete the old cache here
+// rather than after loading so that a dump will still be available after a crash.
+func (charts *ChartData) writeCacheFile(filePath string) error {
+	if isfileExists(filePath) {
+		// delete the old dump files before creating new ones.
+		os.RemoveAll(filePath)
 	}
 
+	file, err := os.Create(filePath)
 	if err != nil {
 		return err
 	}
@@ -525,8 +526,7 @@ func (charts *ChartData) writeCacheFile(filePath string) (err error) {
 }
 
 // readCacheFile reads the contents of the charts cache dump file encoded in
-// .gob format if it exists returns an error if otherwise. It then deletes
-// the read *.gob cache dump file.
+// .gob format if it exists returns an error if otherwise.
 func (charts *ChartData) readCacheFile(filePath string) error {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -535,9 +535,6 @@ func (charts *ChartData) readCacheFile(filePath string) error {
 
 	defer func() {
 		file.Close()
-
-		// delete the dump after reading.
-		os.RemoveAll(filePath)
 	}()
 
 	var gobject = new(ChartGobject)
@@ -712,9 +709,15 @@ func (charts *ChartData) Update() {
 		}
 		cancel()
 		if err != nil {
-			log.Warnf("%v", err)
+			log.Errorf("%v", err)
 			return
 		}
+	}
+
+	// Since the charts db data query is complete. Update chart.Days derived dataset.
+	if err := charts.Lengthen(); err != nil {
+		log.Errorf("(*ChartData).Lengthen failed %v", err)
+		return
 	}
 }
 
