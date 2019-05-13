@@ -77,16 +77,17 @@ function priceGraphData (items, memP) {
 }
 
 function populateOutputs (data) {
-  var totalCount = data.count.reduce((a, n) => { return a + n }, 0)
-  var tableData = '<thead><td># of Outputs</td><td>Count</td><td>% Occurence</td></thead>'
+  var totalCount = parseInt(data.count.reduce((a, n) => { return a + n }, 0))
+  var tableData = `<thead><td># of Outputs</td><td>Count</td><td>% Occurence</td></thead>`
   data.outputs.map((n, i) => {
-    var count = data.count[i]
-    tableData += '<tr><td class="pr-2 lh1rem vam nowrap xs-w117 font-weight-bold">' + n + '</td>' +
-    '<td><span class="hash lh1rem"> ' + count + ' </span></td>' +
-    '<td><span class="hash lh1rem"> ' + ((count * 100) / totalCount).toFixed(4) + '% </span></td></tr>'
+    var count = parseInt(data.count[i])
+    tableData += `<tr><td class="pr-2 lh1rem vam nowrap xs-w117 font-weight-bold">${parseInt(n)}</td>
+    <td><span class="hash lh1rem">${count}</span></td>
+    <td><span class="hash lh1rem">${((count * 100) / totalCount).toFixed(4)}% </span></td></tr>`
   })
-  dompurify.sanitize({ IN_PLACE: true }, tableData)
-  return tableData
+  var tbody = document.createElement('tbody')
+  tbody.innerHTML = tableData
+  return tbody
 }
 
 function getWindow (val) {
@@ -181,7 +182,8 @@ export default class extends Controller {
       }
     }
     if (data['outputs_chart']) {
-      this.outputsTarget.innerHTML = populateOutputs(data['outputs_chart'])
+      while (this.outputsTarget.firstChild) this.outputsTarget.removeChild(this.outputsTarget.firstChild)
+      this.outputsTarget.appendChild(populateOutputs(data['outputs_chart']))
     }
   }
 
