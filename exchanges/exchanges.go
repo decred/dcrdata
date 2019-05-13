@@ -6,6 +6,7 @@ package exchanges
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"sort"
 	"strconv"
@@ -230,6 +231,15 @@ func (sticks Candlesticks) needsUpdate(bin candlestickKey) bool {
 	}
 	lastStick := sticks[len(sticks)-1]
 	return time.Now().After(lastStick.Start.Add(bin.duration() * 2))
+}
+
+// Most exchanges bin price values on a float precision of 8 decimal points.
+// eightPtKey reliably converts the float to an int64 that is unique for a price
+// bin.
+func eightPtKey(rate float64) int64 {
+	// Bittrex values are sometimes parsed with floating point error that can
+	// affect the key if you simply use int64(rate).
+	return int64(math.Round(rate * 1e8))
 }
 
 // ExchangeState is the simple template for a price. The only member that is
