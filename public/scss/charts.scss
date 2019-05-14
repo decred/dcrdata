@@ -36,22 +36,11 @@
   color: black;
 }
 
-.tickets {
+.tp-charts {
   width: 100%;
-  height: 300px;
+  height: 25vh;
   margin: 0 auto;
   font-size: 14px;
-}
-
-.ticket_by_types {
-  margin-top: 7%;
-  font-size: 12px;
-}
-
-.doughnutGraph {
-  margin: 0 auto;
-  width: 40%;
-  display: flex;
 }
 
 .modal {
@@ -586,7 +575,7 @@ body.darkBG {
 }
 
 .proposal-chart-align {
-  height: 20vh !important;
+  height: 23vh !important;
   margin: 0 auto 0 auto;
   width: 70%;
 }
@@ -594,4 +583,8 @@ body.darkBG {
 .proposal-charts-align {
   margin: auto;
   height: inherit;
+}
+
+.tp-outputs-align {
+  width: inherit;
 }

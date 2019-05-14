@@ -692,11 +692,11 @@ type TinyBlock struct {
 // TicketPoolChartsData is for data used to display ticket pool statistics at
 // /ticketpool.
 type TicketPoolChartsData struct {
-	ChartHeight uint64                   `json:"height"`
-	TimeChart   *dbtypes.PoolTicketsData `json:"time_chart"`
-	PriceChart  *dbtypes.PoolTicketsData `json:"price_chart"`
-	DonutChart  *dbtypes.PoolTicketsData `json:"donut_chart"`
-	Mempool     *PriceCountTime          `json:"mempool"`
+	ChartHeight  uint64                   `json:"height"`
+	TimeChart    *dbtypes.PoolTicketsData `json:"time_chart"`
+	PriceChart   *dbtypes.PoolTicketsData `json:"price_chart"`
+	OutputsChart *dbtypes.PoolTicketsData `json:"outputs_chart"`
+	Mempool      *PriceCountTime          `json:"mempool"`
 }
 
 // PowerlessTicket is the purchase block height and value of a missed or expired

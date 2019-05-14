@@ -1576,11 +1576,11 @@ func (pgb *ChainDB) TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) 
 	if heightSeen < 0 {
 		return nil, nil, nil, -1, fmt.Errorf("no charts data available")
 	}
-	timeChart, priceChart, donutCharts, height, intervalFound, stale :=
+	timeChart, priceChart, outputsChart, height, intervalFound, stale :=
 		TicketPoolData(interval, heightSeen)
 	if intervalFound && !stale {
 		// The cache was fresh.
-		return timeChart, priceChart, donutCharts, height, nil
+		return timeChart, priceChart, outputsChart, height, nil
 	}
 
 	// Cache is stale or empty. Attempt to gain updater status.
@@ -1595,7 +1595,7 @@ func (pgb *ChainDB) TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) 
 			defer pgb.tpUpdatePermission[interval].Unlock()
 			// Try again to pull it from cache now that the update is completed.
 			heightSeen = pgb.Height()
-			timeChart, priceChart, donutCharts, height, intervalFound, stale =
+			timeChart, priceChart, outputsChart, height, intervalFound, stale =
 				TicketPoolData(interval, heightSeen)
 			// We waited for the updater of this interval, so it should be found
 			// at this point. If not, this is an error.
@@ -1609,23 +1609,23 @@ func (pgb *ChainDB) TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) 
 		}
 		// else return the stale data instead of waiting.
 
-		return timeChart, priceChart, donutCharts, height, nil
+		return timeChart, priceChart, outputsChart, height, nil
 	}
 	// This goroutine is now the cache updater.
 	defer pgb.tpUpdatePermission[interval].Unlock()
 
 	// Retrieve chart data for best block in DB.
 	var err error
-	timeChart, priceChart, donutCharts, height, err = pgb.ticketPoolVisualization(interval)
+	timeChart, priceChart, outputsChart, height, err = pgb.ticketPoolVisualization(interval)
 	if err != nil {
 		log.Errorf("Failed to fetch ticket pool data: %v", err)
 		return nil, nil, nil, 0, err
 	}
 
 	// Update the cache with the new ticket pool data.
-	UpdateTicketPoolData(interval, timeChart, priceChart, donutCharts, height)
+	UpdateTicketPoolData(interval, timeChart, priceChart, outputsChart, height)
 
-	return timeChart, priceChart, donutCharts, height, nil
+	return timeChart, priceChart, outputsChart, height, nil
 }
 
 // ticketPoolVisualization fetches the following ticketpool data: tickets

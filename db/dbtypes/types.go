@@ -1308,9 +1308,8 @@ type PoolTicketsData struct {
 	Mempool  []uint64  `json:"mempool,omitempty"`
 	Immature []uint64  `json:"immature,omitempty"`
 	Live     []uint64  `json:"live,omitempty"`
-	Solo     uint64    `json:"solo,omitempty"`
-	Pooled   uint64    `json:"pooled,omitempty"`
-	TxSplit  uint64    `json:"txsplit,omitempty"`
+	Outputs  []uint64  `json:"outputs,omitempty"`
+	Count    []uint64  `json:"count,omitempty"`
 }
 
 // Vin models a transaction input.

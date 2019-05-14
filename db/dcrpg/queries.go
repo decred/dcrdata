@@ -1025,14 +1025,14 @@ func retrieveTicketsByDate(ctx context.Context, db *sql.DB, maturityBlock int64,
 	tickets := new(dbtypes.PoolTicketsData)
 	for rows.Next() {
 		var immature, live uint64
-		var timestamp dbtypes.TimeDef
+		var timestamp time.Time
 		var price, total float64
 		err = rows.Scan(&timestamp, &price, &immature, &live)
 		if err != nil {
 			return nil, fmt.Errorf("retrieveTicketsByDate %v", err)
 		}
 
-		tickets.Time = append(tickets.Time, timestamp)
+		tickets.Time = append(tickets.Time, dbtypes.NewTimeDef(timestamp))
 		tickets.Immature = append(tickets.Immature, immature)
 		tickets.Live = append(tickets.Live, live)
 
@@ -1079,32 +1079,25 @@ func retrieveTicketByPrice(ctx context.Context, db *sql.DB, maturityBlock int64)
 // grouping used here i.e. solo, pooled and tixsplit is just a guessing based on
 // commonly structured ticket purchases.
 func retrieveTicketsGroupedByType(ctx context.Context, db *sql.DB) (*dbtypes.PoolTicketsData, error) {
-	var entry dbtypes.PoolTicketsData
 	rows, err := db.QueryContext(ctx, internal.SelectTicketsByType)
 	if err != nil {
 		return nil, err
 	}
 	defer closeRows(rows)
 
+	tickets := new(dbtypes.PoolTicketsData)
 	for rows.Next() {
-		var txType, txTypeCount uint64
-		err = rows.Scan(&txType, &txTypeCount)
+		var output, count uint64
 
-		if err != nil {
+		if err = rows.Scan(&output, &count); err != nil {
 			return nil, fmt.Errorf("retrieveTicketsGroupedByType %v", err)
 		}
 
-		switch txType {
-		case 1:
-			entry.Solo = txTypeCount
-		case 2:
-			entry.Pooled = txTypeCount
-		case 3:
-			entry.TxSplit = txTypeCount
-		}
+		tickets.Count = append(tickets.Count, count)
+		tickets.Outputs = append(tickets.Outputs, output)
 	}
 
-	return &entry, nil
+	return tickets, nil
 }
 
 // SetPoolStatusForTickets sets the ticket pool status for the tickets specified

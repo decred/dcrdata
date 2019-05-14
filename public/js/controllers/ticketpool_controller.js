@@ -3,9 +3,9 @@ import ws from '../services/messagesocket_service'
 import { barChartPlotter } from '../helpers/chart_helper'
 import { getDefault } from '../helpers/module_helper'
 import axios from 'axios'
+import dompurify from 'dompurify'
 
 let Dygraph // lazy loaded on connect
-let Chart // lazy loaded on connect
 
 // Common code for ploting dygraphs
 function legendFormatter (data) {
@@ -15,6 +15,7 @@ function legendFormatter (data) {
     var labeledData = ' <span style="color: ' + series.color + ';">' + series.labelHTML + ': ' + series.yHTML
     html += '<br>' + series.dashHTML + labeledData + '</span>'
   })
+  dompurify.sanitize(html)
   return html
 }
 
@@ -75,14 +76,18 @@ function priceGraphData (items, memP) {
   return p
 }
 
-function getVal (val) { return isNaN(val) ? 0 : val }
-
-function outputsGraphData (items) {
-  return [
-    getVal(items.solo),
-    getVal(items.pooled),
-    getVal(items.txsplit)
-  ]
+function populateOutputs (data) {
+  var totalCount = parseInt(data.count.reduce((a, n) => { return a + n }, 0))
+  var tableData = `<thead><td># of Outputs</td><td>Count</td><td>% Occurence</td></thead>`
+  data.outputs.map((n, i) => {
+    var count = parseInt(data.count[i])
+    tableData += `<tr><td class="pr-2 lh1rem vam nowrap xs-w117 font-weight-bold">${parseInt(n)}</td>
+    <td><span class="hash lh1rem">${count}</span></td>
+    <td><span class="hash lh1rem">${((count * 100) / totalCount).toFixed(4)}% </span></td></tr>`
+  })
+  var tbody = document.createElement('tbody')
+  tbody.innerHTML = tableData
+  return tbody
 }
 
 function getWindow (val) {
@@ -103,13 +108,13 @@ var commonOptions = {
   plotter: barChartPlotter,
   legendFormatter: legendFormatter,
   labelsSeparateLines: true,
-  ylabel: 'Number of Tickets',
+  rangeSelectorHeight: 30,
   legend: 'follow'
 }
 
 export default class extends Controller {
   static get targets () {
-    return [ 'zoom', 'bars', 'age', 'wrapper' ]
+    return [ 'zoom', 'bars', 'age', 'wrapper', 'outputs' ]
   }
 
   async initialize () {
@@ -117,11 +122,9 @@ export default class extends Controller {
     this.tipHeight = 0
     this.purchasesGraph = null
     this.priceGraph = null
-    this.outputsGraph = null
     this.graphData = {
       'time_chart': null,
-      'price_chart': null,
-      'donut_chart': null
+      'price_chart': null
     }
     this.zoom = 'all'
     this.bars = 'all'
@@ -132,12 +135,6 @@ export default class extends Controller {
     this.chartCount += 2
     this.purchasesGraph = this.makePurchasesGraph()
     this.priceGraph = this.makePriceGraph()
-
-    Chart = await getDefault(
-      import(/* webpackChunkName: "charts" */ '../vendor/charts.min.js')
-    )
-    this.chartCount += 1
-    this.outputsGraph = this.makeOutputsGraph()
   }
 
   connect () {
@@ -184,12 +181,9 @@ export default class extends Controller {
         this.priceGraph.updateOptions({ 'file': this.graphData['price_chart'] })
       }
     }
-    if (data['donut_chart']) {
-      this.graphData['donut_chart'] = outputsGraphData(data['donut_chart'])
-      if (this.outputsGraph !== null) {
-        this.outputsGraph.data.datasets[0].data = this.graphData['donut_chart']
-        this.outputsGraph.update()
-      }
+    if (data['outputs_chart']) {
+      while (this.outputsTarget.firstChild) this.outputsTarget.removeChild(this.outputsTarget.firstChild)
+      this.outputsTarget.appendChild(populateOutputs(data['outputs_chart']))
     }
   }
 
@@ -233,6 +227,7 @@ export default class extends Controller {
       labels: ['Date', 'Mempool Tickets', 'Immature Tickets', 'Live Tickets', 'Ticket Value'],
       colors: ['#FF8C00', '#006600', '#2971FF', '#ff0090'],
       title: 'Tickets Purchase Distribution',
+      ylabel: 'Number of Tickets',
       y2label: 'A.v.g. Tickets Value (DCR)',
       dateWindow: getWindow('day'),
       series: {
@@ -256,51 +251,12 @@ export default class extends Controller {
       colors: ['#FF8C00', '#006600', '#2971FF'],
       title: 'Ticket Price Distribution',
       labelsKMB: true,
-      xlabel: 'Ticket Price (DCR)'
+      xlabel: 'Ticket Price (DCR)',
+      ylabel: 'Number of Tickets'
     }
     return new Dygraph(
       document.getElementById('tickets_by_purchase_price'),
       d, { ...commonOptions, ...p }
     )
-  }
-
-  makeOutputsGraph () {
-    var d = this.graphData['donut_chart'] || []
-    return new Chart(
-      document.getElementById('doughnutGraph'), {
-        options: {
-          width: 200,
-          height: 200,
-          responsive: false,
-          animation: { animateScale: true },
-          legend: { position: 'bottom' },
-          title: {
-            display: true,
-            text: 'Number of Ticket Outputs'
-          },
-          tooltips: {
-            callbacks: {
-              label: (tooltipItem, data) => {
-                var sum = 0
-                var d = data.datasets[tooltipItem.datasetIndex].data
-                var currentValue = d[tooltipItem.index]
-                d.map((u) => { sum += u })
-                return currentValue + ' Tickets ( ' + ((currentValue / sum) * 100).toFixed(2) + '% )'
-              }
-            }
-          }
-        },
-        type: 'doughnut',
-        data: {
-          labels: ['Solo', 'VSP Tickets', 'TixSplit'],
-          datasets: [{
-            data: d,
-            label: 'Solo Tickets',
-            backgroundColor: ['#2971FF', '#FF8C00', '#41BF53'],
-            borderColor: ['white', 'white', 'white'],
-            borderWidth: 0.5
-          }]
-        }
-      })
   }
 }
