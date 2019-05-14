@@ -3294,7 +3294,6 @@ func (pgb *ChainDB) storeTxns(txns []*dbtypes.Tx, vouts [][]*dbtypes.Vout, vins 
 	var dbTx *sql.Tx
 	dbTx, err = pgb.db.Begin()
 	if err != nil {
-		_ = dbTx.Rollback()
 		err = fmt.Errorf("failed to begin database transaction: %v", err)
 		return
 	}
