@@ -205,7 +205,7 @@ type zoomSet struct {
 	BlockSize ChartUints
 	TxCount   ChartUints
 	NewAtoms  ChartUints
-	Chainwork ChartFloats
+	Chainwork ChartUints
 	Fees      ChartUints
 }
 
@@ -235,7 +235,7 @@ func newBlockSet(size int) *zoomSet {
 		BlockSize: newChartUints(size),
 		TxCount:   newChartUints(size),
 		NewAtoms:  newChartUints(size),
-		Chainwork: newChartFloats(size),
+		Chainwork: newChartUints(size),
 		Fees:      newChartUints(size),
 	}
 }
@@ -286,7 +286,7 @@ type ChartGobject struct {
 	BlockSize   ChartUints
 	TxCount     ChartUints
 	NewAtoms    ChartUints
-	Chainwork   ChartFloats
+	Chainwork   ChartUints
 	Fees        ChartUints
 	WindowTime  ChartUints
 	PowDiff     ChartFloats
@@ -979,14 +979,14 @@ func durationBTWChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 // is HashrateAvgLength shorter than the provided chainwork. A time slice is
 // required as well, and a truncated time slice with the same length as the
 // hashrate slice is returned.
-func hashrate(time ChartUints, chainwork ChartFloats) (ChartUints, ChartFloats) {
+func hashrate(time, chainwork ChartUints) (ChartUints, ChartUints) {
 	hrLen := len(chainwork) - HashrateAvgLength
 	if hrLen <= 0 {
-		return newChartUints(0), newChartFloats(0)
+		return newChartUints(0), newChartUints(0)
 	}
 	t := make(ChartUints, 0, hrLen)
-	y := make(ChartFloats, 0, hrLen)
-	var rotator [HashrateAvgLength]float64
+	y := make(ChartUints, 0, hrLen)
+	var rotator [HashrateAvgLength]uint64
 	for i, work := range chainwork {
 		idx := i % HashrateAvgLength
 		rotator[idx] = work
@@ -994,10 +994,14 @@ func hashrate(time ChartUints, chainwork ChartFloats) (ChartUints, ChartFloats) 
 			lastWork := rotator[(idx+1)%HashrateAvgLength]
 			lastTime := time[i-HashrateAvgLength]
 			thisTime := time[i]
-			// 1e6: exahash -> terahash/s
 			t = append(t, thisTime)
-			y = append(y, (work-lastWork)*1e6/float64(thisTime-lastTime))
+			y = append(y, (work-lastWork)/(thisTime-lastTime))
 		}
+
+		// Since the required precision for the hashrate has been passed, reduce
+		// chainwork to exahash/s precision.
+		// Divide 1e6: terahash/s -> exahash/s
+		chainwork[i] = chainwork[i] / 1e6
 	}
 	return t, y
 }

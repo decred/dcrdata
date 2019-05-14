@@ -29,13 +29,18 @@ function intComma (amount) {
   return amount.toLocaleString(undefined, { maximumFractionDigits: 0 })
 }
 
-function formatHashRate (s) {
-  var rates = ['Hash/s', 'KHash/s', 'MHash/s', 'GHash/s', 'THash/s', 'PHash/s', 'ExHash/s']
-  for (var i = 0; i < rates.length; i++) {
-    var r = Math.pow(1000, i + 1)
-    var val = Math.floor(s / r)
-    if (val <= 1000 || i + 1 === rates.length) {
-      return intComma(val) + ' ' + rates[i]
+function formatHashRate (value, displayType) {
+  value = parseInt(value)
+  if (value <= 0) return value
+  var shortUnits = ['Th', 'Ph', 'Eh']
+  var labelUnits = ['TeraHash/s', 'PentaHash/s', 'ExaHash/s']
+  for (var i = 0; i < labelUnits.length; i++) {
+    var quo = Math.pow(1000, i)
+    var max = Math.pow(1000, i + 1)
+    if ((value > quo && value <= max) || i + 1 === labelUnits.length) {
+      var data = intComma(Math.floor(value / quo))
+      if (displayType === 'axis') return data + ' ' + shortUnits[i]
+      return data + ' ' + labelUnits[i]
     }
   }
 }
@@ -80,13 +85,7 @@ function legendFormatter (data) {
           break
 
         case 'hashrate':
-          var teraRate = 10 ** 12
-          yVal = formatHashRate(series.y * teraRate)
-          break
-
-        case 'chainwork':
-          var exaRate = 10 ** 18
-          yVal = formatHashRate(series.y * exaRate)
+          yVal = formatHashRate(series.y)
           break
       }
       return nodes + `<div class="pr-2">${series.dashHTML} ${series.labelHTML}: ${yVal}</div>`
@@ -243,6 +242,7 @@ export default class extends Controller {
 
   drawInitialGraph () {
     var options = {
+      axes: null,
       labels: ['Date', 'Ticket Price'],
       digitsAfterDecimal: 8,
       showRangeSelector: true,
@@ -345,13 +345,15 @@ export default class extends Controller {
 
       case 'chainwork': // Total chainwork over time
         d = zipYvDate(data)
-        assign(gOptions, mapDygraphOptions(d, ['Date', 'Cumulative Chainwork'],
-          false, 'Cumulative Chainwork', 'Date', undefined, false, false))
+        assign(gOptions, mapDygraphOptions(d, ['Date', 'Cumulative Chainwork (exahash/s)'],
+          false, 'Cumulative Chainwork (exahash/s)', 'Date', undefined, true, false))
         break
 
       case 'hashrate': // Total chainwork over time
         d = zipYvDate(data)
-        assign(gOptions, mapDygraphOptions(d, ['Date', 'Hashrate'], false, 'Hashrate', 'Date', undefined, false, false))
+        var opt = mapDygraphOptions(d, ['Date', 'Hashrate'], false, 'Hashrate', 'Date', undefined, false, false)
+        opt.axes = { y: { axisLabelFormatter: (v) => { return formatHashRate(v, 'axis') } } }
+        assign(gOptions, opt)
         break
     }
     this.chartsView.updateOptions(gOptions, false)
