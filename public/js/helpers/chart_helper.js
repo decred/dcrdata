@@ -30,6 +30,7 @@ function plotChart (e, barWidth) {
   ctx.fillStyle = e.color
 
   e.points.map((p) => {
+    if (p.yval === 0) return
     var x = p.canvasx - barWidth / 2
     var height = yBottom - p.canvasy
     ctx.fillRect(x, p.canvasy, barWidth, height)
@@ -56,6 +57,7 @@ export function multiColumnBarPlotter (e) {
     ctx.strokeStyle = strokeColors[i]
 
     bar.map((p) => {
+      if (p.yval === 0) return
       var xLeft = p.canvasx - (barWidth / 2) * (1 - i / (sets.length - 1))
       var height = yBottom - p.canvasy
       var width = barWidth / sets.length
