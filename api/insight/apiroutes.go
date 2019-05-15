@@ -27,7 +27,22 @@ import (
 	"github.com/decred/dcrdata/rpcutils"
 )
 
-const defaultReqPerSecLimit = 20.0
+const (
+	defaultReqPerSecLimit = 20.0
+
+	// maxInsightAddrsUTXOs limits the number of UTXOs returned by the
+	// addrs[/{addresses}]/utxo endpoints when the {addresses} list has more
+	// than one address. The project fund address has 263383 UTXOs at block
+	// height 342553, and this is a ~75MB JSON payload.
+	maxInsightAddrsUTXOs = 500000
+
+	// maxInsightAddrsTxns limits the number of transactions that may be
+	// returned by the addrs[/{addresses}]/txs endpoints when the {addresses}
+	// list has more than one address. This limit is applied to the "to" and
+	// "from" URL query parameters. Note that each transaction requires a
+	// getrawtransaction RPC call to dcrd.
+	maxInsightAddrsTxns = 250
+)
 
 // InsightApi contains the resources for the Insight HTTP API. InsightApi's
 // methods include the http.Handlers for the URL path routes.
@@ -309,7 +324,7 @@ func (iapi *InsightApi) getAddressesTxnOutput(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// Initialize Output Structure
+	// Initialize output slice.
 	txnOutputs := make([]apitypes.AddressTxnOutput, 0)
 
 	for _, address := range addresses {
@@ -331,7 +346,7 @@ func (iapi *InsightApi) getAddressesTxnOutput(w http.ResponseWriter, r *http.Req
 		}
 
 		if addressOuts != nil {
-			// If there is any mempool add to the utxo set
+			// Add any relevant mempool transaction outputs to the UTXO set.
 		FUNDING_TX_DUPLICATE_CHECK:
 			for _, f := range addressOuts.Outpoints {
 				fundingTx, ok := addressOuts.TxnsStore[f.Hash]
@@ -367,10 +382,20 @@ func (iapi *InsightApi) getAddressesTxnOutput(w http.ResponseWriter, r *http.Req
 				txnOutputs = append(txnOutputs, txnOutput)
 			}
 		}
+
+		// If multiple addresses were in the request, enforce a limit on the
+		// number of UTXOs we will return. Do this before appending the latest
+		// confirmed transactions slice.
+		if len(addresses) > 1 && len(confirmedTxnOutputs)+len(txnOutputs) > maxInsightAddrsUTXOs {
+			writeInsightError(w, "Too many UTXOs in that result. "+
+				"Please request the UTXOs for each address individually.")
+			return
+		}
+
 		txnOutputs = append(txnOutputs, confirmedTxnOutputs...)
 
-		// Search for items in mempool that spend utxo (matching hash and index)
-		// and remove those from the set
+		// Search for items in mempool that spend one of these UTXOs and remove
+		// them from the set.
 		for _, f := range addressOuts.PrevOuts {
 			spendingTx, ok := addressOuts.TxnsStore[f.TxSpending]
 			if !ok {
@@ -383,14 +408,15 @@ func (iapi *InsightApi) getAddressesTxnOutput(w http.ResponseWriter, r *http.Req
 			}
 			for g, utxo := range txnOutputs {
 				if utxo.Vout == f.PreviousOutpoint.Index && utxo.TxnID == f.PreviousOutpoint.Hash.String() {
-					// Found a utxo that is unconfirmed spent.  Remove from slice
+					// Found a UTXO that is unconfirmed spent. Remove from slice.
 					txnOutputs = append(txnOutputs[:g], txnOutputs[g+1:]...)
 				}
 			}
 		}
 	}
-	// Final sort by timestamp desc if unconfirmed and by confirmations
-	// ascending if confirmed
+
+	// Sort the UTXOs by timestamp (descending) if unconfirmed and by
+	// confirmations (ascending) if confirmed.
 	sort.Slice(txnOutputs, func(i, j int) bool {
 		if txnOutputs[i].Confirmations == 0 && txnOutputs[j].Confirmations == 0 {
 			return txnOutputs[i].BlockTime > txnOutputs[j].BlockTime
@@ -559,12 +585,28 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 	noScriptSig := GetNoScriptSigCtx(r) // Optional
 	noSpent := GetNoSpentCtx(r)         // Optional
 	from := GetFromCtx(r)               // Optional
-	to, ok := GetToCtx(r)               // Optional
+	if from < 0 {
+		from = 0
+	}
+	to, ok := GetToCtx(r) // Optional
 	if !ok {
 		to = from + 10
 	}
+	if to < 0 {
+		to = 0
+	}
+	if from > to {
+		to = from
+	}
 
-	// Initialize Output Structure
+	if to-from > maxInsightAddrsTxns {
+		writeInsightError(w, fmt.Sprintf(
+			`"from" (%d) and "to" (%d) range should be less than or equal to %d`,
+			from, to, maxInsightAddrsTxns))
+		return
+	}
+
+	// Initialize output structure.
 	addressOutput := new(apitypes.InsightMultiAddrsTxOutput)
 	var UnconfirmedTxs []chainhash.Hash
 
@@ -577,12 +619,13 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 	}
 	if err != nil {
 		writeInsightError(w,
-			fmt.Sprintf("Error retrieving transactions for addresss %s (%s)",
+			fmt.Sprintf("Error retrieving transactions for addresss %s (%v)",
 				addresses, err))
 		return
 	}
 
-	// Confirm all addresses are valid and pull unconfirmed transactions for all addresses
+	// Confirm all addresses are valid, and pull unconfirmed transactions for
+	// all addresses.
 	for _, addr := range addresses {
 		address, err := dcrutil.DecodeAddress(addr)
 		if err != nil {
@@ -591,19 +634,19 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 		}
 		addressOuts, _, err := iapi.mp.UnconfirmedTxnsForAddress(address.String())
 		if err != nil {
-			writeInsightError(w, fmt.Sprintf("Error gathering mempool transactions (%s)", err))
+			writeInsightError(w, fmt.Sprintf("Error gathering mempool transactions (%v)", err))
 			return
 		}
 
 	FUNDING_TX_DUPLICATE_CHECK:
 		for _, f := range addressOuts.Outpoints {
-			// Confirm its not already in our recent transactions
+			// Confirm it's not already in our recent transactions.
 			for _, v := range recentTxs {
 				if v.IsEqual(&f.Hash) {
 					continue FUNDING_TX_DUPLICATE_CHECK
 				}
 			}
-			UnconfirmedTxs = append(UnconfirmedTxs, f.Hash) // Funding tx
+			UnconfirmedTxs = append(UnconfirmedTxs, f.Hash) // funding
 			recentTxs = append(recentTxs, f.Hash)
 		}
 	SPENDING_TX_DUPLICATE_CHECK:
@@ -613,66 +656,66 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 					continue SPENDING_TX_DUPLICATE_CHECK
 				}
 			}
-			UnconfirmedTxs = append(UnconfirmedTxs, f.TxSpending) // Spending tx
+			UnconfirmedTxs = append(UnconfirmedTxs, f.TxSpending) // spending
 			recentTxs = append(recentTxs, f.TxSpending)
 		}
 	}
 
-	// Merge unconfirmed with confirmed transactions
+	// Merge unconfirmed with confirmed transactions.
 	rawTxs = append(UnconfirmedTxs, rawTxs...)
 
 	txcount := len(rawTxs)
 	addressOutput.TotalItems = int64(txcount)
 
+	// Set the actual to and from values given the total transactions.
 	if txcount > 0 {
 		if int(from) > txcount {
 			from = int64(txcount)
 		}
-		if int(from) < 0 {
-			from = 0
-		}
 		if int(to) > txcount {
 			to = int64(txcount)
-		}
-		if int(to) < 0 {
-			to = 0
 		}
 		if from > to {
 			to = from
 		}
-		if (to - from) > 50 {
-			writeInsightError(w, fmt.Sprintf("\"from\" (%d) and \"to\" (%d) range should be less than or equal to 50", from, to))
+		// Should already be checked at start, but do it again to be safe.
+		if to-from > maxInsightAddrsTxns {
+			writeInsightError(w, fmt.Sprintf(
+				`"from" (%d) and "to" (%d) range should be less than or equal to %d`,
+				from, to, maxInsightAddrsTxns))
 			return
 		}
-		// Final Slice Extraction
+		// Final slice extraction
 		rawTxs = rawTxs[from:to]
 	}
 	addressOutput.From = int(from)
 	addressOutput.To = int(to)
 
+	// Make getrawtransaction RPCs for each selected transaction.
 	txsOld := []*dcrjson.TxRawResult{}
 	for _, rawTx := range rawTxs {
 		txOld, err := iapi.BlockData.GetRawTransaction(&rawTx)
 		if err != nil {
 			apiLog.Errorf("Unable to get transaction %s", rawTx)
-			writeInsightError(w, fmt.Sprintf("Error gathering transaction details (%s)", err))
+			writeInsightError(w, fmt.Sprintf("Error gathering transaction details (%v)", err))
 			return
 		}
 		txsOld = append(txsOld, txOld)
 	}
 
-	// Convert to Insight API struct
+	// Convert to Insight API struct.
 	txsNew, err := iapi.DcrToInsightTxns(txsOld, noAsm, noScriptSig, noSpent)
 	if err != nil {
 		apiLog.Error("Unable to process transactions")
-		writeInsightError(w, fmt.Sprintf("Unable to convert transactions (%s)", err))
+		writeInsightError(w, fmt.Sprintf("Unable to convert transactions (%v)", err))
 		return
 	}
 	addressOutput.Items = append(addressOutput.Items, txsNew...)
 	if addressOutput.Items == nil {
-		// Make sure we pass an empty array not null to json response if no Tx
+		// Pass a non-nil empty array for JSON if there are no txns.
 		addressOutput.Items = make([]apitypes.InsightTx, 0)
 	}
+
 	writeJSON(w, addressOutput, iapi.getIndentQuery(r))
 }
 
