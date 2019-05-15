@@ -11,6 +11,7 @@ import dompurify from 'dompurify'
 
 var selectedChart
 let Dygraph // lazy loaded on connect
+let defaultAxisformatter
 
 const blockTime = 5 * 60 * 1000
 const aDay = 86400 * 1000
@@ -33,13 +34,13 @@ function formatHashRate (value, displayType) {
   value = parseInt(value)
   if (value <= 0) return value
   var shortUnits = ['Th', 'Ph', 'Eh']
-  var labelUnits = ['TeraHash/s', 'PentaHash/s', 'ExaHash/s']
+  var labelUnits = ['terahash/s', 'petahash/s', 'exahash/s']
   for (var i = 0; i < labelUnits.length; i++) {
     var quo = Math.pow(1000, i)
     var max = Math.pow(1000, i + 1)
     if ((value > quo && value <= max) || i + 1 === labelUnits.length) {
       var data = intComma(Math.floor(value / quo))
-      if (displayType === 'axis') return data + ' ' + shortUnits[i]
+      if (displayType === 'axis') return data + '' + shortUnits[i]
       return data + ' ' + labelUnits[i]
     }
   }
@@ -56,13 +57,11 @@ function legendFormatter (data) {
   var html = ''
   if (data.x == null) {
     let dashLabels = data.series.reduce((nodes, series) => {
-      return nodes + `<div class="pr-2">${series.dashHTML} ${series.labelHTML}</div>`
+      return `${nodes} <div class="pr-2">${series.dashHTML} ${series.labelHTML}</div>`
     }, '')
     html = `<div class="d-flex flex-wrap justify-content-center align-items-center">
               <div class="pr-3">${this.getLabels()[0]}: N/A</div>
-              <div class="d-flex flex-wrap">
-              ${dashLabels}
-              </div>
+              <div class="d-flex flex-wrap">${dashLabels}</div>
             </div>`
   } else {
     data.series.sort((a, b) => a.y > b.y ? -1 : 1)
@@ -88,14 +87,12 @@ function legendFormatter (data) {
           yVal = formatHashRate(series.y)
           break
       }
-      return nodes + `<div class="pr-2">${series.dashHTML} ${series.labelHTML}: ${yVal}</div>`
+      return `${nodes} <div class="pr-2">${series.dashHTML} ${series.labelHTML}: ${yVal}</div>`
     }, '')
 
     html = `<div class="d-flex flex-wrap justify-content-center align-items-center">
                 <div class="pr-3">${this.getLabels()[0]}: ${data.xHTML}</div>
-                <div class="d-flex flex-wrap">
-                ${yVals}
-                </div>
+                <div class="d-flex flex-wrap"> ${yVals}</div>
             </div>${extraHTML}`
   }
 
@@ -171,9 +168,7 @@ function mapDygraphOptions (data, labelsVal, isDrawPoint, yLabel, xLabel, titleN
     labelsKMB: labelsMG,
     labelsKMG2: labelsMG2,
     title: titleName,
-    fillGraph: false,
-    stackedGraph: false,
-    plotter: null
+    axes: { y: { axisLabelFormatter: defaultAxisformatter } }
   }, nightModeOptions(darkEnabled()))
 }
 
@@ -242,19 +237,16 @@ export default class extends Controller {
 
   drawInitialGraph () {
     var options = {
-      axes: null,
+      axes: { y: { axisLabelWidth: 70 } },
       labels: ['Date', 'Ticket Price'],
       digitsAfterDecimal: 8,
       showRangeSelector: true,
       rangeSelectorPlotFillColor: '#8997A5',
-      rangeSelectorPlotFillGradientColor: '',
-      rangeSelectorPlotStrokeColor: '',
       rangeSelectorAlpha: 0.4,
       rangeSelectorHeight: 40,
       drawPoints: true,
       pointSize: 0.25,
       labelsSeparateLines: true,
-      plotter: Dygraph.Plotters.linePlotter,
       labelsDiv: this.labelsTarget,
       legend: 'always',
       legendFormatter: legendFormatter,
@@ -267,6 +259,7 @@ export default class extends Controller {
       [[1, 1]],
       options
     )
+    defaultAxisformatter = this.chartsView.optionsViewForAxis_('y')('axisLabelFormatter')
     this.chartSelectTarget.value = this.settings.chart
     this.selectChart()
   }
@@ -345,15 +338,14 @@ export default class extends Controller {
 
       case 'chainwork': // Total chainwork over time
         d = zipYvDate(data)
-        assign(gOptions, mapDygraphOptions(d, ['Date', 'Cumulative Chainwork (exahash/s)'],
-          false, 'Cumulative Chainwork (exahash/s)', 'Date', undefined, true, false))
+        assign(gOptions, mapDygraphOptions(d, ['Date', 'Cumulative Chainwork (exahash)'],
+          false, 'Cumulative Chainwork (exahash)', 'Date', undefined, true, false))
         break
 
       case 'hashrate': // Total chainwork over time
         d = zipYvDate(data)
-        var opt = mapDygraphOptions(d, ['Date', 'Hashrate'], false, 'Hashrate', 'Date', undefined, false, false)
-        opt.axes = { y: { axisLabelFormatter: (v) => { return formatHashRate(v, 'axis') } } }
-        assign(gOptions, opt)
+        assign(gOptions, mapDygraphOptions(d, ['Date', 'Hashrate'], false, 'Hashrate (hashes per second)', 'Date', undefined, false, false))
+        gOptions.axes.y.axisLabelFormatter = (v) => { return formatHashRate(v, 'axis') }
         break
     }
     this.chartsView.updateOptions(gOptions, false)
