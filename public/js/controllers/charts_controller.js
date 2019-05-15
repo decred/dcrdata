@@ -418,9 +418,6 @@ export default class extends Controller {
   _zoomCallback (start, end) {
     this.lastZoom = Zoom.object(start, end)
     this.settings.zoom = Zoom.encode(this.lastZoom)
-    this.zoomOptionTargets.forEach((button) => {
-      button.classList.remove('active')
-    })
     this.query.replace(this.settings)
     this.setSelectedZoom(Zoom.mapKey(this.settings.zoom, this.limits))
   }

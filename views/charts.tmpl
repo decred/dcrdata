@@ -18,7 +18,7 @@
 
             <div class="d-flex flex-wrap justify-content-center align-items-center chart-controls mb-1 mt-1">
 
-                <div class="chart-control-wrapper mr-2 mt-1 mb-1">
+                <div class="chart-control-wrapper mr-2 mb-1">
                     <div class="chart-control-label">CHART</div>
                     <div class="chart-control">
                         <select
@@ -38,9 +38,6 @@
                             <option value="coin-supply">Circulation</option>
                             <option value="fees">Fees</option>
                             <option value="duration-btw-blocks">Duration Between Blocks</option>
-                            <!-- <option value="ticket-spend-type">Ticket Spend Types</option>
-                            <option name="ticket-by-outputs-windows" value="ticket-by-outputs-windows">Ticket Outputs by Price Window</option>
-                            <option name="ticket-by-outputs-blocks" value="ticket-by-outputs-blocks">Ticket Outputs by Block</option> -->
                             <option name="chainwork" value="chainwork">Total Work</option>
                             <option name="hashrate" value="hashrate">Hashrate</option>
                         </select>
@@ -130,7 +127,7 @@
                     </div>
                 </div>
 
-                <div class="chart-control-wrapper mb-1">
+                <div class="chart-control-wrapper mr-2 mb-1">
                     <div class="chart-control-label">SCALE</div>
                     <div class="chart-control">
                         <ul
@@ -153,6 +150,34 @@
                                     data-action="click->charts#logScale"
                                     data-zoom="year"
                                 >Log</a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="chart-control-wrapper mr-2 mb-1">
+                    <div class="chart-control-label">X-AXIS</div>
+                    <div class="chart-control">
+                        <ul
+                            class="nav nav-pills"
+                        >
+                            <li class="nav-item active">
+                                <a
+                                    class="nav-link active"
+                                    href="javascript:void(0);"
+                                    data-target="charts.heightBtn"
+                                    data-action="click->charts#heightAxis"
+                                    data-zoom="all"
+                                >Height</a>
+                            </li>
+                            <li class="nav-item">
+                                <a
+                                    class="nav-link"
+                                    href="javascript:void(0);"
+                                    data-target="charts.timeBtn"
+                                    data-action="click->charts#timeAxis"
+                                    data-zoom="year"
+                                >Time</a>
                             </li>
                         </ul>
                     </div>
