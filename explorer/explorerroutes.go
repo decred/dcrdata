@@ -12,6 +12,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -29,6 +30,11 @@ import (
 	"github.com/decred/dcrdata/txhelpers"
 	humanize "github.com/dustin/go-humanize"
 )
+
+func init() {
+	// URL should be set because commonData call a method on it.
+	dummyRequest.URL, _ = url.Parse("/")
+}
 
 // Cookies contains information from the request cookies.
 type Cookies struct {
