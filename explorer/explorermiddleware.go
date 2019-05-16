@@ -42,14 +42,14 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 			// Not a height, try it as a hash.
 			hash = chi.URLParam(r, "blockhash")
 			height, err = exp.explorerSource.BlockHeight(hash)
-			if exp.timeoutErrorPage(w, err, "BlockHashPathOrIndexCtx>BlockHeight") {
+			if exp.timeoutErrorPage(w, r, err, "BlockHashPathOrIndexCtx>BlockHeight") {
 				return
 			}
 			if err != nil {
 				if err != sql.ErrNoRows {
 					log.Warnf("BlockHeight(%s) failed: %v", hash, err)
 				}
-				exp.StatusPage(w, defaultErrorCode, "could not find that block", hash, ExpStatusNotFound)
+				exp.StatusPage(w, r, defaultErrorCode, "could not find that block", hash, ExpStatusNotFound)
 				return
 			}
 		} else {
@@ -59,7 +59,7 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 			if height > maxHeight {
 				expectedTime := time.Duration(height-maxHeight) * exp.ChainParams.TargetTimePerBlock
 				message := fmt.Sprintf("This block is expected to arrive in approximately in %v. ", expectedTime)
-				exp.StatusPage(w, defaultErrorCode, message,
+				exp.StatusPage(w, r, defaultErrorCode, message,
 					string(expectedTime), ExpStatusFutureBlock)
 				return
 			}
@@ -69,7 +69,7 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 				hash, err = exp.explorerSource.BlockHash(height)
 				if err != nil {
 					log.Errorf("(*ChainDB).BlockHash(%d) failed: %v", height, err)
-					exp.StatusPage(w, defaultErrorCode, "could not find that block",
+					exp.StatusPage(w, r, defaultErrorCode, "could not find that block",
 						string(height), ExpStatusNotFound)
 					return
 				}
@@ -88,7 +88,7 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 func (exp *explorerUI) SyncStatusPageIntercept(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if exp.ShowingSyncStatusPage() {
-			exp.StatusPage(w, "Database Update Running. Please Wait.",
+			exp.StatusPage(w, r, "Database Update Running. Please Wait.",
 				"Blockchain sync is running. Please wait.", "", ExpStatusSyncing)
 			return
 		}

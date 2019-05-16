@@ -116,11 +116,11 @@ func netName(chainParams *chaincfg.Params) string {
 	return strings.Title(chainParams.Name)
 }
 
-func (exp *explorerUI) timeoutErrorPage(w http.ResponseWriter, err error, debugStr string) (wasTimeout bool) {
+func (exp *explorerUI) timeoutErrorPage(w http.ResponseWriter, r *http.Request, err error, debugStr string) (wasTimeout bool) {
 	wasTimeout = dbtypes.IsTimeoutErr(err)
 	if wasTimeout {
 		log.Debugf("%s: %v", debugStr, err)
-		exp.StatusPage(w, defaultErrorCode,
+		exp.StatusPage(w, r, defaultErrorCode,
 			"Database timeout. Please try again later.", "", ExpStatusDBTimeout)
 	}
 	return
@@ -141,7 +141,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 	height, err := exp.blockData.GetHeight()
 	if err != nil {
 		log.Errorf("GetHeight failed: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "",
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "",
 			ExpStatusError)
 		return
 	}
@@ -203,7 +203,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -214,12 +214,12 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 // SideChains is the page handler for the "/side" path.
 func (exp *explorerUI) SideChains(w http.ResponseWriter, r *http.Request) {
 	sideBlocks, err := exp.explorerSource.SideChainBlocks()
-	if exp.timeoutErrorPage(w, err, "SideChainBlocks") {
+	if exp.timeoutErrorPage(w, r, err, "SideChainBlocks") {
 		return
 	}
 	if err != nil {
 		log.Errorf("Unable to get side chain blocks: %v", err)
-		exp.StatusPage(w, defaultErrorCode,
+		exp.StatusPage(w, r, defaultErrorCode,
 			"failed to retrieve side chain blocks", "", ExpStatusError)
 		return
 	}
@@ -234,7 +234,7 @@ func (exp *explorerUI) SideChains(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -252,7 +252,7 @@ func (exp *explorerUI) InsightRootPage(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -263,12 +263,12 @@ func (exp *explorerUI) InsightRootPage(w http.ResponseWriter, r *http.Request) {
 // DisapprovedBlocks is the page handler for the "/disapproved" path.
 func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request) {
 	disapprovedBlocks, err := exp.explorerSource.DisapprovedBlocks()
-	if exp.timeoutErrorPage(w, err, "DisapprovedBlocks") {
+	if exp.timeoutErrorPage(w, r, err, "DisapprovedBlocks") {
 		return
 	}
 	if err != nil {
 		log.Errorf("Unable to get stakeholder disapproved blocks: %v", err)
-		exp.StatusPage(w, defaultErrorCode,
+		exp.StatusPage(w, r, defaultErrorCode,
 			"failed to retrieve stakeholder disapproved blocks", "", ExpStatusError)
 		return
 	}
@@ -283,7 +283,7 @@ func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request)
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -298,7 +298,7 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	height, err := exp.blockData.GetHeight()
 	if err != nil {
 		log.Errorf("GetHeight failed: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "",
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "",
 			ExpStatusError)
 		return
 	}
@@ -346,7 +346,7 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -376,13 +376,13 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 	}
 
 	windows, err := exp.explorerSource.PosIntervals(rows, offsetWindow)
-	if exp.timeoutErrorPage(w, err, "PosIntervals") {
+	if exp.timeoutErrorPage(w, r, err, "PosIntervals") {
 		return
 	}
 	if err != nil {
 		log.Errorf("The specified windows are invalid. offset=%d&rows=%d: "+
 			"error: %v ", offsetWindow, rows, err)
-		exp.StatusPage(w, defaultErrorCode,
+		exp.StatusPage(w, r, defaultErrorCode,
 			"The specified ticket price windows could not be found", "", ExpStatusNotFound)
 		return
 	}
@@ -405,7 +405,7 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 
@@ -443,7 +443,7 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 		// default to year grouping if grouping is missing
 		i, err = dbtypes.TimeBasedGroupingToInterval(dbtypes.YearGrouping)
 		if err != nil {
-			exp.StatusPage(w, defaultErrorCode, "Invalid year grouping found.", "",
+			exp.StatusPage(w, r, defaultErrorCode, "Invalid year grouping found.", "",
 				ExpStatusError)
 			log.Errorf("Invalid year grouping found: error: %v ", err)
 			return
@@ -473,13 +473,13 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 	}
 
 	data, err := exp.explorerSource.TimeBasedIntervals(grouping, rows, offset)
-	if exp.timeoutErrorPage(w, err, "TimeBasedIntervals") {
+	if exp.timeoutErrorPage(w, r, err, "TimeBasedIntervals") {
 		return
 	}
 	if err != nil {
 		log.Errorf("The specified /%s intervals are invalid. offset=%d&rows=%d: "+
 			"error: %v ", val, offset, rows, err)
-		exp.StatusPage(w, defaultErrorCode,
+		exp.StatusPage(w, r, defaultErrorCode,
 			"The specified block intervals could be not found", "", ExpStatusNotFound)
 		return
 	}
@@ -508,7 +508,7 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 
@@ -522,7 +522,7 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	bestBlockHeight, err := exp.blockData.GetHeight()
 	if err != nil {
 		log.Errorf("GetHeight failed: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "",
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "",
 			ExpStatusError)
 		return
 	}
@@ -549,14 +549,14 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	summaries := exp.blockData.GetExplorerBlocks(height, height-rows)
 	if summaries == nil {
 		log.Errorf("Unable to get blocks: height=%d&rows=%d", height, rows)
-		exp.StatusPage(w, defaultErrorCode, "could not find those blocks", "",
+		exp.StatusPage(w, r, defaultErrorCode, "could not find those blocks", "",
 			ExpStatusNotFound)
 		return
 	}
 
 	for _, s := range summaries {
 		blockStatus, err := exp.explorerSource.BlockStatus(s.Hash)
-		if exp.timeoutErrorPage(w, err, "BlockStatus") {
+		if exp.timeoutErrorPage(w, r, err, "BlockStatus") {
 			return
 		}
 		if err != nil && err != sql.ErrNoRows {
@@ -583,7 +583,7 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -598,7 +598,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 	data := exp.blockData.GetExplorerBlock(hash)
 	if data == nil {
 		log.Errorf("Unable to get block %s", hash)
-		exp.StatusPage(w, defaultErrorCode, "could not find that block", "",
+		exp.StatusPage(w, r, defaultErrorCode, "could not find that block", "",
 			ExpStatusNotFound)
 		return
 	}
@@ -618,7 +618,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 	// Retrieve missed votes, main/side chain status, and stakeholder approval.
 	var err error
 	data.Misses, err = exp.explorerSource.BlockMissedVotes(hash)
-	if exp.timeoutErrorPage(w, err, "BlockMissedVotes") {
+	if exp.timeoutErrorPage(w, r, err, "BlockMissedVotes") {
 		return
 	}
 	if err != nil && err != sql.ErrNoRows {
@@ -627,7 +627,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 
 	var blockStatus dbtypes.BlockStatus
 	blockStatus, err = exp.explorerSource.BlockStatus(hash)
-	if exp.timeoutErrorPage(w, err, "BlockStatus") {
+	if exp.timeoutErrorPage(w, r, err, "BlockStatus") {
 		return
 	}
 	if err != nil && err != sql.ErrNoRows {
@@ -652,7 +652,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("block", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -680,7 +680,7 @@ func (exp *explorerUI) Mempool(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -694,7 +694,7 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 
@@ -709,14 +709,14 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	hash, ok := r.Context().Value(ctxTxHash).(string)
 	if !ok {
 		log.Trace("txid not set")
-		exp.StatusPage(w, defaultErrorCode, "there was no transaction requested",
+		exp.StatusPage(w, r, defaultErrorCode, "there was no transaction requested",
 			"", ExpStatusNotFound)
 		return
 	}
 
 	inout, _ := r.Context().Value(ctxTxInOut).(string)
 	if inout != "in" && inout != "out" && inout != "" {
-		exp.StatusPage(w, defaultErrorCode, "there was no transaction requested",
+		exp.StatusPage(w, r, defaultErrorCode, "there was no transaction requested",
 			"", ExpStatusNotFound)
 		return
 	}
@@ -729,17 +729,17 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	if tx == nil {
 		// Search for occurrences of the transaction in the database.
 		dbTxs, err := exp.explorerSource.Transaction(hash)
-		if exp.timeoutErrorPage(w, err, "Transaction") {
+		if exp.timeoutErrorPage(w, r, err, "Transaction") {
 			return
 		}
 		if err != nil {
 			log.Errorf("Unable to retrieve transaction details for %s.", hash)
-			exp.StatusPage(w, defaultErrorCode, "could not find that transaction",
+			exp.StatusPage(w, r, defaultErrorCode, "could not find that transaction",
 				"", ExpStatusNotFound)
 			return
 		}
 		if dbTxs == nil {
-			exp.StatusPage(w, defaultErrorCode, "that transaction has not been recorded",
+			exp.StatusPage(w, r, defaultErrorCode, "that transaction has not been recorded",
 				"", ExpStatusNotFound)
 			return
 		}
@@ -777,13 +777,13 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 
 		// Retrieve vouts from DB.
 		vouts, err := exp.explorerSource.VoutsForTx(dbTx0)
-		if exp.timeoutErrorPage(w, err, "VoutsForTx") {
+		if exp.timeoutErrorPage(w, r, err, "VoutsForTx") {
 			return
 		}
 		if err != nil {
 			log.Errorf("Failed to retrieve all vout details for transaction %s: %v",
 				dbTx0.TxID, err)
-			exp.StatusPage(w, defaultErrorCode, "VoutsForTx failed", "", ExpStatusError)
+			exp.StatusPage(w, r, defaultErrorCode, "VoutsForTx failed", "", ExpStatusError)
 			return
 		}
 
@@ -797,7 +797,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			}
 			// Determine if the outpoint is spent
 			spendingTx, _, _, err := exp.explorerSource.SpendingTransaction(hash, vouts[iv].TxIndex)
-			if exp.timeoutErrorPage(w, err, "SpendingTransaction") {
+			if exp.timeoutErrorPage(w, r, err, "SpendingTransaction") {
 				return
 			}
 			if err != nil && err != sql.ErrNoRows {
@@ -818,13 +818,13 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 
 		// Retrieve vins from DB.
 		vins, prevPkScripts, scriptVersions, err := exp.explorerSource.VinsForTx(dbTx0)
-		if exp.timeoutErrorPage(w, err, "VinsForTx") {
+		if exp.timeoutErrorPage(w, r, err, "VinsForTx") {
 			return
 		}
 		if err != nil {
 			log.Errorf("Failed to retrieve all vin details for transaction %s: %v",
 				dbTx0.TxID, err)
-			exp.StatusPage(w, defaultErrorCode, "VinsForTx failed", "", ExpStatusError)
+			exp.StatusPage(w, r, defaultErrorCode, "VinsForTx failed", "", ExpStatusError)
 			return
 		}
 
@@ -977,13 +977,13 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 
 	// Details on all the blocks containing this transaction
 	blocks, blockInds, err := exp.explorerSource.TransactionBlocks(tx.TxID)
-	if exp.timeoutErrorPage(w, err, "TransactionBlocks") {
+	if exp.timeoutErrorPage(w, r, err, "TransactionBlocks") {
 		return
 	}
 	if err != nil {
 		log.Errorf("Unable to retrieve blocks for transaction %s: %v",
 			hash, err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, tx.TxID, ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, tx.TxID, ExpStatusError)
 		return
 	}
 
@@ -1001,12 +1001,12 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	// and the index of the spending transaction input.
 	spendingTxHashes, spendingTxVinInds, voutInds, err :=
 		exp.explorerSource.SpendingTransactions(hash)
-	if exp.timeoutErrorPage(w, err, "SpendingTransactions") {
+	if exp.timeoutErrorPage(w, r, err, "SpendingTransactions") {
 		return
 	}
 	if err != nil {
 		log.Errorf("Unable to retrieve spending transactions for %s: %v", hash, err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, hash, ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, hash, ExpStatusError)
 		return
 	}
 	for i, vout := range voutInds {
@@ -1022,13 +1022,13 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 
 	if tx.IsTicket() {
 		spendStatus, poolStatus, err := exp.explorerSource.PoolStatusForTicket(hash)
-		if exp.timeoutErrorPage(w, err, "PoolStatusForTicket") {
+		if exp.timeoutErrorPage(w, r, err, "PoolStatusForTicket") {
 			return
 		}
 		if err != nil && err != sql.ErrNoRows {
 			log.Errorf("Unable to retrieve ticket spend and pool status for %s: %v",
 				hash, err)
-			exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+			exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 			return
 		} else if err == sql.ErrNoRows {
 			if tx.Confirmations != 0 {
@@ -1048,7 +1048,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				if err != nil && err != sql.ErrNoRows {
 					log.Errorf("Unable to retrieve miss information for ticket %s: %v",
 						hash, err)
-					exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+					exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 					return
 				} else if err == sql.ErrNoRows {
 					log.Warnf("No mainchain miss data for ticket %s: %v",
@@ -1063,7 +1063,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				// Blocks from eligible until voted (actual luck)
 				txhash, err := chainhash.NewHashFromStr(tx.SpendingTxns[0].Hash)
 				if err != nil {
-					exp.StatusPage(w, defaultErrorCode, err.Error(), "", ExpStatusError)
+					exp.StatusPage(w, r, defaultErrorCode, err.Error(), "", ExpStatusError)
 					return
 				}
 				tx.TicketInfo.TicketLiveBlocks = exp.blockData.TxHeight(txhash) -
@@ -1171,7 +1171,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("tx", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -1194,7 +1194,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	// Grab the URL query parameters
 	address, txnType, limitN, offsetAddrOuts, err := parseAddressParams(r)
 	if err != nil {
-		exp.StatusPage(w, defaultErrorCode, err.Error(), address, ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, err.Error(), address, ExpStatusError)
 		return
 	}
 
@@ -1219,7 +1219,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			message = "Unknown error."
 		}
 
-		exp.StatusPage(w, code, message, address, status)
+		exp.StatusPage(w, r, code, message, address, status)
 		return
 	}
 
@@ -1229,11 +1229,11 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		// All good.
 	case txhelpers.AddressTypeP2PK:
 		message := "Looks like you are searching for an address of type P2PK."
-		exp.StatusPage(w, defaultErrorCode, message, address, ExpStatusP2PKAddress)
+		exp.StatusPage(w, r, defaultErrorCode, message, address, ExpStatusP2PKAddress)
 		return
 	default:
 		message := "Unsupported address type."
-		exp.StatusPage(w, defaultErrorCode, message, address, ExpStatusNotSupported)
+		exp.StatusPage(w, r, defaultErrorCode, message, address, ExpStatusNotSupported)
 		return
 	}
 
@@ -1251,10 +1251,10 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		addrData, err = exp.AddressListData(address, txnType, limitN, offsetAddrOuts)
-		if exp.timeoutErrorPage(w, err, "TicketsPriceByHeight") {
+		if exp.timeoutErrorPage(w, r, err, "TicketsPriceByHeight") {
 			return
 		} else if err != nil {
-			exp.StatusPage(w, defaultErrorCode, err.Error(), address, ExpStatusError)
+			exp.StatusPage(w, r, defaultErrorCode, err.Error(), address, ExpStatusError)
 			return
 		}
 	}
@@ -1280,7 +1280,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("address", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 
@@ -1395,7 +1395,7 @@ func (exp *explorerUI) AddressListData(address string, txnType dbtypes.AddrTxnVi
 	// Get addresses table rows for the address.
 	addrData, err = exp.explorerSource.AddressData(address, limitN,
 		offsetAddrOuts, txnType)
-	if dbtypes.IsTimeoutErr(err) { //exp.timeoutErrorPage(w, err, "TicketsPriceByHeight") {
+	if dbtypes.IsTimeoutErr(err) { //exp.timeoutErrorPage(w, r, err, "TicketsPriceByHeight") {
 		return nil, err
 	} else if err != nil {
 		log.Errorf("AddressData error encountered: %v", err)
@@ -1415,7 +1415,7 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -1434,7 +1434,7 @@ func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 
@@ -1454,7 +1454,7 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	searchStr = strings.TrimSpace(searchStr)
 
 	if searchStr == "" {
-		exp.StatusPage(w, "search failed", "The search term was empty.",
+		exp.StatusPage(w, r, "search failed", "The search term was empty.",
 			searchStr, ExpStatusBadRequest)
 		return
 	}
@@ -1474,7 +1474,7 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/block/"+searchStr, http.StatusPermanentRedirect)
 			return
 		}
-		exp.StatusPage(w, "search failed", "Block "+searchStr+
+		exp.StatusPage(w, r, "search failed", "Block "+searchStr+
 			" has not yet been mined", searchStr, ExpStatusNotFound)
 		return
 	}
@@ -1490,7 +1490,7 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		// Status page will provide a link, but the address page can too.
 		message := fmt.Sprintf("The address %v is valid on %s, not %s",
 			searchStr, address.Net, exp.NetName)
-		exp.StatusPage(w, wrongNetwork, message, searchStr, ExpStatusWrongNetwork)
+		exp.StatusPage(w, r, wrongNetwork, message, searchStr, ExpStatusWrongNetwork)
 		return
 	}
 
@@ -1505,7 +1505,7 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 
 	// Remaining possibilities are hashes, so verify the string is a hash.
 	if _, err = chainhash.NewHashFromStr(searchStr); err != nil {
-		exp.StatusPage(w, "search failed",
+		exp.StatusPage(w, r, "search failed",
 			"Search string is not a valid hash or address: "+searchStr,
 			"", ExpStatusNotFound)
 		return
@@ -1550,13 +1550,13 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	message := "The search did not find any matching address, block, transaction or proposal token: " + searchStr
-	exp.StatusPage(w, "search failed", message, "", ExpStatusNotFound)
+	exp.StatusPage(w, r, "search failed", message, "", ExpStatusNotFound)
 }
 
 // StatusPage provides a page for displaying status messages and exception
 // handling without redirecting. Be sure to return after calling StatusPage if
 // this completes the processing of the calling http handler.
-func (exp *explorerUI) StatusPage(w http.ResponseWriter, code, message, additionalInfo string, sType expStatus) {
+func (exp *explorerUI) StatusPage(w http.ResponseWriter, r *http.Request, code, message, additionalInfo string, sType expStatus) {
 	str, err := exp.templates.execTemplateToString("status", struct {
 		*CommonPageData
 		StatusType     expStatus
@@ -1564,7 +1564,7 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code, message, addition
 		Message        string
 		AdditionalInfo string
 	}{
-		CommonPageData: exp.commonData(dummyRequest),
+		CommonPageData: exp.commonData(r),
 		StatusType:     sType,
 		Code:           code,
 		Message:        message,
@@ -1602,7 +1602,7 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code, message, addition
 
 // NotFound wraps StatusPage to display a 404 page.
 func (exp *explorerUI) NotFound(w http.ResponseWriter, r *http.Request) {
-	exp.StatusPage(w, "Page not found.", "Cannot find page: "+r.URL.Path, "", ExpStatusNotFound)
+	exp.StatusPage(w, r, "Page not found.", "Cannot find page: "+r.URL.Path, "", ExpStatusNotFound)
 }
 
 // ParametersPage is the page handler for the "/parameters" path.
@@ -1640,7 +1640,7 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -1652,7 +1652,7 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 	errPageInvalidAgenda := func(err error) {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, "the agenda ID given seems to not exist",
+		exp.StatusPage(w, r, defaultErrorCode, "the agenda ID given seems to not exist",
 			"", ExpStatusNotFound)
 	}
 
@@ -1727,7 +1727,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -1740,7 +1740,7 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 	agenda, err := exp.agendasSource.AllAgendas()
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 
@@ -1756,7 +1756,7 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -1770,7 +1770,7 @@ func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
 	proposalInfo, err := exp.proposalsSource.ProposalByRefID(getProposalTokenCtx(r))
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, "the proposal token does not exist",
+		exp.StatusPage(w, r, defaultErrorCode, "the proposal token does not exist",
 			"", ExpStatusNotFound)
 		return
 	}
@@ -1805,7 +1805,7 @@ func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 
@@ -1841,7 +1841,7 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 
@@ -1871,7 +1871,7 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -1933,7 +1933,7 @@ func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 	bestBlockHeight, err := exp.blockData.GetHeight()
 	if err != nil {
 		log.Errorf("GetHeight failed: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "",
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "",
 			ExpStatusError)
 		return
 	}
@@ -1997,7 +1997,7 @@ func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -2019,7 +2019,7 @@ func (exp *explorerUI) MarketPage(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		exp.StatusPage(w, r, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
