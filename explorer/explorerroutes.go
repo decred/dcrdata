@@ -22,7 +22,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v2"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrd/txscript/v2"
-
+	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/exchanges/v2"
 	"github.com/decred/dcrdata/explorer/types/v2"
@@ -31,12 +31,6 @@ import (
 	"github.com/decred/dcrdata/txhelpers/v3"
 
 	humanize "github.com/dustin/go-humanize"
-	"io"
-	"math"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 var dummyRequest = new(http.Request)
@@ -2228,10 +2222,11 @@ func (exp *explorerUI) MiningCalculations(nodeHeight int64, block *wire.BlockHea
 	//get height block DB
 	height, _ := exp.blockData.GetHeight()
 	var (
-		HashRate       float64
-		TicketPoolSize uint32
-		TicketPrice    float64
-		Price          float64 = 0
+		HashRate        float64
+		TicketPoolSize  uint32
+		TicketPrice     float64
+		Price           float64
+		TicketPoolValue float64
 	)
 	if exp.xcBot != nil {
 		//get latest price DCR
@@ -2243,11 +2238,13 @@ func (exp *explorerUI) MiningCalculations(nodeHeight int64, block *wire.BlockHea
 	if Price == 0 {
 		Price = 24.42
 	}
+	PoolInfo := exp.pageData.HomeInfo.PoolInfo
+	TicketPoolValue = PoolInfo.Value
+
 	if height > nodeHeight {
 		HashRate = exp.pageData.HomeInfo.HashRate
-		PoolInfo := exp.pageData.HomeInfo.PoolInfo
 		TicketPoolSize = PoolInfo.Size
-		TicketPrice = PoolInfo.Value
+		TicketPrice = exp.pageData.HomeInfo.StakeDiff
 
 	} else {
 		height = nodeHeight
@@ -2258,20 +2255,22 @@ func (exp *explorerUI) MiningCalculations(nodeHeight int64, block *wire.BlockHea
 		HashRate = dbtypes.CalculateHashRate(diffRatio, targetTimePerBlock)
 	}
 
-	str, err := exp.templates.execTemplateToString("mining-calculations", struct {
+	str, err := exp.templates.execTemplateToString("attackcost", struct {
 		*CommonPageData
-		HashRate       float64
-		Height         int64
-		TicketPoolSize int64
-		TicketPrice    float64
-		Price          float64
+		HashRate        float64
+		Height          int64
+		TicketPoolSize  int64
+		TicketPrice     float64
+		Price           float64
+		TicketPoolValue float64
 	}{
-		CommonPageData: exp.commonData(r),
-		HashRate:       HashRate,
-		Height:         height,
-		TicketPoolSize: int64(TicketPoolSize),
-		TicketPrice:    TicketPrice,
-		Price:          Price,
+		CommonPageData:  exp.commonData(r),
+		HashRate:        HashRate,
+		Height:          height,
+		TicketPoolSize:  int64(TicketPoolSize),
+		TicketPrice:     TicketPrice,
+		TicketPoolValue: TicketPoolValue,
+		Price:           Price,
 	})
 
 	//exp.pageData.RUnlock()
