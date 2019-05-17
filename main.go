@@ -894,7 +894,9 @@ func _main(ctx context.Context) error {
 
 		// Use either the plain rpcclient.Client or a rpcutils.BlockPrefetchClient.
 		var bf rpcutils.BlockFetcher
-		if cfg.BlockPrefetch {
+		if cfg.NoBlockPrefetch {
+			bf = dcrdClient
+		} else {
 			pfc := rpcutils.NewBlockPrefetchClient(dcrdClient)
 			defer func() {
 				pfc.Stop()
@@ -902,8 +904,6 @@ func _main(ctx context.Context) error {
 					pfc.Hits(), pfc.Misses())
 			}()
 			bf = pfc
-		} else {
-			bf = dcrdClient
 		}
 
 		// Synchronization between DBs via rpcutils.BlockGate
