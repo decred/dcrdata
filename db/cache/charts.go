@@ -35,13 +35,19 @@ const (
 	TicketPoolValue = "ticket-pool-value"
 )
 
-// ZoomLevel specifies the granularity of data.
-type ZoomLevel string
+// binLevel specifies the granularity of data.
+type binLevel string
+
+// axisType is used to manage the type of x-axis data on display on the specified
+// chart.
+type axisType string
 
 const (
-	DayZoom    ZoomLevel = "day"
-	BlockZoom  ZoomLevel = "block"
-	WindowZoom ZoomLevel = "window"
+	DayZoom    binLevel = "day"
+	BlockZoom  binLevel = "block"
+	WindowZoom binLevel = "window"
+	HeightAxis axisType = "height"
+	TimeAxis   axisType = "time"
 )
 
 // DefaultZoomLevel will be used if a zoom level is not specified to
@@ -50,8 +56,8 @@ const (
 var DefaultZoomLevel = DayZoom
 
 // ParseZoom will return the matching zoom level, else the default zoom.
-func ParseZoom(zoom string) ZoomLevel {
-	switch ZoomLevel(zoom) {
+func ParseZoom(zoom string) binLevel {
+	switch binLevel(zoom) {
 	case BlockZoom:
 		return BlockZoom
 	case WindowZoom:
@@ -61,7 +67,8 @@ func ParseZoom(zoom string) ZoomLevel {
 }
 
 const (
-	aDay = 86400 // seconds
+	// aDay defines the number of seconds in a day.
+	aDay = 86400
 	// HashrateAvgLength is the number of blocks used the rolling average for
 	// the network hashrate calculation.
 	HashrateAvgLength = 120
@@ -763,13 +770,13 @@ func NewChartData(height uint32, genesis time.Time, chainParams *chaincfg.Params
 }
 
 // A cacheKey is used to specify cached data of a given type and ZoomLevel.
-func cacheKey(chartID string, zoom ZoomLevel) string {
+func cacheKey(chartID string, zoom binLevel) string {
 	return chartID + "-" + string(zoom)
 }
 
 // Grabs the cacheID associated with the provided ZoomLevel. Should be called
 // under at least a (ChartData).cacheMtx.RLock.
-func (charts *ChartData) cacheID(zoom ZoomLevel) uint64 {
+func (charts *ChartData) cacheID(zoom binLevel) uint64 {
 	switch zoom {
 	case BlockZoom:
 		return charts.Blocks.cacheID
@@ -782,7 +789,7 @@ func (charts *ChartData) cacheID(zoom ZoomLevel) uint64 {
 }
 
 // Grab the cached data, if it exists. The cacheID is returned as a convenience.
-func (charts *ChartData) getCache(chartID string, zoom ZoomLevel) (data *cachedChart, found bool, cacheID uint64) {
+func (charts *ChartData) getCache(chartID string, zoom binLevel) (data *cachedChart, found bool, cacheID uint64) {
 	// Ignore zero length since bestHeight would just be set to zero anyway.
 	ck := cacheKey(chartID, zoom)
 	charts.cacheMtx.RLock()
@@ -793,7 +800,7 @@ func (charts *ChartData) getCache(chartID string, zoom ZoomLevel) (data *cachedC
 }
 
 // Store the chart associated with the provided type and ZoomLevel.
-func (charts *ChartData) cacheChart(chartID string, zoom ZoomLevel, data []byte) {
+func (charts *ChartData) cacheChart(chartID string, zoom binLevel, data []byte) {
 	ck := cacheKey(chartID, zoom)
 	charts.cacheMtx.Lock()
 	defer charts.cacheMtx.Unlock()
@@ -808,7 +815,7 @@ func (charts *ChartData) cacheChart(chartID string, zoom ZoomLevel, data []byte)
 
 // ChartMaker is a function that accepts a chart type and ZoomLevel, and returns
 // a JSON-encoded chartResponse.
-type ChartMaker func(charts *ChartData, zoom ZoomLevel) ([]byte, error)
+type ChartMaker func(charts *ChartData, zoom binLevel) ([]byte, error)
 
 var chartMakers = map[string]ChartMaker{
 	BlockSize:       blockSizeChart,
@@ -941,7 +948,7 @@ func avgBlockTimes(ticks, blocks ChartUints) (ChartUints, ChartUints) {
 	return times, avgs
 }
 
-func blockSizeChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
+func blockSizeChart(charts *ChartData, zoom binLevel) ([]byte, error) {
 	switch zoom {
 	case BlockZoom:
 		return charts.encode(charts.Blocks.Time, charts.Blocks.BlockSize)
@@ -951,7 +958,7 @@ func blockSizeChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 	return nil, InvalidZoomErr
 }
 
-func blockchainSizeChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
+func blockchainSizeChart(charts *ChartData, zoom binLevel) ([]byte, error) {
 	switch zoom {
 	case BlockZoom:
 		return charts.encode(charts.Blocks.Time, accumulate(charts.Blocks.BlockSize))
@@ -961,7 +968,7 @@ func blockchainSizeChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 	return nil, InvalidZoomErr
 }
 
-func chainWorkChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
+func chainWorkChart(charts *ChartData, zoom binLevel) ([]byte, error) {
 	switch zoom {
 	case BlockZoom:
 		return charts.encode(charts.Blocks.Time, charts.Blocks.Chainwork)
@@ -971,7 +978,7 @@ func chainWorkChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 	return nil, InvalidZoomErr
 }
 
-func coinSupplyChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
+func coinSupplyChart(charts *ChartData, zoom binLevel) ([]byte, error) {
 	switch zoom {
 	case BlockZoom:
 		return charts.encode(charts.Blocks.Time, accumulate(charts.Blocks.NewAtoms))
@@ -981,7 +988,7 @@ func coinSupplyChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 	return nil, InvalidZoomErr
 }
 
-func durationBTWChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
+func durationBTWChart(charts *ChartData, zoom binLevel) ([]byte, error) {
 	switch zoom {
 	case BlockZoom:
 		return charts.encode(blockTimes(charts.Blocks.Time))
@@ -1019,7 +1026,7 @@ func hashrate(time, chainwork ChartUints) (ChartUints, ChartUints) {
 	return t, y
 }
 
-func hashRateChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
+func hashRateChart(charts *ChartData, zoom binLevel) ([]byte, error) {
 	switch zoom {
 	case BlockZoom:
 		t, y := hashrate(charts.Blocks.Time, charts.Blocks.Chainwork)
@@ -1031,17 +1038,17 @@ func hashRateChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 	return nil, InvalidZoomErr
 }
 
-func powDifficultyChart(charts *ChartData, _ ZoomLevel) ([]byte, error) {
+func powDifficultyChart(charts *ChartData, _ binLevel) ([]byte, error) {
 	// Pow Difficulty only has window level zoom, so all others are ignored.
 	return charts.encode(charts.Windows.Time, charts.Windows.PowDiff)
 }
 
-func ticketPriceChart(charts *ChartData, _ ZoomLevel) ([]byte, error) {
+func ticketPriceChart(charts *ChartData, _ binLevel) ([]byte, error) {
 	// Ticket price only has window level zoom, so all others are ignored.
 	return charts.encode(charts.Windows.Time, charts.Windows.TicketPrice)
 }
 
-func txCountChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
+func txCountChart(charts *ChartData, zoom binLevel) ([]byte, error) {
 	switch zoom {
 	case BlockZoom:
 		return charts.encode(charts.Blocks.Time, charts.Blocks.TxCount)
@@ -1051,7 +1058,7 @@ func txCountChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 	return nil, InvalidZoomErr
 }
 
-func feesChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
+func feesChart(charts *ChartData, zoom binLevel) ([]byte, error) {
 	switch zoom {
 	case BlockZoom:
 		return charts.encode(charts.Blocks.Time, charts.Blocks.Fees)
@@ -1061,7 +1068,7 @@ func feesChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 	return nil, InvalidZoomErr
 }
 
-func ticketPoolSizeChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
+func ticketPoolSizeChart(charts *ChartData, zoom binLevel) ([]byte, error) {
 	switch zoom {
 	case BlockZoom:
 		return charts.encode(charts.Blocks.Time, charts.Blocks.PoolSize)
@@ -1071,7 +1078,7 @@ func ticketPoolSizeChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
 	return nil, InvalidZoomErr
 }
 
-func poolValueChart(charts *ChartData, zoom ZoomLevel) ([]byte, error) {
+func poolValueChart(charts *ChartData, zoom binLevel) ([]byte, error) {
 	switch zoom {
 	case BlockZoom:
 		return charts.encode(charts.Blocks.Time, charts.Blocks.PoolValue)

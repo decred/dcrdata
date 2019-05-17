@@ -1602,11 +1602,11 @@ func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.R
 
 func (c *appContext) ChartTypeData(w http.ResponseWriter, r *http.Request) {
 	chartType := m.GetChartTypeCtx(r)
-	zoom := r.URL.Query().Get("zoom")
-	chartData, err := c.charts.Chart(chartType, zoom)
+	bin := r.URL.Query().Get("bin")
+	chartData, err := c.charts.Chart(chartType, bin)
 	if err != nil {
 		http.NotFound(w, r)
-		log.Warnf(`Error fetching chart %s at zoom level '%s': %v`, chartType, zoom, err)
+		log.Warnf(`Error fetching chart %s at bin level '%s': %v`, chartType, bin, err)
 		return
 	}
 	writeJSONBytes(w, chartData)

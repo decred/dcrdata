@@ -55,8 +55,8 @@
                                     class="nav-link active"
                                     href="javascript:void(0);"
                                     data-target="charts.zoomOption"
-                                    data-action="click->charts#onZoom"
-                                    data-zoom="all"
+                                    data-action="click->charts#setZoom"
+                                    data-option="all"
                                 >All</a>
                             </li>
                             <li class="nav-item">
@@ -64,8 +64,8 @@
                                     class="nav-link"
                                     href="javascript:void(0);"
                                     data-target="charts.zoomOption"
-                                    data-action="click->charts#onZoom"
-                                    data-zoom="year"
+                                    data-action="click->charts#setZoom"
+                                    data-option="year"
                                 >Year</a>
                             </li>
                             <li class="nav-item">
@@ -73,8 +73,8 @@
                                     class="nav-link"
                                     href="javascript:void(0);"
                                     data-target="charts.zoomOption"
-                                    data-action="click->charts#onZoom"
-                                    data-zoom="month"
+                                    data-action="click->charts#setZoom"
+                                    data-option="month"
                                 >Month</a>
                             </li>
                             <li class="nav-item">
@@ -82,8 +82,8 @@
                                     class="nav-link"
                                     href="javascript:void(0);"
                                     data-target="charts.zoomOption"
-                                    data-action="click->charts#onZoom"
-                                    data-zoom="week"
+                                    data-action="click->charts#setZoom"
+                                    data-option="week"
                                 >Week</a>
                             </li>
                             <li class="nav-item">
@@ -91,8 +91,8 @@
                                     class="nav-link"
                                     href="javascript:void(0);"
                                     data-target="charts.zoomOption"
-                                    data-action="click->charts#onZoom"
-                                    data-zoom="day"
+                                    data-action="click->charts#setZoom"
+                                    data-option="day"
                                 >Day</a>
                             </li>
                         </ul>
@@ -111,7 +111,7 @@
                                     href="javascript:void(0);"
                                     data-target="charts.binSize"
                                     data-action="click->charts#setBin"
-                                    data-bin="day"
+                                    data-option="day"
                                 >Day</a>
                             </li>
                             <li class="nav-item">
@@ -120,7 +120,7 @@
                                     href="javascript:void(0);"
                                     data-target="charts.binSize"
                                     data-action="click->charts#setBin"
-                                    data-bin="block"
+                                    data-option="block"
                                 >Block</a>
                             </li>
                         </ul>
@@ -137,18 +137,18 @@
                                 <a
                                     class="nav-link active"
                                     href="javascript:void(0);"
-                                    data-target="charts.linearBttn"
-                                    data-action="click->charts#linearScale"
-                                    data-zoom="all"
+                                    data-target="charts.scaleType"
+                                    data-action="click->charts#setScale"
+                                    data-option="linear"
                                 >Linear</a>
                             </li>
                             <li class="nav-item">
                                 <a
                                     class="nav-link"
                                     href="javascript:void(0);"
-                                    data-target="charts.logBttn"
-                                    data-action="click->charts#logScale"
-                                    data-zoom="year"
+                                    data-target="charts.scaleType"
+                                    data-action="click->charts#setScale"
+                                    data-option="log"
                                 >Log</a>
                             </li>
                         </ul>
@@ -165,26 +165,25 @@
                                 <a
                                     class="nav-link active"
                                     href="javascript:void(0);"
-                                    data-target="charts.heightBtn"
-                                    data-action="click->charts#heightAxis"
-                                    data-zoom="all"
-                                >Height</a>
+                                    data-target="charts.axisOption"
+                                    data-action="click->charts#setAxis"
+                                    data-option="time"
+                                >Time</a>
                             </li>
                             <li class="nav-item">
                                 <a
                                     class="nav-link"
                                     href="javascript:void(0);"
-                                    data-target="charts.timeBtn"
-                                    data-action="click->charts#timeAxis"
-                                    data-zoom="year"
-                                >Time</a>
+                                    data-target="charts.axisOption"
+                                    data-action="click->charts#setAxis"
+                                    data-option="height"
+                                >Height</a>
                             </li>
                         </ul>
                     </div>
                 </div>
 
             </div>
-
 
         </div>
 
