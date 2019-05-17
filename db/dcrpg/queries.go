@@ -3049,10 +3049,6 @@ func appendChartBlocks(charts *cache.ChartData, rows *sql.Rows) error {
 	return nil
 }
 
-//  retrieveWindowStats(ctx context.Context, db *sql.DB, interval int64,
-// timeArr []dbtypes.TimeDef, priceArr, powArr []float64) ([]dbtypes.TimeDef,
-// []float64, []float64, error) {
-
 // retrieveWindowStats fetches the ticket-price and pow-difficulty
 // charts data source from the blocks table. These data is fetched at an
 // interval of chaincfg.Params.StakeDiffWindowSize.

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrdata/semver"
 	"github.com/decred/dcrdata/txhelpers"
 )
 
@@ -66,6 +67,15 @@ const (
 	HashrateAvgLength = 120
 )
 
+// cacheVersion helps detect when cache data stored has its structure changed.
+var cacheVersion = semver.NewSemver(1, 0, 0)
+
+// versionedCacheData defines the cache data contents to be written into a .gob file.
+type versionedCacheData struct {
+	Version string
+	Data    *ChartGobject
+}
+
 // ChartError is an Error interface for use with constant errors.
 type ChartError string
 
@@ -75,7 +85,7 @@ func (e ChartError) Error() string {
 
 // UnknownChartErr is returned when a chart key is provided that does not match
 // any known chart type constant.
-const UnknownChartErr = ChartError("unkown chart")
+const UnknownChartErr = ChartError("unknown chart")
 
 // InvalidZoomErr is returned when a ChartMaker receives an unknown ZoomLevel.
 // In practice, this should be impossible, since ParseZoom returns a default
@@ -522,7 +532,7 @@ func (charts *ChartData) writeCacheFile(filePath string) error {
 	encoder := gob.NewEncoder(file)
 	charts.mtx.RLock()
 	defer charts.mtx.RUnlock()
-	return encoder.Encode(charts.gobject())
+	return encoder.Encode(versionedCacheData{cacheVersion.String(), charts.gobject()})
 }
 
 // readCacheFile reads the contents of the charts cache dump file encoded in
@@ -537,13 +547,20 @@ func (charts *ChartData) readCacheFile(filePath string) error {
 		file.Close()
 	}()
 
-	var gobject = new(ChartGobject)
-
+	var data = new(versionedCacheData)
 	decoder := gob.NewDecoder(file)
-	err = decoder.Decode(&gobject)
+	err = decoder.Decode(&data)
 	if err != nil {
 		return err
 	}
+
+	// If the required cache version was not found in the .gob file return an error.
+	if data.Version != cacheVersion.String() {
+		return fmt.Errorf("expected cache version v%s but found v%s",
+			cacheVersion, data.Version)
+	}
+
+	gobject := data.Data
 
 	charts.mtx.Lock()
 	charts.Blocks.Height = gobject.Height
@@ -994,8 +1011,8 @@ func hashrate(time, chainwork ChartUints) (ChartUints, ChartUints) {
 			lastWork := rotator[(idx+1)%HashrateAvgLength]
 			lastTime := time[i-HashrateAvgLength]
 			thisTime := time[i]
-			// 1e6: exahash -> terahash/s
 			t = append(t, thisTime)
+			// 1e6: exahash -> terahash/s
 			y = append(y, (work-lastWork)*1e6/(thisTime-lastTime))
 		}
 	}
