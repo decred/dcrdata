@@ -114,22 +114,32 @@ function nightModeOptions (nightModeOn) {
   }
 }
 
-function zipYvData (gData, isHeight, coefficient) {
+function zipYvData (gData, isHeightAxis, isDayBinned, coefficient) {
   coefficient = coefficient || 1
-  return map(gData.x, (t, i) => {
-    return [
-      isHeight ? i : new Date(t * 1000),
-      gData.y[i] * coefficient
-    ]
+  return map(gData.x, (n, i) => {
+    var xAxisVal
+    if (isHeightAxis && isDayBinned) {
+      xAxisVal = n
+    } else if (isHeightAxis) {
+      xAxisVal = i
+    } else {
+      xAxisVal = new Date(n * 1000)
+    }
+    return [xAxisVal, gData.y[i] * coefficient]
   })
 }
 
-function poolSizeFunc (gData, isHeight) {
+function poolSizeFunc (gData, isHeightAxis, isDayBinned) {
   var data = map(gData.x, (n, i) => {
-    return [
-      isHeight ? i : new Date(n * 1000),
-      gData.y[i], null
-    ]
+    var xAxisVal
+    if (isHeightAxis && isDayBinned) {
+      xAxisVal = n
+    } else if (isHeightAxis) {
+      xAxisVal = i
+    } else {
+      xAxisVal = new Date(n * 1000)
+    }
+    return [xAxisVal, gData.y[i], null]
   })
   if (data.length) {
     data[0][2] = ticketPoolSizeTarget
@@ -138,7 +148,7 @@ function poolSizeFunc (gData, isHeight) {
   return data
 }
 
-function circulationFunc (gData, blocks, isHeight) {
+function circulationFunc (gData, blocks, isHeightAxis, isDayBinned) {
   var circ = 0
   var h = -1
   var addDough = (newHeight) => {
@@ -147,12 +157,17 @@ function circulationFunc (gData, blocks, isHeight) {
       circ += blockReward(h) * atomsToDCR
     }
   }
-  var data = map(gData.x, (t, i) => {
+  var data = map(gData.x, (n, i) => {
     addDough(blocks ? i : gData.z[i])
-    return [
-      isHeight ? i : new Date(t * 1000),
-      gData.y[i] * atomsToDCR, circ
-    ]
+    var xAxisVal
+    if (isHeightAxis && isDayBinned) {
+      xAxisVal = n
+    } else if (isHeightAxis) {
+      xAxisVal = i
+    } else {
+      xAxisVal = new Date(n * 1000)
+    }
+    return [xAxisVal, gData.y[i] * atomsToDCR, circ]
   })
   var stamp = data[data.length - 1][0].getTime()
   var end = stamp + aMonth
@@ -274,18 +289,19 @@ export default class extends Controller {
       logscale: this.settings.scale === 'log',
       stepPlot: false
     }
-    var isHeight = this.selectedAxis() === 'height'
-    var xlabel = isHeight ? 'Block Height' : 'Date'
+    var isHeightAxis = this.selectedAxis() === 'height'
+    var xlabel = isHeightAxis ? 'Block Height' : 'Date'
+    var isDayBinned = this.selectedBin() === 'day'
     switch (chartName) {
       case 'ticket-price': // price graph
-        d = zipYvData(data, isHeight, atomsToDCR)
+        d = zipYvData(data, isHeightAxis, isDayBinned, atomsToDCR)
         gOptions.stepPlot = true
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Ticket Price'], true, 'Price (DCR)',
           xlabel, false, false))
         break
 
       case 'ticket-pool-size': // pool size graph
-        d = poolSizeFunc(data, isHeight)
+        d = poolSizeFunc(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Ticket Pool Size', 'Network Target'],
           false, 'Ticket Pool Size', xlabel, true, false))
         gOptions.series = {
@@ -299,64 +315,63 @@ export default class extends Controller {
         break
 
       case 'ticket-pool-value': // pool value graph
-        d = zipYvData(data, isHeight, atomsToDCR)
+        d = zipYvData(data, isHeightAxis, isDayBinned, atomsToDCR)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Ticket Pool Value'], true,
           'Ticket Pool Value', xlabel, true, false))
         break
 
       case 'block-size': // block size graph
-        d = zipYvData(data, isHeight)
+        d = zipYvData(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Block Size'], false, 'Block Size',
           xlabel, true, false))
         break
 
       case 'blockchain-size': // blockchain size graph
-        d = zipYvData(data, isHeight)
+        d = zipYvData(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Blockchain Size'], true,
           'Blockchain Size', xlabel, false, true))
         break
 
       case 'tx-count': // tx per block graph
-        d = zipYvData(data, isHeight)
+        d = zipYvData(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Number of Transactions'], false,
           '# of Transactions', xlabel, false, false))
         break
 
       case 'pow-difficulty': // difficulty graph
-        d = zipYvData(data, isHeight)
+        d = zipYvData(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Difficulty'], true, 'Difficulty',
           xlabel, true, false))
         break
 
       case 'coin-supply': // supply graph
-        d = circulationFunc(data, this.settings.bin === 'block', isHeight)
+        d = circulationFunc(data, this.settings.bin === 'block', isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Coin Supply', 'Predicted Coin Supply'],
           true, 'Coin Supply (DCR)', xlabel, true, false))
         break
 
       case 'fees': // block fee graph
-        d = zipYvData(data, isHeight, atomsToDCR)
+        d = zipYvData(data, isHeightAxis, isDayBinned, atomsToDCR)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Total Fee'], false, 'Total Fee (DCR)',
           xlabel, true, false))
         break
 
       case 'duration-btw-blocks': // Duration between blocks graph
-        d = zipYvData(data, isHeight)
+        d = zipYvData(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Duration Between Block'], false,
           'Duration Between Block (seconds)', xlabel, false, false))
         break
 
       case 'chainwork': // Total chainwork over time
-        d = zipYvData(data, isHeight)
+        d = zipYvData(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Cumulative Chainwork (exahash)'],
           false, 'Cumulative Chainwork (exahash)', xlabel, true, false))
         break
 
       case 'hashrate': // Total chainwork over time
-        d = zipYvData(data, isHeight)
-        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Hashrate'],
-          false, 'Hashrate (hashes per second)', xlabel, true, false))
-        gOptions.axes.y.axisLabelFormatter = (v) => { return formatHashRate(v, 'axis') }
+        d = zipYvData(data, isHeightAxis, isDayBinned)
+        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Network Hashrate (terahash/s)'],
+          false, 'Network Hashrate (terahash/s)', xlabel, true, false))
         break
     }
 

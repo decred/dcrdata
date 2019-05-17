@@ -1603,7 +1603,8 @@ func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.R
 func (c *appContext) ChartTypeData(w http.ResponseWriter, r *http.Request) {
 	chartType := m.GetChartTypeCtx(r)
 	bin := r.URL.Query().Get("bin")
-	chartData, err := c.charts.Chart(chartType, bin)
+	axis := r.URL.Query().Get("axis")
+	chartData, err := c.charts.Chart(chartType, bin, axis)
 	if err != nil {
 		http.NotFound(w, r)
 		log.Warnf(`Error fetching chart %s at bin level '%s': %v`, chartType, bin, err)
