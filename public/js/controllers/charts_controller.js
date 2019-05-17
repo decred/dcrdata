@@ -19,7 +19,7 @@ const aMonth = aDay * 30
 const atomsToDCR = 1e-8
 const windowScales = ['ticket-price', 'pow-difficulty']
 var ticketPoolSizeTarget, premine, stakeValHeight, stakeShare
-var baseSubsidy, subsidyInterval, subsidyExponent
+var baseSubsidy, subsidyInterval, subsidyExponent, windowSize
 
 function usesWindowUnits (chart) {
   return windowScales.indexOf(chart) > -1
@@ -114,14 +114,15 @@ function nightModeOptions (nightModeOn) {
   }
 }
 
-function zipYvData (gData, isHeightAxis, isDayBinned, coefficient) {
+function zipYvData (gData, isHeightAxis, isDayBinned, coefficient, windowS) {
   coefficient = coefficient || 1
+  windowS = windowS || 1
   return map(gData.x, (n, i) => {
     var xAxisVal
     if (isHeightAxis && isDayBinned) {
       xAxisVal = n
     } else if (isHeightAxis) {
-      xAxisVal = i
+      xAxisVal = i * windowS
     } else {
       xAxisVal = new Date(n * 1000)
     }
@@ -216,6 +217,7 @@ export default class extends Controller {
     baseSubsidy = parseInt(this.data.get('bs'))
     subsidyInterval = parseInt(this.data.get('sri'))
     subsidyExponent = parseFloat(this.data.get('mulSubsidy')) / parseFloat(this.data.get('divSubsidy'))
+    windowSize = parseInt(this.data.get('windowSize'))
 
     this.settings = TurboQuery.nullTemplate(['chart', 'zoom', 'scale', 'bin', 'axis'])
     this.query.replace(this.settings)
@@ -262,8 +264,7 @@ export default class extends Controller {
       labelsDiv: this.labelsTarget,
       legendFormatter: legendFormatter,
       highlightCircleSize: 4,
-      labelsUTC: true,
-      axes: { y: { axisLabelFormatter: defaultAxisformatter } }
+      labelsUTC: true
     }
 
     this.chartsView = new Dygraph(
@@ -287,14 +288,15 @@ export default class extends Controller {
       zoomCallback: null,
       drawCallback: null,
       logscale: this.settings.scale === 'log',
-      stepPlot: false
+      stepPlot: false,
+      axes: { y: { axisLabelFormatter: defaultAxisformatter } }
     }
     var isHeightAxis = this.selectedAxis() === 'height'
     var xlabel = isHeightAxis ? 'Block Height' : 'Date'
     var isDayBinned = this.selectedBin() === 'day'
     switch (chartName) {
       case 'ticket-price': // price graph
-        d = zipYvData(data, isHeightAxis, isDayBinned, atomsToDCR)
+        d = zipYvData(data, isHeightAxis, false, atomsToDCR, windowSize)
         gOptions.stepPlot = true
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Ticket Price'], true, 'Price (DCR)',
           xlabel, false, false))
@@ -339,7 +341,7 @@ export default class extends Controller {
         break
 
       case 'pow-difficulty': // difficulty graph
-        d = zipYvData(data, isHeightAxis, isDayBinned)
+        d = zipYvData(data, isHeightAxis, false, 1, windowSize)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Difficulty'], true, 'Difficulty',
           xlabel, true, false))
         break
