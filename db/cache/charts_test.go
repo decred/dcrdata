@@ -179,19 +179,19 @@ func TestChartsCache(t *testing.T) {
 	})
 
 	t.Run("get_chart", func(t *testing.T) {
-		chart, err := charts.Chart(BlockSize, string(BlockZoom), string(TimeAxis))
+		chart, err := charts.Chart(BlockSize, string(BlockBin), string(TimeAxis))
 		if err != nil {
 			t.Fatalf("error getting fresh chart: %v", err)
 		}
 		if string(chart) != `{"x":[1,86402,86403,172804,172805,259206],"y":[1,2,3,4,5,6]}` {
 			t.Fatalf("unexpected chart json")
 		}
-		ck := cacheKey(BlockSize, BlockZoom, TimeAxis)
+		ck := cacheKey(BlockSize, BlockBin, TimeAxis)
 		if !reflect.DeepEqual(charts.cache[ck].data, chart) {
 			t.Fatalf("could not match chart to cache")
 		}
 		// Grab chart once more. This should test the cache path.
-		chart2, err := charts.Chart(BlockSize, string(BlockZoom), string(TimeAxis))
+		chart2, err := charts.Chart(BlockSize, string(BlockBin), string(TimeAxis))
 		if err != nil {
 			t.Fatalf("error getting chart from cache: %v", err)
 		}
