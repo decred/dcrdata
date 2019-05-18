@@ -307,6 +307,7 @@
 .chart-control-wrapper {
   border: 1px solid #e6eaed;
   border-left: 1px solid #e6eaed;
+  font-size: 0.9rem;
 }
 
 .chart-control-label {
@@ -320,6 +321,13 @@
 .chart-control {
   padding: 2px;
   background: #fff;
+  width: max-content;
+}
+
+.chart-form-control {
+  width: 250px;
+  font-size: 0.9rem !important;
+  height: calc(1.5em + 0.5rem + 2px) !important;
 }
 
 .chart-control select,

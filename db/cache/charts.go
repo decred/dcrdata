@@ -931,32 +931,28 @@ func blockTimes(blocks ChartUints) (ChartUints, ChartUints) {
 }
 
 // Take the average block times on the intervals defined by the ticks argument.
-func avgBlockTimes(ticks, blocks ChartUints) (ChartUints, ChartUints) {
+func avgBlockTimes(ticks, blocks ChartUints) ChartUints {
 	if len(ticks) < 2 {
 		// Return empty arrays so that JSON-encoding will have the correct type.
-		return ChartUints{}, ChartUints{}
+		return ChartUints{}
 	}
-	times := make(ChartUints, 0, len(ticks)-1)
-	avgs := make(ChartUints, 0, len(ticks)-1)
-	workingOn := ticks[0]
+	avgDiffs := make(ChartUints, 0, len(ticks)-1)
 	nextIdx := 1
 	next := ticks[nextIdx]
 	lastIdx := 0
 	for i, t := range blocks {
 		if t > next {
 			_, pts := blockTimes(blocks[lastIdx:i])
-			avgs = append(avgs, pts.Avg(0, len(pts)))
-			times = append(times, workingOn)
+			avgDiffs = append(avgDiffs, pts.Avg(0, len(pts)))
 			nextIdx++
 			if nextIdx > len(ticks)-1 {
 				break
 			}
-			workingOn = next
 			lastIdx = i
 			next = ticks[nextIdx]
 		}
 	}
-	return times, avgs
+	return avgDiffs
 }
 
 func blockSizeChart(charts *ChartData, zoom binLevel, axis axisType) ([]byte, error) {
@@ -1013,13 +1009,13 @@ func coinSupplyChart(charts *ChartData, zoom binLevel, axis axisType) ([]byte, e
 
 func durationBTWChart(charts *ChartData, zoom binLevel, axis axisType) ([]byte, error) {
 	if zoom == DayZoom && axis == HeightAxis {
-		return charts.encode(avgBlockTimes(charts.Days.Time, charts.Blocks.Time))
+		return charts.encode(charts.Days.Height, avgBlockTimes(charts.Days.Time, charts.Blocks.Time))
 	}
 	switch zoom {
 	case BlockZoom:
 		return charts.encode(blockTimes(charts.Blocks.Time))
 	case DayZoom:
-		return charts.encode(avgBlockTimes(charts.Days.Time, charts.Blocks.Time))
+		return charts.encode(charts.Days.Time, avgBlockTimes(charts.Days.Time, charts.Blocks.Time))
 	}
 	return nil, InvalidZoomErr
 }
@@ -1054,7 +1050,8 @@ func hashrate(time, chainwork ChartUints) (ChartUints, ChartUints) {
 
 func hashRateChart(charts *ChartData, zoom binLevel, axis axisType) ([]byte, error) {
 	if zoom == DayZoom && axis == HeightAxis {
-		return charts.encode(charts.Days.Height, charts.Days.Chainwork)
+		t, y := hashrate(charts.Days.Height, charts.Days.Chainwork)
+		return charts.encode(t, y)
 	}
 	switch zoom {
 	case BlockZoom:

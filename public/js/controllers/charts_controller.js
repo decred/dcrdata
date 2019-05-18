@@ -11,11 +11,10 @@ import dompurify from 'dompurify'
 
 var selectedChart
 let Dygraph // lazy loaded on connect
-let defaultAxisformatter
 
-const blockTime = 5 * 60 * 1000
-const aDay = 86400 * 1000
-const aMonth = aDay * 30
+const avgBlockTime = 5 * 60 * 1000
+const aDay = 86400 * 1000 // in micro-seconds
+const aMonth = 30 // in days
 const atomsToDCR = 1e-8
 const windowScales = ['ticket-price', 'pow-difficulty']
 var ticketPoolSizeTarget, premine, stakeValHeight, stakeShare
@@ -149,7 +148,7 @@ function poolSizeFunc (gData, isHeightAxis, isDayBinned) {
   return data
 }
 
-function circulationFunc (gData, blocks, isHeightAxis, isDayBinned) {
+function circulationFunc (gData, isblocks, isHeightAxis, isDayBinned) {
   var circ = 0
   var h = -1
   var addDough = (newHeight) => {
@@ -159,7 +158,7 @@ function circulationFunc (gData, blocks, isHeightAxis, isDayBinned) {
     }
   }
   var data = map(gData.x, (n, i) => {
-    addDough(blocks ? i : gData.z[i])
+    addDough(isblocks ? i : gData.z[i])
     var xAxisVal
     if (isHeightAxis && isDayBinned) {
       xAxisVal = n
@@ -170,23 +169,29 @@ function circulationFunc (gData, blocks, isHeightAxis, isDayBinned) {
     }
     return [xAxisVal, gData.y[i] * atomsToDCR, circ]
   })
-  var stamp = data[data.length - 1][0].getTime()
-  var end = stamp + aMonth
-  while (stamp < end) {
-    addDough(h + aDay / blockTime)
-    data.push([new Date(stamp), null, circ])
-    stamp += aDay
+
+  var dailyBlocks = aDay / avgBlockTime
+  var lastxValueSet = data[data.length - 1][0]
+  if (!isHeightAxis) lastxValueSet = lastxValueSet.getTime()
+  for (var i = 1; i <= aMonth; i++) {
+    addDough(h + dailyBlocks)
+    if (isHeightAxis) {
+      lastxValueSet += dailyBlocks
+      data.push([lastxValueSet, null, circ])
+    } else {
+      lastxValueSet += aDay
+      data.push([new Date(lastxValueSet), null, circ])
+    }
   }
   return data
 }
 
-function mapDygraphOptions (data, labelsVal, isDrawPoint, yLabel, xLabel, labelsMG, labelsMG2) {
+function mapDygraphOptions (data, labelsVal, isDrawPoint, yLabel, labelsMG, labelsMG2) {
   return merge({
     'file': data,
     labels: labelsVal,
     drawPoints: isDrawPoint,
     ylabel: yLabel,
-    xlabel: xLabel,
     labelsKMB: labelsMG,
     labelsKMG2: labelsMG2
   }, nightModeOptions(darkEnabled()))
@@ -251,7 +256,6 @@ export default class extends Controller {
       axes: { y: { axisLabelWidth: 70 } },
       labels: ['Date', 'Ticket Price'],
       ylabel: 'Ticket Price',
-      xlabel: 'Date',
       digitsAfterDecimal: 8,
       showRangeSelector: true,
       rangeSelectorPlotFillColor: '#8997A5',
@@ -272,7 +276,6 @@ export default class extends Controller {
       [[1, 1], [2, 5]],
       options
     )
-    defaultAxisformatter = this.chartsView.optionsViewForAxis_('y')('axisLabelFormatter')
     this.chartSelectTarget.value = this.settings.chart
 
     if (this.settings.scale === 'log') this.setScale(this.settings.scale)
@@ -288,8 +291,7 @@ export default class extends Controller {
       zoomCallback: null,
       drawCallback: null,
       logscale: this.settings.scale === 'log',
-      stepPlot: false,
-      axes: { y: { axisLabelFormatter: defaultAxisformatter } }
+      stepPlot: false
     }
     var isHeightAxis = this.selectedAxis() === 'height'
     var xlabel = isHeightAxis ? 'Block Height' : 'Date'
@@ -298,14 +300,13 @@ export default class extends Controller {
       case 'ticket-price': // price graph
         d = zipYvData(data, isHeightAxis, false, atomsToDCR, windowSize)
         gOptions.stepPlot = true
-        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Ticket Price'], true, 'Price (DCR)',
-          xlabel, false, false))
+        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Ticket Price'], true, 'Price (DCR)', false, false))
         break
 
       case 'ticket-pool-size': // pool size graph
         d = poolSizeFunc(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Ticket Pool Size', 'Network Target'],
-          false, 'Ticket Pool Size', xlabel, true, false))
+          false, 'Ticket Pool Size', true, false))
         gOptions.series = {
           'Network Target': {
             strokePattern: [5, 3],
@@ -319,61 +320,58 @@ export default class extends Controller {
       case 'ticket-pool-value': // pool value graph
         d = zipYvData(data, isHeightAxis, isDayBinned, atomsToDCR)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Ticket Pool Value'], true,
-          'Ticket Pool Value', xlabel, true, false))
+          'Ticket Pool Value', true, false))
         break
 
       case 'block-size': // block size graph
         d = zipYvData(data, isHeightAxis, isDayBinned)
-        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Block Size'], false, 'Block Size',
-          xlabel, true, false))
+        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Block Size'], false, 'Block Size', true, false))
         break
 
       case 'blockchain-size': // blockchain size graph
         d = zipYvData(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Blockchain Size'], true,
-          'Blockchain Size', xlabel, false, true))
+          'Blockchain Size', false, true))
         break
 
       case 'tx-count': // tx per block graph
         d = zipYvData(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Number of Transactions'], false,
-          '# of Transactions', xlabel, false, false))
+          '# of Transactions', false, false))
         break
 
       case 'pow-difficulty': // difficulty graph
         d = zipYvData(data, isHeightAxis, false, 1, windowSize)
-        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Difficulty'], true, 'Difficulty',
-          xlabel, true, false))
+        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Difficulty'], true, 'Difficulty', true, false))
         break
 
       case 'coin-supply': // supply graph
         d = circulationFunc(data, this.settings.bin === 'block', isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Coin Supply', 'Predicted Coin Supply'],
-          true, 'Coin Supply (DCR)', xlabel, true, false))
+          true, 'Coin Supply (DCR)', true, false))
         break
 
       case 'fees': // block fee graph
         d = zipYvData(data, isHeightAxis, isDayBinned, atomsToDCR)
-        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Total Fee'], false, 'Total Fee (DCR)',
-          xlabel, true, false))
+        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Total Fee'], false, 'Total Fee (DCR)', true, false))
         break
 
       case 'duration-btw-blocks': // Duration between blocks graph
         d = zipYvData(data, isHeightAxis, isDayBinned)
-        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Duration Between Block'], false,
-          'Duration Between Block (seconds)', xlabel, false, false))
+        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Duration Between Blocks'], false,
+          'Duration Between Blocks (seconds)', false, false))
         break
 
       case 'chainwork': // Total chainwork over time
         d = zipYvData(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Cumulative Chainwork (exahash)'],
-          false, 'Cumulative Chainwork (exahash)', xlabel, true, false))
+          false, 'Cumulative Chainwork (exahash)', true, false))
         break
 
       case 'hashrate': // Total chainwork over time
         d = zipYvData(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Network Hashrate (terahash/s)'],
-          false, 'Network Hashrate (terahash/s)', xlabel, true, false))
+          false, 'Network Hashrate (terahash/s)', true, false))
         break
     }
 
@@ -421,7 +419,7 @@ export default class extends Controller {
     this.limits = this.chartsView.xAxisExtremes()
     var selected = this.selectedZoom()
     if (selected) {
-      this.lastZoom = Zoom.validate(selected, this.limits, blockTime)
+      this.lastZoom = Zoom.validate(selected, this.limits, avgBlockTime)
     } else {
       this.lastZoom = Zoom.project(this.settings.zoom, oldLimits, this.limits)
     }
@@ -495,6 +493,7 @@ export default class extends Controller {
     if (!option) return
     this.setActiveOptionBtn(option, this.axisOptionTargets)
     if (option === e) return // Exit if running for the first time.
+    this.settings.axis = null
     this.selectChart()
   }
 
