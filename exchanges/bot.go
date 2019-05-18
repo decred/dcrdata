@@ -466,9 +466,8 @@ out:
 	for {
 		select {
 		case update := <-bot.exchangeChan:
-			log.Tracef("exchange update received from %s. price %f, ", update.Token, update.State.Price)
+			log.Tracef("exchange update received from %s with a BTC price %f, ", update.Token, update.State.Price)
 			err := bot.updateExchange(update)
-			log.Tracef("after exchange update, %s exchange rate is %f", bot.BtcIndex, bot.Price())
 			if err != nil {
 				log.Warnf("Error encountered in exchange update: %v", err)
 				continue
@@ -480,7 +479,6 @@ out:
 				log.Tracef("index update received from %s with %d indices, %s price for Bitcoin is %f", update.Token, len(update.Indices), bot.BtcIndex, btcPrice)
 			}
 			err := bot.updateIndices(update)
-			log.Tracef("After index update, %s exchange rate is %f", bot.BtcIndex, bot.Price())
 			if err != nil {
 				log.Warnf("Error encountered in index update: %v", err)
 				continue

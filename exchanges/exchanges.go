@@ -574,6 +574,7 @@ func (xc *CommonExchange) connectWebsocket(processor WebsocketProcessor, cfg *so
 	}
 
 	xc.wsMtx.Lock()
+	// Ensure that any previous websocket is closed.
 	if xc.ws != nil {
 		select {
 		case <-xc.ws.Done():
@@ -634,6 +635,10 @@ func (xc *CommonExchange) setWsFail(err error) {
 	sr := xc.signalr()
 	if sr != nil && !xc.wsFailed() {
 		sr.Close()
+	}
+	ws, _ := xc.websocket()
+	if ws != nil {
+		ws.Close()
 	}
 	xc.wsMtx.Lock()
 	defer xc.wsMtx.Unlock()
@@ -761,7 +766,7 @@ func (xc *CommonExchange) wsDepths() *DepthData {
 func (xc *CommonExchange) wsDepthStatus(connector func()) (tryHttp, initializing bool, depth *DepthData) {
 	if !xc.wsListening() {
 		if xc.wsFailed() {
-			log.Tracef("using http fallback for bittrex orderbook data")
+			log.Tracef("using http fallback for %s orderbook data", xc.token)
 			tryHttp = true
 			errCount := xc.wsErrorCount()
 			if errCount < wsMaxErrors {
@@ -1209,11 +1214,19 @@ func NewBittrex(client *http.Client, channels *BotChannels) (bittrex Exchange, e
 		}
 	}
 
-	bittrex = &BittrexExchange{
+	b := &BittrexExchange{
 		CommonExchange: newCommonExchange(Bittrex, client, reqs, channels),
 		MarketName:     "BTC-DCR",
 		queue:          make([]*BittrexOrderbookUpdate, 0),
 	}
+	go func() {
+		<-channels.done
+		sr := b.signalr()
+		if sr != nil {
+			sr.Close()
+		}
+	}()
+	bittrex = b
 	return
 }
 
@@ -1579,6 +1592,10 @@ func (bittrex *BittrexExchange) connectWs() {
 		params:         nil,
 		msgHandler:     bittrex.msgHandler,
 	})
+	bittrex.orderMtx.Lock()
+	bittrex.queue = make([]*BittrexOrderbookUpdate, 0)
+	bittrex.orderSeq = 0
+	bittrex.orderMtx.Unlock()
 	if err != nil {
 		bittrex.setWsFail(err)
 		return
@@ -1633,7 +1650,11 @@ func (bittrex *BittrexExchange) Refresh() {
 	}
 
 	if !wsStarting {
-		log.Tracef("last bittrex websocket update %.3f seconds ago", time.Since(bittrex.wsLastUpdate()).Seconds())
+		sinceLast := time.Since(bittrex.wsLastUpdate())
+		log.Tracef("last bittrex websocket update %.3f seconds ago", sinceLast.Seconds())
+		if sinceLast > depthDataExpiration && !bittrex.wsFailed() {
+			bittrex.setWsFail(fmt.Errorf("lost connection detected. bittrex websocket will restart during next refresh"))
+		}
 	}
 
 	// Check for expired candlesticks
@@ -2785,8 +2806,13 @@ func (poloniex *PoloniexExchange) Refresh() {
 		}
 		depth = depthResponse.translate()
 	}
+
 	if !wsStarting {
-		log.Tracef("last poloniex websocket update %.3f seconds ago", time.Since(poloniex.wsLastUpdate()).Seconds())
+		sinceLast := time.Since(poloniex.wsLastUpdate())
+		log.Tracef("last bittrex websocket update %.3f seconds ago", sinceLast.Seconds())
+		if sinceLast > depthDataExpiration && !poloniex.wsFailed() {
+			poloniex.setWsFail(fmt.Errorf("lost connection detected. bittrex websocket will reconnect during next refresh"))
+		}
 	}
 
 	// Candlesticks

@@ -38,7 +38,7 @@ func testExchanges(asSlave, quickTest bool, t *testing.T) {
 
 	// Skip this test during automated testing.
 	if os.Getenv("GORACE") != "" {
-		t.Skip("Skipping exchange test")
+		t.Skip("skipping exchange test")
 	}
 
 	ctx, shutdown := context.WithCancel(context.Background())
@@ -70,7 +70,7 @@ func testExchanges(asSlave, quickTest bool, t *testing.T) {
 	bot, err := NewExchangeBot(config)
 	if err != nil {
 		shutdown()
-		t.Fatalf("Error creating bot. Shutting down: %v", err)
+		t.Fatalf("error creating bot. Shutting down: %v", err)
 	}
 
 	updateCounts := make(map[string]int)
@@ -89,7 +89,7 @@ func testExchanges(asSlave, quickTest bool, t *testing.T) {
 			}
 		}
 		if lowest > 0 {
-			log.Infof("Quick test conditions met. Shutting down early")
+			log.Infof("quick test conditions met. Shutting down early")
 			shutdown()
 		}
 	}
@@ -105,12 +105,12 @@ out:
 		select {
 		case update := <-ch.Exchange:
 			logUpdate(update.Token)
-			log.Infof("Update received from exchange %s", update.Token)
+			log.Infof("update received from exchange %s", update.Token)
 		case update := <-ch.Index:
 			logUpdate(update.Token)
-			log.Infof("Update received from index %s", update.Token)
+			log.Infof("update received from index %s", update.Token)
 		case <-ch.Quit:
-			t.Errorf("Exchange bot has quit.")
+			t.Errorf("ExchangeBot has quit.")
 			break out
 		case <-quitTimer.C:
 			break out
@@ -129,7 +129,7 @@ out:
 				return
 			}
 		}
-		t.Errorf("No update received for %s", token)
+		t.Errorf("no update received for %s", token)
 	}
 
 	for _, token := range Tokens() {
@@ -138,7 +138,7 @@ out:
 
 	depth, err := bot.QuickDepth(aggregatedOrderbookKey)
 	if err != nil {
-		t.Errorf("Failed to create aggregated orderbook")
+		t.Errorf("failed to create aggregated orderbook")
 	}
 	log.Infof("aggregated orderbook size: %d kiB", len(depth)/1024)
 
@@ -161,6 +161,21 @@ func TestSlaveBot(t *testing.T) {
 
 func TestQuickExchanges(t *testing.T) {
 	testExchanges(false, true, t)
+}
+
+func checkWsDepths(t *testing.T, depths *DepthData) {
+	askLen := len(depths.Asks)
+	bidLen := len(depths.Bids)
+	log.Infof("%d asks", askLen)
+	log.Infof("%d bids", bidLen)
+	if askLen > 0 && bidLen > 0 {
+		midGap := (depths.Asks[0].Price + depths.Bids[0].Price) / 2
+		highRange := (depths.Asks[askLen-1].Price - midGap) / midGap * 100
+		lowRange := (midGap - depths.Bids[bidLen-1].Price) / midGap * 100
+		log.Infof("depth range +%f%% / -%f%%", highRange, lowRange)
+	} else {
+		t.Fatalf("missing orderbook data")
+	}
 }
 
 var initialPoloniexOrderbook = []byte(`[
@@ -283,7 +298,11 @@ func (p *fakePoloniexWebsocket) Write(interface{}) error {
 }
 
 func (p *fakePoloniexWebsocket) Close() {
-	close(poloniexDoneChannel)
+	select {
+	case <-poloniexDoneChannel:
+	default:
+		close(poloniexDoneChannel)
+	}
 }
 
 func newTestPoloniexExchange() *PoloniexExchange {
@@ -375,6 +394,7 @@ func TestPoloniexLiveWebsocket(t *testing.T) {
 		} else {
 			log.Infof("message received: %s", s)
 		}
+		poloniex.processWsMessage(b)
 	}
 
 	testConnectWs := func() {
@@ -391,9 +411,21 @@ func TestPoloniexLiveWebsocket(t *testing.T) {
 		t.Errorf("ctrl+c detected")
 		return
 	}
-	// Test reconnection
-	poloniex.ws.Close()
-	testConnectWs()
+	// Test reconnection by forcing a fail, then checking the wsDepthStatus
+	poloniex.setWsFail(fmt.Errorf("test failure. ignore"))
+	tryHttp, initializing, depth := poloniex.wsDepthStatus(testConnectWs)
+	if !tryHttp {
+		t.Errorf("tryHttp not set as expected")
+		return
+	}
+	if initializing {
+		t.Errorf("websocket unexpectedly in initializing status")
+		return
+	}
+	if depth != nil {
+		t.Errorf("unexpected non-nil depth after forced websocket error")
+		return
+	}
 	select {
 	case <-time.NewTimer(30 * time.Second).C:
 	case <-killSwitch:
@@ -401,6 +433,7 @@ func TestPoloniexLiveWebsocket(t *testing.T) {
 		return
 	}
 	log.Infof("%d messages received", msgs)
+	checkWsDepths(t, poloniex.wsDepths())
 }
 
 var (
@@ -606,10 +639,36 @@ func TestBittrexLiveWebsocket(t *testing.T) {
 	bittrex := newTestBittrexExchange()
 
 	bittrex.connectWs()
-	defer bittrex.sr.Close()
+	sr := bittrex.signalr()
+	if sr == nil {
+		t.Errorf("failed to initialize signalr client")
+	}
+	defer sr.Close()
 
-	testDuration := 450
-	log.Infof("listening for %d seconds", testDuration)
+	testDuration := 180
+	log.Infof("listening for %d seconds total", testDuration*2)
+	select {
+	case <-time.NewTimer(time.Second * time.Duration(testDuration)).C:
+	case <-killSwitch:
+		t.Errorf("ctrl+c detected")
+		return
+	}
+	// Test reconnection by forcing a fail, then checking the wsDepthStatus.
+	bittrex.setWsFail(fmt.Errorf("test failure. ignore"))
+	tryHttp, initializing, depth := bittrex.wsDepthStatus(bittrex.connectWs)
+	if !tryHttp {
+		t.Errorf("tryHttp not set as expected")
+		return
+	}
+	if initializing {
+		// initializing is only true the first time the socket is started.
+		t.Errorf("websocket unexpectedly in initializing status")
+		return
+	}
+	if depth != nil {
+		t.Errorf("unexpected non-nil depth after forced websocket error")
+		return
+	}
 	select {
 	case <-time.NewTimer(time.Second * time.Duration(testDuration)).C:
 	case <-killSwitch:
@@ -617,11 +676,7 @@ func TestBittrexLiveWebsocket(t *testing.T) {
 		return
 	}
 	if bittrex.wsFailed() {
-		bittrex.sr.Close()
 		t.Fatalf("bittrex connection in failed state")
 	}
-
-	depths := bittrex.wsDepths()
-	log.Infof("%d asks", len(depths.Asks))
-	log.Infof("%d bids", len(depths.Bids))
+	checkWsDepths(t, bittrex.wsDepths())
 }
