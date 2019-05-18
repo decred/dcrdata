@@ -175,8 +175,8 @@ func (c *appContext) updateNodeConnections() error {
 	nodeConnections, err := c.nodeClient.GetConnectionCount()
 	if err != nil {
 		// Assume there arr no connections if RPC had an error.
-		nodeConnections = 0
-		err = fmt.Errorf("failed to get connection count: %v", err)
+		c.Status.SetConnections(0)
+		return fmt.Errorf("failed to get connection count: %v", err)
 	}
 
 	// Before updating connections, get the previous connection count.
@@ -184,7 +184,7 @@ func (c *appContext) updateNodeConnections() error {
 
 	c.Status.SetConnections(nodeConnections)
 	if nodeConnections == 0 {
-		return err
+		return nil
 	}
 
 	// Detect if the node's peer connections were just restored.
