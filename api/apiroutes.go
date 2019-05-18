@@ -171,29 +171,66 @@ func NewContext(cfg *AppContextConfig) *appContext {
 	}
 }
 
+func (c *appContext) updateNodeConnections() error {
+	nodeConnections, err := c.nodeClient.GetConnectionCount()
+	if err != nil {
+		// Assume there arr no connections if RPC had an error.
+		c.Status.SetConnections(0)
+		return fmt.Errorf("failed to get connection count: %v", err)
+	}
+
+	// Before updating connections, get the previous connection count.
+	prevConnections := c.Status.NodeConnections()
+
+	c.Status.SetConnections(nodeConnections)
+	if nodeConnections == 0 {
+		return nil
+	}
+
+	// Detect if the node's peer connections were just restored.
+	if prevConnections != 0 {
+		// Status.ready may be false, but since connections were not lost and
+		// then recovered, it is not our job to check other readiness factors.
+		return nil
+	}
+
+	// Check the reconnected node's best block, and update Status.height.
+	_, nodeHeight, err := c.nodeClient.GetBestBlock()
+	if err != nil {
+		c.Status.SetReady(false)
+		return fmt.Errorf("node: getbestblock failed: %v", err)
+	}
+
+	// Update Status.height with current node height. This also sets
+	// Status.ready according to the previously-set Status.dbHeight.
+	c.Status.SetHeight(uint32(nodeHeight))
+
+	return nil
+}
+
 // StatusNtfnHandler keeps the appContext's Status up-to-date with changes in
 // node and DB status.
 func (c *appContext) StatusNtfnHandler(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
+	// Check the node connection count periodically.
+	rpcCheckTicker := time.NewTicker(5 * time.Second)
 out:
 	for {
 	keepon:
 		select {
+		case <-rpcCheckTicker.C:
+			if err := c.updateNodeConnections(); err != nil {
+				log.Warn("updateNodeConnections: ", err)
+				break keepon
+			}
+
 		case height, ok := <-notify.NtfnChans.UpdateStatusNodeHeight:
 			if !ok {
 				log.Warnf("Block connected channel closed.")
 				break out
 			}
 
-			nodeConnections, err := c.nodeClient.GetConnectionCount()
-			if err == nil {
-				c.Status.SetHeightAndConnections(height, nodeConnections)
-			} else {
-				c.Status.SetHeight(height)
-				c.Status.SetReady(false)
-				log.Warn("Failed to get connection count: ", err)
-				break keepon
-			}
+			c.Status.SetHeight(height)
 
 		case height, ok := <-notify.NtfnChans.UpdateStatusDBHeight:
 			if !ok {
@@ -211,7 +248,7 @@ out:
 				break keepon
 			}
 
-			c.Status.DBUpdate(height, summary.Time.S.UNIX())
+			c.Status.DBUpdate(height, summary.Time.UNIX())
 
 			bdHeight, err := c.BlockData.GetHeight()
 			// Catch certain pathological conditions.
@@ -232,6 +269,7 @@ out:
 
 		case <-ctx.Done():
 			log.Debugf("Got quit signal. Exiting block connected handler for STATUS monitor.")
+			rpcCheckTicker.Stop()
 			break out
 		}
 	}
@@ -250,7 +288,12 @@ func (c *appContext) writeJSONHandlerFunc(thing interface{}) http.HandlerFunc {
 }
 
 func writeJSON(w http.ResponseWriter, thing interface{}, indent string) {
+	writeJSONWithStatus(w, thing, http.StatusOK, indent)
+}
+
+func writeJSONWithStatus(w http.ResponseWriter, thing interface{}, code int, indent string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(code)
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", indent)
 	if err := encoder.Encode(thing); err != nil {
@@ -337,6 +380,16 @@ func (c *appContext) status(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, c.Status.API(), c.getIndentQuery(r))
 }
 
+func (c *appContext) statusHappy(w http.ResponseWriter, r *http.Request) {
+	happy := c.Status.Happy()
+	statusCode := http.StatusOK
+	if !happy.Happy {
+		// For very simple health checks, set the status code.
+		statusCode = http.StatusServiceUnavailable
+	}
+	writeJSONWithStatus(w, happy, statusCode, c.getIndentQuery(r))
+}
+
 func (c *appContext) coinSupply(w http.ResponseWriter, r *http.Request) {
 	supply := c.BlockData.CoinSupply()
 	if supply == nil {
@@ -353,17 +406,6 @@ func (c *appContext) currentHeight(w http.ResponseWriter, _ *http.Request) {
 	if _, err := io.WriteString(w, strconv.Itoa(int(c.Status.Height()))); err != nil {
 		apiLog.Infof("failed to write height response: %v", err)
 	}
-}
-
-func (c *appContext) getLatestBlock(w http.ResponseWriter, r *http.Request) {
-	latestBlockSummary := c.BlockData.GetBestBlockSummary()
-	if latestBlockSummary == nil {
-		apiLog.Error("Unable to get latest block summary")
-		http.Error(w, http.StatusText(422), 422)
-		return
-	}
-
-	writeJSON(w, latestBlockSummary, c.getIndentQuery(r))
 }
 
 func (c *appContext) getBlockHeight(w http.ResponseWriter, r *http.Request) {

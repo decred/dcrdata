@@ -31,6 +31,7 @@ func NewAPIRouter(app *appContext, useRealIP, compressLarge bool) apiMux {
 	mux.Get("/", app.root)
 
 	mux.Get("/status", app.status)
+	mux.Get("/status/happy", app.statusHappy)
 	mux.Get("/supply", app.coinSupply)
 
 	compMiddleware := m.Next
@@ -42,7 +43,7 @@ func NewAPIRouter(app *appContext, useRealIP, compressLarge bool) apiMux {
 	mux.Route("/block", func(r chi.Router) {
 		r.Route("/best", func(rd chi.Router) {
 			rd.Use(app.BlockIndexLatestCtx)
-			rd.Get("/", app.getBlockSummary) // app.getLatestBlock
+			rd.Get("/", app.getBlockSummary)
 			rd.Get("/height", app.currentHeight)
 			rd.Get("/hash", app.getBlockHash)
 			rd.Route("/header", func(rt chi.Router) {
@@ -108,8 +109,6 @@ func NewAPIRouter(app *appContext, useRealIP, compressLarge bool) apiMux {
 				rs.Get("/", app.getBlockRangeSteppedSummary)
 				rs.Get("/size", app.getBlockRangeSteppedSize)
 			})
-			// rd.Get("/header", app.getBlockHeader)
-			// rd.Get("/pos", app.getBlockStakeInfoExtendedByHeight)
 		})
 	})
 
