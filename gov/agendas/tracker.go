@@ -467,6 +467,10 @@ func (tracker *VoteTracker) newVoteSummary() *VoteSummary {
 // never be modified by VoteTracker, so can be used read-only by any number
 // of threads.
 func (tracker *VoteTracker) Summary() *VoteSummary {
+	// lite mode hack
+	if tracker == nil {
+		return nil
+	}
 	tracker.mtx.RLock()
 	defer tracker.mtx.RUnlock()
 	return tracker.summary

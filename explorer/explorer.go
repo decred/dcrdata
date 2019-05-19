@@ -555,7 +555,9 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 		blockData.CurrentStakeDiff.CurrentStakeDifficulty)
 
 	// Trigger a vote info refresh
-	go exp.voteTracker.Refresh()
+	if exp.voteTracker != nil {
+		go exp.voteTracker.Refresh()
+	}
 
 	// Update pageData with block data and chain (home) info.
 	p := exp.pageData

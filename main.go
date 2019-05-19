@@ -564,10 +564,13 @@ func _main(ctx context.Context) error {
 	}()
 
 	// A vote tracker tracks current block and stake versions and votes.
-	tracker, err := agendas.NewVoteTracker(activeChain, dcrdClient,
-		auxDB.AgendaVoteCounts, activeChain.Deployments)
-	if err != nil {
-		return fmt.Errorf("Unable to initialize vote tracker: %v", err)
+	var tracker *agendas.VoteTracker
+	if usePG {
+		tracker, err = agendas.NewVoteTracker(activeChain, dcrdClient,
+			auxDB.AgendaVoteCounts, activeChain.Deployments)
+		if err != nil {
+			return fmt.Errorf("Unable to initialize vote tracker: %v", err)
+		}
 	}
 
 	// Create the explorer system.
@@ -633,7 +636,9 @@ func _main(ctx context.Context) error {
 	}
 
 	// Use the MempoolMonitor in aux DB to get unconfirmed transaction data.
-	auxDB.UseMempoolChecker(mpm)
+	if usePG {
+		auxDB.UseMempoolChecker(mpm)
+	}
 
 	// Prepare for sync by setting up the channels for status/progress updates
 	// (barLoad) or full explorer page updates (latestBlockHash).
@@ -673,14 +678,16 @@ func _main(ctx context.Context) error {
 
 	// This dumps the cache charts data into a file for future use on system
 	// exit.
-	defer func() {
-		er := explorer.WriteCacheFile(dumpPath)
-		if er != nil {
-			log.Errorf("WriteCacheFile failed: %v", er)
-		} else {
-			log.Debug("Dumping the charts cache data was successful")
-		}
-	}()
+	if usePG {
+		defer func() {
+			er := explorer.WriteCacheFile(dumpPath)
+			if er != nil {
+				log.Errorf("WriteCacheFile failed: %v", er)
+			} else {
+				log.Debug("Dumping the charts cache data was successful")
+			}
+		}()
+	}
 
 	// Initiate the sync status monitor and the coordinating goroutines if the
 	// sync status is activated, otherwise coordinate updating the full set of
