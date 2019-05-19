@@ -678,16 +678,16 @@ func _main(ctx context.Context) error {
 
 	// This dumps the cache charts data into a file for future use on system
 	// exit.
-	defer func() {
-		if usePG {
+	if usePG {
+		defer func() {
 			er := explorer.WriteCacheFile(dumpPath)
 			if er != nil {
 				log.Errorf("WriteCacheFile failed: %v", er)
 			} else {
 				log.Debug("Dumping the charts cache data was successful")
 			}
-		}
-	}()
+		}()
+	}
 
 	// Initiate the sync status monitor and the coordinating goroutines if the
 	// sync status is activated, otherwise coordinate updating the full set of
