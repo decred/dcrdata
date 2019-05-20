@@ -245,7 +245,9 @@
                                 </span>
                             </div>
                             <div class="fs12 lh1rem text-black-50">
-                                <span data-target="homepage.targetPct">{{printf "%.2f" .PoolInfo.PercentTarget}}</span> % of target&nbsp;<span>{{intComma .PoolInfo.Target}}</span>
+                                <span data-target="homepage.targetPct">{{printf "%.2f" (toAbsValue $.PercentChange)}}</span>%
+                                {{if lt $.PercentChange 0.0}} under {{else}} over {{end}}
+                                target
                             </div>
                         </div>
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">

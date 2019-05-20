@@ -173,7 +173,7 @@ export default class extends Controller {
     this.windowIndexTarget.textContent = ex.window_idx
     this.posBarTarget.style.width = `${(ex.window_idx / ex.params.window_size) * 100}%`
     this.poolSizeTarget.innerHTML = humanize.decimalParts(ex.pool_info.size, true, 0)
-    this.targetPctTarget.textContent = parseFloat(ex.pool_info.percent_target).toFixed(2)
+    this.targetPctTarget.textContent = parseFloat(ex.pool_info.percent_target - 100).toFixed(2)
     this.rewardIdxTarget.textContent = ex.reward_idx
     this.powBarTarget.style.width = `${(ex.reward_idx / ex.params.reward_window_size) * 100}%`
     this.poolValueTarget.innerHTML = humanize.decimalParts(ex.pool_info.value, true, 0)

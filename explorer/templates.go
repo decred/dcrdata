@@ -569,5 +569,6 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			}
 			return addrPKH.EncodeAddress()
 		},
+		"toAbsValue": math.Abs,
 	}
 }
