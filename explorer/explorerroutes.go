@@ -180,13 +180,14 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 
 	str, err := exp.templates.execTemplateToString("home", struct {
 		*CommonPageData
-		Info        *types.HomeInfo
-		Mempool     *types.MempoolInfo
-		BestBlock   *types.BlockBasic
-		BlockTally  []int
-		Consensus   int
-		Blocks      []*types.BlockBasic
-		Conversions *homeConversions
+		Info          *types.HomeInfo
+		Mempool       *types.MempoolInfo
+		BestBlock     *types.BlockBasic
+		BlockTally    []int
+		Consensus     int
+		Blocks        []*types.BlockBasic
+		Conversions   *homeConversions
+		PercentChange float64
 	}{
 		CommonPageData: exp.commonData(r),
 		Info:           homeInfo,
@@ -196,6 +197,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 		Consensus:      consensus,
 		Blocks:         blocks,
 		Conversions:    conversions,
+		PercentChange:  homeInfo.PoolInfo.PercentTarget - 100,
 	})
 
 	inv.RUnlock()
