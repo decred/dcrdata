@@ -11,6 +11,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/txhelpers"
 )
 
@@ -21,28 +22,25 @@ type ChainMonitor struct {
 	db        *StakeDatabase
 	wg        *sync.WaitGroup
 	blockChan chan *chainhash.Hash
-	reorgChan chan *txhelpers.ReorgData
 }
 
 // NewChainMonitor creates a new ChainMonitor
-func (db *StakeDatabase) NewChainMonitor(ctx context.Context, wg *sync.WaitGroup,
-	reorgChan chan *txhelpers.ReorgData) *ChainMonitor {
+func (db *StakeDatabase) NewChainMonitor(ctx context.Context) *ChainMonitor {
 	return &ChainMonitor{
-		ctx:       ctx,
-		db:        db,
-		wg:        wg,
-		reorgChan: reorgChan,
+		ctx: ctx,
+		db:  db,
 	}
 }
 
 // ConnectBlock is a sychronous version of BlockConnectedHandler that collects
 // and stores data for a block specified by the given hash.
-func (p *ChainMonitor) ConnectBlock(hash *chainhash.Hash) (err error) {
+func (p *ChainMonitor) ConnectBlock(header *wire.BlockHeader) (err error) {
+	hash := header.BlockHash()
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
 	// Extend main chain
-	block, err := p.db.ConnectBlockHash(hash)
+	block, err := p.db.ConnectBlockHash(&hash)
 	if err != nil {
 		return err
 	}
@@ -151,50 +149,32 @@ func (p *ChainMonitor) switchToSideChain(reorgData *txhelpers.ReorgData) (int32,
 }
 
 // ReorgHandler receives notification of a chain reorganization and initiates a
-// corresponding reorganization of the stakedb.StakeDatabase.
-func (p *ChainMonitor) ReorgHandler() {
-	defer p.wg.Done()
-out:
-	for {
-		//keepon:
-		select {
-		case reorgData, ok := <-p.reorgChan:
-			p.mtx.Lock()
-			if !ok {
-				p.mtx.Unlock()
-				log.Warnf("Reorg channel closed.")
-				break out
-			}
+// corresponding reorganization of the stakedb.StakeDatabase. ReorgHandler
+// satisfies notification.ReorgHandler, and is registered as a handler in
+// main.go.
+func (p *ChainMonitor) ReorgHandler(reorg *txhelpers.ReorgData) error {
+	p.mtx.Lock()
+	newHeight, oldHeight := reorg.NewChainHeight, reorg.OldChainHeight
+	newHash, oldHash := reorg.NewChainHead, reorg.OldChainHead
 
-			newHeight, oldHeight := reorgData.NewChainHeight, reorgData.OldChainHeight
-			newHash, oldHash := reorgData.NewChainHead, reorgData.OldChainHead
+	log.Infof("Reorganize started. NEW head block %v at height %d.",
+		newHash, newHeight)
+	log.Infof("Reorganize started. OLD head block %v at height %d.",
+		oldHash, oldHeight)
 
-			log.Infof("Reorganize started. NEW head block %v at height %d.",
-				newHash, newHeight)
-			log.Infof("Reorganize started. OLD head block %v at height %d.",
-				oldHash, oldHeight)
-
-			// Switch to the side chain.
-			stakeDBTipHeight, stakeDBTipHash, err := p.switchToSideChain(reorgData)
-			if err != nil {
-				log.Errorf("switchToSideChain failed: %v", err)
-			}
-			if stakeDBTipHeight != newHeight {
-				log.Errorf("stakeDBTipHeight is %d, expected %d",
-					stakeDBTipHeight, newHeight)
-			}
-			if *stakeDBTipHash != newHash {
-				log.Errorf("stakeDBTipHash is %d, expected %d",
-					stakeDBTipHash, newHash)
-			}
-
-			p.mtx.Unlock()
-
-			reorgData.WG.Done()
-
-		case <-p.ctx.Done():
-			log.Debugf("Got quit signal. Exiting stakedb reorg notification handler.")
-			break out
-		}
+	// Switch to the side chain.
+	stakeDBTipHeight, stakeDBTipHash, err := p.switchToSideChain(reorg)
+	if err != nil {
+		log.Errorf("switchToSideChain failed: %v", err)
 	}
+	if stakeDBTipHeight != newHeight {
+		log.Errorf("stakeDBTipHeight is %d, expected %d",
+			stakeDBTipHeight, newHeight)
+	}
+	if *stakeDBTipHash != newHash {
+		log.Errorf("stakeDBTipHash is %d, expected %d",
+			stakeDBTipHash, newHash)
+	}
+	p.mtx.Unlock()
+	return err
 }

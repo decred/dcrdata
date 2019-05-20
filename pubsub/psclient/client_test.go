@@ -827,7 +827,7 @@ func Test_newSubscribeMsg(t *testing.T) {
 	expectedMsg := `{"event":"subscribe","message":{"request_id":123,"message":"cheese"}}`
 
 	b := newSubscribeMsg(subEvent, 123)
-	if b != expectedMsg {
+	if string(b) != expectedMsg {
 		t.Errorf("Wrong message. Got \"%s\", expected \"%s\".",
 			b, expectedMsg)
 	}
@@ -838,7 +838,7 @@ func Test_newUnsubscribeMsg(t *testing.T) {
 	expectedMsg := `{"event":"unsubscribe","message":{"request_id":456,"message":"banana"}}`
 
 	b := newUnsubscribeMsg(unsubEvent, 456)
-	if b != expectedMsg {
+	if string(b) != expectedMsg {
 		t.Errorf("Wrong message. Got \"%s\", expected \"%s\".",
 			b, expectedMsg)
 	}

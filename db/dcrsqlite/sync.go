@@ -394,10 +394,7 @@ func (db *WiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGette
 		// Update API status and explorer page, if explorer updates are enabled.
 		if i%100 == 0 {
 			// API status
-			select {
-			case db.updateStatusChan <- uint32(i):
-			default:
-			}
+			db.SignalHeight(uint32(i))
 		}
 
 		// Update height, the end condition for the loop.
@@ -407,11 +404,7 @@ func (db *WiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGette
 	} // for i := startHeight ...
 
 	// Update the DB height with the API status.
-	select {
-	case db.updateStatusChan <- uint32(height):
-	default:
-		log.Errorf("Failed to update DB height with API status. Is StatusNtfnHandler started?")
-	}
+	db.SignalHeight(uint32(height))
 
 	log.Infof("Rescan finished successfully at height %d.", height)
 

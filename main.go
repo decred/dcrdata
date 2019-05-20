@@ -38,7 +38,6 @@ import (
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/semver"
 	"github.com/decred/dcrdata/stakedb"
-	"github.com/decred/dcrdata/txhelpers"
 	"github.com/decred/dcrdata/v5/api"
 	"github.com/decred/dcrdata/v5/api/insight"
 	"github.com/decred/dcrdata/v5/explorer"
@@ -102,12 +101,15 @@ func _main(ctx context.Context) error {
 	log.Infof("%s version %v (Go version %s)", version.AppName,
 		version.Version(), runtime.Version())
 
-	// Setup the notification handlers.
-	notify.MakeNtfnChans()
+	// Grab a Notifier. After all databases are synced, register handlers with
+	// the Register*Group methods, set the best block height with SetPreviousBlock
+	// and start receiving notifications with Listen. Create the notifer now so
+	// the *rpcclient.NotificationHandlers can be obtained, using
+	// (*Notifier).DcrdHandlers, for the rpcclient.Client constructor.
+	notifier := notify.NewNotifier(ctx)
 
 	// Connect to dcrd RPC server using a websocket.
-	ntfnHandlers, collectionQueue := notify.MakeNodeNtfnHandlers()
-	dcrdClient, nodeVer, err := connectNodeRPC(cfg, ntfnHandlers)
+	dcrdClient, nodeVer, err := connectNodeRPC(cfg, notifier.DcrdHandlers())
 	if err != nil || dcrdClient == nil {
 		return fmt.Errorf("Connection to dcrd failed: %v", err)
 	}
@@ -118,11 +120,6 @@ func _main(ctx context.Context) error {
 			dcrdClient.Shutdown()
 			dcrdClient.WaitForShutdown()
 		}
-
-		// The individial hander's loops should close the notifications channels
-		// on quit, but do it here too to be sure.
-		notify.CloseNtfnChans()
-
 		log.Infof("Bye!")
 		time.Sleep(250 * time.Millisecond)
 	}()
@@ -162,8 +159,8 @@ func _main(ctx context.Context) error {
 	// SQLite
 	dbPath := filepath.Join(cfg.DataDir, cfg.DBFileName)
 	dbInfo := dcrsqlite.DBInfo{FileName: dbPath}
-	baseDB, err := dcrsqlite.InitWiredDB(&dbInfo, stakeDB,
-		notify.NtfnChans.UpdateStatusDBHeight, dcrdClient, activeChain, requestShutdown)
+	baseDB, err := dcrsqlite.InitWiredDB(&dbInfo, stakeDB, dcrdClient,
+		activeChain, requestShutdown)
 	if err != nil {
 		return fmt.Errorf("Unable to initialize SQLite database: %v", err)
 	}
@@ -646,7 +643,8 @@ func _main(ctx context.Context) error {
 	signalToExplorer := explore.MempoolSignal()
 	mempoolSigOuts := []chan<- pstypes.HubMessage{signalToPSHub, signalToExplorer}
 	mpm, err := mempool.NewMempoolMonitor(ctx, mpoolCollector, mempoolSavers,
-		activeChain, &wg, notify.NtfnChans.NewTxChan, mempoolSigOuts, true)
+		activeChain, dcrdClient, mempoolSigOuts, true)
+
 	// Ensure the initial collect/store succeeded.
 	if err != nil {
 		// Shutdown goroutines.
@@ -739,7 +737,7 @@ func _main(ctx context.Context) error {
 	// full/pg mode. Since insightSocketServer is added into the url before even
 	// the sync starts, this implementation cannot be moved to
 	// initiateHandlersAndCollectBlocks function.
-	insightSocketServer, err := insight.NewSocketServer(notify.NtfnChans.InsightNewTxChan, activeChain)
+	insightSocketServer, err := insight.NewSocketServer(activeChain)
 	if err != nil {
 		return fmt.Errorf("Could not create Insight socket.io server: %v", err)
 	}
@@ -760,11 +758,11 @@ func _main(ctx context.Context) error {
 	})
 	// Start the notification hander for keeping /status up-to-date.
 	wg.Add(1)
-	go app.StatusNtfnHandler(ctx, &wg)
+	go app.StatusNtfnHandler(ctx, &wg, baseDB.UpdateChan())
 	// Initial setting of DBHeight. Subsequently, Store() will send this.
 	if dbHeight >= 0 {
 		// Do not sent 4294967295 = uint32(-1) if there are no blocks.
-		notify.NtfnChans.UpdateStatusDBHeight <- uint32(dbHeight)
+		baseDB.SignalHeight(uint32(dbHeight))
 	}
 
 	// Configure the URL path to http handler router for the API.
@@ -973,15 +971,7 @@ func _main(ctx context.Context) error {
 				return fmt.Errorf("unable to get block from node: %v", err)
 			}
 		}
-
-		// Update the node height for the status API endpoint.
-		select {
-		case notify.NtfnChans.UpdateStatusNodeHeight <- uint32(height):
-		default:
-			log.Errorf("Failed to update node height with API status. Is StatusNtfnHandler started?")
-		}
-		// WiredDB.resyncDB is responsible for updating DB status via
-		// notify.NtfnChans.UpdateStatusDBHeight.
+		app.Status.SetHeight(uint32(height))
 
 		return nil
 	}
@@ -1170,34 +1160,23 @@ func _main(ctx context.Context) error {
 	// collection for the explorer.
 
 	// Blockchain monitor for the collector
-	addrMap := make(map[string]txhelpers.TxAction) // for support of watched addresses
 	// On reorg, only update web UI since dcrsqlite's own reorg handler will
 	// deal with patching up the block info database.
 	reorgBlockDataSavers := []blockdata.BlockDataSaver{explore}
 	wsChainMonitor := blockdata.NewChainMonitor(ctx, collector, blockDataSavers,
-		reorgBlockDataSavers, &wg, addrMap, notify.NtfnChans.RecvTxBlockChan,
-		notify.NtfnChans.ReorgChanBlockData)
+		reorgBlockDataSavers)
 
 	// Blockchain monitor for the stake DB
-	sdbChainMonitor := stakeDB.NewChainMonitor(ctx, &wg, notify.NtfnChans.ReorgChanStakeDB)
+	sdbChainMonitor := stakeDB.NewChainMonitor(ctx)
 
 	// Blockchain monitor for the wired sqlite DB
-	WiredDBChainMonitor := baseDB.NewChainMonitor(ctx, collector, &wg,
-		notify.NtfnChans.ConnectChanWiredDB, notify.NtfnChans.ReorgChanWiredDB)
+	WiredDBChainMonitor := baseDB.NewChainMonitor(ctx, collector)
 
 	// Blockchain monitor for the aux (PG) DB
-	pgDBChainMonitor := pgDB.NewChainMonitor(ctx, &wg,
-		notify.NtfnChans.ConnectChanDcrpgDB, notify.NtfnChans.ReorgChanDcrpgDB)
+	pgDBChainMonitor := pgDB.NewChainMonitor(ctx)
 	if pgDBChainMonitor == nil {
 		return fmt.Errorf("Failed to enable dcrpg ChainMonitor. *ChainDB is nil.")
 	}
-
-	// Setup the synchronous handler functions called by the collectionQueue via
-	// OnBlockConnected.
-	collectionQueue.SetSynchronousHandlers([]func(*chainhash.Hash) error{
-		sdbChainMonitor.ConnectBlock, // 1. Stake DB for pool info
-		wsChainMonitor.ConnectBlock,  // 2. blockdata for regular block data collection and storage
-	})
 
 	// Initial data summary for web ui. stakedb must be at the same height, so
 	// we do this before starting the monitors.
@@ -1218,14 +1197,6 @@ func _main(ctx context.Context) error {
 		return fmt.Errorf("Failed to store initial block data with the PubSubHub: %v", err.Error())
 	}
 
-	// Register for notifications from dcrd. This also sets the daemon RPC
-	// client used by other functions in the notify/notification package (i.e.
-	// common ancestor identification in signalReorg).
-	cerr := notify.RegisterNodeNtfnHandlers(dcrdClient)
-	if cerr != nil {
-		return fmt.Errorf("RPC client error: %v (%v)", cerr.Error(), cerr.Cause())
-	}
-
 	// After this final node sync check, the monitors will handle new blocks.
 	// TODO: make this not racy at all by having sync stop at specified block.
 	if err = ensureSync(); err != nil {
@@ -1238,46 +1209,29 @@ func _main(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("Failed to determine base DB's best block: %v", err)
 	}
-	collectionQueue.SetPreviousBlock(bestHash, bestHeight)
+	notifier.SetPreviousBlock(bestHash, uint32(bestHeight))
 
-	// Start the monitors' event handlers.
+	// Notifications are sequenced by adding groups of notification handlers.
+	// The groups are run sequentially, but the handlers within a group are run
+	// concurrently. For example, register(A); register(B, C) will result in A
+	// running alone and completing, then B and C running concurrently.
+	notifier.RegisterBlockHandlerGroup(sdbChainMonitor.ConnectBlock)
+	notifier.RegisterBlockHandlerGroup(wsChainMonitor.ConnectBlock)
+	notifier.RegisterBlockHandlerLiteGroup(app.UpdateNodeHeight, mpm.BlockHandler)
+	notifier.RegisterReorgHandlerGroup(sdbChainMonitor.ReorgHandler)
+	notifier.RegisterReorgHandlerGroup(WiredDBChainMonitor.ReorgHandler,
+		wsChainMonitor.ReorgHandler, pgDBChainMonitor.ReorgHandler)
+	notifier.RegisterReorgHandlerGroup(charts.ReorgHandler)
+	notifier.RegisterTxHandlerGroup(mpm.TxHandler, insightSocketServer.SendNewTx)
 
-	// blockdata collector handlers
-	wg.Add(1)
-	// The blockdata reorg handler disables collection during reorg, leaving
-	// dcrsqlite to do the switch, except for the last block which gets
-	// collected and stored via reorgBlockDataSavers (for the explorer UI).
-	go wsChainMonitor.ReorgHandler()
+	// Register for notifications from dcrd. This also sets the daemon RPC
+	// client used by other functions in the notify/notification package (i.e.
+	// common ancestor identification in processReorg).
+	cerr := notifier.Listen(dcrdClient)
+	if cerr != nil {
+		return fmt.Errorf("RPC client error: %v (%v)", cerr.Error(), cerr.Cause())
+	}
 
-	// StakeDatabase
-	wg.Add(1)
-	go sdbChainMonitor.ReorgHandler()
-
-	// dcrsqlite does not handle new blocks except during reorg.
-	wg.Add(1)
-	go WiredDBChainMonitor.ReorgHandler()
-
-	// dcrpg also does not handle new blocks except during reorg.
-	wg.Add(1)
-	go pgDBChainMonitor.ReorgHandler()
-
-	wg.Add(1)
-	// charts cache drops all the records added since the common ancestor
-	// before initiating a cache update after all other reorgs have completed.
-	go charts.ReorgHandler(&wg, notify.NtfnChans.ReorgChartsCache)
-
-	// Begin listening on notify.NtfnChans.NewTxChan, and forwarding mempool
-	// events to psHub via the channels from HubRelays().
-	wg.Add(1)
-
-	// TxHandler also gets signaled about new blocks when a nil tx hash is sent
-	// on notify.NtfnChans.NewTxChan, which triggers a full mempool refresh
-	// followed by CollectAndStore, which provides the parsed data to all
-	// mempoolSavers via their StoreMPData method. This should include the
-	// PubSubHub and the base DB's MempoolDataCache.
-	go mpm.TxHandler(dcrdClient)
-
-	// Wait for notification handlers to quit.
 	wg.Wait()
 
 	return nil

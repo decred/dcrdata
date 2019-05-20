@@ -203,10 +203,6 @@ func TestChartsCache(t *testing.T) {
 	})
 
 	t.Run("Reorg", func(t *testing.T) {
-		c := make(chan *txhelpers.ReorgData, 2)
-		dummyWg := new(sync.WaitGroup)
-		dummyWg.Add(1)
-		go charts.ReorgHandler(dummyWg, c)
 		// This should cause the blocks to truncate to length 2, the days to
 		// drop to length 1, and the windows to drop to length 0.
 		h, err := chainhash.NewHash([]byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
@@ -215,11 +211,13 @@ func TestChartsCache(t *testing.T) {
 		}
 		wg := new(sync.WaitGroup)
 		wg.Add(1)
-		c <- &txhelpers.ReorgData{
-			NewChain:       []chainhash.Hash{*h},
-			NewChainHeight: 2,
-			WG:             wg,
-		}
+		go func() {
+			charts.ReorgHandler(&txhelpers.ReorgData{
+				NewChain:       []chainhash.Hash{*h},
+				NewChainHeight: 2,
+			})
+			wg.Done()
+		}()
 		var timedOut bool
 		go func() {
 			select {
@@ -293,21 +291,13 @@ func TestChartReorg(t *testing.T) {
 		d := &txhelpers.ReorgData{
 			NewChainHeight: int32(newHeight),
 			NewChain:       make([]chainhash.Hash, chainLen),
-			WG:             new(sync.WaitGroup),
 		}
-		d.WG.Add(1)
 		return d
 	}
-	wg := new(sync.WaitGroup)
-	c := make(chan *txhelpers.ReorgData)
-	wg.Add(1)
-	go charts.ReorgHandler(wg, c)
 	testReorg := func(newHeight, chainLen, newBlockLen, newDayLen, newWindowLen int) {
-		d := reorgData(newHeight, chainLen)
-		c <- d
 		done := make(chan struct{})
 		go func() {
-			d.WG.Wait()
+			charts.ReorgHandler(reorgData(newHeight, chainLen))
 			close(done)
 		}()
 		select {

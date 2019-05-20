@@ -440,7 +440,6 @@ func CommonAncestor(client BlockFetcher, hashA, hashB chainhash.Hash) (*chainhas
 			break // hashA(==hashB) is the common ancestor.
 		}
 	}
-
 	// hashA == hashB
 	return &hashA, chainA, chainB, nil
 }

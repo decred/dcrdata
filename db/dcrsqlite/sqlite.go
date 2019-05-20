@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
@@ -459,7 +460,36 @@ func (db *DB) filterError(err error) error {
 // web interface.
 type DBDataSaver struct {
 	*DB
-	updateStatusChan chan uint32
+	heightClients []chan uint32
+}
+
+func NewDBDataSaver(db *DB) *DBDataSaver {
+	return &DBDataSaver{
+		DB:            db,
+		heightClients: make([]chan uint32, 0),
+	}
+}
+
+// UpdateChan creates a channel that will receive height updates. All calls to
+// UpdateChan should be completed before blocks start being connected.
+func (db *DBDataSaver) UpdateChan() chan uint32 {
+	c := make(chan uint32)
+	db.heightClients = append(db.heightClients, c)
+	return c
+}
+
+// SignalHeight signals the database height to any registered receivers.
+// This function is exported so that it can be called once externally after all
+// update channel clients have subscribed.
+func (db *DBDataSaver) SignalHeight(height uint32) {
+	for i, c := range db.heightClients {
+		select {
+		case c <- height:
+		case <-time.NewTimer(time.Minute).C:
+			log.Criticalf("(*DBDataSaver).SignalHeight: heightClients[%d] timed out. Forcing a shutdown.", i)
+			db.shutdownDcrdata()
+		}
+	}
 }
 
 // Store satisfies the blockdata.BlockDataSaver interface. This function is only
@@ -504,10 +534,7 @@ func (db *DBDataSaver) Store(data *blockdata.BlockData, msgBlock *wire.MsgBlock)
 		return err
 	}
 
-	select {
-	case db.updateStatusChan <- summary.Height:
-	default:
-	}
+	db.SignalHeight(summary.Height)
 
 	stakeInfoExtended := data.ToStakeInfoExtended()
 	return db.DB.StoreStakeInfoExtended(&stakeInfoExtended)

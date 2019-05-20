@@ -512,39 +512,27 @@ func (charts *ChartData) Lengthen() error {
 	return nil
 }
 
-// ReorgHandler handles the charts cache data reorganization.
-func (charts *ChartData) ReorgHandler(wg *sync.WaitGroup, c chan *txhelpers.ReorgData) {
-	defer func() {
-		wg.Done()
-	}()
-	for {
-		select {
-		case data, ok := <-c:
-			if !ok {
-				return
-			}
-			commonAncestorHeight := uint64(data.NewChainHeight) - uint64(len(data.NewChain))
-			charts.mtx.Lock()
-			newHeight := int(commonAncestorHeight) + 1
-			log.Debug("ChartData.ReorgHandler snipping blocks height to %d", newHeight)
-			charts.Blocks.Snip(newHeight)
-			// Snip the last two days
-			daysLen := len(charts.Days.Time)
-			daysLen -= 2
-			log.Debug("ChartData.ReorgHandler snipping days height to %d", daysLen)
-			charts.Days.Snip(daysLen)
-			// Drop the last window
-			windowsLen := len(charts.Windows.Time)
-			windowsLen--
-			log.Debug("ChartData.ReorgHandler snipping windows to height to %d", windowsLen)
-			charts.Windows.Snip(windowsLen)
-			charts.mtx.Unlock()
-			data.WG.Done()
-
-		case <-charts.ctx.Done():
-			return
-		}
-	}
+// ReorgHandler handles the charts cache data reorganization. ReorgHandler
+// satisfies notification.ReorgHandler, and is registered as a handler in
+// main.go.
+func (charts *ChartData) ReorgHandler(reorg *txhelpers.ReorgData) error {
+	commonAncestorHeight := uint64(reorg.NewChainHeight) - uint64(len(reorg.NewChain))
+	charts.mtx.Lock()
+	newHeight := int(commonAncestorHeight) + 1
+	log.Debugf("ChartData.ReorgHandler snipping blocks height to %d", newHeight)
+	charts.Blocks.Snip(newHeight)
+	// Snip the last two days
+	daysLen := len(charts.Days.Time)
+	daysLen -= 2
+	log.Debugf("ChartData.ReorgHandler snipping days height to %d", daysLen)
+	charts.Days.Snip(daysLen)
+	// Drop the last window
+	windowsLen := len(charts.Windows.Time)
+	windowsLen--
+	log.Debugf("ChartData.ReorgHandler snipping windows to height to %d", windowsLen)
+	charts.Windows.Snip(windowsLen)
+	charts.mtx.Unlock()
+	return nil
 }
 
 // isfileExists checks if the provided file paths exists. It returns true if
