@@ -7,7 +7,6 @@ package dcrsqlite
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrdata/blockdata"
@@ -19,23 +18,16 @@ type ChainMonitor struct {
 	ctx            context.Context
 	db             *WiredDB
 	collector      *blockdata.Collector
-	wg             *sync.WaitGroup
-	blockChan      chan *chainhash.Hash
-	reorgChan      chan *txhelpers.ReorgData
 	ConnectingLock chan struct{}
 	DoneConnecting chan struct{}
 }
 
 // NewChainMonitor creates a new ChainMonitor
-func (db *WiredDB) NewChainMonitor(ctx context.Context, collector *blockdata.Collector, wg *sync.WaitGroup,
-	blockChan chan *chainhash.Hash, reorgChan chan *txhelpers.ReorgData) *ChainMonitor {
+func (db *WiredDB) NewChainMonitor(ctx context.Context, collector *blockdata.Collector) *ChainMonitor {
 	return &ChainMonitor{
 		ctx:            ctx,
 		db:             db,
 		collector:      collector,
-		wg:             wg,
-		blockChan:      blockChan,
-		reorgChan:      reorgChan,
 		ConnectingLock: make(chan struct{}, 1),
 		DoneConnecting: make(chan struct{}),
 	}
@@ -105,47 +97,38 @@ func (p *ChainMonitor) switchToSideChain(reorgData *txhelpers.ReorgData) (int32,
 	return int32(height), &hash, err
 }
 
-// ReorgHandler receives notification of a chain reorganization and initiates a
-// corresponding update of the SQL db keeping the main chain data.
-func (p *ChainMonitor) ReorgHandler() {
-	defer p.wg.Done()
-out:
-	for {
-		//keepon:
-		select {
-		case reorgData, ok := <-p.reorgChan:
-			if !ok {
-				log.Warnf("Reorg channel closed.")
-				break out
-			}
+// ReorgHandler processes a chain reorganization and initiates a corresponding
+// update of the SQL db keeping the main chain data. ReorgHandler satisfies
+// notification.ReorgHandler, and is registered as a handler in main.go.
+func (p *ChainMonitor) ReorgHandler(reorg *txhelpers.ReorgData) (err error) {
+	newHeight, oldHeight := reorg.NewChainHeight, reorg.OldChainHeight
+	newHash, oldHash := reorg.NewChainHead, reorg.OldChainHead
 
-			newHeight, oldHeight := reorgData.NewChainHeight, reorgData.OldChainHeight
-			newHash, oldHash := reorgData.NewChainHead, reorgData.OldChainHead
+	log.Infof("Reorganize started. NEW head block %v at height %d.",
+		newHash, newHeight)
+	log.Infof("Reorganize started. OLD head block %v at height %d.",
+		oldHash, oldHeight)
 
-			log.Infof("Reorganize started. NEW head block %v at height %d.",
-				newHash, newHeight)
-			log.Infof("Reorganize started. OLD head block %v at height %d.",
-				oldHash, oldHeight)
-
-			// Switch to the side chain.
-			stakeDBTipHeight, stakeDBTipHash, err := p.switchToSideChain(reorgData)
-			if err != nil {
-				log.Errorf("switchToSideChain failed: %v", err)
-			}
-			if stakeDBTipHeight != newHeight {
-				log.Errorf("stakeDBTipHeight is %d, expected %d",
-					stakeDBTipHeight, newHeight)
-			}
-			if *stakeDBTipHash != newHash {
-				log.Errorf("stakeDBTipHash is %d, expected %d",
-					stakeDBTipHash, newHash)
-			}
-
-			reorgData.WG.Done()
-
-		case <-p.ctx.Done():
-			log.Debugf("Got quit signal. Exiting reorg notification handler.")
-			break out
+	appendError := func(e error) error {
+		if err == nil {
+			return e
 		}
+		return fmt.Errorf("%s. %s", err.Error(), e.Error())
 	}
+
+	// Switch to the side chain.
+	stakeDBTipHeight, stakeDBTipHash, err := p.switchToSideChain(reorg)
+	if err != nil {
+		appendError(fmt.Errorf("switchToSideChain failed: %v", err))
+	}
+	if stakeDBTipHeight != newHeight {
+		appendError(fmt.Errorf("stakeDBTipHeight is %d, expected %d",
+			stakeDBTipHeight, newHeight))
+	}
+	if *stakeDBTipHash != newHash {
+		appendError(fmt.Errorf("stakeDBTipHash is %d, expected %d",
+			stakeDBTipHash, newHash))
+	}
+
+	return
 }

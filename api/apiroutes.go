@@ -33,7 +33,6 @@ import (
 	"github.com/decred/dcrdata/gov/agendas"
 	m "github.com/decred/dcrdata/middleware"
 	"github.com/decred/dcrdata/txhelpers"
-	notify "github.com/decred/dcrdata/v5/notification"
 	appver "github.com/decred/dcrdata/v5/version"
 )
 
@@ -91,6 +90,7 @@ type DataSourceLite interface {
 	SendRawTransaction(txhex string) (string, error)
 	GetExplorerAddress(address string, count, offset int64) (*dbtypes.AddressInfo, txhelpers.AddressType, txhelpers.AddressError)
 	GetMempoolPriceCountTime() *apitypes.PriceCountTime
+	UpdateChan() chan uint32
 }
 
 // DataSourceAux specifies an interface for advanced data collection using the
@@ -211,9 +211,16 @@ func (c *appContext) updateNodeConnections() error {
 	return nil
 }
 
+// UpdateNodeHeight updates the Status height. This method satisfies
+// notification.BlockHandlerLite.
+func (c *appContext) UpdateNodeHeight(height uint32, _ string) error {
+	c.Status.SetHeight(height)
+	return nil
+}
+
 // StatusNtfnHandler keeps the appContext's Status up-to-date with changes in
 // node and DB status.
-func (c *appContext) StatusNtfnHandler(ctx context.Context, wg *sync.WaitGroup) {
+func (c *appContext) StatusNtfnHandler(ctx context.Context, wg *sync.WaitGroup, wireHeightChan chan uint32) {
 	defer wg.Done()
 	// Check the node connection count periodically.
 	rpcCheckTicker := time.NewTicker(5 * time.Second)
@@ -227,15 +234,7 @@ out:
 				break keepon
 			}
 
-		case height, ok := <-notify.NtfnChans.UpdateStatusNodeHeight:
-			if !ok {
-				log.Warnf("Block connected channel closed.")
-				break out
-			}
-
-			c.Status.SetHeight(height)
-
-		case height, ok := <-notify.NtfnChans.UpdateStatusDBHeight:
+		case height, ok := <-wireHeightChan:
 			if !ok {
 				log.Warnf("Block connected channel closed.")
 				break out

@@ -67,7 +67,7 @@ type NewTx struct {
 
 // NewSocketServer constructs a new SocketServer, registering handlers for the
 // "connection", "disconnection", and "subscribe" events.
-func NewSocketServer(newTxChan chan *NewTx, params *chaincfg.Params) (*SocketServer, error) {
+func NewSocketServer(params *chaincfg.Params) (*SocketServer, error) {
 	server, err := socketio.NewServer(nil)
 	if err != nil {
 		apiLog.Errorf("Could not create socket.io server: %v", err)
@@ -133,7 +133,6 @@ func NewSocketServer(newTxChan chan *NewTx, params *chaincfg.Params) (*SocketSer
 		params:           params,
 		watchedAddresses: addrs,
 	}
-	go sockServ.sendNewTx(newTxChan)
 	return &sockServ, nil
 }
 
@@ -174,42 +173,43 @@ func (soc *SocketServer) Store(blockData *blockdata.BlockData, msgBlock *wire.Ms
 	return nil
 }
 
-func (soc *SocketServer) sendNewTx(newTxChan chan *NewTx) {
-	for {
-		ntx, ok := <-newTxChan
-		if !ok {
-			break
-		}
-		msgTx, err := txhelpers.MsgTxFromHex(ntx.Hex)
-		if err != nil {
-			continue
-		}
-		hash := msgTx.TxHash().String()
-		var vouts []InsightSocketVout
-		var total int64
-		for i, v := range msgTx.TxOut {
-			total += v.Value
-			if len(ntx.Vouts[i].ScriptPubKey.Addresses) != 0 {
-				soc.watchedAddresses.RLock()
-				for _, address := range ntx.Vouts[i].ScriptPubKey.Addresses {
-					if _, ok := soc.watchedAddresses.c[address]; ok {
-						soc.BroadcastTo(address, address, hash)
-					}
-					vouts = append(vouts, InsightSocketVout{
-						Address: address,
-						Value:   v.Value,
-					})
-				}
-				soc.watchedAddresses.RUnlock()
-			}
-		}
-		tx := WebSocketTx{
-			Hash:     hash,
-			Size:     len(ntx.Hex) / 2,
-			TotalOut: total,
-			Vouts:    vouts,
-		}
-		apiLog.Tracef("Sending new websocket tx %s", hash)
-		soc.BroadcastTo("inv", "tx", tx)
+// SendNewTx prepares a dcrd mempool tx for broadcast. This method satisfies
+// notification.TxHandler and is registered as a handler in main.go.
+func (soc *SocketServer) SendNewTx(rawTx *dcrjson.TxRawResult) error {
+	ntx := NewTx{
+		Hex:   rawTx.Hex,
+		Vouts: rawTx.Vout,
 	}
+	msgTx, err := txhelpers.MsgTxFromHex(rawTx.Hex)
+	if err != nil {
+		return err
+	}
+	hash := msgTx.TxHash().String()
+	var vouts []InsightSocketVout
+	var total int64
+	for i, v := range msgTx.TxOut {
+		total += v.Value
+		if len(ntx.Vouts[i].ScriptPubKey.Addresses) != 0 {
+			soc.watchedAddresses.RLock()
+			for _, address := range ntx.Vouts[i].ScriptPubKey.Addresses {
+				if _, ok := soc.watchedAddresses.c[address]; ok {
+					soc.BroadcastTo(address, address, hash)
+				}
+				vouts = append(vouts, InsightSocketVout{
+					Address: address,
+					Value:   v.Value,
+				})
+			}
+			soc.watchedAddresses.RUnlock()
+		}
+	}
+	tx := WebSocketTx{
+		Hash:     hash,
+		Size:     len(ntx.Hex) / 2,
+		TotalOut: total,
+		Vouts:    vouts,
+	}
+	apiLog.Tracef("Sending new websocket tx %s", hash)
+	soc.BroadcastTo("inv", "tx", tx)
+	return nil
 }

@@ -65,7 +65,7 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 
-	db = &WiredDB{DBDataSaver: &DBDataSaver{updatedDB, nil}}
+	db = &WiredDB{DBDataSaver: NewDBDataSaver(updatedDB)}
 
 	code := m.Run()
 

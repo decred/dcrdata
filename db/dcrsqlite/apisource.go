@@ -47,12 +47,12 @@ type WiredDB struct {
 	waitChan chan chainhash.Hash
 }
 
-func newWiredDB(DB *DB, stakeDB *stakedb.StakeDatabase, statusC chan uint32, cl *rpcclient.Client, p *chaincfg.Params) *WiredDB {
+func newWiredDB(db *DB, stakeDB *stakedb.StakeDatabase, cl *rpcclient.Client, p *chaincfg.Params) *WiredDB {
 	// Initialize the block summary cache.
-	DB.BlockCache = apitypes.NewAPICache(1e4)
+	db.BlockCache = apitypes.NewAPICache(1e4)
 
 	return &WiredDB{
-		DBDataSaver: &DBDataSaver{DB, statusC},
+		DBDataSaver: NewDBDataSaver(db),
 		MPC:         new(mempool.MempoolDataCache),
 		client:      cl,
 		params:      p,
@@ -63,7 +63,7 @@ func newWiredDB(DB *DB, stakeDB *stakedb.StakeDatabase, statusC chan uint32, cl 
 // NewWiredDB creates a new WiredDB from a *sql.DB, a node client, network
 // parameters, and a status update channel. It calls dcrsqlite.NewDB to create a
 // new DB that wrapps the sql.DB.
-func NewWiredDB(db *sql.DB, stakeDB *stakedb.StakeDatabase, statusC chan uint32, cl *rpcclient.Client,
+func NewWiredDB(db *sql.DB, stakeDB *stakedb.StakeDatabase, cl *rpcclient.Client,
 	p *chaincfg.Params, shutdown func()) (*WiredDB, error) {
 	// Create the sqlite.DB
 	DB, err := NewDB(db, shutdown)
@@ -72,19 +72,19 @@ func NewWiredDB(db *sql.DB, stakeDB *stakedb.StakeDatabase, statusC chan uint32,
 	}
 
 	// Create the WiredDB.
-	return newWiredDB(DB, stakeDB, statusC, cl, p), nil
+	return newWiredDB(DB, stakeDB, cl, p), nil
 }
 
 // InitWiredDB creates a new WiredDB from a file containing the data for a
 // sql.DB. The other parameters are same as those for NewWiredDB.
-func InitWiredDB(dbInfo *DBInfo, stakeDB *stakedb.StakeDatabase, statusC chan uint32, cl *rpcclient.Client,
+func InitWiredDB(dbInfo *DBInfo, stakeDB *stakedb.StakeDatabase, cl *rpcclient.Client,
 	p *chaincfg.Params, shutdown func()) (*WiredDB, error) {
 	db, err := InitDB(dbInfo, shutdown)
 	if err != nil {
 		return nil, err
 	}
 
-	return newWiredDB(db, stakeDB, statusC, cl, p), nil
+	return newWiredDB(db, stakeDB, cl, p), nil
 }
 
 func (db *WiredDB) EnableCache() {
@@ -466,7 +466,8 @@ func (db *WiredDB) GetHeader(idx int) *dcrjson.GetBlockHeaderVerboseResult {
 }
 
 func (db *WiredDB) GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVerboseResult {
-	return rpcutils.GetBlockVerbose(db.client, int64(idx), verboseTx)
+	block := rpcutils.GetBlockVerbose(db.client, int64(idx), verboseTx)
+	return block
 }
 
 func (db *WiredDB) GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult {

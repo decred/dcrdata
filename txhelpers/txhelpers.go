@@ -78,13 +78,6 @@ type VerboseTransactionGetter interface {
 	GetRawTransactionVerboseAsync(txHash *chainhash.Hash) rpcclient.FutureGetRawTransactionVerboseResult
 }
 
-// BlockWatchedTx contains, for a certain block, the transactions for certain
-// watched addresses
-type BlockWatchedTx struct {
-	BlockHeight   int64
-	TxsForAddress map[string][]*dcrutil.Tx
-}
-
 // TxAction is what is happening to the transaction (mined or inserted into
 // mempool).
 type TxAction int32

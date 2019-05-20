@@ -22,27 +22,18 @@ type chainMonitor struct {
 	collector       *Collector
 	dataSavers      []BlockDataSaver
 	reorgDataSavers []BlockDataSaver
-	wg              *sync.WaitGroup
-	watchaddrs      map[string]txhelpers.TxAction
-	blockChan       chan *chainhash.Hash
-	recvTxBlockChan chan *txhelpers.BlockWatchedTx
-	reorgChan       chan *txhelpers.ReorgData
 	reorgLock       sync.Mutex
 }
 
 // NewChainMonitor creates a new chainMonitor.
 func NewChainMonitor(ctx context.Context, collector *Collector, savers []BlockDataSaver,
-	reorgSavers []BlockDataSaver, wg *sync.WaitGroup, addrs map[string]txhelpers.TxAction,
-	recvTxBlockChan chan *txhelpers.BlockWatchedTx, reorgChan chan *txhelpers.ReorgData) *chainMonitor {
+	reorgSavers []BlockDataSaver) *chainMonitor {
+
 	return &chainMonitor{
 		ctx:             ctx,
 		collector:       collector,
 		dataSavers:      savers,
 		reorgDataSavers: reorgSavers,
-		wg:              wg,
-		watchaddrs:      addrs,
-		recvTxBlockChan: recvTxBlockChan,
-		reorgChan:       reorgChan,
 	}
 }
 
@@ -55,22 +46,6 @@ func (p *chainMonitor) collect(hash *chainhash.Hash) (*wire.MsgBlock, *BlockData
 	block := dcrutil.NewBlock(msgBlock)
 	height := block.Height()
 	log.Infof("Block height %v connected. Collecting data...", height)
-
-	if len(p.watchaddrs) > 0 {
-		// txsForOutpoints := blockConsumesOutpointWithAddresses(block, p.watchaddrs,
-		// 	p.collector.dcrdChainSvr)
-		// if len(txsForOutpoints) > 0 {
-		// 	p.spendTxBlockChan <- &BlockWatchedTx{height, txsForOutpoints}
-		// }
-
-		txsForAddrs := txhelpers.BlockReceivesToAddresses(block,
-			p.watchaddrs, p.collector.netParams)
-		if len(txsForAddrs) > 0 {
-			p.recvTxBlockChan <- &txhelpers.BlockWatchedTx{
-				BlockHeight:   height,
-				TxsForAddress: txsForAddrs}
-		}
-	}
 
 	// Get node's best block height to see if the block for which we are
 	// collecting data is the best block.
@@ -102,14 +77,17 @@ func (p *chainMonitor) collect(hash *chainhash.Hash) (*wire.MsgBlock, *BlockData
 }
 
 // ConnectBlock is a sychronous version of BlockConnectedHandler that collects
-// and stores data for a block specified by the given hash.
-func (p *chainMonitor) ConnectBlock(hash *chainhash.Hash) error {
+// and stores data for a block specified by the given hash. ConnectBlock
+// satisfies notification.BlockHandler, and is registered as a handler in
+// main.go.
+func (p *chainMonitor) ConnectBlock(header *wire.BlockHeader) error {
 	// Do not handle reorg and block connects simultaneously.
+	hash := header.BlockHash()
 	p.reorgLock.Lock()
 	defer p.reorgLock.Unlock()
 
 	// Collect block data.
-	msgBlock, blockData, err := p.collect(hash)
+	msgBlock, blockData, err := p.collect(&hash)
 	if err != nil {
 		return err
 	}
@@ -127,110 +105,39 @@ func (p *chainMonitor) ConnectBlock(hash *chainhash.Hash) error {
 	return err
 }
 
-// SetNewBlockChan specifies the new-block channel to be used by
-// BlockConnectedHandler. Note that BlockConnectedHandler is not required if
-// using a direct call to ConnectBlock.
-func (p *chainMonitor) SetNewBlockChan(blockChan chan *chainhash.Hash) {
-	p.blockChan = blockChan
-}
-
-// BlockConnectedHandler handles block connected notifications, which trigger
-// data collection and storage.
-func (p *chainMonitor) BlockConnectedHandler() {
-	defer p.wg.Done()
-out:
-	for {
-	keepon:
-		select {
-		case hash, ok := <-p.blockChan:
-			if !ok {
-				log.Warnf("Block connected channel closed.")
-				break out
-			}
-
-			// Do not handle reorg and block connects simultaneously.
-			p.reorgLock.Lock()
-			// Collect block data.
-			msgBlock, blockData, err := p.collect(hash)
-			p.reorgLock.Unlock()
-			if err != nil {
-				log.Errorf("Failed to collect data for block %v: %v", hash, err)
-				break keepon
-			}
-
-			// Store block data with each saver.
-			for _, s := range p.dataSavers {
-				if s != nil {
-					// Save data to wherever the saver wants to put it.
-					if err = s.Store(blockData, msgBlock); err != nil {
-						log.Errorf("(%v).Store failed: %v", reflect.TypeOf(s), err)
-					}
-				}
-			}
-
-		case <-p.ctx.Done():
-			log.Debugf("Got quit signal. Exiting block connected handler.")
-			break out
-		}
+// ReorgHandler processes a chain reorg. A reorg is handled in blockdata by
+// simply collecting data for the new best block, and storing it in the
+// *reorgDataSavers*.
+func (p *chainMonitor) ReorgHandler(reorg *txhelpers.ReorgData) error {
+	if reorg == nil {
+		return fmt.Errorf("nil reorg data received!")
 	}
 
-}
+	newHeight := reorg.NewChainHeight
+	newHash := reorg.NewChainHead
 
-// ReorgHandler receives notification of a chain reorganization. A reorg is
-// handled in blockdata by simply collecting data for the new best block, and
-// storing it in the *reorgDataSavers*.
-func (p *chainMonitor) ReorgHandler() {
-	defer p.wg.Done()
-out:
-	for {
-	keepon:
-		select {
-		case reorgData, ok := <-p.reorgChan:
-			if !ok {
-				log.Warnf("Reorg channel closed.")
-				break out
+	// Do not handle reorg and block connects simultaneously.
+	p.reorgLock.Lock()
+	defer p.reorgLock.Unlock()
+	log.Infof("Reorganize signaled to blockdata. "+
+		"Collecting data for NEW head block %v at height %d.",
+		newHash, newHeight)
+
+	// Collect data for the new best block.
+	msgBlock, blockData, err := p.collect(&newHash)
+	if err != nil {
+		reorg.WG.Done()
+		return fmt.Errorf("ReorgHandler: Failed to collect data for block %v: %v", newHash, err)
+	}
+
+	// Store block data with each REORG saver.
+	for _, s := range p.reorgDataSavers {
+		if s != nil {
+			// Save data to wherever the saver wants to put it.
+			if err := s.Store(blockData, msgBlock); err != nil {
+				return fmt.Errorf("(%v).Store failed: %v", reflect.TypeOf(s), err)
 			}
-			if reorgData == nil {
-				log.Warnf("nil reorg data received!")
-				break keepon
-			}
-
-			newHeight := reorgData.NewChainHeight
-			newHash := reorgData.NewChainHead
-
-			// Do not handle reorg and block connects simultaneously.
-			p.reorgLock.Lock()
-
-			log.Infof("Reorganize signaled to blockdata. "+
-				"Collecting data for NEW head block %v at height %d.",
-				newHash, newHeight)
-
-			// Collect data for the new best block.
-			msgBlock, blockData, err := p.collect(&newHash)
-			if err != nil {
-				log.Errorf("ReorgHandler: Failed to collect data for block %v: %v", newHash, err)
-				p.reorgLock.Unlock()
-				reorgData.WG.Done()
-				break keepon
-			}
-
-			// Store block data with each REORG saver.
-			for _, s := range p.reorgDataSavers {
-				if s != nil {
-					// Save data to wherever the saver wants to put it.
-					if err := s.Store(blockData, msgBlock); err != nil {
-						log.Errorf("(%v).Store failed: %v", reflect.TypeOf(s), err)
-					}
-				}
-			}
-
-			p.reorgLock.Unlock()
-
-			reorgData.WG.Done()
-
-		case <-p.ctx.Done():
-			log.Debugf("Got quit signal. Exiting reorg notification handler.")
-			break out
 		}
 	}
+	return nil
 }
