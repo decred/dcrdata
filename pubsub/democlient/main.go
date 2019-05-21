@@ -14,6 +14,7 @@ import (
 	exptypes "github.com/decred/dcrdata/explorer/types"
 	"github.com/decred/dcrdata/pubsub/psclient"
 	pstypes "github.com/decred/dcrdata/pubsub/types"
+	"github.com/decred/dcrdata/semver"
 	"github.com/decred/slog"
 	survey "gopkg.in/AlecAivazis/survey.v1"
 )
@@ -112,7 +113,7 @@ func main() {
 			var a actionData
 			actionPrompt := &survey.Select{
 				Message: "What now?",
-				Options: []string{"subscribe", "unsubscribe", "quit"},
+				Options: []string{"subscribe", "unsubscribe", "version", "quit"},
 			}
 			err := survey.AskOne(actionPrompt, &a.action, nil)
 			if err != nil {
@@ -148,7 +149,7 @@ func main() {
 
 				err := subscribe(a.data)
 				if err != nil {
-					fmt.Printf("Failed to subscribe: %v", err)
+					log.Printf("Failed to subscribe: %v", err)
 					continue
 				}
 
@@ -158,8 +159,23 @@ func main() {
 
 				err := unsubscribe(a.data)
 				if err != nil {
-					fmt.Printf("Failed to unsubscribe: %v", err)
+					log.Printf("Failed to unsubscribe: %v", err)
 					continue
+				}
+
+			case "version":
+				serverVer, err := cl.ServerVersion()
+				if err != nil {
+					log.Printf("Failed to get server version: %v", err)
+					continue
+				}
+				log.Printf("Server version: %s\n", serverVer)
+
+				clientSemVer := psclient.Version()
+				serverSemVer := semver.NewSemver(serverVer.Major, serverVer.Minor, serverVer.Patch)
+				if !semver.Compatible(clientSemVer, serverSemVer) {
+					log.Printf("WARNING! Server version is %v, but client is version %v",
+						serverSemVer, clientSemVer)
 				}
 
 			case "quit":
@@ -185,6 +201,8 @@ func main() {
 		case *pstypes.ResponseMessage:
 			log.Printf("%s request (ID=%d) success = %v. Data: %v",
 				m.RequestEventId, m.RequestId, m.Success, m.Data)
+		case *pstypes.Ver:
+			log.Printf("Server Version: %v", m)
 		case string:
 			// generic "message"
 			log.Printf("Message (%s): %s", msg.EventId, m)

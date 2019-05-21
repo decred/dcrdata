@@ -24,9 +24,17 @@ import (
 	exptypes "github.com/decred/dcrdata/explorer/types"
 	"github.com/decred/dcrdata/mempool"
 	pstypes "github.com/decred/dcrdata/pubsub/types"
+	"github.com/decred/dcrdata/semver"
 	"github.com/decred/dcrdata/txhelpers"
 	"golang.org/x/net/websocket"
 )
+
+var version = semver.NewSemver(3, 0, 0)
+
+// Version indicates the semantic version of the pubsub module.
+func Version() semver.Semver {
+	return version
+}
 
 const (
 	wsWriteTimeout = 10 * time.Second
@@ -80,6 +88,7 @@ type PubSubHub struct {
 	params     *chaincfg.Params
 	invsMtx    sync.RWMutex
 	invs       *exptypes.MempoolInfo
+	ver        pstypes.Ver
 }
 
 // NewPubSubHub constructs a PubSubHub given a primary and auxiliary data
@@ -96,6 +105,9 @@ func NewPubSubHub(dataSource wsDataSource) (*PubSubHub, error) {
 	// Retrieve chain parameters.
 	params := psh.sourceBase.GetChainParams()
 	psh.params = params
+
+	sv := Version()
+	psh.ver = pstypes.NewVer(sv.Split())
 
 	// Development subsidy address of the current network
 	devSubsidyAddress, err := dbtypes.DevSubsidyAddress(params)
@@ -319,6 +331,18 @@ func (psh *PubSubHub) receiveLoop(conn *connection) {
 				break
 			}
 			respMsg.Data = string(b)
+			respMsg.Success = true
+
+		case "version":
+			var b []byte
+			b, err = json.Marshal(psh.ver)
+			if err != nil {
+				log.Warn("Invalid JSON message: ", err)
+				respMsg.Data = "error: Could not encode JSON message"
+				break
+			}
+			respMsg.Data = string(b)
+			respMsg.Success = true
 
 		case "ping":
 			log.Tracef("We've been pinged: %.40s...", reqEvent)
