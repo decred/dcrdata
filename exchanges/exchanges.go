@@ -620,14 +620,9 @@ func (xc *CommonExchange) wsListening() bool {
 		if sr == nil {
 			return false
 		}
-		return sr.IsOpen()
+		return sr.On()
 	}
-	select {
-	case <-ws.Done():
-		return false
-	default:
-		return true
-	}
+	return ws.On()
 }
 
 // Log the error and time, and increment the error counter.
@@ -654,7 +649,7 @@ func (xc *CommonExchange) wsInitialized() {
 	xc.wsMtx.Lock()
 	defer xc.wsMtx.Unlock()
 	xc.wsSync.init = time.Now()
-	xc.wsSync.update = time.Now()
+	xc.wsSync.update = xc.wsSync.init
 }
 
 // Set the updated flag.

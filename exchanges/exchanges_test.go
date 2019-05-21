@@ -297,12 +297,22 @@ func (p *fakePoloniexWebsocket) Write(interface{}) error {
 	return nil
 }
 
+var poloMtx sync.Mutex
+var poloOn bool = true
+
 func (p *fakePoloniexWebsocket) Close() {
-	select {
-	case <-poloniexDoneChannel:
-	default:
+	poloMtx.Lock()
+	defer poloMtx.Unlock()
+	if poloOn {
+		poloOn = false
 		close(poloniexDoneChannel)
 	}
+}
+
+func (p *fakePoloniexWebsocket) On() bool {
+	poloMtx.Lock()
+	defer poloMtx.Unlock()
+	return poloOn
 }
 
 func newTestPoloniexExchange() *PoloniexExchange {
@@ -380,9 +390,7 @@ func TestPoloniexLiveWebsocket(t *testing.T) {
 	killSwitch := makeKillSwitch()
 
 	poloniex := newTestPoloniexExchange()
-	var msgs int
 	processor := func(b []byte) {
-		msgs++
 		var s string
 		if len(b) >= 128 {
 			s = string(b[:128]) + "..."
@@ -413,6 +421,11 @@ func TestPoloniexLiveWebsocket(t *testing.T) {
 	}
 	// Test reconnection by forcing a fail, then checking the wsDepthStatus
 	poloniex.setWsFail(fmt.Errorf("test failure. ignore"))
+	// subsequent calls to close should be inconsequential.
+	poloniex.ws.Close()
+	poloniex.ws.Close()
+	// wsDepthStatus should recognize the closed connection and create a real
+	// websocket connection, signalling to use the HTTP fallback in the meantime.
 	tryHttp, initializing, depth := poloniex.wsDepthStatus(testConnectWs)
 	if !tryHttp {
 		t.Errorf("tryHttp not set as expected")
@@ -432,8 +445,8 @@ func TestPoloniexLiveWebsocket(t *testing.T) {
 		t.Errorf("ctrl+c detected")
 		return
 	}
-	log.Infof("%d messages received", msgs)
 	checkWsDepths(t, poloniex.wsDepths())
+	poloniex.ws.Close()
 }
 
 var (
@@ -448,7 +461,7 @@ type testBittrexConnection struct {
 
 func (conn testBittrexConnection) Close() {}
 
-func (conn testBittrexConnection) IsOpen() bool {
+func (conn testBittrexConnection) On() bool {
 	// Doesn't matter right now.
 	return false
 }
@@ -655,6 +668,11 @@ func TestBittrexLiveWebsocket(t *testing.T) {
 	}
 	// Test reconnection by forcing a fail, then checking the wsDepthStatus.
 	bittrex.setWsFail(fmt.Errorf("test failure. ignore"))
+	// Subsequent calls to Close should be inconsequential.
+	bittrex.sr.Close()
+	bittrex.sr.Close()
+	// wsDepthStatus should recognize the closed connection and create a real
+	// websocket connection, signalling to use the HTTP fallback in the meantime.
 	tryHttp, initializing, depth := bittrex.wsDepthStatus(bittrex.connectWs)
 	if !tryHttp {
 		t.Errorf("tryHttp not set as expected")

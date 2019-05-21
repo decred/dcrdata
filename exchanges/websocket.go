@@ -33,6 +33,8 @@ type websocketFeed interface {
 	Write(interface{}) error
 	// Close will disconnect, causing any pending Read operations to error out.
 	Close()
+	// On will be true if close has not been called.
+	On() bool
 }
 
 // The socketConfig is the configuration passed to newSocketConnection. It is
@@ -46,6 +48,7 @@ type socketConfig struct {
 // Satisfies websocketFeed interface.
 type socketClient struct {
 	mtx  sync.Mutex
+	on   bool
 	conn *websocket.Conn
 	done chan struct{}
 }
@@ -79,12 +82,19 @@ func (client *socketClient) Done() chan struct{} {
 func (client *socketClient) Close() {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
-	client.conn.Close()
-	select {
-	case <-client.done:
-	default:
-		close(client.done)
+	if !client.on {
+		return
 	}
+	client.on = false
+	close(client.done)
+	client.conn.Close()
+}
+
+// On will be true if Close has not been called.
+func (client *socketClient) On() bool {
+	client.mtx.Lock()
+	defer client.mtx.Unlock()
+	return client.on
 }
 
 // Constructor for a socketClient, but returned as a websocketFeed.
@@ -101,6 +111,7 @@ func newSocketConnection(cfg *socketConfig) (websocketFeed, error) {
 	return &socketClient{
 		conn: conn,
 		done: make(chan struct{}),
+		on:   true,
 	}, nil
 }
 
@@ -133,7 +144,7 @@ func dumpSignalrMsg(msg signalr.Message) {
 type signalrClient interface {
 	Send(hubs.ClientMsg) error
 	Close()
-	IsOpen() bool
+	On() bool
 }
 
 type signalrConfig struct {
@@ -148,9 +159,9 @@ type signalrConfig struct {
 
 // A wrapper for the signalr.Client. Satisfies signalrClient.
 type signalrConnection struct {
-	c    *signalr.Client
-	done chan struct{}
-	mtx  sync.Mutex
+	c   *signalr.Client
+	mtx sync.Mutex
+	on  bool
 }
 
 // Send sends the ClientMsg on the connection. A mutex makes Send thread-safe.
@@ -166,33 +177,18 @@ func (conn *signalrConnection) Close() {
 	// calls to Close on an already closed connection.
 	conn.mtx.Lock()
 	defer conn.mtx.Unlock()
-	select {
-	case <-conn.done:
+	if !conn.on {
 		return
-	default:
-		close(conn.done)
 	}
-	done := make(chan struct{})
-	go func() {
-		conn.c.Close()
-		done <- struct{}{}
-	}()
-
-	select {
-	case <-done:
-	case <-time.NewTimer(time.Second).C:
-		log.Errorf("signalrConnection.Close: Close timed out")
-	}
+	conn.on = false
+	conn.c.Close()
 }
 
-// Checks whether Close has been called on this connection.
-func (conn *signalrConnection) IsOpen() bool {
-	select {
-	case <-conn.done:
-		return false
-	default:
-		return true
-	}
+// On checks whether Close has been called on this connection.
+func (conn *signalrConnection) On() bool {
+	conn.mtx.Lock()
+	defer conn.mtx.Unlock()
+	return conn.on
 }
 
 // Create a new signalr connection. Returns the signalrClient interface rather
@@ -216,7 +212,7 @@ func newSignalrConnection(cfg *signalrConfig) (signalrClient, error) {
 		return nil, err
 	}
 	return &signalrConnection{
-		c:    c,
-		done: make(chan struct{}),
+		c:  c,
+		on: true,
 	}, nil
 }
