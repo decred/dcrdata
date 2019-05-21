@@ -12,13 +12,12 @@ import dompurify from 'dompurify'
 var selectedChart
 let Dygraph // lazy loaded on connect
 
-const avgBlockTime = 5 * 60 * 1000
-const aDay = 86400 * 1000 // in micro-seconds
+const aDay = 86400 * 1000 // in milliseconds
 const aMonth = 30 // in days
 const atomsToDCR = 1e-8
 const windowScales = ['ticket-price', 'pow-difficulty']
 var ticketPoolSizeTarget, premine, stakeValHeight, stakeShare
-var baseSubsidy, subsidyInterval, subsidyExponent, windowSize
+var baseSubsidy, subsidyInterval, subsidyExponent, windowSize, avgBlockTime
 
 function usesWindowUnits (chart) {
   return windowScales.indexOf(chart) > -1
@@ -148,7 +147,7 @@ function poolSizeFunc (gData, isHeightAxis, isDayBinned) {
   return data
 }
 
-function circulationFunc (gData, isblocks, isHeightAxis, isDayBinned) {
+function circulationFunc (gData, isHeightAxis, isDayBinned) {
   var circ = 0
   var h = -1
   var addDough = (newHeight) => {
@@ -157,16 +156,20 @@ function circulationFunc (gData, isblocks, isHeightAxis, isDayBinned) {
       circ += blockReward(h) * atomsToDCR
     }
   }
+
   var data = map(gData.x, (n, i) => {
-    addDough(isblocks ? i : gData.z[i])
-    var xAxisVal
+    var xAxisVal, height
     if (isHeightAxis && isDayBinned) {
       xAxisVal = n
+      height = n
     } else if (isHeightAxis) {
       xAxisVal = i
+      height = i
     } else {
       xAxisVal = new Date(n * 1000)
+      height = !gData.z ? i : gData.z[i]
     }
+    addDough(height)
     return [xAxisVal, gData.y[i] * atomsToDCR, circ]
   })
 
@@ -223,9 +226,10 @@ export default class extends Controller {
     subsidyInterval = parseInt(this.data.get('sri'))
     subsidyExponent = parseFloat(this.data.get('mulSubsidy')) / parseFloat(this.data.get('divSubsidy'))
     windowSize = parseInt(this.data.get('windowSize'))
+    avgBlockTime = parseInt(this.data.get('blockTime')) * 1000
 
     this.settings = TurboQuery.nullTemplate(['chart', 'zoom', 'scale', 'bin', 'axis'])
-    this.query.replace(this.settings)
+    this.query.update(this.settings)
     this.settings.chart = this.settings.chart || 'ticket-price'
     this.zoomCallback = this._zoomCallback.bind(this)
     this.drawCallback = this._drawCallback.bind(this)
@@ -278,10 +282,10 @@ export default class extends Controller {
     )
     this.chartSelectTarget.value = this.settings.chart
 
+    if (this.settings.axis) this.setAxis(this.settings.axis) // set first
     if (this.settings.scale === 'log') this.setScale(this.settings.scale)
     if (this.settings.zoom) this.setZoom(this.settings.zoom)
     if (this.settings.bin) this.setBin(this.settings.bin)
-    if (this.settings.axis) this.setAxis(this.settings.axis)
     this.selectChart()
   }
 
@@ -346,7 +350,7 @@ export default class extends Controller {
         break
 
       case 'coin-supply': // supply graph
-        d = circulationFunc(data, this.settings.bin === 'block', isHeightAxis, isDayBinned)
+        d = circulationFunc(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Coin Supply', 'Predicted Coin Supply'],
           true, 'Coin Supply (DCR)', true, false))
         break
@@ -419,7 +423,7 @@ export default class extends Controller {
     this.limits = this.chartsView.xAxisExtremes()
     var selected = this.selectedZoom()
     if (selected) {
-      this.lastZoom = Zoom.validate(selected, this.limits, avgBlockTime)
+      this.lastZoom = Zoom.validate(selected, this.limits, avgBlockTime, this.isTimeAxis())
     } else {
       this.lastZoom = Zoom.project(this.settings.zoom, oldLimits, this.limits)
     }
@@ -428,8 +432,7 @@ export default class extends Controller {
         dateWindow: [this.lastZoom.start, this.lastZoom.end]
       })
     }
-    this.settings.zoom = Zoom.encode(this.lastZoom)
-    this.query.replace(this.settings)
+    this._zoomCallback(this.lastZoom.start, this.lastZoom.end)
     await animationFrame()
     this.chartWrapperTarget.classList.remove('loading')
     this.chartsView.updateOptions({
@@ -444,23 +447,31 @@ export default class extends Controller {
     this.query.replace(this.settings)
   }
 
+  isTimeAxis () {
+    return this.selectedAxis() === 'time'
+  }
+
   _drawCallback (graph, first) {
     if (first) return
     var start, end
     [start, end] = this.chartsView.xAxisRange()
     if (start === end) return
     if (this.lastZoom.start === start) return // only handle slide event.
-    this.lastZoom = Zoom.object(start, end)
-    this.settings.zoom = Zoom.encode(this.lastZoom)
-    this.query.replace(this.settings)
+    this._zoomCallback(start, end)
   }
 
   setZoom (e) {
     var target = e.srcElement || e.target
-    var option = target ? target.dataset.option : e
+    var option
+    if (!target) {
+      let ex = this.chartsView.xAxisExtremes()
+      option = Zoom.mapKey(e, ex, 1, this.isTimeAxis(), avgBlockTime)
+    } else {
+      option = target.dataset.option
+    }
     if (!option) return
     this.setActiveOptionBtn(option, this.zoomOptionTargets)
-    if (option === e) return // Exit if running for the first time.
+    if (!target) return // Exit if running for the first time
     this.validateZoom()
   }
 
@@ -469,7 +480,7 @@ export default class extends Controller {
     var option = target ? target.dataset.option : e
     if (!option) return
     this.setActiveOptionBtn(option, this.binSizeTargets)
-    if (option === e) return // Exit if running for the first time.
+    if (!target) return // Exit if running for the first time.
     selectedChart = null // Force fetch
     this.selectChart()
   }
@@ -479,7 +490,7 @@ export default class extends Controller {
     var option = target ? target.dataset.option : e
     if (!option) return
     this.setActiveOptionBtn(option, this.scaleTypeTargets)
-    if (option === e) return // Exit if running for the first time.
+    if (!target) return // Exit if running for the first time.
     if (this.chartsView) {
       this.chartsView.updateOptions({ logscale: option === 'log' })
     }
@@ -492,7 +503,7 @@ export default class extends Controller {
     var option = target ? target.dataset.option : e
     if (!option) return
     this.setActiveOptionBtn(option, this.axisOptionTargets)
-    if (option === e) return // Exit if running for the first time.
+    if (!target) return // Exit if running for the first time.
     this.settings.axis = null
     this.selectChart()
   }

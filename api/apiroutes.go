@@ -1603,6 +1603,10 @@ func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.R
 func (c *appContext) ChartTypeData(w http.ResponseWriter, r *http.Request) {
 	chartType := m.GetChartTypeCtx(r)
 	bin := r.URL.Query().Get("bin")
+	// Support the deprecated URL parameter "zoom".
+	if bin == "" {
+		bin = r.URL.Query().Get("zoom")
+	}
 	axis := r.URL.Query().Get("axis")
 	chartData, err := c.charts.Chart(chartType, bin, axis)
 	if err != nil {
