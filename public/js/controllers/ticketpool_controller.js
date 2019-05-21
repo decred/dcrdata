@@ -78,7 +78,7 @@ function priceGraphData (items, memP) {
 
 function populateOutputs (data) {
   var totalCount = parseInt(data.count.reduce((a, n) => { return a + n }, 0))
-  var tableData = `<thead><td># of Outputs</td><td>Count</td><td>% Occurence</td></thead>`
+  var tableData = `<tr><th style="width: 30%;"># of sstxcommitment outputs</th><th>Count</th><th>% Occurence</th></tr>`
   data.outputs.map((n, i) => {
     var count = parseInt(data.count[i])
     tableData += `<tr><td class="pr-2 lh1rem vam nowrap xs-w117 font-weight-bold">${parseInt(n)}</td>
