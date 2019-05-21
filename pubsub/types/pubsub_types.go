@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/json"
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -9,6 +10,23 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	exptypes "github.com/decred/dcrdata/explorer/types"
 )
+
+// Ver is a json tagged version type.
+type Ver struct {
+	Major uint32 `json:"major"`
+	Minor uint32 `json:"minor"`
+	Patch uint32 `json:"patch"`
+}
+
+// NewVer creates a Ver from the major/minor/patch version components.
+func NewVer(major, minor, patch uint32) Ver {
+	return Ver{major, minor, patch}
+}
+
+// String implements Stringer for Ver.
+func (v Ver) String() string {
+	return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Patch)
+}
 
 var (
 	// ErrWsClosed is the error message when a websocket.(*Conn).Close tries to
@@ -71,6 +89,10 @@ type HubSignal int
 const (
 	SigSubscribe HubSignal = iota
 	SigUnsubscribe
+	SigDecodeTx
+	SigGetMempoolTxs
+	SigSendTx
+	SigVersion
 	SigNewBlock
 	SigMempoolUpdate
 	SigPingAndUserCount
@@ -94,6 +116,10 @@ var Subscriptions = map[string]HubSignal{
 var eventIDs = map[HubSignal]string{
 	SigSubscribe:        "subscribe",
 	SigUnsubscribe:      "unsubscribe",
+	SigDecodeTx:         "decodetx",
+	SigGetMempoolTxs:    "getmempooltxs",
+	SigSendTx:           "sendtx",
+	SigVersion:          "getversion",
 	SigNewBlock:         "newblock",
 	SigMempoolUpdate:    "mempool",
 	SigPingAndUserCount: "ping",

@@ -9,9 +9,17 @@ import (
 	"time"
 
 	exptypes "github.com/decred/dcrdata/explorer/types"
+	pubsub "github.com/decred/dcrdata/pubsub"
 	pstypes "github.com/decred/dcrdata/pubsub/types"
+	"github.com/decred/dcrdata/semver"
 	"golang.org/x/net/websocket"
 )
+
+// Version indicates the semantic version of the pubsub module, to which the
+// psclient belongs.
+func Version() semver.Semver {
+	return pubsub.Version()
+}
 
 func makeRequestMsg(event string, reqID int64) []byte {
 	event = strings.Trim(event, `"`)
@@ -28,8 +36,7 @@ func makeRequestMsg(event string, reqID int64) []byte {
 
 // newSubscribeMsg creates a new subscribe message equivalent to marshaling a
 // pstypes.WebSocketMessage with EventId set to "subscribe" and Message set to
-// the input string, event. json.Marshal is not used, but tests ensure the
-// correct result.
+// the input string, event.
 func newSubscribeMsg(event string, reqID int64) []byte {
 	subMsg, err := json.Marshal(pstypes.WebSocketMessage{
 		EventId: "subscribe",
@@ -44,8 +51,7 @@ func newSubscribeMsg(event string, reqID int64) []byte {
 
 // newUnsubscribeMsg creates a new unsubscribe message equivalent to marshaling
 // a pstypes.WebSocketMessage with EventId set to "unsubscribe" and Message set
-// to the input string, event. json.Marshal is not used, but tests ensure the
-// correct result.
+// to the input string, event.
 func newUnsubscribeMsg(event string, reqID int64) []byte {
 	unsubMsg, err := json.Marshal(pstypes.WebSocketMessage{
 		EventId: "unsubscribe",
@@ -56,6 +62,20 @@ func newUnsubscribeMsg(event string, reqID int64) []byte {
 	}
 
 	return unsubMsg
+}
+
+// newServerVersionMsg creates a new server version query with EventId set to
+// "version", and request message content generated for the specified reqID.
+func newServerVersionMsg(reqID int64) []byte {
+	verMsg, err := json.Marshal(pstypes.WebSocketMessage{
+		EventId: "version",
+		Message: makeRequestMsg("", reqID),
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to json.Marshal a WebSocketMessage: %v", err))
+	}
+
+	return verMsg
 }
 
 var defaultTimeout = 10 * time.Second
@@ -107,6 +127,25 @@ func New(url string, ctx context.Context, opts *Opts) (*Client, error) {
 	}
 
 	go cl.receiver()
+
+	// Query for the server's pubsub version.
+	serverVer, err := cl.ServerVersion()
+	if err != nil {
+		cl.Stop()
+		return nil, fmt.Errorf("failed to get server pubsub version: %v", err)
+	}
+	log.Infof("Server pubsub version: %s\n", serverVer)
+
+	// Ensure the server's pubsub version (actual) is compatible with the
+	// client's version (required). This allows the client to have a high minor
+	// version for equal major versions.
+	clientSemVer := Version()
+	serverSemVer := semver.NewSemver(serverVer.Major, serverVer.Minor, serverVer.Patch)
+	if !semver.Compatible(clientSemVer, serverSemVer) {
+		cl.Stop()
+		return nil, fmt.Errorf("server pubsub version is %v, but client is version %v",
+			serverSemVer, clientSemVer)
+	}
 
 	return cl, nil
 }
@@ -326,16 +365,42 @@ func (c *Client) Unsubscribe(event string) (*pstypes.ResponseMessage, error) {
 	msg := newUnsubscribeMsg(event, reqID)
 	defer c.deleteRequestID(reqID)
 
-	// Send the subscribe message
+	// Send the subscribe message.
+	if err := c.send(msg); err != nil {
+		return nil, fmt.Errorf("failed to send unsubscribe message: %v", err)
+	}
+
+	// Wait for a response with the requestID.
+	resp := <-respChan
+
+	// Read the response.
+	return resp, nil
+}
+
+// ServerVersion sends a server version query, and returns the response.
+func (c *Client) ServerVersion() (*pstypes.Ver, error) {
+	respChan, reqID := c.newResponseChan()
+	msg := newServerVersionMsg(reqID)
+	defer c.deleteRequestID(reqID)
+
+	// Send the server version message.
 	if err := c.send(msg); err != nil {
 		return nil, fmt.Errorf("failed to send unsubscribe message: %v", err)
 	}
 
 	// Wait for a response with the requestID
 	resp := <-respChan
+	if !resp.Success {
+		return nil, fmt.Errorf("failed to obtain server version")
+	}
+
+	var ver pstypes.Ver
+	if err := json.Unmarshal([]byte(resp.Data), &ver); err != nil {
+		return nil, fmt.Errorf("failed to decode server version response: %v", err)
+	}
 
 	// Read the response.
-	return resp, nil
+	return &ver, nil
 }
 
 // receiveMsgTimeout waits for the specified time Duration for a message,

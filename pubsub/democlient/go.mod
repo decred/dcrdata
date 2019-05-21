@@ -30,6 +30,7 @@ require (
 	github.com/decred/dcrdata/explorer/types v1.0.1-0.20190501025527-02d6f8e648f7
 	github.com/decred/dcrdata/pubsub v1.0.1-0.20190501025527-02d6f8e648f7
 	github.com/decred/dcrdata/pubsub/types v1.0.1-0.20190501025527-02d6f8e648f7
+	github.com/decred/dcrdata/semver v1.0.0
 	github.com/decred/dcrdata/txhelpers v1.0.2-0.20190501025527-02d6f8e648f7 // indirect
 	github.com/decred/slog v1.0.0
 	github.com/google/go-cmp v0.3.0 // indirect
