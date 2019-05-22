@@ -567,6 +567,17 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 		if err != nil {
 			return nil, fmt.Errorf("failed to set experimental_serial_normalization: %v", err)
 		}
+
+		// Prevent too many versions of nextval() during bulk inserts using
+		// autoincrement of row primary key by lowering garbage the collection
+		// interval (from 25 hours!).
+		crdbGCInterval := 1200 // 20 minutes between garbage collections
+		_, err = db.Exec(fmt.Sprintf(`ALTER DATABASE %s configure zone using gc.ttlseconds=%d;`,
+			dbi.DBName, crdbGCInterval))
+		if err != nil {
+			return nil, fmt.Errorf(`failed to set gc.ttlseconds=%d for database "%s": %v`,
+				crdbGCInterval, dbi.DBName, err)
+		}
 	}
 
 	// Perform any necessary database schema upgrades.
