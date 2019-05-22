@@ -33,8 +33,6 @@ type websocketFeed interface {
 	Write(interface{}) error
 	// Close will disconnect, causing any pending Read operations to error out.
 	Close()
-	// On will be true if close has not been called.
-	On() bool
 }
 
 // The socketConfig is the configuration passed to newSocketConnection. It is
@@ -90,13 +88,6 @@ func (client *socketClient) Close() {
 	client.conn.Close()
 }
 
-// On will be true if Close has not been called.
-func (client *socketClient) On() bool {
-	client.mtx.Lock()
-	defer client.mtx.Unlock()
-	return client.on
-}
-
 // Constructor for a socketClient, but returned as a websocketFeed.
 func newSocketConnection(cfg *socketConfig) (websocketFeed, error) {
 	dialer := &websocket.Dialer{
@@ -144,7 +135,6 @@ func dumpSignalrMsg(msg signalr.Message) {
 type signalrClient interface {
 	Send(hubs.ClientMsg) error
 	Close()
-	On() bool
 }
 
 type signalrConfig struct {
@@ -182,13 +172,6 @@ func (conn *signalrConnection) Close() {
 	}
 	conn.on = false
 	conn.c.Close()
-}
-
-// On checks whether Close has been called on this connection.
-func (conn *signalrConnection) On() bool {
-	conn.mtx.Lock()
-	defer conn.mtx.Unlock()
-	return conn.on
 }
 
 // Create a new signalr connection. Returns the signalrClient interface rather

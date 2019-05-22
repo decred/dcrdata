@@ -576,11 +576,7 @@ func (xc *CommonExchange) connectWebsocket(processor WebsocketProcessor, cfg *so
 	xc.wsMtx.Lock()
 	// Ensure that any previous websocket is closed.
 	if xc.ws != nil {
-		select {
-		case <-xc.ws.Done():
-		default:
-			xc.ws.Close()
-		}
+		xc.ws.Close()
 	}
 	xc.wsProcessor = processor
 	xc.ws = ws
@@ -614,29 +610,21 @@ func (xc *CommonExchange) wsSend(msg interface{}) error {
 
 // Checks whether the websocketFeed Done channel is closed.
 func (xc *CommonExchange) wsListening() bool {
-	ws, _ := xc.websocket()
-	if ws == nil {
-		sr := xc.signalr()
-		if sr == nil {
-			return false
-		}
-		return sr.On()
-	}
-	return ws.On()
+	xc.wsMtx.RLock()
+	defer xc.wsMtx.RUnlock()
+	return xc.wsSync.init.After(xc.wsSync.fail)
 }
 
 // Log the error and time, and increment the error counter.
 func (xc *CommonExchange) setWsFail(err error) {
-	sr := xc.signalr()
-	if sr != nil && !xc.wsFailed() {
-		sr.Close()
-	}
-	ws, _ := xc.websocket()
-	if ws != nil {
-		ws.Close()
-	}
 	xc.wsMtx.Lock()
 	defer xc.wsMtx.Unlock()
+	if xc.ws != nil {
+		xc.ws.Close()
+	}
+	if xc.sr != nil {
+		xc.sr.Close()
+	}
 	log.Errorf("%s websocket error: %v", xc.token, err)
 	xc.wsSync.err = err
 	xc.wsSync.errCount++
@@ -687,7 +675,7 @@ func (xc *CommonExchange) connectSignalr(cfg *signalrConfig) (err error) {
 	}
 	xc.wsMtx.Lock()
 	defer xc.wsMtx.Unlock()
-	if xc.sr != nil && !xc.wsSync.fail.After(xc.wsSync.init) {
+	if xc.sr != nil {
 		xc.sr.Close()
 	}
 	xc.sr, err = newSignalrConnection(cfg)
