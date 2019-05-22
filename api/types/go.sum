@@ -50,6 +50,7 @@ github.com/decred/dcrd/dcrec v0.0.0-20180721031028-5369a485acf6/go.mod h1:cRAH1S
 github.com/decred/dcrd/dcrec v0.0.0-20180801202239-0761de129164/go.mod h1:cRAH1SNk8Mi9hKBc/DHbeiWz/fyO8KWZR3H7okrIuOA=
 github.com/decred/dcrd/dcrec v0.0.0-20190130161649-59ed4247a1d5 h1:rz0HmQLuABmKj2fFaeYMpJSG66JrDhU3mQ1tDBeGfQk=
 github.com/decred/dcrd/dcrec v0.0.0-20190130161649-59ed4247a1d5/go.mod h1:cRAH1SNk8Mi9hKBc/DHbeiWz/fyO8KWZR3H7okrIuOA=
+github.com/decred/dcrd/dcrec v0.0.0-20190402182842-879eebce3333 h1:SsHXaZfWwQSq+dGzxKM7BqrrKcr1NbNA6c3qiBNCBZY=
 github.com/decred/dcrd/dcrec v0.0.0-20190402182842-879eebce3333/go.mod h1:HIaqbEJQ+PDzQcORxnqen5/V1FR3B4VpIfmePklt8Q8=
 github.com/decred/dcrd/dcrec v0.0.0-20190413175304-e69a789183f3 h1:UsOBnj2jml7dVI4DuvJyF97wBMNvK+rZ4Zw53n325QA=
 github.com/decred/dcrd/dcrec v0.0.0-20190413175304-e69a789183f3/go.mod h1:HIaqbEJQ+PDzQcORxnqen5/V1FR3B4VpIfmePklt8Q8=
@@ -58,6 +59,7 @@ github.com/decred/dcrd/dcrec/edwards v0.0.0-20180721031028-5369a485acf6/go.mod h
 github.com/decred/dcrd/dcrec/edwards v0.0.0-20181208004914-a0816cf4301f/go.mod h1:+ehP0Hk/mesyZXttxCtBbhPX23BMpZJ1pcVBqUfbmvU=
 github.com/decred/dcrd/dcrec/edwards v0.0.0-20190130161649-59ed4247a1d5 h1:qA+q5URxOMLCts1hTsNlXfOOtT2d83b3Z597yupIn5A=
 github.com/decred/dcrd/dcrec/edwards v0.0.0-20190130161649-59ed4247a1d5/go.mod h1:+ehP0Hk/mesyZXttxCtBbhPX23BMpZJ1pcVBqUfbmvU=
+github.com/decred/dcrd/dcrec/edwards v0.0.0-20190402182842-879eebce3333 h1:6Z3TuqdknGNISdaxQscCYUzl5fS1lMBF+By4u3xNuWQ=
 github.com/decred/dcrd/dcrec/edwards v0.0.0-20190402182842-879eebce3333/go.mod h1:HblVh1OfMt7xSxUL1ufjToaEvpbjpWvvTAUx4yem8BI=
 github.com/decred/dcrd/dcrec/edwards v0.0.0-20190413175304-e69a789183f3 h1:1wv0uKVmJPop93YuyJeornJJVzP0613X5keCU4xLKT0=
 github.com/decred/dcrd/dcrec/edwards v0.0.0-20190413175304-e69a789183f3/go.mod h1:HblVh1OfMt7xSxUL1ufjToaEvpbjpWvvTAUx4yem8BI=
@@ -105,6 +107,8 @@ github.com/decred/dcrdata/txhelpers v1.0.1/go.mod h1:oZOlm7v82oD5SIy1wlOBG0OT92C
 github.com/decred/dcrdata/txhelpers v1.0.2-0.20190415153927-351272ba94ab/go.mod h1:IyxuqUxIPrHnOmRy9DCl90oqw7FxYHde/fkIkF21B7w=
 github.com/decred/dcrdata/txhelpers v1.0.2-0.20190416155607-25afe5d5e790 h1:hmGinC7kJ0kGjw6fNSfpFPIZaguZqbshDYAnFby8vxM=
 github.com/decred/dcrdata/txhelpers v1.0.2-0.20190416155607-25afe5d5e790/go.mod h1:IyxuqUxIPrHnOmRy9DCl90oqw7FxYHde/fkIkF21B7w=
+github.com/decred/dcrdata/txhelpers v1.0.2-0.20190416204615-70a58657e02f h1:UHK/F4XLVGFisd1qbP8ILmJG8AM6ShzgfhCTNH/iExw=
+github.com/decred/dcrdata/txhelpers v1.0.2-0.20190416204615-70a58657e02f/go.mod h1:IyxuqUxIPrHnOmRy9DCl90oqw7FxYHde/fkIkF21B7w=
 github.com/decred/dcrwallet/rpc/jsonrpc/types v1.0.0 h1:FPVohgxZHHwi7qTOBki/Dw9j5cgGsZYiktGSfgqHR0w=
 github.com/decred/dcrwallet/rpc/jsonrpc/types v1.0.0/go.mod h1:k+IOPnUY0YqlwhSDhczzaUN17NX/gMtztwl3UxKgVZY=
 github.com/decred/slog v1.0.0 h1:Dl+W8O6/JH6n2xIFN2p3DNjCmjYwvrXsjlSJTQQ4MhE=
@@ -170,6 +174,7 @@ golang.org/x/crypto v0.0.0-20180718160520-a2144134853f/go.mod h1:6SG95UA2DQfeDnf
 golang.org/x/crypto v0.0.0-20190131182504-b8fe1690c613 h1:MQ/ZZiDsUapFFiMS+vzwXkCTeEKaum+Do5rINYJDmxc=
 golang.org/x/crypto v0.0.0-20190131182504-b8fe1690c613/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c h1:Vj5n4GlwjmQteupaxJ9+0FNOmBrHfq7vN4btdGoDZgI=
 golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
 golang.org/x/crypto v0.0.0-20190411191339-88737f569e3a h1:Igim7XhdOpBnWPuYJ70XcNpq8q3BCACtVgNfoJxOV7g=
 golang.org/x/crypto v0.0.0-20190411191339-88737f569e3a/go.mod h1:WFFai1msRO1wXaEeE5yQxYXgSfI8pQAWXbQop6sCtWE=

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-
 	"github.com/decred/dcrdata/db/dbtypes"
 )
 
@@ -66,7 +65,7 @@ func TestAddressCacheItem_Transactions(t *testing.T) {
 		}
 
 		switch rows.(type) {
-		case []dbtypes.AddressRowCompact:
+		case []*dbtypes.AddressRowCompact:
 		default:
 			t.Error("rows type should have been []dbtypes.AddressRowCompact")
 		}
@@ -86,7 +85,7 @@ func TestAddressCacheItem_Transactions(t *testing.T) {
 		}
 
 		switch rows.(type) {
-		case []dbtypes.AddressRowMerged:
+		case []*dbtypes.AddressRowMerged:
 		default:
 			t.Error("rows type should have been []dbtypes.AddressRowMerged")
 		}
@@ -95,7 +94,7 @@ func TestAddressCacheItem_Transactions(t *testing.T) {
 	// rows cache hit
 
 	txHash, _ := chainhash.NewHashFromStr("05e7195ce139c62a46cb77e0002018a14ebe7e6442cd6c2e39274902a44a2a66")
-	aci.rows = []dbtypes.AddressRowCompact{
+	aci.rows = []*dbtypes.AddressRowCompact{
 		{
 			Address: "Dsnieug5H7Zn3SjUWwbcZ17ox9d3F2TEvZV",
 			TxHash:  *txHash,
@@ -123,7 +122,7 @@ func TestAddressCacheItem_Transactions(t *testing.T) {
 
 		if v.merged {
 			switch r := rows.(type) {
-			case []dbtypes.AddressRowMerged:
+			case []*dbtypes.AddressRowMerged:
 				if len(r) != len(aci.rows) {
 					t.Fatalf("number of rows incorrect. Got %d, want %d",
 						len(r), len(aci.rows))
@@ -133,7 +132,7 @@ func TestAddressCacheItem_Transactions(t *testing.T) {
 			}
 		} else {
 			switch r := rows.(type) {
-			case []dbtypes.AddressRowCompact:
+			case []*dbtypes.AddressRowCompact:
 				if len(r) != len(aci.rows) {
 					t.Fatalf("number of rows incorrect. Got %d, want %d",
 						len(r), len(aci.rows))
