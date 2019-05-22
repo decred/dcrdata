@@ -570,5 +570,15 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			return addrPKH.EncodeAddress()
 		},
 		"toAbsValue": math.Abs,
+		"toFloat64": func(x uint32) float64 {
+			return float64(x)
+		},
+		"toInt": func(str string) int {
+			intStr, err := strconv.Atoi(str)
+			if err != nil {
+				return 0
+			}
+			return intStr
+		},
 	}
 }
