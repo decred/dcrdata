@@ -46,7 +46,7 @@ testrepo () {
 
   # run tests on all modules
   for MODPATH in $MODPATHS; do
-    env GORACE='halt_on_error=1' go test -v -race $(cd $MODPATH && go list -m)
+    env GORACE='halt_on_error=1' go test -v $(cd $MODPATH && go list -m)
   done
 
   # check linters
