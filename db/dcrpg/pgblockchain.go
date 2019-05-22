@@ -572,9 +572,11 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 		// autoincrement of row primary key by lowering garbage the collection
 		// interval (from 25 hours!).
 		crdbGCInterval := 1200 // 20 minutes between garbage collections
-		_, err = db.Exec(fmt.Sprintf(`ALTER DATABASE %s configure zone using gc.ttlseconds=%d;`,
-			dbi.DBName, crdbGCInterval))
+		_, err = db.Exec(fmt.Sprintf(`ALTER DATABASE %s CONFIGURE ZONE USING gc.ttlseconds=$1;`,
+			dbi.DBName), crdbGCInterval)
 		if err != nil {
+			// In secure mode, the user may need permissions to modify zones. e.g.
+			// GRANT UPDATE ON TABLE dcrdata_mainnet.crdb_internal.zones TO dcrdata_user;
 			return nil, fmt.Errorf(`failed to set gc.ttlseconds=%d for database "%s": %v`,
 				crdbGCInterval, dbi.DBName, err)
 		}
