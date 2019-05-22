@@ -106,8 +106,8 @@
                     <tr>
                         <th class="text-left">Title</th>
                         <th class="text-left">Author</th>
-                        <th class="text-left">Proposal Status</th>
-                        <th class="text-left">Vote Status</th>
+                        <th class="text-left">Proposal Vote Status</th>
+                        <th class="text-left">Vote Count</th>
                         <th class="text-right">Age</th>
                         <th class="text-right">Updated</th>
                     </tr>
@@ -118,12 +118,43 @@
                     <tr>
                         <td class="text-left"><a href="/proposal/{{.RefID}}">{{.Name}}</a></td>
                         <td class="text-left">{{.Username}}</td>
-                        {{with .Status}}
-                            <td class="text-left">{{toTitleCase .String}}</td>
-                        {{end}}
                         <td class="text-left">
-                            {{if .VoteStatus}}{{with .VoteStatus}}{{.ShortDesc}}{{end}}{{else}}N/A{{end}}
+                            {{if .VoteStatus}}
+                                {{if eq .VoteStatus.ShortDesc "Not Authorized"}}
+                                    <span class="text-abandoned">
+                                        In Discussion
+                                    </span>
+                                {{else}}
+                                    {{range $i, $vr := .VoteResults}}
+                                        {{if eq $vr.Option.OptionID "yes"}}
+                                            {{$votesPercent :=  percentage $vr.VotesReceived $v.TotalVotes}}
+                                            {{if lt $.Tip.Height (toInt $v.Endheight)}}
+                                                <span class="text-progress">
+                                                    In Progress ({{printf "%.0f" ($votesPercent)}}%)
+                                                </span>
+                                            {{else if lt (percentage $v.TotalVotes $v.NumOfEligibleVotes) (toFloat64 $v.QuorumPercentage)}}
+                                                <span class="text-no-quorum">No quorum</span>
+                                            {{else}}
+                                                {{if lt $votesPercent (toFloat64 $v.PassPercentage)}}
+                                                    <span class="text-failed">
+                                                        Failed ({{printf "%.0f" ($votesPercent)}}%)
+                                                    </span>
+                                                {{else}}
+                                                    <span class="text-green">
+                                                        Passed ({{printf "%.0f" ($votesPercent)}}%)
+                                                    </span>
+                                                {{end}}
+                                            {{end}}
+                                        {{end}}
+                                    {{end}}
+                                {{end}}
+                            {{else}}
+                                <span class="text-abandoned">
+                                    Abandoned
+                                </span>
+                            {{end}}
                         </td>
+                        <td class="text-left">{{.TotalVotes}}</td>
                         <td class="text-right" data-target="time.age" data-age="{{.Timestamp}}"></td>
                         <td class="text-right">{{timeWithoutDateAndTimeZone .Timestamp}}</td>
                     </tr>
