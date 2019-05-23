@@ -178,53 +178,60 @@ type TxInfo struct {
 	TicketInfo
 }
 
+const (
+	TicketTypeStr   = "Ticket"
+	VoteTypeStr     = "Vote"
+	RevTypeStr      = "Revocation"
+	CoinbaseTypeStr = "Coinbase"
+)
+
 // IsTicket checks whether this transaction is a ticket.
 func (t *TxInfo) IsTicket() bool {
-	return t.Type == "Ticket"
+	return t.Type == TicketTypeStr
 }
 
 // IsVote checks whether this transaction is a vote.
 func (t *TxInfo) IsVote() bool {
-	return t.Type == "Vote"
+	return t.Type == VoteTypeStr
 }
 
 // IsRevocation checks whether this transaction is a revocation.
 func (t *TxInfo) IsRevocation() bool {
-	return t.Type == "Revocation"
+	return t.Type == RevTypeStr
 }
 
 // IsLiveTicket verifies the conditions: 1. is a ticket, 2. is mature,
 // 3. hasn't voted, 4. isn't  expired.
 func (t *TxInfo) IsLiveTicket() bool {
-	return t.Type == "Ticket" && t.Mature == "True" && t.SpendStatus != "Voted" &&
+	return t.Type == TicketTypeStr && t.Mature == "True" && t.SpendStatus != "Voted" &&
 		t.PoolStatus == "live" && t.TicketLiveBlocks < t.TicketExpiry
 }
 
 // IsExpiredTicket verifies the conditions: 1. is a ticket, 2. is mature,
 // 3. hasn't voted, 4. is past expiration.
 func (t *TxInfo) IsExpiredTicket() bool {
-	return t.Type == "Ticket" && t.Mature == "True" && t.SpendStatus != "Voted" &&
+	return t.Type == TicketTypeStr && t.Mature == "True" && t.SpendStatus != "Voted" &&
 		t.PoolStatus == "live" && t.TicketLiveBlocks >= t.TicketExpiry
 }
 
 // IsImmatureTicket verifies the conditions: 1. is a ticket, 2. is not mature.
 func (t *TxInfo) IsImmatureTicket() bool {
-	return t.Type == "Ticket" && t.Mature == "False"
+	return t.Type == TicketTypeStr && t.Mature == "False"
 }
 
 // IsImmatureVote verifies the conditions: 1. is a vote, 2. is not mature.
 func (t *TxInfo) IsImmatureVote() bool {
-	return t.Type == "Vote" && t.Mature == "False"
+	return t.Type == VoteTypeStr && t.Mature == "False"
 }
 
 // IsImmatureCoinbase verifies the conditions: 1. is coinbase, 2. is not mature.
 func (t *TxInfo) IsImmatureCoinbase() bool {
-	return t.Type == "Coinbase" && t.Mature == "False"
+	return t.Type == CoinbaseTypeStr && t.Mature == "False"
 }
 
 // BlocksToTicketMaturity will return 0 if this isn't an immature ticket.
 func (t *TxInfo) BlocksToTicketMaturity() (blocks int64) {
-	if t.Type != "Ticket" {
+	if t.Type != TicketTypeStr {
 		return
 	}
 	if t.Mature == "True" {

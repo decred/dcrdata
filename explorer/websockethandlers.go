@@ -99,7 +99,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 						message, err := json.MarshalIndent(tx, "", "    ")
 						if err != nil {
 							log.Warn("Invalid JSON message: ", err)
-							webData.Message = "Error: Could not encode JSON message"
+							webData.Message = errMsgJSONEncode
 							break
 						}
 						webData.Message = string(message)
@@ -140,7 +140,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 
 					if err != nil {
 						log.Warn("Invalid JSON message: ", err)
-						webData.Message = "Error: Could not encode JSON message"
+						webData.Message = errMsgJSONEncode
 						break
 					}
 					webData.Message = string(msg)
@@ -159,7 +159,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 
 					if err != nil {
 						log.Warn("Invalid JSON message: ", err)
-						webData.Message = "Error: Could not encode JSON message"
+						webData.Message = errMsgJSONEncode
 						break
 					}
 					webData.Message = string(msg)
@@ -213,7 +213,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					msg, err := json.Marshal(data)
 					if err != nil {
 						log.Warn("Invalid JSON message: ", err)
-						webData.Message = "Error: Could not encode JSON message"
+						webData.Message = errMsgJSONEncode
 						break
 					}
 					webData.Message = string(msg)

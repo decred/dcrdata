@@ -27,8 +27,3 @@ require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/lib/pq v1.1.0
 )
-
-replace (
-	github.com/decred/dcrdata/api/types => ../../api/types
-	github.com/decred/dcrdata/db/cache => ../cache
-)

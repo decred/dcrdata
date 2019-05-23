@@ -2,8 +2,6 @@ module github.com/decred/dcrdata/db/dbtypes
 
 go 1.11
 
-replace github.com/decred/dcrdata/db/dcrpg => ../../db/dcrpg
-
 require (
 	github.com/decred/dcrd/blockchain/stake v1.1.0
 	github.com/decred/dcrd/chaincfg v1.4.0

@@ -2,11 +2,6 @@ module github.com/decred/dcrdata/mempool
 
 go 1.11
 
-replace (
-	github.com/decred/dcrdata/pubsub/types => ../pubsub/types
-	github.com/decred/dcrdata/txhelpers => ../txhelpers
-)
-
 require (
 	github.com/decred/dcrd/blockchain v1.1.1
 	github.com/decred/dcrd/blockchain/stake v1.1.0

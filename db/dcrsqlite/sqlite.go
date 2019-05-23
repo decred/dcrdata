@@ -1724,7 +1724,7 @@ func (db *DB) JustifyTableStructures(dbInfo *DBInfo) error {
 		_, err = transaction.Exec(query)
 		if err != nil {
 			log.Errorf("Failed updating SQLite table structure: \n", err)
-			transaction.Rollback()
+			_ = transaction.Rollback()
 			return err
 		}
 	}

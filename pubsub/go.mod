@@ -2,10 +2,6 @@ module github.com/decred/dcrdata/pubsub
 
 go 1.11
 
-replace github.com/decred/dcrdata/pubsub/types => ./types
-
-replace github.com/decred/dcrdata/mempool => ../mempool
-
 require (
 	github.com/DataDog/zstd v1.3.8 // indirect
 	github.com/decred/dcrd/chaincfg v1.4.0

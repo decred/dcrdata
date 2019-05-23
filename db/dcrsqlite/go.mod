@@ -1,8 +1,6 @@
 module github.com/decred/dcrdata/db/dcrsqlite
 
-go 1.12
-
-replace github.com/decred/dcrdata/stakedb => ../../stakedb
+go 1.11
 
 require (
 	github.com/boltdb/bolt v1.3.1 // indirect
@@ -27,9 +25,4 @@ require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/google/go-cmp v0.2.0
 	github.com/mattn/go-sqlite3 v1.10.0
-)
-
-replace (
-	github.com/decred/dcrdata/db/cache => ../cache
-	github.com/decred/dcrdata/testutil/dbconfig => ../../testutil/dbconfig
 )

@@ -261,7 +261,7 @@ func GetTxnsCtx(r *http.Request) ([]*chainhash.Hash, error) {
 		return nil, fmt.Errorf("ctxTxns not set")
 	}
 
-	var hashes []*chainhash.Hash
+	hashes := make([]*chainhash.Hash, 0, len(hashStrs))
 	for _, hashStr := range hashStrs {
 		hash, err := chainhash.NewHashFromStr(hashStr)
 		if err != nil {
@@ -659,7 +659,16 @@ func ChartGroupingCtx(next http.Handler) http.Handler {
 // of the routers handlers, etc.
 func apiDocs(mux *chi.Mux) func(next http.Handler) http.Handler {
 	var buf bytes.Buffer
-	json.Indent(&buf, []byte(docgen.JSONRoutesDoc(mux)), "", "\t")
+	err := json.Indent(&buf, []byte(docgen.JSONRoutesDoc(mux)), "", "\t")
+	if err != nil {
+		apiLog.Errorf("failed to prepare JSON routes docs: %v", err)
+		return func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Error(w, http.StatusText(http.StatusInternalServerError),
+					http.StatusInternalServerError)
+			})
+		}
+	}
 	docs := buf.String()
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

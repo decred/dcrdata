@@ -193,7 +193,7 @@ func (s *BlockDataToJSONFiles) Store(data *BlockData, _ *wire.MsgBlock) error {
 	return err
 }
 
-func writeFormattedJSONBlockData(jsonConcat *bytes.Buffer, w io.Writer) (int, error) {
+func writeFormattedJSONBlockData(jsonConcat fmt.Stringer, w io.Writer) (int, error) {
 	n, err := fmt.Fprintln(w, jsonConcat.String())
 	// there was once more, perhaps again.
 	return n, err

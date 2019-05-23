@@ -16,7 +16,6 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson/v2"
-	"github.com/decred/dcrd/rpcclient/v2"
 	exptypes "github.com/decred/dcrdata/explorer/types"
 	pstypes "github.com/decred/dcrdata/pubsub/types"
 	"github.com/decred/dcrdata/txhelpers"
@@ -119,7 +118,7 @@ func (p *MempoolMonitor) LastBlockTime() int64 {
 // mechanism used by main. The newTxIn contains a chain hash for the transaction
 // from the notificiation, or a zero value hash indicating it was from a Ticker
 // or manually triggered.
-func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
+func (p *MempoolMonitor) TxHandler(client txhelpers.VerboseTransactionGetter) {
 	defer p.wg.Done()
 	for {
 		select {

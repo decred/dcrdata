@@ -25,6 +25,8 @@ const (
 	bufferTickerInterval = 5
 	newTxBufferSize      = 5
 	clientSignalSize     = 5
+
+	errMsgJSONEncode = "Error: Could not encode JSON message"
 )
 
 // Type aliases for the different HubSignals.
@@ -81,7 +83,6 @@ type client struct {
 	newTxs []*types.MempoolTx
 }
 
-type hubSignal = pstypes.HubSignal
 type hubMessage = pstypes.HubMessage
 type hubSpoke chan hubMessage
 type exchangeChannel chan *WebsocketExchangeUpdate

@@ -63,7 +63,8 @@ func openDB() (func() error, error) {
 		DBName: "dcrdata_mainnet_test",
 	}
 	var err error
-	db, err = NewChainDB(&dbi, &chaincfg.MainNetParams, nil, true, true, addrCacheCap, nil)
+	db, err = NewChainDB(&dbi, &chaincfg.MainNetParams, nil, true, true,
+		addrCacheCap, nil, nil, nil)
 	cleanUp := func() error { return nil }
 	if db != nil {
 		cleanUp = db.Close
@@ -327,38 +328,6 @@ func TestRetrieveTxsByBlockHash(t *testing.T) {
 			t.Errorf("Incorrect block time: got %d, expected %d",
 				tT.Unix(), trefUNIX)
 		}
-	}
-}
-
-func Test_retrieveBlocksByHeight(t *testing.T) {
-	type args struct {
-		heightArr      []uint64
-		blocksCountArr []uint64
-		durationArr    []float64
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		{"empty inputs", args{}, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			heightArr, blocksCountArr, durationArr, err := retrieveBlocksByHeight(
-				context.Background(), db.db, tt.args.heightArr,
-				tt.args.blocksCountArr, tt.args.durationArr)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("retrieveBlocksByHeight() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if len(heightArr) != len(blocksCountArr) || len(heightArr) != len(durationArr) {
-				t.Errorf("heights: %d, blocks count: %d, durations: %d",
-					len(heightArr), len(blocksCountArr), len(durationArr))
-			}
-			t.Log(heightArr)
-			t.Log(durationArr)
-		})
 	}
 }
 

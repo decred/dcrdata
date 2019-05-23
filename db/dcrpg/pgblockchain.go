@@ -43,6 +43,19 @@ var (
 	zeroHashStringBytes = []byte(chainhash.Hash{}.String())
 )
 
+type retryError struct{}
+
+// Error implements Stringer for retryError.
+func (s retryError) Error() string {
+	return "retry"
+}
+
+// IsRetryError checks if an error is a retryError type.
+func IsRetryError(err error) bool {
+	_, isRetryErr := err.(retryError)
+	return isRetryErr
+}
+
 // storedAgendas holds the current state of agenda data already in the db.
 // This helps track changes in the lockedIn and activated heights when they
 // happen without making too many db accesses everytime we are updating the
@@ -1748,7 +1761,8 @@ func (pgb *ChainDB) FreshenAddressCaches(lazyProjectFund bool, expireAddresses [
 	// Update project fund data.
 	updateFundData := func() error {
 		log.Infof("Pre-fetching project fund data at height %d...", pgb.Height())
-		if err := pgb.updateProjectFundCache(); err != nil && err.Error() != "retry" {
+		err := pgb.updateProjectFundCache()
+		if err != nil && !IsRetryError(err) {
 			err = pgb.replaceCancelError(err)
 			return fmt.Errorf("Failed to update project fund data: %v", err)
 		}
@@ -1848,7 +1862,7 @@ func (pgb *ChainDB) updateAddressRows(address string) (rows []*dbtypes.AddressRo
 	if busy {
 		// Just wait until the updater is finished.
 		<-wait
-		err = fmt.Errorf("retry")
+		err = retryError{}
 		return
 	}
 
@@ -1888,7 +1902,7 @@ func (pgb *ChainDB) AddressRowsMerged(address string) ([]dbtypes.AddressRowMerge
 	// Update or wait for an update to the cached AddressRows.
 	rows, _, err := pgb.updateAddressRows(address)
 	if err != nil {
-		if err.Error() == "retry" {
+		if IsRetryError(err) {
 			// Try again, starting with cache.
 			return pgb.AddressRowsMerged(address)
 		}
@@ -1916,7 +1930,7 @@ func (pgb *ChainDB) AddressRowsCompact(address string) ([]dbtypes.AddressRowComp
 	// Update or wait for an update to the cached AddressRows.
 	rows, _, err := pgb.updateAddressRows(address)
 	if err != nil {
-		if err.Error() == "retry" {
+		if IsRetryError(err) {
 			// Try again, starting with cache.
 			return pgb.AddressRowsCompact(address)
 		}
@@ -2024,7 +2038,7 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 		// waiting to avoid a simultaneous query. With luck the cache will be
 		// updated with this data, although it may not be. Try again.
 		if err != nil && err != sql.ErrNoRows {
-			if err.Error() == "retry" {
+			if IsRetryError(err) {
 				// Try again, starting with cache.
 				return pgb.AddressHistory(address, N, offset, txnView)
 			}

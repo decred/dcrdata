@@ -58,7 +58,7 @@ func SetDBBestBlock(db *sql.DB, hash string, height int64) error {
 
 // SetIBDComplete set the ibd_complete (Initial Block Download complete) flag in
 // the meta table.
-func SetIBDComplete(db *sql.DB, ibdComplete bool) error {
+func SetIBDComplete(db SqlExecutor, ibdComplete bool) error {
 	numRows, err := sqlExec(db, internal.SetMetaDBIbdComplete,
 		"failed to update ibd_complete in meta table: ", ibdComplete)
 	if err != nil {
@@ -2422,7 +2422,7 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 
 		// Set the spending tx info (addresses table) for the funding transaction
 		// rows indicated by the vin DB ID.
-		addressRowsUpdated[iv], err = setSpendingForFundingOP(dbtx,
+		addressRowsUpdated[iv], err = SetSpendingForFundingOP(dbtx,
 			prevOutHash, prevOutVoutInd, txHash, txVinInd)
 		if err != nil {
 			return addressRowsUpdated, 0, fmt.Errorf(`insertSpendingTxByPrptStmt: `+
@@ -2465,7 +2465,7 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 
 	// Set the spending tx info (addresses table) for the funding transaction
 	// rows indicated by the vin DB ID.
-	N, err := setSpendingForFundingOP(dbtx, prevOutHash, prevOutVoutInd,
+	N, err := SetSpendingForFundingOP(dbtx, prevOutHash, prevOutVoutInd,
 		txHash, txVinInd)
 	if err != nil {
 		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
@@ -2482,19 +2482,6 @@ func SetSpendingForFundingOP(db SqlExecutor, fundingTxHash string, fundingTxVout
 	// Update the matchingTxHash for the funding tx output. matchingTxHash here
 	// is the hash of the funding tx.
 	res, err := db.Exec(internal.SetAddressMatchingTxHashForOutpoint,
-		spendingTxHash, fundingTxHash, fundingTxVoutIndex)
-	if err != nil || res == nil {
-		return 0, fmt.Errorf("SetAddressMatchingTxHashForOutpoint: %v", err)
-	}
-
-	return res.RowsAffected()
-}
-
-func setSpendingForFundingOP(dbtx *sql.Tx, fundingTxHash string, fundingTxVoutIndex uint32,
-	spendingTxHash string, _ /*spendingTxVinIndex*/ uint32) (int64, error) {
-	// Update the matchingTxHash for the funding tx output. matchingTxHash here
-	// is the hash of the funding tx.
-	res, err := dbtx.Exec(internal.SetAddressMatchingTxHashForOutpoint,
 		spendingTxHash, fundingTxHash, fundingTxVoutIndex)
 	if err != nil || res == nil {
 		return 0, fmt.Errorf("SetAddressMatchingTxHashForOutpoint: %v", err)
@@ -2591,7 +2578,7 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 
 	if updateFundingRow {
 		// Update the matching funding addresses row with the spending info.
-		return setSpendingForFundingOP(tx, fundingTxHash, fundingTxVoutIndex,
+		return SetSpendingForFundingOP(tx, fundingTxHash, fundingTxVoutIndex,
 			spendingTxHash, spendingTxVinIndex)
 	}
 	return 0, nil
@@ -3605,7 +3592,7 @@ func UpdateTransactionsValid(db *sql.DB, blockHash string, isValid bool) (int64,
 
 // UpdateVotesMainchain sets the is_mainchain column for the votes in the
 // specified block.
-func UpdateVotesMainchain(db *sql.DB, blockHash string, isMainchain bool) (int64, error) {
+func UpdateVotesMainchain(db SqlExecutor, blockHash string, isMainchain bool) (int64, error) {
 	numRows, err := sqlExec(db, internal.UpdateVotesMainchainByBlock,
 		"failed to update votes is_mainchain: ", isMainchain, blockHash)
 	if err != nil {
@@ -3616,7 +3603,7 @@ func UpdateVotesMainchain(db *sql.DB, blockHash string, isMainchain bool) (int64
 
 // UpdateTicketsMainchain sets the is_mainchain column for the tickets in the
 // specified block.
-func UpdateTicketsMainchain(db *sql.DB, blockHash string, isMainchain bool) (int64, error) {
+func UpdateTicketsMainchain(db SqlExecutor, blockHash string, isMainchain bool) (int64, error) {
 	numRows, err := sqlExec(db, internal.UpdateTicketsMainchainByBlock,
 		"failed to update tickets is_mainchain: ", isMainchain, blockHash)
 	if err != nil {
@@ -3627,7 +3614,7 @@ func UpdateTicketsMainchain(db *sql.DB, blockHash string, isMainchain bool) (int
 
 // UpdateAddressesMainchainByIDs sets the valid_mainchain column for the
 // addresses specified by their vin (spending) or vout (funding) row IDs.
-func UpdateAddressesMainchainByIDs(db *sql.DB, vinsBlk, voutsBlk []dbtypes.UInt64Array, isValidMainchain bool) (numSpendingRows, numFundingRows int64, err error) {
+func UpdateAddressesMainchainByIDs(db SqlExecutor, vinsBlk, voutsBlk []dbtypes.UInt64Array, isValidMainchain bool) (numSpendingRows, numFundingRows int64, err error) {
 	// Spending/vins: Set valid_mainchain for the is_funding=false addresses
 	// table rows using the vins row ids.
 	var numUpdated int64
@@ -3659,7 +3646,7 @@ func UpdateAddressesMainchainByIDs(db *sql.DB, vinsBlk, voutsBlk []dbtypes.UInt6
 
 // UpdateLastBlockValid updates the is_valid column of the block specified by
 // the row id for the blocks table.
-func UpdateLastBlockValid(db *sql.DB, blockDbID uint64, isValid bool) error {
+func UpdateLastBlockValid(db SqlExecutor, blockDbID uint64, isValid bool) error {
 	numRows, err := sqlExec(db, internal.UpdateLastBlockValid,
 		"failed to update last block validity: ", blockDbID, isValid)
 	if err != nil {
