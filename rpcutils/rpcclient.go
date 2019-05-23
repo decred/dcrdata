@@ -295,7 +295,7 @@ func sideChainTips(allTips []dcrjson.GetChainTipsResult) (sideTips []dcrjson.Get
 // side chain, and its previous block is the main/side common ancestor, which is
 // not included in the slice since it is main chain. The last block in the slice
 // is thus the side chain tip.
-func SideChainFull(client *rpcclient.Client, tipHash string) ([]string, error) {
+func SideChainFull(client BlockFetcher, tipHash string) ([]string, error) {
 	// Do not assume specified tip hash is even side chain.
 	var sideChain []string
 
@@ -338,7 +338,7 @@ func reverseStringSlice(s []string) {
 }
 
 // GetTransactionVerboseByID get a transaction by transaction id
-func GetTransactionVerboseByID(client *rpcclient.Client, txhash *chainhash.Hash) (*dcrjson.TxRawResult, error) {
+func GetTransactionVerboseByID(client txhelpers.VerboseTransactionGetter, txhash *chainhash.Hash) (*dcrjson.TxRawResult, error) {
 	txraw, err := client.GetRawTransactionVerbose(txhash)
 	if err != nil {
 		log.Errorf("GetRawTransactionVerbose failed for: %v", txhash)
@@ -578,7 +578,7 @@ func UnconfirmedTxnsForAddress(client *rpcclient.Client, address string, params 
 
 // APITransaction uses the RPC client to retrieve the specified transaction, and
 // convert the data into a *apitypes.Tx.
-func APITransaction(client *rpcclient.Client, txid *chainhash.Hash) (tx *apitypes.Tx, hex string, err error) {
+func APITransaction(client txhelpers.VerboseTransactionGetter, txid *chainhash.Hash) (tx *apitypes.Tx, hex string, err error) {
 	txraw, err := GetTransactionVerboseByID(client, txid)
 	if err != nil {
 		err = fmt.Errorf("APITransaction failed for %v: %v", txid, err)

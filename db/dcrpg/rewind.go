@@ -47,35 +47,35 @@ import (
 	"github.com/decred/dcrdata/db/dcrpg/internal"
 )
 
-func deleteMissesForBlock(dbTx *sql.Tx, hash string) (rowsDeleted int64, err error) {
+func deleteMissesForBlock(dbTx SqlExecutor, hash string) (rowsDeleted int64, err error) {
 	return sqlExec(dbTx, internal.DeleteMisses, "failed to delete misses", hash)
 }
 
-func deleteVotesForBlock(dbTx *sql.Tx, hash string) (rowsDeleted int64, err error) {
+func deleteVotesForBlock(dbTx SqlExecutor, hash string) (rowsDeleted int64, err error) {
 	return sqlExec(dbTx, internal.DeleteVotes, "failed to delete votes", hash)
 }
 
-func deleteTicketsForBlock(dbTx *sql.Tx, hash string) (rowsDeleted int64, err error) {
+func deleteTicketsForBlock(dbTx SqlExecutor, hash string) (rowsDeleted int64, err error) {
 	return sqlExec(dbTx, internal.DeleteTickets, "failed to delete tickets", hash)
 }
 
-func deleteTransactionsForBlock(dbTx *sql.Tx, hash string) (rowsDeleted int64, err error) {
+func deleteTransactionsForBlock(dbTx SqlExecutor, hash string) (rowsDeleted int64, err error) {
 	return sqlExec(dbTx, internal.DeleteTransactions, "failed to delete transactions", hash)
 }
 
-func deleteVoutsForBlock(dbTx *sql.Tx, hash string) (rowsDeleted int64, err error) {
+func deleteVoutsForBlock(dbTx SqlExecutor, hash string) (rowsDeleted int64, err error) {
 	return sqlExec(dbTx, internal.DeleteVouts, "failed to delete vouts", hash)
 }
 
-func deleteVinsForBlock(dbTx *sql.Tx, hash string) (rowsDeleted int64, err error) {
+func deleteVinsForBlock(dbTx SqlExecutor, hash string) (rowsDeleted int64, err error) {
 	return sqlExec(dbTx, internal.DeleteVins, "failed to delete vins", hash)
 }
 
-func deleteAddressesForBlock(dbTx *sql.Tx, hash string) (rowsDeleted int64, err error) {
+func deleteAddressesForBlock(dbTx SqlExecutor, hash string) (rowsDeleted int64, err error) {
 	return sqlExec(dbTx, internal.DeleteAddresses, "failed to delete addresses", hash)
 }
 
-func deleteBlock(dbTx *sql.Tx, hash string) (rowsDeleted int64, err error) {
+func deleteBlock(dbTx SqlExecutor, hash string) (rowsDeleted int64, err error) {
 	return sqlExec(dbTx, internal.DeleteBlock, "failed to delete block", hash)
 }
 

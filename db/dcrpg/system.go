@@ -223,7 +223,7 @@ func RetrieveSysSettingSyncCommit(db *sql.DB) (syncCommit string, err error) {
 }
 
 // SetSynchronousCommit sets the synchronous_commit setting.
-func SetSynchronousCommit(db *sql.DB, syncCommit string) error {
+func SetSynchronousCommit(db SqlExecutor, syncCommit string) error {
 	_, err := db.Exec(fmt.Sprintf(`SET synchronous_commit TO %s;`, syncCommit))
 	return err
 }

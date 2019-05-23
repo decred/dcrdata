@@ -58,7 +58,7 @@ func TableExists(db *sql.DB, tableName string) (bool, error) {
 	return rows.Next(), nil
 }
 
-func dropTable(db *sql.DB, tableName string) error {
+func dropTable(db SqlExecutor, tableName string) error {
 	_, err := db.Exec(fmt.Sprintf(`DROP TABLE IF EXISTS %s;`, tableName))
 	return err
 }
@@ -79,7 +79,7 @@ func DropTables(db *sql.DB) {
 }
 
 // DropTestingTable drops only the "testing" table.
-func DropTestingTable(db *sql.DB) error {
+func DropTestingTable(db SqlExecutor) error {
 	_, err := db.Exec(`DROP TABLE IF EXISTS testing;`)
 	return err
 }

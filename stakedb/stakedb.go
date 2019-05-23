@@ -331,22 +331,20 @@ func (db *StakeDatabase) PopulateLiveTicketCache() error {
 
 	log.Info("Pre-populating live ticket cache and computing pool value...")
 
-	// Send all the live ticket requests
+	// Send all the live ticket requests.
 	type promiseGetRawTransaction struct {
 		result rpcclient.FutureGetRawTransactionResult
 		ticket chainhash.Hash
 	}
 	promisesGetRawTransaction := make([]promiseGetRawTransaction, 0, len(liveTickets))
-
-	// Send all the live ticket requests
-	for _, hash := range liveTickets {
+	for i := range liveTickets {
 		promisesGetRawTransaction = append(promisesGetRawTransaction, promiseGetRawTransaction{
-			result: db.NodeClient.GetRawTransactionAsync(&hash),
-			ticket: hash,
+			result: db.NodeClient.GetRawTransactionAsync(&liveTickets[i]),
+			ticket: liveTickets[i],
 		})
 	}
 
-	// reset ticket cache
+	// Reset ticket cache.
 	db.liveTicketMtx.Lock()
 	db.poolValue = 0
 	db.liveTicketCache = make(map[chainhash.Hash]int64, db.params.TicketPoolSize*(db.params.TicketsPerBlock+1))

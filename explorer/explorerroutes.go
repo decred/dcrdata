@@ -111,7 +111,7 @@ func netName(chainParams *chaincfg.Params) string {
 		return "invalid"
 	}
 	if strings.HasPrefix(strings.ToLower(chainParams.Name), "testnet") {
-		return "Testnet"
+		return testnetNetName
 	}
 	return strings.Title(chainParams.Name)
 }
@@ -774,7 +774,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 
 		// Coinbase transactions are regular, but call them coinbase for the page.
 		if tx.Coinbase {
-			tx.Type = "Coinbase"
+			tx.Type = types.CoinbaseTypeStr
 		}
 
 		// Retrieve vouts from DB.
@@ -964,7 +964,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 
 	// For any coinbase transactions look up the total block fees to include
 	// as part of the inputs.
-	if tx.Type == "Coinbase" {
+	if tx.Type == types.CoinbaseTypeStr {
 		data := exp.blockData.GetExplorerBlock(tx.BlockHash)
 		if data == nil {
 			log.Errorf("Unable to get block %s", tx.BlockHash)
@@ -1126,7 +1126,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	for idx := range tx.Vin {
 		vin := &tx.Vin[idx]
 		if vin.Coinbase != "" {
-			vin.DisplayText = "Coinbase"
+			vin.DisplayText = types.CoinbaseTypeStr
 		} else if vin.Stakebase != "" {
 			vin.DisplayText = "Stakebase"
 		} else {

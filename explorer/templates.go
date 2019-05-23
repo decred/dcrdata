@@ -544,7 +544,7 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			return false
 		},
 		"redirectToTestnet": func(netName string, message string) bool {
-			if netName != "Testnet" && strings.Contains(message, "testnet") {
+			if netName != testnetNetName && strings.Contains(message, "testnet") {
 				return true
 			}
 			return false
