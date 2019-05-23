@@ -587,93 +587,89 @@ func (d *AddressCacheItem) SetBalance(block BlockID, balance *dbtypes.AddressBal
 	d.balance = balance
 }
 
-// CacheCounts stores cache hits and misses.
-type CacheCounts struct {
-	Hits, Misses int
-}
-
+// cacheCounts stores cache hits and misses.
 type cacheCounts struct {
 	sync.Mutex
-	CacheCounts
+	hits, misses int
 }
 
-// CacheMetrics is a collection of CacheCounts for the various cached data.
-type CacheMetrics struct {
+// cacheMetrics is a collection of CacheCounts for the various cached data.
+type cacheMetrics struct {
 	rowMetrics     cacheCounts
 	utxoMetrics    cacheCounts
 	balanceMetrics cacheCounts
 	historyMetrics cacheCounts
 }
 
-func (cm *CacheMetrics) RowStats() (hits, misses int) {
+func (cm *cacheMetrics) rowStats() (hits, misses int) {
 	cm.rowMetrics.Lock()
 	defer cm.rowMetrics.Unlock()
-	return cm.rowMetrics.Hits, cm.rowMetrics.Misses
+	return cm.rowMetrics.hits, cm.rowMetrics.misses
 }
 
-func (cm *CacheMetrics) BalanceStats() (hits, misses int) {
+func (cm *cacheMetrics) balanceStats() (hits, misses int) {
 	cm.balanceMetrics.Lock()
 	defer cm.balanceMetrics.Unlock()
-	return cm.balanceMetrics.Hits, cm.balanceMetrics.Misses
+	return cm.balanceMetrics.hits, cm.balanceMetrics.misses
 }
 
-func (cm *CacheMetrics) UtxoStats() (hits, misses int) {
+func (cm *cacheMetrics) utxoStats() (hits, misses int) {
 	cm.utxoMetrics.Lock()
 	defer cm.utxoMetrics.Unlock()
-	return cm.utxoMetrics.Hits, cm.utxoMetrics.Misses
+	return cm.utxoMetrics.hits, cm.utxoMetrics.misses
 }
 
-func (cm *CacheMetrics) HistoryStats() (hits, misses int) {
+func (cm *cacheMetrics) historyStats() (hits, misses int) {
 	cm.historyMetrics.Lock()
 	defer cm.historyMetrics.Unlock()
-	return cm.historyMetrics.Hits, cm.historyMetrics.Misses
+	return cm.historyMetrics.hits, cm.historyMetrics.misses
 }
 
-func (cm *CacheMetrics) RowHit() {
+func (cm *cacheMetrics) rowHit() {
 	cm.rowMetrics.Lock()
-	cm.rowMetrics.Hits++
+	cm.rowMetrics.hits++
 	cm.rowMetrics.Unlock()
 }
 
-func (cm *CacheMetrics) RowMiss() {
+func (cm *cacheMetrics) rowMiss() {
 	cm.rowMetrics.Lock()
-	cm.rowMetrics.Misses++
+	cm.rowMetrics.misses++
 	cm.rowMetrics.Unlock()
 }
 
-func (cm *CacheMetrics) UtxoHit() {
+func (cm *cacheMetrics) utxoHit() {
 	cm.utxoMetrics.Lock()
-	cm.utxoMetrics.Hits++
+	cm.utxoMetrics.hits++
 	cm.utxoMetrics.Unlock()
 }
 
-func (cm *CacheMetrics) UtxoMiss() {
+func (cm *cacheMetrics) utxoMiss() {
 	cm.utxoMetrics.Lock()
-	cm.utxoMetrics.Misses++
+	cm.utxoMetrics.misses++
 	cm.utxoMetrics.Unlock()
 }
 
-func (cm *CacheMetrics) BalanceHit() {
+func (cm *cacheMetrics) balanceHit() {
 	cm.balanceMetrics.Lock()
-	cm.balanceMetrics.Hits++
+	cm.balanceMetrics.hits++
 	cm.balanceMetrics.Unlock()
 }
 
-func (cm *CacheMetrics) BalanceMiss() {
+func (cm *cacheMetrics) balanceMiss() {
 	cm.balanceMetrics.Lock()
-	cm.balanceMetrics.Misses++
+	cm.balanceMetrics.misses++
 	cm.balanceMetrics.Unlock()
 }
 
-func (cm *CacheMetrics) HistoryHit() {
+func (cm *cacheMetrics) historyHit() {
 	cm.historyMetrics.Lock()
-	cm.historyMetrics.Hits++
+	cm.historyMetrics.hits++
 	cm.historyMetrics.Unlock()
 }
 
-func (cm *CacheMetrics) HistoryMiss() {
+func (cm *cacheMetrics) historyMiss() {
 	cm.historyMetrics.Lock()
-	cm.historyMetrics.Misses++
+	cm.historyMetrics.misses++
 	cm.historyMetrics.Unlock()
 }
 
@@ -684,7 +680,7 @@ type AddressCache struct {
 	a              map[string]*AddressCacheItem
 	cap            int
 	capAddr        int
-	cacheMetrics   CacheMetrics
+	cacheMetrics   cacheMetrics
 	ProjectAddress string
 }
 
@@ -705,22 +701,22 @@ func NewAddressCache(rowCapacity int) *AddressCache {
 
 // BalanceStats reports the balance hit/miss stats.
 func (ac *AddressCache) BalanceStats() (hits, misses int) {
-	return ac.cacheMetrics.BalanceStats()
+	return ac.cacheMetrics.balanceStats()
 }
 
-// RowStats reports the row hit/miss stats.
+// rowStats reports the row hit/miss stats.
 func (ac *AddressCache) RowStats() (hits, misses int) {
-	return ac.cacheMetrics.RowStats()
+	return ac.cacheMetrics.rowStats()
 }
 
 // UtxoStats reports the utxo hit/miss stats.
 func (ac *AddressCache) UtxoStats() (hits, misses int) {
-	return ac.cacheMetrics.UtxoStats()
+	return ac.cacheMetrics.utxoStats()
 }
 
 // HistoryStats reports the history data hit/miss stats.
 func (ac *AddressCache) HistoryStats() (hits, misses int) {
-	return ac.cacheMetrics.HistoryStats()
+	return ac.cacheMetrics.historyStats()
 }
 
 // Reporter prints the number of cached addresses, rows, and utxos, as well as a
@@ -797,10 +793,10 @@ func (ac *AddressCache) Clear(addrs []string) (numCleared int) {
 func (ac *AddressCache) Balance(addr string) (*dbtypes.AddressBalance, *BlockID) {
 	aci := ac.addressCacheItem(addr)
 	if aci == nil {
-		ac.cacheMetrics.BalanceMiss()
+		ac.cacheMetrics.balanceMiss()
 		return nil, nil
 	}
-	ac.cacheMetrics.BalanceHit()
+	ac.cacheMetrics.balanceHit()
 	return aci.Balance()
 }
 
@@ -810,10 +806,10 @@ func (ac *AddressCache) Balance(addr string) (*dbtypes.AddressBalance, *BlockID)
 func (ac *AddressCache) UTXOs(addr string) ([]apitypes.AddressTxnOutput, *BlockID) {
 	aci := ac.addressCacheItem(addr)
 	if aci == nil {
-		ac.cacheMetrics.UtxoMiss()
+		ac.cacheMetrics.utxoMiss()
 		return nil, nil
 	}
-	ac.cacheMetrics.UtxoHit()
+	ac.cacheMetrics.utxoHit()
 	return aci.UTXOs()
 }
 
@@ -825,17 +821,17 @@ func (ac *AddressCache) HistoryChart(addr string, addrChart dbtypes.HistoryChart
 	chartGrouping dbtypes.TimeBasedGrouping) (*dbtypes.ChartsData, *BlockID) {
 	aci := ac.addressCacheItem(addr)
 	if aci == nil {
-		ac.cacheMetrics.HistoryMiss()
+		ac.cacheMetrics.historyMiss()
 		return nil, nil
 	}
 
 	cd, blockID := aci.HistoryChart(addrChart, chartGrouping)
 	if cd == nil || blockID == nil {
-		ac.cacheMetrics.HistoryMiss()
+		ac.cacheMetrics.historyMiss()
 		return nil, nil
 	}
 
-	ac.cacheMetrics.HistoryHit()
+	ac.cacheMetrics.historyHit()
 	return cd, blockID
 }
 
@@ -845,10 +841,10 @@ func (ac *AddressCache) HistoryChart(addr string, addrChart dbtypes.HistoryChart
 func (ac *AddressCache) Rows(addr string) ([]dbtypes.AddressRowCompact, *BlockID) {
 	aci := ac.addressCacheItem(addr)
 	if aci == nil {
-		ac.cacheMetrics.RowMiss()
+		ac.cacheMetrics.rowMiss()
 		return nil, nil
 	}
-	ac.cacheMetrics.RowHit()
+	ac.cacheMetrics.rowHit()
 	return aci.Rows()
 }
 
@@ -890,10 +886,10 @@ func (ac *AddressCache) Transactions(addr string, N, offset int64, txnType dbtyp
 func (ac *AddressCache) TransactionsMerged(addr string, N, offset int64, txnType dbtypes.AddrTxnViewType) ([]dbtypes.AddressRowMerged, *BlockID, error) {
 	aci := ac.addressCacheItem(addr)
 	if aci == nil {
-		ac.cacheMetrics.RowMiss()
+		ac.cacheMetrics.rowMiss()
 		return nil, nil, nil // cache miss is not an error; *BlockID must be nil
 	}
-	ac.cacheMetrics.RowHit()
+	ac.cacheMetrics.rowHit()
 
 	rows, blockID, err := aci.Transactions(int(N), int(offset), txnType)
 	if err != nil {
@@ -916,10 +912,10 @@ func (ac *AddressCache) TransactionsMerged(addr string, N, offset int64, txnType
 func (ac *AddressCache) TransactionsCompact(addr string, N, offset int64, txnType dbtypes.AddrTxnViewType) ([]dbtypes.AddressRowCompact, *BlockID, error) {
 	aci := ac.addressCacheItem(addr)
 	if aci == nil {
-		ac.cacheMetrics.RowMiss()
+		ac.cacheMetrics.rowMiss()
 		return nil, nil, nil // cache miss is not an error; *BlockID must be nil
 	}
-	ac.cacheMetrics.RowHit()
+	ac.cacheMetrics.rowHit()
 
 	rows, blockID, err := aci.Transactions(int(N), int(offset), txnType)
 	if err != nil {
