@@ -176,7 +176,7 @@ func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
 			break
 		}
 
-		copyURLParams = fmt.Sprintf("%s?after=%v", URLParams, data.Data[pageSize-1].TokenVal)
+		copyURLParams = fmt.Sprintf("?before=%v", data.Data[pageSize-1].TokenVal)
 	}
 
 	// Save all the proposals
@@ -326,7 +326,7 @@ func (db *ProposalDB) CheckProposalsUpdates() error {
 
 	var queryParam string
 	if len(lastProposal) > 0 && lastProposal[0].TokenVal != "" {
-		queryParam = fmt.Sprintf("?after=%s", lastProposal[0].TokenVal)
+		queryParam = fmt.Sprintf("?before=%s", lastProposal[0].TokenVal)
 	}
 
 	n, err := db.saveProposals(queryParam)
@@ -343,7 +343,7 @@ func (db *ProposalDB) CheckProposalsUpdates() error {
 }
 
 func (db *ProposalDB) lastSavedProposal() (lastP []*pitypes.ProposalInfo, err error) {
-	err = db.dbP.All(&lastP, storm.Limit(1), storm.Reverse())
+	err = db.dbP.Select().Limit(1).OrderBy("Timestamp").Reverse().Find(&lastP)
 	return
 }
 
