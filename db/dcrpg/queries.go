@@ -1094,7 +1094,10 @@ func retrieveTicketsGroupedByType(ctx context.Context, db *sql.DB) (*dbtypes.Poo
 		}
 
 		tickets.Count = append(tickets.Count, count)
-		tickets.Outputs = append(tickets.Outputs, output)
+		// sstxcommitment count is calculated from all the outputs available.
+		// It is a script hash used for payout of voting and is calculated using
+		// the formula (n-1)/2 where n = all possible outputs.
+		tickets.Outputs = append(tickets.Outputs, (output-1)/2)
 	}
 
 	return tickets, nil
