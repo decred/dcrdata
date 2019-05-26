@@ -40,15 +40,6 @@ function tryDecode (zoom) {
   return zoom
 }
 
-function timeToBlockConversion (ratio) {
-  if (!ratio) return zoomMap
-  var newMap = []
-  for (var property in zoomMap) {
-    newMap[property] = Math.floor(zoomMap[property] / ratio)
-  }
-  return newMap
-}
-
 // Zoom is the exported class for dealing with Zoom windows. It is composed
 // entirely of static methods used for working with zoom ranges.
 export default class Zoom {
@@ -56,11 +47,9 @@ export default class Zoom {
     return zoomObject(start, end)
   }
 
-  static mapValue (key, scale, isTimeAxis, ratio) {
+  static mapValue (key, scale) {
     scale = scale || 1
-    isTimeAxis = isTimeAxis || true
-    let datamap = !isTimeAxis ? timeToBlockConversion(ratio) : zoomMap
-    return datamap[key] / scale
+    return zoomMap[key] / scale
   }
 
   // encode uses base 36 encoded unix timestamps to store the range in a
@@ -76,16 +65,14 @@ export default class Zoom {
     return parseInt(start).toString(36) + '-' + parseInt(end).toString(36)
   }
 
-  static decode (encoded, limits, scale, isTimeAxis, ratio) {
+  static decode (encoded, limits, scale) {
     // decodes zoomString, such as from this.encode. zoomObjects pass through.
     // If limits are provided, encoded can be a zoomMap key.
     scale = scale || 1
-    isTimeAxis = isTimeAxis || true
     let decoded = tryDecode(encoded)
     let lims = tryDecode(limits)
-    let datamap = !isTimeAxis ? timeToBlockConversion(ratio) : zoomMap
-    if (lims && datamap.hasOwnProperty(decoded)) {
-      let duration = datamap[decoded] / scale
+    if (lims && zoomMap.hasOwnProperty(decoded)) {
+      let duration = zoomMap[decoded] / scale
       if (duration === 0) return lims
       return zoomObject(lims.end - duration, lims.end)
     }
@@ -94,16 +81,15 @@ export default class Zoom {
 
   // validate will shift and clamp the proposed zoom window to accommodate the
   // range limits and minimum size.
-  static validate (proposal, limits, minSize, scale, isTimeAxis) {
+  static validate (proposal, limits, minSize, scale) {
     // proposed: encoded zoom string || zoomMap key || zoomObject
     // limits: zoomObject || array
     scale = scale || 1
-    let ratio = !isTimeAxis || !minSize ? 1 : minSize
     let lims = tryDecode(limits)
     let proposed = tryDecode(proposal)
     var zoom = lims
     if (typeof proposed === 'string') {
-      zoom = this.decode(proposed, lims, scale, isTimeAxis, ratio)
+      zoom = this.decode(proposed, lims, scale)
       if (!zoom) return false
     } else if (proposed && typeof proposed === 'object') {
       zoom = proposed
@@ -126,16 +112,14 @@ export default class Zoom {
 
   // mapKey returns the corresponding map key, if the zoom meets the correct
   // range and position within the limits, else null.
-  static mapKey (zoom, limits, scale, isTimeAxis, ratio) {
+  static mapKey (zoom, limits, scale) {
     scale = scale || 1
-    isTimeAxis = isTimeAxis || true
     let lims = tryDecode(limits)
     let decoded = this.decode(zoom, lims)
     let range = decoded.end - decoded.start
-    let datamap = !isTimeAxis ? timeToBlockConversion(ratio) : zoomMap
-    for (let k in datamap) {
-      let v = datamap[k]
-      if (v === range) return k
+    for (let k in zoomMap) {
+      let v = zoomMap[k]
+      if (v / scale === range) return k
     }
     return 'all'
   }

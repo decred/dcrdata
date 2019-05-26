@@ -1033,7 +1033,8 @@ func durationBTWChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, e
 			if len(charts.Days.Height) < 2 {
 				return nil, fmt.Errorf("found the length of charts.Days.Height slice to be less than 2")
 			}
-			return charts.encode(avgBlockTimes(charts.Days.Height[:len(charts.Days.Height)-1], charts.Blocks.Time))
+			_, t := avgBlockTimes(charts.Days.Time, charts.Blocks.Time)
+			return charts.encode(charts.Days.Height[:len(charts.Days.Height)-1], t)
 
 		default:
 			return charts.encode(avgBlockTimes(charts.Days.Time, charts.Blocks.Time))

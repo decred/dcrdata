@@ -423,7 +423,8 @@ export default class extends Controller {
     this.limits = this.chartsView.xAxisExtremes()
     var selected = this.selectedZoom()
     if (selected) {
-      this.lastZoom = Zoom.validate(selected, this.limits, avgBlockTime, this.isTimeAxis())
+      this.lastZoom = Zoom.validate(selected, this.limits,
+        this.isTimeAxis() ? avgBlockTime : 1, this.isTimeAxis() ? 1 : avgBlockTime)
     } else {
       this.lastZoom = Zoom.project(this.settings.zoom, oldLimits, this.limits)
     }
@@ -465,7 +466,7 @@ export default class extends Controller {
     var option
     if (!target) {
       let ex = this.chartsView.xAxisExtremes()
-      option = Zoom.mapKey(e, ex, 1, this.isTimeAxis(), avgBlockTime)
+      option = Zoom.mapKey(e, ex, this.isTimeAxis() ? 1 : avgBlockTime)
     } else {
       option = target.dataset.option
     }
