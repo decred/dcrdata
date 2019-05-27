@@ -149,8 +149,8 @@ func (wsh *WebsocketHub) unregisterClient(c *hubSpoke) {
 	delete(wsh.clients, c)
 	wsh.setNumClients(len(wsh.clients))
 
-	// Close the channel, but make sure the client didn't do it
-	safeClose(*c)
+	// Close the channel.
+	close(*c)
 }
 
 // unregisterAllClients should only be called from the loop in run() or when no
@@ -180,10 +180,7 @@ func (wsh *WebsocketHub) pingClients() chan<- struct{} {
 			select {
 			case <-ticker.C:
 				wsh.HubRelay <- pstypes.HubMessage{Signal: sigPingAndUserCount}
-			case _, ok := <-stopPing:
-				if !ok {
-					log.Errorf("Do not send on stopPing channel, only close it.")
-				}
+			case <-stopPing:
 				return
 			}
 		}
@@ -192,22 +189,13 @@ func (wsh *WebsocketHub) pingClients() chan<- struct{} {
 	return stopPing
 }
 
-func safeClose(cc hubSpoke) {
-	select {
-	case _, ok := <-cc:
-		if !ok {
-			log.Debug("Channel already closed!")
-			return
-		}
-	default:
-	}
-	close(cc)
-}
-
-// Stop kills the run() loop and unregisteres all clients (connections).
+// Stop kills the run() loop and unregisters all clients (connections).
 func (wsh *WebsocketHub) Stop() {
-	// end the run() loop, allowing in progress operations to complete
+	// End the run() loop, allowing in-progress operations to complete.
 	wsh.quitWSHandler <- struct{}{}
+	// Lastly close the hub relay channel sine the quitWSHandler signal is
+	// handled in the Run loop.
+	close(wsh.HubRelay)
 }
 
 func (wsh *WebsocketHub) run() {
@@ -294,6 +282,8 @@ func (wsh *WebsocketHub) run() {
 
 			// End the buffer interval send loop.
 			wsh.bufferTickerChan <- tickerSigStop
+
+			return
 
 		case <-wsh.sendBufferChan:
 			wsh.bufferMtx.Lock()
