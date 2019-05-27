@@ -186,22 +186,35 @@ func CheckColumnDataType(db *sql.DB, table, column string) (dataType string, err
 // DeleteDuplicates attempts to delete "duplicate" rows in tables where unique
 // indexes are to be created.
 func (pgb *ChainDB) DeleteDuplicates(barLoad chan *dbtypes.ProgressBarLoad) error {
-	allDuplicates := []dropDuplicatesInfo{
-		// Remove duplicate vins
-		{TableName: "vins", DropDupsFunc: pgb.DeleteDuplicateVins},
+	var allDuplicates []dropDuplicatesInfo
+	if pgb.cockroach {
+		allDuplicates = append(allDuplicates,
+			// Remove duplicate vins
+			dropDuplicatesInfo{TableName: "vins", DropDupsFunc: pgb.DeleteDuplicateVinsCockroach},
 
-		// Remove duplicate vouts
-		{TableName: "vouts", DropDupsFunc: pgb.DeleteDuplicateVouts},
+			// Remove duplicate vouts
+			dropDuplicatesInfo{TableName: "vouts", DropDupsFunc: pgb.DeleteDuplicateVoutsCockroach},
+		)
+	} else {
+		allDuplicates = append(allDuplicates,
+			// Remove duplicate vins
+			dropDuplicatesInfo{TableName: "vins", DropDupsFunc: pgb.DeleteDuplicateVins},
 
+			// Remove duplicate vouts
+			dropDuplicatesInfo{TableName: "vouts", DropDupsFunc: pgb.DeleteDuplicateVouts},
+		)
+	}
+
+	allDuplicates = append(allDuplicates,
 		// Remove duplicate transactions
-		{TableName: "transactions", DropDupsFunc: pgb.DeleteDuplicateTxns},
+		dropDuplicatesInfo{TableName: "transactions", DropDupsFunc: pgb.DeleteDuplicateTxns},
 
 		// Remove duplicate agendas
-		{TableName: "agendas", DropDupsFunc: pgb.DeleteDuplicateAgendas},
+		dropDuplicatesInfo{TableName: "agendas", DropDupsFunc: pgb.DeleteDuplicateAgendas},
 
 		// Remove duplicate agenda_votes
-		{TableName: "agenda_votes", DropDupsFunc: pgb.DeleteDuplicateAgendaVotes},
-	}
+		dropDuplicatesInfo{TableName: "agenda_votes", DropDupsFunc: pgb.DeleteDuplicateAgendaVotes},
+	)
 
 	var err error
 	for _, val := range allDuplicates {

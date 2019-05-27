@@ -63,6 +63,27 @@ const (
 				FROM vins) t
 			WHERE t.rnum > 1);`
 
+	ShowCreateVinsTable     = `WITH a AS (SHOW CREATE vins) SELECT create_statement FROM a;`
+	DistinctVinsToTempTable = `INSERT INTO vins_temp
+		SELECT DISTINCT ON (tx_hash, tx_index) *
+		FROM vins;`
+	RenameVinsTemp = `ALTER TABLE vins_temp RENAME TO vins;`
+
+	SelectVinDupIDs = `WITH dups AS (
+		SELECT array_agg(id) AS ids
+		FROM vins
+		GROUP BY tx_hash, tx_index 
+		HAVING count(id)>1
+	)
+	SELECT array_agg(dupids) FROM (
+		SELECT unnest(ids) AS dupids
+		FROM dups
+		ORDER BY dupids DESC
+	) AS _;`
+
+	DeleteVinRows = `DELETE FROM vins
+		WHERE id = ANY($1);`
+
 	IndexVinTableOnVins = `CREATE UNIQUE INDEX ` + IndexOfVinsTableOnVin +
 		` ON vins(tx_hash, tx_index, tx_tree);`
 	DeindexVinTableOnVins = `DROP INDEX ` + IndexOfVinsTableOnVin + `;`
@@ -190,6 +211,27 @@ const (
 				OVER (partition BY tx_hash, tx_index, tx_tree ORDER BY id) AS rnum
 				FROM vouts) t
 			WHERE t.rnum > 1);`
+
+	ShowCreateVoutsTable     = `WITH a AS (SHOW CREATE vouts) SELECT create_statement FROM a;`
+	DistinctVoutsToTempTable = `INSERT INTO vouts_temp
+		SELECT DISTINCT ON (tx_hash, tx_index) *
+		FROM vouts;`
+	RenameVoutsTemp = `ALTER TABLE vouts_temp RENAME TO vouts;`
+
+	SelectVoutDupIDs = `WITH dups AS (
+		SELECT array_agg(id) AS ids
+		FROM vouts
+		GROUP BY tx_hash, tx_index 
+		HAVING count(id)>1
+	)
+	SELECT array_agg(dupids) FROM (
+		SELECT unnest(ids) AS dupids
+		FROM dups
+		ORDER BY dupids DESC
+	) AS _;`
+
+	DeleteVoutRows = `DELETE FROM vins
+		WHERE id = ANY($1);`
 
 	// IndexVoutTableOnTxHashIdx creates the unique index uix_vout_txhash_ind on
 	// (tx_hash, tx_index, tx_tree).

@@ -191,11 +191,44 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		// extremely expensive queries. Warm the UTXO cache if resuming an
 		// interrupted initial sync.
 		blocksToSync := nodeHeight - lastBlock
-		if lastBlock > 0 && blocksToSync > 50 {
+		if lastBlock > 0 && (blocksToSync > 50 || pgb.cockroach) {
+			if pgb.cockroach {
+				log.Infof("Removing duplicate vins prior to indexing.")
+				N, err := pgb.DeleteDuplicateVinsCockroach()
+				if err != nil {
+					return -1, fmt.Errorf("failed to remove duplicate vins: %v", err)
+				}
+				log.Infof("Removed %d duplicate vins rows.", N)
+				log.Infof("Indexing vins table on vins for CockroachDB to load UTXO set.")
+				if err = IndexVinTableOnVins(pgb.db); err != nil {
+					return -1, fmt.Errorf("failed to index vins on vins: %v", err)
+				}
+				log.Infof("Indexing vins table on prevouts for CockroachDB to load UTXO set.")
+				if err = IndexVinTableOnPrevOuts(pgb.db); err != nil {
+					return -1, fmt.Errorf("failed to index vins on prevouts: %v", err)
+				}
+
+				log.Infof("Removing duplicate vouts prior to indexing.")
+				N, err = pgb.DeleteDuplicateVoutsCockroach()
+				if err != nil {
+					return -1, fmt.Errorf("failed to remove duplicate vouts: %v", err)
+				}
+				log.Infof("Removed %d duplicate vouts rows.", N)
+				log.Infof("Indexing vouts table on tx hash and idx for CockroachDB to load UTXO set.")
+				if err = IndexVoutTableOnTxHashIdx(pgb.db); err != nil {
+					return -1, fmt.Errorf("failed to index vouts on tx hash and idx: %v", err)
+				}
+			}
 			log.Infof("Collecting all UTXO data prior to height %d...", lastBlock+1)
 			utxos, err := RetrieveUTXOs(ctx, pgb.db)
 			if err != nil {
 				return -1, fmt.Errorf("RetrieveUTXOs: %v", err)
+			}
+			if pgb.cockroach {
+				err = pgb.DeindexAll()
+				if err != nil && !strings.Contains(err.Error(), "does not exist") {
+					return lastBlock, err
+				}
 			}
 			log.Infof("Pre-warming UTXO cache with %d UTXOs...", len(utxos))
 			pgb.InitUtxoCache(utxos)

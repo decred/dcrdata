@@ -86,6 +86,21 @@ const (
 			FROM transactions) t
 		WHERE t.rnum > 1);`
 
+	SelectTxDupIDs = `WITH dups AS (
+		SELECT array_agg(id) AS ids
+		FROM transactions
+		GROUP BY tx_hash, block_hash 
+		HAVING count(id)>1
+	)
+	SELECT array_agg(dupids) FROM (
+		SELECT unnest(ids) AS dupids
+		FROM dups
+		ORDER BY dupids DESC
+	) AS _;`
+
+	DeleteTxRows = `DELETE FROM transactions
+		WHERE id = ANY($1);`
+
 	// IndexTransactionTableOnHashes creates the unique index uix_tx_hashes on
 	// (tx_hash, block_hash).
 	IndexTransactionTableOnHashes = `CREATE UNIQUE INDEX ` + IndexOfTransactionsTableOnHashes +

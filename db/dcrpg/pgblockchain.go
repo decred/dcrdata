@@ -243,6 +243,7 @@ type ChainDB struct {
 	deployments        *ChainDeployments
 	piparser           ProposalsFetcher
 	proposalsSync      lastSync
+	cockroach          bool
 }
 
 // ChainDeployments is mutex-protected blockchain deployment data.
@@ -776,6 +777,7 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 		utxoCache:          newUtxoStore(5e4),
 		deployments:        new(ChainDeployments),
 		piparser:           parser,
+		cockroach:          cockroach,
 	}
 
 	// If loading a DB with the legacy versioning system, fully upgrade prior to
