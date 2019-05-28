@@ -112,16 +112,31 @@ export default class Zoom {
 
   // mapKey returns the corresponding map key, if the zoom meets the correct
   // range and position within the limits, else null.
-  static mapKey (zoom, limits, scale) {
+  static mapKey (zoom, limits, scale, isLegacyURL) {
     scale = scale || 1
+    isLegacyURL = isLegacyURL || false
     let lims = tryDecode(limits)
     let decoded = this.decode(zoom, lims)
-    let range = decoded.end - decoded.start
-    for (let k in zoomMap) {
-      let v = zoomMap[k]
-      if (v / scale === range) return k
+
+    if (isLegacyURL) { // maps the legacy url zoom lookup
+      let range = decoded.end - decoded.start
+      for (let k in zoomMap) {
+        let v = zoomMap[k]
+        if (v / scale === range) return k
+      }
+      return 'all'
+    } else { // maps the range slider zoom lookup
+      if (decoded.end !== lims.end) return null
+      if (decoded.start === lims.start) return 'all'
+      let keys = Object.keys(zoomMap)
+      for (let idx in keys) {
+        let k = keys[idx]
+        let v = zoomMap[k]
+        if (v === 0) continue
+        if (decoded.start === lims.end - v / scale) return k
+      }
+      return null
     }
-    return 'all'
   }
 
   // project proportionally translates the zoom from oldWindow to newWindow.

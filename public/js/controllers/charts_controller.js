@@ -446,6 +446,7 @@ export default class extends Controller {
     this.lastZoom = Zoom.object(start, end)
     this.settings.zoom = Zoom.encode(this.lastZoom)
     this.query.replace(this.settings)
+    this.setActiveOptionBtn(Zoom.mapKey(this.settings.zoom, this.lastZoom), this.zoomOptionTargets)
   }
 
   isTimeAxis () {
@@ -466,11 +467,10 @@ export default class extends Controller {
     var option
     if (!target) {
       let ex = this.chartsView.xAxisExtremes()
-      option = Zoom.mapKey(e, ex, this.isTimeAxis() ? 1 : avgBlockTime)
+      option = Zoom.mapKey(e, ex, this.isTimeAxis() ? 1 : avgBlockTime, true)
     } else {
       option = target.dataset.option
     }
-    if (!option) return
     this.setActiveOptionBtn(option, this.zoomOptionTargets)
     if (!target) return // Exit if running for the first time
     this.validateZoom()
