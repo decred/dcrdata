@@ -185,6 +185,10 @@ func _main(ctx context.Context) error {
 		log.Error(err)
 	}
 
+	// SetPiParserValidity sets the invalid parser flag if a nil parser instance
+	// was found.
+	dcrpg.SetPiParserValidity(parser == nil)
+
 	// Auxiliary DB (PostgreSQL)
 	var newPGIndexes, updateAllAddresses, updateAllVotes bool
 	pgHost, pgPort := cfg.PGHost, ""

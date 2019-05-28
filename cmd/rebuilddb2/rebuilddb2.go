@@ -132,6 +132,10 @@ func mainCore() error {
 		return err
 	}
 
+	// SetPiParserValidity sets the invalid parser flag if a nil parser instance
+	// was found.
+	dcrpg.SetPiParserValidity(parser == nil)
+
 	// Construct a ChainDB without a stakeDB to allow quick dropping of tables.
 	mpChecker := rpcutils.NewMempoolAddressChecker(client, activeChain)
 	db, err := dcrpg.NewChainDB(&dbi, activeChain, nil, false, cfg.HidePGConfig, 0,

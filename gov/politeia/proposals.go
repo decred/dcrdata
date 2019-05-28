@@ -320,7 +320,7 @@ func (db *ProposalDB) CheckProposalsUpdates() error {
 	// Retrieve and update any new proposals created since the previous
 	// proposals were stored in the db.
 	lastProposal, err := db.lastSavedProposal()
-	if err != nil {
+	if err != nil && err != storm.ErrNotFound {
 		return fmt.Errorf("lastSavedProposal failed: %v", err)
 	}
 

@@ -13,10 +13,10 @@ import (
 	"fmt"
 	"reflect"
 	"runtime"
-	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/chappjc/trylock"
@@ -68,6 +68,12 @@ type ProposalsFetcher interface {
 	ProposalsHistory() ([]*pitypes.History, error)
 	ProposalsHistorySince(since time.Time) ([]*pitypes.History, error)
 }
+
+// isPiParserValid is used to track when a nil piparser instance is passed.
+var isPiParserValid uint32
+
+// This flag is assigned to isPiParserValid when a nil piparser instance is passed.
+const invalidParserFlag uint32 = 1
 
 // ticketPoolGraphsCache persists the latest ticketpool data queried from the db.
 var ticketPoolGraphsCache = &ticketPoolDataCache{
@@ -782,6 +788,17 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 	return chainDB, nil
 }
 
+// SetPiParserValidity checks the created parser instance was invalid and assigns
+// the invalid parser flag if true.
+func SetPiParserValidity(isInvalid bool) {
+	var parserFlag uint32
+	if isInvalid {
+		// Assigns the invalid parser flag if nil piparser instance was passed.
+		parserFlag = invalidParserFlag
+	}
+	atomic.StoreUint32(&isPiParserValid, parserFlag)
+}
+
 // Close closes the underlying sql.DB connection to the database.
 func (pgb *ChainDB) Close() error {
 	return pgb.db.Close()
@@ -1119,7 +1136,7 @@ func (pgb *ChainDB) VotesInBlock(hash string) (int16, error) {
 func (pgb *ChainDB) proposalsUpdateHandler() {
 	// Do not initiate the async update if invalid piparser instance was found.
 	if pgb.piparser == nil {
-		log.Debug("invalid piparser instance was found: async update stopped")
+		log.Error("invalid piparser instance was found: async update stopped")
 		return
 	}
 
@@ -1127,7 +1144,6 @@ func (pgb *ChainDB) proposalsUpdateHandler() {
 		defer func() {
 			if r := recover(); r != nil {
 				log.Errorf("recovered from piparser panic in proposalsUpdateHandler: %v", r)
-				log.Errorf(string(debug.Stack()))
 				select {
 				case <-time.NewTimer(time.Minute).C:
 					log.Infof("attempting to restart proposalsUpdateHandler")
@@ -1158,7 +1174,7 @@ func (pgb *ChainDB) LastPiParserSync() time.Time {
 // PiProposalsHistory queries the politeia's proposal updates via the parser tool
 // and pushes them to the proposals and proposal_votes tables.
 func (pgb *ChainDB) PiProposalsHistory() (int64, error) {
-	if pgb.piparser == nil {
+	if pgb.piparser == nil || atomic.LoadUint32(&isPiParserValid) == invalidParserFlag {
 		return -1, fmt.Errorf("invalid piparser instance was found")
 	}
 
