@@ -433,7 +433,9 @@ export default class extends Controller {
         dateWindow: [this.lastZoom.start, this.lastZoom.end]
       })
     }
-    this._zoomCallback(this.lastZoom.start, this.lastZoom.end)
+    if (selected !== this.settings.zoom) {
+      this._zoomCallback(this.lastZoom.start, this.lastZoom.end)
+    }
     await animationFrame()
     this.chartWrapperTarget.classList.remove('loading')
     this.chartsView.updateOptions({
@@ -446,7 +448,8 @@ export default class extends Controller {
     this.lastZoom = Zoom.object(start, end)
     this.settings.zoom = Zoom.encode(this.lastZoom)
     this.query.replace(this.settings)
-    this.setActiveOptionBtn(Zoom.mapKey(this.settings.zoom, this.lastZoom), this.zoomOptionTargets)
+    let option = Zoom.mapKey(this.settings.zoom, this.chartsView.xAxisExtremes())
+    this.setActiveOptionBtn(option, this.zoomOptionTargets)
   }
 
   isTimeAxis () {
@@ -467,7 +470,7 @@ export default class extends Controller {
     var option
     if (!target) {
       let ex = this.chartsView.xAxisExtremes()
-      option = Zoom.mapKey(e, ex, this.isTimeAxis() ? 1 : avgBlockTime, true)
+      option = Zoom.mapKey(e, ex, this.isTimeAxis() ? 1 : avgBlockTime)
     } else {
       option = target.dataset.option
     }
