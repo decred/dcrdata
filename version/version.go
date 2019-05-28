@@ -26,7 +26,7 @@ const (
 	AppName  string = "dcrdata"
 	AppMajor uint   = 4
 	AppMinor uint   = 1
-	AppPatch uint   = 3
+	AppPatch uint   = 4
 )
 
 // go build -v -o dcrdata -ldflags "-X github.com/decred/dcrdata/v4/version.appPreRelease= -X github.com/decred/dcrdata/v4/version.appBuild=`git rev-parse --short HEAD`"
