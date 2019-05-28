@@ -1,7 +1,5 @@
 module github.com/decred/dcrdata/v4
 
-replace github.com/decred/dcrdata/gov/agendas => ./gov/agendas
-
 require (
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb
@@ -21,8 +19,8 @@ require (
 	github.com/decred/dcrdata/db/dcrsqlite/v2 v2.0.0
 	github.com/decred/dcrdata/exchanges v1.0.0
 	github.com/decred/dcrdata/explorer/types v1.0.1
-	github.com/decred/dcrdata/gov/agendas v1.1.0
-	github.com/decred/dcrdata/gov/politeia v1.1.0
+	github.com/decred/dcrdata/gov/agendas v1.1.1-0.20190519161030-ce42628f6d7c
+	github.com/decred/dcrdata/gov/politeia v1.1.1-0.20190519161030-ce42628f6d7c
 	github.com/decred/dcrdata/mempool/v2 v2.0.0
 	github.com/decred/dcrdata/middleware/v2 v2.0.2-0.20190506145717-84bca771d7bf
 	github.com/decred/dcrdata/pubsub v1.0.1
