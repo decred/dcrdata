@@ -183,10 +183,10 @@ github.com/decred/dcrdata/exchanges v1.0.0 h1:+Wlq8gIsjwbzzNTyMcmm0lf/joP1fYPr8E
 github.com/decred/dcrdata/exchanges v1.0.0/go.mod h1:b34x8boSFo0z0pndmkKS13dEFiRRMzSYU8AHns7W/JM=
 github.com/decred/dcrdata/explorer/types v1.0.1 h1:GAMnVy1KDwq7GqC1AYKaR+Msl70Tv0GYy5TH6bMJpEM=
 github.com/decred/dcrdata/explorer/types v1.0.1/go.mod h1:QPKurkX8v7UshmXgZS3VOzuIrU4hoCBac8Mt4YxgYYs=
-github.com/decred/dcrdata/gov/agendas v1.1.1-0.20190519161030-ce42628f6d7c h1:XjBwKwvhRdIuAkucnMLJqgHMMaGM8QPFaGokAfTkv2Y=
-github.com/decred/dcrdata/gov/agendas v1.1.1-0.20190519161030-ce42628f6d7c/go.mod h1:wXOs/PT0LzusDzdxRXWaKwE3EIHz9uUUt/0mfC/V6CA=
-github.com/decred/dcrdata/gov/politeia v1.1.1-0.20190519161030-ce42628f6d7c h1:N3wrei8UPraMA5uD1+MSoCIq2copG8WJMP2oo8oFpKg=
-github.com/decred/dcrdata/gov/politeia v1.1.1-0.20190519161030-ce42628f6d7c/go.mod h1:ckcQHZS6Vd1dD5tImwMzBTJa/Hw6GLTNU9km0uw7gH4=
+github.com/decred/dcrdata/gov/agendas v1.1.1-0.20190528040948-1b30900f47c4 h1:n5tp8haIDyyP/iMrRb47FDR8lM31aRCWvxZgJlsq/W4=
+github.com/decred/dcrdata/gov/agendas v1.1.1-0.20190528040948-1b30900f47c4/go.mod h1:wXOs/PT0LzusDzdxRXWaKwE3EIHz9uUUt/0mfC/V6CA=
+github.com/decred/dcrdata/gov/politeia v1.1.1-0.20190528040948-1b30900f47c4 h1:f/e0nq2ArB/QxWCz+YbxcAAoxedcS9rN0Nnturj7e6k=
+github.com/decred/dcrdata/gov/politeia v1.1.1-0.20190528040948-1b30900f47c4/go.mod h1:ckcQHZS6Vd1dD5tImwMzBTJa/Hw6GLTNU9km0uw7gH4=
 github.com/decred/dcrdata/mempool/v2 v2.0.0 h1:GZHL8UgsCWiamfCSUQ4DY/aB6m4OXYbylMc0WxOQjc0=
 github.com/decred/dcrdata/mempool/v2 v2.0.0/go.mod h1:FIRHQCgF92I/picVJ4lccrLn/c6IsmHx5hZot1Tok3k=
 github.com/decred/dcrdata/middleware/v2 v2.0.2-0.20190506145717-84bca771d7bf h1:5KyZIq6hC15Qk6e8u0HMt4fUPDoNer74vvQ8JyQ+L8g=
