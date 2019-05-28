@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"reflect"
 	"runtime"
-	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -1119,7 +1118,7 @@ func (pgb *ChainDB) VotesInBlock(hash string) (int16, error) {
 func (pgb *ChainDB) proposalsUpdateHandler() {
 	// Do not initiate the async update if invalid piparser instance was found.
 	if pgb.piparser == nil {
-		log.Debug("invalid piparser instance was found: async update stopped")
+		log.Error("invalid piparser instance was found: async update stopped")
 		return
 	}
 
@@ -1127,7 +1126,6 @@ func (pgb *ChainDB) proposalsUpdateHandler() {
 		defer func() {
 			if r := recover(); r != nil {
 				log.Errorf("recovered from piparser panic in proposalsUpdateHandler: %v", r)
-				log.Errorf(string(debug.Stack()))
 				select {
 				case <-time.NewTimer(time.Minute).C:
 					log.Infof("attempting to restart proposalsUpdateHandler")

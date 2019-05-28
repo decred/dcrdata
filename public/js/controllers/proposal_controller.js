@@ -10,6 +10,7 @@ let common = {
   fillGraph: true,
   strokeWidth: 2,
   gridLineColor: '#C4CBD2',
+  labelsUTC: true,
   legendFormatter: legendFormatter
 }
 

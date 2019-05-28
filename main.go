@@ -185,6 +185,11 @@ func _main(ctx context.Context) error {
 		log.Error(err)
 	}
 
+	var piParser dcrpg.ProposalsFetcher
+	if parser != nil {
+		piParser = parser
+	}
+
 	// Auxiliary DB (PostgreSQL)
 	var newPGIndexes, updateAllAddresses, updateAllVotes bool
 	pgHost, pgPort := cfg.PGHost, ""
@@ -215,7 +220,7 @@ func _main(ctx context.Context) error {
 	mpChecker := rpcutils.NewMempoolAddressChecker(dcrdClient, activeChain)
 	chainDB, err := dcrpg.NewChainDBWithCancel(ctx, &dbi, activeChain,
 		stakeDB, !cfg.NoDevPrefetch, cfg.HidePGConfig, rowCap,
-		mpChecker, parser, dcrdClient)
+		mpChecker, piParser, dcrdClient)
 	if chainDB != nil {
 		defer chainDB.Close()
 	}
