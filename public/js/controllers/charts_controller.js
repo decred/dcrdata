@@ -1,9 +1,11 @@
 import { Controller } from 'stimulus'
-import { map, assign, merge } from 'lodash-es'
+import { assign, merge } from 'lodash-es'
 import Zoom from '../helpers/zoom_helper'
 import { darkEnabled } from '../services/theme_service'
 import { animationFrame } from '../helpers/animation_helper'
+import { Job, killJobs } from '../helpers/async'
 import { getDefault } from '../helpers/module_helper'
+import { linePlotterAsync } from '../helpers/chart_helper'
 import axios from 'axios'
 import TurboQuery from '../helpers/turbolinks_helper'
 import globalEventBus from '../services/event_bus_service'
@@ -18,6 +20,7 @@ const aDay = 86400 * 1000
 const aMonth = aDay * 30
 const atomsToDCR = 1e-8
 const windowScales = ['ticket-price', 'pow-difficulty']
+const chartJobID = 'chartJobID'
 var ticketPoolSizeTarget, premine, stakeValHeight, stakeShare
 var baseSubsidy, subsidyInterval, subsidyExponent
 var userBins = {}
@@ -115,26 +118,35 @@ function nightModeOptions (nightModeOn) {
   }
 }
 
-function zipYvDate (gData, coefficient) {
+async function zipYvDate (job, coefficient) {
   coefficient = coefficient || 1
-  return map(gData.x, (t, i) => {
-    return [
-      new Date(t * 1000),
-      gData.y[i] * coefficient
-    ]
+  var rawData = job.get('rawData')
+  var x = rawData.x
+  var y = rawData.y
+  return job.irun(x.length, i => {
+    return [new Date(x[i] * 1000), y[i] * coefficient]
   })
 }
 
-function poolSizeFunc (gData) {
-  var data = map(gData.x, (n, i) => { return [new Date(n * 1000), gData.y[i], null] })
-  if (data.length) {
-    data[0][2] = ticketPoolSizeTarget
-    data[data.length - 1][2] = ticketPoolSizeTarget
+async function poolSizeFunc (job) {
+  var rawData = job.get('rawData')
+  var time = rawData.x
+  var poolSize = rawData.y
+  var translated = await job.irun(time.length, i => {
+    return [new Date(time[i] * 1000), poolSize[i], null]
+  })
+  if (translated.length) {
+    translated[0][2] = ticketPoolSizeTarget
+    translated[translated.length - 1][2] = ticketPoolSizeTarget
   }
-  return data
+  return translated
 }
 
-function circulationFunc (gData, blocks) {
+async function circulationFunc (job, blocks) {
+  var rawData = job.get('rawData')
+  var time = rawData.x
+  var newDough = rawData.y
+  var heights = rawData.z
   var circ = 0
   var h = -1
   var addDough = (newHeight) => {
@@ -143,23 +155,22 @@ function circulationFunc (gData, blocks) {
       circ += blockReward(h) * atomsToDCR
     }
   }
-  var data = map(gData.x, (t, i) => {
-    addDough(blocks ? i : gData.z[i])
-    return [new Date(t * 1000), gData.y[i] * atomsToDCR, circ]
+  var translated = await job.irun(time.length, i => {
+    addDough(blocks ? i : heights[i])
+    return [new Date(time[i] * 1000), newDough[i] * atomsToDCR, circ]
   })
-  var stamp = data[data.length - 1][0].getTime()
+  var stamp = translated[translated.length - 1][0].getTime()
   var end = stamp + aMonth
   while (stamp < end) {
     addDough(h + aDay / blockTime)
-    data.push([new Date(stamp), null, circ])
+    translated.push([new Date(stamp), null, circ])
     stamp += aDay
   }
-  return data
+  return translated
 }
 
-function mapDygraphOptions (data, labelsVal, isDrawPoint, yLabel, xLabel, titleName, labelsMG, labelsMG2) {
+function mapDygraphOptions (labelsVal, isDrawPoint, yLabel, xLabel, titleName, labelsMG, labelsMG2) {
   return merge({
-    'file': data,
     digitsAfterDecimal: 8,
     labels: labelsVal,
     drawPoints: isDrawPoint,
@@ -175,7 +186,6 @@ function mapDygraphOptions (data, labelsVal, isDrawPoint, yLabel, xLabel, titleN
 export default class extends Controller {
   static get targets () {
     return [
-      'chartWrapper',
       'labels',
       'chartsView',
       'chartSelect',
@@ -184,7 +194,8 @@ export default class extends Controller {
       'linearBttn',
       'logBttn',
       'binSelector',
-      'binSize'
+      'binSize',
+      'chartLoader'
     ]
   }
 
@@ -220,9 +231,7 @@ export default class extends Controller {
     )
     this.drawInitialGraph()
     this.processNightMode = (params) => {
-      this.chartsView.updateOptions(
-        nightModeOptions(params.nightMode)
-      )
+      this.submitPlotJob(new Job(chartJobID), nightModeOptions(params.nightMode))
     }
     globalEventBus.on('NIGHT_MODE', this.processNightMode)
   }
@@ -264,24 +273,28 @@ export default class extends Controller {
     this.selectChart()
   }
 
-  plotGraph (chartName, data) {
-    var d = []
+  async plotGraph (chartName, url) {
     var gOptions = {
       zoomCallback: null,
       drawCallback: null,
       logscale: this.settings.scale === 'log',
-      stepPlot: false
+      stepPlot: false,
+      plotter: linePlotterAsync
     }
+    killJobs(chartJobID)
+    var job = new Job(chartJobID)
+    // We'll need to set a 'dataSource' for the job, which is a tuple of
+    // 1. URL, 2. translation function, 3. optional array of additional
+    // arguments for the translator.
     switch (chartName) {
       case 'ticket-price': // price graph
-        d = zipYvDate(data, atomsToDCR)
         gOptions.stepPlot = true
-        assign(gOptions, mapDygraphOptions(d, ['Date', 'Ticket Price'], true, 'Price (DCR)', 'Date', undefined, false, false))
+        assign(gOptions, mapDygraphOptions(['Date', 'Ticket Price'], true, 'Price (DCR)', 'Date', undefined, false, false))
+        job.set('dataSource', [url, zipYvDate, [atomsToDCR]])
         break
 
       case 'ticket-pool-size': // pool size graph
-        d = poolSizeFunc(data)
-        assign(gOptions, mapDygraphOptions(d, ['Date', 'Ticket Pool Size', 'Network Target'], false, 'Ticket Pool Size', 'Date', undefined, true, false))
+        assign(gOptions, mapDygraphOptions(['Date', 'Ticket Pool Size', 'Network Target'], false, 'Ticket Pool Size', 'Date', undefined, true, false))
         gOptions.series = {
           'Network Target': {
             strokePattern: [5, 3],
@@ -290,71 +303,90 @@ export default class extends Controller {
             color: '#888'
           }
         }
+        job.set('dataSource', [url, poolSizeFunc, []])
         break
 
       case 'ticket-pool-value': // pool value graph
-        d = zipYvDate(data, atomsToDCR)
-        assign(gOptions, mapDygraphOptions(d, ['Date', 'Ticket Pool Value'], true, 'Ticket Pool Value', 'Date',
+        assign(gOptions, mapDygraphOptions(['Date', 'Ticket Pool Value'], true, 'Ticket Pool Value', 'Date',
           undefined, true, false))
+        job.set('dataSource', [url, zipYvDate, [atomsToDCR]])
         break
 
       case 'block-size': // block size graph
-        d = zipYvDate(data)
-        assign(gOptions, mapDygraphOptions(d, ['Date', 'Block Size'], false, 'Block Size', 'Date', undefined, true, false))
+        assign(gOptions, mapDygraphOptions(['Date', 'Block Size'], false, 'Block Size', 'Date', undefined, true, false))
+        job.set('dataSource', [url, zipYvDate, []])
         break
 
       case 'blockchain-size': // blockchain size graph
-        d = zipYvDate(data)
-        assign(gOptions, mapDygraphOptions(d, ['Date', 'Blockchain Size'], true, 'Blockchain Size', 'Date', undefined, false, true))
+        assign(gOptions, mapDygraphOptions(['Date', 'Blockchain Size'], true, 'Blockchain Size', 'Date', undefined, false, true))
+        job.set('dataSource', [url, zipYvDate, []])
         break
 
       case 'tx-count': // tx per block graph
-        d = zipYvDate(data)
-        assign(gOptions, mapDygraphOptions(d, ['Date', 'Number of Transactions'], false, '# of Transactions', 'Date',
+        assign(gOptions, mapDygraphOptions(['Date', 'Number of Transactions'], false, '# of Transactions', 'Date',
           undefined, false, false))
+        job.set('dataSource', [url, zipYvDate, []])
         break
 
       case 'pow-difficulty': // difficulty graph
-        d = zipYvDate(data)
-        assign(gOptions, mapDygraphOptions(d, ['Date', 'Difficulty'], true, 'Difficulty', 'Date', undefined, true, false))
+        assign(gOptions, mapDygraphOptions(['Date', 'Difficulty'], true, 'Difficulty', 'Date', undefined, true, false))
+        job.set('dataSource', [url, zipYvDate, []])
         break
 
       case 'coin-supply': // supply graph
-        d = circulationFunc(data, this.settings.bin === 'block')
-        assign(gOptions, mapDygraphOptions(d, ['Date', 'Coin Supply', 'Predicted Coin Supply'], true, 'Coin Supply (DCR)', 'Date', undefined, true, false))
+        assign(gOptions, mapDygraphOptions(['Date', 'Coin Supply', 'Predicted Coin Supply'], true, 'Coin Supply (DCR)', 'Date', undefined, true, false))
+        job.set('dataSource', [url, circulationFunc, [this.settings.bin === 'block']])
         break
 
       case 'fees': // block fee graph
-        d = zipYvDate(data, atomsToDCR)
-        assign(gOptions, mapDygraphOptions(d, ['Block Height', 'Total Fee'], false, 'Total Fee (DCR)', 'Block Height',
+        assign(gOptions, mapDygraphOptions(['Block Height', 'Total Fee'], false, 'Total Fee (DCR)', 'Block Height',
           undefined, true, false))
+        job.set('dataSource', [url, zipYvDate, [atomsToDCR]])
         break
 
       case 'duration-btw-blocks': // Duration between blocks graph
-        d = zipYvDate(data)
-        assign(gOptions, mapDygraphOptions(d, ['Block Height', 'Duration Between Block'], false, 'Duration Between Block (seconds)', 'Block Height',
+        assign(gOptions, mapDygraphOptions(['Block Height', 'Duration Between Block'], false, 'Duration Between Block (seconds)', 'Block Height',
           undefined, false, false))
+        job.set('dataSource', [url, zipYvDate, []])
         break
 
       case 'chainwork': // Total chainwork over time
-        d = zipYvDate(data)
-        assign(gOptions, mapDygraphOptions(d, ['Date', 'Cumulative Chainwork (exahash)'],
+        assign(gOptions, mapDygraphOptions(['Date', 'Cumulative Chainwork (exahash)'],
           false, 'Cumulative Chainwork (exahash)', 'Date', undefined, true, false))
+        job.set('dataSource', [url, zipYvDate, []])
         break
 
       case 'hashrate': // Total chainwork over time
-        d = zipYvDate(data)
-        assign(gOptions, mapDygraphOptions(d, ['Date', 'Hashrate'], false, 'Hashrate (hashes per second)', 'Date', undefined, false, false))
+        assign(gOptions, mapDygraphOptions(['Date', 'Hashrate'], false, 'Hashrate (hashes per second)', 'Date', undefined, false, false))
         gOptions.axes.y.axisLabelFormatter = (v) => { return formatHashRate(v, 'axis') }
+        job.set('dataSource', [url, zipYvDate, []])
         break
     }
-    this.chartsView.updateOptions(gOptions, false)
+    this.submitPlotJob(job, gOptions)
+    await job.completion
     this.validateZoom()
+  }
+
+  async submitPlotJob (job, plotOpts) {
+    plotOpts.job = () => { return job }
+    job.run(async (job) => {
+      let dataSource = job.get('dataSource')
+      if (dataSource) {
+        let url, translate, tOpts
+        [url, translate, tOpts] = dataSource
+        var rawData = await axios.get(url)
+        job.set('rawData', rawData.data)
+        if (job.expired()) return
+        plotOpts.file = translate ? await translate(job, ...tOpts) : rawData
+        if (job.expired()) return
+      }
+      this.chartsView.updateOptions(plotOpts)
+    })
   }
 
   async selectChart () {
     var selection = this.settings.chart = this.chartSelectTarget.value
-    this.chartWrapperTarget.classList.add('loading')
+    this.chartLoaderTarget.classList.add('loading')
     if (selectedChart !== selection) {
       let url = '/api/chart/' + selection
       if (usesWindowUnits(selection)) {
@@ -370,12 +402,10 @@ export default class extends Controller {
           this.setBinButton('day')
         }
       }
-      let chartResponse = await axios.get(url)
-      console.log('got api data', chartResponse, this, selection)
       selectedChart = selection
-      this.plotGraph(selection, chartResponse.data)
+      this.plotGraph(selection, url)
     } else {
-      this.chartWrapperTarget.classList.remove('loading')
+      this.chartLoaderTarget.classList.remove('loading')
     }
   }
 
@@ -391,28 +421,30 @@ export default class extends Controller {
 
   async validateZoom () {
     await animationFrame()
-    this.chartWrapperTarget.classList.add('loading')
+    this.chartLoaderTarget.classList.add('loading')
     await animationFrame()
     let oldLimits = this.limits || this.chartsView.xAxisExtremes()
     this.limits = this.chartsView.xAxisExtremes()
+    var newZoom = null
     if (this.selectedZoom) {
-      this.lastZoom = Zoom.validate(this.selectedZoom, this.limits, blockTime)
+      newZoom = Zoom.validate(this.selectedZoom, this.limits, blockTime)
     } else {
-      this.lastZoom = Zoom.project(this.settings.zoom, oldLimits, this.limits)
+      newZoom = Zoom.project(this.settings.zoom, oldLimits, this.limits)
     }
-    if (this.lastZoom) {
-      this.chartsView.updateOptions({
-        dateWindow: [this.lastZoom.start, this.lastZoom.end]
+    if (newZoom && this.lastZoom && (this.lastZoom.start !== newZoom.start || this.lastZoom.end !== newZoom.end)) {
+      this.submitPlotJob(new Job(chartJobID), {
+        dateWindow: [newZoom.start, newZoom.end]
       })
     }
+    this.lastZoom = newZoom
     this.settings.zoom = Zoom.encode(this.lastZoom)
     this.query.replace(this.settings)
     await animationFrame()
-    this.chartWrapperTarget.classList.remove('loading')
+    this.chartLoaderTarget.classList.remove('loading')
     this.chartsView.updateOptions({
       zoomCallback: this.zoomCallback,
       drawCallback: this.drawCallback
-    })
+    }, true)
   }
 
   _zoomCallback (start, end) {
@@ -471,7 +503,7 @@ export default class extends Controller {
     this.linearBttnTarget.classList.add('active')
     this.logBttnTarget.classList.remove('active')
     if (this.chartsView !== undefined) {
-      this.chartsView.updateOptions({
+      this.submitPlotJob(new Job(chartJobID), {
         logscale: false
       })
     }
@@ -483,7 +515,7 @@ export default class extends Controller {
     this.linearBttnTarget.classList.remove('active')
     this.logBttnTarget.classList.add('active')
     if (this.chartsView !== undefined) {
-      this.chartsView.updateOptions({
+      this.submitPlotJob(new Job(chartJobID), {
         logscale: true
       })
     }

@@ -230,3 +230,56 @@ export function synchronize (dygraphs, syncOptions) {
     })
   })
 }
+
+export async function linePlotterAsync (e) {
+  var job = e.dygraph.getOption('job', e.setName)()
+  var stepped = e.dygraph.getOption('stepPlot', e.setName)
+  var strokePattern = e.dygraph.getOption('strokePattern', e.setName)
+  var ctx = e.drawingContext
+  // if (e.seriesIndex === 0) ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+  var pts = e.points
+  var drawFunc = stepped ? drawSteppedSegment : drawSegment
+  await job.run(drawLineAsync, ctx, drawFunc, pts, e.color, e.strokeWidth, strokePattern)
+  if (e.seriesIndex === e.allSeriesPoints.length - 1) job.done()
+}
+
+function drawSegment (ctx, prevPt, pt) {
+  ctx.lineTo(pt.canvasx, pt.canvasy)
+}
+
+function drawSteppedSegment (ctx, prevPt, pt) {
+  ctx.lineTo(pt.canvasx, prevPt.canvasy)
+  ctx.lineTo(pt.canvasx, pt.canvasy)
+}
+
+function strokeSegment (ctx, pt) {
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.moveTo(pt.canvasx, pt.canvasy)
+}
+
+async function drawLineAsync (job, ctx, drawFunc, pts, color, strokeWidth, strokePattern) {
+  var firstPt = pts[0]
+  var prevPt = firstPt
+  ctx.strokeStyle = color
+  ctx.lineWidth = strokeWidth
+  ctx.setLineDash(strokePattern || [])
+  ctx.beginPath()
+  ctx.moveTo(firstPt.canvasx, firstPt.canvasy)
+  var segmentPts = 1
+  // frameFunc is called by irun before wating a frame
+  job.frameFunc = () => {
+    if (segmentPts > 1) {
+      strokeSegment(ctx, prevPt, strokePattern)
+      segmentPts = 0
+    }
+  }
+  await job.irun(pts.length, i => {
+    var pt = pts[i]
+    if (pt.canvasy === null) return
+    segmentPts++
+    drawFunc(ctx, prevPt, pt)
+    prevPt = pt
+  })
+  ctx.stroke()
+}
