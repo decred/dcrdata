@@ -3056,7 +3056,7 @@ func appendChartBlocks(charts *cache.ChartData, rows *sql.Rows) error {
 // charts data source from the blocks table. These data is fetched at an
 // interval of chaincfg.Params.StakeDiffWindowSize.
 func retrieveWindowStats(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
-	rows, err := db.QueryContext(ctx, internal.SelectBlocksTicketsPrice, charts.DiffInterval, charts.TicketPriceTip())
+	rows, err := db.QueryContext(ctx, internal.SelectBlocksTicketsPrice, charts.TicketPriceTip())
 	if err != nil {
 		return nil, err
 	}
@@ -3065,19 +3065,30 @@ func retrieveWindowStats(ctx context.Context, db *sql.DB, charts *cache.ChartDat
 
 // Appends the results from retrieveWindowStats to the provided ChartData.
 // This is the Appender half of a pair that make up a cache.ChartUpdater.
+// Since tickets count per window cannot be done on the db, windows grouping
+// and tickets count is done here.
 func appendWindowStats(charts *cache.ChartData, rows *sql.Rows) error {
 	defer closeRows(rows)
 	windows := charts.Windows
+	windowSize := uint64(charts.DiffInterval)
+	var ticketsCount uint64
 	for rows.Next() {
 		var timestamp time.Time
-		var price uint64
 		var difficulty float64
-		if err := rows.Scan(&price, &timestamp, &difficulty); err != nil {
+		var price, height, count uint64
+		if err := rows.Scan(&price, &timestamp, &difficulty, &height, &count); err != nil {
 			return err
 		}
-		windows.TicketPrice = append(windows.TicketPrice, price)
-		windows.PowDiff = append(windows.PowDiff, difficulty)
-		windows.Time = append(windows.Time, uint64(timestamp.Unix()))
+
+		ticketsCount += count
+		if (height % windowSize) == 0 {
+			windows.TicketPrice = append(windows.TicketPrice, price)
+			windows.PowDiff = append(windows.PowDiff, difficulty)
+			windows.Time = append(windows.Time, uint64(timestamp.Unix()))
+			windows.StakeCount = append(windows.StakeCount, ticketsCount)
+
+			ticketsCount = 0
+		}
 	}
 
 	return nil

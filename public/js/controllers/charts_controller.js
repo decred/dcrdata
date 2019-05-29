@@ -7,6 +7,7 @@ import { getDefault } from '../helpers/module_helper'
 import axios from 'axios'
 import TurboQuery from '../helpers/turbolinks_helper'
 import globalEventBus from '../services/event_bus_service'
+import { barChartPlotter } from '../helpers/chart_helper'
 import dompurify from 'dompurify'
 
 var selectedChart
@@ -16,11 +17,16 @@ const aDay = 86400 * 1000 // in milliseconds
 const aMonth = 30 // in days
 const atomsToDCR = 1e-8
 const windowScales = ['ticket-price', 'pow-difficulty']
+const lineScales = ['ticket-price']
 var ticketPoolSizeTarget, premine, stakeValHeight, stakeShare
 var baseSubsidy, subsidyInterval, subsidyExponent, windowSize, avgBlockTime
 
 function usesWindowUnits (chart) {
   return windowScales.indexOf(chart) > -1
+}
+
+function isScaleDisabled (chart) {
+  return lineScales.indexOf(chart) > -1
 }
 
 function intComma (amount) {
@@ -108,11 +114,11 @@ function nightModeOptions (nightModeOn) {
   return {
     rangeSelectorAlpha: 0.4,
     gridLineColor: '#C4CBD2',
-    colors: ['#2970FF', '#2DD8A3']
+    colors: ['#2970FF', '#006600']
   }
 }
 
-function zipYvData (gData, isHeightAxis, isDayBinned, coefficient, windowS) {
+function zipXYData (gData, isHeightAxis, isDayBinned, coefficient, windowS) {
   coefficient = coefficient || 1
   windowS = windowS || 1
   return map(gData.x, (n, i) => {
@@ -145,6 +151,18 @@ function poolSizeFunc (gData, isHeightAxis, isDayBinned) {
     data[data.length - 1][2] = ticketPoolSizeTarget
   }
   return data
+}
+
+function zipXYZData (gData, yCoefficient, zCoefficient) {
+  yCoefficient = yCoefficient || 1
+  zCoefficient = zCoefficient || 1
+  return map(gData.x, (t, i) => {
+    return [
+      new Date(t * 1000),
+      gData.y[i] * yCoefficient,
+      gData.z[i] * zCoefficient
+    ]
+  })
 }
 
 function circulationFunc (gData, isHeightAxis, isDayBinned) {
@@ -257,7 +275,7 @@ export default class extends Controller {
 
   drawInitialGraph () {
     var options = {
-      axes: { y: { axisLabelWidth: 70 } },
+      axes: { y: { axisLabelWidth: 70 }, y2: { axisLabelWidth: 70 } },
       labels: ['Date', 'Ticket Price'],
       ylabel: 'Ticket Price',
       digitsAfterDecimal: 8,
@@ -272,6 +290,9 @@ export default class extends Controller {
       labelsDiv: this.labelsTarget,
       legendFormatter: legendFormatter,
       highlightCircleSize: 4,
+      xlabel: 'Date',
+      ylabel: 'Ticket Price',
+      y2label: 'Tickets Count',
       labelsUTC: true
     }
 
@@ -295,6 +316,7 @@ export default class extends Controller {
       zoomCallback: null,
       drawCallback: null,
       logscale: this.settings.scale === 'log',
+      y2label: null,
       stepPlot: false
     }
     var isHeightAxis = this.selectedAxis() === 'height'
@@ -302,9 +324,18 @@ export default class extends Controller {
     var isDayBinned = this.selectedBin() === 'day'
     switch (chartName) {
       case 'ticket-price': // price graph
-        d = zipYvData(data, isHeightAxis, false, atomsToDCR, windowSize)
+        d = zipXYZData(data, atomsToDCR)
         gOptions.stepPlot = true
-        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Ticket Price'], true, 'Price (DCR)', false, false))
+        assign(gOptions, mapDygraphOptions(d, ['Date', 'Ticket Price', 'Tickets Count'], true,
+        'Price (DCR)', 'Date', undefined, false, false))
+        gOptions.y2label = 'Tickets Count'
+        gOptions.series = { 'Tickets Count': { axis: 'y2' } }
+        gOptions.axes.y2 = {
+          axisLabelWidth: 80,
+          valueRange: [null, 8000],
+          plotter: barChartPlotter,
+          axisLabelFormatter: (y) => Math.round(y)
+        }
         break
 
       case 'ticket-pool-size': // pool size graph
@@ -322,30 +353,30 @@ export default class extends Controller {
         break
 
       case 'ticket-pool-value': // pool value graph
-        d = zipYvData(data, isHeightAxis, isDayBinned, atomsToDCR)
+        d = zipXYData(data, isHeightAxis, isDayBinned, atomsToDCR)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Ticket Pool Value'], true,
           'Ticket Pool Value', true, false))
         break
 
       case 'block-size': // block size graph
-        d = zipYvData(data, isHeightAxis, isDayBinned)
+        d = zipXYData(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Block Size'], false, 'Block Size', true, false))
         break
 
       case 'blockchain-size': // blockchain size graph
-        d = zipYvData(data, isHeightAxis, isDayBinned)
+        d = zipXYData(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Blockchain Size'], true,
           'Blockchain Size', false, true))
         break
 
       case 'tx-count': // tx per block graph
-        d = zipYvData(data, isHeightAxis, isDayBinned)
+        d = zipXYData(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Number of Transactions'], false,
           '# of Transactions', false, false))
         break
 
       case 'pow-difficulty': // difficulty graph
-        d = zipYvData(data, isHeightAxis, false, 1, windowSize)
+        d = zipXYData(data, isHeightAxis, false, 1, windowSize)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Difficulty'], true, 'Difficulty', true, false))
         break
 
@@ -356,24 +387,24 @@ export default class extends Controller {
         break
 
       case 'fees': // block fee graph
-        d = zipYvData(data, isHeightAxis, isDayBinned, atomsToDCR)
+        d = zipXYData(data, isHeightAxis, isDayBinned, atomsToDCR)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Total Fee'], false, 'Total Fee (DCR)', true, false))
         break
 
       case 'duration-btw-blocks': // Duration between blocks graph
-        d = zipYvData(data, isHeightAxis, isDayBinned)
+        d = zipXYData(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Duration Between Blocks'], false,
           'Duration Between Blocks (seconds)', false, false))
         break
 
       case 'chainwork': // Total chainwork over time
-        d = zipYvData(data, isHeightAxis, isDayBinned)
+        d = zipXYData(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Cumulative Chainwork (exahash)'],
           false, 'Cumulative Chainwork (exahash)', true, false))
         break
 
       case 'hashrate': // Total chainwork over time
-        d = zipYvData(data, isHeightAxis, isDayBinned)
+        d = zipXYData(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Network Hashrate (terahash/s)'],
           false, 'Network Hashrate (terahash/s)', true, false))
         break
