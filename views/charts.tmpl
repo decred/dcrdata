@@ -12,21 +12,22 @@
          data-charts-bs="{{.ChainParams.BaseSubsidy}}"
          data-charts-sri="{{.ChainParams.SubsidyReductionInterval}}"
          data-charts-mul-subsidy="{{.ChainParams.MulSubsidy}}"
-         data-charts-div-subsidy="{{.ChainParams.DivSubsidy}}">
+         data-charts-div-subsidy="{{.ChainParams.DivSubsidy}}"
+         data-charts-window-size="{{.ChainParams.StakeDiffWindowSize}}"
+         data-charts-block-time="{{.ChainParams.TargetTimePerBlock.Seconds}}">
 
         <div class="container main">
 
             <div class="d-flex flex-wrap justify-content-center align-items-center chart-controls mb-1 mt-1">
 
-                <div class="chart-control-wrapper mr-2 mt-1 mb-1">
+                <div class="chart-control-wrapper mr-2 mb-1">
                     <div class="chart-control-label">CHART</div>
                     <div class="chart-control">
                         <select
                             id="selectBox"
-                            class="form-control"
+                            class="form-control chart-form-control"
                             data-target="charts.chartSelect"
                             data-action="charts#selectChart"
-                            style="width: 250px"
                         >
                             <option value="ticket-price">Ticket Price</option>
                             <option value="ticket-pool-size">Ticket Pool Size</option>
@@ -38,9 +39,6 @@
                             <option value="coin-supply">Circulation</option>
                             <option value="fees">Fees</option>
                             <option value="duration-btw-blocks">Duration Between Blocks</option>
-                            <!-- <option value="ticket-spend-type">Ticket Spend Types</option>
-                            <option name="ticket-by-outputs-windows" value="ticket-by-outputs-windows">Ticket Outputs by Price Window</option>
-                            <option name="ticket-by-outputs-blocks" value="ticket-by-outputs-blocks">Ticket Outputs by Block</option> -->
                             <option name="chainwork" value="chainwork">Total Work</option>
                             <option name="hashrate" value="hashrate">Hashrate</option>
                         </select>
@@ -58,8 +56,8 @@
                                     class="nav-link active"
                                     href="javascript:void(0);"
                                     data-target="charts.zoomOption"
-                                    data-action="click->charts#onZoom"
-                                    data-zoom="all"
+                                    data-action="click->charts#setZoom"
+                                    data-option="all"
                                 >All</a>
                             </li>
                             <li class="nav-item">
@@ -67,8 +65,8 @@
                                     class="nav-link"
                                     href="javascript:void(0);"
                                     data-target="charts.zoomOption"
-                                    data-action="click->charts#onZoom"
-                                    data-zoom="year"
+                                    data-action="click->charts#setZoom"
+                                    data-option="year"
                                 >Year</a>
                             </li>
                             <li class="nav-item">
@@ -76,8 +74,8 @@
                                     class="nav-link"
                                     href="javascript:void(0);"
                                     data-target="charts.zoomOption"
-                                    data-action="click->charts#onZoom"
-                                    data-zoom="month"
+                                    data-action="click->charts#setZoom"
+                                    data-option="month"
                                 >Month</a>
                             </li>
                             <li class="nav-item">
@@ -85,8 +83,8 @@
                                     class="nav-link"
                                     href="javascript:void(0);"
                                     data-target="charts.zoomOption"
-                                    data-action="click->charts#onZoom"
-                                    data-zoom="week"
+                                    data-action="click->charts#setZoom"
+                                    data-option="week"
                                 >Week</a>
                             </li>
                             <li class="nav-item">
@@ -94,8 +92,8 @@
                                     class="nav-link"
                                     href="javascript:void(0);"
                                     data-target="charts.zoomOption"
-                                    data-action="click->charts#onZoom"
-                                    data-zoom="day"
+                                    data-action="click->charts#setZoom"
+                                    data-option="day"
                                 >Day</a>
                             </li>
                         </ul>
@@ -114,7 +112,7 @@
                                     href="javascript:void(0);"
                                     data-target="charts.binSize"
                                     data-action="click->charts#setBin"
-                                    data-bin="day"
+                                    data-option="day"
                                 >Day</a>
                             </li>
                             <li class="nav-item">
@@ -123,14 +121,14 @@
                                     href="javascript:void(0);"
                                     data-target="charts.binSize"
                                     data-action="click->charts#setBin"
-                                    data-bin="block"
-                                >Block</a>
+                                    data-option="block"
+                                >Blocks</a>
                             </li>
                         </ul>
                     </div>
                 </div>
 
-                <div class="chart-control-wrapper mb-1">
+                <div class="chart-control-wrapper mr-2 mb-1">
                     <div class="chart-control-label">SCALE</div>
                     <div class="chart-control">
                         <ul
@@ -140,18 +138,18 @@
                                 <a
                                     class="nav-link active"
                                     href="javascript:void(0);"
-                                    data-target="charts.linearBttn"
-                                    data-action="click->charts#linearScale"
-                                    data-zoom="all"
+                                    data-target="charts.scaleType"
+                                    data-action="click->charts#setScale"
+                                    data-option="linear"
                                 >Linear</a>
                             </li>
                             <li class="nav-item">
                                 <a
                                     class="nav-link"
                                     href="javascript:void(0);"
-                                    data-target="charts.logBttn"
-                                    data-action="click->charts#logScale"
-                                    data-zoom="year"
+                                    data-target="charts.scaleType"
+                                    data-action="click->charts#setScale"
+                                    data-option="log"
                                 >Log</a>
                             </li>
                         </ul>
@@ -160,14 +158,37 @@
 
             </div>
 
-
         </div>
 
 
         <div data-target="charts.chartWrapper" class="chart-wrapper pl-2 pr-2 mb-5">
             <div
                 data-target="charts.chartsView"
-                style="width:100%; height:76vh; margin:0 auto;">
+                style="width:100%; height:73vh; margin:0 auto;">
+            </div>
+            <div class="d-flex flex-wrap justify-content-center align-items-center mb-1 mt-1">
+                <div class="chart-control chart-control-wrapper">
+                    <ul class="nav nav-pills">
+                        <li class="nav-item active">
+                            <a
+                                class="nav-link active"
+                                href="javascript:void(0);"
+                                data-target="charts.axisOption"
+                                data-action="click->charts#setAxis"
+                                data-option="time"
+                            >Time</a>
+                        </li>
+                        <li class="nav-item">
+                            <a
+                                class="nav-link"
+                                href="javascript:void(0);"
+                                data-target="charts.axisOption"
+                                data-action="click->charts#setAxis"
+                                data-option="height"
+                            >Blocks</a>
+                        </li>
+                    </ul>
+                </div>
             </div>
             <div class="spinner-wrapper">
                 <div class="spinner-centerer d-flex align-items-center justify-content-center">

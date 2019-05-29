@@ -113,16 +113,15 @@ export default class Zoom {
   // mapKey returns the corresponding map key, if the zoom meets the correct
   // range and position within the limits, else null.
   static mapKey (zoom, limits, scale) {
+    scale = scale || 1
     let lims = tryDecode(limits)
     let decoded = this.decode(zoom, lims)
-    if (decoded.end !== lims.end) return null
-    if (decoded.start === lims.start) return 'all'
-    let keys = Object.keys(zoomMap)
-    for (let idx in keys) {
-      let k = keys[idx]
+    let range = decoded.end - decoded.start
+    if (decoded.start === lims.start && range === lims.end - lims.start) return 'all'
+    for (let k in zoomMap) {
       let v = zoomMap[k]
       if (v === 0) continue
-      if (decoded.start === lims.end - v / scale) return k
+      if (v / scale === range) return k
     }
     return null
   }
