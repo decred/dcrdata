@@ -153,15 +153,20 @@ function poolSizeFunc (gData, isHeightAxis, isDayBinned) {
   return data
 }
 
-function zipXYZData (gData, yCoefficient, zCoefficient) {
+function zipXYZData (gData, isHeightAxis, isDayBinned, yCoefficient, zCoefficient, windowS) {
+  windowS = windowS || 1
   yCoefficient = yCoefficient || 1
   zCoefficient = zCoefficient || 1
-  return map(gData.x, (t, i) => {
-    return [
-      new Date(t * 1000),
-      gData.y[i] * yCoefficient,
-      gData.z[i] * zCoefficient
-    ]
+  return map(gData.x, (n, i) => {
+    var xAxisVal
+    if (isHeightAxis && isDayBinned) {
+      xAxisVal = n
+    } else if (isHeightAxis) {
+      xAxisVal = i * windowS
+    } else {
+      xAxisVal = new Date(n * 1000)
+    }
+    return [xAxisVal, gData.y[i] * yCoefficient, gData.z[i] * zCoefficient]
   })
 }
 
@@ -230,6 +235,7 @@ export default class extends Controller {
       'scaleType',
       'axisOption',
       'binSelector',
+      'scaleSelector',
       'binSize'
     ]
   }
@@ -276,8 +282,7 @@ export default class extends Controller {
   drawInitialGraph () {
     var options = {
       axes: { y: { axisLabelWidth: 70 }, y2: { axisLabelWidth: 70 } },
-      labels: ['Date', 'Ticket Price'],
-      ylabel: 'Ticket Price',
+      labels: ['Date', 'Ticket Price', 'Tickets Bought'],
       digitsAfterDecimal: 8,
       showRangeSelector: true,
       rangeSelectorPlotFillColor: '#8997A5',
@@ -292,13 +297,13 @@ export default class extends Controller {
       highlightCircleSize: 4,
       xlabel: 'Date',
       ylabel: 'Ticket Price',
-      y2label: 'Tickets Count',
+      y2label: 'Tickets Bought',
       labelsUTC: true
     }
 
     this.chartsView = new Dygraph(
       this.chartsViewTarget,
-      [[1, 1], [2, 5]],
+      [[1, 1, 5], [2, 5, 11]],
       options
     )
     this.chartSelectTarget.value = this.settings.chart
@@ -322,18 +327,18 @@ export default class extends Controller {
     var isHeightAxis = this.selectedAxis() === 'height'
     var xlabel = isHeightAxis ? 'Block Height' : 'Date'
     var isDayBinned = this.selectedBin() === 'day'
+
     switch (chartName) {
       case 'ticket-price': // price graph
-        d = zipXYZData(data, atomsToDCR)
+        d = zipXYZData(data, isHeightAxis, isDayBinned, atomsToDCR, 1, windowSize)
         gOptions.stepPlot = true
-        assign(gOptions, mapDygraphOptions(d, ['Date', 'Ticket Price', 'Tickets Count'], true,
-        'Price (DCR)', 'Date', undefined, false, false))
-        gOptions.y2label = 'Tickets Count'
-        gOptions.series = { 'Tickets Count': { axis: 'y2' } }
+        assign(gOptions, mapDygraphOptions(d, ['Date', 'Ticket Price', 'Tickets Bought'], true,
+          'Price (DCR)', 'Date', undefined, false, false))
+        gOptions.y2label = 'Tickets Bought'
+        gOptions.series = { 'Tickets Bought': { axis: 'y2' } }
         gOptions.axes.y2 = {
-          axisLabelWidth: 80,
-          valueRange: [null, 8000],
           plotter: barChartPlotter,
+          valueRange: [null, windowSize * 20 * 3],
           axisLabelFormatter: (y) => Math.round(y)
         }
         break
@@ -417,6 +422,11 @@ export default class extends Controller {
   async selectChart () {
     var selection = this.settings.chart = this.chartSelectTarget.value
     this.chartWrapperTarget.classList.add('loading')
+    if (isScaleDisabled(selection)) {
+      this.scaleSelectorTarget.classList.add('d-hide')
+    } else {
+      this.scaleSelectorTarget.classList.remove('d-hide')
+    }
     if (selectedChart !== selection || this.settings.bin !== this.selectedBin() ||
       this.settings.axis !== this.selectedAxis()) {
       let url = '/api/chart/' + selection
