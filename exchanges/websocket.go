@@ -45,9 +45,10 @@ type socketConfig struct {
 // A manager for a gorilla websocket connection.
 // Satisfies websocketFeed interface.
 type socketClient struct {
-	writeMtx sync.Mutex
-	conn     *websocket.Conn
-	done     chan struct{}
+	mtx  sync.Mutex
+	on   bool
+	conn *websocket.Conn
+	done chan struct{}
 }
 
 // Read is a wrapper for gorilla's ReadMessage that satisfies websocketFeed.Read.
@@ -60,8 +61,8 @@ func (client *socketClient) Read() (msg []byte, err error) {
 // JSON marshaling is performed before sending. Writes are sequenced with a
 // mutex lock for per-connection multi-threaded use.
 func (client *socketClient) Write(msg interface{}) error {
-	client.writeMtx.Lock()
-	defer client.writeMtx.Unlock()
+	client.mtx.Lock()
+	defer client.mtx.Unlock()
 	bytes, err := json.Marshal(msg)
 	if err != nil {
 		return err
@@ -77,6 +78,13 @@ func (client *socketClient) Done() chan struct{} {
 
 // Close is wrapper for gorilla's Close that satisfies websocketFeed.Close.
 func (client *socketClient) Close() {
+	client.mtx.Lock()
+	defer client.mtx.Unlock()
+	if !client.on {
+		return
+	}
+	client.on = false
+	close(client.done)
 	client.conn.Close()
 }
 
@@ -94,6 +102,7 @@ func newSocketConnection(cfg *socketConfig) (websocketFeed, error) {
 	return &socketClient{
 		conn: conn,
 		done: make(chan struct{}),
+		on:   true,
 	}, nil
 }
 
@@ -126,7 +135,6 @@ func dumpSignalrMsg(msg signalr.Message) {
 type signalrClient interface {
 	Send(hubs.ClientMsg) error
 	Close()
-	IsOpen() bool
 }
 
 type signalrConfig struct {
@@ -141,15 +149,15 @@ type signalrConfig struct {
 
 // A wrapper for the signalr.Client. Satisfies signalrClient.
 type signalrConnection struct {
-	c       *signalr.Client
-	done    chan struct{}
-	sendMtx sync.Mutex
+	c   *signalr.Client
+	mtx sync.Mutex
+	on  bool
 }
 
 // Send sends the ClientMsg on the connection. A mutex makes Send thread-safe.
 func (conn *signalrConnection) Send(msg hubs.ClientMsg) error {
-	conn.sendMtx.Lock()
-	defer conn.sendMtx.Unlock()
+	conn.mtx.Lock()
+	defer conn.mtx.Unlock()
 	return conn.c.Send(msg)
 }
 
@@ -157,32 +165,13 @@ func (conn *signalrConnection) Send(msg hubs.ClientMsg) error {
 func (conn *signalrConnection) Close() {
 	// Underlying connection Close can block, so measures should be taken prevent
 	// calls to Close on an already closed connection.
-	select {
-	case <-conn.done:
-	default:
-		close(conn.done)
+	conn.mtx.Lock()
+	defer conn.mtx.Unlock()
+	if !conn.on {
+		return
 	}
-	done := make(chan struct{})
-	go func() {
-		conn.c.Close()
-		done <- struct{}{}
-	}()
-
-	select {
-	case <-done:
-	case <-time.NewTimer(time.Second).C:
-		log.Errorf("signalrConnection.Close: Close timed out")
-	}
-}
-
-// Checks whether Close has been called on this connection.
-func (conn *signalrConnection) IsOpen() bool {
-	select {
-	case <-conn.done:
-		return false
-	default:
-		return true
-	}
+	conn.on = false
+	conn.c.Close()
 }
 
 // Create a new signalr connection. Returns the signalrClient interface rather
@@ -206,7 +195,7 @@ func newSignalrConnection(cfg *signalrConfig) (signalrClient, error) {
 		return nil, err
 	}
 	return &signalrConnection{
-		c:    c,
-		done: make(chan struct{}),
+		c:  c,
+		on: true,
 	}, nil
 }

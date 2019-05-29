@@ -4,19 +4,15 @@
 package exchanges
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/signal"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/carterjones/signalr"
 	"github.com/carterjones/signalr/hubs"
-	"github.com/decred/dcrdata/dcrrates"
 	"github.com/decred/slog"
 )
 
@@ -25,142 +21,6 @@ func enableTestLog() {
 		UseLogger(slog.NewBackend(os.Stdout).Logger("EXE"))
 		log.SetLevel(slog.LevelTrace)
 	}
-}
-
-func makeKillSwitch() chan os.Signal {
-	killSwitch := make(chan os.Signal, 1)
-	signal.Notify(killSwitch, os.Interrupt)
-	return killSwitch
-}
-
-func testExchanges(asSlave, quickTest bool, t *testing.T) {
-	enableTestLog()
-
-	// Skip this test during automated testing.
-	if os.Getenv("GORACE") != "" {
-		t.Skip("Skipping exchange test")
-	}
-
-	ctx, shutdown := context.WithCancel(context.Background())
-
-	killSwitch := makeKillSwitch()
-
-	wg := new(sync.WaitGroup)
-
-	wg.Add(1)
-	go func() {
-		select {
-		case <-killSwitch:
-			shutdown()
-		case <-ctx.Done():
-		}
-		wg.Done()
-	}()
-
-	config := new(ExchangeBotConfig)
-	config.Disabled = make([]string, 0)
-	config.Indent = true
-	if asSlave {
-		config.MasterBot = ":7778"
-		config.MasterCertFile = filepath.Join(dcrrates.DefaultAppDirectory, dcrrates.DefaultCertName)
-	} else {
-		config.DataExpiry = "2m"
-		config.RequestExpiry = "4m"
-	}
-	bot, err := NewExchangeBot(config)
-	if err != nil {
-		shutdown()
-		t.Fatalf("Error creating bot. Shutting down: %v", err)
-	}
-
-	updateCounts := make(map[string]int)
-	for token := range bot.Exchanges {
-		updateCounts[token] = 0
-	}
-	logUpdate := func(token string) {
-		if !quickTest {
-			return
-		}
-		updateCounts[token]++
-		lowest := updateCounts[token]
-		for _, v := range updateCounts {
-			if v < lowest {
-				lowest = v
-			}
-		}
-		if lowest > 0 {
-			log.Infof("Quick test conditions met. Shutting down early")
-			shutdown()
-		}
-	}
-
-	wg.Add(1)
-	go bot.Start(ctx, wg)
-
-	quitTimer := time.NewTimer(time.Minute * 7)
-	ch := bot.UpdateChannels()
-
-out:
-	for {
-		select {
-		case update := <-ch.Exchange:
-			logUpdate(update.Token)
-			log.Infof("Update received from exchange %s", update.Token)
-		case update := <-ch.Index:
-			logUpdate(update.Token)
-			log.Infof("Update received from index %s", update.Token)
-		case <-ch.Quit:
-			t.Errorf("Exchange bot has quit.")
-			break out
-		case <-quitTimer.C:
-			break out
-		case <-ctx.Done():
-			break out
-		}
-	}
-
-	if bot.IsFailed() {
-		log.Infof("ExchangeBot is in failed state")
-	}
-
-	logMissing := func(token string) {
-		for xc := range updateCounts {
-			if xc == token {
-				return
-			}
-		}
-		t.Errorf("No update received for %s", token)
-	}
-
-	for _, token := range Tokens() {
-		logMissing(token)
-	}
-
-	depth, err := bot.QuickDepth(aggregatedOrderbookKey)
-	if err != nil {
-		t.Errorf("Failed to create aggregated orderbook")
-	}
-	log.Infof("aggregated orderbook size: %d kiB", len(depth)/1024)
-
-	log.Infof("%d Bitcoin indices available", len(bot.AvailableIndices()))
-	log.Infof("final state is %d kiB", len(bot.StateBytes())/1024)
-
-	shutdown()
-	wg.Wait()
-}
-
-func TestExchanges(t *testing.T) {
-	testExchanges(false, false, t)
-}
-
-func TestSlaveBot(t *testing.T) {
-	// Points to DCRData on local machine port 7778.
-	// Start server with --exchange-refresh=1m --exchange-expiry=2m
-	testExchanges(true, false, t)
-}
-
-func TestQuickExchanges(t *testing.T) {
-	testExchanges(false, true, t)
 }
 
 var initialPoloniexOrderbook = []byte(`[
@@ -282,8 +142,22 @@ func (p *fakePoloniexWebsocket) Write(interface{}) error {
 	return nil
 }
 
+var poloMtx sync.Mutex
+var poloOn bool = true
+
 func (p *fakePoloniexWebsocket) Close() {
-	close(poloniexDoneChannel)
+	poloMtx.Lock()
+	defer poloMtx.Unlock()
+	if poloOn {
+		poloOn = false
+		close(poloniexDoneChannel)
+	}
+}
+
+func (p *fakePoloniexWebsocket) On() bool {
+	poloMtx.Lock()
+	defer poloMtx.Unlock()
+	return poloOn
 }
 
 func newTestPoloniexExchange() *PoloniexExchange {
@@ -350,59 +224,6 @@ func TestPoloniexWebsocket(t *testing.T) {
 	}
 }
 
-func TestPoloniexLiveWebsocket(t *testing.T) {
-	enableTestLog()
-
-	// Skip this test during automated testing.
-	if os.Getenv("GORACE") != "" {
-		t.Skip("Skipping Poloniex websocket test")
-	}
-
-	killSwitch := makeKillSwitch()
-
-	poloniex := newTestPoloniexExchange()
-	var msgs int
-	processor := func(b []byte) {
-		msgs++
-		var s string
-		if len(b) >= 128 {
-			s = string(b[:128]) + "..."
-		} else {
-			s = string(b)
-		}
-		if s == "[1010]" {
-			log.Infof("heartbeat")
-		} else {
-			log.Infof("message received: %s", s)
-		}
-	}
-
-	testConnectWs := func() {
-		poloniexDoneChannel = make(chan struct{})
-		poloniex.connectWebsocket(processor, &socketConfig{
-			address: PoloniexURLs.Websocket,
-		})
-		poloniex.wsSend(poloniexOrderbookSubscription)
-	}
-	testConnectWs()
-	select {
-	case <-time.NewTimer(30 * time.Second).C:
-	case <-killSwitch:
-		t.Errorf("ctrl+c detected")
-		return
-	}
-	// Test reconnection
-	poloniex.ws.Close()
-	testConnectWs()
-	select {
-	case <-time.NewTimer(30 * time.Second).C:
-	case <-killSwitch:
-		t.Errorf("ctrl+c detected")
-		return
-	}
-	log.Infof("%d messages received", msgs)
-}
-
 var (
 	bittrexSignalrTemplate = signalr.Message{}
 	bittrexMsgTemplate     = hubs.ClientMsg{}
@@ -415,7 +236,7 @@ type testBittrexConnection struct {
 
 func (conn testBittrexConnection) Close() {}
 
-func (conn testBittrexConnection) IsOpen() bool {
+func (conn testBittrexConnection) On() bool {
 	// Doesn't matter right now.
 	return false
 }
@@ -591,37 +412,4 @@ func TestBittrexWebsocket(t *testing.T) {
 	if !bittrex.wsFailed() {
 		t.Fatalf("bittrex not in failed state as expected")
 	}
-}
-
-func TestBittrexLiveWebsocket(t *testing.T) {
-	enableTestLog()
-
-	// Skip this test during automated testing.
-	if os.Getenv("GORACE") != "" {
-		t.Skip("Skipping Bittrex websocket test")
-	}
-
-	killSwitch := makeKillSwitch()
-
-	bittrex := newTestBittrexExchange()
-
-	bittrex.connectWs()
-	defer bittrex.sr.Close()
-
-	testDuration := 450
-	log.Infof("listening for %d seconds", testDuration)
-	select {
-	case <-time.NewTimer(time.Second * time.Duration(testDuration)).C:
-	case <-killSwitch:
-		t.Errorf("ctrl+c detected")
-		return
-	}
-	if bittrex.wsFailed() {
-		bittrex.sr.Close()
-		t.Fatalf("bittrex connection in failed state")
-	}
-
-	depths := bittrex.wsDepths()
-	log.Infof("%d asks", len(depths.Asks))
-	log.Infof("%d bids", len(depths.Bids))
 }

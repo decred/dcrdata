@@ -413,6 +413,7 @@ type CommonExchange struct {
 	wsSync       struct {
 		err      error
 		errCount int
+		init     time.Time
 		update   time.Time
 		fail     time.Time
 	}
@@ -573,12 +574,9 @@ func (xc *CommonExchange) connectWebsocket(processor WebsocketProcessor, cfg *so
 	}
 
 	xc.wsMtx.Lock()
+	// Ensure that any previous websocket is closed.
 	if xc.ws != nil {
-		select {
-		case <-xc.ws.Done():
-		default:
-			xc.ws.Close()
-		}
+		xc.ws.Close()
 	}
 	xc.wsProcessor = processor
 	xc.ws = ws
@@ -612,49 +610,54 @@ func (xc *CommonExchange) wsSend(msg interface{}) error {
 
 // Checks whether the websocketFeed Done channel is closed.
 func (xc *CommonExchange) wsListening() bool {
-	ws, _ := xc.websocket()
-	if ws == nil {
-		sr := xc.signalr()
-		if sr == nil {
-			return false
-		}
-		return sr.IsOpen()
-	}
-	select {
-	case <-ws.Done():
-		return false
-	default:
-		return true
-	}
+	xc.wsMtx.RLock()
+	defer xc.wsMtx.RUnlock()
+	return xc.wsSync.init.After(xc.wsSync.fail)
 }
 
 // Log the error and time, and increment the error counter.
 func (xc *CommonExchange) setWsFail(err error) {
-	sr := xc.signalr()
-	if sr != nil && !xc.wsFailed() {
-		sr.Close()
-	}
 	xc.wsMtx.Lock()
 	defer xc.wsMtx.Unlock()
+	if xc.ws != nil {
+		xc.ws.Close()
+	}
+	if xc.sr != nil {
+		xc.sr.Close()
+	}
 	log.Errorf("%s websocket error: %v", xc.token, err)
 	xc.wsSync.err = err
 	xc.wsSync.errCount++
 	xc.wsSync.fail = time.Now()
 }
 
-// Set the updated flag. The websocket is considered failed if the failed flag
-// is later than the updated flag.
+// Set the init flag. The websocket is considered failed if the failed flag
+// is later than the init flag.
+func (xc *CommonExchange) wsInitialized() {
+	xc.wsMtx.Lock()
+	defer xc.wsMtx.Unlock()
+	xc.wsSync.init = time.Now()
+	xc.wsSync.update = xc.wsSync.init
+}
+
+// Set the updated flag.
 func (xc *CommonExchange) wsUpdated() {
 	xc.wsMtx.Lock()
 	defer xc.wsMtx.Unlock()
 	xc.wsSync.update = time.Now()
 }
 
+func (xc *CommonExchange) wsLastUpdate() time.Time {
+	xc.wsMtx.RLock()
+	defer xc.wsMtx.RUnlock()
+	return xc.wsSync.update
+}
+
 // Checks whether the websocket is in a failed state.
 func (xc *CommonExchange) wsFailed() bool {
 	xc.wsMtx.RLock()
 	defer xc.wsMtx.RUnlock()
-	return xc.wsSync.fail.After(xc.wsSync.update)
+	return xc.wsSync.fail.After(xc.wsSync.init)
 }
 
 // The count of errors logged since the last success-triggered reset.
@@ -672,7 +675,7 @@ func (xc *CommonExchange) connectSignalr(cfg *signalrConfig) (err error) {
 	}
 	xc.wsMtx.Lock()
 	defer xc.wsMtx.Unlock()
-	if xc.sr != nil && !xc.wsSync.fail.After(xc.wsSync.update) {
+	if xc.sr != nil {
 		xc.sr.Close()
 	}
 	xc.sr, err = newSignalrConnection(cfg)
@@ -746,6 +749,7 @@ func (xc *CommonExchange) wsDepths() *DepthData {
 func (xc *CommonExchange) wsDepthStatus(connector func()) (tryHttp, initializing bool, depth *DepthData) {
 	if !xc.wsListening() {
 		if xc.wsFailed() {
+			log.Tracef("using http fallback for %s orderbook data", xc.token)
 			tryHttp = true
 			errCount := xc.wsErrorCount()
 			if errCount < wsMaxErrors {
@@ -1193,11 +1197,19 @@ func NewBittrex(client *http.Client, channels *BotChannels) (bittrex Exchange, e
 		}
 	}
 
-	bittrex = &BittrexExchange{
+	b := &BittrexExchange{
 		CommonExchange: newCommonExchange(Bittrex, client, reqs, channels),
 		MarketName:     "BTC-DCR",
 		queue:          make([]*BittrexOrderbookUpdate, 0),
 	}
+	go func() {
+		<-channels.done
+		sr := b.signalr()
+		if sr != nil {
+			sr.Close()
+		}
+	}()
+	bittrex = b
 	return
 }
 
@@ -1481,7 +1493,7 @@ func (bittrex *BittrexExchange) processFullOrderbook(book *BittrexOrderbookUpdat
 			Candlesticks: state.Candlesticks,
 		})
 	}
-	bittrex.wsUpdated()
+	bittrex.wsInitialized()
 }
 
 // Handles an update to the orderbook.
@@ -1527,6 +1539,7 @@ func (bittrex *BittrexExchange) msgHandler(msg signalr.Message) {
 		if hubMsg.M != updateMsgKey {
 			log.Warnf("bittrex websocket update of unknown type %s", hubMsg.M)
 		}
+		var count int
 		for _, arg := range hubMsg.A {
 			update := new(BittrexOrderbookUpdate)
 			aBytes, err := json.Marshal(arg)
@@ -1540,6 +1553,10 @@ func (bittrex *BittrexExchange) msgHandler(msg signalr.Message) {
 				return
 			}
 			bittrex.processNextUpdate(update)
+			count++
+		}
+		if count > 0 {
+			bittrex.wsUpdated()
 		}
 	}
 }
@@ -1558,6 +1575,10 @@ func (bittrex *BittrexExchange) connectWs() {
 		params:         nil,
 		msgHandler:     bittrex.msgHandler,
 	})
+	bittrex.orderMtx.Lock()
+	bittrex.queue = make([]*BittrexOrderbookUpdate, 0)
+	bittrex.orderSeq = 0
+	bittrex.orderMtx.Unlock()
 	if err != nil {
 		bittrex.setWsFail(err)
 		return
@@ -1609,6 +1630,14 @@ func (bittrex *BittrexExchange) Refresh() {
 			log.Errorf("Failed to retrieve Bittrex depth chart data: %v", err)
 		}
 		depth = depthResponse.translate()
+	}
+
+	if !wsStarting {
+		sinceLast := time.Since(bittrex.wsLastUpdate())
+		log.Tracef("last bittrex websocket update %.3f seconds ago", sinceLast.Seconds())
+		if sinceLast > depthDataExpiration && !bittrex.wsFailed() {
+			bittrex.setWsFail(fmt.Errorf("lost connection detected. bittrex websocket will restart during next refresh"))
+		}
 	}
 
 	// Check for expired candlesticks
@@ -2459,7 +2488,7 @@ func (poloniex *PoloniexExchange) processWsOrderbook(sequenceID int64, responseL
 		poloniex.setWsFail(err)
 		return
 	}
-	poloniex.wsUpdated()
+	poloniex.wsInitialized()
 }
 
 // A helper for merging a source map into a target map. Poloniex order in the
@@ -2649,6 +2678,7 @@ func (poloniex *PoloniexExchange) processWsMessage(raw []byte) {
 
 		newAsks := make(wsOrders)
 		newBids := make(wsOrders)
+		var count int
 		for _, update := range responseList {
 			updateParams, ok := update.([]interface{})
 			if !ok {
@@ -2686,8 +2716,12 @@ func (poloniex *PoloniexExchange) processWsMessage(raw []byte) {
 				poloniex.setWsFail(fmt.Errorf("Unknown poloniex update direction indic`ator: %d", direction))
 				return
 			}
+			count++
 		}
 		poloniex.accumulateOrders(seq, newAsks, newBids)
+		if count > 0 {
+			poloniex.wsUpdated()
+		}
 	default:
 		poloniex.setWsFail(fmt.Errorf("poloniex websocket message had unexpected length %d", len(msg)))
 		return
@@ -2754,6 +2788,14 @@ func (poloniex *PoloniexExchange) Refresh() {
 			log.Errorf("Poloniex depth chart fetch error: %v", err)
 		}
 		depth = depthResponse.translate()
+	}
+
+	if !wsStarting {
+		sinceLast := time.Since(poloniex.wsLastUpdate())
+		log.Tracef("last bittrex websocket update %.3f seconds ago", sinceLast.Seconds())
+		if sinceLast > depthDataExpiration && !poloniex.wsFailed() {
+			poloniex.setWsFail(fmt.Errorf("lost connection detected. bittrex websocket will reconnect during next refresh"))
+		}
 	}
 
 	// Candlesticks
