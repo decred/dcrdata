@@ -236,6 +236,9 @@ export default class extends Controller {
       'axisOption',
       'binSelector',
       'scaleSelector',
+      'ticketsPurchase',
+      'ticketsPrice',
+      'vSelector',
       'binSize'
     ]
   }
@@ -295,7 +298,6 @@ export default class extends Controller {
       labelsDiv: this.labelsTarget,
       legendFormatter: legendFormatter,
       highlightCircleSize: 4,
-      xlabel: 'Date',
       ylabel: 'Ticket Price',
       y2label: 'Tickets Bought',
       labelsUTC: true
@@ -321,6 +323,7 @@ export default class extends Controller {
       zoomCallback: null,
       drawCallback: null,
       logscale: this.settings.scale === 'log',
+      axes: {},
       y2label: null,
       stepPlot: false
     }
@@ -330,10 +333,10 @@ export default class extends Controller {
 
     switch (chartName) {
       case 'ticket-price': // price graph
-        d = zipXYZData(data, isHeightAxis, isDayBinned, atomsToDCR, 1, windowSize)
+        d = zipXYZData(data, isHeightAxis, false, atomsToDCR, 1, windowSize)
         gOptions.stepPlot = true
-        assign(gOptions, mapDygraphOptions(d, ['Date', 'Ticket Price', 'Tickets Bought'], true,
-          'Price (DCR)', 'Date', undefined, false, false))
+        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Ticket Price', 'Tickets Bought'], true,
+          'Price (DCR)', xlabel, undefined, false, false))
         gOptions.y2label = 'Tickets Bought'
         gOptions.series = { 'Tickets Bought': { axis: 'y2' } }
         gOptions.axes.y2 = {
@@ -346,7 +349,7 @@ export default class extends Controller {
       case 'ticket-pool-size': // pool size graph
         d = poolSizeFunc(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Ticket Pool Size', 'Network Target'],
-          false, 'Ticket Pool Size', true, false))
+          false, 'Ticket Pool Size', xlabel, true, false))
         gOptions.series = {
           'Network Target': {
             strokePattern: [5, 3],
@@ -415,6 +418,7 @@ export default class extends Controller {
         break
     }
 
+    this.chartsView.plotter_.clear()
     this.chartsView.updateOptions(gOptions, false)
     this.validateZoom()
   }
@@ -424,8 +428,10 @@ export default class extends Controller {
     this.chartWrapperTarget.classList.add('loading')
     if (isScaleDisabled(selection)) {
       this.scaleSelectorTarget.classList.add('d-hide')
+      this.vSelectorTarget.classList.remove('d-hide')
     } else {
       this.scaleSelectorTarget.classList.remove('d-hide')
+      this.vSelectorTarget.classList.add('d-hide')
     }
     if (selectedChart !== selection || this.settings.bin !== this.selectedBin() ||
       this.settings.axis !== this.selectedAxis()) {
@@ -551,6 +557,14 @@ export default class extends Controller {
     if (!target) return // Exit if running for the first time.
     this.settings.axis = null
     this.selectChart()
+  }
+
+  setVisibility () {
+    if (this.chartSelectTarget.value !== 'ticket-price') return
+    this.chartsView.updateOptions({
+      visibility: [this.ticketsPriceTarget.checked,
+        this.ticketsPurchaseTarget.checked]
+    })
   }
 
   setActiveOptionBtn (opt, optTargets) {

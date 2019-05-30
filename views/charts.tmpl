@@ -156,6 +156,38 @@
                     </div>
                 </div>
 
+                <div class="chart-control-wrapper mr-2 mb-1" data-target="charts.vSelector">
+                    <div class="chart-control-label">VISIBILITY</div>
+                    <div class="chart-control">
+                        <ul
+                            class="nav nav-pills"
+                        >
+                            <li class="nav-item">
+                                <label class="customcheck ml-2 d-inline-flex">Tickets Price
+                                    <input
+                                        type="checkbox"
+                                        checked="checked"
+                                        data-action="click->charts#setVisibility"
+                                        data-target="charts.ticketsPrice"
+                                    >
+                                    <span class="checkmark tickets-price"></span>
+                                </label>
+                            </li>
+                            <li class="nav-item">
+                                <label class="customcheck mx-2 d-inline-flex">Tickets Bought
+                                    <input
+                                        type="checkbox"
+                                        checked="checked"
+                                        data-action="click->charts#setVisibility"
+                                        data-target="charts.ticketsPurchase"
+                                    >
+                                    <span class="checkmark tickets-bought"></span>
+                                </label>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
             </div>
 
         </div>
