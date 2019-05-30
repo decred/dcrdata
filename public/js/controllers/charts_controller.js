@@ -149,7 +149,7 @@ function nightModeOptions (nightModeOn) {
   return {
     rangeSelectorAlpha: 0.4,
     gridLineColor: '#C4CBD2',
-    colors: ['#2970FF', '#2DD8A3', '#ED6D47']
+    colors: ['#2970FF', '#2DD8A3', '#FF0090']
   }
 }
 
@@ -379,12 +379,12 @@ export default class extends Controller {
       zoomCallback: null,
       drawCallback: null,
       logscale: this.settings.scale === 'log',
-      axes: {},
+      valueRange: [null, null],
       visibility: null,
       y2label: null,
       stepPlot: false,
-      valueRange: [null, null],
-      series: null
+      axes: {},
+      series: {}
     }
     var isHeightAxis = this.selectedAxis() === 'height'
     var xlabel = isHeightAxis ? 'Block Height' : 'Date'
@@ -395,7 +395,7 @@ export default class extends Controller {
         d = zipXYZData(data, isHeightAxis, false, atomsToDCR, 1, windowSize)
         gOptions.stepPlot = true
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Price', 'Tickets Bought'], true,
-          'Price (DCR)', xlabel, undefined, false, false))
+          'Price (DCR)', false, false))
         gOptions.y2label = 'Tickets Bought'
         gOptions.series = { 'Tickets Bought': { axis: 'y2' } }
         this.visibility = [this.ticketsPriceTarget.checked, this.ticketsPurchaseTarget.checked]
@@ -409,7 +409,7 @@ export default class extends Controller {
       case 'ticket-pool-size': // pool size graph
         d = poolSizeFunc(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Ticket Pool Size', 'Network Target'],
-          false, 'Ticket Pool Size', xlabel, true, false))
+          false, 'Ticket Pool Size', true, false))
         gOptions.series = {
           'Network Target': {
             strokePattern: [5, 3],
@@ -421,14 +421,13 @@ export default class extends Controller {
         break
       case 'stake-participation':
         d = percentStakedFunc(data, isHeightAxis, isDayBinned)
-        assign(gOptions, mapDygraphOptions(d[0], ['Date', 'Stake Participation', 'Ticket Pool Value', 'Coin Supply'], true,
-          'Stake Participation (%)', 'Date', undefined, true, false))
+        assign(gOptions, mapDygraphOptions(d[0], [xlabel, 'Stake Participation', 'Ticket Pool Value',
+          'Coin Supply'], true, 'Stake Participation (%)', true, false))
+        gOptions.valueRange = [null, d[1] + 5]
         gOptions.series = {
-          'Coin Supply': { strokeWidth: 0, drawPoints: false },
-          'Ticket Pool Value': { strokeWidth: 0, drawPoints: false }
+          'Coin Supply': { strokeWidth: 0, highlightCircleSize: 0 },
+          'Ticket Pool Value': { strokeWidth: 0, highlightCircleSize: 0 }
         }
-        gOptions.valueRange = [0, d[1] + 5]
-        console.log('gOptions.valueRange: ', gOptions.valueRange)
         break
 
       case 'ticket-pool-value': // pool value graph
