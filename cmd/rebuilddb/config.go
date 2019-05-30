@@ -17,7 +17,6 @@ const (
 	defaultConfigFilename = "rebuilddb.conf"
 	defaultLogLevel       = "info"
 	defaultLogDirname     = "logs"
-	defaultLogFilename    = "rebuilddb.log"
 )
 
 var curDir, _ = os.Getwd()

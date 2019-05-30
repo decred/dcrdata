@@ -3492,7 +3492,7 @@ func (pgb *ChainDB) storeTxns(txns []*dbtypes.Tx, vouts [][]*dbtypes.Vout, vins 
 	voutStmt, err = dbTx.Prepare(internal.MakeVoutInsertStatement(checked, doUpsert))
 	if err != nil {
 		_ = dbTx.Rollback()
-		err = fmt.Errorf("failed to prepare vout insert statment: %v", err)
+		err = fmt.Errorf("failed to prepare vout insert statement: %v", err)
 		return
 	}
 	defer voutStmt.Close()
@@ -3501,7 +3501,7 @@ func (pgb *ChainDB) storeTxns(txns []*dbtypes.Tx, vouts [][]*dbtypes.Vout, vins 
 	vinStmt, err = dbTx.Prepare(internal.MakeVinInsertStatement(checked, doUpsert))
 	if err != nil {
 		_ = dbTx.Rollback()
-		err = fmt.Errorf("failed to prepare vin insert statment: %v", err)
+		err = fmt.Errorf("failed to prepare vin insert statement: %v", err)
 		return
 	}
 	defer vinStmt.Close()

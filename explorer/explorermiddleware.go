@@ -132,16 +132,6 @@ func getBlockHashCtx(r *http.Request) string {
 	return hash
 }
 
-func getBlockHeightCtx(r *http.Request) int64 {
-	idxI, ok := r.Context().Value(ctxBlockIndex).(int)
-	idx := int64(idxI)
-	if !ok {
-		log.Trace("Block Height not set")
-		return -1
-	}
-	return idx
-}
-
 func getAgendaIDCtx(r *http.Request) string {
 	hash, ok := r.Context().Value(ctxAgendaId).(string)
 	if !ok {

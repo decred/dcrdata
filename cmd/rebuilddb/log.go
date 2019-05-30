@@ -12,8 +12,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var logFILE *os.File
-
 //var log = logrus.New()
 var log *logrus.Logger
 

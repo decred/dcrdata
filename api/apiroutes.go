@@ -914,23 +914,6 @@ func (c *appContext) getTransactionOutput(w http.ResponseWriter, r *http.Request
 	writeJSON(w, *allTxOut[index], c.getIndentQuery(r))
 }
 
-func (c *appContext) getBlockFeeInfo(w http.ResponseWriter, r *http.Request) {
-	idx, err := c.getBlockHeightCtx(r)
-	if err != nil {
-		http.Error(w, http.StatusText(422), 422)
-		return
-	}
-
-	blockFeeInfo := c.BlockData.GetFeeInfo(int(idx))
-	if blockFeeInfo == nil {
-		apiLog.Errorf("Unable to get block %d fee info", idx)
-		http.Error(w, http.StatusText(422), 422)
-		return
-	}
-
-	writeJSON(w, blockFeeInfo, c.getIndentQuery(r))
-}
-
 // getBlockStakeInfoExtendedByHash retrieves the apitype.StakeInfoExtended
 // for the given blockhash
 func (c *appContext) getBlockStakeInfoExtendedByHash(w http.ResponseWriter, r *http.Request) {

@@ -108,14 +108,6 @@ func TestStatusPageResponseCodes(t *testing.T) {
 	}
 }
 
-type testTxPageWiredDBStub struct {
-	*WiredDBStub
-}
-
-func (t *testTxPageWiredDBStub) GetExplorerTx(txid string) *types.TxInfo {
-	return nil
-}
-
 // func TestTxPageResponseCodes(t *testing.T) {
 // 	var wiredDBStub testTxPageWiredDBStub
 // 	var chainDBStub ChainDBStub

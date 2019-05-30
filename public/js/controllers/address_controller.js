@@ -385,7 +385,7 @@ export default class extends Controller {
       return
     }
 
-    // Set the current view to prevent uneccesary reloads.
+    // Set the current view to prevent unnecessary reloads.
     Object.assign(ctrl.state, settings)
     ctrl.fetchGraphData(settings.chart, settings.bin)
   }
