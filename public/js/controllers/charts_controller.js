@@ -149,7 +149,7 @@ function nightModeOptions (nightModeOn) {
   return {
     rangeSelectorAlpha: 0.4,
     gridLineColor: '#C4CBD2',
-    colors: ['#2970FF', '#2DD8A3', '#FF0090']
+    colors: ['#2970FF', '#006600', '#FF0090']
   }
 }
 
@@ -384,7 +384,7 @@ export default class extends Controller {
       y2label: null,
       stepPlot: false,
       axes: {},
-      series: {}
+      series: null
     }
     var isHeightAxis = this.selectedAxis() === 'height'
     var xlabel = isHeightAxis ? 'Block Height' : 'Date'
@@ -395,7 +395,7 @@ export default class extends Controller {
         d = zipXYZData(data, isHeightAxis, false, atomsToDCR, 1, windowSize)
         gOptions.stepPlot = true
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Price', 'Tickets Bought'], true,
-          'Price (DCR)', false, false))
+          'Price (DCR)', true, false))
         gOptions.y2label = 'Tickets Bought'
         gOptions.series = { 'Tickets Bought': { axis: 'y2' } }
         this.visibility = [this.ticketsPriceTarget.checked, this.ticketsPurchaseTarget.checked]
@@ -433,7 +433,7 @@ export default class extends Controller {
       case 'ticket-pool-value': // pool value graph
         d = zipXYData(data, isHeightAxis, isDayBinned, atomsToDCR)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Ticket Pool Value'], true,
-        'Ticket Pool Value (DCR)', true, false))
+          'Ticket Pool Value (DCR)', true, false))
         break
 
       case 'block-size': // block size graph
