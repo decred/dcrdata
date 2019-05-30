@@ -1146,6 +1146,43 @@ func RetrieveTicketStatusByHash(ctx context.Context, db *sql.DB, ticketHash stri
 	return
 }
 
+// RetrieveTicketStakeSubmissionAddr gets the stakesubmission address for the
+// given ticket hash.
+func RetrieveTicketStakeSubmissionAddr(ctx context.Context, db *sql.DB, ticketHash string) (addr string, err error) {
+	err = db.QueryRowContext(ctx, internal.SelectTicketStkSubByHash, ticketHash).
+		Scan(&addr)
+	return
+}
+
+// RetrieveTicketStakeSubmissionAddrs gets the stakesubmission address of all tickets.
+func RetrieveTicketStakeSubmissionAddrs(ctx context.Context, db *sql.DB) (hashes []chainhash.Hash, addrs []string, err error) {
+	var rows *sql.Rows
+	rows, err = db.QueryContext(ctx, internal.SelectTicketsAllStkSub)
+	if err != nil {
+		return
+	}
+	defer closeRows(rows)
+
+	for rows.Next() {
+		var hash, addr string
+		err = rows.Scan(&hash, &addr)
+		if err != nil {
+			break
+		}
+
+		Hash, err := chainhash.NewHashFromStr(hash)
+		if err != nil {
+			log.Errorf("Invalid tx hash %s: %v", hash, err)
+			continue
+		}
+
+		addrs = append(addrs, addr)
+		hashes = append(hashes, *Hash)
+	}
+
+	return
+}
+
 // RetrieveTicketInfoByHash retrieves the ticket spend and pool statuses as well
 // as the purchase and spending block info and spending txid.
 func RetrieveTicketInfoByHash(ctx context.Context, db *sql.DB, ticketHash string) (spendStatus dbtypes.TicketSpendType,
@@ -1982,6 +2019,28 @@ func scanAddressQueryRows(rows *sql.Rows, queryType int) (addressRows []*dbtypes
 		addressRows = append(addressRows, &addr)
 	}
 	return
+}
+
+// RetrieveAddressesForOutpoint fetches all addresses for a given outpoint
+// (hash:index).
+func RetrieveAddressesForOutpoint(ctx context.Context, db *sql.DB, txHash string, voutIndex uint32) ([]string, error) {
+	var addresses []string
+	rows, err := db.QueryContext(ctx, internal.SelectAddressesForOutpoint, txHash, voutIndex)
+	if err != nil {
+		return addresses, err
+	}
+	defer closeRows(rows)
+
+	for rows.Next() {
+		var addr string
+		err = rows.Scan(&addr)
+		if err != nil {
+			break
+		}
+
+		addresses = append(addresses, addr)
+	}
+	return addresses, err
 }
 
 // RetrieveAddressIDsByOutpoint fetches all address row IDs for a given outpoint

@@ -100,6 +100,7 @@ type DataSourceAux interface {
 	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
 	AddressHistory(address string, N, offset int64, txnType dbtypes.AddrTxnViewType) ([]*dbtypes.AddressRow, *dbtypes.AddressBalance, error)
 	FillAddressTransactions(addrInfo *dbtypes.AddressInfo) error
+	TicketAddress(txHash string) (string, error)
 	AddressTransactionDetails(addr string, count, skip int64,
 		txnType dbtypes.AddrTxnViewType) (*apitypes.Address, error)
 	AddressTotals(address string) (*apitypes.AddressTotals, error)
@@ -129,6 +130,7 @@ type appContext struct {
 	AgendaDB      *agendas.AgendaDB
 	maxCSVAddrs   int
 	charts        *cache.ChartData
+	poolMtx       sync.Mutex
 }
 
 // AppContextConfig is the configuration for the appContext and the only
@@ -1350,6 +1352,10 @@ func (c *appContext) getBlockRangeSteppedSummary(w http.ResponseWriter, r *http.
 }
 
 func (c *appContext) getTicketPool(w http.ResponseWriter, r *http.Request) {
+	// One call at a time.
+	c.poolMtx.Lock()
+	defer c.poolMtx.Unlock()
+
 	// getBlockHeightCtx falls back to try hash if height fails
 	idx, err := c.getBlockHeightCtx(r)
 	if err != nil {
@@ -1370,6 +1376,39 @@ func (c *appContext) getTicketPool(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, tp, c.getIndentQuery(r))
+}
+
+func (c *appContext) getTicketPoolAddresses(w http.ResponseWriter, r *http.Request) {
+	// One call at a time.
+	c.poolMtx.Lock()
+	defer c.poolMtx.Unlock()
+
+	// getBlockHeightCtx falls back to try hash if height fails
+	idx, err := c.getBlockHeightCtx(r)
+	if err != nil {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	tp, err := c.BlockData.GetPool(idx)
+	if err != nil {
+		apiLog.Errorf("Unable to fetch ticket pool: %v", err)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	addresses := make([]string, 0, len(tp))
+	for i := range tp {
+		addr, err := c.AuxDataSource.TicketAddress(tp[i])
+		if err != nil {
+			apiLog.Errorf("Unable to fetch addresses for ticket %v: %v", tp[i], err)
+			http.Error(w, http.StatusText(422), 422)
+			return
+		}
+		addresses = append(addresses, addr)
+	}
+
+	writeJSON(w, addresses, c.getIndentQuery(r))
 }
 
 func (c *appContext) getTicketPoolInfo(w http.ResponseWriter, r *http.Request) {

@@ -106,6 +106,9 @@ const (
 	SelectTicketStatusByHash   = `SELECT id, spend_type, pool_status FROM tickets` + forTxHashMainchainFirst
 	SelectTicketInfoByHash     = `SELECT block_hash, block_height, spend_type, pool_status, spend_tx_db_id FROM tickets` + forTxHashMainchainFirst
 
+	SelectTicketsAllStkSub   = `SELECT DISTINCT ON (tx_hash) tx_hash, stakesubmission_address FROM tickets;`
+	SelectTicketStkSubByHash = `SELECT stakesubmission_address FROM tickets WHERE tx_hash = $1;`
+
 	SelectUnspentTickets = `SELECT id, tx_hash FROM tickets
 		WHERE spend_type = 0 AND is_mainchain = true;`
 

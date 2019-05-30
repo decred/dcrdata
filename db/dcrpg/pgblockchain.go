@@ -34,6 +34,7 @@ import (
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/stakedb"
 	"github.com/decred/dcrdata/txhelpers"
+	"github.com/decred/slog"
 	pitypes "github.com/dmigwi/go-piparser/proposals/types"
 	humanize "github.com/dustin/go-humanize"
 )
@@ -200,6 +201,30 @@ func (u *utxoStore) Size() (sz int) {
 	return
 }
 
+type ticketAddr string
+type ticketAddrMap map[ticketAddr]*ticketAddr
+type ticketHashMap map[chainhash.Hash]*ticketAddr
+
+type ticketAddressHistory struct {
+	mtx    sync.Mutex
+	addrs  ticketAddrMap
+	hashes ticketHashMap
+}
+
+func newTicketAddressHistory(initHashCap, initAddrCap int) *ticketAddressHistory {
+	return &ticketAddressHistory{
+		addrs:  make(ticketAddrMap, initAddrCap),
+		hashes: make(ticketHashMap, initHashCap),
+	}
+}
+
+// size returns the number of unique hashes and unique addresses.
+func (ah *ticketAddressHistory) size() (int, int) {
+	ah.mtx.Lock()
+	defer ah.mtx.Unlock()
+	return len(ah.hashes), len(ah.addrs)
+}
+
 type cacheLocks struct {
 	bal        *cache.CacheLock
 	rows       *cache.CacheLock
@@ -244,6 +269,7 @@ type ChainDB struct {
 	piparser           ProposalsFetcher
 	proposalsSync      lastSync
 	cockroach          bool
+	ticketHistory      *ticketAddressHistory
 }
 
 // ChainDeployments is mutex-protected blockchain deployment data.
@@ -778,6 +804,7 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 		deployments:        new(ChainDeployments),
 		piparser:           parser,
 		cockroach:          cockroach,
+		ticketHistory:      newTicketAddressHistory(256, 64),
 	}
 
 	// If loading a DB with the legacy versioning system, fully upgrade prior to
@@ -816,6 +843,41 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 
 	// Start the proposal updates handler async method.
 	chainDB.proposalsUpdateHandler()
+
+	// Preload the entire historical ticket hash-address map data for the
+	// /stake/pool/.../full/addrs API endpoints. As of block 350000, this is
+	// about 1.7 million ticket hashes (32 bytes each), and 500k addresses (~36
+	// bytes each), for a total of less than 70 MiB.
+	log.Infof("Loading all ticket hashes and stake submission addresses...")
+	tix, addrs, err := RetrieveTicketStakeSubmissionAddrs(ctx, chainDB.db)
+	if err != nil {
+		return nil, err
+	}
+
+	// Preallocate the map with a little extra space.
+	ticketPoolSize := int(params.TicketPoolSize * params.TicketsPerBlock)
+	chainDB.ticketHistory = newTicketAddressHistory(len(tix)+ticketPoolSize, len(addrs)+ticketPoolSize)
+
+	for i := range tix {
+		ssAddrT := ticketAddr(addrs[i])
+		addrPtr, addrFound := chainDB.ticketHistory.addrs[ssAddrT]
+		if !addrFound {
+			// New address.
+			addrPtr = &ssAddrT
+			chainDB.ticketHistory.addrs[ssAddrT] = addrPtr
+		}
+		chainDB.ticketHistory.hashes[tix[i]] = addrPtr
+	}
+
+	if log.Level() < slog.LevelDebug {
+		go func() {
+			ticker := time.NewTicker(10 * time.Second)
+			for range ticker.C {
+				numTix, numAddrs := chainDB.ticketHistory.size()
+				log.Tracef("ticketHistory: #tickets = %d, #addrs = %d", numTix, numAddrs)
+			}
+		}()
+	}
 
 	return chainDB, nil
 }
@@ -1373,6 +1435,43 @@ func (pgb *ChainDB) PoolStatusForTicket(txid string) (dbtypes.TicketSpendType, d
 	defer cancel()
 	_, spendType, poolStatus, err := RetrieveTicketStatusByHash(ctx, pgb.db, txid)
 	return spendType, poolStatus, pgb.replaceCancelError(err)
+}
+
+// TicketAddress retrieves the specified ticket's stakesubmission address.
+func (pgb *ChainDB) TicketAddress(txid string) (string, error) {
+	// Validate tx hash.
+	hash, err := chainhash.NewHashFromStr(txid)
+	if err != nil {
+		return "", err
+	}
+
+	// Check cache for known ticket address.
+	pgb.ticketHistory.mtx.Lock()
+	defer pgb.ticketHistory.mtx.Unlock()
+	addr, found := pgb.ticketHistory.hashes[*hash]
+	if found {
+		return string(*addr), nil
+	}
+
+	// Query DB for the address.
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	defer cancel()
+	ssAddr, err := RetrieveTicketStakeSubmissionAddr(ctx, pgb.db, txid)
+	if err != nil {
+		return ssAddr, pgb.replaceCancelError(err)
+	}
+
+	// Cache the result.
+	ssAddrT := ticketAddr(ssAddr)
+	addrPtr, addrFound := pgb.ticketHistory.addrs[ssAddrT]
+	if !addrFound {
+		// New address.
+		addrPtr = &ssAddrT
+		pgb.ticketHistory.addrs[ssAddrT] = addrPtr
+	}
+	pgb.ticketHistory.hashes[*hash] = addrPtr
+
+	return ssAddr, nil
 }
 
 // VoutValue retrieves the value of the specified transaction outpoint in atoms.
@@ -2402,6 +2501,15 @@ func (pgb *ChainDB) FundingOutpointIndxByVinID(id uint64) (uint32, error) {
 	defer cancel()
 	ind, err := RetrieveFundingOutpointIndxByVinID(ctx, pgb.db, id)
 	return ind, pgb.replaceCancelError(err)
+}
+
+// AddressesForOutpoint fetches all addresses for a given outpoint
+// (txHash:voutIndex).
+func (pgb *ChainDB) AddressesForOutpoint(txHash string, voutIndex uint32) ([]string, error) {
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	defer cancel()
+	addrs, err := RetrieveAddressesForOutpoint(ctx, pgb.db, txHash, voutIndex)
+	return addrs, pgb.replaceCancelError(err)
 }
 
 // FillAddressTransactions is used to fill out the transaction details in an

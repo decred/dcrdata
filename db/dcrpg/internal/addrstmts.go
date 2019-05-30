@@ -228,6 +228,12 @@ const (
 		WHERE tx_hash=$1 AND tx_vin_vout_index=$2 AND is_funding
 		ORDER BY block_time DESC;`
 
+	SelectAddressesForOutpoint = `SELECT address
+		FROM addresses
+		WHERE tx_hash=$1 AND tx_vin_vout_index=$2
+			AND is_funding
+			AND valid_mainchain;`
+
 	SelectAddressIDByVoutIDAddress = `SELECT id FROM addresses WHERE address=$1 AND
 	    tx_vin_vout_row_id=$2 AND is_funding;`
 
