@@ -22,8 +22,6 @@ var ver = version{
 // go build -ldflags "-X main.CommitHash=`git rev-parse --short HEAD`"
 var CommitHash string
 
-const appName string = "rebuilddb2"
-
 func (v *version) String() string {
 	var hashStr string
 	if CommitHash != "" {

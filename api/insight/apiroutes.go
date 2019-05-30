@@ -719,27 +719,6 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, addressOutput, iapi.getIndentQuery(r))
 }
 
-func (iapi *InsightApi) getAddressBalance(w http.ResponseWriter, r *http.Request) {
-	addresses, err := m.GetAddressCtx(r, iapi.params, 1)
-	if err != nil || len(addresses) > 1 {
-		http.Error(w, http.StatusText(422), 422)
-		return
-	}
-
-	addressInfo, _, err := iapi.BlockData.ChainDB.AddressBalance(addresses[0])
-	if dbtypes.IsTimeoutErr(err) {
-		apiLog.Errorf("AddressBalance: %v", err)
-		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
-		return
-	}
-	if err != nil || addressInfo == nil {
-		apiLog.Warnf("AddressBalance: %v", err)
-		http.Error(w, http.StatusText(422), 422)
-		return
-	}
-	writeJSON(w, addressInfo.TotalUnspent, iapi.getIndentQuery(r))
-}
-
 func (iapi *InsightApi) getSyncInfo(w http.ResponseWriter, r *http.Request) {
 	errorResponse := func(err error) {
 		// To insure JSON encodes an error properly as a string, and no error as

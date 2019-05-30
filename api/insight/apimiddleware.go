@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/decred/dcrd/chaincfg/chainhash"
 	apitypes "github.com/decred/dcrdata/api/types"
 	m "github.com/decred/dcrdata/middleware"
 	"github.com/go-chi/chi"
@@ -49,32 +48,6 @@ func (iapi *InsightApi) StatusInfoCtx(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 
-}
-
-func (iapi *InsightApi) getBlockHashCtx(r *http.Request) (string, error) {
-	hash, err := m.GetBlockHashCtx(r)
-	if err != nil {
-		idx := int64(m.GetBlockIndexCtx(r))
-		hash, err = iapi.BlockData.ChainDB.GetBlockHash(idx)
-		if err != nil {
-			apiLog.Errorf("Unable to GetBlockHash: %v", err)
-			return "", err
-		}
-	}
-	return hash, nil
-}
-
-func (iapi *InsightApi) getBlockChainHashCtx(r *http.Request) (*chainhash.Hash, error) {
-	hashStr, err := iapi.getBlockHashCtx(r)
-	if err != nil {
-		return nil, err
-	}
-	hash, err := chainhash.NewHashFromStr(hashStr)
-	if err != nil {
-		apiLog.Errorf("Failed to parse block hash: %v", err)
-		return nil, err
-	}
-	return hash, nil
 }
 
 // GetToCtx retrieves the ctxTo data ("to") from the request context. If not
