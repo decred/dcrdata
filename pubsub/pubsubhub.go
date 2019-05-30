@@ -359,7 +359,7 @@ func (psh *PubSubHub) receiveLoop(conn *connection) {
 		// the WebSocketMessage.
 		resp.Message, err = json.Marshal(respMsg)
 		if err != nil {
-			log.Warnf("Failed to Marshal subscribe repsonse for %s: %v", reqEvent, err)
+			log.Warnf("Failed to Marshal subscribe response for %s: %v", reqEvent, err)
 			continue
 		}
 
