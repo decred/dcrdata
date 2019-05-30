@@ -95,7 +95,7 @@ export function padPoints (pts, binSize, sustain) {
   pts.push(back)
 }
 
-function isEqual (a, b) {
+export function isEqual (a, b) {
   if (!Array.isArray(a) || !Array.isArray(b)) return false
   var i = a.length
   if (i !== b.length) return false

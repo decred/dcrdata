@@ -7,7 +7,7 @@ import { getDefault } from '../helpers/module_helper'
 import axios from 'axios'
 import TurboQuery from '../helpers/turbolinks_helper'
 import globalEventBus from '../services/event_bus_service'
-import { barChartPlotter } from '../helpers/chart_helper'
+import { isEqual } from '../helpers/chart_helper'
 import dompurify from 'dompurify'
 
 var selectedChart
@@ -18,6 +18,8 @@ const aMonth = 30 // in days
 const atomsToDCR = 1e-8
 const windowScales = ['ticket-price', 'pow-difficulty']
 const lineScales = ['ticket-price']
+// index 0 represents y1 and 1 represents y2 axes.
+const yValueRanges = { 'ticket-price': [1] }
 var ticketPoolSizeTarget, premine, stakeValHeight, stakeShare
 var baseSubsidy, subsidyInterval, subsidyExponent, windowSize, avgBlockTime
 
@@ -31,6 +33,27 @@ function isScaleDisabled (chart) {
 
 function intComma (amount) {
   return amount.toLocaleString(undefined, { maximumFractionDigits: 0 })
+}
+
+function axesToRestoreYRange (chartName, origYRange, newYRange) {
+  let axesIndexes = yValueRanges[chartName]
+  if (!Array.isArray(origYRange) || !Array.isArray(newYRange) ||
+    origYRange.length !== newYRange.length || !axesIndexes) return
+
+  var axes
+  for (var i = 0; i < axesIndexes.length; i++) {
+    let index = axesIndexes[i]
+    if (newYRange.length <= index) continue
+    if (!isEqual(origYRange[index], newYRange[index])) {
+      if (!axes) axes = {}
+      if (index === 0) {
+        axes = Object.assign(axes, { y1: { valueRange: origYRange[index] } })
+      } else if (index === 1) {
+        axes = Object.assign(axes, { y2: { valueRange: origYRange[index] } })
+      }
+    }
+  }
+  return axes
 }
 
 function formatHashRate (value, displayType) {
@@ -324,6 +347,7 @@ export default class extends Controller {
       drawCallback: null,
       logscale: this.settings.scale === 'log',
       axes: {},
+      visibility: null,
       y2label: null,
       stepPlot: false
     }
@@ -335,13 +359,13 @@ export default class extends Controller {
       case 'ticket-price': // price graph
         d = zipXYZData(data, isHeightAxis, false, atomsToDCR, 1, windowSize)
         gOptions.stepPlot = true
-        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Ticket Price', 'Tickets Bought'], true,
+        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Price', 'Tickets Bought'], true,
           'Price (DCR)', xlabel, undefined, false, false))
         gOptions.y2label = 'Tickets Bought'
         gOptions.series = { 'Tickets Bought': { axis: 'y2' } }
+        gOptions.visibility = [true, false]
         gOptions.axes.y2 = {
-          plotter: barChartPlotter,
-          valueRange: [null, windowSize * 20 * 3],
+          valueRange: [0, windowSize * 20 * 8],
           axisLabelFormatter: (y) => Math.round(y)
         }
         break
@@ -420,6 +444,7 @@ export default class extends Controller {
 
     this.chartsView.plotter_.clear()
     this.chartsView.updateOptions(gOptions, false)
+    if (yValueRanges[chartName]) this.supportedYRange = this.chartsView.yAxisRanges()
     this.validateZoom()
   }
 
@@ -497,6 +522,9 @@ export default class extends Controller {
     this.query.replace(this.settings)
     let option = Zoom.mapKey(this.settings.zoom, this.chartsView.xAxisExtremes())
     this.setActiveOptionBtn(option, this.zoomOptionTargets)
+    var axesData = axesToRestoreYRange(this.settings.chart,
+      this.supportedYRange, this.chartsView.yAxisRanges())
+    if (axesData) this.chartsView.updateOptions({ axes: axesData })
   }
 
   isTimeAxis () {

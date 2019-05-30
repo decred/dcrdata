@@ -85,7 +85,7 @@ const (
 )
 
 // cacheVersion helps detect when cache data stored has its structure changed.
-var cacheVersion = semver.NewSemver(1, 2, 0)
+var cacheVersion = semver.NewSemver(3, 0, 0)
 
 // versionedCacheData defines the cache data contents to be written into a .gob file.
 type versionedCacheData struct {
@@ -416,7 +416,7 @@ func (charts *ChartData) Lengthen() error {
 	}
 
 	windows := charts.Windows
-	shortest, err = ValidateLengths(windows.Time, windows.PowDiff, windows.TicketPrice)
+	shortest, err = ValidateLengths(windows.Time, windows.PowDiff, windows.TicketPrice, windows.StakeCount)
 	if err != nil {
 		log.Warnf("ChartData.Lengthen: window data length mismatch detected. truncating windows length to %d", shortest)
 		charts.Windows.Snip(shortest)
@@ -1101,7 +1101,7 @@ func powDifficultyChart(charts *ChartData, _ binLevel, _ axisType) ([]byte, erro
 }
 
 func ticketPriceChart(charts *ChartData, _ binLevel, _ axisType) ([]byte, error) {
-	// Ticket price only has window level zoom, so all others are ignored.
+	// Ticket price only has window level bin, so all others are ignored.
 	return charts.encode(charts.Windows.Time, charts.Windows.TicketPrice, charts.Windows.StakeCount)
 }
 
