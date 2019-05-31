@@ -33,6 +33,7 @@ const (
 	Fees            = "fees"
 	TicketPoolSize  = "ticket-pool-size"
 	TicketPoolValue = "ticket-pool-value"
+	WindMissedVotes = "missed-votes"
 )
 
 // binLevel specifies the granularity of data.
@@ -85,7 +86,7 @@ const (
 )
 
 // cacheVersion helps detect when cache data stored has its structure changed.
-var cacheVersion = semver.NewSemver(3, 0, 0)
+var cacheVersion = semver.NewSemver(4, 0, 0)
 
 // versionedCacheData defines the cache data contents to be written into a .gob file.
 type versionedCacheData struct {
@@ -305,6 +306,35 @@ func newWindowSet(size int) *windowSet {
 	}
 }
 
+// missedSet is for missed votes data that is grouped at an interval of 144
+// blocks on mainnet. missed votes txs don't appear till block 4096 on mainnet
+// when the first POS votes txs were made.
+type missedSet struct {
+	cacheID uint64
+	Count   ChartUints
+	Time    ChartUints
+	Height  ChartUints
+}
+
+// Snip truncates the missedSet to a provided length.
+func (set *missedSet) Snip(length int) {
+	if length < 0 {
+		length = 0
+	}
+	set.Count = set.Count.snip(length)
+	set.Time = set.Time.snip(length)
+	set.Height = set.Height.snip(length)
+}
+
+// Constructor for a sized missedSet.
+func newMissedSet(size int) *missedSet {
+	return &missedSet{
+		Count:  newChartUints(size),
+		Time:   newChartUints(size),
+		Height: newChartUints(size),
+	}
+}
+
 // ChartGobject is the storage object for saving to a gob file. ChartData itself
 // has a lot of extraneous fields, and also embeds sync.RWMutex, so is not
 // suitable for gobbing.
@@ -356,9 +386,11 @@ type ChartData struct {
 	ctx          context.Context
 	genesis      uint64
 	DiffInterval int32
+	StartPOS     int32
 	Blocks       *zoomSet
 	Windows      *windowSet
 	Days         *zoomSet
+	MissedPos    *missedSet
 	cacheMtx     sync.RWMutex
 	cache        map[string]*cachedChart
 	updaters     []ChartUpdater
@@ -412,6 +444,18 @@ func (charts *ChartData) Lengthen() error {
 	}
 	if shortest == 0 {
 		// No blocks yet. Not an error.
+		return nil
+	}
+
+	// Make sure the database has set an equal number of missed votes window in each data set.
+	missedVotes := charts.MissedPos
+	shortest, err = ValidateLengths(missedVotes.Time, missedVotes.Height, missedVotes.Count)
+	if err != nil {
+		log.Warnf("ChartData.Lengthen: block data length mismatch detected. truncating missed votes windows length to %d", shortest)
+		missedVotes.Snip(shortest)
+	}
+	if shortest == 0 {
+		// No missed votes windows yet. Not an error.
 		return nil
 	}
 
@@ -485,9 +529,10 @@ func (charts *ChartData) Lengthen() error {
 	if len(intervals) > 0 {
 		days.cacheID++
 	}
-	// For blocks and windows, the cacheID is the last timestamp.
+	// For blocks, missedVotes and windows, the cacheID is the last timestamp.
 	charts.Blocks.cacheID = blocks.Time[len(blocks.Time)-1]
 	charts.Windows.cacheID = windows.Time[len(windows.Time)-1]
+	charts.MissedPos.cacheID = missedVotes.Time[len(missedVotes.Time)-1]
 	return nil
 }
 
@@ -517,6 +562,11 @@ func (charts *ChartData) ReorgHandler(wg *sync.WaitGroup, c chan *txhelpers.Reor
 			windowsLen--
 			log.Debug("ChartData.ReorgHandler snipping windows to height to %d", windowsLen)
 			charts.Windows.Snip(windowsLen)
+			// Drop the last missed votes window
+			windowsLen = len(charts.MissedPos.Time)
+			windowsLen--
+			log.Debug("ChartData.ReorgHandler snipping missed windows to height to %d", windowsLen)
+			charts.MissedPos.Snip(windowsLen)
 			charts.mtx.Unlock()
 			data.WG.Done()
 
@@ -605,6 +655,7 @@ func (charts *ChartData) readCacheFile(filePath string) error {
 		charts.Blocks.Snip(0)
 		charts.Windows.Snip(0)
 		charts.Days.Snip(0)
+		charts.MissedPos.Snip(0)
 	}
 
 	return nil
@@ -720,6 +771,17 @@ func (charts *ChartData) PoolSizeTip() int32 {
 	return int32(len(charts.Blocks.PoolSize)) - 1
 }
 
+// MissedVotesTip is the height of the MissedVotes data.
+func (charts *ChartData) MissedVotesTip() int32 {
+	charts.mtx.RLock()
+	defer charts.mtx.RUnlock()
+	var height int32
+	if arrayLen := len(charts.MissedPos.Height); arrayLen > 2 {
+		height = int32(charts.MissedPos.Height[arrayLen-1])
+	}
+	return height - 1
+}
+
 // AddUpdater adds a ChartUpdater to the Updaters slice. Updaters are run
 // sequentially during (*ChartData).Update.
 func (charts *ChartData) AddUpdater(updater ChartUpdater) {
@@ -762,9 +824,10 @@ func (charts *ChartData) Update() {
 }
 
 // NewChartData constructs a new ChartData.
-func NewChartData(height uint32, genesis time.Time, chainParams *chaincfg.Params, ctx context.Context) *ChartData {
+func NewChartData(ctx context.Context, height uint32, genesis time.Time, chainParams *chaincfg.Params) *ChartData {
+	base64Height := int64(height)
 	// Allocate datasets for at least as many blocks as in a sdiff window.
-	if int64(height) < chainParams.StakeDiffWindowSize {
+	if base64Height < chainParams.StakeDiffWindowSize {
 		height = uint32(chainParams.StakeDiffWindowSize)
 	}
 	// Start datasets at 25% larger than height. This matches golangs default
@@ -772,13 +835,16 @@ func NewChartData(height uint32, genesis time.Time, chainParams *chaincfg.Params
 	// https://github.com/golang/go/blob/87e48c5afdcf5e01bb2b7f51b7643e8901f4b7f9/src/runtime/slice.go#L100-L112
 	size := int(height * 5 / 4)
 	days := int(time.Since(genesis)/time.Hour/24)*5/4 + 1 // at least one day
-	windows := int(int64(height)/chainParams.StakeDiffWindowSize+1) * 5 / 4
+	windows := int(base64Height/chainParams.StakeDiffWindowSize+1) * 5 / 4
+	missedPosWindows := int((base64Height-chainParams.StakeValidationHeight)/chainParams.StakeDiffWindowSize+1) * 5 / 4
 	return &ChartData{
 		ctx:          ctx,
 		genesis:      uint64(genesis.Unix()),
 		DiffInterval: int32(chainParams.StakeDiffWindowSize),
+		StartPOS:     int32(chainParams.StakeValidationHeight),
 		Blocks:       newBlockSet(size),
 		Windows:      newWindowSet(windows),
+		MissedPos:    newMissedSet(missedPosWindows),
 		Days:         newDaySet(days),
 		cache:        make(map[string]*cachedChart),
 		updaters:     make([]ChartUpdater, 0),
@@ -794,16 +860,21 @@ func cacheKey(chartID string, bin binLevel, axis axisType) string {
 	return chartID + "-" + string(bin)
 }
 
-// Grabs the cacheID associated with the provided BinLevel. Should be called
-// under at least a (ChartData).cacheMtx.RLock.
-func (charts *ChartData) cacheID(bin binLevel) uint64 {
-	switch bin {
-	case BlockBin:
-		return charts.Blocks.cacheID
-	case DayBin:
-		return charts.Days.cacheID
-	case WindowBin:
-		return charts.Windows.cacheID
+// Grabs the cacheID associated with the provided BinLevel or chartID. Should
+// be called under at least a (ChartData).cacheMtx.RLock.
+func (charts *ChartData) cacheID(chartID string, bin binLevel) uint64 {
+	switch chartID {
+	case WindMissedVotes:
+		return charts.MissedPos.cacheID
+	default:
+		switch bin {
+		case BlockBin:
+			return charts.Blocks.cacheID
+		case DayBin:
+			return charts.Days.cacheID
+		case WindowBin:
+			return charts.Windows.cacheID
+		}
 	}
 	return 0
 }
@@ -814,7 +885,7 @@ func (charts *ChartData) getCache(chartID string, bin binLevel, axis axisType) (
 	ck := cacheKey(chartID, bin, axis)
 	charts.cacheMtx.RLock()
 	defer charts.cacheMtx.RUnlock()
-	cacheID = charts.cacheID(bin)
+	cacheID = charts.cacheID(chartID, bin)
 	data, found = charts.cache[ck]
 	return
 }
@@ -828,7 +899,7 @@ func (charts *ChartData) cacheChart(chartID string, bin binLevel, axis axisType,
 	// the cacheID is wrong, if the cacheID has been updated between the
 	// ChartMaker and here. This would just cause a one block delay.
 	charts.cache[ck] = &cachedChart{
-		cacheID: charts.cacheID(bin),
+		cacheID: charts.cacheID(chartID, bin),
 		data:    data,
 	}
 }
@@ -850,6 +921,7 @@ var chartMakers = map[string]ChartMaker{
 	Fees:            feesChart,
 	TicketPoolSize:  ticketPoolSizeChart,
 	TicketPoolValue: poolValueChart,
+	WindMissedVotes: missedVotesChart,
 }
 
 // Chart will return a JSON-encoded chartResponse of the provided type
@@ -1163,4 +1235,13 @@ func poolValueChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, err
 		}
 	}
 	return nil, InvalidBinErr
+}
+
+func missedVotesChart(charts *ChartData, _ binLevel, axis axisType) ([]byte, error) {
+	switch axis {
+	case HeightAxis:
+		return charts.encode(charts.MissedPos.Height, charts.MissedPos.Count)
+	default:
+		return charts.encode(charts.MissedPos.Time, charts.MissedPos.Count)
+	}
 }

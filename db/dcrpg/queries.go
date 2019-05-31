@@ -3111,6 +3111,45 @@ func appendCoinSupply(charts *cache.ChartData, rows *sql.Rows) error {
 	return nil
 }
 
+// retrieveMissedVotes fetches the missed votes data from the misses and tarnsactions tables.
+func retrieveMissedVotes(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
+	rows, err := db.QueryContext(ctx, internal.SelectMissesVotesChartData, charts.MissedVotesTip())
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+// Append the results from retrieveMissedVotes to the provided ChartData.
+// This is the Appender half of a pair that make up a cache.ChartUpdater.
+func appendMissedVotes(charts *cache.ChartData, rows *sql.Rows) error {
+	defer closeRows(rows)
+	windows := charts.MissedPos
+	windowSize := uint64(charts.DiffInterval)
+	startHeight := uint64(charts.StartPOS)
+	var count uint64
+	for rows.Next() {
+		var timestamp time.Time
+		var height uint64
+		if err := rows.Scan(&height, &timestamp); err != nil {
+			return err
+		}
+
+		count++
+		if height < startHeight+windowSize {
+			continue
+		}
+
+		windows.Time = append(windows.Time, uint64(timestamp.Unix()))
+		windows.Height = append(windows.Height, height)
+		windows.Count = append(windows.Count, count)
+
+		count = 0
+		startHeight += windowSize
+	}
+	return nil
+}
+
 // retrievePowerlessTickets fetches missed or expired tickets sorted by
 // revocation status.
 func retrievePowerlessTickets(ctx context.Context, db *sql.DB) (*apitypes.PowerlessTickets, error) {

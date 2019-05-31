@@ -342,6 +342,15 @@ const (
 		WHERE ticket_hash = $1
 			AND blocks.is_mainchain = TRUE;`
 
+	SelectMissesVotesChartData = `SELECT transactions.block_height, transactions.block_time
+		FROM transactions
+		JOIN misses
+		ON misses.ticket_hash = transactions.tx_hash
+		WHERE transactions.block_height > $1
+		AND transactions.is_valid
+		AND transactions.is_mainchain
+		ORDER BY transactions.block_height;`
+
 	// agendas table
 
 	CreateAgendasTable = `CREATE TABLE IF NOT EXISTS agendas (

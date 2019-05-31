@@ -45,7 +45,7 @@ func TestMain(m *testing.M) {
 func TestChartsCache(t *testing.T) {
 	gobPath := filepath.Join(tempDir, "log.gob")
 	ctx, shutdown := context.WithCancel(context.Background())
-	charts := NewChartData(0, time.Unix(0, 0), &chaincfg.MainNetParams, ctx)
+	charts := NewChartData(ctx, 0, time.Unix(0, 0), &chaincfg.MainNetParams)
 
 	comp := func(k string, a interface{}, b interface{}, expectation bool) {
 		v := reflect.DeepEqual(a, b)

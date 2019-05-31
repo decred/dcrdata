@@ -16,10 +16,11 @@ let Dygraph // lazy loaded on connect
 const aDay = 86400 * 1000 // in milliseconds
 const aMonth = 30 // in days
 const atomsToDCR = 1e-8
-const windowScales = ['ticket-price', 'pow-difficulty']
+const windowScales = ['ticket-price', 'pow-difficulty', 'missed-votes']
 const lineScales = ['ticket-price']
 // index 0 represents y1 and 1 represents y2 axes.
 const yValueRanges = { 'ticket-price': [1] }
+const heightFetch = ['missed-votes']
 var ticketPoolSizeTarget, premine, stakeValHeight, stakeShare
 var baseSubsidy, subsidyInterval, subsidyExponent, windowSize, avgBlockTime
 
@@ -33,6 +34,10 @@ function isScaleDisabled (chart) {
 
 function intComma (amount) {
   return amount.toLocaleString(undefined, { maximumFractionDigits: 0 })
+}
+
+function getHeightAxisData (chart) {
+  return heightFetch.indexOf(chart) > -1
 }
 
 function axesToRestoreYRange (chartName, origYRange, newYRange) {
@@ -441,6 +446,11 @@ export default class extends Controller {
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Network Hashrate (terahash/s)'],
           false, 'Network Hashrate (terahash/s)', true, false))
         break
+
+      case 'missed-votes':
+        d = zipYvData(data, isHeightAxis, true)
+        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Missed Votes'], false, 'Votes Tally', true, false))
+        break
     }
 
     this.chartsView.plotter_.clear()
@@ -464,6 +474,9 @@ export default class extends Controller {
       let url = '/api/chart/' + selection
       if (usesWindowUnits(selection)) {
         this.binSelectorTarget.classList.add('d-hide')
+        if (getHeightAxisData(selection)) {
+          url += `?axis=${this.selectedAxis()}`
+        }
       } else {
         this.binSelectorTarget.classList.remove('d-hide')
         this.settings.bin = this.selectedBin()
