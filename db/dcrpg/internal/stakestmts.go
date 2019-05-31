@@ -342,14 +342,15 @@ const (
 		WHERE ticket_hash = $1
 			AND blocks.is_mainchain = TRUE;`
 
-	SelectMissesVotesChartData = `SELECT transactions.block_height, transactions.block_time
-		FROM transactions
+	SelectMissesVotesChartData = `SELECT blocks.height, blocks.time, count(*)
+		FROM blocks
 		JOIN misses
-		ON misses.ticket_hash = transactions.tx_hash
-		WHERE transactions.block_height > $1
-		AND transactions.is_valid
-		AND transactions.is_mainchain
-		ORDER BY transactions.block_height;`
+		ON misses.block_hash = blocks.hash
+		WHERE blocks.height > $1
+		AND blocks.is_valid
+		AND blocks.is_mainchain
+		GROUP BY blocks.height, blocks.time
+		ORDER BY blocks.height;`
 
 	// agendas table
 

@@ -449,7 +449,8 @@ export default class extends Controller {
 
       case 'missed-votes':
         d = zipYvData(data, isHeightAxis, true)
-        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Missed Votes'], false, 'Votes Tally', true, false))
+        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Missed Votes'], false,
+          'Missed Votes per Window', true, false))
         break
     }
 

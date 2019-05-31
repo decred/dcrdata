@@ -3130,22 +3130,20 @@ func appendMissedVotes(charts *cache.ChartData, rows *sql.Rows) error {
 	var count uint64
 	for rows.Next() {
 		var timestamp time.Time
-		var height uint64
-		if err := rows.Scan(&height, &timestamp); err != nil {
+		var height, tickets uint64
+		if err := rows.Scan(&height, &timestamp, &tickets); err != nil {
 			return err
 		}
 
-		count++
-		if height < startHeight+windowSize {
-			continue
+		count += tickets
+		if height >= startHeight+windowSize {
+			windows.Time = append(windows.Time, uint64(timestamp.Unix()))
+			windows.Height = append(windows.Height, height)
+			windows.Count = append(windows.Count, count)
+
+			count = 0
+			startHeight += windowSize
 		}
-
-		windows.Time = append(windows.Time, uint64(timestamp.Unix()))
-		windows.Height = append(windows.Height, height)
-		windows.Count = append(windows.Count, count)
-
-		count = 0
-		startHeight += windowSize
 	}
 	return nil
 }
