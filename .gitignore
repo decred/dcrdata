@@ -8,7 +8,7 @@ debug
 *.cert
 *.key
 dcrdata
-dcrdata*.conf
+dcrdata.conf
 /vendor/
 *.orig
 *.db
@@ -32,6 +32,7 @@ ffldb_stake*/
 testnet/
 .DS_Store
 testdata/
+dev/datadir/
 \.project
 test-data-repo
 dcrdata-testdata-gitlfs
@@ -53,5 +54,4 @@ testutil/dbconfig/test.data
 pubsub/democlient/democlient
 dcrrates/rateserver/rateserver
 dcrrates/rateserver/logs/
-*.sql
 *.gob
