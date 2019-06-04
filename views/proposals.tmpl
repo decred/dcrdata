@@ -124,23 +124,27 @@
                                     <span class="text-abandoned">
                                         In Discussion
                                     </span>
+                                {{else if eq (len .VoteResults) 0 }}
+                                    <span class="text-progress">
+                                        In Progress
+                                    </span>
                                 {{else}}
                                     {{range $i, $vr := .VoteResults}}
                                         {{if eq $vr.Option.OptionID "yes"}}
                                             {{$votesPercent :=  percentage $vr.VotesReceived $v.TotalVotes}}
                                             {{if lt $.Tip.Height (toInt $v.Endheight)}}
-                                                <span class="text-progress">
+                                                <span class="text-progress position-relative" data-tooltip="Vote Status (approval %)">
                                                     In Progress ({{printf "%.0f" ($votesPercent)}}%)
                                                 </span>
                                             {{else if lt (percentage $v.TotalVotes $v.NumOfEligibleVotes) (toFloat64 $v.QuorumPercentage)}}
                                                 <span class="text-no-quorum">No quorum</span>
                                             {{else}}
                                                 {{if lt $votesPercent (toFloat64 $v.PassPercentage)}}
-                                                    <span class="text-failed">
+                                                    <span class="text-failed position-relative" data-tooltip="Vote Status (approval %)">
                                                         Failed ({{printf "%.0f" ($votesPercent)}}%)
                                                     </span>
                                                 {{else}}
-                                                    <span class="text-green">
+                                                    <span class="text-green position-relative" data-tooltip="Vote Status (approval %)">
                                                         Passed ({{printf "%.0f" ($votesPercent)}}%)
                                                     </span>
                                                 {{end}}
