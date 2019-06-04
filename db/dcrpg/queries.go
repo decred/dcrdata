@@ -3124,9 +3124,9 @@ func retrieveMissedVotes(ctx context.Context, db *sql.DB, charts *cache.ChartDat
 // This is the Appender half of a pair that make up a cache.ChartUpdater.
 func appendMissedVotes(charts *cache.ChartData, rows *sql.Rows) error {
 	defer closeRows(rows)
-	windows := charts.MissedPos
+	windows := charts.Windows
 	windowSize := uint64(charts.DiffInterval)
-	startHeight := uint64(charts.StartPOS)
+	startHeight := windowSize*uint64(len(windows.MissedVotes)) + uint64(charts.StartPOS)
 	var count uint64
 	for rows.Next() {
 		var timestamp time.Time
@@ -3136,10 +3136,8 @@ func appendMissedVotes(charts *cache.ChartData, rows *sql.Rows) error {
 		}
 
 		count += tickets
-		if height >= startHeight+windowSize {
-			windows.Time = append(windows.Time, uint64(timestamp.Unix()))
-			windows.Height = append(windows.Height, height)
-			windows.Count = append(windows.Count, count)
+		if height >= startHeight {
+			windows.MissedVotes = append(windows.MissedVotes, count)
 
 			count = 0
 			startHeight += windowSize

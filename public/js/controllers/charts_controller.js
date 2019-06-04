@@ -20,7 +20,6 @@ const windowScales = ['ticket-price', 'pow-difficulty', 'missed-votes']
 const lineScales = ['ticket-price']
 // index 0 represents y1 and 1 represents y2 axes.
 const yValueRanges = { 'ticket-price': [1] }
-const heightFetch = ['missed-votes']
 var ticketPoolSizeTarget, premine, stakeValHeight, stakeShare
 var baseSubsidy, subsidyInterval, subsidyExponent, windowSize, avgBlockTime
 
@@ -34,10 +33,6 @@ function isScaleDisabled (chart) {
 
 function intComma (amount) {
   return amount.toLocaleString(undefined, { maximumFractionDigits: 0 })
-}
-
-function getHeightAxisData (chart) {
-  return heightFetch.indexOf(chart) > -1
 }
 
 function axesToRestoreYRange (chartName, origYRange, newYRange) {
@@ -146,15 +141,16 @@ function nightModeOptions (nightModeOn) {
   }
 }
 
-function zipXYData (gData, isHeightAxis, isDayBinned, coefficient, windowS) {
-  coefficient = coefficient || 1
+function zipXYData (gData, isHeightAxis, isDayBinned, coefficient, windowS, initValue) {
   windowS = windowS || 1
+  initValue = initValue || 0
+  coefficient = coefficient || 1
   return map(gData.x, (n, i) => {
     var xAxisVal
     if (isHeightAxis && isDayBinned) {
       xAxisVal = n
     } else if (isHeightAxis) {
-      xAxisVal = i * windowS
+      xAxisVal = (i * windowS) + initValue
     } else {
       xAxisVal = new Date(n * 1000)
     }
@@ -448,7 +444,7 @@ export default class extends Controller {
         break
 
       case 'missed-votes':
-        d = zipYvData(data, isHeightAxis, true)
+        d = zipXYData(data, isHeightAxis, false, 1, windowSize, stakeValHeight)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Missed Votes'], false,
           'Missed Votes per Window', true, false))
         break
@@ -475,9 +471,6 @@ export default class extends Controller {
       let url = '/api/chart/' + selection
       if (usesWindowUnits(selection)) {
         this.binSelectorTarget.classList.add('d-hide')
-        if (getHeightAxisData(selection)) {
-          url += `?axis=${this.selectedAxis()}`
-        }
       } else {
         this.binSelectorTarget.classList.remove('d-hide')
         this.settings.bin = this.selectedBin()

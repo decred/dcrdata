@@ -276,13 +276,16 @@ func newDaySet(size int) *zoomSet {
 }
 
 // windowSet is for data that only changes at the difficulty change interval,
-// 144 blocks on mainnet.
+// 144 blocks on mainnet. stakeValid defines the number windows before the
+// stake validation height.
 type windowSet struct {
 	cacheID     uint64
+	stakeValid  int
 	Time        ChartUints
 	PowDiff     ChartFloats
 	TicketPrice ChartUints
 	StakeCount  ChartUints
+	MissedVotes ChartUints
 }
 
 // Snip truncates the windowSet to a provided length.
@@ -290,48 +293,32 @@ func (set *windowSet) Snip(length int) {
 	if length < 0 {
 		length = 0
 	}
+	missedSize := length - set.stakeValid
+	if missedSize < 0 {
+		missedSize = 0
+	}
+
 	set.Time = set.Time.snip(length)
 	set.PowDiff = set.PowDiff.snip(length)
 	set.TicketPrice = set.TicketPrice.snip(length)
 	set.StakeCount = set.StakeCount.snip(length)
+	set.MissedVotes = set.MissedVotes.snip(missedSize)
 }
 
-// Constructor for a sized windowSet.
-func newWindowSet(size int) *windowSet {
+// Constructor for a sized windowSet. stakeValWindows defines the number of
+// windows before the stake validation height.
+func newWindowSet(size, stakeValWindows int) *windowSet {
+	missedSize := size - stakeValWindows
+	if missedSize < 0 {
+		missedSize = 0
+	}
+
 	return &windowSet{
 		Time:        newChartUints(size),
 		PowDiff:     newChartFloats(size),
 		TicketPrice: newChartUints(size),
-		StakeCount:  newChartUints(size),
-	}
-}
-
-// missedSet is for missed votes data that is grouped at an interval of 144
-// blocks on mainnet. missed votes txs don't appear till block 4096 on mainnet
-// when the first POS votes txs were made.
-type missedSet struct {
-	cacheID uint64
-	Count   ChartUints
-	Time    ChartUints
-	Height  ChartUints
-}
-
-// Snip truncates the missedSet to a provided length.
-func (set *missedSet) Snip(length int) {
-	if length < 0 {
-		length = 0
-	}
-	set.Count = set.Count.snip(length)
-	set.Time = set.Time.snip(length)
-	set.Height = set.Height.snip(length)
-}
-
-// Constructor for a sized missedSet.
-func newMissedSet(size int) *missedSet {
-	return &missedSet{
-		Count:  newChartUints(size),
-		Time:   newChartUints(size),
-		Height: newChartUints(size),
+		MissedVotes: newChartUints(missedSize),
+		stakeValid:  stakeValWindows,
 	}
 }
 
@@ -352,6 +339,7 @@ type ChartGobject struct {
 	PowDiff     ChartFloats
 	TicketPrice ChartUints
 	StakeCount  ChartUints
+	MissedVotes ChartUints
 }
 
 // The chart data is cached with the current cacheID of the zoomSet or windowSet.
@@ -390,7 +378,6 @@ type ChartData struct {
 	Blocks       *zoomSet
 	Windows      *windowSet
 	Days         *zoomSet
-	MissedPos    *missedSet
 	cacheMtx     sync.RWMutex
 	cache        map[string]*cachedChart
 	updaters     []ChartUpdater
@@ -447,20 +434,12 @@ func (charts *ChartData) Lengthen() error {
 		return nil
 	}
 
-	// Make sure the database has set an equal number of missed votes window in each data set.
-	missedVotes := charts.MissedPos
-	shortest, err = ValidateLengths(missedVotes.Time, missedVotes.Height, missedVotes.Count)
-	if err != nil {
-		log.Warnf("ChartData.Lengthen: block data length mismatch detected. truncating missed votes windows length to %d", shortest)
-		missedVotes.Snip(shortest)
-	}
-	if shortest == 0 {
-		// No missed votes windows yet. Not an error.
-		return nil
-	}
-
 	windows := charts.Windows
-	shortest, err = ValidateLengths(windows.Time, windows.PowDiff, windows.TicketPrice, windows.StakeCount)
+	// expectedMissedSlice shows the full slice size for the missed votes slice if
+	// the stake validation height was zero.
+	expectedMissedSlice := append(make(ChartUints, windows.stakeValid), windows.MissedVotes...)
+	shortest, err = ValidateLengths(windows.Time, windows.PowDiff, windows.TicketPrice, expectedMissedSlice,
+		windows.StakeCount)
 	if err != nil {
 		log.Warnf("ChartData.Lengthen: window data length mismatch detected. truncating windows length to %d", shortest)
 		charts.Windows.Snip(shortest)
@@ -529,10 +508,9 @@ func (charts *ChartData) Lengthen() error {
 	if len(intervals) > 0 {
 		days.cacheID++
 	}
-	// For blocks, missedVotes and windows, the cacheID is the last timestamp.
+	// For blocks and windows, the cacheID is the last timestamp.
 	charts.Blocks.cacheID = blocks.Time[len(blocks.Time)-1]
 	charts.Windows.cacheID = windows.Time[len(windows.Time)-1]
-	charts.MissedPos.cacheID = missedVotes.Time[len(missedVotes.Time)-1]
 	return nil
 }
 
@@ -562,11 +540,6 @@ func (charts *ChartData) ReorgHandler(wg *sync.WaitGroup, c chan *txhelpers.Reor
 			windowsLen--
 			log.Debug("ChartData.ReorgHandler snipping windows to height to %d", windowsLen)
 			charts.Windows.Snip(windowsLen)
-			// Drop the last missed votes window
-			windowsLen = len(charts.MissedPos.Time)
-			windowsLen--
-			log.Debug("ChartData.ReorgHandler snipping missed windows to height to %d", windowsLen)
-			charts.MissedPos.Snip(windowsLen)
 			charts.mtx.Unlock()
 			data.WG.Done()
 
@@ -647,6 +620,7 @@ func (charts *ChartData) readCacheFile(filePath string) error {
 	charts.Windows.PowDiff = gobject.PowDiff
 	charts.Windows.TicketPrice = gobject.TicketPrice
 	charts.Windows.StakeCount = gobject.StakeCount
+	charts.Windows.MissedVotes = gobject.MissedVotes
 	charts.mtx.Unlock()
 
 	err = charts.Lengthen()
@@ -655,7 +629,6 @@ func (charts *ChartData) readCacheFile(filePath string) error {
 		charts.Blocks.Snip(0)
 		charts.Windows.Snip(0)
 		charts.Days.Snip(0)
-		charts.MissedPos.Snip(0)
 	}
 
 	return nil
@@ -706,6 +679,7 @@ func (charts *ChartData) gobject() *ChartGobject {
 		PowDiff:     charts.Windows.PowDiff,
 		TicketPrice: charts.Windows.TicketPrice,
 		StakeCount:  charts.Windows.StakeCount,
+		MissedVotes: charts.Windows.MissedVotes,
 	}
 }
 
@@ -775,11 +749,7 @@ func (charts *ChartData) PoolSizeTip() int32 {
 func (charts *ChartData) MissedVotesTip() int32 {
 	charts.mtx.RLock()
 	defer charts.mtx.RUnlock()
-	var height int32
-	if arrayLen := len(charts.MissedPos.Height); arrayLen > 2 {
-		height = int32(charts.MissedPos.Height[arrayLen-1])
-	}
-	return height - 1
+	return (int32(len(charts.Windows.MissedVotes))+int32(charts.Windows.stakeValid))*charts.DiffInterval - 1
 }
 
 // AddUpdater adds a ChartUpdater to the Updaters slice. Updaters are run
@@ -836,15 +806,14 @@ func NewChartData(ctx context.Context, height uint32, genesis time.Time, chainPa
 	size := int(height * 5 / 4)
 	days := int(time.Since(genesis)/time.Hour/24)*5/4 + 1 // at least one day
 	windows := int(base64Height/chainParams.StakeDiffWindowSize+1) * 5 / 4
-	missedPosWindows := int((base64Height-chainParams.StakeValidationHeight)/chainParams.StakeDiffWindowSize+1) * 5 / 4
+	stakeValWindows := int(chainParams.StakeValidationHeight / chainParams.StakeDiffWindowSize)
 	return &ChartData{
 		ctx:          ctx,
 		genesis:      uint64(genesis.Unix()),
 		DiffInterval: int32(chainParams.StakeDiffWindowSize),
 		StartPOS:     int32(chainParams.StakeValidationHeight),
 		Blocks:       newBlockSet(size),
-		Windows:      newWindowSet(windows),
-		MissedPos:    newMissedSet(missedPosWindows),
+		Windows:      newWindowSet(windows, stakeValWindows),
 		Days:         newDaySet(days),
 		cache:        make(map[string]*cachedChart),
 		updaters:     make([]ChartUpdater, 0),
@@ -860,21 +829,16 @@ func cacheKey(chartID string, bin binLevel, axis axisType) string {
 	return chartID + "-" + string(bin)
 }
 
-// Grabs the cacheID associated with the provided BinLevel or chartID. Should
+// Grabs the cacheID associated with the provided BinLevel. Should
 // be called under at least a (ChartData).cacheMtx.RLock.
-func (charts *ChartData) cacheID(chartID string, bin binLevel) uint64 {
-	switch chartID {
-	case WindMissedVotes:
-		return charts.MissedPos.cacheID
-	default:
-		switch bin {
-		case BlockBin:
-			return charts.Blocks.cacheID
-		case DayBin:
-			return charts.Days.cacheID
-		case WindowBin:
-			return charts.Windows.cacheID
-		}
+func (charts *ChartData) cacheID(bin binLevel) uint64 {
+	switch bin {
+	case BlockBin:
+		return charts.Blocks.cacheID
+	case DayBin:
+		return charts.Days.cacheID
+	case WindowBin:
+		return charts.Windows.cacheID
 	}
 	return 0
 }
@@ -885,7 +849,7 @@ func (charts *ChartData) getCache(chartID string, bin binLevel, axis axisType) (
 	ck := cacheKey(chartID, bin, axis)
 	charts.cacheMtx.RLock()
 	defer charts.cacheMtx.RUnlock()
-	cacheID = charts.cacheID(chartID, bin)
+	cacheID = charts.cacheID(bin)
 	data, found = charts.cache[ck]
 	return
 }
@@ -899,7 +863,7 @@ func (charts *ChartData) cacheChart(chartID string, bin binLevel, axis axisType,
 	// the cacheID is wrong, if the cacheID has been updated between the
 	// ChartMaker and here. This would just cause a one block delay.
 	charts.cache[ck] = &cachedChart{
-		cacheID: charts.cacheID(chartID, bin),
+		cacheID: charts.cacheID(bin),
 		data:    data,
 	}
 }
@@ -1237,11 +1201,6 @@ func poolValueChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, err
 	return nil, InvalidBinErr
 }
 
-func missedVotesChart(charts *ChartData, _ binLevel, axis axisType) ([]byte, error) {
-	switch axis {
-	case HeightAxis:
-		return charts.encode(charts.MissedPos.Height, charts.MissedPos.Count)
-	default:
-		return charts.encode(charts.MissedPos.Time, charts.MissedPos.Count)
-	}
+func missedVotesChart(charts *ChartData, _ binLevel, _ axisType) ([]byte, error) {
+	return charts.encode(charts.Windows.Time[charts.Windows.stakeValid:], charts.Windows.MissedVotes)
 }
