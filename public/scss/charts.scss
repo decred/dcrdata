@@ -454,6 +454,22 @@ body.darkBG .customcheck input:checked ~ .tickets-bought {
   background-color: #2970ff;
 }
 
+#chart .dygraph-ylabel {
+  color: #2970ff;
+}
+
+body.darkBG #chart .dygraph-ylabel {
+  color: #2dd8a3;
+}
+
+#chart .dygraph-y2label {
+  color: #066;
+}
+
+body.darkBG #chart .dygraph-y2label {
+  color: #2970ff;
+}
+
 .checkmark::after {
   content: "";
   position: absolute;

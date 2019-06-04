@@ -241,8 +241,8 @@ function mapDygraphOptions (data, labelsVal, isDrawPoint, yLabel, labelsMG, labe
     labels: labelsVal,
     drawPoints: isDrawPoint,
     ylabel: yLabel,
-    labelsKMB: labelsMG,
-    labelsKMG2: labelsMG2
+    labelsKMB: labelsMG2 && labelsMG ? false : labelsMG,
+    labelsKMG2: labelsMG2 && labelsMG ? false : labelsMG2
   }, nightModeOptions(darkEnabled()))
 }
 
@@ -363,7 +363,8 @@ export default class extends Controller {
           'Price (DCR)', xlabel, undefined, false, false))
         gOptions.y2label = 'Tickets Bought'
         gOptions.series = { 'Tickets Bought': { axis: 'y2' } }
-        gOptions.visibility = [true, false]
+        this.visibility = [this.ticketsPriceTarget.checked, this.ticketsPurchaseTarget.checked]
+        gOptions.visibility = this.visibility
         gOptions.axes.y2 = {
           valueRange: [0, windowSize * 20 * 8],
           axisLabelFormatter: (y) => Math.round(y)
@@ -520,7 +521,8 @@ export default class extends Controller {
     this.lastZoom = Zoom.object(start, end)
     this.settings.zoom = Zoom.encode(this.lastZoom)
     this.query.replace(this.settings)
-    let option = Zoom.mapKey(this.settings.zoom, this.chartsView.xAxisExtremes())
+    let ex = this.chartsView.xAxisExtremes()
+    let option = Zoom.mapKey(this.settings.zoom, ex, this.isTimeAxis() ? 1 : avgBlockTime)
     this.setActiveOptionBtn(option, this.zoomOptionTargets)
     var axesData = axesToRestoreYRange(this.settings.chart,
       this.supportedYRange, this.chartsView.yAxisRanges())
@@ -587,12 +589,15 @@ export default class extends Controller {
     this.selectChart()
   }
 
-  setVisibility () {
+  setVisibility (e) {
     if (this.chartSelectTarget.value !== 'ticket-price') return
-    this.chartsView.updateOptions({
-      visibility: [this.ticketsPriceTarget.checked,
-        this.ticketsPurchaseTarget.checked]
-    })
+    if (!this.ticketsPriceTarget.checked && !this.ticketsPurchaseTarget.checked) {
+      this.ticketsPriceTarget.checked = this.visibility[0]
+      this.ticketsPurchaseTarget.checked = this.visibility[1]
+    } else {
+      this.visibility = [this.ticketsPriceTarget.checked, this.ticketsPurchaseTarget.checked]
+      this.chartsView.updateOptions({ visibility: this.visibility })
+    }
   }
 
   setActiveOptionBtn (opt, optTargets) {
