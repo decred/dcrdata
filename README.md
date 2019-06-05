@@ -670,12 +670,12 @@ url query, a value of `true` will put all pool values and pool sizes into
 separate arrays, rather than having a single array of pool info JSON objects.
 This may make parsing more efficient for the client.
 
-| Votes and Agendas Info                            | Path                  | Type                         |
-| ------------------------------------------------- | --------------------- | ---------------------------- |
-| The current agenda and its status                 | `/stake/vote/info`    | `dcrjson.GetVoteInfoResult`  |
-| All agendas high level details                    | `/agendas`            | `[]types.AgendasInfo`        |
-| Details for agenda {agendaid}                     | `/agendas/{agendaid}` | `types.AgendaAPIResponse`    |
-| Vote information for a Politeia proposal {token}  | `/proposal/{token}`   | `dbtypes.ProposalChartsData` |
+| Votes and Agendas Info                 | Path                  | Type                         |
+| -------------------------------------- | --------------------- | ---------------------------- |
+| The current agenda and its status      | `/stake/vote/info`    | `dcrjson.GetVoteInfoResult`  |
+| All agendas high level details         | `/agendas`            | `[]types.AgendasInfo`        |
+| Details for agenda {agendaid}          | `/agendas/{agendaid}` | `types.AgendaAPIResponse`    |
+| Votes for a Politeia proposal {token}  | `/proposal/{token}`   | `dbtypes.ProposalChartsData` |
 
 | Mempool                                           | Path                      | Type                            |
 | ------------------------------------------------- | ------------------------- | ------------------------------- |
