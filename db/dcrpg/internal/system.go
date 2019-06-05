@@ -1,5 +1,7 @@
 package internal
 
+// The following queries retrieve various system settings and other system
+// information from the database server.
 const (
 	RetrieveSysSettingsConfFile = `SELECT name, setting, unit, short_desc, source, sourcefile, sourceline
 		FROM pg_settings

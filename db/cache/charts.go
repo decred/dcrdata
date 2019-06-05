@@ -42,6 +42,7 @@ type binLevel string
 // chart.
 type axisType string
 
+// These are the recognized binLevel and axisType values.
 const (
 	DayBin     binLevel = "day"
 	BlockBin   binLevel = "block"
@@ -658,7 +659,7 @@ func (charts *ChartData) gobject() *ChartGobject {
 	}
 }
 
-// StateID returns a unique (enough) ID associted with the state of the Blocks
+// StateID returns a unique (enough) ID associated with the state of the Blocks
 // data in a thread-safe way.
 func (charts *ChartData) StateID() uint64 {
 	charts.mtx.RLock()
@@ -666,7 +667,7 @@ func (charts *ChartData) StateID() uint64 {
 	return charts.stateID()
 }
 
-// stateID returns a unique (enough) ID associted with the state of the Blocks
+// stateID returns a unique (enough) ID associated with the state of the Blocks
 // data.
 func (charts *ChartData) stateID() uint64 {
 	timeLen := len(charts.Blocks.Time)
@@ -767,7 +768,7 @@ func NewChartData(height uint32, genesis time.Time, chainParams *chaincfg.Params
 	if int64(height) < chainParams.StakeDiffWindowSize {
 		height = uint32(chainParams.StakeDiffWindowSize)
 	}
-	// Start datasets at 25% larger than height. This matches golangs default
+	// Start datasets at 25% larger than height. This matches golang's default
 	// capacity size increase for slice lengths > 1024
 	// https://github.com/golang/go/blob/87e48c5afdcf5e01bb2b7f51b7643e8901f4b7f9/src/runtime/slice.go#L100-L112
 	size := int(height * 5 / 4)

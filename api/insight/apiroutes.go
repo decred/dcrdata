@@ -503,7 +503,7 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 		}
 		if err != nil {
 			writeInsightError(w,
-				fmt.Sprintf("Error retrieving transactions for addresss %s (%v)",
+				fmt.Sprintf("Error retrieving transactions for addresses %s (%v)",
 					addresses, err))
 			return
 		}
@@ -619,7 +619,7 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 	}
 	if err != nil {
 		writeInsightError(w,
-			fmt.Sprintf("Error retrieving transactions for addresss %s (%v)",
+			fmt.Sprintf("Error retrieving transactions for addresses %s (%v)",
 				addresses, err))
 		return
 	}
@@ -984,9 +984,9 @@ func (iapi *InsightApi) getAddressInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		apiLog.Errorf("Error retrieving transactions for addresss %s: %v",
+		apiLog.Errorf("Error retrieving transactions for addresses %s: %v",
 			addresses, err)
-		http.Error(w, "Error retrieving transactions for that addresss.",
+		http.Error(w, "Error retrieving transactions for that addresses.",
 			http.StatusInternalServerError)
 		return
 	}

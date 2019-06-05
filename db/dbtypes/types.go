@@ -154,12 +154,14 @@ var _ driver.Valuer = (*TimeDefLocal)(nil)
 
 type TicketSpendType int16
 
+// These are the recognized TicketSpendType values.
 const (
 	TicketUnspent TicketSpendType = iota
 	TicketRevoked
 	TicketVoted
 )
 
+// String implements Stringer for TicketSpendType.
 func (p TicketSpendType) String() string {
 	switch p {
 	case TicketUnspent:
@@ -200,6 +202,7 @@ const (
 	// be effected. https://docs.decred.org/glossary/#rule-change-interval-rci.
 	ActivatedAgendaStatus
 
+	// UnknownStatus is used when a status string is not recognized.
 	UnknownStatus
 )
 
@@ -261,6 +264,7 @@ func AgendaStatusFromStr(status string) AgendaStatusType {
 // displayed by the address page.
 type AddrTxnViewType int
 
+// These are the recognized AddrTxnViewType values.
 const (
 	AddrTxnAll AddrTxnViewType = iota
 	AddrTxnCredit
@@ -325,6 +329,7 @@ func AddrTxnViewTypeFromStr(txnType string) AddrTxnViewType {
 // used in time-based grouping like charts and blocks list view.
 type TimeBasedGrouping int8
 
+// These are the recognized TimeBasedGrouping values.
 const (
 	AllGrouping TimeBasedGrouping = iota
 	YearGrouping
@@ -351,6 +356,7 @@ const (
 	// the respective dbs currently supported. InitialDBLoad value references
 	// the first progress bar id on the status page.
 	InitialDBLoad = "initial-load"
+
 	// AddressesTableSync is a sync that runs immediately after initialDBLoad.
 	// Data previously loaded into vins table is sync'd with the addresses
 	// table. AddressesTableSync value references the second progress bar id on
@@ -403,6 +409,7 @@ var TimeBasedGroupings = map[TimeBasedGrouping]string{
 	DayGrouping:   "day",
 }
 
+// String implements the Stringer interface for TimeBasedGrouping.
 func (g TimeBasedGrouping) String() string {
 	return TimeBasedGroupings[g]
 }
@@ -429,6 +436,7 @@ func TimeGroupingFromStr(groupings string) TimeBasedGrouping {
 // address history page.
 type HistoryChart int8
 
+// These are the recognized HistoryChart values.
 const (
 	TxsType HistoryChart = iota
 	AmountFlow
@@ -445,10 +453,11 @@ const (
 	PoolStatusMissed
 )
 
-// VoteChoice defines the type of vote choice, and the undelying integer value
+// VoteChoice defines the type of vote choice, and the underlying integer value
 // is stored in the database (do not change these without upgrading the DB!).
 type VoteChoice uint8
 
+// These are the recognized VoteChoice values.
 const (
 	Yes VoteChoice = iota
 	Abstain
@@ -456,6 +465,7 @@ const (
 	VoteChoiceUnknown
 )
 
+// String implements the Stringer interface for TicketPoolStatus.
 func (p TicketPoolStatus) String() string {
 	switch p {
 	case PoolStatusLive:
@@ -471,6 +481,7 @@ func (p TicketPoolStatus) String() string {
 	}
 }
 
+// String implements the Stringer interface for VoteChoice.
 func (v VoteChoice) String() string {
 	switch v {
 	case Abstain:
@@ -498,6 +509,7 @@ func ChoiceIndexFromStr(choice string) (VoteChoice, error) {
 	}
 }
 
+// These are text keys used to identify different chart types.
 const (
 	AvgBlockSize    = "avg-block-size"
 	BlockChainSize  = "blockchain-size"
@@ -571,7 +583,7 @@ type BlockChainData struct {
 }
 
 // SyncResult is the result of a database sync operation, containing the height
-// of the last block and an arror value.
+// of the last block and an error value.
 type SyncResult struct {
 	Height int64
 	Error  error

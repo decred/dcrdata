@@ -26,7 +26,7 @@ const (
 )
 
 // Attack specifies a duration and a series of attackers, each with their own
-// frequency and targets. Attack is unmarshaled from a JSON definition file.
+// frequency and targets. Attack is unmarshalled from a JSON definition file.
 type Attack struct {
 	Duration  int         `json:"duration"`
 	Attackers []*Attacker `json:"attackers"`
@@ -229,8 +229,6 @@ out:
 	if err != nil {
 		log.Fatalf("Failed to write result file to %s", path)
 	}
-
-	return
 }
 
 func createResultsDirectory() (err error) {

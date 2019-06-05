@@ -445,6 +445,8 @@ func CommonAncestor(client BlockFetcher, hashA, hashB chainhash.Hash) (*chainhas
 	return &hashA, chainA, chainB, nil
 }
 
+// BlockHashGetter is an interface implementing GetBlockHash to retrieve a block
+// hash from a height.
 type BlockHashGetter interface {
 	GetBlockHash(int64) (*chainhash.Hash, error)
 }
@@ -506,6 +508,7 @@ func GetChainWork(client BlockFetcher, hash *chainhash.Hash) (string, error) {
 	return header.ChainWork, nil
 }
 
+// MempoolAddressChecker is an interface implementing UnconfirmedTxnsForAddress
 type MempoolAddressChecker interface {
 	UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error)
 }
@@ -515,10 +518,13 @@ type mempoolAddressChecker struct {
 	params *chaincfg.Params
 }
 
+// UnconfirmedTxnsForAddress implements MempoolAddressChecker.
 func (m *mempoolAddressChecker) UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error) {
 	return UnconfirmedTxnsForAddress(m.client, address, m.params)
 }
 
+// NewMempoolAddressChecker creates a new MempoolAddressChecker from an RPC
+// client for the given network.
 func NewMempoolAddressChecker(client *rpcclient.Client, params *chaincfg.Params) MempoolAddressChecker {
 	return &mempoolAddressChecker{client, params}
 }

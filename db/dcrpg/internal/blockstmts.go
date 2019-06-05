@@ -10,6 +10,7 @@ import (
 	"github.com/decred/dcrdata/db/dbtypes"
 )
 
+// These queries relate primarily to the "blocks" and "block_chain" tables.
 const (
 	CreateBlockTable = `CREATE TABLE IF NOT EXISTS blocks (
 		id SERIAL PRIMARY KEY,

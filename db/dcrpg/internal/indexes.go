@@ -1,5 +1,6 @@
 package internal
 
+// The names of table column indexes are defined in this block.
 const (
 	// blocks table
 

@@ -39,8 +39,8 @@ type InsightAddressInfo struct {
 	TotalSentSat             int64    `json:"totalSentSat"`
 	UnconfirmedBalance       float64  `json:"unconfirmedBalance"`
 	UnconfirmedBalanceSat    int64    `json:"unconfirmedBalanceSat"`
-	UnconfirmedTxAppearances int64    `json:"unconfirmedTxApperances"`
-	TxAppearances            int64    `json:"txApperances"`
+	UnconfirmedTxAppearances int64    `json:"unconfirmedTxApperances"` // [sic]
+	TxAppearances            int64    `json:"txApperances"`            // [sic]
 	TransactionsID           []string `json:"transactions,omitempty"`
 }
 
@@ -49,7 +49,7 @@ type InsightRawTx struct {
 	Rawtx string `json:"rawtx"`
 }
 
-// InsightMultiAddrsTx models multi-address post data structure.
+// InsightMultiAddrsTx models the POST request for the multi-address endpoints.
 type InsightMultiAddrsTx struct {
 	Addresses   string      `json:"addrs"`
 	From        json.Number `json:"from,Number,omitempty"`
@@ -59,6 +59,8 @@ type InsightMultiAddrsTx struct {
 	NoSpent     json.Number `json:"noSpent"`
 }
 
+// InsightMultiAddrsTxOutput models the response to the multi-address
+// transactions POST request.
 type InsightMultiAddrsTxOutput struct {
 	TotalItems int64       `json:"totalItems"`
 	From       int         `json:"from"`

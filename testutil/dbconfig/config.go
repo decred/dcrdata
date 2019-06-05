@@ -15,14 +15,16 @@ const (
 	// will be located.
 	sqliteChartsTestsDb = "test.sqlt.db"
 
-	// Test PG db connection config
+	defaultSqliteBlockRange = "0-199"
+)
 
+// Test DB server and database config.
+const (
 	PGChartsTestsHost   = "localhost"
 	PGChartsTestsPort   = "5432"
 	PGChartsTestsUser   = "dcrdata"
 	PGChartsTestsPass   = ""
 	PGChartsTestsDBName = "dcrdata_mainnet_test"
-	defaultRange        = "0-199"
 )
 
 // SqliteDbFilePath returns the absolute sqlite db filepath when accessed from
@@ -38,7 +40,7 @@ func SqliteDbFilePath() (string, error) {
 func SqliteDumpDataFilePath() (string, error) {
 	blockRange := os.Getenv("BLOCK_RANGE")
 	if blockRange == "" {
-		blockRange = defaultRange
+		blockRange = defaultSqliteBlockRange
 	}
 	return filepath.Abs("../../testutil/dbload/testsconfig/test.data/sqlite_" + blockRange + ".sql")
 }

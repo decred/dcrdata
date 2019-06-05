@@ -1,5 +1,7 @@
 package internal
 
+// These queries relate to the blockchain "rewind" operations involving multiple
+// tables.
 const (
 	// address row deletion by block hash
 

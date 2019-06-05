@@ -20,7 +20,7 @@ import (
 	humanize "github.com/dustin/go-humanize"
 )
 
-// Types of vote
+// Types of votes
 const (
 	VoteReject  = -1
 	VoteAffirm  = 1
@@ -178,6 +178,7 @@ type TxInfo struct {
 	TicketInfo
 }
 
+// These are the text representations of the various special transaction types.
 const (
 	TicketTypeStr   = "Ticket"
 	VoteTypeStr     = "Vote"

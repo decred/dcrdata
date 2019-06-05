@@ -10,6 +10,7 @@ import (
 	"github.com/decred/dcrd/blockchain/stake"
 )
 
+// These queries relate primarily to the "transactions" table.
 const (
 	CreateTransactionTable = `CREATE TABLE IF NOT EXISTS transactions (
 		id SERIAL8 PRIMARY KEY,
