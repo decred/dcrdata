@@ -2,6 +2,7 @@ package internal
 
 import "fmt"
 
+// These queries relate primarily to the "addresses" table.
 const (
 	CreateAddressTable = `CREATE TABLE IF NOT EXISTS addresses (
 		id SERIAL8 PRIMARY KEY,
@@ -108,7 +109,7 @@ const (
 		ORDER BY block_time DESC, tx_hash ASC;`
 
 	// selectAddressTimeGroupingCount return the count of record groups,
-	// where grouping is done by a specified time interval, for an addresss.
+	// where grouping is done by a specified time interval, for an addresses.
 	selectAddressTimeGroupingCount = `SELECT COUNT(DISTINCT %s) FROM addresses WHERE address=$1;`
 
 	SelectAddressUnspentCountANDValue = `SELECT COUNT(*), SUM(value) FROM addresses

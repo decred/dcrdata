@@ -22,11 +22,14 @@ const (
 	tickerSigReset int = iota
 	tickerSigStop
 
+	// NewTxBufferSize is the maximum length of the new transaction slice sent
+	// to websocket clients.
+	NewTxBufferSize = 5
+
 	bufferTickerInterval = 3
-	NewTxBufferSize      = 5
 	clientSignalSize     = 5
 
-	MaxPayloadBytes = 1 << 20
+	maxPayloadBytes = 1 << 20
 )
 
 // Type aliases for the different HubSignals.
@@ -194,7 +197,7 @@ func NewWebsocketHub() *WebsocketHub {
 		HubRelay:         make(chan pstypes.HubMessage),
 		bufferTickerChan: make(chan int, clientSignalSize),
 		quitWSHandler:    make(chan struct{}),
-		requestLimit:     MaxPayloadBytes, // 1 MB
+		requestLimit:     maxPayloadBytes, // 1 MB
 	}
 }
 

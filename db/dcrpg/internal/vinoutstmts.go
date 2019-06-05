@@ -4,6 +4,7 @@
 
 package internal
 
+// These queries relate primarily to the "vins" and "vouts" tables.
 const (
 	// vins
 

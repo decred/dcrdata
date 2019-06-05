@@ -31,6 +31,8 @@ import (
 )
 
 const (
+	// MaxAddressRows is an upper limit on the number of rows that may be
+	// requested with the searchrawtransactions RPC.
 	MaxAddressRows int64 = 1000
 )
 
@@ -1029,7 +1031,7 @@ func (db *WiredDB) GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails {
 	return &mpTicketDetails
 }
 
-// GetMempoolPriceCountTime retreives from mempool: the ticket price, the number
+// GetMempoolPriceCountTime retrieves from mempool: the ticket price, the number
 // of tickets in mempool, the time of the first ticket.
 func (db *WiredDB) GetMempoolPriceCountTime() *apitypes.PriceCountTime {
 	return db.MPC.GetTicketPriceCountTime(int(db.params.MaxFreshStakePerBlock))

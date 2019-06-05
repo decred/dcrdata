@@ -68,12 +68,12 @@ var (
 	defaultPoliteiaAPIURl    = "https://proposals.decred.org"
 	defaultChartsCacheDump   = "chartscache.gob"
 
-	defaultPGHost                       = "127.0.0.1:5432"
-	defaultPGUser                       = "dcrdata"
-	defaultPGPass                       = ""
-	defaultPGDBName                     = "dcrdata"
-	defaultPGQueryTimeout time.Duration = time.Hour
-	defaultAddrCacheCap                 = 1 << 27 // 128 MiB
+	defaultPGHost         = "127.0.0.1:5432"
+	defaultPGUser         = "dcrdata"
+	defaultPGPass         = ""
+	defaultPGDBName       = "dcrdata"
+	defaultPGQueryTimeout = time.Hour
+	defaultAddrCacheCap   = 1 << 27 // 128 MiB
 
 	defaultExchangeIndex     = "USD"
 	defaultDisabledExchanges = "huobi,dragonex"
@@ -113,8 +113,8 @@ type config struct {
 	CompressAPI         bool    `long:"compress-api" description:"Use compression for a number of endpoints with commonly large responses."`
 
 	// Data I/O
-	MempoolMinInterval int    `long:"mp-min-interval" description:"The minimum time in seconds between mempool reports, regarless of number of new tickets seen." env:"DCRDATA_MEMPOOL_MIN_INTERVAL"`
-	MempoolMaxInterval int    `long:"mp-max-interval" description:"The maximum time in seconds between mempool reports (within a couple seconds), regarless of number of new tickets seen." env:"DCRDATA_MEMPOOL_MAX_INTERVAL"`
+	MempoolMinInterval int    `long:"mp-min-interval" description:"The minimum time in seconds between mempool reports, regardless of number of new tickets seen." env:"DCRDATA_MEMPOOL_MIN_INTERVAL"`
+	MempoolMaxInterval int    `long:"mp-max-interval" description:"The maximum time in seconds between mempool reports (within a couple seconds), regardless of number of new tickets seen." env:"DCRDATA_MEMPOOL_MAX_INTERVAL"`
 	MPTriggerTickets   int    `long:"mp-ticket-trigger" description:"The number minimum number of new tickets that must be seen to trigger a new mempool report." env:"DCRDATA_MP_TRIGGER_TICKETS"`
 	DBFileName         string `long:"dbfile" description:"SQLite DB file name (default is dcrdata.sqlt.db)." env:"DCRDATA_SQLITE_DB_FILE_NAME"`
 	SQLiteMaxConns     int    `long:"sqlite-max-conns" description:"The maximum number of open connections to the SQLite database. By default there is no limit."`
@@ -122,8 +122,8 @@ type config struct {
 	ProposalsFileName  string `long:"proposalsdbfile" description:"Proposals DB file name (default is proposals.db)." env:"DCRDATA_PROPOSALS_DB_FILE_NAME"`
 	PoliteiaAPIURL     string `long:"politeiaurl" description:"Defines the root API politeia URL (defaults to https://proposals.decred.org)."`
 	ChartsCacheDump    string `long:"chartscache" description:"Defines the file name that holds the charts cache data on system exit."`
-	PiPropRepoOwner    string `long:"piproposalsowner" description:"Defines the owner to the github repo where politeia's proposals are pushed."`
-	PiPropRepoName     string `long:"piproposalsrepo" description:"Defines the name of the github repo where politeia's proposals are pushed."`
+	PiPropRepoOwner    string `long:"piproposalsowner" description:"Defines the owner to the github repo where Politeia's proposals are pushed."`
+	PiPropRepoName     string `long:"piproposalsrepo" description:"Defines the name of the github repo where Politeia's proposals are pushed."`
 
 	PurgeNBestBlocks int  `long:"purge-n-blocks" description:"Purge all data for the N best blocks, using the best block across all DBs if they are out of sync."`
 	FastSQLitePurge  bool `long:"fast-sqlite-purge" description:"Purge all data for the blocks above the specified height."`
@@ -303,7 +303,7 @@ func supportedSubsystems() []string {
 		subsystems = append(subsystems, subsysID)
 	}
 
-	// Sort the subsytems for stable display.
+	// Sort the subsystems for stable display.
 	sort.Strings(subsystems)
 	return subsystems
 }
@@ -343,7 +343,7 @@ func parseAndSetDebugLevels(debugLevel string) error {
 		// Validate subsystem.
 		if _, exists := subsystemLoggers[subsysID]; !exists {
 			str := "The specified subsystem [%v] is invalid -- " +
-				"supported subsytems %v"
+				"supported subsystems %v"
 			return fmt.Errorf(str, subsysID, supportedSubsystems())
 		}
 

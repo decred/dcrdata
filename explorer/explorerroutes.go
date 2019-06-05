@@ -68,6 +68,7 @@ const (
 // expStatus defines the various status types supported by the system.
 type expStatus string
 
+// These are the explorer status messages used by the status page.
 const (
 	ExpStatusError          expStatus = "Error"
 	ExpStatusNotFound       expStatus = "Not Found"
@@ -1497,7 +1498,7 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// This is be unnecessarily duplicative and possible very slow for a very
-	// active addresss.
+	// active addresses.
 	addrHist, _, _ := exp.explorerSource.AddressHistory(searchStr,
 		1, 0, dbtypes.AddrTxnAll)
 	if len(addrHist) > 0 {

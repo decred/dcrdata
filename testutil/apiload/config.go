@@ -7,6 +7,7 @@ import (
 	flags "github.com/jessevdk/go-flags"
 )
 
+// Default configuration.
 const (
 	DefaultResultDirectory = "results"
 	DefaultProfilesPath    = "profiles.json"

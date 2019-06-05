@@ -19,7 +19,7 @@ const (
 	compatVersion = 1
 
 	// schemaVersion pertains to a sequence of incremental upgrades to the
-	// database schema thay may be performed for the same compatibility version.
+	// database schema that may be performed for the same compatibility version.
 	// This includes changes such as creating tables, adding/deleting columns,
 	// adding/deleting indexes or any other operations that create, delete, or
 	// modify the definition of any database relation.
@@ -69,6 +69,8 @@ func DBVersion(db *sql.DB) (ver DatabaseVersion, err error) {
 // pg table versions are compared.
 type CompatAction int8
 
+// These are the recognized CompatActions for upgrading a database from one
+// version to another.
 const (
 	Rebuild CompatAction = iota
 	Upgrade
@@ -149,6 +151,9 @@ func updateSchemaVersion(db *sql.DB, schema uint32) error {
 	return err
 }
 
+// UpgradeDatabase attempts to upgrade the given sql.DB with help from the
+// BlockGetter. The DB version will be compared against the target version to
+// decide what upgrade type to initiate.
 func UpgradeDatabase(db *sql.DB, bg BlockGetter) (bool, error) {
 	initVer, upgradeType, err := versionCheck(db)
 	if err != nil {

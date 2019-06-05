@@ -3,6 +3,7 @@
 
 package internal
 
+// These queries relate primarily to the "meta" table.
 const (
 	CreateMetaTable = `CREATE TABLE IF NOT EXISTS meta (
 		net_name TEXT,

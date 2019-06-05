@@ -1178,11 +1178,14 @@ var (
 	AddressErrorWrongNet     AddressError = errors.New("wrong network")
 	AddressErrorDecodeFailed AddressError = errors.New("decoding failed")
 	AddressErrorUnknown      AddressError = errors.New("unknown error")
-	AddressErrorUnsupported  AddressError = errors.New("recognized, but unsuported address type")
+	AddressErrorUnsupported  AddressError = errors.New("recognized, but unsupported address type")
 )
 
+// AddressType is used to label type of an address as returned by
+// base58.CheckDecode.
 type AddressType int
 
+// These are the AddressType values, as returned by AddressValidation.
 const (
 	AddressTypeP2PK = iota
 	AddressTypeP2PKH

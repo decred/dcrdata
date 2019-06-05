@@ -1,7 +1,7 @@
 package internal
 
-// The folloiwng statements are for the tickets, votes, and misses tables.
-
+// These queries relate primarily to the stake tables ("tickets", "votes",
+// "misses", "proposals", "proposal_votes", "agendas", and "agenda_votes").
 const (
 	// tickets table
 

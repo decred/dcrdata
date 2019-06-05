@@ -86,6 +86,8 @@ type TxList []*exptypes.MempoolTx
 
 type HubSignal int
 
+// These are the different signal types used for passing messages between the
+// client and server, and internally between the pubsub and websocket hubs.
 const (
 	SigSubscribe HubSignal = iota
 	SigUnsubscribe

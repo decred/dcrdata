@@ -45,9 +45,18 @@ const (
 	TableNameSummaries = "dcrdata_block_summary"
 	// TableNameStakeInfo is name of the table used to store extended stake info
 	TableNameStakeInfo = "dcrdata_stakeinfo_extended"
-	// A couple database queries that are called before NewWiredDB
-	SetCacheSizeSQL       = "PRAGMA cache_size = 32768;"
-	SetSynchrounousOffSQL = "pragma synchronous = OFF;"
+
+	// SetCacheSizeSQL sets the maximum number of database disk pages that
+	// SQLite will hold in memory at once per open database file" before
+	// calling. It is called by InitDB when creating a fresh database.
+	SetCacheSizeSQL = "PRAGMA cache_size = 32768;"
+
+	// SetSynchronousOffSQL lets SQLite continue without syncing to disk as soon
+	// as it has handed data off to the operating system. Although data loss may
+	// occur if the machine crashes or losses power, "commits can be orders of
+	// magnitude faster" with synchronous OFF. It is called by InitDB when
+	// creating a fresh database.
+	SetSynchronousOffSQL = "pragma synchronous = OFF;"
 
 	// DBBusyTimeout is the length of time in milliseconds for sqlite to retry
 	// DB access when the SQLITE_BUSY error would otherwise be returned.
@@ -362,7 +371,7 @@ func InitDB(dbInfo *DBInfo, shutdown func()) (*DB, error) {
 		log.Error("Error setting SQLite Cache size")
 		return nil, err
 	}
-	_, err = db.Exec(SetSynchrounousOffSQL)
+	_, err = db.Exec(SetSynchronousOffSQL)
 	if err != nil {
 		log.Error("Error setting SQLite synchrounous off")
 		return nil, err
@@ -746,7 +755,7 @@ func (db *DB) getChainBlockSummaryHeight(onlyMainchain bool) (int64, error) {
 // database can provide a block summary. When the table is empty, height -1 and
 // error nil are returned. The error value will never be sql.ErrNoRows. Usually
 // GetBlockSummaryHeight, which caches the most recently stored block height,
-// shoud be used instead.
+// should be used instead.
 func (db *DB) getBlockSummaryHeight() (int64, error) {
 	// Query the block summary table for the best main chain block height.
 	return db.getChainBlockSummaryHeight(true)
@@ -799,8 +808,8 @@ func (db *DB) getChainStakeInfoHeight(onlyMainchain bool) (int64, error) {
 // getStakeInfoHeight returns the largest block height for which the database
 // can provide stake info data. When the table is empty, height -1 and error nil
 // are returned. The error value will never be sql.ErrNoRows. Usually
-// GetStakeInfoHeight, which caches the most recently stored block height, shoud
-// be used instead.
+// GetStakeInfoHeight, which caches the most recently stored block height,
+// should be used instead.
 func (db *DB) getStakeInfoHeight() (int64, error) {
 	// Query the stake info table for the best main chain block height.
 	return db.getChainStakeInfoHeight(true)
@@ -1068,8 +1077,8 @@ func (db *DB) AppendBlockFeeRows(charts *cache.ChartData, rows *sql.Rows) error 
 	return nil
 }
 
-// RetrieveSDiffRange returns an array of stake difficulties for block range ind0 to
-// ind1
+// RetrieveSDiffRange returns an array of stake difficulties for block range
+// ind0 to ind1.
 func (db *DB) RetrieveSDiffRange(ind0, ind1 int64) ([]float64, error) {
 	N := ind1 - ind0 + 1
 	if N == 0 {
@@ -1529,7 +1538,7 @@ func (db *DB) RetrieveLatestStakeInfoExtended() (*apitypes.StakeInfoExtended, er
 	return si, nil
 }
 
-// RetrieveBestStakeHeight retreives the height of the best (mainchain) block in
+// RetrieveBestStakeHeight retrieves the height of the best (mainchain) block in
 // the stake table.
 func (db *DB) RetrieveBestStakeHeight() (int64, error) {
 	var height int64

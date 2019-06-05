@@ -29,6 +29,7 @@ import (
 
 type contextKey int
 
+// These are the keys for different types of values stored in a request context.
 const (
 	ctxAPIDocs contextKey = iota
 	CtxAddress
