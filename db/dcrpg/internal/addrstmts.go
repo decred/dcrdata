@@ -54,25 +54,25 @@ const (
 	// on (tx_vin_vout_row_id, address, is_funding).
 	IndexAddressTableOnVoutID = `CREATE UNIQUE INDEX ` + IndexOfAddressTableOnVoutID +
 		` ON addresses(tx_vin_vout_row_id, address, is_funding);`
-	DeindexAddressTableOnVoutID = `DROP INDEX ` + IndexOfAddressTableOnVoutID + `;`
+	DeindexAddressTableOnVoutID = `DROP INDEX ` + IndexOfAddressTableOnVoutID + ` CASCADE;`
 
 	// IndexBlockTimeOnTableAddress creates a sorted index on block_time, which
 	// accelerates queries with ORDER BY block_time LIMIT n OFFSET m.
 	IndexBlockTimeOnTableAddress = `CREATE INDEX ` + IndexOfAddressTableOnBlockTime +
 		` ON addresses(block_time DESC NULLS LAST);`
-	DeindexBlockTimeOnTableAddress = `DROP INDEX ` + IndexOfAddressTableOnBlockTime + `;`
+	DeindexBlockTimeOnTableAddress = `DROP INDEX ` + IndexOfAddressTableOnBlockTime + ` CASCADE;`
 
 	IndexMatchingTxHashOnTableAddress = `CREATE INDEX ` + IndexOfAddressTableOnMatchingTx +
 		` ON addresses(matching_tx_hash);`
-	DeindexMatchingTxHashOnTableAddress = `DROP INDEX ` + IndexOfAddressTableOnMatchingTx + `;`
+	DeindexMatchingTxHashOnTableAddress = `DROP INDEX ` + IndexOfAddressTableOnMatchingTx + ` CASCADE;`
 
 	IndexAddressTableOnAddress = `CREATE INDEX ` + IndexOfAddressTableOnAddress +
 		` ON addresses(address);`
-	DeindexAddressTableOnAddress = `DROP INDEX ` + IndexOfAddressTableOnAddress + `;`
+	DeindexAddressTableOnAddress = `DROP INDEX ` + IndexOfAddressTableOnAddress + ` CASCADE;`
 
 	IndexAddressTableOnTxHash = `CREATE INDEX ` + IndexOfAddressTableOnTx +
 		` ON addresses(tx_hash);`
-	DeindexAddressTableOnTxHash = `DROP INDEX ` + IndexOfAddressTableOnTx + `;`
+	DeindexAddressTableOnTxHash = `DROP INDEX ` + IndexOfAddressTableOnTx + ` CASCADE;`
 
 	// SelectSpendingTxsByPrevTx = `SELECT id, tx_hash, tx_index, prev_tx_index FROM vins WHERE prev_tx_hash=$1;`
 	// SelectSpendingTxByPrevOut = `SELECT id, tx_hash, tx_index FROM vins WHERE prev_tx_hash=$1 AND prev_tx_index=$2;`

@@ -105,14 +105,14 @@ const (
 	// (tx_hash, block_hash).
 	IndexTransactionTableOnHashes = `CREATE UNIQUE INDEX ` + IndexOfTransactionsTableOnHashes +
 		` ON transactions(tx_hash, block_hash);`
-	DeindexTransactionTableOnHashes = `DROP INDEX ` + IndexOfTransactionsTableOnHashes + `;`
+	DeindexTransactionTableOnHashes = `DROP INDEX ` + IndexOfTransactionsTableOnHashes + ` CASCADE;`
 
 	// Investigate removing this. block_hash is already indexed. It would be
 	// unique with just (block_hash, block_index). And tree is likely not
 	// important to index.  NEEDS TESTING BEFORE REMOVAL.
 	IndexTransactionTableOnBlockIn = `CREATE UNIQUE INDEX ` + IndexOfTransactionsTableOnBlockInd +
 		` ON transactions(block_hash, block_index, tree);`
-	DeindexTransactionTableOnBlockIn = `DROP INDEX ` + IndexOfTransactionsTableOnBlockInd + `;`
+	DeindexTransactionTableOnBlockIn = `DROP INDEX ` + IndexOfTransactionsTableOnBlockInd + ` CASCADE;`
 
 	SelectTxByHash = `SELECT id, block_hash, block_index, tree
 		FROM transactions

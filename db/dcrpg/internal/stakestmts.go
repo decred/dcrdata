@@ -79,7 +79,7 @@ const (
 	// uix_ticket_hashes_index on (tx_hash, block_hash).
 	IndexTicketsTableOnHashes = `CREATE UNIQUE INDEX ` + IndexOfTicketsTableOnHashes +
 		` ON tickets(tx_hash, block_hash);`
-	DeindexTicketsTableOnHashes = `DROP INDEX ` + IndexOfTicketsTableOnHashes + `;`
+	DeindexTicketsTableOnHashes = `DROP INDEX ` + IndexOfTicketsTableOnHashes + ` CASCADE;`
 
 	// IndexTicketsTableOnTxDbID creates the unique index that ensures only one
 	// row in the tickets table may refer to a certain row of the transactions
@@ -90,11 +90,11 @@ const (
 	// transactions table.
 	IndexTicketsTableOnTxDbID = `CREATE UNIQUE INDEX ` + IndexOfTicketsTableOnTxRowID +
 		` ON tickets(purchase_tx_db_id);`
-	DeindexTicketsTableOnTxDbID = `DROP INDEX ` + IndexOfTicketsTableOnTxRowID + `;`
+	DeindexTicketsTableOnTxDbID = `DROP INDEX ` + IndexOfTicketsTableOnTxRowID + ` CASCADE;`
 
 	IndexTicketsTableOnPoolStatus = `CREATE INDEX ` + IndexOfTicketsTableOnPoolStatus +
 		` ON tickets(pool_status);`
-	DeindexTicketsTableOnPoolStatus = `DROP INDEX ` + IndexOfTicketsTableOnPoolStatus + `;`
+	DeindexTicketsTableOnPoolStatus = `DROP INDEX ` + IndexOfTicketsTableOnPoolStatus + ` CASCADE;`
 
 	SelectTicketsInBlock        = `SELECT * FROM tickets WHERE block_hash = $1;`
 	SelectTicketsTxDbIDsInBlock = `SELECT purchase_tx_db_id FROM tickets WHERE block_hash = $1;`
@@ -237,27 +237,27 @@ const (
 	// on (tx_hash, block_hash).
 	IndexVotesTableOnHashes = `CREATE UNIQUE INDEX ` + IndexOfVotesTableOnHashes +
 		` ON votes(tx_hash, block_hash);`
-	DeindexVotesTableOnHashes = `DROP INDEX ` + IndexOfVotesTableOnHashes + `;`
+	DeindexVotesTableOnHashes = `DROP INDEX ` + IndexOfVotesTableOnHashes + ` CASCADE;`
 
 	IndexVotesTableOnBlockHash = `CREATE INDEX ` + IndexOfVotesTableOnBlockHash +
 		` ON votes(block_hash);`
-	DeindexVotesTableOnBlockHash = `DROP INDEX ` + IndexOfVotesTableOnBlockHash + `;`
+	DeindexVotesTableOnBlockHash = `DROP INDEX ` + IndexOfVotesTableOnBlockHash + ` CASCADE;`
 
 	IndexVotesTableOnCandidate = `CREATE INDEX ` + IndexOfVotesTableOnCandBlock +
 		` ON votes(candidate_block_hash);`
-	DeindexVotesTableOnCandidate = `DROP INDEX ` + IndexOfVotesTableOnCandBlock + `;`
+	DeindexVotesTableOnCandidate = `DROP INDEX ` + IndexOfVotesTableOnCandBlock + ` CASCADE;`
 
 	IndexVotesTableOnVoteVersion = `CREATE INDEX ` + IndexOfVotesTableOnVersion +
 		` ON votes(version);`
-	DeindexVotesTableOnVoteVersion = `DROP INDEX ` + IndexOfVotesTableOnVersion + `;`
+	DeindexVotesTableOnVoteVersion = `DROP INDEX ` + IndexOfVotesTableOnVersion + ` CASCADE;`
 
 	IndexVotesTableOnHeight = `CREATE INDEX ` + IndexOfVotesTableOnHeight + ` ON votes(height);`
 
-	DeindexVotesTableOnHeight = `DROP INDEX ` + IndexOfVotesTableOnHeight + `;`
+	DeindexVotesTableOnHeight = `DROP INDEX ` + IndexOfVotesTableOnHeight + ` CASCADE;`
 
 	IndexVotesTableOnBlockTime = `CREATE INDEX ` + IndexOfVotesTableOnBlockTime +
 		` ON votes(block_time);`
-	DeindexVotesTableOnBlockTime = `DROP INDEX ` + IndexOfVotesTableOnBlockTime + `;`
+	DeindexVotesTableOnBlockTime = `DROP INDEX ` + IndexOfVotesTableOnBlockTime + ` CASCADE;`
 
 	SelectAllVoteDbIDsHeightsTicketHashes = `SELECT id, height, ticket_hash FROM votes;`
 	SelectAllVoteDbIDsHeightsTicketDbIDs  = `SELECT id, height, ticket_tx_db_id FROM votes;`
@@ -330,7 +330,7 @@ const (
 	// on (ticket_hash, block_hash).
 	IndexMissesTableOnHashes = `CREATE UNIQUE INDEX ` + IndexOfMissesTableOnHashes +
 		` ON misses(ticket_hash, block_hash);`
-	DeindexMissesTableOnHashes = `DROP INDEX ` + IndexOfMissesTableOnHashes + `;`
+	DeindexMissesTableOnHashes = `DROP INDEX ` + IndexOfMissesTableOnHashes + ` CASCADE;`
 
 	SelectMissesInBlock = `SELECT ticket_hash FROM misses WHERE block_hash = $1;`
 
@@ -364,7 +364,7 @@ const (
 
 	IndexAgendasTableOnAgendaID = `CREATE UNIQUE INDEX ` + IndexOfAgendasTableOnName +
 		` ON agendas(name);`
-	DeindexAgendasTableOnAgendaID = `DROP INDEX ` + IndexOfAgendasTableOnName + `;`
+	DeindexAgendasTableOnAgendaID = `DROP INDEX ` + IndexOfAgendasTableOnName + ` CASCADE;`
 
 	SelectAllAgendas = `SELECT id, name, status, locked_in, activated, hard_forked
 		FROM agendas;`
@@ -407,7 +407,7 @@ const (
 
 	IndexAgendaVotesTableOnAgendaID = `CREATE UNIQUE INDEX ` + IndexOfAgendaVotesTableOnRowIDs +
 		` ON agenda_votes(votes_row_id, agendas_row_id);`
-	DeindexAgendaVotesTableOnAgendaID = `DROP INDEX ` + IndexOfAgendaVotesTableOnRowIDs + `;`
+	DeindexAgendaVotesTableOnAgendaID = `DROP INDEX ` + IndexOfAgendaVotesTableOnRowIDs + ` CASCADE;`
 
 	// DeleteAgendaVotesDuplicateRows removes rows that would violate the unique
 	// index uix_agenda_votes. This should be run prior to creating the index.
@@ -463,7 +463,7 @@ const (
 	IndexProposalsTableOnToken = `CREATE UNIQUE INDEX ` + IndexOfProposalsTableOnToken +
 		` ON proposals(token, time);`
 
-	DeindexProposalsTableOnToken = `DROP INDEX ` + IndexOfProposalsTableOnToken + `;`
+	DeindexProposalsTableOnToken = `DROP INDEX ` + IndexOfProposalsTableOnToken + ` CASCADE;`
 
 	// Select
 
@@ -493,7 +493,7 @@ const (
 	IndexProposalVotesTableOnProposalsID = `CREATE INDEX ` + IndexOfProposalVotesTableOnProposalsID +
 		` ON proposal_votes(proposals_row_id);`
 
-	DeindexProposalVotesTableOnProposalsID = `DROP INDEX ` + IndexOfProposalVotesTableOnProposalsID + `;`
+	DeindexProposalVotesTableOnProposalsID = `DROP INDEX ` + IndexOfProposalVotesTableOnProposalsID + ` CASCADE;`
 
 	// Select
 

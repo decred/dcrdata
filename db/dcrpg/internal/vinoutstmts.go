@@ -86,11 +86,11 @@ const (
 
 	IndexVinTableOnVins = `CREATE UNIQUE INDEX ` + IndexOfVinsTableOnVin +
 		` ON vins(tx_hash, tx_index, tx_tree);`
-	DeindexVinTableOnVins = `DROP INDEX ` + IndexOfVinsTableOnVin + `;`
+	DeindexVinTableOnVins = `DROP INDEX ` + IndexOfVinsTableOnVin + ` CASCADE;`
 
 	IndexVinTableOnPrevOuts = `CREATE INDEX ` + IndexOfVinsTableOnPrevOut +
 		` ON vins(prev_tx_hash, prev_tx_index);`
-	DeindexVinTableOnPrevOuts = `DROP INDEX ` + IndexOfVinsTableOnPrevOut + `;`
+	DeindexVinTableOnPrevOuts = `DROP INDEX ` + IndexOfVinsTableOnPrevOut + ` CASCADE;`
 
 	SelectVinIDsALL = `SELECT id FROM vins;`
 	CountVinsRows   = `SELECT reltuples::BIGINT AS estimate FROM pg_class WHERE relname='vins';`
@@ -237,7 +237,7 @@ const (
 	// (tx_hash, tx_index, tx_tree).
 	IndexVoutTableOnTxHashIdx = `CREATE UNIQUE INDEX ` + IndexOfVoutsTableOnTxHashInd +
 		` ON vouts(tx_hash, tx_index, tx_tree);`
-	DeindexVoutTableOnTxHashIdx = `DROP INDEX ` + IndexOfVoutsTableOnTxHashInd + `;`
+	DeindexVoutTableOnTxHashIdx = `DROP INDEX ` + IndexOfVoutsTableOnTxHashInd + ` CASCADE;`
 
 	SelectAddressByTxHash = `SELECT script_addresses, value FROM vouts
 		WHERE tx_hash = $1 AND tx_index = $2 AND tx_tree = $3;`

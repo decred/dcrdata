@@ -1237,7 +1237,7 @@ func (pgb *ChainDB) handleTxTypeHistogramUpgrade(bestBlock uint64, upgrade table
 		log.Warnf("histogram upgrade maybe slower since indexing failed: %v", err)
 	} else {
 		defer func() {
-			_, err = pgb.db.Exec("DROP INDEX xxxxx_histogram;")
+			_, err = pgb.db.Exec("DROP INDEX xxxxx_histogram  CASCADE;")
 			if err != nil {
 				log.Warnf("droping the histogram index failed: %v", err)
 			}
