@@ -193,10 +193,9 @@ func (wsh *WebsocketHub) pingClients() chan<- struct{} {
 // Stop kills the run() loop and unregisters all clients (connections).
 func (wsh *WebsocketHub) Stop() {
 	// End the run() loop, allowing in-progress operations to complete.
-	wsh.quitWSHandler <- struct{}{}
-	// Lastly close the hub relay channel sine the quitWSHandler signal is
-	// handled in the Run loop.
-	close(wsh.HubRelay)
+	close(wsh.quitWSHandler)
+	// Do not close HubRelay since there are multiple senders; run() is the
+	// receiver.
 }
 
 func (wsh *WebsocketHub) run() {
@@ -274,12 +273,7 @@ func (wsh *WebsocketHub) run() {
 		case c := <-wsh.Unregister:
 			wsh.unregisterClient(c)
 
-		case _, ok := <-wsh.quitWSHandler:
-			if !ok {
-				log.Error("close channel already closed. This should not happen.")
-				return
-			}
-			close(wsh.quitWSHandler)
+		case <-wsh.quitWSHandler:
 
 			// End the buffer interval send loop.
 			wsh.bufferTickerChan <- tickerSigStop
