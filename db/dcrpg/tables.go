@@ -30,11 +30,6 @@ var createTableStatements = map[string]string{
 	"proposal_votes": internal.CreateProposalVotesTable,
 }
 
-var createTypeStatements = map[string]string{
-	"vin_t":  internal.CreateVinType,
-	"vout_t": internal.CreateVoutType,
-}
-
 // dropDuplicatesInfo defines a minimalistic structure that can be used to
 // append information needed to delete duplicates in a given table.
 type dropDuplicatesInfo struct {
@@ -70,11 +65,6 @@ func DropTables(db *sql.DB) {
 		if err := dropTable(db, tableName); err != nil {
 			log.Errorf(`DROP TABLE "%s" failed.`, tableName)
 		}
-	}
-
-	_, err := db.Exec(`DROP TYPE IF EXISTS vin;`)
-	if err != nil {
-		log.Errorf("DROP TYPE vin failed.")
 	}
 }
 
@@ -128,42 +118,6 @@ func AnalyzeTable(db *sql.DB, table string, statisticsTarget int) error {
 	}
 
 	return dbTx.Commit()
-}
-
-func CreateTypes(db *sql.DB) error {
-	var err error
-	for typeName, createCommand := range createTypeStatements {
-		var exists bool
-		exists, err = TypeExists(db, typeName)
-		if err != nil {
-			return err
-		}
-
-		if !exists {
-			log.Infof("Creating the \"%s\" type.", typeName)
-			_, err = db.Exec(createCommand)
-			if err != nil {
-				return err
-			}
-		} else {
-			log.Tracef("Type \"%s\" exist.", typeName)
-		}
-	}
-	return err
-}
-
-func TypeExists(db *sql.DB, tableName string) (bool, error) {
-	rows, err := db.Query(`select typname from pg_type where typname = $1`,
-		tableName)
-	if err == nil {
-		defer func() {
-			if e := rows.Close(); e != nil {
-				log.Errorf("Close of Query failed: %v", e)
-			}
-		}()
-		return rows.Next(), nil
-	}
-	return false, err
 }
 
 func ClearTestingTable(db *sql.DB) error {
@@ -232,22 +186,35 @@ func CheckColumnDataType(db *sql.DB, table, column string) (dataType string, err
 // DeleteDuplicates attempts to delete "duplicate" rows in tables where unique
 // indexes are to be created.
 func (pgb *ChainDB) DeleteDuplicates(barLoad chan *dbtypes.ProgressBarLoad) error {
-	allDuplicates := []dropDuplicatesInfo{
-		// Remove duplicate vins
-		{TableName: "vins", DropDupsFunc: pgb.DeleteDuplicateVins},
+	var allDuplicates []dropDuplicatesInfo
+	if pgb.cockroach {
+		allDuplicates = append(allDuplicates,
+			// Remove duplicate vins
+			dropDuplicatesInfo{TableName: "vins", DropDupsFunc: pgb.DeleteDuplicateVinsCockroach},
 
-		// Remove duplicate vouts
-		{TableName: "vouts", DropDupsFunc: pgb.DeleteDuplicateVouts},
+			// Remove duplicate vouts
+			dropDuplicatesInfo{TableName: "vouts", DropDupsFunc: pgb.DeleteDuplicateVoutsCockroach},
+		)
+	} else {
+		allDuplicates = append(allDuplicates,
+			// Remove duplicate vins
+			dropDuplicatesInfo{TableName: "vins", DropDupsFunc: pgb.DeleteDuplicateVins},
 
+			// Remove duplicate vouts
+			dropDuplicatesInfo{TableName: "vouts", DropDupsFunc: pgb.DeleteDuplicateVouts},
+		)
+	}
+
+	allDuplicates = append(allDuplicates,
 		// Remove duplicate transactions
-		{TableName: "transactions", DropDupsFunc: pgb.DeleteDuplicateTxns},
+		dropDuplicatesInfo{TableName: "transactions", DropDupsFunc: pgb.DeleteDuplicateTxns},
 
 		// Remove duplicate agendas
-		{TableName: "agendas", DropDupsFunc: pgb.DeleteDuplicateAgendas},
+		dropDuplicatesInfo{TableName: "agendas", DropDupsFunc: pgb.DeleteDuplicateAgendas},
 
 		// Remove duplicate agenda_votes
-		{TableName: "agenda_votes", DropDupsFunc: pgb.DeleteDuplicateAgendaVotes},
-	}
+		dropDuplicatesInfo{TableName: "agenda_votes", DropDupsFunc: pgb.DeleteDuplicateAgendaVotes},
+	)
 
 	var err error
 	for _, val := range allDuplicates {

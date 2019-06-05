@@ -56,6 +56,13 @@ func SetDBBestBlock(db *sql.DB, hash string, height int64) error {
 	return nil
 }
 
+// IBDComplete indicates whether initial block download was completed according
+// to the meta.ibd_complete flag.
+func IBDComplete(db *sql.DB) (ibdComplete bool, err error) {
+	err = db.QueryRow(internal.SelectMetaDBIbdComplete).Scan(&ibdComplete)
+	return
+}
+
 // SetIBDComplete set the ibd_complete (Initial Block Download complete) flag in
 // the meta table.
 func SetIBDComplete(db SqlExecutor, ibdComplete bool) error {
@@ -168,17 +175,124 @@ func DeleteDuplicateVins(db *sql.DB) (int64, error) {
 	existsIdx, err := ExistsIndex(db, "uix_vin")
 	if err != nil {
 		return 0, err
-	} else if !existsIdx {
+	}
+	if !existsIdx {
 		return sqlExec(db, internal.DeleteVinsDuplicateRows, execErrPrefix)
 	}
 
-	if isuniq, err := IsUniqueIndex(db, "uix_vin"); err != nil && err != sql.ErrNoRows {
+	isuniq, err := IsUniqueIndex(db, "uix_vin")
+	if err != nil && err != sql.ErrNoRows {
 		return 0, err
-	} else if isuniq {
+	}
+	if isuniq {
 		return 0, nil
 	}
 
 	return sqlExec(db, internal.DeleteVinsDuplicateRows, execErrPrefix)
+}
+
+func deleteDupVinsBrute(db *sql.DB) (int64, error) {
+	execErrPrefix := "failed to delete duplicate vins: "
+
+	// CockroachDB doesn't have CREATE TABLE .. (LIKE table), so we have to get
+	// the CREATE TABLE statement from the exinsting vins table.
+	var createStmt string
+	err := db.QueryRow(internal.ShowCreateVinsTable).Scan(&createStmt)
+	if err != nil {
+		err = fmt.Errorf("%s%v", execErrPrefix, err)
+		return 0, err
+	}
+	createStmt = strings.Replace(createStmt, "CREATE TABLE vins",
+		"CREATE TABLE vins_temp", 1)
+
+	var N0 int64
+	err = db.QueryRow(`SELECT COUNT(*) FROM vins;`).Scan(&N0)
+	if err != nil {
+		return 0, err
+	}
+
+	// Create the "vins_temp" table.
+	_, err = sqlExec(db, createStmt, execErrPrefix)
+	if err != nil {
+		return 0, err
+	}
+
+	// Populate vins_temp with the unique rows.
+	var N int64
+	N, err = sqlExec(db, internal.DistinctVinsToTempTable, execErrPrefix)
+	if err != nil {
+		return 0, err
+	}
+
+	// Drop the original vins table.
+	err = dropTable(db, "vins")
+	if err != nil {
+		return 0, err
+	}
+
+	// Rename vins_temp to vins.
+	_, err = sqlExec(db, internal.RenameVinsTemp, execErrPrefix)
+	if err != nil {
+		return 0, err
+	}
+	return N0 - N, nil
+}
+
+func deleteDupVinsAlt(db *sql.DB) (int64, error) {
+	execErrPrefix := "failed to delete duplicate vins: "
+
+	rows, err := db.Query(internal.SelectVinDupIDs)
+	if err != nil {
+		err = fmt.Errorf("%s%v", execErrPrefix, err)
+		return 0, err
+	}
+
+	var deleteIDs []int64
+	for rows.Next() {
+		var dupIDs []int64
+		if err = rows.Scan(&dupIDs); err != nil {
+			err = fmt.Errorf("%s%v", execErrPrefix, err)
+			return 0, err
+		}
+
+		fmt.Println(dupIDs)
+
+		if len(dupIDs) > 1 {
+			deleteIDs = append(deleteIDs, dupIDs[1:]...)
+		}
+	}
+
+	fmt.Println(deleteIDs)
+
+	// Delete the duplicate rows.
+	var N int64
+	N, err = sqlExec(db, internal.DeleteVinRows, execErrPrefix, deleteIDs)
+	if err != nil {
+		return 0, err
+	}
+	return N, nil
+}
+
+// DeleteDuplicateVinsCockroach deletes rows in vin with duplicate tx
+// information, leaving the one row with the lowest id.
+func DeleteDuplicateVinsCockroach(db *sql.DB) (int64, error) {
+	existsIdx, err := ExistsIndex(db, "uix_vin")
+	if err != nil {
+		return 0, err
+	}
+	if !existsIdx {
+		return deleteDupVinsBrute(db)
+	}
+
+	isuniq, err := IsUniqueIndex(db, "uix_vin")
+	if err != nil && err != sql.ErrNoRows {
+		return 0, err
+	}
+	if isuniq {
+		return 0, nil
+	}
+
+	return deleteDupVinsBrute(db)
 }
 
 // DeleteDuplicateVouts deletes rows in vouts with duplicate tx information,
@@ -200,6 +314,110 @@ func DeleteDuplicateVouts(db *sql.DB) (int64, error) {
 	}
 
 	return sqlExec(db, internal.DeleteVoutDuplicateRows, execErrPrefix)
+}
+
+func deleteDupVoutsBrute(db *sql.DB) (int64, error) {
+	execErrPrefix := "failed to delete duplicate vouts: "
+
+	// CockroachDB doesn't have CREATE TABLE .. (LIKE table), so we have to get
+	// the CREATE TABLE statement from the exinsting vins table.
+	var createStmt string
+	err := db.QueryRow(internal.ShowCreateVoutsTable).Scan(&createStmt)
+	if err != nil {
+		err = fmt.Errorf("%s%v", execErrPrefix, err)
+		return 0, err
+	}
+	createStmt = strings.Replace(createStmt, "CREATE TABLE vouts",
+		"CREATE TABLE vouts_temp", 1)
+
+	var N0 int64
+	err = db.QueryRow(`SELECT COUNT(*) FROM vouts;`).Scan(&N0)
+	if err != nil {
+		return 0, err
+	}
+
+	// Create the "vouts_temp" table.
+	_, err = sqlExec(db, createStmt, execErrPrefix)
+	if err != nil {
+		return 0, err
+	}
+
+	// Populate vouts_temp with the unique rows.
+	var N int64
+	N, err = sqlExec(db, internal.DistinctVoutsToTempTable, execErrPrefix)
+	if err != nil {
+		return 0, err
+	}
+
+	// Drop the original vouts table.
+	err = dropTable(db, "vouts")
+	if err != nil {
+		return 0, err
+	}
+
+	// Rename vouts_temp to vouts.
+	_, err = sqlExec(db, internal.RenameVoutsTemp, execErrPrefix)
+	if err != nil {
+		return 0, err
+	}
+	return N0 - N, nil
+}
+
+func deleteDupVoutsAlt(db *sql.DB) (int64, error) {
+	execErrPrefix := "failed to delete duplicate vouts: "
+
+	rows, err := db.Query(internal.SelectVoutDupIDs)
+	if err != nil {
+		err = fmt.Errorf("%s%v", execErrPrefix, err)
+		return 0, err
+	}
+
+	var deleteIDs []int64
+	for rows.Next() {
+		var dupIDs []int64
+		if err = rows.Scan(&dupIDs); err != nil {
+			err = fmt.Errorf("%s%v", execErrPrefix, err)
+			return 0, err
+		}
+
+		fmt.Println(dupIDs)
+
+		if len(dupIDs) > 1 {
+			deleteIDs = append(deleteIDs, dupIDs[1:]...)
+		}
+	}
+
+	fmt.Println(deleteIDs)
+
+	// Delete the duplicate rows.
+	var N int64
+	N, err = sqlExec(db, internal.DeleteVoutRows, execErrPrefix, deleteIDs)
+	if err != nil {
+		return 0, err
+	}
+	return N, nil
+}
+
+// DeleteDuplicateVoutsCockroach deletes rows in vouts with duplicate tx
+// information, leaving the one row with the highest id.
+func DeleteDuplicateVoutsCockroach(db *sql.DB) (int64, error) {
+	existsIdx, err := ExistsIndex(db, "uix_vout_txhash_ind")
+	if err != nil {
+		return 0, err
+	}
+	if !existsIdx {
+		return deleteDupVoutsBrute(db)
+	}
+
+	isuniq, err := IsUniqueIndex(db, "uix_vout_txhash_ind")
+	if err != nil && err != sql.ErrNoRows {
+		return 0, err
+	}
+	if isuniq {
+		return 0, nil
+	}
+
+	return deleteDupVoutsBrute(db)
 }
 
 // DeleteDuplicateTxns deletes rows in transactions with duplicate tx-block
@@ -2335,8 +2553,9 @@ func RetrieveVoutsByIDs(ctx context.Context, db *sql.DB, voutDbIDs []uint64) ([]
 	return vouts, nil
 }
 
+// RetrieveUTXOs gets the entire UTXO set from the vouts and vins tables.
 func RetrieveUTXOs(ctx context.Context, db *sql.DB) ([]dbtypes.UTXO, error) {
-	height, _, _, err := RetrieveBestBlockHeight(ctx, db)
+	_, height, err := DBBestBlock(ctx, db)
 	if err != nil {
 		return nil, err
 	}
@@ -3295,6 +3514,11 @@ func retrieveProposalVotesData(ctx context.Context, db *sql.DB,
 
 // --- blocks and block_chain tables ---
 
+// InsertBlock inserts the specified dbtypes.Block as with the given
+// valid/mainchain status. If checked is true, an upsert statement is used so
+// that a unique constraint violation will result in an update instead of
+// attempting to insert a duplicate row. If checked is false and there is a
+// duplicate row, an error will be returned.
 func InsertBlock(db *sql.DB, dbBlock *dbtypes.Block, isValid, isMainchain, checked bool) (uint64, error) {
 	insertStatement := internal.MakeBlockInsertStatement(dbBlock, checked)
 	var id uint64

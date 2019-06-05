@@ -1,3 +1,7 @@
+// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2017, Jonathan Chappelow
+// See LICENSE for details.
+
 package internal
 
 import (
@@ -82,18 +86,33 @@ const (
 			FROM transactions) t
 		WHERE t.rnum > 1);`
 
+	SelectTxDupIDs = `WITH dups AS (
+		SELECT array_agg(id) AS ids
+		FROM transactions
+		GROUP BY tx_hash, block_hash 
+		HAVING count(id)>1
+	)
+	SELECT array_agg(dupids) FROM (
+		SELECT unnest(ids) AS dupids
+		FROM dups
+		ORDER BY dupids DESC
+	) AS _;`
+
+	DeleteTxRows = `DELETE FROM transactions
+		WHERE id = ANY($1);`
+
 	// IndexTransactionTableOnHashes creates the unique index uix_tx_hashes on
 	// (tx_hash, block_hash).
 	IndexTransactionTableOnHashes = `CREATE UNIQUE INDEX ` + IndexOfTransactionsTableOnHashes +
 		` ON transactions(tx_hash, block_hash);`
-	DeindexTransactionTableOnHashes = `DROP INDEX ` + IndexOfTransactionsTableOnHashes + `;`
+	DeindexTransactionTableOnHashes = `DROP INDEX ` + IndexOfTransactionsTableOnHashes + ` CASCADE;`
 
 	// Investigate removing this. block_hash is already indexed. It would be
 	// unique with just (block_hash, block_index). And tree is likely not
 	// important to index.  NEEDS TESTING BEFORE REMOVAL.
 	IndexTransactionTableOnBlockIn = `CREATE UNIQUE INDEX ` + IndexOfTransactionsTableOnBlockInd +
 		` ON transactions(block_hash, block_index, tree);`
-	DeindexTransactionTableOnBlockIn = `DROP INDEX ` + IndexOfTransactionsTableOnBlockInd + `;`
+	DeindexTransactionTableOnBlockIn = `DROP INDEX ` + IndexOfTransactionsTableOnBlockInd + ` CASCADE;`
 
 	SelectTxByHash = `SELECT id, block_hash, block_index, tree
 		FROM transactions
@@ -243,19 +262,6 @@ var (
 		GROUP BY count
 		ORDER BY count;`
 )
-
-// func makeTxInsertStatement(voutDbIDs, vinDbIDs []uint64, vouts []*dbtypes.Vout, checked bool) string {
-// 	voutDbIDsBIGINT := makeARRAYOfBIGINTs(voutDbIDs)
-// 	vinDbIDsBIGINT := makeARRAYOfBIGINTs(vinDbIDs)
-// 	voutCompositeARRAY := makeARRAYOfVouts(vouts)
-// 	var insert string
-// 	if checked {
-// 		insert = insertTxRowChecked
-// 	} else {
-// 		insert = insertTxRow
-// 	}
-// 	return fmt.Sprintf(insert, voutDbIDsBIGINT, voutCompositeARRAY, vinDbIDsBIGINT)
-// }
 
 // MakeTxInsertStatement returns the appropriate transaction insert statement
 // for the desired conflict checking and handling behavior. For checked=false,

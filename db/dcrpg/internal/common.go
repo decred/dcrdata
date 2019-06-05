@@ -1,3 +1,7 @@
+// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2017, Jonathan Chappelow
+// See LICENSE for details.
+
 package internal
 
 import (
@@ -41,29 +45,12 @@ func makeARRAYOfTEXT(text []string) string {
 	return buffer.String()
 }
 
-func makeARRAYOfUnquotedTEXT(text []string) string {
-	if len(text) == 0 {
-		return "ARRAY[]"
-	}
-	buffer := bytes.NewBufferString("ARRAY[")
-	for i, txt := range text {
-		if i == len(text)-1 {
-			buffer.WriteString(txt)
-			break
-		}
-		buffer.WriteString(txt + `, `)
-	}
-	buffer.WriteString("]")
-
-	return buffer.String()
-}
-
 func makeARRAYOfBIGINTs(ints []uint64) string {
 	if len(ints) == 0 {
-		return "ARRAY[]::BIGINT[]"
+		return "'{}'::BIGINT[]" // cockroachdb: "ARRAY[]:::BIGINT[]"
 	}
 
-	buffer := bytes.NewBufferString("ARRAY[")
+	buffer := bytes.NewBufferString("'{")
 	for i, v := range ints {
 		u := strconv.FormatUint(v, 10)
 		if i == len(ints)-1 {
@@ -72,7 +59,7 @@ func makeARRAYOfBIGINTs(ints []uint64) string {
 		}
 		buffer.WriteString(u + `, `)
 	}
-	buffer.WriteString("]")
+	buffer.WriteString("}'::BIGINT[]")
 
 	return buffer.String()
 }

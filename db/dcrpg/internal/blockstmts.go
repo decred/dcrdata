@@ -1,3 +1,7 @@
+// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2017, Jonathan Chappelow
+// See LICENSE for details.
+
 package internal
 
 import (
@@ -83,12 +87,12 @@ const (
 
 	// IndexBlockTableOnHash creates the unique index uix_block_hash on (hash).
 	IndexBlockTableOnHash   = `CREATE UNIQUE INDEX ` + IndexOfBlocksTableOnHash + ` ON blocks(hash);`
-	DeindexBlockTableOnHash = `DROP INDEX ` + IndexOfBlocksTableOnHash + `;`
+	DeindexBlockTableOnHash = `DROP INDEX ` + IndexOfBlocksTableOnHash + ` CASCADE;`
 
 	// IndexBlocksTableOnHeight creates the index uix_block_height on (height).
 	// This is not unique because of side chains.
 	IndexBlocksTableOnHeight   = `CREATE INDEX ` + IndexOfBlocksTableOnHeight + ` ON blocks(height);`
-	DeindexBlocksTableOnHeight = `DROP INDEX ` + IndexOfBlocksTableOnHeight + `;`
+	DeindexBlocksTableOnHeight = `DROP INDEX ` + IndexOfBlocksTableOnHeight + ` CASCADE;`
 
 	SelectBlockByTimeRangeSQL = `SELECT hash, height, size, time, numtx
 		FROM blocks WHERE time BETWEEN $1 and $2 ORDER BY time DESC LIMIT $3;`
@@ -218,8 +222,6 @@ const (
 		WHERE is_mainchain
 		AND height > $1
 		ORDER BY height;`
-
-	// TODO: index block_chain where needed
 )
 
 func MakeBlockInsertStatement(block *dbtypes.Block, checked bool) string {

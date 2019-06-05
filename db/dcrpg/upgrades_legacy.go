@@ -862,7 +862,7 @@ func (pgb *ChainDB) handleUpgrades(client BlockGetter, tableUpgrade tableUpgrade
 	switch tableUpgrade {
 	case vinsTableCoinSupplyUpgrade, agendasTableUpgrade, agendasTablePruningUpdate:
 		// height is the best block where this table upgrade should stop at.
-		height, err := pgb.HeightDB()
+		height, err := pgb.HeightDBLegacy()
 		if err != nil {
 			return false, err
 		}
@@ -945,7 +945,7 @@ func (pgb *ChainDB) handleUpgrades(client BlockGetter, tableUpgrade tableUpgrade
 	case vinsTxHistogramUpgrade, addressesTxHistogramUpgrade:
 		var height int64
 		// height is the best block where this table upgrade should stop at.
-		height, err = pgb.HeightDB()
+		height, err = pgb.HeightDBLegacy()
 		if err != nil {
 			return false, err
 		}
@@ -1237,7 +1237,7 @@ func (pgb *ChainDB) handleTxTypeHistogramUpgrade(bestBlock uint64, upgrade table
 		log.Warnf("histogram upgrade maybe slower since indexing failed: %v", err)
 	} else {
 		defer func() {
-			_, err = pgb.db.Exec("DROP INDEX xxxxx_histogram;")
+			_, err = pgb.db.Exec("DROP INDEX xxxxx_histogram  CASCADE;")
 			if err != nil {
 				log.Warnf("droping the histogram index failed: %v", err)
 			}

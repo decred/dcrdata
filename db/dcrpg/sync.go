@@ -6,7 +6,6 @@ package dcrpg
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
 	"sync"
@@ -98,10 +97,10 @@ const (
 // which the caller should wait to receive the result. As such, this method
 // should be called as a goroutine or it will hang on send if the channel is
 // unbuffered.
-func (db *ChainDB) SyncChainDBAsync(ctx context.Context, res chan dbtypes.SyncResult,
-	client rpcutils.MasterBlockGetter, updateAllAddresses, updateAllVotes, newIndexes bool,
+func (pgb *ChainDB) SyncChainDBAsync(ctx context.Context, res chan dbtypes.SyncResult,
+	client rpcutils.MasterBlockGetter, updateAllAddresses, newIndexes bool,
 	updateExplorer chan *chainhash.Hash, barLoad chan *dbtypes.ProgressBarLoad) {
-	if db == nil {
+	if pgb == nil {
 		res <- dbtypes.SyncResult{
 			Height: -1,
 			Error:  fmt.Errorf("ChainDB (psql) disabled"),
@@ -109,10 +108,10 @@ func (db *ChainDB) SyncChainDBAsync(ctx context.Context, res chan dbtypes.SyncRe
 		return
 	}
 
-	height, err := db.SyncChainDB(ctx, client, updateAllAddresses,
-		updateAllVotes, newIndexes, updateExplorer, barLoad)
+	height, err := pgb.SyncChainDB(ctx, client, updateAllAddresses, newIndexes,
+		updateExplorer, barLoad)
 	if err != nil {
-		log.Debugf("SyncChainDB quit at height %d, err: %v", height, err)
+		log.Errorf("SyncChainDB quit at height %d, err: %v", height, err)
 	} else {
 		log.Debugf("SyncChainDB completed at height %d.", height)
 	}
@@ -127,70 +126,128 @@ func (db *ChainDB) SyncChainDBAsync(ctx context.Context, res chan dbtypes.SyncRe
 // RPC client. The table indexes may be force-dropped and recreated by setting
 // newIndexes to true. The quit channel is used to break the sync loop. For
 // example, closing the channel on SIGINT.
-func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockGetter,
-	updateAllAddresses, updateAllVotes, newIndexes bool,
-	updateExplorer chan *chainhash.Hash, barLoad chan *dbtypes.ProgressBarLoad) (int64, error) {
-	// Note that we are doing a batch blockchain sync
-	db.InBatchSync = true
-	defer func() { db.InBatchSync = false }()
+func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockGetter,
+	updateAllAddresses, newIndexes bool, updateExplorer chan *chainhash.Hash,
+	barLoad chan *dbtypes.ProgressBarLoad) (int64, error) {
+	// Note that we are doing a batch blockchain sync.
+	pgb.InBatchSync = true
+	defer func() { pgb.InBatchSync = false }()
 
-	// Get chain servers's best block
+	// Get the chain servers's best block.
 	nodeHeight, err := client.NodeHeight()
 	if err != nil {
 		return -1, fmt.Errorf("GetBestBlock failed: %v", err)
 	}
 
-	lastBlock, err := db.HeightDB()
+	// Retrieve the best block in the database from the meta table.
+	lastBlock, err := pgb.HeightDB()
 	if err != nil {
-		if err == sql.ErrNoRows {
-			log.Info("blocks table is empty, starting fresh.")
-		} else {
-			return -1, fmt.Errorf("RetrieveBestBlockHeight: %v", err)
-		}
+		return -1, fmt.Errorf("RetrieveBestBlockHeight: %v", err)
+	}
+	if lastBlock == -1 {
+		log.Info("Tables are empty, starting fresh.")
 	}
 
 	// Remove indexes/constraints before an initial sync or when explicitly
 	// requested to reindex and update spending information in the addresses
 	// table.
 	reindexing := newIndexes || lastBlock == -1
+
+	// See if initial sync (initial block download) was previously completed.
+	ibdComplete, err := IBDComplete(pgb.db)
+	if err != nil {
+		return lastBlock, fmt.Errorf("IBDComplete failed: %v", err)
+	}
+
+	// When IBD is not yet completed, force reindexing and update of full
+	// spending info in addresses table after block sync.
+	if !ibdComplete {
+		if lastBlock > -1 {
+			log.Warnf("Detected that initial sync was previously started but not completed!")
+		}
+		if !reindexing {
+			reindexing = true
+			log.Warnf("Forcing table reindexing.")
+		}
+		if !updateAllAddresses {
+			updateAllAddresses = true
+			log.Warnf("Forcing full update of spending information in addresses table.")
+		}
+	}
+
 	if reindexing {
 		// Remove any existing indexes.
 		log.Info("Large bulk load: Removing indexes and disabling duplicate checks.")
-		err = db.DeindexAll()
+		err = pgb.DeindexAll()
 		if err != nil && !strings.Contains(err.Error(), "does not exist") {
 			return lastBlock, err
 		}
 
 		// Disable duplicate checks on insert queries since the unique indexes
 		// that enforce the constraints will not exist.
-		db.EnableDuplicateCheckOnInsert(false)
+		pgb.EnableDuplicateCheckOnInsert(false)
 
 		// Syncing blocks without indexes requires a UTXO cache to avoid
 		// extremely expensive queries. Warm the UTXO cache if resuming an
 		// interrupted initial sync.
 		blocksToSync := nodeHeight - lastBlock
-		if lastBlock > 0 && blocksToSync > 50 {
+		if lastBlock > 0 && (blocksToSync > 50 || pgb.cockroach) {
+			if pgb.cockroach {
+				log.Infof("Removing duplicate vins prior to indexing.")
+				N, err := pgb.DeleteDuplicateVinsCockroach()
+				if err != nil {
+					return -1, fmt.Errorf("failed to remove duplicate vins: %v", err)
+				}
+				log.Infof("Removed %d duplicate vins rows.", N)
+				log.Infof("Indexing vins table on vins for CockroachDB to load UTXO set.")
+				if err = IndexVinTableOnVins(pgb.db); err != nil {
+					return -1, fmt.Errorf("failed to index vins on vins: %v", err)
+				}
+				log.Infof("Indexing vins table on prevouts for CockroachDB to load UTXO set.")
+				if err = IndexVinTableOnPrevOuts(pgb.db); err != nil {
+					return -1, fmt.Errorf("failed to index vins on prevouts: %v", err)
+				}
+
+				log.Infof("Removing duplicate vouts prior to indexing.")
+				N, err = pgb.DeleteDuplicateVoutsCockroach()
+				if err != nil {
+					return -1, fmt.Errorf("failed to remove duplicate vouts: %v", err)
+				}
+				log.Infof("Removed %d duplicate vouts rows.", N)
+				log.Infof("Indexing vouts table on tx hash and idx for CockroachDB to load UTXO set.")
+				if err = IndexVoutTableOnTxHashIdx(pgb.db); err != nil {
+					return -1, fmt.Errorf("failed to index vouts on tx hash and idx: %v", err)
+				}
+			}
 			log.Infof("Collecting all UTXO data prior to height %d...", lastBlock+1)
-			utxos, err := RetrieveUTXOs(ctx, db.db)
+			utxos, err := RetrieveUTXOs(ctx, pgb.db)
 			if err != nil {
 				return -1, fmt.Errorf("RetrieveUTXOs: %v", err)
 			}
+			if pgb.cockroach {
+				err = pgb.DeindexAll()
+				if err != nil && !strings.Contains(err.Error(), "does not exist") {
+					return lastBlock, err
+				}
+			}
 			log.Infof("Pre-warming UTXO cache with %d UTXOs...", len(utxos))
-			db.InitUtxoCache(utxos)
+			pgb.InitUtxoCache(utxos)
 			log.Infof("UTXO cache is ready.")
 		}
 	} else {
 		// When the unique indexes exist, inserts should check for conflicts
 		// with the tables' constraints.
-		db.EnableDuplicateCheckOnInsert(true)
+		pgb.EnableDuplicateCheckOnInsert(true)
 	}
 
 	// When reindexing or adding a large amount of data, ANALYZE tables.
 	requireAnalyze := reindexing || nodeHeight-lastBlock > 10000
 
-	if reindexing || updateAllAddresses || updateAllVotes {
+	// If reindexing or batch table data updates are required, set the
+	// ibd_complete flag to false if it is not already false.
+	if ibdComplete && (reindexing || updateAllAddresses) {
 		// Set meta.ibd_complete = FALSE.
-		if err = SetIBDComplete(db.db, false); err != nil {
+		if err = SetIBDComplete(pgb.db, false); err != nil {
 			return nodeHeight, fmt.Errorf("failed to set meta.ibd_complete: %v", err)
 		}
 	}
@@ -313,7 +370,7 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 		}
 
 		// Register for notification from stakedb when it connects this block.
-		waitChan := db.stakeDB.WaitForHeight(ib)
+		waitChan := pgb.stakeDB.WaitForHeight(ib)
 
 		// Get the block, making it available to stakedb, which will signal on
 		// the above channel when it is done connecting it.
@@ -343,7 +400,7 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 
 		// Winning tickets from StakeDatabase, which just connected the block,
 		// as signaled via the waitChan.
-		tpi, ok := db.stakeDB.PoolInfo(*blockHash)
+		tpi, ok := pgb.stakeDB.PoolInfo(*blockHash)
 		if !ok {
 			return ib - 1, fmt.Errorf("stakeDB.PoolInfo could not locate block %s", blockHash.String())
 		}
@@ -360,8 +417,8 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 		// updateExisting is ignored if dupCheck=false, but set it to true since
 		// SyncChainDB is processing main chain blocks.
 		updateExisting := true
-		numVins, numVouts, numAddresses, err := db.StoreBlock(block.MsgBlock(), winners, isValid,
-			isMainchain, updateExisting, !updateAllAddresses, !updateAllVotes, chainWork)
+		numVins, numVouts, numAddresses, err := pgb.StoreBlock(block.MsgBlock(), winners, isValid,
+			isMainchain, updateExisting, !updateAllAddresses, true, chainWork)
 		if err != nil {
 			return ib - 1, fmt.Errorf("StoreBlock failed: %v", err)
 		}
@@ -392,7 +449,7 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 
 	// After the last call to StoreBlock, synchronously update the project fund
 	// and clear the general address balance cache.
-	if err = db.FreshenAddressCaches(false, nil); err != nil {
+	if err = pgb.FreshenAddressCaches(false, nil); err != nil {
 		log.Warnf("FreshenAddressCaches: %v", err)
 		err = nil // not an error with sync
 	}
@@ -415,30 +472,30 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 		// invalidated and the transactions are subsequently re-mined in another
 		// block. Remove these before indexing.
 		log.Infof("Finding and removing duplicate table rows before indexing...")
-		if err = db.DeleteDuplicates(barLoad); err != nil {
+		if err = pgb.DeleteDuplicates(barLoad); err != nil {
 			return 0, err
 		}
 
 		// Create all indexes.
-		if err = db.IndexAll(barLoad); err != nil {
+		if err = pgb.IndexAll(barLoad); err != nil {
 			return nodeHeight, fmt.Errorf("IndexAll failed: %v", err)
 		}
 
-		// Only reindex addresses and tickets tables here if not doing it below.
+		// Only reindex addresses table here if not doing it below.
 		if !updateAllAddresses {
-			if err = db.IndexAddressTable(barLoad); err != nil {
+			if err = pgb.IndexAddressTable(barLoad); err != nil {
 				return nodeHeight, fmt.Errorf("IndexAddressTable failed: %v", err)
 			}
 		}
-		if !updateAllVotes {
-			if err = db.IndexTicketsTable(barLoad); err != nil {
-				return nodeHeight, fmt.Errorf("IndexTicketsTable failed: %v", err)
-			}
+
+		// Tickets table index is not included in IndexAll.
+		if err = pgb.IndexTicketsTable(barLoad); err != nil {
+			return nodeHeight, fmt.Errorf("IndexTicketsTable failed: %v", err)
 		}
 
 		// Deep ANALYZE all tables.
 		log.Infof("Performing an ANALYZE(%d) on all tables...", deepStatsTarget)
-		if err = AnalyzeAllTables(db.db, deepStatsTarget); err != nil {
+		if err = AnalyzeAllTables(pgb.db, deepStatsTarget); err != nil {
 			return nodeHeight, fmt.Errorf("failed to ANALYZE tables: %v", err)
 		}
 		analyzed = true
@@ -449,59 +506,28 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 		// Analyze vins and table first.
 		if !analyzed {
 			log.Infof("Performing an ANALYZE(%d) on vins table...", deepStatsTarget)
-			if err = AnalyzeTable(db.db, "vins", deepStatsTarget); err != nil {
+			if err = AnalyzeTable(pgb.db, "vins", deepStatsTarget); err != nil {
 				return nodeHeight, fmt.Errorf("failed to ANALYZE vins table: %v", err)
 			}
 		}
 
 		// Remove existing indexes not on funding txns
-		_ = db.DeindexAddressTable() // ignore errors for non-existent indexes
+		_ = pgb.DeindexAddressTable() // ignore errors for non-existent indexes
 		log.Infof("Populating spending tx info in address table...")
-		numAddresses, err := db.UpdateSpendingInfoInAllAddresses(barLoad)
+		numAddresses, err := pgb.UpdateSpendingInfoInAllAddresses(barLoad)
 		if err != nil {
 			log.Errorf("UpdateSpendingInfoInAllAddresses FAILED: %v", err)
 		}
 		// Index addresses table
 		log.Infof("Updated %d rows of address table", numAddresses)
-		if err = db.IndexAddressTable(barLoad); err != nil {
+		if err = pgb.IndexAddressTable(barLoad); err != nil {
 			log.Errorf("IndexAddressTable FAILED: %v", err)
 		}
 
 		// Deep ANALYZE the newly indexed addresses table.
 		log.Infof("Performing an ANALYZE(%d) on addresses table...", deepStatsTarget)
-		if err = AnalyzeTable(db.db, "addresses", deepStatsTarget); err != nil {
+		if err = AnalyzeTable(pgb.db, "addresses", deepStatsTarget); err != nil {
 			return nodeHeight, fmt.Errorf("failed to ANALYZE addresses table: %v", err)
-		}
-	}
-
-	// Batch update tickets table with spending info.
-	if updateAllVotes {
-		// Analyze vins table first.
-		if !analyzed {
-			log.Infof("Performing an ANALYZE(%d) on vins table...", deepStatsTarget)
-			if err = AnalyzeTable(db.db, "vins", deepStatsTarget); err != nil {
-				return nodeHeight, fmt.Errorf("failed to ANALYZE vins table: %v", err)
-			}
-		}
-
-		// Remove indexes not on funding txns (remove on tickets table indexes)
-		_ = db.DeindexTicketsTable() // ignore errors for non-existent indexes
-		db.EnableDuplicateCheckOnInsert(false)
-		log.Infof("Populating spending tx info in tickets table...")
-		numTicketsUpdated, err := db.UpdateSpendingInfoInAllTickets()
-		if err != nil {
-			log.Errorf("UpdateSpendingInfoInAllTickets FAILED: %v", err)
-		}
-		// Index tickets table
-		log.Infof("Updated %d rows of address table", numTicketsUpdated)
-		if err = db.IndexTicketsTable(barLoad); err != nil {
-			log.Errorf("IndexTicketsTable FAILED: %v", err)
-		}
-
-		// Deep ANALYZE the newly indexed tickets table.
-		log.Infof("Performing an ANALYZE(%d) on tickets table...", deepStatsTarget)
-		if err = AnalyzeTable(db.db, "tickets", deepStatsTarget); err != nil {
-			return nodeHeight, fmt.Errorf("failed to ANALYZE tickets table: %v", err)
 		}
 	}
 
@@ -509,17 +535,17 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 	if !analyzed && requireAnalyze {
 		// Analyze all tables.
 		log.Infof("Performing an ANALYZE(%d) on all tables...", quickStatsTarget)
-		if err = AnalyzeAllTables(db.db, quickStatsTarget); err != nil {
+		if err = AnalyzeAllTables(pgb.db, quickStatsTarget); err != nil {
 			return nodeHeight, fmt.Errorf("failed to ANALYZE tables: %v", err)
 		}
 	}
 
 	// After sync and indexing, must use upsert statement, which checks for
 	// duplicate entries and updates instead of throwing and error and panicing.
-	db.EnableDuplicateCheckOnInsert(true)
+	pgb.EnableDuplicateCheckOnInsert(true)
 
 	// Set meta.ibd_complete = TRUE.
-	if err = SetIBDComplete(db.db, true); err != nil {
+	if err = SetIBDComplete(pgb.db, true); err != nil {
 		return nodeHeight, fmt.Errorf("failed to set meta.ibd_complete: %v", err)
 	}
 

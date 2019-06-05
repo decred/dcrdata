@@ -243,6 +243,7 @@ type ChainDB struct {
 	deployments        *ChainDeployments
 	piparser           ProposalsFetcher
 	proposalsSync      lastSync
+	cockroach          bool
 }
 
 // ChainDeployments is mutex-protected blockchain deployment data.
@@ -305,7 +306,7 @@ func NewChainDBRPC(chaindb *ChainDB, cl *rpcclient.Client) (*ChainDBRPC, error) 
 // SyncChainDBAsync calls (*ChainDB).SyncChainDBAsync after a nil pointer check
 // on the ChainDBRPC receiver.
 func (pgb *ChainDBRPC) SyncChainDBAsync(ctx context.Context, res chan dbtypes.SyncResult,
-	client rpcutils.MasterBlockGetter, updateAllAddresses, updateAllVotes, newIndexes bool,
+	client rpcutils.MasterBlockGetter, updateAllAddresses, newIndexes bool,
 	updateExplorer chan *chainhash.Hash, barLoad chan *dbtypes.ProgressBarLoad) {
 	// Allowing db to be nil simplifies logic in caller.
 	if pgb == nil {
@@ -316,7 +317,7 @@ func (pgb *ChainDBRPC) SyncChainDBAsync(ctx context.Context, res chan dbtypes.Sy
 		return
 	}
 	pgb.ChainDB.SyncChainDBAsync(ctx, res, client, updateAllAddresses,
-		updateAllVotes, newIndexes, updateExplorer, barLoad)
+		newIndexes, updateExplorer, barLoad)
 }
 
 // Store satisfies BlockDataSaver. Blocks stored this way are considered valid
@@ -522,8 +523,10 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 	}
 	log.Info(pgVersion)
 
+	cockroach := strings.Contains(pgVersion, "CockroachDB")
+
 	// Optionally logs the PostgreSQL configuration.
-	if !hidePGConfig {
+	if !cockroach && !hidePGConfig {
 		perfSettings, err := RetrieveSysSettingsPerformance(db)
 		if err != nil {
 			return nil, err
@@ -538,23 +541,45 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 	}
 
 	// Check the synchronous_commit setting.
-	syncCommit, err := RetrieveSysSettingSyncCommit(db)
-	if err != nil {
-		return nil, err
-	}
-	if syncCommit != "off" {
-		log.Warnf(`PERFORMANCE ISSUE! The synchronous_commit setting is "%s". `+
-			`Changing it to "off".`, syncCommit)
-		// Turn off synchronous_commit.
-		if err = SetSynchronousCommit(db, "off"); err != nil {
-			return nil, fmt.Errorf("failed to set synchronous_commit: %v", err)
-		}
-		// Verify that the setting was changed.
-		if syncCommit, err = RetrieveSysSettingSyncCommit(db); err != nil {
+	if !cockroach {
+		syncCommit, err := RetrieveSysSettingSyncCommit(db)
+		if err != nil {
 			return nil, err
 		}
 		if syncCommit != "off" {
-			log.Errorf(`Failed to set synchronous_commit="off". Check PostgreSQL user permissions.`)
+			log.Warnf(`PERFORMANCE ISSUE! The synchronous_commit setting is "%s". `+
+				`Changing it to "off".`, syncCommit)
+			// Turn off synchronous_commit.
+			if err = SetSynchronousCommit(db, "off"); err != nil {
+				return nil, fmt.Errorf("failed to set synchronous_commit: %v", err)
+			}
+			// Verify that the setting was changed.
+			if syncCommit, err = RetrieveSysSettingSyncCommit(db); err != nil {
+				return nil, err
+			}
+			if syncCommit != "off" {
+				log.Errorf(`Failed to set synchronous_commit="off". Check PostgreSQL user permissions.`)
+			}
+		}
+	} else {
+		// Force CockroachDB to use a real sequence when creating a table with a
+		// SERIAL column.
+		_, err = db.Exec("SET experimental_serial_normalization = sql_sequence;")
+		if err != nil {
+			return nil, fmt.Errorf("failed to set experimental_serial_normalization: %v", err)
+		}
+
+		// Prevent too many versions of nextval() during bulk inserts using
+		// autoincrement of row primary key by lowering garbage the collection
+		// interval (from 25 hours!).
+		crdbGCInterval := 1200 // 20 minutes between garbage collections
+		_, err = db.Exec(fmt.Sprintf(`ALTER DATABASE %s CONFIGURE ZONE USING gc.ttlseconds=$1;`,
+			dbi.DBName), crdbGCInterval)
+		if err != nil {
+			// In secure mode, the user may need permissions to modify zones. e.g.
+			// GRANT UPDATE ON TABLE dcrdata_mainnet.crdb_internal.zones TO dcrdata_user;
+			return nil, fmt.Errorf(`failed to set gc.ttlseconds=%d for database "%s": %v`,
+				crdbGCInterval, dbi.DBName, err)
 		}
 	}
 
@@ -752,6 +777,7 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 		utxoCache:          newUtxoStore(5e4),
 		deployments:        new(ChainDeployments),
 		piparser:           parser,
+		cockroach:          cockroach,
 	}
 
 	// If loading a DB with the legacy versioning system, fully upgrade prior to
@@ -1001,9 +1027,34 @@ func (pgb *ChainDB) TransactionBlocks(txHash string) ([]*dbtypes.BlockStatus, []
 	return blocks, inds, nil
 }
 
-// HeightDB queries the DB for the best block height. When the tables are empty,
-// the returned height will be -1.
+// HeightDB retrieves the best block height according to the meta table.
 func (pgb *ChainDB) HeightDB() (int64, error) {
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	defer cancel()
+	_, height, err := DBBestBlock(ctx, pgb.db)
+	return height, pgb.replaceCancelError(err)
+}
+
+// HashDB retrieves the best block hash according to the meta table.
+func (pgb *ChainDB) HashDB() (string, error) {
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	defer cancel()
+	hash, _, err := DBBestBlock(ctx, pgb.db)
+	return hash, pgb.replaceCancelError(err)
+}
+
+// HeightHashDB retrieves the best block height and hash according to the meta
+// table.
+func (pgb *ChainDB) HeightHashDB() (int64, string, error) {
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	defer cancel()
+	hash, height, err := DBBestBlock(ctx, pgb.db)
+	return height, hash, pgb.replaceCancelError(err)
+}
+
+// HeightDBLegacy queries the blocks table for the best block height. When the
+// tables are empty, the returned height will be -1.
+func (pgb *ChainDB) HeightDBLegacy() (int64, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 	bestHeight, _, _, err := RetrieveBestBlockHeight(ctx, pgb.db)
@@ -1011,20 +1062,20 @@ func (pgb *ChainDB) HeightDB() (int64, error) {
 	if err == sql.ErrNoRows {
 		height = -1
 	}
-	// DO NOT change this to return -1 if err == sql.ErrNoRows.
 	return height, pgb.replaceCancelError(err)
 }
 
-// HashDB queries the DB for the best block's hash.
-func (pgb *ChainDB) HashDB() (string, error) {
+// HashDBLegacy queries the blocks table for the best block's hash.
+func (pgb *ChainDB) HashDBLegacy() (string, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 	_, bestHash, _, err := RetrieveBestBlockHeight(ctx, pgb.db)
 	return bestHash, pgb.replaceCancelError(err)
 }
 
-// HeightHashDB queries the DB for the best block's height and hash.
-func (pgb *ChainDB) HeightHashDB() (uint64, string, error) {
+// HeightHashDBLegacy queries the blocks table for the best block's height and
+// hash.
+func (pgb *ChainDB) HeightHashDBLegacy() (uint64, string, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 	height, hash, _, err := RetrieveBestBlockHeight(ctx, pgb.db)

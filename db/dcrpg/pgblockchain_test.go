@@ -97,7 +97,7 @@ func TestChainDB_AddressTransactionsAll(t *testing.T) {
 		t.Fatalf("should have been no rows, got %v", rows)
 	}
 
-	height, hash, _ := db.HeightHashDB()
+	height, hash, _ := db.HeightHashDBLegacy()
 	h, _ := chainhash.NewHashFromStr(hash)
 	blockID := cache.NewBlockID(h, int64(height))
 	wasStored := db.AddressCache.StoreRows(address, rows, blockID)

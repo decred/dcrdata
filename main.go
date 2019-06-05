@@ -191,7 +191,7 @@ func _main(ctx context.Context) error {
 	}
 
 	// Auxiliary DB (PostgreSQL)
-	var newPGIndexes, updateAllAddresses, updateAllVotes bool
+	var newPGIndexes, updateAllAddresses bool
 	pgHost, pgPort := cfg.PGHost, ""
 	if !strings.HasPrefix(pgHost, "/") {
 		pgHost, pgPort, err = net.SplitHostPort(cfg.PGHost)
@@ -286,12 +286,10 @@ func _main(ctx context.Context) error {
 
 		pgDBHeight, err = pgDB.HeightDB()
 		if err != nil {
-			if err != sql.ErrNoRows {
-				log.Errorf("pgDB.HeightDB failed: %v", err)
-				return
-			}
-			// err == sql.ErrNoRows is not an error, and pgDBHeight == -1
-			err = nil
+			log.Errorf("pgDB.HeightDB failed: %v", err)
+			return
+		}
+		if pgDBHeight == -1 {
 			log.Infof("pgDB block summary table is empty.")
 		}
 		log.Debugf("pgDB height: %d", pgDBHeight)
@@ -398,7 +396,7 @@ func _main(ctx context.Context) error {
 
 	// Get the last block added to the aux DB.
 	lastBlockPG, err := pgDB.HeightDB()
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil {
 		return fmt.Errorf("Unable to get height from PostgreSQL DB: %v", err)
 	}
 
@@ -890,8 +888,7 @@ func _main(ctx context.Context) error {
 
 	// Coordinate the sync of both sqlite and auxiliary DBs with the network.
 	// This closure captures the RPC client and the quit channel.
-	getSyncd := func(updateAddys, updateVotes, newPGInds bool,
-		fetchHeightInBaseDB int64) (int64, int64, error) {
+	getSyncd := func(updateAddys, newPGInds bool, fetchHeightInBaseDB int64) (int64, int64, error) {
 		// Simultaneously synchronize the ChainDB (PostgreSQL) and the
 		// block/stake info DB (sqlite). Results are returned over channels:
 		sqliteSyncRes := make(chan dbtypes.SyncResult)
@@ -925,15 +922,15 @@ func _main(ctx context.Context) error {
 		// StakeDatabase at the best block's height. For a detailed description
 		// on how the DBs' synchronization is coordinated, see the documents in
 		// db/dcrpg/sync.go.
-		go pgDB.SyncChainDBAsync(ctx, pgSyncRes, smartClient,
-			updateAddys, updateVotes, newPGInds, latestBlockHash, barLoad)
+		go pgDB.SyncChainDBAsync(ctx, pgSyncRes, smartClient, updateAddys,
+			newPGInds, latestBlockHash, barLoad)
 
 		// Wait for the results from both of these DBs.
 		return waitForSync(ctx, sqliteSyncRes, pgSyncRes)
 	}
 
-	baseDBHeight, pgDBHeight, err := getSyncd(updateAllAddresses,
-		updateAllVotes, newPGIndexes, fetchToHeight)
+	baseDBHeight, pgDBHeight, err := getSyncd(updateAllAddresses, newPGIndexes,
+		fetchToHeight)
 	if err != nil {
 		requestShutdown()
 		return err
@@ -948,7 +945,7 @@ func _main(ctx context.Context) error {
 	// follow main sync loop. Before enabling the chain monitors, again ensure
 	// the DBs are at the node's best block.
 	ensureSync := func() error {
-		updateAllAddresses, updateAllVotes, newPGIndexes = false, false, false
+		newPGIndexes, updateAllAddresses = false, false
 		_, height, err := dcrdClient.GetBestBlock()
 		if err != nil {
 			return fmt.Errorf("unable to get block from node: %v", err)
@@ -956,7 +953,7 @@ func _main(ctx context.Context) error {
 
 		for baseDBHeight < height {
 			fetchToHeight = pgDBHeight + 1
-			baseDBHeight, pgDBHeight, err = getSyncd(updateAllAddresses, updateAllVotes,
+			baseDBHeight, pgDBHeight, err = getSyncd(updateAllAddresses,
 				newPGIndexes, fetchToHeight)
 			if err != nil {
 				requestShutdown()

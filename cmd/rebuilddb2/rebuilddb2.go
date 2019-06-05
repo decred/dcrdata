@@ -1,11 +1,10 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"net"
 	"net/http"
@@ -194,13 +193,11 @@ func mainCore() error {
 	// Check current height of DB
 	lastBlock, err := db.HeightDB()
 	if err != nil {
-		if err == sql.ErrNoRows {
-			lastBlock = -1
-			log.Info("blocks table is empty, starting fresh.")
-		} else {
-			log.Errorln("RetrieveBestBlockHeight:", err)
-			return err
-		}
+		log.Errorln("RetrieveBestBlockHeight:", err)
+		return err
+	}
+	if lastBlock == -1 {
+		log.Info("tables are empty, starting fresh.")
 	}
 
 	// Start waiting for the interrupt signal
