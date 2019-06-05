@@ -280,7 +280,6 @@ func newDaySet(size int) *zoomSet {
 // stake validation height.
 type windowSet struct {
 	cacheID     uint64
-	stakeValid  int
 	Time        ChartUints
 	PowDiff     ChartFloats
 	TicketPrice ChartUints
@@ -293,32 +292,21 @@ func (set *windowSet) Snip(length int) {
 	if length < 0 {
 		length = 0
 	}
-	missedSize := length - set.stakeValid
-	if missedSize < 0 {
-		missedSize = 0
-	}
 
 	set.Time = set.Time.snip(length)
 	set.PowDiff = set.PowDiff.snip(length)
 	set.TicketPrice = set.TicketPrice.snip(length)
 	set.StakeCount = set.StakeCount.snip(length)
-	set.MissedVotes = set.MissedVotes.snip(missedSize)
+	set.MissedVotes = set.MissedVotes.snip(length)
 }
 
-// Constructor for a sized windowSet. stakeValWindows defines the number of
-// windows before the stake validation height.
-func newWindowSet(size, stakeValWindows int) *windowSet {
-	missedSize := size - stakeValWindows
-	if missedSize < 0 {
-		missedSize = 0
-	}
-
+// Constructor for a sized windowSet.
+func newWindowSet(size int) *windowSet {
 	return &windowSet{
 		Time:        newChartUints(size),
 		PowDiff:     newChartFloats(size),
 		TicketPrice: newChartUints(size),
-		MissedVotes: newChartUints(missedSize),
-		stakeValid:  stakeValWindows,
+		MissedVotes: newChartUints(size),
 	}
 }
 
@@ -435,10 +423,7 @@ func (charts *ChartData) Lengthen() error {
 	}
 
 	windows := charts.Windows
-	// expectedMissedSlice shows the full slice size for the missed votes slice if
-	// the stake validation height was zero.
-	expectedMissedSlice := append(make(ChartUints, windows.stakeValid), windows.MissedVotes...)
-	shortest, err = ValidateLengths(windows.Time, windows.PowDiff, windows.TicketPrice, expectedMissedSlice,
+	shortest, err = ValidateLengths(windows.Time, windows.PowDiff, windows.TicketPrice, windows.MissedVotes,
 		windows.StakeCount)
 	if err != nil {
 		log.Warnf("ChartData.Lengthen: window data length mismatch detected. truncating windows length to %d", shortest)
@@ -749,7 +734,7 @@ func (charts *ChartData) PoolSizeTip() int32 {
 func (charts *ChartData) MissedVotesTip() int32 {
 	charts.mtx.RLock()
 	defer charts.mtx.RUnlock()
-	return (int32(len(charts.Windows.MissedVotes))+int32(charts.Windows.stakeValid))*charts.DiffInterval - 1
+	return int32(len(charts.Windows.MissedVotes))*charts.DiffInterval - 1
 }
 
 // AddUpdater adds a ChartUpdater to the Updaters slice. Updaters are run
@@ -806,14 +791,13 @@ func NewChartData(ctx context.Context, height uint32, genesis time.Time, chainPa
 	size := int(height * 5 / 4)
 	days := int(time.Since(genesis)/time.Hour/24)*5/4 + 1 // at least one day
 	windows := int(base64Height/chainParams.StakeDiffWindowSize+1) * 5 / 4
-	stakeValWindows := int(chainParams.StakeValidationHeight / chainParams.StakeDiffWindowSize)
 	return &ChartData{
 		ctx:          ctx,
 		genesis:      uint64(genesis.Unix()),
 		DiffInterval: int32(chainParams.StakeDiffWindowSize),
 		StartPOS:     int32(chainParams.StakeValidationHeight),
 		Blocks:       newBlockSet(size),
-		Windows:      newWindowSet(windows, stakeValWindows),
+		Windows:      newWindowSet(windows),
 		Days:         newDaySet(days),
 		cache:        make(map[string]*cachedChart),
 		updaters:     make([]ChartUpdater, 0),
@@ -1202,5 +1186,11 @@ func poolValueChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, err
 }
 
 func missedVotesChart(charts *ChartData, _ binLevel, _ axisType) ([]byte, error) {
-	return charts.encode(charts.Windows.Time[charts.Windows.stakeValid:], charts.Windows.MissedVotes)
+	stakeValidWindows := int(charts.StartPOS / charts.DiffInterval)
+	if stakeValidWindows >= len(charts.Windows.MissedVotes) ||
+		stakeValidWindows >= len(charts.Windows.Time) {
+		stakeValidWindows = 0
+	}
+	return charts.encode(charts.Windows.Time[stakeValidWindows:],
+		charts.Windows.MissedVotes[stakeValidWindows:])
 }

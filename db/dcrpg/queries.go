@@ -3111,7 +3111,7 @@ func appendCoinSupply(charts *cache.ChartData, rows *sql.Rows) error {
 	return nil
 }
 
-// retrieveMissedVotes fetches the missed votes data from the misses and tarnsactions tables.
+// retrieveMissedVotes fetches the missed votes data from the misses and transactions tables.
 func retrieveMissedVotes(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
 	rows, err := db.QueryContext(ctx, internal.SelectMissesVotesChartData, charts.MissedVotesTip())
 	if err != nil {
@@ -3126,12 +3126,14 @@ func appendMissedVotes(charts *cache.ChartData, rows *sql.Rows) error {
 	defer closeRows(rows)
 	windows := charts.Windows
 	windowSize := uint64(charts.DiffInterval)
-	startHeight := windowSize*uint64(len(windows.MissedVotes)) + uint64(charts.StartPOS)
+	if len(windows.MissedVotes) == 0 {
+		windows.MissedVotes = append(windows.MissedVotes, make([]uint64, charts.StartPOS/charts.DiffInterval)...)
+	}
+	startHeight := windowSize * uint64(len(windows.MissedVotes))
 	var count uint64
 	for rows.Next() {
-		var timestamp time.Time
 		var height, tickets uint64
-		if err := rows.Scan(&height, &timestamp, &tickets); err != nil {
+		if err := rows.Scan(&height, &tickets); err != nil {
 			return err
 		}
 
