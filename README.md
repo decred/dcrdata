@@ -65,9 +65,9 @@ Always run the Current release or on the Current stable branch. Do not use `mast
 
 |               | Series         | Branch         | Latest release tag |
 | ------------- | -------------- | -------------- | ------------------ |
-| Current       | 4.1            | `4.1-stable`   | `release-v4.1.0`   |
-| Legacy        | 4.0            | `4.0-stable`   | `v4.0.2`           |
-| Development   | 5.0            | `master`       | N/A                |
+| Current       | 5.0            | `5.0-stable`   | `release-v5.0.0`   |
+| Legacy        | 4.1            | `4.1-stable`   | `release-v4.1.4`   |
+| Development   | 5.1            | `master`       | N/A                |
 
 ## Repository Overview
 
@@ -135,17 +135,16 @@ Always run the Current release or on the Current stable branch. Do not use `mast
 
 ## Requirements
 
-- [Go](http://golang.org) 1.11.6+ or 1.12.1+.
-- [Node.js](https://nodejs.org/en/download/) 10.x or 11.x. Node.js is only used
+- [Go](http://golang.org) 1.11.10+ or 1.12.5+.
+- [Node.js](https://nodejs.org/en/download/) 11.x or 12.x. Node.js is only used
   as a build tool, and is **not used at runtime**.
 - Running `dcrd` running with `--txindex --addrindex`, and synchronized to the
   current best block on the network. On startup, dcrdata will verify that the
   dcrd version is compatible. dcrdata v3.1.x and later required dcrd v1.4.x or a
   later version with JSON-RPC server version 5.x.y.
-- (For "full" mode) PostgreSQL 10.5+. Version 11.x is supported and recommended
-  for improved performance with a number of tasks. Support for CockroachDB is an
-  experimental feature. See [CockroachDB Support (experimental)](#cockroachdb-support-experimental)
-  for details.
+- PostgreSQL 10.5+. Version 11.x is supported and recommended for improved
+  performance with a number of tasks. Support for CockroachDB is an experimental
+  feature. See [CockroachDB Support (experimental)](#cockroachdb-support-experimental) for details.
 
 ## Docker Support
 
@@ -332,9 +331,8 @@ automatic migration. The tables must be rebuilt from scratch:
 
 ### Configuring PostgreSQL (**IMPORTANT!** Seriously, read this.)
 
-If you intend to run dcrdata in "full" mode (i.e. with the `--pg` switch), which
-uses a PostgreSQL database backend, it is crucial that you configure your
-PostgreSQL server for your hardware and the dcrdata workload.
+It is crucial that you configure your PostgreSQL server for your hardware and
+the dcrdata workload.
 
 Read [postgresql-tuning.conf](./db/dcrpg/postgresql-tuning.conf) carefully for
 details on how to make the necessary changes to your system. A helpful online
