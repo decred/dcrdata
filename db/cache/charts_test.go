@@ -79,6 +79,7 @@ func TestChartsCache(t *testing.T) {
 	charts.Windows.Time = ChartUints{0}
 	charts.Windows.PowDiff = ChartFloats{0}
 	charts.Windows.TicketPrice = ChartUints{0}
+	charts.Windows.StakeCount = ChartUints{0}
 
 	t.Run("Read_a_non-existent_gob_dump", func(t *testing.T) {
 		err := charts.readCacheFile(filepath.Join(tempDir, "log1.gob"))
@@ -258,6 +259,7 @@ func TestChartReorg(t *testing.T) {
 			Time:        newUints(),
 			PowDiff:     newFloats(),
 			TicketPrice: newUints(),
+			StakeCount:  newUints(),
 		}
 		charts.Days = &zoomSet{
 			cacheID:   0,

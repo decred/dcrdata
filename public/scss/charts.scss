@@ -415,7 +415,7 @@
   height: 15px;
   width: 15px;
   background-color: #eee;
-  border-radius: 5px;
+  border-radius: 8px;
 }
 
 input ~ .checkmark {
@@ -423,7 +423,7 @@ input ~ .checkmark {
 }
 
 .customcheck input:checked ~ .checkmark {
-  border-radius: 5px;
+  border-radius: 8px;
 }
 
 .customcheck input:checked ~ .received {
@@ -436,6 +436,38 @@ input ~ .checkmark {
 
 .customcheck input:checked ~ .net {
   background-color: #ff0090;
+}
+
+.customcheck input:checked ~ .tickets-price {
+  background-color: #2970ff;
+}
+
+body.darkBG .customcheck input:checked ~ .tickets-price {
+  background-color: #2dd8a3;
+}
+
+.customcheck input:checked ~ .tickets-bought {
+  background-color: #066;
+}
+
+body.darkBG .customcheck input:checked ~ .tickets-bought {
+  background-color: #2970ff;
+}
+
+#chart .dygraph-ylabel {
+  color: #2970ff;
+}
+
+body.darkBG #chart .dygraph-ylabel {
+  color: #2dd8a3;
+}
+
+#chart .dygraph-y2label {
+  color: #066;
+}
+
+body.darkBG #chart .dygraph-y2label {
+  color: #2970ff;
 }
 
 .checkmark::after {

@@ -85,7 +85,7 @@ const (
 )
 
 // cacheVersion helps detect when cache data stored has its structure changed.
-var cacheVersion = semver.NewSemver(1, 0, 0)
+var cacheVersion = semver.NewSemver(3, 0, 0)
 
 // versionedCacheData defines the cache data contents to be written into a .gob file.
 type versionedCacheData struct {
@@ -281,6 +281,7 @@ type windowSet struct {
 	Time        ChartUints
 	PowDiff     ChartFloats
 	TicketPrice ChartUints
+	StakeCount  ChartUints
 }
 
 // Snip truncates the windowSet to a provided length.
@@ -291,6 +292,7 @@ func (set *windowSet) Snip(length int) {
 	set.Time = set.Time.snip(length)
 	set.PowDiff = set.PowDiff.snip(length)
 	set.TicketPrice = set.TicketPrice.snip(length)
+	set.StakeCount = set.StakeCount.snip(length)
 }
 
 // Constructor for a sized windowSet.
@@ -299,6 +301,7 @@ func newWindowSet(size int) *windowSet {
 		Time:        newChartUints(size),
 		PowDiff:     newChartFloats(size),
 		TicketPrice: newChartUints(size),
+		StakeCount:  newChartUints(size),
 	}
 }
 
@@ -318,6 +321,7 @@ type ChartGobject struct {
 	WindowTime  ChartUints
 	PowDiff     ChartFloats
 	TicketPrice ChartUints
+	StakeCount  ChartUints
 }
 
 // The chart data is cached with the current cacheID of the zoomSet or windowSet.
@@ -412,7 +416,7 @@ func (charts *ChartData) Lengthen() error {
 	}
 
 	windows := charts.Windows
-	shortest, err = ValidateLengths(windows.Time, windows.PowDiff, windows.TicketPrice)
+	shortest, err = ValidateLengths(windows.Time, windows.PowDiff, windows.TicketPrice, windows.StakeCount)
 	if err != nil {
 		log.Warnf("ChartData.Lengthen: window data length mismatch detected. truncating windows length to %d", shortest)
 		charts.Windows.Snip(shortest)
@@ -592,6 +596,7 @@ func (charts *ChartData) readCacheFile(filePath string) error {
 	charts.Windows.Time = gobject.WindowTime
 	charts.Windows.PowDiff = gobject.PowDiff
 	charts.Windows.TicketPrice = gobject.TicketPrice
+	charts.Windows.StakeCount = gobject.StakeCount
 	charts.mtx.Unlock()
 
 	err = charts.Lengthen()
@@ -649,6 +654,7 @@ func (charts *ChartData) gobject() *ChartGobject {
 		WindowTime:  charts.Windows.Time,
 		PowDiff:     charts.Windows.PowDiff,
 		TicketPrice: charts.Windows.TicketPrice,
+		StakeCount:  charts.Windows.StakeCount,
 	}
 }
 
@@ -1096,7 +1102,7 @@ func powDifficultyChart(charts *ChartData, _ binLevel, _ axisType) ([]byte, erro
 
 func ticketPriceChart(charts *ChartData, _ binLevel, _ axisType) ([]byte, error) {
 	// Ticket price only has window level bin, so all others are ignored.
-	return charts.encode(charts.Windows.Time, charts.Windows.TicketPrice)
+	return charts.encode(charts.Windows.Time, charts.Windows.TicketPrice, charts.Windows.StakeCount)
 }
 
 func txCountChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {

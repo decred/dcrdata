@@ -7,6 +7,7 @@ import { getDefault } from '../helpers/module_helper'
 import axios from 'axios'
 import TurboQuery from '../helpers/turbolinks_helper'
 import globalEventBus from '../services/event_bus_service'
+import { isEqual } from '../helpers/chart_helper'
 import dompurify from 'dompurify'
 
 var selectedChart
@@ -16,6 +17,9 @@ const aDay = 86400 * 1000 // in milliseconds
 const aMonth = 30 // in days
 const atomsToDCR = 1e-8
 const windowScales = ['ticket-price', 'pow-difficulty']
+const lineScales = ['ticket-price']
+// index 0 represents y1 and 1 represents y2 axes.
+const yValueRanges = { 'ticket-price': [1] }
 var ticketPoolSizeTarget, premine, stakeValHeight, stakeShare
 var baseSubsidy, subsidyInterval, subsidyExponent, windowSize, avgBlockTime
 
@@ -23,8 +27,33 @@ function usesWindowUnits (chart) {
   return windowScales.indexOf(chart) > -1
 }
 
+function isScaleDisabled (chart) {
+  return lineScales.indexOf(chart) > -1
+}
+
 function intComma (amount) {
   return amount.toLocaleString(undefined, { maximumFractionDigits: 0 })
+}
+
+function axesToRestoreYRange (chartName, origYRange, newYRange) {
+  let axesIndexes = yValueRanges[chartName]
+  if (!Array.isArray(origYRange) || !Array.isArray(newYRange) ||
+    origYRange.length !== newYRange.length || !axesIndexes) return
+
+  var axes
+  for (var i = 0; i < axesIndexes.length; i++) {
+    let index = axesIndexes[i]
+    if (newYRange.length <= index) continue
+    if (!isEqual(origYRange[index], newYRange[index])) {
+      if (!axes) axes = {}
+      if (index === 0) {
+        axes = Object.assign(axes, { y1: { valueRange: origYRange[index] } })
+      } else if (index === 1) {
+        axes = Object.assign(axes, { y2: { valueRange: origYRange[index] } })
+      }
+    }
+  }
+  return axes
 }
 
 function formatHashRate (value, displayType) {
@@ -108,11 +137,11 @@ function nightModeOptions (nightModeOn) {
   return {
     rangeSelectorAlpha: 0.4,
     gridLineColor: '#C4CBD2',
-    colors: ['#2970FF', '#2DD8A3']
+    colors: ['#2970FF', '#006600']
   }
 }
 
-function zipYvData (gData, isHeightAxis, isDayBinned, coefficient, windowS) {
+function zipXYData (gData, isHeightAxis, isDayBinned, coefficient, windowS) {
   coefficient = coefficient || 1
   windowS = windowS || 1
   return map(gData.x, (n, i) => {
@@ -145,6 +174,23 @@ function poolSizeFunc (gData, isHeightAxis, isDayBinned) {
     data[data.length - 1][2] = ticketPoolSizeTarget
   }
   return data
+}
+
+function zipXYZData (gData, isHeightAxis, isDayBinned, yCoefficient, zCoefficient, windowS) {
+  windowS = windowS || 1
+  yCoefficient = yCoefficient || 1
+  zCoefficient = zCoefficient || 1
+  return map(gData.x, (n, i) => {
+    var xAxisVal
+    if (isHeightAxis && isDayBinned) {
+      xAxisVal = n
+    } else if (isHeightAxis) {
+      xAxisVal = i * windowS
+    } else {
+      xAxisVal = new Date(n * 1000)
+    }
+    return [xAxisVal, gData.y[i] * yCoefficient, gData.z[i] * zCoefficient]
+  })
 }
 
 function circulationFunc (gData, isHeightAxis, isDayBinned) {
@@ -195,8 +241,8 @@ function mapDygraphOptions (data, labelsVal, isDrawPoint, yLabel, labelsMG, labe
     labels: labelsVal,
     drawPoints: isDrawPoint,
     ylabel: yLabel,
-    labelsKMB: labelsMG,
-    labelsKMG2: labelsMG2
+    labelsKMB: labelsMG2 && labelsMG ? false : labelsMG,
+    labelsKMG2: labelsMG2 && labelsMG ? false : labelsMG2
   }, nightModeOptions(darkEnabled()))
 }
 
@@ -212,6 +258,10 @@ export default class extends Controller {
       'scaleType',
       'axisOption',
       'binSelector',
+      'scaleSelector',
+      'ticketsPurchase',
+      'ticketsPrice',
+      'vSelector',
       'binSize'
     ]
   }
@@ -257,9 +307,8 @@ export default class extends Controller {
 
   drawInitialGraph () {
     var options = {
-      axes: { y: { axisLabelWidth: 70 } },
-      labels: ['Date', 'Ticket Price'],
-      ylabel: 'Ticket Price',
+      axes: { y: { axisLabelWidth: 70 }, y2: { axisLabelWidth: 70 } },
+      labels: ['Date', 'Ticket Price', 'Tickets Bought'],
       digitsAfterDecimal: 8,
       showRangeSelector: true,
       rangeSelectorPlotFillColor: '#8997A5',
@@ -272,12 +321,14 @@ export default class extends Controller {
       labelsDiv: this.labelsTarget,
       legendFormatter: legendFormatter,
       highlightCircleSize: 4,
+      ylabel: 'Ticket Price',
+      y2label: 'Tickets Bought',
       labelsUTC: true
     }
 
     this.chartsView = new Dygraph(
       this.chartsViewTarget,
-      [[1, 1], [2, 5]],
+      [[1, 1, 5], [2, 5, 11]],
       options
     )
     this.chartSelectTarget.value = this.settings.chart
@@ -295,22 +346,35 @@ export default class extends Controller {
       zoomCallback: null,
       drawCallback: null,
       logscale: this.settings.scale === 'log',
+      axes: {},
+      visibility: null,
+      y2label: null,
       stepPlot: false
     }
     var isHeightAxis = this.selectedAxis() === 'height'
     var xlabel = isHeightAxis ? 'Block Height' : 'Date'
     var isDayBinned = this.selectedBin() === 'day'
+
     switch (chartName) {
       case 'ticket-price': // price graph
-        d = zipYvData(data, isHeightAxis, false, atomsToDCR, windowSize)
+        d = zipXYZData(data, isHeightAxis, false, atomsToDCR, 1, windowSize)
         gOptions.stepPlot = true
-        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Ticket Price'], true, 'Price (DCR)', false, false))
+        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Price', 'Tickets Bought'], true,
+          'Price (DCR)', xlabel, undefined, false, false))
+        gOptions.y2label = 'Tickets Bought'
+        gOptions.series = { 'Tickets Bought': { axis: 'y2' } }
+        this.visibility = [this.ticketsPriceTarget.checked, this.ticketsPurchaseTarget.checked]
+        gOptions.visibility = this.visibility
+        gOptions.axes.y2 = {
+          valueRange: [0, windowSize * 20 * 8],
+          axisLabelFormatter: (y) => Math.round(y)
+        }
         break
 
       case 'ticket-pool-size': // pool size graph
         d = poolSizeFunc(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Ticket Pool Size', 'Network Target'],
-          false, 'Ticket Pool Size', true, false))
+          false, 'Ticket Pool Size', xlabel, true, false))
         gOptions.series = {
           'Network Target': {
             strokePattern: [5, 3],
@@ -322,30 +386,30 @@ export default class extends Controller {
         break
 
       case 'ticket-pool-value': // pool value graph
-        d = zipYvData(data, isHeightAxis, isDayBinned, atomsToDCR)
+        d = zipXYData(data, isHeightAxis, isDayBinned, atomsToDCR)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Ticket Pool Value'], true,
           'Ticket Pool Value', true, false))
         break
 
       case 'block-size': // block size graph
-        d = zipYvData(data, isHeightAxis, isDayBinned)
+        d = zipXYData(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Block Size'], false, 'Block Size', true, false))
         break
 
       case 'blockchain-size': // blockchain size graph
-        d = zipYvData(data, isHeightAxis, isDayBinned)
+        d = zipXYData(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Blockchain Size'], true,
           'Blockchain Size', false, true))
         break
 
       case 'tx-count': // tx per block graph
-        d = zipYvData(data, isHeightAxis, isDayBinned)
+        d = zipXYData(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Number of Transactions'], false,
           '# of Transactions', false, false))
         break
 
       case 'pow-difficulty': // difficulty graph
-        d = zipYvData(data, isHeightAxis, false, 1, windowSize)
+        d = zipXYData(data, isHeightAxis, false, 1, windowSize)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Difficulty'], true, 'Difficulty', true, false))
         break
 
@@ -356,36 +420,45 @@ export default class extends Controller {
         break
 
       case 'fees': // block fee graph
-        d = zipYvData(data, isHeightAxis, isDayBinned, atomsToDCR)
+        d = zipXYData(data, isHeightAxis, isDayBinned, atomsToDCR)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Total Fee'], false, 'Total Fee (DCR)', true, false))
         break
 
       case 'duration-btw-blocks': // Duration between blocks graph
-        d = zipYvData(data, isHeightAxis, isDayBinned)
+        d = zipXYData(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Duration Between Blocks'], false,
           'Duration Between Blocks (seconds)', false, false))
         break
 
       case 'chainwork': // Total chainwork over time
-        d = zipYvData(data, isHeightAxis, isDayBinned)
+        d = zipXYData(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Cumulative Chainwork (exahash)'],
           false, 'Cumulative Chainwork (exahash)', true, false))
         break
 
       case 'hashrate': // Total chainwork over time
-        d = zipYvData(data, isHeightAxis, isDayBinned)
+        d = zipXYData(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Network Hashrate (terahash/s)'],
           false, 'Network Hashrate (terahash/s)', true, false))
         break
     }
 
+    this.chartsView.plotter_.clear()
     this.chartsView.updateOptions(gOptions, false)
+    if (yValueRanges[chartName]) this.supportedYRange = this.chartsView.yAxisRanges()
     this.validateZoom()
   }
 
   async selectChart () {
     var selection = this.settings.chart = this.chartSelectTarget.value
     this.chartWrapperTarget.classList.add('loading')
+    if (isScaleDisabled(selection)) {
+      this.scaleSelectorTarget.classList.add('d-hide')
+      this.vSelectorTarget.classList.remove('d-hide')
+    } else {
+      this.scaleSelectorTarget.classList.remove('d-hide')
+      this.vSelectorTarget.classList.add('d-hide')
+    }
     if (selectedChart !== selection || this.settings.bin !== this.selectedBin() ||
       this.settings.axis !== this.selectedAxis()) {
       let url = '/api/chart/' + selection
@@ -448,8 +521,12 @@ export default class extends Controller {
     this.lastZoom = Zoom.object(start, end)
     this.settings.zoom = Zoom.encode(this.lastZoom)
     this.query.replace(this.settings)
-    let option = Zoom.mapKey(this.settings.zoom, this.chartsView.xAxisExtremes())
+    let ex = this.chartsView.xAxisExtremes()
+    let option = Zoom.mapKey(this.settings.zoom, ex, this.isTimeAxis() ? 1 : avgBlockTime)
     this.setActiveOptionBtn(option, this.zoomOptionTargets)
+    var axesData = axesToRestoreYRange(this.settings.chart,
+      this.supportedYRange, this.chartsView.yAxisRanges())
+    if (axesData) this.chartsView.updateOptions({ axes: axesData })
   }
 
   isTimeAxis () {
@@ -510,6 +587,17 @@ export default class extends Controller {
     if (!target) return // Exit if running for the first time.
     this.settings.axis = null
     this.selectChart()
+  }
+
+  setVisibility (e) {
+    if (this.chartSelectTarget.value !== 'ticket-price') return
+    if (!this.ticketsPriceTarget.checked && !this.ticketsPurchaseTarget.checked) {
+      this.ticketsPriceTarget.checked = this.visibility[0]
+      this.ticketsPurchaseTarget.checked = this.visibility[1]
+    } else {
+      this.visibility = [this.ticketsPriceTarget.checked, this.ticketsPurchaseTarget.checked]
+      this.chartsView.updateOptions({ visibility: this.visibility })
+    }
   }
 
   setActiveOptionBtn (opt, optTargets) {

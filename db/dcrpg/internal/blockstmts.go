@@ -107,10 +107,9 @@ const (
 
 	// SelectBlocksTicketsPrice selects the ticket price and difficulty for the
 	// first block in a stake difficulty window.
-	SelectBlocksTicketsPrice = `SELECT sbits, time, difficulty
+	SelectBlocksTicketsPrice = `SELECT sbits, time, difficulty, height, fresh_stake
 		FROM blocks
-		WHERE height % $1 = 0
-		AND height > $2
+		WHERE height > $1
 		ORDER BY height;`
 
 	SelectGenesisTime = `SELECT time
