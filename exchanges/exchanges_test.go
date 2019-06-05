@@ -250,7 +250,7 @@ func (conn testBittrexConnection) Send(subscription hubs.ClientMsg) error {
 				}
 				conn.xc.msgHandler(signalr.Message{
 					M: []hubs.ClientMsg{
-						hubs.ClientMsg{
+						{
 							M: updateMsgKey,
 							A: []interface{}{update},
 						},
@@ -265,24 +265,24 @@ func (conn testBittrexConnection) Send(subscription hubs.ClientMsg) error {
 				Nonce:      2,
 				MarketName: "BTC-DCR",
 				Buys: []*BittrexWsOrder{
-					&BittrexWsOrder{
+					{
 						Quantity: 5.,
 						Rate:     5.,
 						Type:     BittrexOrderAdd,
 					},
-					&BittrexWsOrder{
+					{
 						Quantity: 5.,
 						Rate:     6.,
 						Type:     BittrexOrderAdd,
 					},
 				},
 				Sells: []*BittrexWsOrder{
-					&BittrexWsOrder{
+					{
 						Quantity: 5.,
 						Rate:     105.,
 						Type:     BittrexOrderAdd,
 					},
-					&BittrexWsOrder{
+					{
 						Quantity: 5.,
 						Rate:     106.,
 						Type:     BittrexOrderAdd,
@@ -353,7 +353,7 @@ func TestBittrexWebsocket(t *testing.T) {
 	// discarded.
 	update := template()
 	update.Buys = []*BittrexWsOrder{
-		&BittrexWsOrder{
+		{
 			Quantity: 5.,
 			Rate:     4.,
 			Type:     BittrexOrderAdd,
@@ -366,7 +366,7 @@ func TestBittrexWebsocket(t *testing.T) {
 	update = template()
 	update.Nonce = 3
 	update.Buys = []*BittrexWsOrder{
-		&BittrexWsOrder{
+		{
 			Quantity: 0.,
 			Rate:     5.,
 			Type:     BittrexOrderRemove,
@@ -378,7 +378,7 @@ func TestBittrexWebsocket(t *testing.T) {
 	update = template()
 	update.Nonce = 4
 	update.Sells = []*BittrexWsOrder{
-		&BittrexWsOrder{
+		{
 			Quantity: 0.,
 			Rate:     107.,
 			Type:     BittrexOrderAdd,
@@ -390,7 +390,7 @@ func TestBittrexWebsocket(t *testing.T) {
 	update = template()
 	update.Nonce = 5
 	update.Sells = []*BittrexWsOrder{
-		&BittrexWsOrder{
+		{
 			Quantity: 0.,
 			Rate:     107.,
 			Type:     BittrexOrderUpdate,
