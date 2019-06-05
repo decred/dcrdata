@@ -63,6 +63,8 @@ function doNotification () {
   newBlockNtfn.show()
 }
 
+let hasRedirected = false
+
 export default class extends Controller {
   static get targets () {
     return ['statusSyncing', 'futureBlock', 'init', 'address', 'message']
@@ -84,13 +86,12 @@ export default class extends Controller {
         while (bar.firstChild) bar.removeChild(bar.firstChild)
         bar.innerHTML = buildProgressBar(v)
 
-        if (v.subtitle === 'sync complete') {
-          if (!Notify.needsPermission) {
-            doNotification()
-          }
+        if (v.subtitle === 'sync complete' && !hasRedirected) {
+          hasRedirected = true // block consecutive calls.
+          if (!Notify.needsPermission) doNotification()
 
           this.messageTarget.querySelector('h5').textContent = 'Blockchain sync is complete. Redirecting to home in 20 secs.'
-          setInterval(() => Turbolinks.visit('/'), 20000)
+          setTimeout(() => Turbolinks.visit('/'), 20000)
           return
         }
       }
