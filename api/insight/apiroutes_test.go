@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	apitypes "github.com/decred/dcrdata/api/types"
 )
 
 func Test_dateFromStr(t *testing.T) {
@@ -193,6 +195,61 @@ func Test_fromToForSlice(t *testing.T) {
 			}
 			if end != tt.wantEnd {
 				t.Errorf("fromToForSlice() end = %v, want %v", end, tt.wantEnd)
+			}
+		})
+	}
+}
+
+func Test_removeSliceElements(t *testing.T) {
+	type outSlice []*apitypes.AddressTxnOutput
+	type args struct {
+		txOuts outSlice
+		inds   []int
+	}
+	tests := []struct {
+		name string
+		args args
+		want outSlice
+	}{
+		{
+			name: "ok out of range inds",
+			args: args{
+				txOuts: outSlice{{Address: "i0"}},
+				inds:   []int{6},
+			},
+			want: outSlice{{Address: "i0"}},
+		},
+		{
+			name: "ok two inds",
+			args: args{
+				txOuts: outSlice{{Address: "i0"}, {Address: "i1"}, {Address: "i2"},
+					{Address: "i3"}, {Address: "i4"}, {Address: "i5"}, {Address: "i6"}},
+				inds: []int{1, 6},
+			},
+			want: outSlice{{Address: "i0"}, {Address: "i5"}, {Address: "i2"},
+				{Address: "i3"}, {Address: "i4"}}, // [6] removed, then [1] overwritten with [5]
+		},
+		{
+			name: "ok emptied slice",
+			args: args{
+				txOuts: outSlice{{Address: "i0"}},
+				inds:   []int{0},
+			},
+			want: outSlice{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := removeSliceElements(tt.args.txOuts, tt.args.inds)
+			if len(got) != len(tt.want) {
+				t.Errorf("removeSliceElements() = %v, want %v", got, tt.want)
+			}
+			for i := range got {
+				t.Logf("got[i]: %v", got[i])
+				if got[i].Address != tt.want[i].Address {
+					t.Errorf("got[%[1]d].Address = %[2]v, want[%[1]d].Address = %[3]v",
+						i, got[i].Address, tt.want[i].Address)
+				}
 			}
 		})
 	}

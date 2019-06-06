@@ -896,7 +896,7 @@ func CountMergedRows(rows []*AddressRow, txnView AddrTxnViewType) (numMerged int
 
 // CountMergedRowsCompact counts the number of merged rows that would result
 // from calling MergeRowsCompact (a non-merged row) on the input slice.
-func CountMergedRowsCompact(rows []AddressRowCompact, txnView AddrTxnViewType) (numMerged int, err error) {
+func CountMergedRowsCompact(rows []*AddressRowCompact, txnView AddrTxnViewType) (numMerged int, err error) {
 	var wrongDirection func(funding bool) bool
 	switch txnView {
 	case AddrMergedTxn:
@@ -916,12 +916,12 @@ func CountMergedRowsCompact(rows []AddressRowCompact, txnView AddrTxnViewType) (
 	}
 
 	merged := make(map[chainhash.Hash]struct{})
-	for i := range rows {
-		if wrongDirection(rows[i].IsFunding) {
+	for _, row := range rows {
+		if wrongDirection(row.IsFunding) {
 			continue
 		}
 
-		hash := rows[i].TxHash
+		hash := row.TxHash
 		_, found := merged[hash]
 		if !found {
 			numMerged++
@@ -939,27 +939,29 @@ func CountMergedRowsCompact(rows []AddressRowCompact, txnView AddrTxnViewType) (
 // positive or not, although the Value field is an absolute value (always
 // positive). MergedRows will return a non-nil error of a merged row is detected
 // in the input since only non-merged rows are expected.
-func MergeRows(rows []*AddressRow) ([]AddressRowMerged, error) {
-	hashes := make([]chainhash.Hash, 0, len(rows))
-	merged := make(map[chainhash.Hash]*AddressRowMerged)
+func MergeRows(rows []*AddressRow) ([]*AddressRowMerged, error) {
+	// The number of unique transaction hashes is not known from the input since
+	// an address may have multiple appearances in a given transaction. Still
+	// pre-allocate, since we have an idea of the ballpark size of the result,
+	// but try not to overshoot as space will be wasted.
+	numUniqueHashesGuess := len(rows)*2/3 + 1
+	hashMap := make(map[chainhash.Hash]*AddressRowMerged, numUniqueHashesGuess)
+	mergedRows := make([]*AddressRowMerged, 0, numUniqueHashesGuess)
 	for _, r := range rows {
 		if r.MergedCount != 0 {
 			return nil, fmt.Errorf("MergeRows: merged row found in input; " +
 				"only non-merged rows may be merged")
 		}
-		hash := r.TxHash
 
-		Hash, err := chainhash.NewHashFromStr(hash)
+		Hash, err := chainhash.NewHashFromStr(r.TxHash)
 		if err != nil {
-			fmt.Printf("invalid address: %s", hash)
+			fmt.Printf("invalid address: %s", r.TxHash)
 			continue
 		}
 
 		// New transactions are started with MergedCount = 1.
-		row := merged[*Hash]
+		row := hashMap[*Hash]
 		if row == nil {
-			hashes = append(hashes, *Hash)
-
 			mr := AddressRowMerged{
 				Address:        r.Address,
 				TxBlockTime:    r.TxBlockTime.T.Unix(),
@@ -975,11 +977,12 @@ func MergeRows(rows []*AddressRow) ([]AddressRowMerged, error) {
 				mr.AtomsDebit = r.Value
 			}
 
-			merged[*Hash] = &mr
+			hashMap[*Hash] = &mr
+			mergedRows = append(mergedRows, &mr)
 			continue
 		}
 
-		// Update existing transaction.
+		// Update existing transaction in the mergedRows slice.
 		row.MergedCount++
 		if r.IsFunding {
 			row.AtomsCredit += r.Value
@@ -988,32 +991,29 @@ func MergeRows(rows []*AddressRow) ([]AddressRowMerged, error) {
 		}
 	}
 
-	// Build the slice.
-	mergedRows := make([]AddressRowMerged, 0, len(merged))
-	for i := range hashes {
-		mergedRows = append(mergedRows, *merged[hashes[i]])
-	}
+	//fmt.Printf("MergeRows: guess = %d, actual = %d\n", numUniqueHashesGuess, len(mergedRows))
 
 	return mergedRows, nil
 }
 
-// MergeRowsCompact converts a []AddressRowCompact (non-merged rows) into a
+// MergeRowsCompact converts a []*AddressRowCompact (non-merged rows) into a
 // slice of merged address rows. This involves merging rows with the same
 // transaction hash into a single entry by combining the signed values. The
 // IsFunding function of an AddressRowMerged indicates if the net value is
 // positive or not, although the Value function returns an absolute value
 // (always positive).
-func MergeRowsCompact(rows []AddressRowCompact) []AddressRowMerged {
-	hashes := make([]chainhash.Hash, 0, len(rows))
-	merged := make(map[chainhash.Hash]*AddressRowMerged)
-	for i := range rows {
-		r := &rows[i]
-
+func MergeRowsCompact(rows []*AddressRowCompact) []*AddressRowMerged {
+	// The number of unique transaction hashes is not known from the input since
+	// an address may have multiple appearances in a given transaction. Still
+	// pre-allocate, since we have an idea of the ballpark size of the result,
+	// but try not to overshoot as space will be wasted.
+	numUniqueHashesGuess := len(rows)*2/3 + 1
+	hashMap := make(map[chainhash.Hash]*AddressRowMerged, numUniqueHashesGuess)
+	mergedRows := make([]*AddressRowMerged, 0, numUniqueHashesGuess)
+	for _, r := range rows {
 		// New transactions are started with MergedCount = 1.
-		row := merged[r.TxHash]
+		row := hashMap[r.TxHash]
 		if row == nil {
-			hashes = append(hashes, r.TxHash)
-
 			mr := AddressRowMerged{
 				Address:        r.Address,
 				TxBlockTime:    r.TxBlockTime,
@@ -1029,7 +1029,8 @@ func MergeRowsCompact(rows []AddressRowCompact) []AddressRowMerged {
 				mr.AtomsDebit = r.Value
 			}
 
-			merged[r.TxHash] = &mr
+			hashMap[r.TxHash] = &mr
+			mergedRows = append(mergedRows, &mr)
 			continue
 		}
 
@@ -1042,16 +1043,22 @@ func MergeRowsCompact(rows []AddressRowCompact) []AddressRowMerged {
 		}
 	}
 
-	// Build the slice.
-	mergedRows := make([]AddressRowMerged, 0, len(merged))
-	for i := range hashes {
-		mergedRows = append(mergedRows, *merged[hashes[i]])
-	}
+	//fmt.Printf("MergeRowsCompact: guess = %d, actual = %d\n", numUniqueHashesGuess, len(mergedRows))
 
 	return mergedRows
 }
 
-func MergeRowsCompactRange(rows []AddressRowCompact, N, offset int, txnView AddrTxnViewType) []AddressRowMerged {
+// MergeRowsCompactRange is like MergeRowsCompact except it extracts and
+// converts a range of []*AddressRowCompact (non-merged rows) into a slice of
+// merged address rows. This involves merging rows with the same transaction
+// hash into a single entry by combining the signed values. The IsFunding
+// function of an AddressRowMerged indicates if the net value is positive or
+// not, although the Value function returns an absolute value (always positive).
+// The range is specified by offset (results to skip) and N (number of results
+// to include). Note that offset applies to a hypothetical full results slice
+// where there are no repeated transaction hashes rather than to the input slice
+// where there may be repeated hashes.
+func MergeRowsCompactRange(rows []*AddressRowCompact, N, offset int, txnView AddrTxnViewType) []*AddressRowMerged {
 	// Check for invalid count and offset.
 	if offset < 0 || N < 0 {
 		return nil
@@ -1072,45 +1079,41 @@ func MergeRowsCompactRange(rows []AddressRowCompact, N, offset int, txnView Addr
 	// Quick return when no data requested or provided. This intercepts
 	// rows==nil.
 	if N == 0 || len(rows) == 0 {
-		return []AddressRowMerged{}
+		return []*AddressRowMerged{}
 	}
 
-	// Skip over the first offset tx hashes.
+	// Skip over the first offset unique tx hashes.
 	var skipped int
 	seen := make(map[chainhash.Hash]struct{}, offset)
 
 	// Output has at most N elements, each with a unique hash.
-	hashes := make([]chainhash.Hash, 0, N)
-	merged := make(map[chainhash.Hash]*AddressRowMerged, N)
-	for i := range rows {
-		r := &rows[i]
-
+	hashMap := make(map[chainhash.Hash]*AddressRowMerged, N)
+	mergedRows := make([]*AddressRowMerged, 0, N)
+	for _, r := range rows {
 		if wrongDirection(r.IsFunding) {
 			continue
 		}
 
 		// Newly encountered tx hash starts a new merged row.
-		row := merged[r.TxHash]
+		row := hashMap[r.TxHash]
 		if row == nil {
 			// Do not get beyond N merged rows, but continue looking for more
 			// data to merge.
-			if len(merged) == N {
+			if len(mergedRows) == N {
 				continue
 			}
 
 			// Skip over offset merged rows.
 			if skipped < offset {
 				if _, found := seen[r.TxHash]; !found {
-					// Would create a new merged row. Incremend the skip counter
-					// and register this tx hash.
+					// This new hash would create a new merged row. Increment
+					// the skip counter and register this tx hash.
 					skipped++
 					seen[r.TxHash] = struct{}{}
 				}
 				// Skip this merged row data.
 				continue
 			}
-
-			hashes = append(hashes, r.TxHash)
 
 			mr := AddressRowMerged{
 				Address:        r.Address,
@@ -1127,7 +1130,8 @@ func MergeRowsCompactRange(rows []AddressRowCompact, N, offset int, txnView Addr
 				mr.AtomsDebit = r.Value
 			}
 
-			merged[r.TxHash] = &mr
+			hashMap[r.TxHash] = &mr
+			mergedRows = append(mergedRows, &mr)
 			continue
 		}
 
@@ -1140,19 +1144,12 @@ func MergeRowsCompactRange(rows []AddressRowCompact, N, offset int, txnView Addr
 		}
 	}
 
-	// Build the slice.
-	mergedRows := make([]AddressRowMerged, 0, len(merged))
-	// Range over the hashes slice to keep the same order.
-	for i := range hashes {
-		mergedRows = append(mergedRows, *merged[hashes[i]])
-	}
-
 	return mergedRows
 }
 
-// CompactRows converts a []*AddressRow to a []AddressRowCompact.
-func CompactRows(rows []*AddressRow) []AddressRowCompact {
-	compact := make([]AddressRowCompact, 0, len(rows))
+// CompactRows converts a []*AddressRow to a []*AddressRowCompact.
+func CompactRows(rows []*AddressRow) []*AddressRowCompact {
+	compact := make([]*AddressRowCompact, 0, len(rows))
 	for _, r := range rows {
 		hash, err := chainhash.NewHashFromStr(r.TxHash)
 		if err != nil {
@@ -1160,7 +1157,7 @@ func CompactRows(rows []*AddressRow) []AddressRowCompact {
 			return nil
 		}
 		mhash, _ := chainhash.NewHashFromStr(r.MatchingTxHash) // zero array on error
-		compact = append(compact, AddressRowCompact{
+		compact = append(compact, &AddressRowCompact{
 			Address:        r.Address,
 			TxBlockTime:    r.TxBlockTime.UNIX(),
 			MatchingTxHash: *mhash,
@@ -1178,10 +1175,9 @@ func CompactRows(rows []*AddressRow) []AddressRowCompact {
 // UncompactRows converts (to the extent possible) a []AddressRowCompact to a
 // []*AddressRow. VinVoutDbID is unknown and set to zero. Do not use
 // VinVoutDbID, or insert the AddressRow.
-func UncompactRows(compact []AddressRowCompact) []*AddressRow {
+func UncompactRows(compact []*AddressRowCompact) []*AddressRow {
 	rows := make([]*AddressRow, 0, len(compact))
-	for i := range compact {
-		r := &compact[i]
+	for _, r := range compact {
 		// An unset matching hash is represented by the zero-value array.
 		var matchingHash string
 		if !txhelpers.IsZeroHash(r.MatchingTxHash) {
@@ -1206,10 +1202,9 @@ func UncompactRows(compact []AddressRowCompact) []*AddressRow {
 // UncompactMergedRows converts (to the extent possible) a []AddressRowMerged to
 // a []*AddressRow. VinVoutDbID is unknown and set to zero. Do not use
 // VinVoutDbID, or insert the AddressRow.
-func UncompactMergedRows(merged []AddressRowMerged) []*AddressRow {
+func UncompactMergedRows(merged []*AddressRowMerged) []*AddressRow {
 	rows := make([]*AddressRow, 0, len(merged))
-	for i := range merged {
-		r := &merged[i]
+	for _, r := range merged {
 		rows = append(rows, &AddressRow{
 			Address:        r.Address,
 			ValidMainChain: r.ValidMainChain,
@@ -1225,6 +1220,18 @@ func UncompactMergedRows(merged []AddressRowMerged) []*AddressRow {
 		})
 	}
 	return rows
+}
+
+// AddressTxnOutput is a compact version of api/types.AddressTxnOutput.
+type AddressTxnOutput struct {
+	Address  string
+	PkScript string
+	TxHash   chainhash.Hash
+	//BlockHash chainhash.Hash
+	Vout      uint32
+	Height    int32
+	BlockTime int64
+	Atoms     int64
 }
 
 // AddressMetrics defines address metrics needed to make decisions by which

@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
@@ -42,19 +44,27 @@ const (
 	// "from" URL query parameters. Note that each transaction requires a
 	// getrawtransaction RPC call to dcrd.
 	maxInsightAddrsTxns = 250
+
+	// inflightUTXOLimit is a soft limit on the number of in-flight UTXOs that
+	// may be handled by the /addr/{address}/utxo endpoint. It is set slightly
+	// higher than maxInsightAddrsUTXOs to allow smaller requests to be
+	// processed concurrently with a very large request.
+	inflightUTXOLimit = maxInsightAddrsUTXOs * 5 / 4
 )
 
 // InsightApi contains the resources for the Insight HTTP API. InsightApi's
 // methods include the http.Handlers for the URL path routes.
 type InsightApi struct {
-	nodeClient     *rpcclient.Client
-	BlockData      *dcrpg.ChainDBRPC
-	params         *chaincfg.Params
-	mp             rpcutils.MempoolAddressChecker
-	status         *apitypes.Status
-	JSONIndent     string
-	ReqPerSecLimit float64
-	maxCSVAddrs    int
+	nodeClient      *rpcclient.Client
+	BlockData       *dcrpg.ChainDBRPC
+	params          *chaincfg.Params
+	mp              rpcutils.MempoolAddressChecker
+	status          *apitypes.Status
+	JSONIndent      string
+	ReqPerSecLimit  float64
+	maxCSVAddrs     int
+	inflightUTXOs   int64
+	inflightLimiter sync.Mutex
 }
 
 // NewInsightApi is the constructor for InsightApi.
@@ -93,7 +103,7 @@ func writeJSON(w http.ResponseWriter, thing interface{}, indent string) {
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", indent)
 	if err := encoder.Encode(thing); err != nil {
-		apiLog.Infof("JSON encode error: %v", err)
+		apiLog.Warnf("JSON encode error: %v", err)
 	}
 }
 
@@ -324,11 +334,70 @@ func (iapi *InsightApi) getAddressesTxnOutput(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// Initialize output slice.
-	txnOutputs := make([]apitypes.AddressTxnOutput, 0)
+	t0 := time.Now()
 
-	for _, address := range addresses {
+	// When complete, subtract inflightUTXOs from this goroutine. If this call
+	// got completion priority (hit the UTXO limit), and thus held the lock,
+	// unlock prior to decrementing the in-flight UTXO count.
+	var inflightUTXOs int64
+	var priority bool
+	defer func() {
+		if priority {
+			iapi.inflightLimiter.Unlock()
+			apiLog.Info("Relinquishing prioritized goroutine status.")
+		}
+		final := atomic.AddInt64(&iapi.inflightUTXOs, -inflightUTXOs)
+		apiLog.Debugf("Removing %d inflight UTXOs. New total = %d.", inflightUTXOs, final)
+
+		apiLog.Debugf("getAddressesTxnOutput completed for %d addresses with %d UTXOs in %v.",
+			len(addresses), inflightUTXOs, time.Since(t0))
+	}()
+
+	// Initialize output slice.
+	txnOutputs := make([]*apitypes.AddressTxnOutput, 0)
+	currentHeight := int32(iapi.BlockData.ChainDB.Height())
+
+	for i, address := range addresses {
+		// Unless this goroutine got completion priority on a previous address
+		// and locked out other goroutines, we must wait for the lock to prevent
+		// simultaneous requests from exceeding the inflight UTXO limit.
+		if !priority {
+			iapi.inflightLimiter.Lock()
+		}
+
+		tStart := time.Now()
+
+		// Query for UTXOs for the current address.
 		confirmedTxnOutputs, _, err := iapi.BlockData.ChainDB.AddressUTXO(address)
+
+		apiLog.Debugf("AddressUTXO completed for %s with %d UTXOs in %v.",
+			address, len(confirmedTxnOutputs), time.Since(tStart))
+
+		// Account for in-flight UTXOs before error checking and unlocking.
+		newInflightUTXOs := int64(len(confirmedTxnOutputs))
+		totalInflight := atomic.AddInt64(&iapi.inflightUTXOs, newInflightUTXOs)
+		apiLog.Tracef("Adding %d inflight (confirmed) UTXOs to the total.", newInflightUTXOs)
+		inflightUTXOs += newInflightUTXOs
+
+		// While locked, check in-flight UTXO count. If over the limit, become
+		// the prioritized goroutine and hold the lock until this http handler
+		// completes (and decrements the inflight UTXO count).
+		if !priority {
+			if totalInflight >= inflightUTXOLimit {
+				// Over the limit, but it's our turn to wrap it up.
+				priority = true
+				apiLog.Infof("Becoming prioritized getAddressesTxnOutput "+
+					"goroutine with %d total in-flight UTXOs.", totalInflight)
+				// Unblock occurs only when we finish this entire http request.
+			} else {
+				// Otherwise, unlock now that the query and iapi.inflightUTXOs
+				// has been updated.
+				iapi.inflightLimiter.Unlock()
+			}
+		}
+
+		// Check the returned error value from the query now that the limiter is
+		// unlocked or unlocking is deferred.
 		if dbtypes.IsTimeoutErr(err) {
 			apiLog.Errorf("AddressUTXO: %v", err)
 			http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -339,17 +408,19 @@ func (iapi *InsightApi) getAddressesTxnOutput(w http.ResponseWriter, r *http.Req
 			continue
 		}
 
-		addressOuts, _, err := iapi.mp.UnconfirmedTxnsForAddress(address)
+		// Unconfirmed UTXOs
+		newInflightUTXOs = 0 // count the unconfirmed UTXOs now
+		unconfirmedTxnOutputs, _, err := iapi.mp.UnconfirmedTxnsForAddress(address)
 		if err != nil {
 			apiLog.Errorf("Error getting unconfirmed transactions: %v", err)
 			continue
 		}
 
-		if addressOuts != nil {
+		if unconfirmedTxnOutputs != nil {
 			// Add any relevant mempool transaction outputs to the UTXO set.
 		FUNDING_TX_DUPLICATE_CHECK:
-			for _, f := range addressOuts.Outpoints {
-				fundingTx, ok := addressOuts.TxnsStore[f.Hash]
+			for _, f := range unconfirmedTxnOutputs.Outpoints {
+				fundingTx, ok := unconfirmedTxnOutputs.TxnsStore[f.Hash]
 				if !ok {
 					apiLog.Errorf("An outpoint's transaction is not available in TxnStore.")
 					continue
@@ -364,40 +435,60 @@ func (iapi *InsightApi) getAddressesTxnOutput(w http.ResponseWriter, r *http.Req
 				// need to do one more search on utxo and do not add if this is
 				// already in the list as a confirmed tx.
 				for _, utxo := range confirmedTxnOutputs {
-					if utxo.Vout == f.Index && utxo.TxnID == f.Hash.String() {
+					if utxo.Vout == f.Index && utxo.TxHash == f.Hash {
 						continue FUNDING_TX_DUPLICATE_CHECK
 					}
 				}
 
-				txnOutput := apitypes.AddressTxnOutput{
+				newInflightUTXOs++
+
+				txOut := fundingTx.Tx.TxOut[f.Index]
+
+				txnOutputs = append(txnOutputs, &apitypes.AddressTxnOutput{
 					Address:       address,
 					TxnID:         fundingTx.Hash().String(),
 					Vout:          f.Index,
-					ScriptPubKey:  hex.EncodeToString(fundingTx.Tx.TxOut[f.Index].PkScript),
-					Amount:        dcrutil.Amount(fundingTx.Tx.TxOut[f.Index].Value).ToCoin(),
-					Satoshis:      fundingTx.Tx.TxOut[f.Index].Value,
+					ScriptPubKey:  hex.EncodeToString(txOut.PkScript),
+					Amount:        dcrutil.Amount(txOut.Value).ToCoin(),
+					Satoshis:      txOut.Value,
 					Confirmations: 0,
 					BlockTime:     fundingTx.MemPoolTime,
-				}
-				txnOutputs = append(txnOutputs, txnOutput)
+				})
 			}
 		}
 
 		// If multiple addresses were in the request, enforce a limit on the
 		// number of UTXOs we will return. Do this before appending the latest
 		// confirmed transactions slice.
-		if len(addresses) > 1 && len(confirmedTxnOutputs)+len(txnOutputs) > maxInsightAddrsUTXOs {
+		numOuts := len(confirmedTxnOutputs) + len(txnOutputs)
+		if len(addresses) > 1 && numOuts > maxInsightAddrsUTXOs {
 			writeInsightError(w, "Too many UTXOs in that result. "+
 				"Please request the UTXOs for each address individually.")
 			return
 		}
 
-		txnOutputs = append(txnOutputs, confirmedTxnOutputs...)
+		totalInflight = atomic.AddInt64(&iapi.inflightUTXOs, newInflightUTXOs)
+		apiLog.Tracef("Adding %d inflight (unconfirmed) UTXOs to the total.", newInflightUTXOs)
+		apiLog.Debugf("Total in-flight UTXOs: %v", totalInflight)
+		inflightUTXOs += newInflightUTXOs
+
+		// On the first address, start with a slice of the correct size.
+		if i == 0 {
+			txnOutputs = append(make([]*apitypes.AddressTxnOutput, 0, numOuts),
+				txnOutputs...)
+		}
+
+		//txnOutputs = append(txnOutputs, confirmedTxnOutputs...)
+		for _, out := range confirmedTxnOutputs {
+			txnOutputs = append(txnOutputs, apitypes.TxOutFromDB(out, currentHeight))
+		}
+		//nolint:ineffassign
+		confirmedTxnOutputs = nil // Go GC, go!
 
 		// Search for items in mempool that spend one of these UTXOs and remove
 		// them from the set.
-		for _, f := range addressOuts.PrevOuts {
-			spendingTx, ok := addressOuts.TxnsStore[f.TxSpending]
+		for _, f := range unconfirmedTxnOutputs.PrevOuts {
+			spendingTx, ok := unconfirmedTxnOutputs.TxnsStore[f.TxSpending]
 			if !ok {
 				apiLog.Errorf("An outpoint's transaction is not available in TxnStore.")
 				continue
@@ -406,12 +497,17 @@ func (iapi *InsightApi) getAddressesTxnOutput(w http.ResponseWriter, r *http.Req
 				apiLog.Errorf("A transaction spending the outpoint of an unconfirmed transaction is unexpectedly confirmed.")
 				continue
 			}
+
+			var garbage []int
 			for g, utxo := range txnOutputs {
 				if utxo.Vout == f.PreviousOutpoint.Index && utxo.TxnID == f.PreviousOutpoint.Hash.String() {
-					// Found a UTXO that is unconfirmed spent. Remove from slice.
-					txnOutputs = append(txnOutputs[:g], txnOutputs[g+1:]...)
+					apiLog.Debug("Removing an unconfirmed spent UTXO.")
+					garbage = append(garbage, g)
 				}
 			}
+
+			// Remove entries from the end to the beginning of the slice.
+			txnOutputs = removeSliceElements(txnOutputs, garbage)
 		}
 	}
 
@@ -425,6 +521,25 @@ func (iapi *InsightApi) getAddressesTxnOutput(w http.ResponseWriter, r *http.Req
 	})
 
 	writeJSON(w, txnOutputs, iapi.getIndentQuery(r))
+}
+
+// removeSliceElements removes elements of the input slice at the specified
+// indexes. NOTE: The input slice's buffer is modified but the output length
+// will be different if any elements are removed, so this function should be
+// called like `s = removeSliceElements(s, inds)`. Also note that the original
+// order of elements in the input slice may not be maintained.
+func removeSliceElements(txOuts []*apitypes.AddressTxnOutput, inds []int) []*apitypes.AddressTxnOutput {
+	// Remove entries from the end to the beginning of the slice.
+	sort.Slice(inds, func(i, j int) bool { return inds[i] > inds[j] }) // descending indexes
+	for _, g := range inds {
+		if g > len(txOuts)-1 {
+			continue
+		}
+		txOuts[g] = txOuts[len(txOuts)-1] // overwrite element g with last element
+		txOuts[len(txOuts)-1] = nil       // nil out last element
+		txOuts = txOuts[:len(txOuts)-1]
+	}
+	return txOuts
 }
 
 func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) {

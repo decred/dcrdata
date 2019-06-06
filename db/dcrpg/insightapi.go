@@ -229,13 +229,25 @@ func (pgb *ChainDB) BlockSummaryTimeRange(min, max int64, limit int) ([]dbtypes.
 }
 
 // AddressUTXO returns the unspent transaction outputs (UTXOs) paying to the
-// specified address in a []apitypes.AddressTxnOutput.
-func (pgb *ChainDB) AddressUTXO(address string) ([]apitypes.AddressTxnOutput, bool, error) {
+// specified address in a []*dbtypes.AddressTxnOutput.
+func (pgb *ChainDB) AddressUTXO(address string) ([]*dbtypes.AddressTxnOutput, bool, error) {
 	// Check the cache first.
 	bestHash, height := pgb.BestBlock()
 	utxos, validHeight := pgb.AddressCache.UTXOs(address)
 	if utxos != nil && *bestHash == validHeight.Hash {
 		return utxos, false, nil
+	}
+
+	// Cache is empty or stale.
+
+	// Make the pointed to AddressTxnOutput structs eligible for garbage
+	// collection. pgb.AddressCache.StoreUTXOs sets a new slice retrieved from
+	// the database, so we do not want to hang on to a copy of the old slice.
+	var oldUTXOs bool
+	if utxos != nil {
+		//nolint:ineffassign
+		utxos = nil
+		oldUTXOs = true // flag to clear them from cache if we update them
 	}
 
 	busy, wait, done := pgb.CacheLocks.utxo.TryLock(address)
@@ -257,18 +269,23 @@ func (pgb *ChainDB) AddressUTXO(address string) ([]apitypes.AddressTxnOutput, bo
 	// is clear.
 	defer done()
 
-	// Cache is empty or stale, so query the DB.
+	// Prior to performing the query, clear the old UTXOs to save memory.
+	if oldUTXOs {
+		pgb.AddressCache.ClearUTXOs(address)
+	}
+
+	// Query the DB for the current UTXO set for this address.
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
-	blockHeight := pgb.Height()
-	txnOutput, err := RetrieveAddressUTXOs(ctx, pgb.db, address, blockHeight)
+	txnOutputs, err := RetrieveAddressDbUTXOs(ctx, pgb.db, address)
 	if err != nil {
 		return nil, false, pgb.replaceCancelError(err)
 	}
 
 	// Update the address cache.
-	cacheUpdated := pgb.AddressCache.StoreUTXOs(address, txnOutput, cache.NewBlockID(bestHash, height))
-	return txnOutput, cacheUpdated, nil
+	cacheUpdated := pgb.AddressCache.StoreUTXOs(address, txnOutputs,
+		cache.NewBlockID(bestHash, height))
+	return txnOutputs, cacheUpdated, nil
 }
 
 // SpendDetailsForFundingTx will return the details of any spending transactions

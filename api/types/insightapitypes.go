@@ -7,6 +7,7 @@ package types
 import (
 	"encoding/json"
 
+	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrdata/db/dbtypes"
 )
 
@@ -91,6 +92,23 @@ type AddressTxnOutput struct {
 	Atoms         int64   `json:"atoms,omitempty"` // Not Required per Insight spec
 	Satoshis      int64   `json:"satoshis,omitempty"`
 	Confirmations int64   `json:"confirmations"`
+}
+
+// TxOutFromDB converts a dbtypes.AddressTxnOutput to a api/types.AddressTxnOutput.
+func TxOutFromDB(dbTxOut *dbtypes.AddressTxnOutput, currentHeight int32) *AddressTxnOutput {
+	return &AddressTxnOutput{
+		Address:      dbTxOut.Address,
+		TxnID:        dbTxOut.TxHash.String(),
+		Vout:         dbTxOut.Vout,
+		BlockTime:    dbTxOut.BlockTime,
+		ScriptPubKey: dbTxOut.PkScript,
+		Height:       int64(dbTxOut.Height),
+		//BlockHash:    dbTxOut.BlockHash.String(),
+		Amount: dcrutil.Amount(dbTxOut.Atoms).ToCoin(),
+		//Atoms: dbTxOut.Atoms,
+		Satoshis:      dbTxOut.Atoms,
+		Confirmations: int64(currentHeight - dbTxOut.Height + 1),
+	}
 }
 
 // SpendByFundingHash models a return from SpendDetailsForFundingTx.

@@ -1677,9 +1677,9 @@ func countMerged(ctx context.Context, db *sql.DB, address, query string) (count 
 }
 
 // RetrieveAddressUTXOs gets the unspent transaction outputs (UTXOs) paying to
-// the specified address. The input current block height is used to compute
-// confirmations of the located transactions.
-func RetrieveAddressUTXOs(ctx context.Context, db *sql.DB, address string, currentBlockHeight int64) ([]apitypes.AddressTxnOutput, error) {
+// the specified address as a []*apitypes.AddressTxnOutput. The input current
+// block height is used to compute confirmations of the located transactions.
+func RetrieveAddressUTXOs(ctx context.Context, db *sql.DB, address string, currentBlockHeight int64) ([]*apitypes.AddressTxnOutput, error) {
 	stmt, err := db.Prepare(internal.SelectAddressUnspentWithTxn)
 	if err != nil {
 		log.Error(err)
@@ -1693,12 +1693,12 @@ func RetrieveAddressUTXOs(ctx context.Context, db *sql.DB, address string, curre
 	}
 	defer closeRows(rows)
 
-	var outputs []apitypes.AddressTxnOutput
+	var outputs []*apitypes.AddressTxnOutput
 	for rows.Next() {
 		pkScript := []byte{}
 		var blockHeight, atoms int64
 		var blockTime dbtypes.TimeDef
-		txnOutput := apitypes.AddressTxnOutput{}
+		txnOutput := new(apitypes.AddressTxnOutput)
 		if err = rows.Scan(&txnOutput.Address, &txnOutput.TxnID,
 			&atoms, &blockHeight, &blockTime, &txnOutput.Vout, &pkScript); err != nil {
 			log.Error(err)
@@ -1709,6 +1709,46 @@ func RetrieveAddressUTXOs(ctx context.Context, db *sql.DB, address string, curre
 		txnOutput.Satoshis = atoms
 		txnOutput.Height = blockHeight
 		txnOutput.Confirmations = currentBlockHeight - blockHeight + 1
+		outputs = append(outputs, txnOutput)
+	}
+
+	return outputs, nil
+}
+
+// RetrieveAddressDbUTXOs gets the unspent transaction outputs (UTXOs) paying to
+// the specified address as a []*dbtypes.AddressTxnOutput. The input current
+// block height is used to compute confirmations of the located transactions.
+func RetrieveAddressDbUTXOs(ctx context.Context, db *sql.DB, address string) ([]*dbtypes.AddressTxnOutput, error) {
+	stmt, err := db.Prepare(internal.SelectAddressUnspentWithTxn)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+	rows, err := stmt.QueryContext(ctx, address)
+	_ = stmt.Close()
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+	defer closeRows(rows)
+
+	var outputs []*dbtypes.AddressTxnOutput
+	for rows.Next() {
+		pkScript := []byte{}
+		var txHash string
+		var blockTime dbtypes.TimeDef
+		txnOutput := new(dbtypes.AddressTxnOutput)
+		if err = rows.Scan(&txnOutput.Address, &txHash,
+			&txnOutput.Atoms, &txnOutput.Height, &blockTime,
+			&txnOutput.Vout, &pkScript); err != nil {
+			log.Error(err)
+		}
+		txnOutput.BlockTime = blockTime.UNIX()
+		err = chainhash.Decode(&txnOutput.TxHash, txHash)
+		if err != nil {
+			log.Error(err)
+		}
+		txnOutput.PkScript = hex.EncodeToString(pkScript)
 		outputs = append(outputs, txnOutput)
 	}
 

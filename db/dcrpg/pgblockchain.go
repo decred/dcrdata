@@ -1875,9 +1875,9 @@ func (pgb *ChainDB) AddressBalance(address string) (bal *dbtypes.AddressBalance,
 	if busy {
 		// Let others get the wait channel while we wait.
 		// To return stale cache data if it is available:
-		// utxos, _ := pgb.AddressCache.UTXOs(address)
-		// if utxos != nil {
-		// 	return utxos, nil
+		// bal, _ := pgb.AddressCache.Balance(address)
+		// if bal != nil {
+		// 	return bal, nil
 		// }
 		<-wait
 
@@ -1922,6 +1922,9 @@ func (pgb *ChainDB) updateAddressRows(address string) (rows []*dbtypes.AddressRo
 	// is clear.
 	defer done()
 
+	// Prior to performing the query, clear the old rows to save memory.
+	pgb.AddressCache.ClearRows(address)
+
 	hash, height := pgb.BestBlock()
 	blockID := cache.NewBlockID(hash, height)
 
@@ -1938,17 +1941,24 @@ func (pgb *ChainDB) updateAddressRows(address string) (rows []*dbtypes.AddressRo
 
 // AddressRowsMerged gets the merged address rows either from cache or via DB
 // query.
-func (pgb *ChainDB) AddressRowsMerged(address string) ([]dbtypes.AddressRowMerged, error) {
+func (pgb *ChainDB) AddressRowsMerged(address string) ([]*dbtypes.AddressRowMerged, error) {
 	// Try the address cache.
 	hash := pgb.BestBlockHash()
 	rowsCompact, validBlock := pgb.AddressCache.Rows(address)
 	cacheCurrent := validBlock != nil && validBlock.Hash == *hash && rowsCompact != nil
 	if cacheCurrent {
-		log.Tracef("AddressRows: rows cache HIT for %s.", address)
+		log.Tracef("AddressRowsMerged: rows cache HIT for %s.", address)
 		return dbtypes.MergeRowsCompact(rowsCompact), nil
 	}
 
-	log.Tracef("AddressRows: rows cache MISS for %s.", address)
+	// Make the pointed to AddressRowMerged structs eligible for garbage
+	// collection. pgb.updateAddressRows sets a new AddressRowMerged slice
+	// retrieved from the database, so we do not want to hang on to a copy of
+	// the old data.
+	//nolint:ineffassign
+	rowsCompact = nil
+
+	log.Tracef("AddressRowsMerged: rows cache MISS for %s.", address)
 
 	// Update or wait for an update to the cached AddressRows.
 	rows, _, err := pgb.updateAddressRows(address)
@@ -1966,17 +1976,24 @@ func (pgb *ChainDB) AddressRowsMerged(address string) ([]dbtypes.AddressRowMerge
 
 // AddressRowsCompact gets non-merged address rows either from cache or via DB
 // query.
-func (pgb *ChainDB) AddressRowsCompact(address string) ([]dbtypes.AddressRowCompact, error) {
+func (pgb *ChainDB) AddressRowsCompact(address string) ([]*dbtypes.AddressRowCompact, error) {
 	// Try the address cache.
 	hash := pgb.BestBlockHash()
 	rowsCompact, validBlock := pgb.AddressCache.Rows(address)
 	cacheCurrent := validBlock != nil && validBlock.Hash == *hash && rowsCompact != nil
 	if cacheCurrent {
-		log.Tracef("AddressRows: rows cache HIT for %s.", address)
+		log.Tracef("AddressRowsCompact: rows cache HIT for %s.", address)
 		return rowsCompact, nil
 	}
 
-	log.Tracef("AddressRows: rows cache MISS for %s.", address)
+	// Make the pointed to AddressRowCompact structs eligible for garbage
+	// collection. pgb.updateAddressRows sets a new AddressRowCompact slice
+	// retrieved from the database, so we do not want to hang on to a copy of
+	// the old data.
+	//nolint:ineffassign
+	rowsCompact = nil
+
+	log.Tracef("AddressRowsCompact: rows cache MISS for %s.", address)
 
 	// Update or wait for an update to the cached AddressRows.
 	rows, _, err := pgb.updateAddressRows(address)
@@ -2080,6 +2097,8 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 
 	cacheCurrent := validBlock != nil && validBlock.Hash == *hash
 	if !cacheCurrent {
+		//nolint:ineffassign
+		addressRows = nil // allow garbage collection of each AddressRow in cache.
 		log.Debugf("Address rows (view=%s) cache MISS for %s.",
 			txnView.String(), address)
 
@@ -2533,7 +2552,7 @@ func MakeCsvAddressRows(rows []*dbtypes.AddressRow) [][]string {
 	return csvRows
 }
 
-func MakeCsvAddressRowsCompact(rows []dbtypes.AddressRowCompact) [][]string {
+func MakeCsvAddressRowsCompact(rows []*dbtypes.AddressRowCompact) [][]string {
 	csvRows := make([][]string, 0, len(rows)+1)
 	csvRows = append(csvRows, []string{"tx_hash", "direction", "io_index",
 		"valid_mainchain", "value", "time_stamp", "tx_type", "matching_tx_hash"})
@@ -2875,13 +2894,19 @@ func (pgb *ChainDB) TxHistoryData(address string, addrChart dbtypes.HistoryChart
 		return
 	}
 
+	// Make the pointed to ChartsData eligible for garbage collection.
+	// pgb.AddressCache.StoreHistoryChart sets a new ChartsData retrieved from
+	// the database, so we do not want to hang on to a copy of the old data.
+	//nolint:ineffassign
+	cd = nil
+
 	busy, wait, done := pgb.CacheLocks.bal.TryLock(address)
 	if busy {
 		// Let others get the wait channel while we wait.
 		// To return stale cache data if it is available:
-		// utxos, _ := pgb.AddressCache.UTXOs(address)
-		// if utxos != nil {
-		// 	return utxos, nil
+		// cd, _ := pgb.AddressCache.HistoryChart(...)
+		// if cd != nil {
+		// 	return cd, nil
 		// }
 		<-wait
 
@@ -4202,6 +4227,6 @@ func (pgb *ChainDBRPC) GetChainWork(hash *chainhash.Hash) (string, error) {
 func (pgb *ChainDB) GenesisStamp() int64 {
 	tDef := dbtypes.NewTimeDefFromUNIX(0)
 	// Ignoring error and returning zero time.
-	pgb.db.QueryRowContext(pgb.ctx, internal.SelectGenesisTime).Scan(&tDef)
+	_ = pgb.db.QueryRowContext(pgb.ctx, internal.SelectGenesisTime).Scan(&tDef)
 	return tDef.T.Unix()
 }
