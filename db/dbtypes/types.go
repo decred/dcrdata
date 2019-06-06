@@ -940,6 +940,10 @@ func CountMergedRowsCompact(rows []*AddressRowCompact, txnView AddrTxnViewType) 
 // positive). MergedRows will return a non-nil error of a merged row is detected
 // in the input since only non-merged rows are expected.
 func MergeRows(rows []*AddressRow) ([]*AddressRowMerged, error) {
+	// The number of unique transaction hashes is not known from the input since
+	// an address may have multiple appearances in a given transaction. Still
+	// pre-allocate, since we have an idea of the ballpark size of the result,
+	// but try not to overshoot as space will be wasted.
 	numUniqueHashesGuess := len(rows)*2/3 + 1
 	hashMap := make(map[chainhash.Hash]*AddressRowMerged, numUniqueHashesGuess)
 	mergedRows := make([]*AddressRowMerged, 0, numUniqueHashesGuess)
@@ -999,6 +1003,10 @@ func MergeRows(rows []*AddressRow) ([]*AddressRowMerged, error) {
 // positive or not, although the Value function returns an absolute value
 // (always positive).
 func MergeRowsCompact(rows []*AddressRowCompact) []*AddressRowMerged {
+	// The number of unique transaction hashes is not known from the input since
+	// an address may have multiple appearances in a given transaction. Still
+	// pre-allocate, since we have an idea of the ballpark size of the result,
+	// but try not to overshoot as space will be wasted.
 	numUniqueHashesGuess := len(rows)*2/3 + 1
 	hashMap := make(map[chainhash.Hash]*AddressRowMerged, numUniqueHashesGuess)
 	mergedRows := make([]*AddressRowMerged, 0, numUniqueHashesGuess)
