@@ -386,8 +386,8 @@ func (iapi *InsightApi) getAddressesTxnOutput(w http.ResponseWriter, r *http.Req
 			if totalInflight >= inflightUTXOLimit {
 				// Over the limit, but it's our turn to wrap it up.
 				priority = true
-				apiLog.Info("Becoming prioritized getAddressesTxnOutput goroutine"+
-					"with %d total in-flight UTXOs.", totalInflight)
+				apiLog.Infof("Becoming prioritized getAddressesTxnOutput "+
+					"goroutine with %d total in-flight UTXOs.", totalInflight)
 				// Unblock occurs only when we finish this entire http request.
 			} else {
 				// Otherwise, unlock now that the query and iapi.inflightUTXOs

@@ -1900,7 +1900,7 @@ func (pgb *ChainDB) AddressRowsMerged(address string) ([]*dbtypes.AddressRowMerg
 		return dbtypes.MergeRowsCompact(rowsCompact), nil
 	}
 
-	// Make the pointed to AddressRowMerged structs elegible for garbage
+	// Make the pointed to AddressRowMerged structs eligible for garbage
 	// collection. pgb.updateAddressRows sets a new AddressRowMerged slice
 	// retrieved from the database, so we do not want to hang on to a copy of
 	// the old data.
@@ -1935,7 +1935,7 @@ func (pgb *ChainDB) AddressRowsCompact(address string) ([]*dbtypes.AddressRowCom
 		return rowsCompact, nil
 	}
 
-	// Make the pointed to AddressRowCompact structs elegible for garbage
+	// Make the pointed to AddressRowCompact structs eligible for garbage
 	// collection. pgb.updateAddressRows sets a new AddressRowCompact slice
 	// retrieved from the database, so we do not want to hang on to a copy of
 	// the old data.
@@ -2843,7 +2843,7 @@ func (pgb *ChainDB) TxHistoryData(address string, addrChart dbtypes.HistoryChart
 		return
 	}
 
-	// Make the pointed to ChartsData elegible for garbage collection.
+	// Make the pointed to ChartsData eligible for garbage collection.
 	// pgb.AddressCache.StoreHistoryChart sets a new ChartsData retrieved from
 	// the database, so we do not want to hang on to a copy of the old data.
 	//nolint:ineffassign

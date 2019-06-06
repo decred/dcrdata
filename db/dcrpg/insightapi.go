@@ -240,7 +240,7 @@ func (pgb *ChainDB) AddressUTXO(address string) ([]*dbtypes.AddressTxnOutput, bo
 
 	// Cache is empty or stale.
 
-	// Make the pointed to AddressTxnOutput structs elegible for garbage
+	// Make the pointed to AddressTxnOutput structs eligible for garbage
 	// collection. pgb.AddressCache.StoreUTXOs sets a new slice retrieved from
 	// the database, so we do not want to hang on to a copy of the old slice.
 	var oldUTXOs bool
