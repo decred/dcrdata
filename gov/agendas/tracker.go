@@ -151,6 +151,7 @@ func NewVoteTracker(params *chaincfg.Params, node VoteDataSource, counter voteCo
 		countCache:     make(map[string]*voteCount),
 		params:         params,
 		version:        latestStakeVersion,
+		summary:        &VoteSummary{},
 		ringIndex:      -1,
 		blockRing:      make([]int32, params.BlockUpgradeNumToCheck),
 		minerThreshold: float32(params.BlockRejectNumRequired) / float32(params.BlockUpgradeNumToCheck),
@@ -166,6 +167,10 @@ func NewVoteTracker(params *chaincfg.Params, node VoteDataSource, counter voteCo
 	voteInfo, err := tracker.refreshRCI()
 	if err != nil {
 		return nil, err
+	}
+	if voteInfo == nil {
+		// No deployments found. Not an error, but no reason to go any farther.
+		return tracker, nil
 	}
 	blocksToAdd, stakeVersion, err := tracker.fetchBlocks(voteInfo)
 	if err != nil {
@@ -187,6 +192,10 @@ func (tracker *VoteTracker) Refresh() {
 	voteInfo, err := tracker.refreshRCI()
 	if err != nil {
 		log.Errorf("VoteTracker.Refresh -> refreshRCI: %v")
+		return
+	}
+	if voteInfo == nil {
+		// No deployments found. Not an error, but no reason to go any farther.
 		return
 	}
 	blocksToAdd, stakeVersion, err := tracker.fetchBlocks(voteInfo)
@@ -230,7 +239,12 @@ func (tracker *VoteTracker) refreshRCI() (*dcrjson.GetVoteInfoResult, error) {
 	}
 
 	if voteInfo == nil {
-		return nil, fmt.Errorf("Vote information not found: %v", err)
+		if oldVersion == 0 {
+			// Probably no deployments found. Not necessaarily an error.
+			log.Info("No agenda information retreived from dcrd")
+			return nil, nil
+		}
+		return nil, fmt.Errorf("refreshRCI: Vote information not found: %v", err)
 	}
 	if v > oldVersion+1 {
 		tracker.mtx.Lock()
