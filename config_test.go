@@ -234,6 +234,19 @@ func TestDefaultConfigTestNetWithEnvAndBadValue(t *testing.T) {
 	}
 }
 
+func TestDisablePiparserValueOnSimnet(t *testing.T) {
+	os.Args = append(os.Args, "--simnet")
+
+	cfg, err := loadConfig()
+	if err != nil {
+		t.Errorf("expected to find no error but found: %v", err)
+	}
+
+	if !cfg.DisablePiParser {
+		t.Fatal("expected DisablePiParser value to be activated but it wasn't")
+	}
+}
+
 func TestRetrieveRootPath(t *testing.T) {
 	type testData struct {
 		RawURL   string

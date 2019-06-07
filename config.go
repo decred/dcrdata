@@ -519,6 +519,9 @@ func loadConfig() (*config, error) {
 	if cfg.SimNet {
 		activeNet = &netparams.SimNetParams
 		activeChain = &chaincfg.SimNetParams
+
+		// If on simnet, disable piparser tool automatically.
+		cfg.DisablePiParser = true
 		numNets++
 	}
 	if numNets > 1 {
