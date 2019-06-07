@@ -1180,9 +1180,9 @@ func (pgb *ChainDB) VotesInBlock(hash string) (int16, error) {
 // proposalsUpdateHandler runs in the background asynchronous to retrieve the
 // politeia proposal updates that the piparser tool signaled.
 func (pgb *ChainDB) proposalsUpdateHandler() {
-	// Do not initiate the async update if invalid piparser instance was found.
+	// Do not initiate the async update if invalid or disabled piparser instance was found.
 	if pgb.piparser == nil {
-		log.Error("invalid piparser instance was found: async update stopped")
+		log.Error("invalid or disabled piparser instance found: proposals async update stopped")
 		return
 	}
 

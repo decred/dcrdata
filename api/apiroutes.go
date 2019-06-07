@@ -129,20 +129,22 @@ type appContext struct {
 	AgendaDB      *agendas.AgendaDB
 	maxCSVAddrs   int
 	charts        *cache.ChartData
+	isPiDisabled  bool // is piparser disabled
 }
 
 // AppContextConfig is the configuration for the appContext and the only
 // argument to its constructor.
 type AppContextConfig struct {
-	Client            *rpcclient.Client
-	Params            *chaincfg.Params
-	DataSource        DataSourceLite
-	DBSource          DataSourceAux
-	JsonIndent        string
-	XcBot             *exchanges.ExchangeBot
-	AgendasDBInstance *agendas.AgendaDB
-	MaxAddrs          int
-	Charts            *cache.ChartData
+	Client             *rpcclient.Client
+	Params             *chaincfg.Params
+	DataSource         DataSourceLite
+	DBSource           DataSourceAux
+	JsonIndent         string
+	XcBot              *exchanges.ExchangeBot
+	AgendasDBInstance  *agendas.AgendaDB
+	MaxAddrs           int
+	Charts             *cache.ChartData
+	IsPiparserDisabled bool
 }
 
 // NewContext constructs a new appContext from the RPC client, primary and
@@ -168,6 +170,7 @@ func NewContext(cfg *AppContextConfig) *appContext {
 		JSONIndent:    cfg.JsonIndent,
 		maxCSVAddrs:   cfg.MaxAddrs,
 		charts:        cfg.Charts,
+		isPiDisabled:  cfg.IsPiparserDisabled,
 	}
 }
 
@@ -1099,6 +1102,13 @@ func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request)
 }
 
 func (c *appContext) getProposalChartData(w http.ResponseWriter, r *http.Request) {
+	if c.isPiDisabled {
+		errMsg := "piparser is disabled."
+		apiLog.Errorf("%s. Remove the disable-piparser flag to activate it.", errMsg)
+		http.Error(w, errMsg, http.StatusServiceUnavailable)
+		return
+	}
+
 	token := m.GetProposalTokenCtx(r)
 	votesData, err := c.AuxDataSource.ProposalVotes(token)
 	if dbtypes.IsTimeoutErr(err) {

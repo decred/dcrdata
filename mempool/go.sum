@@ -122,6 +122,7 @@ github.com/decred/dcrdata/semver v1.0.0 h1:DBqYU/x+4LqHq/3r4xKdF6xG5ewktG2KDC+g/
 github.com/decred/dcrdata/semver v1.0.0/go.mod h1:z+nQqiAd9fYkHhBLbejysZ2FPHtgkrErWDgMf+JlZWE=
 github.com/decred/dcrdata/stakedb v1.0.1 h1:ncEsHgYrlGQAkza/RIGJQUuNsmFn4jdLlOt0w/Z7D0c=
 github.com/decred/dcrdata/stakedb v1.0.1/go.mod h1:zEJ8qEtmxJLRK3IAfbpleAW2qvpWuldeBrLpz/amQjE=
+github.com/decred/dcrdata/txhelpers v1.0.1/go.mod h1:oZOlm7v82oD5SIy1wlOBG0OT92CMfmKg05wk+2qaSaM=
 github.com/decred/dcrwallet/rpc/jsonrpc/types v1.0.0 h1:FPVohgxZHHwi7qTOBki/Dw9j5cgGsZYiktGSfgqHR0w=
 github.com/decred/dcrwallet/rpc/jsonrpc/types v1.0.0/go.mod h1:k+IOPnUY0YqlwhSDhczzaUN17NX/gMtztwl3UxKgVZY=
 github.com/decred/slog v1.0.0 h1:Dl+W8O6/JH6n2xIFN2p3DNjCmjYwvrXsjlSJTQQ4MhE=

@@ -124,6 +124,7 @@ type config struct {
 	ChartsCacheDump    string `long:"chartscache" description:"Defines the file name that holds the charts cache data on system exit."`
 	PiPropRepoOwner    string `long:"piproposalsowner" description:"Defines the owner to the github repo where Politeia's proposals are pushed."`
 	PiPropRepoName     string `long:"piproposalsrepo" description:"Defines the name of the github repo where Politeia's proposals are pushed."`
+	DisablePiParser    bool   `long:"disable-piparser" description:"Disables the piparser tool from running."`
 
 	PurgeNBestBlocks int  `long:"purge-n-blocks" description:"Purge all data for the N best blocks, using the best block across all DBs if they are out of sync."`
 	FastSQLitePurge  bool `long:"fast-sqlite-purge" description:"Purge all data for the blocks above the specified height."`
@@ -518,6 +519,9 @@ func loadConfig() (*config, error) {
 	if cfg.SimNet {
 		activeNet = &netparams.SimNetParams
 		activeChain = &chaincfg.SimNetParams
+
+		// If on simnet, disable piparser tool automatically.
+		cfg.DisablePiParser = true
 		numNets++
 	}
 	if numNets > 1 {
