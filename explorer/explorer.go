@@ -112,8 +112,8 @@ type explorerDataSource interface {
 	LastPiParserSync() time.Time
 }
 
-// politeiaBackend implements methods that manage proposals db data.
-type politeiaBackend interface {
+// PoliteiaBackend implements methods that manage proposals db data.
+type PoliteiaBackend interface {
 	LastProposalsSync() int64
 	CheckProposalsUpdates() error
 	AllProposals(offset, rowsCount int, filterByVoteStatus ...int) (proposals []*pitypes.ProposalInfo, totalCount int, err error)
@@ -202,7 +202,7 @@ type explorerUI struct {
 	explorerSource   explorerDataSource
 	agendasSource    agendaBackend
 	voteTracker      *agendas.VoteTracker
-	proposalsSource  politeiaBackend
+	proposalsSource  PoliteiaBackend
 	dbsSyncing       atomic.Value
 	devPrefetch      bool
 	templates        templates
@@ -281,7 +281,7 @@ type ExplorerConfig struct {
 	XcBot             *exchanges.ExchangeBot
 	AgendasSource     agendaBackend
 	Tracker           *agendas.VoteTracker
-	ProposalsSource   politeiaBackend
+	ProposalsSource   PoliteiaBackend
 	PoliteiaURL       string
 	MainnetLink       string
 	TestnetLink       string
@@ -544,7 +544,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 		// Politeia updates happen hourly thus if every blocks takes an average
 		// of 5 minutes to mine then 12 blocks take approximately 1hr.
 		// https://docs.decred.org/advanced/navigating-politeia-data/#voting-and-comment-data
-		if newBlockData.Height%12 == 0 {
+		if newBlockData.Height%12 == 0 && exp.proposalsSource != nil {
 			// Update the proposal DB. This is run asynchronously since it involves
 			// a query to Politeia (a remote system) and we do not want to block
 			// execution.
