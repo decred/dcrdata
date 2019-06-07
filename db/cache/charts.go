@@ -442,6 +442,11 @@ func (charts *ChartData) Lengthen() error {
 		start = days.Time[len(days.Time)-1] // already truncated to midnight
 	} else {
 		start = midnight(charts.genesis)
+		if start == 0 && shortest > 0 {
+			// No genesis block available from the the height source during
+			// instantiation. Get the first day from blocks.Time.
+			start = midnight(blocks.Time[0])
+		}
 	}
 	intervals := [][2]int{}
 	// If there is day or more worth of new data, append to the Days zoomSet by
