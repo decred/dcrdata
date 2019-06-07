@@ -24,7 +24,11 @@ PSQL="sudo -u postgres -H psql"
 $PSQL < ./simnet.sql
 
 rm -rf ~/.dcrdata/data/simnet
-rm -rf ./dev/datadir
+rm -rf datadir
 pushd .. > /dev/null
 ./dcrdata -C ./dev/dcrdata-simnet.conf --datadir ./dev/datadir -g
 popd > /dev/null
+
+echo " ***
+Don't forget to run ./stop-simnet.sh!
+ ***"
