@@ -37,7 +37,7 @@
                 {{ else }}
 
                 {{block "proposalsPagination" .}}
-                    <div class="d-flex flex-wrap-reverse align-items-center justify-content-end list-display mb-1 fs13">
+                    <div class="d-flex flex-wrap-reverse align-items-center justify-content-end list-display">
                         {{template  "voteStatusWidget" .}}
 
                         {{$count := (int64 (len .Proposals))}}
@@ -62,10 +62,10 @@
                             {{if eq $count 20 30 50}}{{else}}<option selected value="{{$count}}">{{$count}}</option>{{end}}
                             </select>
                         </span>
-                        <span class="fs12 nowrap text-right">
+                        <span class="fs12 nowrap text-right px-2">
                             {{intComma (add .Offset 1)}} &ndash; {{intComma $oldest}} of {{ intComma $.TotalCount }} rows
                         </span>
-                        <nav aria-label="blocks navigation" data-limit="{{.Limit}}" class="ml-2">
+                        <nav aria-label="blocks navigation" data-limit="{{.Limit}}" class="m-2">
                             <ul class="pagination mb-0 pagination-sm">
                                 <li class="page-item {{if eq .Offset 0}}disabled{{end}}">
                                     <a
@@ -101,27 +101,40 @@
                 {{end}}
             </div>
 
-            <table class="table table-mono-cells my-2">
+            <table class="table table-mono-cells my-2" data-controller="time">
                 <thead>
                     <tr>
                         <th class="text-left">Title</th>
-                        <th class="text-left">Author</th>
-                        <th class="text-left">Proposal Vote Status</th>
-                        <th class="text-left">Vote Count</th>
-                        <th class="text-right">Age</th>
-                        <th class="text-right">Updated</th>
+                        <th class="text-left">
+                            <span class="d-none d-sm-inline">Author</span>
+                        </th>
+                        <th class="text-left">
+                            <span class="d-none d-sm-inline position-relative text-nowrap" data-tooltip="proposal vote status">
+                                Vote Status
+                            </span>
+                            <span class="d-sm-none position-relative text-nowrap" data-tooltip="proposal vote status">
+                                Status
+                            </span>
+                        </th>
+                        <th class="text-left">
+                            <span class="d-none d-sm-inline">Vote Count</span>
+                            <span class="d-sm-none position-relative" data-tooltip="vote count">Votes</span>
+                        </th>
+                        <th class="text-left pr-2">Updated</th>
                     </tr>
                 </thead>
-                <tbody data-controller="time">
+                <tbody>
                 {{range $i, $v := .Proposals}}
                 {{with $v}}
                     <tr>
                         <td class="text-left"><a href="/proposal/{{.RefID}}">{{.Name}}</a></td>
-                        <td class="text-left">{{.Username}}</td>
+                        <td class="text-left">
+                            <span class="d-none d-sm-inline">{{.Username}}</span>
+                        </td>
                         <td class="text-left">
                             {{if .VoteStatus}}
                                 {{if eq .VoteStatus.ShortDesc "Not Authorized"}}
-                                    <span class="text-abandoned">
+                                    <span class="text-abandoned position-relative" data-tooltip="Proposal in discussion">
                                         In Discussion
                                     </span>
                                 {{else if eq (len .VoteResults) 0 }}
@@ -133,18 +146,20 @@
                                         {{if eq $vr.Option.OptionID "yes"}}
                                             {{$votesPercent :=  percentage $vr.VotesReceived $v.TotalVotes}}
                                             {{if lt $.Tip.Height (toInt $v.Endheight)}}
-                                                <span class="text-progress position-relative" data-tooltip="Vote Status (approval %)">
+                                                <span class="text-progress position-relative" data-tooltip="Voting in progress">
                                                     In Progress ({{printf "%.0f" ($votesPercent)}}%)
                                                 </span>
                                             {{else if lt (percentage $v.TotalVotes $v.NumOfEligibleVotes) (toFloat64 $v.QuorumPercentage)}}
-                                                <span class="text-no-quorum">No quorum</span>
+                                                <span class="text-no-quorum position-relative" data-tooltip="Votes did not attain quorum">
+                                                    No quorum
+                                                </span>
                                             {{else}}
                                                 {{if lt $votesPercent (toFloat64 $v.PassPercentage)}}
-                                                    <span class="text-failed position-relative" data-tooltip="Vote Status (approval %)">
+                                                    <span class="text-failed position-relative" data-tooltip="Failed vote">
                                                         Failed ({{printf "%.0f" ($votesPercent)}}%)
                                                     </span>
                                                 {{else}}
-                                                    <span class="text-green position-relative" data-tooltip="Vote Status (approval %)">
+                                                    <span class="text-green position-relative" data-tooltip="Passed vote">
                                                         Passed ({{printf "%.0f" ($votesPercent)}}%)
                                                     </span>
                                                 {{end}}
@@ -153,14 +168,13 @@
                                     {{end}}
                                 {{end}}
                             {{else}}
-                                <span class="text-abandoned">
+                                <span class="text-abandoned position-relative" data-tooltip="Proposal abandoned">
                                     Abandoned
                                 </span>
                             {{end}}
                         </td>
                         <td class="text-left">{{.TotalVotes}}</td>
-                        <td class="text-right" data-target="time.age" data-age="{{.Timestamp}}"></td>
-                        <td class="text-right">{{timeWithoutDateAndTimeZone .Timestamp}}</td>
+                        <td class="text-left pr-1 text-nowrap" data-type="age" data-target="time.age" data-age="{{.Timestamp}}">{{timeWithoutDateAndTimeZone .Timestamp}}</td>
                     </tr>
                 {{end}}
                 {{end}}
