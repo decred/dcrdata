@@ -16,7 +16,7 @@ let Dygraph // lazy loaded on connect
 const aDay = 86400 * 1000 // in milliseconds
 const aMonth = 30 // in days
 const atomsToDCR = 1e-8
-const windowScales = ['ticket-price', 'pow-difficulty']
+const windowScales = ['ticket-price', 'pow-difficulty', 'missed-votes']
 const lineScales = ['ticket-price']
 // index 0 represents y1 and 1 represents y2 axes.
 const yValueRanges = { 'ticket-price': [1] }
@@ -141,15 +141,16 @@ function nightModeOptions (nightModeOn) {
   }
 }
 
-function zipXYData (gData, isHeightAxis, isDayBinned, coefficient, windowS) {
-  coefficient = coefficient || 1
+function zipXYData (gData, isHeightAxis, isDayBinned, coefficient, windowS, initValue) {
   windowS = windowS || 1
+  initValue = initValue || 0
+  coefficient = coefficient || 1
   return map(gData.x, (n, i) => {
     var xAxisVal
     if (isHeightAxis && isDayBinned) {
       xAxisVal = n
     } else if (isHeightAxis) {
-      xAxisVal = i * windowS
+      xAxisVal = (i * windowS) + initValue
     } else {
       xAxisVal = new Date(n * 1000)
     }
@@ -440,6 +441,12 @@ export default class extends Controller {
         d = zipXYData(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Network Hashrate (terahash/s)'],
           false, 'Network Hashrate (terahash/s)', true, false))
+        break
+
+      case 'missed-votes':
+        d = zipXYData(data, isHeightAxis, false, 1, windowSize, stakeValHeight)
+        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Missed Votes'], false,
+          'Missed Votes per Window', true, false))
         break
     }
 

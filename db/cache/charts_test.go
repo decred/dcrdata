@@ -45,7 +45,7 @@ func TestMain(m *testing.M) {
 func TestChartsCache(t *testing.T) {
 	gobPath := filepath.Join(tempDir, "log.gob")
 	ctx, shutdown := context.WithCancel(context.Background())
-	charts := NewChartData(0, time.Unix(0, 0), &chaincfg.MainNetParams, ctx)
+	charts := NewChartData(ctx, 0, time.Unix(0, 0), &chaincfg.MainNetParams)
 
 	comp := func(k string, a interface{}, b interface{}, expectation bool) {
 		v := reflect.DeepEqual(a, b)
@@ -80,6 +80,7 @@ func TestChartsCache(t *testing.T) {
 	charts.Windows.PowDiff = ChartFloats{0}
 	charts.Windows.TicketPrice = ChartUints{0}
 	charts.Windows.StakeCount = ChartUints{0}
+	charts.Windows.MissedVotes = ChartUints{0}
 
 	t.Run("Read_a_non-existent_gob_dump", func(t *testing.T) {
 		err := charts.readCacheFile(filepath.Join(tempDir, "log1.gob"))
@@ -260,6 +261,7 @@ func TestChartReorg(t *testing.T) {
 			PowDiff:     newFloats(),
 			TicketPrice: newUints(),
 			StakeCount:  newUints(),
+			MissedVotes: newUints(),
 		}
 		charts.Days = &zoomSet{
 			cacheID:   0,

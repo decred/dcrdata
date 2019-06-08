@@ -999,6 +999,12 @@ func (pgb *ChainDB) RegisterCharts(charts *cache.ChartData) {
 		Fetcher:  pgb.windowStats,
 		Appender: appendWindowStats,
 	})
+
+	charts.AddUpdater(cache.ChartUpdater{
+		Tag:      "missed votes stats",
+		Fetcher:  pgb.missedVotesStats,
+		Appender: appendMissedVotes,
+	})
 }
 
 // TransactionBlocks retrieves the blocks in which the specified transaction
@@ -2972,6 +2978,20 @@ func (pgb *ChainDB) windowStats(charts *cache.ChartData) (*sql.Rows, func(), err
 	rows, err := retrieveWindowStats(ctx, pgb.db, charts)
 	if err != nil {
 		return nil, cancel, fmt.Errorf("windowStats: %v", pgb.replaceCancelError(err))
+	}
+
+	return rows, cancel, nil
+}
+
+// missedVotesStats fetches the charts data from retrieveMissedVotes.
+// This is the Fetcher half of a pair that make up a cache.ChartUpdater. The
+// Appender half is appendMissedVotes.
+func (pgb *ChainDB) missedVotesStats(charts *cache.ChartData) (*sql.Rows, func(), error) {
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+
+	rows, err := retrieveMissedVotes(ctx, pgb.db, charts)
+	if err != nil {
+		return nil, cancel, fmt.Errorf("missedVotesStats: %v", pgb.replaceCancelError(err))
 	}
 
 	return rows, cancel, nil
