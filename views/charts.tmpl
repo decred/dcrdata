@@ -48,7 +48,8 @@
                 </div>
 
                 <div class="chart-control-wrapper mr-2 mb-1" data-target="charts.zoomSelector">
-                    <div class="chart-control-label">ZOOM</div>
+                    <div class="chart-control-label" data-target="charts.zoomLabel">ZOOM</div>
+                    <div class="chart-control-label d-hide" data-target="charts.limitLabel">LIMIT</div>
                     <div class="chart-control">
                         <ul
                             class="nav nav-pills"
@@ -200,7 +201,7 @@
                 style="width:100%; height:73vh; margin:0 auto;">
             </div>
             <div class="d-flex flex-wrap justify-content-center align-items-center mb-1 mt-1">
-                <div class="chart-control chart-control-wrapper">
+                <div class="chart-control chart-control-wrapper" data-target="charts.dualAxesSelector">
                     <ul class="nav nav-pills">
                         <li class="nav-item active">
                             <a
@@ -219,6 +220,17 @@
                                 data-action="click->charts#setAxis"
                                 data-option="height"
                             >Blocks</a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="chart-control chart-control-wrapper d-hide" data-target="charts.customAxisSelector">
+                    <ul class="nav nav-pills">
+                        <li class="nav-item active">
+                            <a
+                                class="nav-link active"
+                                href="javascript:void(0);"
+                                data-target="charts.customAxisOption"
+                            >Custom Axis</a>
                         </li>
                     </ul>
                 </div>

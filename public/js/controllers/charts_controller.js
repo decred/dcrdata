@@ -7,7 +7,7 @@ import { getDefault } from '../helpers/module_helper'
 import axios from 'axios'
 import TurboQuery from '../helpers/turbolinks_helper'
 import globalEventBus from '../services/event_bus_service'
-import { isEqual } from '../helpers/chart_helper'
+import { isEqual, barChartPlotter } from '../helpers/chart_helper'
 import dompurify from 'dompurify'
 
 var selectedChart
@@ -16,25 +16,21 @@ let Dygraph // lazy loaded on connect
 const aDay = 86400 * 1000 // in milliseconds
 const aMonth = 30 // in days
 const atomsToDCR = 1e-8
-const windowScales = ['ticket-price', 'pow-difficulty', 'missed-votes']
-const lineScales = ['ticket-price']
+const chartsToHideBin = ['ticket-price', 'pow-difficulty', 'missed-votes']
+const chartsToHideScale = ['ticket-price']
+const chartsToHideAll = ['duration-btw-blocks']
 // index 0 represents y1 and 1 represents y2 axes.
 const yValueRanges = { 'ticket-price': [1] }
-var ticketPoolSizeTarget, premine, stakeValHeight, stakeShare
+const altXLabel = { 'duration-btw-blocks': 'Duration Between Blocks (Seconds)' }
+var ticketPoolSizeTarget, premine, stakeValHeight, stakeShare, sum
 var baseSubsidy, subsidyInterval, subsidyExponent, windowSize, avgBlockTime
 var rawCoinSupply, rawPoolValue
 
-function usesWindowUnits (chart) {
-  return windowScales.indexOf(chart) > -1
-}
-
-function isScaleDisabled (chart) {
-  return lineScales.indexOf(chart) > -1
-}
-
-function intComma (amount) {
-  return amount.toLocaleString(undefined, { maximumFractionDigits: 0 })
-}
+var isBinDisabled = (chart) => chartsToHideBin.indexOf(chart) > -1
+var isScaleDisabled = (chart) => chartsToHideScale.indexOf(chart) > -1
+var isAllControlsDisabled = (chart) => chartsToHideAll.indexOf(chart) > -1
+var customXLabel = (chart) => altXLabel[chart] || ''
+var intComma = (amount) => amount.toLocaleString(undefined, { maximumFractionDigits: 0 })
 
 function axesToRestoreYRange (chartName, origYRange, newYRange) {
   let axesIndexes = yValueRanges[chartName]
@@ -126,7 +122,15 @@ function legendFormatter (data) {
           break
 
         case 'stake participation':
-          yVal = series.y.toFixed(4) + '%'
+          yVal = (Math.float(series.y) / 1e4) + '%'
+          break
+
+        case 'actual count':
+          yVal = series.y + ' (' + ((series.y * 100) / sum).toFixed(2) + '%)'
+          break
+
+        case 'expected count':
+          yVal = series.y + ' (' + ((series.y * 100) / sum).toFixed(2) + '%)'
           break
       }
       let result = `${nodes} <div class="pr-2">${series.dashHTML} ${series.labelHTML}: ${yVal}</div>`
@@ -347,8 +351,13 @@ export default class extends Controller {
       'binSelector',
       'scaleSelector',
       'ticketsPurchase',
+      'dualAxesSelector',
+      'customAxisSelector',
+      'customAxisOption',
       'ticketsPrice',
+      'limitLabel',
       'vSelector',
+      'zoomLabel',
       'binSize'
     ]
   }
@@ -365,7 +374,7 @@ export default class extends Controller {
     windowSize = parseInt(this.data.get('windowSize'))
     avgBlockTime = parseInt(this.data.get('blockTime')) * 1000
 
-    this.settings = TurboQuery.nullTemplate(['chart', 'zoom', 'scale', 'bin', 'axis'])
+    this.settings = TurboQuery.nullTemplate(['chart', 'zoom', 'scale', 'bin', 'axis', 'limit'])
     this.query.update(this.settings)
     this.settings.chart = this.settings.chart || 'ticket-price'
     this.zoomCallback = this._zoomCallback.bind(this)
@@ -422,8 +431,14 @@ export default class extends Controller {
 
     if (this.settings.axis) this.setAxis(this.settings.axis) // set first
     if (this.settings.scale === 'log') this.setScale(this.settings.scale)
-    if (this.settings.zoom) this.setZoom(this.settings.zoom)
-    this.setBin(this.settings.bin ? this.settings.bin : 'day')
+    let zoomLimit = false
+    if (isAllControlsDisabled(this.settings.chart)) {
+      zoomLimit = this.settings.limit
+    } else {
+      zoomLimit = this.settings.zoom
+    }
+    if (zoomLimit) this.setZoom(zoomLimit)
+    if (this.settings.bin) this.setBin(this.settings.bin)
 
     var ogLegendGenerator = Dygraph.Plugins.Legend.generateLegendHTML
     Dygraph.Plugins.Legend.generateLegendHTML = (g, x, pts, w, row) => {
@@ -440,13 +455,21 @@ export default class extends Controller {
       drawCallback: null,
       logscale: this.settings.scale === 'log',
       valueRange: [null, null],
+      dateWindow: [null, null],
       visibility: null,
+      plotter: null,
       y2label: null,
       stepPlot: false,
       axes: {},
       series: null,
       inflation: null
     }
+    var isHeightAxis = this.selectedAxis() === 'height'
+    var xlabel = isHeightAxis ? 'Block Height' : 'Date'
+    var isDayBinned = this.selectedBin() === 'day'
+    var customLabel = customXLabel(this.chartSelectTarget.value)
+    xlabel = customLabel !== '' ? customLabel : xlabel
+
     rawPoolValue = []
     rawCoinSupply = []
     var xlabel = data.t ? 'Date' : 'Block Height'
@@ -535,9 +558,17 @@ export default class extends Controller {
         break
 
       case 'duration-btw-blocks': // Duration between blocks graph
-        d = zip2D(data, data.duration, 1, 1)
-        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Duration Between Blocks'], false,
-          'Duration Between Blocks (seconds)', false, false))
+        d = zipXYZData(data, true, true)
+        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Actual Count', 'Expected Count'], false, 'Blocks Count', false, false))
+        sum = data.y.reduce((total, n) => total + n)
+        gOptions.y2label = 'Expected'
+        gOptions.axes.y2 = { axisLabelFormatter: (y) => Math.round(y) }
+        gOptions.series = {
+          'Expected': {
+            axis: 'y2',
+            plotter: barChartPlotter
+          }
+        }
         break
 
       case 'chainwork': // Total chainwork over time
@@ -568,29 +599,38 @@ export default class extends Controller {
   async selectChart () {
     var selection = this.settings.chart = this.chartSelectTarget.value
     this.chartWrapperTarget.classList.add('loading')
-    if (isScaleDisabled(selection)) {
-      this.scaleSelectorTarget.classList.add('d-hide')
-      this.vSelectorTarget.classList.remove('d-hide')
+    this.toggleAllControls(isAllControlsDisabled(selection))
+    if (isAllControlsDisabled(selection)) {
+      this.customAxisOptionTarget.innerHTML = customXLabel(selection)
     } else {
-      this.scaleSelectorTarget.classList.remove('d-hide')
-      this.vSelectorTarget.classList.add('d-hide')
+      this.toggleBinControls(isBinDisabled(selection))
+      this.toggleScaleControls(isScaleDisabled(selection), selection === 'ticket-price')
     }
+
     if (selectedChart !== selection || this.settings.bin !== this.selectedBin() ||
-      this.settings.axis !== this.selectedAxis()) {
-      let url = '/api/chart/' + selection
-      if (usesWindowUnits(selection)) {
-        this.binSelectorTarget.classList.add('d-hide')
-        this.settings.bin = 'window'
-      } else {
-        this.binSelectorTarget.classList.remove('d-hide')
+      (this.settings.axis !== this.selectedAxis() && this.selectedAxis()) ||
+      isAllControlsDisabled(selection)) {
+      let searchParams = new URLSearchParams()
+      if (isAllControlsDisabled(selection)) {
+        var selected = this.selectedZoom()
+        if (selected) searchParams.append('limit', selected)
+      } else if (!isBinDisabled(selection)) {
         this.settings.bin = this.selectedBin()
+        if (!this.settings.bin) this.settings.bin = 'day' // Set the default.
+        searchParams.append('bin', this.settings.bin)
+        this.setActiveOptionBtn(this.settings.bin, this.binSizeTargets)
+
+        this.settings.axis = this.selectedAxis()
+        if (!this.settings.axis) this.settings.axis = 'time' // Set the default.
+        if (this.settings.bin === 'day' && this.settings.axis === 'height') {
+          searchParams.append('axis', this.settings.axis)
+        }
+        this.setActiveOptionBtn(this.settings.axis, this.axisOptionTargets)
       }
       url += `?bin=${this.settings.bin}`
 
-      this.settings.axis = this.selectedAxis()
-      if (!this.settings.axis) this.settings.axis = 'time' // Set the default.
-      url += `&axis=${this.settings.axis}`
-      this.setActiveOptionBtn(this.settings.axis, this.axisOptionTargets)
+      let url = '/api/chart/' + selection
+      if (searchParams.toString()) url += '?' + searchParams.toString()
       let chartResponse = await axios.get(url)
       console.log('got api data', chartResponse, this, selection)
       selectedChart = selection
@@ -613,7 +653,7 @@ export default class extends Controller {
     } else {
       this.lastZoom = Zoom.project(this.settings.zoom, oldLimits, this.limits)
     }
-    if (this.lastZoom) {
+    if (this.lastZoom && !isAllControlsDisabled(this.chartSelectTarget.value)) {
       this.chartsView.updateOptions({
         dateWindow: [this.lastZoom.start, this.lastZoom.end]
       })
@@ -630,6 +670,11 @@ export default class extends Controller {
   }
 
   _zoomCallback (start, end) {
+    if (customXLabel(this.chartSelectTarget.value) !== '') {
+      this.settings.limit = this.selectedZoom()
+      this.query.replace(this.settings)
+      return
+    }
     this.lastZoom = Zoom.object(start, end)
     this.settings.zoom = Zoom.encode(this.lastZoom)
     this.query.replace(this.settings)
@@ -642,7 +687,7 @@ export default class extends Controller {
   }
 
   isTimeAxis () {
-    return this.selectedAxis() === 'time'
+    return this.selectedAxis() === 'time' && customXLabel(this.chartSelectTarget.value) !== ''
   }
 
   _drawCallback (graph, first) {
@@ -652,6 +697,40 @@ export default class extends Controller {
     if (start === end) return
     if (this.lastZoom.start === start) return // only handle slide event.
     this._zoomCallback(start, end)
+  }
+
+  toggleAllControls (isAllDisabled) {
+    this.toggleBinControls(isAllDisabled)
+    this.toggleAxisControls(isAllDisabled)
+    this.toggleScaleControls(isAllDisabled)
+    this.toggleZoomLabelControls(isAllDisabled)
+  }
+
+  toggleScaleControls (isScaleDisabled, isVEnabled) {
+    isVEnabled = isVEnabled || false
+    var scaleControl = this.scaleSelectorTarget.classList
+    var vControl = this.vSelectorTarget.classList
+    isScaleDisabled ? scaleControl.add('d-hide') : scaleControl.remove('d-hide')
+    isScaleDisabled && isVEnabled && true ? vControl.remove('d-hide') : vControl.add('d-hide')
+  }
+
+  toggleZoomLabelControls (isZoomDisabled) {
+    var zoomControl = this.zoomLabelTarget.classList
+    var limitControl = this.limitLabelTarget.classList
+    isZoomDisabled ? zoomControl.add('d-hide') : zoomControl.remove('d-hide')
+    isZoomDisabled ? limitControl.remove('d-hide') : limitControl.add('d-hide')
+  }
+
+  toggleBinControls (isBinControls) {
+    var binControl = this.binSelectorTarget.classList
+    isBinControls ? binControl.add('d-hide') : binControl.remove('d-hide')
+  }
+
+  toggleAxisControls (isAxesControls) {
+    var dualAxes = this.dualAxesSelectorTarget.classList
+    var customAxis = this.customAxisSelectorTarget.classList
+    isAxesControls ? dualAxes.add('d-hide') : dualAxes.remove('d-hide')
+    isAxesControls ? customAxis.remove('d-hide') : customAxis.add('d-hide')
   }
 
   setZoom (e) {
@@ -665,6 +744,7 @@ export default class extends Controller {
     }
     this.setActiveOptionBtn(option, this.zoomOptionTargets)
     if (!target) return // Exit if running for the first time
+    if (customXLabel(this.chartSelectTarget.value) !== '') return this.selectChart()
     this.validateZoom()
   }
 

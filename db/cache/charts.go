@@ -9,11 +9,14 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
+	"sort"
 	"sync"
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/semver"
 	"github.com/decred/dcrdata/txhelpers/v3"
 )
@@ -105,6 +108,18 @@ func ParseAxis(aType string) axisType {
 	default:
 		return TimeAxis
 	}
+}
+
+// ParseLimit returns the matching limit type and the corresponding limit
+// duration in seconds. The default is "all" when no limit is set or error occured.
+func ParseLimit(limit string) (string, uint64) {
+	limitLevel := dbtypes.TimeGroupingFromStr(limit)
+	timeInSecs, err := dbtypes.TimeBasedGroupingToInterval(limitLevel)
+	if err != nil {
+		return "all", 0
+	}
+
+	return limitLevel.String(), uint64(timeInSecs)
 }
 
 const (
@@ -403,16 +418,17 @@ type ChartUpdater struct {
 // and Windows fields must be updated by (presumably) a database package. The
 // Days data is auto-generated from the Blocks data during Lengthen-ing.
 type ChartData struct {
-	mtx          sync.RWMutex
-	ctx          context.Context
-	DiffInterval int32
-	StartPOS     int32
-	Blocks       *zoomSet
-	Windows      *windowSet
-	Days         *zoomSet
-	cacheMtx     sync.RWMutex
-	cache        map[string]*cachedChart
-	updaters     []ChartUpdater
+	mtx            sync.RWMutex
+	ctx            context.Context
+	DiffInterval   int32
+	BlockTimeInSec uint64
+	StartPOS       int32
+	Blocks         *zoomSet
+	Windows        *windowSet
+	Days           *zoomSet
+	cacheMtx       sync.RWMutex
+	cache          map[string]*cachedChart
+	updaters       []ChartUpdater
 }
 
 // Check that the length of all arguments is equal.
@@ -851,14 +867,15 @@ func NewChartData(ctx context.Context, height uint32, chainParams *chaincfg.Para
 	days := int(time.Since(genesis)/time.Hour/24)*5/4 + 1 // at least one day
 	windows := int(base64Height/chainParams.StakeDiffWindowSize+1) * 5 / 4
 	return &ChartData{
-		ctx:          ctx,
-		DiffInterval: int32(chainParams.StakeDiffWindowSize),
-		StartPOS:     int32(chainParams.StakeValidationHeight),
-		Blocks:       newBlockSet(size),
-		Windows:      newWindowSet(windows),
-		Days:         newDaySet(days),
-		cache:        make(map[string]*cachedChart),
-		updaters:     make([]ChartUpdater, 0),
+		ctx:            ctx,
+		DiffInterval:   int32(chainParams.StakeDiffWindowSize),
+		BlockTimeInSec: uint64(chainParams.TargetTimePerBlock.Seconds()),
+		StartPOS:       int32(chainParams.StakeValidationHeight),
+		Blocks:         newBlockSet(size),
+		Windows:        newWindowSet(windows),
+		Days:           newDaySet(days),
+		cache:          make(map[string]*cachedChart),
+		updaters:       make([]ChartUpdater, 0),
 	}
 }
 
@@ -883,7 +900,8 @@ func (charts *ChartData) cacheID(bin binLevel) uint64 {
 }
 
 // Grab the cached data, if it exists. The cacheID is returned as a convenience.
-func (charts *ChartData) getCache(chartID string, bin binLevel, axis axisType) (data *cachedChart, found bool, cacheID uint64) {
+func (charts *ChartData) getCache(chartID string, bin binLevel,
+	axis axisType) (data *cachedChart, found bool, cacheID uint64) {
 	// Ignore zero length since bestHeight would just be set to zero anyway.
 	ck := cacheKey(chartID, bin, axis)
 	charts.cacheMtx.RLock()
@@ -894,7 +912,8 @@ func (charts *ChartData) getCache(chartID string, bin binLevel, axis axisType) (
 }
 
 // Store the chart associated with the provided type and BinLevel.
-func (charts *ChartData) cacheChart(chartID string, bin binLevel, axis axisType, data []byte) {
+func (charts *ChartData) cacheChart(chartID string, bin binLevel,
+	axis axisType, data []byte) {
 	ck := cacheKey(chartID, bin, axis)
 	charts.cacheMtx.Lock()
 	defer charts.cacheMtx.Unlock()
@@ -994,54 +1013,65 @@ func accumulate(data ChartUints) ChartUints {
 }
 
 // Translate the times slice to a slice of differences. The original dataset
-// minus the first element is returned for convenience.
-func blockTimes(blocks ChartUints) (ChartUints, ChartUints) {
-	times := make(ChartUints, 0, len(blocks))
+// minus the first element is returned for convenience. limit defines the number
+// of blocks to consider for the current limitType from the best block.
+func blockTimes(blocks ChartUints, limit int) (ChartUints, ChartUints, ChartFloats) {
 	dataLen := len(blocks)
+	keys := make(ChartUints, 0, len(blocks))
 	if dataLen < 2 {
 		// Fewer than two data points is invalid for btw. Return empty data sets so
 		// that the JSON encoding will have the correct type.
-		return times, times
+		return keys, keys, newChartFloats(len(blocks))
 	}
-	last := blocks[0]
-	for _, v := range blocks[1:] {
+
+	var k int
+	if limit > 0 && limit < len(blocks) {
+		k = len(blocks) - limit
+	}
+
+	last := blocks[k]
+	var sumFx = uint64(len(blocks[k:]))
+	k++
+	tracker := make(map[uint64]uint64, 0)
+	for _, v := range blocks[k:] {
 		dif := v - last
 		if int64(dif) < 0 {
 			dif = 0
 		}
-		times = append(times, dif)
 		last = v
+		if _, ok := tracker[dif]; !ok {
+			keys = append(keys, dif)
+		}
+		tracker[dif]++
 	}
-	return blocks[1:], times
-}
 
-// Take the average block times on the intervals defined by the ticks argument.
-func avgBlockTimes(ticks, blocks ChartUints) (ChartUints, ChartUints) {
-	if len(ticks) < 2 {
-		// Return empty arrays so that JSON-encoding will have the correct type.
-		return ChartUints{}, ChartUints{}
-	}
-	avgDiffs := make(ChartUints, 0, len(ticks)-1)
-	times := make(ChartUints, 0, len(ticks)-1)
-	nextIdx := 1
-	workingOn := ticks[0]
-	next := ticks[nextIdx]
-	lastIdx := 0
-	for i, t := range blocks {
-		if t > next {
-			_, pts := blockTimes(blocks[lastIdx:i])
-			avgDiffs = append(avgDiffs, pts.Avg(0, len(pts)))
-			times = append(times, workingOn)
-			nextIdx++
-			if nextIdx > len(ticks)-1 {
-				break
-			}
-			lastIdx = i
-			next = ticks[nextIdx]
-			workingOn = next
+	// bucketSize distribution grouping in sec.
+	bucketSize := uint64(300)
+
+	var xValue = newChartUints(len(tracker))
+	var blockCount = newChartUints(len(tracker))
+	var expDistr = newChartFloats(len(tracker))
+	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+
+	var tally uint64
+
+	upperLimit := bucketSize
+	for _, timeVal := range keys {
+		tally += tracker[timeVal]
+		if timeVal >= upperLimit {
+
+			distr := math.Exp(float64(timeVal) / 300.0 * -1)
+			distr = math.Round(distr*float64(sumFx)*1e2) / 1e2
+
+			xValue = append(xValue, timeVal)
+			blockCount = append(blockCount, tally)
+			expDistr = append(expDistr, distr)
+
+			upperLimit += bucketSize
+			tally = 0
 		}
 	}
-	return times, avgDiffs
+	return xValue, blockCount, expDistr
 }
 
 func blockSizeChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
@@ -1173,43 +1203,16 @@ func coinSupplyChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, er
 	return nil, InvalidBinErr
 }
 
+// durationLimitInSec helps to calculate the number of blocks to consider in the dataset
+// from the best block.
 func durationBTWChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
+	_, duration := ParseLimit(string(bin))
 	seed := binAxisSeed(bin, axis)
-	switch bin {
-	case BlockBin:
-		switch axis {
-		case HeightAxis:
-			_, diffs := blockTimes(charts.Blocks.Time)
-			return encode(lengtherMap{
-				durationKey: diffs,
-			}, seed)
-		default:
-			times, diffs := blockTimes(charts.Blocks.Time)
-			return encode(lengtherMap{
-				timeKey:     times,
-				durationKey: diffs,
-			}, seed)
-		}
-	case DayBin:
-		switch axis {
-		case HeightAxis:
-			if len(charts.Days.Height) < 2 {
-				return nil, fmt.Errorf("found the length of charts.Days.Height slice to be less than 2")
-			}
-			_, diffs := avgBlockTimes(charts.Days.Time, charts.Blocks.Time)
-			return encode(lengtherMap{
-				heightKey:   charts.Days.Height[:len(charts.Days.Height)-1],
-				durationKey: diffs,
-			}, seed)
-		default:
-			times, diffs := avgBlockTimes(charts.Days.Time, charts.Blocks.Time)
-			return encode(lengtherMap{
-				timeKey:     times,
-				durationKey: diffs,
-			}, seed)
-		}
-	}
-	return nil, InvalidBinErr
+	times, diffs, _ := blockTimes(charts.Blocks.Time, int(duration))
+	return encode(lengtherMap{
+		timeKey:     times,
+		durationKey: diffs,
+	}, seed)
 }
 
 // hashrate converts the provided chainwork data to hashrate data. Since

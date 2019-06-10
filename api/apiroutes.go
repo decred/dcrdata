@@ -1578,7 +1578,8 @@ func (c *appContext) ChartTypeData(w http.ResponseWriter, r *http.Request) {
 		bin = r.URL.Query().Get("zoom")
 	}
 	axis := r.URL.Query().Get("axis")
-	chartData, err := c.charts.Chart(chartType, bin, axis)
+	limit := r.URL.Query().Get("limit")
+	chartData, err := c.charts.Chart(chartType, bin, axis, limit)
 	if err != nil {
 		http.NotFound(w, r)
 		log.Warnf(`Error fetching chart %s at bin level '%s': %v`, chartType, bin, err)
