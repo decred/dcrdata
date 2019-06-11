@@ -1003,6 +1003,15 @@ func MsgTxFromHex(txhex string) (*wire.MsgTx, error) {
 	return msgTx, nil
 }
 
+// MsgTxToHex returns a transaction hex string from a wire.MsgTx struct.
+func MsgTxToHex(msgTx *wire.MsgTx) (string, error) {
+	var hexBuilder strings.Builder
+	if err := msgTx.Serialize(hex.NewEncoder(&hexBuilder)); err != nil {
+		return "", err
+	}
+	return hexBuilder.String(), nil
+}
+
 // DetermineTxTypeString returns a string representing the transaction type given
 // a wire.MsgTx struct
 func DetermineTxTypeString(msgTx *wire.MsgTx) string {
