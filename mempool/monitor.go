@@ -191,7 +191,7 @@ func (p *MempoolMonitor) TxHandler(client txhelpers.VerboseTransactionGetter) {
 			if p.txnsStore == nil {
 				p.txnsStore = make(txhelpers.TxnsStore)
 			}
-			newPrevOuts, addressesIn := txhelpers.TxPrevOutsByAddr(p.addrMap.store, p.txnsStore, msgTx, client, p.params)
+			newPrevOuts, addressesIn, valsIn := txhelpers.TxPrevOutsByAddr(p.addrMap.store, p.txnsStore, msgTx, client, p.params)
 			var newInAddrs int
 			for addr, isNew := range addressesIn {
 				txAddresses[addr] = struct{}{}
@@ -246,6 +246,11 @@ func (p *MempoolMonitor) TxHandler(client txhelpers.VerboseTransactionGetter) {
 				}
 			}
 
+			// Set the input values since they are generally not set in the
+			// msgTx for a mempool transaction.
+			for i, txini := range msgTx.TxIn {
+				txini.ValueIn = valsIn[i]
+			}
 			fee, _ := txhelpers.TxFeeRate(msgTx)
 
 			tx := exptypes.MempoolTx{

@@ -316,7 +316,7 @@ func TxOutpointsByAddr(txAddrOuts MempoolAddressStore, msgTx *wire.MsgTx, params
 // transaction are counted and returned. The addresses in the previous outpoints
 // are listed in the output addrs map, where the value of the stored bool
 // indicates the address is new to the MempoolAddressStore.
-func TxPrevOutsByAddr(txAddrOuts MempoolAddressStore, txnsStore TxnsStore, msgTx *wire.MsgTx, c VerboseTransactionGetter, params *chaincfg.Params) (newPrevOuts int, addrs map[string]bool) {
+func TxPrevOutsByAddr(txAddrOuts MempoolAddressStore, txnsStore TxnsStore, msgTx *wire.MsgTx, c VerboseTransactionGetter, params *chaincfg.Params) (newPrevOuts int, addrs map[string]bool, valsIn []int64) {
 	if txAddrOuts == nil {
 		panic("TxPrevOutAddresses: input map must be initialized: map[string]*AddressOutpoints")
 	}
@@ -343,6 +343,7 @@ func TxPrevOutsByAddr(txAddrOuts MempoolAddressStore, txnsStore TxnsStore, msgTx
 	}
 
 	addrs = make(map[string]bool)
+	valsIn = make([]int64, len(msgTx.TxIn))
 
 	// For each TxIn of this transaction, inspect the previous outpoint.
 	for i := range promisesGetRawTransaction {
@@ -370,6 +371,10 @@ func TxPrevOutsByAddr(txAddrOuts MempoolAddressStore, txnsStore TxnsStore, msgTx
 
 		// prevOut.Index indicates which output.
 		txOut := prevTx.TxOut[prevOut.Index]
+
+		// Get the values.
+		valsIn[inIdx] = txOut.Value
+
 		// Extract the addresses from this output's PkScript.
 		_, txAddrs, _, err := txscript.ExtractPkScriptAddrs(
 			txOut.Version, txOut.PkScript, params)
