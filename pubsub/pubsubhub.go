@@ -468,7 +468,7 @@ loop:
 				pushMsg.Message = buff.Bytes()
 
 			case sigMempoolUpdate:
-				// You probably want the sigNewTX event. sigMempoolUpdate sends
+				// You probably want the sigNewTxs event. sigMempoolUpdate sends
 				// a summary of mempool contents, and the NumLatestMempoolTxns
 				// latest transactions.
 				inv := psh.MempoolInventory()
@@ -732,6 +732,33 @@ func (psh *PubSubHub) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBl
 			}()
 		}
 	}
+
+	// The coinbase transaction is also sent in a new transaction signal to
+	// pubsub clients.
+	newTxCoinbase := exptypes.MempoolTx{
+		TxID: coinbaseHash,
+		// Fees are 0
+		VinCount:  len(coinbaseTx.TxIn),
+		VoutCount: len(coinbaseTx.TxOut),
+		Vin:       exptypes.MsgTxMempoolInputs(coinbaseTx),
+		Coinbase:  true,
+		Hash:      coinbaseHash,
+		Time:      blockData.Header.Time,
+		Size:      int32(coinbaseTx.SerializeSize()),
+		TotalOut:  txhelpers.TotalOutFromMsgTx(coinbaseTx).ToCoin(),
+		Type:      txhelpers.DetermineTxTypeString(coinbaseTx),
+	}
+
+	go func() {
+		select {
+		case psh.wsHub.HubRelay <- pstypes.HubMessage{
+			Signal: sigNewTx,
+			Msg:    &newTxCoinbase,
+		}:
+		case <-time.After(time.Second * 10):
+			log.Errorf("sigNewTx send failed: Timeout waiting for WebsocketHub.")
+		}
+	}()
 
 	return nil
 }
