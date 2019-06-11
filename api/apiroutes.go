@@ -52,7 +52,7 @@ type DataSourceLite interface {
 	GetRawTransaction(txid *chainhash.Hash) *apitypes.Tx
 	GetTransactionHex(txid *chainhash.Hash) string
 	GetTrimmedTransaction(txid *chainhash.Hash) *apitypes.TrimmedTx
-	GetRawTransactionWithPrevOutAddresses(txid *chainhash.Hash) (*apitypes.Tx, [][]string)
+	GetRawTransactionWithPrevOutAddresses(txid *chainhash.Hash) (*apitypes.Tx, [][]string, []int64)
 	GetVoteInfo(txid *chainhash.Hash) (*apitypes.VoteInfo, error)
 	GetVoteVersionInfo(ver uint32) (*dcrjson.GetVoteInfoResult, error)
 	GetStakeVersions(txHash string, count int32) (*dcrjson.GetStakeVersionsResult, error)

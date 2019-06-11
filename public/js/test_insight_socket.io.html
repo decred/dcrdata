@@ -12,7 +12,7 @@
         var updates = document.getElementById('updates')
 
         var update = function (str) {
-            var pr = document.createElement('p')
+            var pr = document.createElement('pre')
             pr.textContent = str
             updates.appendChild(pr)
         }
@@ -20,7 +20,7 @@
         var sio = io(window.location.origin, { path: '/insight/socket.io', transports: ['websocket'], upgrade: false });
 
         sio.on('connect', function () {
-            update('Connected. Updates will be shown below.')
+            update('Connected to dcrdata\'s Insight socket.io server. Updates will be shown below.')
             sio.emit('subscribe', 'Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx');
         })
 
@@ -33,20 +33,20 @@
         });
 
         sio.on('Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx', function (data) {
-            update("New Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx address event received: " +
+            update("New Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx address event received\n" +
                 JSON.stringify(data, null, 4))
         })
 
         sio.on('tx', function (data) {
-            update("New transaction received: " + JSON.stringify(data, null, 4))
+            update("New transaction received:\n" + JSON.stringify(data, null, 4))
         })
 
         sio.on('block', function (data) {
-            update("New block received: " + JSON.stringify(data, null, 4))
+            update("New block received:\n" + JSON.stringify(data, null, 4))
         })
 
         sio.on('status', function (data) {
-            update("Status: " + JSON.stringify(data, null, 4))
+            update("Status:\n" + JSON.stringify(data, null, 4))
         })
     </script>
 </body>

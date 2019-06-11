@@ -239,7 +239,7 @@ func (wsh *WebsocketHub) run() {
 					continue
 				}
 				log.Tracef("Received new tx %s", newtx.Hash)
-				wsh.MaybeSendTxns(newtx)
+				wsh.maybeSendTxns(newtx)
 			case sigAddressTx, sigSubscribe, sigUnsubscribe:
 				// explorer's WebsocketHub does not have address subscriptions,
 				// so do not relay address signals to any clients.
@@ -325,10 +325,10 @@ func (wsh *WebsocketHub) run() {
 	} // for {
 }
 
-// MaybeSendTxns adds a mempool transaction to the client broadcast buffer. If
+// maybeSendTxns adds a mempool transaction to the client broadcast buffer. If
 // the buffer is at capacity, a goroutine is launched to signal for the
 // transactions to be sent to the clients.
-func (wsh *WebsocketHub) MaybeSendTxns(tx *types.MempoolTx) {
+func (wsh *WebsocketHub) maybeSendTxns(tx *types.MempoolTx) {
 	if wsh.addTxToBuffer(tx) {
 		// This is called from the event loop, so these sends channel may not be
 		// blocking.

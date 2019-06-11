@@ -433,7 +433,7 @@ func (p *MempoolMonitor) UnconfirmedTxnsForAddress(address string) (*txhelpers.A
 	defer p.addrMap.mtx.Unlock()
 	addrStore := p.addrMap.store
 	if addrStore == nil {
-		return nil, 0, fmt.Errorf("uininitialized MempoolAddressStore")
+		return nil, 0, fmt.Errorf("uninitialized MempoolAddressStore")
 	}
 
 	// Retrieve the AddressOutpoints for this address.

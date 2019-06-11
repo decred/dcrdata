@@ -372,7 +372,7 @@ func (wsh *WebsocketHub) Run() {
 					continue
 				}
 				log.Tracef("Received new tx %s. Queueing in each client's send buffer...", newtx.Hash)
-				someTxBuffersReady = wsh.MaybeSendTxns(newtx)
+				someTxBuffersReady = wsh.maybeSendTxns(newtx)
 			case sigSubscribe, sigUnsubscribe:
 				log.Warnf("sigSubscribe and sigUnsubscribe are not broadcastable events.")
 				continue // break events
@@ -439,10 +439,10 @@ func (wsh *WebsocketHub) Run() {
 	} // for {
 }
 
-// MaybeSendTxns adds a mempool transaction to the client broadcast buffer. If
+// maybeSendTxns adds a mempool transaction to the client broadcast buffer. If
 // the buffer is at capacity, a goroutine is launched to signal for the
 // transactions to be sent to the clients.
-func (wsh *WebsocketHub) MaybeSendTxns(tx *exptypes.MempoolTx) (someReadyToSend bool) {
+func (wsh *WebsocketHub) maybeSendTxns(tx *exptypes.MempoolTx) (someReadyToSend bool) {
 	// addTxToBuffer adds the transaction to each client's tx buffer, and
 	// indicates if at least one client has a buffer at or above the send limit.
 	someReadyToSend = wsh.addTxToBuffer(tx)

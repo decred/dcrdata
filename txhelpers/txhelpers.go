@@ -671,15 +671,14 @@ func OutPointAddresses(outPoint *wire.OutPoint, c RawTransactionGetter,
 // OutPointAddressesFromString is the same as OutPointAddresses, but it takes
 // the outpoint as the tx string, vout index, and tree.
 func OutPointAddressesFromString(txid string, index uint32, tree int8,
-	c RawTransactionGetter, params *chaincfg.Params) ([]string, error) {
+	c RawTransactionGetter, params *chaincfg.Params) ([]string, dcrutil.Amount, error) {
 	hash, err := chainhash.NewHashFromStr(txid)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid hash %s", txid)
+		return nil, 0, fmt.Errorf("Invalid hash %s", txid)
 	}
 
 	outPoint := wire.NewOutPoint(hash, index, tree)
-	outPointAddress, _, err := OutPointAddresses(outPoint, c, params)
-	return outPointAddress, err
+	return OutPointAddresses(outPoint, c, params)
 }
 
 // MedianAmount gets the median Amount from a slice of Amounts

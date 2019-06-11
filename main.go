@@ -737,7 +737,7 @@ func _main(ctx context.Context) error {
 	// full/pg mode. Since insightSocketServer is added into the url before even
 	// the sync starts, this implementation cannot be moved to
 	// initiateHandlersAndCollectBlocks function.
-	insightSocketServer, err := insight.NewSocketServer(activeChain)
+	insightSocketServer, err := insight.NewSocketServer(activeChain, dcrdClient)
 	if err != nil {
 		return fmt.Errorf("Could not create Insight socket.io server: %v", err)
 	}
@@ -787,7 +787,6 @@ func _main(ctx context.Context) error {
 		}
 
 		webMux.Get(pathPrefix+"favicon.ico", func(w http.ResponseWriter, r *http.Request) {
-			log.Infof("Serving %s", r.URL.String())
 			http.ServeFile(w, r, "./public/images/favicon/favicon.ico")
 		})
 
