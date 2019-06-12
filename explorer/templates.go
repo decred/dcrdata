@@ -5,7 +5,6 @@
 package explorer
 
 import (
-	"bytes"
 	"encoding/hex"
 	"fmt"
 	"html/template"
@@ -86,7 +85,7 @@ func (t *templates) execTemplateToString(name string, data interface{}) (string,
 		return "", fmt.Errorf("Template %s not known", name)
 	}
 
-	var page bytes.Buffer
+	var page strings.Builder
 	err := temp.template.ExecuteTemplate(&page, name, data)
 	return page.String(), err
 }
