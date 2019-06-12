@@ -12,6 +12,7 @@ import txInBlock from '../helpers/block_helper'
 import { fadeIn, animationFrame } from '../helpers/animation_helper'
 
 const blockDuration = 5 * 60000
+const maxAddrRows = 160
 let Dygraph // lazy loaded on connect
 
 function txTypesFunc (d, binSize) {
@@ -342,10 +343,10 @@ export default class extends Controller {
       if (option.value > 100) {
         if (rowMax > 100) {
           option.disabled = false
-          option.text = option.value = Math.min(rowMax, 1000)
+          option.text = option.value = Math.min(rowMax, maxAddrRows)
         } else {
           option.disabled = true
-          option.text = option.value = 1000
+          option.text = option.value = maxAddrRows
         }
       } else {
         option.disabled = rowMax <= option.value

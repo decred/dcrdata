@@ -260,11 +260,12 @@
             >
             {{$Txlen := len .Transactions}}
             <option {{if eq $Txlen 20}}selected{{end}} value="20"{{if lt $TxnCount 20}} disabled{{end}}>20</option>
-            <option {{if eq $Txlen 100}}selected{{end}} value="100"{{if lt $TxnCount 100}} disabled{{end}}>100</option>
-              {{if lt $TxnCount 1000}}
-                  <option{{if eq $Txlen $TxnCount}} selected{{end}} value="{{$TxnCount}}"{{if le $TxnCount 100}} disabled{{end}}>{{$TxnCount}}</option>
+            <option {{if eq $Txlen 40}}selected{{end}} value="40"{{if lt $TxnCount 40}} disabled{{end}}>40</option>
+            <option {{if eq $Txlen 80}}selected{{end}} value="80"{{if lt $TxnCount 80}} disabled{{end}}>80</option>
+              {{if lt $TxnCount 160}}
+                  <option{{if eq $Txlen $TxnCount}} selected{{end}} value="{{$TxnCount}}"{{if le $TxnCount 160}} disabled{{end}}>{{$TxnCount}}</option>
               {{else}}
-                  <option{{if eq $Txlen 1000}} selected{{end}} value="1000">1000</option>
+                  <option{{if eq $Txlen 160}} selected{{end}} value="160">160</option>
               {{end}}
             </select>
         </div>
