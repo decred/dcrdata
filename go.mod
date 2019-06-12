@@ -15,7 +15,7 @@ require (
 	github.com/decred/dcrdata/api/types/v2 v2.1.0
 	github.com/decred/dcrdata/blockdata v1.0.2
 	github.com/decred/dcrdata/db/dbtypes v1.1.0
-	github.com/decred/dcrdata/db/dcrpg/v2 v2.0.0
+	github.com/decred/dcrdata/db/dcrpg/v2 v2.0.1
 	github.com/decred/dcrdata/db/dcrsqlite/v2 v2.0.0
 	github.com/decred/dcrdata/exchanges v1.0.0
 	github.com/decred/dcrdata/explorer/types v1.0.1
