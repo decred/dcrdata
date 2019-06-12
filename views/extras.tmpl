@@ -1,368 +1,358 @@
 {{define "html-head"}}
 <head data-turbolinks-eval="false">
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
-    <meta name="description" content="dcrdata, an original Decred block explorer powered by Go">
-    <meta name="author" content="The Decred developers">
-    <meta name="application-name"           content="Decred - Autonomous Digital Currency">
-    <meta name="apple-mobile-web-app-title" content="Decred - Autonomous Digital Currency">
-    <!--  Custom favicon  -->
-        <!-- Apple PWA -->
-        <link rel="apple-touch-icon" sizes="57x57"   href="/images/favicon/apple-touch-icon-57x57.png?v=yHh3NA">
-        <link rel="apple-touch-icon" sizes="60x60"   href="/images/favicon/apple-touch-icon-60x60.png?v=yHh3NA">
-        <link rel="apple-touch-icon" sizes="72x72"   href="/images/favicon/apple-touch-icon-72x72.png?v=yHh3NA">
-        <link rel="apple-touch-icon" sizes="76x76"   href="/images/favicon/apple-touch-icon-76x76.png?v=yHh3NA">
-        <link rel="apple-touch-icon" sizes="114x114" href="/images/favicon/apple-touch-icon-114x114.png?v=yHh3NA">
-        <link rel="apple-touch-icon" sizes="120x120" href="/images/favicon/apple-touch-icon-120x120.png?v=yHh3NA">
-        <link rel="apple-touch-icon" sizes="144x144" href="/images/favicon/apple-touch-icon-144x144.png?v=yHh3NA">
-        <link rel="apple-touch-icon" sizes="152x152" href="/images/favicon/apple-touch-icon-152x152.png?v=yHh3NA">
-        <link rel="apple-touch-icon" sizes="180x180" href="/images/favicon/apple-touch-icon-180x180.png?v=yHh3NA">
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+	<meta name="description" content="dcrdata, an original Decred block explorer powered by Go">
+	<meta name="author" content="The Decred developers">
+	<meta name="application-name"           content="Decred - Autonomous Digital Currency">
+	<meta name="apple-mobile-web-app-title" content="Decred - Autonomous Digital Currency">
+	<!--  Custom favicon  -->
+		<!-- Apple PWA -->
+		<link rel="apple-touch-icon" sizes="57x57"   href="/images/favicon/apple-touch-icon-57x57.png?v=yHh3NA">
+		<link rel="apple-touch-icon" sizes="60x60"   href="/images/favicon/apple-touch-icon-60x60.png?v=yHh3NA">
+		<link rel="apple-touch-icon" sizes="72x72"   href="/images/favicon/apple-touch-icon-72x72.png?v=yHh3NA">
+		<link rel="apple-touch-icon" sizes="76x76"   href="/images/favicon/apple-touch-icon-76x76.png?v=yHh3NA">
+		<link rel="apple-touch-icon" sizes="114x114" href="/images/favicon/apple-touch-icon-114x114.png?v=yHh3NA">
+		<link rel="apple-touch-icon" sizes="120x120" href="/images/favicon/apple-touch-icon-120x120.png?v=yHh3NA">
+		<link rel="apple-touch-icon" sizes="144x144" href="/images/favicon/apple-touch-icon-144x144.png?v=yHh3NA">
+		<link rel="apple-touch-icon" sizes="152x152" href="/images/favicon/apple-touch-icon-152x152.png?v=yHh3NA">
+		<link rel="apple-touch-icon" sizes="180x180" href="/images/favicon/apple-touch-icon-180x180.png?v=yHh3NA">
 
-        <!-- Browser -->
-        <link rel="icon" href="/images/favicon/favicon.ico?v=yHh3NA">
-        <link rel="icon" href="/images/favicon/favicon-32x32.png?v=yHh3NA" type="image/png" sizes="32x32">
-        <link rel="icon" href="/images/favicon/favicon-16x16.png?v=yHh3NA" type="image/png" sizes="16x16">
+		<!-- Browser -->
+		<link rel="icon" href="/images/favicon/favicon.ico?v=yHh3NA">
+		<link rel="icon" href="/images/favicon/favicon-32x32.png?v=yHh3NA" type="image/png" sizes="32x32">
+		<link rel="icon" href="/images/favicon/favicon-16x16.png?v=yHh3NA" type="image/png" sizes="16x16">
 
-        <!-- Android PWA -->
-        <link rel="manifest" href="/images/favicon/manifest.json?v=yHh3NA">
+		<!-- Android PWA -->
+		<link rel="manifest" href="/images/favicon/manifest.json?v=yHh3NA">
 
-        <!-- Safari -->
-        <link rel="mask-icon" href="/images/favicon/safari-pinned-tab.svg?v=yHh3NA" color="#091440">
+		<!-- Safari -->
+		<link rel="mask-icon" href="/images/favicon/safari-pinned-tab.svg?v=yHh3NA" color="#091440">
 
-        <!-- Windows PWA -->
-        <meta name="msapplication-TileColor" content="#091440">
-        <meta name="msapplication-TileImage" content="/images/favicon/mstile-144x144.png?v=fi5jKKtbwv">
-        <meta name="msapplication-config" content="/images/favicon/browserconfig.xml?v=fi5jKKtbwv">
-    <!-- End custom favicon -->
+		<!-- Windows PWA -->
+		<meta name="msapplication-TileColor" content="#091440">
+		<meta name="msapplication-TileImage" content="/images/favicon/mstile-144x144.png?v=fi5jKKtbwv">
+		<meta name="msapplication-config" content="/images/favicon/browserconfig.xml?v=fi5jKKtbwv">
+	<!-- End custom favicon -->
 
-    <meta name="turbolinks-cache-control" content="no-cache">
-    <title>{{.}}</title>
-    <link rel="preload" href="/fonts/icomoon.ttf?g003m6" as="font" type="font/ttf" crossorigin="anonymous" />
-    <link rel="preload" href="/fonts/inconsolata-v15-latin-regular.woff" as="font" type="font/woff" crossorigin="anonymous" />
-    <link rel="preload" href="/fonts/source-sans-pro-v9-latin-regular.woff" as="font" type="font/woff" crossorigin="anonymous" />
-    <link rel="preload" href="/images/connecting.svg" as="image" type="image/svg+xml" />
-    <link rel="preload" href="/images/themes/light/logo.svg" as="image" type="image/svg+xml" />
-    <link rel="preload" href="/images/connected.svg" as="image" type="image/svg+xml" />
-    <link rel="preload" href="/images/disconnected.svg" as="image" type="image/svg+xml" />
-    <link href="/dist/css/style.css" rel="stylesheet">
+	<meta name="turbolinks-cache-control" content="no-cache">
+	<title>{{.}}</title>
+	<link rel="preload" href="/fonts/icomoon.ttf?g003m6" as="font" type="font/ttf" crossorigin="anonymous" />
+	<link rel="preload" href="/fonts/inconsolata-v15-latin-regular.woff" as="font" type="font/woff" crossorigin="anonymous" />
+	<link rel="preload" href="/fonts/source-sans-pro-v9-latin-regular.woff" as="font" type="font/woff" crossorigin="anonymous" />
+	<link rel="preload" href="/images/connecting.svg" as="image" type="image/svg+xml" />
+	<link rel="preload" href="/images/themes/light/logo.svg" as="image" type="image/svg+xml" />
+	<link rel="preload" href="/images/connected.svg" as="image" type="image/svg+xml" />
+	<link rel="preload" href="/images/disconnected.svg" as="image" type="image/svg+xml" />
+	<link href="/dist/css/style.css" rel="stylesheet">
 
-    <script src="/js/vendor/turbolinks.min.js"></script>
+	<script src="/js/vendor/turbolinks.min.js"></script>
 </head>
 {{end}}
 
 {{define "navbar"}}
 <body class="{{ theme }}{{if .Cookies.DarkMode}} darkBG{{end}}">
 <header class="top-nav"
-        id="navBar"
-        data-blocktime="{{.BlockTimeUnix}}">
-    <div class="container">
-        <div class="d-flex align-items-center flex-wrap">
-            <div class="d-flex align-items-center">
-                <div class="col-sm-auto" style="padding: 0 2px">
-                    <a href="/" class="no-underline d-block home-link">
-                        <div class="dcrdata-logo"></div>
-                    </a>
-                </div>
-            </div>
-            <div class="col px-4 text-right">
-                <form
-                    class="search-form"
-                    role="search"
-                    id="search-form"
-                    action="/search"
-                    data-controller="search"
-                    data-action="submit->search#execute"
-                >
-                    <input
-                        tabindex="0"
-                        type="text"
-                        name="search"
-                        id="search"
-                        class="top-search mousetrap"
-                        placeholder="Search for blocks, addresses, transactions or proposal tokens"
-                        spellcheck="false"
-                    />
-                    <button class="search-bttn"><span class="dcricon-search"></span></button>
-                </form>
-            </div>
-            <nav role="navigation" id="hamburger-menu" data-controller="menu" data-turbolinks-permanent>
-                <div id="menuToggle">
-                    <input type="checkbox" data-target="menu.toggle" data-action="change->menu#toggle"/>
-                    <span class="patty"></span>
-                    <span class="patty"></span>
-                    <span class="patty short"></span>
-                    <div id="menu">
-                        <a class="menu-item" data-keynav-skip href="/" title="Home">Home</a>
-                        <a class="menu-item" data-keynav-skip href="/blocks" title="Decred blocks">Blocks</a>
-                        <a class="menu-item" data-keynav-skip href="/mempool" title="Decred mempool">Mempool</a>
-                        <a class="menu-item" data-keynav-skip href="/ticketpool" title="Decred ticket pool">Ticket Pool</a>
-                        <a class="menu-item jsonly" data-keynav-skip href="/charts" title="Decred charts">Charts</a>
-                        <a class="menu-item" data-keynav-skip href="/agendas" title="Agendas">Agendas</a>
-                        <a class="menu-item" data-keynav-skip href="/proposals" title="Proposals">Proposals</a>
-                        <a class="menu-item" data-keynav-skip href="/market" title="Market">Market</a>
-                        <a class="menu-item" data-keynav-skip href="/parameters" title="Chain Parameters">Parameters</a>
-                        <a class="menu-item" data-keynav-skip href="/address/{{.DevAddress}}?txntype=merged_debit" title="Decred Treasury">Treasury</a>
-                        <a class="menu-item" data-keynav-skip href="/decodetx" title="Decode or send a raw transaction">Decode/Broadcast Tx</a>
-                        {{if eq .NetName "Mainnet"}}
-                            <a class="menu-item" data-keynav-skip href="{{.Links.Testnet}}" title="Home">Switch To Testnet</a>
-                        {{else}}
-                            <a class="menu-item" data-keynav-skip href="{{.Links.Mainnet}}" title="Home">Switch To Mainnet</a>
-                        {{end}}
-                        <form action="/set" method="post">
-                            <input type="hidden" name="darkmode" value="darkmode">
-                            <input type="hidden" name="requestURI" value="{{.RequestURI}}">
-                            <button type="submit"
-                                    class="menu-submit text-left w-100 p-0"
-                                    data-keynav-skip>
-                                    <div class="menu-item" data-action="click->menu#onSunClick">
-                                      <span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span>
-                                      Night Mode
-                                    </div>
-                            </button>
-                        </form>
-                        <a class="menu-item" data-keynav-skip data-turbolinks="false" href="#" class="jsonly" id="keynav-toggle">
-                            <span class="text">Enable Hot Keys</span><span class="keys-hint">(&nbsp;&nbsp;<span class="arrows"> &#8592;<br>&#8594;</span>&nbsp;&nbsp;enter&nbsp;&nbsp;\&nbsp;&nbsp;=&nbsp;&nbsp;)</span>
-                        </a>
-                        <a class="menu-item" data-keynav-skip href="{{.Links.APIDocs}}" title="API Endpoints" target="_blank" rel="noopener noreferrer">JSON API Docs</a>
-                    </div>
-                </div>
-            </nav>
-        </div>
-    </div>
+		id="navBar"
+		data-blocktime="{{.BlockTimeUnix}}">
+	<div class="container">
+		<div class="d-flex align-items-center flex-wrap">
+			<div class="d-flex align-items-center">
+				<div class="col-sm-auto" style="padding: 0 2px">
+					<a href="/" class="no-underline d-block home-link">
+						<div class="dcrdata-logo"></div>
+					</a>
+				</div>
+			</div>
+			<div class="col px-4 text-right">
+				<form
+					class="search-form"
+					role="search"
+					id="search-form"
+					action="/search"
+					data-controller="search"
+					data-action="submit->search#execute"
+				>
+					<input
+						tabindex="0"
+						type="text"
+						name="search"
+						id="search"
+						class="top-search mousetrap"
+						placeholder="Search for blocks, addresses, transactions or proposal tokens"
+						spellcheck="false"
+					/>
+					<button class="search-bttn"><span class="dcricon-search"></span></button>
+				</form>
+			</div>
+			<nav role="navigation" id="hamburger-menu" data-controller="menu" data-turbolinks-permanent>
+				<div id="menuToggle">
+					<input type="checkbox" data-target="menu.toggle" data-action="change->menu#toggle"/>
+					<span class="patty"></span>
+					<span class="patty"></span>
+					<span class="patty short"></span>
+					<div id="menu">
+						<a class="menu-item" data-keynav-skip href="/" title="Home">Home</a>
+						<a class="menu-item" data-keynav-skip href="/blocks" title="Decred blocks">Blocks</a>
+						<a class="menu-item" data-keynav-skip href="/mempool" title="Decred mempool">Mempool</a>
+						<a class="menu-item" data-keynav-skip href="/ticketpool" title="Decred ticket pool">Ticket Pool</a>
+						<a class="menu-item jsonly" data-keynav-skip href="/charts" title="Decred charts">Charts</a>
+						<a class="menu-item" data-keynav-skip href="/agendas" title="Agendas">Agendas</a>
+						<a class="menu-item" data-keynav-skip href="/proposals" title="Proposals">Proposals</a>
+						<a class="menu-item" data-keynav-skip href="/market" title="Market">Market</a>
+						<a class="menu-item" data-keynav-skip href="/parameters" title="Chain Parameters">Parameters</a>
+						<a class="menu-item" data-keynav-skip href="/address/{{.DevAddress}}?txntype=merged_debit" title="Decred Treasury">Treasury</a>
+						<a class="menu-item" data-keynav-skip href="/decodetx" title="Decode or send a raw transaction">Decode/Broadcast Tx</a>
+						{{if eq .NetName "Mainnet"}}
+							<a class="menu-item" data-keynav-skip href="{{.Links.Testnet}}" title="Home">Switch To Testnet</a>
+						{{else}}
+							<a class="menu-item" data-keynav-skip href="{{.Links.Mainnet}}" title="Home">Switch To Mainnet</a>
+						{{end}}
+						<form action="/set" method="post">
+							<input type="hidden" name="darkmode" value="darkmode">
+							<input type="hidden" name="requestURI" value="{{.RequestURI}}">
+							<button type="submit"
+									class="menu-submit text-left w-100 p-0"
+									data-keynav-skip>
+									<div class="menu-item" data-action="click->menu#onSunClick">
+									  <span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span>
+									  Night Mode
+									</div>
+							</button>
+						</form>
+						<a class="menu-item" data-keynav-skip data-turbolinks="false" href="#" class="jsonly" id="keynav-toggle">
+							<span class="text">Enable Hot Keys</span><span class="keys-hint">(&nbsp;&nbsp;<span class="arrows"> &#8592;<br>&#8594;</span>&nbsp;&nbsp;enter&nbsp;&nbsp;\&nbsp;&nbsp;=&nbsp;&nbsp;)</span>
+						</a>
+						<a class="menu-item" data-keynav-skip href="{{.Links.APIDocs}}" title="API Endpoints" target="_blank" rel="noopener noreferrer">JSON API Docs</a>
+					</div>
+				</div>
+			</nav>
+		</div>
+	</div>
 </header>
 {{end}}
 
 {{define "footer"}}
 <footer class="navbar-fixed-bottom">
-    <div class="container d-flex justify-content-between align-items-center">
-        <span>
-            <span data-controller="time" data-target="time.blocktime" data-stamp="{{$.Tip.Time}}"></span> <span class="d-none d-sm-inline">since last block</span>
-        </span>
-        <span>
-            <a
-                class="text-nowrap d-none d-md-inline-block pr-3"
-                href="{{.Links.Github}}"
-                title="dcrdata on GitHub"
-                target="_blank"
-                rel="noopener noreferrer"
-            >dcrdata v{{.Version}}</a>
-            <a
-                class="text-nowrap"
-                href="{{.Links.License}}"
-                target="_blank"
-                rel="noopener noreferrer"
-            >© 2019 The Decred developers (ISC)</a>
-        </span>
-        <span
-            id="connection"
-            class="text-nowrap align-items-center clickable d-inline-block"
-            data-turbolinks-permanent
-            data-controller="connection"
-            data-target="connection.indicator"
-            data-action="click->connection#requestNotifyPermission"
-            title="While connected, you will receive live page updates and, if enabled, desktop notifications (click to enable)."
-            ><span class="d-none d-sm-inline" data-target="connection.status">Connecting <span class="d-none d-md-inline-block">to WebSocket...</span></span><div></div>
-        </span>
-    </div>
-    <script
-        src="/dist/js/vendors~app.bundle.js"
-        data-turbolinks-eval="false"
-        data-turbolinks-suppress-warning
-    ></script>
-    <script
-        src="/dist/js/app.bundle.js"
-        data-turbolinks-eval="false"
-        data-turbolinks-suppress-warning
-    ></script>
+	<div class="container d-flex justify-content-between align-items-center">
+		<span>
+			<span data-controller="time" data-target="time.blocktime" data-stamp="{{$.Tip.Time}}"></span> <span class="d-none d-sm-inline">since last block</span>
+		</span>
+		<span>
+			<a
+				class="text-nowrap d-none d-md-inline-block pr-3"
+				href="{{.Links.Github}}"
+				title="dcrdata on GitHub"
+				target="_blank"
+				rel="noopener noreferrer"
+			>dcrdata v{{.Version}}</a>
+			<a
+				class="text-nowrap"
+				href="{{.Links.License}}"
+				target="_blank"
+				rel="noopener noreferrer"
+			>© 2019 The Decred developers (ISC)</a>
+		</span>
+		<span
+			id="connection"
+			class="text-nowrap align-items-center clickable d-inline-block"
+			data-turbolinks-permanent
+			data-controller="connection"
+			data-target="connection.indicator"
+			data-action="click->connection#requestNotifyPermission"
+			title="While connected, you will receive live page updates and, if enabled, desktop notifications (click to enable)."
+			><span class="d-none d-sm-inline" data-target="connection.status">Connecting <span class="d-none d-md-inline-block">to WebSocket...</span></span><div></div>
+		</span>
+	</div>
+	<script
+		src="/dist/js/vendors~app.bundle.js"
+		data-turbolinks-eval="false"
+		data-turbolinks-suppress-warning
+	></script>
+	<script
+		src="/dist/js/app.bundle.js"
+		data-turbolinks-eval="false"
+		data-turbolinks-suppress-warning
+	></script>
 </footer>
 {{end}}
 
 {{define "decimalParts"}}
 <div class="decimal-parts d-inline-block">
-    {{if eq (len .) 4}}
-        <span class="int">{{ index . 0 }}.{{ index . 1 }}</span
-        >{{if gt (len (index . 2)) 0}}<span class="decimal">{{ index . 2 }}</span
-        ><span class="decimal trailing-zeroes">{{ index . 3 }}</span>{{end}}
-    {{else}}
-        <span class="int">{{index . 0}}</span
-        >{{if gt (len (index . 1)) 0}}<span class="decimal dot">.</span
-        ><span class="decimal">{{index . 1 }}</span
-        ><span class="decimal trailing-zeroes">{{index . 2}}</span>{{end}}
-    {{end}}
-    </div>
+	{{if eq (len .) 4}}
+		<span class="int">{{ index . 0 }}.{{ index . 1 }}</span
+		>{{if gt (len (index . 2)) 0}}<span class="decimal">{{ index . 2 }}</span
+		><span class="decimal trailing-zeroes">{{ index . 3 }}</span>{{end}}
+	{{else}}
+		<span class="int">{{index . 0}}</span
+		>{{if gt (len (index . 1)) 0}}<span class="decimal dot">.</span
+		><span class="decimal">{{index . 1 }}</span
+		><span class="decimal trailing-zeroes">{{index . 2}}</span>{{end}}
+	{{end}}
+	</div>
 {{end}}
 
 {{define "fmtPercentage"}}
-    {{if gt . 0.0}}<span class="text-green">+{{printf "%.2f" .}} %</span>
-    {{else}}<span class="text-danger">{{printf "%.2f" .}} %</span>{{end}}
+	{{if gt . 0.0}}<span class="text-green">+{{printf "%.2f" .}} %</span>
+	{{else}}<span class="text-danger">{{printf "%.2f" .}} %</span>{{end}}
 {{end}}
 
 {{define "listViewRouting"}}
-    <div class="fs12 nowrap text-left" style="margin:auto auto auto 0px;">
-        <select
-          class="form-control-sm mb-2 mr-sm-2 mb-sm-0"
-          data-target="pagenavigation.listview"
-          data-action="change->pagenavigation#setListView"
-          >
-            <option {{if eq . "years"}}selected{{end}} value="years">Years</option>
-            <option {{if eq . "months"}}selected{{end}} value="months">Months</option>
-            <option {{if eq . "weeks"}}selected{{end}} value="weeks">Weeks</option>
-            <option {{if eq . "days"}}selected{{end}} value="days">Days</option>
-            <option {{if eq . "windows"}}selected{{end}} value="ticketpricewindows">Windows</option>
-            <option {{if eq . "blocks"}}selected{{end}} value="blocks">Blocks</option>
-        </select>
-    </div>
+	<div class="fs12 nowrap text-left" style="margin:auto auto auto 0px;">
+		<select
+		  class="form-control-sm mb-2 mr-sm-2 mb-sm-0"
+		  data-target="pagenavigation.listview"
+		  data-action="change->pagenavigation#setListView"
+		  >
+			<option {{if eq . "years"}}selected{{end}} value="years">Years</option>
+			<option {{if eq . "months"}}selected{{end}} value="months">Months</option>
+			<option {{if eq . "weeks"}}selected{{end}} value="weeks">Weeks</option>
+			<option {{if eq . "days"}}selected{{end}} value="days">Days</option>
+			<option {{if eq . "windows"}}selected{{end}} value="ticketpricewindows">Windows</option>
+			<option {{if eq . "blocks"}}selected{{end}} value="blocks">Blocks</option>
+		</select>
+	</div>
 {{end}}
 
 {{define "hashElide"}}
   {{$hash := (index . 0)}}
   {{$link := (index . 1)}}
   {{if eq $link ""}}
-    <div
+	<div
   {{else}}
-    <a href="{{$link}}"
+	<a href="{{$link}}"
   {{end}}
-    data-keynav-priority
-    class="elidedhash mono"
-    data-head="{{hashStart $hash}}"
-    data-tail="{{hashEnd $hash}}"
-    >{{$hash}}{{if eq $link ""}}</div>{{else}}</a>{{end}}
+	data-keynav-priority
+	class="elidedhash mono"
+	data-head="{{hashStart $hash}}"
+	data-tail="{{hashEnd $hash}}"
+	>{{$hash}}{{if eq $link ""}}</div>{{else}}</a>{{end}}
 {{end}}
 
 {{define "addressTable"}}
-  {{$TxnCount := .TxnCount}}
-  {{$txType := .TxnType}}
-  {{$isMerged := .IsMerged}}
-  {{if .Transactions}}
-  <table class="table table-mono-cells table-responsive-sm">
-      <thead>
-          <th class="d-none d-sm-table-cell">Tx Type</th>
-          <th class="text-left">Input/&#8203;Output ID</th>
-          {{if eq $txType "merged_debit"}}
-              <th class="text-right"><span class="d-sm-none position-relative" data-tooltip="merged input count">Cnt</span
-                ><span class="d-none d-sm-inline">Inputs</span>
-              </th>
-              <th class="text-right">Debit DCR</th>
-          {{else if eq $txType "merged_credit" }}
-              <th class="text-right"><span class="d-sm-none position-relative" data-tooltip="merged output count">Cnt</span
-                ><span class="d-none d-sm-inline">Outputs</span>
-              </th>
-              <th class="text-right">Credit DCR</th>
-          {{else if eq $txType "merged" }}
-              <th title="Count of address's inputs and outputs in the transaction." class="text-right"><span class="d-none d-sm-inline-block">I/O Count</span><span class="d-sm-none position-relative" data-tooltip="# of inputs and outputs">#</span></th>
-              <th class="text-right">Credit DCR</th>
-              <th class="text-right">Debit DCR</th>
-          {{else}}
-              <th class="text-right">Credit DCR</th>
-              <th class="text-right">Debit DCR</th>
-          {{end}}
-          <th class="d-none d-sm-table-cell text-right">Time</th>
-          <th class="text-right">Age</th>
-          <th class="text-right"><span class="d-sm-none position-relative" data-tooltip="Confirmations">Cons</span><span class="d-none d-sm-inline">Confirms</span></th>
-          <th class="d-none d-sm-table-cell text-right">Size</th>
-      </thead>
-      <tbody>
-          {{range $i, $v := .Transactions}}
-          <tr {{if eq .Confirmations 0}} data-target="address.pending" data-txid="{{.TxID}}" {{end}}>
-              {{with $v}}
-              <td class="d-none d-sm-table-cell">{{.TxType}}</td>
-              <td>{{template "hashElide" (hashlink .TxID .Link)}}</td>
+	{{$txType := .TxnType}}
+	{{if .Transactions}}
+	<table class="table table-mono-cells table-responsive-sm">
+		<thead>
+			<th class="d-none d-sm-table-cell">Tx Type</th>
+			<th class="text-left">Input/&#8203;Output ID</th>
+		{{if eq $txType "merged_debit"}}
+			<th class="text-right"><span class="d-sm-none position-relative" data-tooltip="merged input count">Cnt</span
+				><span class="d-none d-sm-inline">Inputs</span>
+			</th>
+			<th class="text-right">Debit DCR</th>
+		{{else if eq $txType "merged_credit" }}
+			<th class="text-right"><span class="d-sm-none position-relative" data-tooltip="merged output count">Cnt</span
+				><span class="d-none d-sm-inline">Outputs</span>
+			</th>
+			<th class="text-right">Credit DCR</th>
+		{{else if eq $txType "merged" }}
+			<th title="Count of address's inputs and outputs in the transaction." class="text-right"><span class="d-none d-sm-inline-block">I/O Count</span><span class="d-sm-none position-relative" data-tooltip="# of inputs and outputs">#</span></th>
+			<th class="text-right">Credit DCR</th>
+			<th class="text-right">Debit DCR</th>
+		{{else}}
+			<th class="text-right">Credit DCR</th>
+			<th class="text-right">Debit DCR</th>
+		{{end}}
+			<th class="d-none d-sm-table-cell text-right">Time</th>
+			<th class="text-right">Age</th>
+			<th class="text-right"><span class="d-sm-none position-relative" data-tooltip="Confirmations">Cons</span><span class="d-none d-sm-inline">Confirms</span></th>
+			<th class="d-none d-sm-table-cell text-right">Size</th>
+		</thead>
+		<tbody>
+		{{range .Transactions}}
+			<tr {{if eq .Confirmations 0}}data-target="address.pending" data-txid="{{.TxID}}"{{end}}>
+				<td class="d-none d-sm-table-cell">{{.TxType}}</td>
+				<td>{{template "hashElide" (hashlink .TxID .Link)}}</td>
 
-              {{if eq $txType "merged_debit"}}
-                <td class="text-right">{{.MergedTxnCount}}</td>
-                <td class="text-right fs15">
-                  {{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}
-                </td>
+			{{if eq $txType "merged_debit"}}
+				<td class="text-right">{{.MergedTxnCount}}</td>
+				<td class="text-right fs15">
+					{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}
+				</td>
 
-              {{else if eq $txType "merged_credit"}}
-                <td class="text-right">{{.MergedTxnCount}}</td>
-                <td class="text-right fs15">
-                  {{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}
-                </td>
+			{{else if eq $txType "merged_credit"}}
+				<td class="text-right">{{.MergedTxnCount}}</td>
+				<td class="text-right fs15">
+					{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}
+				</td>
 
-              {{else if eq $txType "merged"}}
-                <td class="text-right">{{.MergedTxnCount}}</td>
-                {{if .IsFunding}}
-                  <td class="text-right fs15">
-                    {{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}
-                  </td>
-                  <td class="text-right">&mdash;</td>
-                {{else}}
-                  <td class="text-right">&mdash;</td>
-                  <td class="text-right fs15">
-                    {{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}
-                  </td>
-                {{end}}
+			{{else if eq $txType "merged"}}
+				<td class="text-right">{{.MergedTxnCount}}</td>
+				{{if .IsFunding}}
+				<td class="text-right fs15">
+					{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}
+				</td>
+				<td class="text-right">&mdash;</td>
+				{{else}}
+				<td class="text-right">&mdash;</td>
+				<td class="text-right fs15">
+					{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}
+				</td>
+				{{end}}
 
-              {{else if or (eq $txType "credit") .IsFunding}}  <!-- .IsFunding = true && txType = "all" is a credit -->
-                <td class="text-right fs15">
-                  {{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}
-                </td>
-                {{if ne .MatchedTx ""}}
-                    <td class="text-right"><a href="/tx/{{.MatchedTx}}/in/{{.MatchedTxIndex}}"
-                      data-txid="{{.MatchedTx}}"
-                      data-action="mouseover->address#hashOver mouseout->address#hashOut"
-                      >spent</a></td>
-                {{else}}
-                    <td class="text-right">unspent</td>
-                {{end}}
+			{{else if or (eq $txType "credit") .IsFunding}}  <!-- .IsFunding = true && txType = "all" is a credit -->
+				<td class="text-right fs15">
+					{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}
+				</td>
+				{{if ne .MatchedTx ""}}
+				<td class="text-right"><a href="/tx/{{.MatchedTx}}/in/{{.MatchedTxIndex}}"
+					data-txid="{{.MatchedTx}}"
+					data-action="mouseover->address#hashOver mouseout->address#hashOut"
+					>spent</a></td>
+				{{else}}
+				<td class="text-right">unspent</td>
+				{{end}}
 
-              {{else}} <!-- either "credit", or "all" with .IsFunding = false -->
-                {{if eq .SentTotal 0.0}}
-                  <td class="text-right">sstxcommitment</td>
-                {{else if ne .MatchedTx ""}}
-                  <td class="text-right"><a
-                    href="/tx/{{.MatchedTx}}/out/{{.MatchedTxIndex}}"
-                    data-action="mouseover->address#hashOver mouseout->address#hashOut"
-                    >source</a></td>
-                {{else}}
-                  <td class="text-right">N/A</td>
-                {{end}}
-                <td class="text-right fs15">
-                  {{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}
-                </td>
-              {{end}}
+			{{else}} <!-- either "debit", or "all" with .IsFunding = false -->
+				{{if eq .SentTotal 0.0}}
+				<td class="text-right">sstxcommitment</td>
+				{{else if ne .MatchedTx ""}}
+				<td class="text-right"><a
+					href="/tx/{{.MatchedTx}}/out/{{.MatchedTxIndex}}"
+					data-action="mouseover->address#hashOver mouseout->address#hashOut"
+					>source</a></td>
+				{{else}}
+				<td class="text-right">N/A</td>
+				{{end}}
 
-              <td class="addr-tx-time d-none d-sm-table-cell text-right">
-                  {{if eq .Confirmations 0}}
-                      Unconfirmed
-                  {{else}}
-                      {{.Time}}
-                  {{end}}
-              </td>
-              <td class="addr-tx-age text-right">
-              {{if eq (.Time.T.Unix) 0}}
-                  N/A
-              {{else}}
-                  <span data-controller="time" data-target="time.age" data-age="{{.Time.UNIX}}"></span>
-              {{end}}
-              </td>
+				<td class="text-right fs15">
+					{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}
+				</td>
+			{{end}}
 
-              <td class="addr-tx-confirms text-right"
-                  data-target="newblock.confirmations"
-                  data-confirmations="{{.Confirmations}}"
-                  data-confirmation-block-height="{{if eq .Confirmations 0}}-1{{else}}{{.BlockHeight}}{{end}}"
-                  data-yes="#"
-                  data-no="(unconfirmed)"
-              >{{.Confirmations}}</td>
+				<td class="addr-tx-time d-none d-sm-table-cell text-right">{{if eq .Confirmations 0}}Unconfirmed{{else}}{{.Time}}{{end}}</td>
+				<td class="addr-tx-age text-right">
+				{{if eq (.Time.T.Unix) 0}}
+					N/A
+				{{else}}
+					<span data-controller="time" data-target="time.age" data-age="{{.Time.UNIX}}"></span>
+				{{end}}
+				</td>
 
-              <td class="text-right d-none d-sm-table-cell text-right">{{.FormattedSize}}</td>
-              {{end}}
-          </tr>
-          {{end}}
-      </tbody>
-  </table>
-  {{else}}
-  <table class="table table-mono-cells">
-      <tr>
-          <td>
-              No transactions found for this address.
-          </td>
-      </tr>
-  </table>
-  {{end}}
+				<td class="addr-tx-confirms text-right"
+					data-target="newblock.confirmations"
+					data-confirmations="{{.Confirmations}}"
+					data-confirmation-block-height="{{if eq .Confirmations 0}}-1{{else}}{{.BlockHeight}}{{end}}"
+					data-yes="#"
+					data-no="(unconfirmed)"
+			  	>{{.Confirmations}}</td>
+				<td class="text-right d-none d-sm-table-cell text-right">{{.FormattedSize}}</td>
+			</tr>
+			{{end}}
+		</tbody>
+	</table>
+	{{else}}
+	<table class="table table-mono-cells">
+		<tr>
+			<td>
+				No transactions found for this address.
+			</td>
+		</tr>
+	</table>
+	{{end}}
 {{end}}
 
 {{define "mempoolDump"}}
