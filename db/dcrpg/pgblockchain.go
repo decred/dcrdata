@@ -2326,6 +2326,7 @@ FUNDING_TX_DUPLICATE_CHECK:
 				FormattedSize: humanize.Bytes(uint64(fundingTx.Tx.SerializeSize())),
 				Total:         txhelpers.TotalOutFromMsgTx(fundingTx.Tx).ToCoin(),
 				ReceivedTotal: dcrutil.Amount(fundingTx.Tx.TxOut[f.Index].Value).ToCoin(),
+				IsFunding:     true,
 			}
 			addrData.Transactions = append(addrData.Transactions, addrTx)
 		}
