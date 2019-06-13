@@ -71,7 +71,7 @@ func TestMain(m *testing.M) {
 // No difference between the two should exist otherwise this test should fail.
 // It also checks the order and duplicates in the x-axis dataset.
 func TestPgCharts(t *testing.T) {
-	charts := cache.NewChartData(0, time.Now(), &chaincfg.MainNetParams, context.Background())
+	charts := cache.NewChartData(context.Background(), 0, &chaincfg.MainNetParams)
 	charts.DiffInterval = 10
 	db.RegisterCharts(charts)
 	blocks := charts.Blocks

@@ -361,7 +361,6 @@ type ChartUpdater struct {
 type ChartData struct {
 	mtx          sync.RWMutex
 	ctx          context.Context
-	genesis      uint64
 	DiffInterval int32
 	StartPOS     int32
 	Blocks       *zoomSet
@@ -435,26 +434,39 @@ func (charts *ChartData) Lengthen() error {
 	}
 
 	days := charts.Days
-	// Truncate the last stamp to midnight
+
+	// Get the current first and last midnight stamps.
 	end := midnight(blocks.Time[len(blocks.Time)-1])
 	var start uint64
 	if len(days.Time) > 0 {
 		start = days.Time[len(days.Time)-1] // already truncated to midnight
 	} else {
-		start = midnight(charts.genesis)
+		// Start from the beginning.
+		// Already checked for empty blocks above.
+		start = midnight(blocks.Time[0])
 	}
+
+	// Find the index that begins new data.
+	offset := 0
+	for i, t := range blocks.Time {
+		if t > start {
+			offset = i
+			break
+		}
+	}
+
 	intervals := [][2]int{}
 	// If there is day or more worth of new data, append to the Days zoomSet by
 	// finding the first and last+1 blocks of each new day, and taking averages
 	// or sums of the blocks in the interval.
 	if end > start+aDay {
 		next := start + aDay
-		startIdx := -1
-		for i, t := range blocks.Time {
-			if t < start {
-				continue
-			} else if t >= next {
-				intervals = append(intervals, [2]int{startIdx, i})
+		startIdx := 0
+		for i, t := range blocks.Time[offset:] {
+			if t >= next {
+				// Once passed the next midnight, prepare a day window by storing the
+				// range of indices.
+				intervals = append(intervals, [2]int{startIdx + offset, i + offset})
 				days.Time = append(days.Time, start)
 				start = next
 				next += aDay
@@ -462,11 +474,11 @@ func (charts *ChartData) Lengthen() error {
 				if t > end {
 					break
 				}
-			} else if startIdx == -1 {
-				startIdx = i
 			}
 		}
 		for _, interval := range intervals {
+			// For each new day, take an appropriate snapshot. Some sets use sums,
+			// some use averages, and some use the last value of the day.
 			days.PoolSize = append(days.PoolSize, blocks.PoolSize.Avg(interval[0], interval[1]))
 			days.PoolValue = append(days.PoolValue, blocks.PoolValue.Avg(interval[0], interval[1]))
 			days.BlockSize = append(days.BlockSize, blocks.BlockSize.Sum(interval[0], interval[1]))
@@ -780,12 +792,13 @@ func (charts *ChartData) Update() {
 }
 
 // NewChartData constructs a new ChartData.
-func NewChartData(ctx context.Context, height uint32, genesis time.Time, chainParams *chaincfg.Params) *ChartData {
+func NewChartData(ctx context.Context, height uint32, chainParams *chaincfg.Params) *ChartData {
 	base64Height := int64(height)
 	// Allocate datasets for at least as many blocks as in a sdiff window.
 	if base64Height < chainParams.StakeDiffWindowSize {
 		height = uint32(chainParams.StakeDiffWindowSize)
 	}
+	genesis := chainParams.GenesisBlock.Header.Timestamp
 	// Start datasets at 25% larger than height. This matches golang's default
 	// capacity size increase for slice lengths > 1024
 	// https://github.com/golang/go/blob/87e48c5afdcf5e01bb2b7f51b7643e8901f4b7f9/src/runtime/slice.go#L100-L112
@@ -794,7 +807,6 @@ func NewChartData(ctx context.Context, height uint32, genesis time.Time, chainPa
 	windows := int(base64Height/chainParams.StakeDiffWindowSize+1) * 5 / 4
 	return &ChartData{
 		ctx:          ctx,
-		genesis:      uint64(genesis.Unix()),
 		DiffInterval: int32(chainParams.StakeDiffWindowSize),
 		StartPOS:     int32(chainParams.StakeValidationHeight),
 		Blocks:       newBlockSet(size),

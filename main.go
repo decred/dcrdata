@@ -413,8 +413,7 @@ func _main(ctx context.Context) error {
 		heightDB = 0
 	}
 
-	charts := cache.NewChartData(ctx, uint32(heightDB), time.Unix(pgDB.GenesisStamp(), 0),
-		activeChain)
+	charts := cache.NewChartData(ctx, uint32(heightDB), activeChain)
 	pgDB.RegisterCharts(charts)
 	baseDB.RegisterCharts(charts)
 
