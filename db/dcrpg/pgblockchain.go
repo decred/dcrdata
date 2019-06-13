@@ -1913,7 +1913,8 @@ func (pgb *ChainDB) AddressBalance(address string) (bal *dbtypes.AddressBalance,
 
 // updateAddressRows updates address rows, or waits for them to update by an
 // ongoing query. On completion, the cache should be ready, although it must be
-// checked again.
+// checked again. The returned []*dbtypes.AddressRow contains ALL non-merged
+// address transaction rows that were stored in the cache.
 func (pgb *ChainDB) updateAddressRows(address string) (rows []*dbtypes.AddressRow, cacheUpdated bool, err error) {
 	busy, wait, done := pgb.CacheLocks.rows.TryLock(address)
 	if busy {
@@ -2108,17 +2109,24 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 		log.Debugf("Address rows (view=%s) cache MISS for %s.",
 			txnView.String(), address)
 
-		// Update or wait for an update to the cached AddressRows.
+		// Update or wait for an update to the cached AddressRows, returning ALL
+		// NON-MERGED address transaction rows.
 		addressRows, _, err = pgb.updateAddressRows(address)
-		// See if another caller ran the update, in which case we were just
-		// waiting to avoid a simultaneous query. With luck the cache will be
-		// updated with this data, although it may not be. Try again.
 		if err != nil && err != sql.ErrNoRows {
+			// See if another caller ran the update, in which case we were just
+			// waiting to avoid a simultaneous query. With luck the cache will
+			// be updated with this data, although it may not be. Try again.
 			if IsRetryError(err) {
 				// Try again, starting with cache.
 				return pgb.AddressHistory(address, N, offset, txnView)
 			}
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("failed to updateAddressRows: %v", err)
+		}
+
+		// Select the correct type and range of address rows, merging if needed.
+		addressRows, err = dbtypes.SliceAddressRows(addressRows, int(N), int(offset), txnView)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to SliceAddressRows: %v", err)
 		}
 	}
 	log.Debugf("Address rows (view=%s) cache HIT for %s.",
