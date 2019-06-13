@@ -84,14 +84,7 @@ func (cl *CacheLock) TryLock(addr string) (busy bool, wait chan struct{}, done f
 // CountCreditDebitRows returns the numbers of credit (funding) and debit
 // (!funding) address rows in a []*dbtypes.AddressRow.
 func CountCreditDebitRows(rows []*dbtypes.AddressRow) (numCredit, numDebit int) {
-	for _, r := range rows {
-		if r.IsFunding {
-			numCredit++
-		} else {
-			numDebit++
-		}
-	}
-	return
+	return dbtypes.CountCreditDebitRows(rows)
 }
 
 // CountCreditDebitRowsCompact returns the numbers of credit (funding) and debit
