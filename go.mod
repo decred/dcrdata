@@ -3,7 +3,7 @@ module github.com/decred/dcrdata/v4
 replace (
 	github.com/decred/dcrdata/db/cache => ./db/cache
 	github.com/decred/dcrdata/db/dbtypes => ./db/dbtypes
-	github.com/decred/dcrdata/db/dcrpg => ./db/dcrpg
+	github.com/decred/dcrdata/db/dcrpg/v2 => ./db/dcrpg
 )
 
 require (
