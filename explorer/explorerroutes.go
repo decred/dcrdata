@@ -1289,6 +1289,9 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Debugf(`"address" template HTML size: %.2f kiB (%s, %v, %d)`,
+		float64(len(str))/1024.0, address, txnType, addrData.NumTransactions)
+
 	w.Header().Set("Content-Type", "text/html")
 	w.Header().Set("Turbolinks-Location", r.URL.RequestURI())
 	w.WriteHeader(http.StatusOK)
@@ -1333,10 +1336,8 @@ func (exp *explorerUI) AddressTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// jsonBytes, err := json.Marshal(response)
-	// if err != nil {
-	// 	jsonBytes = []byte("JSON error")
-	// }
+	log.Debugf(`"addresstable" template HTML size: %.2f kiB (%s, %v, %d)`,
+		float64(len(response.HTML))/1024.0, address, txnType, addrData.NumTransactions)
 
 	w.Header().Set("Content-Type", "application/json")
 	enc := json.NewEncoder(w)
@@ -1345,7 +1346,6 @@ func (exp *explorerUI) AddressTable(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Debug(err)
 	}
-	//w.Write(jsonBytes)
 }
 
 // parseAddressParams is used by both /address and /addresstable.
