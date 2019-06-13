@@ -611,13 +611,14 @@ func (db *WiredDB) GetAllTxOut(txid *chainhash.Hash) []*apitypes.TxOut {
 // GetRawTransactionWithPrevOutAddresses looks up the previous outpoints for a
 // transaction and extracts a slice of addresses encoded by the pkScript for
 // each previous outpoint consumed by the transaction.
-func (db *WiredDB) GetRawTransactionWithPrevOutAddresses(txid *chainhash.Hash) (*apitypes.Tx, [][]string) {
+func (db *WiredDB) GetRawTransactionWithPrevOutAddresses(txid *chainhash.Hash) (*apitypes.Tx, [][]string, []int64) {
 	tx, _ := db.getRawTransaction(txid)
 	if tx == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	prevOutAddresses := make([][]string, len(tx.Vin))
+	amounts := make([]int64, len(tx.Vin))
 
 	for i := range tx.Vin {
 		vin := &tx.Vin[i]
@@ -627,14 +628,16 @@ func (db *WiredDB) GetRawTransactionWithPrevOutAddresses(txid *chainhash.Hash) (
 			continue
 		}
 		var err error
-		prevOutAddresses[i], err = txhelpers.OutPointAddressesFromString(
+		var amt dcrutil.Amount
+		prevOutAddresses[i], amt, err = txhelpers.OutPointAddressesFromString(
 			vin.Txid, vin.Vout, vin.Tree, db.client, db.params)
 		if err != nil {
 			log.Warnf("failed to get outpoint address from txid: %v", err)
 		}
+		amounts[i] = int64(amt)
 	}
 
-	return tx, prevOutAddresses
+	return tx, prevOutAddresses, amounts
 }
 
 func (db *WiredDB) GetRawTransaction(txid *chainhash.Hash) *apitypes.Tx {
