@@ -477,7 +477,7 @@ func OrphanedTipLength(ctx context.Context, client BlockHashGetter,
 		}
 		dcrdHash, err = client.GetBlockHash(commonHeight)
 		if err != nil {
-			return -1, fmt.Errorf("Unable to retrive dcrd block at height %d: %v", commonHeight, err)
+			return -1, fmt.Errorf("Unable to retrieve dcrd block at height %d: %v", commonHeight, err)
 		}
 		if dcrdHash.String() == dbHash {
 			break
