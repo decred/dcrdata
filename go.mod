@@ -1,11 +1,5 @@
 module github.com/decred/dcrdata/v4
 
-replace (
-	github.com/decred/dcrdata/db/cache => ./db/cache
-	github.com/decred/dcrdata/db/dbtypes => ./db/dbtypes
-	github.com/decred/dcrdata/db/dcrpg/v2 => ./db/dcrpg
-)
-
 require (
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb
@@ -20,8 +14,9 @@ require (
 	github.com/decred/dcrd/wire v1.2.0
 	github.com/decred/dcrdata/api/types/v2 v2.1.0
 	github.com/decred/dcrdata/blockdata v1.0.2
-	github.com/decred/dcrdata/db/dbtypes v1.1.0
-	github.com/decred/dcrdata/db/dcrpg/v2 v2.0.1
+	github.com/decred/dcrdata/db/cache v1.0.3-0.20190613201620-331447369706 // indirect
+	github.com/decred/dcrdata/db/dbtypes v1.1.1-0.20190613201620-331447369706
+	github.com/decred/dcrdata/db/dcrpg/v2 v2.0.2-0.20190613201620-331447369706
 	github.com/decred/dcrdata/db/dcrsqlite/v2 v2.0.0
 	github.com/decred/dcrdata/exchanges v1.0.0
 	github.com/decred/dcrdata/explorer/types v1.0.1
