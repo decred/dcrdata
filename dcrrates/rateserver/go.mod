@@ -1,9 +1,6 @@
 module github.com/decred/dcrdata/dcrrates/rateserver
 
-replace (
-	github.com/decred/dcrdata/dcrrates => ../
-	github.com/decred/dcrdata/exchanges => ../../exchanges
-)
+replace github.com/decred/dcrdata/exchanges => ../../exchanges
 
 require (
 	github.com/decred/dcrd/certgen v1.0.2

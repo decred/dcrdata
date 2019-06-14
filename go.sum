@@ -176,6 +176,8 @@ github.com/decred/dcrdata/db/dcrsqlite v1.0.1-0.20190416165439-dcbde78387e2 h1:H
 github.com/decred/dcrdata/db/dcrsqlite v1.0.1-0.20190416165439-dcbde78387e2/go.mod h1:uCApsXA1aoF80vIFKjEny5HTiEPavdOPLy4jn6LHUNc=
 github.com/decred/dcrdata/dcrrates v1.0.1-0.20190415153927-351272ba94ab h1:IRRBhUqRuF2XGocLk7rVBIOsFwjbfFYjlilroNfkL/E=
 github.com/decred/dcrdata/dcrrates v1.0.1-0.20190415153927-351272ba94ab/go.mod h1:CTqBa1Q10FaBQK05P2aP72Ru9mD1lLmt+urcs4K9RZo=
+github.com/decred/dcrdata/dcrrates v1.1.0 h1:tbzM5FhqQ0iVUk0PNOH4E0spoiqlDKZNg/4SsZndsEw=
+github.com/decred/dcrdata/dcrrates v1.1.0/go.mod h1:0YiDI6OS9kpVdkpLlFVo0+EvCLf6U+QY24wrJGf40xg=
 github.com/decred/dcrdata/exchanges v1.0.1-0.20190416155607-25afe5d5e790 h1:guGpn8fSKtWzOPMqKyGItBXVp8EKQ2ylOXGubYStVjI=
 github.com/decred/dcrdata/exchanges v1.0.1-0.20190416155607-25afe5d5e790/go.mod h1:nssqEMpo+qdQIuaN+kkSNDnpi7xRxhZp8MCsL5u8Ulc=
 github.com/decred/dcrdata/explorer/types v1.0.1-0.20190416161849-2b481f245b77 h1:3r9ri6VsyGdubzSeqjXEyDvjKOm+KrPp8J/bFnY4vpo=
