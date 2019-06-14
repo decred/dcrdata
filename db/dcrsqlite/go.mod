@@ -15,7 +15,7 @@ require (
 	github.com/decred/dcrdata/blockdata v1.0.1
 	github.com/decred/dcrdata/db/cache v1.0.1
 	github.com/decred/dcrdata/db/dbtypes v1.0.2-0.20190416202529-23d1eb95ca1b
-	github.com/decred/dcrdata/explorer/types v1.0.1-0.20190416163815-b92d2b40c258
+	github.com/decred/dcrdata/explorer/types v1.1.0
 	github.com/decred/dcrdata/mempool v1.0.0
 	github.com/decred/dcrdata/rpcutils v1.0.2-0.20190416163815-b92d2b40c258
 	github.com/decred/dcrdata/stakedb v1.0.1
