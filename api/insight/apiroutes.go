@@ -22,7 +22,7 @@ import (
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient/v2"
-	apitypes "github.com/decred/dcrdata/api/types"
+	apitypes "github.com/decred/dcrdata/api/types/v3"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/db/dcrpg"
 	m "github.com/decred/dcrdata/middleware"

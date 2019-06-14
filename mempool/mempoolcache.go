@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/dcrjson/v2"
-	apitypes "github.com/decred/dcrdata/api/types"
+	apitypes "github.com/decred/dcrdata/api/types/v3"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	exptypes "github.com/decred/dcrdata/explorer/types"
 )

@@ -17,7 +17,7 @@ import (
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient/v2"
-	apitypes "github.com/decred/dcrdata/api/types"
+	apitypes "github.com/decred/dcrdata/api/types/v3"
 	exptypes "github.com/decred/dcrdata/explorer/types"
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/txhelpers/v2"
