@@ -53,7 +53,7 @@ const (
 
 	// MaxAddressRows is an upper limit on the number of rows that may be shown
 	// on the address page table.
-	MaxAddressRows int64 = 1000
+	MaxAddressRows int64 = 160
 
 	testnetNetName = "Testnet"
 )

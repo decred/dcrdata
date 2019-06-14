@@ -4,9 +4,9 @@
 
 {{template "html-head" printf "Decred Address %s" .Data.Address}}
     {{template "navbar" . }}
-    {{with .Data}}
-    {{$TxnCount := add .TxnCount .NumUnconfirmed}}
-    {{$txType := .TxnType}}
+    {{- with .Data}}
+    {{- $TxnCount := add .TxnCount .NumUnconfirmed}}
+    {{- $txType := .TxnType -}}
     <div class="container main"
       data-controller="address newblock"
       data-address-offset="{{.Offset}}"
@@ -16,11 +16,11 @@
     >
     <div class="row pb-4 px-2">
       <div class="col-24 col-xl-10 bg-white px-3 py-3 position-relative">
-          {{if eq .Address $.DevAddress}}
+          {{- if eq .Address $.DevAddress}}
               <div class="fs22 pb-3">Decred Treasury</div>
-          {{else}}
+          {{- else}}
               <div class="fs22 pb-3">Address</div>
-          {{end}}
+          {{- end}}
           <div class="text-left d-flex align-items-start flex-wrap">
             <div class="fs15 font-weight-bold break-word d-inline-block hash-box mb-3" data-target="address.addr">{{.Address}}</div>
             <a
@@ -40,41 +40,40 @@
               <span class="text-secondary fs13">Balance</span>
               <br>
               <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal font-weight-bold">
-                {{if .Balance}}
+                {{- if .Balance}}
                     {{template "decimalParts" (amountAsDecimalParts .Balance.TotalUnspent true)}}<span class="text-secondary fs14">DCR</span>
-                {{else}}
+                {{- else}}
                 <span class="fs18">0</span> <span class="text-secondary fs14">DCR</span>
-                {{end}}
+                {{- end}}
               </span>
               <br>
-              {{if $.FiatBalance}}
+              {{- if $.FiatBalance}}
                 <span class="text-secondary fs16 lh1rem">{{threeSigFigs $.FiatBalance.Value}} <span class="fs14">{{$.FiatBalance.Index}}</span></span>
-              {{end}}
+              {{- end}}
             </div>
             <div class="d-inline-block text-left pr-2 pb-3">
               <span class="text-secondary fs13">Received</span>
-              <br>
+                <br>
                 <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal font-weight-bold">
-                    {{if .Balance}}
-                        {{$received := add .Balance.TotalSpent .Balance.TotalUnspent}}
-                        {{template "decimalParts" (amountAsDecimalParts $received true)}} <span class="text-secondary fs14">DCR</span>
-                    {{else}}
+                    {{- if .Balance}}
+                        {{- $received := add .Balance.TotalSpent .Balance.TotalUnspent}}
+                        {{- template "decimalParts" (amountAsDecimalParts $received true)}} <span class="text-secondary fs14">DCR</span>
+                    {{- else}}
                         <span class="fs18">0</span> <span class="text-secondary fs14">DCR</span>
-                    {{end}}
+                    {{- end}}
                 </span>
                 <br>
                 <span class="text-secondary fs16 lh1rem">{{intComma (add .Balance.NumSpent .Balance.NumUnspent)}} outputs</span>
-              </span>
             </div>
             <div class="d-inline-block text-left pr-2 pb-3">
               <span class="text-secondary fs13">Spent</span>
               <br>
                 <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal font-weight-bold">
-                {{if .Balance}}
-                    {{template "decimalParts" (amountAsDecimalParts .Balance.TotalSpent true)}} <span class="text-secondary fs14">DCR</span>
-                {{else}}
+                {{- if .Balance}}
+                    {{- template "decimalParts" (amountAsDecimalParts .Balance.TotalSpent true)}} <span class="text-secondary fs14">DCR</span>
+                {{- else}}
                     <span class="fs18">0</span> <span class="text-secondary fs14">DCR</span>
-                {{end}}
+                {{- end}}
                 </span>
                 <br>
                 <span class="text-secondary fs16 lh1rem">{{intComma .Balance.NumSpent}} inputs</span>
@@ -82,21 +81,21 @@
             <span></span>
           </div>
           <div class="row pb-2">
-              {{if ne .NumUnconfirmed 0}}
+              {{- if ne .NumUnconfirmed 0}}
                 <div class="col-12 pb-2 fs14 text-secondary text-left" data-target="address.numUnconfirmed">
                     <span class="font-weight-bold">Unconfirmed</span>: <span class="addr-unconfirmed-count">{{.NumUnconfirmed}}</span>
                 </div>
-              {{end}}
-              {{if .Balance.HasStakeOutputs}}
+              {{- end}}
+              {{- if .Balance.HasStakeOutputs}}
                 <div class="col-12 pb-2 fs14 text-secondary text-left">
                     <span class="font-weight-bold">Stake spending</span>: {{printf "%.1f" (x100 .Balance.FromStake)}}%
                 </div>
-              {{end}}
-              {{if .Balance.HasStakeInputs}}
+              {{- end}}
+              {{- if .Balance.HasStakeInputs}}
                 <div class="col-12 pb-2 fs14 text-secondary text-left">
                     <span class="font-weight-bold">Stake income</span>: {{printf "%.1f" (x100 .Balance.ToStake)}}%
                 </div>
-              {{end}}
+              {{- end}}
           </div>
           <div class="row pb-3 fs16">
             <span class="col-24"><a href="{{$.Links.DownloadLink}}" title="Decred downloads" target="_blank" rel="noopener noreferrer">Get Decrediton</a>, the official desktop wallet.</span>
@@ -226,9 +225,10 @@
         <div
             class="d-flex align-items-center justify-content-between"
         >
-          {{if gt $TxnCount 0}}<a class="d-inline-block p-2 rounded download text-nowrap" href="/download/address/io/{{.Address}}{{if $.CRLFDownload}}?cr=true{{end}}" type="text/csv" download><span class="dcricon-download mx-1"></span> Download CSV</a>{{end}}
-          <!-- This dummy span ensures left/right alignment of the buttons, even if one is hidden -->
-          <span></span>
+          {{- if gt $TxnCount 0}}
+          <a class="d-inline-block p-2 rounded download text-nowrap" href="/download/address/io/{{.Address}}{{if $.CRLFDownload}}?cr=true{{end}}" type="text/csv" download><span class="dcricon-download mx-1"></span> Download CSV</a>
+          {{- end}}
+          <span></span>{{/*This dummy span ensures left/right alignment of the buttons, even if one is hidden.*/}}
           <div class="d-inline-block text-right">
             <label class="mb-0 mr-1" for="txntype">Type</label>
             <select
@@ -246,9 +246,7 @@
             </select>
           </div>
         </div>
-        <div
-            class="hidden d-flex align-items-center justify-content-end"
-        >
+        <div class="hidden d-flex align-items-center justify-content-end">
             <label class="my-2 mr-1" for="pagesize">Page size</label>
             <select
                 name="pagesize"
@@ -256,24 +254,25 @@
                 data-target="address.pagesize"
                 data-action="change->address#changePageSize"
                 class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $TxnCount 20}}disabled{{end}}"
-                {{if lt $TxnCount 20}}disabled{{end}}
+                {{- if lt $TxnCount 20}} disabled{{end}}
             >
-            {{$Txlen := len .Transactions}}
-            <option {{if eq $Txlen 20}}selected{{end}} value="20"{{if lt $TxnCount 20}} disabled{{end}}>20</option>
-            <option {{if eq $Txlen 100}}selected{{end}} value="100"{{if lt $TxnCount 100}} disabled{{end}}>100</option>
-              {{if lt $TxnCount 1000}}
-                  <option{{if eq $Txlen $TxnCount}} selected{{end}} value="{{$TxnCount}}"{{if le $TxnCount 100}} disabled{{end}}>{{$TxnCount}}</option>
-              {{else}}
-                  <option{{if eq $Txlen 1000}} selected{{end}} value="1000">1000</option>
-              {{end}}
+            {{- $Txlen := len .Transactions}}
+              <option {{if eq $Txlen 20}}selected {{end}}value="20"{{if lt $TxnCount 20}} disabled{{end}}>20</option>
+              <option {{if eq $Txlen 40}}selected {{end}}value="40"{{if lt $TxnCount 40}} disabled{{end}}>40</option>
+              <option {{if eq $Txlen 80}}selected {{end}}value="80"{{if lt $TxnCount 80}} disabled{{end}}>80</option>
+            {{- if lt $TxnCount 160}}
+              <option {{if eq $Txlen $TxnCount}}selected {{end}}value="{{$TxnCount}}"{{if le $TxnCount 160}} disabled{{end}}>{{$TxnCount}}</option>
+            {{- else}}
+              <option {{if ge $Txlen 160}}selected {{end}}value="160">160</option>
+            {{- end}}
+            </select>
             </select>
         </div>
     </div>
-    {{end}} {{/* if not .IsDummyAddress */}}
-  </div> <!-- container main -->
-  {{end}} {{/* with .Data */}}
-  {{ template "footer" . }}
-
+    {{- end}}{{/* if not .IsDummyAddress */}}
+  </div>{{/* container main */}}
+  {{- end}} {{/* with .Data */}}
+  {{template "footer" . }}
 </body>
 </html>
-{{end}}
+{{- end}}
