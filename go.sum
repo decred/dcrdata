@@ -71,6 +71,8 @@ github.com/decred/dcrd/chaincfg v1.3.0 h1:DEysyX1/kxlWbY97PTIPpGbMOp3+n2iixi3m9d
 github.com/decred/dcrd/chaincfg v1.3.0/go.mod h1:kpoGTMIriKn5hHRSu5b65+Q9LlGUdbQcMzGujac1BVs=
 github.com/decred/dcrd/chaincfg v1.4.0 h1:dIJhXQooiVW5AVZ0c4brylsiwkc8KSawpZ3NPq+LxWY=
 github.com/decred/dcrd/chaincfg v1.4.0/go.mod h1:ypuM30F+XgZmZTFfAkWHWd0lwwkWWAOAQYNRkRDlYLc=
+github.com/decred/dcrd/chaincfg v1.5.1 h1:u1Xbq0VTnAXIHW5ECqrWe0VYSgf5vWHqpSiwoLBzxAQ=
+github.com/decred/dcrd/chaincfg v1.5.1/go.mod h1:FukMzTjkwzjPU+hK7CqDMQe3NMbSZAYU5PAcsx1wlv0=
 github.com/decred/dcrd/chaincfg/chainhash v1.0.1 h1:0vG7U9+dSjSCaHQKdoSKURK2pOb47+b+8FK5q4+Je7M=
 github.com/decred/dcrd/chaincfg/chainhash v1.0.1/go.mod h1:OVfvaOsNLS/A1y4Eod0Ip/Lf8qga7VXCQjUQLbkY0Go=
 github.com/decred/dcrd/connmgr v1.0.2/go.mod h1:jBNfQLh+454n3crgNCPrhMgZ9mVvYcMbWSCEAHsJQus=
@@ -97,6 +99,7 @@ github.com/decred/dcrd/dcrec/edwards v0.0.0-20190402182842-879eebce3333 h1:6Z3Tu
 github.com/decred/dcrd/dcrec/edwards v0.0.0-20190402182842-879eebce3333/go.mod h1:HblVh1OfMt7xSxUL1ufjToaEvpbjpWvvTAUx4yem8BI=
 github.com/decred/dcrd/dcrec/edwards v0.0.0-20190413175304-e69a789183f3 h1:1wv0uKVmJPop93YuyJeornJJVzP0613X5keCU4xLKT0=
 github.com/decred/dcrd/dcrec/edwards v0.0.0-20190413175304-e69a789183f3/go.mod h1:HblVh1OfMt7xSxUL1ufjToaEvpbjpWvvTAUx4yem8BI=
+github.com/decred/dcrd/dcrec/edwards v1.0.0/go.mod h1:HblVh1OfMt7xSxUL1ufjToaEvpbjpWvvTAUx4yem8BI=
 github.com/decred/dcrd/dcrec/secp256k1 v1.0.0 h1:Le54WTGdTQv7XYXpS31uhFE8LZE7ypwsIL+FgDP2x5Q=
 github.com/decred/dcrd/dcrec/secp256k1 v1.0.0/go.mod h1:JPMFscGlgXTV684jxQNDijae2qrh0fLG7pJBimaYotE=
 github.com/decred/dcrd/dcrec/secp256k1 v1.0.1 h1:EFWVd1p0t0Y5tnsm/dJujgV0ORogRJ6vo7CMAjLseAc=

@@ -25,7 +25,7 @@ import (
 	"github.com/decred/dcrdata/mempool"
 	pstypes "github.com/decred/dcrdata/pubsub/types"
 	"github.com/decred/dcrdata/semver"
-	"github.com/decred/dcrdata/txhelpers"
+	"github.com/decred/dcrdata/txhelpers/v2"
 	"golang.org/x/net/websocket"
 )
 

@@ -18,7 +18,7 @@ import (
 	"github.com/decred/dcrdata/db/dcrpg/internal"
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/semver"
-	"github.com/decred/dcrdata/txhelpers"
+	"github.com/decred/dcrdata/txhelpers/v2"
 )
 
 // The tables are versioned as follows. The major version is the same for all

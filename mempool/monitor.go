@@ -18,7 +18,7 @@ import (
 	"github.com/decred/dcrd/dcrjson/v2"
 	exptypes "github.com/decred/dcrdata/explorer/types"
 	pstypes "github.com/decred/dcrdata/pubsub/types"
-	"github.com/decred/dcrdata/txhelpers"
+	"github.com/decred/dcrdata/txhelpers/v2"
 	humanize "github.com/dustin/go-humanize"
 )
 

@@ -4,7 +4,7 @@ require (
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb
 	github.com/decred/dcrd/blockchain v1.1.1
-	github.com/decred/dcrd/chaincfg v1.4.0
+	github.com/decred/dcrd/chaincfg v1.5.1
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.1
 	github.com/decred/dcrd/dcrec v0.0.0-20190413175304-e69a789183f3
 	github.com/decred/dcrd/dcrjson/v2 v2.0.0
@@ -29,7 +29,7 @@ require (
 	github.com/decred/dcrdata/rpcutils v1.0.2-0.20190416204615-70a58657e02f
 	github.com/decred/dcrdata/semver v1.0.0
 	github.com/decred/dcrdata/stakedb v1.0.1
-	github.com/decred/dcrdata/txhelpers v1.0.2-0.20190416204615-70a58657e02f
+	github.com/decred/dcrdata/txhelpers/v2 v2.0.0
 	github.com/decred/dcrwallet/wallet v1.2.0
 	github.com/decred/slog v1.0.0
 	github.com/dgryski/go-farm v0.0.0-20190416075124-e1214b5e05dc // indirect

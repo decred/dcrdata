@@ -10,5 +10,5 @@ require (
 	github.com/decred/dcrd/txscript v1.0.3-0.20190402182842-879eebce3333
 	github.com/decred/dcrd/wire v1.2.0
 	github.com/decred/dcrdata/db/dcrpg v1.0.0
-	github.com/decred/dcrdata/txhelpers v1.0.2-0.20190416204615-70a58657e02f
+	github.com/decred/dcrdata/txhelpers/v2 v2.0.0
 )

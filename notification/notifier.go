@@ -29,7 +29,7 @@ import (
 	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/rpcutils"
-	"github.com/decred/dcrdata/txhelpers"
+	"github.com/decred/dcrdata/txhelpers/v2"
 )
 
 // A hard deadline for handlers to finish handling before an error is logged.

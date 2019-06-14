@@ -15,7 +15,7 @@ import (
 	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/rpcutils"
-	"github.com/decred/dcrdata/txhelpers"
+	"github.com/decred/dcrdata/txhelpers/v2"
 	"github.com/decred/slog"
 )
 

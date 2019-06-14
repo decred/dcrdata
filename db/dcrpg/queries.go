@@ -25,7 +25,7 @@ import (
 	"github.com/decred/dcrdata/db/cache"
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/db/dcrpg/internal"
-	"github.com/decred/dcrdata/txhelpers"
+	"github.com/decred/dcrdata/txhelpers/v2"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/lib/pq"
 )
