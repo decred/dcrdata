@@ -31,7 +31,7 @@ import (
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/exchanges/v2"
 	"github.com/decred/dcrdata/gov/agendas"
-	m "github.com/decred/dcrdata/middleware"
+	m "github.com/decred/dcrdata/middleware/v2"
 	"github.com/decred/dcrdata/txhelpers/v2"
 	appver "github.com/decred/dcrdata/v5/version"
 )

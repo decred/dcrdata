@@ -1,4 +1,4 @@
-module github.com/decred/dcrdata/middleware
+module github.com/decred/dcrdata/middleware/v2
 
 go 1.11
 

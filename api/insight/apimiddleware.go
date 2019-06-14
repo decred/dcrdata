@@ -13,7 +13,7 @@ import (
 	"strconv"
 
 	apitypes "github.com/decred/dcrdata/api/types/v3"
-	m "github.com/decred/dcrdata/middleware"
+	m "github.com/decred/dcrdata/middleware/v2"
 	"github.com/go-chi/chi"
 )
 
