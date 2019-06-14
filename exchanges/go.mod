@@ -1,4 +1,4 @@
-module github.com/decred/dcrdata/exchanges
+module github.com/decred/dcrdata/exchanges/v2
 
 go 1.11
 

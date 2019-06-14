@@ -13,7 +13,7 @@ import (
 	"github.com/decred/dcrdata/blockdata"
 	"github.com/decred/dcrdata/db/dcrpg"
 	"github.com/decred/dcrdata/db/dcrsqlite"
-	"github.com/decred/dcrdata/exchanges"
+	"github.com/decred/dcrdata/exchanges/v2"
 	"github.com/decred/dcrdata/gov/agendas"
 	"github.com/decred/dcrdata/gov/politeia"
 	"github.com/decred/dcrdata/mempool"

@@ -7,7 +7,7 @@ require (
 	github.com/decred/dcrd/dcrjson/v2 v2.0.0
 	github.com/decred/dcrd/dcrutil v1.2.0
 	github.com/decred/dcrd/wire v1.2.0
-	github.com/decred/dcrdata/exchanges v1.0.1-0.20190416155607-25afe5d5e790
+	github.com/decred/dcrdata/exchanges/v2 v2.0.0
 	github.com/decred/dcrdata/txhelpers/v2 v2.0.0
 	github.com/dustin/go-humanize v1.0.0
 	github.com/google/go-cmp v0.2.0

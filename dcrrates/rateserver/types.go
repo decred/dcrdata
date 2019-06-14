@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"github.com/decred/dcrdata/dcrrates"
-	"github.com/decred/dcrdata/exchanges"
+	"github.com/decred/dcrdata/exchanges/v2"
 	grpcPeer "google.golang.org/grpc/peer"
 )
 
