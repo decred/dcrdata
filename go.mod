@@ -19,7 +19,7 @@ require (
 	github.com/decred/dcrdata/db/dcrpg v1.0.1-0.20190416163815-b92d2b40c258
 	github.com/decred/dcrdata/db/dcrsqlite v1.0.1-0.20190416165439-dcbde78387e2
 	github.com/decred/dcrdata/exchanges/v2 v2.0.0
-	github.com/decred/dcrdata/explorer/types v1.0.1-0.20190416204615-70a58657e02f
+	github.com/decred/dcrdata/explorer/types v1.1.0
 	github.com/decred/dcrdata/gov/agendas v1.0.1-0.20190416163815-b92d2b40c258
 	github.com/decred/dcrdata/gov/politeia v1.0.1-0.20190416163815-b92d2b40c258
 	github.com/decred/dcrdata/mempool v1.0.0
@@ -64,7 +64,6 @@ replace (
 	github.com/decred/dcrdata/db/dbtypes => ./db/dbtypes
 	github.com/decred/dcrdata/db/dcrpg => ./db/dcrpg
 	github.com/decred/dcrdata/db/dcrsqlite => ./db/dcrsqlite
-	github.com/decred/dcrdata/explorer/types => ./explorer/types
 	github.com/decred/dcrdata/gov/agendas => ./gov/agendas
 	github.com/decred/dcrdata/gov/politeia => ./gov/politeia
 	github.com/decred/dcrdata/mempool => ./mempool
