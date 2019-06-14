@@ -39,6 +39,8 @@ testrepo () {
   (cd cmd/rebuilddb && go build)
   (cd cmd/rebuilddb2 && go build)
   (cd cmd/scanblocks && go build)
+  (cd pubsub/democlient && go build)
+  (cd testutil/apiload && go build)
   (cd testutil/dbload && go build)
 
   mkdir -p ./testutil/dbload/testsconfig/test.data
@@ -61,7 +63,7 @@ testrepo () {
 
   # run tests on all modules
   for MODPATH in $MODPATHS; do
-    env go test -v -tags chartests $(cd $MODPATH && go list -m)
+    env go test -v -tags chartests $(cd $MODPATH && go list -m)/...
   done
 
   # check linters
