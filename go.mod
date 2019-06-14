@@ -64,7 +64,6 @@ replace (
 	github.com/decred/dcrdata/db/dbtypes => ./db/dbtypes
 	github.com/decred/dcrdata/db/dcrpg => ./db/dcrpg
 	github.com/decred/dcrdata/db/dcrsqlite => ./db/dcrsqlite
-	github.com/decred/dcrdata/dcrrates => ./dcrrates
 	github.com/decred/dcrdata/exchanges => ./exchanges
 	github.com/decred/dcrdata/explorer/types => ./explorer/types
 	github.com/decred/dcrdata/gov/agendas => ./gov/agendas
