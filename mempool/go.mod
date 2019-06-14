@@ -5,10 +5,10 @@ go 1.11
 require (
 	github.com/decred/dcrd/blockchain v1.1.1
 	github.com/decred/dcrd/blockchain/stake v1.1.0
-	github.com/decred/dcrd/chaincfg v1.4.0
+	github.com/decred/dcrd/chaincfg v1.5.1
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.1
 	github.com/decred/dcrd/dcrjson/v2 v2.0.0
-	github.com/decred/dcrd/dcrutil v1.2.1-0.20190118223730-3a5281156b73
+	github.com/decred/dcrd/dcrutil v1.3.0
 	github.com/decred/dcrd/rpcclient/v2 v2.0.0
 	github.com/decred/dcrdata/api/types v1.0.7-0.20190416204615-70a58657e02f
 	github.com/decred/dcrdata/db/dbtypes v1.0.2-0.20190416204615-70a58657e02f

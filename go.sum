@@ -188,6 +188,8 @@ github.com/decred/dcrdata/explorer/types v1.0.1-0.20190416163815-b92d2b40c258 h1
 github.com/decred/dcrdata/explorer/types v1.0.1-0.20190416163815-b92d2b40c258/go.mod h1:+fji7YoRTViJ5F9tn7cG6tjbpsiJHhxdpzEtTd7tT0w=
 github.com/decred/dcrdata/explorer/types v1.0.1-0.20190416204615-70a58657e02f h1:bAx01eXD8XGEHbS+xFtiqR04OwoptuNLNe6AUWwobZo=
 github.com/decred/dcrdata/explorer/types v1.0.1-0.20190416204615-70a58657e02f/go.mod h1:+fji7YoRTViJ5F9tn7cG6tjbpsiJHhxdpzEtTd7tT0w=
+github.com/decred/dcrdata/explorer/types v1.1.0 h1:YjPQ7LqigGwgPNoixtcp3HZUeqk4/vgGkNMv7cyd5j4=
+github.com/decred/dcrdata/explorer/types v1.1.0/go.mod h1:MI11f0uE9uAFbFQYNsfBSlPoPDAWsyNW4QOO9xkGp+0=
 github.com/decred/dcrdata/gov/agendas v1.0.1-0.20190416163815-b92d2b40c258 h1:CfyptpaVoQSUfGDbcFyk6MpbN6DPA6zWiISCGfvO9pw=
 github.com/decred/dcrdata/gov/agendas v1.0.1-0.20190416163815-b92d2b40c258/go.mod h1:ViP96w5RbSBdBCv1zar6aQ6GoRmVaCLD99dO6GnU22k=
 github.com/decred/dcrdata/gov/politeia v1.0.1-0.20190416163815-b92d2b40c258 h1:2kqEhOwpvofHrbiTQumxOgLSs2gB0XI44fi2Lgbb7LY=
