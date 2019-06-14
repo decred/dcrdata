@@ -23,7 +23,7 @@ import (
 	"github.com/decred/dcrdata/explorer/types"
 	exptypes "github.com/decred/dcrdata/explorer/types"
 	"github.com/decred/dcrdata/mempool"
-	pstypes "github.com/decred/dcrdata/pubsub/types"
+	pstypes "github.com/decred/dcrdata/pubsub/types/v2"
 	"github.com/decred/dcrdata/semver"
 	"github.com/decred/dcrdata/txhelpers/v2"
 	"golang.org/x/net/websocket"

@@ -17,7 +17,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson/v2"
 	exptypes "github.com/decred/dcrdata/explorer/types"
-	pstypes "github.com/decred/dcrdata/pubsub/types"
+	pstypes "github.com/decred/dcrdata/pubsub/types/v2"
 	"github.com/decred/dcrdata/txhelpers/v2"
 	humanize "github.com/dustin/go-humanize"
 )

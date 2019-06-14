@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrdata/db/dbtypes"
-	pstypes "github.com/decred/dcrdata/pubsub/types"
+	pstypes "github.com/decred/dcrdata/pubsub/types/v2"
 )
 
 // SyncStatusInfo defines information for a single progress bar.

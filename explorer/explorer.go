@@ -30,7 +30,7 @@ import (
 	"github.com/decred/dcrdata/gov/agendas"
 	pitypes "github.com/decred/dcrdata/gov/politeia/types"
 	"github.com/decred/dcrdata/mempool"
-	pstypes "github.com/decred/dcrdata/pubsub/types"
+	pstypes "github.com/decred/dcrdata/pubsub/types/v2"
 	"github.com/decred/dcrdata/txhelpers/v2"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"

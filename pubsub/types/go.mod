@@ -1,4 +1,4 @@
-module github.com/decred/dcrdata/pubsub/types
+module github.com/decred/dcrdata/pubsub/types/v2
 
 go 1.11
 

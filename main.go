@@ -34,7 +34,7 @@ import (
 	"github.com/decred/dcrdata/mempool"
 	m "github.com/decred/dcrdata/middleware"
 	"github.com/decred/dcrdata/pubsub"
-	pstypes "github.com/decred/dcrdata/pubsub/types"
+	pstypes "github.com/decred/dcrdata/pubsub/types/v2"
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/semver"
 	"github.com/decred/dcrdata/stakedb"
