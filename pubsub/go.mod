@@ -9,7 +9,7 @@ require (
 	github.com/decred/dcrd/dcrutil v1.2.1-0.20190118223730-3a5281156b73
 	github.com/decred/dcrd/txscript v1.0.3-0.20190613214542-d0a6bf024dfc
 	github.com/decred/dcrd/wire v1.2.0
-	github.com/decred/dcrdata/blockdata v1.0.1
+	github.com/decred/dcrdata/blockdata/v2 v2.0.0
 	github.com/decred/dcrdata/db/dbtypes/v2 v2.0.0
 	github.com/decred/dcrdata/explorer/types v1.1.0
 	github.com/decred/dcrdata/mempool/v3 v3.0.1
