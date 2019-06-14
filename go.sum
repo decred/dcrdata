@@ -180,6 +180,8 @@ github.com/decred/dcrdata/dcrrates v1.1.0 h1:tbzM5FhqQ0iVUk0PNOH4E0spoiqlDKZNg/4
 github.com/decred/dcrdata/dcrrates v1.1.0/go.mod h1:0YiDI6OS9kpVdkpLlFVo0+EvCLf6U+QY24wrJGf40xg=
 github.com/decred/dcrdata/exchanges v1.0.1-0.20190416155607-25afe5d5e790 h1:guGpn8fSKtWzOPMqKyGItBXVp8EKQ2ylOXGubYStVjI=
 github.com/decred/dcrdata/exchanges v1.0.1-0.20190416155607-25afe5d5e790/go.mod h1:nssqEMpo+qdQIuaN+kkSNDnpi7xRxhZp8MCsL5u8Ulc=
+github.com/decred/dcrdata/exchanges/v2 v2.0.0 h1:LNgUH/WuD6wvhjzXJMXtwsE28EjyoKs1ev5iQ6gWtSM=
+github.com/decred/dcrdata/exchanges/v2 v2.0.0/go.mod h1:OQK9FcVspuhnZFlk2jOcGwLuEiMSQM0iXMwsWISFE5Q=
 github.com/decred/dcrdata/explorer/types v1.0.1-0.20190416161849-2b481f245b77 h1:3r9ri6VsyGdubzSeqjXEyDvjKOm+KrPp8J/bFnY4vpo=
 github.com/decred/dcrdata/explorer/types v1.0.1-0.20190416161849-2b481f245b77/go.mod h1:+fji7YoRTViJ5F9tn7cG6tjbpsiJHhxdpzEtTd7tT0w=
 github.com/decred/dcrdata/explorer/types v1.0.1-0.20190416163815-b92d2b40c258 h1:L6QTr/j7GbYRkD8phsWbTpRN1o/uLtMwq/mX+nlJcCY=
