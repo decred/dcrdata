@@ -22,7 +22,7 @@ import (
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/explorer/types"
 	exptypes "github.com/decred/dcrdata/explorer/types"
-	"github.com/decred/dcrdata/mempool"
+	"github.com/decred/dcrdata/mempool/v3"
 	pstypes "github.com/decred/dcrdata/pubsub/types/v2"
 	"github.com/decred/dcrdata/semver"
 	"github.com/decred/dcrdata/txhelpers/v2"

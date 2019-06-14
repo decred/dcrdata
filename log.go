@@ -16,7 +16,7 @@ import (
 	"github.com/decred/dcrdata/exchanges/v2"
 	"github.com/decred/dcrdata/gov/agendas"
 	"github.com/decred/dcrdata/gov/politeia"
-	"github.com/decred/dcrdata/mempool"
+	"github.com/decred/dcrdata/mempool/v3"
 	"github.com/decred/dcrdata/middleware/v2"
 	"github.com/decred/dcrdata/pubsub"
 	"github.com/decred/dcrdata/rpcutils"
