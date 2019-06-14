@@ -21,7 +21,7 @@ require (
 	github.com/decred/dcrdata/exchanges/v2 v2.0.0
 	github.com/decred/dcrdata/explorer/types v1.1.0
 	github.com/decred/dcrdata/gov v1.0.0
-	github.com/decred/dcrdata/mempool/v3 v3.0.0
+	github.com/decred/dcrdata/mempool/v3 v3.0.1
 	github.com/decred/dcrdata/middleware/v2 v2.1.0
 	github.com/decred/dcrdata/pubsub v1.0.1-0.20190416165439-dcbde78387e2
 	github.com/decred/dcrdata/pubsub/types/v2 v2.0.0
