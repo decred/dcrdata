@@ -14,7 +14,7 @@ require (
 	github.com/decred/dcrd/wire v1.2.0
 	github.com/decred/dcrdata/api/types/v3 v3.0.0
 	github.com/decred/dcrdata/blockdata v1.0.1
-	github.com/decred/dcrdata/db/cache v1.0.1
+	github.com/decred/dcrdata/db/cache/v2 v2.0.0
 	github.com/decred/dcrdata/db/dbtypes/v2 v2.0.0
 	github.com/decred/dcrdata/db/dcrpg v1.0.1-0.20190416163815-b92d2b40c258
 	github.com/decred/dcrdata/db/dcrsqlite v1.0.1-0.20190416165439-dcbde78387e2
@@ -58,7 +58,6 @@ require (
 
 replace (
 	github.com/decred/dcrdata/blockdata => ./blockdata
-	github.com/decred/dcrdata/db/cache => ./db/cache
 	github.com/decred/dcrdata/db/dcrpg => ./db/dcrpg
 	github.com/decred/dcrdata/db/dcrsqlite => ./db/dcrsqlite
 	github.com/decred/dcrdata/mempool => ./mempool

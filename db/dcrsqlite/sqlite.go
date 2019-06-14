@@ -18,7 +18,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types/v3"
 	"github.com/decred/dcrdata/blockdata"
-	"github.com/decred/dcrdata/db/cache"
+	"github.com/decred/dcrdata/db/cache/v2"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/slog"
 	sqlite3 "github.com/mattn/go-sqlite3" // register sqlite driver with database/sql
