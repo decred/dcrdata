@@ -24,7 +24,7 @@ import (
 	apitypes "github.com/decred/dcrdata/api/types/v3"
 	"github.com/decred/dcrdata/db/cache/v2"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/db/dcrpg/internal"
+	"github.com/decred/dcrdata/db/dcrpg/v3/internal"
 	"github.com/decred/dcrdata/txhelpers/v2"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/lib/pq"

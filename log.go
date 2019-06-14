@@ -11,7 +11,7 @@ import (
 
 	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrdata/blockdata/v2"
-	"github.com/decred/dcrdata/db/dcrpg"
+	"github.com/decred/dcrdata/db/dcrpg/v3"
 	"github.com/decred/dcrdata/db/dcrsqlite"
 	"github.com/decred/dcrdata/exchanges/v2"
 	"github.com/decred/dcrdata/gov/agendas"

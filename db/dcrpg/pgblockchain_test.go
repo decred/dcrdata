@@ -20,7 +20,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/db/cache/v2"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/db/dcrpg/internal"
+	"github.com/decred/dcrdata/db/dcrpg/v3/internal"
 )
 
 type MemStats runtime.MemStats

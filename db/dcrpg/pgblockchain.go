@@ -30,7 +30,7 @@ import (
 	"github.com/decred/dcrdata/blockdata/v2"
 	"github.com/decred/dcrdata/db/cache/v2"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/db/dcrpg/internal"
+	"github.com/decred/dcrdata/db/dcrpg/v3/internal"
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/stakedb/v2"
 	"github.com/decred/dcrdata/txhelpers/v2"
