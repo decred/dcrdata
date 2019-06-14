@@ -33,7 +33,7 @@ import (
 	"github.com/decred/dcrdata/gov/politeia"
 	"github.com/decred/dcrdata/mempool/v3"
 	m "github.com/decred/dcrdata/middleware/v2"
-	"github.com/decred/dcrdata/pubsub"
+	"github.com/decred/dcrdata/pubsub/v2"
 	pstypes "github.com/decred/dcrdata/pubsub/types/v2"
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/semver"

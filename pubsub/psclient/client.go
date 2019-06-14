@@ -9,7 +9,7 @@ import (
 	"time"
 
 	exptypes "github.com/decred/dcrdata/explorer/types"
-	pubsub "github.com/decred/dcrdata/pubsub"
+	pubsub "github.com/decred/dcrdata/pubsub/v2"
 	pstypes "github.com/decred/dcrdata/pubsub/types/v2"
 	"github.com/decred/dcrdata/semver"
 	"golang.org/x/net/websocket"
