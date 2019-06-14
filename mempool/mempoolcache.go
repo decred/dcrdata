@@ -10,7 +10,7 @@ import (
 
 	"github.com/decred/dcrd/dcrjson/v2"
 	apitypes "github.com/decred/dcrdata/api/types"
-	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/db/dbtypes/v2"
 	exptypes "github.com/decred/dcrdata/explorer/types"
 )
 

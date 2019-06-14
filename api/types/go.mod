@@ -9,7 +9,7 @@ require (
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.1
 	github.com/decred/dcrd/dcrjson/v2 v2.0.0
 	github.com/decred/dcrd/dcrutil v1.2.1-0.20190118223730-3a5281156b73
-	github.com/decred/dcrdata/db/dbtypes v1.0.2-0.20190416155607-25afe5d5e790
+	github.com/decred/dcrdata/db/dbtypes/v2 v2.0.0
 	github.com/decred/dcrdata/txhelpers/v2 v2.0.0
 	github.com/dgryski/go-farm v0.0.0-20190323231341-8198c7b169ec // indirect
 	github.com/golang/protobuf v1.3.1 // indirect
