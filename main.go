@@ -37,7 +37,7 @@ import (
 	pstypes "github.com/decred/dcrdata/pubsub/types/v2"
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/semver"
-	"github.com/decred/dcrdata/stakedb"
+	"github.com/decred/dcrdata/stakedb/v2"
 	"github.com/decred/dcrdata/v5/api"
 	"github.com/decred/dcrdata/v5/api/insight"
 	"github.com/decred/dcrdata/v5/explorer"

@@ -25,7 +25,7 @@ import (
 	exptypes "github.com/decred/dcrdata/explorer/types"
 	"github.com/decred/dcrdata/mempool/v3"
 	"github.com/decred/dcrdata/rpcutils"
-	"github.com/decred/dcrdata/stakedb"
+	"github.com/decred/dcrdata/stakedb/v2"
 	"github.com/decred/dcrdata/txhelpers/v2"
 	humanize "github.com/dustin/go-humanize"
 )

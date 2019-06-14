@@ -19,7 +19,7 @@ import (
 	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrdata/db/dcrpg"
 	"github.com/decred/dcrdata/rpcutils"
-	"github.com/decred/dcrdata/stakedb"
+	"github.com/decred/dcrdata/stakedb/v2"
 	"github.com/decred/slog"
 	"github.com/dmigwi/go-piparser/proposals"
 )

@@ -18,7 +18,7 @@ require (
 	github.com/decred/dcrdata/explorer/types v1.1.0
 	github.com/decred/dcrdata/mempool/v3 v3.0.1
 	github.com/decred/dcrdata/rpcutils v1.2.0
-	github.com/decred/dcrdata/stakedb v1.0.1
+	github.com/decred/dcrdata/stakedb/v2 v2.0.0
 	github.com/decred/dcrdata/testutil/dbconfig v1.0.1
 	github.com/decred/dcrdata/txhelpers/v2 v2.0.0
 	github.com/decred/slog v1.0.0
