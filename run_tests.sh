@@ -39,6 +39,9 @@ testrepo () {
   (cd cmd/rebuilddb && go build)
   (cd cmd/rebuilddb2 && go build)
   (cd cmd/scanblocks && go build)
+  (cd pubsub/democlient && go build)
+  (cd testutil/apiload && go build)
+  (cd testutil/dbload && go build)
 
   # Check tests
   git clone https://github.com/dcrlabs/bug-free-happiness $TMPDIR/test-data-repo
@@ -46,7 +49,7 @@ testrepo () {
 
   # run tests on all modules
   for MODPATH in $MODPATHS; do
-    env GORACE='halt_on_error=1' go test -v $(cd $MODPATH && go list -m)
+    env GORACE='halt_on_error=1' go test -v $(cd $MODPATH && go list -m)/...
   done
 
   # check linters
