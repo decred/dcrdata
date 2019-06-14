@@ -10,7 +10,7 @@ require (
 	github.com/decred/dcrd/dcrjson/v2 v2.0.0
 	github.com/decred/dcrd/dcrutil v1.3.0
 	github.com/decred/dcrd/rpcclient/v2 v2.0.0
-	github.com/decred/dcrdata/api/types v1.0.7-0.20190416204615-70a58657e02f
+	github.com/decred/dcrdata/api/types/v3 v3.0.0
 	github.com/decred/dcrdata/db/dbtypes/v2 v2.0.0
 	github.com/decred/dcrdata/explorer/types v1.1.0
 	github.com/decred/dcrdata/pubsub/types/v2 v2.0.0

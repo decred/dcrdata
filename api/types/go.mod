@@ -1,4 +1,4 @@
-module github.com/decred/dcrdata/api/types
+module github.com/decred/dcrdata/api/types/v3
 
 go 1.11
 
@@ -8,7 +8,7 @@ require (
 	github.com/Sereal/Sereal v0.0.0-20190416075407-a9d24ede505a // indirect
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.1
 	github.com/decred/dcrd/dcrjson/v2 v2.0.0
-	github.com/decred/dcrd/dcrutil v1.2.1-0.20190118223730-3a5281156b73
+	github.com/decred/dcrd/dcrutil v1.3.0
 	github.com/decred/dcrdata/db/dbtypes/v2 v2.0.0
 	github.com/decred/dcrdata/txhelpers/v2 v2.0.0
 	github.com/dgryski/go-farm v0.0.0-20190323231341-8198c7b169ec // indirect
