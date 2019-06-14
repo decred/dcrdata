@@ -1,4 +1,4 @@
-module github.com/decred/dcrdata/db/dcrpg
+module github.com/decred/dcrdata/db/dcrpg/v3
 
 go 1.11
 

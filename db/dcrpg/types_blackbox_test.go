@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/db/dcrpg"
+	"github.com/decred/dcrdata/db/dcrpg/v3"
 )
 
 var (

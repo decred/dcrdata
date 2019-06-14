@@ -24,7 +24,7 @@ import (
 	"github.com/decred/dcrd/rpcclient/v2"
 	apitypes "github.com/decred/dcrdata/api/types/v3"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/db/dcrpg"
+	"github.com/decred/dcrdata/db/dcrpg/v3"
 	m "github.com/decred/dcrdata/middleware/v2"
 	"github.com/decred/dcrdata/rpcutils"
 )

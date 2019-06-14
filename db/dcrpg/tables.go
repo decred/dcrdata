@@ -9,7 +9,7 @@ import (
 	"fmt"
 
 	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/db/dcrpg/internal"
+	"github.com/decred/dcrdata/db/dcrpg/v3/internal"
 )
 
 var createTableStatements = map[string]string{
