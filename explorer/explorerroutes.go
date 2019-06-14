@@ -1564,6 +1564,13 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 // handling without redirecting. Be sure to return after calling StatusPage if
 // this completes the processing of the calling http handler.
 func (exp *explorerUI) StatusPage(w http.ResponseWriter, code, message, additionalInfo string, sType expStatus) {
+	commonPageData := exp.commonData(dummyRequest)
+	if commonPageData == nil {
+		// exp.blockData.GetTip likely failed due to empty DB.
+		http.Error(w, "The database is initializing. Try again later.",
+			http.StatusServiceUnavailable)
+		return
+	}
 	str, err := exp.templates.execTemplateToString("status", struct {
 		*CommonPageData
 		StatusType     expStatus
@@ -1571,7 +1578,7 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code, message, addition
 		Message        string
 		AdditionalInfo string
 	}{
-		CommonPageData: exp.commonData(dummyRequest),
+		CommonPageData: commonPageData,
 		StatusType:     sType,
 		Code:           code,
 		Message:        message,
