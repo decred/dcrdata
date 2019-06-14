@@ -14,7 +14,6 @@ require (
 	github.com/decred/slog v1.0.0
 	github.com/golang/protobuf v1.3.1 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
-	github.com/pkg/errors v0.8.1 // indirect
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	google.golang.org/appengine v1.5.0 // indirect
 )
