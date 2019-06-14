@@ -12,7 +12,7 @@ require (
 	github.com/decred/dcrd/rpcclient/v2 v2.0.0
 	github.com/decred/dcrd/wire v1.2.0
 	github.com/decred/dcrdata/api/types/v3 v3.0.0
-	github.com/decred/dcrdata/blockdata v1.0.1
+	github.com/decred/dcrdata/blockdata/v2 v2.0.0
 	github.com/decred/dcrdata/db/cache/v2 v2.0.0
 	github.com/decred/dcrdata/db/dbtypes/v2 v2.0.0
 	github.com/decred/dcrdata/explorer/types v1.1.0
