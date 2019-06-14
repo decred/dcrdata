@@ -869,22 +869,18 @@ var (
 // meta table does not exist, a metaNotFoundErr error is returned to indicate
 // that the legacy table versioning system is in use.
 func versionCheck(db *sql.DB) (*DatabaseVersion, CompatAction, error) {
-	// Check for the regular data tables to detect an empty database.
-	for tableName := range createTableStatements {
-		if tableName == "meta" {
-			continue
-		}
-		exists, err := TableExists(db, tableName)
-		if err != nil {
-			return nil, Unknown, err
-		}
-		if !exists {
-			return nil, Unknown, tablesNotFoundErr
-		}
+	// Detect an empty database, only checking for the "blocks" table since some
+	// of the tables are created by schema upgrades (e.g. proposal_votes).
+	exists, err := TableExists(db, "blocks")
+	if err != nil {
+		return nil, Unknown, err
+	}
+	if !exists {
+		return nil, Unknown, tablesNotFoundErr
 	}
 
 	// The meta table stores the database schema version.
-	exists, err := TableExists(db, "meta")
+	exists, err = TableExists(db, "meta")
 	if err != nil {
 		return nil, Unknown, err
 	}
