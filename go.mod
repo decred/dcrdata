@@ -29,7 +29,6 @@ require (
 	github.com/decred/dcrdata/semver v1.0.0
 	github.com/decred/dcrdata/stakedb/v2 v2.0.0
 	github.com/decred/dcrdata/txhelpers/v2 v2.0.0
-	github.com/decred/dcrwallet/wallet v1.2.0
 	github.com/decred/slog v1.0.0
 	github.com/dgryski/go-farm v0.0.0-20190416075124-e1214b5e05dc // indirect
 	github.com/didip/tollbooth v4.0.1-0.20180415195142-b10a036da5f0+incompatible
