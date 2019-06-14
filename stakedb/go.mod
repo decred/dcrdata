@@ -1,4 +1,4 @@
-module github.com/decred/dcrdata/stakedb
+module github.com/decred/dcrdata/stakedb/v2
 
 go 1.11
 
