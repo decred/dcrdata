@@ -6,11 +6,11 @@ require (
 	github.com/decred/dcrd/blockchain v1.1.1
 	github.com/decred/dcrd/chaincfg v1.5.1
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.1
-	github.com/decred/dcrd/dcrec v0.0.0-20190413175304-e69a789183f3
+	github.com/decred/dcrd/dcrec v1.0.0
 	github.com/decred/dcrd/dcrjson/v2 v2.0.0
-	github.com/decred/dcrd/dcrutil v1.2.1-0.20190118223730-3a5281156b73
+	github.com/decred/dcrd/dcrutil v1.3.0
 	github.com/decred/dcrd/rpcclient/v2 v2.0.0
-	github.com/decred/dcrd/txscript v1.0.3-0.20190402182842-879eebce3333
+	github.com/decred/dcrd/txscript v1.0.3-0.20190613214542-d0a6bf024dfc
 	github.com/decred/dcrd/wire v1.2.0
 	github.com/decred/dcrdata/api/types v1.0.7-0.20190416204615-70a58657e02f
 	github.com/decred/dcrdata/blockdata v1.0.1
@@ -53,7 +53,7 @@ require (
 	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
 	go.etcd.io/bbolt v1.3.2 // indirect
-	golang.org/x/net v0.0.0-20190415214537-1da14a5a36f2
+	golang.org/x/net v0.0.0-20190613194153-d28f0bde5980
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
 )
 
@@ -77,5 +77,5 @@ replace (
 	github.com/decred/dcrdata/semver => ./semver
 	github.com/decred/dcrdata/stakedb => ./stakedb
 	github.com/decred/dcrdata/testutil/dbconfig => ./testutil/dbconfig
-	github.com/decred/dcrdata/txhelpers => ./txhelpers
+	github.com/decred/dcrdata/txhelpers/v2 => ./txhelpers
 )
