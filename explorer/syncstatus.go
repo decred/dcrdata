@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/db/dbtypes/v2"
 	pstypes "github.com/decred/dcrdata/pubsub/types/v2"
 )
 

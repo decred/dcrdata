@@ -43,7 +43,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/db/dcrpg/internal"
 )
 

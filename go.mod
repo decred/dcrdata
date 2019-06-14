@@ -15,7 +15,7 @@ require (
 	github.com/decred/dcrdata/api/types v1.0.7-0.20190416204615-70a58657e02f
 	github.com/decred/dcrdata/blockdata v1.0.1
 	github.com/decred/dcrdata/db/cache v1.0.1
-	github.com/decred/dcrdata/db/dbtypes v1.0.2-0.20190416204615-70a58657e02f
+	github.com/decred/dcrdata/db/dbtypes/v2 v2.0.0
 	github.com/decred/dcrdata/db/dcrpg v1.0.1-0.20190416163815-b92d2b40c258
 	github.com/decred/dcrdata/db/dcrsqlite v1.0.1-0.20190416165439-dcbde78387e2
 	github.com/decred/dcrdata/exchanges/v2 v2.0.0
@@ -61,7 +61,6 @@ replace (
 	github.com/decred/dcrdata/api/types => ./api/types
 	github.com/decred/dcrdata/blockdata => ./blockdata
 	github.com/decred/dcrdata/db/cache => ./db/cache
-	github.com/decred/dcrdata/db/dbtypes => ./db/dbtypes
 	github.com/decred/dcrdata/db/dcrpg => ./db/dcrpg
 	github.com/decred/dcrdata/db/dcrsqlite => ./db/dcrsqlite
 	github.com/decred/dcrdata/gov/agendas => ./gov/agendas

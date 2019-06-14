@@ -7,7 +7,7 @@ package internal
 import (
 	"fmt"
 
-	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/db/dbtypes/v2"
 )
 
 // These queries relate primarily to the "blocks" and "block_chain" tables.

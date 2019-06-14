@@ -4,7 +4,7 @@ replace (
 	github.com/decred/dcrdata/api/types => ../../api/types
 	github.com/decred/dcrdata/blockdata => ../../blockdata
 	github.com/decred/dcrdata/db/cache => ../../db/cache
-	github.com/decred/dcrdata/db/dbtypes => ../../db/dbtypes
+	github.com/decred/dcrdata/db/dbtypes/v2 => ../../db/dbtypes
 	github.com/decred/dcrdata/db/dcrpg => ../../db/dcrpg
 	github.com/decred/dcrdata/db/dcrsqlite => ../../db/dcrsqlite
 	github.com/decred/dcrdata/dcrrates => ../../dcrrates

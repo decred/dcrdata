@@ -23,7 +23,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/db/cache"
-	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/db/dcrpg/internal"
 	"github.com/decred/dcrdata/txhelpers/v2"
 	humanize "github.com/dustin/go-humanize"

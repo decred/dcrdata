@@ -25,7 +25,7 @@ import (
 	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrdata/blockdata"
 	"github.com/decred/dcrdata/db/cache"
-	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/db/dcrpg"
 	"github.com/decred/dcrdata/db/dcrsqlite"
 	"github.com/decred/dcrdata/exchanges/v2"

@@ -28,7 +28,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/db/cache"
-	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/exchanges/v2"
 	"github.com/decred/dcrdata/gov/agendas"
 	m "github.com/decred/dcrdata/middleware"
