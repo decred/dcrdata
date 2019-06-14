@@ -17,7 +17,7 @@ require (
 	github.com/decred/dcrdata/db/cache/v2 v2.0.0
 	github.com/decred/dcrdata/db/dbtypes/v2 v2.0.0
 	github.com/decred/dcrdata/db/dcrpg/v3 v3.0.0
-	github.com/decred/dcrdata/db/dcrsqlite v1.0.1-0.20190416165439-dcbde78387e2
+	github.com/decred/dcrdata/db/dcrsqlite/v3 v3.0.0
 	github.com/decred/dcrdata/exchanges/v2 v2.0.0
 	github.com/decred/dcrdata/explorer/types v1.1.0
 	github.com/decred/dcrdata/gov v1.0.0
@@ -51,11 +51,6 @@ require (
 	github.com/sirupsen/logrus v1.2.0
 	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
-	go.etcd.io/bbolt v1.3.2 // indirect
 	golang.org/x/net v0.0.0-20190613194153-d28f0bde5980
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
-)
-
-replace (
-	github.com/decred/dcrdata/db/dcrsqlite => ./db/dcrsqlite
 )

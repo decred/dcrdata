@@ -1,4 +1,4 @@
-module github.com/decred/dcrdata/db/dcrsqlite
+module github.com/decred/dcrdata/db/dcrsqlite/v3
 
 go 1.11
 
