@@ -15,7 +15,7 @@ import (
 	"github.com/decred/dcrdata/db/cache"
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/rpcutils"
-	"github.com/decred/dcrdata/txhelpers"
+	"github.com/decred/dcrdata/txhelpers/v2"
 )
 
 // GetRawTransaction gets a dcrjson.TxRawResult for the specified transaction

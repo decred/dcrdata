@@ -16,7 +16,7 @@ require (
 	github.com/decred/dcrdata/api/types v1.0.6
 	github.com/decred/dcrdata/db/dcrpg v1.0.0 // indirect
 	github.com/decred/dcrdata/rpcutils v1.0.1
-	github.com/decred/dcrdata/txhelpers v1.0.1
+	github.com/decred/dcrdata/txhelpers/v2 v2.0.0
 	github.com/decred/slog v1.0.0
 	github.com/dgraph-io/badger v1.5.5-0.20190214192501-3196cc1d7a5f
 	github.com/dgryski/go-farm v0.0.0-20190323231341-8198c7b169ec // indirect

@@ -31,7 +31,7 @@ import (
 	pitypes "github.com/decred/dcrdata/gov/politeia/types"
 	"github.com/decred/dcrdata/mempool"
 	pstypes "github.com/decred/dcrdata/pubsub/types"
-	"github.com/decred/dcrdata/txhelpers"
+	"github.com/decred/dcrdata/txhelpers/v2"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/rs/cors"

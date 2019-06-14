@@ -15,7 +15,7 @@ require (
 	github.com/decred/dcrdata/db/dbtypes v1.0.1
 	github.com/decred/dcrdata/db/dcrpg v1.0.0 // indirect
 	github.com/decred/dcrdata/stakedb v1.0.1
-	github.com/decred/dcrdata/txhelpers v1.0.1
+	github.com/decred/dcrdata/txhelpers/v2 v2.0.0
 	github.com/decred/slog v1.0.0
 	github.com/dgryski/go-farm v0.0.0-20190323231341-8198c7b169ec // indirect
 	github.com/pkg/errors v0.8.1 // indirect

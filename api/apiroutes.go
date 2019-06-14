@@ -32,7 +32,7 @@ import (
 	"github.com/decred/dcrdata/exchanges"
 	"github.com/decred/dcrdata/gov/agendas"
 	m "github.com/decred/dcrdata/middleware"
-	"github.com/decred/dcrdata/txhelpers"
+	"github.com/decred/dcrdata/txhelpers/v2"
 	appver "github.com/decred/dcrdata/v5/version"
 )
 
