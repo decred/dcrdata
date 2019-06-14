@@ -10,7 +10,7 @@ import (
 
 	exptypes "github.com/decred/dcrdata/explorer/types"
 	pubsub "github.com/decred/dcrdata/pubsub"
-	pstypes "github.com/decred/dcrdata/pubsub/types"
+	pstypes "github.com/decred/dcrdata/pubsub/types/v2"
 	"github.com/decred/dcrdata/semver"
 	"golang.org/x/net/websocket"
 )

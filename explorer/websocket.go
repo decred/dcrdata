@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrdata/explorer/types"
-	pstypes "github.com/decred/dcrdata/pubsub/types"
+	pstypes "github.com/decred/dcrdata/pubsub/types/v2"
 )
 
 const (

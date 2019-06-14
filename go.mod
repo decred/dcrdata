@@ -25,7 +25,7 @@ require (
 	github.com/decred/dcrdata/mempool v1.0.0
 	github.com/decred/dcrdata/middleware v1.0.2-0.20190416165439-dcbde78387e2
 	github.com/decred/dcrdata/pubsub v1.0.1-0.20190416165439-dcbde78387e2
-	github.com/decred/dcrdata/pubsub/types v1.0.1-0.20190416204615-70a58657e02f
+	github.com/decred/dcrdata/pubsub/types/v2 v2.0.0
 	github.com/decred/dcrdata/rpcutils v1.0.2-0.20190416204615-70a58657e02f
 	github.com/decred/dcrdata/semver v1.0.0
 	github.com/decred/dcrdata/stakedb v1.0.1
@@ -69,7 +69,6 @@ replace (
 	github.com/decred/dcrdata/mempool => ./mempool
 	github.com/decred/dcrdata/middleware => ./middleware
 	github.com/decred/dcrdata/pubsub => ./pubsub
-	github.com/decred/dcrdata/pubsub/types => ./pubsub/types
 	github.com/decred/dcrdata/rpcutils => ./rpcutils
 	github.com/decred/dcrdata/semver => ./semver
 	github.com/decred/dcrdata/stakedb => ./stakedb
