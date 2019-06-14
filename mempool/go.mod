@@ -14,7 +14,7 @@ require (
 	github.com/decred/dcrdata/db/dbtypes/v2 v2.0.0
 	github.com/decred/dcrdata/explorer/types v1.1.0
 	github.com/decred/dcrdata/pubsub/types/v2 v2.0.0
-	github.com/decred/dcrdata/rpcutils v1.0.2-0.20190416204615-70a58657e02f
+	github.com/decred/dcrdata/rpcutils v1.2.0
 	github.com/decred/dcrdata/txhelpers/v2 v2.0.0
 	github.com/decred/slog v1.0.0
 	github.com/dustin/go-humanize v1.0.0
