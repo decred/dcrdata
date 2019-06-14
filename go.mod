@@ -20,8 +20,7 @@ require (
 	github.com/decred/dcrdata/db/dcrsqlite v1.0.1-0.20190416165439-dcbde78387e2
 	github.com/decred/dcrdata/exchanges/v2 v2.0.0
 	github.com/decred/dcrdata/explorer/types v1.1.0
-	github.com/decred/dcrdata/gov/agendas v1.0.1-0.20190416163815-b92d2b40c258
-	github.com/decred/dcrdata/gov/politeia v1.0.1-0.20190416163815-b92d2b40c258
+	github.com/decred/dcrdata/gov v1.0.0
 	github.com/decred/dcrdata/mempool v1.0.0
 	github.com/decred/dcrdata/middleware v1.0.2-0.20190416165439-dcbde78387e2
 	github.com/decred/dcrdata/pubsub v1.0.1-0.20190416165439-dcbde78387e2
@@ -63,8 +62,6 @@ replace (
 	github.com/decred/dcrdata/db/cache => ./db/cache
 	github.com/decred/dcrdata/db/dcrpg => ./db/dcrpg
 	github.com/decred/dcrdata/db/dcrsqlite => ./db/dcrsqlite
-	github.com/decred/dcrdata/gov/agendas => ./gov/agendas
-	github.com/decred/dcrdata/gov/politeia => ./gov/politeia
 	github.com/decred/dcrdata/mempool => ./mempool
 	github.com/decred/dcrdata/middleware => ./middleware
 	github.com/decred/dcrdata/pubsub => ./pubsub
@@ -72,5 +69,4 @@ replace (
 	github.com/decred/dcrdata/semver => ./semver
 	github.com/decred/dcrdata/stakedb => ./stakedb
 	github.com/decred/dcrdata/testutil/dbconfig => ./testutil/dbconfig
-	github.com/decred/dcrdata/txhelpers/v2 => ./txhelpers
 )

@@ -10,8 +10,7 @@ replace (
 	github.com/decred/dcrdata/dcrrates => ../../dcrrates
 	github.com/decred/dcrdata/exchanges => ../../exchanges
 	github.com/decred/dcrdata/explorer/types => ../../explorer/types
-	github.com/decred/dcrdata/gov/agendas => ../../gov/agendas
-	github.com/decred/dcrdata/gov/politeia => ../../gov/politeia
+	github.com/decred/dcrdata/gov => ../../gov
 	github.com/decred/dcrdata/mempool => ../../mempool
 	github.com/decred/dcrdata/middleware => ../../middleware
 	github.com/decred/dcrdata/pubsub => ../
