@@ -66,7 +66,5 @@ replace (
 	github.com/decred/dcrdata/middleware => ./middleware
 	github.com/decred/dcrdata/pubsub => ./pubsub
 	github.com/decred/dcrdata/rpcutils => ./rpcutils
-	github.com/decred/dcrdata/semver => ./semver
 	github.com/decred/dcrdata/stakedb => ./stakedb
-	github.com/decred/dcrdata/testutil/dbconfig => ./testutil/dbconfig
 )
