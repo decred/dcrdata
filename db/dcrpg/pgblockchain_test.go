@@ -4,6 +4,7 @@ package dcrpg
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -21,6 +22,9 @@ import (
 	"github.com/decred/dcrdata/db/cache/v2"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/db/dcrpg/v3/internal"
+	"github.com/decred/dcrdata/testutil/dbconfig"
+	"github.com/decred/slog"
+	pitypes "github.com/dmigwi/go-piparser/proposals/types"
 )
 
 type MemStats runtime.MemStats
@@ -50,29 +54,63 @@ func (m MemStats) String() string {
 
 var (
 	db           *ChainDB
+	sqlDb        *sql.DB
 	trefUNIX     int64 = 1454954400 // mainnet genesis block time
+	trefStr            = "2016-02-08T12:00:00-06:00"
 	addrCacheCap int   = 1e4
 )
 
+type dummyParser struct{}
+
+func (p *dummyParser) UpdateSignal() <-chan struct{} {
+	return make(chan struct{})
+}
+
+func (p *dummyParser) ProposalsHistory() ([]*pitypes.History, error) {
+	return []*pitypes.History{}, nil
+}
+
+func (p *dummyParser) ProposalsHistorySince(since time.Time) ([]*pitypes.History, error) {
+	return []*pitypes.History{}, nil
+}
+
 func openDB() (func() error, error) {
 	dbi := DBInfo{
-		Host:   "localhost",
-		Port:   "5432",
-		User:   "dcrdata", // postgres for admin operations
-		Pass:   "",
-		DBName: "dcrdata_mainnet_test",
+		Host:   dbconfig.PGTestsHost,
+		Port:   dbconfig.PGTestsPort,
+		User:   dbconfig.PGTestsUser,
+		Pass:   dbconfig.PGTestsPass,
+		DBName: dbconfig.PGTestsDBName,
 	}
 	var err error
 	db, err = NewChainDB(&dbi, &chaincfg.MainNetParams, nil, true, true,
-		addrCacheCap, nil, nil, nil)
+		addrCacheCap, nil, new(dummyParser), nil)
 	cleanUp := func() error { return nil }
 	if db != nil {
 		cleanUp = db.Close
+	} else {
+		return cleanUp, err
 	}
+
+	sqlDb = db.db
+	if err = DropTestingTable(sqlDb); err != nil {
+		return nil, err
+	}
+	if err = CreateTable(sqlDb, "testing"); err != nil {
+		return nil, err
+	}
+
 	return cleanUp, err
 }
 
 func TestMain(m *testing.M) {
+	// Setup dcrpg logger.
+	UseLogger(slog.NewBackend(os.Stdout).Logger("dcrpg"))
+	log.SetLevel(slog.LevelTrace)
+
+	// Setup db/cache logger.
+	cache.UseLogger(slog.NewBackend(os.Stdout).Logger("db/cache"))
+
 	// your func
 	cleanUp, err := openDB()
 	defer cleanUp()

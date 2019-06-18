@@ -1,6 +1,6 @@
-// Package testsconfig defines the various parameters and methods needed to be
-// set up pg and sqlite dbs for tests to run successfully.
-package testsconfig
+// Package dbconfig defines the parameters and methods needed for the PostgreSQL
+// and SQLite tests.
+package dbconfig
 
 import (
 	"bufio"
@@ -20,11 +20,11 @@ const (
 
 // Test DB server and database config.
 const (
-	PGChartsTestsHost   = "localhost"
-	PGChartsTestsPort   = "5432"
-	PGChartsTestsUser   = "dcrdata"
-	PGChartsTestsPass   = ""
-	PGChartsTestsDBName = "dcrdata_mainnet_test"
+	PGTestsHost   = "localhost"
+	PGTestsPort   = "5432"
+	PGTestsUser   = "dcrdata"
+	PGTestsPass   = ""
+	PGTestsDBName = "dcrdata_mainnet_test"
 )
 
 // SqliteDbFilePath returns the absolute sqlite db filepath when accessed from
@@ -55,7 +55,7 @@ type Migrations interface {
 }
 
 // CustomScanner enables a given *.sql file dump to be scanned and loaded
-// into the respectived query runner using the Runner method.
+// into the respective query runner using the Runner method.
 func CustomScanner(m Migrations) error {
 	file, err := os.Open(m.Path())
 	if err != nil {

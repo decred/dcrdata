@@ -1,70 +1,14 @@
-// +build chartests
+// +build mainnettest
 
 package dcrpg
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"testing"
-	"time"
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrdata/db/cache/v2"
-	tc "github.com/decred/dcrdata/testutil/dbconfig"
-	pitypes "github.com/dmigwi/go-piparser/proposals/types"
 )
-
-var (
-	db           *ChainDB
-	addrCacheCap int = 1e4
-)
-
-type parserInstance struct{}
-
-func (p *parserInstance) UpdateSignal() <-chan struct{} {
-	return make(chan struct{})
-}
-
-func (p *parserInstance) ProposalsHistory() ([]*pitypes.History, error) {
-	return []*pitypes.History{}, nil
-}
-
-func (p *parserInstance) ProposalsHistorySince(since time.Time) ([]*pitypes.History, error) {
-	return []*pitypes.History{}, nil
-}
-
-func openDB() (func() error, error) {
-	dbi := DBInfo{
-		Host:   tc.PGChartsTestsHost,
-		Port:   tc.PGChartsTestsPort,
-		User:   tc.PGChartsTestsUser,
-		Pass:   tc.PGChartsTestsPass,
-		DBName: tc.PGChartsTestsDBName,
-	}
-	var err error
-	db, err = NewChainDB(&dbi, &chaincfg.MainNetParams, nil, true, true, addrCacheCap,
-		nil, new(parserInstance), nil)
-	cleanUp := func() error { return nil }
-	if db != nil {
-		cleanUp = db.Close
-	}
-	return cleanUp, err
-}
-
-func TestMain(m *testing.M) {
-	// your func
-	cleanUp, err := openDB()
-	defer cleanUp()
-	if err != nil {
-		panic(fmt.Sprintln("no db for testing:", err))
-	}
-
-	retCode := m.Run()
-
-	// call with result of m.Run()
-	os.Exit(retCode)
-}
 
 // TestPgCharts compares the data returned when a fresh data query is made
 // with when an incremental change was added after new blocks were synced.
@@ -96,6 +40,7 @@ func TestPgCharts(t *testing.T) {
 	windowsLen := len(windows.Time)
 
 	if blocksLen == 0 {
+		t.Log(blocks)
 		t.Fatalf("unexpected empty blocks data")
 	}
 

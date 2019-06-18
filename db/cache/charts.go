@@ -378,9 +378,11 @@ func ValidateLengths(lens ...lengther) (int, error) {
 		return 0, nil
 	}
 	firstLen := lens[0].Length()
+	fmt.Println(firstLen)
 	shortest := firstLen
 	for i, l := range lens[1:lenLen] {
 		dLen := l.Length()
+		fmt.Println(dLen)
 		if dLen < firstLen {
 			log.Warnf("charts.ValidateLengths: dataset at index %d has mismatched length %d != %d", i+1, dLen, firstLen)
 			if dLen < shortest {
