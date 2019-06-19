@@ -582,7 +582,7 @@ export default class extends Controller {
       settings.chart = depth
     }
     if (settings.xc == null) {
-      settings.xc = binance
+      settings.xc = usesOrderbook(settings.chart) ? aggregatedKey : 'binance'
     }
     if (settings.stack) {
       settings.stack = parseInt(settings.stack)
