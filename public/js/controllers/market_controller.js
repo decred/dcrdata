@@ -15,7 +15,6 @@ const depth = 'depth'
 const history = 'history'
 const volume = 'volume'
 const aggregatedKey = 'aggregated'
-const binance = 'binance'
 const anHour = '1h'
 const minuteMap = {
   '30m': 30,
@@ -582,7 +581,7 @@ export default class extends Controller {
       settings.chart = depth
     }
     if (settings.xc == null) {
-      settings.xc = binance
+      settings.xc = usesOrderbook(settings.chart) ? aggregatedKey : 'binance'
     }
     if (settings.stack) {
       settings.stack = parseInt(settings.stack)
