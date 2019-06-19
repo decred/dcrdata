@@ -145,7 +145,7 @@ func _main(ctx context.Context) error {
 		if stakeDBHeight >= 0 {
 			log.Infof("Attempting to recover stake DB...")
 			stakeDB, err = stakedb.LoadAndRecover(dcrdClient, activeChain, cfg.DataDir, stakeDBHeight-288)
-			//stakeDBHeight = int64(stakeDB.Height())
+			stakeDBHeight = int64(stakeDB.Height())
 		}
 		if err != nil {
 			if stakeDB != nil {
@@ -155,6 +155,8 @@ func _main(ctx context.Context) error {
 		}
 	}
 	defer stakeDB.Close()
+
+	log.Infof("Loaded StakeDatabase at height %d", stakeDBHeight)
 
 	var piParser dcrpg.ProposalsFetcher
 	if !cfg.DisablePiParser {

@@ -138,7 +138,7 @@ func mainCore() error {
 
 	// Construct a ChainDB without a stakeDB to allow quick dropping of tables.
 	mpChecker := rpcutils.NewMempoolAddressChecker(client, activeChain)
-	db, err := dcrpg.NewChainDB(&dbi, activeChain, nil, false, cfg.HidePGConfig, 0,
+	db, err := dcrpg.NewChainDB(&dbi, activeChain, nil, true, cfg.HidePGConfig, 0,
 		mpChecker, piParser, client, func() {})
 	if db != nil {
 		defer db.Close()
@@ -171,13 +171,11 @@ func mainCore() error {
 	}
 	defer stakeDB.Close()
 
+	log.Infof("Loaded StakeDatabase at height %d", stakeDBHeight)
+
 	// Provide the stake database to the ChainDB for all of it's ticket tracking
 	// needs.
 	db.UseStakeDB(stakeDB)
-
-	if err = db.VersionCheck(client); err != nil {
-		log.Warnf("ATTENTION: %v", err)
-	}
 
 	if cfg.DuplicateEntryRecovery {
 		return db.DeleteDuplicatesRecovery(nil)

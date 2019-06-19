@@ -820,6 +820,12 @@ func (pgb *ChainDB) Close() error {
 	return pgb.db.Close()
 }
 
+// SqlDB returns the underlying sql.DB, which should not be used directly unless
+// you know what you are doing (if you have to ask...).
+func (pgb *ChainDB) SqlDB() *sql.DB {
+	return pgb.db
+}
+
 // InitUtxoCache resets the UTXO cache with the given slice of UTXO data.
 func (pgb *ChainDB) InitUtxoCache(utxos []dbtypes.UTXO) {
 	pgb.utxoCache.Reinit(utxos)
