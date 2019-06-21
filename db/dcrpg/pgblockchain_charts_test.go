@@ -89,12 +89,9 @@ func TestPgCharts(t *testing.T) {
 		t.Fatalf("unexpected empty windows data")
 	}
 
-	fmt.Println(charts.MissedVotesTip())
-
 	// Trim data points from the Blocks and Windows datasets.
 	blocks.Snip(4 * int(charts.DiffInterval))
 	windows.Snip(4)
-	fmt.Println(charts.MissedVotesTip())
 	t.Log("Validating post-snip.")
 	validate("post-snip")
 
