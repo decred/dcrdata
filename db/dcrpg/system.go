@@ -176,7 +176,7 @@ func retrieveSysSettings(stmt string, db *sql.DB) (PGSettings, error) {
 			// Shorten the source string.
 			source.String = "conf file"
 			if sourceFile.String == "" {
-				file = "NO PERMISION"
+				file = "NO PERMISSION"
 			} else {
 				file = sourceFile.String
 				line = strconv.FormatInt(sourceLine.Int64, 10)

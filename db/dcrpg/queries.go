@@ -3561,8 +3561,8 @@ func retrieveLastCommitTime(db *sql.DB) (timestamp time.Time, err error) {
 	return
 }
 
-// retrieveProposalVotesData returns the votes datat associated with the
-// provided proposal token.
+// retrieveProposalVotesData returns the vote data associated with the provided
+// proposal token.
 func retrieveProposalVotesData(ctx context.Context, db *sql.DB,
 	proposalToken string) (*dbtypes.ProposalChartsData, error) {
 	rows, err := db.QueryContext(ctx, internal.SelectProposalVotesChartData, proposalToken)

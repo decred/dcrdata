@@ -137,7 +137,7 @@ func (db *WiredDB) RewindStakeDB(ctx context.Context, toHeight int64, quiet ...b
 		default:
 		}
 
-		// Disconect the best block.
+		// Disconnect the best block.
 		if err = db.sDB.DisconnectBlock(false); err != nil {
 			return
 		}

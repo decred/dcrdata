@@ -102,10 +102,10 @@ func _main(ctx context.Context) error {
 		version.Version(), runtime.Version())
 
 	// Grab a Notifier. After all databases are synced, register handlers with
-	// the Register*Group methods, set the best block height with SetPreviousBlock
-	// and start receiving notifications with Listen. Create the notifer now so
-	// the *rpcclient.NotificationHandlers can be obtained, using
-	// (*Notifier).DcrdHandlers, for the rpcclient.Client constructor.
+	// the Register*Group methods, set the best block height with
+	// SetPreviousBlock and start receiving notifications with Listen. Create
+	// the notifier now so the *rpcclient.NotificationHandlers can be obtained,
+	// using (*Notifier).DcrdHandlers, for the rpcclient.Client constructor.
 	notifier := notify.NewNotifier(ctx)
 
 	// Connect to dcrd RPC server using a websocket.
@@ -624,7 +624,7 @@ func _main(ctx context.Context) error {
 	defer psHub.StopWebsocketHub()
 
 	blockDataSavers = append(blockDataSavers, psHub)
-	mempoolSavers = append(mempoolSavers, psHub) // individial transactions are from mempool monitor
+	mempoolSavers = append(mempoolSavers, psHub) // individual transactions are from mempool monitor
 
 	// Create the mempool data collector.
 	mpoolCollector := mempool.NewMempoolDataCollector(dcrdClient, activeChain)

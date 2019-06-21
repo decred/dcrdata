@@ -636,7 +636,7 @@ func (tp *TicketPool) maxCursor() int64 {
 	return tp.tip - 1
 }
 
-// retreatTo successively applies pool diffs in reverse with retreate until the
+// retreatTo successively applies pool diffs in reverse with retreat until the
 // cursor reaches the desired height. Note that this function will return
 // without error if the initial cursor is at or below the specified height.
 func (tp *TicketPool) retreatTo(height int64) error {

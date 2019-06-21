@@ -146,7 +146,7 @@ func (pgb *ChainDB) AddressIDsByOutpoint(txHash string, voutIndex uint32) ([]uin
 } // Update Vin due to DCRD AMOUNTIN - END
 
 // InsightSearchRPCAddressTransactions performs a searchrawtransactions for the
-// specfied address, max number of transactions, and offset into the transaction
+// specified address, max number of transactions, and offset into the transaction
 // list. The search results are in reverse temporal order.
 // TODO: Does this really need all the prev vout extra data?
 func (pgb *ChainDBRPC) InsightSearchRPCAddressTransactions(addr string, count,

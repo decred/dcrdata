@@ -1657,7 +1657,7 @@ func handleConvertTimeStampTZ(db *sql.DB) error {
 		}
 	}
 
-	// Switch server time zone for this sesssion back to UTC to read correct
+	// Switch server time zone for this session back to UTC to read correct
 	// time stamps.
 	if _, err = db.Exec(`SET TIME ZONE UTC`); err != nil {
 		return fmt.Errorf("failed to set time zone to UTC: %v", err)
@@ -1929,7 +1929,7 @@ func verifyChainWork(client BlockGetter, db *sql.DB) (int64, error) {
 			if strings.HasPrefix(err.Error(), "-5: Block not found") {
 				if isMainchain {
 					// Although every mainchain block should have a corresponding
-					// blockNode and chainwork value in drcd, this upgrade is run before
+					// blockNode and chainwork value in dcrd, this upgrade is run before
 					// the chain is synced, so it's possible an orphaned block is still
 					// marked mainchain.
 					log.Warnf("No chainwork found for mainchain block %s. Skipping.", hashStr)

@@ -3184,7 +3184,7 @@ func (pgb *ChainDB) PkScriptByVoutID(id uint64) (pkScript []byte, ver uint16, er
 
 // VinsForTx returns a slice of dbtypes.VinTxProperty values for each vin
 // referenced by the transaction dbTx, along with the pkScript and script
-// version for the corresponding prevous outpoints.
+// version for the corresponding previous outpoints.
 func (pgb *ChainDB) VinsForTx(dbTx *dbtypes.Tx) ([]dbtypes.VinTxProperty, []string, []uint16, error) {
 	// Retrieve the pkScript and script version for the previous outpoint of
 	// each vin.

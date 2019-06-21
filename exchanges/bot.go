@@ -374,11 +374,11 @@ func NewExchangeBot(config *ExchangeBotConfig) (*ExchangeBot, error) {
 	}
 
 	if len(bot.DcrBtcExchanges) == 0 {
-		return nil, fmt.Errorf("No DCR-BTC exchanges were intitialized")
+		return nil, fmt.Errorf("no DCR-BTC exchanges were initialized")
 	}
 
 	if len(bot.IndexExchanges) == 0 {
-		return nil, fmt.Errorf("No BTC-fiat exchanges were initialized")
+		return nil, fmt.Errorf("no BTC-fiat exchanges were initialized")
 	}
 
 	return bot, nil

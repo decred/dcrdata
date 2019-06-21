@@ -290,7 +290,7 @@ const (
 	VALUES (
 		$1, $2, $3, $4) `
 
-	// InsertMissRow inserts a new misss row without checking for unique index
+	// InsertMissRow inserts a new miss row without checking for unique index
 	// conflicts. This should only be used before the unique indexes are created
 	// or there may be constraint violations (errors).
 	InsertMissRow = insertMissRow + `RETURNING id;`
