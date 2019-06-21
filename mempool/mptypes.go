@@ -44,7 +44,7 @@ type TicketsDetails apitypes.TicketsDetails
 
 // Below is the implementation of sort.Interface
 // { Len(), Swap(i, j int), Less(i, j int) bool }. This implementation sorts
-// the structure in acending order
+// the structure in ascending order
 
 // Len returns the length of TicketsDetails
 func (tix TicketsDetails) Len() int {

@@ -674,7 +674,7 @@ func (ds DeletionSummarySlice) Reduce() DeletionSummary {
 	return s
 }
 
-// VinTxPropertyARRAY is a slice of VinTxProperty sturcts that implements
+// VinTxPropertyARRAY is a slice of VinTxProperty structs that implements
 // sql.Scanner and driver.Valuer.
 type VinTxPropertyARRAY []VinTxProperty
 

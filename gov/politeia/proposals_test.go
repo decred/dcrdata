@@ -275,8 +275,8 @@ var mockedPayload = &pitypes.ProposalInfo{
 	},
 }
 
-// TestStuff tests the update functionality, all proposals retrieval and proposal
-// Retreival by ID.
+// TestStuff tests the update functionality, all proposals retrieval and
+// proposal Retrieval by ID.
 func TestStuff(t *testing.T) {
 	server := mockServer()
 	newDBInstance := &ProposalDB{

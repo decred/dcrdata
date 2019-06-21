@@ -36,7 +36,7 @@ type MempoolAddressStore struct {
 // MempoolMonitor processes new transactions as they are added to mempool, and
 // forwards the processed data on channels assigned during construction. An
 // inventory of transactions in the current mempool is maintained to prevent
-// repetative data processing and signaling. Periodically, such as after a new
+// repetitive data processing and signaling. Periodically, such as after a new
 // block is mined, the mempool info and the transaction inventory are rebuilt
 // fresh via the CollectAndStore method. A MempoolDataCollector is required to
 // perform the collection and parsing, and an optional []MempoolDataSaver is
@@ -122,7 +122,7 @@ func (p *MempoolMonitor) BlockHandler(height uint32, _ string) error {
 // a new transaction has entered mempool. This function should be launched as a
 // goroutine, and stopped by closing the quit channel, the broadcasting
 // mechanism used by main. The newTxIn contains a chain hash for the transaction
-// from the notificiation, or a zero value hash indicating it was from a Ticker
+// from the notification, or a zero value hash indicating it was from a Ticker
 // or manually triggered.
 func (p *MempoolMonitor) TxHandler(rawTx *dcrjson.TxRawResult) error {
 	log.Tracef("TxHandler: new transaction: %v.", rawTx.Txid)

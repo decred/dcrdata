@@ -255,7 +255,7 @@ type TicketInfo struct {
 	BestLuck             int64   // Best possible Luck for voting
 	AvgLuck              int64   // Average Luck for voting
 	VoteLuck             float64 // Actual Luck for voting on a ticket
-	LuckStatus           string  // Short discription based on the VoteLuck
+	LuckStatus           string  // Short description based on the VoteLuck
 	Probability          float64 // Probability of success before ticket expires
 }
 

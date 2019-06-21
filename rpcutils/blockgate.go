@@ -243,7 +243,7 @@ func (g *BlockGate) updateToBlock(height int64) (*dcrutil.Block, error) {
 // queue is at capacity, the oldest entry in the queue is popped off, and the
 // corresponding items in the blockWithHash and hashAtHeight maps are deleted.
 // TODO: possibly check for hash and height waiters before deleting items.
-// However, since signalHeight and signalHeight are run synchrounously after
+// However, since signalHeight and signalHeight are run synchronously after
 // rotateIn in UpdateToBlock and WaitForHeight (both lock the BlockGate), there
 // should be no such issues. At worst, their may be a cache miss when a client
 // calls Block or CachedBlock.

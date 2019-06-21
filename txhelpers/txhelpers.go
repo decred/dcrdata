@@ -787,7 +787,7 @@ func SSGenVoteBits(tx *wire.MsgTx) (uint16, error) {
 
 	pkScript := tx.TxOut[1].PkScript
 	if len(pkScript) < 8 {
-		return 0, fmt.Errorf("vote consensus version abent")
+		return 0, fmt.Errorf("vote consensus version absent")
 	}
 
 	return binary.LittleEndian.Uint16(pkScript[2:4]), nil

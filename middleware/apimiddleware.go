@@ -762,9 +762,9 @@ func BlockDateQueryCtx(next http.Handler) http.Handler {
 	})
 }
 
-// AgendIdCtx returns a http.HandlerFunc that embeds the value at the url
-// part {agendaId} into the request context.
-func AgendIdCtx(next http.Handler) http.Handler {
+// AgendaIdCtx returns a http.HandlerFunc that embeds the value at the url part
+// {agendaId} into the request context.
+func AgendaIdCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		agendaId := chi.URLParam(r, "agendaId")
 		ctx := context.WithValue(r.Context(), ctxAgendaId, agendaId)

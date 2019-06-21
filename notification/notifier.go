@@ -2,7 +2,7 @@
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
-// Package notification syncronizes dcrd notifications to any number of
+// Package notification synchronizes dcrd notifications to any number of
 // handlers. Typical use:
 // 1. Create a Notifier with NewNotifier.
 // 2. Grab dcrd configuration settings with DcrdHandlers.
@@ -344,7 +344,7 @@ func (notifier *Notifier) processBlock(bh *wire.BlockHeader) {
 	notifier.SetPreviousBlock(hash, height)
 }
 
-// processTx calls the TxHandler gruops one at a time in the order that they
+// processTx calls the TxHandler groups one at a time in the order that they
 // were registered.
 func (notifier *Notifier) processTx(tx *dcrjson.TxRawResult) {
 	start := time.Now()

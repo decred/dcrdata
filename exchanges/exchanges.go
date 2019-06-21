@@ -107,7 +107,7 @@ var (
 			hourKey: "https://bittrex.com/api/v2.0/pub/market/GetTicks?marketName=BTC-DCR&tickInterval=hour",
 			dayKey:  "https://bittrex.com/api/v2.0/pub/market/GetTicks?marketName=BTC-DCR&tickInterval=day",
 		},
-		// Bittrex uses SignalR, which retrieves the actual websocket enpoint via
+		// Bittrex uses SignalR, which retrieves the actual websocket endpoint via
 		// HTTP.
 		Websocket: "socket.bittrex.com",
 	}
@@ -1563,9 +1563,9 @@ func (bittrex *BittrexExchange) msgHandler(msg signalr.Message) {
 
 // Connect to the websocket and send the update subscription. Delay sending the
 // full orderbook subscription until the first delta is received because sending
-// it too soon can cause missed updates.
-// Even if there is no action on the bittrex ordebook, they will periodically
-// send empty updates, which will trigger the full order book request.
+// it too soon can cause missed updates. Even if there is no action on the
+// bittrex order book, they will periodically send empty updates, which will
+// trigger the full order book request.
 func (bittrex *BittrexExchange) connectWs() {
 	err := bittrex.connectSignalr(&signalrConfig{
 		host:           BittrexURLs.Websocket,
@@ -2713,7 +2713,7 @@ func (poloniex *PoloniexExchange) processWsMessage(raw []byte) {
 			case poloniexBuyDirection:
 				newBids[eightPtKey(order.price)] = order
 			default:
-				poloniex.setWsFail(fmt.Errorf("Unknown poloniex update direction indic`ator: %d", direction))
+				poloniex.setWsFail(fmt.Errorf("Unknown poloniex update direction indicator: %d", direction))
 				return
 			}
 			count++

@@ -62,7 +62,7 @@ func newWiredDB(db *DB, stakeDB *stakedb.StakeDatabase, cl *rpcclient.Client, p 
 
 // NewWiredDB creates a new WiredDB from a *sql.DB, a node client, network
 // parameters, and a status update channel. It calls dcrsqlite.NewDB to create a
-// new DB that wrapps the sql.DB.
+// new DB that wraps the sql.DB.
 func NewWiredDB(db *sql.DB, stakeDB *stakedb.StakeDatabase, cl *rpcclient.Client,
 	p *chaincfg.Params, shutdown func()) (*WiredDB, error) {
 	// Create the sqlite.DB

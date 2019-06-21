@@ -381,7 +381,7 @@ func (db *ProposalDB) updateInProgressProposals() (int, error) {
 		// Do not update if:
 		// 1. piclient.RetrieveProposalByToken returned an error
 		if err != nil {
-			// Since the proposal tokens bieng updated here are already in the
+			// Since the proposal tokens being updated here are already in the
 			// proposals.db. Do not return errors found since they will still be
 			// updated when the data is available.
 			log.Errorf("RetrieveProposalByToken failed: %v ", err)
