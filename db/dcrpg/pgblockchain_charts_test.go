@@ -5,7 +5,6 @@ package dcrpg
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"testing"
 
 	"github.com/decred/dcrd/chaincfg"
@@ -51,11 +50,9 @@ func TestPgCharts(t *testing.T) {
 	windows := charts.Windows
 
 	validate := func(tag string) {
-		// Not checking NewAtoms right now, as the test database does not appear to
-		// contain stakebase and coinbase vins.
-		_, err := cache.ValidateLengths(blocks.Time, blocks.Chainwork,
-			blocks.TxCount, blocks.BlockSize, blocks.Fees, blocks.PoolSize,
-			blocks.PoolValue)
+		_, err := cache.ValidateLengths(blocks.Time, blocks.PoolSize,
+			blocks.PoolValue, blocks.BlockSize, blocks.TxCount, blocks.NewAtoms,
+			blocks.Chainwork, blocks.Fees)
 		if err != nil {
 			t.Fatalf("%s blocks length validation error: %v", tag, err)
 		}
