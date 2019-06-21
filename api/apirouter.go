@@ -192,7 +192,7 @@ func NewAPIRouter(app *appContext, useRealIP, compressLarge bool) apiMux {
 
 	// Returns the charts data for the respective individual agendas.
 	mux.Route("/agenda", func(r chi.Router) {
-		r.With(m.AgendIdCtx).Get("/{agendaId}", app.getAgendaData)
+		r.With(m.AgendaIdCtx).Get("/{agendaId}", app.getAgendaData)
 	})
 
 	mux.Route("/mempool", func(r chi.Router) {
