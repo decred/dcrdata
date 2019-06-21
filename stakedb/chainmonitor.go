@@ -32,7 +32,7 @@ func (db *StakeDatabase) NewChainMonitor(ctx context.Context) *ChainMonitor {
 	}
 }
 
-// ConnectBlock is a sychronous version of BlockConnectedHandler that collects
+// ConnectBlock is a synchronous version of BlockConnectedHandler that collects
 // and stores data for a block specified by the given hash.
 func (p *ChainMonitor) ConnectBlock(header *wire.BlockHeader) (err error) {
 	hash := header.BlockHash()

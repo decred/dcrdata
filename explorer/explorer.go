@@ -775,7 +775,7 @@ func (exp *explorerUI) watchExchanges() {
 		case update := <-xcChans.Index:
 			indexState, found := exp.xcBot.State().FiatIndices[update.Token]
 			if !found {
-				log.Errorf("Index state not found when preparing websocket udpate")
+				log.Errorf("Index state not found when preparing websocket update")
 				continue
 			}
 			sendXcUpdate(true, update.Token, indexState)

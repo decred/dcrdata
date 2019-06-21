@@ -240,8 +240,8 @@ func (tracker *VoteTracker) refreshRCI() (*dcrjson.GetVoteInfoResult, error) {
 
 	if voteInfo == nil {
 		if oldVersion == 0 {
-			// Probably no deployments found. Not necessaarily an error.
-			log.Info("No agenda information retreived from dcrd")
+			// Probably no deployments found. Not necessarily an error.
+			log.Info("No agenda information retrieved from dcrd.")
 			return nil, nil
 		}
 		return nil, fmt.Errorf("refreshRCI: Vote information not found: %v", err)

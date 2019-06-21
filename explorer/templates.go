@@ -458,12 +458,13 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			return strings.TrimRight(prefix, "/") + "/" + strings.TrimLeft(path, "/")
 		},
 		"fetchRowLinkURL": func(groupingStr string, start, end time.Time) string {
-			// fetchRowLinkURL creates links url to be used in the blocks list views
-			// in heirachical order i.e. /years -> /months -> weeks -> /days -> /blocks
-			// (/years -> /months) simply means that on "/years" page every row has a
-			// link to the "/months" page showing the number of months that are
-			// expected to comprise a given row in "/years" page i.e each row has a
-			// link like "/months?offset=14&rows=12" with the offset unique for each row.
+			// fetchRowLinkURL creates links url to be used in the blocks list
+			// views in hierarchical order i.e. /years -> /months -> weeks ->
+			// /days -> /blocks (/years -> /months) simply means that on
+			// "/years" page every row has a link to the "/months" page showing
+			// the number of months that are expected to comprise a given row in
+			// "/years" page i.e each row has a link like
+			// "/months?offset=14&rows=12" with the offset unique for each row.
 			var matchedGrouping string
 			val := dbtypes.TimeGroupingFromStr(groupingStr)
 

@@ -355,7 +355,7 @@ func InitDB(dbInfo *DBInfo, shutdown func()) (*DB, error) {
 	}
 
 	// Historically, SQLite did not handle concurrent writes internally,
-	// necessitating a limitation of just 1 open connecton. With a busy_timeout
+	// necessitating a limitation of just 1 open connection. With a busy_timeout
 	// set, this is less important. With go-sqlite 1.10, this is not needed at
 	// all since the library started compiling sqlite3 for
 	// thread-safe/"serialized" operation (SQLITE_THREADSAFE=1). For details,
@@ -374,7 +374,7 @@ func InitDB(dbInfo *DBInfo, shutdown func()) (*DB, error) {
 	}
 	_, err = db.Exec(SetSynchronousOffSQL)
 	if err != nil {
-		log.Error("Error setting SQLite synchrounous off")
+		log.Error("Error setting SQLite synchronous off")
 		return nil, err
 	}
 
@@ -1778,7 +1778,7 @@ func (db *DB) JustifyTableStructures(dbInfo *DBInfo) error {
 	}
 
 	// Run the stake info height query with the block summary table join where
-	// is_mainchain=true, and udpate the cached stake info height.
+	// is_mainchain=true, and update the cached stake info height.
 	db.dbStakeInfoHeight, err = db.getStakeInfoHeight()
 	// All rows in the block summary table got is_mainchain (and is_valid) set
 	// to true, so it is not necessary to update the block summary height.

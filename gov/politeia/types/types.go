@@ -62,7 +62,7 @@ type AttachmentFile struct {
 	Payload   string `json:"payload"`
 }
 
-// ProposalVotes defines the proposal status(Votes infor for the public proposals).
+// ProposalVotes defines the proposal status (Vote info for the public proposals).
 // https://github.com/decred/politeia/blob/master/politeiawww/api/www/v1/api.md#proposal-vote-status
 type ProposalVotes struct {
 	Token              string         `json:"token"`
