@@ -15,6 +15,11 @@ var (
 	trefUTC   = time.Unix(trefUNIX, 0).UTC()
 )
 
+const (
+	insertTestingTimestamp = `INSERT INTO testing (timestamp) VALUES ($1) RETURNING id;`
+	selectTestingTimestamp = `SELECT timestamp FROM testing;`
+)
+
 func TestTimeRoundTripCorrectTimeDef(t *testing.T) {
 	// Clear the testing table.
 	if err := ClearTestingTable(sqlDb); err != nil {
@@ -30,14 +35,13 @@ func TestTimeRoundTripCorrectTimeDef(t *testing.T) {
 		timedef.T.Location()) // Inserting TimeDef at 1454954400. Location set to: UTC
 
 	var id uint64
-	err := sqlDb.QueryRow(`INSERT INTO testing (timestamp) VALUES ($1) RETURNING id;`,
-		timedef).Scan(&id)
+	err := sqlDb.QueryRow(insertTestingTimestamp, timedef).Scan(&id)
 	if err != nil {
 		t.Error(err)
 	}
 
 	var tsScanned dbtypes.TimeDef
-	err = sqlDb.QueryRow(`SELECT timestamp FROM testing;`).Scan(&tsScanned)
+	err = sqlDb.QueryRow(selectTestingTimestamp).Scan(&tsScanned)
 	if err != nil {
 		t.Error(err)
 	}
@@ -72,14 +76,13 @@ func TestTimeRoundTripCorrectValuer(t *testing.T) {
 	// TimeDef.Value converts the time.Time into UTC on the fly, so the stored
 	// value will be correct regardless of the location of the TimeDef.
 	var id uint64
-	err := sqlDb.QueryRow(`INSERT INTO testing (timestamp) VALUES ($1) RETURNING id;`,
-		timedef).Scan(&id)
+	err := sqlDb.QueryRow(insertTestingTimestamp, timedef).Scan(&id)
 	if err != nil {
 		t.Error(err)
 	}
 
 	var tsScanned dbtypes.TimeDef
-	err = sqlDb.QueryRow(`SELECT timestamp FROM testing;`).Scan(&tsScanned)
+	err = sqlDb.QueryRow(selectTestingTimestamp).Scan(&tsScanned)
 	if err != nil {
 		t.Error(err)
 	}
@@ -114,14 +117,13 @@ func TestTimeRoundTripIncorrectValuerTime(t *testing.T) {
 	// Using time.Time with Location as Local instead of TimeDef, where Value
 	// ensures UTC, stores the incorrect time.
 	var id uint64
-	err := sqlDb.QueryRow(`INSERT INTO testing (timestamp) VALUES ($1) RETURNING id;`,
-		timedef.T).Scan(&id)
+	err := sqlDb.QueryRow(insertTestingTimestamp, timedef.T).Scan(&id)
 	if err != nil {
 		t.Error(err)
 	}
 
 	var tsScanned dbtypes.TimeDef
-	err = sqlDb.QueryRow(`SELECT timestamp FROM testing;`).Scan(&tsScanned)
+	err = sqlDb.QueryRow(selectTestingTimestamp).Scan(&tsScanned)
 	if err != nil {
 		t.Error(err)
 	}
@@ -154,14 +156,13 @@ func TestTimeRoundTripIncorrectValuerTimeDefLocal(t *testing.T) {
 	// Using dbtypes.TimeDefLocal, where Value ensures Local, stores the
 	// incorrect time.
 	var id uint64
-	err := sqlDb.QueryRow(`INSERT INTO testing (timestamp) VALUES ($1) RETURNING id;`,
-		dbtypes.TimeDefLocal(timedef)).Scan(&id)
+	err := sqlDb.QueryRow(insertTestingTimestamp, dbtypes.TimeDefLocal(timedef)).Scan(&id)
 	if err != nil {
 		t.Error(err)
 	}
 
 	var tsScanned dbtypes.TimeDef
-	err = sqlDb.QueryRow(`SELECT timestamp FROM testing;`).Scan(&tsScanned)
+	err = sqlDb.QueryRow(selectTestingTimestamp).Scan(&tsScanned)
 	if err != nil {
 		t.Error(err)
 	}
@@ -239,14 +240,13 @@ func TestTimeTZRoundTripCorrectTimeDef(t *testing.T) {
 		timedef.T.Location()) // Inserting TimeDef at 1454954400. Location set to: UTC
 
 	var id uint64
-	err := sqlDb.QueryRow(`INSERT INTO testing (timestamp) VALUES ($1) RETURNING id;`,
-		timedef).Scan(&id)
+	err := sqlDb.QueryRow(insertTestingTimestamp, timedef).Scan(&id)
 	if err != nil {
 		t.Error(err)
 	}
 
 	var tsScanned dbtypes.TimeDef
-	err = sqlDb.QueryRow(`SELECT timestamp FROM testing;`).Scan(&tsScanned)
+	err = sqlDb.QueryRow(selectTestingTimestamp).Scan(&tsScanned)
 	if err != nil {
 		t.Error(err)
 	}
