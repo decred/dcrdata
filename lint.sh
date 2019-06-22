@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Lint all modules.
+# Lint all modules with golangci-lint.
 #
 #   lint.sh - lints all modules in the repository root, or the current folder if
 #   not in a git workspace.

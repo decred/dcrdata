@@ -5,6 +5,7 @@ package dbconfig
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -20,9 +21,9 @@ const (
 
 // Test DB server and database config.
 const (
-	PGTestsHost   = "localhost"
-	PGTestsPort   = "5432"
-	PGTestsUser   = "dcrdata"
+	PGTestsHost   = "localhost" // "/run/postgresql" for UNIX socket
+	PGTestsPort   = "5432"      // "" for UNIX socket
+	PGTestsUser   = "postgres"  // "dcrdata" for full database rather than test data repo
 	PGTestsPass   = ""
 	PGTestsDBName = "dcrdata_mainnet_test"
 )
@@ -30,7 +31,7 @@ const (
 // SqliteDbFilePath returns the absolute sqlite db filepath when accessed from
 // dcrsqlite package.
 func SqliteDbFilePath() (string, error) {
-	tempDir, err := filepath.Abs("../../testutil/dbload/testsconfig/test.data/")
+	tempDir, err := filepath.Abs("../../testutil/dbconfig/test.data/")
 	dbPath := filepath.Join(tempDir, sqliteChartsTestsDb)
 	return dbPath, err
 }
@@ -42,7 +43,7 @@ func SqliteDumpDataFilePath() (string, error) {
 	if blockRange == "" {
 		blockRange = defaultSqliteBlockRange
 	}
-	return filepath.Abs("../../testutil/dbload/testsconfig/test.data/sqlite_" + blockRange + ".sql")
+	return filepath.Abs("../../testutil/dbconfig/test.data/sqlite_" + blockRange + ".sql")
 }
 
 // Migrations enables a custom migration runner to be used to load data from a
@@ -74,7 +75,7 @@ func CustomScanner(m Migrations) error {
 		}
 
 		if err = m.Runner(text); err != nil {
-			return err
+			return fmt.Errorf("Runner(%s): %v", text, err)
 		}
 	}
 	return scanner.Err()
