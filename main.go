@@ -1116,7 +1116,9 @@ func _main(ctx context.Context) error {
 	// cache population. This charts pre-population is faster than db querying
 	// and can be done before the monitors are fully set up.
 	dumpPath := filepath.Join(cfg.DataDir, cfg.ChartsCacheDump)
-	charts.Load(dumpPath)
+	if err = charts.Load(dumpPath); err != nil {
+		log.Warnf("Failed to load charts data cache: %v", err)
+	}
 	// Add charts saver method after explorer and any databases.
 	blockDataSavers = append(blockDataSavers, blockdata.BlockTrigger{Saver: charts.TriggerUpdate})
 

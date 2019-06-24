@@ -503,7 +503,7 @@ func (charts *ChartData) Lengthen() error {
 	if err != nil {
 		return fmt.Errorf("day bin: %v", err)
 	} else if daysLen == 0 {
-		return fmt.Errorf("unexpected zero-length day-binned data")
+		log.Warnf("(*ChartData).Lengthen: Zero-length day-binned data!")
 	}
 
 	charts.cacheMtx.Lock()
@@ -629,17 +629,18 @@ func (charts *ChartData) readCacheFile(filePath string) error {
 
 // Load loads chart data from the gob file at the specified path and performs an
 // update.
-func (charts *ChartData) Load(cacheDumpPath string) {
+func (charts *ChartData) Load(cacheDumpPath string) error {
 	t := time.Now()
 
 	if err := charts.readCacheFile(cacheDumpPath); err != nil {
 		log.Debugf("Cache dump data loading failed: %v", err)
+		// Do not return non-nil error since a new cache file will be generated.
+		return nil
 	}
 
 	// Bring the charts up to date.
-	charts.Update()
-
-	log.Debugf("Completed the initial chart load in %f s", time.Since(t).Seconds())
+	defer log.Debugf("Completed the initial chart load in %f s", time.Since(t).Seconds())
+	return charts.Update()
 }
 
 // Dump dumps a ChartGobject to a gob file at the given path.
@@ -653,8 +654,12 @@ func (charts *ChartData) Dump(dumpPath string) {
 }
 
 // TriggerUpdate triggers (*ChartData).Update.
-func (charts *ChartData) TriggerUpdate(_ string, _ uint32) {
-	charts.Update()
+func (charts *ChartData) TriggerUpdate(_ string, _ uint32) error {
+	if err := charts.Update(); err != nil {
+		// Only log errors from ChartsData.Update. TODO: make this more severe.
+		log.Errorf("(*ChartData).Update failed: %v", err)
+	}
+	return nil
 }
 
 func (charts *ChartData) gobject() *ChartGobject {
@@ -754,7 +759,7 @@ func (charts *ChartData) AddUpdater(updater ChartUpdater) {
 // Update refreshes chart data by calling the ChartUpdaters sequentially. The
 // Update is abandoned with a warning if stateID changes while running a Fetcher
 // (likely due to a new update starting during a query).
-func (charts *ChartData) Update() {
+func (charts *ChartData) Update() error {
 	for _, updater := range charts.updaters {
 		stateID := charts.StateID()
 		rows, cancel, err := updater.Fetcher(charts)
@@ -774,16 +779,15 @@ func (charts *ChartData) Update() {
 		}
 		cancel()
 		if err != nil {
-			log.Errorf("%v", err)
-			return
+			return err
 		}
 	}
 
 	// Since the charts db data query is complete. Update chart.Days derived dataset.
 	if err := charts.Lengthen(); err != nil {
-		log.Errorf("(*ChartData).Lengthen failed: %v", err)
-		return
+		return fmt.Errorf("(*ChartData).Lengthen failed: %v", err)
 	}
+	return nil
 }
 
 // NewChartData constructs a new ChartData.
