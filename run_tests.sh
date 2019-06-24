@@ -6,7 +6,7 @@
 # ./run_tests.sh podman                  # podman, go 1.12
 #
 # To use build tags:
-#  TESTTAGS="mainnettest othertag" ./run_tests.sh
+#  TESTTAGS="pgonline chartdata" ./run_tests.sh
 
 set -ex
 
@@ -41,7 +41,7 @@ testrepo () {
   # Check tests
   git clone https://github.com/dcrlabs/bug-free-happiness $TMPDIR/test-data-repo
   
-  if [[ $TESTTAGS =~ "mainnettest" ]]; then
+  if [[ $TESTTAGS =~ "pgonline" ]]; then
     mkdir -p ./testutil/dbconfig/test.data
     BLOCK_RANGE="0-199"
     tar xvf $TMPDIR/test-data-repo/sqlitedb/sqlite_"$BLOCK_RANGE".tar.xz -C ./testutil/dbconfig/test.data
@@ -65,7 +65,7 @@ testrepo () {
   # check linters
   ./lint.sh
 
-  if [[ $TESTTAGS =~ "mainnettest" ]]; then
+  if [[ $TESTTAGS =~ "pgonline" ]]; then
   # Drop the tests db.
   psql -U postgres -c "DROP DATABASE IF EXISTS dcrdata_mainnet_test"
   fi

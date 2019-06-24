@@ -1,4 +1,4 @@
-// +build mainnettest
+// +build pgonline chartdata
 
 package dcrpg
 
