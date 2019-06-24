@@ -38,6 +38,8 @@ func registerDummyFeeAndPoolInfo(charts *cache.ChartData) {
 // It also checks the order and duplicates in the x-axis dataset.
 func TestPgCharts(t *testing.T) {
 	charts := cache.NewChartData(context.Background(), 0, &chaincfg.MainNetParams)
+	// Spoof the interval to enable more points with a smaller test db.
+	charts.DiffInterval = 9
 
 	db.RegisterCharts(charts)
 	// Register a dummy updater for Fees, PoolSize, and PoolValue. This must be

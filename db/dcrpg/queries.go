@@ -3319,23 +3319,11 @@ func appendWindowStats(charts *cache.ChartData, rows *sql.Rows) error {
 
 	windows := charts.Windows
 	windowSize := int(charts.DiffInterval)
-
-	fullWindows := len(windows.TicketPrice)
-	if fullWindows > 0 {
-		// Trim off the last window, as done by charts.MissedVotesTip(), since
-		// it is not known to be complete.
-		windows.TicketPrice = windows.TicketPrice[0 : fullWindows-1]
-		windows.PowDiff = windows.PowDiff[0 : fullWindows-1]
-		windows.Time = windows.Time[0 : fullWindows-1]
-		windows.StakeCount = windows.StakeCount[0 : fullWindows-1]
-		fullWindows = len(windows.TicketPrice)
-	}
-	nextWindowHeight := windowSize * (fullWindows + 1)
+	nextWindowHeight := windowSize * (len(windows.TicketPrice) + 1)
 
 	var price, ticketsCount uint64
 	var timestamp time.Time
 	var difficulty float64
-	var fullWindow bool
 	for rows.Next() {
 		var height int
 		var count uint64
@@ -3346,7 +3334,7 @@ func appendWindowStats(charts *cache.ChartData, rows *sql.Rows) error {
 
 		// If that was the last block in the current sdiff window, append the
 		// data, and reset for the next window.
-		fullWindow = height == nextWindowHeight-1 // e.g. mainnet block 143, 287, etc.
+		fullWindow := height == nextWindowHeight-1 // e.g. mainnet block 143, 287, etc.
 		if fullWindow {
 			windows.TicketPrice = append(windows.TicketPrice, price)
 			windows.PowDiff = append(windows.PowDiff, difficulty)
@@ -3360,14 +3348,6 @@ func appendWindowStats(charts *cache.ChartData, rows *sql.Rows) error {
 			return fmt.Errorf("reach height %d before the end of an sdiff window at %d",
 				height, nextWindowHeight)
 		} // else height < nextWindowHeight-1
-	}
-
-	// Store the partial window miss count.
-	if !fullWindow {
-		windows.TicketPrice = append(windows.TicketPrice, price)
-		windows.PowDiff = append(windows.PowDiff, difficulty)
-		windows.Time = append(windows.Time, uint64(timestamp.Unix()))
-		windows.StakeCount = append(windows.StakeCount, ticketsCount)
 	}
 
 	return nil
@@ -3421,19 +3401,9 @@ func appendMissedVotesPerWindow(charts *cache.ChartData, rows *sql.Rows) error {
 
 	windows := charts.Windows
 	windowSize := int(charts.DiffInterval)
+	nextWindowHeight := windowSize * (len(windows.MissedVotes) + 1)
 
-	var fullWindow bool
 	var windowMisses int
-
-	fullWindows := len(windows.MissedVotes)
-	if fullWindows > 0 {
-		// Trim off the last window, as done by charts.MissedVotesTip(), since
-		// it is not known to be complete.
-		windows.MissedVotes = windows.MissedVotes[0 : fullWindows-1]
-		fullWindows = len(windows.MissedVotes)
-	}
-	nextWindowHeight := windowSize * (fullWindows + 1)
-
 	for rows.Next() {
 		var height, misses int
 		if err := rows.Scan(&height, &misses); err != nil {
@@ -3443,7 +3413,7 @@ func appendMissedVotesPerWindow(charts *cache.ChartData, rows *sql.Rows) error {
 
 		// If that was the last block in the current sdiff window, append the
 		// windowMisses, and reset for the next window.
-		fullWindow = height == nextWindowHeight-1 // e.g. mainnet block 143, 287, etc.
+		fullWindow := height == nextWindowHeight-1 // e.g. mainnet block 143, 287, etc.
 		if fullWindow {
 			windows.MissedVotes = append(windows.MissedVotes, uint64(windowMisses))
 
@@ -3454,11 +3424,6 @@ func appendMissedVotesPerWindow(charts *cache.ChartData, rows *sql.Rows) error {
 			return fmt.Errorf("reach height %d before the end of an sdiff window at %d",
 				height, nextWindowHeight)
 		} // else height < nextWindowHeight-1
-	}
-
-	// Store the partial window miss count.
-	if !fullWindow {
-		windows.MissedVotes = append(windows.MissedVotes, uint64(windowMisses))
 	}
 
 	return nil

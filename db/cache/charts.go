@@ -728,12 +728,7 @@ func (charts *ChartData) NewAtomsTip() int32 {
 func (charts *ChartData) TicketPriceTip() int32 {
 	charts.mtx.RLock()
 	defer charts.mtx.RUnlock()
-	//return int32(len(charts.Windows.TicketPrice))*charts.DiffInterval - 1
-	completedWindows := len(charts.Windows.TicketPrice) - 1
-	if completedWindows < 1 {
-		return -1
-	}
-	return int32(completedWindows)*charts.DiffInterval - 1
+	return int32(len(charts.Windows.TicketPrice))*charts.DiffInterval - 1
 }
 
 // PoolSizeTip is the height of the PoolSize data.
@@ -747,11 +742,7 @@ func (charts *ChartData) PoolSizeTip() int32 {
 func (charts *ChartData) MissedVotesTip() int32 {
 	charts.mtx.RLock()
 	defer charts.mtx.RUnlock()
-	completedWindows := len(charts.Windows.MissedVotes) - 1
-	if completedWindows < 1 {
-		return -1
-	}
-	return int32(completedWindows)*charts.DiffInterval - 1
+	return int32(len(charts.Windows.MissedVotes))*charts.DiffInterval - 1
 }
 
 // AddUpdater adds a ChartUpdater to the Updaters slice. Updaters are run
@@ -790,7 +781,7 @@ func (charts *ChartData) Update() {
 
 	// Since the charts db data query is complete. Update chart.Days derived dataset.
 	if err := charts.Lengthen(); err != nil {
-		log.Errorf("(*ChartData).Lengthen failed %v", err)
+		log.Errorf("(*ChartData).Lengthen failed: %v", err)
 		return
 	}
 }
