@@ -6,7 +6,9 @@
 # ./run_tests.sh podman                  # podman, go 1.12
 #
 # To use build tags:
-#  TESTTAGS="pgonline chartdata" ./run_tests.sh
+#  TESTTAGS="chartdata" ./run_tests.sh
+#  TESTTAGS="pgonline" ./run_tests.sh
+#  TESTTAGS="pgonline fullpgdb" ./run_tests.sh
 
 set -ex
 

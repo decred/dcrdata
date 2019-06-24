@@ -1,128 +1,22 @@
-// +build pgonline chartdata
+// +build pgonline
 
 package dcrpg
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
-	"os"
 	"reflect"
-	"runtime"
 	"testing"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/db/cache/v2"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/db/dcrpg/v3/internal"
-	"github.com/decred/dcrdata/testutil/dbconfig"
-	"github.com/decred/slog"
-	pitypes "github.com/dmigwi/go-piparser/proposals/types"
 )
-
-type MemStats runtime.MemStats
-
-func memStats() MemStats {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	return MemStats(m)
-}
-
-func (m MemStats) String() string {
-	bytesToMebiBytes := func(b uint64) uint64 {
-		return b >> 20
-	}
-	out := "Memory statistics:\n"
-	out += fmt.Sprintf("- Alloc: %v MiB\n", bytesToMebiBytes(m.Alloc))
-	out += fmt.Sprintf("- TotalAlloc: %v MiB\n", bytesToMebiBytes(m.TotalAlloc))
-	out += fmt.Sprintf("- System obtained: %v MiB\n", bytesToMebiBytes(m.Sys))
-	out += fmt.Sprintf("- Lookups: %v\n", m.Lookups)
-	out += fmt.Sprintf("- Mallocs: %v\n", m.Mallocs)
-	out += fmt.Sprintf("- Frees: %v\n", m.Frees)
-	out += fmt.Sprintf("- HeapAlloc: %v MiB\n", bytesToMebiBytes(m.HeapAlloc))
-	out += fmt.Sprintf("- HeapObjects: %v\n", m.HeapObjects)
-	out += fmt.Sprintf("- NumGC: %v\n", m.NumGC)
-	return out
-}
-
-var (
-	db           *ChainDB
-	sqlDb        *sql.DB
-	trefUNIX     int64 = 1454954400 // mainnet genesis block time
-	trefStr            = "2016-02-08T12:00:00-06:00"
-	addrCacheCap int   = 1e4
-)
-
-type dummyParser struct{}
-
-func (p *dummyParser) UpdateSignal() <-chan struct{} {
-	return make(chan struct{})
-}
-
-func (p *dummyParser) ProposalsHistory() ([]*pitypes.History, error) {
-	return []*pitypes.History{}, nil
-}
-
-func (p *dummyParser) ProposalsHistorySince(since time.Time) ([]*pitypes.History, error) {
-	return []*pitypes.History{}, nil
-}
-
-func openDB() (func() error, error) {
-	dbi := DBInfo{
-		Host:   dbconfig.PGTestsHost,
-		Port:   dbconfig.PGTestsPort,
-		User:   dbconfig.PGTestsUser,
-		Pass:   dbconfig.PGTestsPass,
-		DBName: dbconfig.PGTestsDBName,
-	}
-	var err error
-	db, err = NewChainDB(&dbi, &chaincfg.MainNetParams, nil, true, true,
-		addrCacheCap, nil, new(dummyParser), nil)
-	cleanUp := func() error { return nil }
-	if db != nil {
-		cleanUp = db.Close
-	} else {
-		return cleanUp, err
-	}
-
-	sqlDb = db.db
-	if err = DropTestingTable(sqlDb); err != nil {
-		return nil, err
-	}
-	if err = CreateTable(sqlDb, "testing"); err != nil {
-		return nil, err
-	}
-
-	return cleanUp, err
-}
-
-func TestMain(m *testing.M) {
-	// Setup dcrpg logger.
-	UseLogger(slog.NewBackend(os.Stdout).Logger("dcrpg"))
-	log.SetLevel(slog.LevelTrace)
-
-	// Setup db/cache logger.
-	cache.UseLogger(slog.NewBackend(os.Stdout).Logger("db/cache"))
-
-	// your func
-	cleanUp, err := openDB()
-	defer cleanUp()
-	if err != nil {
-		panic(fmt.Sprintln("no db for testing:", err))
-	}
-
-	retCode := m.Run()
-
-	// call with result of m.Run()
-	os.Exit(retCode)
-}
 
 func TestChainDB_AddressTransactionsAll(t *testing.T) {
 	// address with no transactions.
@@ -197,20 +91,6 @@ func TestMergeRows(t *testing.T) {
 	// }
 }
 
-func TestMissingIndexes(t *testing.T) {
-	missing, descs, err := db.MissingIndexes()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(missing) > 0 {
-		t.Errorf("Not all indexes exist in test table! Missing: %v", missing)
-	}
-	if len(missing) != len(descs) {
-		t.Errorf("MissingIndexes returned %d missing indexes but %d descriptions.",
-			len(missing), len(descs))
-	}
-}
-
 func TestRetrieveUTXOs(t *testing.T) {
 	utxos, err := RetrieveUTXOs(context.Background(), db.db)
 	if err != nil {
@@ -237,28 +117,6 @@ func TestUtxoStore_Reinit(t *testing.T) {
 
 	uc := newUtxoStore(100)
 	uc.Reinit(utxos)
-}
-
-func TestExistsIndex(t *testing.T) {
-	// negative test
-	fakeIndexName := "not_an_index_adsfasdfa"
-	exists, err := ExistsIndex(db.db, fakeIndexName)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if exists {
-		t.Errorf(`Index "%s" should not exist!`, fakeIndexName)
-	}
-
-	// positive test
-	realIndexName := internal.IndexOfBlocksTableOnHash
-	exists, err = ExistsIndex(db.db, realIndexName)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !exists {
-		t.Errorf(`Index "%s" should exist!`, realIndexName)
-	}
 }
 
 func TestCheckColumnDataType(t *testing.T) {
@@ -303,6 +161,10 @@ func TestDeleteBestBlock(t *testing.T) {
 	timings = timings + fmt.Sprintf("\tVotes: %v\n", time.Duration(res.Timings.Votes))
 	timings = timings + fmt.Sprintf("\tMisses: %v\n", time.Duration(res.Timings.Misses))
 	t.Logf("Timings:\n%s", timings)
+
+	t.Log("**************************** WARNING ****************************")
+	t.Log("*** Blocks deleted from DB! Resync or download new test data! ***")
+	t.Log("*****************************************************************")
 }
 
 func TestDeleteBlocks(t *testing.T) {
@@ -311,7 +173,7 @@ func TestDeleteBlocks(t *testing.T) {
 		t.Error(err)
 	}
 
-	N := int64(222)
+	N := int64(64)
 	if N > int64(height0) {
 		t.Fatalf("Cannot remove %d blocks from block chain of height %d.",
 			N, height0)
@@ -329,6 +191,10 @@ func TestDeleteBlocks(t *testing.T) {
 	if len(res) != int(N) {
 		t.Errorf("Expected to delete %d blocks; actually deleted %d.", N, len(res))
 	}
+
+	t.Log("**************************** WARNING ****************************")
+	t.Log("*** Blocks deleted from DB! Resync or download new test data! ***")
+	t.Log("*****************************************************************")
 
 	height, hash, _, err := RetrieveBestBlockHeight(ctx, db.db)
 	if err != nil {
@@ -366,104 +232,6 @@ func TestRetrieveTxsByBlockHash(t *testing.T) {
 			t.Errorf("Incorrect block time: got %d, expected %d",
 				tT.Unix(), trefUNIX)
 		}
-	}
-}
-
-func TestStuff(t *testing.T) {
-	//testTx := "fa9acf7a4b1e9a52df1795f3e1c295613c9df44f5562de66595acc33b3831118"
-	// A fully spent transaction
-	testTx := "f4a44e6916f9ee5a2e41558e0662c1d26206780078dc0a426b3607fd43e34145"
-
-	numSpentOuts := 8
-	voutInd := uint32(2)
-	spendingRef := "ce6a41aa545af4dfc3b6d9c31f15d0be28b890f24f4344be90a55eda96418cad"
-
-	testBlockHash := "000000000000022173bcd0e354bb3b68f33af459cb68b8dd1f2831172c499c0b"
-	numBlockTx := 10
-	testTxBlockInd := uint32(1)
-	testTxBlockTree := wire.TxTreeRegular
-
-	// Test number of spent outputs / spending transactions
-	spendingTxns, _, _, err := db.SpendingTransactions(testTx)
-	if err != nil {
-		t.Error("SpendingTransactions", err)
-	}
-	t.Log(spew.Sdump(spendingTxns))
-
-	if len(spendingTxns) != numSpentOuts {
-		t.Fatalf("Incorrect number of spending tx. Got %d, wanted %d.",
-			len(spendingTxns), numSpentOuts)
-	}
-
-	// Test a certain spending transaction is as expected
-	spendingTx, _, _, err := db.SpendingTransaction(testTx, voutInd)
-	if err != nil {
-		t.Error("SpendingTransaction", err)
-	}
-	t.Log(spew.Sdump(spendingTx))
-
-	if spendingTx != spendingRef {
-		t.Fatalf("Incorrect spending tx. Got %s, wanted %s.",
-			spendingTx, spendingRef)
-	}
-
-	// Block containing the transaction
-	blockHash, blockInd, txTree, err := db.TransactionBlock(testTx)
-	if err != nil {
-		t.Fatal("TransactionBlock", err)
-	}
-	t.Log(blockHash, blockInd, txTree)
-	if testBlockHash != blockHash {
-		t.Fatalf("Incorrect block hash. Got %s, wanted %s.", blockHash, testBlockHash)
-	}
-	if testTxBlockInd != blockInd {
-		t.Fatalf("Incorrect tx block index. Got %d, wanted %d.", blockInd, testTxBlockInd)
-	}
-	if testTxBlockTree != txTree {
-		t.Fatalf("Incorrect tx tree. Got %d, wanted %d.", txTree, testTxBlockTree)
-	}
-
-	// List block transactions
-	blockTransactions, blockTreeOutInds, blockTxTrees, err := db.BlockTransactions(blockHash)
-	if err != nil {
-		t.Error("BlockTransactions", err)
-	}
-	t.Log(spew.Sdump(blockTransactions))
-	if len(blockTransactions) != numBlockTx {
-		t.Fatalf("Incorrect number of transactions in block. Got %d, wanted %d.",
-			len(blockTransactions), numBlockTx)
-	}
-
-	var blockTxListInd int
-	t.Log(spew.Sdump(blockTreeOutInds), spew.Sdump(blockTransactions))
-	for i, txOutInd := range blockTreeOutInds {
-		t.Log(i, txOutInd)
-		if txOutInd == testTxBlockInd && blockTxTrees[i] == testTxBlockTree {
-			blockTxListInd = i
-			t.Log(i, txOutInd, blockTransactions[i])
-		}
-	}
-
-	if blockTransactions[blockTxListInd] != testTx {
-		t.Fatalf("Transaction not found in block at index %d. Got %s, wanted %s.",
-			testTxBlockInd, blockTransactions[testTxBlockInd], testTx)
-	}
-
-	voutValue, err := db.VoutValue(testTx, voutInd)
-	if err != nil {
-		t.Fatalf("VoutValue: %v", err)
-	}
-	t.Log(spew.Sdump(testTx, voutInd, voutValue))
-
-	voutValues, txInds, txTrees, err := db.VoutValues(testTx)
-	if err != nil {
-		t.Fatalf("VoutValues: %v", err)
-	}
-	t.Log(spew.Sdump(testTx, voutValues, txInds, txTrees))
-
-	if voutValue != voutValues[int(voutInd)] {
-		t.Errorf("%d (voutValue) != %d (voutValues[ind])",
-			voutValue, voutValues[int(voutInd)])
 	}
 }
 
