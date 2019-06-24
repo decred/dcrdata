@@ -43,7 +43,7 @@ testrepo () {
   # Check tests
   git clone https://github.com/dcrlabs/bug-free-happiness $TMPDIR/test-data-repo
   
-  if [[ $TESTTAGS =~ "pgonline" ]]; then
+  if [[ $TESTTAGS =~ "pgonline" || $TESTTAGS =~ "chartdata" ]]; then
     mkdir -p ./testutil/dbconfig/test.data
     BLOCK_RANGE="0-199"
     tar xvf $TMPDIR/test-data-repo/sqlitedb/sqlite_"$BLOCK_RANGE".tar.xz -C ./testutil/dbconfig/test.data
