@@ -87,7 +87,7 @@ const (
 )
 
 // cacheVersion helps detect when cache data stored has its structure changed.
-var cacheVersion = semver.NewSemver(4, 0, 0)
+var cacheVersion = semver.NewSemver(5, 0, 0)
 
 // versionedCacheData defines the cache data contents to be written into a .gob file.
 type versionedCacheData struct {
