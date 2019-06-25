@@ -115,7 +115,7 @@ type SqlExecutor interface {
 }
 
 // sqlExec executes the SQL statement string with any optional arguments, and
-// returns the nuber of rows affected.
+// returns the number of rows affected.
 func sqlExec(db SqlExecutor, stmt, execErrPrefix string, args ...interface{}) (int64, error) {
 	res, err := db.Exec(stmt, args...)
 	if err != nil {
@@ -134,7 +134,7 @@ func sqlExec(db SqlExecutor, stmt, execErrPrefix string, args ...interface{}) (i
 }
 
 // sqlExecStmt executes the prepared SQL statement with any optional arguments,
-// and returns the nuber of rows affected.
+// and returns the number of rows affected.
 func sqlExecStmt(stmt *sql.Stmt, execErrPrefix string, args ...interface{}) (int64, error) {
 	res, err := stmt.Exec(args...)
 	if err != nil {
@@ -195,7 +195,7 @@ func deleteDupVinsBrute(db *sql.DB) (int64, error) {
 	execErrPrefix := "failed to delete duplicate vins: "
 
 	// CockroachDB doesn't have CREATE TABLE .. (LIKE table), so we have to get
-	// the CREATE TABLE statement from the exinsting vins table.
+	// the CREATE TABLE statement from the existing vins table.
 	var createStmt string
 	err := db.QueryRow(internal.ShowCreateVinsTable).Scan(&createStmt)
 	if err != nil {
@@ -320,7 +320,7 @@ func deleteDupVoutsBrute(db *sql.DB) (int64, error) {
 	execErrPrefix := "failed to delete duplicate vouts: "
 
 	// CockroachDB doesn't have CREATE TABLE .. (LIKE table), so we have to get
-	// the CREATE TABLE statement from the exinsting vins table.
+	// the CREATE TABLE statement from the existing vins table.
 	var createStmt string
 	err := db.QueryRow(internal.ShowCreateVoutsTable).Scan(&createStmt)
 	if err != nil {
@@ -1169,7 +1169,7 @@ func RetrieveTicketInfoByHash(ctx context.Context, db *sql.DB, ticketHash string
 		return
 	}
 	if !dbid.Valid {
-		err = fmt.Errorf("Invalid spneding tx database ID")
+		err = fmt.Errorf("Invalid spending tx database ID")
 		return
 	}
 
@@ -1557,12 +1557,12 @@ func retrieveAddressTxsCount(ctx context.Context, db *sql.DB, address, interval 
 // RetrieveAddressBalance gets the numbers of spent and unspent outpoints
 // for the given address, the total amounts spent and unspent, the number of
 // distinct spending transactions, and the fraction spent to and received from
-// stake-related trasnsactions.
+// stake-related transactions.
 func RetrieveAddressBalance(ctx context.Context, db *sql.DB, address string) (balance *dbtypes.AddressBalance, err error) {
 	// Never return nil *AddressBalance.
 	balance = &dbtypes.AddressBalance{Address: address}
 
-	// The sql.Tx does not have a timeout, as the individial queries will.
+	// The sql.Tx does not have a timeout, as the individual queries will.
 	var dbtx *sql.Tx
 	dbtx, err = db.BeginTx(context.Background(), &sql.TxOptions{
 		Isolation: sql.LevelDefault,
@@ -2132,7 +2132,7 @@ func retrieveTxHistoryByAmountFlow(ctx context.Context, db *sql.DB, addr, timeIn
 // which may result in a violation of a unique index constraint (error). If
 // checked=true, a constraint violation may be handled in one of two ways:
 // update the conflicting row (upsert), or do nothing. In all cases, the id of
-// the new/updated/conflicting row is returned. The updateOnConflict argumenet
+// the new/updated/conflicting row is returned. The updateOnConflict argument
 // may be omitted, in which case an upsert will be favored over no nothing, but
 // only if checked=true.
 func InsertVin(db *sql.DB, dbVin dbtypes.VinTxProperty, checked bool, updateOnConflict ...bool) (id uint64, err error) {
@@ -2215,7 +2215,7 @@ func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY, checked bool, upd
 // which may result in a violation of a unique index constraint (error). If
 // checked=true, a constraint violation may be handled in one of two ways:
 // update the conflicting row (upsert), or do nothing. In all cases, the id of
-// the new/updated/conflicting row is returned. The updateOnConflict argumenet
+// the new/updated/conflicting row is returned. The updateOnConflict argument
 // may be omitted, in which case an upsert will be favored over no nothing, but
 // only if checked=true.
 func InsertVout(db *sql.DB, dbVout *dbtypes.Vout, checked bool, updateOnConflict ...bool) (uint64, error) {
@@ -3278,6 +3278,7 @@ func appendChartBlocks(charts *cache.ChartData, rows *sql.Rows) error {
 			// datasets sized properly.
 			bigwork = big.NewInt(int64(blocks.Chainwork[len(blocks.Chainwork)-1]))
 		}
+		blocks.Height = append(blocks.Height, height)
 		blocks.Chainwork = append(blocks.Chainwork, bigwork.Uint64())
 		blocks.TxCount = append(blocks.TxCount, count)
 		blocks.Time = append(blocks.Time, uint64(timeDef.T.Unix()))
@@ -3315,26 +3316,38 @@ func retrieveWindowStats(ctx context.Context, db *sql.DB, charts *cache.ChartDat
 // and tickets count is done here.
 func appendWindowStats(charts *cache.ChartData, rows *sql.Rows) error {
 	defer closeRows(rows)
+
 	windows := charts.Windows
-	windowSize := uint64(charts.DiffInterval)
-	var ticketsCount uint64
+	windowSize := int(charts.DiffInterval)
+	nextWindowHeight := windowSize * (len(windows.TicketPrice) + 1)
+
+	var price, ticketsCount uint64
+	var timestamp time.Time
+	var difficulty float64
 	for rows.Next() {
-		var timestamp time.Time
-		var difficulty float64
-		var price, height, count uint64
+		var height int
+		var count uint64
 		if err := rows.Scan(&price, &timestamp, &difficulty, &height, &count); err != nil {
 			return err
 		}
-
 		ticketsCount += count
-		if (height % windowSize) == 0 {
+
+		// If that was the last block in the current sdiff window, append the
+		// data, and reset for the next window.
+		fullWindow := height == nextWindowHeight-1 // e.g. mainnet block 143, 287, etc.
+		if fullWindow {
 			windows.TicketPrice = append(windows.TicketPrice, price)
 			windows.PowDiff = append(windows.PowDiff, difficulty)
 			windows.Time = append(windows.Time, uint64(timestamp.Unix()))
 			windows.StakeCount = append(windows.StakeCount, ticketsCount)
 
+			// Next sdiff window
 			ticketsCount = 0
-		}
+			nextWindowHeight += windowSize
+		} else if height >= nextWindowHeight {
+			return fmt.Errorf("reach height %d before the end of an sdiff window at %d",
+				height, nextWindowHeight)
+		} // else height < nextWindowHeight-1
 	}
 
 	return nil
@@ -3370,40 +3383,49 @@ func appendCoinSupply(charts *cache.ChartData, rows *sql.Rows) error {
 	return nil
 }
 
-// retrieveMissedVotes fetches the missed votes data from the misses and transactions tables.
+// retrieveMissedVotes fetches the missed votes data from the misses and
+// transactions tables.
 func retrieveMissedVotes(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
-	rows, err := db.QueryContext(ctx, internal.SelectMissesVotesChartData, charts.MissedVotesTip())
+	rows, err := db.QueryContext(ctx, internal.SelectMissCountPerBlock, charts.MissedVotesTip())
 	if err != nil {
 		return nil, err
 	}
 	return rows, nil
 }
 
-// Append the results from retrieveMissedVotes to the provided ChartData.
-// This is the Appender half of a pair that make up a cache.ChartUpdater.
-func appendMissedVotes(charts *cache.ChartData, rows *sql.Rows) error {
+// Append the results from retrieveMissedVotes, binned per stake difficulty
+// window, to the provided ChartData. This is the Appender half of a pair that
+// make up a cache.ChartUpdater.
+func appendMissedVotesPerWindow(charts *cache.ChartData, rows *sql.Rows) error {
 	defer closeRows(rows)
+
 	windows := charts.Windows
-	windowSize := uint64(charts.DiffInterval)
-	if len(windows.MissedVotes) == 0 {
-		windows.MissedVotes = append(windows.MissedVotes, make([]uint64, charts.StartPOS/charts.DiffInterval)...)
-	}
-	startHeight := windowSize * uint64(len(windows.MissedVotes))
-	var count uint64
+	windowSize := int(charts.DiffInterval)
+	nextWindowHeight := windowSize * (len(windows.MissedVotes) + 1)
+
+	var windowMisses int
 	for rows.Next() {
-		var height, tickets uint64
-		if err := rows.Scan(&height, &tickets); err != nil {
+		var height, misses int
+		if err := rows.Scan(&height, &misses); err != nil {
 			return err
 		}
+		windowMisses += misses
 
-		count += tickets
-		if height >= startHeight {
-			windows.MissedVotes = append(windows.MissedVotes, count)
+		// If that was the last block in the current sdiff window, append the
+		// windowMisses, and reset for the next window.
+		fullWindow := height == nextWindowHeight-1 // e.g. mainnet block 143, 287, etc.
+		if fullWindow {
+			windows.MissedVotes = append(windows.MissedVotes, uint64(windowMisses))
 
-			count = 0
-			startHeight += windowSize
-		}
+			// Next sdiff window
+			windowMisses = 0
+			nextWindowHeight += windowSize
+		} else if height >= nextWindowHeight {
+			return fmt.Errorf("reach height %d before the end of an sdiff window at %d",
+				height, nextWindowHeight)
+		} // else height < nextWindowHeight-1
 	}
+
 	return nil
 }
 
@@ -3844,7 +3866,7 @@ func RetrievePreviousHashByBlockHash(ctx context.Context, db *sql.DB, hash strin
 }
 
 // SetMainchainByBlockHash is used to set the is_mainchain flag for the given
-// block. This is required to handle a reoganization.
+// block. This is required to handle a reorganization.
 func SetMainchainByBlockHash(db *sql.DB, hash string, isMainchain bool) (previousHash string, err error) {
 	err = db.QueryRow(internal.UpdateBlockMainchain, hash, isMainchain).Scan(&previousHash)
 	return
@@ -4013,7 +4035,7 @@ func UpdateLastAddressesValid(db *sql.DB, blockHash string, isValid bool) error 
 	if err != nil {
 		return fmt.Errorf("unable to retrieve vin data for block %s: %v", blockHash, err)
 	}
-	// Using vins and vouts row ids, update the valid_mainchain colume of the
+	// Using vins and vouts row ids, update the valid_mainchain column of the
 	// rows of the address table referring to these vins and vouts.
 	numAddrSpending, numAddrFunding, err := UpdateAddressesMainchainByIDs(db,
 		vinDbIDsBlk, voutDbIDsBlk, isValid)

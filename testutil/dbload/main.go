@@ -24,24 +24,30 @@ type client struct {
 // This tool loads the test data into the test db.
 
 func main() {
-	connStr := fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=disable",
-		tc.PGChartsTestsHost, tc.PGChartsTestsPort, tc.PGChartsTestsUser,
-		tc.PGChartsTestsDBName)
+	var connStr string
+	if tc.PGTestsPort == "" {
+		connStr = fmt.Sprintf("host=%s user=%s dbname=%s sslmode=disable",
+			tc.PGTestsHost, tc.PGTestsUser, tc.PGTestsDBName)
+	} else {
+		connStr = fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=disable",
+			tc.PGTestsHost, tc.PGTestsPort, tc.PGTestsUser, tc.PGTestsDBName)
+	}
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("sql.Open:", err)
 		return
 	}
 
 	err = db.Ping()
 	if err != nil {
-		log.Fatalf("Modify (pg_hba.conf - pgsql) for (%s) to work : %v", connStr, err)
+		log.Fatalf(`Modify pg_hba.conf or change the host for "%s" to work: %v`,
+			connStr, err)
 		return
 	}
 
 	if err = tc.CustomScanner(&client{db}); err != nil {
-		log.Fatal(err)
+		log.Fatal("CustomScanner:", err)
 	}
 }
 
@@ -51,7 +57,7 @@ func (c *client) Path() string {
 	if blockRange == "" {
 		blockRange = defaultBlockRange
 	}
-	str, err := filepath.Abs("testutil/dbload/testsconfig/test.data/pgsql_" + blockRange + ".sql")
+	str, err := filepath.Abs("testutil/dbconfig/test.data/pgsql_" + blockRange + ".sql")
 	if err != nil {
 		panic(err)
 	}

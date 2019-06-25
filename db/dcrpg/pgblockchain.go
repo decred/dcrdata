@@ -999,7 +999,7 @@ func (pgb *ChainDB) RegisterCharts(charts *cache.ChartData) {
 	charts.AddUpdater(cache.ChartUpdater{
 		Tag:      "missed votes stats",
 		Fetcher:  pgb.missedVotesStats,
-		Appender: appendMissedVotes,
+		Appender: appendMissedVotesPerWindow,
 	})
 }
 

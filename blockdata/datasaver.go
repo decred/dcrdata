@@ -252,15 +252,13 @@ func JSONFormatBlockData(data *BlockData) (*bytes.Buffer, error) {
 	return &jsonAllIndented, err
 }
 
-// BlockTrigger wraps a simple function of builtin-typed hash and height that
-// reports no error.
+// BlockTrigger wraps a simple function of builtin-typed hash and height.
 type BlockTrigger struct {
-	Saver func(string, uint32)
+	Saver func(string, uint32) error
 }
 
 // Store reduces the block data to the hash and height in builtin types,
 // and passes the data to the saver.
 func (s BlockTrigger) Store(bd *BlockData, _ *wire.MsgBlock) error {
-	s.Saver(bd.Header.Hash, bd.Header.Height)
-	return nil
+	return s.Saver(bd.Header.Hash, bd.Header.Height)
 }

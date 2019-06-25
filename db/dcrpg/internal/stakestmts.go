@@ -342,15 +342,24 @@ const (
 		WHERE ticket_hash = $1
 			AND blocks.is_mainchain = TRUE;`
 
-	SelectMissesVotesChartData = `SELECT blocks.height, count(*)
+	SelectMissCountNonZeros = `SELECT blocks.height, count(*)
 		FROM blocks
 		JOIN misses
 		ON misses.block_hash = blocks.hash
 		WHERE blocks.height > $1
-		AND blocks.is_valid
-		AND blocks.is_mainchain
+			AND blocks.is_mainchain
 		GROUP BY blocks.height
 		ORDER BY blocks.height;`
+
+	SelectMissCountPerBlock = `SELECT blocks.height,
+			CASE WHEN misses.block_hash IS NULL THEN 0 ELSE count(*) END
+		FROM blocks
+		LEFT JOIN misses
+		ON misses.block_hash = blocks.hash
+		WHERE blocks.height > $1
+			AND blocks.is_mainchain
+			GROUP BY blocks.hash, blocks.height, misses.block_hash
+			ORDER BY blocks.height;`
 
 	// agendas table
 

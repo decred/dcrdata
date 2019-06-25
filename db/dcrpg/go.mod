@@ -2,6 +2,8 @@ module github.com/decred/dcrdata/db/dcrpg/v3
 
 go 1.11
 
+replace github.com/decred/dcrdata/testutil/dbconfig => ../../testutil/dbconfig
+
 require (
 	github.com/chappjc/trylock v1.0.0
 	github.com/davecgh/go-spew v1.1.1
