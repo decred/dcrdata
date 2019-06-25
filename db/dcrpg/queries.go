@@ -3344,7 +3344,7 @@ func appendWindowStats(charts *cache.ChartData, rows *sql.Rows) error {
 			// Next sdiff window
 			ticketsCount = 0
 			nextWindowHeight += windowSize
-		} else if height == nextWindowHeight {
+		} else if height >= nextWindowHeight {
 			return fmt.Errorf("reach height %d before the end of an sdiff window at %d",
 				height, nextWindowHeight)
 		} // else height < nextWindowHeight-1
@@ -3420,7 +3420,7 @@ func appendMissedVotesPerWindow(charts *cache.ChartData, rows *sql.Rows) error {
 			// Next sdiff window
 			windowMisses = 0
 			nextWindowHeight += windowSize
-		} else if height == nextWindowHeight {
+		} else if height >= nextWindowHeight {
 			return fmt.Errorf("reach height %d before the end of an sdiff window at %d",
 				height, nextWindowHeight)
 		} // else height < nextWindowHeight-1
