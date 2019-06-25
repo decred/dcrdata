@@ -87,7 +87,7 @@ const (
 )
 
 // cacheVersion helps detect when cache data stored has its structure changed.
-var cacheVersion = semver.NewSemver(4, 0, 0)
+var cacheVersion = semver.NewSemver(5, 0, 0)
 
 // versionedCacheData defines the cache data contents to be written into a .gob file.
 type versionedCacheData struct {
@@ -258,6 +258,7 @@ func (set *zoomSet) Snip(length int) {
 // since the height is implicit for block-binned data.
 func newBlockSet(size int) *zoomSet {
 	return &zoomSet{
+		Height:    newChartUints(size),
 		Time:      newChartUints(size),
 		PoolSize:  newChartUints(size),
 		PoolValue: newChartFloats(size),
@@ -307,6 +308,7 @@ func newWindowSet(size int) *windowSet {
 		Time:        newChartUints(size),
 		PowDiff:     newChartFloats(size),
 		TicketPrice: newChartUints(size),
+		StakeCount:  newChartUints(size),
 		MissedVotes: newChartUints(size),
 	}
 }
@@ -378,17 +380,19 @@ func ValidateLengths(lens ...lengther) (int, error) {
 		return 0, nil
 	}
 	firstLen := lens[0].Length()
-	shortest := firstLen
+	shortest, longest := firstLen, firstLen
 	for i, l := range lens[1:lenLen] {
 		dLen := l.Length()
-		if dLen < firstLen {
+		if dLen != firstLen {
 			log.Warnf("charts.ValidateLengths: dataset at index %d has mismatched length %d != %d", i+1, dLen, firstLen)
 			if dLen < shortest {
 				shortest = dLen
+			} else if dLen > longest {
+				longest = dLen
 			}
 		}
 	}
-	if shortest < firstLen {
+	if shortest != longest {
 		return shortest, fmt.Errorf("data length mismatch")
 	}
 	return firstLen, nil
@@ -410,11 +414,12 @@ func (charts *ChartData) Lengthen() error {
 
 	// Make sure the database has set an equal number of blocks in each data set.
 	blocks := charts.Blocks
-	shortest, err := ValidateLengths(blocks.Time, blocks.PoolSize,
-		blocks.PoolValue, blocks.BlockSize, blocks.TxCount,
-		blocks.NewAtoms, blocks.Chainwork)
+	shortest, err := ValidateLengths(blocks.Height, blocks.Time,
+		blocks.PoolSize, blocks.PoolValue, blocks.BlockSize, blocks.TxCount,
+		blocks.NewAtoms, blocks.Chainwork, blocks.Fees)
 	if err != nil {
-		log.Warnf("ChartData.Lengthen: block data length mismatch detected. truncating blocks length to %d", shortest)
+		log.Warnf("ChartData.Lengthen: block data length mismatch detected. "+
+			"Truncating blocks length to %d", shortest)
 		blocks.Snip(shortest)
 	}
 	if shortest == 0 {
@@ -423,10 +428,11 @@ func (charts *ChartData) Lengthen() error {
 	}
 
 	windows := charts.Windows
-	shortest, err = ValidateLengths(windows.Time, windows.PowDiff, windows.TicketPrice, windows.MissedVotes,
-		windows.StakeCount)
+	shortest, err = ValidateLengths(windows.Time, windows.PowDiff,
+		windows.TicketPrice, windows.StakeCount, windows.MissedVotes)
 	if err != nil {
-		log.Warnf("ChartData.Lengthen: window data length mismatch detected. truncating windows length to %d", shortest)
+		log.Warnf("ChartData.Lengthen: window data length mismatch detected. "+
+			"Truncating windows length to %d", shortest)
 		charts.Windows.Snip(shortest)
 	}
 	if shortest == 0 {
@@ -479,6 +485,7 @@ func (charts *ChartData) Lengthen() error {
 		for _, interval := range intervals {
 			// For each new day, take an appropriate snapshot. Some sets use sums,
 			// some use averages, and some use the last value of the day.
+			days.Height = append(days.Height, uint64(interval[1]-1))
 			days.PoolSize = append(days.PoolSize, blocks.PoolSize.Avg(interval[0], interval[1]))
 			days.PoolValue = append(days.PoolValue, blocks.PoolValue.Avg(interval[0], interval[1]))
 			days.BlockSize = append(days.BlockSize, blocks.BlockSize.Sum(interval[0], interval[1]))
@@ -486,17 +493,17 @@ func (charts *ChartData) Lengthen() error {
 			days.NewAtoms = append(days.NewAtoms, blocks.NewAtoms.Sum(interval[0], interval[1]))
 			days.Chainwork = append(days.Chainwork, blocks.Chainwork[interval[1]])
 			days.Fees = append(days.Fees, blocks.Fees.Sum(interval[0], interval[1]))
-			days.Height = append(days.Height, uint64(interval[1]-1))
 		}
 	}
 
 	// Check that all relevant datasets have been updated to the same length.
-	daysLen, err := ValidateLengths(days.PoolSize, days.PoolValue, days.BlockSize,
-		days.TxCount, days.NewAtoms, days.Chainwork, days.Fees, days.Height, days.Time)
+	daysLen, err := ValidateLengths(days.Height, days.Time, days.PoolSize,
+		days.PoolValue, days.BlockSize, days.TxCount, days.NewAtoms,
+		days.Chainwork, days.Fees)
 	if err != nil {
 		return fmt.Errorf("day bin: %v", err)
 	} else if daysLen == 0 {
-		return fmt.Errorf("unexpected zero-length day-binned data")
+		log.Warnf("(*ChartData).Lengthen: Zero-length day-binned data!")
 	}
 
 	charts.cacheMtx.Lock()
@@ -622,17 +629,22 @@ func (charts *ChartData) readCacheFile(filePath string) error {
 
 // Load loads chart data from the gob file at the specified path and performs an
 // update.
-func (charts *ChartData) Load(cacheDumpPath string) {
+func (charts *ChartData) Load(cacheDumpPath string) error {
 	t := time.Now()
+	defer func() {
+		log.Debugf("Completed the initial chart load and update in %f s",
+			time.Since(t).Seconds())
+	}()
 
 	if err := charts.readCacheFile(cacheDumpPath); err != nil {
 		log.Debugf("Cache dump data loading failed: %v", err)
+		// Do not return non-nil error since a new cache file will be generated.
+		// Also, return only after Update has restored the charts data.
 	}
 
 	// Bring the charts up to date.
-	charts.Update()
-
-	log.Debugf("Completed the initial chart load in %f s", time.Since(t).Seconds())
+	log.Infof("Updating charts data...")
+	return charts.Update()
 }
 
 // Dump dumps a ChartGobject to a gob file at the given path.
@@ -646,8 +658,12 @@ func (charts *ChartData) Dump(dumpPath string) {
 }
 
 // TriggerUpdate triggers (*ChartData).Update.
-func (charts *ChartData) TriggerUpdate(_ string, _ uint32) {
-	charts.Update()
+func (charts *ChartData) TriggerUpdate(_ string, _ uint32) error {
+	if err := charts.Update(); err != nil {
+		// Only log errors from ChartsData.Update. TODO: make this more severe.
+		log.Errorf("(*ChartData).Update failed: %v", err)
+	}
+	return nil
 }
 
 func (charts *ChartData) gobject() *ChartGobject {
@@ -747,7 +763,7 @@ func (charts *ChartData) AddUpdater(updater ChartUpdater) {
 // Update refreshes chart data by calling the ChartUpdaters sequentially. The
 // Update is abandoned with a warning if stateID changes while running a Fetcher
 // (likely due to a new update starting during a query).
-func (charts *ChartData) Update() {
+func (charts *ChartData) Update() error {
 	for _, updater := range charts.updaters {
 		stateID := charts.StateID()
 		rows, cancel, err := updater.Fetcher(charts)
@@ -767,16 +783,15 @@ func (charts *ChartData) Update() {
 		}
 		cancel()
 		if err != nil {
-			log.Errorf("%v", err)
-			return
+			return err
 		}
 	}
 
 	// Since the charts db data query is complete. Update chart.Days derived dataset.
 	if err := charts.Lengthen(); err != nil {
-		log.Errorf("(*ChartData).Lengthen failed %v", err)
-		return
+		return fmt.Errorf("(*ChartData).Lengthen failed: %v", err)
 	}
+	return nil
 }
 
 // NewChartData constructs a new ChartData.

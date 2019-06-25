@@ -1,4 +1,4 @@
-// +build chartests
+// +build chartdata
 
 package dcrsqlite
 
