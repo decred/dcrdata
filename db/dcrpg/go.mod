@@ -4,8 +4,6 @@ go 1.11
 
 replace github.com/decred/dcrdata/testutil/dbconfig => ../../testutil/dbconfig
 
-replace github.com/decred/dcrdata/db/cache/v2 => ../cache
-
 require (
 	github.com/chappjc/trylock v1.0.0
 	github.com/davecgh/go-spew v1.1.1
