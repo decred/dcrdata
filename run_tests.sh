@@ -67,9 +67,9 @@ testrepo () {
   # check linters
   ./lint.sh
 
-  if [[ $TESTTAGS =~ "pgonline" ]]; then
-  # Drop the tests db.
-  psql -U postgres -c "DROP DATABASE IF EXISTS dcrdata_mainnet_test"
+  if [[ $TESTTAGS =~ "pgonline" || $TESTTAGS =~ "chartdata" ]]; then
+    # Drop the tests db.
+    psql -U postgres -c "DROP DATABASE IF EXISTS dcrdata_mainnet_test"
   fi
 
   # webpack
