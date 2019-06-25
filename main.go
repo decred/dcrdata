@@ -23,7 +23,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/rpcclient/v2"
-	"github.com/decred/dcrdata/blockdata/v2"
+	"github.com/decred/dcrdata/blockdata/v3"
 	"github.com/decred/dcrdata/db/cache/v2"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/db/dcrpg/v3"

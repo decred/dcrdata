@@ -13,16 +13,16 @@ require (
 	github.com/decred/dcrd/txscript v1.0.3-0.20190613214542-d0a6bf024dfc
 	github.com/decred/dcrd/wire v1.2.0
 	github.com/decred/dcrdata/api/types/v3 v3.0.0
-	github.com/decred/dcrdata/blockdata/v2 v2.0.0
-	github.com/decred/dcrdata/db/cache/v2 v2.0.0
+	github.com/decred/dcrdata/blockdata/v3 v3.0.0
+	github.com/decred/dcrdata/db/cache/v2 v2.1.0
 	github.com/decred/dcrdata/db/dbtypes/v2 v2.0.0
 	github.com/decred/dcrdata/db/dcrpg/v3 v3.0.0
 	github.com/decred/dcrdata/db/dcrsqlite/v3 v3.0.0
-	github.com/decred/dcrdata/exchanges/v2 v2.0.0
+	github.com/decred/dcrdata/exchanges/v2 v2.0.1
 	github.com/decred/dcrdata/explorer/types v1.1.0
-	github.com/decred/dcrdata/gov v1.0.0
+	github.com/decred/dcrdata/gov v1.0.1
 	github.com/decred/dcrdata/mempool/v3 v3.0.1
-	github.com/decred/dcrdata/middleware/v2 v2.1.0
+	github.com/decred/dcrdata/middleware/v2 v2.2.0
 	github.com/decred/dcrdata/pubsub/types/v2 v2.0.0
 	github.com/decred/dcrdata/pubsub/v2 v2.0.0
 	github.com/decred/dcrdata/rpcutils v1.2.0
@@ -56,7 +56,7 @@ require (
 
 replace (
 	github.com/decred/dcrdata/api/types/v3 => ./api/types
-	github.com/decred/dcrdata/blockdata/v2 => ./blockdata
+	github.com/decred/dcrdata/blockdata/v3 => ./blockdata
 	github.com/decred/dcrdata/db/cache/v2 => ./db/cache
 	github.com/decred/dcrdata/db/dbtypes/v2 => ./db/dbtypes
 	github.com/decred/dcrdata/db/dcrpg/v3 => ./db/dcrpg
@@ -72,6 +72,6 @@ replace (
 	github.com/decred/dcrdata/rpcutils => ./rpcutils
 	github.com/decred/dcrdata/semver => ./semver
 	github.com/decred/dcrdata/stakedb/v2 => ./stakedb
-	github.com/decred/dcrdata/testutil/dbconfig => ./testutil/dbconfig
+	github.com/decred/dcrdata/testutil/dbconfig/v2 => ./testutil/dbconfig
 	github.com/decred/dcrdata/txhelpers/v2 => ./txhelpers
 )

@@ -2,7 +2,7 @@ module github.com/decred/dcrdata/pubsub/democlient
 
 replace (
 	github.com/decred/dcrdata/api/types/v3 => ../../api/types
-	github.com/decred/dcrdata/blockdata/v2 => ../../blockdata
+	github.com/decred/dcrdata/blockdata/v3 => ../../blockdata
 	github.com/decred/dcrdata/db/cache/v2 => ../../db/cache
 	github.com/decred/dcrdata/db/dbtypes/v2 => ../../db/dbtypes
 	github.com/decred/dcrdata/db/dcrpg/v3 => ../../db/dcrpg
@@ -18,7 +18,7 @@ replace (
 	github.com/decred/dcrdata/rpcutils => ../../rpcutils
 	github.com/decred/dcrdata/semver => ../../semver
 	github.com/decred/dcrdata/stakedb/v2 => ../../stakedb
-	github.com/decred/dcrdata/testutil/dbconfig => ../../testutil/dbconfig
+	github.com/decred/dcrdata/testutil/dbconfig/v2 => ../../testutil/dbconfig
 	github.com/decred/dcrdata/txhelpers/v2 => ../../txhelpers
 )
 
