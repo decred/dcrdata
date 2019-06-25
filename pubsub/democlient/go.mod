@@ -18,7 +18,7 @@ replace (
 	github.com/decred/dcrdata/rpcutils => ../../rpcutils
 	github.com/decred/dcrdata/semver => ../../semver
 	github.com/decred/dcrdata/stakedb/v2 => ../../stakedb
-	github.com/decred/dcrdata/testutil/dbconfig => ../../testutil/dbconfig
+	github.com/decred/dcrdata/testutil/dbconfig/v2 => ../../testutil/dbconfig
 	github.com/decred/dcrdata/txhelpers/v2 => ../../txhelpers
 )
 

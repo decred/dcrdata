@@ -18,7 +18,7 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/blockdata/v2"
+	"github.com/decred/dcrdata/blockdata/v3"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/explorer/types"
 	exptypes "github.com/decred/dcrdata/explorer/types"

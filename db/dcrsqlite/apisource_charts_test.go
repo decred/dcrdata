@@ -10,7 +10,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrdata/db/cache/v2"
-	tc "github.com/decred/dcrdata/testutil/dbconfig"
+	tc "github.com/decred/dcrdata/testutil/dbconfig/v2"
 	_ "github.com/mattn/go-sqlite3"
 )
 

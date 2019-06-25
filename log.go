@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/decred/dcrd/rpcclient/v2"
-	"github.com/decred/dcrdata/blockdata/v2"
+	"github.com/decred/dcrdata/blockdata/v3"
 	"github.com/decred/dcrdata/db/dcrpg/v3"
 	"github.com/decred/dcrdata/db/dcrsqlite/v3"
 	"github.com/decred/dcrdata/exchanges/v2"

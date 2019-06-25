@@ -772,6 +772,12 @@ func AgendaIdCtx(next http.Handler) http.Handler {
 	})
 }
 
+// AgendIdCtx returns a http.HandlerFunc that embeds the value at the url part
+// {agendaId} into the request context. This is here for backward compatibility.
+func AgendIdCtx(next http.Handler) http.Handler {
+	return AgendaIdCtx(next)
+}
+
 // GetAgendaIdCtx retrieves the ctxAgendaId data from the request context.
 // If not set, the return value is an empty string.
 func GetAgendaIdCtx(r *http.Request) string {

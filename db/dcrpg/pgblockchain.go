@@ -27,7 +27,7 @@ import (
 	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types/v3"
-	"github.com/decred/dcrdata/blockdata/v2"
+	"github.com/decred/dcrdata/blockdata/v3"
 	"github.com/decred/dcrdata/db/cache/v2"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/db/dcrpg/v3/internal"
