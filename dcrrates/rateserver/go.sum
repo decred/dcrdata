@@ -33,8 +33,8 @@ github.com/decred/dcrd/wire v1.2.0 h1:HqJVB7vcklIguzFWgRXw/WYCQ9cD3bUC5TKj53i1Hn
 github.com/decred/dcrd/wire v1.2.0/go.mod h1:/JKOsLInOJu6InN+/zH5AyCq3YDIOW/EqcffvU8fJHM=
 github.com/decred/dcrdata/dcrrates v1.1.0 h1:tbzM5FhqQ0iVUk0PNOH4E0spoiqlDKZNg/4SsZndsEw=
 github.com/decred/dcrdata/dcrrates v1.1.0/go.mod h1:0YiDI6OS9kpVdkpLlFVo0+EvCLf6U+QY24wrJGf40xg=
-github.com/decred/dcrdata/exchanges/v2 v2.0.0 h1:LNgUH/WuD6wvhjzXJMXtwsE28EjyoKs1ev5iQ6gWtSM=
-github.com/decred/dcrdata/exchanges/v2 v2.0.0/go.mod h1:OQK9FcVspuhnZFlk2jOcGwLuEiMSQM0iXMwsWISFE5Q=
+github.com/decred/dcrdata/exchanges/v2 v2.0.1 h1:gfs5JfobSyuyERVEfo4IOTXbBHd22HJfi7PG9GEYlbY=
+github.com/decred/dcrdata/exchanges/v2 v2.0.1/go.mod h1:OQK9FcVspuhnZFlk2jOcGwLuEiMSQM0iXMwsWISFE5Q=
 github.com/decred/slog v1.0.0 h1:Dl+W8O6/JH6n2xIFN2p3DNjCmjYwvrXsjlSJTQQ4MhE=
 github.com/decred/slog v1.0.0/go.mod h1:zR98rEZHSnbZ4WHZtO0iqmSZjDLKhkXfrPTZQKtAonQ=
 github.com/elazarl/goproxy v0.0.0-20181111060418-2ce16c963a8a/go.mod h1:/Zj4wYkgs4iZTTu3o/KG3Itv/qCCa8VVMlb3i9OVuzc=
