@@ -15,7 +15,6 @@ const depth = 'depth'
 const history = 'history'
 const volume = 'volume'
 const aggregatedKey = 'aggregated'
-const binance = 'binance'
 const anHour = '1h'
 const minuteMap = {
   '30m': 30,
