@@ -91,10 +91,10 @@ github.com/decred/dcrd/wire v1.2.0 h1:HqJVB7vcklIguzFWgRXw/WYCQ9cD3bUC5TKj53i1Hn
 github.com/decred/dcrd/wire v1.2.0/go.mod h1:/JKOsLInOJu6InN+/zH5AyCq3YDIOW/EqcffvU8fJHM=
 github.com/decred/dcrdata/api/types/v3 v3.0.0 h1:NVw3pDQ0TVckSIegFSYcqPlqKZI6ehJSOEftHIvrOoY=
 github.com/decred/dcrdata/api/types/v3 v3.0.0/go.mod h1:DsZytNKhEESj6LLZatG9sO7cJPOp/ZQhV7nBzfflhpU=
-github.com/decred/dcrdata/blockdata/v2 v2.0.0 h1:/itfTDAYV6bKK+lRbfyLL/O2aLU2QFi/Ija3RkPNKzI=
-github.com/decred/dcrdata/blockdata/v2 v2.0.0/go.mod h1:fqVo7R+cuXGpEPnk4hNobY2MnF0mrCYSd5AsBahuqUE=
-github.com/decred/dcrdata/db/cache/v2 v2.0.0 h1:9ZIEMuqnVIPJjnlQ3UnmJxK0GTfkHqzBqionGZPpPsE=
-github.com/decred/dcrdata/db/cache/v2 v2.0.0/go.mod h1:Y4P8q485x8BpRLS52eXs9Lf+1hQl+5b7G1xnGkqJFHQ=
+github.com/decred/dcrdata/blockdata/v3 v3.0.0 h1:oyNSqXxVzX5TWomjYCBIPh5OCJ4/nbp/llDuZ6gN20o=
+github.com/decred/dcrdata/blockdata/v3 v3.0.0/go.mod h1:GPl6U8Od/5IAriuLt+Irfrz4bqWzzroCf5b2JHrS6YA=
+github.com/decred/dcrdata/db/cache/v2 v2.1.0 h1:QZn9iwHkNEZ3Ta+7xDuCNfCFn6R8yBiDLzxzdECAoEI=
+github.com/decred/dcrdata/db/cache/v2 v2.1.0/go.mod h1:Y4P8q485x8BpRLS52eXs9Lf+1hQl+5b7G1xnGkqJFHQ=
 github.com/decred/dcrdata/db/dbtypes/v2 v2.0.0 h1:1xF6HNNZwz9am2bByX7/89QTAPHcJbGIUQCDIlYFYMk=
 github.com/decred/dcrdata/db/dbtypes/v2 v2.0.0/go.mod h1:/xdvajiQlUnguMo16CNNK4xLvKVSm4veWf65Wq8DSuk=
 github.com/decred/dcrdata/dcrrates v1.1.0 h1:tbzM5FhqQ0iVUk0PNOH4E0spoiqlDKZNg/4SsZndsEw=
@@ -113,8 +113,8 @@ github.com/decred/dcrdata/semver v1.0.0 h1:DBqYU/x+4LqHq/3r4xKdF6xG5ewktG2KDC+g/
 github.com/decred/dcrdata/semver v1.0.0/go.mod h1:z+nQqiAd9fYkHhBLbejysZ2FPHtgkrErWDgMf+JlZWE=
 github.com/decred/dcrdata/stakedb/v2 v2.0.0 h1:drKto5hRxf7F4N08BzUmsxENv8RREOd5G4ZwrfQ9n3w=
 github.com/decred/dcrdata/stakedb/v2 v2.0.0/go.mod h1:DHfLqloW4lX5AcyPVYAyZBVScIdmAknsFb70C/7qnBE=
-github.com/decred/dcrdata/testutil/dbconfig v1.0.1 h1:GpT582PTQ05nU1UHpr6Lz4vbIY94nTz751XYvGxnXe0=
-github.com/decred/dcrdata/testutil/dbconfig v1.0.1/go.mod h1:ULWGbJMk5n/KvPe3/frMWM8BPhU0uLiKKhSYkYb9stE=
+github.com/decred/dcrdata/testutil/dbconfig/v2 v2.0.0 h1:3VDeqqb4RNDAYCPwe+yhe8WCl9DCtf2BbtRYxx1n6bo=
+github.com/decred/dcrdata/testutil/dbconfig/v2 v2.0.0/go.mod h1:R3AhuzSGbXK5YG6fst5njhUzDsCtju1+cbAqXsmi11s=
 github.com/decred/dcrdata/txhelpers/v2 v2.0.0 h1:X93e5mH+FhkQ45VroSEAUrb4eNM9KIJm77c9eqMWfNQ=
 github.com/decred/dcrdata/txhelpers/v2 v2.0.0/go.mod h1:u8uiIpoUlcuZSSeOu8geJhz5TxN49PSwuYcuqP7anwA=
 github.com/decred/dcrwallet/rpc/jsonrpc/types v1.0.0 h1:FPVohgxZHHwi7qTOBki/Dw9j5cgGsZYiktGSfgqHR0w=
