@@ -631,15 +631,19 @@ func (charts *ChartData) readCacheFile(filePath string) error {
 // update.
 func (charts *ChartData) Load(cacheDumpPath string) error {
 	t := time.Now()
+	defer func() {
+		log.Debugf("Completed the initial chart load and update in %f s",
+			time.Since(t).Seconds())
+	}()
 
 	if err := charts.readCacheFile(cacheDumpPath); err != nil {
 		log.Debugf("Cache dump data loading failed: %v", err)
 		// Do not return non-nil error since a new cache file will be generated.
-		return nil
+		// Also, return only after Update has restored the charts data.
 	}
 
 	// Bring the charts up to date.
-	defer log.Debugf("Completed the initial chart load in %f s", time.Since(t).Seconds())
+	log.Infof("Updating charts data...")
 	return charts.Update()
 }
 
