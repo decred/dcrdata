@@ -1,4 +1,4 @@
-github.com/decred/dcrdata/testutil/dbconfig v1.0.1 h1:GpT582PTQ05nU1UHpr6Lz4vbIY94nTz751XYvGxnXe0=
-github.com/decred/dcrdata/testutil/dbconfig v1.0.1/go.mod h1:ULWGbJMk5n/KvPe3/frMWM8BPhU0uLiKKhSYkYb9stE=
+github.com/decred/dcrdata/testutil/dbconfig/v2 v2.0.0 h1:3VDeqqb4RNDAYCPwe+yhe8WCl9DCtf2BbtRYxx1n6bo=
+github.com/decred/dcrdata/testutil/dbconfig/v2 v2.0.0/go.mod h1:R3AhuzSGbXK5YG6fst5njhUzDsCtju1+cbAqXsmi11s=
 github.com/lib/pq v1.1.0 h1:/5u4a+KGJptBRqGzPvYQL9p0d/tPR4S31+Tnzj9lEO4=
 github.com/lib/pq v1.1.0/go.mod h1:5WUZQaWbwv1U+lTReE5YruASi9Al49XbQIvNi/34Woo=

@@ -93,8 +93,8 @@ github.com/decred/dcrd/wire v1.2.0 h1:HqJVB7vcklIguzFWgRXw/WYCQ9cD3bUC5TKj53i1Hn
 github.com/decred/dcrd/wire v1.2.0/go.mod h1:/JKOsLInOJu6InN+/zH5AyCq3YDIOW/EqcffvU8fJHM=
 github.com/decred/dcrdata/api/types/v3 v3.0.0 h1:NVw3pDQ0TVckSIegFSYcqPlqKZI6ehJSOEftHIvrOoY=
 github.com/decred/dcrdata/api/types/v3 v3.0.0/go.mod h1:DsZytNKhEESj6LLZatG9sO7cJPOp/ZQhV7nBzfflhpU=
-github.com/decred/dcrdata/blockdata/v2 v2.0.0 h1:/itfTDAYV6bKK+lRbfyLL/O2aLU2QFi/Ija3RkPNKzI=
-github.com/decred/dcrdata/blockdata/v2 v2.0.0/go.mod h1:fqVo7R+cuXGpEPnk4hNobY2MnF0mrCYSd5AsBahuqUE=
+github.com/decred/dcrdata/blockdata/v3 v3.0.0 h1:oyNSqXxVzX5TWomjYCBIPh5OCJ4/nbp/llDuZ6gN20o=
+github.com/decred/dcrdata/blockdata/v3 v3.0.0/go.mod h1:GPl6U8Od/5IAriuLt+Irfrz4bqWzzroCf5b2JHrS6YA=
 github.com/decred/dcrdata/db/dbtypes/v2 v2.0.0 h1:1xF6HNNZwz9am2bByX7/89QTAPHcJbGIUQCDIlYFYMk=
 github.com/decred/dcrdata/db/dbtypes/v2 v2.0.0/go.mod h1:/xdvajiQlUnguMo16CNNK4xLvKVSm4veWf65Wq8DSuk=
 github.com/decred/dcrdata/dcrrates v1.1.0 h1:tbzM5FhqQ0iVUk0PNOH4E0spoiqlDKZNg/4SsZndsEw=
@@ -107,8 +107,8 @@ github.com/decred/dcrdata/mempool/v3 v3.0.1 h1:MtlBOeaOxl3PIw7YjQKyCehQw8/588fPG
 github.com/decred/dcrdata/mempool/v3 v3.0.1/go.mod h1:2nEki72AlJbXl5ypQhrcI0gcWkmX2fZcbJ0XgbAL2qw=
 github.com/decred/dcrdata/pubsub/types/v2 v2.0.0 h1:7UBWEITNpUmJKq8TPJatDns1+eWbGUgnLMTVSxpvKrM=
 github.com/decred/dcrdata/pubsub/types/v2 v2.0.0/go.mod h1:UJYV5LYfbclCeeas81tio9i2+USe21hCLMna9bx9wcg=
-github.com/decred/dcrdata/pubsub/v2 v2.0.0 h1:So2Hl7Ez7K97Pwx4g8uiphWxvVoFAF25OQB/uKAtYuE=
-github.com/decred/dcrdata/pubsub/v2 v2.0.0/go.mod h1:WHvORSVAWy3wkMNXcZmfmByBCE81VBwMeO95zEm88Dg=
+github.com/decred/dcrdata/pubsub/v2 v2.0.1 h1:5o1t9/Pt1Sn2HSsW3AJf88p3RXFq9vc919nRRbKPShg=
+github.com/decred/dcrdata/pubsub/v2 v2.0.1/go.mod h1:hCvJfMdi8GceO3mRZMLPovbv1SQkygsmtuI4eo4N/cE=
 github.com/decred/dcrdata/rpcutils v1.2.0 h1:Xy1ogIEBX0kr7Sxe4uBQLw37i6VLPph7UIJQm7/54rc=
 github.com/decred/dcrdata/rpcutils v1.2.0/go.mod h1:QbA/jDZkELbsbPqYM7rrmPjIbYQo5+AdJc4MS3O4Jrw=
 github.com/decred/dcrdata/semver v1.0.0 h1:DBqYU/x+4LqHq/3r4xKdF6xG5ewktG2KDC+g/p3f8mc=

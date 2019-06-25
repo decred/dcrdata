@@ -5,7 +5,7 @@ require (
 	github.com/decred/dcrd/dcrutil v1.3.0
 	github.com/decred/dcrdata/explorer/types v1.1.0
 	github.com/decred/dcrdata/pubsub/types/v2 v2.0.0
-	github.com/decred/dcrdata/pubsub/v2 v2.0.0
+	github.com/decred/dcrdata/pubsub/v2 v2.0.1
 	github.com/decred/dcrdata/semver v1.0.0
 	github.com/decred/slog v1.0.0
 	github.com/dgryski/go-farm v0.0.0-20190416075124-e1214b5e05dc // indirect

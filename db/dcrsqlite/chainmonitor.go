@@ -9,7 +9,7 @@ import (
 	"fmt"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrdata/blockdata/v2"
+	"github.com/decred/dcrdata/blockdata/v3"
 	"github.com/decred/dcrdata/txhelpers/v2"
 )
 
