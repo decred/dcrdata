@@ -448,11 +448,11 @@ func (iapi *InsightApi) getAddressesTxnOutput(w http.ResponseWriter, r *http.Req
 					Address:       address,
 					TxnID:         fundingTx.Hash().String(),
 					Vout:          f.Index,
+					BlockTime:     fundingTx.MemPoolTime,
 					ScriptPubKey:  hex.EncodeToString(txOut.PkScript),
 					Amount:        dcrutil.Amount(txOut.Value).ToCoin(),
 					Satoshis:      txOut.Value,
 					Confirmations: 0,
-					BlockTime:     fundingTx.MemPoolTime,
 				})
 			}
 		}
@@ -627,6 +627,7 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 
 		addressOuts, _, err := iapi.mp.UnconfirmedTxnsForAddress(address)
 		var UnconfirmedTxs []chainhash.Hash
+		var UnconfirmedTxTimes []int64
 
 		if err != nil {
 			writeInsightError(w, fmt.Sprintf("Error gathering mempool transactions (%v)", err))
@@ -643,6 +644,19 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 			}
 			UnconfirmedTxs = append(UnconfirmedTxs, f.Hash) // Funding tx
 			recentTxs = append(recentTxs, f.Hash)
+
+			// Access the mempool transaction store for MempoolTime.
+			fundingTx, ok := addressOuts.TxnsStore[f.Hash]
+			if !ok {
+				apiLog.Errorf("An outpoint's transaction is not available in TxnStore.")
+				continue
+			}
+			if fundingTx.Confirmed() {
+				apiLog.Errorf("An outpoint's transaction is unexpectedly confirmed.")
+				continue
+			}
+
+			UnconfirmedTxTimes = append(UnconfirmedTxTimes, fundingTx.MemPoolTime)
 		}
 	SPENDING_TX_DUPLICATE_CHECK:
 		for _, f := range addressOuts.PrevOuts {
@@ -653,9 +667,22 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 			}
 			UnconfirmedTxs = append(UnconfirmedTxs, f.TxSpending) // Spending tx
 			recentTxs = append(recentTxs, f.TxSpending)
+
+			// Access the mempool transaction store for MempoolTime.
+			spendingTx, ok := addressOuts.TxnsStore[f.TxSpending]
+			if !ok {
+				apiLog.Errorf("An outpoint's transaction is not available in TxnStore.")
+				continue
+			}
+			if spendingTx.Confirmed() {
+				apiLog.Errorf("An outpoint's transaction is unexpectedly confirmed.")
+				continue
+			}
+
+			UnconfirmedTxTimes = append(UnconfirmedTxTimes, spendingTx.MemPoolTime)
 		}
 
-		// Merge unconfirmed with confirmed transactions
+		// Merge unconfirmed with confirmed transactions. Unconfirmed must be first.
 		rawTxs = append(UnconfirmedTxs, rawTxs...)
 
 		txcount := len(rawTxs)
@@ -665,12 +692,16 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 		}
 
 		txsOld := []*dcrjson.TxRawResult{}
-		for _, rawTx := range rawTxs {
+		for i, rawTx := range rawTxs {
 			txOld, err1 := iapi.BlockData.GetRawTransaction(&rawTx)
 			if err1 != nil {
 				apiLog.Errorf("Unable to get transaction %s", rawTx)
 				writeInsightError(w, fmt.Sprintf("Error gathering transaction details (%s)", err1))
 				return
+			}
+
+			if i < len(UnconfirmedTxTimes) {
+				txOld.Time = UnconfirmedTxTimes[i]
 			}
 			txsOld = append(txsOld, txOld)
 		}
@@ -726,6 +757,7 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 	// Initialize output structure.
 	addressOutput := new(apitypes.InsightMultiAddrsTxOutput)
 	var UnconfirmedTxs []chainhash.Hash
+	var UnconfirmedTxTimes []int64
 
 	rawTxs, recentTxs, err :=
 		iapi.BlockData.ChainDB.InsightAddressTransactions(addresses, int64(iapi.status.Height()-2))
@@ -765,6 +797,19 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 			}
 			UnconfirmedTxs = append(UnconfirmedTxs, f.Hash) // funding
 			recentTxs = append(recentTxs, f.Hash)
+
+			// Access the mempool transaction store for MempoolTime.
+			fundingTx, ok := addressOuts.TxnsStore[f.Hash]
+			if !ok {
+				apiLog.Errorf("An outpoint's transaction is not available in TxnStore.")
+				continue
+			}
+			if fundingTx.Confirmed() {
+				apiLog.Errorf("An outpoint's transaction is unexpectedly confirmed.")
+				continue
+			}
+
+			UnconfirmedTxTimes = append(UnconfirmedTxTimes, fundingTx.MemPoolTime)
 		}
 	SPENDING_TX_DUPLICATE_CHECK:
 		for _, f := range addressOuts.PrevOuts {
@@ -775,10 +820,23 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 			}
 			UnconfirmedTxs = append(UnconfirmedTxs, f.TxSpending) // spending
 			recentTxs = append(recentTxs, f.TxSpending)
+
+			// Access the mempool transaction store for MempoolTime.
+			spendingTx, ok := addressOuts.TxnsStore[f.TxSpending]
+			if !ok {
+				apiLog.Errorf("An outpoint's transaction is not available in TxnStore.")
+				continue
+			}
+			if spendingTx.Confirmed() {
+				apiLog.Errorf("An outpoint's transaction is unexpectedly confirmed.")
+				continue
+			}
+
+			UnconfirmedTxTimes = append(UnconfirmedTxTimes, spendingTx.MemPoolTime)
 		}
 	}
 
-	// Merge unconfirmed with confirmed transactions.
+	// Merge unconfirmed with confirmed transactions. Unconfirmed must be first.
 	rawTxs = append(UnconfirmedTxs, rawTxs...)
 
 	txcount := len(rawTxs)
@@ -810,12 +868,16 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 
 	// Make getrawtransaction RPCs for each selected transaction.
 	txsOld := []*dcrjson.TxRawResult{}
-	for _, rawTx := range rawTxs {
+	for i, rawTx := range rawTxs {
 		txOld, err := iapi.BlockData.GetRawTransaction(&rawTx)
 		if err != nil {
 			apiLog.Errorf("Unable to get transaction %s", rawTx)
 			writeInsightError(w, fmt.Sprintf("Error gathering transaction details (%v)", err))
 			return
+		}
+
+		if i < len(UnconfirmedTxTimes) {
+			txOld.Time = UnconfirmedTxTimes[i]
 		}
 		txsOld = append(txsOld, txOld)
 	}
