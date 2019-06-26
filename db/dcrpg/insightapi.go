@@ -71,10 +71,10 @@ func sortTxsByTimeAndHash(txns []txSortable) {
 	})
 }
 
-// InsightAddressTransactions performs a db query to pull all txids for the
-// specified addresses ordered desc by time. It also returns a list of recently
-// (defined as greater than recentBlockHeight) confirmed transactions that can
-// be used to validate mempool status.
+// InsightAddressTransactions performs DB queries to get all transaction hashes
+// for the specified addresses in descending order by time. It also returns a
+// list of recently (defined as greater than recentBlockHeight) confirmed
+// transactions that can be used to validate mempool status.
 func (pgb *ChainDB) InsightAddressTransactions(addr []string, recentBlockHeight int64) (txs, recentTxs []chainhash.Hash, err error) {
 	// Time of a "recent" block
 	recentBlocktime, err0 := pgb.BlockTimeByHeight(recentBlockHeight)
@@ -90,12 +90,7 @@ func (pgb *ChainDB) InsightAddressTransactions(addr []string, recentBlockHeight 
 		if err != nil {
 			return nil, nil, err
 		}
-		// merged credit rows
-		// rows = cache.AllCreditAddressRows(rows)
 		for _, r := range rows {
-			if !r.IsFunding() {
-				continue
-			}
 			//txns = append(txns, txSortable{r.TxHash, r.TxBlockTime})
 			txns = append(txns, r.TxHash)
 			// Count the number of "recent" txns.
@@ -107,13 +102,6 @@ func (pgb *ChainDB) InsightAddressTransactions(addr []string, recentBlockHeight 
 
 	// Sort by block time (DESC) then hash (ASC).
 	//sortTxsByTimeAndHash(txns)
-	// wasSorted := sort.SliceIsSorted(txns, func(i, j int) bool {
-	// 	if txns[i].Time == txns[j].Time {
-	// 		return txns[i].Hash < txns[j].Hash
-	// 	}
-	// 	return txns[i].Time > txns[j].Time
-	// })
-	// fmt.Println(wasSorted)
 
 	txs = make([]chainhash.Hash, 0, len(txns))
 	recentTxs = make([]chainhash.Hash, 0, numRecent)
@@ -126,13 +114,6 @@ func (pgb *ChainDB) InsightAddressTransactions(addr []string, recentBlockHeight 
 	}
 
 	return
-
-	// Perform the DB query in the absence of all cached data.
-	// ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
-	// defer cancel()
-	// txs, recentTxs, err = RetrieveAddressTxnsOrdered(ctx, pgb.db, addr, recentBlocktime)
-	// err = pgb.replaceCancelError(err)
-	// return
 }
 
 // AddressIDsByOutpoint fetches all address row IDs for a given outpoint
