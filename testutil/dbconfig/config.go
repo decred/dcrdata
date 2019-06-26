@@ -37,7 +37,6 @@ func CustomScanner(m Migrations) error {
 		if len(text) == 0 {
 			continue
 		}
-
 		if err = m.Runner(text); err != nil {
 			return fmt.Errorf("Runner(%s): %v", text, err)
 		}
@@ -51,7 +50,7 @@ func scanQueries(data []byte, atEOF bool) (advance int, token []byte, err error)
 	if atEOF && len(data) == 0 {
 		return 0, nil, bufio.ErrFinalToken
 	}
-	if i := bytes.LastIndex(data, []byte(";\n")); i >= 0 {
+	if i := bytes.Index(data, []byte(";\n")); i >= 0 {
 		return i + 1, deleteComments(data[:i]), nil
 	}
 	if atEOF {
