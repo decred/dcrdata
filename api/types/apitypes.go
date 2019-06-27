@@ -473,13 +473,23 @@ func (s *Status) Happy() Happy {
 	s.RLock()
 	blockAge := time.Since(time.Unix(s.dbLastBlockTime, 0))
 	h := Happy{
-		APIReady:        s.ready,
+		APIReady:        s.ready, // The DB is serving data from the network's best block.
 		TipAge:          int64(blockAge.Seconds()),
 		NodeConnections: s.nodeConnections,
 	}
+	blocksBehind := s.height - s.dbHeight
 	s.RUnlock()
 
-	h.Happy = h.APIReady && blockAge < 90*time.Minute && h.NodeConnections > 0
+	// If the DB is at node height, the age of the best block may be fairly
+	// large, corresponding to an extremely low likelihood block interval.
+	blockAgeLimit := 90 * time.Minute
+	// If the DB is not at node height, allow the DB to lag if the age of the
+	// best block in the DB is very recent, suggesting that the network's best
+	// block may still be processing.
+	if blocksBehind > 0 {
+		blockAgeLimit = 30 * time.Second // processing rarely takes longer than a couple seconds
+	}
+	h.Happy = blockAge < blockAgeLimit && h.NodeConnections > 0
 	return h
 }
 
