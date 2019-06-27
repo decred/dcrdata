@@ -149,8 +149,8 @@ github.com/decred/dcrdata/db/dbtypes/v2 v2.0.0 h1:1xF6HNNZwz9am2bByX7/89QTAPHcJb
 github.com/decred/dcrdata/db/dbtypes/v2 v2.0.0/go.mod h1:/xdvajiQlUnguMo16CNNK4xLvKVSm4veWf65Wq8DSuk=
 github.com/decred/dcrdata/db/dcrpg v1.0.0 h1:ebRfU8carJYn6X7fLH/tlm+iRILt/lY9vA+oVB92QP8=
 github.com/decred/dcrdata/db/dcrpg v1.0.0/go.mod h1:b1YmLNZH2p7evVJU6hapsW5Mup5Xtvx3OK48jQa6PYE=
-github.com/decred/dcrdata/db/dcrpg/v3 v3.0.2 h1:k2trS7HquusxxJKG9AAXoAxvm5bdMdrHmeCxXZGEQd4=
-github.com/decred/dcrdata/db/dcrpg/v3 v3.0.2/go.mod h1:xr+UmzJR/9fWWMIl+zBQORvC5M8a9c7makfHYMZOqDc=
+github.com/decred/dcrdata/db/dcrpg/v3 v3.0.3 h1:fM7zXrgFMhIV1p9yYI0UpHcN47v+wqhMJiF8t0f1lwc=
+github.com/decred/dcrdata/db/dcrpg/v3 v3.0.3/go.mod h1:xr+UmzJR/9fWWMIl+zBQORvC5M8a9c7makfHYMZOqDc=
 github.com/decred/dcrdata/db/dcrsqlite/v3 v3.0.1 h1:dYvMx/pKi05Sa0EVCKZEos53YriA4M1j/QSfo6a8UGU=
 github.com/decred/dcrdata/db/dcrsqlite/v3 v3.0.1/go.mod h1:EaqwTn2kEnwDtRVdPFCabmQSTltV040kPVEVO+jmYOA=
 github.com/decred/dcrdata/dcrrates v1.1.0 h1:tbzM5FhqQ0iVUk0PNOH4E0spoiqlDKZNg/4SsZndsEw=
