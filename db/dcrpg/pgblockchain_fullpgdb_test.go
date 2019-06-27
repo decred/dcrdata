@@ -10,6 +10,28 @@ import (
 	"github.com/decred/dcrdata/db/dcrpg/v3/internal"
 )
 
+func TestAddressRows(t *testing.T) {
+	rows, err := db.AddressRowsMerged("Dsh6khiGjTuyExADXxjtDgz1gRr9C5dEUf6")
+	if err != nil {
+		t.Fatal(err)
+	}
+	neededTxns := []string{"23c329675052915d326c8048b16105a25002478c247c815b314d04b349fc8bea",
+		"53bb28bce5bde2b75825f5dc9cbe4c310fe04d8447ef48df20815f1079633c11"}
+	for _, r := range rows {
+		for i := range neededTxns {
+			if neededTxns[i] == r.TxHash.String() {
+				// remove
+				neededTxns[i] = neededTxns[len(neededTxns)-1]
+				neededTxns = neededTxns[:len(neededTxns)-1]
+				break
+			}
+		}
+	}
+	if len(neededTxns) > 0 {
+		t.Error("Some expected transactions not found:", neededTxns)
+	}
+}
+
 func TestMissingIndexes(t *testing.T) {
 	missing, descs, err := db.MissingIndexes()
 	if err != nil {
