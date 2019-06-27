@@ -547,7 +547,9 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 	addresses, addrerr := m.GetAddressCtx(r, iapi.params, 1)
 
 	if blockerr != nil && addrerr != nil {
-		writeInsightError(w, "Required query parameters (address or block) not present.")
+		msg := fmt.Sprintf(`Required query parameters (address or block) not present. `+
+			`address error: "%v" / block error: "%v"`, addrerr, blockerr)
+		writeInsightError(w, msg)
 		return
 	}
 	if addrerr == nil && len(addresses) > 1 {
