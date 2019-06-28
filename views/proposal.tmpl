@@ -17,7 +17,7 @@
                 <div class="col-lg-12 col-sm-12 d-flex">
                     <table>
                         <tr>
-                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 font-weight-bold">Token:</td>
+                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Token:</td>
                             <td>
                                 <span class="break-word py-1 lh1rem">
                                     <a href="{{$.PoliteiaURL}}/proposals/{{.TokenVal}}">{{.TokenVal}}</a>
@@ -25,26 +25,26 @@
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 font-weight-bold">Author:</td>
+                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Author:</td>
                             <td>
                                 <span class="break-word py-1 lh1rem">{{.Username}}</span>
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 font-weight-bold">Published:</td>
+                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Published:</td>
                             <td>
                                 <span class="break-word py-1 lh1rem">{{TimeConversion .PublishedDate}}</span>
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 font-weight-bold">Updated:</td>
+                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Updated:</td>
                             <td>
                                 <span class="break-word py-1 lh1rem">{{TimeConversion .Timestamp}}</span>
                             </td>
                         </tr>
                          {{if ne .CensoredDate 0}}
                             <tr>
-                                <td class="text-right pr-2 py-2 vam nowrap xs-w117 font-weight-bold">Censored:</td>
+                                <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Censored:</td>
                                 <td>
                                     <span class="break-word py-1 lh1rem">{{TimeConversion .CensoredDate}}</span>
                                 </td>
@@ -52,14 +52,14 @@
                         {{end}}
                         {{if ne .AbandonedDate 0}}
                             <tr>
-                                <td class="text-right pr-2 py-2 vam nowrap xs-w117 font-weight-bold">Abandoned:</td>
+                                <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Abandoned:</td>
                                 <td>
                                     <span class="break-word py-1 lh1rem">{{TimeConversion .AbandonedDate}}</span>
                                 </td>
                             </tr>
                         {{end}}
                         <tr>
-                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 font-weight-bold">Comments Count:</td>
+                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Comments Count:</td>
                             <td>
                                 <span class="break-word py-1 lh1rem">{{.NumComments}}</span>
                            </td>
@@ -69,25 +69,25 @@
                 <div class="col-lg-4 col-sm-12 d-flex">
                     <table>
                         <tr>
-                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 font-weight-bold">State:</td>
+                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">State:</td>
                             <td>
                                 <span class="break-word py-1 lh1rem">{{with .State}}{{toTitleCase .String}}{{end}}</span>
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 font-weight-bold">Status:</td>
+                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Status:</td>
                             <td>
                                 <span class="break-word py-1 lh1rem">{{with .Status}}{{toTitleCase .String}}{{end}}</span>
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 font-weight-bold">Version:</td>
+                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Version:</td>
                             <td>
                                 <span class="break-word lh1rem">v{{.Version}}</span>
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 font-weight-bold">End Height:</td>
+                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">End Height:</td>
                             <td>
                                 <span class="break-word py-1 lh1rem">
                                     {{if .Endheight}}
@@ -100,7 +100,7 @@
                         </tr>
                         {{if ne $.TimeRemaining ""}}
                             <tr>
-                                <td class="text-right pr-2 py-2 vam nowrap xs-w117 font-weight-bold">Remaining:</td>
+                                <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Remaining:</td>
                                 <td>
                                     <span class="break-word py-1 lh1rem">{{$.TimeRemaining}}</span>
                                 </td>
@@ -114,7 +114,7 @@
                             {{range $i, $v := .VoteResults}}
                                 {{if eq $v.Option.OptionID "yes"}}
                                     <tr>
-                                        <td class="text-right pr-2 py-2 vam nowrap xs-w117 font-weight-bold">Yes Votes:</td>
+                                        <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Yes Votes:</td>
                                         <td>
                                             <span class="break-word py-1 lh1rem">{{$v.VotesReceived}}</span>
                                         </td>
@@ -126,7 +126,7 @@
                             {{range $i, $v := .VoteResults}}
                                 {{if eq $v.Option.OptionID "no"}}
                                     <tr>
-                                        <td class="text-right pr-2 py-2 vam nowrap xs-w117 font-weight-bold">No Votes:</td>
+                                        <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">No Votes:</td>
                                         <td>
                                             <span class="break-word py-1 lh1rem">{{$v.VotesReceived}}</span>
                                         </td>
@@ -135,7 +135,7 @@
                             {{end}}
                         {{end}}
                         <tr>
-                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 font-weight-bold">Vote Status:</td>
+                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Vote Status:</td>
                             <td>
                                 <span class="break-word py-1 lh1rem">
                                     {{if .VoteStatus}}
@@ -150,7 +150,7 @@
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 font-weight-bold">Quorum:</td>
+                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Quorum:</td>
                             <td>
                                 <span class="break-word py-1 lh1rem">
                                     {{if and .QuorumPercentage (and .NumOfEligibleVotes .TotalVotes)}}
@@ -166,7 +166,7 @@
                             {{range $i, $v := .VoteResults}}
                                 {{if eq $v.Option.OptionID "yes"}}
                                     <tr>
-                                        <td class="text-right pr-2 py-2 vam nowrap xs-w117 font-weight-bold">Total:</td>
+                                        <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Total:</td>
                                         <td>
                                             <span class="break-word py-1 lh1rem">
                                                 {{printf "%.2f" (percentage $v.VotesReceived $.Data.TotalVotes)}}% yes, {{if $.Data.PassPercentage}}{{$.Data.PassPercentage}}%{{end}} needed

@@ -42,6 +42,7 @@
 	<link rel="preload" href="/fonts/icomoon.ttf?g003m6" as="font" type="font/ttf" crossorigin="anonymous" />
 	<link rel="preload" href="/fonts/inconsolata-v15-latin-regular.woff" as="font" type="font/woff" crossorigin="anonymous" />
 	<link rel="preload" href="/fonts/source-sans-pro-v9-latin-regular.woff" as="font" type="font/woff" crossorigin="anonymous" />
+	<link rel="preload" href="/fonts/source-sans-pro-semibold.woff" as="font" type="font/woff" crossorigin="anonymous" />
 	<link rel="preload" href="/images/connecting.svg" as="image" type="image/svg+xml" />
 	<link rel="preload" href="/images/themes/light/logo.svg" as="image" type="image/svg+xml" />
 	<link rel="preload" href="/images/connected.svg" as="image" type="image/svg+xml" />
@@ -314,12 +315,12 @@
 				<span data-controller="time" data-target="time.age" data-age="{{.Time.UNIX}}"></span>
 			{{- end}}
 			</td>
-			<td class="addr-tx-confirms text-right"	{{/*Update confirmations with Stimulus*/ -}} 
-				data-target="newblock.confirmations" {{/*trim*/ -}} 
-				data-confirmations="{{.Confirmations}}" {{/*trim*/ -}} 
-				data-confirmation-block-height="{{if eq .Confirmations 0}}-1{{else}}{{.BlockHeight}}{{end}}" {{/*trim*/ -}} 
-				data-yes="#" {{/*trim*/ -}} 
-				data-no="(unconfirmed)" {{/*trim*/ -}} 
+			<td class="addr-tx-confirms text-right"	{{/*Update confirmations with Stimulus*/ -}}
+				data-target="newblock.confirmations" {{/*trim*/ -}}
+				data-confirmations="{{.Confirmations}}" {{/*trim*/ -}}
+				data-confirmation-block-height="{{if eq .Confirmations 0}}-1{{else}}{{.BlockHeight}}{{end}}" {{/*trim*/ -}}
+				data-yes="#" {{/*trim*/ -}}
+				data-no="(unconfirmed)" {{/*trim*/ -}}
 			>{{.Confirmations}}</td>
 			<td class="text-right d-none d-sm-table-cell text-right">{{.FormattedSize}}</td>
 		</tr>

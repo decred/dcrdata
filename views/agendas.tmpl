@@ -2,15 +2,15 @@
   <table class="w-100 fs14 mt-2">
     <tbody>
       <tr>
-        <td class="text-right font-weight-bold">Ayes: &nbsp;</td>
+        <td class="text-right medium-sans">Ayes: &nbsp;</td>
         <td class="text-left"> &nbsp;{{.Aye}}</td>
-        <td class="text-right font-weight-bold">Approved: &nbsp;</td>
+        <td class="text-right medium-sans">Approved: &nbsp;</td>
         <td class="text-left"> &nbsp;{{printf "%.1f" (f32x100 .Approval)}}%</td>
       </tr>
       <tr>
-        <td class="text-right font-weight-bold">Nays: &nbsp;</td>
+        <td class="text-right medium-sans">Nays: &nbsp;</td>
         <td class="text-left"> &nbsp;{{.Nay}}</td>
-        <td class="text-right font-weight-bold">Abstain: &nbsp;</td>
+        <td class="text-right medium-sans">Abstain: &nbsp;</td>
         <td class="text-left"> &nbsp;{{.Abstain}} ({{printf "%.1f" (f32x100 .AbstainRate)}}%)</td>
       </tr>
     </tbody>

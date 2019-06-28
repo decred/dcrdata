@@ -43,7 +43,7 @@
           {{end}}
           <div class="text-left lh1rem py-2">
             <div class="fs13 text-secondary pb-1">Transaction ID</div>
-            <div class="d-inline-block fs14 break-word rounded font-weight-bold">{{.TxID}}</div>
+            <div class="d-inline-block fs14 break-word rounded medium-sans">{{.TxID}}</div>
           </div>
           <div class="row py-2">
             <div class="col-8 text-left">
@@ -211,36 +211,36 @@
                   {{range .Vin}}
                       {{if .Txid}}
                           <tr>
-                              <td class="text-right font-weight-bold text-nowrap pr-2 py-2">Ticket Spent:</td>
+                              <td class="text-right medium-sans text-nowrap pr-2 py-2">Ticket Spent:</td>
                               <td colspan="3" class="text-left py-1 text-secondary break-word lh1rem"><a href="/tx/{{.Txid}}">{{.Txid}}</a></td>
                           </tr>
                       {{end}}
                   {{end}}
               {{end}}
               <tr>
-                <td class="text-right font-weight-bold text-nowrap pr-2 py-2"
+                <td class="text-right medium-sans text-nowrap pr-2 py-2"
                   >Raw Tx:
                 </td>
                 <td class="text-left py-1 text-secondary"><a
                   href="/api/tx/decoded/{{.TxID}}?indent=true" data-turbolinks="false">decoded</a> &middot; <a
                   href="/api/tx/hex/{{.TxID}}" data-turbolinks="false">hex</a>
                 </td>
-                <td class="text-right font-weight-bold text-nowrap pr-2 py-2"
+                <td class="text-right medium-sans text-nowrap pr-2 py-2"
                   >Time:
                 </td>
                 <td class="text-left py-1 text-secondary" data-target="tx.formattedAge">{{.Time.String}}</td>
               </tr>
               <tr>
-                <td class="text-right font-weight-bold text-nowrap pr-2 py-2"
+                <td class="text-right medium-sans text-nowrap pr-2 py-2"
                   >Size:
                 </td>
                 <td class="text-left py-1 text-secondary">{{.FormattedSize}}</td>
-                <td class="text-right font-weight-bold text-nowrap pr-2 py-2">Rate:</td>
+                <td class="text-right medium-sans text-nowrap pr-2 py-2">Rate:</td>
                 <td class="text-left py-1 text-secondary">{{.FeeRate}}/kB</td>
               </tr>
               {{if .IsTicket}}
                 <tr>
-                  <td class="text-right font-weight-bold text-nowrap pr-2 py-2"
+                  <td class="text-right medium-sans text-nowrap pr-2 py-2"
                     >Status:
                   </td>
                   <td class="text-left py-1 text-secondary"
@@ -257,7 +257,7 @@
                       {{end}}
                     {{end}}
                   </td>
-                  <td class="text-right font-weight-bold text-nowrap pr-2 py-2"><span class="d-none d-sm-inline">Spending</span><span class="d-sm-none">Sp.</span> Tx:</td>
+                  <td class="text-right medium-sans text-nowrap pr-2 py-2"><span class="d-none d-sm-inline">Spending</span><span class="d-sm-none">Sp.</span> Tx:</td>
                   <td class="text-left py-1 text-secondary" data-target="tx.spendingTx">
                     {{$spendingTx := index .SpendingTxns 0}}
                     {{if $spendingTx.Hash}}
