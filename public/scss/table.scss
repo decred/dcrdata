@@ -4,6 +4,7 @@ table {
 
   th {
     font-size: 13px;
+    font-weight: 500; /* For firefox */
   }
 
   td {
@@ -17,7 +18,7 @@ table {
 
   thead tr {
     background: #fff;
-    font-weight: bold;
+    font-family: 'source-sans-pro-semibold', sans-serif;
   }
 }
 
