@@ -14,6 +14,9 @@
       data-address-txn-count="{{$TxnCount}}"
       data-address-balance="{{toFloat64Amount .Balance.TotalUnspent}}"
     >
+    <div class="fullscreen d-none" data-target="address.fullscreen" data-action="click->address#exitFullscreen">
+      <div class="secondary-card d-inline-block w-100 h-100 p-4" data-target="address.bigchart"></div>
+    </div>
     <div class="row pb-4 px-2">
       <div class="col-24 col-xl-10 bg-white px-3 py-3 position-relative">
           {{- if eq .Address $.DevAddress}}
@@ -110,8 +113,8 @@
         <noscript>
           <div class="text-center pt-5 fs15">Enable Javascript to see charts</div>
         </noscript>
-        <div class="jsonly h-100">
-          <div class="d-flex flex-column h-100">
+        <div class="jsonly h-100" data-target="address.littlechart">
+          <div class="d-flex flex-column h-100" data-target="address.chartbox">
             <div class="d-flex flex-wrap justify-content-around align-items-start">
               <div class="loader-v2 loading" data-target="address.chartLoader"></div>
               <div class="btn-set secondary-card d-inline-flex flex-nowrap mx-2">
@@ -170,6 +173,7 @@
               </div>
             </div>
             <div class="p-3 address_chart_wrap">
+              <div class="expando dcricon-expand" data-target="address.expando" data-action="click->address#toggleExpand"></div>
               <div class="py-5 fs16 d-none" data-target="address.noconfirms"></div>
               <div data-target="address.chart" class="address_chart"></div>
             </div>
