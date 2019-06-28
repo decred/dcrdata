@@ -11,6 +11,38 @@ a.download {
   border: 1px solid #dee2e6;
 }
 
+div.expando {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background-color: inherit;
+  display: none;
+  z-index: 50;
+  cursor: pointer;
+  font-size: 20px;
+  padding: 4px;
+  border: 1px solid #777;
+  border-radius: 3px;
+}
+
+.address_chart_wrap:hover > div.expando {
+  display: block;
+}
+
+.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  z-index: 1500;
+  background-color: #7777;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 30px;
+}
+
 .hash-box {
   padding: 0.3em 0.5em;
   background-color: #edeff1;

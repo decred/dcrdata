@@ -149,7 +149,8 @@ export default class extends Controller {
       'paginator', 'pageplus', 'pageminus', 'listbox', 'table',
       'range', 'chartbox', 'noconfirms', 'chart', 'pagebuttons',
       'pending', 'hash', 'matchhash', 'view', 'mergedMsg',
-      'chartLoader', 'listLoader']
+      'chartLoader', 'listLoader', 'expando', 'littlechart', 'bigchart',
+      'fullscreen']
   }
 
   async connect () {
@@ -723,6 +724,33 @@ export default class extends Controller {
         link.classList.remove('blue-row')
       }
     })
+  }
+
+  toggleExpand (e) {
+    var btn = this.expandoTarget
+    if (btn.classList.contains('dcricon-expand')) {
+      btn.classList.remove('dcricon-expand')
+      btn.classList.add('dcricon-collapse')
+      this.bigchartTarget.appendChild(this.chartboxTarget)
+      this.fullscreenTarget.classList.remove('d-none')
+    } else {
+      this.putChartBack()
+    }
+    if (this.graph) this.graph.resize()
+  }
+
+  putChartBack () {
+    var btn = this.expandoTarget
+    btn.classList.add('dcricon-expand')
+    btn.classList.remove('dcricon-collapse')
+    this.littlechartTarget.appendChild(this.chartboxTarget)
+    this.fullscreenTarget.classList.add('d-none')
+    if (this.graph) this.graph.resize()
+  }
+
+  exitFullscreen (e) {
+    if (e.target !== this.fullscreenTarget) return
+    this.putChartBack()
   }
 
   get chartType () {

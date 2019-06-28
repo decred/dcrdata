@@ -105,6 +105,14 @@
   content: "\e913";
 }
 
+.dcricon-expand::before {
+  content: "\e914";
+}
+
+.dcricon-collapse::before {
+  content: "\e915";
+}
+
 .exchange-logo {
   vertical-align: middle;
   display: inline-block;
