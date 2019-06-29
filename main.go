@@ -550,13 +550,6 @@ func _main(ctx context.Context) error {
 		return fmt.Errorf("failed to create new agendas db instance: %v", err)
 	}
 
-	// Retrieve blockchain deployment updates and add them to the agendas db.
-	// activeChain.Deployments contains a list of all agendas supported in the
-	// current environment.
-	if err = agendasInstance.CheckAgendasUpdates(activeChain.Deployments); err != nil {
-		return fmt.Errorf("updating agendas db failed: %v", err)
-	}
-
 	// Creates a new or loads an existing proposals db instance that helps to
 	// store and retrieve proposals data. Proposals votes is Off-Chain
 	// data stored in github repositories away from the decred blockchain. It also
@@ -570,15 +563,6 @@ func _main(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to create new proposals db instance: %v", err)
 		}
-
-		// Retrieve newly added proposals and add them to the proposals db.
-		// Proposal db update is made asynchronously to ensure that the system works
-		// even when the Politeia API endpoint set is down.
-		go func() {
-			if err := proposalsInstance.CheckProposalsUpdates(); err != nil {
-				log.Errorf("updating proposals db failed: %v", err)
-			}
-		}()
 	} else {
 		log.Info("Piparser is disabled. Proposals API has been disabled too")
 	}
@@ -1089,23 +1073,6 @@ func _main(ctx context.Context) error {
 		}
 	}
 
-	if !cfg.DisablePiParser {
-		// It initiates the updates fetch process for the proposal votes data after
-		// sync for the other tables is complete. It is only run if the system is on
-		// full mode. An error in fetching the updates should not stop the system
-		// functionality since it could be attributed to the external systems used.
-		log.Info("Running updates retrieval for Politeia's Proposals. Please wait...")
-
-		// Fetch updates for Politiea's Proposal history data via the parser.
-		commitsCount, err := pgDB.PiProposalsHistory()
-		if err != nil {
-			log.Errorf("pgDB.PiProposalsHistory failed : %v", err)
-		} else {
-			log.Infof("%d politeia's proposal (auxiliary db) commits were processed",
-				commitsCount)
-		}
-	}
-
 	log.Infof("All ready, at height %d.", baseDBHeight)
 	explore.SetDBsSyncing(false)
 	psHub.SetReady(true)
@@ -1141,6 +1108,44 @@ func _main(ctx context.Context) error {
 	// Monitors that fetch the latest updates from dcrd will be launched next.
 	if latestBlockHash != nil {
 		close(latestBlockHash)
+	}
+
+	// The proposals and agenda db updates are run after the db indexing.
+	// Retrieve blockchain deployment updates and add them to the agendas db.
+	// activeChain.Deployments contains a list of all agendas supported in the
+	// current environment.
+	if err = agendasInstance.CheckAgendasUpdates(activeChain.Deployments); err != nil {
+		return fmt.Errorf("updating agendas db failed: %v", err)
+	}
+
+	// Piparser should run updates only after the initial sync
+	if !cfg.DisablePiParser {
+		// Initiate the piparser handler here.
+		pgDB.StartPiparserHandler()
+
+		// Retrieve newly added proposals and add them to the proposals db(storm).
+		// Proposal db update is made asynchronously to ensure that the system works
+		// even when the Politeia API endpoint set is down.
+		go func() {
+			if err := proposalsInstance.CheckProposalsUpdates(); err != nil {
+				log.Errorf("updating proposals db failed: %v", err)
+			}
+		}()
+
+		// It initiates the updates fetch process for the proposal votes data after
+		// sync for the other tables is complete. It is only run if the system is on
+		// full mode. An error in fetching the updates should not stop the system
+		// functionality since it could be attributed to the external systems used.
+		log.Info("Running updates retrieval for Politeia's Proposals. Please wait...")
+
+		// Fetch updates for Politiea's Proposal history(votes) data via the parser.
+		commitsCount, err := pgDB.PiProposalsHistory()
+		if err != nil {
+			log.Errorf("pgDB.PiProposalsHistory failed : %v", err)
+		} else {
+			log.Infof("%d politeia's proposal (auxiliary db) commits were processed",
+				commitsCount)
+		}
 	}
 
 	// Monitors for new blocks, transactions, and reorgs should not run before
