@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/chappjc/trylock"
@@ -61,6 +62,13 @@ func IsRetryError(err error) bool {
 // happen without making too many db accesses everytime we are updating the
 // agenda_votes table.
 var storedAgendas map[string]dbtypes.MileStone
+
+// isPiparserRunning is the flag set when a Piparser instance is running.
+const isPiparserRunning = uint32(1)
+
+// piParserCounter is a counter that helps guarantee that only one instance
+// of proposalsUpdateHandler can ever be running at any one given moment.
+var piParserCounter uint32
 
 // ticketPoolDataCache stores the most recent ticketpool graphs information
 // fetched to minimize the possibility of making multiple queries to the db
@@ -814,10 +822,20 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 		}
 	}
 
-	// Start the proposal updates handler async method.
-	chainDB.proposalsUpdateHandler()
-
 	return chainDB, nil
+}
+
+// StartPiparserHandler controls how piparser update handler will be initiated.
+// This handler should to be run once only when the first sync after startup completes.
+func (pgb *ChainDB) StartPiparserHandler() {
+	if atomic.CompareAndSwapUint32(&piParserCounter, 0, isPiparserRunning) {
+		// Start the proposal updates handler async method.
+		pgb.proposalsUpdateHandler()
+
+		log.Info("Piparser instance to handle updates is now active")
+	} else {
+		log.Error("piparser instance is already running, another one cannot be activated")
+	}
 }
 
 // Close closes the underlying sql.DB connection to the database.
