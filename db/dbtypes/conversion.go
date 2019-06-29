@@ -3,7 +3,6 @@ package dbtypes
 import (
 	"fmt"
 	"math"
-	"time"
 
 	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/wire"
@@ -59,25 +58,26 @@ func MsgBlockToDBBlock(msgBlock *wire.MsgBlock, chainParams *chaincfg.Params, ch
 
 // TimeBasedGroupingToInterval converts the TimeBasedGrouping value to an actual
 // time value in seconds based on the gregorian calendar except AllGrouping that
-// returns 1 while the unknownGrouping returns -1 and an error. Time returned is
-// in seconds.
+// returns 1 while the unknownGrouping returns -1 and an error.
 func TimeBasedGroupingToInterval(grouping TimeBasedGrouping) (float64, error) {
-	now := time.Now()
+	var hr = 3600.0
+	// days per month value is obtained by 365/12
+	var daysPerMonth = 30.416666666666668
 	switch grouping {
 	case AllGrouping:
 		return 1, nil
 
 	case DayGrouping:
-		return now.AddDate(0, 0, 1).Sub(now).Seconds(), nil
+		return hr * 24, nil
 
 	case WeekGrouping:
-		return now.AddDate(0, 0, 7).Sub(now).Seconds(), nil
+		return hr * 24 * 7, nil
 
 	case MonthGrouping:
-		return now.AddDate(0, 1, 0).Sub(now).Seconds(), nil
+		return hr * 24 * daysPerMonth, nil
 
 	case YearGrouping:
-		return now.AddDate(1, 0, 0).Sub(now).Seconds(), nil
+		return hr * 24 * daysPerMonth * 12, nil
 
 	default:
 		return -1, fmt.Errorf(`unknown grouping "%d"`, grouping)

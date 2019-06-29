@@ -166,24 +166,26 @@
                             class="nav nav-pills"
                         >
                             <li class="nav-item">
-                                <label class="customcheck ml-2 d-inline-flex">Price
+                                <label class="customcheck ml-2 d-inline-flex label-option-1">
+                                    <span data-target="charts.optionLabel1">Price</span>
                                     <input
                                         type="checkbox"
                                         checked="checked"
                                         data-action="click->charts#setVisibility"
-                                        data-target="charts.ticketsPrice"
+                                        data-target="charts.option1"
                                     >
-                                    <span class="checkmark tickets-price"></span>
+                                    <span class="checkmark option-1"></span>
                                 </label>
                             </li>
                             <li class="nav-item">
-                                <label class="customcheck mx-2 d-inline-flex">Tickets Bought
+                                <label class="customcheck mx-2 d-inline-flex label-option-2">
+                                    <span data-target="charts.optionLabel2">Tickets Bought</span>
                                     <input
                                         type="checkbox"
                                         data-action="click->charts#setVisibility"
-                                        data-target="charts.ticketsPurchase"
+                                        data-target="charts.option2"
                                     >
-                                    <span class="checkmark tickets-bought"></span>
+                                    <span class="checkmark option-2"></span>
                                 </label>
                             </li>
                         </ul>

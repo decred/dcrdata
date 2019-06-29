@@ -110,13 +110,18 @@ func ParseAxis(aType string) axisType {
 	}
 }
 
-// ParseLimit returns the matching limit type and the corresponding limit
-// duration in seconds. The default is "all" when no limit is set or error occured.
-func ParseLimit(limit string) (string, uint64) {
-	limitLevel := dbtypes.TimeGroupingFromStr(limit)
-	timeInSecs, err := dbtypes.TimeBasedGroupingToInterval(limitLevel)
-	if err != nil {
-		return "all", 0
+// ParseLimit returns the matching limit string and the corresponding limit
+// duration in seconds. The default is "all" when no limit is set or error occurred.
+func ParseLimit(limitStr string) (string, uint64) {
+	var err error
+	var timeInSecs float64
+	limitLevel := dbtypes.TimeGroupingFromStr(limitStr)
+	// If the limitlevel is dbtypes.AllGrouping the timeInSecs should be zero.
+	if limitLevel != dbtypes.AllGrouping {
+		timeInSecs, err = dbtypes.TimeBasedGroupingToInterval(limitLevel)
+		if err != nil {
+			timeInSecs, limitLevel = 0, dbtypes.AllGrouping
+		}
 	}
 
 	return limitLevel.String(), uint64(timeInSecs)
@@ -1012,66 +1017,91 @@ func accumulate(data ChartUints) ChartUints {
 	return d
 }
 
-// Translate the times slice to a slice of differences. The original dataset
-// minus the first element is returned for convenience. limit defines the number
-// of blocks to consider for the current limitType from the best block.
-func blockTimes(blocks ChartUints, limit int) (ChartUints, ChartUints, ChartFloats) {
+// blockTimes enables two line graph charts showing the expected and actual
+// blocks count mined by a given time duration to be generated.
+// It translates the times slice to a slice of differences. The original dataset
+// minus the first element is returned for convenience. limitBlocks defines the
+// number of blocks from the best block (most recent block mined) back towards
+// the genesis block that were supposed to be mined in the limit string passed as
+// the API limit parameter. When the limit string API parameter selected is 'all'
+// the limitBlocks value passed is 0 indicating that all blocks will be used.
+func blockTimes(blocks ChartUints, limitBlocks int) (ChartUints, ChartUints, ChartFloats) {
 	dataLen := len(blocks)
-	keys := make(ChartUints, 0, len(blocks))
 	if dataLen < 2 {
 		// Fewer than two data points is invalid for btw. Return empty data sets so
-		// that the JSON encoding will have the correct type.
-		return keys, keys, newChartFloats(len(blocks))
+		// that the JSON encoding will have the correct type. Slices returned have
+		// a max capacity of 1.
+		return newChartUints(dataLen), newChartUints(dataLen), newChartFloats(dataLen)
 	}
 
 	var k int
-	if limit > 0 && limit < len(blocks) {
-		k = len(blocks) - limit
+
+	// With limit string 'all', limitBlocks is equal to zero thus k should be zero.
+	// Otherwise all other limit strings have limit values greater than zero thus
+	// k is greater than zero then.
+	if limitBlocks > 0 && limitBlocks < dataLen {
+		k = dataLen - limitBlocks
 	}
 
 	last := blocks[k]
-	var sumFx = uint64(len(blocks[k:]))
 	k++
-	tracker := make(map[uint64]uint64, 0)
+
+	tracker := make(map[uint64]uint64)
+	keys := make(ChartUints, 0, dataLen)
+
 	for _, v := range blocks[k:] {
 		dif := v - last
+		// Convert to type int64 to detect a negative value of dif.
 		if int64(dif) < 0 {
 			dif = 0
 		}
 		last = v
+		// Check if dif value exists in the tracker map if not add it.
 		if _, ok := tracker[dif]; !ok {
 			keys = append(keys, dif)
 		}
 		tracker[dif]++
 	}
 
-	// bucketSize distribution grouping in sec.
-	bucketSize := uint64(300)
+	// sumF shows the summation of the frequency an sumFx shows the summation of
+	// the product between the frequency and actual block count (x).
+	var sumF, sumFx uint64
+	for x, f := range tracker {
+		sumFx += f * x
+		sumF += f
+	}
+
+	// sumF and sumFx are used to generate the actual distribution mean.
+	var distrMean = float64(sumFx) / float64(sumF)
 
 	var xValue = newChartUints(len(tracker))
 	var blockCount = newChartUints(len(tracker))
-	var expDistr = newChartFloats(len(tracker))
+	var expectedDistr = newChartFloats(len(tracker))
 	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
 
-	var tally uint64
-
-	upperLimit := bucketSize
+	var lastDistr, lastTimestamp float64
 	for _, timeVal := range keys {
-		tally += tracker[timeVal]
-		if timeVal >= upperLimit {
-
-			distr := math.Exp(float64(timeVal) / 300.0 * -1)
-			distr = math.Round(distr*float64(sumFx)*1e2) / 1e2
-
-			xValue = append(xValue, timeVal)
-			blockCount = append(blockCount, tally)
-			expDistr = append(expDistr, distr)
-
-			upperLimit += bucketSize
-			tally = 0
+		timeInterval := float64(timeVal)
+		distr := math.Exp(timeInterval * -1 / distrMean)
+		// Check if timestamp value is not consecutive from the current i.e.
+		// current = previous + 1 recompute lastDistr to ensure a smooth curve.
+		if timeInterval-lastTimestamp > 1 {
+			lastDistr = math.Exp((timeInterval - 1) * -1 / distrMean)
 		}
+
+		var expectedCount float64
+		if lastDistr-distr > 0 {
+			expectedCount = (lastDistr - distr) * float64(sumF)
+		}
+
+		xValue = append(xValue, timeVal)
+		blockCount = append(blockCount, tracker[timeVal])
+		expectedDistr = append(expectedDistr, math.Floor(expectedCount*1e2)/1e2)
+
+		lastDistr = distr
+		lastTimestamp = timeInterval
 	}
-	return xValue, blockCount, expDistr
+	return xValue, blockCount, expectedDistr
 }
 
 func blockSizeChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {

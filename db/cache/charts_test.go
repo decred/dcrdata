@@ -176,19 +176,19 @@ func TestChartsCache(t *testing.T) {
 	})
 
 	t.Run("get_chart", func(t *testing.T) {
-		chart, err := charts.Chart(BlockSize, string(BlockBin), string(TimeAxis))
+		chart, err := charts.Chart(BlockSize, string(BlockBin), string(TimeAxis), "all")
 		if err != nil {
 			t.Fatalf("error getting fresh chart: %v", err)
 		}
 		if string(chart) != `{"axis":"time","bin":"block","size":[1,2,3,4,5,6],"t":[1,86402,86403,172804,172805,259206]}` {
 			t.Fatalf("unexpected chart json")
 		}
-		ck := cacheKey(BlockSize, BlockBin, TimeAxis)
+		ck := cacheKey(BlockSize, BlockBin, TimeAxis, "all")
 		if !reflect.DeepEqual(charts.cache[ck].data, chart) {
 			t.Fatalf("could not match chart to cache")
 		}
 		// Grab chart once more. This should test the cache path.
-		chart2, err := charts.Chart(BlockSize, string(BlockBin), string(TimeAxis))
+		chart2, err := charts.Chart(BlockSize, string(BlockBin), string(TimeAxis), "all")
 		if err != nil {
 			t.Fatalf("error getting chart from cache: %v", err)
 		}
@@ -319,4 +319,104 @@ func TestChartReorg(t *testing.T) {
 	// All but one block.
 	resetCharts()
 	testReorg(2, 2, 1, 1, 2)
+}
+
+func Test_blockTimes(t *testing.T) {
+	type args struct {
+		blocks ChartUints
+		limit  int
+	}
+	blockSeconds := ChartUints{1, 20, 33, 43, 56, 60, 79}
+	tests := []struct {
+		name  string
+		args  args
+		want0 ChartUints
+		want1 ChartUints
+		want2 ChartFloats
+	}{
+		{
+			name: "empty",
+			args: args{
+				blocks: nil,
+				limit:  0,
+			},
+			want0: ChartUints{},
+			want1: ChartUints{},
+			want2: ChartFloats{},
+		},
+		{
+			name: "basicOK6",
+			args: args{
+				blocks: blockSeconds,
+				limit:  6,
+			},
+			want0: ChartUints{4, 10, 13, 19},
+			want1: ChartUints{1, 1, 2, 1},
+			want2: ChartFloats{0.31, 0.18, 0.14, 0.08},
+		},
+		{
+			name: "basicOK7",
+			args: args{
+				blocks: blockSeconds,
+				limit:  7,
+			},
+			want0: ChartUints{4, 10, 13, 19},
+			want1: ChartUints{1, 1, 2, 2},
+			want2: ChartFloats{0.35, 0.22, 0.17, 0.11},
+		},
+		{
+			name: "allBig",
+			args: args{
+				blocks: blockSeconds,
+				limit:  999999,
+			},
+			want0: ChartUints{4, 10, 13, 19},
+			want1: ChartUints{1, 1, 2, 2},
+			want2: ChartFloats{0.35, 0.22, 0.17, 0.11},
+		},
+		{
+			name: "all0",
+			args: args{
+				blocks: blockSeconds,
+				limit:  0,
+			},
+			want0: ChartUints{4, 10, 13, 19},
+			want1: ChartUints{1, 1, 2, 2},
+			want2: ChartFloats{0.35, 0.22, 0.17, 0.11},
+		},
+		{
+			name: "1",
+			args: args{
+				blocks: blockSeconds,
+				limit:  1,
+			},
+			want0: ChartUints{},
+			want1: ChartUints{},
+			want2: ChartFloats{},
+		},
+		{
+			name: "2",
+			args: args{
+				blocks: blockSeconds,
+				limit:  2,
+			},
+			want0: ChartUints{19},
+			want1: ChartUints{1},
+			want2: ChartFloats{0.01}, // Is this right???
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1, got2 := blockTimes(tt.args.blocks, tt.args.limit)
+			if !reflect.DeepEqual(got, tt.want0) {
+				t.Errorf("blockTimes() got = %v, want %v", got, tt.want0)
+			}
+			if !reflect.DeepEqual(got1, tt.want1) {
+				t.Errorf("blockTimes() got1 = %v, want %v", got1, tt.want1)
+			}
+			if !reflect.DeepEqual(got2, tt.want2) {
+				t.Errorf("blockTimes() got2 = %v, want %v", got2, tt.want2)
+			}
+		})
+	}
 }

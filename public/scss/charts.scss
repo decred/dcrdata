@@ -438,19 +438,19 @@ input ~ .checkmark {
   background-color: #ff0090;
 }
 
-.customcheck input:checked ~ .tickets-price {
+.customcheck input:checked ~ .option-1 {
   background-color: #2970ff;
 }
 
-body.darkBG .customcheck input:checked ~ .tickets-price {
+body.darkBG .customcheck input:checked ~ .option-1 {
   background-color: #2dd8a3;
 }
 
-.customcheck input:checked ~ .tickets-bought {
+.customcheck input:checked ~ .option-2 {
   background-color: #066;
 }
 
-body.darkBG .customcheck input:checked ~ .tickets-bought {
+body.darkBG .customcheck input:checked ~ .option-2 {
   background-color: #2970ff;
 }
 
