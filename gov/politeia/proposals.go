@@ -194,16 +194,17 @@ func (db *ProposalDB) saveProposals(publicProposals pitypes.Proposals) (int, err
 		}
 
 		err = db.dbP.Save(val)
-		// fmt.Printf(" ######## err: %v <<<<<<<<<<<<<<<<<<< %+v \n", err, val)
-		// When a duplicate CensorShipRecord struct is detected this "already exists"
-		// error is thrown. In another case that is more rare, is that the current
-		// proposal could have a title that generates a duplicate refID. Appending
-		// an integer value to it till it becomes unique is the solution.
+
+		// When a duplicate CensorshipRecord struct is detected this "already exists"
+		// error is thrown, this means that some edits were made to an older version
+		// of the proposal and its fixed by updating the new changes. In another
+		// case that is more rare, is that the current proposal could have a title
+		// that generates a duplicate refID. Appending an integer value to it till
+		// it becomes unique is the solution.
 		if err == storm.ErrAlreadyExists {
 			// Check if the proposal token already exists in the db.
 			data, newErr := db.ProposalByToken(val.TokenVal)
 			if newErr == nil && data != nil {
-				// fmt.Println(" >>>>>>>>>>>> token: ", val.TokenVal, "<<<<<<<<<<<<<<<<<<<", data)
 				// The proposal token already exists thus trigger an update with
 				// the latest details.
 				valCopy := *val
@@ -215,6 +216,7 @@ func (db *ProposalDB) saveProposals(publicProposals pitypes.Proposals) (int, err
 					// Attempt to update a previous entry.
 					newErr = db.dbP.Update(&valCopy)
 					if newErr == nil || newErr != storm.ErrAlreadyExists {
+						err = nil
 						break
 					}
 					prefixStr = strconv.Itoa(k)
@@ -225,10 +227,14 @@ func (db *ProposalDB) saveProposals(publicProposals pitypes.Proposals) (int, err
 			if newErr != nil {
 				c := 1
 				for ; c <= maxLoop; c++ {
+					// Drop the previously automatically assigned ID.
+					val.ID = 0
+
 					val.RefID += strconv.Itoa(c)
 					// Attempt to save a new entry.
 					err = db.dbP.Save(val)
 					if err == nil || err != storm.ErrAlreadyExists {
+						err = nil
 						break
 					}
 				}

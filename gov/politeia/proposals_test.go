@@ -433,21 +433,21 @@ func TestGenerateCustomID(t *testing.T) {
 func TestSaveProposals(t *testing.T) {
 	newDB := &ProposalDB{dbP: db}
 
-	data, _, _ := newDB.AllProposals(0, 10)
-	for _, v := range data {
-		fmt.Printf(">>>>> %+v \n", *v)
-	}
-
 	copy1FirstProposal := *firstProposal
 	copy2FirstProposal := *firstProposal
 	copy1MockProposal := *mockedPayload
 	copy2MockProposal := *mockedPayload
 
-	t.Run("Test_update_RefID_and_Proposal_Name", func(t *testing.T) {
-		// Update the title which will result to a new RefID. The old proposal
-		// details should remain but the RefID will be updated. Should not
-		// create a new proposal.
-		copy1FirstProposal.Name = "Integrate decred with Trezor hardware wallet."
+	// Delete the primary Key
+	copy1FirstProposal.ID = 0
+	copy2FirstProposal.ID = 0
+	copy1MockProposal.ID = 0
+	copy2MockProposal.ID = 0
+
+	t.Run("Test_update_proposal_if_same_tokenID_and_same_RefID_found", func(t *testing.T) {
+		// Should just update the old instance of timestamp value without creating a
+		// proposal new entry.
+		copy1FirstProposal.Timestamp = 1200000
 		propInfo := pitypes.Proposals{Data: []*pitypes.ProposalInfo{&copy1FirstProposal}}
 
 		_, err := newDB.saveProposals(propInfo)
@@ -472,10 +472,11 @@ func TestSaveProposals(t *testing.T) {
 		}
 	})
 
-	t.Run("Test_update_non_unique_field_(Timestamp)", func(t *testing.T) {
-		// Should just update the old instance timestamp value with creating a
-		// new entry.
-		copy2FirstProposal.Timestamp = 1200000
+	t.Run("Test_update_proposal_if_same_tokenID_and_new_RefID_found", func(t *testing.T) {
+		// Update the title which will result to a new RefID. The old proposal
+		// details should remain but the RefID will be updated. Should not
+		// create a new proposal.
+		copy2FirstProposal.Name = "Integrate decred with Trezor hardware wallet."
 		propInfo := pitypes.Proposals{Data: []*pitypes.ProposalInfo{&copy2FirstProposal}}
 
 		_, err := newDB.saveProposals(propInfo)
@@ -505,7 +506,7 @@ func TestSaveProposals(t *testing.T) {
 		}
 	})
 
-	t.Run("Test_create_new_proposal_token", func(t *testing.T) {
+	t.Run("Test_create_new_proposal_if_new_token_found", func(t *testing.T) {
 		// Updating the CensorshipRecord struct creates a new proposal thus a
 		// new entry should be pushed to the db.
 		copy1MockProposal.CensorshipRecord = types.CensorshipRecord{
@@ -535,7 +536,7 @@ func TestSaveProposals(t *testing.T) {
 		}
 	})
 
-	t.Run("Test_create_new_proposal_with_duplicate_RefID", func(t *testing.T) {
+	t.Run("Test_create_new_proposal_if_new_tokenID_and_duplicate_RefID_found", func(t *testing.T) {
 		// If two different proposals (different because they have unique
 		// censorshiprecord struct data) but share the proposal name thus
 		// resulting to a duplicate RefID, the duplicate RefID will be appended
