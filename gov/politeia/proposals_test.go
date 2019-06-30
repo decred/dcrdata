@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/asdine/storm"
+	"github.com/decred/dcrdata/gov/politeia/types"
 	pitypes "github.com/decred/dcrdata/gov/politeia/types"
 	piapi "github.com/decred/politeia/politeiawww/api/www/v1"
 )
@@ -426,4 +427,144 @@ func TestGenerateCustomID(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestSaveProposals tests the functionality of saveProposals method.
+func TestSaveProposals(t *testing.T) {
+	newDB := &ProposalDB{dbP: db}
+
+	data, _, _ := newDB.AllProposals(0, 10)
+	for _, v := range data {
+		fmt.Printf(">>>>> %+v \n", *v)
+	}
+
+	copy1FirstProposal := *firstProposal
+	copy2FirstProposal := *firstProposal
+	copy1MockProposal := *mockedPayload
+	copy2MockProposal := *mockedPayload
+
+	t.Run("Test_update_RefID_and_Proposal_Name", func(t *testing.T) {
+		// Update the title which will result to a new RefID. The old proposal
+		// details should remain but the RefID will be updated. Should not
+		// create a new proposal.
+		copy1FirstProposal.Name = "Integrate decred with Trezor hardware wallet."
+		propInfo := pitypes.Proposals{Data: []*pitypes.ProposalInfo{&copy1FirstProposal}}
+
+		_, err := newDB.saveProposals(propInfo)
+		if err != nil {
+			t.Fatalf("expected no error from saveProposals() but got: %v", err)
+		}
+
+		newProposal, err := newDB.ProposalByToken(copy1FirstProposal.TokenVal)
+		if err != nil {
+			t.Fatalf("expected no error from ProposalByToken() but got: %v", err)
+		}
+
+		if copy1FirstProposal.Name != newProposal.Name {
+			t.Fatalf("expected the proposal Name to be (%v) but found (%v)",
+				copy1FirstProposal.Name, newProposal.Name)
+		}
+
+		newRefID, _ := generateCustomID(copy1FirstProposal.Name)
+		if newRefID != newProposal.RefID {
+			t.Fatalf("expected the new RefID to be (%v) but found (%v)",
+				newRefID, newProposal.RefID)
+		}
+	})
+
+	t.Run("Test_update_non_unique_field_(Timestamp)", func(t *testing.T) {
+		// Should just update the old instance timestamp value with creating a
+		// new entry.
+		copy2FirstProposal.Timestamp = 1200000
+		propInfo := pitypes.Proposals{Data: []*pitypes.ProposalInfo{&copy2FirstProposal}}
+
+		_, err := newDB.saveProposals(propInfo)
+		if err != nil {
+			t.Fatalf("expected no error from saveProposals() but got: %v", err)
+		}
+
+		newProposal, err := newDB.ProposalByToken(copy2FirstProposal.TokenVal)
+		if err != nil {
+			t.Fatalf("expected no error from ProposalByToken() but got: %v", err)
+		}
+
+		if copy2FirstProposal.Name != newProposal.Name {
+			t.Fatalf("expected the proposal Name to be (%v) but found (%v)",
+				copy2FirstProposal.Name, newProposal.Name)
+		}
+
+		newRefID, _ := generateCustomID(copy2FirstProposal.Name)
+		if newRefID != newProposal.RefID {
+			t.Fatalf("expected the new RefID to be (%v) but found (%v)",
+				newRefID, newProposal.RefID)
+		}
+
+		if copy2FirstProposal.Timestamp != newProposal.Timestamp {
+			t.Fatalf("expected the new timestamp to be %v but found %v",
+				copy2FirstProposal.Timestamp, newProposal.Timestamp)
+		}
+	})
+
+	t.Run("Test_create_new_proposal_token", func(t *testing.T) {
+		// Updating the CensorshipRecord struct creates a new proposal thus a
+		// new entry should be pushed to the db.
+		copy1MockProposal.CensorshipRecord = types.CensorshipRecord{
+			TokenVal: "censorshiprecord-edit-creates-new-proposal",
+		}
+		propInfo := pitypes.Proposals{Data: []*pitypes.ProposalInfo{&copy1MockProposal}}
+
+		_, err := newDB.saveProposals(propInfo)
+		if err != nil {
+			t.Fatalf("expected no error from saveProposals() but got: %v", err)
+		}
+
+		newProposal, err := newDB.ProposalByToken(copy1MockProposal.TokenVal)
+		if err != nil {
+			t.Fatalf("expected no error from ProposalByToken() but got: %v", err)
+		}
+
+		if copy1MockProposal.Name != newProposal.Name {
+			t.Fatalf("expected the proposal Name to be (%v) but found (%v)",
+				copy1MockProposal.Name, newProposal.Name)
+		}
+
+		newRefID, _ := generateCustomID(copy1MockProposal.Name)
+		if newRefID == newProposal.RefID {
+			t.Fatalf("expected the new RefID (%v) not to be equal to (%v) but it was",
+				newRefID, newProposal.RefID)
+		}
+	})
+
+	t.Run("Test_create_new_proposal_with_duplicate_RefID", func(t *testing.T) {
+		// If two different proposals (different because they have unique
+		// censorshiprecord struct data) but share the proposal name thus
+		// resulting to a duplicate RefID, the duplicate RefID will be appended
+		// with some integers to make it unique.
+		copy2MockProposal.Name = "Integrate decred with Trezor hardware wallet."
+		copy2MockProposal.CensorshipRecord = types.CensorshipRecord{
+			TokenVal: "create-trezor-wallet-integration",
+		}
+		propInfo := pitypes.Proposals{Data: []*pitypes.ProposalInfo{&copy2MockProposal}}
+
+		_, err := newDB.saveProposals(propInfo)
+		if err != nil {
+			t.Fatalf("expected no error from saveProposals() but got: %v", err)
+		}
+
+		newProposal, err := newDB.ProposalByToken(copy2MockProposal.TokenVal)
+		if err != nil {
+			t.Fatalf("expected no error from ProposalByToken() but got: %v", err)
+		}
+
+		if copy2MockProposal.Name != newProposal.Name {
+			t.Fatalf("expected the proposal Name to be (%v) but found (%v)",
+				copy2MockProposal.Name, newProposal.Name)
+		}
+
+		newRefID, _ := generateCustomID(copy2MockProposal.Name)
+		if newRefID == newProposal.RefID {
+			t.Fatalf("expected the new RefID (%v) not to be equal to (%v) but it was",
+				newRefID, newProposal.RefID)
+		}
+	})
 }

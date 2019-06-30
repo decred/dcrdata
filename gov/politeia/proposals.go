@@ -141,8 +141,7 @@ func generateCustomID(title string) (string, error) {
 	return reg.ReplaceAllString(strings.ToLower(title), "-"), nil
 }
 
-// saveProposals adds the proposals data to the db.
-func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
+func (db *ProposalDB) fetchAPIData(URLParams string) (pitypes.Proposals, error) {
 	copyURLParams := URLParams
 	pageSize := int(piapi.ProposalListPageSize)
 	var publicProposals pitypes.Proposals
@@ -153,7 +152,7 @@ func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
 	for {
 		data, err := piclient.RetrieveAllProposals(db.client, db.APIURLpath, copyURLParams)
 		if err != nil {
-			return 0, err
+			return publicProposals, err
 		}
 
 		// Break if no valid data was found.
@@ -178,6 +177,14 @@ func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
 
 		copyURLParams = fmt.Sprintf("?before=%v", data.Data[pageSize-1].TokenVal)
 	}
+	return publicProposals, nil
+}
+
+// saveProposals adds the proposals data to the db.
+func (db *ProposalDB) saveProposals(publicProposals pitypes.Proposals) (int, error) {
+	var proposalsSaved int
+	// Attempt to save a given a given item for a max of 5 times.
+	var maxLoop = 5
 
 	// Save all the proposals
 	for i, val := range publicProposals.Data {
@@ -187,27 +194,56 @@ func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
 		}
 
 		err = db.dbP.Save(val)
-
-		// In the rare case scenario that the current proposal has a duplicate refID
-		// append an integer value to it till it becomes unique.
+		// fmt.Printf(" ######## err: %v <<<<<<<<<<<<<<<<<<< %+v \n", err, val)
+		// When a duplicate CensorShipRecord struct is detected this "already exists"
+		// error is thrown. In another case that is more rare, is that the current
+		// proposal could have a title that generates a duplicate refID. Appending
+		// an integer value to it till it becomes unique is the solution.
 		if err == storm.ErrAlreadyExists {
-			c := 1
-			for {
-				val.RefID += strconv.Itoa(c)
-				err = db.dbP.Save(val)
-				if err == nil || err != storm.ErrAlreadyExists {
-					break
+			// Check if the proposal token already exists in the db.
+			data, newErr := db.ProposalByToken(val.TokenVal)
+			if newErr == nil && data != nil {
+				// fmt.Println(" >>>>>>>>>>>> token: ", val.TokenVal, "<<<<<<<<<<<<<<<<<<<", data)
+				// The proposal token already exists thus trigger an update with
+				// the latest details.
+				valCopy := *val
+				valCopy.ID = data.ID
+				prefixStr := ""
+				k := 1
+				for ; k <= maxLoop; k++ {
+					valCopy.RefID += prefixStr
+					// Attempt to update a previous entry.
+					newErr = db.dbP.Update(&valCopy)
+					if newErr == nil || newErr != storm.ErrAlreadyExists {
+						break
+					}
+					prefixStr = strconv.Itoa(k)
 				}
-				c++
+			}
+
+			// First try wasn't successful if newErr != nil.
+			if newErr != nil {
+				c := 1
+				for ; c <= maxLoop; c++ {
+					val.RefID += strconv.Itoa(c)
+					// Attempt to save a new entry.
+					err = db.dbP.Save(val)
+					if err == nil || err != storm.ErrAlreadyExists {
+						break
+					}
+				}
 			}
 		}
 
 		if err != nil {
 			return i, fmt.Errorf("save operation failed: %v", err)
 		}
+
+		// increment since the save is successful.
+		proposalsSaved++
 	}
 
-	return len(publicProposals.Data), nil
+	return proposalsSaved, nil
 }
 
 // AllProposals fetches all the proposals data saved to the db.
@@ -329,7 +365,12 @@ func (db *ProposalDB) CheckProposalsUpdates() error {
 		queryParam = fmt.Sprintf("?before=%s", lastProposal[0].TokenVal)
 	}
 
-	n, err := db.saveProposals(queryParam)
+	publicProposals, err := db.fetchAPIData(queryParam)
+	if err != nil {
+		return err
+	}
+
+	n, err := db.saveProposals(publicProposals)
 	if err != nil {
 		return err
 	}
