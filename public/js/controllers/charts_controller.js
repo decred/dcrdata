@@ -99,8 +99,9 @@ function legendFormatter (data) {
       data.series.sort((a, b) => a.y > b.y ? 1 : -1)
       let actual = data.series[0].y
       let predicted = data.series[1].y
-      let change = (((actual - predicted) / predicted) * 100).toFixed(2)
-      extraHTML = `<div class="pr-2">&nbsp;&nbsp;Difference: ${change} %</div>`
+      let unminted = predicted - actual
+      let change = ((unminted / predicted) * 100).toFixed(2)
+      extraHTML = `<div class="pr-2">&nbsp;&nbsp;Unminted: ${intComma(unminted)} DCR (${change}%)</div>`
     }
 
     let yVals = data.series.reduce((nodes, series) => {
