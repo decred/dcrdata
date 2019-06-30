@@ -148,7 +148,7 @@
                       </div>
                   </div>
               </div>
-          {{else if (or .IsImmatureVote .IsImmatureCoinbase)}}
+          {{else if (or .IsImmatureVote .IsImmatureCoinbase .IsImmatureRevocation)}}
             <div class="my-2 w-75" data-target="tx.ticketStage">
                 <div class="fs13 text-secondary pb-1">Maturity</div>
                 <div class="progress">
