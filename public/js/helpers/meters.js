@@ -24,6 +24,7 @@ function sleep (ms) {
 // parameter should be a block element with class .meter. CSS classes .large-gap
 // and .arch can also be applied for increasingly large gap angle, with .arch
 // being a semi-circle. Any contents of parent will be replaced with the Meter.
+// Apply class .lil for a smaller meter.
 class Meter {
   constructor (parent, opts) {
     opts = opts || {}
@@ -209,7 +210,7 @@ export class VoteMeter extends Meter {
     opts.revoteColor = opts.revoteColor || '#ffe4a7'
     opts.rejectColor = opts.rejectColor || '#ed6d47'
     opts.dotColor = opts.dotColor || '#888'
-    opts.showIndicator = opts.showIndicator || true
+    if (opts.showIndicator === undefined) opts.showIndictor = true
     this.darkTheme = opts.darkTheme || {
       text: 'white',
       tray: '#999'
@@ -306,7 +307,8 @@ export class ProgressMeter extends Meter {
     opts.meterWidth = opts.meterWidth || 14
     opts.centralFontSize = opts.centralFontSize || 18
     opts.successColor = opts.successColor = '#2dd8a3'
-    opts.showIndicator = opts.showIndicator || true
+    opts.dotSize = opts.dotSize || 3
+    if (opts.showIndicator === undefined) opts.showIndictor = true
     this.darkTheme = opts.darkTheme || {
       tray: '#777',
       text: 'white'
@@ -332,8 +334,8 @@ export class ProgressMeter extends Meter {
     var end = super.normedPolarToCartesian(this.radius + halfLen, value)
     ctx.lineWidth = 1.5
     ctx.strokeStyle = color
-    super.dot(start, color, 3)
-    super.dot(end, color, 3)
+    super.dot(start, color, opts.dotSize)
+    super.dot(end, color, opts.dotSize)
     ctx.strokeStyle = theme.text
     super.line(start, end)
   }
@@ -344,7 +346,7 @@ export class ProgressMeter extends Meter {
     var opts = this.options
     var theme = this.activeTheme
 
-    ctx.lineWidth = opts.meterWidth
+    ctx.lineWidth = opts.meterWidth * 0.95 // Prevents rough looking edge
     var c = this.data.progress >= this.threshold ? opts.successColor : theme.tray
     super.segment(0, 1, c)
 
@@ -362,7 +364,7 @@ export class ProgressMeter extends Meter {
 
     var offset = opts.showIndicator ? super.denorm(0.05) : 0
     this.ctx.fillStyle = this.activeTheme.text
-    this.ctx.font = `bold ${opts.centralFontSize}px sans-serif`
+    this.ctx.font = `500 ${opts.centralFontSize}px 'source-sans-pro-semibold', sans-serif`
     this.write(`${parseInt(this.data.progress * 100)}%`, makePt(this.middle.x, this.middle.y + offset), super.denorm(0.5))
   }
 }

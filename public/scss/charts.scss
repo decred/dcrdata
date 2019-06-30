@@ -554,6 +554,11 @@ body.darkBG #chart .dygraph-y2label {
   overflow: hidden;
 }
 
+.meter.lil {
+  width: 75px;
+  height: 75px;
+}
+
 .meter.large-gap {
   height: 110px;
 }
@@ -565,6 +570,11 @@ body.darkBG #chart .dygraph-y2label {
 .meter > canvas {
   width: 135px;
   height: 135px;
+}
+
+.meter.lil > canvas {
+  width: 75px;
+  height: 75px;
 }
 
 .market-chart-legend {
@@ -611,18 +621,14 @@ body.darkBG {
 }
 
 .proposal-chart-legend {
-  left: 85%;
+  top: 5px;
+  right: 5px;
+  padding: 2px;
+  border-radius: 0;
 }
 
 .proposal-chart-align {
-  height: 23vh !important;
-  margin: 0 auto 0 auto;
-  width: 70%;
-}
-
-.proposal-charts-align {
-  margin: auto;
-  height: inherit;
+  height: 23vh;
 }
 
 .tp-outputs-align {

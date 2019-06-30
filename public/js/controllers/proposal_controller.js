@@ -1,4 +1,7 @@
 import { Controller } from 'stimulus'
+import { ProgressMeter } from '../helpers/meters.js'
+import { darkEnabled } from '../services/theme_service'
+import globalEventBus from '../services/event_bus_service'
 import { getDefault } from '../helpers/module_helper'
 import { multiColumnBarPlotter, synchronize } from '../helpers/chart_helper'
 import dompurify from 'dompurify'
@@ -20,7 +23,6 @@ let percentConfig = {
   ylabel: 'Approval (%)',
   colors: ['#2971FF'],
   labelsSeparateLines: true,
-  labelsDiv: 'percent-of-votes-legend',
   underlayCallback: function (context, area, g) {
     let xVals = g.xAxisExtremes()
     let xl = g.toDomCoords(xVals[0], 60)
@@ -42,7 +44,6 @@ let cumulativeConfig = {
   labels: ['Date', 'Total Votes'],
   ylabel: 'Vote Count',
   colors: ['#2971FF'],
-  labelsDiv: 'cumulative-legend',
   underlayCallback: function (context, area, g) {
     let xVals = g.xAxisExtremes()
     let xl = g.toDomCoords(xVals[0], 8269)
@@ -98,7 +99,6 @@ var hourlyVotesConfig = {
   ylabel: 'Votes Per Hour',
   xlabel: 'Date',
   colors: ['#2DD8A3', '#ED6D47'],
-  labelsDiv: 'votes-by-time-legend',
   fillColors: ['rgb(150,235,209)', 'rgb(246,182,163)']
 }
 
@@ -111,10 +111,24 @@ let cumulativeData
 let hourlyVotesData
 export default class extends Controller {
   static get targets () {
-    return ['token']
+    return ['token', 'approvalMeter', 'cumulative', 'cumulativeLegend',
+      'approval', 'approvalLegend', 'log', 'logLegend'
+    ]
   }
 
   async connect () {
+    console.log(this.approvalMeterTarget)
+    if (this.hasApprovalMeterTarget) {
+      var opts = {
+        darkMode: darkEnabled(),
+        showIndicator: false,
+        radius: 0.5,
+        centralFontSize: 30,
+        meterWidth: 15
+      }
+      this.approvalMeter = new ProgressMeter(this.approvalMeterTarget, opts)
+    }
+
     let response = await axios.get('/api/proposal/' + this.tokenTarget.dataset.hash)
     chartData = response.data
 
@@ -124,10 +138,13 @@ export default class extends Controller {
 
     this.setChartsData()
     this.plotGraph()
+    this.setNightMode = this._setNightMode.bind(this)
+    globalEventBus.on('NIGHT_MODE', this.setNightMode)
   }
 
   disconnect () {
     gs.map((chart) => { chart.destroy() })
+    globalEventBus.off('NIGHT_MODE', this.setNightMode)
   }
 
   setChartsData () {
@@ -152,19 +169,22 @@ export default class extends Controller {
   }
 
   plotGraph () {
+    percentConfig.labelsDiv = this.approvalLegendTarget
+    cumulativeConfig.labelsDiv = this.cumulativeLegendTarget
+    hourlyVotesConfig.labelsDiv = this.logLegendTarget
     gs = [
       new Dygraph(
-        document.getElementById('percent-of-votes'),
+        this.approvalTarget,
         percentData,
         percentConfig
       ),
       new Dygraph(
-        document.getElementById('cumulative'),
+        this.cumulativeTarget,
         cumulativeData,
         cumulativeConfig
       ),
       new Dygraph(
-        document.getElementById('votes-by-time'),
+        this.logTarget,
         hourlyVotesData,
         hourlyVotesConfig
       )
@@ -176,5 +196,11 @@ export default class extends Controller {
     }
 
     synchronize(gs, options)
+  }
+
+  _setNightMode (state) {
+    if (this.approvalMeter) {
+      this.approvalMeter.setDarkMode(state.nightMode)
+    }
   }
 }

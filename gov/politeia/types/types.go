@@ -3,7 +3,14 @@
 
 package types
 
-import piapi "github.com/decred/politeia/politeiawww/api/www/v1"
+import (
+	"strconv"
+
+	piapi "github.com/decred/politeia/politeiawww/api/www/v1"
+)
+
+// Politeia votes occur in 2016 block windows.
+const windowSize = 2016
 
 // ProposalInfo holds the proposal details as document here
 // https://github.com/decred/politeia/blob/master/politeiawww/api/www/v1/api.md#user-proposals.
@@ -203,4 +210,66 @@ func (a *ProposalInfo) IsEqual(b *ProposalInfo) bool {
 		return false
 	}
 	return true
+}
+
+// ProposalMetadata contains some status-dependent data representations for
+// display purposes.
+type ProposalMetadata struct {
+	// The start height of the vote. The end height is already part of the
+	// ProposalInfo struct.
+	StartHeight int64
+	// Time until start for "Authorized" proposals, Time until done for "Started"
+	// proposals.
+	SecondsTil     int64
+	IsPassing      bool
+	Approval       float32
+	Rejection      float32
+	Yes            int64
+	No             int64
+	VoteCount      int64
+	QuorumCount    int64
+	QuorumAchieved bool
+	PassPercent    float32
+}
+
+// Metadata performs some common manipulations of the ProposalInfo data to
+// prepare figures for display. Many of these manipulations require a tip height
+// and a target block time for the network, so those must be provided as
+// arguments.
+func (pinfo *ProposalInfo) Metatdata(tip, targetBlockTime int64) *ProposalMetadata {
+	meta := new(ProposalMetadata)
+	desc := pinfo.VoteStatus.ShortDesc()
+	switch desc {
+	case "Authorized":
+		blocksTil := windowSize - tip%windowSize
+		meta.StartHeight = tip + blocksTil
+		meta.SecondsTil = blocksTil * targetBlockTime
+	case "Started", "Finished":
+		endHeight, _ := strconv.ParseInt(pinfo.ProposalVotes.Endheight, 10, 64)
+		meta.StartHeight = endHeight - windowSize
+		for _, count := range pinfo.VoteResults {
+			switch count.Option.OptionID {
+			case "yes":
+				meta.Yes = count.VotesReceived
+			case "no":
+				meta.No = count.VotesReceived
+			}
+		}
+		meta.VoteCount = meta.Yes + meta.No
+		quorumPct := float32(pinfo.QuorumPercentage) / 100
+		meta.QuorumCount = int64(quorumPct * float32(pinfo.NumOfEligibleVotes))
+		meta.PassPercent = float32(pinfo.PassPercentage) / 100
+		pctVoted := float32(meta.VoteCount) / float32(pinfo.NumOfEligibleVotes)
+		meta.QuorumAchieved = pctVoted > quorumPct
+		if meta.VoteCount > 0 {
+			meta.Approval = float32(meta.Yes) / float32(meta.VoteCount)
+			meta.Rejection = 1 - meta.Approval
+		}
+		meta.IsPassing = meta.Approval > meta.PassPercent
+		if desc == "Started" {
+			blocksLeft := windowSize - tip%windowSize
+			meta.SecondsTil = blocksLeft * targetBlockTime
+		}
+	}
+	return meta
 }
