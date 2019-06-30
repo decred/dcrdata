@@ -1519,7 +1519,7 @@ func (db *WiredDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 	if tx.Vin[0].IsCoinBase() {
 		tx.Type = exptypes.CoinbaseTypeStr
 	}
-	if tx.Type == exptypes.CoinbaseTypeStr {
+	if tx.Type == exptypes.CoinbaseTypeStr || tx.IsRevocation() {
 		if tx.Confirmations < int64(db.params.CoinbaseMaturity) {
 			tx.Mature = "False"
 		} else {

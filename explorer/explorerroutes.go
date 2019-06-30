@@ -887,7 +887,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// For coinbase and stakebase, get maturity status.
-		if tx.Coinbase || tx.IsVote() {
+		if tx.Coinbase || tx.IsVote() || tx.IsRevocation() {
 			tx.Maturity = int64(exp.ChainParams.CoinbaseMaturity)
 			if tx.IsVote() {
 				tx.Maturity++ // TODO why as elsewhere for votes?
