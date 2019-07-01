@@ -554,17 +554,17 @@ body.darkBG #chart .dygraph-y2label {
   overflow: hidden;
 }
 
+.lilbox {
+  height: 45px;
+}
+
 .meter.lil {
-  width: 75px;
-  height: 75px;
+  width: 80px;
+  height: 45px;
 }
 
 .meter.large-gap {
   height: 110px;
-}
-
-.meter.arch {
-  height: 90px;
 }
 
 .meter > canvas {
@@ -573,8 +573,8 @@ body.darkBG #chart .dygraph-y2label {
 }
 
 .meter.lil > canvas {
-  width: 75px;
-  height: 75px;
+  width: 80px;
+  height: 80px;
 }
 
 .market-chart-legend {

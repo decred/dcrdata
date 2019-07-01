@@ -7,23 +7,28 @@
         {{with .Data}}
         <div class="container pb-4" data-controller="proposal">
           <div class="row pt-2 px-2">
-            <div class="col-24 col-xl-11 bg-white px-3 py-3 position-relative">
+            <div class="col-24 col-xl-11 bg-white px-2 px-xl-5 py-3 position-relative">
               {{$status := .VoteStatus.ShortDesc}}
 
               {{- /* INVALID AND NON-EXISTENT */ -}}
               {{if or (eq $status "Invalid") (eq $status "Doesn't Exist")}}
-                Invalid proposal {{.Name}}
-
+                {{if .AbandonedDate}}
+                  {{block "abandoned" .}}
+                    <div class="fs22">{{.Name}}</div>
+                    <div class="fs18 font-weight-bold py-2">Proposal abandoned</div>
+                    <div class="pb-2">This proposal was designated abandoned {{TimeConversion .AbandonedDate}}.</div>
+                  {{end}}
+                {{else}}
+                  Invalid proposal: {{.Name}}
+                {{end}}
               {{- /* NOT AUTHORIZED */ -}}
               {{else if eq $status "Not Authorized"}}
                 {{if .AbandonedDate}}
-                  Proposal abandoned
-                  <div class="fs22">{{.Name}}</div>
-                  This proposal was designated abandoned {{TimeConversion .AbandonedDate}}.
+                  {{template "abandoned" .}}
                 {{else}}
-                  Proposal in discussion
                   <div class="fs22">{{.Name}}</div>
-                  <div class="p-4">
+                  <span class="fs18 font-weight-bold lh1rem">Proposal in discussion</span>
+                  <div class="py-2">
                     {{.Username}} has not initiated voting yet. There is
                     <a href="{{$.PoliteiaURL}}/proposals/{{.TokenVal}}">an ongoing discussion</a>
                     of this proposal happening on Politeia.
@@ -32,9 +37,9 @@
 
               {{- /* AUTHORIZED */ -}}
               {{else if eq $status "Authorized"}}
-                <span class="fs18 font-weight-bold lh1rem">vote scheduled</span>
                 <div class="fs22">{{.Name}}</div>
-                <div class="p-4">
+                <span class="fs18 font-weight-bold lh1rem">vote scheduled</span>
+                <div class="py-2">
                   {{.Username}} has authorized voting on this proposal.
                   Voting begins at block {{$metadata.StartHeight}}
                   (about <span class="medium-sans">{{secondsToShortDurationString $metadata.SecondsTil}}</span>)
@@ -42,53 +47,57 @@
 
               {{- /* LIVE OR FINISHED */ -}}
               {{else if or (eq $status "Started") (eq $status "Finished")}}
+                <div class="fs22">{{.Name}}</div>
                 {{if eq $status "Started"}}
                   <div>
-                    <span class="fs18 font-weight-bold lh1rem">voting now</span>
+                    <span class="fs18 lh1rem">voting now</span>
                     <div class="float-right fs16">
                       ~{{secondsToShortDurationString $metadata.SecondsTil}} remaining
                     </div>
                   </div>
                 {{else}}
-                  <span class="fs18 font-weight-bold lh1rem">voting complete</span> &ndash;
+                  <span class="fs18 lh1rem">voting complete</span> &ndash;
                   {{if and $metadata.IsPassing $metadata.QuorumAchieved}}
-                    <span class="text-green">approved</span>
+                    <span class="text-green">accepted</span>
                   {{else}}
                     <span class="text-danger">rejected</span>
                   {{end}}
                 {{end}}
-                <div class="fs22">{{.Name}}</div>
-                <div class="d-flex justify-content-center py-3">
-                  <div class="col-auto">
-                    <div class="text-secondary text-center fs13">Approval</div>
+
+                <div class="d-flex mx-auto justify-content-start p-2 my-2 secondary-card rounded">
+                  <div class="col-auto lilbox">
+                    <!-- <div class="text-secondary text-center fs13">Approval</div> -->
                     <div
-                      class="meter text-center js-only lil"
+                      class="meter text-center js-only lil arch"
                       data-target="proposal.approvalMeter"
-                      data-progress="{{$metadata.Approval}}"
+                      data-value="{{$metadata.Approval}}"
                       data-threshold="{{$metadata.PassPercent}}"
                       >
                       {{printf "%.1f" (f32x100 $metadata.Approval)}}%
                     </div>
                   </div>
-                  <div class="col-auto d-flex flex-column pt-3 pl-3">
-                    <span class="fs18 pb-1">{{$metadata.Yes}} / {{$metadata.VoteCount}} voters approve</span>
+                  <div class="col-auto d-flex flex-column justify-content-between pl-3">
+                    <span class="fs17 lh1em">
+                      <span class="fs22 medium-sans">{{printf "%.1f" (f32x100 $metadata.Approval)}}%</span>
+                      approval of {{intComma $metadata.VoteCount}} votes
+                    </span>
                     {{if $metadata.QuorumAchieved}}
-                      <div class="d-flex align-items-center"><span class="fs20 dcricon-affirm my-auto mr-2"></span>
-                      <span class="pb-2">Quorum achieved</span></div>
+                      <div class="d-flex align-items-center"><span class="fs20 dcricon-affirm mr-2 pt-1"></span>
+                      <span class="lh1em pb-1">Quorum achieved</span></div>
                     {{else}}
                       {{if eq $status "Started"}}
                         <span class="text-secondary fs13">Quorum</span>
-                        <div class="d-flex align-items-center"><span class="fs20 dcricon-missing my-auto mr-2"></span>
-                          <span class="pb-2">{{$metadata.VoteCount}} of {{$metadata.QuorumCount}} needed votes</span>
+                        <div class="d-flex align-items-center"><span class="fs20 dcricon-missing mr-2 pt-1"></span>
+                          <span class="pb-1">{{$metadata.VoteCount}} of {{$metadata.QuorumCount}} needed votes</span>
                         </div>
                       {{else}}
-                        <div class="d-flex align-items-center"><span class="fs20 dcricon-reject my-auto mr-2"></span>
-                        <span class="pb-2">Quorum not achieved</span></div>
+                        <div class="d-flex align-items-center"><span class="fs20 dcricon-reject mr-2 pt-1"></span>
+                        <span class="pb-1">Quorum not achieved</span></div>
                       {{end}}
                     {{end}}
                   </div>
                 </div>
-                <div class="fs16 text-center px-4 py-2">
+                <div class="fs16 py-2">
                   {{if eq $status "Started"}}
                     {{if $metadata.QuorumAchieved}}
                       {{if $metadata.IsPassing}}
@@ -102,16 +111,17 @@
                   {{else}}
                     {{if $metadata.QuorumAchieved}}
                       {{if $metadata.IsPassing}}
-                        Stakeholders approved this proposal.
+                        Voting on this proposal has completed. Stakeholders voted to accept this proposal.
                       {{else}}
-                        Stakeholders rejected this proposal.
+                        Voting on this proposal has completed. Stakeholders voted to reject this proposal.
                       {{end}}
                     {{else}}{{- /* Quroum Not Achieved  */ -}}
-                      This proposal was rejected for failing to achieve {{.QuorumPercentage}}% quorum.
+                      This proposal was rejected for failing to achieve quorum.
+                      Fewer than {{.QuorumPercentage}}% of eligible ticket holders voted on this proposal.
                     {{end}}
                   {{end}}
                 </div>
-              {{end}}
+              {{end}}{{/* END LIVE OR FINISHED */ -}}
               <div class="fs14 text-center"><a href="{{$.PoliteiaURL}}/proposals/{{.TokenVal}}">discussion</a> | <a href="/proposals">all proposals</a></div>
             </div>{{/* END COLUMN 1 */ -}}
 
@@ -135,8 +145,16 @@
                     <tr>
                       <td class="text-right medium-sans text-nowrap pr-2 py-2" >Eligible:</td>
                       <td class="text-left py-1 text-secondary">{{.NumOfEligibleVotes}} tickets</td>
-                      <td class="text-right medium-sans text-nowrap pr-2 py-2">Live Range:</td>
-                      <td class="text-left py-1 text-secondary">{{$metadata.StartHeight}} &ndash; {{.Endheight}}</td>
+                      <td class="text-right medium-sans text-nowrap pr-2 py-2">Voting Period:</td>
+                      <td class="text-left py-1 text-secondary"
+                        ><a href="/block/{{$metadata.StartHeight}}">{{$metadata.StartHeight}}</a>
+                        &ndash;
+                        {{if eq $status "Finished"}}
+                          <a href="/block/{{.Endheight}}">{{.Endheight}}</a>
+                        {{else}}
+                          {{.Endheight}}
+                        {{end}}
+                      </td>
                     </tr>
                   {{end}}
                   <tr>
@@ -155,10 +173,8 @@
                     <td class="text-right medium-sans text-nowrap pr-2 py-2">Token:</td>
                     <td colspan="3" class="text-left py-1 text-secondary break-word lh1rem">{{.TokenVal}}</td>
                   </tr>
-
                 </tbody>
               </table>
-
 
             </div>{{/* END COLUMN 2 */ -}}
           </div>{{/* END ROW */ -}}

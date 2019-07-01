@@ -162,6 +162,21 @@ class Meter {
     this.ctx.fillText(text, pt.x, pt.y, maxWidth)
   }
 
+  drawIndicator (value, color) {
+    var ctx = this.ctx
+    var opts = this.options
+    var theme = this.activeTheme
+    var halfLen = this.norm(opts.meterWidth) * 0.5
+    var start = super.normedPolarToCartesian(this.radius - halfLen, value)
+    var end = super.normedPolarToCartesian(this.radius + halfLen, value)
+    ctx.lineWidth = 1.5
+    ctx.strokeStyle = color
+    super.dot(start, color, opts.dotSize)
+    super.dot(end, color, opts.dotSize)
+    ctx.strokeStyle = theme.text
+    super.line(start, end)
+  }
+
   async animate (key, target) {
     // key is a string referencing any property of Meter.data.
     var opts = this.options
@@ -325,21 +340,6 @@ export class ProgressMeter extends Meter {
     this.animate('progress', progress)
   }
 
-  drawIndicator (value, color) {
-    var ctx = this.ctx
-    var opts = this.options
-    var theme = this.activeTheme
-    var halfLen = this.norm(opts.meterWidth) * 0.5
-    var start = super.normedPolarToCartesian(this.radius - halfLen, value)
-    var end = super.normedPolarToCartesian(this.radius + halfLen, value)
-    ctx.lineWidth = 1.5
-    ctx.strokeStyle = color
-    super.dot(start, color, opts.dotSize)
-    super.dot(end, color, opts.dotSize)
-    ctx.strokeStyle = theme.text
-    super.line(start, end)
-  }
-
   draw () {
     super.clear()
     var ctx = this.ctx
@@ -350,12 +350,12 @@ export class ProgressMeter extends Meter {
     var c = this.data.progress >= this.threshold ? opts.successColor : theme.tray
     super.segment(0, 1, c)
 
-    this.drawIndicator(this.threshold, c)
+    super.drawIndicator(this.threshold, c)
 
     ctx.lineWidth = opts.meterWidth
     super.segment(0, this.data.progress, opts.meterColor)
 
-    this.drawIndicator(this.data.progress, theme.text)
+    super.drawIndicator(this.data.progress, theme.text)
 
     if (opts.showIndicator && this.data.progress >= this.threshold) {
       ctx.fillStyle = opts.successColor
@@ -366,5 +366,51 @@ export class ProgressMeter extends Meter {
     this.ctx.fillStyle = this.activeTheme.text
     this.ctx.font = `500 ${opts.centralFontSize}px 'source-sans-pro-semibold', sans-serif`
     this.write(`${parseInt(this.data.progress * 100)}%`, makePt(this.middle.x, this.middle.y + offset), super.denorm(0.5))
+  }
+}
+
+// Mini meter is a semi-circular meter with a needle. The segment definitions
+// must be passed as an array of objects with the structure
+// [{end: float, color: string}, {end: float, color: string}, ...], where end is
+// the end of the segments range on the scale [0, 1]. The first range is assumed
+// to start at 0, and each subsequent segment will start at the previous
+// segment's end. The MiniMeter is designed to work with the .arch.lil CSS
+// classes, but not limited to that particular class.
+export class MiniMeter extends Meter {
+  constructor (parent, opts) {
+    super(parent, opts)
+    this.buttCap()
+    opts = this.options
+    this.radius = opts.radius || 0.475
+    this.darkTheme = opts.darkTheme || { text: 'white' }
+    this.lightTheme = opts.lightTheme || { text: '#333333' }
+    this.activeTheme = opts.darkMode ? this.darkTheme : this.lightTheme
+    opts.meterWidth = opts.meterWidth || 18
+    this.value = parseFloat(parent.dataset.value)
+    this.draw()
+  }
+
+  draw () {
+    super.clear()
+    var ctx = this.ctx
+    var opts = this.options
+    ctx.lineWidth = opts.meterWidth
+    var textColor = this.activeTheme.text
+
+    // Draw the segments.
+    var start = 0
+    opts.segments.forEach(segment => {
+      super.segment(start, segment.end, segment.color)
+      start = segment.end
+    })
+
+    // Draw the needle
+    var tipLen = this.norm(opts.meterWidth) * 0.75
+    var center = super.normedPolarToCartesian(0, 0)
+    var end = super.normedPolarToCartesian(this.radius + tipLen, this.value)
+    super.dot(center, textColor, 7)
+    ctx.strokeStyle = textColor
+    ctx.lineWidth = 5
+    super.line(center, end)
   }
 }

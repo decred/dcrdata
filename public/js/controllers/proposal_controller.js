@@ -1,5 +1,5 @@
 import { Controller } from 'stimulus'
-import { ProgressMeter } from '../helpers/meters.js'
+import { MiniMeter } from '../helpers/meters.js'
 import { darkEnabled } from '../services/theme_service'
 import globalEventBus from '../services/event_bus_service'
 import { getDefault } from '../helpers/module_helper'
@@ -117,16 +117,16 @@ export default class extends Controller {
   }
 
   async connect () {
-    console.log(this.approvalMeterTarget)
     if (this.hasApprovalMeterTarget) {
+      let d = this.approvalMeterTarget.dataset
       var opts = {
         darkMode: darkEnabled(),
-        showIndicator: false,
-        radius: 0.5,
-        centralFontSize: 30,
-        meterWidth: 15
+        segments: [
+          { end: d.threshold, color: '#ed6d47' },
+          { end: 1, color: '#2dd8a3' }
+        ]
       }
-      this.approvalMeter = new ProgressMeter(this.approvalMeterTarget, opts)
+      this.approvalMeter = new MiniMeter(this.approvalMeterTarget, opts)
     }
 
     let response = await axios.get('/api/proposal/' + this.tokenTarget.dataset.hash)
