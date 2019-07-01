@@ -1484,6 +1484,24 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Execute search for proposals by both RefID and proposal token before
+	// the address search because most search strings with alphanumeric
+	// characters are interprated as addresses.
+	if exp.proposalsSource != nil {
+		// Check if the search term references a proposal token exists.
+		proposalInfo, err := exp.proposalsSource.ProposalByToken(searchStr)
+
+		if err != nil || proposalInfo.RefID == "" {
+			// Check if the search term references a proposal RefID exists.
+			proposalInfo, err = exp.proposalsSource.ProposalByRefID(searchStr)
+		}
+
+		if err == nil && proposalInfo.RefID != "" {
+			http.Redirect(w, r, "/proposal/"+proposalInfo.RefID, http.StatusPermanentRedirect)
+			return
+		}
+	}
+
 	// Call GetExplorerAddress to see if the value is an address hash and
 	// then redirect to the address page if it is.
 	address, _, addrErr := exp.blockData.GetExplorerAddress(searchStr, 1, 0)
@@ -1545,15 +1563,6 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	if dbTxs != nil {
 		http.Redirect(w, r, "/tx/"+searchStr, http.StatusPermanentRedirect)
 		return
-	}
-
-	if exp.proposalsSource != nil {
-		// Check if the search term references a proposal token.
-		proposalInfo, err := exp.proposalsSource.ProposalByToken(searchStr)
-		if err == nil && proposalInfo.RefID != "" {
-			http.Redirect(w, r, "/proposal/"+proposalInfo.RefID, http.StatusPermanentRedirect)
-			return
-		}
 	}
 
 	message := "The search did not find any matching address, block, transaction or proposal token: " + searchStr
@@ -1788,12 +1797,21 @@ func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Attempts to retrieve a proposal refID from the URL path.
-	proposalInfo, err := exp.proposalsSource.ProposalByRefID(getProposalTokenCtx(r))
+	param := getProposalTokenCtx(r)
+	proposalInfo, err := exp.proposalsSource.ProposalByRefID(param)
 	if err != nil {
-		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, "the proposal token does not exist",
-			"", ExpStatusNotFound)
-		return
+		var newErr error
+
+		// Check if the URL parameter passed is a proposal token and attempt to
+		// fetch its data.
+		proposalInfo, newErr = exp.proposalsSource.ProposalByToken(param)
+		if newErr != nil {
+
+			log.Errorf("Template execute failure: %v", err)
+			exp.StatusPage(w, defaultErrorCode, "the proposal token or RefID does not exist",
+				"", ExpStatusNotFound)
+			return
+		}
 	}
 
 	// Proposals whose voting hasn't commenced do not have an end height assigned yet.
