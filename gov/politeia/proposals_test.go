@@ -473,8 +473,8 @@ func TestSaveProposals(t *testing.T) {
 	})
 
 	t.Run("Test_update_proposal_if_same_tokenID_and_new_RefID_found", func(t *testing.T) {
-		// Update the title which will result to a new RefID. The old proposal
-		// details should remain but the RefID will be updated. Should not
+		// Update the Name which will result to a new RefID. The old proposal
+		// details should remain but the new RefID will be updated. It should not
 		// create a new proposal.
 		copy2FirstProposal.Name = "Integrate decred with Trezor hardware wallet."
 		propInfo := pitypes.Proposals{Data: []*pitypes.ProposalInfo{&copy2FirstProposal}}

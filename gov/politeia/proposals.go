@@ -29,7 +29,7 @@ var (
 	errDef = fmt.Errorf("ProposalDB was not initialized correctly")
 
 	// dbVersion is the current required version of the proposals.db.
-	dbVersion = semver.NewSemver(1, 0, 0)
+	dbVersion = semver.NewSemver(2, 0, 0)
 )
 
 // dbinfo defines the property that holds the db version.
@@ -141,10 +141,22 @@ func generateCustomID(title string) (string, error) {
 	return reg.ReplaceAllString(strings.ToLower(title), "-"), nil
 }
 
+// fetchAPIData returns the API data fetched from the Politeia API endpoints.
+// NB: "/api/v1/proposals/vetted" path returns the latest snapshot of the API
+// data that currently exits. This implies that parameter "after=" should be used
+// when syncing the data from scratch and "before=" should be used to fetch newer
+// updates.
 func (db *ProposalDB) fetchAPIData(URLParams string) (pitypes.Proposals, error) {
 	copyURLParams := URLParams
 	pageSize := int(piapi.ProposalListPageSize)
 	var publicProposals pitypes.Proposals
+
+	// It helps determine when fresh sync is to run when no previous data
+	// existed. copyURLParams is an empty string when fresh sync is to run.
+	var param = "before"
+	if copyURLParams == "" {
+		param = "after"
+	}
 
 	// Since Politeia sets page the limit as piapi.ProposalListPageSize, keep
 	// fetching the proposals till the count of fetched proposals is less than
@@ -175,7 +187,7 @@ func (db *ProposalDB) fetchAPIData(URLParams string) (pitypes.Proposals, error) 
 			break
 		}
 
-		copyURLParams = fmt.Sprintf("?before=%v", data.Data[pageSize-1].TokenVal)
+		copyURLParams = fmt.Sprintf("?%v=%v", param, data.Data[pageSize-1].TokenVal)
 	}
 	return publicProposals, nil
 }
@@ -198,22 +210,22 @@ func (db *ProposalDB) saveProposals(publicProposals pitypes.Proposals) (int, err
 		// When a duplicate CensorshipRecord struct is detected this "already exists"
 		// error is thrown, this means that some edits were made to an older version
 		// of the proposal and its fixed by updating the new changes. In another
-		// case that is more rare, is that the current proposal could have a title
-		// that generates a duplicate refID. Appending an integer value to it till
-		// it becomes unique is the solution.
+		// case that is more rare, is that the current proposal could have a Name
+		// that generates a RefID similar to one already in the db and appending
+		// integers to it till it becomes unique is the solution.
 		if err == storm.ErrAlreadyExists {
 			// Check if the proposal token already exists in the db.
-			data, newErr := db.ProposalByToken(val.TokenVal)
+			data, newErr := db.proposal("TokenVal", val.TokenVal)
 			if newErr == nil && data != nil {
 				// The proposal token already exists thus trigger an update with
 				// the latest details.
 				valCopy := *val
 				valCopy.ID = data.ID
 				prefixStr := ""
-				k := 1
-				for ; k <= maxLoop; k++ {
+
+				for k := 1; k <= maxLoop; k++ {
 					valCopy.RefID += prefixStr
-					// Attempt to update a previous entry.
+					// Attempt to update the old entry.
 					newErr = db.dbP.Update(&valCopy)
 					if newErr == nil || newErr != storm.ErrAlreadyExists {
 						err = nil
@@ -225,9 +237,9 @@ func (db *ProposalDB) saveProposals(publicProposals pitypes.Proposals) (int, err
 
 			// First try wasn't successful if newErr != nil.
 			if newErr != nil {
-				c := 1
-				for ; c <= maxLoop; c++ {
-					// Drop the previously automatically assigned ID.
+
+				for c := 1; c <= maxLoop; c++ {
+					// Drop the previously assigned ID.
 					val.ID = 0
 
 					val.RefID += strconv.Itoa(c)
@@ -279,7 +291,6 @@ func (db *ProposalDB) AllProposals(offset, rowsCount int,
 	// Return the proposals listing starting with the newest.
 	err = query.Skip(offset).Limit(rowsCount).Reverse().OrderBy("Timestamp").
 		Find(&proposals)
-
 	if err != nil && err != storm.ErrNotFound {
 		log.Errorf("Failed to fetch data from Proposals DB: %v", err)
 	} else {
@@ -303,7 +314,7 @@ func (db *ProposalDB) ProposalByToken(proposalToken string) (*pitypes.ProposalIn
 
 // ProposalByRefID returns the single proposal identified by the provided refID.
 // RefID is generated from the proposal name and used as the descriptive part of
-// the URL to proposal details page on the
+// the URL to proposal details page on the /proposal page.
 func (db *ProposalDB) ProposalByRefID(RefID string) (*pitypes.ProposalInfo, error) {
 	if db == nil || db.dbP == nil {
 		return nil, errDef
