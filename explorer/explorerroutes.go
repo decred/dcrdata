@@ -1495,7 +1495,6 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 			// Check if the search term references a proposal RefID exists.
 			proposalInfo, err = exp.proposalsSource.ProposalByRefID(searchStr)
 		}
-
 		if err == nil && proposalInfo.RefID != "" {
 			http.Redirect(w, r, "/proposal/"+proposalInfo.RefID, http.StatusPermanentRedirect)
 			return
@@ -1800,18 +1799,20 @@ func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
 	param := getProposalTokenCtx(r)
 	proposalInfo, err := exp.proposalsSource.ProposalByRefID(param)
 	if err != nil {
-		var newErr error
-
 		// Check if the URL parameter passed is a proposal token and attempt to
 		// fetch its data.
-		proposalInfo, newErr = exp.proposalsSource.ProposalByToken(param)
-		if newErr != nil {
-
-			log.Errorf("Template execute failure: %v", err)
-			exp.StatusPage(w, defaultErrorCode, "the proposal token or RefID does not exist",
-				"", ExpStatusNotFound)
+		proposalInfo, newErr := exp.proposalsSource.ProposalByToken(param)
+		if newErr == nil && proposalInfo != nil && proposalInfo.RefID != "" {
+			// redirect to a human readable url (replace the token with the RefID)
+			http.Redirect(w, r, "/proposal/"+proposalInfo.RefID, http.StatusPermanentRedirect)
 			return
 		}
+
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, "the proposal token or RefID does not exist",
+			"", ExpStatusNotFound)
+		return
+
 	}
 
 	// Proposals whose voting hasn't commenced do not have an end height assigned yet.
