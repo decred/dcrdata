@@ -447,7 +447,7 @@ export default class extends Controller {
         break
 
       case 'ticket-pool-value': // pool value graph
-        d = zipXYData(data, isHeightAxis, isDayBinned, atomsToDCR)
+        d = zipXYData(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Ticket Pool Value'], true,
           'Ticket Pool Value (DCR)', true, false))
         break
