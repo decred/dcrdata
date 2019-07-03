@@ -80,6 +80,9 @@ function blockReward (height) {
 }
 
 function legendFormatter (data) {
+  var legendIndex = data.dygraph.getOption('legendIndex')
+  if (!legendIndex) return ''
+  console.log(legendIndex)
   var html = ''
   if (data.x == null) {
     let dashLabels = data.series.reduce((nodes, series) => {
@@ -289,6 +292,17 @@ export default class extends Controller {
     Dygraph = await getDefault(
       import(/* webpackChunkName: "dygraphs" */ '../vendor/dygraphs.min.js')
     )
+
+    // Dygraphs doesn't give the data index to the legend formatter, which makes
+    // accessing auxiliary data sets challenging. We can get it from the closest
+    // containing method on the Dygraph Legend though, and set it as an option
+    // on the Dygraph object, which is also available in the legendFormatter.
+    var ogLegendGenerator = Dygraph.Plugins.Legend.generateLegendHTML
+    Dygraph.Plugins.Legend.generateLegendHTML = (g, x, pts, w, row) => {
+      g.updateOptions({ legendIndex: row }, true)
+      return ogLegendGenerator(g, x, pts, w, row)
+    }
+
     this.drawInitialGraph()
     this.processNightMode = (params) => {
       this.chartsView.updateOptions(
@@ -332,6 +346,7 @@ export default class extends Controller {
       [[1, 1, 5], [2, 5, 11]],
       options
     )
+
     this.chartSelectTarget.value = this.settings.chart
 
     if (this.settings.axis) this.setAxis(this.settings.axis) // set first
