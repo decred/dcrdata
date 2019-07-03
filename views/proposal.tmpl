@@ -7,7 +7,7 @@
         {{with .Data}}
         <div class="container pb-4" data-controller="proposal">
           <div class="row pt-2 px-2">
-            <div class="col-24 col-xl-11 bg-white px-2 px-xl-5 py-3 position-relative">
+            <div class="col-24 col-xl-11 bg-white px-2 px-xl-5 py-3 position-relative d-flex flex-column justify-content-between align-items-start">
               {{$status := .VoteStatus.ShortDesc}}
 
               {{- /* INVALID AND NON-EXISTENT */ -}}
@@ -38,7 +38,7 @@
               {{- /* AUTHORIZED */ -}}
               {{else if eq $status "Authorized"}}
                 <div class="fs22">{{.Name}}</div>
-                <span class="fs18 font-weight-bold lh1rem">vote scheduled</span>
+                <span class="fs18 font-weight-bold lh1rem">Vote scheduled</span>
                 <div class="py-2">
                   {{.Username}} has authorized voting on this proposal.
                   Voting begins at block {{$metadata.StartHeight}}
@@ -50,21 +50,23 @@
                 <div class="fs22">{{.Name}}</div>
                 {{if eq $status "Started"}}
                   <div>
-                    <span class="fs18 lh1rem">voting now</span>
+                    <span class="fs18 lh1rem">Voting now</span>
                     <div class="float-right fs16">
                       ~{{secondsToShortDurationString $metadata.SecondsTil}} remaining
                     </div>
                   </div>
                 {{else}}
-                  <span class="fs18 lh1rem">voting complete</span> &ndash;
-                  {{if and $metadata.IsPassing $metadata.QuorumAchieved}}
-                    <span class="text-green">accepted</span>
-                  {{else}}
-                    <span class="text-danger">rejected</span>
-                  {{end}}
+                  <div>
+                    <span class="fs18 lh1rem">Voting complete</span> &ndash;
+                    {{if and $metadata.IsPassing $metadata.QuorumAchieved}}
+                      <span class="text-green">accepted</span>
+                    {{else}}
+                      <span class="text-danger">rejected</span>
+                    {{end}}
+                  </div>
                 {{end}}
 
-                <div class="d-flex mx-auto justify-content-start p-2 my-2 secondary-card rounded">
+                <div class="d-flex w-100 justify-content-start p-2 my-2 secondary-card rounded">
                   <div class="col-auto lilbox">
                     <!-- <div class="text-secondary text-center fs13">Approval</div> -->
                     <div
@@ -82,52 +84,37 @@
                       approval of {{intComma $metadata.VoteCount}} votes
                     </span>
                     {{if $metadata.QuorumAchieved}}
-                      <div class="d-flex align-items-center"><span class="fs20 dcricon-affirm mr-2 pt-1"></span>
+                      <div class="d-flex align-items-center"><span class="fs20 dcricon-affirm mr-2"></span>
                       <span class="lh1em pb-1">Quorum achieved</span></div>
                     {{else}}
                       {{if eq $status "Started"}}
                         <span class="text-secondary fs13">Quorum</span>
-                        <div class="d-flex align-items-center"><span class="fs20 dcricon-missing mr-2 pt-1"></span>
+                        <div class="d-flex align-items-center"><span class="fs20 dcricon-missing mr-2"></span>
                           <span class="pb-1">{{$metadata.VoteCount}} of {{$metadata.QuorumCount}} needed votes</span>
                         </div>
                       {{else}}
-                        <div class="d-flex align-items-center"><span class="fs20 dcricon-reject mr-2 pt-1"></span>
+                        <div class="d-flex align-items-center"><span class="fs20 dcricon-reject mr-2"></span>
                         <span class="pb-1">Quorum not achieved</span></div>
                       {{end}}
                     {{end}}
                   </div>
                 </div>
-                <div class="fs16 py-2">
-                  {{if eq $status "Started"}}
-                    {{if $metadata.QuorumAchieved}}
-                      {{if $metadata.IsPassing}}
-                        {{.QuorumPercentage}}% quorum has been achieved, and stakeholders are tending towards approval.
-                      {{else}}
-                        {{.QuorumPercentage}}% quorum has been achieved, but stakeholders are tending towards rejection.
-                      {{end}}
-                    {{else}}{{- /* Quroum Not Achieved  */ -}}
-                      This proposal has not achieved {{.QuorumPercentage}}% quorum.
-                    {{end}}
-                  {{else}}
-                    {{if $metadata.QuorumAchieved}}
-                      {{if $metadata.IsPassing}}
-                        Voting on this proposal has completed. Stakeholders voted to accept this proposal.
-                      {{else}}
-                        Voting on this proposal has completed. Stakeholders voted to reject this proposal.
-                      {{end}}
-                    {{else}}{{- /* Quroum Not Achieved  */ -}}
-                      This proposal was rejected for failing to achieve quorum.
-                      Fewer than {{.QuorumPercentage}}% of eligible ticket holders voted on this proposal.
-                    {{end}}
-                  {{end}}
-                </div>
               {{end}}{{/* END LIVE OR FINISHED */ -}}
-              <div class="fs14 text-center"><a href="{{$.PoliteiaURL}}/proposals/{{.TokenVal}}">discussion</a> | <a href="/proposals">all proposals</a></div>
+              <div class="d-flex justify-content-between w-100 pb-1 fs-17">
+                <a class="d-block" href="{{$.PoliteiaURL}}/proposals/{{.TokenVal}}">
+                  <span class="dcricon-discussion mr-2 pt-1"></span>
+                  Discussion
+                </a>
+                <a class="d-block" href="/proposals">
+                  <span class="dcricon-back mr-2 pt-1"></span>
+                  Proposals
+                </a>
+              </div>
             </div>{{/* END COLUMN 1 */ -}}
 
             {{- /* ADDITIONAL DATA */ -}}
-            <div class="col-24 col-xl-13 secondary-card px-3 py-3 position-relative d-flex justify-content-center align-items-center">
-              <table class="fs14 my-1 mb-xl-3 mx-auto text-left">
+            <div class="col-24 col-xl-13 secondary-card px-3 position-relative d-flex justify-content-center align-items-center">
+              <table class="fs14 my-3 text-left d-flex">
                 <tbody>
                   <tr>
                     <td class="text-right medium-sans text-nowrap pr-2 py-2" >Author:</td>
@@ -184,18 +171,19 @@
             <div
                 data-target="proposal.token"
                 data-hash="{{$.Data.TokenVal}}"
+                class="pt-2 proposal-charts"
                 >
                 <div class="d-flex position-relative">
-                    <div data-target="proposal.approval" class="proposal-chart-align mt-5 w-100"></div>
-                    <div data-target="proposal.approvalLegend" class="dygraph-legend proposal-chart-legend"></div>
+                    <div data-target="proposal.approval" class="proposal-chart-align w-100"></div>
+                    <div data-target="proposal.approvalLegend" class="text-nowrap proposal-chart-legend"></div>
                 </div>
                 <div class="d-flex position-relative">
-                    <div data-target="proposal.cumulative" class="proposal-chart-align mt-5 w-100 mt-1"></div>
-                    <div data-target="proposal.cumulativeLegend" class="dygraph-legend proposal-chart-legend"></div>
+                    <div data-target="proposal.cumulative" class="proposal-chart-align w-100 pt-1"></div>
+                    <div data-target="proposal.cumulativeLegend" class="text-nowrap proposal-chart-legend"></div>
                 </div>
-                <div class="d-flex position-relative pb-4">
-                    <div data-target="proposal.log" class="proposal-chart-align mt-5 w-100 mt-1"></div>
-                    <div data-target="proposal.logLegend" class="dygraph-legend proposal-chart-legend"></div>
+                <div class="d-flex position-relative">
+                    <div data-target="proposal.log" class="proposal-chart-align w-100 pt-1"></div>
+                    <div data-target="proposal.logLegend" class="text-nowrap proposal-chart-legend"></div>
                 </div>
             </div>
         {{else}}

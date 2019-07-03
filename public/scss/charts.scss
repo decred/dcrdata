@@ -596,6 +596,17 @@ body.darkBG #chart .dygraph-y2label {
   border: 1px solid #7774;
 }
 
+.proposal-chart-legend {
+  display: none;
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 0 2px;
+  font-size: 14px;
+  border-radius: 0;
+  background-color: #fffa;
+}
+
 body.darkBG {
   .address_chart_wrap {
     background-color: #333;
@@ -615,16 +626,14 @@ body.darkBG {
     background-color: #34a7;
   }
 
-  .market-chart-title {
+  .market-chart-title,
+  .proposal-chart-legend {
     background-color: #333a;
   }
 }
 
-.proposal-chart-legend {
-  top: 5px;
-  right: 5px;
-  padding: 2px;
-  border-radius: 0;
+.proposal-charts:hover .proposal-chart-legend {
+  display: block;
 }
 
 .proposal-chart-align {

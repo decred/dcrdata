@@ -65,10 +65,10 @@ function legendFormatter (data) {
   if (data.x == null) {
     html = data.series.map(function (series) {
       return series.dashHTML + ' <span style="color:' +
-        series.color + ';">' + series.labelHTML + ' </span>'
-    }).join('<br>')
+        series.color + ';">' + series.labelHTML + ' </span> '
+    }).join('')
   } else {
-    html = this.getLabels()[0] + ': ' + data.xHTML + ' UTC <br>'
+    html = this.getLabels()[0] + ': ' + data.xHTML + ' UTC &nbsp;&nbsp;'
     data.series.forEach(function (series, index) {
       if (!series.isVisible) return
 
@@ -79,12 +79,12 @@ function legendFormatter (data) {
       } else if (index === 0) {
         html = ''
       } else {
-        html += ' <br> '
+        // html += ' <br> '
       }
 
       var labeledData = '<span style="color:' + series.color + ';">' +
         series.labelHTML + ' </span> : ' + Math.abs(series.y)
-      html += series.dashHTML + ' ' + labeledData + '' + symbol
+      html += series.dashHTML + ' ' + labeledData + '' + symbol + ' &nbsp;'
     })
   }
   dompurify.sanitize(html)
