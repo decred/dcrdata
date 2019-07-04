@@ -22,6 +22,7 @@ const lineScales = ['ticket-price']
 const yValueRanges = { 'ticket-price': [1] }
 var ticketPoolSizeTarget, premine, stakeValHeight, stakeShare
 var baseSubsidy, subsidyInterval, subsidyExponent, windowSize, avgBlockTime
+var rawCoinSupply, rawPoolValue
 
 function usesWindowUnits (chart) {
   return windowScales.indexOf(chart) > -1
@@ -125,7 +126,16 @@ function legendFormatter (data) {
           yVal = series.y.toFixed(4) + '%'
           break
       }
-      return `${nodes} <div class="pr-2">${series.dashHTML} ${series.labelHTML}: ${yVal}</div>`
+      let result = `${nodes} <div class="pr-2">${series.dashHTML} ${series.labelHTML}: ${yVal}</div>`
+
+      var i = data.dygraph.getOption('legendIndex')
+      if (series.label.toLowerCase() === 'stake participation' && rawCoinSupply.length === rawPoolValue.length &&
+          rawPoolValue.length !== 0 && i !== null) {
+        result += `<div class="pr-2"><div class="dygraph-legend-line"></div> Ticket Pool Value: ${intComma(rawPoolValue[i])} DCR</div>
+          <div class="pr-2"><div class="dygraph-legend-line"></div> Coin Supply: ${intComma(rawCoinSupply[i])} DCR</div>`
+      }
+
+      return result
     }, '')
 
     html = `<div class="d-flex flex-wrap justify-content-center align-items-center">
@@ -221,7 +231,9 @@ function percentStakedFunc (gData, isHeightAxis, isDayBinned) {
     } else {
       xAxisVal = new Date(n * 1000)
     }
-    return [ xAxisVal, percentStaked, poolValue, coinSupply ]
+    rawPoolValue.push(poolValue)
+    rawCoinSupply.push(coinSupply)
+    return [ xAxisVal, percentStaked ]
   })
   return [data, extremeStaked]
 }
@@ -370,6 +382,12 @@ export default class extends Controller {
     if (this.settings.scale === 'log') this.setScale(this.settings.scale)
     if (this.settings.zoom) this.setZoom(this.settings.zoom)
     if (this.settings.bin) this.setBin(this.settings.bin)
+
+    var ogLegendGenerator = Dygraph.Plugins.Legend.generateLegendHTML
+    Dygraph.Plugins.Legend.generateLegendHTML = (g, x, pts, w, row) => {
+      g.updateOptions({ legendIndex: row }, true)
+      return ogLegendGenerator(g, x, pts, w, row)
+    }
     this.selectChart()
   }
 
@@ -389,6 +407,9 @@ export default class extends Controller {
     var isHeightAxis = this.selectedAxis() === 'height'
     var xlabel = isHeightAxis ? 'Block Height' : 'Date'
     var isDayBinned = this.selectedBin() === 'day'
+
+    rawPoolValue = []
+    rawCoinSupply = []
 
     switch (chartName) {
       case 'ticket-price': // price graph
@@ -421,13 +442,8 @@ export default class extends Controller {
         break
       case 'stake-participation':
         d = percentStakedFunc(data, isHeightAxis, isDayBinned)
-        assign(gOptions, mapDygraphOptions(d[0], [xlabel, 'Stake Participation', 'Ticket Pool Value',
-          'Coin Supply'], true, 'Stake Participation (%)', true, false))
-        gOptions.valueRange = [null, d[1] + 5]
-        gOptions.series = {
-          'Coin Supply': { strokeWidth: 0, highlightCircleSize: 0 },
-          'Ticket Pool Value': { strokeWidth: 0, highlightCircleSize: 0 }
-        }
+        assign(gOptions, mapDygraphOptions(d[0], [xlabel, 'Stake Participation'], true,
+          'Stake Participation (%)', true, false))
         break
 
       case 'ticket-pool-value': // pool value graph
