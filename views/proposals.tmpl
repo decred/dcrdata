@@ -6,7 +6,17 @@
         <div class="container main" data-controller="pagenavigation">
             <div class="row justify-content-between">
                 <div class="col-sm-lg-14 col-sm-12 d-flex">
-                    <h4 class="mb-2">Politeia Proposals</h4>
+                    <h4 class="mb-2">
+                        Politeia Proposals
+                        <span class="mb-0 fs11 text-black-50">
+                            &nbsp;(<span class="mr-2">Proposals Sync:&nbsp;
+                                <span data-controller="time" data-target="time.age" data-age="{{$.LastPropSync}}"></span>&nbsp;ago
+                            </span>
+                            <span>Votes Sync:&nbsp;
+                                <span data-controller="time" data-target="time.age" data-age="{{$.LastVotesSync}}"></span>&nbsp;ago
+                            </span>)
+                        </span>
+                    </h4>
                 </div>
             </div>
             <div class="mb-1 fs13">
@@ -180,15 +190,6 @@
                 {{end}}
                 </tbody>
             </table>
-            <div class="text-center mb-0 fs11">
-                <span class="mr-2">Proposals Sync:&nbsp;
-                    <span data-controller="time" data-target="time.age" data-age="{{$.LastPropSync}}"></span>&nbsp;Ago
-                </span>
-                <span>Votes Sync:&nbsp;
-                    <span data-controller="time" data-target="time.age" data-age="{{$.LastVotesSync}}"></span>&nbsp;Ago
-                </span>
-            </div>
-
             {{if gt .Limit 20}}
                 {{template "proposalsPagination" .}}
             {{end}}

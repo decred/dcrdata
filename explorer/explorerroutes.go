@@ -1884,6 +1884,7 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 		PoliteiaURL   string
 		LastVotesSync int64
 		LastPropSync  int64
+		TimePerBlock  int64
 	}{
 		CommonPageData: exp.commonData(r),
 		Proposals:      proposals,
@@ -1895,6 +1896,7 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 		PoliteiaURL:    exp.politeiaAPIURL,
 		LastVotesSync:  exp.explorerSource.LastPiParserSync().UTC().Unix(),
 		LastPropSync:   exp.proposalsSource.LastProposalsSync(),
+		TimePerBlock:   int64(exp.ChainParams.TargetTimePerBlock.Seconds()),
 	})
 
 	if err != nil {
