@@ -61,10 +61,18 @@ func scanQueries(data []byte, atEOF bool) (advance int, token []byte, err error)
 
 // Comments start with (--) and end with a new line.
 func deleteComments(a []byte) []byte {
-	re := regexp.MustCompile(`^--[\s*\w*[[:punct:]]*]*$\n`)
+	// delete sql comment
+	re := regexp.MustCompile(`--[^\n]*`)
 	a = re.ReplaceAll(a, []byte{})
 
-	// delete "test_" from all table references.
+	// Remove duplicate tabs and space characters.
+	re = regexp.MustCompile(`[\t\p{Zs}]{2,}`)
+	a = re.ReplaceAll(a, []byte{})
+
+	// delete "test_" from all table name references.
 	re = regexp.MustCompile(`test_`)
-	return re.ReplaceAll(a, []byte{})
+	a = re.ReplaceAll(a, []byte{})
+
+	// delete any leading or trailing spaces left.
+	return bytes.TrimSpace(a)
 }
