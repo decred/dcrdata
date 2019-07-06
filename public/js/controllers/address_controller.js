@@ -99,6 +99,7 @@ function createOptions () {
     fillAlpha: 0.9,
     labelsKMB: true,
     labelsUTC: true,
+    stepPlot: false,
     rangeSelectorPlotFillColor: 'rgba(128, 128, 128, 0.3)',
     rangeSelectorPlotFillGradientColor: 'transparent',
     rangeSelectorPlotStrokeColor: 'rgba(128, 128, 128, 0.7)',
@@ -133,7 +134,8 @@ function createOptions () {
     legendFormatter: customizedFormatter,
     stackedGraph: false,
     visibility: [true],
-    fillGraph: true
+    fillGraph: true,
+    stepPlot: true
   }
 }
 
