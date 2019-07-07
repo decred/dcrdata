@@ -22,6 +22,7 @@ const lineScales = ['ticket-price']
 const yValueRanges = { 'ticket-price': [1] }
 var ticketPoolSizeTarget, premine, stakeValHeight, stakeShare
 var baseSubsidy, subsidyInterval, subsidyExponent, windowSize, avgBlockTime
+var rawCoinSupply, rawPoolValue
 
 function usesWindowUnits (chart) {
   return windowScales.indexOf(chart) > -1
@@ -90,30 +91,51 @@ function legendFormatter (data) {
               <div class="d-flex flex-wrap">${dashLabels}</div>
             </div>`
   } else {
-    data.series.sort((a, b) => a.y > b.y ? -1 : 1)
     var extraHTML = ''
     // The circulation chart has an additional legend entry showing percent
     // difference.
-    if (data.series.length === 2 && data.series[1].label.toLowerCase() === 'coin supply') {
-      let predicted = data.series[0].y
-      let actual = data.series[1].y
+    if (data.series.length === 2 && data.series[0].label.toLowerCase().includes('coin supply') &&
+      data.series[1].label.toLowerCase().includes('coin supply')) {
+      data.series.sort((a, b) => a.y > b.y ? 1 : -1)
+      let actual = data.series[0].y
+      let predicted = data.series[1].y
       let change = (((actual - predicted) / predicted) * 100).toFixed(2)
-      extraHTML = `<div class="pr-2">&nbsp;&nbsp;Change: ${change} %</div>`
+      extraHTML = `<div class="pr-2">&nbsp;&nbsp;Difference: ${change} %</div>`
     }
 
     let yVals = data.series.reduce((nodes, series) => {
       if (!series.isVisible) return nodes
       let yVal = series.yHTML
       switch (series.label.toLowerCase()) {
+        case 'ticket pool value':
+        case 'predicted coin supply':
         case 'coin supply':
           yVal = intComma(series.y) + ' DCR'
+          break
+
+        case 'total fee':
+        case 'ticket price':
+          yVal = series.y + ' DCR'
           break
 
         case 'hashrate':
           yVal = formatHashRate(series.y)
           break
+
+        case 'stake participation':
+          yVal = series.y.toFixed(4) + '%'
+          break
       }
-      return `${nodes} <div class="pr-2">${series.dashHTML} ${series.labelHTML}: ${yVal}</div>`
+      let result = `${nodes} <div class="pr-2">${series.dashHTML} ${series.labelHTML}: ${yVal}</div>`
+
+      var i = data.dygraph.getOption('legendIndex')
+      if (series.label.toLowerCase() === 'stake participation' && rawCoinSupply.length === rawPoolValue.length &&
+          rawPoolValue.length !== 0 && i !== null) {
+        result += `<div class="pr-2"><div class="dygraph-legend-line"></div> Ticket Pool Value: ${intComma(rawPoolValue[i])} DCR</div>
+          <div class="pr-2"><div class="dygraph-legend-line"></div> Coin Supply: ${intComma(rawCoinSupply[i])} DCR</div>`
+      }
+
+      return result
     }, '')
 
     html = `<div class="d-flex flex-wrap justify-content-center align-items-center">
@@ -131,13 +153,13 @@ function nightModeOptions (nightModeOn) {
     return {
       rangeSelectorAlpha: 0.3,
       gridLineColor: '#596D81',
-      colors: ['#2DD8A3', '#2970FF']
+      colors: ['#2DD8A3', '#2970FF', '#FFC84E']
     }
   }
   return {
     rangeSelectorAlpha: 0.4,
     gridLineColor: '#C4CBD2',
-    colors: ['#2970FF', '#006600']
+    colors: ['#2970FF', '#006600', '#FF0090']
   }
 }
 
@@ -192,6 +214,28 @@ function zipXYZData (gData, isHeightAxis, isDayBinned, yCoefficient, zCoefficien
     }
     return [xAxisVal, gData.y[i] * yCoefficient, gData.z[i] * zCoefficient]
   })
+}
+
+function percentStakedFunc (gData, isHeightAxis, isDayBinned) {
+  var extremeStaked = 0
+  var data = map(gData.x, (n, i) => {
+    let poolValue = gData.z[i]
+    let coinSupply = gData.y[i] * atomsToDCR
+    let percentStaked = (poolValue / coinSupply) * 100
+    if (percentStaked > extremeStaked) extremeStaked = percentStaked
+    var xAxisVal
+    if (isHeightAxis && isDayBinned) {
+      xAxisVal = n
+    } else if (isHeightAxis) {
+      xAxisVal = i
+    } else {
+      xAxisVal = new Date(n * 1000)
+    }
+    rawPoolValue.push(poolValue)
+    rawCoinSupply.push(coinSupply)
+    return [ xAxisVal, percentStaked ]
+  })
+  return [data, extremeStaked]
 }
 
 function circulationFunc (gData, isHeightAxis, isDayBinned) {
@@ -338,6 +382,12 @@ export default class extends Controller {
     if (this.settings.scale === 'log') this.setScale(this.settings.scale)
     if (this.settings.zoom) this.setZoom(this.settings.zoom)
     if (this.settings.bin) this.setBin(this.settings.bin)
+
+    var ogLegendGenerator = Dygraph.Plugins.Legend.generateLegendHTML
+    Dygraph.Plugins.Legend.generateLegendHTML = (g, x, pts, w, row) => {
+      g.updateOptions({ legendIndex: row }, true)
+      return ogLegendGenerator(g, x, pts, w, row)
+    }
     this.selectChart()
   }
 
@@ -347,21 +397,26 @@ export default class extends Controller {
       zoomCallback: null,
       drawCallback: null,
       logscale: this.settings.scale === 'log',
-      axes: {},
+      valueRange: [null, null],
       visibility: null,
       y2label: null,
-      stepPlot: false
+      stepPlot: false,
+      axes: {},
+      series: null
     }
     var isHeightAxis = this.selectedAxis() === 'height'
     var xlabel = isHeightAxis ? 'Block Height' : 'Date'
     var isDayBinned = this.selectedBin() === 'day'
+
+    rawPoolValue = []
+    rawCoinSupply = []
 
     switch (chartName) {
       case 'ticket-price': // price graph
         d = zipXYZData(data, isHeightAxis, false, atomsToDCR, 1, windowSize)
         gOptions.stepPlot = true
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Price', 'Tickets Bought'], true,
-          'Price (DCR)', xlabel, undefined, false, false))
+          'Price (DCR)', true, false))
         gOptions.y2label = 'Tickets Bought'
         gOptions.series = { 'Tickets Bought': { axis: 'y2' } }
         this.visibility = [this.ticketsPriceTarget.checked, this.ticketsPurchaseTarget.checked]
@@ -375,7 +430,7 @@ export default class extends Controller {
       case 'ticket-pool-size': // pool size graph
         d = poolSizeFunc(data, isHeightAxis, isDayBinned)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Ticket Pool Size', 'Network Target'],
-          false, 'Ticket Pool Size', xlabel, true, false))
+          false, 'Ticket Pool Size', true, false))
         gOptions.series = {
           'Network Target': {
             strokePattern: [5, 3],
@@ -385,11 +440,16 @@ export default class extends Controller {
           }
         }
         break
+      case 'stake-participation':
+        d = percentStakedFunc(data, isHeightAxis, isDayBinned)
+        assign(gOptions, mapDygraphOptions(d[0], [xlabel, 'Stake Participation'], true,
+          'Stake Participation (%)', true, false))
+        break
 
       case 'ticket-pool-value': // pool value graph
         d = zipXYData(data, isHeightAxis, isDayBinned, atomsToDCR)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Ticket Pool Value'], true,
-          'Ticket Pool Value', true, false))
+          'Ticket Pool Value (DCR)', true, false))
         break
 
       case 'block-size': // block size graph

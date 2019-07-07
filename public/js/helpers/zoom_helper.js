@@ -121,7 +121,8 @@ export default class Zoom {
     for (let k in zoomMap) {
       let v = zoomMap[k]
       if (v === 0) continue
-      if (v / scale === range) return k
+      // support an error of ±0.99 due to precision loss while dividing.
+      if (Math.abs(v / scale - range) < 0.99) return k
     }
     return null
   }

@@ -34,6 +34,7 @@ const (
 	TicketPoolSize  = "ticket-pool-size"
 	TicketPoolValue = "ticket-pool-value"
 	WindMissedVotes = "missed-votes"
+	PercentStaked   = "stake-participation"
 )
 
 // binLevel specifies the granularity of data.
@@ -86,8 +87,10 @@ const (
 	HashrateAvgLength = 120
 )
 
-// cacheVersion helps detect when cache data stored has its structure changed.
-var cacheVersion = semver.NewSemver(5, 0, 0)
+// cacheVersion helps detect when the cache data stored has changed its
+// structure or content. A change on the cache version results to recomputing
+// all the charts data a fresh thereby making the cache to hold the latest changes.
+var cacheVersion = semver.NewSemver(6, 0, 0)
 
 // versionedCacheData defines the cache data contents to be written into a .gob file.
 type versionedCacheData struct {
@@ -886,6 +889,7 @@ var chartMakers = map[string]ChartMaker{
 	TicketPoolSize:  ticketPoolSizeChart,
 	TicketPoolValue: poolValueChart,
 	WindMissedVotes: missedVotesChart,
+	PercentStaked:   stakedCoinsChart,
 }
 
 // Chart will return a JSON-encoded chartResponse of the provided type
@@ -1209,4 +1213,22 @@ func missedVotesChart(charts *ChartData, _ binLevel, _ axisType) ([]byte, error)
 	}
 	return charts.encode(charts.Windows.Time[stakeValidWindows:],
 		charts.Windows.MissedVotes[stakeValidWindows:])
+}
+
+func stakedCoinsChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
+	switch bin {
+	case BlockBin:
+		return charts.encode(charts.Blocks.Time, accumulate(charts.Blocks.NewAtoms),
+			charts.Blocks.PoolValue)
+	case DayBin:
+		switch axis {
+		case HeightAxis:
+			return charts.encode(charts.Days.Height, accumulate(charts.Days.NewAtoms),
+				charts.Days.PoolValue)
+		default:
+			return charts.encode(charts.Days.Time, accumulate(charts.Days.NewAtoms),
+				charts.Days.PoolValue)
+		}
+	}
+	return nil, InvalidBinErr
 }
