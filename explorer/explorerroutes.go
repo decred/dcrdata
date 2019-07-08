@@ -149,7 +149,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	blocks := exp.blockData.GetExplorerBlocks(int(height), int(height)-5)
+	blocks := exp.blockData.GetExplorerBlocks(int(height), int(height)-8)
 	var bestBlock *types.BlockBasic
 	if blocks == nil {
 		bestBlock = new(types.BlockBasic)
