@@ -7,7 +7,7 @@
     {{ template "navbar" . }}
     <div class="container main" data-controller="time blocklist homepage">
         <div class="row">
-            <div class="col-md-15 p-0">
+            <div class="d-flex flex-column col-md-15 p-0">
 
                 <div class="bg-white mb-1 py-2 px-3 my-0">
                     <div class="d-inline-block position-relative p-2">
@@ -95,7 +95,7 @@
                     </div>
                 </div> <!-- end blocks card -->
 
-                <div class="py-1 px-2 mb-1 bg-white">
+                <div class="py-1 px-2 mb-1 bg-white flex-grow-1">
 
                     <div class="d-flex align-items-baseline my-2">
                         <div class="position-relative col nowrap">
@@ -202,7 +202,7 @@
                 </div>  <!-- end mempool card -->
             </div> <!-- end column -->
 
-            <div class="col-md-9 p-0">
+            <div class="d-flex flex-column col-md-9 p-0">
                 {{with .Info}}
                 <div class="bg-white mb-1 py-2 px-3 mx-1">
                     <div class="mt-2 my-3 h4">
@@ -365,7 +365,7 @@
                     </div>
                 </div> <!-- end mining card -->
 
-                <div class="bg-white mb-1 p-2 mb-2 px-3 mx-1">
+                <div class="bg-white mb-1 p-2 px-3 mx-1 flex-grow-1">
                     <div class="my-3 h4">
                         <span class="dcricon-tree d-inline-block pr-2 h4"></span>
                         Distribution
