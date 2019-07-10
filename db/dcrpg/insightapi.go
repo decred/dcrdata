@@ -72,9 +72,10 @@ func sortTxsByTimeAndHash(txns []txSortable) {
 }
 
 // InsightAddressTransactions performs DB queries to get all transaction hashes
-// for the specified addresses in descending order by time. It also returns a
-// list of recently (defined as greater than recentBlockHeight) confirmed
-// transactions that can be used to validate mempool status.
+// for the specified addresses in descending order by time, then ascending order
+// by hash. It also returns a list of recently (defined as greater than
+// recentBlockHeight) confirmed transactions that can be used to validate
+// mempool status.
 func (pgb *ChainDB) InsightAddressTransactions(addr []string, recentBlockHeight int64) (txs, recentTxs []chainhash.Hash, err error) {
 	// Time of a "recent" block
 	recentBlocktime, err0 := pgb.BlockTimeByHeight(recentBlockHeight)

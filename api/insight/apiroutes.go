@@ -543,6 +543,7 @@ func removeSliceElements(txOuts []*apitypes.AddressTxnOutput, inds []int) []*api
 }
 
 func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) {
+	pageNum := m.GetPageNumCtx(r)
 	hash, blockerr := m.GetBlockHashCtx(r)
 	addresses, addrerr := m.GetAddressCtx(r, iapi.params, 1)
 
@@ -557,6 +558,8 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	txPageSize := 10
+
 	if blockerr == nil {
 		blkTrans := iapi.BlockData.GetBlockVerboseByHash(hash, true)
 		if blkTrans == nil {
@@ -565,31 +568,32 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		txsOld := []*dcrjson.TxRawResult{}
-		txcount := len(blkTrans.RawTx) + len(blkTrans.RawSTx)
-		// Merge tx and stx together and limit result to 10 max
-		count := 0
-		for i := range blkTrans.RawTx {
-			txsOld = append(txsOld, &blkTrans.RawTx[i])
-			count++
-			if count > 10 {
-				break
-			}
-		}
-		if count < 10 {
-			for i := range blkTrans.RawSTx {
-				txsOld = append(txsOld, &blkTrans.RawSTx[i])
-				count++
-				if count > 10 {
-					break
-				}
-			}
+		// Sorting is not necessary since all of these transactions are in the
+		// same block, but put the stake transactions first.
+		mergedTxns := append(blkTrans.RawSTx, blkTrans.RawTx...)
+		txcount := len(mergedTxns)
+
+		pagesTotal := txcount / txPageSize
+		if txcount%txPageSize != 0 {
+			pagesTotal++
 		}
 
-		// Convert to Insight struct
+		// Go to the last page if pageNum is greater than the number of pages.
+		if pageNum > pagesTotal {
+			pageNum = pagesTotal
+		}
+
+		// Grab the transactions for the given page (1-based index).
+		skipTxns := (pageNum - 1) * txPageSize // middleware guarantees pageNum>0
+		txsOld := []*dcrjson.TxRawResult{}
+		for i := skipTxns; i < txcount && i < txPageSize+skipTxns; i++ {
+			txsOld = append(txsOld, &mergedTxns[i])
+		}
+
+		// Convert to dcrjson transaction to Insight tx type.
 		txsNew, err := iapi.TxConverter(txsOld)
 		if err != nil {
-			apiLog.Error("Error Processing Transactions")
+			apiLog.Error("getTransactions: Error processing transactions: %v", err)
 			writeInsightError(w, "Error Processing Transactions")
 			return
 		}
@@ -610,9 +614,10 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 			writeInsightError(w, fmt.Sprintf("Address is invalid (%s)", address))
 			return
 		}
-		addresses := []string{address}
-		rawTxs, recentTxs, err :=
-			iapi.BlockData.ChainDB.InsightAddressTransactions(addresses, int64(iapi.status.Height()-2))
+
+		hashes, recentTxs, err :=
+			iapi.BlockData.ChainDB.InsightAddressTransactions([]string{address},
+				int64(iapi.status.Height()-2))
 		if dbtypes.IsTimeoutErr(err) {
 			apiLog.Errorf("InsightAddressTransactions: %v", err)
 			http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -620,8 +625,8 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 		}
 		if err != nil {
 			writeInsightError(w,
-				fmt.Sprintf("Error retrieving transactions for addresses %s (%v)",
-					addresses, err))
+				fmt.Sprintf("Error retrieving transactions for address %s (%v)",
+					address, err))
 			return
 		}
 
@@ -682,21 +687,30 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 			UnconfirmedTxTimes = append(UnconfirmedTxTimes, spendingTx.MemPoolTime)
 		}
 
-		// Merge unconfirmed with confirmed transactions. Unconfirmed must be first.
-		rawTxs = append(UnconfirmedTxs, rawTxs...)
+		// Merge unconfirmed with confirmed transactions. Unconfirmed must be
+		// first since these first transactions have their time set differently
+		// from confirmed transactions.
+		hashes = append(UnconfirmedTxs, hashes...)
 
-		txcount := len(rawTxs)
-
-		if txcount > 10 {
-			rawTxs = rawTxs[0:10]
+		txcount := len(hashes)
+		pagesTotal := txcount / txPageSize
+		if txcount%txPageSize != 0 {
+			pagesTotal++
 		}
 
+		// Go to the last page if pageNum is greater than the number of pages.
+		if pageNum > pagesTotal {
+			pageNum = pagesTotal
+		}
+
+		// Grab the transactions for the given page.
+		skipTxns := (pageNum - 1) * txPageSize
 		txsOld := []*dcrjson.TxRawResult{}
-		for i, rawTx := range rawTxs {
-			txOld, err1 := iapi.BlockData.GetRawTransaction(&rawTx)
-			if err1 != nil {
-				apiLog.Errorf("Unable to get transaction %s", rawTx)
-				writeInsightError(w, fmt.Sprintf("Error gathering transaction details (%s)", err1))
+		for i := skipTxns; i < txcount && i < txPageSize+skipTxns; i++ {
+			txOld, err := iapi.BlockData.GetRawTransaction(&hashes[i])
+			if err != nil {
+				apiLog.Errorf("Unable to get transaction %s", hashes[i])
+				writeInsightError(w, fmt.Sprintf("Error gathering transaction details (%s)", err))
 				return
 			}
 
@@ -706,16 +720,16 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 			txsOld = append(txsOld, txOld)
 		}
 
-		// Convert to Insight struct
+		// Convert to dcrjson transaction to Insight tx type.
 		txsNew, err := iapi.TxConverter(txsOld)
 		if err != nil {
-			apiLog.Error("Error Processing Transactions")
+			apiLog.Error("getTransactions: Error processing transactions: %v", err)
 			writeInsightError(w, "Error Processing Transactions")
 			return
 		}
 
 		addrTransactions := apitypes.InsightBlockAddrTxSummary{
-			PagesTotal: int64(txcount),
+			PagesTotal: int64(pagesTotal),
 			Txs:        txsNew,
 		}
 		writeJSON(w, addrTransactions, iapi.getIndentQuery(r))
