@@ -754,10 +754,7 @@ func _main(ctx context.Context) error {
 		// MenuFormParser will typically redirect, but going to the homepage as a
 		// fallback.
 		r.With(explorer.MenuFormParser).Post("/set", explore.Home)
-		r.Get("/51-attack-cost", func(w http.ResponseWriter, r *http.Request) {
-			//node height from chain server
-			explore.MiningCalculations(nodeHeight, block, w, r)
-		})
+		r.Get("/attack-cost", explore.AttackCost)
 	})
 
 	// Configure a page for the bare "/insight" path. This mounts the static
