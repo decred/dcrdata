@@ -22,7 +22,6 @@ import (
 	"github.com/decred/dcrd/dcrutil/v2"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrd/txscript/v2"
-	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/exchanges/v2"
 	"github.com/decred/dcrdata/explorer/types/v2"
@@ -2217,60 +2216,47 @@ func calcPages(rows, pageSize, offset int, link string) pageNumbers {
 	return nums
 }
 
-// mining calculations 51%. is the page handler for the "/tool-mining-calculations" path.
-func (exp *explorerUI) MiningCalculations(nodeHeight int64, block *wire.BlockHeader, w http.ResponseWriter, r *http.Request) {
-	//get height block DB
-	height, _ := exp.blockData.GetHeight()
-	var (
-		HashRate        float64
-		TicketPoolSize  uint32
-		TicketPrice     float64
-		Price           float64
-		TicketPoolValue float64
-	)
+// AttackCost is the page handler for the "/attack-cost" path.
+func (exp *explorerUI) AttackCost(w http.ResponseWriter, r *http.Request) {
+	var price float64
 	if exp.xcBot != nil {
 		//get latest price DCR
 		ExchangeRate := exp.xcBot.Conversion(1.0)
 		if ExchangeRate != nil {
-			Price = ExchangeRate.Value
+			price = ExchangeRate.Value
 		}
 	}
-	if Price == 0 {
-		Price = 24.42
-	}
-	PoolInfo := exp.pageData.HomeInfo.PoolInfo
-	TicketPoolValue = PoolInfo.Value
 
-	if height > nodeHeight {
-		HashRate = exp.pageData.HomeInfo.HashRate
-		TicketPoolSize = PoolInfo.Size
-		TicketPrice = exp.pageData.HomeInfo.StakeDiff
-
-	} else {
-		height = nodeHeight
-		TicketPoolSize = block.PoolSize
-		TicketPrice = dcrutil.Amount(block.SBits).ToCoin()
-		diffRatio := txhelpers.GetDifficultyRatio(block.Bits, exp.ChainParams)
-		targetTimePerBlock := float64(exp.ChainParams.TargetTimePerBlock)
-		HashRate = dbtypes.CalculateHashRate(diffRatio, targetTimePerBlock)
+	if price == 0 {
+		price = 24.42
 	}
+
+	exp.pageData.RLock()
+
+	height := exp.pageData.BlockInfo.Height
+	ticketPoolValue := exp.pageData.HomeInfo.PoolInfo.Value
+	ticketPoolSize := exp.pageData.HomeInfo.PoolInfo.Size
+	ticketPrice := exp.pageData.HomeInfo.StakeDiff
+	HashRate := exp.pageData.HomeInfo.HashRate
+
+	defer exp.pageData.RUnlock()
 
 	str, err := exp.templates.execTemplateToString("attackcost", struct {
 		*CommonPageData
 		HashRate        float64
 		Height          int64
-		TicketPoolSize  int64
+		DCRPrice        float64
 		TicketPrice     float64
-		Price           float64
+		TicketPoolSize  int64
 		TicketPoolValue float64
 	}{
 		CommonPageData:  exp.commonData(r),
 		HashRate:        HashRate,
 		Height:          height,
-		TicketPoolSize:  int64(TicketPoolSize),
-		TicketPrice:     TicketPrice,
-		TicketPoolValue: TicketPoolValue,
-		Price:           Price,
+		DCRPrice:        price,
+		TicketPrice:     ticketPrice,
+		TicketPoolSize:  int64(ticketPoolSize),
+		TicketPoolValue: ticketPoolValue,
 	})
 
 	//exp.pageData.RUnlock()
@@ -2279,8 +2265,8 @@ func (exp *explorerUI) MiningCalculations(nodeHeight int64, block *wire.BlockHea
 		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
+
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, str)
-
 }

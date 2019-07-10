@@ -1,14 +1,24 @@
 {{define "attackcost"}}
 <!DOCTYPE html>
 <html lang="en">
-{{ template "html-head" "Attack Cost Calculator"}}
+{{ template "html-head" "Majority Attack Cost Calculator"}}
 {{template "navbar" . }}
   
-   <div class="container py-1 mb-2"  data-controller="attackcost">
-      <div class="col-md-24 p-0" >
+   <div
+      class="container py-1 mb-2"
+      data-controller="attackcost"
+      data-attackcost-height="{{.Height}}"
+      data-attackcost-hashrate="{{.HashRate}}"
+      data-attackcost-dcrprice="{{.DCRPrice}}"
+      data-attackcost-ticket-price="{{.TicketPrice}}"
+      data-attackcost-ticket-pool-value="{{.TicketPoolValue}}"
+      data-attackcost-ticket-pool-size="{{.TicketPoolSize}}"
+    >
+      <div class="col-md-24 p-0">
         <div class="bg-white mb-1 py-2 px-3 my-0">
           <div class="d-inline-block position-relative p-2">
-            <span class="card-icon dcricon-twoblocks h1 mr-2"></span> <span class="h4 my-3">Attack Cost Calculator</span>
+            <span class="card-icon dcricon-twoblocks h1 mr-2"></span>
+            <span class="h4 my-3">Majority Attack Cost Calculator</span>
           </div>
 
           <div class="mt-1 ml-2">
@@ -17,72 +27,95 @@
               <input
                 class="slider"
                 data-target="attackcost.tickets"
-                data-action="input->attackcost#estimatedHashRate"
+                data-action="input->attackcost#updateSliderData"
                 type="range"
-                min=".01"
-                max=".99"
+                min="0.01"
+                max="0.99"
                 step="0.01"
-                value=".50"
+                value="0.50"
               >
-              <div>If an attacker has in thier control <span class="font-weight-bold" data-target="attackcost.ticketpool"></span> and
-                <span class="font-weight-bold" data-target="attackcost.internalhash"></span> (HashRate) they will be able to generate blocks at the same average speed as the honest network.
+              <div>If an attacker has in their control <span class="font-weight-bold" data-target="attackcost.ticketpool">0</span> and
+                <span class="font-weight-bold" data-target="attackcost.internalhash">0</span>
+                (HashRate) they will be able to generate blocks at the same average speed as the honest network.
               </div>
             </div>
           </div>
 
           <div class="mt-2 ml-2">
-            The current hash rate is  <span class="font-weight-bold" data-target="attackcost.hashRate">{{printf "%.3f" .HashRate}}</span> Ph/s as of block  {{$.Height}}. </span>
+            The current hash rate is
+            <span class="font-weight-bold" data-target="attackcost.actualHashRate"></span>
+            Ph/s as of block  <span data-target="attackcost.blockHeight">0</span>.
           </div>
 
           <div class="mt-2 ml-2 pr-3">
-              A <input type="number" step="1" data-action="change->attackcost#UpdateTargetPow" min="1" max="100" value="51" data-target="attackcost.targetPow">%
-              PoW attack would need <span class="font-weight-bold" data-target="attackcost.targetHashRate"></span><span class="pl-1 unit lh15rem">Ph/s</span>.
+              A 
+              <input
+                type="number"
+                data-target="attackcost.targetPow"
+                data-action="change->attackcost#updateTargetPow"
+                step="1"
+                min="1"
+                max="100"
+                value="51"
+              >%
+              PoW attack would need <span class="font-weight-bold" data-target="attackcost.targetHashRate">0</span>
+              <span class="pl-1 unit lh15rem">Ph/s</span>.
           </div>
 
           <div class="mt-2 ml-2 row">
-            <div class="col-sm-5">Choose Device:</div>
-            <div class="col-sm-19">
-              <input class="form-check-input" data-action="change->attackcost#ChooseDevice" type="radio" name="exampleRadios" data-target="attackcost.device" id="exampleRadios1" value="0">
-              <label class="form-check-label" for="exampleRadios1" >
-                <a href="https://www.cryptocompare.com/mining/bitmain/antminer-dr5-blake256r14-34ths/" target="_blank">DR5 </a><span class="text-muted"> 34 Th/s, 1610W, $1,282 per unit.  </span>
-              </label>
-              <div>
-                <input class="form-check-input" data-action="change->attackcost#ChooseDevice" type="radio" name="exampleRadios" data-target="attackcost.device" id="exampleRadios2" value="1">
-                <label class="form-check-label" for="exampleRadios2">
-                  <a href="https://www.cryptocompare.com/mining/crypto-drilling/microbt-whatsminer-d1-plus-psu-dcr-44ths/" target="_blank">D1</a>  <span class="text-muted">44 Th/s, 2200w, $4,199 per unit.  </span></label>
-              </div>
-            </div>
+            <div class="col-sm-2">Device:</div>
+            <select
+              class="form-control chart-form-control"
+              data-action="attackcost#chooseDevice"
+              data-target="attackcost.device"
+            >
+              <option value="0">
+                <a href="https://www.cryptocompare.com/mining/bitmain/antminer-dr5-blake256r14-34ths/" target="_blank">DR5 </a>
+                <span class="text-muted"> 34 Th/s, 1610W, $1,282 per unit.</span>
+              </option>
+              <option value="1">
+                <a href="https://www.cryptocompare.com/mining/crypto-drilling/microbt-whatsminer-d1-plus-psu-dcr-44ths/" target="_blank">D1</a>
+                <span class="text-muted">44 Th/s, 2200w, $4,199 per unit.</span>
+              </option>
+            </select>
           </div>
 
           <div class="mt-2 ml-2 row">
-            <div class="col-sm-5">Choose Type Attack:</div>
-            <div class="col-sm-19">
-              <div>
-              <input class="form-check-input" data-action="change->attackcost#ChooseType" type="radio" name="type" data-target="attackcost.type" id="type1" value="0">
-              <label class="form-check-label" for="type1" >
-                An internal  attack.
-              </label>
-              </div>
-              <div>
-                <input class="form-check-input" data-action="change->attackcost#ChooseType" type="radio" name="type" data-target="attackcost.type" id="type2" value="1">
-                <label class="form-check-label" for="type2">
-                  An external attack.
-              </div>
-            </div>
+            <div class="col-sm-2">Type Attack:</div>
+            <select
+              class="form-control chart-form-control"
+              data-action="attackcost#chooseAttackType"
+              data-target="attackcost.typeAttack"
+            >
+              <option value="0">Internal Attack</option>
+              <option value="1">External Attack</option>
+            </select>
           </div>
 
           <div class="mt-2 ml-2">
-            In order to aquire a <span class="font-weight-bold" data-target="attackcost.targetHashRateTwo"></span> Ph/s hashrate, it would take <span class="font-weight-bold"></span> <span data-target="attackcost.deviceHashRate"></span>  <span class="font-weight-bold" data-target="attackcost.countDevice"></span>  <span data-target="attackcost.deviceName"></span>. It would cost <span class="font-weight-bold" data-target="attackcost.totalDeviceCost"></span> to buy them.
+            In order to aquire a <span class="font-weight-bold" data-target="attackcost.targetHashRate">0</span>
+            Ph/s hashrate, it would take
+            <span class="font-weight-bold" data-target="attackcost.countDevice">0</span>
+            <span data-target="attackcost.deviceName">0</span>.
+            It would cost <span class="font-weight-bold" data-target="attackcost.totalDeviceCost">0</span> to buy them.
           </div>
 
           <div class="mt-2 ml-2">
-            Total number of hours for during the attack  <input type="number" step="1" min="1" data-action="change->attackcost#UpdateTime" data-target="attackcost.time" value="1">.
+            Length of attack is
+            <input
+              type="number"
+              data-target="attackcost.attackPeriod"
+              data-action="change->attackcost#updateAttackTime"
+              step="1"
+              min="1"
+              value="1"
+            > hour(s).
           </div>
 
           <div class="mt-2 ml-2 pr-3">
             Total kWh attack for 
-            <span data-target="attackcost.timeStr"></span>:   ( <span data-target="attackcost.devicePower"></span>W x <span data-target="attackcost.timeStrThree"></span>)/1000 =
-            <span class="font-weight-bold" data-target="attackcost.totalKwh"></span> kWh.
+            <span data-target="attackcost.timeStrLong">0</span>: ( <span data-target="attackcost.devicePower">0</span>W x <span data-target="attackcost.timeStrShort">0</span>)/1000 =
+            <span class="font-weight-bold" data-target="attackcost.totalKwh">0</span> kWh.
           </div>
 
           <div class="mt-2 ml-2">
@@ -90,7 +123,7 @@
             <input
               type="number"
               data-target="attackcost.kwhRate"
-              data-action="change->attackcost#UpdateKwhRate"
+              data-action="change->attackcost#updateKwhRate"
               step="0.1"
               min="0.1"
               value="0.1">
@@ -98,68 +131,112 @@
           </div>
 
           <div class="mt-2 ml-2 ">
-            Costs of <span data-target="attackcost.timeStrTwo"></span> electricity consumption for <span class="font-weight-bold" data-target="attackcost.deviceNameTwo"></span>:  <span data-target="attackcost.totalKwhStr"></span> x $<span  data-target="attackcost.kwhRateTwo"></span> per kilowatt hour  =
-              <span class="font-weight-bold" data-target="attackcost.totalElectricity"></span>.
+            Costs of <span data-target="attackcost.timeStrLong">0</span>
+            electricity consumption for <span class="font-weight-bold" data-target="attackcost.deviceNameTwo">0</span> :
+            <span data-target="attackcost.totalKwhStr">0</span> x $
+            <span  data-target="attackcost.kwhRateTwo">0</span> per kilowatt hour =
+            <span class="font-weight-bold" data-target="attackcost.totalElectricity">0</span>.
           </div>
 
           <div class="mt-2 ml-2">
             To carry out the attack, additional costs for facilities and cooling are estimated at 
-            <input type="number"  step="1" min="1" max="100" data-action="change->attackcost#UpdateFacility" data-target="attackcost.facility">% of the cost of the miners.
+            <input
+              type="number"
+              data-action="change->attackcost#updateOtherCosts"
+              data-target="attackcost.otherCosts"
+              step="1"
+              min="1"
+              max="100"
+              value="0"
+            >% of the cost of the miners.
           </div>
 
           <div class="mt-2 ml-2 pr-3">
-            Total PoW attack cost: <span data-target="attackcost.totalDeviceCostTwo"></span> x <span data-target="attackcost.TotalFree"></span>+ <span data-target="attackcost.totalElectricityTwo"></span> = <span class="font-weight-bold" data-target="attackcost.totalPow"></span>.
+            Total PoW attack cost:
+            <span data-target="attackcost.totalDeviceCost">0</span> x
+            <span data-target="attackcost.TotalFree">0</span> +
+            <span data-target="attackcost.totalElectricity">0</span> =
+            <span class="font-weight-bold" data-target="attackcost.totalPow">0</span>.
           </div>
           
           <div class="mt-2 ml-2 pr-3">Every block 5 tickets vote and 3/5 tickets are required for the block to be valid.</div>
           <div class="mt-2 ml-2 pr-3">
-            Current ticket pool size is <span style="display:none" data-target="attackcost.ticketPoolSize"> {{ $.TicketPoolSize }}</span>
-            <span class="font-weight-bold" > {{ int64Comma .TicketPoolSize }} </span> tickets.
+            Current ticket pool size is <span data-target="attackcost.ticketPoolSize">0</span> tickets.
           </div>
 
-          <div class="mt-2 ml-2 pr-3" id="internal">
+          <div class="mt-2 ml-2 pr-3" data-target="attackcost.internal">
             Current ticket price is 
-            <span class="font-weight-bold" data-target="attackcost.ticketPrice">  {{printf "%.3f" .TicketPrice }} </span> DCR.
+            <span class="font-weight-bold" data-target="attackcost.ticketPrice">0</span> DCR.
           </div>
-          <div id="external">
+          <div data-target="attackcost.external">
               <div class="mt-2 ml-2 pr-3">
-                Total Staked DCR is 
-                <span  data-target="attackcost.ticketPoolValueThree" class="font-weight-bold"></span>.
+                Total Staked DCR is
+                <span  data-target="attackcost.ticketPoolValue" class="font-weight-bold">0</span>.
               </div>
               <div class="mt-2 ml-2 pr-3">
                 DCR needed for the attack process
-                <span data-target="attackcost.ticketPoolValue" style="display:none"> {{$.TicketPoolValue }}</span> 
-                <span data-target="attackcost.ticketPoolValueTwo"></span> / 0,6 = <span class="font-weight-bold" data-target="attackcost.ticketPoolAttack"></span>
+                <span data-target="attackcost.ticketPoolValue">0</span> / 0.6 =
+                <span class="font-weight-bold" data-target="attackcost.ticketPoolAttack">0</span>
                 DCR.
               </div>
               <div class="mt-2 ml-2 pr-3">
                 The future ticket price is 
-                <span data-target="attackcost.ticketPoolAttackTwo"></span> / {{ int64Comma .TicketPoolSize }} = <span class="font-weight-bold" data-target="attackcost.ticketPriceExtend"></span>
+                <span data-target="attackcost.ticketPoolAttack">0</span> /
+                <span data-target="attackcost.ticketPoolSize">0</span> =
+                <span class="font-weight-bold" data-target="attackcost.ticketPrice">0</span>
                 DCR.
               </div>
           </div>
 
           <div class="mt-2 ml-2 pr-3">
             We assume that an attacker would need to aquire 
-            <input type="number" step="1" min="1" data-target="attackcost.targetPos" data-action="change->attackcost#UpdateTargetPos" max="100" value="60">% of the ticket pool to do the attack.
+            <input
+              type="number"
+              data-target="attackcost.targetPos"
+              data-action="change->attackcost#updateTargetPos"
+              step="1"
+              min="1"
+              max="100"
+              value="60"
+            >% of the ticket pool to do the attack.
           </div>
 
           <div class="mt-2 ml-2 pr-3">
-            Tickets needed to attack is {{ int64Comma .TicketPoolSize }} x <span  data-target="attackcost.targetPosStr"></span>   = <span class="font-weight-bold" data-target="attackcost.ticketSizeAttach"></span> tickets.
+            Tickets needed to attack is <span data-target="attackcost.ticketPoolSize">0</span> x
+            <span data-target="attackcost.targetPosStr">0</span> =
+            <span class="font-weight-bold" data-target="attackcost.ticketSizeAttach">0</span>
+            tickets.
           </div>
 
           <div class="mt-2 ml-2 pr-3">
-            Funds needed to buy <span class="font-weight-bold" data-target="attackcost.ticketSizeAttach"></span> tickets is  <span  data-target="attackcost.ticketSizeAttachTwo"></span> x  <span data-target="attackcost.ticketPriceTwo"></span> = <span class="font-weight-bold" data-target="attackcost.totalDCRPos"></span> DCR.
+            Funds needed to buy <span class="font-weight-bold" data-target="attackcost.ticketSizeAttach">0</span>
+            tickets is <span data-target="attackcost.ticketSizeAttach">0</span> x
+            <span data-target="attackcost.ticketPrice">0</span> =
+            <span class="font-weight-bold" data-target="attackcost.totalDCRPos">0</span> DCR.
           </div>
 
           <div class="mt-2 ml-2 pr-3">
-            The current USD-DCR market price is $<input type="number"  step="0.1" min="0.01" data-action="change->attackcost#UpdatePrice" data-target="attackcost.price" value="{{printf "%.2f" .Price}}">.
+            The current USD-DCR market price is $
+            <input
+              type="number"
+              data-target="attackcost.price"
+              data-action="change->attackcost#UpdatePrice"
+              step="0.1"
+              min="0.01"
+              value="20"
+            >.
           </div>
           <div class="mt-2 ml-2 pr-3">
-            Total PoS attack cost:  <span data-target="attackcost.totalDCRPosTwo"></span> x <span data-target="attackcost.priceTwo"></span>= <span class="font-weight-bold" data-target="attackcost.totalPos"> </span>.
+            Total PoS attack cost:
+            <span data-target="attackcost.totalDCRPos">0</span> x
+            <span data-target="attackcost.priceDCR">0</span> =
+            <span class="font-weight-bold" data-target="attackcost.totalPos">0</span>.
           </div>
           <div class="mt-2 ml-2 pr-3">
-            Total attack cost is  <span data-target="attackcost.totalPowTwo"></span>  + <span data-target="attackcost.totalPosTwo"></span> = <span class="font-weight-bold" data-target="attackcost.total"> <span>.
+            Total attack cost is
+            <span data-target="attackcost.totalPow">0</span> +
+            <span data-target="attackcost.totalPos">0</span> =
+            <span class="font-weight-bold" data-target="attackcost.total">0<span>.
           </div>
         </div>
       </div>
