@@ -111,13 +111,13 @@
 					{{- else}}
 						<a class="menu-item" data-keynav-skip href="{{.Links.Mainnet}}" title="Home">Switch To Mainnet</a>
 					{{- end}}
-						<form action="/set" method="post">
+						<form action="/set" method="post" data-target="menu.form" class="menu-form">
 							<input type="hidden" name="darkmode" value="darkmode">
 							<input type="hidden" name="requestURI" value="{{.RequestURI}}">
-							<button type="submit"
+							<button type="submit" data-action="click->menu#onSunClick"
 									class="menu-submit text-left w-100 p-0"
 									data-keynav-skip>
-									<div class="menu-item" data-action="click->menu#onSunClick">
+									<div class="menu-item">
 									  <span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span>
 									  Night Mode
 									</div>

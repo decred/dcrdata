@@ -142,6 +142,10 @@ body.darkBG {
     }
   }
 
+  #menu .menu-form:hover .menu-item {
+    color: $dark-link-hover-color;
+  }
+
   #menu {
     background: #2a2a2a;
     box-shadow: 0 0 0 1px #fff3;
