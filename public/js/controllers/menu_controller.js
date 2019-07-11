@@ -14,12 +14,17 @@ function closest (el, id) {
 
 export default class extends Controller {
   static get targets () {
-    return ['toggle', 'darkModeToggle']
+    return ['toggle', 'darkModeToggle', 'form']
   }
 
   connect () {
     this.clickout = this._clickout.bind(this)
-    document.querySelectorAll('.menu-submit').forEach(button => { button.disabled = true })
+    this.formTargets.forEach(form => {
+      form.addEventListener('submit', e => {
+        e.preventDefault()
+        return false
+      })
+    })
   }
 
   _clickout (e) {
