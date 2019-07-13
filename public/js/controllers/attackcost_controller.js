@@ -1,10 +1,6 @@
 import { Controller } from 'stimulus'
 import TurboQuery from '../helpers/turbolinks_helper'
 
-function currencyFormat (amount, decimalPlaces) {
-  return '$ ' + digitformat(amount, decimalPlaces)
-}
-
 function digitformat (amount, decimalPlaces) {
   decimalPlaces = decimalPlaces || 0
   return amount.toLocaleString(undefined, { maximumFractionDigits: decimalPlaces })
@@ -15,29 +11,32 @@ var height, dcrPrice, hashrate, tpSize, tpValue, tpPrice
 const deviceList = {
   '0': {
     hashrate: 34, // Th/s
+    units: 'Th/s',
     power: 1610, // W
     cost: 1282, // $
-    name: 'DCR5s'
+    name: 'DCR5',
+    link: 'https://www.cryptocompare.com/mining/bitmain/antminer-dr5-blake256r14-34ths/'
   },
   '1': {
     hashrate: 44, // Th/s
+    units: 'Th/s',
     power: 2200, // W
     cost: 4199, // $
-    name: 'D1s'
+    name: 'D1',
+    link: 'https://www.cryptocompare.com/mining/crypto-drilling/microbt-whatsminer-d1-plus-psu-dcr-44ths/'
   }
 }
 
 export default class extends Controller {
   static get targets () {
     return [
-      'actualHashRate', 'targetPow', 'device', 'targetPos', 'targetPosStr', 'targetHashRate',
-      'timeStrLong', 'timeStrShort', 'attackPeriod', 'kwhRate', 'ticketPoolSize',
-      'ticketAttackSize', 'price', 'ticketPrice', 'total', 'deviceName', 'deviceCost',
-      'devicePower', 'totalKwh', 'totalKwhStr', 'totalElectricity', 'totalDeviceCost',
-      'totalPow', 'totalPos', 'ticketSizeAttach', 'blockHeight', 'totalDCRPos', 'otherCosts',
-      'TotalFree', 'countDevice', 'kwhRateTwo', 'deviceNameTwo', 'ticketPoolValue',
-      'ticketPoolAttack', 'ticketPriceTwo', 'ticketPoolValueTwo', 'ticketPriceExtend',
-      'tickets', 'internalhash', 'ticketpool', 'external', 'internal', 'typeAttack', 'priceDCR'
+      'actualHashRate', 'attackPercent', 'attackPeriod', 'blockHeight', 'countDevice', 'device',
+      'deviceCost', 'deviceDesc', 'deviceName', 'devicePower', 'external', 'internal', 'internalHash',
+      'kwhRate', 'kwhRateLabel', 'otherCosts', 'priceDCR', 'priceDCRLabel', 'targetHashRate', 'targetPos',
+      'targetPosLabel', 'targetPow', 'ticketAttackSize', 'ticketPoolAttack', 'ticketPoolSize',
+      'ticketPoolValue', 'ticketPrice', 'tickets', 'ticketSizeAttach', 'durationLongDesc', 'durationShortDesc',
+      'total', 'totalDCRPos', 'totalDeviceCost', 'totalElectricity', 'totalExtraCostRate', 'totalKwh',
+      'totalPos', 'totalPow', 'typeAttack'
     ]
   }
 
@@ -59,12 +58,13 @@ export default class extends Controller {
     if (this.settings.kwh_rate) this.kwhRateTarget.value = parseFloat(this.settings.kwh_rate)
     if (this.settings.other_costs) this.otherCostsTarget.value = parseFloat(this.settings.other_cost)
     if (this.settings.target_pos) this.targetPosTarget.value = parseFloat(this.settings.target_pos)
-    if (this.settings.price) this.priceTarget.value = parseFloat(this.settings.price)
+    if (this.settings.price) this.priceDCRTarget.value = parseFloat(this.settings.price)
     if (this.settings.device) this.setDevice(this.settings.device)
     if (this.settings.attack_type) this.setAttackType(this.settings.attack_type)
 
-    this.updateSliderData()
+    this.setDevicesDesc()
     this.updateAttackType()
+    this.updateSliderData()
   }
 
   updateAttackTime () {
@@ -74,7 +74,9 @@ export default class extends Controller {
 
   updateTargetPow () {
     this.settings.target_pow = this.targetPowTargetTarget.value
-    this.calculate()
+    this.attackPercentTarget.value = this.targetPowTargetTarget.value / 100
+
+    this.updateSliderData()
   }
 
   chooseDevice () {
@@ -98,8 +100,8 @@ export default class extends Controller {
   }
 
   updatePrice () {
-    this.settings.price = this.priceTarget.value
-    dcrPrice = this.priceTarget.value
+    this.settings.price = this.priceDCRTarget.value
+    dcrPrice = this.priceDCRTarget.value
     this.calculate()
   }
 
@@ -129,6 +131,14 @@ export default class extends Controller {
     return val
   }
 
+  setDevicesDesc () {
+    this.deviceDescTargets.map((n) => {
+      let info = deviceList[n.value]
+      if (!info) return
+      n.innerHTML = `${info.name}, ${info.hashrate} ${info.units}, ${info.power}w, $${digitformat(info.cost)} per unit`
+    })
+  }
+
   setDevice (selectedVal) { return this.setOption(this.deviceTargets, selectedVal) }
 
   setAttackType (selectedVal) { return this.setOption(this.typeAttackTargets, selectedVal) }
@@ -137,30 +147,36 @@ export default class extends Controller {
     options.map((n) => { n.selected = n.value === selectedVal })
   }
 
+  updateTargetHashRate (newTargetPow) {
+    this.targetPowTarget.value = newTargetPow || this.targetPowTarget.value
+    this.targetHashRate = hashrate * this.targetPowTarget.value / 100
+  }
+
   updateSliderData () {
     // equation to determine hashpower requirement based on percentage of live stake:
     // (6 (1-f_s)⁵ -15(1-f_s) + 10(1-f_s)³) / (6f_s⁵-15f_s⁴ + 10f_s³)
     // (6x⁵-15x⁴ +10x³) / (6y⁵-15y⁴ +10y³) where y = this.value and x = 1-y
-    var y = this.ticketsTarget.value
+    var y = this.attackPercentTarget.value
     var x = 1 - y
-    this.targetHashRate = hashrate * this.targetPowTarget.value / 100
+    this.updateTargetHashRate(y * 100)
 
     var rate = ((6 * Math.pow(x, 5)) - (15 * Math.pow(x, 4)) + (10 * Math.pow(x, 3))) / ((6 * Math.pow(y, 5)) - (15 * Math.pow(y, 4)) + (10 * Math.pow(y, 3)))
-    this.internalhashTarget.innerHTML = digitformat((rate * this.targetHashRate), 4) + ' Ph/s '
-    this.ticketpoolTarget.innerHTML = digitformat((y * tpSize), 0) + ' tickets '
-    this.calculate()
+    this.internalHashTarget.innerHTML = digitformat((rate * this.targetHashRate), 4) + ' Ph/s '
+    this.ticketsTarget.innerHTML = digitformat((y * tpSize), 0) + ' tickets '
+    this.calculate(true)
   }
 
-  calculate () {
-    // Update the URL first
+  calculate (disableHashRateUpdate) {
+    if (!disableHashRateUpdate) this.updateTargetHashRate()
+
     this.query.replace(this.settings)
     var deviceInfo = deviceList[this.selectedDevice()]
     var deviceCount = Math.ceil((this.targetHashRate * 1000) / deviceInfo.hashrate)
     var totalDeviceCost = deviceCount * deviceInfo.cost
     var totalKwh = deviceCount * deviceInfo.power * this.attackPeriodTarget.value / 1000
     var totalElectricity = totalKwh * this.kwhRateTarget.value
-    var totalFree = 1 + this.otherCostsTarget.value / 100
-    var totalPow = totalDeviceCost * totalFree + totalElectricity
+    var extraCostsRate = 1 + this.otherCostsTarget.value / 100
+    var totalPow = extraCostsRate * totalDeviceCost + totalElectricity
     var ticketAttackSize = Math.ceil((tpSize * this.targetPosTarget.value) / 100)
     var ticketPrice = tpPrice
     // extend attack
@@ -173,36 +189,33 @@ export default class extends Controller {
 
     var totalDCRPos = ticketAttackSize * ticketPrice
     var totalPos = totalDCRPos * dcrPrice
-    var total = totalPow + totalPos
     var timeStr = this.attackPeriodTarget.value
     timeStr = this.attackPeriodTarget.value > 1 ? timeStr + ' hours' : timeStr + ' hour'
 
     this.actualHashRateTarget.innerHTML = digitformat(hashrate, 4)
-    this.priceTarget.value = digitformat(dcrPrice, 2)
-    this.priceDCRTarget.innerHTML = digitformat(dcrPrice, 2)
-    this.setAllValues(this.ticketPriceTargets, digitformat(ticketPrice, 3))
-    this.setAllValues(this.targetHashRateTargets, digitformat(this.targetHashRate, 3))
-    this.setAllValues(this.timeStrLongTargets, timeStr)
-    this.timeStrShortTarget.innerHTML = this.attackPeriodTarget.value + 'h'
-    this.countDeviceTarget.innerHTML = digitformat(deviceCount)
-    this.deviceNameTarget.innerHTML = deviceInfo.name
-    this.deviceNameTwoTarget.innerHTML = digitformat(deviceCount) + ' ' + deviceInfo.name
+    this.priceDCRTarget.value = digitformat(dcrPrice, 2)
+    this.priceDCRLabelTarget.innerHTML = digitformat(dcrPrice, 2)
+    this.setAllValues(this.ticketPriceTargets, digitformat(ticketPrice, 4))
+    this.setAllValues(this.targetHashRateTargets, digitformat(this.targetHashRate, 4))
+    this.setAllValues(this.durationLongDescTargets, timeStr)
+    this.durationShortDescTarget.innerHTML = this.attackPeriodTarget.value + 'h'
+    this.setAllValues(this.countDeviceTargets, digitformat(deviceCount))
+    this.setAllValues(this.deviceNameTargets, `<a href="${deviceInfo.link}">${deviceInfo.name}</a>s`)
     this.devicePowerTarget.innerHTML = digitformat(deviceInfo.power)
-    this.TotalFreeTarget.innerHTML = digitformat(totalFree)
-    this.setAllValues(this.totalDeviceCostTargets, currencyFormat(totalDeviceCost))
-    this.totalKwhTarget.innerHTML = digitformat(totalKwh, 2)
-    this.totalKwhStrTarget.innerHTML = digitformat(totalKwh, 2) + ' kWh'
-    this.kwhRateTwoTarget.innerHTML = digitformat(parseFloat(this.kwhRateTarget.value), 2)
-    this.setAllValues(this.totalElectricityTargets, currencyFormat(totalElectricity, 2))
-    this.setAllValues(this.totalPowTargets, currencyFormat(totalPow, 2))
-    this.targetPosStrTarget.innerHTML = this.targetPosTarget.value + '%'
+    this.totalExtraCostRateTarget.innerHTML = digitformat(extraCostsRate, 4)
+    this.setAllValues(this.totalDeviceCostTargets, digitformat(totalDeviceCost))
+    this.setAllValues(this.totalKwhTargets, digitformat(totalKwh, 2))
+    this.kwhRateLabelTarget.innerHTML = digitformat(parseFloat(this.kwhRateTarget.value), 2)
+    this.setAllValues(this.totalElectricityTargets, digitformat(totalElectricity, 2))
+    this.setAllValues(this.totalPowTargets, digitformat(totalPow, 2))
+    this.targetPosLabelTarget.innerHTML = this.targetPosTarget.value + '%'
     this.setAllValues(this.ticketSizeAttachTargets, digitformat(ticketAttackSize))
     this.setAllValues(this.totalDCRPosTargets, digitformat(totalDCRPos, 2))
-    this.setAllValues(this.totalPosTargets, currencyFormat(totalPos, 2))
+    this.setAllValues(this.totalPosTargets, digitformat(totalPos, 2))
     this.setAllValues(this.ticketPoolValueTargets, digitformat(tpValue))
     this.setAllValues(this.ticketPoolSizeTargets, digitformat(tpSize))
     this.blockHeightTarget.innerHTML = digitformat(height)
-    this.totalTarget.innerHTML = currencyFormat(total, 2)
+    this.totalTarget.innerHTML = digitformat(totalPow + totalPos, 2)
   }
 
   setAllValues (targets, data) {
