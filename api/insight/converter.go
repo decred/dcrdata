@@ -35,13 +35,13 @@ func (iapi *InsightApi) DcrToInsightTxns(txs []*dcrjson.TxRawResult, noAsm, noSc
 			Size:          uint32(len(tx.Hex) / 2),
 		}
 
-		// Vins fill
+		// Vins
 		var vInSum float64
 		for vinID, vin := range tx.Vin {
 			InsightVin := &apitypes.InsightVin{
 				Txid:     vin.Txid,
-				Vout:     vin.Vout,
-				Sequence: vin.Sequence,
+				Vout:     newUint32Ptr(vin.Vout),
+				Sequence: newUint32Ptr(vin.Sequence),
 				N:        vinID,
 				Value:    vin.AmountIn,
 				CoinBase: vin.Coinbase,
@@ -80,7 +80,7 @@ func (iapi *InsightApi) DcrToInsightTxns(txs []*dcrjson.TxRawResult, noAsm, noSc
 
 		}
 
-		// Vout fill
+		// Vouts
 		var vOutSum float64
 		for _, v := range tx.Vout {
 			InsightVout := &apitypes.InsightVout{
