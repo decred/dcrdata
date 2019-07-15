@@ -9,6 +9,7 @@ import (
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
 	apitypes "github.com/decred/dcrdata/api/types/v3"
+	"github.com/decred/dcrdata/txhelpers/v2"
 )
 
 // TxConverter converts dcrd-tx to insight tx
@@ -36,16 +37,23 @@ func (iapi *InsightApi) DcrToInsightTxns(txs []*dcrjson.TxRawResult, noAsm, noSc
 		}
 
 		// Vins
-		var vInSum float64
+		var vInSum dcrutil.Amount
 		for vinID, vin := range tx.Vin {
+			amt, _ := dcrutil.NewAmount(vin.AmountIn)
+			vInSum += amt
+
 			InsightVin := &apitypes.InsightVin{
 				Txid:     vin.Txid,
 				Vout:     newUint32Ptr(vin.Vout),
 				Sequence: newUint32Ptr(vin.Sequence),
 				N:        vinID,
 				Value:    vin.AmountIn,
+				ValueSat: int64(amt),
 				CoinBase: vin.Coinbase,
 			}
+
+			vinCoinbase := vin.IsCoinBase() || vin.IsStakeBase()
+			txNew.IsCoinBase = txNew.IsCoinBase || vinCoinbase
 
 			// init ScriptPubKey
 			if !noScriptSig {
@@ -58,30 +66,32 @@ func (iapi *InsightApi) DcrToInsightTxns(txs []*dcrjson.TxRawResult, noAsm, noSc
 				}
 			}
 
-			// Note: this only gathers information from the database, which does
-			// not include mempool transactions.
-			_, addresses, value, err := iapi.BlockData.ChainDB.AddressIDsByOutpoint(vin.Txid, vin.Vout)
-			if err == nil {
-				if len(addresses) > 0 {
-					// Update Vin due to DCRD AMOUNTIN - START
-					// NOTE THIS IS ONLY USEFUL FOR INPUT AMOUNTS THAT ARE NOT ALSO FROM MEMPOOL
-					if tx.Confirmations == 0 {
-						InsightVin.Value = dcrutil.Amount(value).ToCoin()
-					}
-					// Update Vin due to DCRD AMOUNTIN - END
+			// First, attempt to get input addresses from our DB, which should
+			// work if the funding transaction is confirmed. Otherwise use RPC
+			// to get the funding transaction outpoint addresses.
+			if !vinCoinbase {
+				_, addresses, _, err := iapi.BlockData.ChainDB.AddressIDsByOutpoint(vin.Txid, vin.Vout)
+				if err == nil && len(addresses) > 0 {
 					InsightVin.Addr = addresses[0]
+				} else {
+					// If the previous outpoint is from an unconfirmed transaction,
+					// fetch the prevout's addresses since dcrd does not include
+					// these details in the info for the spending transaction.
+					addrs, _, err := txhelpers.OutPointAddressesFromString(
+						vin.Txid, vin.Vout, vin.Tree, iapi.nodeClient, iapi.params)
+					if err != nil {
+						apiLog.Errorf("OutPointAddresses: %v", err)
+					} else if len(addrs) > 0 {
+						InsightVin.Addr = addrs[0]
+					}
 				}
 			}
-			dcramt, _ := dcrutil.NewAmount(InsightVin.Value)
-			InsightVin.ValueSat = int64(dcramt)
 
-			vInSum += InsightVin.Value
 			txNew.Vins = append(txNew.Vins, InsightVin)
-
 		}
 
 		// Vouts
-		var vOutSum float64
+		var vOutSum dcrutil.Amount
 		for _, v := range tx.Vout {
 			InsightVout := &apitypes.InsightVout{
 				Value: v.Value,
@@ -92,33 +102,20 @@ func (iapi *InsightApi) DcrToInsightTxns(txs []*dcrjson.TxRawResult, noAsm, noSc
 					Hex:       v.ScriptPubKey.Hex,
 				},
 			}
+
 			if !noAsm {
 				InsightVout.ScriptPubKey.Asm = v.ScriptPubKey.Asm
 			}
 
+			amt, _ := dcrutil.NewAmount(v.Value)
+			vOutSum += amt
+
 			txNew.Vouts = append(txNew.Vouts, InsightVout)
-			vOutSum += v.Value
 		}
 
-		dcramt, _ := dcrutil.NewAmount(vOutSum)
-		txNew.ValueOut = dcramt.ToCoin()
-
-		dcramt, _ = dcrutil.NewAmount(vInSum)
-		txNew.ValueIn = dcramt.ToCoin()
-
-		dcramt, _ = dcrutil.NewAmount(txNew.ValueIn - txNew.ValueOut)
-		txNew.Fees = dcramt.ToCoin()
-
-		// Return true if coinbase value is not empty, return 0 at some fields.
-		if txNew.Vins != nil && txNew.Vins[0].CoinBase != "" {
-			txNew.IsCoinBase = true
-			txNew.ValueIn = 0
-			txNew.Fees = 0
-			for _, v := range txNew.Vins {
-				v.Value = 0
-				v.ValueSat = 0
-			}
-		}
+		txNew.ValueIn = vInSum.ToCoin()
+		txNew.ValueOut = vOutSum.ToCoin()
+		txNew.Fees = (vInSum - vOutSum).ToCoin()
 
 		if !noSpent {
 			// Populate the spending status of all vouts. Note: this only
