@@ -21,6 +21,8 @@
             <span class="h4 my-3">Majority Attack Cost Calculator</span>
           </div>
 
+           <div class="justify-content-center align-items-center" data-target="attackcost.graph" style="width:90%; height:400px;"></div>
+
           <div class="mt-1 ml-2">
             <span>Drag the slider to change the amount of live tickets and hashpower required for a Majority attack on Decred.</span>
             <div class="slidecontainer">
@@ -39,6 +41,28 @@
                 (HashRate) they will be able to generate blocks at the same average speed as the honest network.
               </div>
             </div>
+          </div>
+
+          <div class="mt-2 ml-2 row">
+            <span class="mr-1">Device:</span>
+            <select
+              class="form-control chart-form-control mr-5"
+              data-action="attackcost#chooseDevice"
+              data-target="attackcost.device"
+            >
+              <option data-target="attackcost.deviceDesc" value="0">DCR5</option>
+              <option data-target="attackcost.deviceDesc" value="1">D1</option>
+            </select>
+
+            <span class="mr-1">Attack Type:</span>
+            <select
+              class="form-control chart-form-control"
+              data-action="attackcost#chooseAttackType"
+              data-target="attackcost.typeAttack"
+            >
+              <option value="0">Internal Attack</option>
+              <option value="1">External Attack</option>
+            </select>
           </div>
 
           <div class="mt-2 ml-2">
@@ -62,28 +86,6 @@
               >%
               PoW attack would need <span class="font-weight-bold" data-target="attackcost.targetHashRate">0</span>
               <span class="pl-1 unit lh15rem">Ph/s</span>.
-          </div>
-
-          <div class="mt-2 ml-2 row">
-            <span class="mr-1">Device:</span>
-            <select
-              class="form-control chart-form-control mr-5"
-              data-action="attackcost#chooseDevice"
-              data-target="attackcost.device"
-            >
-              <option data-target="attackcost.deviceDesc" value="0">DCR5</option>
-              <option data-target="attackcost.deviceDesc" value="1">D1</option>
-            </select>
-
-            <span class="mr-1">Attack Type:</span>
-            <select
-              class="form-control chart-form-control"
-              data-action="attackcost#chooseAttackType"
-              data-target="attackcost.typeAttack"
-            >
-              <option value="0">Internal Attack</option>
-              <option value="1">External Attack</option>
-              </select>
           </div>
 
           <div class="mt-2 ml-2">

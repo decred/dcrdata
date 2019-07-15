@@ -7,7 +7,7 @@ import { getDefault } from '../helpers/module_helper'
 import axios from 'axios'
 import TurboQuery from '../helpers/turbolinks_helper'
 import globalEventBus from '../services/event_bus_service'
-import { isEqual } from '../helpers/chart_helper'
+import { isEqual, nightModeOptions } from '../helpers/chart_helper'
 import dompurify from 'dompurify'
 
 var selectedChart
