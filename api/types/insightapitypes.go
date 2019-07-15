@@ -141,13 +141,13 @@ type InsightTx struct {
 
 type InsightVin struct {
 	Txid      string            `json:"txid,omitempty"`
-	Vout      uint32            `json:"vout,omitempty"`
-	Sequence  uint32            `json:"sequence,omitempty"`
+	Vout      *uint32           `json:"vout,omitempty"`
+	Sequence  *uint32           `json:"sequence,omitempty"`
 	N         int               `json:"n"`
 	ScriptSig *InsightScriptSig `json:"scriptSig,omitempty"`
 	Addr      string            `json:"addr,omitempty"`
-	ValueSat  int64             `json:"valueSat,omitempty"`
-	Value     float64           `json:"value,omitempty"`
+	ValueSat  int64             `json:"valueSat"`
+	Value     float64           `json:"value"`
 	CoinBase  string            `json:"coinbase,omitempty"`
 }
 
