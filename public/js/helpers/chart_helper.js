@@ -230,3 +230,18 @@ export function synchronize (dygraphs, syncOptions) {
     })
   })
 }
+
+export function nightModeOptions (nightModeOn) {
+  if (nightModeOn) {
+    return {
+      rangeSelectorAlpha: 0.3,
+      gridLineColor: '#596D81',
+      colors: ['#2DD8A3', '#2970FF']
+    }
+  }
+  return {
+    rangeSelectorAlpha: 0.4,
+    gridLineColor: '#C4CBD2',
+    colors: ['#2970FF', '#006600']
+  }
+}

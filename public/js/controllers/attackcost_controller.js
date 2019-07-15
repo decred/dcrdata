@@ -1,12 +1,28 @@
 import { Controller } from 'stimulus'
 import TurboQuery from '../helpers/turbolinks_helper'
+import { getDefault } from '../helpers/module_helper'
+import globalEventBus from '../services/event_bus_service'
+import { nightModeOptions } from '../helpers/chart_helper'
+import dompurify from 'dompurify'
 
 function digitformat (amount, decimalPlaces) {
+  if (!amount) return 0
   decimalPlaces = decimalPlaces || 0
   return amount.toLocaleString(undefined, { maximumFractionDigits: decimalPlaces })
 }
 
-var height, dcrPrice, hashrate, tpSize, tpValue, tpPrice
+let Dygraph // lazy loaded on connect
+var height, dcrPrice, hashrate, tpSize, tpValue, tpPrice, graphData
+
+function rateCalculation (y) {
+  y = y || 0.99
+  var x = 1 - y
+
+  // equation to determine hashpower requirement based on percentage of live stake:
+  // (6 (1-f_s)⁵ -15(1-f_s) + 10(1-f_s)³) / (6f_s⁵-15f_s⁴ + 10f_s³)
+  // (6x⁵-15x⁴ +10x³) / (6y⁵-15y⁴ +10y³) where y = this.value and x = 1-y
+  return ((6 * Math.pow(x, 5)) - (15 * Math.pow(x, 4)) + (10 * Math.pow(x, 3))) / ((6 * Math.pow(y, 5)) - (15 * Math.pow(y, 4)) + (10 * Math.pow(y, 3)))
+}
 
 const deviceList = {
   '0': {
@@ -27,6 +43,25 @@ const deviceList = {
   }
 }
 
+function legendFormatter (data) {
+  var html = ''
+  if (data.x == null) {
+    let dashLabels = data.series.reduce((nodes, series) => {
+      return `${nodes} <span style="color:${series.color};">${series.dashHTML} ${series.labelHTML}</span>`
+    }, '')
+    html = `<span class="ml-3">${this.getLabels()[0]}: N/A</span>${dashLabels}`
+  } else {
+    let yVals = data.series.reduce((nodes, series) => {
+      if (!series.isVisible) return nodes
+      return `${nodes} <span style="color:${series.color};">${series.dashHTML} ${series.labelHTML}: </span>${digitformat(series.y, 4)}`
+    }, '<br>')
+
+    html = `<span class="ml-3">${this.getLabels()[0]}: ${digitformat(data.x)}</span>${yVals}`
+  }
+  dompurify.sanitize(html)
+  return html
+}
+
 export default class extends Controller {
   static get targets () {
     return [
@@ -36,11 +71,11 @@ export default class extends Controller {
       'targetPosLabel', 'targetPow', 'ticketAttackSize', 'ticketPoolAttack', 'ticketPoolSize',
       'ticketPoolValue', 'ticketPrice', 'tickets', 'ticketSizeAttach', 'durationLongDesc', 'durationShortDesc',
       'total', 'totalDCRPos', 'totalDeviceCost', 'totalElectricity', 'totalExtraCostRate', 'totalKwh',
-      'totalPos', 'totalPow', 'typeAttack'
+      'totalPos', 'totalPow', 'typeAttack', 'graph'
     ]
   }
 
-  initialize () {
+  async connect () {
     this.query = new TurboQuery()
     this.settings = TurboQuery.nullTemplate([
       'attack_time', 'target_pow', 'kwh_rate', 'other_costs', 'target_pos', 'price', 'device', 'attack_type'
@@ -65,6 +100,52 @@ export default class extends Controller {
     this.setDevicesDesc()
     this.updateAttackType()
     this.updateSliderData()
+
+    Dygraph = await getDefault(
+      import(/* webpackChunkName: "dygraphs" */ '../vendor/dygraphs.min.js')
+    )
+
+    this.plotGraph()
+    this.processNightMode = (params) => {
+      this.chartsView.updateOptions(
+        nightModeOptions(params.nightMode)
+      )
+    }
+    globalEventBus.on('NIGHT_MODE', this.processNightMode)
+  }
+
+  disconnect () {
+    globalEventBus.off('NIGHT_MODE', this.processNightMode)
+    if (this.chartsView !== undefined) {
+      this.chartsView.destroy()
+    }
+  }
+
+  plotGraph () {
+    graphData = []
+
+    // populate graphData
+    for (var i = 0.01; i <= 0.99; i += 0.005) {
+      graphData.push([i * tpSize, rateCalculation(i)])
+    }
+
+    let options = {
+      ...nightModeOptions(false),
+      labels: ['Attackers Tickets', 'Hashpower multiplier'],
+      ylabel: 'Hash Power Multiplier',
+      xlabel: 'Attackers Tickets',
+      highlightSeriesOpts: { strokeWidth: 2 },
+      legendFormatter: legendFormatter,
+      hideOverlayOnMouseOut: false,
+      // labelsDiv: this.labelsTarget,
+      labelsSeparateLines: true,
+      showRangeSelector: false,
+      labelsKMB: true,
+      legend: 'follow'
+    }
+
+    this.chartsView = new Dygraph(this.graphTarget, graphData, options)
+    this.setActivePoint()
   }
 
   updateAttackTime () {
@@ -152,17 +233,23 @@ export default class extends Controller {
     this.targetHashRate = hashrate * this.targetPowTarget.value / 100
   }
 
-  updateSliderData () {
-    // equation to determine hashpower requirement based on percentage of live stake:
-    // (6 (1-f_s)⁵ -15(1-f_s) + 10(1-f_s)³) / (6f_s⁵-15f_s⁴ + 10f_s³)
-    // (6x⁵-15x⁴ +10x³) / (6y⁵-15y⁴ +10y³) where y = this.value and x = 1-y
-    var y = this.attackPercentTarget.value
-    var x = 1 - y
-    this.updateTargetHashRate(y * 100)
+  setActivePoint () {
+    // Shows point whose details appear on the legend.
+    if (this.chartsView !== undefined) {
+      let row = Math.round(this.attackPercentTarget.value / 0.005)
+      this.chartsView.setSelection(row)
+    }
+  }
 
-    var rate = ((6 * Math.pow(x, 5)) - (15 * Math.pow(x, 4)) + (10 * Math.pow(x, 3))) / ((6 * Math.pow(y, 5)) - (15 * Math.pow(y, 4)) + (10 * Math.pow(y, 3)))
+  updateSliderData () {
+    var val = this.attackPercentTarget.value
+    this.updateTargetHashRate(val * 100)
+
+    this.setActivePoint()
+
+    var rate = rateCalculation(val)
     this.internalHashTarget.innerHTML = digitformat((rate * this.targetHashRate), 4) + ' Ph/s '
-    this.ticketsTarget.innerHTML = digitformat((y * tpSize), 0) + ' tickets '
+    this.ticketsTarget.innerHTML = digitformat(val * tpSize) + ' tickets '
     this.calculate(true)
   }
 
