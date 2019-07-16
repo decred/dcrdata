@@ -214,29 +214,33 @@ func (db *ProposalDB) saveProposals(publicProposals pitypes.Proposals) (int, err
 		// that generates a RefID similar to one already in the db and appending
 		// integers to it till it becomes unique is the solution.
 		if err == storm.ErrAlreadyExists {
+			var data *pitypes.ProposalInfo
 			// Check if the proposal token already exists in the db.
-			data, newErr := db.proposal("TokenVal", val.TokenVal)
-			if newErr == nil && data != nil {
+			data, err = db.proposal("TokenVal", val.TokenVal)
+			if err == nil && data != nil {
 				// The proposal token already exists thus trigger an update with
 				// the latest details.
 				valCopy := *val
 				valCopy.ID = data.ID
-				prefixStr := ""
+				suffixStr := ""
 
 				for k := 1; k <= maxLoop; k++ {
-					valCopy.RefID += prefixStr
+					valCopy.RefID += suffixStr
 					// Attempt to update the old entry.
-					newErr = db.dbP.Update(&valCopy)
-					if newErr == nil || newErr != storm.ErrAlreadyExists {
-						err = nil
-						break
+					err = db.dbP.Update(&valCopy)
+					if err == storm.ErrAlreadyExists {
+						suffixStr = strconv.Itoa(k)
+						continue
 					}
-					prefixStr = strconv.Itoa(k)
+					if err != nil {
+						log.Error("storm DB update failed: %v", err)
+					}
+					break
 				}
 			}
 
-			// First try wasn't successful if newErr != nil.
-			if newErr != nil {
+			// First try wasn't successful if err != nil.
+			if err != nil {
 
 				for c := 1; c <= maxLoop; c++ {
 					// Drop the previously assigned ID.
@@ -245,10 +249,13 @@ func (db *ProposalDB) saveProposals(publicProposals pitypes.Proposals) (int, err
 					val.RefID += strconv.Itoa(c)
 					// Attempt to save a new entry.
 					err = db.dbP.Save(val)
-					if err == nil || err != storm.ErrAlreadyExists {
-						err = nil
-						break
+					if err == storm.ErrAlreadyExists {
+						continue
 					}
+					if err != nil {
+						log.Error("storm DB save failed: %v", err)
+					}
+					break
 				}
 			}
 		}
