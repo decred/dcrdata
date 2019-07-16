@@ -139,56 +139,79 @@ func (iapi *InsightApi) ValidatePostCtx(next http.Handler) http.Handler {
 }
 
 // PostAddrsTxsCtx middleware processes parameters given in the POST request
-// body for an addrs endpoint.
+// body for an addrs endpoint. While the addresses list, "addrs", must be in the
+// POST body JSON, the other parameters may be specified as URL queries. POST
+// body values take priority.
 func PostAddrsTxsCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var req apitypes.InsightMultiAddrsTx
-		var from, to, noAsm, noScriptSig, noSpent int64
-
 		body, err := ioutil.ReadAll(r.Body)
 		r.Body.Close()
 		if err != nil {
 			writeInsightError(w, fmt.Sprintf("error reading JSON message: %v", err))
 			return
 		}
+
+		// The request body must be JSON.
+		var req apitypes.InsightMultiAddrsTx
 		err = json.Unmarshal(body, &req)
 		if err != nil {
 			writeInsightError(w, fmt.Sprintf("Failed to parse request: %v", err))
 			return
 		}
-		// Successful extraction of body JSON.
+
+		// addrs must come from POST body.
 		ctx := context.WithValue(r.Context(), m.CtxAddress, req.Addresses)
 
-		if req.From != "" {
-			from, err = req.From.Int64()
-			if err == nil {
-				ctx = context.WithValue(ctx, ctxFrom, int(from))
-			}
-		}
-		if req.To != "" {
-			to, err = req.To.Int64()
-			if err == nil {
-				ctx = context.WithValue(ctx, ctxTo, int(to))
-			}
-		}
-		if req.NoAsm != "" {
-			noAsm, err = req.NoAsm.Int64()
-			if err == nil && noAsm != 0 {
-				ctx = context.WithValue(ctx, ctxNoAsm, true)
-			}
-		}
-		if req.NoScriptSig != "" {
-			noScriptSig, err = req.NoScriptSig.Int64()
-			if err == nil && noScriptSig != 0 {
-				ctx = context.WithValue(ctx, ctxNoScriptSig, true)
-			}
+		// Other parameters may come from the POST body or URL query values.
+
+		// from
+		from, err := req.From.Int64()
+		if err == nil {
+			ctx = context.WithValue(ctx, ctxFrom, int(from))
+		} else {
+			fromStr := r.FormValue("from")
+			from, _ := strconv.Atoi(fromStr) // shadow
+			ctx = context.WithValue(ctx, ctxFrom, from)
 		}
 
-		if req.NoSpent != "" {
-			noSpent, err = req.NoSpent.Int64()
-			if err == nil && noSpent != 0 {
-				ctx = context.WithValue(ctx, ctxNoSpent, true)
-			}
+		// to
+		to, err := req.To.Int64()
+		if err == nil {
+			ctx = context.WithValue(ctx, ctxTo, int(to))
+		} else {
+			toStr := r.FormValue("to")
+			to, _ := strconv.Atoi(toStr)
+			ctx = context.WithValue(ctx, ctxTo, to)
+		}
+
+		// noAsm
+		noAsm, err := req.NoAsm.Int64()
+		if err == nil {
+			ctx = context.WithValue(ctx, ctxNoAsm, noAsm != 0)
+		} else {
+			noAsmStr := r.FormValue("noAsm")
+			noAsm, _ := strconv.ParseBool(noAsmStr)
+			ctx = context.WithValue(ctx, ctxNoAsm, noAsm)
+		}
+
+		// noScriptSig
+		noScriptSig, err := req.NoScriptSig.Int64()
+		if err == nil {
+			ctx = context.WithValue(ctx, ctxNoScriptSig, noScriptSig != 0)
+		} else {
+			noScriptSigStr := r.FormValue("noScriptSig")
+			noScriptSig, _ := strconv.ParseBool(noScriptSigStr)
+			ctx = context.WithValue(ctx, ctxNoScriptSig, noScriptSig)
+		}
+
+		// noSpent
+		noSpent, err := req.NoSpent.Int64()
+		if err == nil {
+			ctx = context.WithValue(ctx, ctxNoSpent, noSpent != 0)
+		} else {
+			noSpentStr := r.FormValue("noSpent")
+			noSpent, _ := strconv.ParseBool(noSpentStr)
+			ctx = context.WithValue(ctx, ctxNoSpent, noSpent)
 		}
 
 		next.ServeHTTP(w, r.WithContext(ctx))

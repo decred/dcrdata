@@ -735,7 +735,8 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 			txsOld = append(txsOld, txOld)
 		}
 
-		// Convert to dcrjson transaction to Insight tx type.
+		// Convert to dcrjson transaction to Insight tx type. TxConverter also
+		// retrieves previous outpoint addresses.
 		txsNew, err := iapi.TxConverter(txsOld)
 		if err != nil {
 			apiLog.Error("getTransactions: Error processing transactions: %v", err)
