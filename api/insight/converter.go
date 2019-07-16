@@ -52,8 +52,9 @@ func (iapi *InsightApi) DcrToInsightTxns(txs []*dcrjson.TxRawResult, noAsm, noSc
 				CoinBase: vin.Coinbase,
 			}
 
-			vinCoinbase := vin.IsCoinBase() || vin.IsStakeBase()
-			txNew.IsCoinBase = txNew.IsCoinBase || vinCoinbase
+			// Identify a vin corresponding to generated coins.
+			vinGenerated := vin.IsCoinBase() || vin.IsStakeBase()
+			txNew.IsCoinBase = txNew.IsCoinBase || vin.IsCoinBase() // exclude stakebase
 
 			// init ScriptPubKey
 			if !noScriptSig {
@@ -69,7 +70,7 @@ func (iapi *InsightApi) DcrToInsightTxns(txs []*dcrjson.TxRawResult, noAsm, noSc
 			// First, attempt to get input addresses from our DB, which should
 			// work if the funding transaction is confirmed. Otherwise use RPC
 			// to get the funding transaction outpoint addresses.
-			if !vinCoinbase {
+			if !vinGenerated {
 				_, addresses, _, err := iapi.BlockData.ChainDB.AddressIDsByOutpoint(vin.Txid, vin.Vout)
 				if err == nil && len(addresses) > 0 {
 					InsightVin.Addr = addresses[0]
@@ -115,7 +116,14 @@ func (iapi *InsightApi) DcrToInsightTxns(txs []*dcrjson.TxRawResult, noAsm, noSc
 
 		txNew.ValueIn = vInSum.ToCoin()
 		txNew.ValueOut = vOutSum.ToCoin()
-		txNew.Fees = (vInSum - vOutSum).ToCoin()
+		// A coinbase transaction, but not necessarily a stakebase/vote, has no
+		// fee. Further, a coinbase transaction collects all of the mining fees
+		// for the transactions in the block, but there is no input that
+		// accounts for these collected fees. As such, never attempt to compute
+		// a transaction fee for the block's coinbase transaction.
+		if !txNew.IsCoinBase {
+			txNew.Fees = (vInSum - vOutSum).ToCoin()
+		}
 
 		if !noSpent {
 			// Populate the spending status of all vouts. Note: this only
@@ -125,10 +133,10 @@ func (iapi *InsightApi) DcrToInsightTxns(txs []*dcrjson.TxRawResult, noAsm, noSc
 			if err != nil {
 				return nil, err
 			}
-			for _, dbaddr := range addrFull {
-				txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentIndex = dbaddr.SpendingTxVinIndex
-				txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentTxID = dbaddr.SpendingTxHash
-				txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentHeight = dbaddr.BlockHeight
+			for _, dbAddr := range addrFull {
+				txNew.Vouts[dbAddr.FundingTxVoutIndex].SpentIndex = dbAddr.SpendingTxVinIndex
+				txNew.Vouts[dbAddr.FundingTxVoutIndex].SpentTxID = dbAddr.SpendingTxHash
+				txNew.Vouts[dbAddr.FundingTxVoutIndex].SpentHeight = dbAddr.BlockHeight
 			}
 		}
 		newTxs = append(newTxs, txNew)
