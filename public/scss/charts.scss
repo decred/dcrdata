@@ -554,17 +554,27 @@ body.darkBG #chart .dygraph-y2label {
   overflow: hidden;
 }
 
-.meter.large-gap {
-  height: 110px;
+.lilbox {
+  height: 45px;
 }
 
-.meter.arch {
-  height: 90px;
+.meter.lil {
+  width: 80px;
+  height: 45px;
+}
+
+.meter.large-gap {
+  height: 110px;
 }
 
 .meter > canvas {
   width: 135px;
   height: 135px;
+}
+
+.meter.lil > canvas {
+  width: 80px;
+  height: 80px;
 }
 
 .market-chart-legend {
@@ -586,6 +596,17 @@ body.darkBG #chart .dygraph-y2label {
   border: 1px solid #7774;
 }
 
+.proposal-chart-legend {
+  display: none;
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 0 2px;
+  font-size: 14px;
+  border-radius: 0;
+  background-color: #fffa;
+}
+
 body.darkBG {
   .address_chart_wrap {
     background-color: #333;
@@ -605,24 +626,18 @@ body.darkBG {
     background-color: #34a7;
   }
 
-  .market-chart-title {
+  .market-chart-title,
+  .proposal-chart-legend {
     background-color: #333a;
   }
 }
 
-.proposal-chart-legend {
-  left: 85%;
+.proposal-charts:hover .proposal-chart-legend {
+  display: block;
 }
 
 .proposal-chart-align {
-  height: 23vh !important;
-  margin: 0 auto 0 auto;
-  width: 70%;
-}
-
-.proposal-charts-align {
-  margin: auto;
-  height: inherit;
+  height: 23vh;
 }
 
 .tp-outputs-align {

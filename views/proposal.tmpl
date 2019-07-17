@@ -3,201 +3,187 @@
 <html lang="en">
     {{template "html-head" printf "Decred Proposal Charts"}}
         {{template "navbar" .}}
+        {{$metadata := .Metadata}}
         {{with .Data}}
-        <div class="container">
-            <div class="row justify-content-between">
-                <div class="col-lg-20 col-sm-12 d-flex">
-                    <a class="medium row" href="/proposals">All Proposals ></a>
+        <div class="container pb-4" data-controller="proposal">
+          <div class="row pt-2 px-2">
+            <div class="col-24 col-xl-11 bg-white px-2 px-xl-5 py-3 position-relative d-flex flex-column justify-content-between align-items-start">
+              {{$status := .VoteStatus.ShortDesc}}
+
+              {{- /* INVALID AND NON-EXISTENT */ -}}
+              {{if or (eq $status "Invalid") (eq $status "Doesn't Exist")}}
+                {{if .AbandonedDate}}
+                  {{block "abandoned" .}}
+                    <div class="fs22">{{.Name}}</div>
+                    <div class="fs18 font-weight-bold py-2">Proposal abandoned</div>
+                    <div class="pb-2">This proposal was designated abandoned {{TimeConversion .AbandonedDate}}.</div>
+                  {{end}}
+                {{else}}
+                  Invalid proposal: {{.Name}}
+                {{end}}
+              {{- /* NOT AUTHORIZED */ -}}
+              {{else if eq $status "Not Authorized"}}
+                {{if .AbandonedDate}}
+                  {{template "abandoned" .}}
+                {{else}}
+                  <div class="fs22">{{.Name}}</div>
+                  <span class="fs18 font-weight-bold lh1rem">Proposal in discussion</span>
+                  <div class="py-2">
+                    {{.Username}} has not initiated voting yet. There is
+                    <a href="{{$.PoliteiaURL}}/proposals/{{.TokenVal}}">an ongoing discussion</a>
+                    of this proposal happening on Politeia.
+                  </div>
+                {{end}}
+
+              {{- /* AUTHORIZED */ -}}
+              {{else if eq $status "Authorized"}}
+                <div class="fs22">{{.Name}}</div>
+                <span class="fs18 font-weight-bold lh1rem">Vote scheduled</span>
+                <div class="py-2">
+                  {{.Username}} has authorized voting on this proposal.
+                  Voting begins at block {{$metadata.StartHeight}}
+                  (about <span class="medium-sans">{{secondsToShortDurationString $metadata.SecondsTil}}</span>)
                 </div>
-                <div class="col-lg-20 col-sm-12 d-flex">
-                    <h4 class="mb-2 row">{{.Name}}</h4>
+
+              {{- /* LIVE OR FINISHED */ -}}
+              {{else if or (eq $status "Started") (eq $status "Finished")}}
+                <div class="fs22">{{.Name}}</div>
+                {{if eq $status "Started"}}
+                  <div>
+                    <span class="fs18 lh1rem">Voting now</span>
+                    <div class="float-right fs16">
+                      ~{{secondsToShortDurationString $metadata.SecondsTil}} remaining
+                    </div>
+                  </div>
+                {{else}}
+                  <div>
+                    <span class="fs18 lh1rem">Voting complete</span> &ndash;
+                    {{if and $metadata.IsPassing $metadata.QuorumAchieved}}
+                      <span class="text-green">accepted</span>
+                    {{else}}
+                      <span class="text-danger">rejected</span>
+                    {{end}}
+                  </div>
+                {{end}}
+
+                <div class="d-flex w-100 justify-content-start p-2 my-2 secondary-card rounded">
+                  <div class="col-auto lilbox">
+                    <!-- <div class="text-secondary text-center fs13">Approval</div> -->
+                    <div
+                      class="meter text-center js-only lil arch"
+                      data-target="proposal.approvalMeter"
+                      data-value="{{$metadata.Approval}}"
+                      data-threshold="{{$metadata.PassPercent}}"
+                      >
+                      {{printf "%.1f" (f32x100 $metadata.Approval)}}%
+                    </div>
+                  </div>
+                  <div class="col-auto d-flex flex-column justify-content-between pl-3">
+                    <span class="fs17 lh1em">
+                      <span class="fs22 medium-sans">{{printf "%.1f" (f32x100 $metadata.Approval)}}%</span>
+                      approval of {{intComma $metadata.VoteCount}} votes
+                    </span>
+                    {{if $metadata.QuorumAchieved}}
+                      <div class="d-flex align-items-center"><span class="fs20 dcricon-affirm mr-2"></span>
+                      <span class="lh1em pb-1">Quorum achieved</span></div>
+                    {{else}}
+                      {{if eq $status "Started"}}
+                        <span class="text-secondary fs13">Quorum</span>
+                        <div class="d-flex align-items-center"><span class="fs20 dcricon-missing mr-2"></span>
+                          <span class="pb-1">{{$metadata.VoteCount}} of {{$metadata.QuorumCount}} needed votes</span>
+                        </div>
+                      {{else}}
+                        <div class="d-flex align-items-center"><span class="fs20 dcricon-reject mr-2"></span>
+                        <span class="pb-1">Quorum not achieved</span></div>
+                      {{end}}
+                    {{end}}
+                  </div>
                 </div>
-            </div>
-            <div class="row justify-content-between">
-                <div class="col-lg-12 col-sm-12 d-flex">
-                    <table>
-                        <tr>
-                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Token:</td>
-                            <td>
-                                <span class="break-word py-1 lh1rem">
-                                    <a href="{{$.PoliteiaURL}}/proposals/{{.TokenVal}}">{{.TokenVal}}</a>
-                                </span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Author:</td>
-                            <td>
-                                <span class="break-word py-1 lh1rem">{{.Username}}</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Published:</td>
-                            <td>
-                                <span class="break-word py-1 lh1rem">{{TimeConversion .PublishedDate}}</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Updated:</td>
-                            <td>
-                                <span class="break-word py-1 lh1rem">{{TimeConversion .Timestamp}}</span>
-                            </td>
-                        </tr>
-                         {{if ne .CensoredDate 0}}
-                            <tr>
-                                <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Censored:</td>
-                                <td>
-                                    <span class="break-word py-1 lh1rem">{{TimeConversion .CensoredDate}}</span>
-                                </td>
-                            </tr>
+              {{end}}{{/* END LIVE OR FINISHED */ -}}
+              <div class="d-flex justify-content-between w-100 pb-1 fs-17">
+                <a class="d-block" href="{{$.PoliteiaURL}}/proposals/{{.TokenVal}}">
+                  <span class="dcricon-discussion mr-2 pt-1"></span>
+                  Discussion
+                </a>
+                <a class="d-block" href="/proposals">
+                  <span class="dcricon-back mr-2 pt-1"></span>
+                  Proposals
+                </a>
+              </div>
+            </div>{{/* END COLUMN 1 */ -}}
+
+            {{- /* ADDITIONAL DATA */ -}}
+            <div class="col-24 col-xl-13 secondary-card px-3 position-relative d-flex justify-content-center align-items-center">
+              <table class="fs14 my-3 text-left d-flex">
+                <tbody>
+                  <tr>
+                    <td class="text-right medium-sans text-nowrap pr-2 py-2" >Author:</td>
+                    <td class="text-left py-1 text-secondary">{{.Username}}</td>
+                    <td class="text-right medium-sans text-nowrap pr-2 py-2">Status:</td>
+                    <td class="text-left py-1 text-secondary">{{.State.String}} / {{.Status.String}}</td>
+                  </tr>
+                  {{if $metadata.VoteCount}}
+                    <tr>
+                      <td class="text-right medium-sans text-nowrap pr-2 py-2" >Yes:</td>
+                      <td class="text-left py-1 text-secondary">{{$metadata.Yes}} votes ({{printf "%.1f" (f32x100 $metadata.Approval)}}%)</td>
+                      <td class="text-right medium-sans text-nowrap pr-2 py-2">No:</td>
+                      <td class="text-left py-1 text-secondary">{{$metadata.No}} votes ({{printf "%.1f" (f32x100 $metadata.Rejection)}}%)</td>
+                    </tr>
+                    <tr>
+                      <td class="text-right medium-sans text-nowrap pr-2 py-2" >Eligible:</td>
+                      <td class="text-left py-1 text-secondary">{{.NumOfEligibleVotes}} tickets</td>
+                      <td class="text-right medium-sans text-nowrap pr-2 py-2">Voting Period:</td>
+                      <td class="text-left py-1 text-secondary"
+                        ><a href="/block/{{$metadata.StartHeight}}">{{$metadata.StartHeight}}</a>
+                        &ndash;
+                        {{if eq $status "Finished"}}
+                          <a href="/block/{{.Endheight}}">{{.Endheight}}</a>
+                        {{else}}
+                          {{.Endheight}}
                         {{end}}
-                        {{if ne .AbandonedDate 0}}
-                            <tr>
-                                <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Abandoned:</td>
-                                <td>
-                                    <span class="break-word py-1 lh1rem">{{TimeConversion .AbandonedDate}}</span>
-                                </td>
-                            </tr>
-                        {{end}}
-                        <tr>
-                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Comments Count:</td>
-                            <td>
-                                <span class="break-word py-1 lh1rem">{{.NumComments}}</span>
-                           </td>
-                        </tr>
-                    </table>
-                </div>
-                <div class="col-lg-4 col-sm-12 d-flex">
-                    <table>
-                        <tr>
-                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">State:</td>
-                            <td>
-                                <span class="break-word py-1 lh1rem">{{with .State}}{{toTitleCase .String}}{{end}}</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Status:</td>
-                            <td>
-                                <span class="break-word py-1 lh1rem">{{with .Status}}{{toTitleCase .String}}{{end}}</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Version:</td>
-                            <td>
-                                <span class="break-word lh1rem">v{{.Version}}</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">End Height:</td>
-                            <td>
-                                <span class="break-word py-1 lh1rem">
-                                    {{if .Endheight}}
-                                        <a href="/block/{{.Endheight}}">{{.Endheight}}</a>
-                                    {{else}}
-                                        N/A
-                                    {{end}}
-                                </span>
-                            </td>
-                        </tr>
-                        {{if ne $.TimeRemaining ""}}
-                            <tr>
-                                <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Remaining:</td>
-                                <td>
-                                    <span class="break-word py-1 lh1rem">{{$.TimeRemaining}}</span>
-                                </td>
-                            </tr>
-                        {{end}}
-                    </table>
-                </div>
-                <div class="col-lg-7 col-sm-12 d-flex">
-                    <table>
-                        {{if .VoteStatus}}
-                            {{range $i, $v := .VoteResults}}
-                                {{if eq $v.Option.OptionID "yes"}}
-                                    <tr>
-                                        <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Yes Votes:</td>
-                                        <td>
-                                            <span class="break-word py-1 lh1rem">{{$v.VotesReceived}}</span>
-                                        </td>
-                                    </tr>
-                                {{end}}
-                            {{end}}
-                        {{end}}
-                        {{if .VoteStatus}}
-                            {{range $i, $v := .VoteResults}}
-                                {{if eq $v.Option.OptionID "no"}}
-                                    <tr>
-                                        <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">No Votes:</td>
-                                        <td>
-                                            <span class="break-word py-1 lh1rem">{{$v.VotesReceived}}</span>
-                                        </td>
-                                    </tr>
-                                {{end}}
-                            {{end}}
-                        {{end}}
-                        <tr>
-                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Vote Status:</td>
-                            <td>
-                                <span class="break-word py-1 lh1rem">
-                                    {{if .VoteStatus}}
-                                        {{with .VoteStatus}}
-                                            {{.ShortDesc}}
-                                            <span class="position-relative d-inline-block" data-tooltip="{{.LongDesc}}">
-                                        {{end}}
-                                    {{else}}
-                                        N/A
-                                    {{end}}
-                                </span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Quorum:</td>
-                            <td>
-                                <span class="break-word py-1 lh1rem">
-                                    {{if and .QuorumPercentage (and .NumOfEligibleVotes .TotalVotes)}}
-                                        {{$voted := (percentage .TotalVotes .NumOfEligibleVotes)}}
-                                        {{.TotalVotes}} of {{.NumOfEligibleVotes}},  {{printf "%.0f" $voted}}% voted,  {{.QuorumPercentage}}% needed
-                                    {{else}}
-                                        N/A
-                                    {{end}}
-                                </span>
-                            </td>
-                        </tr>
-                        {{if .VoteResults}}
-                            {{range $i, $v := .VoteResults}}
-                                {{if eq $v.Option.OptionID "yes"}}
-                                    <tr>
-                                        <td class="text-right pr-2 py-2 vam nowrap xs-w117 medium-sans">Total:</td>
-                                        <td>
-                                            <span class="break-word py-1 lh1rem">
-                                                {{printf "%.2f" (percentage $v.VotesReceived $.Data.TotalVotes)}}% yes, {{if $.Data.PassPercentage}}{{$.Data.PassPercentage}}%{{end}} needed
-                                            </span>
-                                        </td>
-                                    </tr>
-                                {{end}}
-                            {{end}}
-                        {{end}}
-                    </table>
-                </div>
-            </div>
-        </div>
+                      </td>
+                    </tr>
+                  {{end}}
+                  <tr>
+                    <td class="text-right medium-sans text-nowrap pr-2 py-2">Discussion:</td>
+                    <td class="text-left py-1 text-secondary">{{.NumComments}} comments</td>
+                    <td class="text-right medium-sans text-nowrap pr-2 py-2" >Updated:</td>
+                    <td class="text-left py-1 text-secondary">{{TimeConversion .Timestamp}}</td>
+                  </tr>
+                  <tr>
+                    <td class="text-right medium-sans text-nowrap pr-2 py-2">Version:</td>
+                    <td class="text-left py-1 text-secondary">v{{.Version}}</td>
+                    <td class="text-right medium-sans text-nowrap pr-2 py-2">Published:</td>
+                    <td class="text-left py-1 text-secondary">{{TimeConversion .PublishedDate}}</td>
+                  </tr>
+                  <tr>
+                    <td class="text-right medium-sans text-nowrap pr-2 py-2">Token:</td>
+                    <td colspan="3" class="text-left py-1 text-secondary break-word lh1rem">{{.TokenVal}}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+            </div>{{/* END COLUMN 2 */ -}}
+          </div>{{/* END ROW */ -}}
+
+        {{- /* CHARTS */ -}}
         {{if gt (len .VoteResults) 1}}
             <div
-                class="proposal-charts-align"
-                data-controller="proposal"
                 data-target="proposal.token"
                 data-hash="{{$.Data.TokenVal}}"
+                class="pt-2 proposal-charts"
                 >
-                <div class="d-flex proposal-chart-responsive">
-                    <div id="percent-of-votes" class="proposal-chart-align"></div>
-                    <div id="percent-of-votes-legend" class="dygraph-legend proposal-chart-legend"></div>
+                <div class="d-flex position-relative">
+                    <div data-target="proposal.approval" class="proposal-chart-align w-100"></div>
+                    <div data-target="proposal.approvalLegend" class="text-nowrap proposal-chart-legend"></div>
                 </div>
-                <div class="d-flex proposal-chart-responsive">
-                    <div id="cumulative" class="proposal-chart-align mt-1"></div>
-                    <div id="cumulative-legend" class="dygraph-legend proposal-chart-legend"></div>
+                <div class="d-flex position-relative">
+                    <div data-target="proposal.cumulative" class="proposal-chart-align w-100 pt-1"></div>
+                    <div data-target="proposal.cumulativeLegend" class="text-nowrap proposal-chart-legend"></div>
                 </div>
-                <div class="d-flex proposal-chart-responsive">
-                    <div id="votes-by-time" class="proposal-chart-align mt-1"></div>
-                    <div id="votes-by-time-legend" class="dygraph-legend proposal-chart-legend"></div>
+                <div class="d-flex position-relative">
+                    <div data-target="proposal.log" class="proposal-chart-align w-100 pt-1"></div>
+                    <div data-target="proposal.logLegend" class="text-nowrap proposal-chart-legend"></div>
                 </div>
             </div>
         {{else}}
@@ -207,7 +193,8 @@
                 </tr>
             </table>
         {{end}}
-    {{end}}
+      </div>{{/* END CONTAINER */ -}}
+    {{end}}{{/* END WITH .DATA */}}
     {{template "footer" . }}
     </body>
 </html>

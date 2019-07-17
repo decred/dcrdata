@@ -24,6 +24,7 @@ function sleep (ms) {
 // parameter should be a block element with class .meter. CSS classes .large-gap
 // and .arch can also be applied for increasingly large gap angle, with .arch
 // being a semi-circle. Any contents of parent will be replaced with the Meter.
+// Apply class .lil for a smaller meter.
 class Meter {
   constructor (parent, opts) {
     opts = opts || {}
@@ -161,6 +162,21 @@ class Meter {
     this.ctx.fillText(text, pt.x, pt.y, maxWidth)
   }
 
+  drawIndicator (value, color) {
+    var ctx = this.ctx
+    var opts = this.options
+    var theme = this.activeTheme
+    var halfLen = this.norm(opts.meterWidth) * 0.5
+    var start = super.normedPolarToCartesian(this.radius - halfLen, value)
+    var end = super.normedPolarToCartesian(this.radius + halfLen, value)
+    ctx.lineWidth = 1.5
+    ctx.strokeStyle = color
+    super.dot(start, color, opts.dotSize)
+    super.dot(end, color, opts.dotSize)
+    ctx.strokeStyle = theme.text
+    super.line(start, end)
+  }
+
   async animate (key, target) {
     // key is a string referencing any property of Meter.data.
     var opts = this.options
@@ -209,7 +225,7 @@ export class VoteMeter extends Meter {
     opts.revoteColor = opts.revoteColor || '#ffe4a7'
     opts.rejectColor = opts.rejectColor || '#ed6d47'
     opts.dotColor = opts.dotColor || '#888'
-    opts.showIndicator = opts.showIndicator || true
+    if (opts.showIndicator === undefined) opts.showIndictor = true
     this.darkTheme = opts.darkTheme || {
       text: 'white',
       tray: '#999'
@@ -306,7 +322,8 @@ export class ProgressMeter extends Meter {
     opts.meterWidth = opts.meterWidth || 14
     opts.centralFontSize = opts.centralFontSize || 18
     opts.successColor = opts.successColor = '#2dd8a3'
-    opts.showIndicator = opts.showIndicator || true
+    opts.dotSize = opts.dotSize || 3
+    if (opts.showIndicator === undefined) opts.showIndictor = true
     this.darkTheme = opts.darkTheme || {
       tray: '#777',
       text: 'white'
@@ -323,37 +340,22 @@ export class ProgressMeter extends Meter {
     this.animate('progress', progress)
   }
 
-  drawIndicator (value, color) {
-    var ctx = this.ctx
-    var opts = this.options
-    var theme = this.activeTheme
-    var halfLen = this.norm(opts.meterWidth) * 0.5
-    var start = super.normedPolarToCartesian(this.radius - halfLen, value)
-    var end = super.normedPolarToCartesian(this.radius + halfLen, value)
-    ctx.lineWidth = 1.5
-    ctx.strokeStyle = color
-    super.dot(start, color, 3)
-    super.dot(end, color, 3)
-    ctx.strokeStyle = theme.text
-    super.line(start, end)
-  }
-
   draw () {
     super.clear()
     var ctx = this.ctx
     var opts = this.options
     var theme = this.activeTheme
 
-    ctx.lineWidth = opts.meterWidth
+    ctx.lineWidth = opts.meterWidth * 0.95 // Prevents rough looking edge
     var c = this.data.progress >= this.threshold ? opts.successColor : theme.tray
     super.segment(0, 1, c)
 
-    this.drawIndicator(this.threshold, c)
+    super.drawIndicator(this.threshold, c)
 
     ctx.lineWidth = opts.meterWidth
     super.segment(0, this.data.progress, opts.meterColor)
 
-    this.drawIndicator(this.data.progress, theme.text)
+    super.drawIndicator(this.data.progress, theme.text)
 
     if (opts.showIndicator && this.data.progress >= this.threshold) {
       ctx.fillStyle = opts.successColor
@@ -362,7 +364,53 @@ export class ProgressMeter extends Meter {
 
     var offset = opts.showIndicator ? super.denorm(0.05) : 0
     this.ctx.fillStyle = this.activeTheme.text
-    this.ctx.font = `bold ${opts.centralFontSize}px sans-serif`
+    this.ctx.font = `500 ${opts.centralFontSize}px 'source-sans-pro-semibold', sans-serif`
     this.write(`${parseInt(this.data.progress * 100)}%`, makePt(this.middle.x, this.middle.y + offset), super.denorm(0.5))
+  }
+}
+
+// Mini meter is a semi-circular meter with a needle. The segment definitions
+// must be passed as an array of objects with the structure
+// [{end: float, color: string}, {end: float, color: string}, ...], where end is
+// the end of the segments range on the scale [0, 1]. The first range is assumed
+// to start at 0, and each subsequent segment will start at the previous
+// segment's end. The MiniMeter is designed to work with the .arch.lil CSS
+// classes, but not limited to that particular class.
+export class MiniMeter extends Meter {
+  constructor (parent, opts) {
+    super(parent, opts)
+    this.buttCap()
+    opts = this.options
+    this.radius = opts.radius || 0.475
+    this.darkTheme = opts.darkTheme || { text: 'white' }
+    this.lightTheme = opts.lightTheme || { text: '#333333' }
+    this.activeTheme = opts.darkMode ? this.darkTheme : this.lightTheme
+    opts.meterWidth = opts.meterWidth || 18
+    this.value = parseFloat(parent.dataset.value)
+    this.draw()
+  }
+
+  draw () {
+    super.clear()
+    var ctx = this.ctx
+    var opts = this.options
+    ctx.lineWidth = opts.meterWidth
+    var textColor = this.activeTheme.text
+
+    // Draw the segments.
+    var start = 0
+    opts.segments.forEach(segment => {
+      super.segment(start, segment.end, segment.color)
+      start = segment.end
+    })
+
+    // Draw the needle
+    var tipLen = this.norm(opts.meterWidth) * 0.75
+    var center = super.normedPolarToCartesian(0, 0)
+    var end = super.normedPolarToCartesian(this.radius + tipLen, this.value)
+    super.dot(center, textColor, 7)
+    ctx.strokeStyle = textColor
+    ctx.lineWidth = 5
+    super.line(center, end)
   }
 }

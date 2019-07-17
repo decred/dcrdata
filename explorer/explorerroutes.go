@@ -1812,16 +1812,19 @@ func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	commonData := exp.commonData(r)
 	str, err := exp.templates.execTemplateToString("proposal", struct {
 		*CommonPageData
 		Data          *pitypes.ProposalInfo
 		PoliteiaURL   string
 		TimeRemaining string
+		Metadata      *pitypes.ProposalMetadata
 	}{
-		CommonPageData: exp.commonData(r),
+		CommonPageData: commonData,
 		Data:           proposalInfo,
 		PoliteiaURL:    exp.politeiaAPIURL,
 		TimeRemaining:  timeLeft,
+		Metadata:       proposalInfo.Metatdata(int64(commonData.Tip.Height), int64(exp.ChainParams.TargetTimePerBlock/time.Second)),
 	})
 
 	if err != nil {
