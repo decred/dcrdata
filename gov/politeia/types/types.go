@@ -15,7 +15,8 @@ const windowSize = 2016
 // ProposalInfo holds the proposal details as document here
 // https://github.com/decred/politeia/blob/master/politeiawww/api/www/v1/api.md#user-proposals.
 // It also holds the votes status details. The ID field is auto incremented by
-// the db.
+// the db. A proposal can now be uniquely identified by the RefID value and the
+// the contents on the CensorShipRecord struct.
 type ProposalInfo struct {
 	ID              int                `json:"id" storm:"id,increment"`
 	Name            string             `json:"name"`
@@ -36,8 +37,11 @@ type ProposalInfo struct {
 	// to reference the proposals details page. Storm db ignores entries with
 	// duplicate pk but returns "ErrAlreadyExists" error if the field other than
 	// the pk has the tag "unique".
-	RefID            string `storm:"unique"`
-	CensorshipRecord `json:"censorshiprecord"`
+	RefID string `storm:"unique"`
+	// "unique" tag helps to detect when a single proposal instance wants to be
+	// pushed to the db as two different instances instead of one. This bug
+	// happened due to edits made to a proposal title thus new RefID was created.
+	CensorshipRecord `json:"censorshiprecord" storm:"unique"`
 	ProposalVotes    `json:"votes"`
 	// Files           []AttachmentFile   `json:"files"`
 }

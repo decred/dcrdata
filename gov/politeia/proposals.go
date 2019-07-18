@@ -29,7 +29,7 @@ var (
 	errDef = fmt.Errorf("ProposalDB was not initialized correctly")
 
 	// dbVersion is the current required version of the proposals.db.
-	dbVersion = semver.NewSemver(1, 0, 0)
+	dbVersion = semver.NewSemver(2, 0, 0)
 )
 
 // dbinfo defines the property that holds the db version.
@@ -141,11 +141,22 @@ func generateCustomID(title string) (string, error) {
 	return reg.ReplaceAllString(strings.ToLower(title), "-"), nil
 }
 
-// saveProposals adds the proposals data to the db.
-func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
+// fetchAPIData returns the API data fetched from the Politeia API endpoints.
+// NB: "/api/v1/proposals/vetted" path returns the latest snapshot of the API
+// data that currently exits. This implies that parameter "after=" should be used
+// when syncing the data from scratch and "before=" should be used to fetch newer
+// updates.
+func (db *ProposalDB) fetchAPIData(URLParams string) (pitypes.Proposals, error) {
 	copyURLParams := URLParams
 	pageSize := int(piapi.ProposalListPageSize)
 	var publicProposals pitypes.Proposals
+
+	// It helps determine when fresh sync is to run when no previous data
+	// existed. copyURLParams is an empty string when fresh sync is to run.
+	var param = "before"
+	if copyURLParams == "" {
+		param = "after"
+	}
 
 	// Since Politeia sets page the limit as piapi.ProposalListPageSize, keep
 	// fetching the proposals till the count of fetched proposals is less than
@@ -153,7 +164,7 @@ func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
 	for {
 		data, err := piclient.RetrieveAllProposals(db.client, db.APIURLpath, copyURLParams)
 		if err != nil {
-			return 0, err
+			return publicProposals, err
 		}
 
 		// Break if no valid data was found.
@@ -176,8 +187,16 @@ func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
 			break
 		}
 
-		copyURLParams = fmt.Sprintf("?before=%v", data.Data[pageSize-1].TokenVal)
+		copyURLParams = fmt.Sprintf("?%v=%v", param, data.Data[pageSize-1].TokenVal)
 	}
+	return publicProposals, nil
+}
+
+// saveProposals adds the proposals data to the db.
+func (db *ProposalDB) saveProposals(publicProposals pitypes.Proposals) (int, error) {
+	var proposalsSaved int
+	// Attempt to save a given a given item for a max of 5 times.
+	var maxLoop = 5
 
 	// Save all the proposals
 	for i, val := range publicProposals.Data {
@@ -188,26 +207,68 @@ func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
 
 		err = db.dbP.Save(val)
 
-		// In the rare case scenario that the current proposal has a duplicate refID
-		// append an integer value to it till it becomes unique.
+		// When a duplicate CensorshipRecord struct is detected this "already exists"
+		// error is thrown, this means that some edits were made to an older version
+		// of the proposal and its fixed by updating the new changes. In another
+		// case that is more rare, is that the current proposal could have a Name
+		// that generates a RefID similar to one already in the db and appending
+		// integers to it till it becomes unique is the solution.
 		if err == storm.ErrAlreadyExists {
-			c := 1
-			for {
-				val.RefID += strconv.Itoa(c)
-				err = db.dbP.Save(val)
-				if err == nil || err != storm.ErrAlreadyExists {
+			var data *pitypes.ProposalInfo
+			// Check if the proposal token already exists in the db.
+			data, err = db.proposal("TokenVal", val.TokenVal)
+			if err == nil && data != nil {
+				// The proposal token already exists thus trigger an update with
+				// the latest details.
+				valCopy := *val
+				valCopy.ID = data.ID
+				suffixStr := ""
+
+				for k := 1; k <= maxLoop; k++ {
+					valCopy.RefID += suffixStr
+					// Attempt to update the old entry.
+					err = db.dbP.Update(&valCopy)
+					if err == storm.ErrAlreadyExists {
+						suffixStr = strconv.Itoa(k)
+						continue
+					}
+					if err != nil {
+						log.Error("storm DB update failed: %v", err)
+					}
 					break
 				}
-				c++
+			}
+
+			// First try wasn't successful if err != nil.
+			if err != nil {
+
+				for c := 1; c <= maxLoop; c++ {
+					// Drop the previously assigned ID.
+					val.ID = 0
+
+					val.RefID += strconv.Itoa(c)
+					// Attempt to save a new entry.
+					err = db.dbP.Save(val)
+					if err == storm.ErrAlreadyExists {
+						continue
+					}
+					if err != nil {
+						log.Error("storm DB save failed: %v", err)
+					}
+					break
+				}
 			}
 		}
 
 		if err != nil {
 			return i, fmt.Errorf("save operation failed: %v", err)
 		}
+
+		// increment since the save is successful.
+		proposalsSaved++
 	}
 
-	return len(publicProposals.Data), nil
+	return proposalsSaved, nil
 }
 
 // AllProposals fetches all the proposals data saved to the db.
@@ -237,7 +298,6 @@ func (db *ProposalDB) AllProposals(offset, rowsCount int,
 	// Return the proposals listing starting with the newest.
 	err = query.Skip(offset).Limit(rowsCount).Reverse().OrderBy("Timestamp").
 		Find(&proposals)
-
 	if err != nil && err != storm.ErrNotFound {
 		log.Errorf("Failed to fetch data from Proposals DB: %v", err)
 	} else {
@@ -261,7 +321,7 @@ func (db *ProposalDB) ProposalByToken(proposalToken string) (*pitypes.ProposalIn
 
 // ProposalByRefID returns the single proposal identified by the provided refID.
 // RefID is generated from the proposal name and used as the descriptive part of
-// the URL to proposal details page on the
+// the URL to proposal details page on the /proposal page.
 func (db *ProposalDB) ProposalByRefID(RefID string) (*pitypes.ProposalInfo, error) {
 	if db == nil || db.dbP == nil {
 		return nil, errDef
@@ -329,7 +389,12 @@ func (db *ProposalDB) CheckProposalsUpdates() error {
 		queryParam = fmt.Sprintf("?before=%s", lastProposal[0].TokenVal)
 	}
 
-	n, err := db.saveProposals(queryParam)
+	publicProposals, err := db.fetchAPIData(queryParam)
+	if err != nil {
+		return err
+	}
+
+	n, err := db.saveProposals(publicProposals)
 	if err != nil {
 		return err
 	}
