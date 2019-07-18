@@ -784,8 +784,17 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// insightMultiAddrsTxOutputV4 is a hack to marshal like
+	// api/types/v4.InsightTx, but without bumping many major module versions.
+	type insightMultiAddrsTxOutputV4 struct {
+		TotalItems int64         `json:"totalItems"`
+		From       int           `json:"from"`
+		To         int           `json:"to"`
+		Items      []insightTxV4 `json:"items"`
+	}
+
 	// Initialize output structure.
-	addressOutput := new(apitypes.InsightMultiAddrsTxOutput)
+	addressOutput := new(insightMultiAddrsTxOutputV4)
 	var UnconfirmedTxs []chainhash.Hash
 	var UnconfirmedTxTimes []int64
 
@@ -913,7 +922,7 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Convert to Insight API struct.
-	txsNew, err := iapi.DcrToInsightTxns(txsOld, noAsm, noScriptSig, noSpent)
+	txsNew, err := iapi.dcrToInsightTxns(txsOld, noAsm, noScriptSig, noSpent)
 	if err != nil {
 		apiLog.Error("Unable to process transactions")
 		writeInsightError(w, fmt.Sprintf("Unable to convert transactions (%v)", err))
@@ -922,7 +931,7 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 	addressOutput.Items = append(addressOutput.Items, txsNew...)
 	if addressOutput.Items == nil {
 		// Pass a non-nil empty array for JSON if there are no txns.
-		addressOutput.Items = make([]apitypes.InsightTx, 0)
+		addressOutput.Items = make([]insightTxV4, 0)
 	}
 
 	writeJSON(w, addressOutput, iapi.getIndentQuery(r))
