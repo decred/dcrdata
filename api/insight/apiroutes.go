@@ -571,10 +571,17 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 		// Sorting is not necessary since all of these transactions are in the
 		// same block, but put the stake transactions first.
 		mergedTxns := append(blkTrans.RawSTx, blkTrans.RawTx...)
-		txcount := len(mergedTxns)
+		txCount := len(mergedTxns)
+		if txCount == 0 {
+			addrTransactions := apitypes.InsightBlockAddrTxSummary{
+				Txs: []apitypes.InsightTx{},
+			}
+			writeJSON(w, addrTransactions, iapi.getIndentQuery(r))
+			return
+		}
 
-		pagesTotal := txcount / txPageSize
-		if txcount%txPageSize != 0 {
+		pagesTotal := txCount / txPageSize
+		if txCount%txPageSize != 0 {
 			pagesTotal++
 		}
 
@@ -586,7 +593,7 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 		// Grab the transactions for the given page (1-based index).
 		skipTxns := (pageNum - 1) * txPageSize // middleware guarantees pageNum>0
 		txsOld := []*dcrjson.TxRawResult{}
-		for i := skipTxns; i < txcount && i < txPageSize+skipTxns; i++ {
+		for i := skipTxns; i < txCount && i < txPageSize+skipTxns; i++ {
 			txsOld = append(txsOld, &mergedTxns[i])
 		}
 
@@ -599,7 +606,7 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 		}
 
 		blockTransactions := apitypes.InsightBlockAddrTxSummary{
-			PagesTotal: int64(txcount),
+			PagesTotal: int64(txCount),
 			Txs:        txsNew,
 		}
 		writeJSON(w, blockTransactions, iapi.getIndentQuery(r))
@@ -692,9 +699,17 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 		// from confirmed transactions.
 		hashes = append(UnconfirmedTxs, hashes...)
 
-		txcount := len(hashes)
-		pagesTotal := txcount / txPageSize
-		if txcount%txPageSize != 0 {
+		txCount := len(hashes)
+		if txCount == 0 {
+			addrTransactions := apitypes.InsightBlockAddrTxSummary{
+				Txs: []apitypes.InsightTx{},
+			}
+			writeJSON(w, addrTransactions, iapi.getIndentQuery(r))
+			return
+		}
+
+		pagesTotal := txCount / txPageSize
+		if txCount%txPageSize != 0 {
 			pagesTotal++
 		}
 
@@ -706,7 +721,7 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 		// Grab the transactions for the given page.
 		skipTxns := (pageNum - 1) * txPageSize
 		txsOld := []*dcrjson.TxRawResult{}
-		for i := skipTxns; i < txcount && i < txPageSize+skipTxns; i++ {
+		for i := skipTxns; i < txCount && i < txPageSize+skipTxns; i++ {
 			txOld, err := iapi.BlockData.GetRawTransaction(&hashes[i])
 			if err != nil {
 				apiLog.Errorf("Unable to get transaction %s", hashes[i])
@@ -853,16 +868,16 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 	// Merge unconfirmed with confirmed transactions. Unconfirmed must be first.
 	rawTxs = append(UnconfirmedTxs, rawTxs...)
 
-	txcount := len(rawTxs)
-	addressOutput.TotalItems = int64(txcount)
+	txCount := len(rawTxs)
+	addressOutput.TotalItems = int64(txCount)
 
 	// Set the actual to and from values given the total transactions.
-	if txcount > 0 {
-		if int(from) > txcount {
-			from = int64(txcount)
+	if txCount > 0 {
+		if int(from) > txCount {
+			from = int64(txCount)
 		}
-		if int(to) > txcount {
-			to = int64(txcount)
+		if int(to) > txCount {
+			to = int64(txCount)
 		}
 		if from > to {
 			to = from
@@ -1252,7 +1267,7 @@ func (iapi *InsightApi) getAddressInfo(w http.ResponseWriter, r *http.Request) {
 	rawTxs = append(unconfirmedTxs, rawTxs...)
 
 	// Final raw tx slice extraction
-	if txcount := int64(len(rawTxs)); txcount > 0 {
+	if txCount := int64(len(rawTxs)); txCount > 0 {
 		txLimit := int64(1000)
 		// "from" and "to" are zero-based indexes for inclusive range bounds.
 		from := GetFromCtx(r)
@@ -1262,7 +1277,7 @@ func (iapi *InsightApi) getAddressInfo(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// [from, to] --(limits)--> [start,end)
-		start, end, err := fromToForSlice(from, to, txcount, txLimit)
+		start, end, err := fromToForSlice(from, to, txCount, txLimit)
 		if err != nil {
 			writeInsightError(w, err.Error())
 			return
