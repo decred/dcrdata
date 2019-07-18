@@ -117,14 +117,13 @@ func (pgb *ChainDB) InsightAddressTransactions(addr []string, recentBlockHeight 
 }
 
 // AddressIDsByOutpoint fetches all address row IDs for a given outpoint
-// (txHash:voutIndex). TODO: Update the vin due to the issue with amountin
-// invalid for unconfirmed txns.
+// (txHash:voutIndex).
 func (pgb *ChainDB) AddressIDsByOutpoint(txHash string, voutIndex uint32) ([]uint64, []string, int64, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 	ids, addrs, val, err := RetrieveAddressIDsByOutpoint(ctx, pgb.db, txHash, voutIndex)
 	return ids, addrs, val, pgb.replaceCancelError(err)
-} // Update Vin due to DCRD AMOUNTIN - END
+}
 
 // InsightSearchRPCAddressTransactions performs a searchrawtransactions for the
 // specified address, max number of transactions, and offset into the transaction
