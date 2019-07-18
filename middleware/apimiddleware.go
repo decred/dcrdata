@@ -43,6 +43,7 @@ const (
 	ctxN
 	ctxCount
 	ctxOffset
+	ctxPageNum
 	CtxBlockDate
 	CtxLimit
 	ctxGetStatus
@@ -429,6 +430,21 @@ func GetOffsetCtx(r *http.Request) int {
 	return offset
 }
 
+// GetPageNumCtx retrieves the ctxPageNum data ("pageNum") URL path element from
+// the request context. If not set, the return value is 1. The page number must
+// be a postitive integer.
+func GetPageNumCtx(r *http.Request) int {
+	pageNum, ok := r.Context().Value(ctxPageNum).(int)
+	if !ok {
+		apiLog.Debug("pageNum is not set or is not an int")
+		return 1
+	}
+	if pageNum < 1 {
+		pageNum = 1
+	}
+	return pageNum
+}
+
 // GetStatusInfoCtx retrieves the ctxGetStatus data ("q" POST form data) from
 // the request context. If not set, the return value is an empty string.
 func GetStatusInfoCtx(r *http.Request) string {
@@ -731,6 +747,26 @@ func PaginationCtx(next http.Handler) http.Handler {
 
 		ctx := context.WithValue(r.Context(), ctxCount, count)
 		ctx = context.WithValue(ctx, ctxOffset, offset)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// PageNumCtx returns a http.Handlerfunc that embeds the {pageNum} URL query
+// parameter value in the request into the request context.
+func PageNumCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		pageNumStr := r.FormValue("pageNum")
+		if pageNumStr == "" {
+			pageNumStr = "1"
+		}
+
+		pageNum, err := strconv.Atoi(pageNumStr)
+		if err != nil {
+			http.Error(w, "invalid from value", 422)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), ctxPageNum, pageNum)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

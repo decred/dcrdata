@@ -543,6 +543,7 @@ func removeSliceElements(txOuts []*apitypes.AddressTxnOutput, inds []int) []*api
 }
 
 func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) {
+	pageNum := m.GetPageNumCtx(r)
 	hash, blockerr := m.GetBlockHashCtx(r)
 	addresses, addrerr := m.GetAddressCtx(r, iapi.params, 1)
 
@@ -557,6 +558,8 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	txPageSize := 10
+
 	if blockerr == nil {
 		blkTrans := iapi.BlockData.GetBlockVerboseByHash(hash, true)
 		if blkTrans == nil {
@@ -565,37 +568,45 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		txsOld := []*dcrjson.TxRawResult{}
-		txcount := len(blkTrans.RawTx) + len(blkTrans.RawSTx)
-		// Merge tx and stx together and limit result to 10 max
-		count := 0
-		for i := range blkTrans.RawTx {
-			txsOld = append(txsOld, &blkTrans.RawTx[i])
-			count++
-			if count > 10 {
-				break
+		// Sorting is not necessary since all of these transactions are in the
+		// same block, but put the stake transactions first.
+		mergedTxns := append(blkTrans.RawSTx, blkTrans.RawTx...)
+		txCount := len(mergedTxns)
+		if txCount == 0 {
+			addrTransactions := apitypes.InsightBlockAddrTxSummary{
+				Txs: []apitypes.InsightTx{},
 			}
-		}
-		if count < 10 {
-			for i := range blkTrans.RawSTx {
-				txsOld = append(txsOld, &blkTrans.RawSTx[i])
-				count++
-				if count > 10 {
-					break
-				}
-			}
+			writeJSON(w, addrTransactions, iapi.getIndentQuery(r))
+			return
 		}
 
-		// Convert to Insight struct
+		pagesTotal := txCount / txPageSize
+		if txCount%txPageSize != 0 {
+			pagesTotal++
+		}
+
+		// Go to the last page if pageNum is greater than the number of pages.
+		if pageNum > pagesTotal {
+			pageNum = pagesTotal
+		}
+
+		// Grab the transactions for the given page (1-based index).
+		skipTxns := (pageNum - 1) * txPageSize // middleware guarantees pageNum>0
+		txsOld := []*dcrjson.TxRawResult{}
+		for i := skipTxns; i < txCount && i < txPageSize+skipTxns; i++ {
+			txsOld = append(txsOld, &mergedTxns[i])
+		}
+
+		// Convert to dcrjson transaction to Insight tx type.
 		txsNew, err := iapi.TxConverter(txsOld)
 		if err != nil {
-			apiLog.Error("Error Processing Transactions")
+			apiLog.Error("getTransactions: Error processing transactions: %v", err)
 			writeInsightError(w, "Error Processing Transactions")
 			return
 		}
 
 		blockTransactions := apitypes.InsightBlockAddrTxSummary{
-			PagesTotal: int64(txcount),
+			PagesTotal: int64(txCount),
 			Txs:        txsNew,
 		}
 		writeJSON(w, blockTransactions, iapi.getIndentQuery(r))
@@ -610,9 +621,10 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 			writeInsightError(w, fmt.Sprintf("Address is invalid (%s)", address))
 			return
 		}
-		addresses := []string{address}
-		rawTxs, recentTxs, err :=
-			iapi.BlockData.ChainDB.InsightAddressTransactions(addresses, int64(iapi.status.Height()-2))
+
+		hashes, recentTxs, err :=
+			iapi.BlockData.ChainDB.InsightAddressTransactions([]string{address},
+				int64(iapi.status.Height()-2))
 		if dbtypes.IsTimeoutErr(err) {
 			apiLog.Errorf("InsightAddressTransactions: %v", err)
 			http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -620,8 +632,8 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 		}
 		if err != nil {
 			writeInsightError(w,
-				fmt.Sprintf("Error retrieving transactions for addresses %s (%v)",
-					addresses, err))
+				fmt.Sprintf("Error retrieving transactions for address %s (%v)",
+					address, err))
 			return
 		}
 
@@ -682,21 +694,38 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 			UnconfirmedTxTimes = append(UnconfirmedTxTimes, spendingTx.MemPoolTime)
 		}
 
-		// Merge unconfirmed with confirmed transactions. Unconfirmed must be first.
-		rawTxs = append(UnconfirmedTxs, rawTxs...)
+		// Merge unconfirmed with confirmed transactions. Unconfirmed must be
+		// first since these first transactions have their time set differently
+		// from confirmed transactions.
+		hashes = append(UnconfirmedTxs, hashes...)
 
-		txcount := len(rawTxs)
-
-		if txcount > 10 {
-			rawTxs = rawTxs[0:10]
+		txCount := len(hashes)
+		if txCount == 0 {
+			addrTransactions := apitypes.InsightBlockAddrTxSummary{
+				Txs: []apitypes.InsightTx{},
+			}
+			writeJSON(w, addrTransactions, iapi.getIndentQuery(r))
+			return
 		}
 
+		pagesTotal := txCount / txPageSize
+		if txCount%txPageSize != 0 {
+			pagesTotal++
+		}
+
+		// Go to the last page if pageNum is greater than the number of pages.
+		if pageNum > pagesTotal {
+			pageNum = pagesTotal
+		}
+
+		// Grab the transactions for the given page.
+		skipTxns := (pageNum - 1) * txPageSize
 		txsOld := []*dcrjson.TxRawResult{}
-		for i, rawTx := range rawTxs {
-			txOld, err1 := iapi.BlockData.GetRawTransaction(&rawTx)
-			if err1 != nil {
-				apiLog.Errorf("Unable to get transaction %s", rawTx)
-				writeInsightError(w, fmt.Sprintf("Error gathering transaction details (%s)", err1))
+		for i := skipTxns; i < txCount && i < txPageSize+skipTxns; i++ {
+			txOld, err := iapi.BlockData.GetRawTransaction(&hashes[i])
+			if err != nil {
+				apiLog.Errorf("Unable to get transaction %s", hashes[i])
+				writeInsightError(w, fmt.Sprintf("Error gathering transaction details (%s)", err))
 				return
 			}
 
@@ -706,16 +735,16 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 			txsOld = append(txsOld, txOld)
 		}
 
-		// Convert to Insight struct
+		// Convert to dcrjson transaction to Insight tx type.
 		txsNew, err := iapi.TxConverter(txsOld)
 		if err != nil {
-			apiLog.Error("Error Processing Transactions")
+			apiLog.Error("getTransactions: Error processing transactions: %v", err)
 			writeInsightError(w, "Error Processing Transactions")
 			return
 		}
 
 		addrTransactions := apitypes.InsightBlockAddrTxSummary{
-			PagesTotal: int64(txcount),
+			PagesTotal: int64(pagesTotal),
 			Txs:        txsNew,
 		}
 		writeJSON(w, addrTransactions, iapi.getIndentQuery(r))
@@ -839,16 +868,16 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 	// Merge unconfirmed with confirmed transactions. Unconfirmed must be first.
 	rawTxs = append(UnconfirmedTxs, rawTxs...)
 
-	txcount := len(rawTxs)
-	addressOutput.TotalItems = int64(txcount)
+	txCount := len(rawTxs)
+	addressOutput.TotalItems = int64(txCount)
 
 	// Set the actual to and from values given the total transactions.
-	if txcount > 0 {
-		if int(from) > txcount {
-			from = int64(txcount)
+	if txCount > 0 {
+		if int(from) > txCount {
+			from = int64(txCount)
 		}
-		if int(to) > txcount {
-			to = int64(txcount)
+		if int(to) > txCount {
+			to = int64(txCount)
 		}
 		if from > to {
 			to = from
@@ -1238,7 +1267,7 @@ func (iapi *InsightApi) getAddressInfo(w http.ResponseWriter, r *http.Request) {
 	rawTxs = append(unconfirmedTxs, rawTxs...)
 
 	// Final raw tx slice extraction
-	if txcount := int64(len(rawTxs)); txcount > 0 {
+	if txCount := int64(len(rawTxs)); txCount > 0 {
 		txLimit := int64(1000)
 		// "from" and "to" are zero-based indexes for inclusive range bounds.
 		from := GetFromCtx(r)
@@ -1248,7 +1277,7 @@ func (iapi *InsightApi) getAddressInfo(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// [from, to] --(limits)--> [start,end)
-		start, end, err := fromToForSlice(from, to, txcount, txLimit)
+		start, end, err := fromToForSlice(from, to, txCount, txLimit)
 		if err != nil {
 			writeInsightError(w, err.Error())
 			return
