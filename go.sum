@@ -161,12 +161,12 @@ github.com/decred/dcrdata/exchanges/v2 v2.0.1 h1:gfs5JfobSyuyERVEfo4IOTXbBHd22HJ
 github.com/decred/dcrdata/exchanges/v2 v2.0.1/go.mod h1:OQK9FcVspuhnZFlk2jOcGwLuEiMSQM0iXMwsWISFE5Q=
 github.com/decred/dcrdata/explorer/types v1.1.0 h1:YjPQ7LqigGwgPNoixtcp3HZUeqk4/vgGkNMv7cyd5j4=
 github.com/decred/dcrdata/explorer/types v1.1.0/go.mod h1:MI11f0uE9uAFbFQYNsfBSlPoPDAWsyNW4QOO9xkGp+0=
-github.com/decred/dcrdata/gov v1.0.1 h1:Lvwu6Msuusyoamy/WbTsqyjNWnnKz3vAl8BirrAkNeg=
-github.com/decred/dcrdata/gov v1.0.1/go.mod h1:wiF36SkIuwTPD5/sVLYNWqn+hEOMZ6PKZkTDYmFyCkM=
+github.com/decred/dcrdata/gov v1.0.2 h1:+PptLg9zp/wVERIZCF2CsuWUIQ42mlo079SqSL3oCv4=
+github.com/decred/dcrdata/gov v1.0.2/go.mod h1:wiF36SkIuwTPD5/sVLYNWqn+hEOMZ6PKZkTDYmFyCkM=
 github.com/decred/dcrdata/mempool/v3 v3.0.1 h1:MtlBOeaOxl3PIw7YjQKyCehQw8/588fPGPr3Fyky97E=
 github.com/decred/dcrdata/mempool/v3 v3.0.1/go.mod h1:2nEki72AlJbXl5ypQhrcI0gcWkmX2fZcbJ0XgbAL2qw=
-github.com/decred/dcrdata/middleware/v2 v2.2.0 h1:3CqOTTo7ewmOs+wvbPf/sNaZ3O6ZO+VCwOf+8xUgquY=
-github.com/decred/dcrdata/middleware/v2 v2.2.0/go.mod h1:Zd96+65ZHWtchjYZDYBA6HcM1snigFeubwxRngu7i6M=
+github.com/decred/dcrdata/middleware/v2 v2.3.0 h1:xkcxZtpRd6ZnF/NOiqV/BUYLbjyWw1eyWpqBEOctro8=
+github.com/decred/dcrdata/middleware/v2 v2.3.0/go.mod h1:Zd96+65ZHWtchjYZDYBA6HcM1snigFeubwxRngu7i6M=
 github.com/decred/dcrdata/pubsub/types/v2 v2.0.0 h1:7UBWEITNpUmJKq8TPJatDns1+eWbGUgnLMTVSxpvKrM=
 github.com/decred/dcrdata/pubsub/types/v2 v2.0.0/go.mod h1:UJYV5LYfbclCeeas81tio9i2+USe21hCLMna9bx9wcg=
 github.com/decred/dcrdata/pubsub/v2 v2.0.1 h1:5o1t9/Pt1Sn2HSsW3AJf88p3RXFq9vc919nRRbKPShg=
