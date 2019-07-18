@@ -65,7 +65,7 @@ func NewInsightApiRouter(app *InsightApi, useRealIP, compression bool) ApiMux {
 		app.ValidatePostCtx, m.PostBroadcastTxCtx).Post("/tx/send", app.broadcastTransactionRaw)
 	mux.With(m.TransactionHashCtx).Get("/tx/{txid}", app.getTransaction)
 	mux.With(m.TransactionHashCtx).Get("/rawtx/{txid}", app.getTransactionHex)
-	mux.With(m.TransactionsCtx).Get("/txs", app.getTransactions)
+	mux.With(m.TransactionsCtx, m.PageNumCtx).Get("/txs", app.getTransactions)
 
 	// Status and Utility
 	mux.With(app.StatusInfoCtx).Get("/status", app.getStatusInfo)
