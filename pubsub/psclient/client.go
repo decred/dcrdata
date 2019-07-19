@@ -78,6 +78,20 @@ func newServerVersionMsg(reqID int64) []byte {
 	return verMsg
 }
 
+// newPingMsg creates a new ping message with EventId set to "ping", and request
+// message content generated for the specified reqID.
+func newPingMsg(reqID int64) []byte {
+	pingMsg, err := json.Marshal(pstypes.WebSocketMessage{
+		EventId: "ping",
+		Message: makeRequestMsg("", reqID),
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to json.Marshal a WebSocketMessage: %v", err))
+	}
+
+	return pingMsg
+}
+
 var defaultTimeout = 10 * time.Second
 
 // Opts defines the psclient Client options.
@@ -255,6 +269,9 @@ func (c *Client) receiver() {
 				c.deleteRequestID(m.RequestId)
 			}()
 			continue
+		case *pstypes.HangUp:
+			log.Infof("The server is hanging up on us!")
+			return
 		case string:
 			// generic "message"
 			log.Debugf("Message (%s): %s", resp.EventId, m)
@@ -403,6 +420,19 @@ func (c *Client) ServerVersion() (*pstypes.Ver, error) {
 	return &ver, nil
 }
 
+// Ping sends a ping to the server. There is no response.
+func (c *Client) Ping() error {
+	_, reqID := c.newResponseChan()
+	msg := newPingMsg(reqID)
+	defer c.deleteRequestID(reqID)
+
+	// Send the server version message.
+	if err := c.send(msg); err != nil {
+		return fmt.Errorf("failed to send ping message: %v", err)
+	}
+	return nil
+}
+
 // receiveMsgTimeout waits for the specified time Duration for a message,
 // returned decoded into a WebSocketMessage.
 func (c *Client) receiveMsgTimeout(timeout time.Duration) (*pstypes.WebSocketMessage, error) {
@@ -446,6 +476,8 @@ func DecodeMsg(msg *pstypes.WebSocketMessage) (interface{}, error) {
 		var message string
 		err := json.Unmarshal(msg.Message, &message)
 		return message, err
+	case "bye":
+		return &pstypes.HangUp{}, nil
 	case "ping":
 		var numClients int
 		err := json.Unmarshal(msg.Message, &numClients)

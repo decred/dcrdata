@@ -76,7 +76,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					log.Warnf("SetReadDeadline failed: %v", err)
 				}
 				if err = websocket.JSON.Receive(ws, &msg); err != nil {
-					if err.Error() != "EOF" {
+					if err.Error() != "EOF" && !pstypes.IsWSClosedErr(err) {
 						log.Warnf("websocket client receive error: %v", err)
 					}
 					return

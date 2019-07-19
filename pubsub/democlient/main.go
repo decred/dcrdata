@@ -113,7 +113,7 @@ func main() {
 			var a actionData
 			actionPrompt := &survey.Select{
 				Message: "What now?",
-				Options: []string{"subscribe", "unsubscribe", "version", "quit"},
+				Options: []string{"subscribe", "unsubscribe", "ping the server", "version", "quit"},
 			}
 			err := survey.AskOne(actionPrompt, &a.action, nil)
 			if err != nil {
@@ -162,6 +162,14 @@ func main() {
 					log.Printf("Failed to unsubscribe: %v", err)
 					continue
 				}
+
+			case "ping the server":
+				err := cl.Ping()
+				if err != nil {
+					log.Printf("Failed to ping the server: %v", err)
+					continue
+				}
+				log.Println("Ping sent!")
 
 			case "version":
 				serverVer, err := cl.ServerVersion()

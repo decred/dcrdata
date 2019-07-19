@@ -184,19 +184,13 @@ func closeWS(ws *websocket.Conn) {
 // with the WebSocketHub. receiveLoop should be started as a goroutine, after
 // conn.Add(1) and before a conn.Wait().
 func (psh *PubSubHub) receiveLoop(conn *connection) {
-	ws := conn.ws
-	defer closeWS(ws)
-
-	// When connection is done, unregister the client, which closes the client's
-	// updateSig channel.
-	defer psh.wsHub.UnregisterClient(conn.client)
-
-	defer conn.client.cl.unsubscribeAll()
+	//defer conn.client.cl.unsubscribeAll()
 
 	// receiveLoop should be started after conn.Add(1) and before a conn.Wait().
 	defer conn.Done()
 
 	// Receive messages on the websocket.Conn until it is closed.
+	ws := conn.ws
 	for {
 		// Set this Conn's read deadline.
 		err := ws.SetReadDeadline(time.Now().Add(wsReadTimeout))
@@ -213,7 +207,7 @@ func (psh *PubSubHub) receiveLoop(conn *connection) {
 				continue
 			}
 			// EOF is a common client disconnected error.
-			if err.Error() != "EOF" {
+			if err.Error() != "EOF" && !pstypes.IsWSClosedErr(err) {
 				log.Warnf("websocket client receive error: %v", err)
 			}
 			return
@@ -344,7 +338,7 @@ func (psh *PubSubHub) receiveLoop(conn *connection) {
 			respMsg.Success = true
 
 		case "ping":
-			log.Tracef("We've been pinged: %.40s...", reqEvent)
+			log.Tracef("We've been pinged!")
 			// No response to ping
 			continue
 
@@ -383,174 +377,167 @@ func (psh *PubSubHub) receiveLoop(conn *connection) {
 // sendLoop receives signals from WebSocketHub via the connections unique signal
 // channel, and sends the relevant data to the client.
 func (psh *PubSubHub) sendLoop(conn *connection) {
-	// If returning because the WebSocketHub sent a quit signal, the receive
-	// loop may still be waiting for a message, so it is necessary to close the
-	// websocket.Conn in this case.
-	ws := conn.ws
-	defer closeWS(ws)
-
-	// sendLoop should be started after conn.Add(1), and before a conn.Wait().
-	defer conn.Done()
-
 	// Use this client's unique channel to receive signals from the
 	// WebSocketHub, which broadcasts signals to all clients.
 	updateSigChan := *conn.client.c
 	clientData := conn.client.cl
 	buff := new(bytes.Buffer)
 
-loop:
-	for {
-		// Wait for signal from the WebSocketHub to update.
-		select {
-		case sig, ok := <-updateSigChan:
-			// Check if the update channel was closed. Either the websocket
-			// hub will do it after unregistering the client, or forcibly in
-			// response to (http.CloseNotifier).CloseNotify() and only then
-			// if the hub has somehow lost track of the client.
-			if !ok {
-				return
-			}
+	// sendLoop should be started after conn.Add(1), and before a conn.Wait().
+	defer conn.Done()
 
-			if !sig.IsValid() {
-				log.Errorf("invalid signal to send: %s / %d", sig.Signal.String(), int(sig.Signal))
+	// If returning because the WebSocketHub sent a quit signal, the receive
+	// loop may still be waiting for a message, so it is necessary to close the
+	// websocket.Conn in this case.
+	ws := conn.ws
+	defer closeWS(ws)
+
+loop:
+	for sig := range updateSigChan {
+		log.Debugf("updateSigChan: %v", sig)
+		// If the update channel is closed, the loop terminates.
+
+		if !sig.IsValid() {
+			log.Errorf("invalid signal to send: %s / %d", sig.Signal.String(), int(sig.Signal))
+			continue loop
+		}
+
+		if !clientData.isSubscribed(sig) {
+			log.Errorf("Client not subscribed for %s events. "+
+				"WebSocketHub should have caught this.", sig.Signal.String())
+			continue loop // break
+		}
+
+		log.Tracef("signaling client: %p", conn.client.c) // ID by address
+
+		// Respond to the websocket client.
+		pushMsg := pstypes.WebSocketMessage{
+			EventId: sig.Signal.String(),
+			// Message is set in switch statement below.
+		}
+
+		// JSON encoder for the Message.
+		buff.Reset()
+		enc := json.NewEncoder(buff)
+
+		switch sig.Signal {
+		case sigAddressTx:
+			// sig was already validated, but do it again here in case the
+			// type changed without changing the type assertion here.
+			am, ok := sig.Msg.(*pstypes.AddressMessage)
+			if !ok {
+				log.Errorf("sigAddressTx did not store a *AddressMessage in Msg.")
 				continue loop
 			}
-
-			if !clientData.isSubscribed(sig) {
-				log.Errorf("Client not subscribed for %s events. "+
-					"WebSocketHub should have caught this.", sig.Signal.String())
-				continue loop // break
+			err := enc.Encode(am)
+			if err != nil {
+				log.Warnf("Encode(AddressMessage) failed: %v", err)
 			}
 
-			log.Tracef("signaling client: %p", conn.client.c) // ID by address
-
-			// Respond to the websocket client.
-			pushMsg := pstypes.WebSocketMessage{
-				EventId: sig.Signal.String(),
-				// Message is set in switch statement below.
-			}
-
-			// JSON encoder for the Message.
-			buff.Reset()
-			enc := json.NewEncoder(buff)
-
-			switch sig.Signal {
-			case sigAddressTx:
-				// sig was already validated, but do it again here in case the
-				// type changed without changing the type assertion here.
-				am, ok := sig.Msg.(*pstypes.AddressMessage)
-				if !ok {
-					log.Errorf("sigAddressTx did not store a *AddressMessage in Msg.")
-					continue loop
-				}
-				err := enc.Encode(am)
-				if err != nil {
-					log.Warnf("Encode(AddressMessage) failed: %v", err)
-				}
-
-				pushMsg.Message = buff.Bytes()
-			case sigNewBlock:
-				psh.state.mtx.RLock()
-				if psh.state.BlockInfo == nil {
-					psh.state.mtx.RUnlock()
-					break // from switch to send empty message
-				}
-				err := enc.Encode(exptypes.WebsocketBlock{
-					Block: psh.state.BlockInfo,
-					Extra: psh.state.GeneralInfo,
-				})
+			pushMsg.Message = buff.Bytes()
+		case sigNewBlock:
+			psh.state.mtx.RLock()
+			if psh.state.BlockInfo == nil {
 				psh.state.mtx.RUnlock()
-				if err != nil {
-					log.Warnf("Encode(WebsocketBlock) failed: %v", err)
-				}
+				break // from switch to send empty message
+			}
+			err := enc.Encode(exptypes.WebsocketBlock{
+				Block: psh.state.BlockInfo,
+				Extra: psh.state.GeneralInfo,
+			})
+			psh.state.mtx.RUnlock()
+			if err != nil {
+				log.Warnf("Encode(WebsocketBlock) failed: %v", err)
+			}
 
-				pushMsg.Message = buff.Bytes()
+			pushMsg.Message = buff.Bytes()
 
-			case sigMempoolUpdate:
-				// You probably want the sigNewTxs event. sigMempoolUpdate sends
-				// a summary of mempool contents, and the NumLatestMempoolTxns
-				// latest transactions.
-				inv := psh.MempoolInventory()
-				if inv == nil {
-					break // from switch to send empty message
-				}
-				inv.RLock()
-				err := enc.Encode(inv.MempoolShort)
-				inv.RUnlock()
-				if err != nil {
-					log.Warnf("Encode(MempoolShort) failed: %v", err)
-				}
+		case sigMempoolUpdate:
+			// You probably want the sigNewTxs event. sigMempoolUpdate sends
+			// a summary of mempool contents, and the NumLatestMempoolTxns
+			// latest transactions.
+			inv := psh.MempoolInventory()
+			if inv == nil {
+				break // from switch to send empty message
+			}
+			inv.RLock()
+			err := enc.Encode(inv.MempoolShort)
+			inv.RUnlock()
+			if err != nil {
+				log.Warnf("Encode(MempoolShort) failed: %v", err)
+			}
 
-				pushMsg.Message = buff.Bytes()
+			pushMsg.Message = buff.Bytes()
 
-			case sigPingAndUserCount:
-				// ping and send user count
-				pushMsg.Message = json.RawMessage(strconv.Itoa(psh.wsHub.NumClients())) // No quotes as this is a JSON integer
+		case sigPingAndUserCount:
+			// ping and send user count
+			pushMsg.Message = json.RawMessage(strconv.Itoa(psh.wsHub.NumClients())) // No quotes as this is a JSON integer
 
-			case sigNewTxs:
-				// Marshal this client's tx buffer if it is not empty.
-				clientData.newTxs.Lock()
-				if len(clientData.newTxs.t) == 0 {
-					clientData.newTxs.Unlock()
-					continue loop // break sigselect
-				}
-				err := enc.Encode(clientData.newTxs.t)
-
-				// Reinit the tx buffer.
-				clientData.newTxs.t = make(pstypes.TxList, 0, NewTxBufferSize)
+		case sigNewTxs:
+			// Marshal this client's tx buffer if it is not empty.
+			clientData.newTxs.Lock()
+			if len(clientData.newTxs.t) == 0 {
 				clientData.newTxs.Unlock()
-				if err != nil {
-					log.Warnf("Encode([]*exptypes.MempoolTx) failed: %v", err)
-				}
-
-				pushMsg.Message = buff.Bytes()
-
-			// case sigSyncStatus:
-			// 	err := enc.Encode(explorer.SyncStatus())
-			// 	if err != nil {
-			// 		log.Warnf("Encode(SyncStatus()) failed: %v", err)
-			// 	}
-			// 	pushMsg.Message = buff.String()
-
-			default:
-				log.Errorf("Not sending a %v to the client.", sig)
 				continue loop // break sigselect
-			} // switch sig
-
-			// Send the message.
-			err := ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
-			if err != nil && !pstypes.IsWSClosedErr(err) {
-				log.Warnf("SetWriteDeadline failed: %v", err)
 			}
-			if err = websocket.JSON.Send(ws, pushMsg); err != nil {
-				// Do not log the error if the connection is just closed.
-				if !pstypes.IsWSClosedErr(err) {
-					log.Debugf("Failed to encode WebSocketMessage (push) %v: %v", sig, err)
-				}
-				// If the send failed, the client is probably gone, quit the
-				// send loop, unregistering the client from the websocket hub.
-				log.Errorf("websocket.JSON.Send of %v failed: %v", pushMsg, err)
-				return
+			err := enc.Encode(clientData.newTxs.t)
+
+			// Reinit the tx buffer.
+			clientData.newTxs.t = make(pstypes.TxList, 0, NewTxBufferSize)
+			clientData.newTxs.Unlock()
+			if err != nil {
+				log.Warnf("Encode([]*exptypes.MempoolTx) failed: %v", err)
 			}
 
-		// end of case sig, ok := <-updateSigChan
+			pushMsg.Message = buff.Bytes()
 
-		case <-psh.wsHub.quitWSHandler:
+		case sigByeNow:
+			pushMsg.Message = []byte(`"The dcrdata server is shutting down. Bye!"`)
+			log.Tracef("Sending %v", string(pushMsg.Message))
+
+		// case sigSyncStatus:
+		// 	err := enc.Encode(explorer.SyncStatus())
+		// 	if err != nil {
+		// 		log.Warnf("Encode(SyncStatus()) failed: %v", err)
+		// 	}
+		// 	pushMsg.Message = buff.String()
+
+		default:
+			log.Errorf("Not sending a %v to the client.", sig)
+			continue loop // break sigselect
+		} // switch sig
+
+		// Send the message.
+		err := ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
+		if err != nil && !pstypes.IsWSClosedErr(err) {
+			log.Warnf("SetWriteDeadline failed: %v", err)
+		}
+		if err = websocket.JSON.Send(ws, pushMsg); err != nil {
+			// Do not log the error if the connection is just closed.
+			if !pstypes.IsWSClosedErr(err) {
+				log.Debugf("Failed to encode WebSocketMessage (push) %v: %v", sig, err)
+			}
+			// If the send failed, the client is probably gone, quit the
+			// send loop, unregistering the client from the websocket hub.
+			log.Errorf("websocket.JSON.Send of %v failed: %v", pushMsg, err)
 			return
-		} // select
-	} // for { a.k.a. loop:
+		}
+	} // for range { a.k.a. loop:
 }
 
 // WebSocketHandler is the http.HandlerFunc for new websocket connections. The
 // connection is registered with the WebSocketHub, and the send/receive loops
 // are launched.
 func (psh *PubSubHub) WebSocketHandler(w http.ResponseWriter, r *http.Request) {
+	// Register websocket client.
+	ch := psh.wsHub.NewClientHubSpoke()
+	defer func() {
+		close(ch.cl.killed)
+	}()
+
 	wsHandler := websocket.Handler(func(ws *websocket.Conn) {
 		// Set the max payload size for this connection.
 		ws.MaxPayloadBytes = psh.wsHub.requestLimit
-
-		// Register websocket client.
-		ch := psh.wsHub.NewClientHubSpoke()
 
 		// The receive loop will be sitting on websocket.JSON.Receive, while the
 		// send loop will be waiting for signals from the WebSocketHub. One must

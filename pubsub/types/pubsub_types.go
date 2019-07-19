@@ -84,6 +84,8 @@ func (am AddressMessage) String() string {
 
 type TxList []*exptypes.MempoolTx
 
+type HangUp struct{}
+
 type HubSignal int
 
 // These are the different signal types used for passing messages between the
@@ -102,6 +104,7 @@ const (
 	SigNewTxs
 	SigAddressTx
 	SigSyncStatus
+	SigByeNow
 	SigUnknown
 )
 
@@ -129,6 +132,7 @@ var eventIDs = map[HubSignal]string{
 	SigNewTxs:           "newtxs",
 	SigAddressTx:        "address",
 	SigSyncStatus:       "blockchainSync",
+	SigByeNow:           "bye",
 	SigUnknown:          "unknown",
 }
 
