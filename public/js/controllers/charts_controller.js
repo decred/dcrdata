@@ -95,13 +95,15 @@ function legendFormatter (data) {
     // The circulation chart has an additional legend entry showing percent
     // difference.
     if (data.series.length === 2 && data.series[0].label.toLowerCase().includes('coin supply') &&
-      data.series[1].label.toLowerCase().includes('coin supply')) {
+      data.series[1].label.toLowerCase().includes('inflation limit')) {
       data.series.sort((a, b) => a.y > b.y ? 1 : -1)
       let actual = data.series[0].y
       let predicted = data.series[1].y
-      let unminted = predicted - actual
-      let change = ((unminted / predicted) * 100).toFixed(2)
-      extraHTML = `<div class="pr-2">&nbsp;&nbsp;Unminted: ${intComma(unminted)} DCR (${change}%)</div>`
+      if (predicted) {
+        let unminted = predicted - actual
+        let change = ((unminted / predicted) * 100).toFixed(2)
+        extraHTML = `<div class="pr-2">&nbsp;&nbsp;Unminted: ${intComma(unminted)} DCR (${change}%)</div>`
+      }
     }
 
     let yVals = data.series.reduce((nodes, series) => {
@@ -109,7 +111,7 @@ function legendFormatter (data) {
       let yVal = series.yHTML
       switch (series.label.toLowerCase()) {
         case 'ticket pool value':
-        case 'predicted coin supply':
+        case 'inflation limit':
         case 'coin supply':
           yVal = intComma(series.y) + ' DCR'
           break
@@ -477,8 +479,14 @@ export default class extends Controller {
 
       case 'coin-supply': // supply graph
         d = circulationFunc(data, isHeightAxis, isDayBinned)
-        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Coin Supply', 'Predicted Coin Supply'],
+        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Coin Supply', 'Inflation Limit'],
           true, 'Coin Supply (DCR)', true, false))
+        gOptions.series = {
+          'Inflation Limit': {
+            strokePattern: [5, 3],
+            color: '#888'
+          }
+        }
         break
 
       case 'fees': // block fee graph
