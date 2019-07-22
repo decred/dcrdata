@@ -24,12 +24,6 @@ import (
 	sqlite3 "github.com/mattn/go-sqlite3" // register sqlite driver with database/sql
 )
 
-// StakeInfoDatabaser is the interface for an extended stake info saving database
-type StakeInfoDatabaser interface {
-	StoreStakeInfoExtended(bd *apitypes.StakeInfoExtended) error
-	RetrieveStakeInfoExtended(ind int64) (*apitypes.StakeInfoExtended, error)
-}
-
 // BlockSummaryDatabaser is the interface for a block data saving database
 type BlockSummaryDatabaser interface {
 	StoreBlockSummary(bd *apitypes.BlockDataBasic) error
@@ -111,15 +105,11 @@ type DB struct {
 	// Stake info table queries
 	insertStakeInfoExtendedSQL                                    string
 	getBestStakeHeightSQL, getHighestStakeHeightSQL               string
-	getStakeInfoExtendedByHashSQL                                 string
 	deleteStakeInfoByHeightMainChainSQL, deleteStakeInfoByHashSQL string
 	deleteStakeInfoAboveHeightSQL                                 string
 
 	// JOINed table queries
-	getLatestStakeInfoExtendedSQL                        string
-	getStakeInfoExtendedByHeightSQL                      string
-	getAllFeeInfoPerBlock                                string
-	getStakeInfoWinnersSQL, getStakeInfoWinnersByHashSQL string
+	getAllFeeInfoPerBlock string
 
 	// Table creation
 	rawCreateBlockSummaryStmt, rawCreateStakeInfoExtendedStmt string
@@ -231,26 +221,6 @@ func NewDB(db *sql.DB, shutdown func()) (*DB, error) {
 		WHERE height > ?`, TableNameSummaries)
 
 	// Stake info table queries
-	d.getStakeInfoExtendedByHeightSQL = fmt.Sprintf(`SELECT %[1]s.* FROM %[1]s
-		JOIN %[2]s ON %[1]s.hash = %[2]s.hash
-		WHERE %[2]s.is_mainchain = 1 AND %[1]s.height = ?`,
-		TableNameStakeInfo, TableNameSummaries)
-	d.getStakeInfoExtendedByHashSQL = fmt.Sprintf(`SELECT * FROM %s WHERE hash = ?`,
-		TableNameStakeInfo)
-	d.getStakeInfoWinnersSQL = fmt.Sprintf(`SELECT %[1]s.winners FROM %[1]s
-		JOIN %[2]s ON %[1]s.hash = %[2]s.hash
-		WHERE %[1]s.height = ?`,
-		TableNameStakeInfo, TableNameSummaries)
-	d.getStakeInfoWinnersByHashSQL = fmt.Sprintf(`SELECT %[1]s.winners FROM %[1]s
-		JOIN %[2]s ON %[1]s.hash = %[2]s.hash
-		WHERE %[1]s.hash = ?`,
-		TableNameStakeInfo, TableNameSummaries)
-	d.getLatestStakeInfoExtendedSQL = fmt.Sprintf(
-		`SELECT %[1]s.* FROM %[1]s
-		 JOIN %[2]s ON %[1]s.hash = %[2]s.hash
-		 WHERE %[2]s.is_mainchain = 1
-		 ORDER BY %[1]s.height DESC LIMIT 0, 1`,
-		TableNameStakeInfo, TableNameSummaries)
 	d.getBestStakeHeightSQL = fmt.Sprintf(
 		`SELECT %[1]s.height FROM %[1]s
 		 JOIN %[2]s ON %[1]s.hash = %[2]s.hash
@@ -1531,40 +1501,6 @@ func (db *DB) deleteStakeInfoHeightMainchain(height int64) (int64, error) {
 	return res.RowsAffected()
 }
 
-// RetrieveLatestStakeInfoExtended returns the extended stake info for the best
-// block.
-func (db *DB) RetrieveLatestStakeInfoExtended() (*apitypes.StakeInfoExtended, error) {
-	si := apitypes.NewStakeInfoExtended()
-
-	var winners string
-	err := db.QueryRow(db.getLatestStakeInfoExtendedSQL).Scan(
-		&si.Hash, &si.Feeinfo.Height, &si.Feeinfo.Number, &si.Feeinfo.Min,
-		&si.Feeinfo.Max, &si.Feeinfo.Mean,
-		&si.Feeinfo.Median, &si.Feeinfo.StdDev,
-		&si.StakeDiff, // no next or estimates
-		&si.PriceWindowNum, &si.IdxBlockInWindow, &si.PoolInfo.Size,
-		&si.PoolInfo.Value, &si.PoolInfo.ValAvg, &winners)
-	if err != nil {
-		return nil, err
-	}
-	si.PoolInfo.Winners = splitToArray(winners)
-
-	// See if this block should be cached.
-	usingBlockCache := db.BlockCache != nil && db.BlockCache.IsEnabled()
-	if usingBlockCache {
-		if db.BlockCache.GetStakeInfoByHash(si.Hash) == nil {
-			// Cache miss, cache the data.
-			err = db.BlockCache.StoreStakeInfo(si)
-			if err != nil {
-				log.Warnf("Failed to cache stake info for block %s: %v", si.Hash, err)
-				// Do not return the error.
-			}
-		}
-	}
-
-	return si, nil
-}
-
 // RetrieveBestStakeHeight retrieves the height of the best (mainchain) block in
 // the stake table.
 func (db *DB) RetrieveBestStakeHeight() (int64, error) {
@@ -1585,84 +1521,6 @@ func (db *DB) RetrieveHighestStakeHeight() (int64, error) {
 		return -1, err
 	}
 	return height, nil
-}
-
-// RetrieveStakeInfoExtended returns the extended stake info for the block at
-// height ind.
-func (db *DB) RetrieveStakeInfoExtended(ind int64) (*apitypes.StakeInfoExtended, error) {
-	// First try the block cache.
-	usingBlockCache := db.BlockCache != nil && db.BlockCache.IsEnabled()
-	if usingBlockCache {
-		si := db.BlockCache.GetStakeInfo(ind)
-		if si != nil {
-			// Cache hit!
-			return si, nil
-		}
-		// Cache miss necessitates a DB query.
-	}
-
-	si := apitypes.NewStakeInfoExtended()
-
-	var winners string
-	err := db.QueryRow(db.getStakeInfoExtendedByHeightSQL, ind).Scan(&si.Hash, &si.Feeinfo.Height,
-		&si.Feeinfo.Number, &si.Feeinfo.Min, &si.Feeinfo.Max, &si.Feeinfo.Mean,
-		&si.Feeinfo.Median, &si.Feeinfo.StdDev,
-		&si.StakeDiff, // no next or estimates
-		&si.PriceWindowNum, &si.IdxBlockInWindow, &si.PoolInfo.Size,
-		&si.PoolInfo.Value, &si.PoolInfo.ValAvg, &winners)
-	if err != nil {
-		return nil, err
-	}
-	si.PoolInfo.Winners = splitToArray(winners)
-
-	if usingBlockCache {
-		// This is a cache miss since hits return early.
-		err = db.BlockCache.StoreStakeInfo(si)
-		if err != nil {
-			log.Warnf("Failed to cache stake info for block at %d: %v", ind, err)
-			// Do not return the error.
-		}
-	}
-
-	return si, nil
-}
-
-func (db *DB) RetrieveStakeInfoExtendedByHash(blockhash string) (*apitypes.StakeInfoExtended, error) {
-	// First try the block cache.
-	usingBlockCache := db.BlockCache != nil && db.BlockCache.IsEnabled()
-	if usingBlockCache {
-		si := db.BlockCache.GetStakeInfoByHash(blockhash)
-		if si != nil {
-			// Cache hit!
-			return si, nil
-		}
-		// Cache miss necessitates a DB query.
-	}
-
-	si := apitypes.NewStakeInfoExtended()
-
-	var winners string
-	err := db.QueryRow(db.getStakeInfoExtendedByHashSQL, blockhash).Scan(&si.Hash, &si.Feeinfo.Height,
-		&si.Feeinfo.Number, &si.Feeinfo.Min, &si.Feeinfo.Max, &si.Feeinfo.Mean,
-		&si.Feeinfo.Median, &si.Feeinfo.StdDev,
-		&si.StakeDiff, // no next or estimates
-		&si.PriceWindowNum, &si.IdxBlockInWindow, &si.PoolInfo.Size,
-		&si.PoolInfo.Value, &si.PoolInfo.ValAvg, &winners)
-	if err != nil {
-		return nil, err
-	}
-	si.PoolInfo.Winners = splitToArray(winners)
-
-	if usingBlockCache {
-		// This is a cache miss since hits return early.
-		err = db.BlockCache.StoreStakeInfo(si)
-		if err != nil {
-			log.Warnf("Failed to cache stake info for block %s: %v", blockhash, err)
-			// Do not return the error.
-		}
-	}
-
-	return si, nil
 }
 
 // Copy the file.

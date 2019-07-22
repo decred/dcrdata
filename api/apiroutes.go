@@ -61,10 +61,10 @@ type DataSourceLite interface {
 	GetAllTxOut(txid *chainhash.Hash) []*apitypes.TxOut
 	GetTransactionsForBlock(idx int64) *apitypes.BlockTransactions
 	GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions
-	GetFeeInfo(idx int) *chainjson.FeeInfoBlock
-	//GetStakeDiffEstimate(idx int) *chainjson.EstimateStakeDiffResult
-	GetStakeInfoExtendedByHeight(idx int) *apitypes.StakeInfoExtended
-	GetStakeInfoExtendedByHash(hash string) *apitypes.StakeInfoExtended
+	// GetFeeInfo(idx int) *dcrjson.FeeInfoBlock // moving to postgresql
+	//GetStakeDiffEstimate(idx int) *dcrjson.EstimateStakeDiffResult
+	// GetStakeInfoExtendedByHeight(idx int) *apitypes.StakeInfoExtended // moving to postgresql
+	// GetStakeInfoExtendedByHash(hash string) *apitypes.StakeInfoExtended // moving to postgresql
 	GetStakeDiffEstimates() *apitypes.StakeDiff
 	//GetBestBlock() *blockdata.BlockData
 	GetSummary(idx int) *apitypes.BlockDataBasic
@@ -115,6 +115,8 @@ type DataSourceAux interface {
 	GetTicketInfo(txid string) (*apitypes.TicketInfo, error)
 	ProposalVotes(proposalToken string) (*dbtypes.ProposalChartsData, error)
 	PowerlessTickets() (*apitypes.PowerlessTickets, error)
+	GetStakeInfoExtendedByHash(hash string) *apitypes.StakeInfoExtended
+	GetStakeInfoExtendedByHeight(idx int) *apitypes.StakeInfoExtended
 }
 
 // dcrdata application context used by all route handlers
@@ -925,7 +927,7 @@ func (c *appContext) getBlockStakeInfoExtendedByHash(w http.ResponseWriter, r *h
 		return
 	}
 
-	stakeinfo := c.BlockData.GetStakeInfoExtendedByHash(hash)
+	stakeinfo := c.AuxDataSource.GetStakeInfoExtendedByHash(hash)
 	if stakeinfo == nil {
 		apiLog.Errorf("Unable to get block fee info for %s", hash)
 		http.Error(w, http.StatusText(422), 422)
@@ -943,7 +945,7 @@ func (c *appContext) getBlockStakeInfoExtendedByHeight(w http.ResponseWriter, r 
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
-	stakeinfo := c.BlockData.GetStakeInfoExtendedByHeight(int(idx))
+	stakeinfo := c.AuxDataSource.GetStakeInfoExtendedByHeight(int(idx))
 	if stakeinfo == nil {
 		apiLog.Errorf("Unable to get block fee info for height %d", idx)
 		http.Error(w, http.StatusText(422), 422)

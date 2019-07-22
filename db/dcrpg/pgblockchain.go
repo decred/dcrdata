@@ -4272,3 +4272,50 @@ func (pgb *ChainDB) GenesisStamp() int64 {
 	_ = pgb.db.QueryRowContext(pgb.ctx, internal.SelectGenesisTime).Scan(&tDef)
 	return tDef.T.Unix()
 }
+
+func (pgb *ChainDBRPC) GetStakeInfoExtendedByHash(hashStr string) *apitypes.StakeInfoExtended {
+	hash, err := chainhash.NewHashFromStr(hashStr)
+	if err != nil {
+		log.Errorf("GetStakeInfoExtendedByHash -> NewHashFromStr: %v", err)
+		return nil
+	}
+	block, err := rpcutils.GetBlockByHash(hash, pgb.Client)
+	if err != nil {
+		log.Errorf("GetStakeInfoExtendedByHash -> GetBlockByHash: %v", err)
+		return nil
+	}
+
+	msgBlock := block.MsgBlock()
+	height := msgBlock.Header.Height
+
+	poolInfo, found := pgb.stakeDB.PoolInfo(*hash)
+	if !found {
+		if pgb.bestBlock.hash == hashStr {
+			poolInfo = pgb.stakeDB.PoolInfoBest()
+			if poolInfo == nil || poolInfo.Height != height {
+				// Error logged in PoolInfoBest
+				return nil
+			}
+		}
+	}
+	windowSize := uint32(pgb.chainParams.StakeDiffWindowSize)
+	feeInfo := txhelpers.FeeRateInfoBlock(block)
+
+	return &apitypes.StakeInfoExtended{
+		Hash:             hashStr,
+		Feeinfo:          *feeInfo,
+		StakeDiff:        dcrutil.Amount(msgBlock.Header.SBits).ToCoin(),
+		PriceWindowNum:   int(height / windowSize),
+		IdxBlockInWindow: int(height%windowSize) + 1,
+		PoolInfo:         poolInfo,
+	}
+}
+
+func (pgb *ChainDBRPC) GetStakeInfoExtendedByHeight(height int) *apitypes.StakeInfoExtended {
+	hashStr, err := pgb.BlockHash(int64(height))
+	if err != nil {
+		log.Errorf("GetStakeInfoExtendedByHeight -> BlockHash: %v", err)
+		return nil
+	}
+	return pgb.GetStakeInfoExtendedByHash(hashStr)
+}

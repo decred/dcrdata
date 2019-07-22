@@ -769,36 +769,6 @@ func (db *WiredDB) GetStakeDiffEstimates() *apitypes.StakeDiff {
 	return sd
 }
 
-func (db *WiredDB) GetFeeInfo(idx int) *chainjson.FeeInfoBlock {
-	stakeInfo, err := db.RetrieveStakeInfoExtended(int64(idx))
-	if err != nil {
-		log.Errorf("Unable to retrieve stake info: %v", err)
-		return nil
-	}
-
-	return &stakeInfo.Feeinfo
-}
-
-func (db *WiredDB) GetStakeInfoExtendedByHeight(idx int) *apitypes.StakeInfoExtended {
-	stakeInfo, err := db.RetrieveStakeInfoExtended(int64(idx))
-	if err != nil {
-		log.Errorf("Unable to retrieve stake info: %v", err)
-		return nil
-	}
-
-	return stakeInfo
-}
-
-func (db *WiredDB) GetStakeInfoExtendedByHash(blockhash string) *apitypes.StakeInfoExtended {
-	stakeInfo, err := db.RetrieveStakeInfoExtendedByHash(blockhash)
-	if err != nil {
-		log.Errorf("Unable to retrieve stake info: %v", err)
-		return nil
-	}
-
-	return stakeInfo
-}
-
 func (db *WiredDB) GetSummary(idx int) *apitypes.BlockDataBasic {
 	blockSummary, err := db.RetrieveBlockSummary(int64(idx))
 	if err != nil {
