@@ -28,6 +28,7 @@ var createTableStatements = map[string]string{
 	"testing":        internal.CreateTestingTable,
 	"proposals":      internal.CreateProposalsTable,
 	"proposal_votes": internal.CreateProposalVotesTable,
+	"stats":          internal.CreateStatsTable,
 }
 
 // dropDuplicatesInfo defines a minimalistic structure that can be used to

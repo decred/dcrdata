@@ -63,6 +63,10 @@ const (
 	// proposal votes table
 
 	IndexOfProposalVotesTableOnProposalsID = "uix_proposal_votes"
+
+	// stats table
+
+	IndexOfHeightOnStatsTable = "uix_stats_height"
 )
 
 // AddressesIndexNames are the names of the indexes on the addresses table.
@@ -98,4 +102,5 @@ var IndexDescriptions = map[string]string{
 	IndexOfAgendaVotesTableOnRowIDs:        "agenda_votes on votes table row ID and agendas table row ID",
 	IndexOfProposalsTableOnToken:           "proposals on token and time",
 	IndexOfProposalVotesTableOnProposalsID: "proposal_votes on proposals row ID",
+	IndexOfHeightOnStatsTable:              "stats table on height",
 }

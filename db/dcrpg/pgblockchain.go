@@ -44,6 +44,8 @@ var (
 	zeroHashStringBytes = []byte(chainhash.Hash{}.String())
 )
 
+const dcrToAtoms = 1e8
+
 type retryError struct{}
 
 // Error implements Stringer for retryError.
@@ -608,7 +610,12 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 		}
 		// Do upgrades required by meta table versioning.
 		log.Infof("DB schema version %v upgrading to version %v", dbVer, targetDatabaseVersion)
-		success, err := UpgradeDatabase(db, bg)
+		success, err := UpgradeDatabase(&updater{
+			db:      db,
+			bg:      bg,
+			stakeDB: stakeDB,
+			ctx:     ctx,
+		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to upgrade database: %v", err)
 		}
@@ -814,7 +821,12 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 
 		// Now run any upgrades from legacyDatabaseVersion to
 		// targetDatabaseVersion.
-		success, err := UpgradeDatabase(db, bg)
+		success, err := UpgradeDatabase(&updater{
+			db:      db,
+			bg:      bg,
+			stakeDB: stakeDB,
+			ctx:     ctx,
+		})
 		if err != nil {
 			return chainDB, fmt.Errorf("failed to upgrade legacy database: %v", err)
 		} else if !success {
@@ -3331,7 +3343,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	updateTicketsSpendingInfo bool, chainWork string) (
 	numVins int64, numVouts int64, numAddresses int64, err error) {
 	// Convert the wire.MsgBlock to a dbtypes.Block
-	dbBlock := dbtypes.MsgBlockToDBBlock(msgBlock, pgb.chainParams, chainWork)
+	dbBlock := dbtypes.MsgBlockToDBBlock(msgBlock, pgb.chainParams, chainWork, winningTickets)
 
 	// Get the previous winners (stake DB pool info cache has this info). If the
 	// previous block is side chain, stakedb will not have the
@@ -3345,8 +3357,10 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	// imported side chain blocks over to main chain.
 	prevBlockHash := msgBlock.Header.PrevBlock
 	var winners []string
+	var tpi *apitypes.TicketPoolInfo
 	if isMainchain && !bytes.Equal(zeroHash[:], prevBlockHash[:]) {
-		tpi, found := pgb.stakeDB.PoolInfo(prevBlockHash)
+		var found bool
+		tpi, found = pgb.stakeDB.PoolInfo(prevBlockHash)
 		if !found {
 			err = fmt.Errorf("stakedb.PoolInfo failed for block %s", msgBlock.BlockHash())
 			return
@@ -3465,6 +3479,12 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 		// Update the best block in the meta table.
 		if err = pgb.SetDBBestBlock(); err != nil {
 			err = fmt.Errorf("SetDBBestBlock: %v", err)
+		}
+
+		// Insert the block stats. The tpi (TicketPoolInfo) should only be nil for a
+		// mainchain block if storing the genesis block.
+		if tpi != nil {
+			InsertBlockStats(pgb.db, blockDbID, tpi)
 		}
 	}
 

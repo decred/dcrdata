@@ -322,6 +322,12 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
 	return sDB, height, sDB.PopulateLiveTicketCache()
 }
 
+// EmptyCopy creates a new StakeDatabase in the specified directory which
+// inherits the client and network parameters of the receiver.
+func (db *StakeDatabase) EmptyCopy(dataDir string) (*StakeDatabase, int64, error) {
+	return NewStakeDatabase(db.NodeClient, db.params, dataDir)
+}
+
 // PopulateLiveTicketCache loads the hashes of all tickets in BestNode into the
 // cache and computes the internally-stored pool value.
 func (db *StakeDatabase) PopulateLiveTicketCache() error {

@@ -4,10 +4,15 @@
 package dcrpg
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"io/ioutil"
+	"os"
 
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrdata/db/dcrpg/v4/internal"
+	"github.com/decred/dcrdata/stakedb/v3"
 )
 
 // The database schema is versioned in the meta table as follows.
@@ -23,7 +28,7 @@ const (
 	// This includes changes such as creating tables, adding/deleting columns,
 	// adding/deleting indexes or any other operations that create, delete, or
 	// modify the definition of any database relation.
-	schemaVersion = 1
+	schemaVersion = 2
 
 	// maintVersion indicates when certain maintenance operations should be
 	// performed for the same compatVersion and schemaVersion. Such operations
@@ -151,11 +156,20 @@ func updateSchemaVersion(db *sql.DB, schema uint32) error {
 	return err
 }
 
+// updater contains a number of elements necessary to perform a database
+// upgrade.
+type updater struct {
+	db      *sql.DB
+	bg      BlockGetter
+	stakeDB *stakedb.StakeDatabase
+	ctx     context.Context
+}
+
 // UpgradeDatabase attempts to upgrade the given sql.DB with help from the
 // BlockGetter. The DB version will be compared against the target version to
 // decide what upgrade type to initiate.
-func UpgradeDatabase(db *sql.DB, bg BlockGetter) (bool, error) {
-	initVer, upgradeType, err := versionCheck(db)
+func UpgradeDatabase(u *updater) (bool, error) {
+	initVer, upgradeType, err := versionCheck(u.db)
 	if err != nil {
 		return false, err
 	}
@@ -166,7 +180,7 @@ func UpgradeDatabase(db *sql.DB, bg BlockGetter) (bool, error) {
 	case Upgrade, Maintenance:
 		// Automatic upgrade is supported. Attempt to upgrade from initVer ->
 		// targetDatabaseVersion.
-		return upgradeDatabase(db, *initVer, *targetDatabaseVersion, bg)
+		return upgradeDatabase(u, *initVer, *targetDatabaseVersion)
 	case TimeTravel:
 		return false, fmt.Errorf("the current table version is newer than supported: "+
 			"%v > %v", initVer, targetDatabaseVersion)
@@ -177,16 +191,17 @@ func UpgradeDatabase(db *sql.DB, bg BlockGetter) (bool, error) {
 	}
 }
 
-func upgradeDatabase(db *sql.DB, current, target DatabaseVersion, bg BlockGetter) (bool, error) {
+func upgradeDatabase(u *updater, current, target DatabaseVersion) (bool, error) {
 	switch current.compat {
 	case 1:
-		return compatVersion1Upgrades(db, current, target, bg)
+		return compatVersion1Upgrades(u, current, target)
 	default:
 		return false, fmt.Errorf("unsupported DB compatibility version %d", current.compat)
 	}
 }
 
-func compatVersion1Upgrades(db *sql.DB, current, target DatabaseVersion, _ BlockGetter) (bool, error) {
+func compatVersion1Upgrades(u *updater, current, target DatabaseVersion) (bool, error) {
+
 	upgradeCheck := func() (done bool, err error) {
 		switch current.NeededToReach(&target) {
 		case OK:
@@ -215,22 +230,30 @@ func compatVersion1Upgrades(db *sql.DB, current, target DatabaseVersion, _ Block
 	switch current.schema {
 	case 0: // legacyDatabaseVersion
 		// Remove table comments where the versions were stored.
-		removeTableComments(db)
+		removeTableComments(u.db)
 
 		// Bump schema version.
 		current.schema++
-		if err = updateSchemaVersion(db, current.schema); err != nil {
+		if err = updateSchemaVersion(u.db, current.schema); err != nil {
 			return false, fmt.Errorf("failed to update schema version: %v", err)
 		}
 
 		// Continue to upgrades for the next schema version.
 		fallthrough
 	case 1:
-		// Perform schema v1 maintenance.
-		// --> noop, but would switch on current.maint
-
 		// Perform upgrade to schema v2.
-		// --> schema v2 not defined yet.
+		err = upgrade110to120(u)
+		if err != nil {
+			return false, fmt.Errorf("failed to upgrade 1.1.0 to 1.2.0: %v", err)
+		}
+		current.schema++
+		if err = updateSchemaVersion(u.db, current.schema); err != nil {
+			return false, fmt.Errorf("failed to update schema version: %v", err)
+		}
+		fallthrough
+	case 2:
+		// Perform schema v2 maintenance.
+		// --> noop, but would switch on current.maint
 
 		// No further upgrades.
 		return upgradeCheck()
@@ -248,4 +271,121 @@ func removeTableComments(db *sql.DB) {
 			log.Errorf(`Failed to remove comment on table %s.`, tableName)
 		}
 	}
+}
+
+// This upgrade creates a stats table and adds a winners row to the blocks table
+// necessary to replace information from the sqlite database, which is being
+// dropped. As part of the upgrade, the entire blockchain must be requested and
+// the ticket pool evolved appropriately.
+func upgrade110to120(u *updater) error {
+	// Create the stats table and height index.
+	log.Infof("performing update 1.1.0 -> 1.2.0")
+	exists, err := TableExists(u.db, "stats")
+	if err != nil {
+		return err
+	}
+	if !exists {
+		_, err = u.db.Exec(internal.CreateStatsTable)
+		if err != nil {
+			return fmt.Errorf("CreateStatsTable: %v", err)
+		}
+		_, err = u.db.Exec(internal.IndexStatsOnHeight)
+		if err != nil {
+			return fmt.Errorf("IndexStatsOnHeight: %v", err)
+		}
+		_, err = u.db.Exec(`ALTER TABLE blocks ADD COLUMN IF NOT EXISTS winners TEXT[];`)
+		if err != nil {
+			return fmt.Errorf("Add winners column error: %v", err)
+		}
+	}
+	// Do everything else under a transaction.
+	dbTx, err := u.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to create db transaction: %v", err)
+	}
+	defer func() {
+		if err == nil {
+			dbTx.Commit()
+		} else {
+			dbTx.Rollback()
+		}
+	}()
+	makeErr := func(s string, args ...interface{}) error {
+		err = fmt.Errorf(s, args...)
+		return err
+	}
+	// Start with a height-ordered list of block data.
+	blockRows, err := u.db.Query(`
+		SELECT id, hash, height
+		FROM blocks
+		WHERE is_mainchain
+		ORDER BY height
+	;`)
+	if err != nil {
+		return makeErr("block hash query error: %v", err)
+	}
+	// Set the stake database to the genesis block.
+	dir, err := ioutil.TempDir("", "tempstake")
+	if err != nil {
+		return makeErr("unable to create temp directory")
+	}
+	defer os.RemoveAll(dir)
+	sDB, _, err := u.stakeDB.EmptyCopy(dir)
+	if err != nil {
+		return makeErr("stake db init error: %v", err)
+	}
+	// Two prepared statements.
+	statsStmt, err := dbTx.Prepare(internal.UpsertStats)
+	if err != nil {
+		return makeErr("failed to prepare stats insert statement: %v", err)
+	}
+	// sql does not deal with PostgreSQL array syntax, it must be Sprintf'd.
+	winnersStmt := "UPDATE blocks SET winners = %s where hash = $1;"
+
+	checkHeight := 0
+	var hashStr string
+	var id, height int
+	for blockRows.Next() {
+		if u.ctx.Err() != nil {
+			return makeErr("context cancelled. rolling back update")
+		}
+		blockRows.Scan(&id, &hashStr, &height)
+		hash, err := chainhash.NewHashFromStr(hashStr)
+		if err != nil {
+			return makeErr("NewHashFromStr: %v", err)
+		}
+		// If the height is not the expected height, the database must be corrupted.
+		if height != checkHeight {
+			return makeErr("height mismatch %d != %d. database corrupted!", height, checkHeight)
+		}
+		checkHeight += 1
+		// A periodic update messaage.
+		if height%10000 == 0 {
+			log.Infof("Processing block %d", height)
+		}
+		// Connecting the block updates the live ticket cache and ticket info cache.
+		// The StakeDatabase is pre-populated with the genesis block, so skip it.
+		if height > 0 {
+			_, err = sDB.ConnectBlockHash(hash)
+			if err != nil {
+				return makeErr("ConnectBlockHash: %v", err)
+			}
+		}
+
+		// The "best" pool info is for the chain at the tip just added.
+		poolInfo := sDB.PoolInfoBest()
+		if poolInfo == nil {
+			return makeErr("PoolInfoBest error encountered")
+		}
+		// Insert rows.
+		_, err = statsStmt.Exec(id, height, poolInfo.Size, int64(poolInfo.Value*dcrToAtoms))
+		if err != nil {
+			return makeErr("insert Exec: %v", err)
+		}
+		_, err = dbTx.Exec(fmt.Sprintf(winnersStmt, internal.MakeARRAYOfTEXT(poolInfo.Winners)), hashStr)
+		if err != nil {
+			return makeErr("update Exec: %v", err)
+		}
+	}
+	return nil
 }

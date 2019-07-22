@@ -3640,6 +3640,12 @@ func InsertBlockPrevNext(db *sql.DB, blockDbID uint64,
 	return err
 }
 
+// InsertBlockStats inserts the block stats into the stats table.
+func InsertBlockStats(db *sql.DB, blockDbID uint64, tpi *apitypes.TicketPoolInfo) error {
+	_, err := db.Exec(internal.UpsertStats, blockDbID, tpi.Height, tpi.Size, int64(tpi.Value*dcrToAtoms))
+	return err
+}
+
 // RetrieveBestBlockHeight gets the best block height and hash (main chain
 // only). Be sure to check for sql.ErrNoRows.
 func RetrieveBestBlockHeight(ctx context.Context, db *sql.DB) (height uint64, hash string, id uint64, err error) {

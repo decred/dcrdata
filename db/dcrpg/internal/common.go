@@ -33,7 +33,9 @@ const (
 	);`
 )
 
-func makeARRAYOfTEXT(text []string) string {
+// MakeARRAYOfTEXT parses the string slice into a PostgreSQL-syntax ARRAY
+// string.
+func MakeARRAYOfTEXT(text []string) string {
 	if len(text) == 0 {
 		return "ARRAY['']"
 	}
