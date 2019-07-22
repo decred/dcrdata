@@ -91,16 +91,19 @@ function legendFormatter (data) {
               <div class="d-flex flex-wrap">${dashLabels}</div>
             </div>`
   } else {
+    var i = data.dygraph.getOption('legendIndex')
     var extraHTML = ''
     // The circulation chart has an additional legend entry showing percent
     // difference.
-    if (data.series.length === 2 && data.series[0].label.toLowerCase().includes('coin supply') &&
-      data.series[1].label.toLowerCase().includes('coin supply')) {
-      data.series.sort((a, b) => a.y > b.y ? 1 : -1)
-      let actual = data.series[0].y
-      let predicted = data.series[1].y
-      let change = (((actual - predicted) / predicted) * 100).toFixed(2)
-      extraHTML = `<div class="pr-2">&nbsp;&nbsp;Difference: ${change} %</div>`
+    if (data.series.length === 2 && data.series[0].label.toLowerCase().includes('coin supply')) {
+      let inflation = data.dygraph.getOption('inflation')
+      if (i < inflation.length) {
+        let actual = data.series[0].y
+        let predicted = inflation[i]
+        let unminted = predicted - actual
+        let change = ((unminted / predicted) * 100).toFixed(2)
+        extraHTML = `<div class="pr-2">&nbsp;&nbsp;Unminted: ${intComma(unminted)} DCR (${change}%)</div>`
+      }
     }
 
     let yVals = data.series.reduce((nodes, series) => {
@@ -108,7 +111,7 @@ function legendFormatter (data) {
       let yVal = series.yHTML
       switch (series.label.toLowerCase()) {
         case 'ticket pool value':
-        case 'predicted coin supply':
+        case 'inflation limit':
         case 'coin supply':
           yVal = intComma(series.y) + ' DCR'
           break
@@ -128,7 +131,6 @@ function legendFormatter (data) {
       }
       let result = `${nodes} <div class="pr-2">${series.dashHTML} ${series.labelHTML}: ${yVal}</div>`
 
-      var i = data.dygraph.getOption('legendIndex')
       if (series.label.toLowerCase() === 'stake participation' && rawCoinSupply.length === rawPoolValue.length &&
           rawPoolValue.length !== 0 && i !== null) {
         result += `<div class="pr-2"><div class="dygraph-legend-line"></div> Ticket Pool Value: ${intComma(rawPoolValue[i])} DCR</div>
@@ -239,15 +241,16 @@ function percentStakedFunc (gData, isHeightAxis, isDayBinned) {
 }
 
 function circulationFunc (gData, isHeightAxis, isDayBinned) {
-  var circ = 0
+  var y = 0
   var h = -1
   var addDough = (newHeight) => {
     while (h < newHeight) {
       h++
-      circ += blockReward(h) * atomsToDCR
+      y += blockReward(h) * atomsToDCR
     }
   }
 
+  var inflation = []
   var data = map(gData.x, (n, i) => {
     var xAxisVal, height
     if (isHeightAxis && isDayBinned) {
@@ -261,23 +264,31 @@ function circulationFunc (gData, isHeightAxis, isDayBinned) {
       height = !gData.z ? i : gData.z[i]
     }
     addDough(height)
-    return [xAxisVal, gData.y[i] * atomsToDCR, circ]
+    inflation.push(y)
+    return [xAxisVal, gData.y[i] * atomsToDCR, null]
   })
 
   var dailyBlocks = aDay / avgBlockTime
-  var lastxValueSet = data[data.length - 1][0]
+  var lastPt = data[data.length - 1]
+  var lastxValueSet = lastPt[0]
+  // Set y to the start at last actual supply for the prediction line.
+  y = lastPt[1]
   if (!isHeightAxis) lastxValueSet = lastxValueSet.getTime()
-  for (var i = 1; i <= aMonth; i++) {
+  var projection = 6 * aMonth
+  for (var i = 1; i <= projection; i++) {
     addDough(h + dailyBlocks)
     if (isHeightAxis) {
       lastxValueSet += dailyBlocks
-      data.push([lastxValueSet, null, circ])
+      data.push([lastxValueSet, null, y])
     } else {
       lastxValueSet += aDay
-      data.push([new Date(lastxValueSet), null, circ])
+      data.push([new Date(lastxValueSet), null, y])
     }
   }
-  return data
+  return {
+    data: data,
+    inflation: inflation
+  }
 }
 
 function mapDygraphOptions (data, labelsVal, isDrawPoint, yLabel, labelsMG, labelsMG2) {
@@ -402,7 +413,8 @@ export default class extends Controller {
       y2label: null,
       stepPlot: false,
       axes: {},
-      series: null
+      series: null,
+      inflation: null
     }
     var isHeightAxis = this.selectedAxis() === 'height'
     var xlabel = isHeightAxis ? 'Block Height' : 'Date'
@@ -476,8 +488,16 @@ export default class extends Controller {
 
       case 'coin-supply': // supply graph
         d = circulationFunc(data, isHeightAxis, isDayBinned)
-        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Coin Supply', 'Predicted Coin Supply'],
+        assign(gOptions, mapDygraphOptions(d.data, [xlabel, 'Coin Supply', 'Inflation Limit'],
           true, 'Coin Supply (DCR)', true, false))
+        gOptions.series = {
+          'Inflation Limit': {
+            strokePattern: [5, 5],
+            color: '#888',
+            strokeWidth: 1.5
+          }
+        }
+        gOptions.inflation = d.inflation
         break
 
       case 'fees': // block fee graph
