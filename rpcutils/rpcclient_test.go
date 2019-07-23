@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson/v2"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 )
 
 func TestSideChainTips(t *testing.T) {
@@ -32,7 +32,7 @@ func TestSideChainTips(t *testing.T) {
 		}
 	]`
 
-	allTips := []dcrjson.GetChainTipsResult{
+	allTips := []chainjson.GetChainTipsResult{
 		{
 			Height:    35890,
 			Hash:      "000000000332ad2682f681a2199e481f03b06998e29e2e72cafa54a156fc1159",
@@ -53,7 +53,7 @@ func TestSideChainTips(t *testing.T) {
 		},
 	}
 
-	sideTips := []dcrjson.GetChainTipsResult{
+	sideTips := []chainjson.GetChainTipsResult{
 		{
 			Height:    22058,
 			Hash:      "00000000017c501c7d78af471e3ae60ea9a5696e9f840af6f1f2b8fa05b35030",

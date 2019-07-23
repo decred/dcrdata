@@ -14,13 +14,13 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/rpcclient/v2"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
+	"github.com/decred/dcrd/rpcclient/v3"
 	"github.com/decred/dcrd/wire"
-	apitypes "github.com/decred/dcrdata/api/types/v3"
+	apitypes "github.com/decred/dcrdata/api/types/v4"
 	"github.com/decred/dcrdata/semver"
-	"github.com/decred/dcrdata/txhelpers/v2"
+	"github.com/decred/dcrdata/txhelpers/v3"
 )
 
 // Any of the following dcrd RPC API versions are deemed compatible with
@@ -104,11 +104,11 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS, disableReconnect 
 	return dcrdClient, nodeVer, nil
 }
 
-// BuildBlockHeaderVerbose creates a *dcrjson.GetBlockHeaderVerboseResult from
+// BuildBlockHeaderVerbose creates a *chainjson.GetBlockHeaderVerboseResult from
 // an input *wire.BlockHeader and current best block height, which is used to
 // compute confirmations.  The next block hash may optionally be provided.
 func BuildBlockHeaderVerbose(header *wire.BlockHeader, params *chaincfg.Params,
-	currentHeight int64, nextHash ...string) *dcrjson.GetBlockHeaderVerboseResult {
+	currentHeight int64, nextHash ...string) *chainjson.GetBlockHeaderVerboseResult {
 	if header == nil {
 		return nil
 	}
@@ -120,7 +120,7 @@ func BuildBlockHeaderVerbose(header *wire.BlockHeader, params *chaincfg.Params,
 		next = nextHash[0]
 	}
 
-	blockHeaderResult := dcrjson.GetBlockHeaderVerboseResult{
+	blockHeaderResult := chainjson.GetBlockHeaderVerboseResult{
 		Hash:          header.BlockHash().String(),
 		Confirmations: currentHeight - int64(header.Height),
 		Version:       header.Version,
@@ -147,9 +147,9 @@ func BuildBlockHeaderVerbose(header *wire.BlockHeader, params *chaincfg.Params,
 	return &blockHeaderResult
 }
 
-// GetBlockHeaderVerbose creates a *dcrjson.GetBlockHeaderVerboseResult for the
+// GetBlockHeaderVerbose creates a *chainjson.GetBlockHeaderVerboseResult for the
 // block at height idx via an RPC connection to a chain server.
-func GetBlockHeaderVerbose(client BlockFetcher, idx int64) *dcrjson.GetBlockHeaderVerboseResult {
+func GetBlockHeaderVerbose(client BlockFetcher, idx int64) *chainjson.GetBlockHeaderVerboseResult {
 	blockhash, err := client.GetBlockHash(idx)
 	if err != nil {
 		log.Errorf("GetBlockHash(%d) failed: %v", idx, err)
@@ -165,9 +165,9 @@ func GetBlockHeaderVerbose(client BlockFetcher, idx int64) *dcrjson.GetBlockHead
 	return blockHeaderVerbose
 }
 
-// GetBlockHeaderVerboseByString creates a *dcrjson.GetBlockHeaderVerboseResult
+// GetBlockHeaderVerboseByString creates a *chainjson.GetBlockHeaderVerboseResult
 // for the block specified by hash via an RPC connection to a chain server.
-func GetBlockHeaderVerboseByString(client BlockFetcher, hash string) *dcrjson.GetBlockHeaderVerboseResult {
+func GetBlockHeaderVerboseByString(client BlockFetcher, hash string) *chainjson.GetBlockHeaderVerboseResult {
 	blockhash, err := chainhash.NewHashFromStr(hash)
 	if err != nil {
 		log.Errorf("Invalid block hash %s: %v", blockhash, err)
@@ -183,9 +183,9 @@ func GetBlockHeaderVerboseByString(client BlockFetcher, hash string) *dcrjson.Ge
 	return blockHeaderVerbose
 }
 
-// GetBlockVerbose creates a *dcrjson.GetBlockVerboseResult for the block index
+// GetBlockVerbose creates a *chainjson.GetBlockVerboseResult for the block index
 // specified by idx via an RPC connection to a chain server.
-func GetBlockVerbose(client *rpcclient.Client, idx int64, verboseTx bool) *dcrjson.GetBlockVerboseResult {
+func GetBlockVerbose(client *rpcclient.Client, idx int64, verboseTx bool) *chainjson.GetBlockVerboseResult {
 	blockhash, err := client.GetBlockHash(idx)
 	if err != nil {
 		log.Errorf("GetBlockHash(%d) failed: %v", idx, err)
@@ -201,9 +201,9 @@ func GetBlockVerbose(client *rpcclient.Client, idx int64, verboseTx bool) *dcrjs
 	return blockVerbose
 }
 
-// GetBlockVerboseByHash creates a *dcrjson.GetBlockVerboseResult for the
+// GetBlockVerboseByHash creates a *chainjson.GetBlockVerboseResult for the
 // specified block hash via an RPC connection to a chain server.
-func GetBlockVerboseByHash(client *rpcclient.Client, hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult {
+func GetBlockVerboseByHash(client *rpcclient.Client, hash string, verboseTx bool) *chainjson.GetBlockVerboseResult {
 	blockhash, err := chainhash.NewHashFromStr(hash)
 	if err != nil {
 		log.Errorf("Invalid block hash %s", hash)
@@ -231,7 +231,7 @@ func GetStakeDiffEstimates(client *rpcclient.Client) *apitypes.StakeDiff {
 		return nil
 	}
 	stakeDiffEstimates := apitypes.StakeDiff{
-		GetStakeDifficultyResult: dcrjson.GetStakeDifficultyResult{
+		GetStakeDifficultyResult: chainjson.GetStakeDifficultyResult{
 			CurrentStakeDifficulty: stakeDiff.CurrentStakeDifficulty,
 			NextStakeDifficulty:    stakeDiff.NextStakeDifficulty,
 		},
@@ -271,7 +271,7 @@ func GetBlockByHash(blockhash *chainhash.Hash, client BlockFetcher) (*dcrutil.Bl
 // SideChains gets a slice of known side chain tips. This corresponds to the
 // results of the getchaintips node RPC where the block tip "status" is either
 // "valid-headers" or "valid-fork".
-func SideChains(client *rpcclient.Client) ([]dcrjson.GetChainTipsResult, error) {
+func SideChains(client *rpcclient.Client) ([]chainjson.GetChainTipsResult, error) {
 	tips, err := client.GetChainTips()
 	if err != nil {
 		return nil, err
@@ -280,7 +280,7 @@ func SideChains(client *rpcclient.Client) ([]dcrjson.GetChainTipsResult, error) 
 	return sideChainTips(tips), nil
 }
 
-func sideChainTips(allTips []dcrjson.GetChainTipsResult) (sideTips []dcrjson.GetChainTipsResult) {
+func sideChainTips(allTips []chainjson.GetChainTipsResult) (sideTips []chainjson.GetChainTipsResult) {
 	for i := range allTips {
 		switch allTips[i].Status {
 		case "valid-headers", "valid-fork":
@@ -338,7 +338,7 @@ func reverseStringSlice(s []string) {
 }
 
 // GetTransactionVerboseByID get a transaction by transaction id
-func GetTransactionVerboseByID(client txhelpers.VerboseTransactionGetter, txhash *chainhash.Hash) (*dcrjson.TxRawResult, error) {
+func GetTransactionVerboseByID(client txhelpers.VerboseTransactionGetter, txhash *chainhash.Hash) (*chainjson.TxRawResult, error) {
 	txraw, err := client.GetRawTransactionVerbose(txhash)
 	if err != nil {
 		log.Errorf("GetRawTransactionVerbose failed for: %v", txhash)
@@ -349,7 +349,7 @@ func GetTransactionVerboseByID(client txhelpers.VerboseTransactionGetter, txhash
 
 // SearchRawTransaction fetch transactions the belong to an
 // address
-func SearchRawTransaction(client *rpcclient.Client, count int, address string) ([]*dcrjson.SearchRawTransactionsResult, error) {
+func SearchRawTransaction(client *rpcclient.Client, count int, address string) ([]*chainjson.SearchRawTransactionsResult, error) {
 	addr, err := dcrutil.DecodeAddress(address)
 	if err != nil {
 		log.Infof("Invalid address %s: %v", address, err)
@@ -497,7 +497,7 @@ func OrphanedTipLength(ctx context.Context, client BlockHashGetter,
 	return tipHeight - commonHeight, nil
 }
 
-// GetChainWork fetches the dcrjson.BlockHeaderVerbose and returns only the
+// GetChainWork fetches the chainjson.BlockHeaderVerbose and returns only the
 // ChainWork field as a string.
 func GetChainWork(client BlockFetcher, hash *chainhash.Hash) (string, error) {
 	header, err := client.GetBlockHeaderVerbose(hash)
@@ -534,7 +534,7 @@ func NewMempoolAddressChecker(client *rpcclient.Client, params *chaincfg.Params)
 func UnconfirmedTxnsForAddress(client *rpcclient.Client, address string, params *chaincfg.Params) (*txhelpers.AddressOutpoints, int64, error) {
 	// Mempool transactions
 	var numUnconfirmed int64
-	mempoolTxns, err := client.GetRawMempoolVerbose(dcrjson.GRMAll)
+	mempoolTxns, err := client.GetRawMempoolVerbose(chainjson.GRMAll)
 	if err != nil {
 		log.Warnf("GetRawMempool failed for address %s: %v", address, err)
 		return nil, numUnconfirmed, err
@@ -597,7 +597,7 @@ func APITransaction(client txhelpers.VerboseTransactionGetter, txid *chainhash.H
 	tx.Version = txraw.Version
 	tx.Locktime = txraw.LockTime
 	tx.Expiry = txraw.Expiry
-	tx.Vin = make([]dcrjson.Vin, len(txraw.Vin))
+	tx.Vin = make([]chainjson.Vin, len(txraw.Vin))
 	copy(tx.Vin, txraw.Vin)
 	tx.Vout = make([]apitypes.Vout, len(txraw.Vout))
 	for i := range txraw.Vout {

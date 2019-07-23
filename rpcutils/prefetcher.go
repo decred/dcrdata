@@ -8,8 +8,8 @@ import (
 	"sync"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson/v2"
-	"github.com/decred/dcrd/rpcclient/v2"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
+	"github.com/decred/dcrd/rpcclient/v3"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -22,7 +22,7 @@ type BlockFetcher interface {
 	GetBestBlock() (*chainhash.Hash, int64, error)
 	GetBlock(blockHash *chainhash.Hash) (*wire.MsgBlock, error)
 	GetBlockHash(blockHeight int64) (*chainhash.Hash, error)
-	GetBlockHeaderVerbose(hash *chainhash.Hash) (*dcrjson.GetBlockHeaderVerboseResult, error)
+	GetBlockHeaderVerbose(hash *chainhash.Hash) (*chainjson.GetBlockHeaderVerboseResult, error)
 }
 
 // Ensure that rpcclient.Client is a BlockFetcher.
@@ -32,7 +32,7 @@ type blockData struct {
 	height       uint32
 	hash         chainhash.Hash
 	msgBlock     *wire.MsgBlock
-	headerResult *dcrjson.GetBlockHeaderVerboseResult
+	headerResult *chainjson.GetBlockHeaderVerboseResult
 }
 
 // BlockPrefetchClient uses a BlockFetcher to prefetch the next block after a
@@ -104,7 +104,7 @@ func (p *BlockPrefetchClient) GetBestBlock() (*chainhash.Hash, int64, error) {
 // GetBlockData attempts to get the specified block and retargets the prefetcher
 // with the next block's hash. If the block was not already fetched, it is
 // retrieved immediately and stored following retargeting.
-func (p *BlockPrefetchClient) GetBlockData(hash *chainhash.Hash) (*wire.MsgBlock, *dcrjson.GetBlockHeaderVerboseResult, error) {
+func (p *BlockPrefetchClient) GetBlockData(hash *chainhash.Hash) (*wire.MsgBlock, *chainjson.GetBlockHeaderVerboseResult, error) {
 	p.Lock()
 
 	retargetAndUnlock := func(nextHash string) {
@@ -158,10 +158,10 @@ func (p *BlockPrefetchClient) GetBlock(hash *chainhash.Hash) (*wire.MsgBlock, er
 	return msgBlock, err
 }
 
-// GetBlockHeaderVerbose retrieves the dcrjson.GetBlockHeaderVerboseResult for
+// GetBlockHeaderVerbose retrieves the chainjson.GetBlockHeaderVerboseResult for
 // the block with the specified hash. See GetBlockData for details on how this
 // interacts with the prefetcher
-func (p *BlockPrefetchClient) GetBlockHeaderVerbose(hash *chainhash.Hash) (*dcrjson.GetBlockHeaderVerboseResult, error) {
+func (p *BlockPrefetchClient) GetBlockHeaderVerbose(hash *chainhash.Hash) (*chainjson.GetBlockHeaderVerboseResult, error) {
 	_, headerResult, err := p.GetBlockData(hash)
 	return headerResult, err
 }
@@ -189,7 +189,7 @@ func (p *BlockPrefetchClient) GetBlockHash(blockHeight int64) (*chainhash.Hash, 
 
 // storeNext stores the input data as the new "next" block. The existing "next"
 // becomes "current".
-func (p *BlockPrefetchClient) storeNext(msgBlock *wire.MsgBlock, headerResult *dcrjson.GetBlockHeaderVerboseResult) {
+func (p *BlockPrefetchClient) storeNext(msgBlock *wire.MsgBlock, headerResult *chainjson.GetBlockHeaderVerboseResult) {
 	p.current = p.next
 	p.next = &blockData{
 		height:       msgBlock.Header.Height,
@@ -199,7 +199,7 @@ func (p *BlockPrefetchClient) storeNext(msgBlock *wire.MsgBlock, headerResult *d
 	}
 }
 
-func (p *BlockPrefetchClient) retrieveBlockAndHeaderResult(hash *chainhash.Hash) (*wire.MsgBlock, *dcrjson.GetBlockHeaderVerboseResult, uint32, error) {
+func (p *BlockPrefetchClient) retrieveBlockAndHeaderResult(hash *chainhash.Hash) (*wire.MsgBlock, *chainjson.GetBlockHeaderVerboseResult, uint32, error) {
 	msgBlock, err := p.f.GetBlock(hash)
 	if err != nil {
 		return nil, nil, 0, err

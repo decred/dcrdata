@@ -369,7 +369,7 @@ func (g *BlockGate) WaitForHash(hash chainhash.Hash) chan int64 {
 	return waitChan
 }
 
-// GetChainWork fetches the dcrjson.BlockHeaderVerbose and returns only the
+// GetChainWork fetches the chainjson.BlockHeaderVerbose and returns only the
 // ChainWork attribute as a string.
 func (g *BlockGate) GetChainWork(hash *chainhash.Hash) (string, error) {
 	return GetChainWork(g.client, hash)
