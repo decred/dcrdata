@@ -7,7 +7,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/db/dcrpg/v3/internal"
+	"github.com/decred/dcrdata/db/dcrpg/v4/internal"
 )
 
 func TestAddressRows(t *testing.T) {

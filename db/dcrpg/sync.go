@@ -13,7 +13,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/rpcutils"
+	"github.com/decred/dcrdata/rpcutils/v2"
 )
 
 const (

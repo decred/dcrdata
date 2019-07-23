@@ -23,18 +23,18 @@ import (
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/rpcclient/v2"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
+	"github.com/decred/dcrd/rpcclient/v3"
 	"github.com/decred/dcrd/wire"
-	apitypes "github.com/decred/dcrdata/api/types/v3"
-	"github.com/decred/dcrdata/blockdata/v3"
+	apitypes "github.com/decred/dcrdata/api/types/v4"
+	"github.com/decred/dcrdata/blockdata/v4"
 	"github.com/decred/dcrdata/db/cache/v2"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/db/dcrpg/v3/internal"
-	"github.com/decred/dcrdata/rpcutils"
-	"github.com/decred/dcrdata/stakedb/v2"
-	"github.com/decred/dcrdata/txhelpers/v2"
+	"github.com/decred/dcrdata/db/dcrpg/v4/internal"
+	"github.com/decred/dcrdata/rpcutils/v2"
+	"github.com/decred/dcrdata/stakedb/v3"
+	"github.com/decred/dcrdata/txhelpers/v3"
 	pitypes "github.com/dmigwi/go-piparser/proposals/types"
 	humanize "github.com/dustin/go-humanize"
 )
@@ -224,7 +224,7 @@ type BlockGetter interface {
 	rpcutils.BlockFetcher
 
 	// GetBlockChainInfo is required for a legacy upgrade involving agendas.
-	GetBlockChainInfo() (*dcrjson.GetBlockChainInfoResult, error)
+	GetBlockChainInfo() (*chainjson.GetBlockChainInfoResult, error)
 }
 
 // ChainDB provides an interface for storing and manipulating extracted
@@ -345,7 +345,7 @@ func (pgb *ChainDBRPC) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 
 // UpdateChainState calls (*ChainDB).UpdateChainState after a nil pointer check
 // on the ChainDBRPC receiver.
-func (pgb *ChainDBRPC) UpdateChainState(blockChainInfo *dcrjson.GetBlockChainInfoResult) {
+func (pgb *ChainDBRPC) UpdateChainState(blockChainInfo *chainjson.GetBlockChainInfoResult) {
 	if pgb == nil || pgb.ChainDB == nil {
 		return
 	}
@@ -2800,12 +2800,12 @@ func (pgb *ChainDB) AddressTransactionRawDetails(addr string, count, skip int64,
 // agenda's VotingDone and Activated heights. If the agenda passed (i.e. status
 // is "lockedIn" or "activated"), Activated is set to the height at which the rule
 // change will take(or took) place.
-func (pgb *ChainDB) UpdateChainState(blockChainInfo *dcrjson.GetBlockChainInfoResult) {
+func (pgb *ChainDB) UpdateChainState(blockChainInfo *chainjson.GetBlockChainInfoResult) {
 	if pgb == nil {
 		return
 	}
 	if blockChainInfo == nil {
-		log.Errorf("dcrjson.GetBlockChainInfoResult data passed is empty")
+		log.Errorf("chainjson.GetBlockChainInfoResult data passed is empty")
 		return
 	}
 
@@ -4260,7 +4260,7 @@ func ticketpoolStatusSlice(ss dbtypes.TicketPoolStatus, N int) []dbtypes.TicketP
 	return S
 }
 
-// GetChainWork fetches the dcrjson.BlockHeaderVerbose and returns only the
+// GetChainWork fetches the chainjson.BlockHeaderVerbose and returns only the
 // ChainWork attribute as a hex-encoded string, without 0x prefix.
 func (pgb *ChainDBRPC) GetChainWork(hash *chainhash.Hash) (string, error) {
 	return rpcutils.GetChainWork(pgb.Client, hash)

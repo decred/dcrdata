@@ -12,8 +12,8 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrdata/db/cache/v2"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 )
@@ -281,7 +281,7 @@ func TestUpdateChainState(t *testing.T) {
 		}
 	}`)
 
-	var chainInfoData = new(dcrjson.GetBlockChainInfoResult)
+	var chainInfoData = new(chainjson.GetBlockChainInfoResult)
 	err := json.Unmarshal(rawData, chainInfoData)
 	if err != nil {
 		t.Fatalf("expected no error to be returned but found: %v", err)
