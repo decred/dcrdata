@@ -4,7 +4,7 @@ go 1.11
 
 require (
 	github.com/carterjones/signalr v0.3.5
-	github.com/decred/dcrdata/dcrrates v1.1.0
+	github.com/decred/dcrdata/dcrrates v1.1.1
 	github.com/decred/slog v1.0.0
 	github.com/gorilla/websocket v1.4.0
 	golang.org/x/net v0.0.0-20190415214537-1da14a5a36f2 // indirect
