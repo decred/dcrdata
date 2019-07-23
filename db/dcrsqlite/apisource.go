@@ -15,18 +15,18 @@ import (
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/rpcclient/v2"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
+	"github.com/decred/dcrd/rpcclient/v3"
 	"github.com/decred/dcrd/wire"
-	apitypes "github.com/decred/dcrdata/api/types/v3"
+	apitypes "github.com/decred/dcrdata/api/types/v4"
 	"github.com/decred/dcrdata/db/cache/v2"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
-	exptypes "github.com/decred/dcrdata/explorer/types"
-	"github.com/decred/dcrdata/mempool/v3"
-	"github.com/decred/dcrdata/rpcutils"
-	"github.com/decred/dcrdata/stakedb/v2"
-	"github.com/decred/dcrdata/txhelpers/v2"
+	exptypes "github.com/decred/dcrdata/explorer/types/v2"
+	"github.com/decred/dcrdata/mempool/v4"
+	"github.com/decred/dcrdata/rpcutils/v2"
+	"github.com/decred/dcrdata/stakedb/v3"
+	"github.com/decred/dcrdata/txhelpers/v3"
 	humanize "github.com/dustin/go-humanize"
 )
 
@@ -247,7 +247,7 @@ func (db *WiredDB) GetBestBlockHash() (string, error) {
 }
 
 // BlockchainInfo retrieves the result of the getblockchaininfo node RPC.
-func (db *WiredDB) BlockchainInfo() (*dcrjson.GetBlockChainInfoResult, error) {
+func (db *WiredDB) BlockchainInfo() (*chainjson.GetBlockChainInfoResult, error) {
 	return db.client.GetBlockChainInfo()
 }
 
@@ -461,16 +461,16 @@ func (db *WiredDB) GetBlockHeight(hash string) (int64, error) {
 	return height, nil
 }
 
-func (db *WiredDB) GetHeader(idx int) *dcrjson.GetBlockHeaderVerboseResult {
+func (db *WiredDB) GetHeader(idx int) *chainjson.GetBlockHeaderVerboseResult {
 	return rpcutils.GetBlockHeaderVerbose(db.client, int64(idx))
 }
 
-func (db *WiredDB) GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVerboseResult {
+func (db *WiredDB) GetBlockVerbose(idx int, verboseTx bool) *chainjson.GetBlockVerboseResult {
 	block := rpcutils.GetBlockVerbose(db.client, int64(idx), verboseTx)
 	return block
 }
 
-func (db *WiredDB) GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult {
+func (db *WiredDB) GetBlockVerboseByHash(hash string, verboseTx bool) *chainjson.GetBlockVerboseResult {
 	return rpcutils.GetBlockVerboseByHash(db.client, hash, verboseTx)
 }
 
@@ -513,7 +513,7 @@ func (db *WiredDB) CoinSupply() (supply *apitypes.CoinSupply) {
 	}
 }
 
-func (db *WiredDB) BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult {
+func (db *WiredDB) BlockSubsidy(height int64, voters uint16) *chainjson.GetBlockSubsidyResult {
 	blockSubsidy, err := db.client.GetBlockSubsidy(height, voters)
 	if err != nil {
 		return nil
@@ -533,7 +533,7 @@ func (db *WiredDB) GetTransactionsForBlockByHash(hash string) *apitypes.BlockTra
 	return makeBlockTransactions(blockVerbose)
 }
 
-func makeBlockTransactions(blockVerbose *dcrjson.GetBlockVerboseResult) *apitypes.BlockTransactions {
+func makeBlockTransactions(blockVerbose *chainjson.GetBlockVerboseResult) *apitypes.BlockTransactions {
 	blockTransactions := new(apitypes.BlockTransactions)
 
 	blockTransactions.Tx = make([]string, len(blockVerbose.Tx))
@@ -583,7 +583,7 @@ func (db *WiredDB) GetAllTxOut(txid *chainhash.Hash) []*apitypes.TxOut {
 	txouts := tx.Vout
 	allTxOut := make([]*apitypes.TxOut, 0, len(txouts))
 	for i := range txouts {
-		// dcrjson.Vout and apitypes.TxOut are the same except for N.
+		// chainjson.Vout and apitypes.TxOut are the same except for N.
 		spk := &tx.Vout[i].ScriptPubKey
 		// If the script type is not recognized by apitypes, the ScriptClass
 		// types may need to be updated to match dcrd.
@@ -650,7 +650,7 @@ func (db *WiredDB) GetTransactionHex(txid *chainhash.Hash) string {
 	return hex
 }
 
-func (db *WiredDB) DecodeRawTransaction(txhex string) (*dcrjson.TxRawResult, error) {
+func (db *WiredDB) DecodeRawTransaction(txhex string) (*chainjson.TxRawResult, error) {
 	bytes, err := hex.DecodeString(txhex)
 	if err != nil {
 		log.Errorf("DecodeRawTransaction failed: %v", err)
@@ -703,20 +703,20 @@ func (db *WiredDB) getRawTransaction(txid *chainhash.Hash) (tx *apitypes.Tx, hex
 }
 
 // GetVoteVersionInfo requests stake version info from the dcrd RPC server
-func (db *WiredDB) GetVoteVersionInfo(ver uint32) (*dcrjson.GetVoteInfoResult, error) {
+func (db *WiredDB) GetVoteVersionInfo(ver uint32) (*chainjson.GetVoteInfoResult, error) {
 	return db.client.GetVoteInfo(ver)
 }
 
 // GetStakeVersions requests the output of the getstakeversions RPC, which gets
 // stake version information and individual vote version information starting at the
 // given block and for count-1 blocks prior.
-func (db *WiredDB) GetStakeVersions(blockHash string, count int32) (*dcrjson.GetStakeVersionsResult, error) {
+func (db *WiredDB) GetStakeVersions(blockHash string, count int32) (*chainjson.GetStakeVersionsResult, error) {
 	return db.client.GetStakeVersions(blockHash, count)
 }
 
 // GetStakeVersionsLatest requests the output of the getstakeversions RPC for
 // just the current best block.
-func (db *WiredDB) GetStakeVersionsLatest() (*dcrjson.StakeVersions, error) {
+func (db *WiredDB) GetStakeVersionsLatest() (*chainjson.StakeVersions, error) {
 	txHash, err := db.GetBestBlockHash()
 	if err != nil {
 		return nil, err
@@ -769,7 +769,7 @@ func (db *WiredDB) GetStakeDiffEstimates() *apitypes.StakeDiff {
 	return sd
 }
 
-func (db *WiredDB) GetFeeInfo(idx int) *dcrjson.FeeInfoBlock {
+func (db *WiredDB) GetFeeInfo(idx int) *chainjson.FeeInfoBlock {
 	stakeInfo, err := db.RetrieveStakeInfoExtended(int64(idx))
 	if err != nil {
 		log.Errorf("Unable to retrieve stake info: %v", err)
@@ -1113,7 +1113,7 @@ func (db *WiredDB) GetAddressTransactionsRawWithSkip(addr string, count int, ski
 		tx.TxID = txs[i].Txid
 		tx.Version = txs[i].Version
 		tx.Locktime = txs[i].LockTime
-		tx.Vin = make([]dcrjson.VinPrevOut, len(txs[i].Vin))
+		tx.Vin = make([]chainjson.VinPrevOut, len(txs[i].Vin))
 		copy(tx.Vin, txs[i].Vin)
 		tx.Confirmations = int64(txs[i].Confirmations)
 		tx.BlockHash = txs[i].BlockHash
@@ -1145,7 +1145,7 @@ func (db *WiredDB) GetAddressTransactionsRawWithSkip(addr string, count int, ski
 	return txarray
 }
 
-func sumOutsTxRawResult(txs []dcrjson.TxRawResult) (sum float64) {
+func sumOutsTxRawResult(txs []chainjson.TxRawResult) (sum float64) {
 	for _, tx := range txs {
 		for _, vout := range tx.Vout {
 			sum += vout.Value
@@ -1154,7 +1154,7 @@ func sumOutsTxRawResult(txs []dcrjson.TxRawResult) (sum float64) {
 	return
 }
 
-func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult, params *chaincfg.Params) *exptypes.BlockBasic {
+func makeExplorerBlockBasic(data *chainjson.GetBlockVerboseResult, params *chaincfg.Params) *exptypes.BlockBasic {
 	index := dbtypes.CalculateWindowIndex(data.Height, params.StakeDiffWindowSize)
 
 	total := sumOutsTxRawResult(data.RawTx) + sumOutsTxRawResult(data.RawSTx)
@@ -1182,7 +1182,7 @@ func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult, params *chaincf
 	return block
 }
 
-func makeExplorerTxBasic(data dcrjson.TxRawResult, msgTx *wire.MsgTx, params *chaincfg.Params) *exptypes.TxBasic {
+func makeExplorerTxBasic(data chainjson.TxRawResult, msgTx *wire.MsgTx, params *chaincfg.Params) *exptypes.TxBasic {
 	tx := new(exptypes.TxBasic)
 	tx.TxID = data.Txid
 	tx.FormattedSize = humanize.Bytes(uint64(len(data.Hex) / 2))
@@ -1214,7 +1214,7 @@ func makeExplorerTxBasic(data dcrjson.TxRawResult, msgTx *wire.MsgTx, params *ch
 	return tx
 }
 
-func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult, address string) *dbtypes.AddressTx {
+func makeExplorerAddressTx(data *chainjson.SearchRawTransactionsResult, address string) *dbtypes.AddressTx {
 	tx := new(dbtypes.AddressTx)
 	tx.TxID = data.Txid
 	tx.FormattedSize = humanize.Bytes(uint64(len(data.Hex) / 2))
@@ -1407,7 +1407,7 @@ func (db *WiredDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 	return block
 }
 
-func trimmedTxInfoFromMsgTx(txraw dcrjson.TxRawResult, msgTx *wire.MsgTx, params *chaincfg.Params) *exptypes.TrimmedTxInfo {
+func trimmedTxInfoFromMsgTx(txraw chainjson.TxRawResult, msgTx *wire.MsgTx, params *chaincfg.Params) *exptypes.TrimmedTxInfo {
 	txBasic := makeExplorerTxBasic(txraw, msgTx, params)
 
 	voteValid := false
@@ -1501,7 +1501,7 @@ func (db *WiredDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		// Assemble and append this vin.
 		coinIn := valueIn.ToCoin()
 		inputs = append(inputs, exptypes.Vin{
-			Vin: &dcrjson.Vin{
+			Vin: &chainjson.Vin{
 				Txid:        vin.Txid,
 				Coinbase:    vin.Coinbase,
 				Stakebase:   vin.Stakebase,
@@ -1710,7 +1710,7 @@ func (db *WiredDB) GetExplorerAddress(address string, count, offset int64) (*dbt
 // will be nil if the GetRawMempoolVerbose RPC fails. A zero-length non-nil
 // slice is returned if there are no transactions in mempool.
 func (db *WiredDB) GetMempool() []exptypes.MempoolTx {
-	mempooltxs, err := db.client.GetRawMempoolVerbose(dcrjson.GRMAll)
+	mempooltxs, err := db.client.GetRawMempoolVerbose(chainjson.GRMAll)
 	if err != nil {
 		log.Errorf("GetRawMempoolVerbose failed: %v", err)
 		return nil

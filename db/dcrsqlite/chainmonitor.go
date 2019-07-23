@@ -9,8 +9,8 @@ import (
 	"fmt"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrdata/blockdata/v3"
-	"github.com/decred/dcrdata/txhelpers/v2"
+	"github.com/decred/dcrdata/blockdata/v4"
+	"github.com/decred/dcrdata/txhelpers/v3"
 )
 
 // ChainMonitor handles change notifications from the node client

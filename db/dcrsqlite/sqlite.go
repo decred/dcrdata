@@ -16,8 +16,8 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
-	apitypes "github.com/decred/dcrdata/api/types/v3"
-	"github.com/decred/dcrdata/blockdata/v3"
+	apitypes "github.com/decred/dcrdata/api/types/v4"
+	"github.com/decred/dcrdata/blockdata/v4"
 	"github.com/decred/dcrdata/db/cache/v2"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/slog"
