@@ -16,7 +16,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrdata/db/dbtypes/v2/internal"
-	"github.com/decred/dcrdata/txhelpers/v2"
+	"github.com/decred/dcrdata/txhelpers/v3"
 )
 
 var (
