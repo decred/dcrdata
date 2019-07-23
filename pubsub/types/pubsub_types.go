@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/decred/dcrd/dcrutil"
-	exptypes "github.com/decred/dcrdata/explorer/types"
+	exptypes "github.com/decred/dcrdata/explorer/types/v2"
 )
 
 // Ver is a json tagged version type.
