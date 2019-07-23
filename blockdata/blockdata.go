@@ -11,27 +11,27 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/rpcclient/v2"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
+	"github.com/decred/dcrd/rpcclient/v3"
 	"github.com/decred/dcrd/wire"
-	apitypes "github.com/decred/dcrdata/api/types/v3"
+	apitypes "github.com/decred/dcrdata/api/types/v4"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/stakedb/v2"
-	"github.com/decred/dcrdata/txhelpers/v2"
+	"github.com/decred/dcrdata/stakedb/v3"
+	"github.com/decred/dcrdata/txhelpers/v3"
 )
 
 // BlockData contains all the data collected by a Collector and stored
 // by a BlockDataSaver. TODO: consider if pointers are desirable here.
 type BlockData struct {
-	Header           dcrjson.GetBlockHeaderVerboseResult
+	Header           chainjson.GetBlockHeaderVerboseResult
 	Connections      int32
-	FeeInfo          dcrjson.FeeInfoBlock
-	CurrentStakeDiff dcrjson.GetStakeDifficultyResult
-	EstStakeDiff     dcrjson.EstimateStakeDiffResult
+	FeeInfo          chainjson.FeeInfoBlock
+	CurrentStakeDiff chainjson.GetStakeDifficultyResult
+	EstStakeDiff     chainjson.EstimateStakeDiffResult
 	PoolInfo         *apitypes.TicketPoolInfo
 	ExtraInfo        apitypes.BlockExplorerExtraInfo
-	BlockchainInfo   *dcrjson.GetBlockChainInfoResult
+	BlockchainInfo   *chainjson.GetBlockChainInfoResult
 	PriceWindowNum   int
 	IdxBlockInWindow int
 	WinningTickets   []string
@@ -144,7 +144,7 @@ func (t *Collector) CollectAPITypes(hash *chainhash.Hash) (*apitypes.BlockDataBa
 // the block data required by Collect() that is specific to the block with the
 // given hash.
 func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataBasic,
-	*dcrjson.FeeInfoBlock, *dcrjson.GetBlockHeaderVerboseResult,
+	*chainjson.FeeInfoBlock, *chainjson.GetBlockHeaderVerboseResult,
 	*apitypes.BlockExplorerExtraInfo, *wire.MsgBlock, error) {
 	// Retrieve block from dcrd.
 	msgBlock, err := t.dcrdChainSvr.GetBlock(hash)
@@ -264,8 +264,8 @@ func (t *Collector) CollectHash(hash *chainhash.Hash) (*BlockData, *wire.MsgBloc
 		Header:           *blockHeaderVerbose,
 		Connections:      int32(numConn),
 		FeeInfo:          *feeInfoBlock,
-		CurrentStakeDiff: dcrjson.GetStakeDifficultyResult{CurrentStakeDifficulty: blockDataBasic.StakeDiff},
-		EstStakeDiff:     dcrjson.EstimateStakeDiffResult{},
+		CurrentStakeDiff: chainjson.GetStakeDifficultyResult{CurrentStakeDifficulty: blockDataBasic.StakeDiff},
+		EstStakeDiff:     chainjson.EstimateStakeDiffResult{},
 		PoolInfo:         blockDataBasic.PoolInfo,
 		ExtraInfo:        *extra,
 		BlockchainInfo:   chainInfo,
@@ -291,7 +291,7 @@ func (t *Collector) Collect() (*BlockData, *wire.MsgBlock, error) {
 	// Run first client call with a timeout.
 	type bciRes struct {
 		err            error
-		blockchainInfo *dcrjson.GetBlockChainInfoResult
+		blockchainInfo *chainjson.GetBlockChainInfoResult
 	}
 	toch := make(chan bciRes)
 
@@ -331,7 +331,7 @@ func (t *Collector) Collect() (*BlockData, *wire.MsgBlock, error) {
 	estStakeDiff, err := t.dcrdChainSvr.EstimateStakeDiff(nil)
 	if err != nil {
 		log.Warn("estimatestakediff is broken: ", err)
-		estStakeDiff = &dcrjson.EstimateStakeDiffResult{}
+		estStakeDiff = &chainjson.EstimateStakeDiffResult{}
 	}
 
 	// Info specific to the block hash
