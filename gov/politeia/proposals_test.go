@@ -12,8 +12,8 @@ import (
 	"testing"
 
 	"github.com/asdine/storm"
-	"github.com/decred/dcrdata/gov/politeia/types"
-	pitypes "github.com/decred/dcrdata/gov/politeia/types"
+	"github.com/decred/dcrdata/gov/v2/politeia/types"
+	pitypes "github.com/decred/dcrdata/gov/v2/politeia/types"
 	piapi "github.com/decred/politeia/politeiawww/api/www/v1"
 )
 

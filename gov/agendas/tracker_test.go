@@ -6,24 +6,24 @@ import (
 	"testing"
 
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/dcrjson/v2"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 )
 
 type dataSourceStub struct{}
 
-func (source dataSourceStub) GetStakeVersionInfo(version int32) (*dcrjson.GetStakeVersionInfoResult, error) {
+func (source dataSourceStub) GetStakeVersionInfo(version int32) (*chainjson.GetStakeVersionInfoResult, error) {
 	if version > 6 {
 		return nil, fmt.Errorf(" ")
 	}
 	h := int64(version * 50000)
-	return &dcrjson.GetStakeVersionInfoResult{
+	return &chainjson.GetStakeVersionInfoResult{
 		CurrentHeight: h,
 		Hash:          strconv.Itoa(int(version)),
-		Intervals: []dcrjson.VersionInterval{
+		Intervals: []chainjson.VersionInterval{
 			{
 				StartHeight: h - 500,
 				EndHeight:   h + 500,
-				PoSVersions: []dcrjson.VersionCount{
+				PoSVersions: []chainjson.VersionCount{
 					{
 						Version: uint32(version),
 						Count:   5,
@@ -33,7 +33,7 @@ func (source dataSourceStub) GetStakeVersionInfo(version int32) (*dcrjson.GetSta
 						Count:   100000,
 					},
 				},
-				VoteVersions: []dcrjson.VersionCount{
+				VoteVersions: []chainjson.VersionCount{
 					{
 						Version: uint32(version),
 						Count:   5,
@@ -47,7 +47,7 @@ func (source dataSourceStub) GetStakeVersionInfo(version int32) (*dcrjson.GetSta
 			{
 				StartHeight: h - 1500,
 				EndHeight:   h - 501,
-				PoSVersions: []dcrjson.VersionCount{
+				PoSVersions: []chainjson.VersionCount{
 					{
 						Version: uint32(version),
 						Count:   5,
@@ -57,7 +57,7 @@ func (source dataSourceStub) GetStakeVersionInfo(version int32) (*dcrjson.GetSta
 						Count:   100000,
 					},
 				},
-				VoteVersions: []dcrjson.VersionCount{
+				VoteVersions: []chainjson.VersionCount{
 					{
 						Version: uint32(version),
 						Count:   5,
@@ -72,12 +72,12 @@ func (source dataSourceStub) GetStakeVersionInfo(version int32) (*dcrjson.GetSta
 	}, nil
 }
 
-func (source dataSourceStub) GetVoteInfo(version uint32) (*dcrjson.GetVoteInfoResult, error) {
+func (source dataSourceStub) GetVoteInfo(version uint32) (*chainjson.GetVoteInfoResult, error) {
 	if version > 6 {
 		return nil, fmt.Errorf(" ")
 	}
 	h := int64(version * 50000)
-	return &dcrjson.GetVoteInfoResult{
+	return &chainjson.GetVoteInfoResult{
 		CurrentHeight: h,
 		StartHeight:   h - 1500,
 		EndHeight:     h + 500,
@@ -85,7 +85,7 @@ func (source dataSourceStub) GetVoteInfo(version uint32) (*dcrjson.GetVoteInfoRe
 		VoteVersion:   version,
 		Quorum:        4032,
 		TotalVotes:    10000,
-		Agendas: []dcrjson.Agenda{
+		Agendas: []chainjson.Agenda{
 			{
 				ID:             "test agenda",
 				Description:    "agenda for testing",
@@ -94,7 +94,7 @@ func (source dataSourceStub) GetVoteInfo(version uint32) (*dcrjson.GetVoteInfoRe
 				ExpireTime:     10,
 				Status:         "failed",
 				QuorumProgress: 0,
-				Choices: []dcrjson.Choice{
+				Choices: []chainjson.Choice{
 					{
 						ID:          "abstain",
 						Description: "abstain voting for change",
@@ -128,19 +128,19 @@ func (source dataSourceStub) GetVoteInfo(version uint32) (*dcrjson.GetVoteInfoRe
 	}, nil
 }
 
-func (source dataSourceStub) GetStakeVersions(hash string, count int32) (*dcrjson.GetStakeVersionsResult, error) {
+func (source dataSourceStub) GetStakeVersions(hash string, count int32) (*chainjson.GetStakeVersionsResult, error) {
 	h, _ := strconv.Atoi(hash)
-	result := &dcrjson.GetStakeVersionsResult{
-		StakeVersions: make([]dcrjson.StakeVersions, int(count)),
+	result := &chainjson.GetStakeVersionsResult{
+		StakeVersions: make([]chainjson.StakeVersions, int(count)),
 	}
 	c := int(count)
 	for i := 0; i < c; i++ {
-		result.StakeVersions[i] = dcrjson.StakeVersions{
+		result.StakeVersions[i] = chainjson.StakeVersions{
 			Hash:         strconv.Itoa(h),
 			Height:       int64(h),
 			BlockVersion: 6,
 			StakeVersion: 6,
-			Votes:        []dcrjson.VersionBits{}, // VoteTracker does not use this
+			Votes:        []chainjson.VersionBits{}, // VoteTracker does not use this
 		}
 		h--
 	}

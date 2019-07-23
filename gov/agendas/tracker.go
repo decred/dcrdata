@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/dcrjson/v2"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 )
 
 const (
@@ -24,9 +24,9 @@ const (
 
 // VoteDataSource is satisfied by rpcclient.Client.
 type VoteDataSource interface {
-	GetStakeVersionInfo(int32) (*dcrjson.GetStakeVersionInfoResult, error)
-	GetVoteInfo(uint32) (*dcrjson.GetVoteInfoResult, error)
-	GetStakeVersions(string, int32) (*dcrjson.GetStakeVersionsResult, error)
+	GetStakeVersionInfo(int32) (*chainjson.GetStakeVersionInfoResult, error)
+	GetVoteInfo(uint32) (*chainjson.GetVoteInfoResult, error)
+	GetStakeVersions(string, int32) (*chainjson.GetStakeVersionsResult, error)
 }
 
 // dcrd does not supply vote counts for completed votes, so the tracker will
@@ -111,8 +111,8 @@ type VoteTracker struct {
 	version        uint32
 	blockVersion   int32
 	stakeVersion   uint32
-	stakeInfo      *dcrjson.GetStakeVersionInfoResult
-	voteInfo       *dcrjson.GetVoteInfoResult
+	stakeInfo      *chainjson.GetStakeVersionInfoResult
+	voteInfo       *chainjson.GetVoteInfoResult
 	summary        *VoteSummary
 	ringIndex      int
 	ringHeight     int64
@@ -222,11 +222,11 @@ func (tracker *VoteTracker) Version() uint32 {
 
 // Grab the getvoteinfo data. Do not update VoteTracker.voteInfo here, as it
 // will be updated with other fields under mutex lock in VoteTracker.update.
-func (tracker *VoteTracker) refreshRCI() (*dcrjson.GetVoteInfoResult, error) {
+func (tracker *VoteTracker) refreshRCI() (*chainjson.GetVoteInfoResult, error) {
 	oldVersion := tracker.Version()
 	v := oldVersion
 	var err error
-	var voteInfo, vinfo *dcrjson.GetVoteInfoResult
+	var voteInfo, vinfo *chainjson.GetVoteInfoResult
 
 	// Retrieves the voteinfo for the last stake version supported.
 	for {
@@ -255,14 +255,14 @@ func (tracker *VoteTracker) refreshRCI() (*dcrjson.GetVoteInfoResult, error) {
 }
 
 // The number of blocks that have been mined in the rule change interval.
-func rciBlocks(voteInfo *dcrjson.GetVoteInfoResult) int64 {
+func rciBlocks(voteInfo *chainjson.GetVoteInfoResult) int64 {
 	return voteInfo.CurrentHeight - voteInfo.StartHeight + 1
 }
 
 // Grab the block versions for up to the last BlockUpgradeNumToCheck blocks.
 // If the current block builds upon the last block, only request a single
 // block's data. Otherwise, request all BlockUpgradeNumToCheck.
-func (tracker *VoteTracker) fetchBlocks(voteInfo *dcrjson.GetVoteInfoResult) ([]int32, uint32, error) {
+func (tracker *VoteTracker) fetchBlocks(voteInfo *chainjson.GetVoteInfoResult) ([]int32, uint32, error) {
 	blocksToRequest := 1
 	// If this isn't the next block, request them all again
 	if voteInfo.CurrentHeight < 0 || voteInfo.CurrentHeight != tracker.ringHeight+1 {
@@ -277,7 +277,7 @@ func (tracker *VoteTracker) fetchBlocks(voteInfo *dcrjson.GetVoteInfoResult) ([]
 		return nil, 0, fmt.Errorf("Unexpected number of blocks returns from GetStakeVersions. Asked for %d, received %d", blocksToRequest, blockCount)
 	}
 	blocks := make([]int32, blockCount)
-	var block dcrjson.StakeVersions
+	var block chainjson.StakeVersions
 	for i := 0; i < blockCount; i++ {
 		block = r.StakeVersions[blockCount-i-1] // iterate backwards
 		tracker.ringIndex = (tracker.ringIndex + 1) % blockCount
@@ -287,7 +287,7 @@ func (tracker *VoteTracker) fetchBlocks(voteInfo *dcrjson.GetVoteInfoResult) ([]
 }
 
 // Get the info for the stake versions in the current rule change interval.
-func (tracker *VoteTracker) refreshSVIs(voteInfo *dcrjson.GetVoteInfoResult) (*dcrjson.GetStakeVersionInfoResult, error) {
+func (tracker *VoteTracker) refreshSVIs(voteInfo *chainjson.GetVoteInfoResult) (*chainjson.GetStakeVersionInfoResult, error) {
 	blocksInCurrentRCI := rciBlocks(voteInfo)
 	svis := int32(blocksInCurrentRCI / tracker.params.StakeVersionInterval)
 	// blocksInCurrentSVI := int32(blocksInCurrentRCI % params.StakeVersionInterval)
@@ -316,8 +316,8 @@ func (tracker *VoteTracker) cacheVoteCounts(agendaID string, counts *voteCount) 
 }
 
 // Once all resources have been retrieved from dcrd, update VoteTracker fields.
-func (tracker *VoteTracker) update(voteInfo *dcrjson.GetVoteInfoResult, blocks []int32,
-	stakeInfo *dcrjson.GetStakeVersionInfoResult, stakeVersion uint32) {
+func (tracker *VoteTracker) update(voteInfo *chainjson.GetVoteInfoResult, blocks []int32,
+	stakeInfo *chainjson.GetStakeVersionInfoResult, stakeVersion uint32) {
 	// Check if voteCounts are needed
 	for idx := range voteInfo.Agendas {
 		agenda := &voteInfo.Agendas[idx]

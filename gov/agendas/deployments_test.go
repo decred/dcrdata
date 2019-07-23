@@ -11,7 +11,7 @@ import (
 
 	"github.com/asdine/storm"
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/dcrjson/v2"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 )
 
@@ -25,7 +25,7 @@ var firstAgendaInfo = &AgendaTagged{
 	StartTime:   1548633600,
 	ExpireTime:  1580169600,
 	Status:      dbtypes.InitialAgendaStatus,
-	Choices: []dcrjson.Choice{
+	Choices: []chainjson.Choice{
 		{
 			ID:          "abstain",
 			Description: "abstain voting for change",
@@ -77,11 +77,11 @@ func TestMain(m *testing.M) {
 type testClient int
 
 // GetVoteInfo implementation showing a sample data format expected.
-func (*testClient) GetVoteInfo(version uint32) (*dcrjson.GetVoteInfoResult, error) {
+func (*testClient) GetVoteInfo(version uint32) (*chainjson.GetVoteInfoResult, error) {
 	if version != 5 {
-		return &dcrjson.GetVoteInfoResult{}, fmt.Errorf(voteVersionErrMsg, version)
+		return &chainjson.GetVoteInfoResult{}, fmt.Errorf(voteVersionErrMsg, version)
 	}
-	resp := &dcrjson.GetVoteInfoResult{
+	resp := &chainjson.GetVoteInfoResult{
 		CurrentHeight: 319842,
 		StartHeight:   318592,
 		EndHeight:     326655,
@@ -89,16 +89,16 @@ func (*testClient) GetVoteInfo(version uint32) (*dcrjson.GetVoteInfoResult, erro
 		VoteVersion:   5,
 		Quorum:        4032,
 		TotalVotes:    0,
-		Agendas: []dcrjson.Agenda{
+		Agendas: []chainjson.Agenda{
 			{
 				ID:             "TestAgenda0001",
-				Description:    "This agenda just shows dcrjson.GetVoteInfoResult payload format",
+				Description:    "This agenda just shows chainjson.GetVoteInfoResult payload format",
 				Mask:           6,
 				StartTime:      1493164800,
 				ExpireTime:     1524700800,
 				Status:         "active",
 				QuorumProgress: 100,
-				Choices: []dcrjson.Choice{
+				Choices: []chainjson.Choice{
 					{
 						ID:          "abstain",
 						Description: "abstain voting for change",
@@ -183,13 +183,13 @@ var voteVersionErrMsg = "invalid vote version %d found"
 
 var expectedAgenda = &AgendaTagged{
 	ID:             "TestAgenda0001",
-	Description:    "This agenda just shows dcrjson.GetVoteInfoResult payload format",
+	Description:    "This agenda just shows chainjson.GetVoteInfoResult payload format",
 	Mask:           6,
 	StartTime:      1493164800,
 	ExpireTime:     1524700800,
 	Status:         dbtypes.ActivatedAgendaStatus,
 	QuorumProgress: 100,
-	Choices: []dcrjson.Choice{
+	Choices: []chainjson.Choice{
 		{
 			ID:          "abstain",
 			Description: "abstain voting for change",
@@ -221,7 +221,7 @@ var activeVersions = map[uint32][]chaincfg.ConsensusDeployment{
 		{
 			Vote: chaincfg.Vote{
 				Id:          "TestAgenda0001",
-				Description: "This agenda just shows dcrjson.GetVoteInfoResult payload format",
+				Description: "This agenda just shows chainjson.GetVoteInfoResult payload format",
 				Mask:        6,
 				Choices: []chaincfg.Choice{
 					{

@@ -12,7 +12,7 @@ import (
 
 	"github.com/asdine/storm"
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/dcrjson/v2"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/semver"
 )
@@ -24,7 +24,7 @@ type AgendaDB struct {
 	rpcClient  DeploymentSource
 }
 
-// AgendaTagged has the same fields as dcrjson.Agenda plus the VoteVersion
+// AgendaTagged has the same fields as chainjson.Agenda plus the VoteVersion
 // field, but with the ID field marked as the primary key via the `storm:"id"`
 // tag. Fields tagged for indexing by the DB are: StartTime, ExpireTime, Status,
 // and QuorumProgress.
@@ -36,7 +36,7 @@ type AgendaTagged struct {
 	ExpireTime     uint64                   `json:"expiretime" storm:"index"`
 	Status         dbtypes.AgendaStatusType `json:"status" storm:"index"`
 	QuorumProgress float64                  `json:"quorumprogress" storm:"index"`
-	Choices        []dcrjson.Choice         `json:"choices"`
+	Choices        []chainjson.Choice       `json:"choices"`
 	VoteVersion    uint32                   `json:"voteversion"`
 }
 
@@ -56,7 +56,7 @@ const dbinfo = "_agendas.db_"
 // in this package. It also allows usage of alternative implementations to
 // satisfy the interface.
 type DeploymentSource interface {
-	GetVoteInfo(version uint32) (*dcrjson.GetVoteInfoResult, error)
+	GetVoteInfo(version uint32) (*chainjson.GetVoteInfoResult, error)
 }
 
 // NewAgendasDB opens an existing database or create a new one using with the
@@ -172,9 +172,9 @@ func agendasForVoteVersion(ver uint32, client DeploymentSource) ([]AgendaTagged,
 
 // updatedb checks if vote versions available in chaincfg.ConsensusDeployment
 // are already updated in the agendas db, if not yet their data is updated.
-// dcrjson.GetVoteInfoResult and chaincfg.ConsensusDeployment hold almost similar
+// chainjson.GetVoteInfoResult and chaincfg.ConsensusDeployment hold almost similar
 // data contents but chaincfg.Vote does not contain the important vote status
-// field that is found in dcrjson.Agenda.
+// field that is found in chainjson.Agenda.
 func (db *AgendaDB) updatedb(activeVersions map[uint32][]chaincfg.ConsensusDeployment) (int, error) {
 	var agendas []AgendaTagged
 	for voteVersion := range activeVersions {
