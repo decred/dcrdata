@@ -12,11 +12,11 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/exchanges/v2"
-	"github.com/decred/dcrdata/txhelpers/v2"
+	"github.com/decred/dcrdata/txhelpers/v3"
 	humanize "github.com/dustin/go-humanize"
 )
 
@@ -339,7 +339,7 @@ func (v *BlockValidation) ForBlock(blockHash string) bool {
 
 // Vin models basic data about a tx input for display
 type Vin struct {
-	*dcrjson.Vin
+	*chainjson.Vin
 	Addresses       []string
 	FormattedAmount string
 	Index           uint32
@@ -365,7 +365,7 @@ type TrimmedBlockInfo struct {
 	Height       int64
 	Total        float64
 	Fees         float64
-	Subsidy      *dcrjson.GetBlockSubsidyResult
+	Subsidy      *chainjson.GetBlockSubsidyResult
 	Votes        []*TrimmedTxInfo
 	Tickets      []*TrimmedTxInfo
 	Revocations  []*TrimmedTxInfo
@@ -398,7 +398,7 @@ type BlockInfo struct {
 	TotalSent             float64
 	MiningFee             float64
 	StakeValidationHeight int64
-	Subsidy               *dcrjson.GetBlockSubsidyResult
+	Subsidy               *chainjson.GetBlockSubsidyResult
 }
 
 // HomeInfo represents data used for the home page
@@ -426,7 +426,7 @@ type HomeInfo struct {
 	ExchangeRate          *exchanges.Conversion `json:"exchange_rate,omitempty"`
 }
 
-// BlockSubsidy is an implementation of dcrjson.GetBlockSubsidyResult
+// BlockSubsidy is an implementation of chainjson.GetBlockSubsidyResult
 type BlockSubsidy struct {
 	Total int64 `json:"total"`
 	PoW   int64 `json:"pow"`
