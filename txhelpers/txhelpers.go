@@ -24,9 +24,9 @@ import (
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/rpcclient/v2"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
+	"github.com/decred/dcrd/rpcclient/v3"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 )
@@ -74,7 +74,7 @@ type RawTransactionGetter interface {
 // required by functions that would otherwise require a rpcclient.Client just
 // for GetRawTransactionVerbose.
 type VerboseTransactionGetter interface {
-	GetRawTransactionVerbose(txHash *chainhash.Hash) (*dcrjson.TxRawResult, error)
+	GetRawTransactionVerbose(txHash *chainhash.Hash) (*chainjson.TxRawResult, error)
 	GetRawTransactionVerboseAsync(txHash *chainhash.Hash) rpcclient.FutureGetRawTransactionVerboseResult
 }
 
@@ -883,8 +883,8 @@ func SSGenVoteChoices(tx *wire.MsgTx, params *chaincfg.Params) (BlockValidation,
 
 // FeeInfoBlock computes ticket fee statistics for the tickets included in the
 // specified block.
-func FeeInfoBlock(block *dcrutil.Block) *dcrjson.FeeInfoBlock {
-	feeInfo := new(dcrjson.FeeInfoBlock)
+func FeeInfoBlock(block *dcrutil.Block) *chainjson.FeeInfoBlock {
+	feeInfo := new(chainjson.FeeInfoBlock)
 	_, sstxMsgTxns := TicketsInBlock(block)
 
 	feeInfo.Height = uint32(block.Height())
@@ -936,8 +936,8 @@ func FeeInfoBlock(block *dcrutil.Block) *dcrjson.FeeInfoBlock {
 
 // FeeRateInfoBlock computes ticket fee rate statistics for the tickets included
 // in the specified block.
-func FeeRateInfoBlock(block *dcrutil.Block) *dcrjson.FeeInfoBlock {
-	feeInfo := new(dcrjson.FeeInfoBlock)
+func FeeRateInfoBlock(block *dcrutil.Block) *chainjson.FeeInfoBlock {
+	feeInfo := new(chainjson.FeeInfoBlock)
 	_, sstxMsgTxns := TicketsInBlock(block)
 
 	feeInfo.Height = uint32(block.Height())
@@ -1126,8 +1126,8 @@ func TotalOutFromMsgTx(msgTx *wire.MsgTx) dcrutil.Amount {
 	return dcrutil.Amount(amtOut)
 }
 
-// TotalVout computes the total value of a slice of dcrjson.Vout
-func TotalVout(vouts []dcrjson.Vout) dcrutil.Amount {
+// TotalVout computes the total value of a slice of chainjson.Vout
+func TotalVout(vouts []chainjson.Vout) dcrutil.Amount {
 	var total dcrutil.Amount
 	for _, v := range vouts {
 		a, err := dcrutil.NewAmount(v.Value)

@@ -13,9 +13,9 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/rpcclient/v2"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
+	"github.com/decred/dcrd/rpcclient/v3"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/semver"
 )
@@ -96,7 +96,7 @@ func TestFeeRateInfoBlock(t *testing.T) {
 	fib := FeeRateInfoBlock(block)
 	t.Log(*fib)
 
-	fibExpected := dcrjson.FeeInfoBlock{
+	fibExpected := chainjson.FeeInfoBlock{
 		Height: 138883,
 		Number: 20,
 		Min:    0.5786178114478114,
@@ -117,7 +117,7 @@ func TestFeeInfoBlock(t *testing.T) {
 	fib := FeeInfoBlock(block)
 	t.Log(*fib)
 
-	fibExpected := dcrjson.FeeInfoBlock{
+	fibExpected := chainjson.FeeInfoBlock{
 		Height: 138883,
 		Number: 20,
 		Min:    0.17184949,
