@@ -26,7 +26,7 @@ import (
 // Any of the following dcrd RPC API versions are deemed compatible with
 // dcrdata.
 var compatibleChainServerAPIs = []semver.Semver{
-	semver.NewSemver(5, 0, 0), // order of reorg and block connected notifications changed
+	semver.NewSemver(6, 0, 0),
 }
 
 var (
