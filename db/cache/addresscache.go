@@ -764,7 +764,7 @@ func (ac *AddressCache) ClearAll() (numCleared int) {
 }
 
 // Clear purging cached data for the given addresses. If addrs is nil, all data
-// are cleared. If addresses is non-nil empty slice, no data are cleard.
+// are cleared. If addresses is non-nil empty slice, no data are cleared.
 func (ac *AddressCache) Clear(addrs []string) (numCleared int) {
 	if addrs == nil {
 		return ac.ClearAll()
@@ -791,7 +791,13 @@ func (ac *AddressCache) Balance(addr string) (*dbtypes.AddressBalance, *BlockID)
 		return nil, nil
 	}
 	ac.cacheMetrics.balanceHit()
-	return aci.Balance()
+	balance, blockID := aci.Balance()
+	var bal *dbtypes.AddressBalance
+	if balance != nil {
+		bal = new(dbtypes.AddressBalance)
+		*bal = *balance // copy balance struct, blockID is already new
+	}
+	return bal, blockID
 }
 
 // UTXOs attempts to retrieve an []*AddressTxnOutput for the given address. The
@@ -808,7 +814,7 @@ func (ac *AddressCache) UTXOs(addr string) ([]*dbtypes.AddressTxnOutput, *BlockI
 }
 
 // HistoryChart attempts to retrieve ChartsData for the given address, chart
-// type, and grouping inverval. The BlockID for the block at which the cached
+// type, and grouping interval. The BlockID for the block at which the cached
 // data is valid is also returned. In the event of a cache miss, both returned
 // pointers will be nil.
 func (ac *AddressCache) HistoryChart(addr string, addrChart dbtypes.HistoryChart,
@@ -1021,7 +1027,7 @@ func (ac *AddressCache) addCacheItem(addr string, aci *AddressCacheItem) (succes
 }
 
 func (ac *AddressCache) setCacheItemRows(addr string, rows []*dbtypes.AddressRowCompact, block *BlockID) (updated bool) {
-	if ac.cap < 1 || ac.capAddr < 1 {
+	if block == nil || ac.cap < 1 || ac.capAddr < 1 {
 		return false
 	}
 
@@ -1141,7 +1147,7 @@ func (ac *AddressCache) StoreRowsCompact(addr string, rows []*dbtypes.AddressRow
 // StoreBalance stores the AddressBalance for the given address in cache. The
 // current best block data is required to determine cache freshness.
 func (ac *AddressCache) StoreBalance(addr string, balance *dbtypes.AddressBalance, block *BlockID) bool {
-	if ac.cap < 1 || ac.capAddr < 1 {
+	if block == nil || ac.cap < 1 || ac.capAddr < 1 {
 		return false
 	}
 
@@ -1149,15 +1155,16 @@ func (ac *AddressCache) StoreBalance(addr string, balance *dbtypes.AddressBalanc
 	defer ac.mtx.Unlock()
 	aci := ac.a[addr]
 
-	if block != nil && balance == nil {
-		balance = &dbtypes.AddressBalance{
-			Address: addr,
-		}
+	var bal dbtypes.AddressBalance
+	if balance == nil {
+		bal.Address = addr
+	} else {
+		bal = *balance
 	}
 
 	if aci == nil || aci.BlockHash() != block.Hash {
 		return ac.addCacheItem(addr, &AddressCacheItem{
-			balance: balance,
+			balance: &bal,
 			height:  block.Height,
 			hash:    block.Hash,
 		})
@@ -1165,7 +1172,7 @@ func (ac *AddressCache) StoreBalance(addr string, balance *dbtypes.AddressBalanc
 
 	// cache is current, so just set the balance.
 	aci.mtx.Lock()
-	aci.balance = balance
+	aci.balance = &bal
 	aci.mtx.Unlock()
 	return true
 }
@@ -1173,7 +1180,7 @@ func (ac *AddressCache) StoreBalance(addr string, balance *dbtypes.AddressBalanc
 // StoreUTXOs stores the *AddressTxnOutput slice for the given address in cache.
 // The current best block data is required to determine cache freshness.
 func (ac *AddressCache) StoreUTXOs(addr string, utxos []*dbtypes.AddressTxnOutput, block *BlockID) bool {
-	if ac.cap < 1 || ac.capAddr < 1 {
+	if block == nil || ac.cap < 1 || ac.capAddr < 1 {
 		return false
 	}
 
@@ -1186,7 +1193,7 @@ func (ac *AddressCache) StoreUTXOs(addr string, utxos []*dbtypes.AddressTxnOutpu
 	defer ac.mtx.Unlock()
 	aci := ac.a[addr]
 
-	if block != nil && utxos == nil {
+	if utxos == nil {
 		utxos = []*dbtypes.AddressTxnOutput{}
 	}
 

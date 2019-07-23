@@ -1886,7 +1886,7 @@ func (pgb *ChainDB) AddressBalance(address string) (bal *dbtypes.AddressBalance,
 	// Check the cache first.
 	bestHash, height := pgb.BestBlock()
 	var validHeight *cache.BlockID
-	bal, validHeight = pgb.AddressCache.Balance(address)
+	bal, validHeight = pgb.AddressCache.Balance(address) // bal is a copy
 	if bal != nil && *bestHash == validHeight.Hash {
 		return
 	}
@@ -1921,7 +1921,7 @@ func (pgb *ChainDB) AddressBalance(address string) (bal *dbtypes.AddressBalance,
 
 	// Update the address cache.
 	cacheUpdated = pgb.AddressCache.StoreBalance(address, bal,
-		cache.NewBlockID(bestHash, height))
+		cache.NewBlockID(bestHash, height)) // stores a copy of bal
 	return
 }
 
@@ -2149,7 +2149,7 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 	// addressRows is now present and current. Proceed to get the balance.
 
 	// Try the address balance cache.
-	balance, validBlock := pgb.AddressCache.Balance(address)
+	balance, validBlock := pgb.AddressCache.Balance(address) // balance is a copy
 	cacheCurrent = validBlock != nil && validBlock.Hash == *hash
 	if cacheCurrent {
 		log.Debugf("Address balance cache HIT for %s.", address)
@@ -2186,7 +2186,7 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 		}
 		// Update balance cache.
 		blockID := cache.NewBlockID(hash, height)
-		pgb.AddressCache.StoreBalance(address, balance, blockID)
+		pgb.AddressCache.StoreBalance(address, balance, blockID) // a copy of balance is stored
 	} else {
 		// Count spent/unspent amounts and transactions.
 		log.Debugf("Obtaining balance via DB query.")
@@ -2354,7 +2354,6 @@ FUNDING_TX_DUPLICATE_CHECK:
 		}
 		received += fundingTx.Tx.TxOut[f.Index].Value
 		numReceived++
-
 	}
 
 	// Spending transactions (unconfirmed)
