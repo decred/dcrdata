@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/dcrjson/v2"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/txhelpers/v2"
+	"github.com/decred/dcrdata/txhelpers/v3"
 )
 
 // TimeAPI is a fall back dbtypes.TimeDef wrapper that allows API endpoints that
@@ -65,8 +65,8 @@ func NewTimeAPIFromUNIX(t int64) TimeAPI {
 	return NewTimeAPI(time.Unix(t, 0))
 }
 
-// much of the time, dcrdata will be using the types in dcrjson, but others are
-// defined here
+// much of the time, dcrdata will be using the types in chainjson, but others
+// are defined here
 
 // BlockTransactions models an array of stake and regular transactions for a
 // block
@@ -91,13 +91,13 @@ type Tx struct {
 
 // TxShort models info about transaction TxID
 type TxShort struct {
-	TxID     string        `json:"txid"`
-	Size     int32         `json:"size"`
-	Version  int32         `json:"version"`
-	Locktime uint32        `json:"locktime"`
-	Expiry   uint32        `json:"expiry"`
-	Vin      []dcrjson.Vin `json:"vin"`
-	Vout     []Vout        `json:"vout"`
+	TxID     string          `json:"txid"`
+	Size     int32           `json:"size"`
+	Version  int32           `json:"version"`
+	Locktime uint32          `json:"locktime"`
+	Expiry   uint32          `json:"expiry"`
+	Vin      []chainjson.Vin `json:"vin"`
+	Vout     []Vout          `json:"vout"`
 }
 
 // AgendasInfo holds the high level details about an agenda.
@@ -117,12 +117,12 @@ type AgendaAPIResponse struct {
 
 // TrimmedTx models data to resemble to result of the decoderawtransaction RPC.
 type TrimmedTx struct {
-	TxID     string        `json:"txid"`
-	Version  int32         `json:"version"`
-	Locktime uint32        `json:"locktime"`
-	Expiry   uint32        `json:"expiry"`
-	Vin      []dcrjson.Vin `json:"vin"`
-	Vout     []Vout        `json:"vout"`
+	TxID     string          `json:"txid"`
+	Version  int32           `json:"version"`
+	Locktime uint32          `json:"locktime"`
+	Expiry   uint32          `json:"expiry"`
+	Vin      []chainjson.Vin `json:"vin"`
+	Vout     []Vout          `json:"vout"`
 }
 
 // Txns models the multi transaction post data structure
@@ -321,16 +321,16 @@ type Address struct {
 // AddressTxRaw is modeled from SearchRawTransactionsResult but with size in
 // place of hex
 type AddressTxRaw struct {
-	Size          int32                `json:"size"`
-	TxID          string               `json:"txid"`
-	Version       int32                `json:"version"`
-	Locktime      uint32               `json:"locktime"`
-	Vin           []dcrjson.VinPrevOut `json:"vin"`
-	Vout          []Vout               `json:"vout"`
-	Confirmations int64                `json:"confirmations"`
-	BlockHash     string               `json:"blockhash"`
-	Time          TimeAPI              `json:"time,omitempty"`
-	Blocktime     TimeAPI              `json:"blocktime,omitempty"`
+	Size          int32                  `json:"size"`
+	TxID          string                 `json:"txid"`
+	Version       int32                  `json:"version"`
+	Locktime      uint32                 `json:"locktime"`
+	Vin           []chainjson.VinPrevOut `json:"vin"`
+	Vout          []Vout                 `json:"vout"`
+	Confirmations int64                  `json:"confirmations"`
+	BlockHash     string                 `json:"blockhash"`
+	Time          TimeAPI                `json:"time,omitempty"`
+	Blocktime     TimeAPI                `json:"blocktime,omitempty"`
 }
 
 // AddressTxShort is a subset of AddressTxRaw with just the basic tx details
@@ -356,23 +356,23 @@ type AddressTotals struct {
 }
 
 // BlockDataWithTxType adds an array of TxRawWithTxType to
-// dcrjson.GetBlockVerboseResult to include the stake transaction type
+// chainjson.GetBlockVerboseResult to include the stake transaction type
 type BlockDataWithTxType struct {
-	*dcrjson.GetBlockVerboseResult
+	*chainjson.GetBlockVerboseResult
 	Votes   []TxRawWithVoteInfo
-	Tickets []dcrjson.TxRawResult
-	Revs    []dcrjson.TxRawResult
+	Tickets []chainjson.TxRawResult
+	Revs    []chainjson.TxRawResult
 }
 
-// TxRawWithVoteInfo adds the vote info to dcrjson.TxRawResult
+// TxRawWithVoteInfo adds the vote info to chainjson.TxRawResult
 type TxRawWithVoteInfo struct {
-	dcrjson.TxRawResult
+	chainjson.TxRawResult
 	VoteInfo VoteInfo
 }
 
-// TxRawWithTxType adds the stake transaction type to dcrjson.TxRawResult
+// TxRawWithTxType adds the stake transaction type to chainjson.TxRawResult
 type TxRawWithTxType struct {
-	dcrjson.TxRawResult
+	chainjson.TxRawResult
 	TxType string
 }
 
@@ -405,7 +405,7 @@ type VinPrevOut struct {
 	Sequence    uint32     `json:"sequence"`
 }
 
-// end copy-paste from dcrjson
+// end copy-paste from chainjson
 
 // Status indicates the state of the server. All fields are mutex protected and
 // and should be set with the getters and setters.
@@ -620,9 +620,9 @@ type BlockExplorerBasic struct {
 // BlockExplorerExtraInfo contains supplemental block metadata used by the
 // explorer.
 type BlockExplorerExtraInfo struct {
-	TxLen            int                            `json:"tx"`
-	CoinSupply       int64                          `json:"coin_supply"`
-	NextBlockSubsidy *dcrjson.GetBlockSubsidyResult `json:"next_block_subsidy"`
+	TxLen            int                              `json:"tx"`
+	CoinSupply       int64                            `json:"coin_supply"`
+	NextBlockSubsidy *chainjson.GetBlockSubsidyResult `json:"next_block_subsidy"`
 }
 
 // BlockTransactionCounts contains the regular and stake transaction counts for
@@ -648,20 +648,20 @@ type BlockSubsidies struct {
 
 // StakeDiff represents data about the evaluated stake difficulty and estimates
 type StakeDiff struct {
-	dcrjson.GetStakeDifficultyResult
-	Estimates        dcrjson.EstimateStakeDiffResult `json:"estimates"`
-	IdxBlockInWindow int                             `json:"window_block_index"`
-	PriceWindowNum   int                             `json:"window_number"`
+	chainjson.GetStakeDifficultyResult
+	Estimates        chainjson.EstimateStakeDiffResult `json:"estimates"`
+	IdxBlockInWindow int                               `json:"window_block_index"`
+	PriceWindowNum   int                               `json:"window_number"`
 }
 
 // StakeInfoExtended models data about the fee, pool and stake difficulty
 type StakeInfoExtended struct {
-	Hash             string               `json:"hash"`
-	Feeinfo          dcrjson.FeeInfoBlock `json:"feeinfo"`
-	StakeDiff        float64              `json:"stakediff"`
-	PriceWindowNum   int                  `json:"window_number"`
-	IdxBlockInWindow int                  `json:"window_block_index"`
-	PoolInfo         *TicketPoolInfo      `json:"ticket_pool"`
+	Hash             string                 `json:"hash"`
+	Feeinfo          chainjson.FeeInfoBlock `json:"feeinfo"`
+	StakeDiff        float64                `json:"stakediff"`
+	PriceWindowNum   int                    `json:"window_number"`
+	IdxBlockInWindow int                    `json:"window_block_index"`
+	PoolInfo         *TicketPoolInfo        `json:"ticket_pool"`
 }
 
 // NewStakeInfoExtended constructs a *StakeInfoExtended with pointer fields
@@ -675,12 +675,12 @@ func NewStakeInfoExtended() *StakeInfoExtended {
 // StakeInfoExtendedEstimates is similar to StakeInfoExtended but includes stake
 // difficulty estimates with the stake difficulty
 type StakeInfoExtendedEstimates struct {
-	Hash             string               `json:"hash"`
-	Feeinfo          dcrjson.FeeInfoBlock `json:"feeinfo"`
-	StakeDiff        StakeDiff            `json:"stakediff"`
-	PriceWindowNum   int                  `json:"window_number"`
-	IdxBlockInWindow int                  `json:"window_block_index"`
-	PoolInfo         *TicketPoolInfo      `json:"ticket_pool"`
+	Hash             string                 `json:"hash"`
+	Feeinfo          chainjson.FeeInfoBlock `json:"feeinfo"`
+	StakeDiff        StakeDiff              `json:"stakediff"`
+	PriceWindowNum   int                    `json:"window_number"`
+	IdxBlockInWindow int                    `json:"window_block_index"`
+	PoolInfo         *TicketPoolInfo        `json:"ticket_pool"`
 }
 
 // MempoolTicketFeeInfo models statistical ticket fee info at block height
@@ -688,7 +688,7 @@ type StakeInfoExtendedEstimates struct {
 type MempoolTicketFeeInfo struct {
 	Height uint32 `json:"height"`
 	Time   int64  `json:"time"`
-	dcrjson.FeeInfoMempool
+	chainjson.FeeInfoMempool
 	LowestMineable float64 `json:"lowest_mineable"`
 }
 
