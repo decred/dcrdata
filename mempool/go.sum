@@ -98,8 +98,8 @@ github.com/decred/dcrdata/explorer/types/v2 v2.0.0 h1:6Zdppys0BExwmtZGDH2xdHgZBm
 github.com/decred/dcrdata/explorer/types/v2 v2.0.0/go.mod h1:Ef3jKuoV4pemfQGARLuWdUn8w+Bpa2i5vmBaJZhKhOU=
 github.com/decred/dcrdata/pubsub/types/v3 v3.0.0 h1:XNa1bR//Vb43Dmea4MGYX1Qb6OPegSdjO+368lzGcUs=
 github.com/decred/dcrdata/pubsub/types/v3 v3.0.0/go.mod h1:J9hONxbdNO/66JHbdunbWzhz9LT7vEJJ60JSmmHk9Dk=
-github.com/decred/dcrdata/rpcutils/v2 v2.0.0 h1:G/p+G/GUa3yzo+OYzZ3/BmDuM26r0fXWE/rvLY4Yjrc=
-github.com/decred/dcrdata/rpcutils/v2 v2.0.0/go.mod h1:hFe8vT/RoIEz2s7HKo5UPoFQjLXtJf53F/Qg4LXc0DE=
+github.com/decred/dcrdata/rpcutils/v2 v2.0.1 h1:DAoeExtFk2C8O2NKXRPDUo1P6vees3YK2DN8Pdutl98=
+github.com/decred/dcrdata/rpcutils/v2 v2.0.1/go.mod h1:hFe8vT/RoIEz2s7HKo5UPoFQjLXtJf53F/Qg4LXc0DE=
 github.com/decred/dcrdata/semver v1.0.0 h1:DBqYU/x+4LqHq/3r4xKdF6xG5ewktG2KDC+g/p3f8mc=
 github.com/decred/dcrdata/semver v1.0.0/go.mod h1:z+nQqiAd9fYkHhBLbejysZ2FPHtgkrErWDgMf+JlZWE=
 github.com/decred/dcrdata/txhelpers/v3 v3.0.0 h1:L+bFUaLI1TaAVtSWovHVbEE41BmCxIvpIKy85d9LlDo=

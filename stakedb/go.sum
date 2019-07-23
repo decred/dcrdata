@@ -93,8 +93,8 @@ github.com/decred/dcrdata/api/types/v4 v4.0.0 h1:fnGy7JlZp0egtu0TrnrzC+RFc13CTBw
 github.com/decred/dcrdata/api/types/v4 v4.0.0/go.mod h1:9XtA3LSyG7u9ZVPaTEYkx+Xko/R/4SutUX17gzOfp6M=
 github.com/decred/dcrdata/db/dbtypes/v2 v2.1.0 h1:uutWwXMcBAnWHq7U3mnENnlzhWej1PBaLjaV8jSIv34=
 github.com/decred/dcrdata/db/dbtypes/v2 v2.1.0/go.mod h1:mtUBAqgF5WIg5Gpgt6KwtkbdDzaJsqxs/LtaTZi+Ug0=
-github.com/decred/dcrdata/rpcutils/v2 v2.0.0 h1:G/p+G/GUa3yzo+OYzZ3/BmDuM26r0fXWE/rvLY4Yjrc=
-github.com/decred/dcrdata/rpcutils/v2 v2.0.0/go.mod h1:hFe8vT/RoIEz2s7HKo5UPoFQjLXtJf53F/Qg4LXc0DE=
+github.com/decred/dcrdata/rpcutils/v2 v2.0.1 h1:DAoeExtFk2C8O2NKXRPDUo1P6vees3YK2DN8Pdutl98=
+github.com/decred/dcrdata/rpcutils/v2 v2.0.1/go.mod h1:hFe8vT/RoIEz2s7HKo5UPoFQjLXtJf53F/Qg4LXc0DE=
 github.com/decred/dcrdata/semver v1.0.0 h1:DBqYU/x+4LqHq/3r4xKdF6xG5ewktG2KDC+g/p3f8mc=
 github.com/decred/dcrdata/semver v1.0.0/go.mod h1:z+nQqiAd9fYkHhBLbejysZ2FPHtgkrErWDgMf+JlZWE=
 github.com/decred/dcrdata/txhelpers/v3 v3.0.0 h1:L+bFUaLI1TaAVtSWovHVbEE41BmCxIvpIKy85d9LlDo=
