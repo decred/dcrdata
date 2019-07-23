@@ -16,7 +16,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrdata/semver"
-	"github.com/decred/dcrdata/txhelpers/v2"
+	"github.com/decred/dcrdata/txhelpers/v3"
 )
 
 // Keys for specifying chart data type.
