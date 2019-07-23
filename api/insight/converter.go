@@ -6,21 +6,21 @@ package insight
 
 import (
 	"github.com/decred/dcrd/blockchain"
-	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
-	apitypes "github.com/decred/dcrdata/api/types/v3"
-	"github.com/decred/dcrdata/txhelpers/v2"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
+	apitypes "github.com/decred/dcrdata/api/types/v4"
+	"github.com/decred/dcrdata/txhelpers/v3"
 )
 
 // TxConverter converts dcrd-tx to insight tx
-func (iapi *InsightApi) TxConverter(txs []*dcrjson.TxRawResult) ([]apitypes.InsightTx, error) {
+func (iapi *InsightApi) TxConverter(txs []*chainjson.TxRawResult) ([]apitypes.InsightTx, error) {
 	return iapi.DcrToInsightTxns(txs, false, false, false)
 }
 
-// DcrToInsightTxns converts a dcrjson TxRawResult to a InsightTx. The asm,
+// DcrToInsightTxns converts a chainjson TxRawResult to a InsightTx. The asm,
 // scriptSig, and spending status may be skipped by setting the appropriate
 // input arguments.
-func (iapi *InsightApi) DcrToInsightTxns(txs []*dcrjson.TxRawResult, noAsm, noScriptSig, noSpent bool) ([]apitypes.InsightTx, error) {
+func (iapi *InsightApi) DcrToInsightTxns(txs []*chainjson.TxRawResult, noAsm, noScriptSig, noSpent bool) ([]apitypes.InsightTx, error) {
 	newTxs := make([]apitypes.InsightTx, 0, len(txs))
 	for _, tx := range txs {
 		// Build new InsightTx
@@ -144,8 +144,8 @@ func (iapi *InsightApi) DcrToInsightTxns(txs []*dcrjson.TxRawResult, noAsm, noSc
 	return newTxs, nil
 }
 
-// DcrToInsightBlock converts a dcrjson.GetBlockVerboseResult to Insight block.
-func (iapi *InsightApi) DcrToInsightBlock(inBlocks []*dcrjson.GetBlockVerboseResult) ([]*apitypes.InsightBlockResult, error) {
+// DcrToInsightBlock converts a chainjson.GetBlockVerboseResult to Insight block.
+func (iapi *InsightApi) DcrToInsightBlock(inBlocks []*chainjson.GetBlockVerboseResult) ([]*apitypes.InsightBlockResult, error) {
 	RewardAtBlock := func(blocknum int64, voters uint16) float64 {
 		subsidyCache := blockchain.NewSubsidyCache(0, iapi.params)
 		work := blockchain.CalcBlockWorkSubsidy(subsidyCache, blocknum, voters, iapi.params)

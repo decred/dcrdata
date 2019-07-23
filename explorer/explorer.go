@@ -20,18 +20,20 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/blockdata/v3"
+
+	"github.com/decred/dcrdata/blockdata/v4"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/exchanges/v2"
-	"github.com/decred/dcrdata/explorer/types"
-	"github.com/decred/dcrdata/gov/agendas"
-	pitypes "github.com/decred/dcrdata/gov/politeia/types"
-	"github.com/decred/dcrdata/mempool/v3"
-	pstypes "github.com/decred/dcrdata/pubsub/types/v2"
-	"github.com/decred/dcrdata/txhelpers/v2"
+	"github.com/decred/dcrdata/explorer/types/v2"
+	"github.com/decred/dcrdata/gov/v2/agendas"
+	pitypes "github.com/decred/dcrdata/gov/v2/politeia/types"
+	"github.com/decred/dcrdata/mempool/v4"
+	pstypes "github.com/decred/dcrdata/pubsub/types/v3"
+	"github.com/decred/dcrdata/txhelpers/v3"
+
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/rs/cors"
@@ -68,13 +70,13 @@ type explorerDataSourceLite interface {
 	GetExplorerTx(txid string) *types.TxInfo
 	GetExplorerAddress(address string, count, offset int64) (*dbtypes.AddressInfo, txhelpers.AddressType, txhelpers.AddressError)
 	GetTip() (*types.WebBasicBlock, error)
-	DecodeRawTransaction(txhex string) (*dcrjson.TxRawResult, error)
+	DecodeRawTransaction(txhex string) (*chainjson.TxRawResult, error)
 	SendRawTransaction(txhex string) (string, error)
 	GetHeight() (int64, error)
 	GetChainParams() *chaincfg.Params
 	GetMempool() []types.MempoolTx
 	TxHeight(txid *chainhash.Hash) (height int64)
-	BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
+	BlockSubsidy(height int64, voters uint16) *chainjson.GetBlockSubsidyResult
 	GetExplorerFullBlocks(start int, end int) []*types.BlockInfo
 	Difficulty() (float64, error)
 	RetreiveDifficulty(timestamp int64) float64
@@ -192,7 +194,7 @@ func TicketStatusText(s dbtypes.TicketSpendType, p dbtypes.TicketPoolStatus) str
 type pageData struct {
 	sync.RWMutex
 	BlockInfo      *types.BlockInfo
-	BlockchainInfo *dcrjson.GetBlockChainInfoResult
+	BlockchainInfo *chainjson.GetBlockChainInfoResult
 	HomeInfo       *types.HomeInfo
 }
 

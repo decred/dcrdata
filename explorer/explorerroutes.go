@@ -19,15 +19,17 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrd/txscript"
+
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/exchanges/v2"
-	"github.com/decred/dcrdata/explorer/types"
-	"github.com/decred/dcrdata/gov/agendas"
-	pitypes "github.com/decred/dcrdata/gov/politeia/types"
-	"github.com/decred/dcrdata/txhelpers/v2"
+	"github.com/decred/dcrdata/explorer/types/v2"
+	"github.com/decred/dcrdata/gov/v2/agendas"
+	pitypes "github.com/decred/dcrdata/gov/v2/politeia/types"
+	"github.com/decred/dcrdata/txhelpers/v3"
+
 	humanize "github.com/dustin/go-humanize"
 )
 
@@ -865,7 +867,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			tx.Vin = append(tx.Vin, types.Vin{
-				Vin: &dcrjson.Vin{
+				Vin: &chainjson.Vin{
 					Coinbase:    coinbase,
 					Stakebase:   stakebase,
 					Txid:        hash,
@@ -875,7 +877,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 					AmountIn:    amount,
 					BlockHeight: uint32(tx.BlockHeight),
 					BlockIndex:  tx.BlockIndex,
-					ScriptSig: &dcrjson.ScriptSig{
+					ScriptSig: &chainjson.ScriptSig{
 						Asm: asm,
 						Hex: hex.EncodeToString(vins[iv].ScriptHex),
 					},

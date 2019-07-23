@@ -25,11 +25,11 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson/v2"
-	"github.com/decred/dcrd/rpcclient/v2"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
+	"github.com/decred/dcrd/rpcclient/v3"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/rpcutils"
-	"github.com/decred/dcrdata/txhelpers/v2"
+	"github.com/decred/dcrdata/rpcutils/v2"
+	"github.com/decred/dcrdata/txhelpers/v3"
 )
 
 // A hard deadline for handlers to finish handling before an error is logged.
@@ -45,7 +45,7 @@ type BranchTips struct {
 
 // TxHandler is a function that will be called when dcrd reports new mempool
 // transactions.
-type TxHandler func(*dcrjson.TxRawResult) error
+type TxHandler func(*chainjson.TxRawResult) error
 
 // BlockHandler is a function that will be called when dcrd reports a new block.
 type BlockHandler func(*wire.BlockHeader) error
@@ -161,7 +161,7 @@ out:
 					msg.OldChainHead.String(), msg.OldChainHeight,
 					msg.NewChainHead.String(), msg.NewChainHeight)
 				notifier.signalReorg(msg)
-			case *dcrjson.TxRawResult:
+			case *chainjson.TxRawResult:
 				notifier.processTx(msg)
 			default:
 				log.Warn("unknown message type in superQueue: %T", rawMsg)
@@ -238,7 +238,7 @@ func (notifier *Notifier) onNewTickets(_ *chainhash.Hash, _ int64, _ int64, tick
 }
 
 // rpcclient.NotificationHandlers.OnTxAcceptedVerbose
-func (notifier *Notifier) onTxAcceptedVerbose(tx *dcrjson.TxRawResult) {
+func (notifier *Notifier) onTxAcceptedVerbose(tx *chainjson.TxRawResult) {
 	// Current UNIX time to assign the new transaction.
 	tx.Time = time.Now().Unix()
 	notifier.anyQ <- tx
@@ -346,7 +346,7 @@ func (notifier *Notifier) processBlock(bh *wire.BlockHeader) {
 
 // processTx calls the TxHandler groups one at a time in the order that they
 // were registered.
-func (notifier *Notifier) processTx(tx *dcrjson.TxRawResult) {
+func (notifier *Notifier) processTx(tx *chainjson.TxRawResult) {
 	start := time.Now()
 	for i, handlers := range notifier.tx {
 		wg := new(sync.WaitGroup)

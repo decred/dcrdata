@@ -9,12 +9,12 @@ import (
 	"sync"
 
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/blockdata/v3"
-	"github.com/decred/dcrdata/txhelpers/v2"
+	"github.com/decred/dcrdata/blockdata/v4"
+	"github.com/decred/dcrdata/txhelpers/v3"
 	socketio "github.com/googollee/go-socket.io"
 )
 
@@ -166,7 +166,7 @@ func (soc *SocketServer) Store(blockData *blockdata.BlockData, msgBlock *wire.Ms
 
 // SendNewTx prepares a dcrd mempool tx for broadcast. This method satisfies
 // notification.TxHandler and is registered as a handler in main.go.
-func (soc *SocketServer) SendNewTx(rawTx *dcrjson.TxRawResult) error {
+func (soc *SocketServer) SendNewTx(rawTx *chainjson.TxRawResult) error {
 	msgTx, err := txhelpers.MsgTxFromHex(rawTx.Hex)
 	if err != nil {
 		return err
@@ -182,7 +182,7 @@ func (soc *SocketServer) sendNewMsgTx(msgTx *wire.MsgTx) error {
 // sendNewTx processes and broadcasts a msgTx to subscribers, using an existing
 // []Vout, if it is available. If vouts is zero-length, the output addresses are
 // decoded from their pkScripts.
-func (soc *SocketServer) sendNewTx(msgTx *wire.MsgTx, vouts []dcrjson.Vout) error {
+func (soc *SocketServer) sendNewTx(msgTx *wire.MsgTx, vouts []chainjson.Vout) error {
 	var vins []InsightSocketVin
 	for _, v := range msgTx.TxIn {
 		txid := v.PreviousOutPoint.Hash.String()

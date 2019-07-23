@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson/v2"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/txhelpers/v2"
+	"github.com/decred/dcrdata/txhelpers/v3"
 )
 
 type dummyNode struct{}
@@ -50,7 +50,7 @@ func (node *dummyNode) GetBlockHash(blockHeight int64) (*chainhash.Hash, error) 
 	hash := newHash()
 	return hash, nil
 }
-func (node *dummyNode) GetBlockHeaderVerbose(hash *chainhash.Hash) (*dcrjson.GetBlockHeaderVerboseResult, error) {
+func (node *dummyNode) GetBlockHeaderVerbose(hash *chainhash.Hash) (*chainjson.GetBlockHeaderVerboseResult, error) {
 	return nil, nil
 }
 
@@ -61,7 +61,7 @@ var mtx sync.RWMutex
 var wg = new(sync.WaitGroup)
 var notifier *Notifier
 
-func test_TxHandler(_ *dcrjson.TxRawResult) error {
+func test_TxHandler(_ *chainjson.TxRawResult) error {
 	mtx.Lock()
 	defer mtx.Unlock()
 	defer wg.Done()
@@ -115,7 +115,7 @@ func TestNotifier(t *testing.T) {
 	newHeight := counter
 	signals.OnReorganization(oldHash, ohdHeight, newHash, int32(newHeight))
 
-	signals.OnTxAcceptedVerbose(new(dcrjson.TxRawResult))
+	signals.OnTxAcceptedVerbose(new(chainjson.TxRawResult))
 
 	wg.Wait()
 

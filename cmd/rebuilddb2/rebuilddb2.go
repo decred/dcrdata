@@ -16,10 +16,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/rpcclient/v2"
-	"github.com/decred/dcrdata/db/dcrpg/v3"
-	"github.com/decred/dcrdata/rpcutils"
-	"github.com/decred/dcrdata/stakedb/v2"
+	"github.com/decred/dcrd/rpcclient/v3"
+	"github.com/decred/dcrdata/db/dcrpg/v4"
+	"github.com/decred/dcrdata/rpcutils/v2"
+	"github.com/decred/dcrdata/stakedb/v3"
 	"github.com/decred/slog"
 	"github.com/dmigwi/go-piparser/proposals"
 )

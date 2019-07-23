@@ -23,16 +23,16 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson/v2"
-	"github.com/decred/dcrd/rpcclient/v2"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
+	"github.com/decred/dcrd/rpcclient/v3"
 	"github.com/decred/dcrd/wire"
-	apitypes "github.com/decred/dcrdata/api/types/v3"
+	apitypes "github.com/decred/dcrdata/api/types/v4"
 	"github.com/decred/dcrdata/db/cache/v2"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/exchanges/v2"
-	"github.com/decred/dcrdata/gov/agendas"
-	m "github.com/decred/dcrdata/middleware/v2"
-	"github.com/decred/dcrdata/txhelpers/v2"
+	"github.com/decred/dcrdata/gov/v2/agendas"
+	m "github.com/decred/dcrdata/middleware/v3"
+	"github.com/decred/dcrdata/txhelpers/v3"
 	appver "github.com/decred/dcrdata/v5/version"
 )
 
@@ -45,24 +45,24 @@ type DataSourceLite interface {
 	GetBlockHash(idx int64) (string, error)
 	GetBlockHeight(hash string) (int64, error)
 	GetBlockByHash(string) (*wire.MsgBlock, error)
-	GetHeader(idx int) *dcrjson.GetBlockHeaderVerboseResult
+	GetHeader(idx int) *chainjson.GetBlockHeaderVerboseResult
 	GetBlockHeaderByHash(hash string) (*wire.BlockHeader, error)
-	GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVerboseResult
-	GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult
+	GetBlockVerbose(idx int, verboseTx bool) *chainjson.GetBlockVerboseResult
+	GetBlockVerboseByHash(hash string, verboseTx bool) *chainjson.GetBlockVerboseResult
 	GetRawTransaction(txid *chainhash.Hash) *apitypes.Tx
 	GetTransactionHex(txid *chainhash.Hash) string
 	GetTrimmedTransaction(txid *chainhash.Hash) *apitypes.TrimmedTx
 	GetRawTransactionWithPrevOutAddresses(txid *chainhash.Hash) (*apitypes.Tx, [][]string, []int64)
 	GetVoteInfo(txid *chainhash.Hash) (*apitypes.VoteInfo, error)
-	GetVoteVersionInfo(ver uint32) (*dcrjson.GetVoteInfoResult, error)
-	GetStakeVersions(txHash string, count int32) (*dcrjson.GetStakeVersionsResult, error)
-	GetStakeVersionsLatest() (*dcrjson.StakeVersions, error)
+	GetVoteVersionInfo(ver uint32) (*chainjson.GetVoteInfoResult, error)
+	GetStakeVersions(txHash string, count int32) (*chainjson.GetStakeVersionsResult, error)
+	GetStakeVersionsLatest() (*chainjson.StakeVersions, error)
 	GetAllTxIn(txid *chainhash.Hash) []*apitypes.TxIn
 	GetAllTxOut(txid *chainhash.Hash) []*apitypes.TxOut
 	GetTransactionsForBlock(idx int64) *apitypes.BlockTransactions
 	GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions
-	GetFeeInfo(idx int) *dcrjson.FeeInfoBlock
-	//GetStakeDiffEstimate(idx int) *dcrjson.EstimateStakeDiffResult
+	GetFeeInfo(idx int) *chainjson.FeeInfoBlock
+	//GetStakeDiffEstimate(idx int) *chainjson.EstimateStakeDiffResult
 	GetStakeInfoExtendedByHeight(idx int) *apitypes.StakeInfoExtended
 	GetStakeInfoExtendedByHash(hash string) *apitypes.StakeInfoExtended
 	GetStakeDiffEstimates() *apitypes.StakeDiff
@@ -983,7 +983,7 @@ func (c *appContext) getStakeDiffCurrent(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	stakeDiffCurrent := dcrjson.GetStakeDifficultyResult{
+	stakeDiffCurrent := chainjson.GetStakeDifficultyResult{
 		CurrentStakeDifficulty: stakeDiff.CurrentStakeDifficulty,
 		NextStakeDifficulty:    stakeDiff.NextStakeDifficulty,
 	}

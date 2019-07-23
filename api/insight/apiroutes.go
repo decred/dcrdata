@@ -19,14 +19,14 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/rpcclient/v2"
-	apitypes "github.com/decred/dcrdata/api/types/v3"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
+	"github.com/decred/dcrd/rpcclient/v3"
+	apitypes "github.com/decred/dcrdata/api/types/v4"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/db/dcrpg/v3"
-	m "github.com/decred/dcrdata/middleware/v2"
-	"github.com/decred/dcrdata/rpcutils"
+	"github.com/decred/dcrdata/db/dcrpg/v4"
+	m "github.com/decred/dcrdata/middleware/v3"
+	"github.com/decred/dcrdata/rpcutils/v2"
 )
 
 const (
@@ -140,7 +140,7 @@ func (iapi *InsightApi) getTransaction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	txsOld := []*dcrjson.TxRawResult{txOld}
+	txsOld := []*chainjson.TxRawResult{txOld}
 
 	// convert to insight struct
 	txsNew, err := iapi.TxConverter(txsOld)
@@ -202,7 +202,7 @@ func (iapi *InsightApi) getBlockSummary(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	blockSummary := []*dcrjson.GetBlockVerboseResult{block}
+	blockSummary := []*chainjson.GetBlockVerboseResult{block}
 	blockInsight, err := iapi.DcrToInsightBlock(blockSummary)
 	if err != nil {
 		apiLog.Errorf("Unable to process block (%s)", hash)
@@ -592,12 +592,12 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 
 		// Grab the transactions for the given page (1-based index).
 		skipTxns := (pageNum - 1) * txPageSize // middleware guarantees pageNum>0
-		txsOld := []*dcrjson.TxRawResult{}
+		txsOld := []*chainjson.TxRawResult{}
 		for i := skipTxns; i < txCount && i < txPageSize+skipTxns; i++ {
 			txsOld = append(txsOld, &mergedTxns[i])
 		}
 
-		// Convert to dcrjson transaction to Insight tx type.
+		// Convert to chainjson transaction to Insight tx type.
 		txsNew, err := iapi.TxConverter(txsOld)
 		if err != nil {
 			apiLog.Error("getTransactions: Error processing transactions: %v", err)
@@ -720,7 +720,7 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 
 		// Grab the transactions for the given page.
 		skipTxns := (pageNum - 1) * txPageSize
-		txsOld := []*dcrjson.TxRawResult{}
+		txsOld := []*chainjson.TxRawResult{}
 		for i := skipTxns; i < txCount && i < txPageSize+skipTxns; i++ {
 			txOld, err := iapi.BlockData.GetRawTransaction(&hashes[i])
 			if err != nil {
@@ -735,7 +735,7 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 			txsOld = append(txsOld, txOld)
 		}
 
-		// Convert to dcrjson transaction to Insight tx type. TxConverter also
+		// Convert to chainjson transaction to Insight tx type. TxConverter also
 		// retrieves previous outpoint addresses.
 		txsNew, err := iapi.TxConverter(txsOld)
 		if err != nil {
@@ -897,7 +897,7 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 	addressOutput.To = int(to)
 
 	// Make getrawtransaction RPCs for each selected transaction.
-	txsOld := []*dcrjson.TxRawResult{}
+	txsOld := []*chainjson.TxRawResult{}
 	for i, rawTx := range rawTxs {
 		txOld, err := iapi.BlockData.GetRawTransaction(&rawTx)
 		if err != nil {

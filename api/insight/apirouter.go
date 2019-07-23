@@ -8,7 +8,7 @@ package insight
 import (
 	"net/http"
 
-	m "github.com/decred/dcrdata/middleware/v2"
+	m "github.com/decred/dcrdata/middleware/v3"
 	"github.com/didip/tollbooth"
 	"github.com/didip/tollbooth_chi"
 	"github.com/go-chi/chi"

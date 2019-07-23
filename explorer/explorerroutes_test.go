@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrdata/db/dcrpg/v3"
-	"github.com/decred/dcrdata/db/dcrsqlite/v3"
-	"github.com/decred/dcrdata/explorer/types"
+	"github.com/decred/dcrdata/db/dcrpg/v4"
+	"github.com/decred/dcrdata/db/dcrsqlite/v4"
+	"github.com/decred/dcrdata/explorer/types/v2"
 )
 
 const (
