@@ -19,10 +19,10 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrd/wire"
-	apitypes "github.com/decred/dcrdata/api/types/v3"
+	apitypes "github.com/decred/dcrdata/api/types/v4"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/docgen"
 )
@@ -65,7 +65,7 @@ type DataSource interface {
 	GetBlockHash(idx int64) (string, error)
 }
 
-type StakeVersionsLatest func() (*dcrjson.StakeVersions, error)
+type StakeVersionsLatest func() (*chainjson.StakeVersions, error)
 
 // writeHTMLBadRequest is used for the Insight API error response for a BAD REQUEST.
 // This means the request was malformed in some way or the request HASH,
