@@ -11,7 +11,7 @@ require (
 	github.com/decred/dcrd/wire v1.2.0
 	github.com/decred/dcrdata/api/types/v4 v4.0.0
 	github.com/decred/dcrdata/db/dbtypes/v2 v2.1.0
-	github.com/decred/dcrdata/stakedb/v3 v3.0.0
+	github.com/decred/dcrdata/stakedb/v3 v3.0.1
 	github.com/decred/dcrdata/txhelpers/v3 v3.0.0
 	github.com/decred/slog v1.0.0
 )

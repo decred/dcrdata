@@ -93,12 +93,12 @@ github.com/decred/dcrdata/api/types/v4 v4.0.0 h1:fnGy7JlZp0egtu0TrnrzC+RFc13CTBw
 github.com/decred/dcrdata/api/types/v4 v4.0.0/go.mod h1:9XtA3LSyG7u9ZVPaTEYkx+Xko/R/4SutUX17gzOfp6M=
 github.com/decred/dcrdata/db/dbtypes/v2 v2.1.0 h1:uutWwXMcBAnWHq7U3mnENnlzhWej1PBaLjaV8jSIv34=
 github.com/decred/dcrdata/db/dbtypes/v2 v2.1.0/go.mod h1:mtUBAqgF5WIg5Gpgt6KwtkbdDzaJsqxs/LtaTZi+Ug0=
-github.com/decred/dcrdata/rpcutils/v2 v2.0.0 h1:G/p+G/GUa3yzo+OYzZ3/BmDuM26r0fXWE/rvLY4Yjrc=
-github.com/decred/dcrdata/rpcutils/v2 v2.0.0/go.mod h1:hFe8vT/RoIEz2s7HKo5UPoFQjLXtJf53F/Qg4LXc0DE=
+github.com/decred/dcrdata/rpcutils/v2 v2.0.1 h1:DAoeExtFk2C8O2NKXRPDUo1P6vees3YK2DN8Pdutl98=
+github.com/decred/dcrdata/rpcutils/v2 v2.0.1/go.mod h1:hFe8vT/RoIEz2s7HKo5UPoFQjLXtJf53F/Qg4LXc0DE=
 github.com/decred/dcrdata/semver v1.0.0 h1:DBqYU/x+4LqHq/3r4xKdF6xG5ewktG2KDC+g/p3f8mc=
 github.com/decred/dcrdata/semver v1.0.0/go.mod h1:z+nQqiAd9fYkHhBLbejysZ2FPHtgkrErWDgMf+JlZWE=
-github.com/decred/dcrdata/stakedb/v3 v3.0.0 h1:5IzJx47uNhSDTW1AXryUi1fwOH44iaKjASpBf3mBmgI=
-github.com/decred/dcrdata/stakedb/v3 v3.0.0/go.mod h1:Wc/86yje4bJI9x1BA8DXdHyGY9OePjaycXV5nJMzy2U=
+github.com/decred/dcrdata/stakedb/v3 v3.0.1 h1:M2S7STVeisKSYW7DHf4G2xj/RW8iz8xBdNlKVnTixX4=
+github.com/decred/dcrdata/stakedb/v3 v3.0.1/go.mod h1:9RTx+Cy48tvHBzdnJoRb224C9OxiRQCuO73I1n4H8rY=
 github.com/decred/dcrdata/txhelpers/v3 v3.0.0 h1:L+bFUaLI1TaAVtSWovHVbEE41BmCxIvpIKy85d9LlDo=
 github.com/decred/dcrdata/txhelpers/v3 v3.0.0/go.mod h1:vSNm6Veddi6a8fqjWvUOK6RVV4dMXukh00K/ihsNw18=
 github.com/decred/dcrwallet/rpc/jsonrpc/types v1.1.0 h1:ZOMpbSK/Cz8D8Yfrt7/yNfS+myBUWMNOdgAg31ND7bM=
