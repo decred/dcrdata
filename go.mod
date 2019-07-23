@@ -14,10 +14,10 @@ require (
 	github.com/decred/dcrd/wire v1.2.0
 	github.com/decred/dcrdata/api/types/v3 v3.0.0
 	github.com/decred/dcrdata/blockdata/v3 v3.0.0
-	github.com/decred/dcrdata/db/cache/v2 v2.1.0
+	github.com/decred/dcrdata/db/cache/v2 v2.1.1
 	github.com/decred/dcrdata/db/dbtypes/v2 v2.0.0
-	github.com/decred/dcrdata/db/dcrpg/v3 v3.1.0
-	github.com/decred/dcrdata/db/dcrsqlite/v3 v3.0.1
+	github.com/decred/dcrdata/db/dcrpg/v3 v3.1.1
+	github.com/decred/dcrdata/db/dcrsqlite/v3 v3.0.2
 	github.com/decred/dcrdata/exchanges/v2 v2.0.1
 	github.com/decred/dcrdata/explorer/types v1.1.0
 	github.com/decred/dcrdata/gov v1.0.2
