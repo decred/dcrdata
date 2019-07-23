@@ -14,18 +14,17 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/blockdata/v3"
+	"github.com/decred/dcrdata/blockdata/v4"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/explorer/types"
-	exptypes "github.com/decred/dcrdata/explorer/types"
-	"github.com/decred/dcrdata/mempool/v3"
-	pstypes "github.com/decred/dcrdata/pubsub/types/v2"
+	exptypes "github.com/decred/dcrdata/explorer/types/v2"
+	"github.com/decred/dcrdata/mempool/v4"
+	pstypes "github.com/decred/dcrdata/pubsub/types/v3"
 	"github.com/decred/dcrdata/semver"
-	"github.com/decred/dcrdata/txhelpers/v2"
+	"github.com/decred/dcrdata/txhelpers/v3"
 	"golang.org/x/net/websocket"
 )
 
@@ -44,12 +43,12 @@ const (
 // wsDataSource defines the interface for collecting required data.
 type wsDataSource interface {
 	GetExplorerBlock(hash string) *exptypes.BlockInfo
-	DecodeRawTransaction(txhex string) (*dcrjson.TxRawResult, error)
+	DecodeRawTransaction(txhex string) (*chainjson.TxRawResult, error)
 	SendRawTransaction(txhex string) (string, error)
 	GetChainParams() *chaincfg.Params
 	// UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error)
 	GetMempool() []exptypes.MempoolTx
-	BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
+	BlockSubsidy(height int64, voters uint16) *chainjson.GetBlockSubsidyResult
 	RetreiveDifficulty(timestamp int64) float64
 }
 
@@ -70,7 +69,7 @@ type State struct {
 
 	// BlockchainInfo contains the result of the getblockchaininfo RPC. It is
 	// updated when Store provides new block details.
-	BlockchainInfo *dcrjson.GetBlockChainInfoResult
+	BlockchainInfo *chainjson.GetBlockChainInfoResult
 }
 
 type connection struct {
@@ -164,7 +163,7 @@ func (psh *PubSubHub) HubRelay() chan pstypes.HubMessage {
 }
 
 // MempoolInventory safely retrieves the current mempool inventory.
-func (psh *PubSubHub) MempoolInventory() *types.MempoolInfo {
+func (psh *PubSubHub) MempoolInventory() *exptypes.MempoolInfo {
 	psh.invsMtx.RLock()
 	defer psh.invsMtx.RUnlock()
 	return psh.invs
@@ -588,9 +587,9 @@ func (psh *PubSubHub) WebSocketHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // StoreMPData stores mempool data. It is advisable to pass a copy of the
-// []types.MempoolTx so that it may be modified (e.g. sorted) without affecting
-// other MempoolDataSavers. The struct pointed to may be shared, so it should
-// not be modified.
+// []exptypes.MempoolTx so that it may be modified (e.g. sorted) without
+// affecting other MempoolDataSavers. The struct pointed to may be shared, so it
+// should not be modified.
 func (psh *PubSubHub) StoreMPData(_ *mempool.StakeData, _ []exptypes.MempoolTx, inv *exptypes.MempoolInfo) {
 	// Get exclusive access to the Mempool field.
 	psh.invsMtx.Lock()

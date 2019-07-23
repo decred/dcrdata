@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/dcrutil"
-	exptypes "github.com/decred/dcrdata/explorer/types"
-	pstypes "github.com/decred/dcrdata/pubsub/types/v2"
-	"github.com/decred/dcrdata/pubsub/v2/psclient"
+	exptypes "github.com/decred/dcrdata/explorer/types/v2"
+	pstypes "github.com/decred/dcrdata/pubsub/types/v3"
+	"github.com/decred/dcrdata/pubsub/v3/psclient"
 	"github.com/decred/dcrdata/semver"
 	"github.com/decred/slog"
 	survey "gopkg.in/AlecAivazis/survey.v1"
