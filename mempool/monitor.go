@@ -15,10 +15,10 @@ import (
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson/v2"
-	exptypes "github.com/decred/dcrdata/explorer/types"
-	pstypes "github.com/decred/dcrdata/pubsub/types/v2"
-	"github.com/decred/dcrdata/txhelpers/v2"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
+	exptypes "github.com/decred/dcrdata/explorer/types/v2"
+	pstypes "github.com/decred/dcrdata/pubsub/types/v3"
+	"github.com/decred/dcrdata/txhelpers/v3"
 	humanize "github.com/dustin/go-humanize"
 )
 
@@ -124,7 +124,7 @@ func (p *MempoolMonitor) BlockHandler(height uint32, _ string) error {
 // mechanism used by main. The newTxIn contains a chain hash for the transaction
 // from the notification, or a zero value hash indicating it was from a Ticker
 // or manually triggered.
-func (p *MempoolMonitor) TxHandler(rawTx *dcrjson.TxRawResult) error {
+func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 	log.Tracef("TxHandler: new transaction: %v.", rawTx.Txid)
 
 	// Ignore this tx if it was received before the last block.

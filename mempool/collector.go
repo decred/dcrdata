@@ -14,13 +14,13 @@ import (
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/rpcclient/v2"
-	apitypes "github.com/decred/dcrdata/api/types/v3"
-	exptypes "github.com/decred/dcrdata/explorer/types"
-	"github.com/decred/dcrdata/rpcutils"
-	"github.com/decred/dcrdata/txhelpers/v2"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
+	"github.com/decred/dcrd/rpcclient/v3"
+	apitypes "github.com/decred/dcrdata/api/types/v4"
+	exptypes "github.com/decred/dcrdata/explorer/types/v2"
+	"github.com/decred/dcrdata/rpcutils/v2"
+	"github.com/decred/dcrdata/txhelpers/v3"
 	humanize "github.com/dustin/go-humanize"
 )
 
@@ -45,7 +45,7 @@ func NewMempoolDataCollector(dcrdChainSvr *rpcclient.Client, params *chaincfg.Pa
 // []exptypes.MempoolTx. See also ParseTxns, which may process this slice. A
 // fresh MempoolAddressStore and TxnsStore are also generated.
 func (t *MempoolDataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.MempoolAddressStore, txhelpers.TxnsStore, error) {
-	mempooltxs, err := t.dcrdChainSvr.GetRawMempoolVerbose(dcrjson.GRMAll)
+	mempooltxs, err := t.dcrdChainSvr.GetRawMempoolVerbose(chainjson.GRMAll)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("GetRawMempoolVerbose failed: %v", err)
 	}
@@ -168,12 +168,12 @@ func (t *MempoolDataCollector) Collect() (*StakeData, []exptypes.MempoolTx, txhe
 
 	// Get a map of ticket hashes to getrawmempool results
 	// mempoolTickets[ticketHashes[0].String()].Fee
-	mempoolTickets, err := c.GetRawMempoolVerbose(dcrjson.GRMTickets)
+	mempoolTickets, err := c.GetRawMempoolVerbose(chainjson.GRMTickets)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
 
-	mempoolVotes, err := c.GetRawMempoolVerbose(dcrjson.GRMVotes)
+	mempoolVotes, err := c.GetRawMempoolVerbose(chainjson.GRMVotes)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}

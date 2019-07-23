@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/dcrjson/v2"
-	apitypes "github.com/decred/dcrdata/api/types/v3"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
+	apitypes "github.com/decred/dcrdata/api/types/v4"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
-	exptypes "github.com/decred/dcrdata/explorer/types"
+	exptypes "github.com/decred/dcrdata/explorer/types/v2"
 )
 
 // MempoolDataCache models the basic data for the mempool cache.
@@ -30,7 +30,7 @@ type MempoolDataCache struct {
 
 	// Stake-related data
 	numTickets              uint32
-	ticketFeeInfo           dcrjson.FeeInfoMempool
+	ticketFeeInfo           chainjson.FeeInfoMempool
 	allFees                 []float64
 	allFeeRates             []float64
 	lowestMineableByFeeRate float64
@@ -75,7 +75,7 @@ func (c *MempoolDataCache) GetNumTickets() (uint32, uint32) {
 }
 
 // GetFeeInfo returns the mempool height and basic fee info
-func (c *MempoolDataCache) GetFeeInfo() (uint32, dcrjson.FeeInfoMempool) {
+func (c *MempoolDataCache) GetFeeInfo() (uint32, chainjson.FeeInfoMempool) {
 	c.mtx.RLock()
 	defer c.mtx.RUnlock()
 	return c.height, c.ticketFeeInfo

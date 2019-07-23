@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson/v2"
-	apitypes "github.com/decred/dcrdata/api/types/v3"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
+	apitypes "github.com/decred/dcrdata/api/types/v4"
 )
 
 // MempoolInfo models basic data about the node's mempool
@@ -83,7 +83,7 @@ type StakeData struct {
 	NumTickets        uint32
 	NumVotes          uint32
 	NewTickets        uint32
-	Ticketfees        *dcrjson.TicketFeeInfoResult
+	Ticketfees        *chainjson.TicketFeeInfoResult
 	MinableFees       *MinableFeeInfo
 	AllTicketsDetails TicketsDetails
 	StakeDiff         float64
