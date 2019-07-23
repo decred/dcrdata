@@ -792,11 +792,12 @@ func (ac *AddressCache) Balance(addr string) (*dbtypes.AddressBalance, *BlockID)
 	}
 	ac.cacheMetrics.balanceHit()
 	balance, blockID := aci.Balance()
-	var bal dbtypes.AddressBalance
+	var bal *dbtypes.AddressBalance
 	if balance != nil {
-		bal = *balance // copy balance struct, blockID is already new
+		bal = new(dbtypes.AddressBalance)
+		*bal = *balance // copy balance struct, blockID is already new
 	}
-	return &bal, blockID
+	return bal, blockID
 }
 
 // UTXOs attempts to retrieve an []*AddressTxnOutput for the given address. The
