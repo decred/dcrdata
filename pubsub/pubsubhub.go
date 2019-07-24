@@ -404,7 +404,7 @@ loop:
 			continue loop
 		}
 
-		if !clientData.isSubscribed(sig) {
+		if sig.Signal != sigByeNow && !clientData.isSubscribed(sig) {
 			log.Errorf("Client not subscribed for %s events. "+
 				"WebSocketHub should have caught this.", sig.Signal.String())
 			continue loop // break

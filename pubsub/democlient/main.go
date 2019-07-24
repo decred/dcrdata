@@ -228,6 +228,9 @@ func main() {
 		case *pstypes.AddressMessage:
 			log.Printf("Message (%s): AddressMessage(address=%s, txHash=%s)",
 				msg.EventId, m.Address, m.TxHash)
+		case *pstypes.HangUp:
+			log.Printf("Hung up. Bye!")
+			return
 		default:
 			log.Printf("Message of type %v unhandled.", msg.EventId)
 		}

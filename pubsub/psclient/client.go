@@ -270,7 +270,11 @@ func (c *Client) receiver() {
 			}()
 			continue
 		case *pstypes.HangUp:
-			log.Infof("The server is hanging up on us!")
+			log.Infof("The server is hanging up on us! Shutting down.")
+			c.recvMsgChan <- &ClientMessage{
+				EventId: resp.EventId,
+				Message: msg,
+			}
 			return
 		case string:
 			// generic "message"
