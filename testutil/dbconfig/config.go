@@ -37,7 +37,6 @@ func CustomScanner(m Migrations) error {
 		if len(text) == 0 {
 			continue
 		}
-
 		if err = m.Runner(text); err != nil {
 			return fmt.Errorf("Runner(%s): %v", text, err)
 		}
@@ -51,7 +50,7 @@ func scanQueries(data []byte, atEOF bool) (advance int, token []byte, err error)
 	if atEOF && len(data) == 0 {
 		return 0, nil, bufio.ErrFinalToken
 	}
-	if i := bytes.LastIndex(data, []byte(";\n")); i >= 0 {
+	if i := bytes.Index(data, []byte(";\n")); i >= 0 {
 		return i + 1, deleteComments(data[:i]), nil
 	}
 	if atEOF {
@@ -62,10 +61,18 @@ func scanQueries(data []byte, atEOF bool) (advance int, token []byte, err error)
 
 // Comments start with (--) and end with a new line.
 func deleteComments(a []byte) []byte {
-	re := regexp.MustCompile(`^--[\s*\w*[[:punct:]]*]*$\n`)
+	// delete sql comment
+	re := regexp.MustCompile(`--[^\n]*`)
 	a = re.ReplaceAll(a, []byte{})
 
-	// delete "test_" from all table references.
+	// Remove duplicate tabs and space characters.
+	re = regexp.MustCompile(`[\t\p{Zs}]{2,}`)
+	a = re.ReplaceAll(a, []byte{})
+
+	// delete "test_" from all table name references.
 	re = regexp.MustCompile(`test_`)
-	return re.ReplaceAll(a, []byte{})
+	a = re.ReplaceAll(a, []byte{})
+
+	// delete any leading or trailing spaces left.
+	return bytes.TrimSpace(a)
 }
