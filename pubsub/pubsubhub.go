@@ -180,9 +180,9 @@ func closeWS(ws *websocket.Conn) {
 }
 
 // receiveLoop receives and processes incoming messages from active websocket
-// connections. When receiveLoop returns, the client connection is unregistered
-// with the WebSocketHub. receiveLoop should be started as a goroutine, after
-// conn.Add(1) and before a conn.Wait().
+// connections. receiveLoop should be started as a goroutine, after conn.Add(1)
+// and before a conn.Wait(). receiveLoop returns when the websocket connection,
+// conn.ws, is closed, which should be initiated when sendLoop returns.
 func (psh *PubSubHub) receiveLoop(conn *connection) {
 	//defer conn.client.cl.unsubscribeAll()
 
@@ -375,7 +375,9 @@ func (psh *PubSubHub) receiveLoop(conn *connection) {
 }
 
 // sendLoop receives signals from WebSocketHub via the connections unique signal
-// channel, and sends the relevant data to the client.
+// channel, and sends the relevant data to the client. sendLoop will return when
+// conn.client.c is closed. On return, the websocket connection, conn.ws, will
+// be closed, thus forcing the same connection's receiveLoop to return.
 func (psh *PubSubHub) sendLoop(conn *connection) {
 	// Use this client's unique channel to receive signals from the
 	// WebSocketHub, which broadcasts signals to all clients.
@@ -531,9 +533,7 @@ loop:
 func (psh *PubSubHub) WebSocketHandler(w http.ResponseWriter, r *http.Request) {
 	// Register websocket client.
 	ch := psh.wsHub.NewClientHubSpoke()
-	defer func() {
-		close(ch.cl.killed)
-	}()
+	defer close(ch.cl.killed)
 
 	wsHandler := websocket.Handler(func(ws *websocket.Conn) {
 		// Set the max payload size for this connection.
@@ -554,16 +554,21 @@ func (psh *PubSubHub) WebSocketHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Start listening for websocket messages from client, returning when
-		// the connection is closed.
+		// the connection is closed. The connection will be forcibly closed when
+		// sendLoop returns if it is still opened.
 		conn.Add(1)
 		go psh.receiveLoop(conn)
 
-		// Send loop (ping, new tx, block, etc. update loop)
+		// Send loop (ping, new tx, block, etc. update loop). sendLoop returns
+		// when the client's signaling channel, conn.ch.cl.c, is closed.
 		conn.Add(1)
 		go psh.sendLoop(conn)
 
 		// Hang out until the send and receive loops have quit.
 		conn.Wait()
+
+		// Clean up the client's subscriptions.
+		ch.cl.unsubscribeAll()
 	})
 
 	// Use a websocket.Server to avoid checking Origin.

@@ -269,18 +269,26 @@ func (wsh *WebsocketHub) unregisterClient(c *hubSpoke) {
 // unregisterAllClients should only be called from the loop in run() or when no
 // other goroutines are accessing the clients map.
 func (wsh *WebsocketHub) unregisterAllClients() {
+	// Closing the client hubSpoke terminates the connection's send and receive
+	// loops, and thus the http.HandlerFunc.
 	spokes := make([]*hubSpoke, 0, len(wsh.clients))
+	// A client's killed channel is closed when the http.HandlerFunc returns.
 	kills := make([]chan struct{}, 0, len(wsh.clients))
 	for c, cl := range wsh.clients {
 		spokes = append(spokes, c)
 		kills = append(kills, cl.killed)
 	}
+
+	// Unregister each client (tracked by hubSpoke), and signal for the client
+	// to shutdown by closing the channel.
 	for _, c := range spokes {
 		delete(wsh.clients, c)
-		close(*c)
+		close(*c) // will terminate the connection's (*PubSubHub).sendLoop
 	}
 	wsh.setNumClients(0)
-	// Wait for each client to shutdown.
+
+	// Wait for each client to shutdown. The client.killed channels are closed
+	// as the http.HandlerFunc of each connection returns.
 	for _, k := range kills {
 		<-k
 	}
