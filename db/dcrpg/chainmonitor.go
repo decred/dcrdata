@@ -100,15 +100,6 @@ func (p *ChainMonitor) switchToSideChain(reorgData *txhelpers.ReorgData) (int32,
 			}
 		}
 
-		// Get current winning votes from stakedb
-		tpi, found := p.db.stakeDB.PoolInfo(newChain[i])
-		if !found {
-			return 0, nil,
-				fmt.Errorf("stakedb.PoolInfo failed to return info for: %v",
-					newChain[i])
-		}
-		winners := tpi.Winners
-
 		// Get the chainWork
 		blockHash := msgBlock.BlockHash()
 		chainWork, err := p.db.GetChainWork(&blockHash)
@@ -120,7 +111,7 @@ func (p *ChainMonitor) switchToSideChain(reorgData *txhelpers.ReorgData) (int32,
 		// also considered valid unless invalidated by the next block
 		// (invalidation of previous handled inside StoreBlock).
 		isValid, isMainChain, updateExisting := true, true, true
-		_, _, _, err = p.db.StoreBlock(msgBlock, winners, isValid, isMainChain,
+		_, _, _, err = p.db.StoreBlock(msgBlock, isValid, isMainChain,
 			updateExisting, true, true, chainWork)
 		if err != nil {
 			return int32(p.db.bestBlock.Height()), p.db.bestBlock.Hash(),

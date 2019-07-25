@@ -20,7 +20,7 @@ func registerDummyFeeAndPoolInfo(charts *cache.ChartData) {
 		blocks := charts.Blocks
 		neededLength := len(blocks.Time)
 		blocks.PoolSize = make([]uint64, neededLength)
-		blocks.PoolValue = make([]float64, neededLength)
+		blocks.PoolValue = make([]uint64, neededLength)
 		blocks.Fees = make([]uint64, neededLength)
 		return nil
 	}

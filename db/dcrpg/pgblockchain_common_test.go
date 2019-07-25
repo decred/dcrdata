@@ -73,8 +73,8 @@ func openDB() (func() error, error) {
 		DBName: dbconfig.PGTestsDBName,
 	}
 	var err error
-	db, err = NewChainDB(&dbi, chaincfg.MainNetParams(), nil, true, true,
-		addrCacheCap, nil, new(dummyParser), nil)
+	db, err = NewChainDB(&dbi, &chaincfg.MainNetParams, nil, true, true,
+		addrCacheCap, nil, new(dummyParser), nil, func() {})
 	cleanUp := func() error { return nil }
 	if db != nil {
 		cleanUp = db.Close

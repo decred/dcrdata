@@ -923,7 +923,7 @@ func (c *appContext) getBlockStakeInfoExtendedByHeight(w http.ResponseWriter, r 
 	}
 	stakeinfo := c.DataSource.GetStakeInfoExtendedByHeight(int(idx))
 	if stakeinfo == nil {
-		apiLog.Errorf("Unable to get block fee info for height %d", idx)
+		apiLog.Errorf("Unable to get stake info for height %d", idx)
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}

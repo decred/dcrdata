@@ -261,9 +261,9 @@ type ChainDB struct {
 	MPC                *mempool.MempoolDataCache
 	// BlockCache stores apitypes.BlockDataBasic and apitypes.StakeInfoExtended
 	// in StoreBlock for quick retrieval without a DB query.
-	BlockCache *apitypes.APICache
-	tipMtx     sync.RWMutex
-	tipSummary *apitypes.BlockDataBasic
+	BlockCache      *apitypes.APICache
+	heightClients   []chan uint32
+	shutdownDcrdata func()
 }
 
 // ChainDeployments is mutex-protected blockchain deployment data.
@@ -314,30 +314,22 @@ func (pgb *ChainDB) replaceCancelError(err error) error {
 // includes the RPC Client blockchain data in a PostgreSQL database.
 type ChainDBRPC struct {
 	*ChainDB
-	Client *rpcclient.Client
+	Client     *rpcclient.Client
+	tipMtx     sync.RWMutex
+	tipSummary *apitypes.BlockDataBasic
 }
 
 // NewChainDBRPC contains ChainDB and RPC client parameters. By default,
 // duplicate row checks on insertion are enabled. also enables rpc client
 func NewChainDBRPC(chaindb *ChainDB, cl *rpcclient.Client) (*ChainDBRPC, error) {
-	return &ChainDBRPC{chaindb, cl}, nil
-}
-
-// SyncChainDBAsync calls (*ChainDB).SyncChainDBAsync after a nil pointer check
-// on the ChainDBRPC receiver.
-func (pgb *ChainDBRPC) SyncChainDBAsync(ctx context.Context, res chan dbtypes.SyncResult,
-	client rpcutils.MasterBlockGetter, updateAllAddresses, newIndexes bool,
-	updateExplorer chan *chainhash.Hash, barLoad chan *dbtypes.ProgressBarLoad) {
-	// Allowing db to be nil simplifies logic in caller.
-	if pgb == nil {
-		res <- dbtypes.SyncResult{
-			Height: -1,
-			Error:  fmt.Errorf("ChainDB (psql) disabled"),
-		}
-		return
+	pgDB := &ChainDBRPC{ChainDB: chaindb, Client: cl}
+	bci, err := pgDB.BlockchainInfo()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch the latest blockchain info")
 	}
-	pgb.ChainDB.SyncChainDBAsync(ctx, res, client, updateAllAddresses,
-		newIndexes, updateExplorer, barLoad)
+	// Update the current chain state in the ChainDBRPC
+	pgDB.UpdateChainState(bci)
+	return pgDB, nil
 }
 
 // Store satisfies BlockDataSaver. Blocks stored this way are considered valid
@@ -497,10 +489,10 @@ type DBInfo struct {
 // needed if database upgrades are required.
 func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeDatabase,
 	devPrefetch, hidePGConfig bool, addrCacheCap int, mp rpcutils.MempoolAddressChecker,
-	parser ProposalsFetcher, bg BlockGetter) (*ChainDB, error) {
+	parser ProposalsFetcher, bg BlockGetter, shutdown func()) (*ChainDB, error) {
 	ctx := context.Background()
 	chainDB, err := NewChainDBWithCancel(ctx, dbi, params, stakeDB,
-		devPrefetch, hidePGConfig, addrCacheCap, mp, parser, bg)
+		devPrefetch, hidePGConfig, addrCacheCap, mp, parser, bg, shutdown)
 	if err != nil {
 		return nil, err
 	}
@@ -517,7 +509,8 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeData
 // BlockGetter is only needed if database upgrades are required.
 func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Params,
 	stakeDB *stakedb.StakeDatabase, devPrefetch, hidePGConfig bool, addrCacheCap int,
-	mp rpcutils.MempoolAddressChecker, parser ProposalsFetcher, bg BlockGetter) (*ChainDB, error) {
+	mp rpcutils.MempoolAddressChecker, parser ProposalsFetcher, bg BlockGetter,
+	shutdown func()) (*ChainDB, error) {
 	// Connect to the PostgreSQL daemon and return the *sql.DB.
 	db, err := Connect(dbi.Host, dbi.Port, dbi.User, dbi.Pass, dbi.DBName)
 	if err != nil {
@@ -805,6 +798,8 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 		cockroach:          cockroach,
 		MPC:                new(mempool.MempoolDataCache),
 		BlockCache:         apitypes.NewAPICache(1e4),
+		heightClients:      make([]chan uint32, 0),
+		shutdownDcrdata:    shutdown,
 	}
 
 	// If loading a DB with the legacy versioning system, fully upgrade prior to
@@ -2933,8 +2928,8 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 	// tickets spending information is updated.
 	updateAddressesSpendingInfo, updateTicketsSpendingInfo := true, true
 
-	_, _, _, err := pgb.StoreBlock(msgBlock, blockData.WinningTickets,
-		isValid, isMainChain, updateExistingRecords, updateAddressesSpendingInfo,
+	_, _, _, err := pgb.StoreBlock(msgBlock, isValid, isMainChain,
+		updateExistingRecords, updateAddressesSpendingInfo,
 		updateTicketsSpendingInfo, blockData.Header.ChainWork)
 	return err
 }
@@ -2948,7 +2943,71 @@ func (pgb *ChainDB) PurgeBestBlocks(N int64) (*dbtypes.DeletionSummary, int64, e
 
 	summary := dbtypes.DeletionSummarySlice(res).Reduce()
 
+	// Rewind stake database to this height.
+	var stakeDBHeight int64
+	stakeDBHeight, err = pgb.RewindStakeDB(pgb.ctx, height, true)
+	if err != nil {
+		return nil, height, pgb.replaceCancelError(err)
+	}
+	if stakeDBHeight != height {
+		err = fmt.Errorf("rewind of StakeDatabase to height %d failed, "+
+			"reaching height %d instead", height, stakeDBHeight)
+		return nil, height, pgb.replaceCancelError(err)
+	}
+
 	return &summary, height, err
+}
+
+// RewindStakeDB attempts to disconnect blocks from the stake database to reach
+// the specified height. A channel must be provided for signaling if the rewind
+// should abort. If the specified height is greater than the current stake DB
+// height, RewindStakeDB will exit without error, returning the current stake DB
+// height and a nil error.
+func (pgb *ChainDB) RewindStakeDB(ctx context.Context, toHeight int64, quiet ...bool) (stakeDBHeight int64, err error) {
+	// Target height must be non-negative. It is not possible to disconnect the
+	// genesis block.
+	if toHeight < 0 {
+		toHeight = 0
+	}
+
+	// Periodically log progress unless quiet[0]==true
+	showProgress := true
+	if len(quiet) > 0 {
+		showProgress = !quiet[0]
+	}
+
+	// Disconnect blocks until the stake database reaches the target height.
+	stakeDBHeight = int64(pgb.stakeDB.Height())
+	startHeight := stakeDBHeight
+	pStep := int64(1000)
+	for stakeDBHeight > toHeight {
+		// Log rewind progress at regular intervals.
+		if stakeDBHeight == startHeight || stakeDBHeight%pStep == 0 {
+			endSegment := pStep * ((stakeDBHeight - 1) / pStep)
+			if endSegment < toHeight {
+				endSegment = toHeight
+			}
+			if showProgress {
+				log.Infof("Rewinding from %d to %d", stakeDBHeight, endSegment)
+			}
+		}
+
+		// Check for quit signal.
+		select {
+		case <-ctx.Done():
+			log.Infof("Rewind cancelled at height %d.", stakeDBHeight)
+			return
+		default:
+		}
+
+		// Disconnect the best block.
+		if err = pgb.stakeDB.DisconnectBlock(false); err != nil {
+			return
+		}
+		stakeDBHeight = int64(pgb.stakeDB.Height())
+		log.Tracef("Stake db now at height %d.", stakeDBHeight)
+	}
+	return
 }
 
 // TxHistoryData fetches the address history chart data for specified chart
@@ -3394,15 +3453,16 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 
 // StoreBlock processes the input wire.MsgBlock, and saves to the data tables.
 // The number of vins and vouts stored are returned.
-func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
-	isValid, isMainchain, updateExistingRecords, updateAddressesSpendingInfo,
+func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, isValid, isMainchain,
+	updateExistingRecords, updateAddressesSpendingInfo,
 	updateTicketsSpendingInfo bool, chainWork string) (
 	numVins int64, numVouts int64, numAddresses int64, err error) {
 
 	// winningTickets is only set during initial chain sync.
 	// Retrieve it from the stakeDB.
 	var tpi *apitypes.TicketPoolInfo
-	if msgBlock.Header.Height > 0 && isMainchain {
+	var winningTickets []string
+	if isMainchain {
 		var found bool
 		tpi, found = pgb.stakeDB.PoolInfo(msgBlock.BlockHash())
 		if !found {
@@ -3434,9 +3494,6 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	var winners []string
 	if isMainchain && !bytes.Equal(zeroHash[:], prevBlockHash[:]) {
 		lastTpi, found := pgb.stakeDB.PoolInfo(prevBlockHash)
-		if len(lastTpi.Winners) > 0 {
-			winningTickets = lastTpi.Winners
-		}
 		if !found {
 			err = fmt.Errorf("stakedb.PoolInfo failed for block %s", msgBlock.BlockHash())
 			return
@@ -4388,9 +4445,9 @@ func (pgb *ChainDBRPC) GetStakeInfoExtendedByHash(hashStr string) *apitypes.Stak
 	var size, val int64
 	var winners []string
 	err = pgb.db.QueryRowContext(pgb.ctx, internal.SelectPoolInfo,
-		hashStr).Scan(pq.Array(&winners), val, size)
+		hashStr).Scan(pq.Array(&winners), &val, &size)
 	if err != nil {
-		log.Errorf("Error retrieving mainchain block with stats found for hash %s", hashStr)
+		log.Errorf("Error retrieving mainchain block with stats for hash %s: %v", hashStr, err)
 		return nil
 	}
 
@@ -6067,4 +6124,31 @@ func (pgb *ChainDBRPC) GetMempool() []exptypes.MempoolTx {
 	}
 
 	return txs
+}
+
+// BlockchainInfo retrieves the result of the getblockchaininfo node RPC.
+func (pgb *ChainDBRPC) BlockchainInfo() (*dcrjson.GetBlockChainInfoResult, error) {
+	return pgb.Client.GetBlockChainInfo()
+}
+
+// UpdateChan creates a channel that will receive height updates. All calls to
+// UpdateChan should be completed before blocks start being connected.
+func (pgb *ChainDBRPC) UpdateChan() chan uint32 {
+	c := make(chan uint32)
+	pgb.heightClients = append(pgb.heightClients, c)
+	return c
+}
+
+// SignalHeight signals the database height to any registered receivers.
+// This function is exported so that it can be called once externally after all
+// update channel clients have subscribed.
+func (pgb *ChainDBRPC) SignalHeight(height uint32) {
+	for i, c := range pgb.heightClients {
+		select {
+		case c <- height:
+		case <-time.NewTimer(time.Minute).C:
+			log.Criticalf("(*DBDataSaver).SignalHeight: heightClients[%d] timed out. Forcing a shutdown.", i)
+			pgb.shutdownDcrdata()
+		}
+	}
 }

@@ -195,11 +195,6 @@ func (db *WiredDB) GetBestBlockHash() (string, error) {
 	return hash, err
 }
 
-// BlockchainInfo retrieves the result of the getblockchaininfo node RPC.
-func (db *WiredDB) BlockchainInfo() (*chainjson.GetBlockChainInfoResult, error) {
-	return db.client.GetBlockChainInfo()
-}
-
 // PurgeBlocksAboveHeight deletes all data across all tables for the blocks
 // above the given height, including side chain blocks. The numbers of blocks
 // removed from the block summary table and stake info table are returned.
