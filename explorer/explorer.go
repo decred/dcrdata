@@ -60,28 +60,6 @@ const (
 	testnetNetName = "Testnet"
 )
 
-// explorerDataSourceLite implements an interface for collecting data for the
-// explorer pages
-type explorerDataSourceLite interface {
-	GetExplorerBlock(hash string) *types.BlockInfo
-	GetExplorerBlocks(start int, end int) []*types.BlockBasic
-	GetBlockHeight(hash string) (int64, error)
-	GetBlockHash(idx int64) (string, error)
-	GetExplorerTx(txid string) *types.TxInfo
-	GetExplorerAddress(address string, count, offset int64) (*dbtypes.AddressInfo, txhelpers.AddressType, txhelpers.AddressError)
-	GetTip() (*types.WebBasicBlock, error)
-	DecodeRawTransaction(txhex string) (*chainjson.TxRawResult, error)
-	SendRawTransaction(txhex string) (string, error)
-	GetHeight() (int64, error)
-	GetChainParams() *chaincfg.Params
-	GetMempool() []types.MempoolTx
-	TxHeight(txid *chainhash.Hash) (height int64)
-	BlockSubsidy(height int64, voters uint16) *chainjson.GetBlockSubsidyResult
-	GetExplorerFullBlocks(start int, end int) []*types.BlockInfo
-	Difficulty() (float64, error)
-	RetreiveDifficulty(timestamp int64) float64
-}
-
 // explorerDataSource implements extra data retrieval functions that require a
 // faster solution than RPC, or additional functionality.
 type explorerDataSource interface {
@@ -112,6 +90,22 @@ type explorerDataSource interface {
 	AgendasVotesSummary(agendaID string) (summary *dbtypes.AgendaSummary, err error)
 	BlockTimeByHeight(height int64) (int64, error)
 	LastPiParserSync() time.Time
+	GetChainParams() *chaincfg.Params
+	GetExplorerBlock(hash string) *types.BlockInfo
+	GetExplorerBlocks(start int, end int) []*types.BlockBasic
+	GetBlockHeight(hash string) (int64, error)
+	GetBlockHash(idx int64) (string, error)
+	GetExplorerTx(txid string) *types.TxInfo
+	GetExplorerAddress(address string, count, offset int64) (*dbtypes.AddressInfo, txhelpers.AddressType, txhelpers.AddressError)
+	GetTip() (*types.WebBasicBlock, error)
+	DecodeRawTransaction(txhex string) (*chainjson.TxRawResult, error)
+	SendRawTransaction(txhex string) (string, error)
+	GetHeight() (int64, error)
+	TxHeight(txid *chainhash.Hash) (height int64)
+	BlockSubsidy(height int64, voters uint16) *chainjson.GetBlockSubsidyResult
+	GetExplorerFullBlocks(start int, end int) []*types.BlockInfo
+	Difficulty() (float64, error)
+	RetreiveDifficulty(timestamp int64) float64
 }
 
 // PoliteiaBackend implements methods that manage proposals db data.
@@ -200,8 +194,7 @@ type pageData struct {
 
 type explorerUI struct {
 	Mux              *chi.Mux
-	blockData        explorerDataSourceLite
-	explorerSource   explorerDataSource
+	dataSource       explorerDataSource
 	agendasSource    agendaBackend
 	voteTracker      *agendas.VoteTracker
 	proposalsSource  PoliteiaBackend
@@ -274,28 +267,26 @@ func (exp *explorerUI) StopWebsocketHub() {
 
 // ExplorerConfig is the configuration settings for explorerUI.
 type ExplorerConfig struct {
-	DataSource        explorerDataSourceLite
-	PrimaryDataSource explorerDataSource
-	UseRealIP         bool
-	AppVersion        string
-	DevPrefetch       bool
-	Viewsfolder       string
-	XcBot             *exchanges.ExchangeBot
-	AgendasSource     agendaBackend
-	Tracker           *agendas.VoteTracker
-	ProposalsSource   PoliteiaBackend
-	PoliteiaURL       string
-	MainnetLink       string
-	TestnetLink       string
-	ReloadHTML        bool
+	DataSource      explorerDataSource
+	UseRealIP       bool
+	AppVersion      string
+	DevPrefetch     bool
+	Viewsfolder     string
+	XcBot           *exchanges.ExchangeBot
+	AgendasSource   agendaBackend
+	Tracker         *agendas.VoteTracker
+	ProposalsSource PoliteiaBackend
+	PoliteiaURL     string
+	MainnetLink     string
+	TestnetLink     string
+	ReloadHTML      bool
 }
 
 // New returns an initialized instance of explorerUI
 func New(cfg *ExplorerConfig) *explorerUI {
 	exp := new(explorerUI)
 	exp.Mux = chi.NewRouter()
-	exp.blockData = cfg.DataSource
-	exp.explorerSource = cfg.PrimaryDataSource
+	exp.dataSource = cfg.DataSource
 	// Allocate Mempool fields.
 	exp.invs = new(types.MempoolInfo)
 	exp.Version = cfg.AppVersion
@@ -312,7 +303,7 @@ func New(cfg *ExplorerConfig) *explorerUI {
 	explorerLinks.TestnetSearch = cfg.TestnetLink + "search?search="
 
 	// explorerDataSource is an interface that could have a value of pointer type.
-	if exp.explorerSource == nil || reflect.ValueOf(exp.explorerSource).IsNil() {
+	if exp.dataSource == nil || reflect.ValueOf(exp.dataSource).IsNil() {
 		log.Errorf("An explorerDataSource (PostgreSQL backend) is required.")
 		return nil
 	}
@@ -321,7 +312,7 @@ func New(cfg *ExplorerConfig) *explorerUI {
 		exp.Mux.Use(middleware.RealIP)
 	}
 
-	params := exp.blockData.GetChainParams()
+	params := exp.dataSource.GetChainParams()
 	exp.ChainParams = params
 	exp.NetName = netName(exp.ChainParams)
 	exp.MeanVotingBlocks = txhelpers.CalcMeanVotingBlocks(params)
@@ -442,7 +433,7 @@ func (exp *explorerUI) StoreMPData(_ *mempool.StakeData, _ []types.MempoolTx, in
 
 func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
 	// Retrieve block data for the passed block hash.
-	newBlockData := exp.blockData.GetExplorerBlock(msgBlock.BlockHash().String())
+	newBlockData := exp.dataSource.GetExplorerBlock(msgBlock.BlockHash().String())
 
 	// Use the latest block's blocktime to get the last 24hr timestamp.
 	day := 24 * time.Hour
@@ -450,12 +441,12 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 
 	// Hashrate change over last day
 	timestamp := newBlockData.BlockTime.T.Add(-day).Unix()
-	last24hrDifficulty := exp.blockData.RetreiveDifficulty(timestamp)
+	last24hrDifficulty := exp.dataSource.RetreiveDifficulty(timestamp)
 	last24HrHashRate := dbtypes.CalculateHashRate(last24hrDifficulty, targetTimePerBlock)
 
 	// Hashrate change over last month
 	timestamp = newBlockData.BlockTime.T.Add(-30 * day).Unix()
-	lastMonthDifficulty := exp.blockData.RetreiveDifficulty(timestamp)
+	lastMonthDifficulty := exp.dataSource.RetreiveDifficulty(timestamp)
 	lastMonthHashRate := dbtypes.CalculateHashRate(lastMonthDifficulty, targetTimePerBlock)
 
 	difficulty := blockData.Header.Difficulty
@@ -592,7 +583,7 @@ func (exp *explorerUI) updateDevFundBalance() {
 	// yield processor to other goroutines
 	runtime.Gosched()
 
-	devBalance, err := exp.explorerSource.DevBalance()
+	devBalance, err := exp.dataSource.DevBalance()
 	if err == nil && devBalance != nil {
 		exp.pageData.Lock()
 		exp.pageData.HomeInfo.DevFund = devBalance.TotalUnspent
@@ -650,7 +641,7 @@ func (exp *explorerUI) simulateASR(StartingDCRBalance float64, IntegerTicketQty 
 
 	StakeRewardAtBlock := func(blocknum float64) float64 {
 		// Option 1:  RPC Call
-		Subsidy := exp.blockData.BlockSubsidy(int64(blocknum), 1)
+		Subsidy := exp.dataSource.BlockSubsidy(int64(blocknum), 1)
 		return dcrutil.Amount(Subsidy.PoS).ToCoin()
 
 		// Option 2:  Calculation

@@ -3428,6 +3428,69 @@ func appendMissedVotesPerWindow(charts *cache.ChartData, rows *sql.Rows) error {
 	return nil
 }
 
+// retrieveBlockFees retrieves any block fee data that is newer than the data
+// in the provided ChartData. This data is used to plot fees on the /charts page.
+// This is the Fetcher half of a pair that make up a cache.ChartUpdater.
+func retrieveBlockFees(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
+	rows, err := db.QueryContext(ctx, internal.SelectFeesPerBlockAboveHeight, charts.FeesTip())
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+// Append the result from retrieveBlockFees to the provided ChartData. This
+// is the Appender half of a pair that make up a cache.ChartUpdater.
+func appendBlockFees(charts *cache.ChartData, rows *sql.Rows) error {
+	defer rows.Close()
+	blocks := charts.Blocks
+	for rows.Next() {
+		var blockHeight uint64
+		var fees int64
+		if err := rows.Scan(&blockHeight, &fees); err != nil {
+			log.Errorf("Unable to scan for FeeInfoPerBlock fields: %v", err)
+			return err
+		}
+		if fees < 0 {
+			fees *= -1
+		}
+
+		// Converting to atoms.
+		blocks.Fees = append(blocks.Fees, uint64(fees))
+	}
+
+	return nil
+}
+
+// RetrievePoolAllValueAndSize returns all the pool value and the pool size
+// charts data needed to plot ticket-pool-size and ticket-pool value charts on
+// the charts page. This is the Fetcher half of a pair that make up a
+// cache.ChartUpdater.
+func retrievePoolStats(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
+	rows, err := db.QueryContext(ctx, internal.SelectPoolStatsAboveHeight, charts.PoolSizeTip())
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+// Append the result from RetrievePoolAllValueAndSize to the provided ChartData.
+// This is the Appender half of a pair that make up a cache.ChartUpdater.
+func appendPoolStats(charts *cache.ChartData, rows *sql.Rows) error {
+	defer rows.Close()
+	blocks := charts.Blocks
+	for rows.Next() {
+		var pval, psize uint64
+		if err := rows.Scan(&psize, &pval); err != nil {
+			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
+			return err
+		}
+		blocks.PoolSize = append(blocks.PoolSize, psize)
+		blocks.PoolValue = append(blocks.PoolValue, pval)
+	}
+	return nil
+}
+
 // retrievePowerlessTickets fetches missed or expired tickets sorted by
 // revocation status.
 func retrievePowerlessTickets(ctx context.Context, db *sql.DB) (*apitypes.PowerlessTickets, error) {

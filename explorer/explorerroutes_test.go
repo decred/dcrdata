@@ -65,23 +65,21 @@ func TestStatusPageResponseCodes(t *testing.T) {
 	// req := httptest.NewRequest("GET", "/", nil)
 	rr := httptest.NewRecorder()
 
-	var wiredDBStub WiredDBStub
 	var chainDBStub ChainDBStub
 
 	exp := New(&ExplorerConfig{
-		DataSource:        &wiredDBStub,
-		PrimaryDataSource: &chainDBStub,
-		UseRealIP:         false,
-		AppVersion:        "test",
-		DevPrefetch:       false,
-		Viewsfolder:       viewsPath,
-		XcBot:             nil,
-		Tracker:           nil,
-		AgendasSource:     nil,
-		ProposalsSource:   nil,
-		PoliteiaURL:       "",
-		MainnetLink:       "/",
-		TestnetLink:       "/",
+		DataSource:      &chainDBStub,
+		UseRealIP:       false,
+		AppVersion:      "test",
+		DevPrefetch:     false,
+		Viewsfolder:     viewsPath,
+		XcBot:           nil,
+		Tracker:         nil,
+		AgendasSource:   nil,
+		ProposalsSource: nil,
+		PoliteiaURL:     "",
+		MainnetLink:     "/",
+		TestnetLink:     "/",
 	})
 
 	// handler := http.HandlerFunc()

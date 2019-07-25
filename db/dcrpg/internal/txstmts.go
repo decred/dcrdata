@@ -90,7 +90,7 @@ const (
 	SelectTxDupIDs = `WITH dups AS (
 		SELECT array_agg(id) AS ids
 		FROM transactions
-		GROUP BY tx_hash, block_hash 
+		GROUP BY tx_hash, block_hash
 		HAVING count(id)>1
 	)
 	SELECT array_agg(dupids) FROM (
@@ -247,9 +247,9 @@ var (
 	SelectTicketsOutputCountByAllBlocks = `SELECT block_height,
 		SUM(CASE WHEN num_vout = 3 THEN 1 ELSE 0 END) as solo,
 		SUM(CASE WHEN num_vout = 5 THEN 1 ELSE 0 END) as pooled
-		FROM transactions 
+		FROM transactions
 		WHERE tx_type = $1
-		AND block_height > $2 
+		AND block_height > $2
 		GROUP BY block_height
 		ORDER BY block_height;`
 
@@ -262,6 +262,14 @@ var (
 		AND block_height > $2
 		GROUP BY count
 		ORDER BY count;`
+
+	SelectFeesPerBlockAboveHeight = `
+		SELECT block_height, SUM(fees) as fees
+		FROM transactions
+		WHERE is_mainchain
+			AND block_height > $1
+		GROUP BY block_height
+		ORDER BY block_height;`
 )
 
 // MakeTxInsertStatement returns the appropriate transaction insert statement

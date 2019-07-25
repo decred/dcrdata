@@ -494,6 +494,7 @@ func (db *StakeDatabase) ConnectBlockHash(hash *chainhash.Hash) (*dcrutil.Block,
 	if err != nil {
 		return nil, err
 	}
+
 	block := dcrutil.NewBlock(msgBlock)
 	return block, db.ConnectBlock(block)
 }
@@ -525,6 +526,7 @@ func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 	db.nodeMtx.Lock()
 	defer db.nodeMtx.Unlock()
 	bestNodeHeight := int64(db.BestNode.Height())
+
 	if height <= bestNodeHeight {
 		return fmt.Errorf("cannot connect block height %d at height %d", height, bestNodeHeight)
 	}
@@ -572,6 +574,7 @@ func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 	// Store TicketPoolInfo in the PoolInfoCache
 	poolSize := int64(db.BestNode.PoolSize())
 	winningTickets := db.BestNode.Winners()
+
 	pib := db.makePoolInfo(db.poolValue, poolSize, winningTickets, uint32(height))
 	db.poolInfo.Set(*block.Hash(), pib)
 
@@ -591,6 +594,7 @@ func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Ha
 	if err != nil {
 		return err
 	}
+
 	if bestNode == nil {
 		return fmt.Errorf("failed to ConnectNode at BestNode")
 	}

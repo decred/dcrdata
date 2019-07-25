@@ -143,7 +143,7 @@ type homeConversions struct {
 
 // Home is the page handler for the "/" path.
 func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
-	height, err := exp.blockData.GetHeight()
+	height, err := exp.dataSource.GetHeight()
 	if err != nil {
 		log.Errorf("GetHeight failed: %v", err)
 		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "",
@@ -151,7 +151,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	blocks := exp.blockData.GetExplorerBlocks(int(height), int(height)-8)
+	blocks := exp.dataSource.GetExplorerBlocks(int(height), int(height)-8)
 	var bestBlock *types.BlockBasic
 	if blocks == nil {
 		bestBlock = new(types.BlockBasic)
@@ -220,7 +220,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 
 // SideChains is the page handler for the "/side" path.
 func (exp *explorerUI) SideChains(w http.ResponseWriter, r *http.Request) {
-	sideBlocks, err := exp.explorerSource.SideChainBlocks()
+	sideBlocks, err := exp.dataSource.SideChainBlocks()
 	if exp.timeoutErrorPage(w, err, "SideChainBlocks") {
 		return
 	}
@@ -269,7 +269,7 @@ func (exp *explorerUI) InsightRootPage(w http.ResponseWriter, r *http.Request) {
 
 // DisapprovedBlocks is the page handler for the "/disapproved" path.
 func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request) {
-	disapprovedBlocks, err := exp.explorerSource.DisapprovedBlocks()
+	disapprovedBlocks, err := exp.dataSource.DisapprovedBlocks()
 	if exp.timeoutErrorPage(w, err, "DisapprovedBlocks") {
 		return
 	}
@@ -302,14 +302,14 @@ func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request)
 func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	// Get top N blocks and trim each block to have just the fields required for
 	// this page.
-	height, err := exp.blockData.GetHeight()
+	height, err := exp.dataSource.GetHeight()
 	if err != nil {
 		log.Errorf("GetHeight failed: %v", err)
 		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "",
 			ExpStatusError)
 		return
 	}
-	blocks := exp.blockData.GetExplorerFullBlocks(int(height),
+	blocks := exp.dataSource.GetExplorerFullBlocks(int(height),
 		int(height)-homePageBlocksMaxCount)
 
 	// trim unwanted data in each block
@@ -382,7 +382,7 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 		rows = maxExplorerRows
 	}
 
-	windows, err := exp.explorerSource.PosIntervals(rows, offsetWindow)
+	windows, err := exp.dataSource.PosIntervals(rows, offsetWindow)
 	if exp.timeoutErrorPage(w, err, "PosIntervals") {
 		return
 	}
@@ -479,7 +479,7 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 		rows = maxExplorerRows
 	}
 
-	data, err := exp.explorerSource.TimeBasedIntervals(grouping, rows, offset)
+	data, err := exp.dataSource.TimeBasedIntervals(grouping, rows, offset)
 	if exp.timeoutErrorPage(w, err, "TimeBasedIntervals") {
 		return
 	}
@@ -526,7 +526,7 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 
 // Blocks is the page handler for the "/blocks" path.
 func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
-	bestBlockHeight, err := exp.blockData.GetHeight()
+	bestBlockHeight, err := exp.dataSource.GetHeight()
 	if err != nil {
 		log.Errorf("GetHeight failed: %v", err)
 		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "",
@@ -553,7 +553,7 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 		height = rows - 1
 	}
 
-	summaries := exp.blockData.GetExplorerBlocks(height, height-rows)
+	summaries := exp.dataSource.GetExplorerBlocks(height, height-rows)
 	if summaries == nil {
 		log.Errorf("Unable to get blocks: height=%d&rows=%d", height, rows)
 		exp.StatusPage(w, defaultErrorCode, "could not find those blocks", "",
@@ -562,7 +562,7 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, s := range summaries {
-		blockStatus, err := exp.explorerSource.BlockStatus(s.Hash)
+		blockStatus, err := exp.dataSource.BlockStatus(s.Hash)
 		if exp.timeoutErrorPage(w, err, "BlockStatus") {
 			return
 		}
@@ -602,7 +602,7 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 	// Retrieve the block specified on the path.
 	hash := getBlockHashCtx(r)
-	data := exp.blockData.GetExplorerBlock(hash)
+	data := exp.dataSource.GetExplorerBlock(hash)
 	if data == nil {
 		log.Errorf("Unable to get block %s", hash)
 		exp.StatusPage(w, defaultErrorCode, "could not find that block", "",
@@ -624,7 +624,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 
 	// Retrieve missed votes, main/side chain status, and stakeholder approval.
 	var err error
-	data.Misses, err = exp.explorerSource.BlockMissedVotes(hash)
+	data.Misses, err = exp.dataSource.BlockMissedVotes(hash)
 	if exp.timeoutErrorPage(w, err, "BlockMissedVotes") {
 		return
 	}
@@ -633,7 +633,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var blockStatus dbtypes.BlockStatus
-	blockStatus, err = exp.explorerSource.BlockStatus(hash)
+	blockStatus, err = exp.dataSource.BlockStatus(hash)
 	if exp.timeoutErrorPage(w, err, "BlockStatus") {
 		return
 	}
@@ -730,12 +730,12 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	ioid, _ := r.Context().Value(ctxTxInOutId).(string)
 	inoutid, _ := strconv.ParseInt(ioid, 10, 0)
 
-	tx := exp.blockData.GetExplorerTx(hash)
+	tx := exp.dataSource.GetExplorerTx(hash)
 	// If dcrd has no information about the transaction, pull the transaction
 	// details from the auxiliary DB database.
 	if tx == nil {
 		// Search for occurrences of the transaction in the database.
-		dbTxs, err := exp.explorerSource.Transaction(hash)
+		dbTxs, err := exp.dataSource.Transaction(hash)
 		if exp.timeoutErrorPage(w, err, "Transaction") {
 			return
 		}
@@ -783,7 +783,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Retrieve vouts from DB.
-		vouts, err := exp.explorerSource.VoutsForTx(dbTx0)
+		vouts, err := exp.dataSource.VoutsForTx(dbTx0)
 		if exp.timeoutErrorPage(w, err, "VoutsForTx") {
 			return
 		}
@@ -803,7 +803,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				opReturn = asm
 			}
 			// Determine if the outpoint is spent
-			spendingTx, _, _, err := exp.explorerSource.SpendingTransaction(hash, vouts[iv].TxIndex)
+			spendingTx, _, _, err := exp.dataSource.SpendingTransaction(hash, vouts[iv].TxIndex)
 			if exp.timeoutErrorPage(w, err, "SpendingTransaction") {
 				return
 			}
@@ -824,7 +824,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Retrieve vins from DB.
-		vins, prevPkScripts, scriptVersions, err := exp.explorerSource.VinsForTx(dbTx0)
+		vins, prevPkScripts, scriptVersions, err := exp.dataSource.VinsForTx(dbTx0)
 		if exp.timeoutErrorPage(w, err, "VinsForTx") {
 			return
 		}
@@ -970,7 +970,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	// For any coinbase transactions look up the total block fees to include
 	// as part of the inputs.
 	if tx.Type == types.CoinbaseTypeStr {
-		data := exp.blockData.GetExplorerBlock(tx.BlockHash)
+		data := exp.dataSource.GetExplorerBlock(tx.BlockHash)
 		if data == nil {
 			log.Errorf("Unable to get block %s", tx.BlockHash)
 		} else {
@@ -983,7 +983,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Details on all the blocks containing this transaction
-	blocks, blockInds, err := exp.explorerSource.TransactionBlocks(tx.TxID)
+	blocks, blockInds, err := exp.dataSource.TransactionBlocks(tx.TxID)
 	if exp.timeoutErrorPage(w, err, "TransactionBlocks") {
 		return
 	}
@@ -1007,7 +1007,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	// For each output of this transaction, look up any spending transactions,
 	// and the index of the spending transaction input.
 	spendingTxHashes, spendingTxVinInds, voutInds, err :=
-		exp.explorerSource.SpendingTransactions(hash)
+		exp.dataSource.SpendingTransactions(hash)
 	if exp.timeoutErrorPage(w, err, "SpendingTransactions") {
 		return
 	}
@@ -1028,7 +1028,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if tx.IsTicket() {
-		spendStatus, poolStatus, err := exp.explorerSource.PoolStatusForTicket(hash)
+		spendStatus, poolStatus, err := exp.dataSource.PoolStatusForTicket(hash)
 		if exp.timeoutErrorPage(w, err, "PoolStatusForTicket") {
 			return
 		}
@@ -1051,7 +1051,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 
 			// For missed tickets, get the block in which it should have voted.
 			if poolStatus == dbtypes.PoolStatusMissed {
-				tx.TicketInfo.LotteryBlock, _, err = exp.explorerSource.TicketMiss(hash)
+				tx.TicketInfo.LotteryBlock, _, err = exp.dataSource.TicketMiss(hash)
 				if err != nil && err != sql.ErrNoRows {
 					log.Errorf("Unable to retrieve miss information for ticket %s: %v",
 						hash, err)
@@ -1073,7 +1073,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 					exp.StatusPage(w, defaultErrorCode, err.Error(), "", ExpStatusError)
 					return
 				}
-				tx.TicketInfo.TicketLiveBlocks = exp.blockData.TxHeight(txhash) -
+				tx.TicketInfo.TicketLiveBlocks = exp.dataSource.TxHeight(txhash) -
 					tx.BlockHeight - int64(exp.ChainParams.TicketMaturity) - 1
 			} else if tx.Confirmations >= int64(exp.ChainParams.TicketExpiry+
 				uint32(exp.ChainParams.TicketMaturity)) { // Expired
@@ -1400,7 +1400,7 @@ func parseAddressParams(r *http.Request) (address string, txnType dbtypes.AddrTx
 // for a given address.
 func (exp *explorerUI) AddressListData(address string, txnType dbtypes.AddrTxnViewType, limitN, offsetAddrOuts int64) (addrData *dbtypes.AddressInfo, err error) {
 	// Get addresses table rows for the address.
-	addrData, err = exp.explorerSource.AddressData(address, limitN,
+	addrData, err = exp.dataSource.AddressData(address, limitN,
 		offsetAddrOuts, txnType)
 	if dbtypes.IsTimeoutErr(err) { //exp.timeoutErrorPage(w, err, "TicketsPriceByHeight") {
 		return nil, err
@@ -1471,12 +1471,12 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	// redirect to the block page if it is.
 	idx, err := strconv.ParseInt(searchStr, 10, 0)
 	if err == nil {
-		_, err = exp.blockData.GetBlockHash(idx)
+		_, err = exp.dataSource.GetBlockHash(idx)
 		if err == nil {
 			http.Redirect(w, r, "/block/"+searchStr, http.StatusPermanentRedirect)
 			return
 		}
-		_, err = exp.explorerSource.BlockHash(idx)
+		_, err = exp.dataSource.BlockHash(idx)
 		if err == nil {
 			http.Redirect(w, r, "/block/"+searchStr, http.StatusPermanentRedirect)
 			return
@@ -1505,7 +1505,7 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 
 	// Call GetExplorerAddress to see if the value is an address hash and
 	// then redirect to the address page if it is.
-	address, _, addrErr := exp.blockData.GetExplorerAddress(searchStr, 1, 0)
+	address, _, addrErr := exp.dataSource.GetExplorerAddress(searchStr, 1, 0)
 	switch addrErr {
 	case txhelpers.AddressErrorNoError, txhelpers.AddressErrorZeroAddress:
 		http.Redirect(w, r, "/address/"+searchStr, http.StatusPermanentRedirect)
@@ -1520,7 +1520,7 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 
 	// This is be unnecessarily duplicative and possible very slow for a very
 	// active addresses.
-	addrHist, _, _ := exp.explorerSource.AddressHistory(searchStr,
+	addrHist, _, _ := exp.dataSource.AddressHistory(searchStr,
 		1, 0, dbtypes.AddrTxnAll)
 	if len(addrHist) > 0 {
 		http.Redirect(w, r, "/address/"+searchStr, http.StatusPermanentRedirect)
@@ -1537,12 +1537,7 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 
 	// Attempt to get a block index by calling GetBlockHeight to see if the
 	// value is a block hash and then redirect to the block page if it is.
-	_, err = exp.blockData.GetBlockHeight(searchStr)
-	// If block search failed, check the aux DB, which has data for side chain
-	// and orphaned blocks.
-	if err != nil {
-		_, err = exp.explorerSource.BlockHeight(searchStr)
-	}
+	_, err = exp.dataSource.GetBlockHeight(searchStr)
 	if err == nil {
 		http.Redirect(w, r, "/block/"+searchStr, http.StatusPermanentRedirect)
 		return
@@ -1550,14 +1545,14 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 
 	// Call GetExplorerTx to see if the value is a transaction hash and then
 	// redirect to the tx page if it is.
-	tx := exp.blockData.GetExplorerTx(searchStr)
+	tx := exp.dataSource.GetExplorerTx(searchStr)
 	if tx != nil {
 		http.Redirect(w, r, "/tx/"+searchStr, http.StatusPermanentRedirect)
 		return
 	}
 
 	// Also check the aux DB as it may have transactions from orphaned blocks.
-	dbTxs, err := exp.explorerSource.Transaction(searchStr)
+	dbTxs, err := exp.dataSource.Transaction(searchStr)
 	if err != nil && err != sql.ErrNoRows {
 		log.Errorf("Searching for transaction failed: %v", err)
 	}
@@ -1688,7 +1683,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	summary, err := exp.explorerSource.AgendasVotesSummary(agendaId)
+	summary, err := exp.dataSource.AgendasVotesSummary(agendaId)
 	if err != nil {
 		log.Errorf("fetching Cumulative votes choices count failed: %v", err)
 	}
@@ -1899,7 +1894,7 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 		VStatusFilter:  filterBy,
 		TotalCount:     int64(count),
 		PoliteiaURL:    exp.politeiaAPIURL,
-		LastVotesSync:  exp.explorerSource.LastPiParserSync().UTC().Unix(),
+		LastVotesSync:  exp.dataSource.LastPiParserSync().UTC().Unix(),
 		LastPropSync:   exp.proposalsSource.LastProposalsSync(),
 		TimePerBlock:   int64(exp.ChainParams.TargetTimePerBlock.Seconds()),
 	})
@@ -1958,21 +1953,21 @@ func (exp *explorerUI) HandleApiRequestsOnSync(w http.ResponseWriter, r *http.Re
 // StatsPage is the page handler for the "/stats" path.
 func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 	// Get current PoW difficulty.
-	powDiff, err := exp.blockData.Difficulty()
+	powDiff, err := exp.dataSource.Difficulty()
 	if err != nil {
 		log.Errorf("Failed to get Difficulty: %v", err)
 	}
 
 	// Subsidies
 	ultSubsidy := txhelpers.UltimateSubsidy(exp.ChainParams)
-	bestBlockHeight, err := exp.blockData.GetHeight()
+	bestBlockHeight, err := exp.dataSource.GetHeight()
 	if err != nil {
 		log.Errorf("GetHeight failed: %v", err)
 		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "",
 			ExpStatusError)
 		return
 	}
-	blockSubsidy := exp.blockData.BlockSubsidy(bestBlockHeight,
+	blockSubsidy := exp.dataSource.BlockSubsidy(bestBlockHeight,
 		exp.ChainParams.TicketsPerBlock)
 
 	// Safely retrieve the inventory pointer, which can be reset in StoreMPData.
@@ -2066,7 +2061,7 @@ func (exp *explorerUI) MarketPage(w http.ResponseWriter, r *http.Request) {
 // This is particularly useful for extras.tmpl, parts of which
 // are used on every page
 func (exp *explorerUI) commonData(r *http.Request) *CommonPageData {
-	tip, err := exp.blockData.GetTip()
+	tip, err := exp.dataSource.GetTip()
 	if err != nil {
 		log.Errorf("Failed to get the chain tip from the database.: %v", err)
 		return nil

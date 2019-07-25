@@ -18,7 +18,6 @@ import (
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types/v4"
 	"github.com/decred/dcrdata/blockdata/v4"
-	"github.com/decred/dcrdata/db/cache/v2"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/slog"
 	sqlite3 "github.com/mattn/go-sqlite3" // register sqlite driver with database/sql
@@ -84,10 +83,10 @@ type DB struct {
 	shutdownDcrdata func()
 
 	// Block summary table queries
-	insertBlockSQL                                               string
-	getPoolSQL, getPoolRangeSQL                                  string
-	getPoolByHashSQL                                             string
-	getPoolValSizeRangeSQL, getAllPoolValSize                    string
+	insertBlockSQL string
+	// getPoolSQL, getPoolRangeSQL                                  string
+	// getPoolByHashSQL                                             string
+	// getPoolValSizeRangeSQL                                       string
 	getWinnersByHashSQL, getWinnersSQL                           string
 	getDifficulty                                                string
 	getSDiffSQL, getSDiffRangeSQL                                string
@@ -107,9 +106,6 @@ type DB struct {
 	getBestStakeHeightSQL, getHighestStakeHeightSQL               string
 	deleteStakeInfoByHeightMainChainSQL, deleteStakeInfoByHashSQL string
 	deleteStakeInfoAboveHeightSQL                                 string
-
-	// JOINed table queries
-	getAllFeeInfoPerBlock string
 
 	// Table creation
 	rawCreateBlockSummaryStmt, rawCreateStakeInfoExtendedStmt string
@@ -145,18 +141,23 @@ func NewDB(db *sql.DB, shutdown func()) (*DB, error) {
         ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, TableNameStakeInfo)
 
+	//
+
+	//
+
+	//
+
 	// Ticket pool queries (block summaries table)
-	d.getPoolSQL = fmt.Sprintf(`SELECT hash, poolsize, poolval, poolavg, winners`+
-		` FROM %s WHERE height = ? AND is_mainchain = 1`, TableNameSummaries)
-	d.getPoolByHashSQL = fmt.Sprintf(`SELECT height, poolsize, poolval, poolavg, winners`+
-		` FROM %s WHERE hash = ?`, TableNameSummaries)
-	d.getPoolRangeSQL = fmt.Sprintf(`SELECT height, hash, poolsize, poolval, poolavg, winners `+
-		`FROM %s WHERE height BETWEEN ? AND ? AND is_mainchain = 1`, TableNameSummaries)
-	d.getPoolValSizeRangeSQL = fmt.Sprintf(`SELECT poolsize, poolval `+
-		`FROM %s WHERE height BETWEEN ? AND ? AND is_mainchain = 1`, TableNameSummaries)
-	d.getAllPoolValSize = fmt.Sprintf(`SELECT poolsize, poolval, time `+
-		`FROM %s WHERE is_mainchain = 1 AND height > $1`,
-		TableNameSummaries)
+
+	// Needs translation
+	// d.getPoolSQL = fmt.Sprintf(`SELECT hash, poolsize, poolval, poolavg, winners`+
+	// 	` FROM %s WHERE height = ? AND is_mainchain = 1`, TableNameSummaries)
+	// d.getPoolByHashSQL = fmt.Sprintf(`SELECT height, poolsize, poolval, poolavg, winners`+
+	// 	` FROM %s WHERE hash = ?`, TableNameSummaries)
+	// d.getPoolRangeSQL = fmt.Sprintf(`SELECT height, hash, poolsize, poolval, poolavg, winners `+
+	// 	`FROM %s WHERE height BETWEEN ? AND ? AND is_mainchain = 1`, TableNameSummaries)
+	// d.getPoolValSizeRangeSQL = fmt.Sprintf(`SELECT poolsize, poolval `+
+	// 	`FROM %s WHERE height BETWEEN ? AND ? AND is_mainchain = 1`, TableNameSummaries)
 	d.getWinnersSQL = fmt.Sprintf(`SELECT hash, winners FROM %s
 		WHERE height = ? AND is_mainchain = 1`, TableNameSummaries)
 	d.getWinnersByHashSQL = fmt.Sprintf(`SELECT height, winners FROM %s WHERE hash = ?`,
@@ -220,7 +221,19 @@ func NewDB(db *sql.DB, shutdown func()) (*DB, error) {
 	d.deleteBlocksAboveHeightSQL = fmt.Sprintf(`DELETE FROM %s
 		WHERE height > ?`, TableNameSummaries)
 
+	//
+
+	//
+
+	//
+
+	//
+
+	//
+
 	// Stake info table queries
+
+	// 2 Used in syncing. will remove at end
 	d.getBestStakeHeightSQL = fmt.Sprintf(
 		`SELECT %[1]s.height FROM %[1]s
 		 JOIN %[2]s ON %[1]s.hash = %[2]s.hash
@@ -232,14 +245,7 @@ func NewDB(db *sql.DB, shutdown func()) (*DB, error) {
 		 ORDER BY height DESC LIMIT 0, 1`,
 		TableNameStakeInfo)
 
-	d.getAllFeeInfoPerBlock = fmt.Sprintf(
-		`SELECT %[1]s.height, fee_med FROM %[1]s
-		 JOIN %[2]s ON %[1]s.hash = %[2]s.hash
-		 WHERE %[1]s.height > $1
-		 AND %[2]s.is_mainchain=1
-		 ORDER BY %[1]s.height;`,
-		TableNameStakeInfo, TableNameSummaries)
-
+	// The rest can be dropped in the end.
 	d.deleteStakeInfoByHashSQL = fmt.Sprintf(`DELETE FROM %s
 		WHERE hash = ?`, TableNameStakeInfo)
 	d.deleteStakeInfoByHeightMainChainSQL = fmt.Sprintf(`DELETE FROM %s
@@ -835,71 +841,6 @@ func (db *DB) GetStakeInfoHeight() (int64, error) {
 	return db.dbStakeInfoHeight, nil
 }
 
-// RetrievePoolInfoRange returns an array of apitypes.TicketPoolInfo for block
-// range ind0 to ind1 and a non-nil error on success
-func (db *DB) RetrievePoolInfoRange(ind0, ind1 int64) ([]apitypes.TicketPoolInfo, []string, error) {
-	N := ind1 - ind0 + 1
-	if N == 0 {
-		return []apitypes.TicketPoolInfo{}, []string{}, nil
-	}
-	if N < 0 {
-		return nil, nil, fmt.Errorf("Cannot retrieve pool info range (%d>%d)",
-			ind0, ind1)
-	}
-	db.mtx.RLock()
-	if ind1 > db.dbSummaryHeight || ind0 < 0 {
-		defer db.mtx.RUnlock()
-		return nil, nil, fmt.Errorf("Cannot retrieve pool info range [%d,%d], have height %d",
-			ind0, ind1, db.dbSummaryHeight)
-	}
-	db.mtx.RUnlock()
-
-	tpis := make([]apitypes.TicketPoolInfo, 0, N)
-	hashes := make([]string, 0, N)
-
-	stmt, err := db.Prepare(db.getPoolRangeSQL)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer stmt.Close()
-
-	rows, err := stmt.Query(ind0, ind1)
-	if err != nil {
-		log.Errorf("Query failed: %v", err)
-		return nil, nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var tpi apitypes.TicketPoolInfo
-		var hash, winners string
-		if err = rows.Scan(&tpi.Height, &hash, &tpi.Size, &tpi.Value,
-			&tpi.ValAvg, &winners); err != nil {
-			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
-		}
-		tpi.Winners = splitToArray(winners)
-		tpis = append(tpis, tpi)
-		hashes = append(hashes, hash)
-	}
-	if err = rows.Err(); err != nil {
-		log.Error(err)
-	}
-
-	return tpis, hashes, nil
-}
-
-// RetrievePoolInfo returns ticket pool info for block height ind
-func (db *DB) RetrievePoolInfo(ind int64) (*apitypes.TicketPoolInfo, error) {
-	tpi := &apitypes.TicketPoolInfo{
-		Height: uint32(ind),
-	}
-	var hash, winners string
-	err := db.QueryRow(db.getPoolSQL, ind).Scan(&hash, &tpi.Size,
-		&tpi.Value, &tpi.ValAvg, &winners)
-	tpi.Winners = splitToArray(winners)
-	return tpi, err
-}
-
 // RetrieveWinners returns the winning ticket tx IDs drawn after connecting the
 // given block height (called to validate the block). The block hash
 // corresponding to the input block height is also returned.
@@ -925,154 +866,7 @@ func (db *DB) RetrieveWinnersByHash(hash string) ([]string, uint32, error) {
 	return splitToArray(winners), height, err
 }
 
-// RetrievePoolInfoByHash returns ticket pool info for blockhash hash.
-func (db *DB) RetrievePoolInfoByHash(hash string) (*apitypes.TicketPoolInfo, error) {
-	tpi := new(apitypes.TicketPoolInfo)
-	var winners string
-	err := db.QueryRow(db.getPoolByHashSQL, hash).Scan(&tpi.Height, &tpi.Size,
-		&tpi.Value, &tpi.ValAvg, &winners)
-	tpi.Winners = splitToArray(winners)
-	return tpi, err
-}
-
-// RetrievePoolValAndSizeRange returns an array each of the pool values and
-// sizes for block range ind0 to ind1.
-func (db *DB) RetrievePoolValAndSizeRange(ind0, ind1 int64) ([]float64, []float64, error) {
-	N := ind1 - ind0 + 1
-	if N == 0 {
-		return []float64{}, []float64{}, nil
-	}
-	if N < 0 {
-		return nil, nil, fmt.Errorf("Cannot retrieve pool val and size range (%d>%d)",
-			ind0, ind1)
-	}
-	db.mtx.RLock()
-	if ind1 > db.dbSummaryHeight || ind0 < 0 {
-		defer db.mtx.RUnlock()
-		return nil, nil, fmt.Errorf("Cannot retrieve pool val and size range [%d,%d], have height %d",
-			ind0, ind1, db.dbSummaryHeight)
-	}
-	db.mtx.RUnlock()
-
-	poolvals := make([]float64, 0, N)
-	poolsizes := make([]float64, 0, N)
-
-	stmt, err := db.Prepare(db.getPoolValSizeRangeSQL)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer stmt.Close()
-
-	rows, err := stmt.Query(ind0, ind1)
-	if err != nil {
-		log.Errorf("Query failed: %v", err)
-		return nil, nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var pval, psize float64
-		if err = rows.Scan(&psize, &pval); err != nil {
-			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
-		}
-		poolvals = append(poolvals, pval)
-		poolsizes = append(poolsizes, psize)
-	}
-	if err = rows.Err(); err != nil {
-		log.Error(err)
-	}
-
-	if len(poolsizes) != int(N) {
-		log.Warnf("RetrievePoolValAndSizeRange: Retrieved pool values (%d) not expected number (%d)",
-			len(poolsizes), N)
-	}
-
-	return poolvals, poolsizes, nil
-}
-
 func dummyCancel() {}
-
-// RetrievePoolAllValueAndSize returns all the pool value and the pool size
-// charts data needed to plot ticket-pool-size and ticket-pool value charts on
-// the charts page. This is the Fetcher half of a pair that make up a
-// cache.ChartUpdater.
-func (db *DB) RetrievePoolAllValueAndSize(charts *cache.ChartData) (*sql.Rows, func(), error) {
-	stmt, err := db.Prepare(db.getAllPoolValSize)
-	if err != nil {
-		return nil, dummyCancel, err
-	}
-	defer stmt.Close()
-
-	rows, err := stmt.Query(charts.PoolSizeTip())
-	if err != nil {
-		log.Errorf("Query failed: %v", err)
-		return nil, dummyCancel, err
-	}
-	return rows, dummyCancel, nil
-}
-
-// Append the result from RetrievePoolAllValueAndSize to the provided ChartData.
-// This is the Appender half of a pair that make up a cache.ChartUpdater.
-func (db *DB) AppendPoolAllValueAndSize(charts *cache.ChartData, rows *sql.Rows) error {
-	defer rows.Close()
-	blocks := charts.Blocks
-	for rows.Next() {
-		var pval, psize float64
-		var timestamp int64
-		if err := rows.Scan(&psize, &pval, &timestamp); err != nil {
-			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
-			return err
-		}
-
-		if timestamp == 0 {
-			continue
-		}
-
-		blocks.PoolSize = append(blocks.PoolSize, uint64(psize))
-		blocks.PoolValue = append(blocks.PoolValue, pval)
-	}
-
-	return nil
-}
-
-// RetrieveBlockFeeRows retrieves any block fee data that is newer than the data
-// in the provided ChartData. This data is used to plot fees on the /charts page.
-// This is the Fetcher half of a pair that make up a cache.ChartUpdater.
-func (db *DB) RetrieveBlockFeeRows(charts *cache.ChartData) (*sql.Rows, func(), error) {
-	stmt, err := db.Prepare(db.getAllFeeInfoPerBlock)
-	if err != nil {
-		return nil, dummyCancel, err
-	}
-	defer stmt.Close()
-
-	rows, err := stmt.Query(charts.FeesTip())
-	if err != nil {
-		log.Errorf("Query failed: %v", err)
-		return nil, dummyCancel, err
-	}
-
-	return rows, dummyCancel, nil
-}
-
-// Append the result from RetrieveBlockFeeRows to the provided ChartData. This
-// is the Appender half of a pair that make up a cache.ChartUpdater.
-func (db *DB) AppendBlockFeeRows(charts *cache.ChartData, rows *sql.Rows) error {
-	defer rows.Close()
-	blocks := charts.Blocks
-	for rows.Next() {
-		var feeMed float64
-		var blockHeight uint64
-		if err := rows.Scan(&blockHeight, &feeMed); err != nil {
-			log.Errorf("Unable to scan for FeeInfoPerBlock fields: %v", err)
-			return err
-		}
-
-		// Converting to atoms.
-		blocks.Fees = append(blocks.Fees, uint64(feeMed*1e8))
-	}
-
-	return nil
-}
 
 // RetrieveSDiffRange returns an array of stake difficulties for block range
 // ind0 to ind1.

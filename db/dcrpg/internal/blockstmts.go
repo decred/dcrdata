@@ -224,6 +224,53 @@ const (
 		WHERE is_mainchain
 		AND height > $1
 		ORDER BY height;`
+
+	// Get the height data. Because stats is unique on height, the inner join will
+	// filter for mainchain as well.
+	SelectBlockDataByHeight = `
+		SELECT blocks.hash, blocks.height, blocks.size,
+			blocks.difficulty, blocks.sbits, blocks.time, stats.pool_size,
+			stats.pool_val, blocks.winners, blocks.is_valid
+		FROM blocks INNER JOIN stats ON blocks.id = stats.blocks_id
+		WHERE blocks.height = $1;`
+
+	SelectBlockDataByHash = `
+			SELECT blocks.hash, blocks.height, blocks.size,
+				blocks.difficulty, blocks.sbits, blocks.time, stats.pool_size,
+				stats.pool_val, blocks.winners, blocks.is_mainchain, blocks.is_valid
+			FROM blocks INNER JOIN stats ON blocks.id = stats.blocks_id
+			WHERE blocks.hash = $1;`
+
+	SelectBlockDataBest = `
+		SELECT blocks.hash, blocks.height, blocks.size,
+			blocks.difficulty, blocks.sbits, blocks.time, stats.pool_size,
+			stats.pool_val, blocks.winners, blocks.is_valid
+		FROM blocks INNER JOIN stats ON blocks.id = stats.blocks_id
+		WHERE blocks.is_mainchain
+		ORDER BY height DESC LIMIT 1;`
+
+	SelectBlockSizeByHeight = `SELECT size
+		FROM blocks
+		WHERE is_mainchain AND height = $1;`
+
+	SelectBlockSizeRange = `SELECT size
+		FROM blocks
+		WHERE is_mainchain
+			AND height BETWEEN $1 AND $2;`
+
+	SelectSBitsByHeight = `SELECT sbits
+		FROM blocks
+		WHERE height = $1 AND is_mainchain;`
+
+	SelectSBitsRange = `SELECT sbits
+		FROM blocks
+		WHERE height BETWEEN $1 AND $2;`
+
+	SelectDiffByTime = `SELECT difficulty
+		FROM blocks
+		WHERE time >= $1
+		ORDER BY time
+		LIMIT 1;`
 )
 
 func MakeBlockInsertStatement(block *dbtypes.Block, checked bool) string {

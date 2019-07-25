@@ -414,7 +414,7 @@ func _main(ctx context.Context) error {
 
 	charts := cache.NewChartData(ctx, uint32(heightDB), activeChain)
 	pgDB.RegisterCharts(charts)
-	baseDB.RegisterCharts(charts)
+	// baseDB.RegisterCharts(charts)
 
 	// Aux DB height and stakedb height must be equal. StakeDatabase will
 	// catch up automatically if it is behind, but we must rewind it here if
@@ -478,7 +478,7 @@ func _main(ctx context.Context) error {
 
 	// Charge stakedb pool info cache, including previous PG blocks, up to
 	// best in sqlite.
-	if err = baseDB.ChargePoolInfoCache(heightDB - 2); err != nil {
+	if err = pgDB.ChargePoolInfoCache(heightDB - 2); err != nil {
 		return fmt.Errorf("Failed to charge pool info cache: %v", err)
 	}
 
@@ -502,7 +502,7 @@ func _main(ctx context.Context) error {
 	blockDataSavers := []blockdata.BlockDataSaver{pgDB}
 	blockDataSavers = append(blockDataSavers, baseDB)
 
-	mempoolSavers := []mempool.MempoolDataSaver{baseDB.MPC} // mempool.MempoolDataCache
+	mempoolSavers := []mempool.MempoolDataSaver{pgDB.MPC} // mempool.MempoolDataCache
 
 	// Allow Ctrl-C to halt startup here.
 	if shutdownRequested(ctx) {
@@ -578,20 +578,19 @@ func _main(ctx context.Context) error {
 
 	// Create the explorer system.
 	explore := explorer.New(&explorer.ExplorerConfig{
-		DataSource:        baseDB,
-		PrimaryDataSource: pgDB,
-		UseRealIP:         cfg.UseRealIP,
-		AppVersion:        version.Version(),
-		DevPrefetch:       !cfg.NoDevPrefetch,
-		Viewsfolder:       "views",
-		XcBot:             xcBot,
-		AgendasSource:     agendasInstance,
-		Tracker:           tracker,
-		ProposalsSource:   proposalsInstance,
-		PoliteiaURL:       cfg.PoliteiaAPIURL,
-		MainnetLink:       cfg.MainnetLink,
-		TestnetLink:       cfg.TestnetLink,
-		ReloadHTML:        cfg.ReloadHTML,
+		DataSource:      pgDB,
+		UseRealIP:       cfg.UseRealIP,
+		AppVersion:      version.Version(),
+		DevPrefetch:     !cfg.NoDevPrefetch,
+		Viewsfolder:     "views",
+		XcBot:           xcBot,
+		AgendasSource:   agendasInstance,
+		Tracker:         tracker,
+		ProposalsSource: proposalsInstance,
+		PoliteiaURL:     cfg.PoliteiaAPIURL,
+		MainnetLink:     cfg.MainnetLink,
+		TestnetLink:     cfg.TestnetLink,
+		ReloadHTML:      cfg.ReloadHTML,
 	})
 	// TODO: allow views config
 	if explore == nil {
@@ -604,7 +603,7 @@ func _main(ctx context.Context) error {
 	mempoolSavers = append(mempoolSavers, explore)
 
 	// Create the pub sub hub.
-	psHub, err := pubsub.NewPubSubHub(baseDB)
+	psHub, err := pubsub.NewPubSubHub(pgDB)
 	if err != nil {
 		return fmt.Errorf("failed to create new pubsubhub: %v", err)
 	}
@@ -734,8 +733,7 @@ func _main(ctx context.Context) error {
 	app := api.NewContext(&api.AppContextConfig{
 		Client:             dcrdClient,
 		Params:             activeChain,
-		DataSource:         baseDB,
-		DBSource:           pgDB,
+		DataSource:         pgDB,
 		JsonIndent:         cfg.IndentJSON,
 		XcBot:              xcBot,
 		AgendasDBInstance:  agendasInstance,

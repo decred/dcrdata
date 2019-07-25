@@ -70,7 +70,7 @@ func TestChartsCache(t *testing.T) {
 	charts.Blocks.Height = seedUints()
 	charts.Blocks.Time = seedTimes()
 	charts.Blocks.PoolSize = seedUints()
-	charts.Blocks.PoolValue = seedFloats()
+	charts.Blocks.PoolValue = seedUints()
 	charts.Blocks.BlockSize = seedUints()
 	charts.Blocks.TxCount = seedUints()
 	charts.Blocks.NewAtoms = seedUints()
@@ -266,7 +266,7 @@ func TestChartReorg(t *testing.T) {
 			Height:    newUints(),
 			Time:      newUints(),
 			PoolSize:  newUints(),
-			PoolValue: newFloats(),
+			PoolValue: newUints(),
 			BlockSize: newUints(),
 			TxCount:   newUints(),
 			NewAtoms:  newUints(),
@@ -277,7 +277,7 @@ func TestChartReorg(t *testing.T) {
 			cacheID:   0,
 			Time:      newUints(),
 			PoolSize:  newUints(),
-			PoolValue: newFloats(),
+			PoolValue: newUints(),
 			BlockSize: newUints(),
 			TxCount:   newUints(),
 			NewAtoms:  newUints(),

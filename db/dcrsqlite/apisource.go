@@ -20,7 +20,6 @@ import (
 	"github.com/decred/dcrd/rpcclient/v4"
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types/v4"
-	"github.com/decred/dcrdata/db/cache/v2"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	exptypes "github.com/decred/dcrdata/explorer/types/v2"
 	"github.com/decred/dcrdata/mempool/v4"
@@ -93,56 +92,6 @@ func (db *WiredDB) EnableCache() {
 
 func (db *WiredDB) DisableCache() {
 	db.BlockCache.Disable()
-}
-
-// RegisterCharts registers chart data fetchers and appenders with the provided
-// ChartData.
-func (db *WiredDB) RegisterCharts(charts *cache.ChartData) {
-	charts.AddUpdater(cache.ChartUpdater{
-		Tag:      "fee info",
-		Fetcher:  db.RetrieveBlockFeeRows,
-		Appender: db.AppendBlockFeeRows,
-	})
-	charts.AddUpdater(cache.ChartUpdater{
-		Tag:      "pool info",
-		Fetcher:  db.RetrievePoolAllValueAndSize,
-		Appender: db.AppendPoolAllValueAndSize,
-	})
-}
-
-func (db *WiredDB) ChargePoolInfoCache(startHeight int64) error {
-	if startHeight < 0 {
-		startHeight = 0
-	}
-	endHeight, err := db.GetStakeInfoHeight()
-	if err != nil {
-		return err
-	}
-	if startHeight > endHeight {
-		log.Debug("No pool info to load into cache")
-		return nil
-	}
-	tpis, blockHashes, err := db.DB.RetrievePoolInfoRange(startHeight, endHeight)
-	if err != nil {
-		return err
-	}
-	log.Debugf("Pre-loading pool info for %d blocks ([%d, %d]) into cache.",
-		len(tpis), startHeight, endHeight)
-	for i := range tpis {
-		hash, err := chainhash.NewHashFromStr(blockHashes[i])
-		if err != nil {
-			log.Warnf("Invalid block hash: %s", blockHashes[i])
-		}
-		db.sDB.SetPoolInfo(*hash, &tpis[i])
-	}
-	// for i := startHeight; i <= endHeight; i++ {
-	// 	winners, blockHash, err := db.DB.RetrieveWinners(i)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	db.sDB.SetPoolInfo(blockHash)
-	// }
-	return nil
 }
 
 // ReportHeights logs the SQLite table heights, and the stake database height,
@@ -490,27 +439,6 @@ func (db *WiredDB) GetBlockHeaderByHash(hash string) (*wire.BlockHeader, error) 
 		return nil, err
 	}
 	return db.client.GetBlockHeader(blockHash)
-}
-
-func (db *WiredDB) CoinSupply() (supply *apitypes.CoinSupply) {
-	coinSupply, err := db.client.GetCoinSupply()
-	if err != nil {
-		log.Errorf("RPC failure (GetCoinSupply): %v", err)
-		return
-	}
-
-	hash, height, err := db.client.GetBestBlock()
-	if err != nil {
-		log.Errorf("RPC failure (GetBestBlock): %v", err)
-		return
-	}
-
-	return &apitypes.CoinSupply{
-		Height:   height,
-		Hash:     hash.String(),
-		Mined:    int64(coinSupply),
-		Ultimate: txhelpers.UltimateSubsidy(db.params),
-	}
 }
 
 func (db *WiredDB) BlockSubsidy(height int64, voters uint16) *chainjson.GetBlockSubsidyResult {
@@ -870,36 +798,24 @@ func (db *WiredDB) GetBlockSizeRange(idx0, idx1 int) ([]int32, error) {
 	return blockSizes, nil
 }
 
-func (db *WiredDB) GetPool(idx int64) ([]string, error) {
-	hs, err := db.sDB.PoolDB.Pool(idx)
-	if err != nil {
-		log.Errorf("Unable to get ticket pool from stakedb: %v", err)
-		return nil, err
-	}
-	hss := make([]string, 0, len(hs))
-	for i := range hs {
-		hss = append(hss, hs[i].String())
-	}
-	return hss, nil
-}
-
-func (db *WiredDB) GetPoolByHash(hash string) ([]string, error) {
-	idx, err := db.GetBlockHeight(hash)
-	if err != nil {
-		log.Errorf("Unable to retrieve block height for hash %s: %v", hash, err)
-		return nil, err
-	}
-	hs, err := db.sDB.PoolDB.Pool(idx)
-	if err != nil {
-		log.Errorf("Unable to get ticket pool from stakedb: %v", err)
-		return nil, err
-	}
-	hss := make([]string, 0, len(hs))
-	for i := range hs {
-		hss = append(hss, hs[i].String())
-	}
-	return hss, nil
-}
+// // Unused
+// func (db *WiredDB) GetPoolByHash(hash string) ([]string, error) {
+// 	idx, err := db.GetBlockHeight(hash)
+// 	if err != nil {
+// 		log.Errorf("Unable to retrieve block height for hash %s: %v", hash, err)
+// 		return nil, err
+// 	}
+// 	hs, err := db.sDB.PoolDB.Pool(idx)
+// 	if err != nil {
+// 		log.Errorf("Unable to get ticket pool from stakedb: %v", err)
+// 		return nil, err
+// 	}
+// 	hss := make([]string, 0, len(hs))
+// 	for i := range hs {
+// 		hss = append(hss, hs[i].String())
+// 	}
+// 	return hss, nil
+// }
 
 // GetBlockSummaryTimeRange returns the blocks created within a specified time
 // range min, max time
@@ -909,42 +825,6 @@ func (db *WiredDB) GetBlockSummaryTimeRange(min, max int64, limit int) []apitype
 		log.Errorf("Unable to retrieve block summary using time %d: %v", min, err)
 	}
 	return blockSummary
-}
-
-func (db *WiredDB) GetPoolInfo(idx int) *apitypes.TicketPoolInfo {
-	ticketPoolInfo, err := db.RetrievePoolInfo(int64(idx))
-	if err != nil {
-		log.Errorf("Unable to retrieve ticket pool info: %v", err)
-		return nil
-	}
-	return ticketPoolInfo
-}
-
-func (db *WiredDB) GetPoolInfoByHash(hash string) *apitypes.TicketPoolInfo {
-	ticketPoolInfo, err := db.RetrievePoolInfoByHash(hash)
-	if err != nil {
-		log.Errorf("Unable to retrieve ticket pool info: %v", err)
-		return nil
-	}
-	return ticketPoolInfo
-}
-
-func (db *WiredDB) GetPoolInfoRange(idx0, idx1 int) []apitypes.TicketPoolInfo {
-	ticketPoolInfos, _, err := db.RetrievePoolInfoRange(int64(idx0), int64(idx1))
-	if err != nil {
-		log.Errorf("Unable to retrieve ticket pool info range: %v", err)
-		return nil
-	}
-	return ticketPoolInfos
-}
-
-func (db *WiredDB) GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []float64) {
-	poolvals, poolsizes, err := db.RetrievePoolValAndSizeRange(int64(idx0), int64(idx1))
-	if err != nil {
-		log.Errorf("Unable to retrieve ticket value and size range: %v", err)
-		return nil, nil
-	}
-	return poolvals, poolsizes
 }
 
 func (db *WiredDB) GetSDiff(idx int) float64 {
