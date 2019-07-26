@@ -89,6 +89,9 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 		return nil, err
 	}
 
+	// Set maximum number of connections.
+	server.SetMaxConnection(16384)
+
 	// Each address subscription uses its own room, which has the same name as
 	// the address. The number of subscribers for each room is tracked.
 	addrs := roomSubscriptionCounter{
@@ -97,7 +100,8 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 	}
 
 	server.On("connection", func(so socketio.Socket) {
-		apiLog.Debug("New socket.io connection")
+		apiLog.Debugf("New socket.io connection. %d clients are connected.",
+			server.Count())
 		// New connections automatically join the inv and sync rooms.
 		so.Join("inv")
 		so.Join("sync")
@@ -105,7 +109,8 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 		// Disconnection decrements or deletes the subscriber counter for each
 		// address room to which the client was subscribed.
 		so.On("disconnection", func() {
-			apiLog.Debug("socket.io client disconnected")
+			apiLog.Debugf("socket.io client disconnected. %d clients are connected.",
+				server.Count())
 			addrs.Lock()
 			for _, str := range so.Rooms() {
 				if c, ok := addrs.c[str]; ok {
@@ -142,6 +147,9 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 	server.On("error", func(_ socketio.Socket, err error) {
 		apiLog.Errorf("Insight socket.io server error: %v", err)
 	})
+
+	apiLog.Infof("Started Insight socket.io server for up to %d clients.",
+		server.GetMaxConnection())
 
 	sockServ := SocketServer{
 		Server:           *server,
