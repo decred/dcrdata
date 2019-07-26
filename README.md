@@ -45,7 +45,6 @@ modern javascript features, as well as SCSS for styling.
       - [Endpoint List](#endpoint-list)
   - [Important Note About Mempool](#important-note-about-mempool)
   - [Command Line Utilities](#command-line-utilities)
-    - [rebuilddb](#rebuilddb)
     - [rebuilddb2](#rebuilddb2)
     - [scanblocks](#scanblocks)
   - [Front End Development](#front-end-development)
@@ -80,7 +79,6 @@ Always run the Current release or on the Current stable branch. Do not use `mast
 ├── blockdata           Package blockdata is the primary data collection and
 |                         storage hub, and chain monitor.
 ├── cmd
-│   ├── rebuilddb       rebuilddb utility, for SQLite backend. Not required.
 │   ├── rebuilddb2      rebuilddb2 utility, for PostgreSQL backend. Not required.
 │   └── scanblocks      scanblocks utility. Not required.
 ├── db
@@ -99,7 +97,7 @@ Always run the Current release or on the Current stable branch. Do not use `mast
 |                       from public exchange APIs.
 ├── explorer            Package explorer, powering the block explorer.
 ├── gov
-│   ├── rebuilddb       Package agendas defines a consensus deployment/agenda DB.
+│   ├── agendas         Package agendas defines a consensus deployment/agenda DB.
 │   └── politeia        Package politeia defines a Politeia proposal DB.
 │       ├── piclient    Package piclient provides functions for retrieving data
 |       |                 from the Politeia web API.
@@ -178,10 +176,6 @@ NOTE: The following instructions assume a Unix-like shell (e.g. bash).
   ```sh
   git clone https://github.com/decred/dcrdata $HOME/go-work/github/decred/dcrdata
   ```
-
-- Install a C compiler. The sqlite driver uses cgo, which requires a C compiler
-  (e.g. gcc) to compile the sources. On Windows this is easily handled with
-  MSYS2 ([download](http://www.msys2.org/) and install MinGW-w64 gcc packages).
 
 - [Install Node.js](https://nodejs.org/en/download/), which is required to lint
   and package the static web assets.
@@ -422,7 +416,7 @@ these indexes.
 ### Starting dcrdata
 
 Launch the dcrdata daemon and allow the databases to process new blocks.
-Concurrent synchronization of both SQLite and PostgreSQL databases is performed,
+Concurrent ynchronization of both stake and PostgreSQL databases is performed,
 typically requiring between 1.5 to 8 hours. See [System Hardware
 Requirements](#System-Hardware-Requirements) for more information. Please reread
 [Configuring PostgreSQL (**IMPORTANT!** Seriously, read
@@ -704,12 +698,6 @@ ticket price window) started dcrd, your mempool _will_ be missing transactions
 that other nodes have.
 
 ## Command Line Utilities
-
-### rebuilddb
-
-`rebuilddb` is a CLI app that performs a full blockchain scan that fills past
-block data into a SQLite database. This functionality is included in the startup
-of the dcrdata daemon, but may be called alone with rebuilddb.
 
 ### rebuilddb2
 

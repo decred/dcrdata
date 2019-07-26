@@ -33,7 +33,6 @@ testrepo () {
 
   # Test application install
   go build
-  (cd cmd/rebuilddb && go build)
   (cd cmd/rebuilddb2 && go build)
   (cd cmd/scanblocks && go build)
   (cd pubsub/democlient && go build)
