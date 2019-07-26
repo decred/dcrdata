@@ -161,7 +161,7 @@ func (pgb *ChainDBRPC) SyncChainDB(ctx context.Context, client rpcutils.MasterBl
 	}
 
 	// Check and report heights of the DBs. dbHeight is the lowest of the
-	// heights, and may be -1 with an empty SQLite DB.
+	// heights, and may be -1 with an empty DB.
 	stakeDBHeight := int64(pgb.stakeDB.Height())
 	if lastBlock < -1 {
 		panic("invalid starting height")
@@ -403,8 +403,8 @@ func (pgb *ChainDBRPC) SyncChainDB(ctx context.Context, client rpcutils.MasterBl
 		}
 
 		// Advance stakedb height, which should always be less than or equal to
-		// PSQL height, except when SQLite is empty since stakedb always has
-		// genesis, as enforced by the rewinding code in this function.
+		// PSQL height. stakedb always has genesis, as enforced by the rewinding
+		// code in this function.
 		if ib > stakeDBHeight {
 			if ib != int64(pgb.stakeDB.Height()+1) {
 				panic(fmt.Sprintf("about to connect the wrong block: %d, %d", ib, pgb.stakeDB.Height()))
@@ -618,6 +618,6 @@ func (pgb *ChainDBRPC) supplementUnknownTicketError(err error) error {
 	sDBHeight := int64(pgb.stakeDB.Height())
 	numToPurge := sDBHeight - badTxBlock + 1
 	return fmt.Errorf("%v\n\t**** Unknown ticket was mined in block %d. "+
-		"Try \"--purge-n-blocks=%d --fast-sqlite-purge\" to recover. ****",
+		"Try \"--purge-n-blocks=%d to recover. ****",
 		err, badTxBlock, numToPurge)
 }

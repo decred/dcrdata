@@ -392,8 +392,7 @@ func _main(ctx context.Context) error {
 		return err
 	}
 
-	// Charge stakedb pool info cache, including previous PG blocks, up to
-	// best in sqlite.
+	// Charge stakedb pool info cache, including previous PG blocks.
 	if err = pgDB.ChargePoolInfoCache(heightDB - 2); err != nil {
 		return fmt.Errorf("Failed to charge pool info cache: %v", err)
 	}
@@ -785,9 +784,10 @@ func _main(ctx context.Context) error {
 
 	// Coordinate the sync of both sqlite and auxiliary DBs with the network.
 	// This closure captures the RPC client and the quit channel.
+	// sqlite has been dropped, and this can probably be simplified.
 	getSyncd := func(updateAddys, newPGInds bool) (int64, error) {
 		// Simultaneously synchronize the ChainDB (PostgreSQL) and the
-		// block/stake info DB (sqlite). Results are returned over channels:
+		// stake info DB. Results are returned over channels:
 		pgSyncRes := make(chan dbtypes.SyncResult)
 
 		// Use either the plain rpcclient.Client or a rpcutils.BlockPrefetchClient.
@@ -881,9 +881,8 @@ func _main(ctx context.Context) error {
 		nSideChains := len(sideChainBlocksToStore)
 
 		// Importing side chain blocks involves only the aux (postgres) DBs
-		// since dcrsqlite does not track side chain blocks, and stakedb only
-		// supports mainchain. TODO: Get stakedb to work with side chain blocks
-		// to get ticket pool info.
+		// since stakedb only supports mainchain. TODO: Get stakedb to work with
+		// side chain blocks to get ticket pool info.
 
 		// Collect and store data for each side chain.
 		log.Infof("Aux DB -> Importing %d new block(s) from %d known side chains...",

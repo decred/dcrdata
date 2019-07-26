@@ -17,7 +17,6 @@ require (
 	github.com/decred/dcrdata/db/cache/v2 v2.2.2
 	github.com/decred/dcrdata/db/dbtypes/v2 v2.1.2
 	github.com/decred/dcrdata/db/dcrpg/v4 v4.0.3
-	github.com/decred/dcrdata/db/dcrsqlite/v4 v4.0.3
 	github.com/decred/dcrdata/exchanges/v2 v2.0.2
 	github.com/decred/dcrdata/explorer/types/v2 v2.0.2
 	github.com/decred/dcrdata/gov/v2 v2.0.2
@@ -59,7 +58,6 @@ replace (
 	github.com/decred/dcrdata/db/cache/v2 => ./db/cache
 	github.com/decred/dcrdata/db/dbtypes/v2 => ./db/dbtypes
 	github.com/decred/dcrdata/db/dcrpg/v4 => ./db/dcrpg
-	github.com/decred/dcrdata/db/dcrsqlite/v4 => ./db/dcrsqlite
 	github.com/decred/dcrdata/dcrrates => ./dcrrates
 	github.com/decred/dcrdata/exchanges/v2 => ./exchanges
 	github.com/decred/dcrdata/explorer/types/v2 => ./explorer/types

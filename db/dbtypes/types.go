@@ -529,18 +529,6 @@ const (
 	TicketPoolValue = "ticket-pool-value"
 )
 
-var (
-	// SqliteCharts helps select all the charts that use the SQlite db as a data
-	// source from the charts cache data.
-	SqliteCharts = [...]string{FeePerBlock, TicketPoolSize, TicketPoolValue}
-
-	// PgCharts helps select all the charts that use the auxiliary db as a data
-	// source from the charts cache data.
-	PgCharts = [...]string{AvgBlockSize, BlockChainSize, ChainWork, CoinSupply,
-		DurationBTW, HashRate, POWDifficulty, TicketByWindows, TicketPrice,
-		TicketsByBlocks, TicketSpendT, TxPerBlock, TxPerDay}
-)
-
 // MileStone defines the various stages passed by vote on a given agenda.
 // Activated is the height at which the delay time begins before a vote activates.
 // HardForked is the height at which the consensus rule changes.

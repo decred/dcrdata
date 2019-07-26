@@ -7,7 +7,6 @@ digraph {
 	pubsub [label="pubsub" fillcolor=coral]
 	pubsubtypes [label="pubsub/types" fillcolor=lightsalmon]
 	//semver [label="semver" fillcolor=cadetblue]
-	dcrsqlite [label="db/dcrsqlite" fillcolor=mistyrose]
 	dbtypes [label="db/dbtypes" fillcolor=mediumpurple]
 	dcrpg [label="db/dcrpg" fillcolor=lightseagreen]
 	dbcache [label="db/cache" fillcolor=mediumvioletred]
@@ -24,7 +23,7 @@ digraph {
 	//dcrdata [label="dcrdata" fillcolor=chocolate]
 
 	//{rank=min txhelpers}
-	//{rank=max dcrsqlite dcrpg pubsub}
+	//{rank=max dcrpg pubsub}
 	//{rank=same rpcutils middleware}
 
 	apitypes -> middleware [dir=back color=aquamarine]
@@ -52,15 +51,6 @@ digraph {
 	rpcutils -> stakedb [dir=back color=cadetblue]
 	//txhelpers -> stakedb [dir=back color=aquamarine]
 	txhelpers -> dbtypes [dir=back color=royalblue3]
-	//apitypes -> dcrsqlite [dir=back color=orchid]
-	blockdata -> dcrsqlite [dir=back color=orchid]
-	//dbtypes -> dcrsqlite [dir=back color=indianred]
-	//exptypes -> dcrsqlite [dir=back color=coral]
-	mempool -> dcrsqlite [dir=back color=cadetblue]
-	//rpcutils -> dcrsqlite [dir=back color=aquamarine]
-	//stakedb -> dcrsqlite [dir=back color=cadetblue]
-	//txhelpers -> dcrsqlite [dir=back color=dodgerblue]
-	dbconfig -> dcrsqlite [dir=back color=mediumspringgreen]
 	//semver -> txhelpers [dir=back color=slategray]
 	//apitypes -> mempool [dir=back color=orchid]
 	//dbtypes -> mempool [dir=back color=orchid]
@@ -84,7 +74,6 @@ digraph {
 	// blockdata -> dcrdata [dir=back color=slategray]
 	// dbtypes -> dcrdata [dir=back color=darkkhaki]
 	// dcrpg -> dcrdata [dir=back color=lightsalmon]
-	// dcrsqlite -> dcrdata [dir=back color=deepskyblue]
 	// exchanges -> dcrdata [dir=back color=mistyrose]
 	// exptypes -> dcrdata [dir=back color=mediumseagreen]
 	// gov -> dcrdata [dir=back color=khaki]

@@ -6127,7 +6127,7 @@ func (pgb *ChainDBRPC) GetMempool() []exptypes.MempoolTx {
 }
 
 // BlockchainInfo retrieves the result of the getblockchaininfo node RPC.
-func (pgb *ChainDBRPC) BlockchainInfo() (*dcrjson.GetBlockChainInfoResult, error) {
+func (pgb *ChainDBRPC) BlockchainInfo() (*chainjson.GetBlockChainInfoResult, error) {
 	return pgb.Client.GetBlockChainInfo()
 }
 

@@ -87,8 +87,7 @@ Always run the Current release or on the Current stable branch. Do not use `mast
 │   ├── agendadb        Package agendadb is a basic PoS voting agenda database.
 │   ├── cache           Package cache provides a caching layer that is used by dcrpg.
 │   ├── dbtypes         Package dbtypes with common data types.
-│   ├── dcrpg           Package dcrpg providing PostgreSQL backend.
-│   └── dcrsqlite       Package dcrsqlite providing SQLite backend.
+│   └── dcrpg           Package dcrpg providing PostgreSQL backend.
 ├── dcrrates            Package dcrrates defines a gRPC protobuf service for
 │   │                     communicating exchange rate data with rateserver.
 │   └── rateserver      rateserver app, which runs an exchange bot for collecting
@@ -849,15 +848,6 @@ the future.
 - A large set of lower-level functions to perform a range of queries given a
   `*sql.DB` instance and various parameters.
 - The internal package contains the raw SQL statements.
-
-`dcrsqlite` defines:
-
-- A `sql.DB` wrapper type (`DB`) with the necessary SQLite queries for
-  storage and retrieval of block and stake data.
-- The `WiredDB` type, intended to satisfy the `DataSourceLite` interface used by
-  the dcrdata app's API. The block header is not stored in the DB, so a RPC
-  client is used by `WiredDB` to get it on demand. `WiredDB` also includes
-  methods to resync the database file.
 
 `package mempool` defines a `MempoolMonitor` type that can monitor a node's
 mempool using the `OnTxAccepted` notification handler to send newly received
