@@ -396,7 +396,7 @@ func (psh *PubSubHub) sendLoop(conn *connection) {
 
 loop:
 	for sig := range updateSigChan {
-		log.Debugf("updateSigChan: %v", sig)
+		log.Tracef("(*PubSubHub)sendLoop: updateSigChan received %v", sig)
 		// If the update channel is closed, the loop terminates.
 
 		if !sig.IsValid() {
