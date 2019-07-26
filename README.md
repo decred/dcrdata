@@ -63,11 +63,11 @@ modern javascript features, as well as SCSS for styling.
 
 Always run the Current release or on the Current stable branch. Do not use `master` in production.
 
-|               | Series         | Branch         | Latest release tag |
-| ------------- | -------------- | -------------- | ------------------ |
-| Current       | 5.0            | `5.0-stable`   | `release-v5.0.0`   |
-| Legacy        | 4.1            | `4.1-stable`   | `release-v4.1.4`   |
-| Development   | 5.1            | `master`       | N/A                |
+|               | Series         | Branch         | Latest release tag | `dcrd` RPC server version required |
+| ------------- | -------------- | -------------- | ------------------ | ---------------------------------- |
+| Current       | 5.0            | `5.0-stable`   | `v5.0.3`           | ^5.0.0 (dcrd v1.4.0 to v1.5.0-pre@[`4f91b01`](https://github.com/decred/dcrd/commit/4f91b016160d3ee40ec466cc56e9ea9cdd19eeae)) |
+| Legacy        | 4.1            | `4.1-stable`   | `release-v4.1.4`   | same as dcrdata 5.0 |
+| Development   | 5.1            | `master`       | N/A                | ^6.0.0 (dcrd v1.5-pre@[`fd3e180a`](https://github.com/decred/dcrd/commit/fd3e180a7e19fe72adaddd3d88370cb50fa636e2) to `HEAD`) |
 
 ## Repository Overview
 
@@ -247,7 +247,7 @@ script to mostly automate the build steps.
 ### Setting build version flags
 
 By default, the version string will be postfixed with "-pre+dev".  For example,
-`dcrdata version 4.0.0-pre+dev (Go version go1.12.1)`.  However, it may be
+`dcrdata version 5.1.0-pre+dev (Go version go1.12.7)`.  However, it may be
 desirable to set the "pre" and "dev" values to different strings, such as
 "beta" or the actual commit hash.  To set these values, build with the
 `-ldflags` switch as follows:
@@ -258,7 +258,7 @@ GO111MODULE=on go build -o dcrdata -v -ldflags \
      -X github.com/decred/dcrdata/v5/version.appBuild=`git rev-parse --short HEAD`"
 ```
 
-This produces a string like `dcrdata version 4.0.0-beta+25777e23 (Go version go1.12.1)`.
+This produces a string like `dcrdata version 5.0.0-beta+25777e23 (Go version go1.12.1)`.
 
 ### Runtime Resources
 
@@ -683,11 +683,12 @@ Exchange monitoring is off by default. Server must be started with
 The server will set a default currency code. To use a different code, pass URL
 parameter `?code=[code]`. For example, `/exchanges?code=EUR`.
 
-| Other                           | Path      | Type               |
-| ------------------------------- | --------- | ------------------ |
-| Status                          | `/status` | `types.Status`     |
-| Coin Supply                     | `/supply` | `types.CoinSupply` |
-| Endpoint list (always indented) | `/list`   | `[]string`         |
+| Other                           | Path            | Type               |
+| ------------------------------- | --------------- | ------------------ |
+| Status                          | `/status`       | `types.Status`     |
+| Health (HTTP 200 or 503)        | `/status/happy` | `types.Happy`     |
+| Coin Supply                     | `/supply`       | `types.CoinSupply` |
+| Endpoint list (always indented) | `/list`         | `[]string`         |
 
 All JSON endpoints accept the URL query `indent=[true|false]`. For example,
 `/stake/diff?indent=true`. By default, indentation is off. The characters to use
