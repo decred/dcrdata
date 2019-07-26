@@ -3,7 +3,7 @@ package txhelpers
 import (
 	"math"
 
-	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/v2"
 )
 
 // CalcMeanVotingBlocks computes the average number of blocks a ticket will be

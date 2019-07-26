@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/decred/dcrd/rpcclient/v3"
+	"github.com/decred/dcrd/rpcclient/v4"
 	"github.com/decred/dcrdata/blockdata/v4"
 	"github.com/decred/dcrdata/db/dcrpg/v4"
 	"github.com/decred/dcrdata/db/dcrsqlite/v4"

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/v2"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 )
 

@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrdata/db/dcrpg/v4"
 	"github.com/decred/dcrdata/db/dcrsqlite/v4"
 	"github.com/decred/dcrdata/explorer/types/v2"
@@ -27,7 +27,7 @@ type WiredDBStub struct {
 
 // GetChainParams is needed by explorer.New.
 func (ws *WiredDBStub) GetChainParams() *chaincfg.Params {
-	return &chaincfg.MainNetParams
+	return chaincfg.MainNetParams()
 }
 
 // GetTip is required to populate a CommonPageData for the explorer.

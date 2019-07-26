@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/dcrutil/v2"
 	apitypes "github.com/decred/dcrdata/api/types/v4"
 	"github.com/decred/dcrdata/blockdata/v4"
 	"github.com/decred/dcrdata/db/dbtypes/v2"

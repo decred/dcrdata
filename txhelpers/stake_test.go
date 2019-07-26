@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/v2"
 )
 
 type networkRewardPeriod struct {
@@ -16,19 +16,19 @@ type networkRewardPeriod struct {
 
 var networkRewardPeriods = []networkRewardPeriod{
 	{
-		&chaincfg.MainNetParams,
+		chaincfg.MainNetParams(),
 		7860,
 		8372,
 		2511600000000000,
 	},
 	{
-		&chaincfg.TestNet3Params,
+		chaincfg.TestNet3Params(),
 		1006,
 		1038,
 		124560000000000,
 	},
 	{
-		&chaincfg.SimNetParams,
+		chaincfg.SimNetParams(),
 		62,
 		94,
 		94000000000,

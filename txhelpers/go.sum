@@ -15,6 +15,7 @@ github.com/dchest/siphash v1.2.1 h1:4cLinnzVJDKxTCl9B01807Yiy+W7ZzVHj/KIroQRvT4=
 github.com/dchest/siphash v1.2.1/go.mod h1:q+IRvb2gOSrUnYoPqHiyHXS0FOBBOdl6tONBlVnOnt4=
 github.com/decred/base58 v1.0.0 h1:BVi1FQCThIjZ0ehG+I99NJ51o0xcc9A/fDKhmJxY6+w=
 github.com/decred/base58 v1.0.0/go.mod h1:LLY1p5e3g91byL/UO1eiZaYd+uRoVRarybgcoymu9Ks=
+github.com/decred/dcrd v1.3.0 h1:EEXm7BdiROfazDtuFsOu9mfotnyy00bgCuVwUqaszFo=
 github.com/decred/dcrd/blockchain v1.1.1 h1:CWr90sZ2YLQz84EGT+X/pzU+9AZB1eXQUy+4fsJSt5w=
 github.com/decred/dcrd/blockchain v1.1.1/go.mod h1:zxi/41LgzHitpz/CZu0gxHyFHz8+ysd3lH8E3P5Uifg=
 github.com/decred/dcrd/blockchain/stake v1.0.1/go.mod h1:hgoGmWMIu2LLApBbcguVpzCEEfX7M2YhuMrQdpohJzc=
@@ -69,6 +70,7 @@ github.com/decred/dcrd/hdkeychain/v2 v2.0.0 h1:b6GklXT+LeDumc0bDqMHkss+p2Bu+mgiU
 github.com/decred/dcrd/hdkeychain/v2 v2.0.0/go.mod h1:tG+VpXfloIkNGHGd6NeoTElHWA68Wf1aP87zegXDGEw=
 github.com/decred/dcrd/rpc/jsonrpc/types v1.0.0 h1:d5ptnjuSADTQMa3i83VpeJNoMRTOJZZBqk7P+E41VXM=
 github.com/decred/dcrd/rpc/jsonrpc/types v1.0.0/go.mod h1:0dwmpIP21tJxjg/UuUHWIFMbfoLv2ifCBMokNKlOxpo=
+github.com/decred/dcrd/rpcclient v1.1.0 h1:nQZ1qOJaLYoOTM1oQ2dLaqocb5TWI7gNBK+BTY7UVXk=
 github.com/decred/dcrd/rpcclient/v3 v3.0.0 h1:doabWkWWd8O6ccYqaLamE1mkQ5p8YoO5UJhkl5pAGpQ=
 github.com/decred/dcrd/rpcclient/v3 v3.0.0/go.mod h1:OQ361/iQMrJtWIg+S0XpZT4/AA6mU/46oOkBRWp/P/s=
 github.com/decred/dcrd/txscript v1.0.1/go.mod h1:FqUX07Y+u3cJ1eIGPoyWbJg+Wk1NTllln/TyDpx9KnY=
@@ -76,6 +78,8 @@ github.com/decred/dcrd/txscript v1.0.2 h1:kzJZDuteyzvI15VNhtgFHxeeq210RTkFyfzN7d
 github.com/decred/dcrd/txscript v1.0.2/go.mod h1:hmUOHFlOjU7H6T/czt6kurWwXJvGPGKKGtXoft6w/qY=
 github.com/decred/dcrd/txscript v1.1.0 h1:MwkLXdc4Yq83oeNNEQJdlBTkNlorKXn8Nd5W2JXyMZg=
 github.com/decred/dcrd/txscript v1.1.0/go.mod h1:gbcq6gpGfKddPmZSKp+17ils2cLzUqHopXf8H5rCY7Y=
+github.com/decred/dcrd/txscript/v2 v2.0.0 h1:So+NcQY58mDHDN2N2edED5syGZp2ed8Ltxj8mDE5CAs=
+github.com/decred/dcrd/txscript/v2 v2.0.0/go.mod h1:WStcyYYJa+PHJB4XjrLDRzV96/Z4thtsu8mZoVrU6C0=
 github.com/decred/dcrd/wire v1.1.0/go.mod h1:/JKOsLInOJu6InN+/zH5AyCq3YDIOW/EqcffvU8fJHM=
 github.com/decred/dcrd/wire v1.2.0 h1:HqJVB7vcklIguzFWgRXw/WYCQ9cD3bUC5TKj53i1Hng=
 github.com/decred/dcrd/wire v1.2.0/go.mod h1:/JKOsLInOJu6InN+/zH5AyCq3YDIOW/EqcffvU8fJHM=

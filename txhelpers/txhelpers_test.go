@@ -11,11 +11,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/dcrutil/v2"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrd/rpcclient/v3"
+	"github.com/decred/dcrd/rpcclient/v4"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/semver"
 )
@@ -220,7 +220,7 @@ func TestFilterHashSlice(t *testing.T) {
 
 func TestGenesisTxHash(t *testing.T) {
 	// Mainnet
-	genesisTxHash := GenesisTxHash(&chaincfg.MainNetParams).String()
+	genesisTxHash := GenesisTxHash(chaincfg.MainNetParams()).String()
 	if genesisTxHash == "" {
 		t.Errorf("Failed to get genesis transaction hash for mainnet.")
 	}
@@ -233,7 +233,7 @@ func TestGenesisTxHash(t *testing.T) {
 	}
 
 	// Simnet
-	genesisTxHash = GenesisTxHash(&chaincfg.SimNetParams).String()
+	genesisTxHash = GenesisTxHash(chaincfg.SimNetParams()).String()
 	if genesisTxHash == "" {
 		t.Errorf("Failed to get genesis transaction hash for simnet.")
 	}
@@ -260,19 +260,19 @@ func TestIsZeroHashP2PHKAddress(t *testing.T) {
 	positiveTest := true
 	negativeTest := !positiveTest
 
-	testIsZeroHashP2PHKAddress(t, mainnetDummy, &chaincfg.MainNetParams, positiveTest)
-	testIsZeroHashP2PHKAddress(t, testnetDummy, &chaincfg.TestNet3Params, positiveTest)
-	testIsZeroHashP2PHKAddress(t, simnetDummy, &chaincfg.SimNetParams, positiveTest)
+	testIsZeroHashP2PHKAddress(t, mainnetDummy, chaincfg.MainNetParams(), positiveTest)
+	testIsZeroHashP2PHKAddress(t, testnetDummy, chaincfg.TestNet3Params(), positiveTest)
+	testIsZeroHashP2PHKAddress(t, simnetDummy, chaincfg.SimNetParams(), positiveTest)
 
 	// wrong network
-	testIsZeroHashP2PHKAddress(t, mainnetDummy, &chaincfg.SimNetParams, negativeTest)
-	testIsZeroHashP2PHKAddress(t, testnetDummy, &chaincfg.MainNetParams, negativeTest)
-	testIsZeroHashP2PHKAddress(t, simnetDummy, &chaincfg.TestNet3Params, negativeTest)
+	testIsZeroHashP2PHKAddress(t, mainnetDummy, chaincfg.SimNetParams(), negativeTest)
+	testIsZeroHashP2PHKAddress(t, testnetDummy, chaincfg.MainNetParams(), negativeTest)
+	testIsZeroHashP2PHKAddress(t, simnetDummy, chaincfg.TestNet3Params(), negativeTest)
 
 	// wrong address
-	testIsZeroHashP2PHKAddress(t, "", &chaincfg.SimNetParams, negativeTest)
-	testIsZeroHashP2PHKAddress(t, "", &chaincfg.MainNetParams, negativeTest)
-	testIsZeroHashP2PHKAddress(t, "", &chaincfg.TestNet3Params, negativeTest)
+	testIsZeroHashP2PHKAddress(t, "", chaincfg.SimNetParams(), negativeTest)
+	testIsZeroHashP2PHKAddress(t, "", chaincfg.MainNetParams(), negativeTest)
+	testIsZeroHashP2PHKAddress(t, "", chaincfg.TestNet3Params(), negativeTest)
 }
 
 func testIsZeroHashP2PHKAddress(t *testing.T, expectedAddress string, params *chaincfg.Params, expectedTestResult bool) {

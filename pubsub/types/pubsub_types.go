@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/base58"
 	exptypes "github.com/decred/dcrdata/explorer/types/v2"
 )
 
@@ -149,7 +149,8 @@ func ValidateSubscription(event string) (sub HubSignal, msg interface{}, valid b
 
 	switch sub {
 	case SigAddressTx:
-		if _, err := dcrutil.DecodeAddress(msgStr); err != nil {
+		_, _, err := base58.CheckDecode(msgStr)
+		if err != nil {
 			return SigUnknown, nil, false
 		}
 		msg = &AddressMessage{

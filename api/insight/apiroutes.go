@@ -17,11 +17,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/dcrutil/v2"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrd/rpcclient/v3"
+	"github.com/decred/dcrd/rpcclient/v4"
 	apitypes "github.com/decred/dcrdata/api/types/v4"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/db/dcrpg/v4"
@@ -616,7 +616,7 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 	if addrerr == nil {
 		address := addresses[0]
 		// Validate Address
-		_, err := dcrutil.DecodeAddress(address)
+		_, err := dcrutil.DecodeAddress(address, iapi.params)
 		if err != nil {
 			writeInsightError(w, fmt.Sprintf("Address is invalid (%s)", address))
 			return
@@ -806,7 +806,7 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 	// Confirm all addresses are valid, and pull unconfirmed transactions for
 	// all addresses.
 	for _, addr := range addresses {
-		address, err := dcrutil.DecodeAddress(addr)
+		address, err := dcrutil.DecodeAddress(addr, iapi.params)
 		if err != nil {
 			writeInsightError(w, fmt.Sprintf("Address is invalid (%s)", addr))
 			return
@@ -1150,7 +1150,7 @@ func (iapi *InsightApi) getAddressInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	address := addresses[0]
-	_, err = dcrutil.DecodeAddress(address)
+	_, err = dcrutil.DecodeAddress(address, iapi.params)
 	if err != nil {
 		writeInsightError(w, "Invalid Address")
 		return

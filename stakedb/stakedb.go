@@ -14,11 +14,11 @@ import (
 	"sync"
 
 	"github.com/decred/dcrd/blockchain/stake"
-	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/database"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/rpcclient/v3"
+	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrd/rpcclient/v4"
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types/v4"
 	"github.com/decred/dcrdata/rpcutils/v2"
@@ -154,7 +154,7 @@ func LoadAndRecover(client *rpcclient.Client, params *chaincfg.Params,
 
 	// Put the genesis block in the pool info cache since stakedb starts with
 	// genesis. Hence it will never be connected, how TPI is usually cached.
-	sDB.poolInfo.Set(*params.GenesisHash, &apitypes.TicketPoolInfo{})
+	sDB.poolInfo.Set(params.GenesisHash, &apitypes.TicketPoolInfo{})
 
 	stakeDBPath := filepath.Join(dataDir, DefaultStakeDbName)
 	if err = sDB.Open(stakeDBPath); err != nil {
@@ -271,7 +271,7 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
 
 	// Put the genesis block in the pool info cache since stakedb starts with
 	// genesis. Hence it will never be connected, how TPI is usually cached.
-	sDB.poolInfo.Set(*params.GenesisHash, &apitypes.TicketPoolInfo{})
+	sDB.poolInfo.Set(params.GenesisHash, &apitypes.TicketPoolInfo{})
 
 	stakeDBPath := filepath.Join(dataDir, DefaultStakeDbName)
 	if err = sDB.Open(stakeDBPath); err != nil {
@@ -767,6 +767,7 @@ func (db *StakeDatabase) Open(dbName string) error {
 	}
 
 	// Load the best block from stake db
+	paramsV1 := txhelpers.ParamsV2ToV1(db.params)
 	err = db.StakeDB.View(func(dbTx database.Tx) error {
 		v := dbTx.Metadata().Get([]byte("stakechainstate"))
 		if v == nil {
@@ -786,7 +787,7 @@ func (db *StakeDatabase) Open(dbName string) error {
 		header := msgBlock.Header
 
 		db.BestNode, errLocal = stake.LoadBestNode(dbTx, stakeDBHeight,
-			stakeDBHash, header, db.params)
+			stakeDBHash, header, paramsV1)
 		return errLocal
 	})
 	if err != nil {
@@ -795,7 +796,7 @@ func (db *StakeDatabase) Open(dbName string) error {
 		}
 		err = db.StakeDB.Update(func(dbTx database.Tx) error {
 			var errLocal error
-			db.BestNode, errLocal = stake.InitDatabaseState(dbTx, db.params)
+			db.BestNode, errLocal = stake.InitDatabaseState(dbTx, paramsV1)
 			return errLocal
 		})
 		log.Debug("Initialized new stake db.")

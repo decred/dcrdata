@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/rpcclient/v3"
+	"github.com/decred/dcrd/rpcclient/v4"
 
 	"github.com/decred/dcrdata/blockdata/v4"
 	"github.com/decred/dcrdata/db/cache/v2"

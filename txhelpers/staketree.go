@@ -5,12 +5,12 @@ import (
 	"os"
 
 	"github.com/decred/dcrd/blockchain/stake"
-	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/database"
 	_ "github.com/decred/dcrd/database/ffldb" // init the ffldb driver
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/rpcclient/v3"
+	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrd/rpcclient/v4"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -49,8 +49,12 @@ func BuildStakeTree(blocks map[int64]*dcrutil.Block, netParams *chaincfg.Params,
 	// Load the genesis block
 	var bestNode *stake.Node
 	err = db.Update(func(dbTx database.Tx) error {
+		pV1 := ParamsV2ToV1(netParams)
+		if pV1 == nil {
+			return fmt.Errorf("invalid network %v", netParams.Name)
+		}
 		var errLocal error
-		bestNode, errLocal = stake.InitDatabaseState(dbTx, netParams)
+		bestNode, errLocal = stake.InitDatabaseState(dbTx, pV1)
 		return errLocal
 	})
 	if err != nil {

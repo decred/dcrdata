@@ -17,9 +17,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/dcrutil/v2"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types/v4"
@@ -369,14 +369,10 @@ func GetAddressCtx(r *http.Request, activeNetParams *chaincfg.Params, maxAddrs i
 
 	var addrStrs []string
 	for _, addrStr := range addressStrs {
-		address, err := dcrutil.DecodeAddress(addrStr)
+		_, err := dcrutil.DecodeAddress(addrStr, activeNetParams)
 		if err != nil {
-			return nil, fmt.Errorf("invalid address '%v': %v",
+			return nil, fmt.Errorf("invalid address '%v' for this network: %v",
 				addrStr, err)
-		}
-		if !address.IsForNet(activeNetParams) {
-			return nil, fmt.Errorf("%v is invalid for this network",
-				addrStr)
 		}
 		if strInSlice(addrStrs, addrStr) {
 			continue

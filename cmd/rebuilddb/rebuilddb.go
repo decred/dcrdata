@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"runtime/pprof"
 
-	"github.com/decred/dcrd/rpcclient/v3"
+	"github.com/decred/dcrd/rpcclient/v4"
 	"github.com/decred/dcrdata/db/dcrsqlite/v4"
 	"github.com/decred/dcrdata/rpcutils/v2"
 	"github.com/decred/dcrdata/stakedb/v3"
