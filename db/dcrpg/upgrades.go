@@ -265,7 +265,8 @@ func compatVersion1Upgrades(u *updater, current, target DatabaseVersion) (bool, 
 }
 
 func removeTableComments(db *sql.DB) {
-	for tableName := range createTableStatements {
+	for _, pair := range createTableStatements {
+		tableName := pair[0]
 		_, err := db.Exec(fmt.Sprintf(`COMMENT ON table %s IS NULL;`, tableName))
 		if err != nil {
 			log.Errorf(`Failed to remove comment on table %s.`, tableName)
@@ -361,7 +362,7 @@ func upgrade110to120(u *updater) error {
 		checkHeight += 1
 		// A periodic update messaage.
 		if height%10000 == 0 {
-			log.Infof("Processing block %d", height)
+			log.Infof("Processing blocks %d - %d", height, height+9999)
 		}
 		// Connecting the block updates the live ticket cache and ticket info cache.
 		// The StakeDatabase is pre-populated with the genesis block, so skip it.

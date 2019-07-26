@@ -12,23 +12,31 @@ import (
 	"github.com/decred/dcrdata/db/dcrpg/v4/internal"
 )
 
-var createTableStatements = map[string]string{
-	"meta":           internal.CreateMetaTable,
-	"blocks":         internal.CreateBlockTable,
-	"transactions":   internal.CreateTransactionTable,
-	"vins":           internal.CreateVinTable,
-	"vouts":          internal.CreateVoutTable,
-	"block_chain":    internal.CreateBlockPrevNextTable,
-	"addresses":      internal.CreateAddressTable,
-	"tickets":        internal.CreateTicketsTable,
-	"votes":          internal.CreateVotesTable,
-	"misses":         internal.CreateMissesTable,
-	"agendas":        internal.CreateAgendasTable,
-	"agenda_votes":   internal.CreateAgendaVotesTable,
-	"testing":        internal.CreateTestingTable,
-	"proposals":      internal.CreateProposalsTable,
-	"proposal_votes": internal.CreateProposalVotesTable,
-	"stats":          internal.CreateStatsTable,
+var createTableStatements = [][2]string{
+	{"meta", internal.CreateMetaTable},
+	{"blocks", internal.CreateBlockTable},
+	{"transactions", internal.CreateTransactionTable},
+	{"vins", internal.CreateVinTable},
+	{"vouts", internal.CreateVoutTable},
+	{"block_chain", internal.CreateBlockPrevNextTable},
+	{"addresses", internal.CreateAddressTable},
+	{"tickets", internal.CreateTicketsTable},
+	{"votes", internal.CreateVotesTable},
+	{"misses", internal.CreateMissesTable},
+	{"agendas", internal.CreateAgendasTable},
+	{"agenda_votes", internal.CreateAgendaVotesTable},
+	{"testing", internal.CreateTestingTable},
+	{"proposals", internal.CreateProposalsTable},
+	{"proposal_votes", internal.CreateProposalVotesTable},
+	{"stats", internal.CreateStatsTable},
+}
+
+func createTableMap() map[string]string {
+	m := make(map[string]string, len(createTableStatements))
+	for _, pair := range createTableStatements {
+		m[pair[0]] = pair[1]
+	}
+	return m
 }
 
 // dropDuplicatesInfo defines a minimalistic structure that can be used to
@@ -61,7 +69,10 @@ func dropTable(db SqlExecutor, tableName string) error {
 
 // DropTables drops all of the tables internally recognized tables.
 func DropTables(db *sql.DB) {
-	for tableName := range createTableStatements {
+	lastIndex := len(createTableStatements) - 1
+	for i := range createTableStatements {
+		pair := createTableStatements[lastIndex-i]
+		tableName := pair[0]
 		log.Infof("DROPPING the \"%s\" table.", tableName)
 		if err := dropTable(db, tableName); err != nil {
 			log.Errorf(`DROP TABLE "%s" failed.`, tableName)
@@ -134,8 +145,8 @@ func ClearTestingTable(db *sql.DB) error {
 // exist.
 func CreateTables(db *sql.DB) error {
 	// Create all of the data tables.
-	for tableName, createCommand := range createTableStatements {
-		err := createTable(db, tableName, createCommand)
+	for _, pair := range createTableStatements {
+		err := createTable(db, pair[0], pair[1])
 		if err != nil {
 			return err
 		}
@@ -146,7 +157,8 @@ func CreateTables(db *sql.DB) error {
 
 // CreateTable creates one of the known tables by name.
 func CreateTable(db *sql.DB, tableName string) error {
-	createCommand, tableNameFound := createTableStatements[tableName]
+	tableMap := createTableMap()
+	createCommand, tableNameFound := tableMap[tableName]
 	if !tableNameFound {
 		return fmt.Errorf("table name %s unknown", tableName)
 	}
