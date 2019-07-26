@@ -135,6 +135,8 @@ github.com/decred/dcrdata/api/types v1.0.6 h1:ipZ7bN/9RE1rOKa2IYXe7yVoxs6e6Bfs8b
 github.com/decred/dcrdata/api/types v1.0.6/go.mod h1:BuRGiCMg2EhpvAWp8ezLZ+mbLC8fcfKMX/q3PYfUgHk=
 github.com/decred/dcrdata/api/types/v3 v3.0.0 h1:NVw3pDQ0TVckSIegFSYcqPlqKZI6ehJSOEftHIvrOoY=
 github.com/decred/dcrdata/api/types/v3 v3.0.0/go.mod h1:DsZytNKhEESj6LLZatG9sO7cJPOp/ZQhV7nBzfflhpU=
+github.com/decred/dcrdata/api/types/v3 v3.0.1 h1:JrZJDE9tbhJi4zicesQM4/iEU9KW0Qzjl3sFtkJlZvs=
+github.com/decred/dcrdata/api/types/v3 v3.0.1/go.mod h1:DsZytNKhEESj6LLZatG9sO7cJPOp/ZQhV7nBzfflhpU=
 github.com/decred/dcrdata/blockdata v1.0.1 h1:tWaEaYpYEXuT39k/U7e2PAiV3eHuofq6SIxa2yW3TeQ=
 github.com/decred/dcrdata/blockdata v1.0.1/go.mod h1:7gRh/YmQa6v5Uf/EXpNjtbYveCFoIA5sF6l+GVcNkJA=
 github.com/decred/dcrdata/blockdata/v3 v3.0.0 h1:oyNSqXxVzX5TWomjYCBIPh5OCJ4/nbp/llDuZ6gN20o=
