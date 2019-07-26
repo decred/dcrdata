@@ -29,3 +29,9 @@ require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/lib/pq v1.1.0
 )
+
+replace (
+	github.com/decred/dcrdata/db/cache/v2 => ../cache
+	github.com/decred/dcrdata/db/dbtypes/v2 => ../dbtypes
+	github.com/decred/dcrdata/stakedb/v3 => ../../stakedb
+)

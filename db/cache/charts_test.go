@@ -57,13 +57,9 @@ func TestChartsCache(t *testing.T) {
 	seedUints := func() ChartUints {
 		return ChartUints{1, 2, 3, 4, 5, 6}
 	}
-	seedFloats := func() ChartFloats {
-		return ChartFloats{1.1, 2.2, 3.3, 4.4, 5.5, 6.6}
-	}
 	seedTimes := func() ChartUints {
 		return ChartUints{1, 2 + aDay, 3 + aDay, 4 + 2*aDay, 5 + 2*aDay, 6 + 3*aDay}
 	}
-	floatDaysAvg := ChartFloats{1.1, 2.75, 4.95}
 	uintDaysAvg := ChartUints{1, 2, 4}
 	uintDaysSum := ChartUints{1, 5, 9}
 
@@ -133,13 +129,12 @@ func TestChartsCache(t *testing.T) {
 		// Empty the charts data
 		charts.Blocks.Snip(0)
 		compUints := seedUints()
-		compFloats := seedFloats()
 		compTimes := seedTimes()
 
 		comp("Height before read", charts.Blocks.Height, compUints, false)
 		comp("Time before read", charts.Blocks.Time, compTimes, false)
 		comp("PoolSize before read", charts.Blocks.PoolSize, compUints, false)
-		comp("PoolValue before read", charts.Blocks.PoolValue, compFloats, false)
+		comp("PoolValue before read", charts.Blocks.PoolValue, compUints, false)
 		comp("BlockSize before read", charts.Blocks.BlockSize, compUints, false)
 		comp("TxCount before read", charts.Blocks.TxCount, compUints, false)
 		comp("NewAtoms before read", charts.Blocks.NewAtoms, compUints, false)
@@ -154,7 +149,7 @@ func TestChartsCache(t *testing.T) {
 		comp("Height after read", charts.Blocks.Height, compUints, true)
 		comp("Time after read", charts.Blocks.Time, compTimes, true)
 		comp("PoolSize after read", charts.Blocks.PoolSize, compUints, true)
-		comp("PoolValue after read", charts.Blocks.PoolValue, compFloats, true)
+		comp("PoolValue after read", charts.Blocks.PoolValue, compUints, true)
 		comp("BlockSize after read", charts.Blocks.BlockSize, compUints, true)
 		comp("TxCount after read", charts.Blocks.TxCount, compUints, true)
 		comp("NewAtoms after read", charts.Blocks.NewAtoms, compUints, true)
@@ -164,7 +159,7 @@ func TestChartsCache(t *testing.T) {
 		// Lengthen is called during readCacheFile, so Days should be properly calculated
 		comp("Time after Lengthen", charts.Days.Time, ChartUints{0, aDay, 2 * aDay}, true)
 		comp("PoolSize after Lengthen", charts.Days.PoolSize, uintDaysAvg, true)
-		comp("PoolValue after Lengthen", charts.Days.PoolValue, floatDaysAvg, true)
+		comp("PoolValue after Lengthen", charts.Days.PoolValue, uintDaysAvg, true)
 		comp("BlockSize after Lengthen", charts.Days.BlockSize, uintDaysSum, true)
 		comp("TxCount after Lengthen", charts.Days.TxCount, uintDaysSum, true)
 		comp("NewAtoms after Lengthen", charts.Days.NewAtoms, uintDaysSum, true)
