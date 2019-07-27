@@ -274,21 +274,21 @@
 			<td>{{template "hashElide" (hashlink .TxID .Link)}}</td>
 		{{- if eq $txType "merged_debit"}}
 			<td class="text-right">{{.MergedTxnCount}}</td>
-			<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</td>
+			<td class="text-right fs15">{{printf "%.8f" .SentTotal}}</td>
 		{{- else if eq $txType "merged_credit"}}
 			<td class="text-right">{{.MergedTxnCount}}</td>
-			<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</td>
+			<td class="text-right fs15">{{printf "%.8f" .ReceivedTotal}}</td>
 		{{- else if eq $txType "merged"}}
 			<td class="text-right">{{.MergedTxnCount}}</td>
 			{{- if .IsFunding}}
-			<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</td>
+			<td class="text-right fs15">{{printf "%.8f" .ReceivedTotal}}</td>
 			<td class="text-right">&mdash;</td>
 			{{- else}}
 			<td class="text-right">&mdash;</td>
-			<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</td>
+			<td class="text-right fs15">{{printf "%.8f" .SentTotal}}</td>
 			{{- end}}
 		{{- else if or (eq $txType "credit") .IsFunding}}{{/* .IsFunding = true && txType = "all" is a credit */}}
-			<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</td>
+			<td class="text-right fs15">{{printf "%.8f" .ReceivedTotal}}</td>
 			{{- if ne .MatchedTx ""}}
 			<td class="text-right"><a href="/tx/{{.MatchedTx}}/in/{{.MatchedTxIndex}}"
 				data-txid="{{.MatchedTx}}"
@@ -305,7 +305,7 @@
 			{{- else}}
 			<td class="text-right">N/A</td>
 			{{- end}}
-			<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</td>
+			<td class="text-right fs15">{{printf "%.8f" .SentTotal}}</td>
 		{{- end}}
 			<td class="addr-tx-time d-none d-sm-table-cell text-right">{{if eq .Confirmations 0}}Unconfirmed{{else}}{{.Time}}{{end}}</td>
 			<td class="addr-tx-age text-right">
