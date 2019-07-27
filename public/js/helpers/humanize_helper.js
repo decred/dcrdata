@@ -68,25 +68,27 @@ var humanize = {
     return htmlString
   },
   threeSigFigs: function (v) {
-    if (v >= 1e11) return `${Math.round(v / 1e9)}B`
-    if (v >= 1e10) return `${(v / 1e9).toFixed(1)}B`
-    if (v >= 1e9) return `${(v / 1e9).toFixed(2)}B`
-    if (v >= 1e8) return `${Math.round(v / 1e6)}M`
-    if (v >= 1e7) return `${(v / 1e6).toFixed(1)}M`
-    if (v >= 1e6) return `${(v / 1e6).toFixed(2)}M`
-    if (v >= 1e5) return `${Math.round(v / 1e3)}k`
-    if (v >= 1e4) return `${(v / 1e3).toFixed(1)}k`
-    if (v >= 1e3) return `${(v / 1e3).toFixed(2)}k`
-    if (v >= 1e2) return `${Math.round(v)}`
-    if (v >= 10) return `${v.toFixed(1)}`
-    if (v >= 1) return `${v.toFixed(2)}`
-    if (v >= 1e-1) return `${v.toFixed(3)}`
-    if (v >= 1e-2) return `${v.toFixed(4)}`
-    if (v >= 1e-3) return `${v.toFixed(5)}`
-    if (v >= 1e-4) return `${v.toFixed(6)}`
-    if (v >= 1e-5) return `${v.toFixed(7)}`
+    var sign = v >= 0 ? '' : '-'
+    v = Math.abs(v)
     if (v === 0) return '0'
-    return v.toFixed(8)
+    if (v >= 1e11) return `${sign}${Math.round(v / 1e9)}B`
+    if (v >= 1e10) return `${sign}${(v / 1e9).toFixed(1)}B`
+    if (v >= 1e9) return `${sign}${(v / 1e9).toFixed(2)}B`
+    if (v >= 1e8) return `${sign}${Math.round(v / 1e6)}M`
+    if (v >= 1e7) return `${sign}${(v / 1e6).toFixed(1)}M`
+    if (v >= 1e6) return `${sign}${(v / 1e6).toFixed(2)}M`
+    if (v >= 1e5) return `${sign}${Math.round(v / 1e3)}k`
+    if (v >= 1e4) return `${sign}${(v / 1e3).toFixed(1)}k`
+    if (v >= 1e3) return `${sign}${(v / 1e3).toFixed(2)}k`
+    if (v >= 1e2) return `${sign}${Math.round(v)}`
+    if (v >= 10) return `${sign}${v.toFixed(1)}`
+    if (v >= 1) return `${sign}${v.toFixed(2)}`
+    if (v >= 1e-1) return `${sign}${v.toFixed(3)}`
+    if (v >= 1e-2) return `${sign}${v.toFixed(4)}`
+    if (v >= 1e-3) return `${sign}${v.toFixed(5)}`
+    if (v >= 1e-4) return `${sign}${v.toFixed(6)}`
+    if (v >= 1e-5) return `${sign}${v.toFixed(7)}`
+    return `${sign}${v.toFixed(8)}`
   },
   twoDecimals: function (v) {
     if (v === 0.0) return '0.00'

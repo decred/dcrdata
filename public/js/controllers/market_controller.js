@@ -91,7 +91,7 @@ const lightStroke = '#333'
 const darkStroke = '#ddd'
 var chartStroke = lightStroke
 var conversionFactor = 1
-var currencyCode = 'BTC'
+var btcPrice, fiatCode
 var gridColor = '#7774'
 var settings = {}
 
@@ -450,15 +450,22 @@ function depthLegendPlotter (e) {
   ctx.font = `${fontSize}px arial`
   ctx.lineWidth = 1
   ctx.strokeStyle = chartStroke
-  let boxColor = dark ? '#2228' : '#fff8'
+  var boxColor = dark ? '#2228' : '#fff8'
 
-  var gapText = `${greekCapDelta} : ${humanize.threeSigFigs(stats.gap * conversionFactor)} ${currencyCode}`
-  var boxW = ctx.measureText(gapText).width
+  var deltaPctTxt = `${greekCapDelta} : ${humanize.threeSigFigs(stats.gap / stats.midGap * 100)}%`
+  var fiatGapTxt = `${humanize.threeSigFigs(stats.gap * btcPrice)} ${fiatCode}`
+  var btcGapTxt = `${humanize.threeSigFigs(stats.gap)} BTC`
+  var boxW = 0
+  var txts = [fiatGapTxt, btcGapTxt, deltaPctTxt]
+  txts.forEach(txt => {
+    let w = ctx.measureText(txt).width
+    if (w > boxW) boxW = w
+  })
   var rowHeight = fontSize * 1.5
   var rowPad = big ? (rowHeight - fontSize) / 2 : (rowHeight - fontSize) / 3
   var boxPad = big ? rowHeight / 3 : rowHeight / 5
   var x
-  let y = big ? fontSize * 2 : fontSize
+  var y = big ? fontSize * 2 : fontSize
 
   // If it's an aggregated chart, start with a color legend
   if (tokens) {
@@ -492,14 +499,16 @@ function depthLegendPlotter (e) {
   rowHeight -= 2 // just looks better
   ctx.fillStyle = boxColor
   let rect = makePt(x - boxPad, y - boxPad)
-  let dims = makePt(boxW + boxPad * 3, rowHeight + boxPad * 2)
+  let dims = makePt(boxW + boxPad * 3, rowHeight * 3 + boxPad * 2)
   ctx.fillRect(rect.x, rect.y, dims.x, dims.y)
   ctx.strokeRect(rect.x, rect.y, dims.x, dims.y)
   ctx.fillStyle = chartStroke
-  ctx.fillText(gapText, x + rowPad, y + rowPad)
+  ctx.fillText(deltaPctTxt, x + rowPad, y + rowPad)
+  ctx.fillText(fiatGapTxt, x + rowPad, y + rowPad + rowHeight)
+  ctx.fillText(btcGapTxt, x + rowPad, y + rowPad + 2 * rowHeight)
   // Draw a line from the box to the gap
   drawLine(ctx,
-    makePt(x + boxW / 2, y + rowHeight + boxPad * 2 + boxPad),
+    makePt(x + boxW / 2, y + rowHeight * 3 + boxPad * 2 + boxPad),
     makePt(midGap.x, midGap.y - boxPad))
 }
 
@@ -551,8 +560,8 @@ export default class extends Controller {
     }
     commonChartOpts.labelsDiv = this.legendTarget
     this.converted = false
-    this.conversionFactor = parseFloat(this.conversionTarget.dataset.factor)
-    this.currencyCode = this.conversionTarget.dataset.code
+    btcPrice = parseFloat(this.conversionTarget.dataset.factor)
+    fiatCode = this.conversionTarget.dataset.code
     this.binButtons = this.binTarget.querySelectorAll('button')
     this.lastUrl = null
     this.zoomButtons = this.zoomTarget.querySelectorAll('button')
@@ -838,7 +847,7 @@ export default class extends Controller {
       file: data.pts,
       fillGraph: true,
       colors: ['#ed6d47', '#41be53'],
-      xlabel: `Price (${this.converted ? this.currencyCode : 'BTC'})`,
+      xlabel: `Price (${this.converted ? fiatCode : 'BTC'})`,
       ylabel: 'Volume (DCR)',
       tokens: null,
       stats: data.stats,
@@ -876,7 +885,7 @@ export default class extends Controller {
       labels: keys,
       file: data.pts,
       colors: colors,
-      xlabel: `Price (${this.converted ? this.currencyCode : 'BTC'})`,
+      xlabel: `Price (${this.converted ? fiatCode : 'BTC'})`,
       ylabel: 'Volume (DCR)',
       plotter: depthPlotter,
       fillGraph: aggStacking,
@@ -903,7 +912,7 @@ export default class extends Controller {
       labels: ['price', 'sell', 'buy'],
       file: data.pts,
       colors: ['#f93f39cc', '#1acc84cc'],
-      xlabel: `Price (${this.converted ? this.currencyCode : 'BTC'})`,
+      xlabel: `Price (${this.converted ? fiatCode : 'BTC'})`,
       ylabel: 'Volume (DCR)',
       plotter: orderPlotter,
       axes: {
@@ -1051,12 +1060,10 @@ export default class extends Controller {
     if (e.target.name === 'BTC') {
       this.converted = false
       conversionFactor = 1
-      currencyCode = 'BTC'
     } else {
       this.converted = true
-      conversionFactor = this.conversionFactor
-      currencyCode = this.currencyCode
-      cLabel = this.currencyCode
+      conversionFactor = btcPrice
+      cLabel = fiatCode
     }
     this.graph.updateOptions({ xlabel: `Price (${cLabel})` })
   }
@@ -1177,7 +1184,8 @@ export default class extends Controller {
     var fmtPrice = update.price.toFixed(2)
     this.priceTarget.textContent = fmtPrice
     var aggRow = this.getExchangeRow(aggregatedKey)
-    aggRow.price.textContent = humanize.threeSigFigs(update.price / update.btc_price)
+    btcPrice = update.btc_price
+    aggRow.price.textContent = humanize.threeSigFigs(update.price / btcPrice)
     aggRow.volume.textContent = humanize.threeSigFigs(update.volume)
     aggRow.fiat.textContent = fmtPrice
     // Auto-update the chart if it makes sense.
