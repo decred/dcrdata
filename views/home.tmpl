@@ -238,7 +238,7 @@
                             </div>
                         </div>
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
-                            <div class="fs13 text-secondary">Ticket Pool Size</div>
+                            <div class="d-block fs13 text-secondary"><a href="/charts?chart=ticket-pool-size">Ticket Pool Size</a></div>
                             <div class="mono lh1rem fs14-decimal fs24 pt-1 pb-1 d-flex align-items-baseline">
                                 <span data-target="homepage.poolSize">
                                     {{intComma .PoolInfo.Size}}
@@ -285,7 +285,7 @@
                             <div class="fs12 lh1rem text-black-50" title="Annual Stake Rewards">{{printf "%.2f" .ASR}}% per year</div>
                         </div>
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
-                            <div class="fs13 text-secondary">Total Staked DCR</div>
+                            <div class="fs13 text-secondary"><a href="/charts?chart=stake-participation">Total Staked DCR</a></div>
                             <div class="mono lh1rem fs14-decimal fs24 pt-1 pb-1 d-flex align-items-baseline">
                                 <span data-target="homepage.poolValue">
                                     {{template "decimalParts" (float64AsDecimalParts .PoolInfo.Value 0 true)}}
@@ -315,7 +315,7 @@
                             </div>
                         </div>
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
-                            <div class="fs13 text-secondary">Hashrate</div>
+                            <div class="fs13 text-secondary"><a href="/charts?chart=hashrate">Hashrate</a></div>
                             <div class="mono lh1rem pt-1 pb-1 fs14-decimal fs24 d-flex align-items-baseline">
                                 <span data-target="homepage.hashrate">{{template "decimalParts" (float64AsDecimalParts .HashRate 8 true 2)}}</span>
                                 <span class="pl-1 unit lh15rem">Ph/s</span>
@@ -388,7 +388,7 @@
                         </div>
                         {{end}}
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
-                            <div class="fs13 text-secondary lh1rem">Total Coin Supply <span class="nowrap">(of 21 mil)</span></div>
+                            <div class="d-block fs13 text-secondary lh1rem"><a href="/charts?chart=coin-supply">Total Coin Supply</a> <span class="nowrap">(of 21 mil)</span></div>
                             <div class="mono lh1rem fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
                                 <span data-target="homepage.coinSupply">
                                     {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .CoinSupply) 0 true)}}
