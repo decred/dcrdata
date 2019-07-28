@@ -141,7 +141,7 @@
                                   <td class="mono fs15 text-right"><a href="/tx/{{.VoteInfo.TicketSpent}}">{{.VoteInfo.MempoolTicketIndex}}</a></td>
                                   <td class="mono fs15 text-right">{{.VoteInfo.Version}}</td>
                                   <td class="mono fs15 text-right d-none d-sm-table-cell">
-                                      {{printf "%.8f" .TotalOut}}
+                                      {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
                                   </td>
                                   <td class="mono fs15 text-right">{{.Size}} B</td>
                                   <td class="mono fs15 text-right d-none d-sm-table-cell jsonly" data-target="time.age" data-age="{{.Time}}"></td>
@@ -174,7 +174,7 @@
                                     <a class="hash lh1rem" href="/tx/{{.Hash}}">{{.Hash}}</a>
                                   </td>
                                   <td class="mono fs15 text-right">
-                                    {{printf "%.8f" .TotalOut}}
+                                    {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
                                   </td>
                                   <td class="mono fs15 text-right">{{.Size}} B</td>
                                   <td class="mono fs15 text-right" data-target="time.age" data-age="{{.Time}}"></td>
@@ -208,7 +208,7 @@
                                     <a class="hash lh1rem" href="/tx/{{.Hash}}">{{.Hash}}</a>
                                   </td>
                                   <td class="mono fs15 text-right">
-                                    {{printf "%.8f" .TotalOut}}
+                                    {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
                                   </td>
                                   <td class="mono fs15 text-right">{{.Size}} B</td>
                                   <td class="mono fs15 text-right" data-target="time.age" data-age="{{.Time}}"></td>
@@ -244,7 +244,7 @@
                                       <a class="hash lh1rem" href="/tx/{{.Hash}}">{{.Hash}}</a>
                                   </td>
                                   <td class="mono fs15 text-right">
-                                    {{printf "%.8f" .TotalOut}}
+                                    {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
                                   </td>
                                   <td class="mono fs15 text-right">{{.Size}} B</td>
                                   <td class="mono fs15 text-right" data-target="time.age" data-age="{{.Time}}"></td>
