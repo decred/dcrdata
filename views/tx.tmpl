@@ -314,7 +314,7 @@
                         {{end}}
                         </td>
                         <td class="mono fs13 text-right shrink-to-fit">{{if lt .AmountIn 0.0}} N/A {{else}}
-                        {{template "decimalParts" (float64AsDecimalParts .AmountIn 6 false)}} {{end}}
+                        {{template "decimalParts" (float64AsDecimalParts .AmountIn 8 false)}} {{end}}
                         </td>
                     </tr>
                     {{end}}
@@ -377,7 +377,7 @@
                             {{end}}
                         </td>
 			                  <td class="text-right mono fs13">
-                          {{template "decimalParts" (float64AsDecimalParts .Amount 6 false)}}
+                          {{template "decimalParts" (float64AsDecimalParts .Amount 8 false)}}
                         </td>
                     </tr>
                     {{end}}
