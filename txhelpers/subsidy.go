@@ -7,7 +7,7 @@ package txhelpers
 
 import (
 	"github.com/decred/dcrd/blockchain"
-	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/v2"
 )
 
 // ultimateSubsidies stores ultimate subsidy values computed by UltimateSubsidy.
@@ -22,7 +22,12 @@ func UltimateSubsidy(params *chaincfg.Params) int64 {
 		return totalSubsidy
 	}
 
-	subsidyCache := blockchain.NewSubsidyCache(0, params)
+	paramsV1 := ParamsV2ToV1(params)
+	if paramsV1 == nil {
+		return 0
+	}
+
+	subsidyCache := blockchain.NewSubsidyCache(0, paramsV1)
 
 	totalSubsidy = params.BlockOneSubsidy()
 	for i := int64(0); ; i++ {
@@ -41,11 +46,11 @@ func UltimateSubsidy(params *chaincfg.Params) int64 {
 			height := i - numBlocks
 
 			work := blockchain.CalcBlockWorkSubsidy(subsidyCache, height,
-				params.TicketsPerBlock, params)
+				params.TicketsPerBlock, paramsV1)
 			stake := blockchain.CalcStakeVoteSubsidy(subsidyCache, height,
-				params) * int64(params.TicketsPerBlock)
+				paramsV1) * int64(params.TicketsPerBlock)
 			tax := blockchain.CalcBlockTaxSubsidy(subsidyCache, height,
-				params.TicketsPerBlock, params)
+				params.TicketsPerBlock, paramsV1)
 			if (work + stake + tax) == 0 {
 				break // all done
 			}
@@ -68,9 +73,13 @@ func UltimateSubsidy(params *chaincfg.Params) int64 {
 // RewardsAtBlock computes the PoW, PoS (per vote), and project fund subsidies
 // at for the specified block index, assuming a certain number of votes.
 func RewardsAtBlock(blockIdx int64, votes uint16, p *chaincfg.Params) (work, stake, tax int64) {
-	subsidyCache := blockchain.NewSubsidyCache(0, p)
-	work = blockchain.CalcBlockWorkSubsidy(subsidyCache, blockIdx, votes, p)
-	stake = blockchain.CalcStakeVoteSubsidy(subsidyCache, blockIdx, p)
-	tax = blockchain.CalcBlockTaxSubsidy(subsidyCache, blockIdx, votes, p)
+	pV1 := ParamsV2ToV1(p)
+	if pV1 == nil {
+		return
+	}
+	subsidyCache := blockchain.NewSubsidyCache(0, pV1)
+	work = blockchain.CalcBlockWorkSubsidy(subsidyCache, blockIdx, votes, pV1)
+	stake = blockchain.CalcStakeVoteSubsidy(subsidyCache, blockIdx, pV1)
+	tax = blockchain.CalcBlockTaxSubsidy(subsidyCache, blockIdx, votes, pV1)
 	return
 }

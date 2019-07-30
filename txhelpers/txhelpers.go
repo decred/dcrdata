@@ -22,12 +22,13 @@ import (
 	"github.com/decred/base58"
 	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/blockchain/stake"
-	"github.com/decred/dcrd/chaincfg"
+	cfg1 "github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/dcrutil/v2"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrd/rpcclient/v3"
-	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/rpcclient/v4"
+	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -88,6 +89,22 @@ const (
 	TxInserted
 	// removed? invalidated?
 )
+
+func ParamsV2ToV1(p *chaincfg.Params) *cfg1.Params {
+	switch p.Net {
+	case wire.MainNet:
+		return &cfg1.MainNetParams
+	case wire.TestNet3:
+		return &cfg1.TestNet3Params
+	case wire.SimNet:
+		return &cfg1.SimNetParams
+	case wire.RegNet:
+		return &cfg1.RegNetParams
+	default:
+		fmt.Println("Unknown network:", p.Net.String())
+		return nil
+	}
+}
 
 // HashInSlice determines if a hash exists in a slice of hashes.
 func HashInSlice(h chainhash.Hash, list []chainhash.Hash) bool {
@@ -277,7 +294,7 @@ func TxOutpointsByAddr(txAddrOuts MempoolAddressStore, msgTx *wire.MsgTx, params
 
 		// Check if we are watching any address for this TxOut.
 		for _, txAddr := range txOutAddrs {
-			addr := txAddr.EncodeAddress()
+			addr := txAddr.Address()
 
 			op := wire.NewOutPoint(&hash, uint32(outIndex), txTree)
 
@@ -403,7 +420,7 @@ func TxPrevOutsByAddr(txAddrOuts MempoolAddressStore, txnsStore TxnsStore, msgTx
 		// For each address paid to by this previous outpoint, record the
 		// previous outpoint and the containing transactions.
 		for _, txAddr := range txAddrs {
-			addr := txAddr.EncodeAddress()
+			addr := txAddr.Address()
 
 			// Check if it is already in the address store.
 			addrOuts := txAddrOuts[addr]
@@ -494,7 +511,7 @@ func TxConsumesOutpointWithAddress(msgTx *wire.MsgTx, addr string,
 		// For each address that matches the address of interest, record this
 		// previous outpoint and the containing transactions.
 		for _, txAddr := range txAddrs {
-			addrstr := txAddr.EncodeAddress()
+			addrstr := txAddr.Address()
 			if addr == addrstr {
 				outpoint := wire.NewOutPoint(&hash,
 					prevOut.Index, TxTree(prevTx))
@@ -552,7 +569,7 @@ func BlockConsumesOutpointWithAddresses(block *dcrutil.Block, addrs map[string]T
 					}
 
 					for _, txAddr := range txAddrs {
-						addrstr := txAddr.EncodeAddress()
+						addrstr := txAddr.Address()
 						if _, ok := addrs[addrstr]; ok {
 							if addrMap[addrstr] == nil {
 								addrMap[addrstr] = make([]*dcrutil.Tx, 0)
@@ -588,7 +605,7 @@ func TxPaysToAddress(msgTx *wire.MsgTx, addr string,
 
 		// Check if we are watching any address for this TxOut
 		for _, txAddr := range txOutAddrs {
-			addrstr := txAddr.EncodeAddress()
+			addrstr := txAddr.Address()
 			if addr == addrstr {
 				outpoints = append(outpoints, wire.NewOutPoint(&hash,
 					uint32(outIndex), txTree))
@@ -618,7 +635,7 @@ func BlockReceivesToAddresses(block *dcrutil.Block, addrs map[string]TxAction,
 
 				// Check if we are watching any address for this TxOut
 				for _, txAddr := range txOutAddrs {
-					addrstr := txAddr.EncodeAddress()
+					addrstr := txAddr.Address()
 					if _, ok := addrs[addrstr]; ok {
 						if _, gotSlice := addrMap[addrstr]; !gotSlice {
 							addrMap[addrstr] = make([]*dcrutil.Tx, 0) // nil
@@ -662,7 +679,7 @@ func OutPointAddresses(outPoint *wire.OutPoint, c RawTransactionGetter,
 	value := dcrutil.Amount(txOut.Value)
 	addresses := make([]string, 0, len(txAddrs))
 	for _, txAddr := range txAddrs {
-		addr := txAddr.EncodeAddress()
+		addr := txAddr.Address()
 		addresses = append(addresses, addr)
 	}
 	return addresses, value, nil
@@ -1169,12 +1186,6 @@ func IsZeroHashStr(hash string) bool {
 	return hash == string(zeroHashStringBytes)
 }
 
-// ValidateNetworkAddress checks if the given address is valid on the given
-// network.
-func ValidateNetworkAddress(address dcrutil.Address, p *chaincfg.Params) bool {
-	return address.IsForNet(p)
-}
-
 // AddressError is the type of error returned by AddressValidation.
 type AddressError error
 
@@ -1213,14 +1224,9 @@ const (
 // address type.
 func AddressValidation(address string, params *chaincfg.Params) (dcrutil.Address, AddressType, AddressError) {
 	// Decode and validate the address.
-	addr, err := dcrutil.DecodeAddress(address)
+	addr, err := dcrutil.DecodeAddress(address, params)
 	if err != nil {
-		return nil, AddressTypeUnknown, AddressErrorDecodeFailed
-	}
-
-	// Detect when an address belonging to a different Decred network.
-	if !ValidateNetworkAddress(addr, params) {
-		return addr, AddressTypeUnknown, AddressErrorWrongNet
+		return nil, AddressTypeUnknown, AddressErrorDecodeFailed // AddressErrorWrongNet?
 	}
 
 	// Determine address type for this valid Decred address. Ignore the error

@@ -19,8 +19,8 @@ import (
 	"time"
 
 	"github.com/caarlos0/env"
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/v5/netparams"
@@ -38,7 +38,7 @@ const (
 )
 
 var activeNet = &netparams.MainNetParams
-var activeChain = &chaincfg.MainNetParams
+var activeChain = chaincfg.MainNetParams()
 
 var (
 	defaultHomeDir           = dcrutil.AppDataDir("dcrdata", false)
@@ -510,15 +510,15 @@ func loadConfig() (*config, error) {
 	// networks can't be selected simultaneously.
 	numNets := 0
 	activeNet = &netparams.MainNetParams
-	activeChain = &chaincfg.MainNetParams
+	activeChain = chaincfg.MainNetParams()
 	if cfg.TestNet {
 		activeNet = &netparams.TestNet3Params
-		activeChain = &chaincfg.TestNet3Params
+		activeChain = chaincfg.TestNet3Params()
 		numNets++
 	}
 	if cfg.SimNet {
 		activeNet = &netparams.SimNetParams
-		activeChain = &chaincfg.SimNetParams
+		activeChain = chaincfg.SimNetParams()
 
 		// If on simnet, disable piparser tool automatically.
 		cfg.DisablePiParser = true

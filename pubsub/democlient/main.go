@@ -10,7 +10,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/dcrutil/v2"
 	exptypes "github.com/decred/dcrdata/explorer/types/v2"
 	pstypes "github.com/decred/dcrdata/pubsub/types/v3"
 	"github.com/decred/dcrdata/pubsub/v3/psclient"
@@ -32,6 +33,8 @@ func main() {
 	backend := slog.NewBackend(os.Stdout).Logger("PSCL")
 	backend.SetLevel(slog.LevelDebug)
 	psclient.UseLogger(backend)
+
+	params := &chaincfg.MainNetParams
 
 	// Create the pubsub client, opening a connection to the URL.
 	ctx, cancel := context.WithCancel(context.Background())
@@ -134,7 +137,7 @@ func main() {
 							log.Fatal(err)
 							continue
 						}
-						_, err = dcrutil.DecodeAddress(addr)
+						_, err = dcrutil.DecodeAddress(addr, params)
 						if err != nil {
 							log.Fatalf("Invalid address %s: %v", addr, err)
 							continue

@@ -8,7 +8,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrdata/db/cache/v2"
 	tc "github.com/decred/dcrdata/testutil/dbconfig/v2"
 	_ "github.com/mattn/go-sqlite3"
@@ -78,7 +78,7 @@ func TestMain(m *testing.M) {
 // were synced. No difference between the two should exist otherwise this test
 // should fail. It also checks the order and duplicates is the x-axis dataset.
 func TestSqliteCharts(t *testing.T) {
-	charts := cache.NewChartData(context.Background(), 0, &chaincfg.MainNetParams)
+	charts := cache.NewChartData(context.Background(), 0, chaincfg.MainNetParams())
 	db.RegisterCharts(charts)
 	blocks := charts.Blocks
 

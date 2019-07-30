@@ -9,7 +9,7 @@ import (
 	"sort"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/dcrutil/v2"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 	apitypes "github.com/decred/dcrdata/api/types/v4"
 	"github.com/decred/dcrdata/db/cache/v2"
@@ -132,7 +132,7 @@ func (pgb *ChainDB) AddressIDsByOutpoint(txHash string, voutIndex uint32) ([]uin
 // TODO: Does this really need all the prev vout extra data?
 func (pgb *ChainDBRPC) InsightSearchRPCAddressTransactions(addr string, count,
 	skip int) []*chainjson.SearchRawTransactionsResult {
-	address, err := dcrutil.DecodeAddress(addr)
+	address, err := dcrutil.DecodeAddress(addr, pgb.chainParams)
 	if err != nil {
 		log.Infof("Invalid address %s: %v", addr, err)
 		return nil

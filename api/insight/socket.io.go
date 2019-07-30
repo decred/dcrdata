@@ -8,10 +8,10 @@ import (
 	"regexp"
 	"sync"
 
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/dcrutil/v2"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/blockdata/v4"
 	"github.com/decred/dcrdata/txhelpers/v3"
@@ -131,15 +131,13 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 			if len(room) > 64 || !isAlphaNumeric(room) {
 				return
 			}
-			if addr, err := dcrutil.DecodeAddress(room); err == nil {
-				if addr.IsForNet(params) {
-					so.Join(room)
-					apiLog.Debugf("socket.io client joining room: %s", room)
+			if _, err := dcrutil.DecodeAddress(room, params); err == nil {
+				so.Join(room)
+				apiLog.Debugf("socket.io client joining room: %s", room)
 
-					addrs.Lock()
-					addrs.c[room]++
-					addrs.Unlock()
-				}
+				addrs.Lock()
+				addrs.c[room]++
+				addrs.Unlock()
 			}
 		})
 	})
@@ -233,7 +231,7 @@ func (soc *SocketServer) sendNewTx(msgTx *wire.MsgTx, vouts []chainjson.Vout) er
 			}
 			var addrs []string
 			for i := range scriptAddrs {
-				addrs = append(addrs, scriptAddrs[i].EncodeAddress())
+				addrs = append(addrs, scriptAddrs[i].Address())
 			}
 			voutAddrs = append(voutAddrs, addrs)
 		} else {

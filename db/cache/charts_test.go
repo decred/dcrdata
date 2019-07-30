@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrdata/txhelpers/v3"
 )
@@ -45,7 +45,7 @@ func TestMain(m *testing.M) {
 func TestChartsCache(t *testing.T) {
 	gobPath := filepath.Join(tempDir, "log.gob")
 	ctx, shutdown := context.WithCancel(context.Background())
-	charts := NewChartData(ctx, 0, &chaincfg.MainNetParams)
+	charts := NewChartData(ctx, 0, chaincfg.MainNetParams())
 
 	comp := func(k string, a interface{}, b interface{}, expectation bool) {
 		v := reflect.DeepEqual(a, b)

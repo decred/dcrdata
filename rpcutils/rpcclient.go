@@ -12,11 +12,11 @@ import (
 	"io/ioutil"
 	"strconv"
 
-	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/dcrutil/v2"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrd/rpcclient/v3"
+	"github.com/decred/dcrd/rpcclient/v4"
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types/v4"
 	"github.com/decred/dcrdata/semver"
@@ -347,14 +347,14 @@ func GetTransactionVerboseByID(client txhelpers.VerboseTransactionGetter, txhash
 	return txraw, nil
 }
 
-// SearchRawTransaction fetch transactions the belong to an
-// address
-func SearchRawTransaction(client *rpcclient.Client, count int, address string) ([]*chainjson.SearchRawTransactionsResult, error) {
-	addr, err := dcrutil.DecodeAddress(address)
+// SearchRawTransaction fetch transactions pertaining to an address.
+func SearchRawTransaction(client *rpcclient.Client, params *chaincfg.Params, count int, address string) ([]*chainjson.SearchRawTransactionsResult, error) {
+	addr, err := dcrutil.DecodeAddress(address, params)
 	if err != nil {
 		log.Infof("Invalid address %s: %v", address, err)
 		return nil, err
 	}
+
 	//change the 1000 000 number demo for now
 	txs, err := client.SearchRawTransactionsVerbose(addr, 0, count,
 		true, true, nil)

@@ -21,11 +21,11 @@ import (
 
 	"github.com/chappjc/trylock"
 	"github.com/decred/dcrd/blockchain/stake"
-	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/dcrutil/v2"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrd/rpcclient/v3"
+	"github.com/decred/dcrd/rpcclient/v4"
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types/v4"
 	"github.com/decred/dcrdata/blockdata/v4"
@@ -2680,7 +2680,7 @@ func (pgb *ChainDB) AddressTxIoCsv(address string) ([][]string, error) {
 }
 
 func (pgb *ChainDB) addressInfo(addr string, count, skip int64, txnType dbtypes.AddrTxnViewType) (*dbtypes.AddressInfo, *dbtypes.AddressBalance, error) {
-	address, err := dcrutil.DecodeAddress(addr)
+	address, err := dcrutil.DecodeAddress(addr, pgb.chainParams)
 	if err != nil {
 		log.Infof("Invalid address %s: %v", addr, err)
 		return nil, nil, err

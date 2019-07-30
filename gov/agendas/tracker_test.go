@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/v2"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 )
 
@@ -153,7 +153,7 @@ func counter(hash string) (uint32, uint32, uint32, error) {
 
 func TestVoteTracker(t *testing.T) {
 	data := map[uint32][]chaincfg.ConsensusDeployment{4: {{StartTime: 1493164800}}}
-	tracker, err := NewVoteTracker(&chaincfg.MainNetParams, dataSourceStub{}, counter, data)
+	tracker, err := NewVoteTracker(chaincfg.MainNetParams(), dataSourceStub{}, counter, data)
 	if err != nil {
 		t.Errorf("NewVoteTracker error: %v", err)
 	}

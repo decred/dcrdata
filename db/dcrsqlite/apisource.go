@@ -13,11 +13,11 @@ import (
 	"strings"
 
 	"github.com/decred/dcrd/blockchain/stake"
-	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/dcrutil/v2"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrd/rpcclient/v3"
+	"github.com/decred/dcrd/rpcclient/v4"
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types/v4"
 	"github.com/decred/dcrdata/db/cache/v2"
@@ -1044,7 +1044,7 @@ func (db *WiredDB) GetMempoolPriceCountTime() *apitypes.PriceCountTime {
 // GetAddressTransactionsWithSkip returns an apitypes.Address Object with at most the
 // last count transactions the address was in
 func (db *WiredDB) GetAddressTransactionsWithSkip(addr string, count, skip int) *apitypes.Address {
-	address, err := dcrutil.DecodeAddress(addr)
+	address, err := dcrutil.DecodeAddress(addr, db.params)
 	if err != nil {
 		log.Infof("Invalid address %s: %v", addr, err)
 		return nil
@@ -1093,7 +1093,7 @@ func (db *WiredDB) GetAddressTransactionsRaw(addr string, count int) []*apitypes
 // GetAddressTransactionsRawWithSkip returns an array of apitypes.AddressTxRaw objects
 // representing the raw result of SearchRawTransactionsverbose
 func (db *WiredDB) GetAddressTransactionsRawWithSkip(addr string, count int, skip int) []*apitypes.AddressTxRaw {
-	address, err := dcrutil.DecodeAddress(addr)
+	address, err := dcrutil.DecodeAddress(addr, db.params)
 	if err != nil {
 		log.Infof("Invalid address %s: %v", addr, err)
 		return nil
@@ -1580,6 +1580,7 @@ func (db *WiredDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 
 func (db *WiredDB) GetExplorerAddress(address string, count, offset int64) (*dbtypes.AddressInfo, txhelpers.AddressType, txhelpers.AddressError) {
 	// Validate the address.
+	netName := db.params.Net.String()
 	addr, addrType, addrErr := txhelpers.AddressValidation(address, db.params)
 	switch addrErr {
 	case txhelpers.AddressErrorNoError:
@@ -1590,7 +1591,7 @@ func (db *WiredDB) GetExplorerAddress(address string, count, offset int64) (*dbt
 		// value sstxchange-tagged outputs.
 		return &dbtypes.AddressInfo{
 			Address:         address,
-			Net:             addr.Net().Name,
+			Net:             netName,
 			IsDummyAddress:  true,
 			Balance:         new(dbtypes.AddressBalance),
 			UnconfirmedTxns: new(dbtypes.AddressTransactions),
@@ -1601,7 +1602,7 @@ func (db *WiredDB) GetExplorerAddress(address string, count, offset int64) (*dbt
 		// Set the net name field so a user can be properly directed.
 		return &dbtypes.AddressInfo{
 			Address: address,
-			Net:     addr.Net().Name,
+			Net:     netName,
 		}, addrType, addrErr
 	default:
 		return nil, addrType, addrErr
@@ -1614,7 +1615,7 @@ func (db *WiredDB) GetExplorerAddress(address string, count, offset int64) (*dbt
 			log.Tracef("GetExplorerAddress: No transactions found for address %s: %v", addr, err)
 			return &dbtypes.AddressInfo{
 				Address:    address,
-				Net:        addr.Net().Name,
+				Net:        netName,
 				MaxTxLimit: MaxAddressRows,
 				Limit:      count,
 				Offset:     offset,
@@ -1676,7 +1677,7 @@ func (db *WiredDB) GetExplorerAddress(address string, count, offset int64) (*dbt
 	}
 	addrData := &dbtypes.AddressInfo{
 		Address:           address,
-		Net:               addr.Net().Name,
+		Net:               netName,
 		MaxTxLimit:        MaxAddressRows,
 		Limit:             count,
 		Offset:            offset,

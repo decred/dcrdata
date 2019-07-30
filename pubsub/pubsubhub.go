@@ -13,10 +13,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/dcrutil/v2"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/blockdata/v4"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
@@ -715,7 +715,7 @@ func (psh *PubSubHub) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBl
 		}
 
 		for _, scriptAddr := range scriptAddrs {
-			addr := scriptAddr.EncodeAddress()
+			addr := scriptAddr.Address()
 			go func() {
 				select {
 				case psh.wsHub.HubRelay <- pstypes.HubMessage{

@@ -7,13 +7,13 @@ package txhelpers
 import (
 	"testing"
 
-	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/v2"
 )
 
 func TestUltimateSubsidy(t *testing.T) {
 	// Mainnet
 	wantMainnetSubsidy := int64(2099999999800912)
-	totalSubsidy := UltimateSubsidy(&chaincfg.MainNetParams)
+	totalSubsidy := UltimateSubsidy(chaincfg.MainNetParams())
 
 	if totalSubsidy != wantMainnetSubsidy {
 		t.Errorf("Bad total subsidy; want %d, got %d",
@@ -21,7 +21,7 @@ func TestUltimateSubsidy(t *testing.T) {
 	}
 
 	// verify cache
-	totalSubsidy2 := UltimateSubsidy(&chaincfg.MainNetParams)
+	totalSubsidy2 := UltimateSubsidy(chaincfg.MainNetParams())
 	if totalSubsidy != totalSubsidy2 {
 		t.Errorf("Bad total subsidy; want %d, got %d",
 			totalSubsidy, totalSubsidy2)
@@ -29,7 +29,7 @@ func TestUltimateSubsidy(t *testing.T) {
 
 	// Testnet
 	wantTestnetSubsidy := int64(526540305161472)
-	totalTNSubsidy := UltimateSubsidy(&chaincfg.TestNet3Params)
+	totalTNSubsidy := UltimateSubsidy(chaincfg.TestNet3Params())
 
 	if totalTNSubsidy != wantTestnetSubsidy {
 		t.Errorf("Bad total subsidy; want %d, got %d",
@@ -37,14 +37,14 @@ func TestUltimateSubsidy(t *testing.T) {
 	}
 
 	// verify cache
-	totalTNSubsidy2 := UltimateSubsidy(&chaincfg.TestNet3Params)
+	totalTNSubsidy2 := UltimateSubsidy(chaincfg.TestNet3Params())
 	if totalTNSubsidy != totalTNSubsidy2 {
 		t.Errorf("Bad total subsidy; want %d, got %d",
 			totalTNSubsidy, totalTNSubsidy2)
 	}
 
 	// re-verify mainnet cache
-	totalSubsidy3 := UltimateSubsidy(&chaincfg.MainNetParams)
+	totalSubsidy3 := UltimateSubsidy(chaincfg.MainNetParams())
 	if totalSubsidy != totalSubsidy3 {
 		t.Errorf("Bad total subsidy; want %d, got %d",
 			totalSubsidy, totalSubsidy3)
@@ -53,16 +53,16 @@ func TestUltimateSubsidy(t *testing.T) {
 
 func BenchmarkUltimateSubsidy(b *testing.B) {
 	// warm up
-	totalSubsidy := UltimateSubsidy(&chaincfg.MainNetParams)
+	totalSubsidy := UltimateSubsidy(chaincfg.MainNetParams())
 	// verify cache
-	totalSubsidy2 := UltimateSubsidy(&chaincfg.MainNetParams)
+	totalSubsidy2 := UltimateSubsidy(chaincfg.MainNetParams())
 	if totalSubsidy != totalSubsidy2 {
 		b.Errorf("Bad total subsidy; want %d, got %d",
 			totalSubsidy, totalSubsidy2)
 	}
 
 	for i := 0; i < b.N; i++ {
-		totalSubsidy = UltimateSubsidy(&chaincfg.MainNetParams)
+		totalSubsidy = UltimateSubsidy(chaincfg.MainNetParams())
 	}
 
 	if totalSubsidy != totalSubsidy2 {

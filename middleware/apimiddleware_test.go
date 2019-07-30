@@ -10,11 +10,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/v2"
 )
 
 func TestGetAddressCtx(t *testing.T) {
-	activeNetParams := &chaincfg.MainNetParams
+	activeNetParams := chaincfg.MainNetParams()
 	type args struct {
 		maxAddrs int
 		addrs    []string

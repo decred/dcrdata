@@ -7,7 +7,7 @@ package types
 import (
 	"encoding/json"
 
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 )
 

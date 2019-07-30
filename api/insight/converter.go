@@ -6,7 +6,7 @@ package insight
 
 import (
 	"github.com/decred/dcrd/blockchain"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/dcrutil/v2"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 	apitypes "github.com/decred/dcrdata/api/types/v4"
 	"github.com/decred/dcrdata/txhelpers/v3"
@@ -146,11 +146,12 @@ func (iapi *InsightApi) DcrToInsightTxns(txs []*chainjson.TxRawResult, noAsm, no
 
 // DcrToInsightBlock converts a chainjson.GetBlockVerboseResult to Insight block.
 func (iapi *InsightApi) DcrToInsightBlock(inBlocks []*chainjson.GetBlockVerboseResult) ([]*apitypes.InsightBlockResult, error) {
+	params := txhelpers.ParamsV2ToV1(iapi.params)
 	RewardAtBlock := func(blocknum int64, voters uint16) float64 {
-		subsidyCache := blockchain.NewSubsidyCache(0, iapi.params)
-		work := blockchain.CalcBlockWorkSubsidy(subsidyCache, blocknum, voters, iapi.params)
-		stake := blockchain.CalcStakeVoteSubsidy(subsidyCache, blocknum, iapi.params) * int64(voters)
-		tax := blockchain.CalcBlockTaxSubsidy(subsidyCache, blocknum, voters, iapi.params)
+		subsidyCache := blockchain.NewSubsidyCache(0, params)
+		work := blockchain.CalcBlockWorkSubsidy(subsidyCache, blocknum, voters, params)
+		stake := blockchain.CalcStakeVoteSubsidy(subsidyCache, blocknum, params) * int64(voters)
+		tax := blockchain.CalcBlockTaxSubsidy(subsidyCache, blocknum, voters, params)
 		return dcrutil.Amount(work + stake + tax).ToCoin()
 	}
 

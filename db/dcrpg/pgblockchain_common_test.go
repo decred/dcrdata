@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrdata/db/cache/v2"
 	"github.com/decred/dcrdata/testutil/dbconfig/v2"
 	"github.com/decred/slog"
@@ -73,7 +73,7 @@ func openDB() (func() error, error) {
 		DBName: dbconfig.PGTestsDBName,
 	}
 	var err error
-	db, err = NewChainDB(&dbi, &chaincfg.MainNetParams, nil, true, true,
+	db, err = NewChainDB(&dbi, chaincfg.MainNetParams(), nil, true, true,
 		addrCacheCap, nil, new(dummyParser), nil)
 	cleanUp := func() error { return nil }
 	if db != nil {

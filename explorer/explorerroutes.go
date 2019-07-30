@@ -17,11 +17,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/dcrutil/v2"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/txscript/v2"
 
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/exchanges/v2"
@@ -849,7 +849,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				log.Errorf("Failed to decode pkScript: %v", err)
 			} else {
 				for ia := range scrAddrs {
-					addresses = append(addresses, scrAddrs[ia].EncodeAddress())
+					addresses = append(addresses, scrAddrs[ia].Address())
 				}
 			}
 
@@ -1219,7 +1219,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		case txhelpers.AddressErrorWrongNet:
 			status = ExpStatusWrongNetwork
 			message = fmt.Sprintf("The address %v is valid on %s, not %s.",
-				addr, addr.Net().Name, exp.NetName)
+				addr, exp.ChainParams.Net.String(), exp.NetName)
 			code = wrongNetwork
 		default:
 			status = ExpStatusError
@@ -1251,7 +1251,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		// short-circuit any queries.
 		addrData = &dbtypes.AddressInfo{
 			Address:         address,
-			Net:             addr.Net().Name,
+			Net:             exp.ChainParams.Net.String(),
 			IsDummyAddress:  true,
 			Balance:         new(dbtypes.AddressBalance),
 			UnconfirmedTxns: new(dbtypes.AddressTransactions),

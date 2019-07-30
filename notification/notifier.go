@@ -26,7 +26,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrd/rpcclient/v3"
+	"github.com/decred/dcrd/rpcclient/v4"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/rpcutils/v2"
 	"github.com/decred/dcrdata/txhelpers/v3"

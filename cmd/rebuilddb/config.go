@@ -7,8 +7,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrdata/v5/netparams"
 	flags "github.com/jessevdk/go-flags"
 )
@@ -21,7 +21,7 @@ const (
 
 var curDir, _ = os.Getwd()
 var activeNet = &netparams.MainNetParams
-var activeChain = &chaincfg.MainNetParams
+var activeChain = chaincfg.MainNetParams()
 
 var (
 	dcrdHomeDir = dcrutil.AppDataDir("dcrd", false)
@@ -176,15 +176,15 @@ func loadConfig() (*config, error) {
 	// Multiple networks can't be selected simultaneously.
 	numNets := 0
 	activeNet = &netparams.MainNetParams
-	activeChain = &chaincfg.MainNetParams
+	activeChain = chaincfg.MainNetParams()
 	if cfg.TestNet {
 		activeNet = &netparams.TestNet3Params
-		activeChain = &chaincfg.TestNet3Params
+		activeChain = chaincfg.TestNet3Params()
 		numNets++
 	}
 	if cfg.SimNet {
 		activeNet = &netparams.SimNetParams
-		activeChain = &chaincfg.SimNetParams
+		activeChain = chaincfg.SimNetParams()
 		numNets++
 	}
 	if numNets > 1 {

@@ -5,14 +5,15 @@ go 1.11
 require (
 	github.com/decred/base58 v1.0.0
 	github.com/decred/dcrd/blockchain v1.1.1
-	github.com/decred/dcrd/blockchain/stake v1.1.0
+	github.com/decred/dcrd/blockchain/stake v1.2.0
 	github.com/decred/dcrd/chaincfg v1.5.1
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.1
-	github.com/decred/dcrd/database v1.0.3
-	github.com/decred/dcrd/dcrutil v1.4.0
+	github.com/decred/dcrd/chaincfg/v2 v2.1.0
+	github.com/decred/dcrd/database v1.1.0
+	github.com/decred/dcrd/dcrutil/v2 v2.0.0
 	github.com/decred/dcrd/rpc/jsonrpc/types v1.0.0
-	github.com/decred/dcrd/rpcclient/v3 v3.0.0
-	github.com/decred/dcrd/txscript v1.1.0
+	github.com/decred/dcrd/rpcclient/v4 v4.0.0
+	github.com/decred/dcrd/txscript/v2 v2.0.0
 	github.com/decred/dcrd/wire v1.2.0
 	github.com/decred/dcrdata/semver v1.0.0
 	golang.org/x/net v0.0.0-20190613194153-d28f0bde5980 // indirect
