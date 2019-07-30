@@ -21,7 +21,7 @@ import (
 
 	"github.com/decred/base58"
 	"github.com/decred/dcrd/blockchain"
-	"github.com/decred/dcrd/blockchain/stake"
+	"github.com/decred/dcrd/blockchain/stake/v2"
 	cfg1 "github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v2"
