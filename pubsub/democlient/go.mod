@@ -25,9 +25,9 @@ replace (
 require (
 	github.com/decred/dcrd/chaincfg/v2 v2.0.2
 	github.com/decred/dcrd/dcrutil/v2 v2.0.0
-	github.com/decred/dcrdata/explorer/types/v2 v2.0.0
-	github.com/decred/dcrdata/pubsub/types/v3 v3.0.0
-	github.com/decred/dcrdata/pubsub/v3 v3.0.0
+	github.com/decred/dcrdata/explorer/types/v2 v2.0.1
+	github.com/decred/dcrdata/pubsub/types/v3 v3.0.1
+	github.com/decred/dcrdata/pubsub/v3 v3.0.2
 	github.com/decred/dcrdata/semver v1.0.0
 	github.com/decred/slog v1.0.0
 	github.com/google/go-cmp v0.3.0 // indirect

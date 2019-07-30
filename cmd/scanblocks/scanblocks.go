@@ -9,7 +9,7 @@ import (
 	"strconv"
 
 	"github.com/decred/dcrd/blockchain"
-	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/rpcclient/v4"
 	apitypes "github.com/decred/dcrdata/api/types/v4"
@@ -26,7 +26,7 @@ var cert = flag.String("cert", "dcrd.cert", "node RPC TLS certificate (when notl
 var notls = flag.Bool("notls", true, "Disable use of TLS for node connection")
 
 var (
-	activeNetParams = &chaincfg.MainNetParams
+	activeNetParams = chaincfg.MainNetParams()
 
 	backendLog      *slog.Backend
 	rpcclientLogger slog.Logger
