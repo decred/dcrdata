@@ -13,10 +13,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/decred/dcrd/blockchain/stake"
+	"github.com/decred/dcrd/blockchain/stake/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v2"
-	"github.com/decred/dcrd/database"
+	"github.com/decred/dcrd/database/v2"
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/rpcclient/v4"
 	"github.com/decred/dcrd/wire"
@@ -766,8 +766,7 @@ func (db *StakeDatabase) Open(dbName string) error {
 		isFreshDB = true
 	}
 
-	// Load the best block from stake db
-	paramsV1 := txhelpers.ParamsV2ToV1(db.params)
+	// Load the best block from stake db.
 	err = db.StakeDB.View(func(dbTx database.Tx) error {
 		v := dbTx.Metadata().Get([]byte("stakechainstate"))
 		if v == nil {
@@ -787,7 +786,7 @@ func (db *StakeDatabase) Open(dbName string) error {
 		header := msgBlock.Header
 
 		db.BestNode, errLocal = stake.LoadBestNode(dbTx, stakeDBHeight,
-			stakeDBHash, header, paramsV1)
+			stakeDBHash, header, db.params)
 		return errLocal
 	})
 	if err != nil {
@@ -796,7 +795,8 @@ func (db *StakeDatabase) Open(dbName string) error {
 		}
 		err = db.StakeDB.Update(func(dbTx database.Tx) error {
 			var errLocal error
-			db.BestNode, errLocal = stake.InitDatabaseState(dbTx, paramsV1)
+			db.BestNode, errLocal = stake.InitDatabaseState(dbTx, db.params,
+				&db.params.GenesisHash)
 			return errLocal
 		})
 		log.Debug("Initialized new stake db.")
