@@ -156,6 +156,8 @@ github.com/decred/dcrd/rpcclient/v2 v2.0.0 h1:Zy9twdEaOGUdCj/89LAs/IrStm6FcabxzB
 github.com/decred/dcrd/rpcclient/v2 v2.0.0/go.mod h1:9XjbRHBSNqN+DXz8I47gUZszvVjvugqLGK8TZQ4c/u0=
 github.com/decred/dcrd/rpcclient/v3 v3.0.0 h1:doabWkWWd8O6ccYqaLamE1mkQ5p8YoO5UJhkl5pAGpQ=
 github.com/decred/dcrd/rpcclient/v3 v3.0.0/go.mod h1:OQ361/iQMrJtWIg+S0XpZT4/AA6mU/46oOkBRWp/P/s=
+github.com/decred/dcrd/rpcclient/v4 v4.0.0 h1:8C3lNs2mvfu9CDjFzz1BOiDDbWBG9aTH82PCiGMP3FE=
+github.com/decred/dcrd/rpcclient/v4 v4.0.0/go.mod h1:DNGwfiL5H+K/pk3hVB0z5ypRdiDXMssR+YEqDUEXCQo=
 github.com/decred/dcrd/txscript v1.0.1 h1:IMgxZFCw3AyG4EbKwywE3SDNshOSHsoUK1Wk/5GqWJ0=
 github.com/decred/dcrd/txscript v1.0.1/go.mod h1:FqUX07Y+u3cJ1eIGPoyWbJg+Wk1NTllln/TyDpx9KnY=
 github.com/decred/dcrd/txscript v1.0.2 h1:kzJZDuteyzvI15VNhtgFHxeeq210RTkFyfzN7d+1iPo=
