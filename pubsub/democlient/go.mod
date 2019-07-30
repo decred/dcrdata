@@ -23,7 +23,7 @@ replace (
 )
 
 require (
-	github.com/decred/dcrd/chaincfg/v2 v2.0.2
+	github.com/decred/dcrd/chaincfg/v2 v2.1.0
 	github.com/decred/dcrd/dcrutil/v2 v2.0.0
 	github.com/decred/dcrdata/explorer/types/v2 v2.0.1
 	github.com/decred/dcrdata/pubsub/types/v3 v3.0.1
