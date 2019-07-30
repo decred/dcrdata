@@ -34,7 +34,7 @@ func main() {
 	backend.SetLevel(slog.LevelDebug)
 	psclient.UseLogger(backend)
 
-	params := &chaincfg.MainNetParams
+	params := chaincfg.MainNetParams()
 
 	// Create the pubsub client, opening a connection to the URL.
 	ctx, cancel := context.WithCancel(context.Background())
