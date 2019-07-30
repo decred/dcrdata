@@ -176,7 +176,7 @@ func loadConfig() (*config, error) {
 	// Multiple networks can't be selected simultaneously.
 	numNets := 0
 	activeNet = &netparams.MainNetParams
-	activeChain = &chaincfg.MainNetParams
+	activeChain = chaincfg.MainNetParams()
 	if cfg.TestNet {
 		activeNet = &netparams.TestNet3Params
 		activeChain = chaincfg.TestNet3Params()
