@@ -63,11 +63,11 @@ modern javascript features, as well as SCSS for styling.
 
 Always run the Current release or on the Current stable branch. Do not use `master` in production.
 
-|               | Series         | Branch         | Latest release tag | `dcrd` RPC server version required |
-| ------------- | -------------- | -------------- | ------------------ | ---------------------------------- |
-| Current       | 5.0            | `5.0-stable`   | `v5.0.3`           | ^5.0.0 (dcrd v1.4.0 to v1.5.0-pre@[`4f91b01`](https://github.com/decred/dcrd/commit/4f91b016160d3ee40ec466cc56e9ea9cdd19eeae)) |
-| Legacy        | 4.1            | `4.1-stable`   | `release-v4.1.4`   | same as dcrdata 5.0 |
-| Development   | 5.1            | `master`       | N/A                | ^6.0.0 (dcrd v1.5-pre@[`fd3e180a`](https://github.com/decred/dcrd/commit/fd3e180a7e19fe72adaddd3d88370cb50fa636e2) to `HEAD`) |
+|             | Series  | Branch        | Latest release tag | `dcrd` RPC server version required |
+| ----------- | ------- | ------------- | ------------------ | ---------------------------------- |
+| Current     | 5.1     | `5.1-stable`  | `v5.1.0`           | ^6.0.0 (dcrd v1.5-pre@[`fd3e180a`](https://github.com/decred/dcrd/commit/fd3e180a7e19fe72adaddd3d88370cb50fa636e2) to `HEAD`) |
+| Legacy      | 5.0     | `5.0-stable`  | `v5.0.3`           | ^5.0.0 (dcrd v1.4.0 to v1.5.0-pre@[`4f91b01`](https://github.com/decred/dcrd/commit/4f91b016160d3ee40ec466cc56e9ea9cdd19eeae)) |
+| Development | 5.2     | `master`      | N/A                | same as dcrdata 5.1 |
 
 ## Repository Overview
 
