@@ -43,6 +43,7 @@ var (
 	sigNewTxs           = pstypes.SigNewTxs
 	sigAddressTx        = pstypes.SigAddressTx
 	sigSyncStatus       = pstypes.SigSyncStatus
+	sigByeNow           = pstypes.SigByeNow
 )
 
 type txList struct {
@@ -78,6 +79,7 @@ type WebsocketHub struct {
 	bufferTickerChan   chan int
 	timeToSendTxBuffer atomic.Value
 	quitWSHandler      chan struct{}
+	killed             chan struct{}
 	requestLimit       int
 	ready              atomic.Value
 }
@@ -106,6 +108,7 @@ type client struct {
 	sync.RWMutex
 	subs   map[pstypes.HubSignal]struct{}
 	addrs  map[string]struct{}
+	killed chan struct{}
 	newTxs *txList
 }
 
@@ -113,6 +116,7 @@ func newClient() *client {
 	return &client{
 		subs:   make(map[pstypes.HubSignal]struct{}, 16),
 		addrs:  make(map[string]struct{}, 16),
+		killed: make(chan struct{}),
 		newTxs: newTxList(NewTxBufferSize),
 	}
 }
@@ -197,6 +201,7 @@ func NewWebsocketHub() *WebsocketHub {
 		HubRelay:         make(chan pstypes.HubMessage),
 		bufferTickerChan: make(chan int, clientSignalSize),
 		quitWSHandler:    make(chan struct{}),
+		killed:           make(chan struct{}),
 		requestLimit:     maxPayloadBytes, // 1 MB
 	}
 }
@@ -248,7 +253,8 @@ func (wsh *WebsocketHub) UnregisterClient(ch *clientHubSpoke) {
 
 // unregisterClient should only be called from the loop in run().
 func (wsh *WebsocketHub) unregisterClient(c *hubSpoke) {
-	if _, ok := wsh.clients[c]; !ok {
+	cl, ok := wsh.clients[c]
+	if !ok {
 		// unknown client, do not close channel
 		log.Warnf("unknown client")
 		return
@@ -257,19 +263,36 @@ func (wsh *WebsocketHub) unregisterClient(c *hubSpoke) {
 	wsh.setNumClients(len(wsh.clients))
 
 	close(*c)
+	<-cl.killed
 }
 
 // unregisterAllClients should only be called from the loop in run() or when no
 // other goroutines are accessing the clients map.
 func (wsh *WebsocketHub) unregisterAllClients() {
+	// Closing the client hubSpoke terminates the connection's send and receive
+	// loops, and thus the http.HandlerFunc.
 	spokes := make([]*hubSpoke, 0, len(wsh.clients))
-	for c := range wsh.clients {
+	// A client's killed channel is closed when the http.HandlerFunc returns.
+	kills := make([]chan struct{}, 0, len(wsh.clients))
+	for c, cl := range wsh.clients {
 		spokes = append(spokes, c)
+		kills = append(kills, cl.killed)
 	}
+
+	// Unregister each client (tracked by hubSpoke), and signal for the client
+	// to shutdown by closing the channel.
 	for _, c := range spokes {
 		delete(wsh.clients, c)
-		close(*c)
+		close(*c) // will terminate the connection's (*PubSubHub).sendLoop
 	}
+	wsh.setNumClients(0)
+
+	// Wait for each client to shutdown. The client.killed channels are closed
+	// as the http.HandlerFunc of each connection returns.
+	for _, k := range kills {
+		<-k
+	}
+	log.Debugf("Unregistered and killed %d clients.", len(kills))
 }
 
 // Periodically ping clients over websocket connection. Stop the ping loop by
@@ -297,10 +320,20 @@ func (wsh *WebsocketHub) pingClients() chan<- struct{} {
 
 // Stop kills the run() loop and unregisters all clients (connections).
 func (wsh *WebsocketHub) Stop() {
-	// End the run() loop, allowing in progress operations to complete.
+	// Tell the clients we're forcibly stopping the connection.
+	wsh.HubRelay <- pstypes.HubMessage{Signal: sigByeNow}
+
+	// End the Run() loop, allowing in progress operations to complete.
 	close(wsh.quitWSHandler)
 	// Do not close HubRelay since there are multiple senders; Run() is the
 	// receiver.
+
+	// Wait for Run and its defers to complete.
+	select {
+	case <-time.NewTimer(5 * time.Second).C:
+		log.Warnf("Timed out waiting for Run loop to terminate.")
+	case <-wsh.killed:
+	}
 }
 
 // Run starts the main event loop, which handles the following: 1. receiving
@@ -311,6 +344,8 @@ func (wsh *WebsocketHub) Stop() {
 func (wsh *WebsocketHub) Run() {
 	log.Info("Starting WebsocketHub run loop.")
 
+	defer close(wsh.killed) // must be last since this is a sentinel
+
 	// Start the transaction buffer send ticker loop.
 	go wsh.periodicTxBufferSend()
 
@@ -319,11 +354,18 @@ func (wsh *WebsocketHub) Run() {
 	defer close(stopPing)
 
 	defer func() {
-		// Drain the receiving channels if they were not already closed by Stop.
-		for range wsh.HubRelay {
+		// Drain the receiving channels so that PubSubHub or any other
+		// goroutines presently sending on HubRelay do not hang.
+		for {
+			select {
+			case <-wsh.HubRelay:
+			default:
+				return
+			}
 		}
 	}()
 
+	// Unregister and wait for each client to shutdown.
 	defer wsh.unregisterAllClients()
 
 	for {
@@ -347,7 +389,6 @@ func (wsh *WebsocketHub) Run() {
 				break
 			}
 
-			var someTxBuffersReady bool
 			switch hubMsg.Signal {
 			case sigNewBlock:
 				// Do not log when explorer update status is active.
@@ -372,21 +413,9 @@ func (wsh *WebsocketHub) Run() {
 					continue
 				}
 				log.Tracef("Received new tx %s. Queueing in each client's send buffer...", newtx.Hash)
-				someTxBuffersReady = wsh.maybeSendTxns(newtx)
-			case sigSubscribe, sigUnsubscribe:
-				log.Warnf("sigSubscribe and sigUnsubscribe are not broadcastable events.")
-				continue // break events
-			case sigSyncStatus:
-				// TODO
-			default:
-				log.Errorf("Unknown hub signal: %v", hubMsg.Signal)
-				continue // break events
-			}
-
-			if hubMsg.Signal == sigNewTx {
 				// Only signal clients if there are tx buffers ready to send or
 				// the ticker has fired.
-				if !(someTxBuffersReady || wsh.TimeToSendTxBuffer()) {
+				if !(wsh.maybeSendTxns(newtx) || wsh.TimeToSendTxBuffer()) {
 					break
 				}
 
@@ -397,6 +426,27 @@ func (wsh *WebsocketHub) Run() {
 				// PubSubHub with a nil slice to be a valid message.
 				hubMsg.Signal = sigNewTxs
 				hubMsg.Msg = ([]*exptypes.MempoolTx)(nil) // PubSubHub accesses each client's own slice.
+			case sigSubscribe, sigUnsubscribe:
+				log.Warnf("sigSubscribe and sigUnsubscribe are not broadcastable events.")
+				continue // break events
+			case sigSyncStatus:
+				// TODO
+			case sigByeNow:
+				log.Infof("Warning all %d clients of impending hang-up.", len(wsh.clients))
+				// Broadcast "bye" to all clients (not a subscription).
+				for spoke := range wsh.clients {
+					// Signal or unregister the client.
+					select {
+					case *spoke <- hubMsg:
+					default: // includes when client.killed is closed
+						log.Tracef("client gone")
+						wsh.unregisterClient(spoke)
+					}
+				}
+				continue
+			default:
+				log.Errorf("Unknown hub signal: %v", hubMsg.Signal)
+				continue // break events
 			}
 
 			// Send the signal to PubSubHub.
@@ -412,7 +462,7 @@ func (wsh *WebsocketHub) Run() {
 				// Signal or unregister the client.
 				select {
 				case *spoke <- hubMsg:
-				default:
+				default: // includes when client.killed is closed
 					wsh.unregisterClient(spoke)
 				}
 			}
