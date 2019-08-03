@@ -348,7 +348,7 @@ func New(cfg *ExplorerConfig) *explorerUI {
 
 	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
 		"rawtx", "status", "parameters", "agenda", "agendas", "charts",
-		"sidechains", "disapproved", "ticketpool", "nexthome", "statistics",
+		"sidechains", "disapproved", "ticketpool", "visuakblocks", "statistics",
 		"windows", "timelisting", "addresstable", "proposals", "proposal",
 		"market", "insight_root"}
 

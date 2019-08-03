@@ -107,7 +107,7 @@ func (e expStatus) IsSyncing() bool {
 	return e == ExpStatusSyncing
 }
 
-// number of blocks displayed on /nexthome
+// number of blocks displayed on /visualblocks
 const homePageBlocksMaxCount = 30
 
 // netName returns the name used when referring to a decred network.
@@ -298,8 +298,8 @@ func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request)
 	io.WriteString(w, str)
 }
 
-// NextHome is the page handler for the "/nexthome" path.
-func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
+// VisualBlocks is the page handler for the "/visualblocks" path.
+func (exp *explorerUI) VisualBlocks(w http.ResponseWriter, r *http.Request) {
 	// Get top N blocks and trim each block to have just the fields required for
 	// this page.
 	height, err := exp.dataSource.GetHeight()
@@ -337,7 +337,7 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	exp.pageData.RLock()
 	mempoolInfo.Subsidy = exp.pageData.HomeInfo.NBlockSubsidy
 
-	str, err := exp.templates.exec("nexthome", struct {
+	str, err := exp.templates.execTemplateToString("visualblocks", struct {
 		*CommonPageData
 		Info    *types.HomeInfo
 		Mempool *types.TrimmedMempoolInfo

@@ -661,7 +661,7 @@ func _main(ctx context.Context) error {
 	webMux := chi.NewRouter()
 	webMux.With(explore.SyncStatusPageIntercept).Group(func(r chi.Router) {
 		r.Get("/", explore.Home)
-		r.Get("/nexthome", explore.NextHome)
+		r.Get("/visualblocks", explore.VisualBlocks)
 	})
 	webMux.Get("/ws", explore.RootWebsocket)
 	webMux.Get("/ps", psHub.WebSocketHandler)

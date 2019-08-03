@@ -207,8 +207,8 @@ export default class extends Controller {
   }
 
   connect () {
-    this.handleNextHomeBlockUpdate = this._handleNextHomeBlockUpdate.bind(this)
-    globalEventBus.on('BLOCK_RECEIVED', this.handleNextHomeBlockUpdate)
+    this.handleVisualBlocksBlockUpdate = this._handleVisualBlocksUpdate.bind(this)
+    globalEventBus.on('BLOCK_RECEIVED', this.handleVisualBlocksUpdate)
 
     ws.registerEvtHandler('getmempooltrimmedResp', (event) => {
       console.log('received mempooltx response', event)
@@ -230,11 +230,11 @@ export default class extends Controller {
   disconnect () {
     ws.deregisterEvtHandlers('getmempooltrimmedResp')
     ws.deregisterEvtHandlers('mempool')
-    globalEventBus.off('BLOCK_RECEIVED', this.handleNextHomeBlockUpdate)
+    globalEventBus.off('BLOCK_RECEIVED', this.handleVisualBlocksUpdate)
     window.removeEventListener('resize', this.refreshBlocksDisplay)
   }
 
-  _handleNextHomeBlockUpdate (newBlock) {
+  _handleVisualBlocksBlockUpdate (newBlock) {
     let block = newBlock.block
     // show only regular tx in block.Transactions, exclude coinbase (reward) transactions
     const transactions = block.Tx.filter(tx => !tx.Coinbase)

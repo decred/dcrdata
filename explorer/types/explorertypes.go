@@ -149,7 +149,7 @@ type TxBasic struct {
 	Coinbase      bool
 }
 
-// TrimmedTxInfo for use with /nexthome
+// TrimmedTxInfo for use with /visualblocks
 type TrimmedTxInfo struct {
 	*TxBasic
 	Fees      float64
