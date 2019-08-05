@@ -98,7 +98,7 @@ const (
 // which the caller should wait to receive the result. As such, this method
 // should be called as a goroutine or it will hang on send if the channel is
 // unbuffered.
-func (pgb *ChainDBRPC) SyncChainDBAsync(ctx context.Context, res chan dbtypes.SyncResult,
+func (pgb *ChainDB) SyncChainDBAsync(ctx context.Context, res chan dbtypes.SyncResult,
 	client rpcutils.MasterBlockGetter, updateAllAddresses, newIndexes bool,
 	updateExplorer chan *chainhash.Hash, barLoad chan *dbtypes.ProgressBarLoad) {
 	if pgb == nil {
@@ -127,7 +127,7 @@ func (pgb *ChainDBRPC) SyncChainDBAsync(ctx context.Context, res chan dbtypes.Sy
 // RPC client. The table indexes may be force-dropped and recreated by setting
 // newIndexes to true. The quit channel is used to break the sync loop. For
 // example, closing the channel on SIGINT.
-func (pgb *ChainDBRPC) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockGetter,
+func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockGetter,
 	updateAllAddresses, newIndexes bool, updateExplorer chan *chainhash.Hash,
 	barLoad chan *dbtypes.ProgressBarLoad) (int64, error) {
 	// Note that we are doing a batch blockchain sync.
@@ -605,7 +605,7 @@ func parseUnknownTicketError(err error) (hash *chainhash.Hash) {
 // supplementUnknownTicketError checks the passed error for the "unknown ticket
 // [hash] spent in block" message, and supplements matching errors with the
 // block height of the ticket and switches to help recovery.
-func (pgb *ChainDBRPC) supplementUnknownTicketError(err error) error {
+func (pgb *ChainDB) supplementUnknownTicketError(err error) error {
 	ticketHash := parseUnknownTicketError(err)
 	if ticketHash == nil {
 		return err

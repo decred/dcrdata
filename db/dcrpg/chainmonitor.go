@@ -17,13 +17,13 @@ import (
 // ChainMonitor responds to block connection and chain reorganization.
 type ChainMonitor struct {
 	ctx            context.Context
-	db             *ChainDBRPC
+	db             *ChainDB
 	ConnectingLock chan struct{}
 	DoneConnecting chan struct{}
 }
 
 // NewChainMonitor creates a new ChainMonitor.
-func (pgb *ChainDBRPC) NewChainMonitor(ctx context.Context) *ChainMonitor {
+func (pgb *ChainDB) NewChainMonitor(ctx context.Context) *ChainMonitor {
 	if pgb == nil {
 		return nil
 	}

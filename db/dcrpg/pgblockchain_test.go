@@ -332,8 +332,7 @@ func TestUpdateChainState(t *testing.T) {
 		},
 	}
 
-	dbRPC := new(ChainDBRPC)
-	dbRPC.ChainDB = &ChainDB{
+	dbRPC := &ChainDB{
 		chainParams: &chaincfg.Params{
 			RuleChangeActivationInterval: 8064,
 		},

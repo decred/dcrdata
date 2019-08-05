@@ -20,7 +20,7 @@ import (
 
 // GetRawTransaction gets a chainjson.TxRawResult for the specified transaction
 // hash.
-func (pgb *ChainDBRPC) GetRawTransaction(txid *chainhash.Hash) (*chainjson.TxRawResult, error) {
+func (pgb *ChainDB) GetRawTransaction(txid *chainhash.Hash) (*chainjson.TxRawResult, error) {
 	txraw, err := rpcutils.GetTransactionVerboseByID(pgb.Client, txid)
 	if err != nil {
 		log.Errorf("GetRawTransactionVerbose failed for: %s", txid)
@@ -43,7 +43,7 @@ func (pgb *ChainDB) GetBlockHeight(hash string) (int64, error) {
 
 // SendRawTransaction attempts to decode the input serialized transaction,
 // passed as hex encoded string, and broadcast it, returning the tx hash.
-func (pgb *ChainDBRPC) SendRawTransaction(txhex string) (string, error) {
+func (pgb *ChainDB) SendRawTransaction(txhex string) (string, error) {
 	msg, err := txhelpers.MsgTxFromHex(txhex)
 	if err != nil {
 		log.Errorf("SendRawTransaction failed: could not decode hex")
@@ -130,7 +130,7 @@ func (pgb *ChainDB) AddressIDsByOutpoint(txHash string, voutIndex uint32) ([]uin
 // specified address, max number of transactions, and offset into the transaction
 // list. The search results are in reverse temporal order.
 // TODO: Does this really need all the prev vout extra data?
-func (pgb *ChainDBRPC) InsightSearchRPCAddressTransactions(addr string, count,
+func (pgb *ChainDB) InsightSearchRPCAddressTransactions(addr string, count,
 	skip int) []*chainjson.SearchRawTransactionsResult {
 	address, err := dcrutil.DecodeAddress(addr, pgb.chainParams)
 	if err != nil {
@@ -150,7 +150,7 @@ func (pgb *ChainDBRPC) InsightSearchRPCAddressTransactions(addr string, count,
 
 // GetTransactionHex returns the full serialized transaction for the specified
 // transaction hash as a hex encode string.
-func (pgb *ChainDBRPC) GetTransactionHex(txid *chainhash.Hash) string {
+func (pgb *ChainDB) GetTransactionHex(txid *chainhash.Hash) string {
 	txraw, err := rpcutils.GetTransactionVerboseByID(pgb.Client, txid)
 
 	if err != nil {
@@ -163,13 +163,13 @@ func (pgb *ChainDBRPC) GetTransactionHex(txid *chainhash.Hash) string {
 
 // GetBlockVerboseByHash returns a *chainjson.GetBlockVerboseResult for the
 // specified block hash, optionally with transaction details.
-func (pgb *ChainDBRPC) GetBlockVerboseByHash(hash string, verboseTx bool) *chainjson.GetBlockVerboseResult {
+func (pgb *ChainDB) GetBlockVerboseByHash(hash string, verboseTx bool) *chainjson.GetBlockVerboseResult {
 	return rpcutils.GetBlockVerboseByHash(pgb.Client, hash, verboseTx)
 }
 
 // GetTransactionsForBlockByHash returns a *apitypes.BlockTransactions for the
 // block with the specified hash.
-func (pgb *ChainDBRPC) GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions {
+func (pgb *ChainDB) GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions {
 	blockVerbose := rpcutils.GetBlockVerboseByHash(pgb.Client, hash, false)
 
 	return makeBlockTransactions(blockVerbose)

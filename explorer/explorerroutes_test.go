@@ -17,10 +17,10 @@ const (
 // ChainDBStub satisfies explorerDataSource, but will likely panic with a nil
 // pointer dereference for methods we do not explicitly define here.
 type ChainDBStub struct {
-	// Embedding *dcrpg.ChainDBRPC promotes all of the methods needed for
+	// Embedding *dcrpg.ChainDB promotes all of the methods needed for
 	// WireDBStub to satisfy the explorerDataSource interface. This allows us to
 	// only implement for ChainDBStub the methods required for the tests.
-	*dcrpg.ChainDBRPC
+	*dcrpg.ChainDB
 }
 
 // GetChainParams is needed by explorer.New.
