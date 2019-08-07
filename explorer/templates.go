@@ -32,19 +32,26 @@ type templates struct {
 	common    []string
 	folder    string
 	helpers   template.FuncMap
+	exec      func(string, interface{}) (string, error)
 }
 
-func newTemplates(folder string, common []string, helpers template.FuncMap) templates {
+func newTemplates(folder string, reload bool, common []string, helpers template.FuncMap) templates {
 	com := make([]string, 0, len(common))
 	for _, file := range common {
 		com = append(com, filepath.Join(folder, file+".tmpl"))
 	}
-	return templates{
+	t := templates{
 		templates: make(map[string]pageTemplate),
 		common:    com,
 		folder:    folder,
 		helpers:   helpers,
 	}
+	t.exec = t.execTemplateToString
+	if reload {
+		t.exec = t.execWithReload
+	}
+
+	return t
 }
 
 func (t *templates) addTemplate(name string) error {
@@ -84,10 +91,20 @@ func (t *templates) execTemplateToString(name string, data interface{}) (string,
 	if !ok {
 		return "", fmt.Errorf("Template %s not known", name)
 	}
-
 	var page strings.Builder
 	err := temp.template.ExecuteTemplate(&page, name, data)
 	return page.String(), err
+}
+
+// execWithReload is the same as execTemplateToString, but will reload the
+// template first.
+func (t *templates) execWithReload(name string, data interface{}) (string, error) {
+	err := t.addTemplate(name)
+	if err != nil {
+		return "", fmt.Errorf("execWithReload: %v", err)
+	}
+	log.Debugf("reloaded HTML template \"%s\"", name)
+	return t.execTemplateToString(name, data)
 }
 
 var toInt64 = func(v interface{}) int64 {
