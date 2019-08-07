@@ -183,7 +183,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	str, err := exp.templates.execTemplateToString("home", struct {
+	str, err := exp.templates.exec("home", struct {
 		*CommonPageData
 		Info          *types.HomeInfo
 		Mempool       *types.MempoolInfo
@@ -231,7 +231,7 @@ func (exp *explorerUI) SideChains(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	str, err := exp.templates.execTemplateToString("sidechains", struct {
+	str, err := exp.templates.exec("sidechains", struct {
 		*CommonPageData
 		Data []*dbtypes.BlockStatus
 	}{
@@ -251,7 +251,7 @@ func (exp *explorerUI) SideChains(w http.ResponseWriter, r *http.Request) {
 
 // InsightRootPage is the page for the "/insight" path.
 func (exp *explorerUI) InsightRootPage(w http.ResponseWriter, r *http.Request) {
-	str, err := exp.templates.execTemplateToString("insight_root", struct {
+	str, err := exp.templates.exec("insight_root", struct {
 		*CommonPageData
 	}{
 		CommonPageData: exp.commonData(r),
@@ -280,7 +280,7 @@ func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	str, err := exp.templates.execTemplateToString("disapproved", struct {
+	str, err := exp.templates.exec("disapproved", struct {
 		*CommonPageData
 		Data []*dbtypes.BlockStatus
 	}{
@@ -337,7 +337,7 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	exp.pageData.RLock()
 	mempoolInfo.Subsidy = exp.pageData.HomeInfo.NBlockSubsidy
 
-	str, err := exp.templates.execTemplateToString("nexthome", struct {
+	str, err := exp.templates.exec("nexthome", struct {
 		*CommonPageData
 		Info    *types.HomeInfo
 		Mempool *types.TrimmedMempoolInfo
@@ -394,7 +394,7 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	str, err := exp.templates.execTemplateToString("windows", struct {
+	str, err := exp.templates.exec("windows", struct {
 		*CommonPageData
 		Data         []*dbtypes.BlocksGroupedInfo
 		WindowSize   int64
@@ -497,7 +497,7 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 		data[0].FormattedStartTime = fmt.Sprintf("%s YTD", time.Now().Format("2006"))
 	}
 
-	str, err := exp.templates.execTemplateToString("timelisting", struct {
+	str, err := exp.templates.exec("timelisting", struct {
 		*CommonPageData
 		Data         []*dbtypes.BlocksGroupedInfo
 		TimeGrouping string
@@ -574,7 +574,7 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 		s.MainChain = blockStatus.IsMainchain
 	}
 
-	str, err := exp.templates.execTemplateToString("explorer", struct {
+	str, err := exp.templates.exec("explorer", struct {
 		*CommonPageData
 		Data       []*types.BlockBasic
 		BestBlock  int64
@@ -656,7 +656,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		pageData.FiatConversion = exp.xcBot.Conversion(data.TotalSent)
 	}
 
-	str, err := exp.templates.execTemplateToString("block", pageData)
+	str, err := exp.templates.exec("block", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
@@ -676,7 +676,7 @@ func (exp *explorerUI) Mempool(w http.ResponseWriter, r *http.Request) {
 	// Prevent modifications to the shared inventory struct (e.g. in the
 	// MempoolMonitor) while marshaling the inventory.
 	inv.RLock()
-	str, err := exp.templates.execTemplateToString("mempool", struct {
+	str, err := exp.templates.exec("mempool", struct {
 		*CommonPageData
 		Mempool *types.MempoolInfo
 	}{
@@ -697,7 +697,7 @@ func (exp *explorerUI) Mempool(w http.ResponseWriter, r *http.Request) {
 
 // Ticketpool is the page handler for the "/ticketpool" path.
 func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
-	str, err := exp.templates.execTemplateToString("ticketpool", exp.commonData(r))
+	str, err := exp.templates.exec("ticketpool", exp.commonData(r))
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
@@ -1175,7 +1175,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		pageData.Conversions.Fees = exp.xcBot.Conversion(tx.Fee.ToCoin())
 	}
 
-	str, err := exp.templates.execTemplateToString("tx", pageData)
+	str, err := exp.templates.exec("tx", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
@@ -1284,7 +1284,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		CRLFDownload:   UseCRLF,
 		FiatBalance:    conversion,
 	}
-	str, err := exp.templates.execTemplateToString("address", pageData)
+	str, err := exp.templates.exec("address", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
@@ -1326,7 +1326,7 @@ func (exp *explorerUI) AddressTable(w http.ResponseWriter, r *http.Request) {
 		TxnCount: addrData.TxnCount + addrData.NumUnconfirmed,
 	}
 
-	response.HTML, err = exp.templates.execTemplateToString("addresstable", struct {
+	response.HTML, err = exp.templates.exec("addresstable", struct {
 		Data *dbtypes.AddressInfo
 	}{
 		Data: addrData,
@@ -1415,7 +1415,7 @@ func (exp *explorerUI) AddressListData(address string, txnType dbtypes.AddrTxnVi
 // DecodeTxPage handles the "decode/broadcast transaction" page. The actual
 // decoding or broadcasting is handled by the websocket hub.
 func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
-	str, err := exp.templates.execTemplateToString("rawtx", struct {
+	str, err := exp.templates.exec("rawtx", struct {
 		*CommonPageData
 	}{
 		CommonPageData: exp.commonData(r),
@@ -1432,7 +1432,7 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 
 // Charts handles the charts displays showing the various charts plotted.
 func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
-	str, err := exp.templates.execTemplateToString("charts", struct {
+	str, err := exp.templates.exec("charts", struct {
 		*CommonPageData
 		Premine int64
 	}{
@@ -1581,7 +1581,7 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code, message, addition
 			http.StatusServiceUnavailable)
 		return
 	}
-	str, err := exp.templates.execTemplateToString("status", struct {
+	str, err := exp.templates.exec("status", struct {
 		*CommonPageData
 		StatusType     expStatus
 		Code           string
@@ -1650,7 +1650,7 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 		AddressPrefix        []types.AddrPrefix
 	}
 
-	str, err := exp.templates.execTemplateToString("parameters", struct {
+	str, err := exp.templates.exec("parameters", struct {
 		*CommonPageData
 		ExtendedParams
 	}{
@@ -1727,7 +1727,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 		blocksLeft = 0
 	}
 
-	str, err := exp.templates.execTemplateToString("agenda", struct {
+	str, err := exp.templates.exec("agenda", struct {
 		*CommonPageData
 		Ai            *agendas.AgendaTagged
 		QuorumVotes   uint32
@@ -1768,7 +1768,7 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	str, err := exp.templates.execTemplateToString("agendas", struct {
+	str, err := exp.templates.exec("agendas", struct {
 		*CommonPageData
 		Agendas       []*agendas.AgendaTagged
 		VotingSummary *agendas.VoteSummary
@@ -1834,7 +1834,7 @@ func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	commonData := exp.commonData(r)
-	str, err := exp.templates.execTemplateToString("proposal", struct {
+	str, err := exp.templates.exec("proposal", struct {
 		*CommonPageData
 		Data          *pitypes.ProposalInfo
 		PoliteiaURL   string
@@ -1897,7 +1897,7 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	str, err := exp.templates.execTemplateToString("proposals", struct {
+	str, err := exp.templates.exec("proposals", struct {
 		*CommonPageData
 		Proposals     []*pitypes.ProposalInfo
 		VotesStatus   map[pitypes.VoteStatusType]string
@@ -2041,7 +2041,7 @@ func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 	}
 	exp.pageData.RUnlock()
 
-	str, err := exp.templates.execTemplateToString("statistics", struct {
+	str, err := exp.templates.exec("statistics", struct {
 		*CommonPageData
 		Stats types.StatsInfo
 	}{
@@ -2061,7 +2061,7 @@ func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 
 // MarketPage is the page handler for the "/agendas" path.
 func (exp *explorerUI) MarketPage(w http.ResponseWriter, r *http.Request) {
-	str, err := exp.templates.execTemplateToString("market", struct {
+	str, err := exp.templates.exec("market", struct {
 		*CommonPageData
 		DepthMarkets []string
 		StickMarkets map[string]string

@@ -287,6 +287,7 @@ type ExplorerConfig struct {
 	PoliteiaURL       string
 	MainnetLink       string
 	TestnetLink       string
+	ReloadHTML        bool
 }
 
 // New returns an initialized instance of explorerUI
@@ -352,7 +353,7 @@ func New(cfg *ExplorerConfig) *explorerUI {
 	log.Infof("Mean Voting Blocks calculated: %d", exp.pageData.HomeInfo.Params.MeanVotingBlocks)
 
 	commonTemplates := []string{"extras"}
-	exp.templates = newTemplates(cfg.Viewsfolder, commonTemplates, makeTemplateFuncMap(exp.ChainParams))
+	exp.templates = newTemplates(cfg.Viewsfolder, cfg.ReloadHTML, commonTemplates, makeTemplateFuncMap(exp.ChainParams))
 
 	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
 		"rawtx", "status", "parameters", "agenda", "agendas", "charts",
