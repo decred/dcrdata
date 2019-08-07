@@ -13,6 +13,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrdata/db/dcrpg/v4/internal"
 	"github.com/decred/dcrdata/stakedb/v3"
+	"github.com/lib/pq"
 )
 
 // The database schema is versioned in the meta table as follows.
@@ -280,7 +281,7 @@ func removeTableComments(db *sql.DB) {
 // the ticket pool evolved appropriately.
 func upgrade110to120(u *updater) error {
 	// Create the stats table and height index.
-	log.Infof("performing update 1.1.0 -> 1.2.0")
+	log.Infof("performing database upgrade 1.1.0 -> 1.2.0")
 	exists, err := TableExists(u.db, "stats")
 	if err != nil {
 		return err
@@ -325,6 +326,7 @@ func upgrade110to120(u *updater) error {
 	if err != nil {
 		return makeErr("block hash query error: %v", err)
 	}
+	defer blockRows.Close()
 	// Set the stake database to the genesis block.
 	dir, err := ioutil.TempDir("", "tempstake")
 	if err != nil {
@@ -341,7 +343,10 @@ func upgrade110to120(u *updater) error {
 		return makeErr("failed to prepare stats insert statement: %v", err)
 	}
 	// sql does not deal with PostgreSQL array syntax, it must be Sprintf'd.
-	winnersStmt := "UPDATE blocks SET winners = %s where hash = $1;"
+	winnersStmt, err := dbTx.Prepare("UPDATE blocks SET winners = $1 where hash = $2;")
+	if err != nil {
+		return makeErr("failed to prepare winners insert statement: %v", err)
+	}
 
 	checkHeight := 0
 	var hashStr string
@@ -383,7 +388,7 @@ func upgrade110to120(u *updater) error {
 		if err != nil {
 			return makeErr("insert Exec: %v", err)
 		}
-		_, err = dbTx.Exec(fmt.Sprintf(winnersStmt, internal.MakeARRAYOfTEXT(poolInfo.Winners)), hashStr)
+		_, err = winnersStmt.Exec(pq.Array(poolInfo.Winners), hashStr)
 		if err != nil {
 			return makeErr("update Exec: %v", err)
 		}

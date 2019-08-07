@@ -281,9 +281,9 @@ func MakeBlockInsertStatement(block *dbtypes.Block, checked bool) string {
 func makeBlockInsertStatement(txDbIDs, stxDbIDs []uint64, rtxs, stxs, winners []string, checked bool) string {
 	rtxDbIDsARRAY := makeARRAYOfBIGINTs(txDbIDs)
 	stxDbIDsARRAY := makeARRAYOfBIGINTs(stxDbIDs)
-	rtxTEXTARRAY := MakeARRAYOfTEXT(rtxs)
-	stxTEXTARRAY := MakeARRAYOfTEXT(stxs)
-	winnersARRAY := MakeARRAYOfTEXT(winners)
+	rtxTEXTARRAY := makeARRAYOfTEXT(rtxs)
+	stxTEXTARRAY := makeARRAYOfTEXT(stxs)
+	winnersARRAY := makeARRAYOfTEXT(winners)
 	var insert string
 	if checked {
 		insert = UpsertBlockRow
