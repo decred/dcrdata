@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strconv"
 	"sync"
 	"time"
 
@@ -35,6 +34,26 @@ const (
 	TicketPoolValue = "ticket-pool-value"
 	WindMissedVotes = "missed-votes"
 	PercentStaked   = "stake-participation"
+
+	// Some chartResponse keys
+	heightKey      = "h"
+	timeKey        = "t"
+	binKey         = "bin"
+	axisKey        = "axis"
+	supplyKey      = "supply"
+	windowKey      = "window"
+	diffKey        = "diff"
+	priceKey       = "price"
+	countKey       = "count"
+	offsetKey      = "offset"
+	circulationKey = "circulation"
+	poolValKey     = "poolval"
+	missedKey      = "missed"
+	sizeKey        = "size"
+	feesKey        = "fees"
+	durationKey    = "duration"
+	workKey        = "work"
+	rateKey        = "rate"
 )
 
 // binLevel specifies the granularity of data.
@@ -52,6 +71,15 @@ const (
 	HeightAxis axisType = "height"
 	TimeAxis   axisType = "time"
 )
+
+// Check if the chart is window binned.
+func isWindowBin(chart string) bool {
+	switch chart {
+	case POWDifficulty, TicketPrice, WindMissedVotes:
+		return true
+	}
+	return false
+}
 
 // DefaultBinLevel will be used if a bin level is not specified to
 // (*ChartData).Chart (via empty string), or if the provided BinLevel is
@@ -342,8 +370,19 @@ type cachedChart struct {
 	data    []byte
 }
 
-// A generic structure for JSON encoding keyed data sets.
+// A generic structure for JSON encoding arbitrary data.
 type chartResponse map[string]interface{}
+
+// A commonly used seed for chartResponse encoding.
+func binAxisSeed(bin binLevel, axis axisType) chartResponse {
+	return chartResponse{
+		binKey:  bin,
+		axisKey: axis,
+	}
+}
+
+// A generic structure for JSON encoding keyed data sets
+type lengtherMap map[string]lengther
 
 // ChartUpdater is a pair of functions for fetching and appending chart data.
 // The two steps are divided so that ChartData can check whether another thread
@@ -826,10 +865,7 @@ func NewChartData(ctx context.Context, height uint32, chainParams *chaincfg.Para
 // A cacheKey is used to specify cached data of a given type and BinLevel.
 func cacheKey(chartID string, bin binLevel, axis axisType) string {
 	// The axis type is only required when bin level is set to DayBin.
-	if bin == DayBin {
-		return chartID + "-" + string(bin) + "-" + string(axis)
-	}
-	return chartID + "-" + string(bin)
+	return chartID + "-" + string(bin) + "-" + string(axis)
 }
 
 // Grabs the cacheID associated with the provided BinLevel. Should
@@ -895,6 +931,9 @@ var chartMakers = map[string]ChartMaker{
 // Chart will return a JSON-encoded chartResponse of the provided type
 // and BinLevel.
 func (charts *ChartData) Chart(chartID, binString, axisString string) ([]byte, error) {
+	if isWindowBin(chartID) {
+		binString = string(WindowBin)
+	}
 	bin := ParseBin(binString)
 	axis := ParseAxis(axisString)
 	cache, found, cacheID := charts.getCache(chartID, bin, axis)
@@ -905,7 +944,7 @@ func (charts *ChartData) Chart(chartID, binString, axisString string) ([]byte, e
 	if !hasMaker {
 		return nil, UnknownChartErr
 	}
-	// Do the locking here, rather than in encodeXY, so that the helper functions
+	// Do the locking here, rather than in encode, so that the helper functions
 	// (accumulate, btw) are run under lock.
 	charts.mtx.RLock()
 	data, err := maker(charts, bin, axis)
@@ -917,34 +956,29 @@ func (charts *ChartData) Chart(chartID, binString, axisString string) ([]byte, e
 	return data, nil
 }
 
-// Keys used for the chartResponse data sets.
-var responseKeys = []string{"x", "y", "z"}
-
-// Encode the slices. The set lengths are truncated to the smallest of the
-// arguments.
-func (charts *ChartData) encode(sets ...lengther) ([]byte, error) {
+// Encode the data sets. Optionally add arbitrary additional data as part of the
+// chartRespnse seed. A nil seed is allowed.
+func encode(sets lengtherMap, seed chartResponse) ([]byte, error) {
 	if len(sets) == 0 {
 		return nil, fmt.Errorf("encode called without arguments")
 	}
-	smaller := sets[0].Length()
-	for _, x := range sets {
-		l := x.Length()
-		if l < smaller {
+	smaller := -1
+	for _, set := range sets {
+		l := set.Length()
+		if smaller == -1 {
+			smaller = l
+		} else if l < smaller {
 			smaller = l
 		}
 	}
-	response := make(chartResponse)
-	for i := range sets {
-		rk := responseKeys[i%len(responseKeys)]
-		// If the length of the responseKeys array has been exceeded, add a integer
-		// suffix to the response key. The key progression is x, y, z, x1, y1, z1,
-		// x2, ...
-		if i >= len(responseKeys) {
-			rk += strconv.Itoa(i / len(responseKeys))
-		}
-		response[rk] = sets[i].Truncate(smaller)
+	if len(seed) == 0 {
+		seed = make(chartResponse)
 	}
-	return json.Marshal(response)
+	for k, v := range sets {
+		seed[k] = v.Truncate(smaller)
+	}
+	return json.Marshal(seed)
+
 }
 
 // Each point is translated to the sum of all points before and itself.
@@ -1010,80 +1044,168 @@ func avgBlockTimes(ticks, blocks ChartUints) (ChartUints, ChartUints) {
 }
 
 func blockSizeChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
+	seed := binAxisSeed(bin, axis)
 	switch bin {
 	case BlockBin:
-		return charts.encode(charts.Blocks.Time, charts.Blocks.BlockSize)
+		switch axis {
+		case HeightAxis:
+			return encode(lengtherMap{
+				sizeKey: charts.Blocks.BlockSize,
+			}, seed)
+		default:
+			return encode(lengtherMap{
+				timeKey: charts.Blocks.Time,
+				sizeKey: charts.Blocks.BlockSize,
+			}, seed)
+		}
 	case DayBin:
 		switch axis {
 		case HeightAxis:
-			return charts.encode(charts.Days.Height, charts.Days.BlockSize)
+			return encode(lengtherMap{
+				heightKey: charts.Days.Height,
+				sizeKey:   charts.Days.BlockSize,
+			}, seed)
 		default:
-			return charts.encode(charts.Days.Time, charts.Days.BlockSize)
+			return encode(lengtherMap{
+				timeKey: charts.Days.Time,
+				sizeKey: charts.Days.BlockSize,
+			}, seed)
 		}
 	}
 	return nil, InvalidBinErr
 }
 
 func blockchainSizeChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
+	seed := binAxisSeed(bin, axis)
 	switch bin {
 	case BlockBin:
-		return charts.encode(charts.Blocks.Time, accumulate(charts.Blocks.BlockSize))
+		switch axis {
+		case HeightAxis:
+			return encode(lengtherMap{
+				sizeKey: accumulate(charts.Blocks.BlockSize),
+			}, seed)
+		default:
+			return encode(lengtherMap{
+				timeKey: charts.Blocks.Time,
+				sizeKey: accumulate(charts.Blocks.BlockSize),
+			}, seed)
+		}
 	case DayBin:
 		switch axis {
 		case HeightAxis:
-			return charts.encode(charts.Days.Height, accumulate(charts.Days.BlockSize))
+			return encode(lengtherMap{
+				heightKey: charts.Days.Height,
+				sizeKey:   accumulate(charts.Days.BlockSize),
+			}, seed)
 		default:
-			return charts.encode(charts.Days.Time, accumulate(charts.Days.BlockSize))
+			return encode(lengtherMap{
+				timeKey: charts.Days.Time,
+				sizeKey: accumulate(charts.Days.BlockSize),
+			}, seed)
 		}
 	}
 	return nil, InvalidBinErr
 }
 
 func chainWorkChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
+	seed := binAxisSeed(bin, axis)
 	switch bin {
 	case BlockBin:
-		return charts.encode(charts.Blocks.Time, charts.Blocks.Chainwork)
+		switch axis {
+		case HeightAxis:
+			return encode(lengtherMap{
+				workKey: charts.Blocks.Chainwork,
+			}, seed)
+		default:
+			return encode(lengtherMap{
+				timeKey: charts.Blocks.Time,
+				workKey: charts.Blocks.Chainwork,
+			}, seed)
+		}
 	case DayBin:
 		switch axis {
 		case HeightAxis:
-			return charts.encode(charts.Days.Height, charts.Days.Chainwork)
+			return encode(lengtherMap{
+				heightKey: charts.Days.Height,
+				workKey:   charts.Days.Chainwork,
+			}, seed)
 		default:
-			return charts.encode(charts.Days.Time, charts.Days.Chainwork)
+			return encode(lengtherMap{
+				timeKey: charts.Days.Time,
+				workKey: charts.Days.Chainwork,
+			}, seed)
 		}
 	}
 	return nil, InvalidBinErr
 }
 
 func coinSupplyChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
+	seed := binAxisSeed(bin, axis)
 	switch bin {
 	case BlockBin:
-		return charts.encode(charts.Blocks.Time, accumulate(charts.Blocks.NewAtoms))
+		switch axis {
+		case HeightAxis:
+			return encode(lengtherMap{
+				supplyKey: accumulate(charts.Blocks.NewAtoms),
+			}, seed)
+		default:
+			return encode(lengtherMap{
+				timeKey:   charts.Blocks.Time,
+				supplyKey: accumulate(charts.Blocks.NewAtoms),
+			}, seed)
+		}
 	case DayBin:
 		switch axis {
 		case HeightAxis:
-			return charts.encode(charts.Days.Height, accumulate(charts.Days.NewAtoms))
+			return encode(lengtherMap{
+				heightKey: charts.Days.Height,
+				supplyKey: accumulate(charts.Days.NewAtoms),
+			}, seed)
 		default:
-			return charts.encode(charts.Days.Time, accumulate(charts.Days.NewAtoms), charts.Days.Height)
+			return encode(lengtherMap{
+				timeKey:   charts.Days.Time,
+				supplyKey: accumulate(charts.Days.NewAtoms),
+				heightKey: charts.Days.Height,
+			}, seed)
 		}
 	}
 	return nil, InvalidBinErr
 }
 
 func durationBTWChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
+	seed := binAxisSeed(bin, axis)
 	switch bin {
 	case BlockBin:
-		return charts.encode(blockTimes(charts.Blocks.Time))
+		switch axis {
+		case HeightAxis:
+			_, diffs := blockTimes(charts.Blocks.Time)
+			return encode(lengtherMap{
+				durationKey: diffs,
+			}, seed)
+		default:
+			times, diffs := blockTimes(charts.Blocks.Time)
+			return encode(lengtherMap{
+				timeKey:     times,
+				durationKey: diffs,
+			}, seed)
+		}
 	case DayBin:
 		switch axis {
 		case HeightAxis:
 			if len(charts.Days.Height) < 2 {
 				return nil, fmt.Errorf("found the length of charts.Days.Height slice to be less than 2")
 			}
-			_, t := avgBlockTimes(charts.Days.Time, charts.Blocks.Time)
-			return charts.encode(charts.Days.Height[:len(charts.Days.Height)-1], t)
-
+			_, diffs := avgBlockTimes(charts.Days.Time, charts.Blocks.Time)
+			return encode(lengtherMap{
+				heightKey:   charts.Days.Height[:len(charts.Days.Height)-1],
+				durationKey: diffs,
+			}, seed)
 		default:
-			return charts.encode(avgBlockTimes(charts.Days.Time, charts.Blocks.Time))
+			times, diffs := avgBlockTimes(charts.Days.Time, charts.Blocks.Time)
+			return encode(lengtherMap{
+				timeKey:     times,
+				durationKey: diffs,
+			}, seed)
 		}
 	}
 	return nil, InvalidBinErr
@@ -1101,7 +1223,7 @@ func hashrate(time, chainwork ChartUints) (ChartUints, ChartUints) {
 	}
 	t := make(ChartUints, 0, hrLen)
 	y := make(ChartUints, 0, hrLen)
-	var rotator [HashrateAvgLength]uint64
+	rotator := make([]uint64, HashrateAvgLength)
 	for i, work := range chainwork {
 		idx := i % HashrateAvgLength
 		rotator[idx] = work
@@ -1117,117 +1239,283 @@ func hashrate(time, chainwork ChartUints) (ChartUints, ChartUints) {
 	return t, y
 }
 
+// dailyHashrate provides the provided daily chainwork data to hashrate data.
+// Since hashrates are based on a difference, the returned arrays will be 1
+// element fewer than the number of days. A truncated time slice with the same
+// length as the hashrate slice is returned.
+func dailyHashrate(time, chainwork ChartUints) (ChartUints, ChartUints) {
+	if len(time) == 0 || len(chainwork) == 0 {
+		return ChartUints{}, ChartUints{}
+	}
+	times := make([]uint64, 0, len(time)-1)
+	rates := make([]uint64, 0, len(time)-1)
+	for i, t := range time[1:] {
+		tDiff := t - time[i]
+		workDiff := chainwork[i+1] - chainwork[i]
+		rates = append(rates, (workDiff)*1e6/tDiff)
+		times = append(times, t)
+	}
+	return times, rates
+}
+
 func hashRateChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
+	seed := binAxisSeed(bin, axis)
 	switch bin {
 	case BlockBin:
-		t, y := hashrate(charts.Blocks.Time, charts.Blocks.Chainwork)
-		return charts.encode(t, y)
-	case DayBin:
+		if len(charts.Blocks.Time) < 2 {
+			return nil, fmt.Errorf("Not enough blocks to calculate hashrate")
+		}
+		seed[offsetKey] = HashrateAvgLength
+		times, rates := hashrate(charts.Blocks.Time, charts.Blocks.Chainwork)
 		switch axis {
 		case HeightAxis:
-			t, y := hashrate(charts.Days.Height, charts.Days.Chainwork)
-			return charts.encode(t, y)
+			return encode(lengtherMap{
+				rateKey: rates,
+			}, seed)
 		default:
-			t, y := hashrate(charts.Days.Time, charts.Days.Chainwork)
-			return charts.encode(t, y)
+			return encode(lengtherMap{
+				timeKey: times,
+				rateKey: rates,
+			}, seed)
+		}
+	case DayBin:
+		if len(charts.Days.Time) < 2 {
+			return nil, fmt.Errorf("Not enough days to calculate hashrate")
+		}
+		seed[offsetKey] = 1
+		times, rates := dailyHashrate(charts.Days.Time, charts.Days.Chainwork)
+		switch axis {
+		case HeightAxis:
+			return encode(lengtherMap{
+				heightKey: charts.Days.Height[1:],
+				rateKey:   rates,
+			}, seed)
+		default:
+			return encode(lengtherMap{
+				timeKey: times,
+				rateKey: rates,
+			}, seed)
 		}
 	}
 	return nil, InvalidBinErr
 }
 
-func powDifficultyChart(charts *ChartData, _ binLevel, _ axisType) ([]byte, error) {
+func powDifficultyChart(charts *ChartData, _ binLevel, axis axisType) ([]byte, error) {
 	// Pow Difficulty only has window level bin, so all others are ignored.
-	return charts.encode(charts.Windows.Time, charts.Windows.PowDiff)
+	seed := chartResponse{windowKey: charts.DiffInterval}
+	switch axis {
+	case HeightAxis:
+		return encode(lengtherMap{
+			diffKey: charts.Windows.PowDiff,
+		}, seed)
+	default:
+		return encode(lengtherMap{
+			diffKey: charts.Windows.PowDiff,
+			timeKey: charts.Windows.Time,
+		}, seed)
+	}
 }
 
-func ticketPriceChart(charts *ChartData, _ binLevel, _ axisType) ([]byte, error) {
+func ticketPriceChart(charts *ChartData, _ binLevel, axis axisType) ([]byte, error) {
 	// Ticket price only has window level bin, so all others are ignored.
-	return charts.encode(charts.Windows.Time, charts.Windows.TicketPrice, charts.Windows.StakeCount)
+	seed := chartResponse{windowKey: charts.DiffInterval}
+	switch axis {
+	case HeightAxis:
+		return encode(lengtherMap{
+			priceKey: charts.Windows.TicketPrice,
+			countKey: charts.Windows.StakeCount,
+		}, seed)
+	default:
+		return encode(lengtherMap{
+			timeKey:  charts.Windows.Time,
+			priceKey: charts.Windows.TicketPrice,
+			countKey: charts.Windows.StakeCount,
+		}, seed)
+	}
 }
 
 func txCountChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
+	seed := binAxisSeed(bin, axis)
 	switch bin {
 	case BlockBin:
-		return charts.encode(charts.Blocks.Time, charts.Blocks.TxCount)
+		switch axis {
+		case HeightAxis:
+			return encode(lengtherMap{
+				countKey: charts.Blocks.TxCount,
+			}, seed)
+		default:
+			return encode(lengtherMap{
+				timeKey:  charts.Blocks.Time,
+				countKey: charts.Blocks.TxCount,
+			}, seed)
+		}
 	case DayBin:
 		switch axis {
 		case HeightAxis:
-			return charts.encode(charts.Days.Height, charts.Days.TxCount)
+			return encode(lengtherMap{
+				heightKey: charts.Days.Height,
+				countKey:  charts.Days.TxCount,
+			}, seed)
 		default:
-			return charts.encode(charts.Days.Time, charts.Days.TxCount)
+			return encode(lengtherMap{
+				timeKey:  charts.Days.Time,
+				countKey: charts.Days.TxCount,
+			}, seed)
 		}
 	}
 	return nil, InvalidBinErr
 }
 
 func feesChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
+	seed := binAxisSeed(bin, axis)
 	switch bin {
 	case BlockBin:
-		return charts.encode(charts.Blocks.Time, charts.Blocks.Fees)
+		switch axis {
+		case HeightAxis:
+			return encode(lengtherMap{
+				feesKey: charts.Blocks.Fees,
+			}, seed)
+		default:
+			return encode(lengtherMap{
+				timeKey: charts.Blocks.Time,
+				feesKey: charts.Blocks.Fees,
+			}, seed)
+		}
 	case DayBin:
 		switch axis {
 		case HeightAxis:
-			return charts.encode(charts.Days.Height, charts.Days.Fees)
+			return encode(lengtherMap{
+				heightKey: charts.Days.Height,
+				feesKey:   charts.Days.Fees,
+			}, seed)
 		default:
-			return charts.encode(charts.Days.Time, charts.Days.Fees)
+			return encode(lengtherMap{
+				timeKey: charts.Days.Time,
+				feesKey: charts.Days.Fees,
+			}, seed)
 		}
 	}
 	return nil, InvalidBinErr
 }
 
 func ticketPoolSizeChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
+	seed := binAxisSeed(bin, axis)
 	switch bin {
 	case BlockBin:
-		return charts.encode(charts.Blocks.Time, charts.Blocks.PoolSize)
+		switch axis {
+		case HeightAxis:
+			return encode(lengtherMap{
+				countKey: charts.Blocks.PoolSize,
+			}, seed)
+		default:
+			return encode(lengtherMap{
+				timeKey:  charts.Blocks.Time,
+				countKey: charts.Blocks.PoolSize,
+			}, seed)
+		}
 	case DayBin:
 		switch axis {
 		case HeightAxis:
-			return charts.encode(charts.Days.Height, charts.Days.PoolSize)
+			return encode(lengtherMap{
+				heightKey: charts.Days.Height,
+				countKey:  charts.Days.PoolSize,
+			}, seed)
 		default:
-			return charts.encode(charts.Days.Time, charts.Days.PoolSize)
+			return encode(lengtherMap{
+				timeKey:  charts.Days.Time,
+				countKey: charts.Days.PoolSize,
+			}, seed)
 		}
 	}
 	return nil, InvalidBinErr
 }
 
 func poolValueChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
+	seed := binAxisSeed(bin, axis)
 	switch bin {
 	case BlockBin:
-		return charts.encode(charts.Blocks.Time, charts.Blocks.PoolValue)
+		switch axis {
+		case HeightAxis:
+			return encode(lengtherMap{
+				poolValKey: charts.Blocks.PoolValue,
+			}, seed)
+		default:
+			return encode(lengtherMap{
+				timeKey:    charts.Blocks.Time,
+				poolValKey: charts.Blocks.PoolValue,
+			}, seed)
+		}
 	case DayBin:
 		switch axis {
 		case HeightAxis:
-			return charts.encode(charts.Days.Height, charts.Days.PoolValue)
+			return encode(lengtherMap{
+				heightKey:  charts.Days.Height,
+				poolValKey: charts.Days.PoolValue,
+			}, seed)
 		default:
-			return charts.encode(charts.Days.Time, charts.Days.PoolValue)
+			return encode(lengtherMap{
+				timeKey:    charts.Days.Time,
+				poolValKey: charts.Days.PoolValue,
+			}, seed)
 		}
 	}
 	return nil, InvalidBinErr
 }
 
-func missedVotesChart(charts *ChartData, _ binLevel, _ axisType) ([]byte, error) {
-	stakeValidWindows := int(charts.StartPOS / charts.DiffInterval)
-	if stakeValidWindows >= len(charts.Windows.MissedVotes) ||
-		stakeValidWindows >= len(charts.Windows.Time) {
-		stakeValidWindows = 0
+func missedVotesChart(charts *ChartData, _ binLevel, axis axisType) ([]byte, error) {
+	prestakeWindows := int(charts.StartPOS / charts.DiffInterval)
+	if prestakeWindows >= len(charts.Windows.MissedVotes) ||
+		prestakeWindows >= len(charts.Windows.Time) {
+		prestakeWindows = 0
 	}
-	return charts.encode(charts.Windows.Time[stakeValidWindows:],
-		charts.Windows.MissedVotes[stakeValidWindows:])
+	seed := chartResponse{
+		windowKey: charts.DiffInterval,
+		offsetKey: prestakeWindows,
+	}
+	switch axis {
+	case HeightAxis:
+		return encode(lengtherMap{
+			missedKey: charts.Windows.MissedVotes[prestakeWindows:],
+		}, seed)
+	default:
+		return encode(lengtherMap{
+			timeKey:   charts.Windows.Time[prestakeWindows:],
+			missedKey: charts.Windows.MissedVotes[prestakeWindows:],
+		}, seed)
+	}
 }
 
 func stakedCoinsChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
+	seed := binAxisSeed(bin, axis)
 	switch bin {
 	case BlockBin:
-		return charts.encode(charts.Blocks.Time, accumulate(charts.Blocks.NewAtoms),
-			charts.Blocks.PoolValue)
+		switch axis {
+		case HeightAxis:
+			return encode(lengtherMap{
+				circulationKey: accumulate(charts.Blocks.NewAtoms),
+				poolValKey:     charts.Blocks.PoolValue,
+			}, seed)
+		default:
+			return encode(lengtherMap{
+				timeKey:        charts.Blocks.Time,
+				circulationKey: accumulate(charts.Blocks.NewAtoms),
+				poolValKey:     charts.Blocks.PoolValue,
+			}, seed)
+		}
 	case DayBin:
 		switch axis {
 		case HeightAxis:
-			return charts.encode(charts.Days.Height, accumulate(charts.Days.NewAtoms),
-				charts.Days.PoolValue)
+			return encode(lengtherMap{
+				heightKey:      charts.Days.Height,
+				circulationKey: accumulate(charts.Days.NewAtoms),
+				poolValKey:     charts.Days.PoolValue,
+			}, seed)
 		default:
-			return charts.encode(charts.Days.Time, accumulate(charts.Days.NewAtoms),
-				charts.Days.PoolValue)
+			return encode(lengtherMap{
+				timeKey:        charts.Days.Time,
+				circulationKey: accumulate(charts.Days.NewAtoms),
+				poolValKey:     charts.Days.PoolValue,
+			}, seed)
 		}
 	}
 	return nil, InvalidBinErr

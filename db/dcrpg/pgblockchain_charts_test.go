@@ -37,7 +37,7 @@ func registerDummyFeeAndPoolInfo(charts *cache.ChartData) {
 // No difference between the two should exist otherwise this test should fail.
 // It also checks the order and duplicates in the x-axis dataset.
 func TestPgCharts(t *testing.T) {
-	charts := cache.NewChartData(context.Background(), 0, &chaincfg.MainNetParams)
+	charts := cache.NewChartData(context.Background(), 0, chaincfg.MainNetParams())
 	// Spoof the interval to enable more points with a smaller test db.
 	charts.DiffInterval = 9
 
