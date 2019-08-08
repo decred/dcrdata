@@ -244,10 +244,6 @@ func (pinfo *ProposalInfo) Metadata(tip, targetBlockTime int64) *ProposalMetadat
 	meta := new(ProposalMetadata)
 	desc := pinfo.VoteStatus.ShortDesc()
 	switch desc {
-	case "Authorized":
-		blocksTil := int64(windowSize)
-		meta.StartHeight = tip + blocksTil
-		meta.SecondsTil = blocksTil * targetBlockTime
 	case "Started", "Finished":
 		endHeight, _ := strconv.ParseInt(pinfo.ProposalVotes.Endheight, 10, 64)
 		meta.StartHeight = endHeight - windowSize
