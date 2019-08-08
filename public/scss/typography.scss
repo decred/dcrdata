@@ -44,6 +44,17 @@
   font-family: 'inconsolata-v15-latin-regular', monospace;
 }
 
+.unstyled-link,
+.unstyled-link:hover,
+.unstyled-link:visited {
+  text-decoration: none;
+  color: #052f4b;
+}
+
+.block-banner .text-secondary:hover {
+  color: #052f4b !important;
+}
+
 .elidedhash {
   position: relative;
   display: inline-block;
@@ -175,7 +186,8 @@ a.grayed {
   color: #ed6d47;
 }
 
-.text-abandoned {
+.text-abandoned,
+.text-blueish {
   color: #3d5873;
 }
 

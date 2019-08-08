@@ -108,6 +108,288 @@ func TestStatusPageResponseCodes(t *testing.T) {
 	}
 }
 
+func TestPageNumbersDesc(t *testing.T) {
+	type pageTest struct {
+		name     string
+		rows     int
+		pageSize int
+		offset   int
+		expected string
+		active   string
+	}
+	pageTests := make([]pageTest, 0)
+
+	stringify := func(pages pageNumbers) string {
+		out := ""
+		for i, page := range pages {
+			if i != 0 {
+				out += " "
+			}
+			if page.Str == ellipsisHTML {
+				out += "..."
+			} else {
+				out += page.Str
+			}
+		}
+		return out
+	}
+
+	// case: fewer than 11 pages
+	pageTests = append(pageTests, pageTest{
+		name:     "< 11",
+		rows:     95,
+		pageSize: 10,
+		offset:   91,
+		expected: "1 2 3 4 5 6 7 8 9 10",
+		active:   "1",
+	})
+	// case: exactly 11, page near endings
+	pageTests = append(pageTests, pageTest{
+		name:     "= 11, near end",
+		rows:     105,
+		pageSize: 10,
+		offset:   1,
+		expected: "1 ... 4 5 6 7 8 9 10 11",
+		active:   "11",
+	})
+
+	// case: exactly 11, page near beginning
+	pageTests = append(pageTests, pageTest{
+		name:     "= 11, near beginning",
+		rows:     105,
+		pageSize: 10,
+		offset:   91,
+		expected: "1 2 3 4 5 6 7 8 ... 11",
+		active:   "2",
+	})
+
+	// case: exactly 11, page in middle
+	pageTests = append(pageTests, pageTest{
+		name:     "= 11, in middle",
+		rows:     105,
+		pageSize: 10,
+		offset:   55,
+		expected: "1 ... 3 4 5 6 7 8 9 ... 11",
+		active:   "6",
+	})
+
+	// case: 20 pages near beginning
+	pageTests = append(pageTests, pageTest{
+		name:     "= 20, near beginning",
+		rows:     195,
+		pageSize: 10,
+		offset:   184,
+		expected: "1 2 3 4 5 6 7 8 ... 20",
+		active:   "2",
+	})
+
+	// case: 20 pages near end
+	pageTests = append(pageTests, pageTest{
+		name:     "= 20, near end",
+		rows:     195,
+		pageSize: 10,
+		offset:   25,
+		expected: "1 ... 13 14 15 16 17 18 19 20",
+		active:   "18",
+	})
+
+	// case: 20 pages in middle
+	pageTests = append(pageTests, pageTest{
+		name:     "= 20, in middle",
+		rows:     195,
+		pageSize: 10,
+		offset:   85,
+		expected: "1 ... 9 10 11 12 13 14 15 ... 20",
+		active:   "12",
+	})
+
+	// case: less than a page
+	pageTests = append(pageTests, pageTest{
+		name:     "< a page",
+		rows:     6,
+		pageSize: 10,
+		offset:   5,
+		expected: "",
+		active:   "1",
+	})
+
+	for _, test := range pageTests {
+		nums := calcPagesDesc(test.rows, test.pageSize, test.offset, "/test/%d")
+		if stringify(nums) != test.expected {
+			t.Errorf("failed stringify for test \"%s\". Expected %s, found %s", test.name, test.expected, stringify(nums))
+		}
+		for i, num := range nums {
+			if num.Link == "" {
+				continue
+			}
+			if test.active == num.Str {
+				if !num.Active {
+					t.Errorf("failed active for test \"%s\", page string %s at index %d", test.name, num.Str, i)
+				}
+			} else {
+				if num.Active {
+					t.Errorf("found false active for test \"%s\", page string %s at index %d", test.name, num.Str, i)
+				}
+			}
+		}
+	}
+
+	nums := calcPagesDesc(25, 10, 24, "/test/%d")
+	if len(nums) != 3 {
+		t.Errorf("unexpected page count")
+	}
+	if nums[0].Link != "/test/25" {
+		t.Errorf("last page has wrong link: %s", nums[0].Link)
+	}
+	if nums[1].Link != "/test/15" {
+		t.Errorf("page 2 has wrong link: %s", nums[1].Link)
+	}
+	if nums[2].Link != "/test/5" {
+		t.Errorf("page 3 has wrong link: %s", nums[2].Link)
+	}
+}
+
+func TestPageNumbers(t *testing.T) {
+	type pageTest struct {
+		name     string
+		rows     int
+		pageSize int
+		offset   int
+		expected string
+		active   string
+	}
+	pageTests := make([]pageTest, 0)
+
+	stringify := func(pages pageNumbers) string {
+		out := ""
+		for i, page := range pages {
+			if i != 0 {
+				out += " "
+			}
+			if page.Str == ellipsisHTML {
+				out += "..."
+			} else {
+				out += page.Str
+			}
+		}
+		return out
+	}
+
+	// case: fewer than 11 pages
+	pageTests = append(pageTests, pageTest{
+		name:     "< 11",
+		rows:     95,
+		pageSize: 10,
+		offset:   91,
+		expected: "1 2 3 4 5 6 7 8 9 10",
+		active:   "10",
+	})
+	// case: exactly 11, page near beginning
+	pageTests = append(pageTests, pageTest{
+		name:     "= 11, near beginning",
+		rows:     105,
+		pageSize: 10,
+		offset:   1,
+		expected: "1 2 3 4 5 6 7 8 ... 11",
+		active:   "1",
+	})
+
+	// case: exactly 11, page near end
+	pageTests = append(pageTests, pageTest{
+		name:     "= 11, near end",
+		rows:     105,
+		pageSize: 10,
+		offset:   91,
+		expected: "1 ... 4 5 6 7 8 9 10 11",
+		active:   "10",
+	})
+
+	// case: exactly 11, page in middle
+	pageTests = append(pageTests, pageTest{
+		name:     "= 11, in middle",
+		rows:     105,
+		pageSize: 10,
+		offset:   55,
+		expected: "1 ... 3 4 5 6 7 8 9 ... 11",
+		active:   "6",
+	})
+
+	// case: 20 pages near beginning
+	pageTests = append(pageTests, pageTest{
+		name:     "= 20, near beginning",
+		rows:     195,
+		pageSize: 10,
+		offset:   15,
+		expected: "1 2 3 4 5 6 7 8 ... 20",
+		active:   "2",
+	})
+
+	// case: 20 pages near end
+	pageTests = append(pageTests, pageTest{
+		name:     "= 20, near end",
+		rows:     195,
+		pageSize: 10,
+		offset:   174,
+		expected: "1 ... 13 14 15 16 17 18 19 20",
+		active:   "18",
+	})
+
+	// case: 20 pages in middle
+	pageTests = append(pageTests, pageTest{
+		name:     "= 20, in middle",
+		rows:     195,
+		pageSize: 10,
+		offset:   75,
+		expected: "1 ... 5 6 7 8 9 10 11 ... 20",
+		active:   "8",
+	})
+
+	// case: less than a page
+	pageTests = append(pageTests, pageTest{
+		name:     "< a page",
+		rows:     6,
+		pageSize: 10,
+		offset:   5,
+		expected: "",
+		active:   "1",
+	})
+
+	for _, test := range pageTests {
+		nums := calcPages(test.rows, test.pageSize, test.offset, "/test/%d")
+		if stringify(nums) != test.expected {
+			t.Errorf("failed stringify for test \"%s\". Expected %s, found %s", test.name, test.expected, stringify(nums))
+		}
+		for i, num := range nums {
+			if num.Link == "" {
+				continue
+			}
+			if test.active == num.Str {
+				if !num.Active {
+					t.Errorf("failed active for test \"%s\", page string %s at index %d", test.name, num.Str, i)
+				}
+			} else {
+				if num.Active {
+					t.Errorf("found false active for test \"%s\", page string %s at index %d", test.name, num.Str, i)
+				}
+			}
+		}
+	}
+
+	nums := calcPages(25, 10, 24, "/test/%d")
+	if len(nums) != 3 {
+		t.Errorf("unexpected page count")
+	}
+	if nums[0].Link != "/test/0" {
+		t.Errorf("last page has wrong link: %s", nums[0].Link)
+	}
+	if nums[1].Link != "/test/10" {
+		t.Errorf("page 2 has wrong link: %s", nums[1].Link)
+	}
+	if nums[2].Link != "/test/20" {
+		t.Errorf("page 3 has wrong link: %s", nums[2].Link)
+	}
+}
+
 // func TestTxPageResponseCodes(t *testing.T) {
 // 	var wiredDBStub testTxPageWiredDBStub
 // 	var chainDBStub ChainDBStub

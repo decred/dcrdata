@@ -1,144 +1,154 @@
 {{define "explorer"}}
 <!DOCTYPE html>
 <html lang="en">
-
+{{$topBlock := 0}}
 {{template "html-head" "Decred Blocks List"}}
     {{template "navbar" . }}
+    {{template "blocksBanner" .}}
     <div class="container main" data-controller="time pagenavigation blocklist">
-        <span class="h4">Blocks</span>
         {{$pendingBlocks := 0}}
         {{if gt (len $.Data) 0}}{{$pendingBlocks = ((index .Data 0).Height)}}{{end}}
 
-        {{block "blocksPagination" .}}
         {{$blocksCount := (len $.Data)}}
-        <div class="mb-1 fs13">
+        <div class="mb-1">
             {{if gt $blocksCount 0}}
-            {{$topBlock := ((index .Data 0).Height)}}
+            {{$topBlock = ((index .Data 0).Height)}}
             {{$Offset := (subtract .BestBlock $topBlock)}}
             {{$pendingBlocks := ((index .Data 0).Height)}}
-            <div class="d-flex flex-wrap-reverse align-items-center justify-content-end list-display">
-                {{template "listViewRouting" "blocks"}}
+            <div class="d-flex justify-content-between align-items-end">
+                <span class="h2 d-flex pt-4 pb-1 pr-2">Blocks</span>
 
-                <span class="fs12 nowrap text-right">
-                    <label class="mb-0 mr-1" for="blocksPagesize">Page Size</label>
-                    <select
-                        id="blocksPagesize"
-                        data-target="pagenavigation.pagesize"
-                        data-action="change->pagenavigation#setPageSize"
-                        data-offset="{{$pendingBlocks}}"
-                        data-offsetkey="height"
-                        class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $blocksCount 20}}disabled{{end}}"
-                        {{if lt $blocksCount 20}}disabled="disabled"{{end}}
-                    >
-                    {{if ge $pendingBlocks 20}}<option {{if eq $blocksCount 20}}selected{{end}} value="20">20</option>{{end}}
-                    {{if ge $pendingBlocks 30}}<option {{if eq $blocksCount 30}}selected{{end}} value="30">30</option>{{end}}
-                    {{if ge $pendingBlocks 50}}<option {{if eq $blocksCount 50}}selected{{end}} value="50">50</option>{{end}}
-                    {{if ge $pendingBlocks 100}}<option {{if eq $blocksCount 100}}selected{{end}} value="100">100</option>{{end}}
-                    {{if ge $pendingBlocks .WindowSize}}<option {{if eq $blocksCount .WindowSize}}selected{{end}} value="{{.WindowSize}}">{{.WindowSize}}</option>{{end}}
-                    {{if eq $blocksCount 20 30 50 100 .WindowSize}}{{else}}<option selected value="{{$blocksCount}}">{{$blocksCount}}</option>{{end}}
-                    </select>
-                </span>
-                <span class="fs12 nowrap text-right px-2">
-                    {{intComma (add $Offset 1)}} &ndash; {{intComma (add $Offset .Rows)}} of {{intComma (add .BestBlock 1) }} rows
-                </span>
-                <nav aria-label="blocks navigation" data-limit="{{.Rows}}" class="m-2">
-                    <ul class="pagination mb-0 pagination-sm">
-                         <li class="page-item {{if ge $topBlock .BestBlock}}disabled{{end}}">
-                            <a
-                                class="page-link"
-                                href="/blocks?height={{.BestBlock}}&rows={{.Rows}}"
-                                id="next"
-                            > Newest</a>
-                        </li>
-                        <li class="page-item {{if ge $topBlock .BestBlock}}disabled{{end}}">
-                            <a
-                                class="page-link"
-                                href="/blocks?height={{ add $topBlock (int64 $blocksCount) }}&rows={{.Rows}}"
-                                id="next"
-                            > Newer</a>
-                        </li>
-                        <li class="page-item {{if lt $topBlock .Rows}}disabled{{end}}">
-                            <a
-                                class="page-link"
+                <div class="pb-1 d-flex justify-content-end align-items-end flex-wrap">
+                  <span class="fs12 nowrap text-secondary px-2 my-2">
+                      {{intComma (add $Offset 1)}} &ndash; {{intComma (add $Offset .Rows)}} of {{intComma (add .BestBlock 1) }} rows
+                  </span>
+                  <span class="fs12 nowrap text-right">
+                      <select
+                          data-target="pagenavigation.pagesize"
+                          data-action="change->pagenavigation#setPageSize"
+                          data-offset="{{$pendingBlocks}}"
+                          data-offsetkey="height"
+                          class="dropdown text-secondary my-2 {{if lt $blocksCount 20}}disabled{{end}}"
+                          {{if lt $blocksCount 20}}disabled="disabled"{{end}}
+                      >
+                      {{if ge $pendingBlocks 20}}<option {{if eq $blocksCount 20}}selected{{end}} value="20">20 per page</option>{{end}}
+                      {{if ge $pendingBlocks 30}}<option {{if eq $blocksCount 30}}selected{{end}} value="30">30 per page</option>{{end}}
+                      {{if ge $pendingBlocks 50}}<option {{if eq $blocksCount 50}}selected{{end}} value="50">50 per page</option>{{end}}
+                      {{if ge $pendingBlocks 100}}<option {{if eq $blocksCount 100}}selected{{end}} value="100">100 per page</option>{{end}}
+                      {{if ge $pendingBlocks .WindowSize}}<option {{if eq $blocksCount .WindowSize}}selected{{end}} value="{{.WindowSize}}">{{.WindowSize}} per page</option>{{end}}
+                      {{if eq $blocksCount 20 30 50 100 .WindowSize}}{{else}}<option selected value="{{$blocksCount}}">{{$blocksCount}} per page</option>{{end}}
+                      </select>
+                  </span>
+                  <nav aria-label="blocks navigation" data-limit="{{.Rows}}" class="ml-2 my-2 d-inline-block text-right">
+                      <ul class="pages mb-0">
+                          {{if lt $topBlock .BestBlock}}
+                          <li>
+                             <a
+                             class="text-secondary"
+                             href="/blocks?height={{.BestBlock}}&rows={{.Rows}}"
+                             > Newest</a>
+                          </li>
+                          <li>
+                             <a
+                             class="text-secondary"
+                             href="/blocks?height={{ add $topBlock (int64 $blocksCount) }}&rows={{.Rows}}"
+                             > Newer</a>
+                          </li>
+                          {{end}}
+                          {{if ge $topBlock .Rows}}
+                            <li>
+                                <a
+                                class="text-secondary"
                                 href="/blocks?height={{ subtract $topBlock (int64 $blocksCount) }}&rows={{.Rows}}"
-                                id="prev"
-                            >Older</a>
-                        </li>
-                        <li class="page-item {{if lt $topBlock .Rows}}disabled{{end}}">
-                            <a
-                                class="page-link"
+                                >Older</a>
+                            </li>
+                            <li>
+                                <a
+                                class="text-secondary"
                                 href="/blocks?height={{subtract .Rows 1}}&rows={{.Rows}}"
-                                id="prev"
-                            >Oldest</a>
-                        </li>
-                    </ul>
-                </nav>
+                                >Oldest</a>
+                            </li>
+                          {{end}}
+                      </ul>
+                  </nav>
+                </div>
             </div>
             {{else}}
             <span class="fs12 nowrap text-right list-display">no confirmed blocks found</span>
             {{end}}
         </div>
-        {{end}}
 
-        <div class="row">
-            <div class="col-lg-24 mt-2">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Height</th>
-                            <th class="text-right d-none d-sm-table-cell">
-                                <span class="d-none d-md-inline">Regular</span>
-                                <span class="d-md-none position-relative" data-tooltip="regular transactions">R</span>
-                            </th>
-                            <th class="text-right d-none d-sm-table-cell">
-                                <span class="d-none d-md-inline">Votes</span>
-                                <span class="d-md-none position-relative" data-tooltip="votes">V</span>
-                            </th>
-                            <th class="text-right d-none d-sm-table-cell">
-                                <span class="d-none d-md-inline">Tickets</span>
-                                <span class="d-md-none position-relative" data-tooltip="tickets">T</span>
-                            </th>
-                            <th class="text-right d-none d-sm-table-cell">
-                                <span class="d-none d-md-inline">Revocations</span>
-                                <span class="d-md-none position-relative" data-tooltip="revocations">X</span>
-                            </th>
-                            <th class="text-right d-table-cell d-sm-none">Txns</th>
-                            <th class="text-right">DCR</th>
-                            <th class="text-right">Size</th>
-                            <th class="text-right">
-                                <span class="d-none d-md-inline">Version</span>
-                                <span class="d-md-none position-relative" data-tooltip="block version">Ver</span>
-                            </th>
-                            <th class="text-right" class="jsonly" >Age</th>
-                            <th class="text-right">Time</th>
-                        </tr>
-                    </thead>
-                    <tbody data-target="blocklist.table">
-                    {{range .Data}}
-                        <tr data-height="{{ .Height }}" data-link-class="fs16">
-                            <td data-type="height"><a href="/block/{{.Height}}" class="fs16">{{if not .Valid}}<span class="attention">&#9888;</span>{{end}}{{ .Height }}</a></td>
-                            <td class="text-right d-none d-sm-table-cell" data-type="tx" {{if not .Valid}}class="grayed" title="Regular transactions invalidated by stakeholders."{{end}}>{{.Transactions}}</td>
-                            <td class="text-right d-none d-sm-table-cell" data-type="votes">{{.Voters}}</td>
-                            <td class="text-right d-none d-sm-table-cell" data-type="tickets">{{.FreshStake}}</td>
-                            <td class="text-right d-none d-sm-table-cell" data-type="revocations">{{.Revocations}}</td>
-                            <td class="text-right d-table-cell d-sm-none" data-type="tx_count">{{.TxCount}}</td>
-                            <td class="text-right" data-type="value">{{threeSigFigs .Total}}</td>
-                            <td class="text-right" data-type="size">{{.FormattedBytes}}</td>
-                            <td class="text-right" data-type="version">{{.Version}}</td>
-                            <td class="text-right" data-type="age" class="jsonly" data-target="time.age" data-age="{{.BlockTime.UNIX}}"></td>
-                            <td class="text-right pr-1" data-type="time">{{.BlockTime}}</td>
-                        </tr>
-                    {{end}}
-                    </tbody>
-                </table>
+        <div class="bg-white px-0 px-md-3 pb-4">
+            <table class="table v3">
+                <thead>
+                    <tr>
+                        <th>Height</th>
+                        <th class="text-center d-none d-sm-table-cell">
+                            <span class="d-none d-md-inline">Regular</span>
+                            <span class="d-md-none position-relative" data-tooltip="regular transactions">R</span>
+                        </th>
+                        <th class="text-center d-none d-sm-table-cell">
+                            <span class="d-none d-md-inline">Votes</span>
+                            <span class="d-md-none position-relative" data-tooltip="votes">V</span>
+                        </th>
+                        <th class="text-center d-none d-sm-table-cell">
+                            <span class="d-none d-md-inline">Tickets</span>
+                            <span class="d-md-none position-relative" data-tooltip="tickets">T</span>
+                        </th>
+                        <th class="text-center d-none d-sm-table-cell">
+                            <span class="d-none d-md-inline">Revocations</span>
+                            <span class="d-md-none position-relative" data-tooltip="revocations">X</span>
+                        </th>
+                        <th class="text-center d-table-cell d-sm-none">Txns</th>
+                        <th class="text-center">DCR</th>
+                        <th class="text-center">Size</th>
+                        <th class="text-center d-none d-sm-table-cell">
+                            <span class="d-none d-md-inline">Version</span>
+                            <span class="d-md-none position-relative" data-tooltip="block version">Ver</span>
+                        </th>
+                        <th class="text-center" class="jsonly" >Age</th>
+                        <th class="text-center pr-0">Time</th>
+                    </tr>
+                </thead>
+                <tbody data-target="blocklist.table">
+                {{range .Data}}
+                    <tr data-height="{{ .Height }}" data-link-class="medium-sans" class="pr-0">
+                        <td data-type="height"><a href="/block/{{.Height}}" class="medium-sans">{{if not .Valid}}<span class="attention">&#9888;</span>{{end}}{{ .Height }}</a></td>
+                        <td class="text-center d-none d-sm-table-cell" data-type="tx" {{if not .Valid}}class="grayed" title="Regular transactions invalidated by stakeholders."{{end}}>{{.Transactions}}</td>
+                        <td class="text-center d-none d-sm-table-cell" data-type="votes">{{.Voters}}</td>
+                        <td class="text-center d-none d-sm-table-cell" data-type="tickets">{{.FreshStake}}</td>
+                        <td class="text-center d-none d-sm-table-cell" data-type="revocations">{{.Revocations}}</td>
+                        <td class="text-center d-table-cell d-sm-none" data-type="tx_count">{{.TxCount}}</td>
+                        <td class="text-center" data-type="value">{{threeSigFigs .Total}}</td>
+                        <td class="text-center" data-type="size">{{.FormattedBytes}}</td>
+                        <td class="text-center d-none d-sm-table-cell" data-type="version">{{.Version}}</td>
+                        <td class="text-center" data-type="age" class="jsonly" data-target="time.age" data-age="{{.BlockTime.UNIX}}"></td>
+                        <td class="text-center pr-0" data-type="time">{{.BlockTime}}</td>
+                    </tr>
+                {{end}}
+                </tbody>
+            </table>
+            {{if len .Pages}}
+            <div class="text-right pr-3">
+              {{if lt $topBlock .BestBlock}}
+                <a href="/blocks?height={{ add $topBlock (int64 $blocksCount) }}&rows={{.Rows}}"
+                class="d-inline-block dcricon-arrow-left m-1 fs20"></a>
+              {{end}}
+              {{range .Pages}}
+                {{if eq .Link ""}}
+                  <span>{{.Str}}</span>
+                {{else}}
+                  <a href="{{.Link}}" class="fs18 pager px-1{{if .Active}} active{{end}}">{{.Str}}</a>
+                {{end}}
+              {{end}}
+              {{if ge $topBlock .Rows}}
+                <a href="/blocks?height={{ subtract $topBlock (int64 $blocksCount) }}&rows={{.Rows}}"
+                class="d-inline-block dcricon-arrow-right m-1 fs20"></a>
+              {{end}}
             </div>
+            {{end}}
         </div>
-        {{if gt (len $.Data) 20}}
-        <div style="margin-bottom:5%;">
-            {{template  "blocksPagination" .}}
-        </div>
-        {{end}}
-        <p class="text-center">Looking for <a href="/side">orphaned blocks</a> or <a href="/disapproved">PoS invalidated blocks?</a><p>
+        <p class="text-center mt-3">Looking for <a href="/side">orphaned blocks</a> or <a href="/disapproved">PoS invalidated blocks?</a><p>
     </div>
 {{ template "footer" . }}
 </body>

@@ -55,82 +55,70 @@
 
 {{define "navbar"}}
 <body class="{{ theme }}{{if .Cookies.DarkMode}} darkBG{{end}}">
-<header class="top-nav"
-		id="navBar"
-		data-blocktime="{{.BlockTimeUnix}}">
-	<div class="container">
-		<div class="d-flex align-items-center flex-wrap">
-			<div class="d-flex align-items-center">
-				<div class="col-sm-auto" style="padding: 0 2px">
-					<a href="/" class="no-underline d-block home-link">
-						<div class="dcrdata-logo"></div>
+<header class="top-nav d-flex align-items-center"	id="navBar"	data-blocktime="{{.BlockTimeUnix}}">
+	<div class="container d-flex justify-content-between align-items-center">
+		<a class="no-underline d-block home-link dcrdata-logo" a href="/"></a>
+		<form
+			class="search-form"
+			role="search"
+			id="search-form"
+			action="/search"
+			data-controller="search"
+			data-action="submit->search#execute"
+		>
+			<input
+				tabindex="0"
+				type="text"
+				name="search"
+				id="search"
+				class="top-search mousetrap"
+				placeholder="Search for blocks, addresses, transactions or proposal tokens"
+				spellcheck="false"
+			/>
+			<button class="search-bttn"><span class="dcricon-search"></span></button>
+		</form>
+		<nav role="navigation" id="hamburger-menu" data-controller="menu" data-turbolinks-permanent>
+			<div id="menuToggle">
+				<input type="checkbox" data-target="menu.toggle" data-action="change->menu#toggle"/>
+				<span class="patty"></span>
+				<span class="patty"></span>
+				<span class="patty short"></span>
+				<div id="menu">
+					<a class="menu-item" data-keynav-skip href="/" title="Home">Home</a>
+					<a class="menu-item" data-keynav-skip href="/blocks" title="Decred blocks">Blocks</a>
+					<a class="menu-item" data-keynav-skip href="/mempool" title="Decred mempool">Mempool</a>
+					<a class="menu-item" data-keynav-skip href="/ticketpool" title="Decred ticket pool">Ticket Pool</a>
+					<a class="menu-item jsonly" data-keynav-skip href="/charts" title="Decred charts">Charts</a>
+					<a class="menu-item" data-keynav-skip href="/agendas" title="Agendas">Agendas</a>
+					<a class="menu-item" data-keynav-skip href="/proposals" title="Proposals">Proposals</a>
+					<a class="menu-item" data-keynav-skip href="/market" title="Market">Market</a>
+					<a class="menu-item" data-keynav-skip href="/parameters" title="Chain Parameters">Parameters</a>
+					<a class="menu-item" data-keynav-skip href="/address/{{.DevAddress}}?txntype=merged_debit" title="Decred Treasury">Treasury</a>
+					<a class="menu-item" data-keynav-skip href="/decodetx" title="Decode or send a raw transaction">Decode/Broadcast Tx</a>
+				{{- if eq .NetName "Mainnet"}}
+					<a class="menu-item" data-keynav-skip href="{{.Links.Testnet}}" title="Home">Switch To Testnet</a>
+				{{- else}}
+					<a class="menu-item" data-keynav-skip href="{{.Links.Mainnet}}" title="Home">Switch To Mainnet</a>
+				{{- end}}
+					<form action="/set" method="post" data-target="menu.form" class="menu-form">
+						<input type="hidden" name="darkmode" value="darkmode">
+						<input type="hidden" name="requestURI" value="{{.RequestURI}}">
+						<button type="submit" data-action="click->menu#onSunClick"
+								class="menu-submit text-left w-100 p-0"
+								data-keynav-skip>
+								<div class="menu-item">
+								  <span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span>
+								  Night Mode
+								</div>
+						</button>
+					</form>
+					<a class="menu-item jsonly" data-keynav-skip data-turbolinks="false" href="#" id="keynav-toggle">
+						<span class="text">Enable Hot Keys</span><span class="keys-hint">(&nbsp;&nbsp;<span class="arrows"> &#8592;<br>&#8594;</span>&nbsp;&nbsp;enter&nbsp;&nbsp;\&nbsp;&nbsp;=&nbsp;&nbsp;)</span>
 					</a>
+					<a class="menu-item" data-keynav-skip href="{{.Links.APIDocs}}" title="API Endpoints" target="_blank" rel="noopener noreferrer">JSON API Docs</a>
 				</div>
 			</div>
-			<div class="col px-4 text-right">
-				<form
-					class="search-form"
-					role="search"
-					id="search-form"
-					action="/search"
-					data-controller="search"
-					data-action="submit->search#execute"
-				>
-					<input
-						tabindex="0"
-						type="text"
-						name="search"
-						id="search"
-						class="top-search mousetrap"
-						placeholder="Search for blocks, addresses, transactions or proposal tokens"
-						spellcheck="false"
-					/>
-					<button class="search-bttn"><span class="dcricon-search"></span></button>
-				</form>
-			</div>
-			<nav role="navigation" id="hamburger-menu" data-controller="menu" data-turbolinks-permanent>
-				<div id="menuToggle">
-					<input type="checkbox" data-target="menu.toggle" data-action="change->menu#toggle"/>
-					<span class="patty"></span>
-					<span class="patty"></span>
-					<span class="patty short"></span>
-					<div id="menu">
-						<a class="menu-item" data-keynav-skip href="/" title="Home">Home</a>
-						<a class="menu-item" data-keynav-skip href="/blocks" title="Decred blocks">Blocks</a>
-						<a class="menu-item" data-keynav-skip href="/mempool" title="Decred mempool">Mempool</a>
-						<a class="menu-item" data-keynav-skip href="/ticketpool" title="Decred ticket pool">Ticket Pool</a>
-						<a class="menu-item jsonly" data-keynav-skip href="/charts" title="Decred charts">Charts</a>
-						<a class="menu-item" data-keynav-skip href="/agendas" title="Agendas">Agendas</a>
-						<a class="menu-item" data-keynav-skip href="/proposals" title="Proposals">Proposals</a>
-						<a class="menu-item" data-keynav-skip href="/market" title="Market">Market</a>
-						<a class="menu-item" data-keynav-skip href="/parameters" title="Chain Parameters">Parameters</a>
-						<a class="menu-item" data-keynav-skip href="/address/{{.DevAddress}}?txntype=merged_debit" title="Decred Treasury">Treasury</a>
-						<a class="menu-item" data-keynav-skip href="/decodetx" title="Decode or send a raw transaction">Decode/Broadcast Tx</a>
-					{{- if eq .NetName "Mainnet"}}
-						<a class="menu-item" data-keynav-skip href="{{.Links.Testnet}}" title="Home">Switch To Testnet</a>
-					{{- else}}
-						<a class="menu-item" data-keynav-skip href="{{.Links.Mainnet}}" title="Home">Switch To Mainnet</a>
-					{{- end}}
-						<form action="/set" method="post" data-target="menu.form" class="menu-form">
-							<input type="hidden" name="darkmode" value="darkmode">
-							<input type="hidden" name="requestURI" value="{{.RequestURI}}">
-							<button type="submit" data-action="click->menu#onSunClick"
-									class="menu-submit text-left w-100 p-0"
-									data-keynav-skip>
-									<div class="menu-item">
-									  <span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span>
-									  Night Mode
-									</div>
-							</button>
-						</form>
-						<a class="menu-item jsonly" data-keynav-skip data-turbolinks="false" href="#" id="keynav-toggle">
-							<span class="text">Enable Hot Keys</span><span class="keys-hint">(&nbsp;&nbsp;<span class="arrows"> &#8592;<br>&#8594;</span>&nbsp;&nbsp;enter&nbsp;&nbsp;\&nbsp;&nbsp;=&nbsp;&nbsp;)</span>
-						</a>
-						<a class="menu-item" data-keynav-skip href="{{.Links.APIDocs}}" title="API Endpoints" target="_blank" rel="noopener noreferrer">JSON API Docs</a>
-					</div>
-				</div>
-			</nav>
-		</div>
+		</nav>
 	</div>
 </header>
 {{end}}
@@ -352,4 +340,38 @@
   data-ticket-count="{{.NumTickets}}"
   data-rev-total="{{$likely.RevokeTotal}}"
   data-rev-count="{{.NumRevokes}}"
+{{end}}
+
+{{define "blocksBanner"}}
+<div class="bg-white block-banner">
+	<div class="container">
+		<div class="h3 text-blueish pt-4 pb-2">Explore Blockchain</div>
+		<div class="medium-sans">
+			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/blocks">
+				<span class="px-2{{if eq .TimeGrouping "Blocks"}} unstyled-link{{else}} text-secondary{{end}}">Blocks</span>
+				<div class="blocks-selector{{if eq .TimeGrouping "Blocks"}} active{{end}}"></div>
+			</a>
+			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/ticketpricewindows">
+				<span class="px-2{{if eq .TimeGrouping "Windows"}} unstyled-link{{else}} text-secondary{{end}}">Windows</span>
+				<div class="blocks-selector{{if eq .TimeGrouping "Windows"}} active{{end}}"></div>
+			</a>
+			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/days">
+				<span class="px-2{{if eq .TimeGrouping "Days"}} unstyled-link{{else}} text-secondary{{end}}">Days</span>
+				<div class="blocks-selector{{if eq .TimeGrouping "Days"}} active{{end}}"></div>
+			</a>
+			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/weeks">
+				<span class="px-2{{if eq .TimeGrouping "Weeks"}} unstyled-link{{else}} text-secondary{{end}}">Weeks</span>
+				<div class="blocks-selector{{if eq .TimeGrouping "Weeks"}} active{{end}}"></div>
+			</a>
+			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/months">
+				<span class="px-2{{if eq .TimeGrouping "Months"}} unstyled-link{{else}} text-secondary{{end}}">Months</span>
+				<div class="blocks-selector{{if eq .TimeGrouping "Months"}} active{{end}}"></div>
+			</a>
+			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/years">
+				<span class="px-2{{if eq .TimeGrouping "Years"}} unstyled-link{{else}} text-secondary{{end}}">Years</span>
+				<div class="blocks-selector{{if eq .TimeGrouping "Years"}} active{{end}}"></div>
+			</a>
+		</div>
+	</div>
+</div>
 {{end}}

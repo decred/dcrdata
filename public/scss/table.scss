@@ -75,3 +75,17 @@ table th.addr-hash-column {
   font-size: 14px;
   width: 20em;
 }
+
+table.table.v3 {
+  tr,
+  th,
+  td {
+    font-size: 17px;
+    padding: 18px 0.5em;
+  }
+
+  tr:last-child,
+  tr:last-child > td {
+    border: none;
+  }
+}

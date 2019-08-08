@@ -1,139 +1,147 @@
 {{define "timelisting"}}
 <!DOCTYPE html>
 <html lang="en">
-
+{{$lastGrouping := 1}}
+{{$oldest := 0}}
 {{template "html-head" printf "Decred %s List" .TimeGrouping}}
     {{template "navbar" . }}
+    {{template "blocksBanner" .}}
     <div class="container main" data-controller="time pagenavigation">
-        <h4>{{.TimeGrouping}}</h4>
-
-        {{block "timeBasedPagination" .}}
         {{$count := (int64 (len .Data))}}
-        <div class="mb-1 fs13">
+        <div class="mb-1">
             {{if gt $count 0}}
-            <div class="d-flex flex-wrap-reverse align-items-center justify-content-end list-display">
-                {{$oldest := (add .Offset $count)}}
-                {{$lastGrouping := (add .BestGrouping 1)}}
+            <div class="d-flex justify-content-between align-items-end">
+                {{$oldest = (add .Offset $count)}}
+                {{$lastGrouping = (add .BestGrouping 1)}}
                 {{$lowerCaseVal := (toLowerCase .TimeGrouping)}}
                 {{$pending := (subtract $lastGrouping .Offset)}}
                 {{$dropVal := $lastGrouping}}
                 {{if gt $lastGrouping 200}}{{$dropVal = 200}}{{end}}
+                <span class="h2 d-flex pt-4 pb-1 pr-2">{{.TimeGrouping}}</span>
 
-                {{template "listViewRouting" $lowerCaseVal}}
-
-                <span class="fs12 nowrap text-right">
-                    <label class="mb-0 mr-1" for="tbPagesize">Page Size</label>
-                    <select
-                        id="tbPagesize"
-                        data-target="pagenavigation.pagesize"
-                        data-action="change->pagenavigation#setPageSize"
-                        data-offset="{{$.Offset}}"
-                        data-offsetkey="offset"
-                        class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $pending 20}}disabled{{end}}"
-                        {{if lt $pending 20}}disabled="disabled"{{end}}
-                    >
-                    {{if ge $pending 20}}<option {{if eq $count 20}}selected{{end}} value="20">20</option>{{end}}
-                    {{if ge $pending 30}}<option {{if eq $count 30}}selected{{end}} value="30">30</option>{{end}}
-                    {{if ge $pending 50}}<option {{if eq $count 50}}selected{{end}} value="50">50</option>{{end}}
-                    {{if ge $pending 100}}<option {{if eq $count 100}}selected{{end}} value="100">100</option>{{end}}
-                    {{if eq $dropVal $count 20 30 50 100}}{{else}}<option value="{{$dropVal}}">{{$dropVal}}</option>{{end}}
-                    {{if eq $count 20 30 50 100 200}}{{else}}<option selected value="{{$count}}">{{$count}}</option>{{end}}
-                    </select>
-                </span>
-                <span class="fs12 nowrap text-right px-2">
-                    {{intComma (add .Offset 1)}} &ndash; {{intComma $oldest}} of {{ intComma $lastGrouping }} rows
-                </span>
-                <nav aria-label="blocks navigation" data-limit="{{.Limit}}" class="m-2">
-                    <ul class="pagination mb-0 pagination-sm">
-                        <li class="page-item {{if eq .Offset 0}}disabled{{end}}">
-                            <a
-                                class="page-link"
-                                href="/{{$lowerCaseVal}}?offset=0&rows={{.Limit}}"
-                                id="next"
-                            > Newest</a>
-                        </li>
-                        <li class="page-item {{if eq .Offset 0}}disabled{{end}}">
-                            <a
-                                class="page-link"
-                                href="/{{$lowerCaseVal}}?offset={{subtract .Offset .Limit}}&rows={{.Limit}}"
-                                id="next"
-                            > Newer</a>
-                        </li>
-                        <li class="page-item {{if ge $oldest $lastGrouping}}disabled{{end}}">
-                            <a
-                                class="page-link"
-                                href="/{{$lowerCaseVal}}?offset={{add .Offset .Limit}}&rows={{.Limit}}"
-                                id="prev"
-                            >Older</a>
-                        </li>
-                        <li class="page-item {{if ge $oldest $lastGrouping}}disabled{{end}}">
-                            <a
-                                class="page-link"
-                                href="/{{$lowerCaseVal}}?offset={{subtract $lastGrouping .Limit}}&rows={{.Limit}}"
-                                id="prev"
-                            >Oldest</a>
-                        </li>
-                    </ul>
-                </nav>
+                <div class="pb-1 d-flex justify-content-end align-items-end flex-wrap">
+                  <span class="fs12 nowrap text-secondary px-2 my-2">
+                      {{intComma (add .Offset 1)}} &ndash; {{intComma $oldest}} of {{ intComma $lastGrouping }} rows
+                  </span>
+                  <span class="fs12 nowrap text-right">
+                      <select
+                          data-target="pagenavigation.pagesize"
+                          data-action="change->pagenavigation#setPageSize"
+                          data-offset="{{$.Offset}}"
+                          data-offsetkey="offset"
+                          class="dropdown text-secondary my-2 {{if lt $pending 20}}disabled{{end}}"
+                          {{if lt $pending 20}}disabled="disabled"{{end}}
+                      >
+                      {{if ge $pending 20}}<option {{if eq $count 20}}selected{{end}} value="20">20 per page</option>{{end}}
+                      {{if ge $pending 30}}<option {{if eq $count 30}}selected{{end}} value="30">30 per page</option>{{end}}
+                      {{if ge $pending 50}}<option {{if eq $count 50}}selected{{end}} value="50">50 per page</option>{{end}}
+                      {{if ge $pending 100}}<option {{if eq $count 100}}selected{{end}} value="100">100 per page</option>{{end}}
+                      {{if eq $dropVal $count 20 30 50 100}}{{else}}<option value="{{$dropVal}}">{{$dropVal}} per page</option>{{end}}
+                      {{if eq $count 20 30 50 100 200}}{{else}}<option selected value="{{$count}}">{{$count}} per page</option>{{end}}
+                      </select>
+                  </span>
+                  <nav aria-label="blocks navigation" data-limit="{{.Limit}}" class="ml-2 my-2 d-inline-block text-right">
+                      <ul class="pages mb-0">
+                          {{if ne .Offset 0}}
+                          <li>
+                              <a
+                              class="text-secondary"
+                              href="/{{$lowerCaseVal}}?offset=0&rows={{.Limit}}"
+                              > Newest</a>
+                          </li>
+                          <li>
+                              <a
+                              class="text-secondary"
+                              href="/{{$lowerCaseVal}}?offset={{subtract .Offset .Limit}}&rows={{.Limit}}"
+                              > Newer</a>
+                          </li>
+                          {{end}}
+                          {{if lt $oldest $lastGrouping}}
+                          <li>
+                              <a
+                              class="text-secondary"
+                              href="/{{$lowerCaseVal}}?offset={{add .Offset .Limit}}&rows={{.Limit}}"
+                              >Older</a>
+                          </li>
+                          <li>
+                              <a
+                              class="text-secondary"
+                              href="/{{$lowerCaseVal}}?offset={{subtract $lastGrouping .Limit}}&rows={{.Limit}}"
+                              >Oldest</a>
+                          </li>
+                          {{end}}
+                      </ul>
+                  </nav>
+                </div>
             </div>
             {{else}}
             <span class="fs12 nowrap text-right list-display">no confirmed blocks found</span>
             {{end}}
         </div>
-        {{end}}
 
         {{$lowerCaseVal := (toLowerCase .TimeGrouping)}}
-        <div class="row">
-            <div class="col-lg-24">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Start Date</th>
-                            <th class="text-right d-none d-sm-table-cell">
-                                <span class="d-none d-md-inline">Regular</span>
-                                <span class="d-md-none position-relative" data-tooltip="regular transactions">R</span>
-                            </th>
-                            <th class="text-right d-none d-sm-table-cell">
-                                <span class="d-none d-md-inline">Votes</span>
-                                <span class="d-md-none position-relative" data-tooltip="votes">V</span>
-                            </th>
-                            <th class="text-right d-none d-sm-table-cell">
-                                <span class="d-none d-md-inline">Tickets</span>
-                                <span class="d-md-none position-relative" data-tooltip="tickets">T</span>
-                            </th>
-                            <th class="text-right d-none d-sm-table-cell">
-                                <span class="d-none d-md-inline">Revocations</span>
-                                <span class="d-md-none position-relative" data-tooltip="revocations">X</span>
-                            </th>
-                            <th class="text-right d-table-cell d-sm-none">Txns</th>
-                            <th class="text-right"><span class="d-none d-sm-inline">Total </span>Blocks</th>
-                            <th class="text-right"><span class="d-none d-sm-inline">Total </span>Size</th>
-                            <th class="text-right">Age</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    {{range .Data}}
-                        <tr id="{{.EndBlock}}">
-                            <td>
-                               <a class="fs16 height" href="{{fetchRowLinkURL $lowerCaseVal .StartTime.T .EndTime.T}}">{{.FormattedStartTime}}</a>
-                            </td>
-                            <td class="text-right d-none d-sm-table-cell">{{intComma .Transactions}}</td>
-                            <td class="text-right d-none d-sm-table-cell">{{intComma .Voters}}</td>
-                            <td class="text-right d-none d-sm-table-cell">{{intComma .FreshStake}}</td>
-                            <td class="text-right d-none d-sm-table-cell">{{intComma .Revocations}}</td>
-                            <td class="text-right d-table-cell d-sm-none">{{intComma .TxCount}}</td>
-                            <td class="text-right">{{intComma .BlocksCount}}</td>
-                            <td class="text-right">{{.FormattedSize}}</td>
-                            <td id="{{toLowerCase $.TimeGrouping}}" class="text-right" data-target="time.age" data-age="{{.StartTime.UNIX}}"></td>
-                        </tr>
-                    {{end}}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        {{if gt (len $.Data) 20}}
-        <div style="margin-bottom:5%;">
-            {{template "timeBasedPagination" .}}
+        <div class="bg-white px-0 px-md-3 pb-4">
+          <table class="table v3">
+              <thead>
+                  <tr>
+                      <th>Start Date</th>
+                      <th class="text-center d-none d-sm-table-cell">
+                          <span class="d-none d-md-inline">Regular</span>
+                          <span class="d-md-none position-relative" data-tooltip="regular transactions">R</span>
+                      </th>
+                      <th class="text-center d-none d-sm-table-cell">
+                          <span class="d-none d-md-inline">Votes</span>
+                          <span class="d-md-none position-relative" data-tooltip="votes">V</span>
+                      </th>
+                      <th class="text-center d-none d-sm-table-cell">
+                          <span class="d-none d-md-inline">Tickets</span>
+                          <span class="d-md-none position-relative" data-tooltip="tickets">T</span>
+                      </th>
+                      <th class="text-center d-none d-sm-table-cell">
+                          <span class="d-none d-md-inline">Revocations</span>
+                          <span class="d-md-none position-relative" data-tooltip="revocations">X</span>
+                      </th>
+                      <th class="text-center d-table-cell d-sm-none">Txns</th>
+                      <th class="text-center"><span class="d-none d-sm-inline">Total </span>Blocks</th>
+                      <th class="text-center"><span class="d-none d-sm-inline">Total </span>Size</th>
+                      <th class="text-center">Age</th>
+                  </tr>
+              </thead>
+              <tbody>
+              {{range .Data}}
+                  <tr>
+                      <td>
+                         <a class="fs16 height" href="{{fetchRowLinkURL $lowerCaseVal .StartTime.T .EndTime.T}}">{{.FormattedStartTime}}</a>
+                      </td>
+                      <td class="text-center d-none d-sm-table-cell">{{intComma .Transactions}}</td>
+                      <td class="text-center d-none d-sm-table-cell">{{intComma .Voters}}</td>
+                      <td class="text-center d-none d-sm-table-cell">{{intComma .FreshStake}}</td>
+                      <td class="text-center d-none d-sm-table-cell">{{intComma .Revocations}}</td>
+                      <td class="text-center d-table-cell d-sm-none">{{intComma .TxCount}}</td>
+                      <td class="text-center">{{intComma .BlocksCount}}</td>
+                      <td class="text-center">{{.FormattedSize}}</td>
+                      <td class="text-center" data-target="time.age" data-age="{{.StartTime.UNIX}}"></td>
+                  </tr>
+              {{end}}
+              </tbody>
+          </table>
+          {{if len .Pages}}
+          <div class="text-right pr-3">
+            {{if ne .Offset 0}}
+              <a href="/{{$lowerCaseVal}}?offset={{subtract .Offset .Limit}}&rows={{.Limit}}"
+              class="d-inline-block dcricon-arrow-left m-1 fs20"></a>
+            {{end}}
+            {{range .Pages}}
+              {{if eq .Link ""}}
+                <span>{{.Str}}</span>
+              {{else}}
+                <a href="{{.Link}}" class="fs18 pager px-1{{if .Active}} active{{end}}">{{.Str}}</a>
+              {{end}}
+            {{end}}
+            {{if lt $oldest $lastGrouping}}
+              <a href="/{{$lowerCaseVal}}?offset={{add .Offset .Limit}}&rows={{.Limit}}"
+              class="d-inline-block dcricon-arrow-right m-1 fs20"></a>
+            {{end}}
         </div>
         {{end}}
     </div>
