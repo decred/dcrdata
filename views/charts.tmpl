@@ -49,7 +49,6 @@
 
                 <div class="chart-control-wrapper mr-2 mb-1" data-target="charts.zoomSelector">
                     <div class="chart-control-label" data-target="charts.zoomLabel">ZOOM</div>
-                    <div class="chart-control-label d-hide" data-target="charts.limitLabel">LIMIT</div>
                     <div class="chart-control">
                         <ul
                             class="nav nav-pills"
@@ -166,26 +165,24 @@
                             class="nav nav-pills"
                         >
                             <li class="nav-item">
-                                <label class="customcheck ml-2 d-inline-flex label-option-1">
-                                    <span data-target="charts.optionLabel1">Price</span>
+                                <label class="customcheck ml-2 d-inline-flex">Price
                                     <input
                                         type="checkbox"
                                         checked="checked"
                                         data-action="click->charts#setVisibility"
-                                        data-target="charts.option1"
+                                        data-target="charts.ticketsPrice"
                                     >
-                                    <span class="checkmark option-1"></span>
+                                    <span class="checkmark tickets-price"></span>
                                 </label>
                             </li>
                             <li class="nav-item">
-                                <label class="customcheck mx-2 d-inline-flex label-option-2">
-                                    <span data-target="charts.optionLabel2">Tickets Bought</span>
+                                <label class="customcheck mx-2 d-inline-flex">Tickets Bought
                                     <input
                                         type="checkbox"
                                         data-action="click->charts#setVisibility"
-                                        data-target="charts.option2"
+                                        data-target="charts.ticketsPurchase"
                                     >
-                                    <span class="checkmark option-2"></span>
+                                    <span class="checkmark tickets-bought"></span>
                                 </label>
                             </li>
                         </ul>
@@ -203,8 +200,8 @@
                 style="width:100%; height:73vh; margin:0 auto;">
             </div>
             <div class="d-flex flex-wrap justify-content-center align-items-center mb-1 mt-1">
-                <div class="chart-control chart-control-wrapper" data-target="charts.dualAxesSelector">
-                    <ul class="nav nav-pills">
+                <div class="chart-control chart-control-wrapper">
+                    <ul class="nav nav-pills" data-target="charts.standardX">
                         <li class="nav-item active">
                             <a
                                 class="nav-link active"
@@ -224,17 +221,7 @@
                             >Blocks</a>
                         </li>
                     </ul>
-                </div>
-                <div class="chart-control chart-control-wrapper d-hide" data-target="charts.customAxisSelector">
-                    <ul class="nav nav-pills">
-                        <li class="nav-item active">
-                            <a
-                                class="nav-link active"
-                                href="javascript:void(0);"
-                                data-target="charts.customAxisOption"
-                            >Custom Axis</a>
-                        </li>
-                    </ul>
+                    <span class="d-hide" data-target="charts.customX"></span>
                 </div>
             </div>
             <div class="spinner-wrapper">

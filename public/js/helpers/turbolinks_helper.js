@@ -71,10 +71,6 @@ export default class TurboQuery {
     return this.constructor.project(target, this.parsed)
   }
 
-  nullEntry (target, keys) {
-    return this.constructor.setNullEntry(target, keys)
-  }
-
   get parsed () {
     return this.url.query
   }
@@ -85,14 +81,6 @@ export default class TurboQuery {
       return TurboQuery.parseValue(this.url.query[key])
     }
     return null
-  }
-
-  static setNullEntry (target, keys) {
-    // Set the provided keys to null.
-    keys.forEach((key) => {
-      target[key] = null
-    })
-    return target
   }
 
   static parseValue (v) {
@@ -134,6 +122,9 @@ export default class TurboQuery {
 
   static nullTemplate (keys) {
     var d = {}
-    return this.setNullEntry(d, keys)
+    keys.forEach((key) => {
+      d[key] = null
+    })
+    return d
   }
 }
