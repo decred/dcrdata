@@ -137,6 +137,7 @@
                 {{range $i, $v := .Proposals}}
                 {{with $v}}
                     <tr>
+                        {{$votesTotalPercent :=  percentage $v.TotalVotes $v.NumOfEligibleVotes}}
                         <td class="text-left">
                             <a href="/proposal/{{.RefID}}">{{.Name}}</a>
                             <span class="d-none d-sm-inline">&nbsp;({{.Username}})</span>
@@ -167,7 +168,7 @@
                                                 <div class="fs12 mt-1 d-none d-sm-block">{{secondsToShortDurationString (multiply $blocksRemaining $.TimePerBlock)}} left
                                                     <span class="text-black-50">({{printf "%.0f" (percentage (subtract 2016 $blocksRemaining) 2016)}}% completed)</span>
                                                 </div>
-                                            {{else if lt (percentage $v.TotalVotes $v.NumOfEligibleVotes) (toFloat64 $v.QuorumPercentage)}}
+                                            {{else if lt $votesTotalPercent (toFloat64 $v.QuorumPercentage)}}
                                                 <span class="text-no-quorum position-relative" data-tooltip="Votes did not attain quorum">
                                                     No quorum
                                                 </span>
@@ -202,6 +203,15 @@
                         <td class="text-right">
                             {{if and .VoteStatus (ne .VoteStatus.ShortDesc "Not Authorized")}}
                                 {{.TotalVotes}}
+                                <span class="fs12 text-black-50">
+                                    (
+                                    {{- if eq $v.NumOfEligibleVotes 0 -}}
+                                        0%
+                                    {{else -}}
+                                        {{printf "%.0f" $votesTotalPercent}}%
+                                    {{end}}
+                                    turnout)
+                                </span>
                             {{else}}
                                &mdash;
                             {{end}}
