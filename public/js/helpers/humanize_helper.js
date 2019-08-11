@@ -17,16 +17,84 @@ function hashParts (hash) {
   return [hash.substring(0, hashLen), hash.substring(hashLen)]
 }
 
+// Polyfill for IE
+Math.log10 = Math.log10 || function (x) {
+  return Math.log(x) * Math.LOG10E
+}
+
+function threeSigFigs (v, billions) {
+  var sign = v >= 0 ? '' : '-'
+  var tsf = (val, pre) => { return { value: `${sign}${val}`, prefix: pre || '' } }
+  v = Math.abs(v)
+  if (v === 0) {
+    return tsf(0, '')
+  }
+  var exp = Math.floor(Math.log10(v))
+  if (exp > 17) return tsf(Math.round(v / 1e15), 'E') // exa
+  let p
+  switch (Math.floor(exp / 3)) {
+    case 5:
+      p = 'P' // peta
+      switch (exp) {
+        case 17: return tsf(Math.round(v / 1e15), p)
+        case 16: return tsf((v / 1e15).toFixed(1), p)
+        case 15: return tsf((v / 1e15).toFixed(2), p)
+      }
+      break
+    case 4:
+      p = 'T' // tera
+      switch (exp) {
+        case 14: return tsf(Math.round(v / 1e12), p)
+        case 13: return tsf((v / 1e12).toFixed(1), p)
+        case 12: return tsf((v / 1e12).toFixed(2), p)
+      }
+      break
+    case 3:
+      switch (exp) {
+        case 11: return tsf(Math.round(v / 1e9), billions)
+        case 10: return tsf((v / 1e9).toFixed(1), billions)
+        case 9: return tsf((v / 1e9).toFixed(2), billions)
+      }
+      break
+    case 2:
+      p = 'M' // mega
+      switch (exp) {
+        case 8: return tsf(Math.round(v / 1e6), p)
+        case 7: return tsf((v / 1e6).toFixed(1), p)
+        case 6: return tsf((v / 1e6).toFixed(2), p)
+      }
+      break
+    case 1:
+      p = 'k' // kilo
+      switch (exp) {
+        case 5: return tsf(Math.round(v / 1e3), p)
+        case 4: return tsf((v / 1e3).toFixed(1), p)
+        case 3: return tsf((v / 1e3).toFixed(2), p)
+      }
+      break
+    case 0:
+      switch (exp) {
+        case 2: return tsf(Math.round(v))
+        case 1: return tsf(v.toFixed(1))
+        case 0: return tsf(v.toFixed(2))
+      }
+      break
+    default:
+      switch (exp) {
+        case -1: return tsf(v.toFixed(3))
+        case -2: return tsf(v.toFixed(4))
+        case -3: return tsf(v.toFixed(5))
+        case -4: return tsf(v.toFixed(6))
+        case -5: return tsf(v.toFixed(7))
+        default: return tsf(v.toFixed(8))
+      }
+  }
+}
+
 var humanize = {
-  fmtPercentage: function (val) {
-    var sign = '+'
-    var cssClass = 'text-green'
-    if (val < 1) {
-      sign = ''
-      cssClass = 'text-danger'
-    }
-    sign = sign + val.toFixed(2)
-    return `<span class="${cssClass}">${sign} % </span>`
+  fmtPercent: function (val) {
+    var sign = val <= 0 ? '-' : '+'
+    return sign + val.toFixed(2)
   },
   decimalParts: function (v, useCommas, precision, lgDecimals) {
     if (isNaN(precision) || precision > 8) {
@@ -67,28 +135,15 @@ var humanize = {
 
     return htmlString
   },
-  threeSigFigs: function (v) {
-    var sign = v >= 0 ? '' : '-'
-    v = Math.abs(v)
-    if (v === 0) return '0'
-    if (v >= 1e11) return `${sign}${Math.round(v / 1e9)}B`
-    if (v >= 1e10) return `${sign}${(v / 1e9).toFixed(1)}B`
-    if (v >= 1e9) return `${sign}${(v / 1e9).toFixed(2)}B`
-    if (v >= 1e8) return `${sign}${Math.round(v / 1e6)}M`
-    if (v >= 1e7) return `${sign}${(v / 1e6).toFixed(1)}M`
-    if (v >= 1e6) return `${sign}${(v / 1e6).toFixed(2)}M`
-    if (v >= 1e5) return `${sign}${Math.round(v / 1e3)}k`
-    if (v >= 1e4) return `${sign}${(v / 1e3).toFixed(1)}k`
-    if (v >= 1e3) return `${sign}${(v / 1e3).toFixed(2)}k`
-    if (v >= 1e2) return `${sign}${Math.round(v)}`
-    if (v >= 10) return `${sign}${v.toFixed(1)}`
-    if (v >= 1) return `${sign}${v.toFixed(2)}`
-    if (v >= 1e-1) return `${sign}${v.toFixed(3)}`
-    if (v >= 1e-2) return `${sign}${v.toFixed(4)}`
-    if (v >= 1e-3) return `${sign}${v.toFixed(5)}`
-    if (v >= 1e-4) return `${sign}${v.toFixed(6)}`
-    if (v >= 1e-5) return `${sign}${v.toFixed(7)}`
-    return `${sign}${v.toFixed(8)}`
+  threeSFV: function (v) {
+    // Use for DCR values. returns a single string with unit prefix appended
+    // with no space. Uses 'B' for billions.
+    var tsf = threeSigFigs(v, 'B')
+    return tsf.value + tsf.prefix
+  },
+  threeSFG: function (v) {
+    // Returns the threeSigFig object with 'G' for billions
+    return threeSigFigs(v, 'G')
   },
   twoDecimals: function (v) {
     if (v === 0.0) return '0.00'

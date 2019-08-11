@@ -320,3 +320,28 @@ func TestChartReorg(t *testing.T) {
 	resetCharts()
 	testReorg(2, 2, 1, 1, 2)
 }
+
+func TestSVGPolyline(t *testing.T) {
+	testX := ChartUints{0, 1, 2, 3, 10}
+	testY := ChartUints{1, 7, 8, 9, 11}
+	pLine, err := newSVGPolyline(testX, testY)
+	if err != nil {
+		t.Errorf("newSVGPolyline error: %v", err)
+		return
+	}
+	if pLine.LowX != 0 {
+		t.Errorf("LowX != 1")
+	}
+	if pLine.HighX != 10 {
+		t.Errorf("HighX != 10")
+	}
+	if pLine.LowY != 1 {
+		t.Errorf("LowY != 5")
+	}
+	if pLine.HighY != 11 {
+		t.Errorf("HighY != 10")
+	}
+	if pLine.Path != "1.000,0.000 0.900,0.600 0.800,0.700 0.700,0.800 0.000,1.000" {
+		t.Errorf("wrong path: %s", pLine.Path)
+	}
+}

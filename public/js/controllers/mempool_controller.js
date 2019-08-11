@@ -142,22 +142,22 @@ export default class extends Controller {
   setMempoolFigures () {
     var totals = this.mempool.totals()
     var counts = this.mempool.counts()
-    this.regTotalTarget.textContent = humanize.threeSigFigs(totals.regular)
+    this.regTotalTarget.textContent = humanize.threeSFV(totals.regular)
     this.regCountTarget.textContent = counts.regular
 
-    this.ticketTotalTarget.textContent = humanize.threeSigFigs(totals.ticket)
+    this.ticketTotalTarget.textContent = humanize.threeSFV(totals.ticket)
     this.ticketCountTarget.textContent = counts.ticket
 
-    this.voteTotalTarget.textContent = humanize.threeSigFigs(totals.vote)
+    this.voteTotalTarget.textContent = humanize.threeSFV(totals.vote)
 
     var ct = this.voteCountTarget
     while (ct.firstChild) ct.removeChild(ct.firstChild)
     this.mempool.voteSpans(counts.vote).forEach((span) => { ct.appendChild(span) })
 
-    this.revTotalTarget.textContent = humanize.threeSigFigs(totals.rev)
+    this.revTotalTarget.textContent = humanize.threeSFV(totals.rev)
     this.revCountTarget.textContent = counts.rev
 
-    this.likelyTotalTarget.textContent = humanize.threeSigFigs(totals.total)
+    this.likelyTotalTarget.textContent = humanize.threeSFV(totals.total)
     this.mempoolSizeTarget.textContent = humanize.bytes(totals.size)
 
     this.labelVotes()

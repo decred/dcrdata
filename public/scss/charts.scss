@@ -43,6 +43,12 @@
   font-size: 14px;
 }
 
+.pie75,
+.pie75 > svg {
+  height: 75px;
+  width: 75px;
+}
+
 .modal {
   display: none;
   position: fixed;

@@ -5,8 +5,8 @@ require (
 	github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb
 	github.com/decred/dcrd/blockchain v1.1.1
 	github.com/decred/dcrd/chaincfg v1.5.1
-	github.com/decred/dcrd/chaincfg/chainhash v1.0.1
-	github.com/decred/dcrd/chaincfg/v2 v2.1.0
+	github.com/decred/dcrd/chaincfg/chainhash v1.0.2
+	github.com/decred/dcrd/chaincfg/v2 v2.2.0
 	github.com/decred/dcrd/dcrec v1.0.0
 	github.com/decred/dcrd/dcrutil/v2 v2.0.0
 	github.com/decred/dcrd/rpc/jsonrpc/types v1.0.0
@@ -15,8 +15,8 @@ require (
 	github.com/decred/dcrd/wire v1.2.0
 	github.com/decred/dcrdata/api/types/v4 v4.0.2
 	github.com/decred/dcrdata/blockdata/v4 v4.0.3
-	github.com/decred/dcrdata/db/cache/v2 v2.2.2
-	github.com/decred/dcrdata/db/dbtypes/v2 v2.1.2
+	github.com/decred/dcrdata/db/cache/v2 v2.2.4
+	github.com/decred/dcrdata/db/dbtypes/v2 v2.1.4
 	github.com/decred/dcrdata/db/dcrpg/v4 v4.0.3
 	github.com/decred/dcrdata/exchanges/v2 v2.0.2
 	github.com/decred/dcrdata/explorer/types/v2 v2.0.2
@@ -28,7 +28,7 @@ require (
 	github.com/decred/dcrdata/rpcutils/v2 v2.0.3
 	github.com/decred/dcrdata/semver v1.0.0
 	github.com/decred/dcrdata/stakedb/v3 v3.0.3
-	github.com/decred/dcrdata/txhelpers/v3 v3.0.2
+	github.com/decred/dcrdata/txhelpers/v3 v3.0.4
 	github.com/decred/slog v1.0.0
 	github.com/dmigwi/go-piparser/proposals v0.0.0-20190426030541-8412e0f44f55
 	github.com/dustin/go-humanize v1.0.0

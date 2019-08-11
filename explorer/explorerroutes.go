@@ -151,12 +151,18 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	blocks := exp.dataSource.GetExplorerBlocks(int(height), int(height)-8)
+	blocks := exp.dataSource.GetExplorerBlocks(int(height), int(height)-5)
 	var bestBlock *types.BlockBasic
 	if blocks == nil {
 		bestBlock = new(types.BlockBasic)
 	} else {
 		bestBlock = blocks[0]
+	}
+	var sizePer int32
+	var valPer float64
+	if bestBlock.TxCount > 0 {
+		sizePer = bestBlock.Size / int32(bestBlock.TxCount)
+		valPer = bestBlock.Total / float64(bestBlock.TxCount)
 	}
 
 	// Safely retrieve the current inventory pointer.
@@ -188,21 +194,27 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 		Info          *types.HomeInfo
 		Mempool       *types.MempoolInfo
 		BestBlock     *types.BlockBasic
+		SizePerTx     int32
+		ValPerTx      float64
 		BlockTally    []int
 		Consensus     int
 		Blocks        []*types.BlockBasic
 		Conversions   *homeConversions
 		PercentChange float64
+		ModelDevice   *ModelMiner
 	}{
 		CommonPageData: exp.commonData(r),
 		Info:           homeInfo,
 		Mempool:        inv,
 		BestBlock:      bestBlock,
+		SizePerTx:      sizePer,
+		ValPerTx:       valPer,
 		BlockTally:     tallys,
 		Consensus:      consensus,
 		Blocks:         blocks,
 		Conversions:    conversions,
 		PercentChange:  homeInfo.PoolInfo.PercentTarget - 100,
+		ModelDevice:    standardMiner,
 	})
 
 	inv.RUnlock()

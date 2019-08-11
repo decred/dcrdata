@@ -2,7 +2,7 @@ package explorer
 
 import (
 	// Imports for TestThreeSigFigs
-	// "fmt"
+	"fmt"
 	// "math"
 	// "math/rand"
 	// "time"
@@ -30,6 +30,13 @@ func TestSimNetName(t *testing.T) {
 	netName := netName(chaincfg.SimNetParams())
 	if netName != "Simnet" {
 		t.Errorf(`Net name not "Simnet": %s`, netName)
+	}
+}
+
+func TestProfitability(t *testing.T) {
+	profitability := standardMiner.Profitability(300, 456, 30, 10.3)
+	if fmt.Sprintf("%.6f", profitability) != "1.459514" {
+		t.Errorf("Wrong profitability: Expected 1.459514, got %.6f", profitability)
 	}
 }
 

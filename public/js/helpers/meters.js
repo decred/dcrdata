@@ -414,3 +414,131 @@ export class MiniMeter extends Meter {
     super.line(center, end)
   }
 }
+
+function makeTextPosition (quadrant, align, baseline, x, y) {
+  return {
+    quadrant: quadrant,
+    align: align,
+    baseline: baseline,
+    x: x,
+    y: y
+  }
+}
+
+export class PieChart {
+  constructor (parent, opts) {
+    this.parent = parent
+    this.options = opts
+    this.radius = opts.radius || 35
+    this.expansion = opts.expansion || 1.5
+
+    this.valFormatter = opts.valFormatter || function (s) { return s.value }
+    this.innerRadius = this.expansion / this.radius
+    this.outerRadius = (this.radius + this.expansion) / this.radius
+    this.canvas = document.createElement('canvas')
+    this.ctx = this.canvas.getContext('2d')
+    this.parent.appendChild(this.canvas)
+    this.segments = opts.segments || [{ value: 1, color: 'black' }]
+
+    // Keep track of any properties being animated
+    this.animationEnd = 0
+    this.animationRunning = false
+    this.animationTarget = 0
+    // animation options
+    opts.fps = opts.fps || 60
+    opts.animationLength = opts.animationLength || 400
+    this.resize()
+  }
+
+  resize () {
+    this.width = this.parent.clientWidth
+    this.height = this.parent.clientHeight
+    this.canvas.width = this.width
+    this.canvas.height = this.height
+    this.center = {
+      x: this.width / 2,
+      y: this.height / 2
+    }
+    this.draw()
+  }
+
+  denorm (x) {
+    return x * this.radius
+  }
+
+  denormTheta (theta) {
+    // [0, 1] to [this.meterSpecs.startTheta, this.meterSpecs.endTheta]
+    return theta * Math.PI * 2
+  }
+
+  normedPolarToCartesian (normed, normedTheta) {
+    // maps radius: [0,1] to [0,width], and angle: [0,1] to [0,2PI]
+    var r = this.denorm(normed)
+    var theta = this.denormTheta(normedTheta)
+    return {
+      x: this.center.x + r * Math.cos(theta),
+      y: this.center.y + r * Math.sin(theta)
+    }
+  }
+
+  textPosition (normedTheta) {
+    let pt = this.normedPolarToCartesian(this.outerRadius * 1.1, normedTheta)
+    if (normedTheta < 0.25) return makeTextPosition(0, 'left', 'top', pt.x, pt.y)
+    if (normedTheta < 0.5) return makeTextPosition(1, 'right', 'top', pt.x, pt.y)
+    if (normedTheta < 0.75) return makeTextPosition(2, 'right', 'bottom', pt.x, pt.y)
+    return makeTextPosition(3, 'left', 'bottom', pt.x, pt.y)
+  }
+
+  draw () {
+    var theta = 0
+    var ctx = this.ctx
+    var total = this.segments.reduce((a, s) => a + s.value, 0)
+    var center = this.center
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
+    ctx.font = `13px 'source-sans-pro-v9-latin-regular', sans-serif`
+    var spacer = 0.006
+    this.segments.forEach(segment => {
+      ctx.fillStyle = segment.color
+      let alpha = segment.value / total
+      if (alpha < 2 * spacer) return // too small to plot
+      let beta = theta + (alpha / 2)
+      let offset = this.normedPolarToCartesian(this.innerRadius, beta)
+      ctx.beginPath()
+      ctx.moveTo(offset.x, offset.y)
+      ctx.arc(center.x, center.y, this.radius, this.denormTheta(theta + spacer), this.denormTheta(theta + alpha - spacer))
+      ctx.lineTo(offset.x, offset.y)
+      theta += alpha
+      ctx.fill()
+      let txtPos = this.textPosition(beta)
+      ctx.textAlign = txtPos.align
+      ctx.textBaseline = txtPos.baseline
+      ctx.fillText(this.valFormatter(segment), txtPos.x, txtPos.y)
+    })
+  }
+
+  async animate (target) {
+    var opts = this.options
+    this.animationEnd = new Date().getTime() + opts.animationLength
+    this.animationTarget = target
+    if (this.animationRunning) return
+    this.animationRunning = true
+    var frameDuration = 1000 / opts.fps
+    var now = new Date().getTime()
+    while (now < this.animationEnd) {
+      await sleep(frameDuration)
+      let remainingTime = this.animationEnd - now
+      if (remainingTime < frameDuration) remainingTime = frameDuration
+      target = this.animationTarget
+      this.segments.forEach((segment, i) => {
+        let toGo = target[i] - segment.value
+        let step = toGo * frameDuration / remainingTime
+        segment.value += step
+      })
+      this.draw()
+      now = new Date().getTime()
+    }
+    this.segments.forEach((s, i) => { s.value = target[i] })
+    this.draw()
+    this.animationRunning = false
+  }
+}

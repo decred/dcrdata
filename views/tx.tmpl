@@ -56,7 +56,7 @@
                 <br>
                 <div class="lh1rem d-inline-block text-secondary"
                   ><span class="fs16 lh1rem d-inline-block text-nowrap"
-                  >{{threeSigFigs $conv.Total.Value}}
+                  >{{threeSFV $conv.Total.Value}}
                   <span class="fs14">{{$conv.Total.Index}}</span>
                   </span>
                   <span class="fs12">(today)</span>
@@ -96,7 +96,7 @@
                 {{if $conv.Fees}}
                 <br>
                 <span class="text-secondary fs16 lh1rem d-inline-block"
-                >{{threeSigFigs $conv.Fees.Value}}
+                >{{threeSFV $conv.Fees.Value}}
                 <span class="fs14 lh1rem  d-inline-block">{{$conv.Fees.Index}} <span class="fs12">(today)</span></span>
                 </span>
                 {{end}}

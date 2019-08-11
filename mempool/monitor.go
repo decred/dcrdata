@@ -268,6 +268,7 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 		p.inventory.Tickets = append([]exptypes.MempoolTx{tx}, p.inventory.Tickets...)
 		p.inventory.NumTickets++
 		p.inventory.LikelyMineable.TicketTotal += tx.TotalOut
+		p.inventory.LikelyMineable.TicketSize += tx.Size
 	case "Vote":
 		// Votes on the next block may be received just prior to dcrdata
 		// actually processing the new block. Do not broadcast these
@@ -294,6 +295,7 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 			votingInfo.VotedTickets[tx.VoteInfo.TicketSpent] = true
 			p.inventory.LikelyMineable.VoteTotal += tx.TotalOut
 			p.inventory.VotingInfo.Tally(tx.VoteInfo)
+			p.inventory.LikelyMineable.VoteSize += tx.Size
 		} else {
 			likelyMineable = false
 		}
@@ -302,11 +304,13 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 		p.inventory.Transactions = append([]exptypes.MempoolTx{tx}, p.inventory.Transactions...)
 		p.inventory.NumRegular++
 		p.inventory.LikelyMineable.RegularTotal += tx.TotalOut
+		p.inventory.LikelyMineable.RegularSize += tx.Size
 	case "Revocation":
 		p.inventory.InvStake[tx.Hash] = struct{}{}
 		p.inventory.Revocations = append([]exptypes.MempoolTx{tx}, p.inventory.Revocations...)
 		p.inventory.NumRevokes++
 		p.inventory.LikelyMineable.RevokeTotal += tx.TotalOut
+		p.inventory.LikelyMineable.RevokeSize += tx.Size
 	}
 
 	// Update latest transactions, popping the oldest transaction off

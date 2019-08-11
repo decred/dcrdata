@@ -157,7 +157,7 @@ const (
 			-- NOT BOOL_AND(matching_tx_hash = '') AS no_empty_matching
 		FROM addresses
 		WHERE address = $1 AND valid_mainchain = TRUE
-		GROUP BY tx_type=0, is_funding, 
+		GROUP BY tx_type=0, is_funding,
 			matching_tx_hash=''  -- separate spent and unspent
 		ORDER BY count, is_funding;`
 
@@ -341,6 +341,15 @@ const (
 		SET valid_mainchain = (tr.is_mainchain::int * tr.is_valid::int)::boolean
 		FROM transactions AS tr
 		WHERE addresses.tx_hash = tr.tx_hash;`
+
+	// CountUniqueAddressesBefore counts the distinct addresses in the database.
+	// This query is heavy. It should not be run every block.
+	// The SELECT pattern used here provides a speed boost on indexed columns.
+	CountUniqueAddressesBefore = `SELECT COUNT(*) FROM
+			(SELECT DISTINCT address
+			FROM addresses
+			WHERE block_time < $1)
+		AS a;`
 )
 
 // MakeAddressRowInsertStatement returns the appropriate addresses insert statement for

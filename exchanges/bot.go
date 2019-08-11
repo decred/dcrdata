@@ -159,6 +159,14 @@ func (state *ExchangeBotState) VolumeOrderedExchanges() []*tokenedExchange {
 	return xcList
 }
 
+// Conversion converts the DCR value to a value in the state's fiat index.
+func (state *ExchangeBotState) Conversion(dcrVal float64) *Conversion {
+	return &Conversion{
+		Value: state.Price * dcrVal,
+		Index: state.BtcIndex,
+	}
+}
+
 // A price bin for the aggregated orderbook. The Volumes array will be length
 // N = number of depth-reporting exchanges. If any exchange has an order book
 // entry at price Price, then an agBookPt should be created. If a different
@@ -608,7 +616,6 @@ func (bot *ExchangeBot) ConvertedState(code string) (*ExchangeBotState, error) {
 	dcrPrice, volume := bot.processState(bot.currentState.DcrBtc, true)
 	btcPrice, _ := bot.processState(fiatIndices, false)
 	if dcrPrice == 0 || btcPrice == 0 {
-		bot.failed = true
 		return nil, fmt.Errorf("Unable to process price for currency %s", code)
 	}
 
@@ -863,10 +870,7 @@ func (bot *ExchangeBot) Conversion(dcrVal float64) *Conversion {
 	}
 	xcState := bot.State()
 	if xcState != nil {
-		return &Conversion{
-			Value: xcState.Price * dcrVal,
-			Index: xcState.BtcIndex,
-		}
+		return xcState.Conversion(dcrVal)
 	}
 	return nil
 }

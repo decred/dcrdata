@@ -1014,6 +1014,8 @@ func (pgb *ChainDB) RegisterCharts(charts *cache.ChartData) {
 		Fetcher:  pgb.poolStats,
 		Appender: appendPoolStats,
 	})
+
+	charts.AddAddressCounter(pgb.CountUniqueAddresses)
 }
 
 // TransactionBlocks retrieves the blocks in which the specified transaction
@@ -5865,4 +5867,25 @@ func (pgb *ChainDB) SignalHeight(height uint32) {
 			pgb.shutdownDcrdata()
 		}
 	}
+}
+
+// CountUniqueAddresses counts all unique addresses in the database. It actually
+// counts twice, once for all addresses and once for all addresses before a
+// month ago, returning the current value and the count of new addresses in the
+// last month.
+func (pgb *ChainDB) CountUniqueAddresses() (uint64, uint64) {
+	var uniques, oldUniques uint64
+	tDef := dbtypes.TimeDef{T: time.Now()}
+	err := pgb.db.QueryRowContext(pgb.ctx, internal.CountUniqueAddressesBefore, tDef).Scan(&uniques)
+	if err != nil {
+		log.Errorf("CountUniqueAddresses 1: %v\n", err)
+		return 0, 0
+	}
+	tDef = dbtypes.TimeDef{T: time.Now().Add(-time.Hour * 24 * 30)}
+	err = pgb.db.QueryRowContext(pgb.ctx, internal.CountUniqueAddressesBefore, tDef).Scan(&oldUniques)
+	if err != nil {
+		log.Errorf("CountUniqueAddresses 1: %v\n", err)
+		return 0, 0
+	}
+	return uniques, uniques - oldUniques
 }

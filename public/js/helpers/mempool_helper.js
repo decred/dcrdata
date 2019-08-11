@@ -46,22 +46,23 @@ export default class Mempool {
     this.mempool = []
     // Create dummy transactions. Since we're only looking at totals, this is
     // okay for now and prevents an initial websocket call for the entire mempool.
-    var avgSize = parseFloat(d.size) / parseInt(d.count)
-    this.initType('Regular', parseFloat(d.regTotal), parseInt(d.regCount), avgSize)
-    this.initType('Ticket', parseFloat(d.ticketTotal), parseInt(d.ticketCount), avgSize)
-    this.initType('Revocation', parseFloat(d.revTotal), parseInt(d.revCount), avgSize)
-    this.initVotes(tallyTargets, parseFloat(d.voteTotal), parseInt(d.voteCount), avgSize)
+    this.initType('Regular', parseFloat(d.regTotal), parseInt(d.regCount), parseInt(d.regSize))
+    this.initType('Ticket', parseFloat(d.ticketTotal), parseInt(d.ticketCount), parseInt(d.ticketSize))
+    this.initType('Revocation', parseFloat(d.revTotal), parseInt(d.revCount), parseInt(d.revSize))
+    this.initVotes(tallyTargets, parseFloat(d.voteTotal), parseInt(d.voteCount), parseInt(d.voteSize))
   }
 
-  initType (txType, total, count, avgSize) {
+  initType (txType, total, count, size) {
     var fauxVal = total / count
+    var fauxSize = size / count
     for (var i = 0; i < count; i++) {
-      this.mempool.push(makeTx('', txType, fauxVal, null, avgSize))
+      this.mempool.push(makeTx('', txType, fauxVal, null, fauxSize))
     }
   }
 
-  initVotes (tallyTargets, total, count, avgSize) {
+  initVotes (tallyTargets, total, count, size) {
     var fauxVal = total / count
+    var fauxSize = size / count
     tallyTargets.forEach((span) => {
       let affirmed = parseInt(span.dataset.affirmed)
       for (var i = 0; i < parseInt(span.dataset.count); i++) {
@@ -71,7 +72,7 @@ export default class Mempool {
             validity: i < affirmed
           },
           ticket_spent: i
-        }, avgSize))
+        }, fauxSize))
       }
     })
   }
@@ -158,6 +159,14 @@ export default class Mempool {
       d.size += tx.size
       return d
     }, { regular: 0, ticket: 0, vote: 0, rev: 0, total: 0, size: 0 })
+  }
+
+  sizes () {
+    return this.mempool.reduce((d, tx) => {
+      d.total += tx.size
+      d[mpKeys[tx.type]] += tx.size
+      return d
+    }, { regular: 0, ticket: 0, vote: 0, rev: 0, total: 0 })
   }
 
   voteSpans (tallys) {

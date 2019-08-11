@@ -25,7 +25,7 @@
                                 <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
                                     <span class="text-secondary fs13">Total Sent</span>
                                     <br>
-                                    <span class="h4" data-target="mempool.likelyTotal">{{threeSigFigs .LikelyMineable.Total}}</span> <span class="text-secondary">DCR</span>
+                                    <span class="h4" data-target="mempool.likelyTotal">{{threeSFV .LikelyMineable.Total}}</span> <span class="text-secondary">DCR</span>
                                 </div>
                             </div>
                             <div class="col-12 text-center">
@@ -66,14 +66,14 @@
                                 <div class="text-center text-secondary fs13">Regular</div>
                                 <div class="text-center h4 mb-0" data-target="mempool.regCount">{{.NumRegular}}</div>
                                 <div class="text-center fs13">
-                                    <span data-target="mempool.regTotal">{{threeSigFigs .LikelyMineable.RegularTotal}}</span> DCR
+                                    <span data-target="mempool.regTotal">{{threeSFV .LikelyMineable.RegularTotal}}</span> DCR
                                 </div>
                             </div>
                             <div class="col-12">
                                 <div class="text-center text-secondary fs13">Tickets</div>
                                 <div class="text-center h4 mb-0" data-target="mempool.ticketCount">{{.NumTickets}}</div>
                                 <div class="text-center fs13">
-                                    <span data-target="mempool.ticketTotal">{{threeSigFigs .LikelyMineable.TicketTotal}}</span> DCR
+                                    <span data-target="mempool.ticketTotal">{{threeSFV .LikelyMineable.TicketTotal}}</span> DCR
                                 </div>
                             </div>
                         </div>
@@ -95,14 +95,14 @@
                                     {{end}}
                                 </div>
                                 <div class="text-center fs13">
-                                    <span data-target="mempool.voteTotal">{{threeSigFigs .LikelyMineable.VoteTotal}}</span> DCR
+                                    <span data-target="mempool.voteTotal">{{threeSFV .LikelyMineable.VoteTotal}}</span> DCR
                                 </div>
                             </div>
                             <div class="col-12">
                                 <div class="text-center text-secondary fs13">Revocations</div>
                                 <div class="text-center h4 mb-0" data-target="mempool.revCount">{{.NumRevokes}}</div>
                                 <div class="text-center fs13">
-                                    <span data-target="mempool.revTotal">{{threeSigFigs .LikelyMineable.RevokeTotal}}</span> DCR
+                                    <span data-target="mempool.revTotal">{{threeSFV .LikelyMineable.RevokeTotal}}</span> DCR
                                 </div>
                             </div>
                         </div>

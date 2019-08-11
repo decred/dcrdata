@@ -25,6 +25,7 @@ import (
 	"github.com/decred/dcrd/wire"
 
 	"github.com/decred/dcrdata/blockdata/v4"
+	"github.com/decred/dcrdata/db/cache/v2"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/exchanges/v2"
 	"github.com/decred/dcrdata/explorer/types/v2"
@@ -58,6 +59,10 @@ const (
 	MaxAddressRows int64 = 160
 
 	testnetNetName = "Testnet"
+
+	// A nominal energy rate for mining, 0.13 is an average residential US rate
+	// (in /kWh) for 2019.
+	modelPowerRate = 0.13 / 3600 / 100
 )
 
 // explorerDataSource implements extra data retrieval functions that require a
@@ -209,6 +214,7 @@ type explorerUI struct {
 	MeanVotingBlocks int64
 	xcBot            *exchanges.ExchangeBot
 	xcDone           chan struct{}
+	charts           *cache.ChartData
 	// displaySyncStatusPage indicates if the sync status page is the only web
 	// page that should be accessible during DB synchronization.
 	displaySyncStatusPage atomic.Value
@@ -280,6 +286,7 @@ type ExplorerConfig struct {
 	MainnetLink     string
 	TestnetLink     string
 	ReloadHTML      bool
+	Charts          *cache.ChartData
 }
 
 // New returns an initialized instance of explorerUI
@@ -297,6 +304,7 @@ func New(cfg *ExplorerConfig) *explorerUI {
 	exp.voteTracker = cfg.Tracker
 	exp.proposalsSource = cfg.ProposalsSource
 	exp.politeiaAPIURL = cfg.PoliteiaURL
+	exp.charts = cfg.Charts
 	explorerLinks.Mainnet = cfg.MainnetLink
 	explorerLinks.Testnet = cfg.TestnetLink
 	explorerLinks.MainnetSearch = cfg.MainnetLink + "search?search="
@@ -437,20 +445,13 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 
 	// Use the latest block's blocktime to get the last 24hr timestamp.
 	day := 24 * time.Hour
-	targetTimePerBlock := float64(exp.ChainParams.TargetTimePerBlock)
-
-	// Hashrate change over last day
-	timestamp := newBlockData.BlockTime.T.Add(-day).Unix()
-	last24hrDifficulty := exp.dataSource.Difficulty(timestamp)
-	last24HrHashRate := dbtypes.CalculateHashRate(last24hrDifficulty, targetTimePerBlock)
 
 	// Hashrate change over last month
-	timestamp = newBlockData.BlockTime.T.Add(-30 * day).Unix()
+	timestamp := newBlockData.BlockTime.T.Add(-30 * day).Unix()
 	lastMonthDifficulty := exp.dataSource.Difficulty(timestamp)
-	lastMonthHashRate := dbtypes.CalculateHashRate(lastMonthDifficulty, targetTimePerBlock)
 
 	difficulty := blockData.Header.Difficulty
-	hashrate := dbtypes.CalculateHashRate(difficulty, targetTimePerBlock)
+	hashrate, hashrateDelta1, hashrateDelta30 := exp.charts.Hashrate()
 
 	// If BlockData contains non-nil PoolInfo, compute actual percentage of DCR
 	// supply staked.
@@ -463,6 +464,15 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 		dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin(),
 		float64(newBlockData.Height),
 		blockData.CurrentStakeDiff.CurrentStakeDifficulty)
+
+	// Get the unique address count and delta from the cache.
+	addrs, addrDelta := exp.charts.UniqueAddresses()
+
+	// Get an SVGPolyline for the ticket price.
+	polyline, err := exp.charts.SVGPolyline("ticket-price", uint64(time.Now().Add(-time.Hour*24*365).Unix()))
+	if err != nil {
+		log.Errorf("explorer SVGPolyline error: %v", err)
+	}
 
 	// Trigger a vote info refresh
 	go exp.voteTracker.Refresh()
@@ -477,8 +487,9 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 
 	// Update HomeInfo.
 	p.HomeInfo.HashRate = hashrate
-	p.HomeInfo.HashRateChangeDay = 100 * (hashrate - last24HrHashRate) / last24HrHashRate
-	p.HomeInfo.HashRateChangeMonth = 100 * (hashrate - lastMonthHashRate) / lastMonthHashRate
+	p.HomeInfo.HashRateChangeDay = 100 * hashrateDelta1
+	p.HomeInfo.HashRateChangeMonth = 100 * hashrateDelta30
+	p.HomeInfo.POWDiffChangeMonth = (difficulty - lastMonthDifficulty) / lastMonthDifficulty * 100
 	p.HomeInfo.CoinSupply = blockData.ExtraInfo.CoinSupply
 	p.HomeInfo.StakeDiff = blockData.CurrentStakeDiff.CurrentStakeDifficulty
 	p.HomeInfo.NextExpectedStakeDiff = blockData.EstStakeDiff.Expected
@@ -491,6 +502,9 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 	p.HomeInfo.NBlockSubsidy.PoS = blockData.ExtraInfo.NextBlockSubsidy.PoS
 	p.HomeInfo.NBlockSubsidy.PoW = blockData.ExtraInfo.NextBlockSubsidy.PoW
 	p.HomeInfo.NBlockSubsidy.Total = blockData.ExtraInfo.NextBlockSubsidy.Total
+	p.HomeInfo.UniqueAddrs = addrs
+	p.HomeInfo.AddrDelta30 = addrDelta
+	p.HomeInfo.TicketPricePolyline = polyline
 
 	// If BlockData contains non-nil PoolInfo, copy values.
 	p.HomeInfo.PoolInfo = types.TicketPoolInfo{}
@@ -525,6 +539,19 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 	// If exchange monitoring is enabled, set the exchange rate.
 	if exp.xcBot != nil {
 		p.HomeInfo.ExchangeRate = exp.xcBot.Conversion(1.0)
+		if exp.xcBot.BtcIndex == "USD" {
+			p.HomeInfo.USDRate = p.HomeInfo.ExchangeRate
+		} else {
+			usdState, _ := exp.xcBot.ConvertedState("USD")
+			if usdState != nil {
+				p.HomeInfo.USDRate = usdState.Conversion(1.0)
+			}
+		}
+	}
+
+	if p.HomeInfo.USDRate != nil {
+		p.HomeInfo.POWProfitability = standardMiner.Profitability(uint64(exp.ChainParams.TargetTimePerBlock.Seconds()),
+			p.HomeInfo.HashRate, p.HomeInfo.USDRate.Value, dcrutil.Amount(p.HomeInfo.NBlockSubsidy.PoW).ToCoin())
 	}
 
 	p.Unlock()
@@ -799,4 +826,28 @@ func (exp *explorerUI) mempoolTime(txid string) types.TimeDef {
 		return types.NewTimeDefFromUNIX(0)
 	}
 	return types.NewTimeDefFromUNIX(tx.Time)
+}
+
+// ModelMiner models a mining device. A ModelMiner contains the device related
+// information necessary for calculating mining profitability.
+type ModelMiner struct {
+	DeviceName string
+	Hashrate   float64
+	PowerDraw  uint32
+}
+
+// The standard miner is based on a popular model in widespread use, and is
+// subject to modification with future updates.
+var standardMiner = &ModelMiner{
+	DeviceName: "Innosilicon D9 DecredMaster",
+	Hashrate:   2.1, // Th/s
+	PowerDraw:  900,
+}
+
+// Calculate the mining profitability. The network hashrate should be in units
+// of petahash per second. powReward should be in units of DCR.
+func (dvc *ModelMiner) Profitability(blockTime uint64, nethash, exchangeRateUSD, powReward float64) float64 {
+	earnings := dvc.Hashrate * 1e-3 / nethash * powReward * exchangeRateUSD
+	cost := modelPowerRate * float64(dvc.PowerDraw) * float64(blockTime)
+	return earnings / cost * 100
 }

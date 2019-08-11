@@ -151,7 +151,7 @@ const chartResetOpts = {
 }
 
 function convertedThreeSigFigs (x) {
-  return humanize.threeSigFigs(x * conversionFactor)
+  return humanize.threeSFV(x * conversionFactor)
 }
 
 function convertedEightDecimals (x) {
@@ -452,9 +452,9 @@ function depthLegendPlotter (e) {
   ctx.strokeStyle = chartStroke
   var boxColor = dark ? '#2228' : '#fff8'
 
-  var deltaPctTxt = `${greekCapDelta} : ${humanize.threeSigFigs(stats.gap / stats.midGap * 100)}%`
-  var fiatGapTxt = `${humanize.threeSigFigs(stats.gap * btcPrice)} ${fiatCode}`
-  var btcGapTxt = `${humanize.threeSigFigs(stats.gap)} BTC`
+  var deltaPctTxt = `${greekCapDelta} : ${humanize.threeSFV(stats.gap / stats.midGap * 100)}%`
+  var fiatGapTxt = `${humanize.threeSFV(stats.gap * btcPrice)} ${fiatCode}`
+  var btcGapTxt = `${humanize.threeSFV(stats.gap)} BTC`
   var boxW = 0
   var txts = [fiatGapTxt, btcGapTxt, deltaPctTxt]
   txts.forEach(txt => {
@@ -775,8 +775,8 @@ export default class extends Controller {
           axisLabelFormatter: Dygraph.dateAxisLabelFormatter
         },
         y: {
-          axisLabelFormatter: humanize.threeSigFigs,
-          valueFormatter: humanize.threeSigFigs
+          axisLabelFormatter: humanize.threeSFV,
+          valueFormatter: humanize.threeSFV
         }
       }
     }
@@ -803,8 +803,8 @@ export default class extends Controller {
           axisLabelFormatter: Dygraph.dateAxisLabelFormatter
         },
         y: {
-          axisLabelFormatter: humanize.threeSigFigs,
-          valueFormatter: humanize.threeSigFigs
+          axisLabelFormatter: humanize.threeSFV,
+          valueFormatter: humanize.threeSFV
         }
       },
       strokeWidth: 3
@@ -829,8 +829,8 @@ export default class extends Controller {
           axisLabelFormatter: Dygraph.dateAxisLabelFormatter
         },
         y: {
-          axisLabelFormatter: humanize.threeSigFigs,
-          valueFormatter: humanize.threeSigFigs
+          axisLabelFormatter: humanize.threeSFV,
+          valueFormatter: humanize.threeSFV
         }
       },
       strokeWidth: 3
@@ -859,8 +859,8 @@ export default class extends Controller {
           valueFormatter: convertedEightDecimals
         },
         y: {
-          axisLabelFormatter: humanize.threeSigFigs,
-          valueFormatter: humanize.threeSigFigs
+          axisLabelFormatter: humanize.threeSFV,
+          valueFormatter: humanize.threeSFV
         }
       }
     }
@@ -899,8 +899,8 @@ export default class extends Controller {
           valueFormatter: convertedEightDecimals
         },
         y: {
-          axisLabelFormatter: humanize.threeSigFigs,
-          valueFormatter: humanize.threeSigFigs
+          axisLabelFormatter: humanize.threeSFV,
+          valueFormatter: humanize.threeSFV
         }
       }
     }
@@ -920,8 +920,8 @@ export default class extends Controller {
           axisLabelFormatter: convertedThreeSigFigs
         },
         y: {
-          axisLabelFormatter: humanize.threeSigFigs,
-          valueFormatter: humanize.threeSigFigs
+          axisLabelFormatter: humanize.threeSFV,
+          valueFormatter: humanize.threeSFV
         }
       },
       strokeWidth: 0,
@@ -1171,8 +1171,8 @@ export default class extends Controller {
       })
     } else { // dcr-btc exchange update
       let row = this.getExchangeRow(xc.token)
-      row.volume.textContent = humanize.threeSigFigs(xc.volume)
-      row.price.textContent = humanize.threeSigFigs(xc.price)
+      row.volume.textContent = humanize.threeSFV(xc.volume)
+      row.price.textContent = humanize.threeSFV(xc.price)
       row.fiat.textContent = (xc.price * update.btc_price).toFixed(2)
       if (xc.change >= 0) {
         row.arrow.className = 'dcricon-arrow-up text-green'
@@ -1185,8 +1185,8 @@ export default class extends Controller {
     this.priceTarget.textContent = fmtPrice
     var aggRow = this.getExchangeRow(aggregatedKey)
     btcPrice = update.btc_price
-    aggRow.price.textContent = humanize.threeSigFigs(update.price / btcPrice)
-    aggRow.volume.textContent = humanize.threeSigFigs(update.volume)
+    aggRow.price.textContent = humanize.threeSFV(update.price / btcPrice)
+    aggRow.volume.textContent = humanize.threeSFV(update.volume)
     aggRow.fiat.textContent = fmtPrice
     // Auto-update the chart if it makes sense.
     if (settings.xc !== aggregatedKey && settings.xc !== xc.token) return

@@ -350,7 +350,7 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 	var totalOut, regularTotal, ticketTotal, voteTotal, revTotal dcrutil.Amount
 	var likelyMineable bool
 	var likelyTotal dcrutil.Amount
-	var totalSize, likelySize int32
+	var totalSize, likelyRegSize, likelyVoteSize, likelyTktSize, likelyRevSize int32
 	var numLikely int
 
 	// Initialize the BlockValidatorIndex, a map.
@@ -364,6 +364,7 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 			if _, found := invStake[tx.Hash]; found {
 				continue
 			}
+			likelyTktSize += tx.Size
 			ticketTotal += out
 			invStake[tx.Hash] = struct{}{}
 			tickets = append(tickets, tx)
@@ -390,6 +391,7 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 				votingInfo.TicketsVoted++
 				voteTotal += out
 				votingInfo.Tally(tx.VoteInfo)
+				likelyVoteSize += tx.Size
 			} else {
 				likelyMineable = false
 			}
@@ -399,6 +401,7 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 			}
 			revTotal += out
 			invStake[tx.Hash] = struct{}{}
+			likelyRevSize += tx.Size
 			revs = append(revs, tx)
 		default:
 			if _, found := invRegular[tx.Hash]; found {
@@ -406,13 +409,13 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 			}
 			regularTotal += out
 			invRegular[tx.Hash] = struct{}{}
+			likelyRegSize += tx.Size
 			regular = append(regular, tx)
 		}
 
 		// Update mempool totals
 		if likelyMineable {
 			likelyTotal += out
-			likelySize += tx.Size
 			numLikely++
 		}
 		totalOut += out
@@ -425,6 +428,7 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 
 	sort.Sort(exptypes.MPTxsByHeight(votes))
 	formattedSize := humanize.Bytes(uint64(totalSize))
+	likelySize := likelyRegSize + likelyVoteSize + likelyTktSize + likelyRevSize
 
 	// Store mempool data for template rendering
 	mpInfo := exptypes.MempoolInfo{
@@ -445,6 +449,10 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 				Total:         likelyTotal.ToCoin(),
 				Size:          likelySize,
 				FormattedSize: humanize.Bytes(uint64(likelySize)),
+				RegularSize:   likelyRegSize,
+				TicketSize:    likelyTktSize,
+				VoteSize:      likelyVoteSize,
+				RevokeSize:    likelyRevSize,
 				RegularTotal:  regularTotal.ToCoin(),
 				TicketTotal:   ticketTotal.ToCoin(),
 				VoteTotal:     voteTotal.ToCoin(),

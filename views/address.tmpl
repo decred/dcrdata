@@ -51,7 +51,7 @@
               </span>
               <br>
               {{- if $.FiatBalance}}
-                <span class="text-secondary fs16 lh1rem">{{threeSigFigs $.FiatBalance.Value}} <span class="fs14">{{$.FiatBalance.Index}}</span></span>
+                <span class="text-secondary fs16 lh1rem">{{threeSFV $.FiatBalance.Value}} <span class="fs14">{{$.FiatBalance.Index}}</span></span>
               {{- end}}
             </div>
             <div class="d-inline-block text-left pr-2 pb-3">

@@ -632,6 +632,7 @@ func (psh *PubSubHub) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBl
 	p.GeneralInfo.HashRate = hashrate
 	p.GeneralInfo.HashRateChangeDay = 100 * (hashrate - last24HrHashRate) / last24HrHashRate
 	p.GeneralInfo.HashRateChangeMonth = 100 * (hashrate - lastMonthHashRate) / lastMonthHashRate
+	p.GeneralInfo.POWDiffChangeMonth = (difficulty - lastMonthDifficulty) / lastMonthDifficulty * 100
 	p.GeneralInfo.CoinSupply = blockData.ExtraInfo.CoinSupply
 	p.GeneralInfo.StakeDiff = blockData.CurrentStakeDiff.CurrentStakeDifficulty
 	p.GeneralInfo.NextExpectedStakeDiff = blockData.EstStakeDiff.Expected

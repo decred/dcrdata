@@ -119,7 +119,7 @@
                         <td class="text-center d-none d-sm-table-cell" data-type="tickets">{{.FreshStake}}</td>
                         <td class="text-center d-none d-sm-table-cell" data-type="revocations">{{.Revocations}}</td>
                         <td class="text-center d-table-cell d-sm-none" data-type="tx_count">{{.TxCount}}</td>
-                        <td class="text-center" data-type="value">{{threeSigFigs .Total}}</td>
+                        <td class="text-center" data-type="value">{{threeSFV .Total}}</td>
                         <td class="text-center" data-type="size">{{.FormattedBytes}}</td>
                         <td class="text-center d-none d-sm-table-cell" data-type="version">{{.Version}}</td>
                         <td class="text-right" data-type="age" class="jsonly" data-target="time.age" data-age="{{.BlockTime.UNIX}}"></td>

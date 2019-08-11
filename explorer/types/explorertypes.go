@@ -7,6 +7,7 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v2"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrdata/db/cache/v2"
 	"github.com/decred/dcrdata/exchanges/v2"
 	"github.com/decred/dcrdata/txhelpers/v3"
 	humanize "github.com/dustin/go-humanize"
@@ -423,7 +425,13 @@ type HomeInfo struct {
 	HashRate              float64               `json:"hash_rate"`
 	HashRateChangeDay     float64               `json:"hash_rate_change_day"`
 	HashRateChangeMonth   float64               `json:"hash_rate_change_month"`
+	POWDiffChangeMonth    float64               `json:"pow_diff_change_month"`
+	UniqueAddrs           uint64                `json:"unique_addresses"`
+	AddrDelta30           uint64                `json:"address_delta_30"`
 	ExchangeRate          *exchanges.Conversion `json:"exchange_rate,omitempty"`
+	USDRate               *exchanges.Conversion `json:"usd_rate,omitempty"`
+	POWProfitability      float64               `json:"mining_profitability,omitempty"`
+	TicketPricePolyline   *cache.SVGPolyline    `json:"-"`
 }
 
 // BlockSubsidy is an implementation of chainjson.GetBlockSubsidyResult
@@ -656,11 +664,103 @@ type LikelyMineable struct {
 	Total         float64 `json:"total"`
 	Size          int32   `json:"size"`
 	FormattedSize string  `json:"formatted_size"`
+	RegularSize   int32   `json:"regular_size"`
+	TicketSize    int32   `json:"ticket_size"`
+	VoteSize      int32   `json:"vote_size"`
+	RevokeSize    int32   `json:"revoke_size"`
 	RegularTotal  float64 `json:"regular_total"`
 	TicketTotal   float64 `json:"ticket_total"`
 	VoteTotal     float64 `json:"vote_total"`
 	RevokeTotal   float64 `json:"revoke_total"`
 	Count         int     `json:"count"`
+}
+
+// Some colors for transaction types.
+const (
+	ColorRegular = "#2970FF"
+	ColorTicket  = "#2ED6A1"
+	ColorVote    = "#c600c0"
+	ColorRevoke  = "#ED6D47"
+
+	Pix2 = 6.28318
+)
+
+// SVGSegment holds the information necessary to render a segments of an SVG pie
+// chart.
+type SVGSegment struct {
+	Path string
+	Fill string
+}
+
+// Create the path that defines a circular segments for an SVG pie chart.
+func makeSVGPiePath(startX, startY, endX, endY float64, largeArcFlag int) string {
+	return fmt.Sprintf("M %.4f %.4f A 1 1 0 %d 1 %.4f %.4f L 0 0",
+		startX, startY, largeArcFlag, endX, endY)
+}
+
+// Convert a point in polar coordinates to cartesian coordinates.
+func polarToCartesian(radians, radius float64) (float64, float64) {
+	y, x := math.Sincos(radians)
+	return x * radius, y * radius
+}
+
+// Append a pie slice representing ratio, in range [0.0,1.0], of the total pie.
+func addPieSlice(segments []SVGSegment, needle, ratio float64, color string) (
+	[]SVGSegment, float64) {
+
+	startX, startY := polarToCartesian(needle*Pix2, 1)
+	needle += ratio
+	endX, endY := polarToCartesian(needle*Pix2, 1)
+	largeArcFlag := 0
+	if ratio > 0.5 {
+		largeArcFlag = 1
+	}
+	segment := SVGSegment{
+		Path: makeSVGPiePath(startX, startY, endX, endY, largeArcFlag),
+		Fill: color,
+	}
+	segments = append(segments, segment)
+	return segments, needle
+}
+
+// MempoolValuePie creates a slice of SVGSegments that can be used to create an
+// SVG pie chart of the relative values of mempool value between the different
+// types of transactions.
+func (likely LikelyMineable) MempoolValuePie() []SVGSegment {
+	segments := make([]SVGSegment, 0, 4)
+	if likely.Total == 0 {
+		return segments
+	}
+	var needle float64
+	segments, needle = addPieSlice(segments, needle, likely.RegularTotal/likely.Total, ColorRegular)
+	segments, needle = addPieSlice(segments, needle, likely.TicketTotal/likely.Total, ColorTicket)
+	segments, needle = addPieSlice(segments, needle, likely.VoteTotal/likely.Total, ColorVote)
+	segments, _ = addPieSlice(segments, needle, likely.RevokeTotal/likely.Total, ColorRevoke)
+	return segments
+}
+
+func int32FracToFloat64(num, den int32) float64 {
+	return float64(num) / float64(den)
+}
+
+// MempoolValuePie creates a slice of SVGSegments that can be used to create an
+// SVG pie chart of the relative values of mempool size between the different
+// types of transactions.
+func (likely LikelyMineable) MempoolSizePie() []SVGSegment {
+	segments := make([]SVGSegment, 0, 4)
+	if likely.Size == 0 {
+		return segments
+	}
+	var needle float64
+	segments, needle = addPieSlice(segments, needle,
+		int32FracToFloat64(likely.RegularSize, likely.Size), ColorRegular)
+	segments, needle = addPieSlice(segments, needle,
+		int32FracToFloat64(likely.TicketSize, likely.Size), ColorTicket)
+	segments, needle = addPieSlice(segments, needle,
+		int32FracToFloat64(likely.VoteSize, likely.Size), ColorVote)
+	segments, _ = addPieSlice(segments, needle,
+		int32FracToFloat64(likely.RevokeSize, likely.Size), ColorRevoke)
+	return segments
 }
 
 func (mps *MempoolShort) DeepCopy() *MempoolShort {

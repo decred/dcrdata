@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -118,7 +119,7 @@ const (
 // cacheVersion helps detect when the cache data stored has changed its
 // structure or content. A change on the cache version results to recomputing
 // all the charts data a fresh thereby making the cache to hold the latest changes.
-var cacheVersion = semver.NewSemver(6, 1, 0)
+var cacheVersion = semver.NewSemver(6, 1, 1)
 
 // versionedCacheData defines the cache data contents to be written into a .gob file.
 type versionedCacheData struct {
@@ -348,20 +349,25 @@ func newWindowSet(size int) *windowSet {
 // has a lot of extraneous fields, and also embeds sync.RWMutex, so is not
 // suitable for gobbing.
 type ChartGobject struct {
-	Height      ChartUints
-	Time        ChartUints
-	PoolSize    ChartUints
-	PoolValue   ChartUints
-	BlockSize   ChartUints
-	TxCount     ChartUints
-	NewAtoms    ChartUints
-	Chainwork   ChartUints
-	Fees        ChartUints
-	WindowTime  ChartUints
-	PowDiff     ChartFloats
-	TicketPrice ChartUints
-	StakeCount  ChartUints
-	MissedVotes ChartUints
+	Height          ChartUints
+	Time            ChartUints
+	PoolSize        ChartUints
+	PoolValue       ChartUints
+	BlockSize       ChartUints
+	TxCount         ChartUints
+	NewAtoms        ChartUints
+	Chainwork       ChartUints
+	Fees            ChartUints
+	WindowTime      ChartUints
+	PowDiff         ChartFloats
+	TicketPrice     ChartUints
+	StakeCount      ChartUints
+	MissedVotes     ChartUints
+	UniqueAddrs     uint64
+	AddrDelta30     uint64
+	Hashrate        float64
+	HashrateDelta1  float64
+	HashrateDelta30 float64
 }
 
 // The chart data is cached with the current cacheID of the zoomSet or windowSet.
@@ -397,22 +403,88 @@ type ChartUpdater struct {
 	Appender func(*ChartData, *sql.Rows) error
 }
 
+// SVGPolyline contains information necessary for an SVG line plot on a 1 x 1
+// SVG viewBox area with bottom left corner being the point [0,0] and the top
+// right corner being the point [1,1].
+type SVGPolyline struct {
+	Path  string
+	HighX uint64
+	LowX  uint64
+	HighY uint64
+	LowY  uint64
+}
+
+func uint64FractionToFloat64(num, den uint64) float64 {
+	if den == 0 {
+		return 0
+	}
+	return float64(num) / float64(den)
+}
+
+// Given two sets of corresponding data, one representing the x axis and one
+// representing the y axis, create an SVGPolyline that can be used to create an
+// SVG line plot.
+func newSVGPolyline(xs, ys ChartUints) (*SVGPolyline, error) {
+	if len(xs) != len(ys) {
+		return nil, fmt.Errorf("NewSVGPolyline called with mismatched data")
+	}
+	if len(xs) == 0 {
+		return nil, fmt.Errorf("NewSVGPolyline called with empty data")
+	}
+	lowX, highX := xs[0], xs[0]
+	lowY, highY := ys[0], ys[0]
+	for i, x := range xs {
+		if x < lowX {
+			lowX = x
+		} else if x > highX {
+			highX = x
+		}
+		y := ys[i]
+		if y < lowY {
+			lowY = y
+		} else if y > highY {
+			highY = y
+		}
+	}
+	xRange := highX - lowX
+	yRange := highY - lowY
+	pts := make([]string, 0, len(xs))
+	frac := uint64FractionToFloat64
+	for i, x := range xs {
+		y := ys[i]
+		pts = append(pts, fmt.Sprintf("%.3f,%.3f", (frac(x-lowX, xRange)), 1-frac(y-lowY, yRange)))
+	}
+	return &SVGPolyline{
+		Path:  strings.Join(pts, " "),
+		LowX:  lowX,
+		HighX: highX,
+		LowY:  lowY,
+		HighY: highY,
+	}, nil
+}
+
 // ChartData is a set of data used for charts. It provides methods for
 // managing data validation and update concurrency, but does not perform any
 // data retrieval and must be used with care to keep the data valid. The Blocks
 // and Windows fields must be updated by (presumably) a database package. The
 // Days data is auto-generated from the Blocks data during Lengthen-ing.
 type ChartData struct {
-	mtx          sync.RWMutex
-	ctx          context.Context
-	DiffInterval int32
-	StartPOS     int32
-	Blocks       *zoomSet
-	Windows      *windowSet
-	Days         *zoomSet
-	cacheMtx     sync.RWMutex
-	cache        map[string]*cachedChart
-	updaters     []ChartUpdater
+	mtx             sync.RWMutex
+	ctx             context.Context
+	DiffInterval    int32
+	StartPOS        int32
+	Blocks          *zoomSet
+	Windows         *windowSet
+	Days            *zoomSet
+	addressCounter  func() (uint64, uint64)
+	uniqueAddrs     uint64
+	addrDelta30     uint64
+	cacheMtx        sync.RWMutex
+	cache           map[string]*cachedChart
+	updaters        []ChartUpdater
+	hashrate        float64
+	hashrateDelta1  float64
+	hashrateDelta30 float64
 }
 
 // Check that the length of all arguments is equal.
@@ -448,6 +520,30 @@ func midnight(t uint64) (mid uint64) {
 	return
 }
 
+// Get the hashrate at a given time. Should be called under ChartData.mtx.RLock.
+// Requesting a hasrate from before the HashrateAvgLength'th block will return
+// zero.
+func (charts *ChartData) hashrateWhen(t time.Time) float64 {
+	start := 0
+	stamp := uint64(t.Unix())
+	blocks := charts.Blocks
+	lastIdx := len(blocks.Time) - 1
+	for i := range blocks.Time {
+		tBlock := blocks.Time[lastIdx-i]
+		if tBlock < stamp {
+			start = lastIdx - i
+			break
+		}
+	}
+	if start >= HashrateAvgLength {
+		dChainwork := blocks.Chainwork[start] - blocks.Chainwork[start-HashrateAvgLength]
+		dTime := blocks.Time[start] - blocks.Time[start-HashrateAvgLength]
+		// exahash -> petahash
+		return float64(dChainwork) * 1e3 / float64(dTime)
+	}
+	return 0
+}
+
 // Lengthen performs data validation and populates the Days zoomSet. If there is
 // an update to a zoomSet or windowSet, the cacheID will be incremented.
 func (charts *ChartData) Lengthen() error {
@@ -468,6 +564,7 @@ func (charts *ChartData) Lengthen() error {
 		// No blocks yet. Not an error.
 		return nil
 	}
+	blockCount := shortest
 
 	windows := charts.Windows
 	shortest, err = ValidateLengths(windows.Time, windows.PowDiff,
@@ -548,8 +645,26 @@ func (charts *ChartData) Lengthen() error {
 		log.Warnf("(*ChartData).Lengthen: Zero-length day-binned data!")
 	}
 
+	// Calculate the hashrate averaged over the last 120 blocks.
+	var rate float64
+	var rateDelta1, rateDelta30 float64
+	if blockCount > HashrateAvgLength {
+		rate = charts.hashrateWhen(time.Now())
+		dayAgoRate := charts.hashrateWhen(time.Now().Add(-time.Hour * 24))
+		monthAgoRate := charts.hashrateWhen(time.Now().Add(-time.Hour * 24 * 30))
+		if dayAgoRate > 0 {
+			rateDelta1 = (rate - dayAgoRate) / dayAgoRate
+		}
+		if monthAgoRate > 0 {
+			rateDelta30 = (rate - monthAgoRate) / monthAgoRate
+		}
+	}
+
 	charts.cacheMtx.Lock()
 	defer charts.cacheMtx.Unlock()
+	charts.hashrate = rate
+	charts.hashrateDelta1 = rateDelta1
+	charts.hashrateDelta30 = rateDelta30
 	// The cacheID for day-binned data, only increment the cacheID when entries
 	// were added.
 	if len(intervals) > 0 {
@@ -656,6 +771,11 @@ func (charts *ChartData) readCacheFile(filePath string) error {
 	charts.Windows.TicketPrice = gobject.TicketPrice
 	charts.Windows.StakeCount = gobject.StakeCount
 	charts.Windows.MissedVotes = gobject.MissedVotes
+	charts.uniqueAddrs = gobject.UniqueAddrs
+	charts.addrDelta30 = gobject.AddrDelta30
+	charts.hashrate = gobject.Hashrate
+	charts.hashrateDelta30 = gobject.HashrateDelta30
+	charts.hashrateDelta1 = gobject.HashrateDelta1
 	charts.mtx.Unlock()
 
 	err = charts.Lengthen()
@@ -724,6 +844,7 @@ func (charts *ChartData) gobject() *ChartGobject {
 		TicketPrice: charts.Windows.TicketPrice,
 		StakeCount:  charts.Windows.StakeCount,
 		MissedVotes: charts.Windows.MissedVotes,
+		UniqueAddrs: charts.uniqueAddrs,
 	}
 }
 
@@ -796,6 +917,14 @@ func (charts *ChartData) MissedVotesTip() int32 {
 	return int32(len(charts.Windows.MissedVotes))*charts.DiffInterval - 1
 }
 
+// Hashrate is the last known hashrate, as well as the 1-day and 30-day hashrate
+// changes, as percent values.
+func (charts *ChartData) Hashrate() (float64, float64, float64) {
+	charts.cacheMtx.RLock()
+	defer charts.cacheMtx.RUnlock()
+	return charts.hashrate, charts.hashrateDelta1, charts.hashrateDelta30
+}
+
 // AddUpdater adds a ChartUpdater to the Updaters slice. Updaters are run
 // sequentially during (*ChartData).Update.
 func (charts *ChartData) AddUpdater(updater ChartUpdater) {
@@ -833,7 +962,44 @@ func (charts *ChartData) Update() error {
 	if err := charts.Lengthen(); err != nil {
 		return fmt.Errorf("(*ChartData).Lengthen failed: %v", err)
 	}
+
+	// Counting unique addresses is resource intensive, so only do it every 100
+	// blocks.
+	tip := charts.Height()
+	uniques, _ := charts.UniqueAddresses()
+	if tip > 0 && (tip%100 == 0 || uniques == 0) {
+		go charts.FetchAddressCount()
+	}
+
 	return nil
+}
+
+// AddAddressCounter adds a function that counts all unique addresses.
+func (charts *ChartData) AddAddressCounter(counter func() (uint64, uint64)) {
+	charts.addressCounter = counter
+}
+
+// FetchAddressCount fetches the count of unique addresses. It should be run
+// in a goroutine.
+func (charts *ChartData) FetchAddressCount() {
+	if charts.addressCounter == nil {
+		return
+	}
+	tStart := time.Now()
+	log.Infof("Fetching unique address count...")
+	count, change := charts.addressCounter()
+	duration := time.Since(tStart)
+	log.Infof("Fetched unique address count in %ds", int(duration.Seconds()))
+	charts.cacheMtx.Lock()
+	defer charts.cacheMtx.Unlock()
+	charts.uniqueAddrs = count
+	charts.addrDelta30 = change
+}
+
+func (charts *ChartData) UniqueAddresses() (uint64, uint64) {
+	charts.cacheMtx.Lock()
+	defer charts.cacheMtx.Unlock()
+	return charts.uniqueAddrs, charts.addrDelta30
 }
 
 // NewChartData constructs a new ChartData.
@@ -1244,27 +1410,28 @@ func hashrate(time, chainwork ChartUints) (ChartUints, ChartUints) {
 // Since hashrates are based on a difference, the returned arrays will be 1
 // element fewer than the number of days. A truncated time slice with the same
 // length as the hashrate slice is returned.
-func dailyHashrate(time, chainwork ChartUints) (ChartUints, ChartUints) {
-	if len(time) == 0 || len(chainwork) == 0 {
+func dailyHashrate(times, chainwork ChartUints) (ChartUints, ChartUints) {
+	if len(times) == 0 || len(chainwork) == 0 {
 		return ChartUints{}, ChartUints{}
 	}
-	times := make([]uint64, 0, len(time)-1)
-	rates := make([]uint64, 0, len(time)-1)
+	outTimes := make([]uint64, 0, len(times)-1)
+	rates := make([]uint64, 0, len(times)-1)
 	var dupes int
-	for i, t := range time[1:] {
-		tDiff := t - time[i]
-		if tDiff <= 0 {
+	for i, nextTime := range times[1:] {
+		lastTime := times[i]
+		tDiff := nextTime - lastTime
+		if lastTime >= nextTime {
 			tDiff = aDay
 			dupes += 1
 		}
 		workDiff := chainwork[i+1] - chainwork[i]
 		rates = append(rates, (workDiff)*1e6/tDiff)
-		times = append(times, t)
+		outTimes = append(outTimes, nextTime)
 	}
 	if dupes > 0 {
 		log.Warnf("charts: dailyHashrate: %d duplicate timestamp(s) found")
 	}
-	return times, rates
+	return outTimes, rates
 }
 
 func hashRateChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
@@ -1528,4 +1695,42 @@ func stakedCoinsChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, e
 		}
 	}
 	return nil, InvalidBinErr
+}
+
+// Given a set of data and the corresponding timestamps, truncate both to only
+// data from after the provided UNIX timestamp.
+func dataSince(times, data ChartUints, since uint64) (ChartUints, ChartUints) {
+	if len(times) != len(data) {
+		log.Errorf("snipSince: data length mismatch")
+		return nil, nil
+	}
+	if len(times) == 0 {
+		return nil, nil
+	}
+	start := len(times) - 1
+	for i, t := range times {
+		if t < since {
+			continue
+		}
+		start = i
+		break
+	}
+	return times[start:], data[start:]
+}
+
+// SVGPolyline creates an SVGPolyline for the specified chartID, truncated to
+// only the data from after the provided UNIX timestamp. Not all chart types are
+// implemented.
+func (charts *ChartData) SVGPolyline(chartID string, since uint64) (*SVGPolyline, error) {
+	charts.mtx.RLock()
+	defer charts.mtx.RUnlock()
+	switch chartID {
+	case TicketPrice:
+		return newSVGPolyline(dataSince(charts.Windows.Time, charts.Windows.TicketPrice, since))
+	case HashRate:
+		t, h := dailyHashrate(charts.Days.Time, charts.Days.Chainwork)
+		return newSVGPolyline(dataSince(t, h, since))
+
+	}
+	return nil, fmt.Errorf("RawDayChart unimplemented: %s", chartID)
 }

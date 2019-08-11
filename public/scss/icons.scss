@@ -10,7 +10,8 @@
 }
 
 [class^="dcricon-"],
-[class*=" dcricon-"] {
+[class*=" dcricon-"],
+.info {
   /* use !important to prevent issues with browser extensions that change fonts */
   font-family: 'icomoon', monospace !important;
   speak: none;
@@ -127,6 +128,45 @@
 
 .dcricon-collapse::before {
   content: "\e915";
+}
+
+.info::before {
+  content: "\e916";
+}
+
+.info {
+  position: relative;
+  color: #777;
+  width: 17px;
+  height: 17px;
+  font-size: 17px;
+}
+
+.info > div {
+  position: absolute;
+  display: none;
+  left: -10000px;
+  top: 0;
+  width: 300px;
+  z-index: 100;
+  background-color: #e9f8fe;
+  font-size: 14px;
+  padding: 10px;
+  border: 1px solid black;
+}
+
+.info:hover > div {
+  display: block;
+}
+
+.info.left:hover > div {
+  right: 0;
+  left: auto;
+}
+
+.info.right:hover > div {
+  left: 0;
+  right: auto;
 }
 
 .exchange-logo {

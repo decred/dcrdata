@@ -177,6 +177,44 @@ a.pager:hover {
   background-color: #e9f8fe;
 }
 
+select.dropdown:focus {
+  outline: none;
+}
+
+div.btnsetv3 {
+  display: flex;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+
+  button.clearbttn {
+    border: none;
+    background-color: transparent;
+    font-size: 14px;
+    padding: 0 10px 1px;
+    border-right-style: solid;
+    border-width: 1px;
+    border-color: #ccc;
+    color: #6c757d;
+  }
+
+  button.clearbttn:focus {
+    outline: none;
+  }
+
+  button.clearbttn[data-selected] {
+    color: #2970ff;
+  }
+
+  button.clearbttn:last-child {
+    border-right-style: none;
+  }
+}
+
+select.dropdown.home {
+  background-color: transparent;
+  border: none;
+}
+
 body.darkBG .search-bttn {
   color: white;
 }
@@ -220,6 +258,10 @@ body.darkBG {
 
   a.pager:hover {
     background-color: black;
+  }
+
+  select.dropdown > option {
+    color: black;
   }
 }
 

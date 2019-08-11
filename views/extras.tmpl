@@ -188,14 +188,6 @@
 	</div>
 {{- end}}
 
-{{define "fmtPercentage"}}
-  {{- if gt . 0.0 -}}
-    <span class="text-green">+{{printf "%.2f" .}} %</span>
-  {{- else -}}
-    <span class="text-danger">{{printf "%.2f" .}} %</span>
-  {{- end -}}
-{{end}}
-
 {{define "listViewRouting"}}
 	<div class="fs12 nowrap text-left" style="margin:auto auto auto 0px;">
 		<select
@@ -334,12 +326,16 @@
   data-count="{{$likely.Count}}"
   data-reg-total="{{$likely.RegularTotal}}"
   data-reg-count="{{.NumRegular}}"
+	data-reg-size="{{$likely.RegularSize}}"
   data-vote-total="{{$likely.VoteTotal}}"
   data-vote-count="{{.VotingInfo.TicketsVoted}}"
+	data-vote-size="{{$likely.VoteSize}}"
   data-ticket-total="{{$likely.TicketTotal}}"
   data-ticket-count="{{.NumTickets}}"
+	data-ticket-size="{{$likely.TicketSize}}"
   data-rev-total="{{$likely.RevokeTotal}}"
   data-rev-count="{{.NumRevokes}}"
+	data-rev-size="{{$likely.RevokeSize}}"
 {{end}}
 
 {{define "blocksBanner"}}
@@ -375,3 +371,12 @@
 	</div>
 </div>
 {{end}}
+
+{{- /* pipeline should be []SVGSegment */ -}}
+{{define "svgPieChart" -}}
+	<svg	viewBox="-1 -1 2 2" xmlns="http://www.w3.org/2000/svg">
+	{{- range . -}}
+		<path d="{{.Path}}" fill="{{.Fill}}"></path>
+	{{- end -}}
+	</svg>
+{{- end}}

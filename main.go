@@ -491,6 +491,7 @@ func _main(ctx context.Context) error {
 		MainnetLink:     cfg.MainnetLink,
 		TestnetLink:     cfg.TestnetLink,
 		ReloadHTML:      cfg.ReloadHTML,
+		Charts:          charts,
 	})
 	// TODO: allow views config
 	if explore == nil {
@@ -969,6 +970,7 @@ func _main(ctx context.Context) error {
 	if err = charts.Load(dumpPath); err != nil {
 		log.Warnf("Failed to load charts data cache: %v", err)
 	}
+
 	// Add charts saver method after explorer and any databases.
 	blockDataSavers = append(blockDataSavers, blockdata.BlockTrigger{Saver: charts.TriggerUpdate})
 

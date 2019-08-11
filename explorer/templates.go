@@ -211,48 +211,99 @@ func amountAsDecimalPartsTrimmed(v, numPlaces int64, useCommas bool) []string {
 	return []string{left, right, tail}
 }
 
+// Represents a number with an SI unit prefix, e.g. k for kilo, M for mega.
+type threeSF struct {
+	Value  string
+	Prefix string
+}
+
 // threeSigFigs returns a representation of the float formatted to three
 // significant figures, with an appropriate magnitude prefix (k, M, B).
-// For (k, M, G) prefixes for file/memory sizes, use humanize.Bytes.
-func threeSigFigs(v float64) string {
-	if v >= 1e11 {
-		return fmt.Sprintf("%dB", int(math.Round(v/1e9)))
-	} else if v >= 1e10 {
-		return fmt.Sprintf("%.1fB", math.Round(v/1e8)/10)
-	} else if v >= 1e9 {
-		return fmt.Sprintf("%.2fB", math.Round(v/1e7)/1e2)
-	} else if v >= 1e8 {
-		return fmt.Sprintf("%dM", int(math.Round(v/1e6)))
-	} else if v >= 1e7 {
-		return fmt.Sprintf("%.1fM", math.Round(v/1e5)/10)
-	} else if v >= 1e6 {
-		return fmt.Sprintf("%.2fM", math.Round(v/1e4)/1e2)
-	} else if v >= 1e5 {
-		return fmt.Sprintf("%dk", int(math.Round(v/1e3)))
-	} else if v >= 1e4 {
-		return fmt.Sprintf("%.1fk", math.Round(v/100)/10)
-	} else if v >= 1e3 {
-		return fmt.Sprintf("%.2fk", math.Round(v/10)/1e2)
-	} else if v >= 100 {
-		return fmt.Sprintf("%d", int(math.Round(v)))
-	} else if v >= 10 {
-		return fmt.Sprintf("%.1f", math.Round(v*10)/10)
-	} else if v >= 1 {
-		return fmt.Sprintf("%.2f", math.Round(v*1e2)/1e2)
-	} else if v >= 0.1 {
-		return fmt.Sprintf("%.3f", math.Round(v*1e3)/1e3)
-	} else if v >= 0.01 {
-		return fmt.Sprintf("%.4f", math.Round(v*1e4)/1e4)
-	} else if v >= 0.001 {
-		return fmt.Sprintf("%.5f", math.Round(v*1e5)/1e5)
-	} else if v >= 0.0001 {
-		return fmt.Sprintf("%.6f", math.Round(v*1e6)/1e6)
-	} else if v >= 0.00001 {
-		return fmt.Sprintf("%.7f", math.Round(v*1e7)/1e7)
-	} else if v == 0 {
-		return "0"
+// The prefix used for is set as an argument, but would typically be B or G.
+func threeSigFigs(v float64, billions string) (string, string) {
+	if v == 0 {
+		return "0", ""
 	}
-	return fmt.Sprintf("%.8f", math.Round(v*1e8)/1e8)
+	exp := int(math.Log10(math.Abs(v)))
+	if exp > 17 {
+		return fmt.Sprintf("%dE", int(math.Round(v/1e15))), "E"
+	}
+	switch exp / 3 {
+	case 5:
+		prefix := "P"
+		switch exp {
+		case 17:
+			return fmt.Sprintf("%d", int(math.Round(v/1e15))), prefix
+		case 16:
+			return fmt.Sprintf("%.1f", math.Round(v/1e14)/10), prefix
+		case 15:
+			return fmt.Sprintf("%.2f", math.Round(v/1e13)/1e2), prefix
+		}
+	case 4:
+		prefix := "T"
+		switch exp {
+		case 14:
+			return fmt.Sprintf("%d", int(math.Round(v/1e12))), prefix
+		case 13:
+			return fmt.Sprintf("%.1f", math.Round(v/1e11)/10), prefix
+		case 12:
+			return fmt.Sprintf("%.2f", math.Round(v/1e10)/1e2), prefix
+		}
+	case 3:
+		switch exp {
+		case 11:
+			return fmt.Sprintf("%d", int(math.Round(v/1e9))), billions
+		case 10:
+			return fmt.Sprintf("%.1f", math.Round(v/1e8)/10), billions
+		case 9:
+			return fmt.Sprintf("%.2f", math.Round(v/1e7)/1e2), billions
+		}
+	case 2:
+		prefix := "M"
+		switch exp {
+		case 8:
+			return fmt.Sprintf("%d", int(math.Round(v/1e6))), prefix
+		case 7:
+			return fmt.Sprintf("%.1f", math.Round(v/1e5)/10), prefix
+		case 6:
+			return fmt.Sprintf("%.2f", math.Round(v/1e4)/1e2), prefix
+		}
+	case 1:
+		prefix := "k"
+		switch exp {
+		case 5:
+			return fmt.Sprintf("%d", int(math.Round(v/1e3))), prefix
+		case 4:
+			return fmt.Sprintf("%.1f", math.Round(v/100)/10), prefix
+		case 3:
+			return fmt.Sprintf("%.2f", math.Round(v/10)/1e2), prefix
+		}
+	case 0:
+		prefix := ""
+		switch exp {
+		case 2:
+			return fmt.Sprintf("%d", int(math.Round(v))), prefix
+		case 1:
+			return fmt.Sprintf("%.1f", math.Round(v*10)/10), prefix
+		case 0:
+			return fmt.Sprintf("%.2f", math.Round(v*1e2)/1e2), prefix
+		}
+	default:
+		prefix := ""
+		switch exp {
+		case -1:
+			return fmt.Sprintf("%.3f", math.Round(v*1e3)/1e3), prefix
+		case -2:
+			return fmt.Sprintf("%.4f", math.Round(v*1e4)/1e4), prefix
+		case -3:
+			return fmt.Sprintf("%.5f", math.Round(v*1e5)/1e5), prefix
+		case -4:
+			return fmt.Sprintf("%.6f", math.Round(v*1e6)/1e6), prefix
+		case -5:
+			return fmt.Sprintf("%.7f", math.Round(v*1e7)/1e7), prefix
+		}
+	}
+	return fmt.Sprintf("%.8f", math.Round(v*1e8)/1e8), ""
 }
 
 type periodMap struct {
@@ -398,35 +449,61 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"toFloat64Amount": func(intAmount int64) float64 {
 			return dcrutil.Amount(intAmount).ToCoin()
 		},
-		"threeSigFigs": threeSigFigs,
+		"threeSFV": func(v float64) string {
+			// Use for DCR values. Appends the unit prefix to the end of the value
+			// string with no space.
+			val, pre := threeSigFigs(v, "B")
+			return val + pre
+		},
+		"threeSFG": func(v float64) threeSF {
+			// Returns an threeSF object which allows units and values to be styled
+			// separately. 'G' is used for billions instead of 'B', making this
+			// suitable for displaying block size.
+			val, pre := threeSigFigs(v, "G")
+			return threeSF{
+				Value:  val,
+				Prefix: pre,
+			}
+		},
+		"fmtPercent": func(v float64) string {
+			if v > 0 {
+				return fmt.Sprintf("+%.2f", v)
+			}
+			return fmt.Sprintf("%.2f", v)
+		},
 		"remaining": func(idx int, max, t int64) string {
 			x := (max - int64(idx)) * t
 			allsecs := int(time.Duration(x).Seconds())
-			str := ""
+			parts := make([]string, 0, 5)
 			if allsecs > 604799 {
 				weeks := allsecs / 604800
 				allsecs %= 604800
-				str += fmt.Sprintf("%dw ", weeks)
+				parts = append(parts, fmt.Sprintf("%dw ", weeks))
 			}
 			if allsecs > 86399 {
 				days := allsecs / 86400
 				allsecs %= 86400
-				str += fmt.Sprintf("%dd ", days)
+				parts = append(parts, fmt.Sprintf("%dd ", days))
 			}
 			if allsecs > 3599 {
 				hours := allsecs / 3600
 				allsecs %= 3600
-				str += fmt.Sprintf("%dh ", hours)
+				parts = append(parts, fmt.Sprintf("%dh ", hours))
 			}
 			if allsecs > 59 {
 				mins := allsecs / 60
 				allsecs %= 60
-				str += fmt.Sprintf("%dm ", mins)
+				parts = append(parts, fmt.Sprintf("%dm ", mins))
 			}
 			if allsecs > 0 {
-				str += fmt.Sprintf("%ds ", allsecs)
+				parts = append(parts, fmt.Sprintf("%ds ", allsecs))
 			}
-			return str + "remaining"
+			if len(parts) > 1 {
+				return parts[0] + " " + parts[1] + "remaining"
+			} else if len(parts) == 1 {
+				return parts[0] + "remaining"
+			}
+			return ""
 		},
 		"amountAsDecimalPartsTrimmed": amountAsDecimalPartsTrimmed,
 		"secondsToLongDurationString": func(d int64) string {
@@ -437,6 +514,9 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		},
 		"durationToShortDurationString": func(d time.Duration) string {
 			return formattedDuration(d, shortPeriods)
+		},
+		"timeSinceToShortDurationString": func(t time.Time) string {
+			return formattedDuration(time.Since(t), shortPeriods)
 		},
 		"convertByteArrayToString": func(arr []byte) (inString string) {
 			inString = hex.EncodeToString(arr)
@@ -590,12 +670,25 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"toFloat64": func(x uint32) float64 {
 			return float64(x)
 		},
+		"i32ToFloat64": func(i int32) float64 {
+			return float64(i)
+		},
 		"toInt": func(str string) int {
 			intStr, err := strconv.Atoi(str)
 			if err != nil {
 				return 0
 			}
 			return intStr
+		},
+		"uAtomsToDCR": func(atoms uint64) float64 {
+			return dcrutil.Amount(atoms).ToCoin()
+		},
+		"unixToMonthStamp": func(stamp uint64) string {
+			t := time.Unix(int64(stamp), 0)
+			return t.Format("Jan 2 '06")
+		},
+		"u64f64": func(v uint64) float64 {
+			return float64(v)
 		},
 	}
 }
