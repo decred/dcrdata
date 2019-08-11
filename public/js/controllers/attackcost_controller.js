@@ -49,14 +49,14 @@ function legendFormatter (data) {
     let dashLabels = data.series.reduce((nodes, series) => {
       return `${nodes} <span style="color:${series.color};">${series.dashHTML} ${series.labelHTML}</span>`
     }, '')
-    html = `<span class="ml-3">${this.getLabels()[0]}: N/A</span>${dashLabels}`
+    html = `<span>${this.getLabels()[0]}: N/A</span>${dashLabels}`
   } else {
     let yVals = data.series.reduce((nodes, series) => {
       if (!series.isVisible) return nodes
-      return `${nodes} <span style="color:${series.color};">${series.dashHTML} ${series.labelHTML}: </span>${digitformat(series.y, 4)}`
+      return `${nodes} <span class="ml-3" style="color:${series.color};">${series.dashHTML} ${series.labelHTML}: </span>${digitformat(series.y, 4)}`
     }, '<br>')
 
-    html = `<span class="ml-3">${this.getLabels()[0]}: ${digitformat(data.x)}</span>${yVals}`
+    html = `<span>${this.getLabels()[0]}: ${digitformat(data.x)}</span>${yVals}`
   }
   dompurify.sanitize(html)
   return html
@@ -71,7 +71,7 @@ export default class extends Controller {
       'targetPosLabel', 'targetPow', 'ticketAttackSize', 'ticketPoolAttack', 'ticketPoolSize',
       'ticketPoolValue', 'ticketPrice', 'tickets', 'ticketSizeAttach', 'durationLongDesc', 'durationShortDesc',
       'total', 'totalDCRPos', 'totalDeviceCost', 'totalElectricity', 'totalExtraCostRate', 'totalKwh',
-      'totalPos', 'totalPow', 'typeAttack', 'graph'
+      'totalPos', 'totalPow', 'typeAttack', 'graph', 'labels'
     ]
   }
 
@@ -137,14 +137,22 @@ export default class extends Controller {
       highlightSeriesOpts: { strokeWidth: 2 },
       legendFormatter: legendFormatter,
       hideOverlayOnMouseOut: false,
-      // labelsDiv: this.labelsTarget,
+      labelsDiv: this.labelsTarget,
       labelsSeparateLines: true,
       showRangeSelector: false,
       labelsKMB: true,
-      legend: 'follow'
+      legend: 'always'
     }
 
     this.chartsView = new Dygraph(this.graphTarget, graphData, options)
+    this.chartsView.setAnnotations([
+      {
+        series: 'Hashpower multiplier',
+        x: 0.51,
+        shortText: 'L',
+        text: '51% Attack'
+      }
+    ])
     this.setActivePoint()
   }
 
