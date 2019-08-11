@@ -5,7 +5,7 @@
 {{template "navbar" . }}
   
    <div
-      class="container py-1 mb-2"
+      class="container py-1 mb-5"
       data-controller="attackcost"
       data-attackcost-height="{{.Height}}"
       data-attackcost-hashrate="{{.HashRate}}"
@@ -17,12 +17,268 @@
       <div class="col-md-24 p-0">
         <div class="bg-white mb-1 py-2 px-3 my-0">
           <div class="d-inline-block position-relative p-2">
-            <span class="card-icon dcricon-twoblocks h1 mr-2"></span>
+            <span class="card-icon dcricon-two blocks h1 mr-2"></span>
             <span class="h4 my-3">Majority Attack Cost Calculator</span>
           </div>
 
-           <div class="justify-content-center align-items-center" data-target="attackcost.graph" style="width:90%; height:400px;"></div>
+          <div class="row mx-0 my-2">
+            <div class="col-24 col-sm-12 col-md-24 col-lg-18 px-3 position-relative">
+              <div class="pl-1">
+                  <span class="h6 d-inline-block pl-2 font-weight-bold">Chart</span>
+              </div>
+              <div class="d-flex justify-content-center">
+                  <div class="legend d-flex b-radius" data-target="attackcost.labels"></div>
+              </div>
+              <div class="justify-content-center align-items-center" data-target="attackcost.graph" style="width:100%; height:200px;"></div>
+            </div>
+            <div class="col-24 col-sm-12 col-md-24 col-lg-6 bg-grey px-3 position-relative fs13">
+              <div>
+                <div class="pl-1">
+                    <span class="h6 d-inline-block pl-2">Description</span>
+                </div>
+                <span>If an attacker has in their control <span class="font-weight-bold">20,884 tickets</span> and <span class="font-weight-bold">205.3436 Ph/s</span> (HashRate) they will be able to generate blocks at the same average speed as the honest network.</span>
+              </div>
+            </div>
+          </div>
+      </div>
 
+      <div class="row mx-0 my-2 bg-white">
+        <div class="col-24 col-sm-12 col-md-24 col-lg-13 px-3 position-relative pt-3 pb-3">
+          <div class="pl-1">
+              <span class="h6 d-inline-block pl-2 font-weight-bold">Current Mainnet Parameters</span>
+          </div>
+          <div class="row">
+            <div class="col-24 col-md-12 col-lg-24 col-xl-14 row pb-2 pb-sm-3 pt-2 pt-md-0 pt-lg-2 pt-xl-0">
+              <div class="col-11 text-center">
+                <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
+                  <span class="text-secondary fs13">Best Block</span>
+                  <br>
+                  <span class="h4" data-target="attackcost.blockHeight">0</span>
+                </div>
+              </div>
+
+              <div class="col-13 text-center">
+                <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
+                  <span class="text-secondary fs13">HashRate</span>
+                  <br>
+                  <span class="h4" data-target="attackcost.actualHashRate"></span> <span class="text-secondary">Ph/s</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-24 col-md-12 col-lg-24 col-xl-11 row pb-3 pt-2 pt-md-0 pt-lg-2 pt-xl-0">
+              <div class="col-10 text-center">
+                <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
+                  <span class="text-secondary fs13">Ticket Pool size</span>
+                  <br>
+                  <span class="h4">40,003</span>
+                </div>
+              </div>
+
+              <div class="col-12 text-center">
+                <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
+                  <span class="text-secondary fs13">Ticket Price</span>
+                  <br>
+                  <span class="h4">128.3077</span> <span class="text-secondary">DCR</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-24 col-sm-12 col-md-24 col-lg-11 secondary-card pt-3 pb-3 px-3">
+          <div class="pl-1">
+            <span class="h6 d-inline-block pl-2 font-weight-bold">Derived Parameters</span>
+          </div>
+
+          <div class="row mt-1">
+              <div class="col-24 col-md-12 col-lg-24 col-xl-12 row pb-3">
+              <div class="col-12 text-center">
+                <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
+                  <span class="text-secondary fs13">Attack Time</span>
+                  <br>
+                  <span class="h4">
+                    <input
+                      type="number"
+                      data-target="attackcost.attackPeriod"
+                      data-action="change->attackcost#updateAttackTime"
+                      step="1"
+                      min="1"
+                      value="1"
+                      max="1000"
+                    > hour(s)
+                  </span>
+                  <span class="text-secondary">hrs</span>
+                </div>
+              </div>
+
+              <div class="col-12 text-center">
+                <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
+                  <span class="text-secondary fs13">Electricity Cost</span>
+                  <br>
+                  <span class="h4">
+                    <input
+                      type="number"
+                      data-target="attackcost.kwhRate"
+                      data-action="change->attackcost#updateKwhRate"
+                      step="0.1"
+                      min="0.1"
+                      value="0.1"
+                      max="1000"
+                    >
+                  </span>
+                  <span class="text-secondary">USD/kWh</span>
+                </div>
+              </div>
+            </div>
+            <div class="col-24 col-md-12 col-lg-24 col-xl-12 row pb-3">
+              <div class="col-12 text-center">
+                <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
+                  <span class="text-secondary fs13">USD-DCR Rate</span>
+                  <br>
+                  <span class="h4">28</span> <span class="text-secondary">USD/DCR</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+    </div>
+
+    <div class="row mx-0 my-2 bg-white">
+      <div class="col-24 col-sm-12 col-md-24 col-lg-13 px-3 position-relative pt-3 pb-3">
+        <div class="pl-1">
+            <span class="h6 d-inline-block pl-2 font-weight-bold">PoW Attack</span>
+        </div>
+        <div class="">
+          <div class="mt-1 ml-2">
+            <span class="mr-1">Mining Device:</span>
+            <select
+              class="form-control chart-form-control mr-5"
+              data-action="attackcost#chooseDevice"
+              data-target="attackcost.device"
+            >
+              <option data-target="attackcost.deviceDesc" value="0">DCR5</option>
+              <option data-target="attackcost.deviceDesc" value="1">D1</option>
+            </select>
+          </div>
+
+          <div class="mt-1 ml-2">
+              A 
+              <input
+                type="number"
+                data-target="attackcost.targetPow"
+                data-action="change->attackcost#updateTargetPow"
+                step="1"
+                min="1"
+                max="100"
+                value="51"
+                max="1000"
+                autofocus
+              >%
+              PoW attack would need <span class="font-weight-bold" data-target="attackcost.targetHashRate">0</span>
+              <span class="pl-1 unit lh15rem">Ph/s</span>.
+          </div>
+
+          <div class="mt-1 ml-2">
+            In order to aquire a <span class="font-weight-bold" data-target="attackcost.targetHashRate">0</span> Ph/s
+            hashrate, it would take
+            <span class="font-weight-bold" data-target="attackcost.countDevice">0</span>
+            <span class="fs11" data-target="attackcost.deviceName">&mdash;</span>
+            at a cost of <span class="font-weight-bold" data-target="attackcost.totalDeviceCost">0</span> 
+            <span class="fs11">USD</span> to buy them.
+          </div>
+
+          <div class="mt-1 ml-2">
+            Total kWh attack for <span data-target="attackcost.durationLongDesc">0</span> :
+            <span class="position-relative text-secondary font-weight-bold" data-tooltip='
+            (<span data-target="attackcost.devicePower">0</span>W x
+            <span data-target="attackcost.countDevice">0</span>
+            <span class="fs11" data-target="attackcost.deviceName">&mdash;</span> x
+            <span data-target="attackcost.durationShortDesc">0</span>) / 1000'>
+            <span class="font-weight-bold" data-target="attackcost.totalKwh">0</span> <span class="fs11">kWh</span>
+            </span>
+          </div>
+
+          <div class="mt-1 ml-2">
+            Costs of <span data-target="attackcost.durationLongDesc">0</span>
+            electricity consumption for 6,510 DCR5s :
+            <span class="position-relative text-secondary font-weight-bold" data-tooltip="10,481.1 kWh x 0.1 USD per kWh">1,048.11 USD</span>
+          </div>
+
+          <div class="mt-1 ml-2">
+            To carry out the attack, additional costs for facilities and cooling are estimated at
+            <input
+              type="number"
+              data-action="change->attackcost#updateOtherCosts"
+              data-target="attackcost.otherCosts"
+              step="1"
+              min="1"
+              max="100"
+              value="0"
+              max="1000"
+            >% of the cost of the miners. of the cost of the miners.
+          </div>
+          <div class="mt-1 ml-2">
+            Total PoW attack cost:
+            <span class="position-relative text-secondary font-weight-bold" data-tooltip="(8,345,820 USD x 1) + 1,048.11 USD">8,346,868.11 USD</span>
+          </div>
+          <div></div>
+          <div></div>
+        </div>
+      </div>
+      <div class="col-24 col-sm-12 col-md-24 col-lg-11 secondary-card pt-3 pb-3 px-3">
+        <div class="pl-1">
+          <span class="h6 d-inline-block pl-2 font-weight-bold">PoS Attack</span>
+        </div>
+        <div>
+          <div class="mt-1 ml-2">
+            <span class="mr-1">Attack Type:</span>
+            <select
+              class="form-control chart-form-control"
+              data-action="attackcost#chooseAttackType"
+              data-target="attackcost.typeAttack"
+            >
+              <option value="0">Internal Attack</option>
+              <option value="1">External Attack</option>
+            </select>
+          </div>
+          <div class="mt-1 ml-2">
+            A block has at least 5 votes and
+            <span class="position-relative text-secondary font-weight-bold" data-tooltip="3 of 5 votes">60%</span>
+            should approve for it be valid</div>
+          <div class="mt-1 ml-2">We assume that an attacker would need to aquire 60% of the ticket pool to do the attack.</div>
+          <div class="mt-1 ml-2">Total Staked is 5,082,533 DCR.</div>
+          <div class="mt-1 ml-2">
+            Amount needed for the attack process:
+            <span class="position-relative text-secondary font-weight-bold" data-tooltip="5,082,533 / 0.6">723.333 DCR</span>
+          </div>
+          <div class="mt-1 ml-2">
+            Future ticket price:
+            <span class="position-relative text-secondary font-weight-bold" data-tooltip="723.333 / 40,931 ">0.0177 DCR</span>
+          </div>
+          <div class="mt-1 ml-2">
+            Attack Tickets needed: 
+            <span class="position-relative text-secondary font-weight-bold" data-tooltip="40,941 x 60%">24,565 tickets</span>
+          </div>
+          <div class="mt-1 ml-2">
+            24,565 tickets value:
+            <span class="position-relative text-secondary font-weight-bold" data-tooltip="24,565 x 129.3078">3,176,445.96 DCR</span>
+          </div>
+          <div class="mt-1 ml-2">
+            Total PoS attack cost: 
+            <span class="position-relative text-secondary font-weight-bold" data-tooltip="3,176,445.96 x 24.42">77,568,810.27 USD</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-center h4 mb-3 mt-3">
+    73% attack cost:
+    <span class="position-relative text-secondary font-weight-bold" data-tooltip="8,346,868.11 + 77,568,810.27">85,915,678.38 USD</span>
+    </div>
+        
+<!--
+      
           <div class="mt-1 ml-2">
             <span>Drag the slider to change the amount of live tickets and hashpower required for a Majority attack on Decred.</span>
             <div class="slidecontainer">
@@ -259,6 +515,7 @@
             <span class="font-weight-bold" data-target="attackcost.total">0</span>
             <span class="fs11">USD</span>.
           </div>
+          -->
         </div>
       </div>
   </div>
