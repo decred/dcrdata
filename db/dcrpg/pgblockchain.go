@@ -1628,7 +1628,8 @@ func (pgb *ChainDB) TicketPoolByDateAndInterval(maturityBlock int64,
 func (pgb *ChainDB) PosIntervals(limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
-	bgi, err := retrieveWindowBlocks(ctx, pgb.db, pgb.chainParams.StakeDiffWindowSize, limit, offset)
+	bgi, err := retrieveWindowBlocks(ctx, pgb.db,
+		pgb.chainParams.StakeDiffWindowSize, pgb.Height(), limit, offset)
 	return bgi, pgb.replaceCancelError(err)
 }
 

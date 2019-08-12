@@ -1019,8 +1019,12 @@ func RetrieveAllVotesDbIDsHeightsTicketDbIDs(ctx context.Context, db *sql.DB) (i
 
 // retrieveWindowBlocks fetches chunks of windows using the limit and offset provided
 // for a window size of chaincfg.Params.StakeDiffWindowSize.
-func retrieveWindowBlocks(ctx context.Context, db *sql.DB, windowSize int64, limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error) {
-	rows, err := db.QueryContext(ctx, internal.SelectWindowsByLimit, windowSize, limit, offset)
+func retrieveWindowBlocks(ctx context.Context, db *sql.DB, windowSize, currentHeight int64, limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error) {
+	endWindow := currentHeight/windowSize - int64(offset)
+	startWindow := endWindow - int64(limit) + 1
+	startHeight := startWindow * windowSize
+	endHeight := (endWindow+1)*windowSize - 1
+	rows, err := db.QueryContext(ctx, internal.SelectWindowsByLimit, windowSize, startHeight, endHeight)
 	if err != nil {
 		return nil, fmt.Errorf("retrieveWindowBlocks failed: error: %v", err)
 	}
