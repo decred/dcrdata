@@ -148,8 +148,8 @@
                                         In Discussion
                                     </span>
                                 {{else if eq (len .VoteResults) 0 }}
-                                    <span class="text-progress position-relative" data-tooltip="Voting in progress">
-                                        In Progress
+                                    <span class="text-progress position-relative" data-tooltip="Waiting for administrator approval to start voting">
+                                        Vote pending
                                     </span>
                                 {{else}}
                                     {{range $i, $vr := .VoteResults}}
