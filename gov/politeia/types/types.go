@@ -240,14 +240,10 @@ type ProposalMetadata struct {
 // prepare figures for display. Many of these manipulations require a tip height
 // and a target block time for the network, so those must be provided as
 // arguments.
-func (pinfo *ProposalInfo) Metatdata(tip, targetBlockTime int64) *ProposalMetadata {
+func (pinfo *ProposalInfo) Metadata(tip, targetBlockTime int64) *ProposalMetadata {
 	meta := new(ProposalMetadata)
 	desc := pinfo.VoteStatus.ShortDesc()
 	switch desc {
-	case "Authorized":
-		blocksTil := windowSize - tip%windowSize
-		meta.StartHeight = tip + blocksTil
-		meta.SecondsTil = blocksTil * targetBlockTime
 	case "Started", "Finished":
 		endHeight, _ := strconv.ParseInt(pinfo.ProposalVotes.Endheight, 10, 64)
 		meta.StartHeight = endHeight - windowSize
@@ -271,7 +267,7 @@ func (pinfo *ProposalInfo) Metatdata(tip, targetBlockTime int64) *ProposalMetada
 		}
 		meta.IsPassing = meta.Approval > meta.PassPercent
 		if desc == "Started" {
-			blocksLeft := windowSize - tip%windowSize
+			blocksLeft := endHeight - tip
 			meta.SecondsTil = blocksLeft * targetBlockTime
 		}
 	}

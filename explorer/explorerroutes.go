@@ -1814,38 +1814,19 @@ func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
 		exp.StatusPage(w, defaultErrorCode, "the proposal token or RefID does not exist",
 			"", ExpStatusNotFound)
 		return
-
-	}
-
-	// Proposals whose voting hasn't commenced do not have an end height assigned yet.
-	// Ignore the error returned since the endheight variable will be a zero value.
-	endHeight, _ := strconv.ParseInt(proposalInfo.ProposalVotes.Endheight, 10, 64)
-
-	var timeLeft string
-
-	if blocksLeft := endHeight - exp.Height(); blocksLeft > 0 {
-		// 1 block is estimated to take approx. 5 minutes on mainnet to mine.
-		var minPerblock = exp.ChainParams.TargetTimePerBlock
-
-		hoursLeft := int((time.Duration(blocksLeft) * minPerblock).Hours())
-		if hoursLeft > 0 {
-			timeLeft = fmt.Sprintf("%v days %v hours", hoursLeft/24, hoursLeft%24)
-		}
 	}
 
 	commonData := exp.commonData(r)
 	str, err := exp.templates.exec("proposal", struct {
 		*CommonPageData
-		Data          *pitypes.ProposalInfo
-		PoliteiaURL   string
-		TimeRemaining string
-		Metadata      *pitypes.ProposalMetadata
+		Data        *pitypes.ProposalInfo
+		PoliteiaURL string
+		Metadata    *pitypes.ProposalMetadata
 	}{
 		CommonPageData: commonData,
 		Data:           proposalInfo,
 		PoliteiaURL:    exp.politeiaAPIURL,
-		TimeRemaining:  timeLeft,
-		Metadata:       proposalInfo.Metatdata(int64(commonData.Tip.Height), int64(exp.ChainParams.TargetTimePerBlock/time.Second)),
+		Metadata:       proposalInfo.Metadata(int64(commonData.Tip.Height), int64(exp.ChainParams.TargetTimePerBlock/time.Second)),
 	})
 
 	if err != nil {
