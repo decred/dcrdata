@@ -928,8 +928,9 @@ var chartMakers = map[string]ChartMaker{
 	PercentStaked:   stakedCoinsChart,
 }
 
-// Chart will return a JSON-encoded chartResponse of the provided type
-// and BinLevel.
+// Chart will return a JSON-encoded chartResponse of the provided chart,
+// binLevel, and axis (TimeAxis, HeightAxis). binString is ignored for
+// window-binned charts.
 func (charts *ChartData) Chart(chartID, binString, axisString string) ([]byte, error) {
 	if isWindowBin(chartID) {
 		binString = string(WindowBin)
@@ -957,7 +958,7 @@ func (charts *ChartData) Chart(chartID, binString, axisString string) ([]byte, e
 }
 
 // Encode the data sets. Optionally add arbitrary additional data as part of the
-// chartRespnse seed. A nil seed is allowed.
+// chartResponse seed. A nil seed is allowed.
 func encode(sets lengtherMap, seed chartResponse) ([]byte, error) {
 	if len(sets) == 0 {
 		return nil, fmt.Errorf("encode called without arguments")
@@ -972,7 +973,7 @@ func encode(sets lengtherMap, seed chartResponse) ([]byte, error) {
 		}
 	}
 	if len(seed) == 0 {
-		seed = make(chartResponse)
+		seed = make(chartResponse, len(sets))
 	}
 	for k, v := range sets {
 		seed[k] = v.Truncate(smaller)
@@ -1223,7 +1224,7 @@ func hashrate(time, chainwork ChartUints) (ChartUints, ChartUints) {
 	}
 	t := make(ChartUints, 0, hrLen)
 	y := make(ChartUints, 0, hrLen)
-	rotator := make([]uint64, HashrateAvgLength)
+	var rotator [HashrateAvgLength]uint64
 	for i, work := range chainwork {
 		idx := i % HashrateAvgLength
 		rotator[idx] = work
@@ -1239,7 +1240,7 @@ func hashrate(time, chainwork ChartUints) (ChartUints, ChartUints) {
 	return t, y
 }
 
-// dailyHashrate provides the provided daily chainwork data to hashrate data.
+// dailyHashrate converts the provided daily chainwork data to hashrate data.
 // Since hashrates are based on a difference, the returned arrays will be 1
 // element fewer than the number of days. A truncated time slice with the same
 // length as the hashrate slice is returned.
