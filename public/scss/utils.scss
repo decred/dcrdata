@@ -217,3 +217,19 @@ body.darkBG [data-tooltip]:hover::after {
   border-color: #2dd8a3;
   color: #2dd8a3;
 }
+
+.clipboard span.clickable,
+.clipboard span.alert-copy {
+  display: none;
+  margin: auto;
+  padding: 2px;
+  position: absolute;
+}
+
+.clipboard span.alert-copy {
+  border-radius: 5px;
+}
+
+.clipboard:hover .clickable {
+  display: inline;
+}

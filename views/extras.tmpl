@@ -222,7 +222,7 @@
 	<a href="{{$link}}"
   {{- end}} data-keynav-priority class="elidedhash mono" data-head="{{hashStart $hash}}" data-tail="{{hashEnd $hash}}">
   {{- $hash}}
-  {{- if eq $link ""}}</div>{{else}}</a>{{end -}}
+  {{- if eq $link ""}}</div>{{else}}</a>{{template "copyTextIcon"}}{{end -}}
 {{end}}
 
 {{define "addressTable"}}
@@ -259,7 +259,7 @@
 	{{- range .Transactions}}
 		<tr{{if eq .Confirmations 0}} data-target="address.pending" data-txid="{{.TxID}}"{{end}}>
 			<td class="d-none d-sm-table-cell">{{.TxType}}</td>
-			<td>{{template "hashElide" (hashlink .TxID .Link)}}</td>
+			<td class="clipboard">{{template "hashElide" (hashlink .TxID .Link)}}</td>
 		{{- if eq $txType "merged_debit"}}
 			<td class="text-right">{{.MergedTxnCount}}</td>
 			<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</td>
@@ -374,4 +374,13 @@
 		</div>
 	</div>
 </div>
+{{end}}
+
+{{define "copyTextIcon"}}
+  <span class="dcricon-copy clickable"
+  data-controller="clipboard"
+  data-action="click->clipboard#copyTextToClipboard"
+  ></span>
+  <span class="alert alert-success alert-copy">
+  </span>
 {{end}}

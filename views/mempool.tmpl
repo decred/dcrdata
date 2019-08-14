@@ -133,8 +133,9 @@
                               data-height="{{.VoteInfo.Validation.Height}}"
                               data-ticket-index="{{.VoteInfo.MempoolTicketIndex}}"
                               >
-                                  <td class="break-word">
+                                  <td class="break-word clipboard">
                                     <a class="hash lh1rem" href="/tx/{{.Hash}}">{{.Hash}}</a>
+                                    {{template "copyTextIcon"}}
                                   </td>
                                   <td class="mono fs15"><a href="/block/{{.VoteInfo.Validation.Hash}}">{{.VoteInfo.Validation.Height}}<span
                                     class="small">{{if .VoteInfo.ForLastBlock}} (best){{end}}</span></a></td>
@@ -170,8 +171,9 @@
                               {{if gt .NumTickets 0}}
                               {{range .Tickets}}
                               <tr>
-                                  <td class="break-word">
+                                  <td class="break-word clipboard">
                                     <a class="hash lh1rem" href="/tx/{{.Hash}}">{{.Hash}}</a>
+                                    {{template "copyTextIcon"}}
                                   </td>
                                   <td class="mono fs15 text-right">
                                     {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
@@ -204,8 +206,9 @@
                               {{if gt .NumRevokes 0}}
                               {{range .Revocations}}
                               <tr>
-                                  <td class="break-word">
+                                  <td class="break-word clipboard">
                                     <a class="hash lh1rem" href="/tx/{{.Hash}}">{{.Hash}}</a>
+                                    {{template "copyTextIcon"}}
                                   </td>
                                   <td class="mono fs15 text-right">
                                     {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
@@ -240,8 +243,9 @@
                               {{if gt .NumRegular 0}}
                               {{range .Transactions}}
                               <tr>
-                                  <td class="break-word">
+                                  <td class="break-word clipboard">
                                       <a class="hash lh1rem" href="/tx/{{.Hash}}">{{.Hash}}</a>
+                                      {{template "copyTextIcon"}}
                                   </td>
                                   <td class="mono fs15 text-right">
                                     {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}

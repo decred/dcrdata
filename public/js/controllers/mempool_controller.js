@@ -5,6 +5,7 @@ import humanize from '../helpers/humanize_helper'
 import ws from '../services/messagesocket_service'
 import { keyNav } from '../services/keyboard_navigation_service'
 import Mempool from '../helpers/mempool_helper'
+import { copyIcon, alertArea } from './clipboard_controller'
 
 function incrementValue (el) {
   if (!el) return
@@ -20,7 +21,11 @@ function rowNode (rowText) {
 
 function txTableRow (tx) {
   return rowNode(`<tr class="flash">
-        <td class="break-word"><span><a class="hash" href="/tx/${tx.hash}" title="${tx.hash}">${tx.hash}</a></span></td>
+        <td class="break-word clipboard">
+          <a class="hash" href="/tx/${tx.hash}" title="${tx.hash}">${tx.hash}</a>
+          ${copyIcon()}
+          ${alertArea()}
+          </td>
         <td class="mono fs15 text-right">${humanize.decimalParts(tx.total, false, 8)}</td>
         <td class="mono fs15 text-right">${tx.size} B</td>
         <td class="mono fs15 text-right" data-target="time.age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
@@ -29,7 +34,11 @@ function txTableRow (tx) {
 
 function voteTxTableRow (tx) {
   return rowNode(`<tr class="flash" data-height="${tx.vote_info.block_validation.height}" data-blockhash="${tx.vote_info.block_validation.hash}">
-        <td class="break-word"><span><a class="hash" href="/tx/${tx.hash}">${tx.hash}</a></span></td>
+        <td class="break-word clipboard">
+          <a class="hash" href="/tx/${tx.hash}">${tx.hash}</a>
+          ${copyIcon()}
+          ${alertArea()}
+        </td>
         <td class="mono fs15"><a href="/block/${tx.vote_info.block_validation.hash}">${tx.vote_info.block_validation.height}<span
           class="small">${tx.vote_info.last_block ? ' best' : ''}</span></a></td>
         <td class="mono fs15"><a href="/tx/${tx.vote_info.ticket_spent}">${tx.vote_info.mempool_ticket_index}<a/></td>
