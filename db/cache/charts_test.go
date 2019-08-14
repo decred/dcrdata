@@ -185,7 +185,7 @@ func TestChartsCache(t *testing.T) {
 		if err != nil {
 			t.Fatalf("error getting fresh chart: %v", err)
 		}
-		if string(chart) != `{"x":[1,86402,86403,172804,172805,259206],"y":[1,2,3,4,5,6]}` {
+		if string(chart) != `{"axis":"time","bin":"block","size":[1,2,3,4,5,6],"t":[1,86402,86403,172804,172805,259206]}` {
 			t.Fatalf("unexpected chart json")
 		}
 		ck := cacheKey(BlockSize, BlockBin, TimeAxis)

@@ -165,130 +165,161 @@ function nightModeOptions (nightModeOn) {
   }
 }
 
-function zipXYData (gData, isHeightAxis, isDayBinned, coefficient, windowS, initValue) {
-  windowS = windowS || 1
-  initValue = initValue || 0
-  coefficient = coefficient || 1
-  return map(gData.x, (n, i) => {
-    var xAxisVal
-    if (isHeightAxis && isDayBinned) {
-      xAxisVal = n
-    } else if (isHeightAxis) {
-      xAxisVal = (i * windowS) + initValue
-    } else {
-      xAxisVal = new Date(n * 1000)
-    }
-    return [xAxisVal, gData.y[i] * coefficient]
+function zipWindowHvYZ (ys, zs, winSize, yMult, zMult, offset) {
+  yMult = yMult || 1
+  zMult = zMult || 1
+  offset = offset || 0
+  return ys.map((y, i) => {
+    return [i * winSize + offset, y * yMult, zs[i] * zMult]
   })
 }
 
-function poolSizeFunc (gData, isHeightAxis, isDayBinned) {
-  var data = map(gData.x, (n, i) => {
-    var xAxisVal
-    if (isHeightAxis && isDayBinned) {
-      xAxisVal = n
-    } else if (isHeightAxis) {
-      xAxisVal = i
-    } else {
-      xAxisVal = new Date(n * 1000)
-    }
-    return [xAxisVal, gData.y[i], null]
+function zipWindowHvY (ys, winSize, yMult, offset) {
+  yMult = yMult || 1
+  offset = offset || 0
+  return ys.map((y, i) => {
+    return [i * winSize + offset, y * yMult]
   })
-  if (data.length) {
-    data[0][2] = ticketPoolSizeTarget
-    data[data.length - 1][2] = ticketPoolSizeTarget
+}
+
+function zipWindowTvYZ (times, ys, zs, yMult, zMult) {
+  yMult = yMult || 1
+  zMult = zMult || 1
+  return times.map((t, i) => {
+    return [new Date(t * 1000), ys[i] * yMult, zs[i] * zMult]
+  })
+}
+
+function zipWindowTvY (times, ys, yMult) {
+  yMult = yMult || 1
+  return times.map((t, i) => {
+    return [new Date(t * 1000), ys[i] * yMult]
+  })
+}
+
+function zipTvY (times, ys, yMult) {
+  yMult = yMult || 1
+  return times.map((t, i) => {
+    return [new Date(t * 1000), ys[i] * yMult]
+  })
+}
+
+function zipIvY (ys, yMult, offset) {
+  yMult = yMult || 1
+  offset = offset || 1
+  return ys.map((y, i) => {
+    return [offset + i, y * yMult]
+  })
+}
+
+function zipHvY (heights, ys, yMult, offset) {
+  yMult = yMult || 1
+  offset = offset || 1
+  return ys.map((y, i) => {
+    return [offset + heights[i], y * yMult]
+  })
+}
+
+function zip2D (data, ys, yMult, offset) {
+  yMult = yMult || 1
+  if (data.axis === 'height') {
+    if (data.bin === 'block') return zipIvY(ys, yMult)
+    return zipHvY(data.h, ys, yMult, offset)
   }
-  return data
+  return zipTvY(data.t, ys, yMult)
 }
 
-function zipXYZData (gData, isHeightAxis, isDayBinned, yCoefficient, zCoefficient, windowS) {
-  windowS = windowS || 1
-  yCoefficient = yCoefficient || 1
-  zCoefficient = zCoefficient || 1
-  return map(gData.x, (n, i) => {
-    var xAxisVal
-    if (isHeightAxis && isDayBinned) {
-      xAxisVal = n
-    } else if (isHeightAxis) {
-      xAxisVal = i * windowS
-    } else {
-      xAxisVal = new Date(n * 1000)
-    }
-    return [xAxisVal, gData.y[i] * yCoefficient, gData.z[i] * zCoefficient]
-  })
+function ticketPriceFunc (data) {
+  if (data.t) return zipWindowTvYZ(data.t, data.price, data.count, atomsToDCR)
+  return zipWindowHvYZ(data.price, data.count, data.window, atomsToDCR)
 }
 
-function percentStakedFunc (gData, isHeightAxis, isDayBinned) {
-  var extremeStaked = 0
-  var data = map(gData.x, (n, i) => {
-    let poolValue = gData.z[i]
-    let coinSupply = gData.y[i] * atomsToDCR
-    let percentStaked = (poolValue / coinSupply) * 100
-    if (percentStaked > extremeStaked) extremeStaked = percentStaked
-    var xAxisVal
-    if (isHeightAxis && isDayBinned) {
-      xAxisVal = n
-    } else if (isHeightAxis) {
-      xAxisVal = i
-    } else {
-      xAxisVal = new Date(n * 1000)
-    }
-    rawPoolValue.push(poolValue)
-    rawCoinSupply.push(coinSupply)
-    return [ xAxisVal, percentStaked ]
-  })
-  return [data, extremeStaked]
+function poolSizeFunc (data) {
+  var out = []
+  if (data.axis === 'height') {
+    if (data.bin === 'block') out = zipIvY(data.count)
+    else out = zipHvY(data.h, data.count)
+  } else {
+    out = zipTvY(data.t, data.count)
+  }
+  out.forEach(pt => pt.push(null))
+  if (out.length) {
+    out[0][2] = ticketPoolSizeTarget
+    out[out.length - 1][2] = ticketPoolSizeTarget
+  }
+  return out
 }
 
-function circulationFunc (gData, isHeightAxis, isDayBinned) {
-  var y = 0
+function percentStakedFunc (data) {
+  rawCoinSupply = data.circulation.map(v => v * atomsToDCR)
+  rawPoolValue = data.poolval
+  var ys = data.poolval.map((v, i) => [v / rawCoinSupply[i] * 100])
+  if (data.axis === 'height') {
+    if (data.bin === 'block') return zipIvY(ys)
+    return zipHvY(data.h, ys)
+  }
+  return zipTvY(data.t, ys)
+}
+
+function powDiffFunc (data) {
+  if (data.t) return zipWindowTvY(data.t, data.diff)
+  return zipWindowHvY(data.diff, data.window)
+}
+
+function circulationFunc (chartData) {
+  var yMax = 0
   var h = -1
   var addDough = (newHeight) => {
     while (h < newHeight) {
       h++
-      y += blockReward(h) * atomsToDCR
+      yMax += blockReward(h) * atomsToDCR
     }
+  }
+  var heights = chartData.h
+  var times = chartData.t
+  var supplies = chartData.supply
+  var isHeightAxis = chartData.axis === 'height'
+  var xFunc, hFunc
+  if (chartData.bin === 'day') {
+    xFunc = isHeightAxis ? i => heights[i] : i => new Date(times[i] * 1000)
+    hFunc = i => heights[i]
+  } else {
+    xFunc = isHeightAxis ? i => i : i => new Date(times[i] * 1000)
+    hFunc = i => i
   }
 
   var inflation = []
-  var data = map(gData.x, (n, i) => {
-    var xAxisVal, height
-    if (isHeightAxis && isDayBinned) {
-      xAxisVal = n
-      height = n
-    } else if (isHeightAxis) {
-      xAxisVal = i
-      height = i
-    } else {
-      xAxisVal = new Date(n * 1000)
-      height = !gData.z ? i : gData.z[i]
-    }
+  var data = map(supplies, (n, i) => {
+    let height = hFunc(i)
     addDough(height)
-    inflation.push(y)
-    return [xAxisVal, gData.y[i] * atomsToDCR, null]
+    inflation.push(yMax)
+    return [xFunc(i), supplies[i] * atomsToDCR, null]
   })
 
   var dailyBlocks = aDay / avgBlockTime
   var lastPt = data[data.length - 1]
-  var lastxValueSet = lastPt[0]
-  // Set y to the start at last actual supply for the prediction line.
-  y = lastPt[1]
-  if (!isHeightAxis) lastxValueSet = lastxValueSet.getTime()
+  var x = lastPt[0]
+  // Set yMax to the start at last actual supply for the prediction line.
+  yMax = lastPt[1]
+  if (!isHeightAxis) x = x.getTime()
+  xFunc = isHeightAxis ? xx => xx : xx => { return new Date(xx) }
+  var xIncrement = isHeightAxis ? dailyBlocks : aDay
   var projection = 6 * aMonth
+  data.push([xFunc(x), null, yMax])
   for (var i = 1; i <= projection; i++) {
     addDough(h + dailyBlocks)
-    if (isHeightAxis) {
-      lastxValueSet += dailyBlocks
-      data.push([lastxValueSet, null, y])
-    } else {
-      lastxValueSet += aDay
-      data.push([new Date(lastxValueSet), null, y])
-    }
+    x += xIncrement
+    data.push([xFunc(x), null, yMax])
   }
   return {
     data: data,
     inflation: inflation
   }
+}
+
+function missedVotesFunc (data) {
+  if (data.t) return zipWindowTvY(data.t, data.missed)
+  return zipWindowHvY(data.missed, data.window, 1, data.offset * data.window)
 }
 
 function mapDygraphOptions (data, labelsVal, isDrawPoint, yLabel, labelsMG, labelsMG2) {
@@ -392,7 +423,7 @@ export default class extends Controller {
     if (this.settings.axis) this.setAxis(this.settings.axis) // set first
     if (this.settings.scale === 'log') this.setScale(this.settings.scale)
     if (this.settings.zoom) this.setZoom(this.settings.zoom)
-    if (this.settings.bin) this.setBin(this.settings.bin)
+    this.setBin(this.settings.bin ? this.settings.bin : 'day')
 
     var ogLegendGenerator = Dygraph.Plugins.Legend.generateLegendHTML
     Dygraph.Plugins.Legend.generateLegendHTML = (g, x, pts, w, row) => {
@@ -416,16 +447,13 @@ export default class extends Controller {
       series: null,
       inflation: null
     }
-    var isHeightAxis = this.selectedAxis() === 'height'
-    var xlabel = isHeightAxis ? 'Block Height' : 'Date'
-    var isDayBinned = this.selectedBin() === 'day'
-
     rawPoolValue = []
     rawCoinSupply = []
+    var xlabel = data.t ? 'Date' : 'Block Height'
 
     switch (chartName) {
       case 'ticket-price': // price graph
-        d = zipXYZData(data, isHeightAxis, false, atomsToDCR, 1, windowSize)
+        d = ticketPriceFunc(data)
         gOptions.stepPlot = true
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Price', 'Tickets Bought'], true,
           'Price (DCR)', true, false))
@@ -440,7 +468,7 @@ export default class extends Controller {
         break
 
       case 'ticket-pool-size': // pool size graph
-        d = poolSizeFunc(data, isHeightAxis, isDayBinned)
+        d = poolSizeFunc(data)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Ticket Pool Size', 'Network Target'],
           false, 'Ticket Pool Size', true, false))
         gOptions.series = {
@@ -452,42 +480,43 @@ export default class extends Controller {
           }
         }
         break
+
       case 'stake-participation':
-        d = percentStakedFunc(data, isHeightAxis, isDayBinned)
-        assign(gOptions, mapDygraphOptions(d[0], [xlabel, 'Stake Participation'], true,
+        d = percentStakedFunc(data)
+        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Stake Participation'], true,
           'Stake Participation (%)', true, false))
         break
 
       case 'ticket-pool-value': // pool value graph
-        d = zipXYData(data, isHeightAxis, isDayBinned)
+        d = zip2D(data, data.poolval)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Ticket Pool Value'], true,
           'Ticket Pool Value (DCR)', true, false))
         break
 
       case 'block-size': // block size graph
-        d = zipXYData(data, isHeightAxis, isDayBinned)
+        d = zip2D(data, data.size)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Block Size'], false, 'Block Size', true, false))
         break
 
       case 'blockchain-size': // blockchain size graph
-        d = zipXYData(data, isHeightAxis, isDayBinned)
+        d = zip2D(data, data.size)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Blockchain Size'], true,
           'Blockchain Size', false, true))
         break
 
       case 'tx-count': // tx per block graph
-        d = zipXYData(data, isHeightAxis, isDayBinned)
+        d = zip2D(data, data.count)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Number of Transactions'], false,
           '# of Transactions', false, false))
         break
 
       case 'pow-difficulty': // difficulty graph
-        d = zipXYData(data, isHeightAxis, false, 1, windowSize)
+        d = powDiffFunc(data)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Difficulty'], true, 'Difficulty', true, false))
         break
 
       case 'coin-supply': // supply graph
-        d = circulationFunc(data, isHeightAxis, isDayBinned)
+        d = circulationFunc(data)
         assign(gOptions, mapDygraphOptions(d.data, [xlabel, 'Coin Supply', 'Inflation Limit'],
           true, 'Coin Supply (DCR)', true, false))
         gOptions.series = {
@@ -501,30 +530,30 @@ export default class extends Controller {
         break
 
       case 'fees': // block fee graph
-        d = zipXYData(data, isHeightAxis, isDayBinned, atomsToDCR)
+        d = zip2D(data, data.fees, atomsToDCR)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Total Fee'], false, 'Total Fee (DCR)', true, false))
         break
 
       case 'duration-btw-blocks': // Duration between blocks graph
-        d = zipXYData(data, isHeightAxis, isDayBinned)
+        d = zip2D(data, data.duration, 1, 1)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Duration Between Blocks'], false,
           'Duration Between Blocks (seconds)', false, false))
         break
 
       case 'chainwork': // Total chainwork over time
-        d = zipXYData(data, isHeightAxis, isDayBinned)
+        d = zip2D(data, data.work)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Cumulative Chainwork (exahash)'],
           false, 'Cumulative Chainwork (exahash)', true, false))
         break
 
       case 'hashrate': // Total chainwork over time
-        d = zipXYData(data, isHeightAxis, isDayBinned)
+        d = zip2D(data, data.rate, 1, data.offset)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Network Hashrate (terahash/s)'],
           false, 'Network Hashrate (terahash/s)', true, false))
         break
 
       case 'missed-votes':
-        d = zipXYData(data, isHeightAxis, false, 1, windowSize, stakeValHeight)
+        d = missedVotesFunc(data)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Missed Votes'], false,
           'Missed Votes per Window', true, false))
         break
@@ -551,21 +580,17 @@ export default class extends Controller {
       let url = '/api/chart/' + selection
       if (usesWindowUnits(selection)) {
         this.binSelectorTarget.classList.add('d-hide')
+        this.settings.bin = 'window'
       } else {
         this.binSelectorTarget.classList.remove('d-hide')
         this.settings.bin = this.selectedBin()
-        if (!this.settings.bin) this.settings.bin = 'day' // Set the default.
-        url += `?bin=${this.settings.bin}`
-        this.setActiveOptionBtn(this.settings.bin, this.binSizeTargets)
-
-        this.settings.axis = this.selectedAxis()
-        if (!this.settings.axis) this.settings.axis = 'time' // Set the default.
-        if (this.settings.bin === 'day' && this.settings.axis === 'height') {
-          url += `&axis=${this.settings.axis}`
-        }
-        this.setActiveOptionBtn(this.settings.axis, this.axisOptionTargets)
       }
+      url += `?bin=${this.settings.bin}`
 
+      this.settings.axis = this.selectedAxis()
+      if (!this.settings.axis) this.settings.axis = 'time' // Set the default.
+      url += `&axis=${this.settings.axis}`
+      this.setActiveOptionBtn(this.settings.axis, this.axisOptionTargets)
       let chartResponse = await axios.get(url)
       console.log('got api data', chartResponse, this, selection)
       selectedChart = selection
@@ -646,7 +671,7 @@ export default class extends Controller {
   setBin (e) {
     var target = e.srcElement || e.target
     var option = target ? target.dataset.option : e
-    if (!option) return
+    if (!option || option === 'window') return
     this.setActiveOptionBtn(option, this.binSizeTargets)
     if (!target) return // Exit if running for the first time.
     selectedChart = null // Force fetch
