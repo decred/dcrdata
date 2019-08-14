@@ -1250,11 +1250,19 @@ func dailyHashrate(time, chainwork ChartUints) (ChartUints, ChartUints) {
 	}
 	times := make([]uint64, 0, len(time)-1)
 	rates := make([]uint64, 0, len(time)-1)
+	var dupes int
 	for i, t := range time[1:] {
 		tDiff := t - time[i]
+		if tDiff <= 0 {
+			tDiff = aDay
+			dupes += 1
+		}
 		workDiff := chainwork[i+1] - chainwork[i]
 		rates = append(rates, (workDiff)*1e6/tDiff)
 		times = append(times, t)
+	}
+	if dupes > 0 {
+		log.Warnf("charts: dailyHashrate: %d duplicate timestamp(s) found")
 	}
 	return times, rates
 }
