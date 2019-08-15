@@ -53,7 +53,7 @@ type config struct {
 	LogDir       string `long:"logdir" description:"Directory to log output"`
 	HTTPProfile  bool   `long:"httpprof" short:"p" description:"Start HTTP profiler."`
 	CPUProfile   string `long:"cpuprofile" description:"File for CPU profiling."`
-	MemProfile   string `long:"memprofile" description:"File for mempry profiling."`
+	MemProfile   string `long:"memprofile" description:"File for memory profiling."`
 	HidePGConfig bool   `long:"hidepgconfig" description:"Blocks logging of the PostgreSQL db configuration on system start up."`
 
 	// DB

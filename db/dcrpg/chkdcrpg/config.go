@@ -23,7 +23,6 @@ const (
 	defaultLogLevel       = "info"
 	defaultDataDirName    = "data"
 	defaultLogDirname     = "logs"
-	//defaultLogFilename    = "chkdcrpg.log"
 )
 
 var activeNet = &netparams.MainNetParams
@@ -49,8 +48,8 @@ var (
 
 type config struct {
 	// General application behavior
-	ConfigPath           string `short:"c" long:"config" description:"Path to a custom configuration file. (~/.CHKDCRPG/rateserver.conf)" env:"CHKDCRPG_CONFIG_PATH"`
-	AppDirectory         string `long:"appdir" description:"Path to application home directory. (~/.CHKDCRPG)" env:"CHKDCRPG_APPDIR_PATH"`
+	ConfigPath           string `short:"c" long:"config" description:"Path to a custom configuration file. (~/.chkdcrpg/rateserver.conf)" env:"CHKDCRPG_CONFIG_PATH"`
+	AppDirectory         string `long:"appdir" description:"Path to application home directory. (~/.chkdcrpg)" env:"CHKDCRPG_APPDIR_PATH"`
 	DcrdataDataDirectory string `long:"dcrdata-datadir" description:"Path to a dcrdata datadir" env:"DCRDATA_DATA_DIR"`
 	LogPath              string `long:"logpath" description:"Directory to log output. ([appdir]/logs/)" env:"CHKDCRPG_LOG_PATH"`
 	ShowVersion          bool   `short:"V" long:"version" description:"Display version information and exit"`
@@ -61,7 +60,7 @@ type config struct {
 	LogDir               string `long:"logdir" description:"Directory to log output"`
 	HTTPProfile          bool   `long:"httpprof" short:"p" description:"Start HTTP profiler."`
 	CPUProfile           string `long:"cpuprofile" description:"File for CPU profiling."`
-	MemProfile           string `long:"memprofile" description:"File for mempry profiling."`
+	MemProfile           string `long:"memprofile" description:"File for memory profiling."`
 	HidePGConfig         bool   `long:"hidepgconfig" description:"Blocks logging of the PostgreSQL db configuration on system start up."`
 
 	// DB
@@ -164,12 +163,6 @@ func loadConfig() (*config, error) {
 		}
 	}
 
-	if cfg.DcrdataDataDirectory == "" {
-		cfg.DcrdataDataDirectory = dcrdataDataDir
-	}
-	cfg.DcrdataDataDirectory = filepath.Join(cfg.DcrdataDataDirectory, activeNet.Name)
-	cfg.DcrdataDataDirectory = cleanAndExpandPath(cfg.DcrdataDataDirectory)
-
 	if cfg.LogPath == "" {
 		cfg.LogPath = filepath.Join(cfg.AppDirectory, defaultLogDir)
 	} else {
@@ -178,20 +171,18 @@ func loadConfig() (*config, error) {
 
 	// Choose the active network params based on the selected network. Multiple
 	// networks can't be selected simultaneously.
-	numNets := 0
-	activeNet = &netparams.MainNetParams
-	activeChain = chaincfg.MainNetParams()
+	numNetsSet := 0
+	// mainnet is set by default.
 	if cfg.TestNet {
 		activeNet = &netparams.TestNet3Params
-		activeChain = chaincfg.TestNet3Params()
-		numNets++
+		numNetsSet++
 	}
 	if cfg.SimNet {
 		activeNet = &netparams.SimNetParams
-		activeChain = chaincfg.SimNetParams()
-		numNets++
+		numNetsSet++
 	}
-	if numNets > 1 {
+	activeChain = activeNet.Params
+	if numNetsSet > 1 {
 		str := "%s: The testnet and simnet params can't be used " +
 			"together -- choose one"
 		err := fmt.Errorf(str, "loadConfig")
@@ -199,6 +190,12 @@ func loadConfig() (*config, error) {
 		parser.WriteHelp(os.Stderr)
 		return nil, err
 	}
+
+	if cfg.DcrdataDataDirectory == "" {
+		cfg.DcrdataDataDirectory = dcrdataDataDir
+	}
+	cfg.DcrdataDataDirectory = filepath.Join(cfg.DcrdataDataDirectory, activeNet.Name)
+	cfg.DcrdataDataDirectory = cleanAndExpandPath(cfg.DcrdataDataDirectory)
 
 	// Set the host names and ports to the default if the user does not specify
 	// them.

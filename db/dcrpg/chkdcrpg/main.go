@@ -19,13 +19,9 @@ import (
 	"github.com/decred/dcrdata/db/dcrpg/v4"
 	"github.com/decred/dcrdata/rpcutils/v2"
 	"github.com/decred/dcrdata/txhelpers/v3"
-	//"github.com/decred/dcrdata/stakedb/v3"
 )
 
 func mainCore(ctx context.Context) error {
-	killSwitch := make(chan os.Signal, 1)
-	signal.Notify(killSwitch, os.Interrupt)
-
 	cfg, err := loadConfig()
 	if err != nil {
 		return err
