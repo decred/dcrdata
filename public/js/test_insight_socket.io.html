@@ -37,8 +37,26 @@
                 JSON.stringify(data, null, 4))
         })
 
+        sio.on('DsiDegkW7HxidcUCNpRqpgskc9JFCkqwWeu', function (data) {
+            update("New DsiDegkW7HxidcUCNpRqpgskc9JFCkqwWeu address event received\n" +
+                JSON.stringify(data, null, 4))
+        })
+
+        sio.on('Dsbryr6dktHaqsrzLbZTaVFXTiVPQ2GmRW3', function (data) {
+            update("New Dsbryr6dktHaqsrzLbZTaVFXTiVPQ2GmRW3 address event received\n" +
+                JSON.stringify(data, null, 4))
+        })
+
         sio.on('tx', function (data) {
             update("New transaction received:\n" + JSON.stringify(data, null, 4))
+        })
+
+        {{/* sio.on('ping', () => {
+            update("pinging")
+        }) */}}
+
+        sio.on('pong', (latency) => {
+            update("got a pong back in " + latency.toString() + "ms")
         })
 
         sio.on('block', function (data) {

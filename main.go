@@ -628,6 +628,7 @@ func _main(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("Could not create Insight socket.io server: %v", err)
 	}
+	defer insightSocketServer.Close()
 	blockDataSavers = append(blockDataSavers, insightSocketServer)
 
 	// Start dcrdata's JSON web API.
