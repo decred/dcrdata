@@ -228,6 +228,10 @@ func mainCore(ctx context.Context) error {
 		}
 	}
 
+	if shutdownRequested(ctx) {
+		return fmt.Errorf("Shutdown requested.")
+	}
+
 	log.Infof("Checking the blocks table for multiple main chain blocks at a given height....")
 	if ids, heights, hashes, err := dcrpg.CheckExtraMainchainBlocks(ctx, db.SqlDB()); err != nil {
 		log.Errorf("CheckExtraMainchainBlocks: %v", err)
@@ -236,6 +240,10 @@ func mainCore(ctx context.Context) error {
 		for i := range ids {
 			log.Warnf("\tblocks rowid %d, height %d, hash %s", ids[i], heights[i], hashes[i])
 		}
+	}
+
+	if shutdownRequested(ctx) {
+		return fmt.Errorf("Shutdown requested.")
 	}
 
 	log.Infof("Checking the blocks table for blocks labeled as approved, but " +
@@ -247,6 +255,10 @@ func mainCore(ctx context.Context) error {
 		for i := range ids {
 			log.Warnf("\tblocks rowid %d, hash %s", ids[i], hashes[i])
 		}
+	}
+
+	if shutdownRequested(ctx) {
+		return fmt.Errorf("Shutdown requested.")
 	}
 
 	log.Infof("Checking the tickets table for tickets that are flagged as " +
@@ -263,6 +275,10 @@ func mainCore(ctx context.Context) error {
 		}
 	}
 
+	if shutdownRequested(ctx) {
+		return fmt.Errorf("Shutdown requested.")
+	}
+
 	log.Infof("Checking the transactions table for ticket transactions that " +
 		"also appear in the tickets table, but which do not have the proper " +
 		"tx_type set...")
@@ -275,6 +291,10 @@ func mainCore(ctx context.Context) error {
 			log.Warnf("\ttransactions rowid %d, type %d, hash %s",
 				ids[i], txhelpers.TxTypeToString(int(types[i])), hashes[i])
 		}
+	}
+
+	if shutdownRequested(ctx) {
+		return fmt.Errorf("Shutdown requested.")
 	}
 
 	log.Infof("Checking the transactions table for ticket transactions that do " +
@@ -290,6 +310,10 @@ func mainCore(ctx context.Context) error {
 		}
 	}
 
+	if shutdownRequested(ctx) {
+		return fmt.Errorf("Shutdown requested.")
+	}
+
 	log.Infof("Checking the tickets table for tickets that do NOT appear in the " +
 		"transactions table at all...")
 	if ids, hashes, err :=
@@ -300,6 +324,10 @@ func mainCore(ctx context.Context) error {
 		for i := range ids {
 			log.Warnf("\ttickets rowid %d, hash %s", ids[i], hashes[i])
 		}
+	}
+
+	if shutdownRequested(ctx) {
+		return fmt.Errorf("Shutdown requested.")
 	}
 
 	log.Infof("Checking the tickets table for tickets with live pool status " +
@@ -315,6 +343,10 @@ func mainCore(ctx context.Context) error {
 		}
 	}
 
+	if shutdownRequested(ctx) {
+		return fmt.Errorf("Shutdown requested.")
+	}
+
 	log.Infof("Checking the tickets table for tickets with voted pool status " +
 		"but not voted spend status...")
 	if ids, hashes, types, err :=
@@ -326,6 +358,10 @@ func mainCore(ctx context.Context) error {
 			log.Warnf("\ttickets rowid %d, hash %s, type %d",
 				ids[i], hashes[i], txhelpers.TxTypeToString(int(types[i])))
 		}
+	}
+
+	if shutdownRequested(ctx) {
+		return fmt.Errorf("Shutdown requested.")
 	}
 
 	log.Infof("Checking the tickets table for tickets with expired pool status " +
@@ -341,6 +377,10 @@ func mainCore(ctx context.Context) error {
 		}
 	}
 
+	if shutdownRequested(ctx) {
+		return fmt.Errorf("Shutdown requested.")
+	}
+
 	log.Infof("Checking the tickets table for tickets with missed pool status " +
 		"but with voted status...")
 	if ids, hashes, types, err :=
@@ -352,6 +392,10 @@ func mainCore(ctx context.Context) error {
 			log.Warnf("\ttickets rowid %d, hash %s, type %d",
 				ids[i], hashes[i], txhelpers.TxTypeToString(int(types[i])))
 		}
+	}
+
+	if shutdownRequested(ctx) {
+		return fmt.Errorf("Shutdown requested.")
 	}
 
 	log.Infof("Checking the blocks table for blocks with an incorrect " +
