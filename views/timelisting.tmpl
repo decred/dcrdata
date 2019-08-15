@@ -80,11 +80,11 @@
         </div>
 
         {{$lowerCaseVal := (toLowerCase .TimeGrouping)}}
-        <div class="bg-white px-0 px-md-3 pb-4">
+        <div class="bg-white px-1 px-md-4 pb-4">
           <table class="table v3">
               <thead>
                   <tr>
-                      <th>Start Date</th>
+                      <th class="text-left pl-0">Start Date</th>
                       <th class="text-center d-none d-sm-table-cell">
                           <span class="d-none d-md-inline">Regular</span>
                           <span class="d-md-none position-relative" data-tooltip="regular transactions">R</span>
@@ -103,15 +103,15 @@
                       </th>
                       <th class="text-center d-table-cell d-sm-none">Txns</th>
                       <th class="text-center"><span class="d-none d-sm-inline">Total </span>Blocks</th>
-                      <th class="text-center"><span class="d-none d-sm-inline">Total </span>Size</th>
-                      <th class="text-center">Age</th>
+                      <th class="text-right pr-0"><span class="d-none d-sm-inline">Total </span>Size</th>
+                      <th class="text-right pr-0">Age</th>
                   </tr>
               </thead>
               <tbody>
               {{range .Data}}
                   <tr>
-                      <td>
-                         <a class="fs16 height" href="{{fetchRowLinkURL $lowerCaseVal .StartTime.T .EndTime.T}}">{{.FormattedStartTime}}</a>
+                      <td class="text-left pl-0"
+                        ><a class="fs16 height" href="{{fetchRowLinkURL $lowerCaseVal .StartTime.T .EndTime.T}}">{{.FormattedStartTime}}</a>
                       </td>
                       <td class="text-center d-none d-sm-table-cell">{{intComma .Transactions}}</td>
                       <td class="text-center d-none d-sm-table-cell">{{intComma .Voters}}</td>
@@ -119,8 +119,8 @@
                       <td class="text-center d-none d-sm-table-cell">{{intComma .Revocations}}</td>
                       <td class="text-center d-table-cell d-sm-none">{{intComma .TxCount}}</td>
                       <td class="text-center">{{intComma .BlocksCount}}</td>
-                      <td class="text-center">{{.FormattedSize}}</td>
-                      <td class="text-center" data-target="time.age" data-age="{{.StartTime.UNIX}}"></td>
+                      <td class="text-right pr-0">{{.FormattedSize}}</td>
+                      <td class="text-right pr-0" data-target="time.age" data-age="{{.StartTime.UNIX}}"></td>
                   </tr>
               {{end}}
               </tbody>

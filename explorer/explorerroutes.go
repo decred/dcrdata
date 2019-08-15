@@ -374,7 +374,7 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 	}
 
 	rows, err := strconv.ParseUint(r.URL.Query().Get("rows"), 10, 64)
-	if err != nil || (rows < minExplorerRows && rows == 0) {
+	if err != nil || rows < 1 {
 		rows = minExplorerRows
 	}
 
@@ -477,7 +477,7 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 	}
 
 	rows, err := strconv.ParseUint(r.URL.Query().Get("rows"), 10, 64)
-	if err != nil || (rows < minExplorerRows && rows == 0) {
+	if err != nil || rows < 1 {
 		rows = minExplorerRows
 	}
 

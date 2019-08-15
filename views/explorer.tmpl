@@ -78,11 +78,11 @@
             {{end}}
         </div>
 
-        <div class="bg-white px-0 px-md-3 pb-4">
+        <div class="bg-white px-1 px-md-4 pb-4">
             <table class="table v3">
                 <thead>
                     <tr>
-                        <th>Height</th>
+                        <th class="text-left pl-0">Height</th>
                         <th class="text-center d-none d-sm-table-cell">
                             <span class="d-none d-md-inline">Regular</span>
                             <span class="d-md-none position-relative" data-tooltip="regular transactions">R</span>
@@ -106,14 +106,14 @@
                             <span class="d-none d-md-inline">Version</span>
                             <span class="d-md-none position-relative" data-tooltip="block version">Ver</span>
                         </th>
-                        <th class="text-center" class="jsonly" >Age</th>
-                        <th class="text-center pr-0">Time</th>
+                        <th class="text-right" class="jsonly">Age</th>
+                        <th class="text-right px-0">Time</th>
                     </tr>
                 </thead>
                 <tbody data-target="blocklist.table">
                 {{range .Data}}
-                    <tr data-height="{{ .Height }}" data-link-class="medium-sans" class="pr-0">
-                        <td data-type="height"><a href="/block/{{.Height}}" class="medium-sans">{{if not .Valid}}<span class="attention">&#9888;</span>{{end}}{{ .Height }}</a></td>
+                    <tr data-height="{{ .Height }}" data-link-class="medium-sans">
+                        <td data-type="height" class="text-left pl-0"><a href="/block/{{.Height}}" class="medium-sans">{{if not .Valid}}<span class="attention">&#9888;</span>{{end}}{{ .Height }}</a></td>
                         <td class="text-center d-none d-sm-table-cell" data-type="tx" {{if not .Valid}}class="grayed" title="Regular transactions invalidated by stakeholders."{{end}}>{{.Transactions}}</td>
                         <td class="text-center d-none d-sm-table-cell" data-type="votes">{{.Voters}}</td>
                         <td class="text-center d-none d-sm-table-cell" data-type="tickets">{{.FreshStake}}</td>
@@ -122,8 +122,8 @@
                         <td class="text-center" data-type="value">{{threeSigFigs .Total}}</td>
                         <td class="text-center" data-type="size">{{.FormattedBytes}}</td>
                         <td class="text-center d-none d-sm-table-cell" data-type="version">{{.Version}}</td>
-                        <td class="text-center" data-type="age" class="jsonly" data-target="time.age" data-age="{{.BlockTime.UNIX}}"></td>
-                        <td class="text-center pr-0" data-type="time">{{.BlockTime}}</td>
+                        <td class="text-right" data-type="age" class="jsonly" data-target="time.age" data-age="{{.BlockTime.UNIX}}"></td>
+                        <td class="text-right px-0" data-type="time">{{.BlockTime}}</td>
                     </tr>
                 {{end}}
                 </tbody>

@@ -80,11 +80,11 @@
             {{end}}
         </div>
 
-        <div class="bg-white px-0 px-md-3 pb-4">
+        <div class="bg-white px-1 px-md-4 pb-4">
           <table class="table v3">
               <thead>
                   <tr>
-                      <th class="text-center">Window #</th>
+                      <th class="text-left pl-0">Window #</th>
                       <th class="text-center">End<span class="d-none d-sm-inline"> Block</span></th>
                       <th class="text-center d-none d-sm-table-cell">
                           <span class="d-none d-md-inline">Regular</span>
@@ -106,14 +106,14 @@
                       <th><span class="d-none d-sm-inline">Total </span>Size</th>
                       <th class="text-center d-none d-sm-table-cell">Difficulty</th>
                       <th class="text-center"><span class="d-none d-sm-inline">Ticket </span>Price<span class="d-none d-sm-inline"> (DCR)</span></th>
-                      <th class="text-center jsonly">Age</th>
-                      <th class="text-center d-none d-sm-table-cell">Start Time</th>
+                      <th class="text-right pr-0 jsonly">Age</th>
+                      <th class="text-right pr-0 d-none d-sm-table-cell">Start Time</th>
                   </tr>
               </thead>
               <tbody>
               {{range .Data}}
                   <tr>
-                      <td class="text-center">
+                      <td class="text-left pl-0">
                           {{$blocksCount := (.BlocksCount)}}
                           {{if lt .BlocksCount $.WindowSize}}{{$blocksCount = (subtract .BlocksCount 1)}} <span>({{$blocksCount}}/{{$.WindowSize}}) </span>{{end}}
                           <span>{{.IndexVal}}</span>
@@ -129,8 +129,8 @@
                       <td>{{.FormattedSize}}</td>
                       <td class="text-center d-none d-sm-table-cell">{{template "decimalParts" (float64AsDecimalParts .Difficulty 0 true)}}</td>
                       <td class="text-center">{{printf "%.2f" (toFloat64Amount .TicketPrice)}}</td>
-                      <td class="text-center jsonly" data-controller="time" data-target="time.age" data-age="{{.StartTime.UNIX}}"></td>
-                      <td class="text-center d-none d-sm-table-cell">{{.StartTime}}</td>
+                      <td class="text-right pr-0 jsonly" data-controller="time" data-target="time.age" data-age="{{.StartTime.UNIX}}"></td>
+                      <td class="text-right pr-0 d-none d-sm-table-cell">{{.StartTime}}</td>
                   </tr>
               {{end}}
               </tbody>
