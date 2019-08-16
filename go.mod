@@ -34,7 +34,7 @@ require (
 	github.com/didip/tollbooth_chi v0.0.0-20170928041846-6ab5f3083f3d
 	github.com/dmigwi/go-piparser/proposals v0.0.0-20190426030541-8412e0f44f55
 	github.com/dustin/go-humanize v1.0.0
-	github.com/go-chi/chi v4.0.3-0.20190316151245-d08916613452+incompatible
+	github.com/go-chi/chi v4.0.3-0.20190807011452-43097498be03+incompatible
 	github.com/google/gops v0.3.7-0.20190802051910-59c8be2eaddf
 	github.com/googollee/go-engine.io v0.0.0-20180829091931-e2f255711dcb // indirect
 	github.com/googollee/go-socket.io v0.0.0-20181214084611-0ad7206c347a
