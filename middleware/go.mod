@@ -10,6 +10,6 @@ require (
 	github.com/decred/dcrd/wire v1.2.0
 	github.com/decred/dcrdata/api/types/v4 v4.0.2
 	github.com/decred/slog v1.0.0
-	github.com/go-chi/chi v4.0.3-0.20190316151245-d08916613452+incompatible
+	github.com/go-chi/chi v4.0.3-0.20190807011452-43097498be03+incompatible
 	github.com/go-chi/docgen v1.0.5
 )
