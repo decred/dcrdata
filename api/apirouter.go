@@ -284,6 +284,12 @@ func NewFileRouter(app *appContext, useRealIP bool) fileMux {
 	return fileMux{mux}
 }
 
+type loggerFunc func(string, ...interface{})
+
+func (lw loggerFunc) Printf(str string, args ...interface{}) {
+	lw(str, args...)
+}
+
 // Stacks some middleware common to both file and api router.
 func stackedMux(useRealIP bool) *chi.Mux {
 	mux := chi.NewRouter()
@@ -293,6 +299,7 @@ func stackedMux(useRealIP bool) *chi.Mux {
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer)
 	corsMW := cors.Default()
+	corsMW.Log = loggerFunc(apiLog.Infof)
 	mux.Use(corsMW.Handler)
 	return mux
 }
