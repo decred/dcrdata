@@ -1953,7 +1953,7 @@ func (exp *explorerUI) HandleApiRequestsOnSync(w http.ResponseWriter, r *http.Re
 // StatsPage is the page handler for the "/stats" path.
 func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 	// Get current PoW difficulty.
-	powDiff, err := exp.dataSource.Difficulty()
+	powDiff, err := exp.dataSource.CurrentDifficulty()
 	if err != nil {
 		log.Errorf("Failed to get Difficulty: %v", err)
 	}

@@ -104,8 +104,8 @@ type explorerDataSource interface {
 	TxHeight(txid *chainhash.Hash) (height int64)
 	BlockSubsidy(height int64, voters uint16) *chainjson.GetBlockSubsidyResult
 	GetExplorerFullBlocks(start int, end int) []*types.BlockInfo
-	Difficulty() (float64, error)
-	RetreiveDifficulty(timestamp int64) float64
+	CurrentDifficulty() (float64, error)
+	Difficulty(timestamp int64) float64
 }
 
 // PoliteiaBackend implements methods that manage proposals db data.
@@ -441,12 +441,12 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 
 	// Hashrate change over last day
 	timestamp := newBlockData.BlockTime.T.Add(-day).Unix()
-	last24hrDifficulty := exp.dataSource.RetreiveDifficulty(timestamp)
+	last24hrDifficulty := exp.dataSource.Difficulty(timestamp)
 	last24HrHashRate := dbtypes.CalculateHashRate(last24hrDifficulty, targetTimePerBlock)
 
 	// Hashrate change over last month
 	timestamp = newBlockData.BlockTime.T.Add(-30 * day).Unix()
-	lastMonthDifficulty := exp.dataSource.RetreiveDifficulty(timestamp)
+	lastMonthDifficulty := exp.dataSource.Difficulty(timestamp)
 	lastMonthHashRate := dbtypes.CalculateHashRate(lastMonthDifficulty, targetTimePerBlock)
 
 	difficulty := blockData.Header.Difficulty

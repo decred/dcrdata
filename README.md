@@ -416,7 +416,7 @@ these indexes.
 ### Starting dcrdata
 
 Launch the dcrdata daemon and allow the databases to process new blocks.
-Concurrent ynchronization of both stake and PostgreSQL databases is performed,
+Concurrent synchronization of both stake and PostgreSQL databases is performed,
 typically requiring between 1.5 to 8 hours. See [System Hardware
 Requirements](#System-Hardware-Requirements) for more information. Please reread
 [Configuring PostgreSQL (**IMPORTANT!** Seriously, read

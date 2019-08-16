@@ -49,7 +49,7 @@ type wsDataSource interface {
 	// UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error)
 	GetMempool() []exptypes.MempoolTx
 	BlockSubsidy(height int64, voters uint16) *chainjson.GetBlockSubsidyResult
-	RetreiveDifficulty(timestamp int64) float64
+	Difficulty(timestamp int64) float64
 }
 
 // State represents the current state of block chain.
@@ -602,12 +602,12 @@ func (psh *PubSubHub) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBl
 
 	// Hashrate change over last day
 	timestamp := newBlockData.BlockTime.T.Add(-day).Unix()
-	last24hrDifficulty := psh.sourceBase.RetreiveDifficulty(timestamp)
+	last24hrDifficulty := psh.sourceBase.Difficulty(timestamp)
 	last24HrHashRate := dbtypes.CalculateHashRate(last24hrDifficulty, targetTimePerBlock)
 
 	// Hashrate change over last month
 	timestamp = newBlockData.BlockTime.T.Add(-30 * day).Unix()
-	lastMonthDifficulty := psh.sourceBase.RetreiveDifficulty(timestamp)
+	lastMonthDifficulty := psh.sourceBase.Difficulty(timestamp)
 	lastMonthHashRate := dbtypes.CalculateHashRate(lastMonthDifficulty, targetTimePerBlock)
 
 	difficulty := blockData.Header.Difficulty

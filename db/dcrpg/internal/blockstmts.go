@@ -4,12 +4,6 @@
 
 package internal
 
-import (
-	"fmt"
-
-	"github.com/decred/dcrdata/db/dbtypes/v2"
-)
-
 // These queries relate primarily to the "blocks" and "block_chain" tables.
 const (
 	CreateBlockTable = `CREATE TABLE IF NOT EXISTS blocks (
@@ -56,10 +50,10 @@ const (
 		fresh_stake, revocations, pool_size, bits, sbits,
 		difficulty, stake_version, previous_hash, chainwork, winners)
 	VALUES ($1, $2, $3, $4, $5, $6,
-		$7, $8, %s, %s, $9, %s, %s,
-		$10, $11, $12, $13,
-		$14, $15, $16, $17, $18,
-		$19, $20, $21, $22, %s) `
+		$7, $8, $9, $10, $11, $12, $13,
+		$14, $15, $16, $17, $18, $19,
+		$20, $21, $22, $23, $24, $25,
+		$26, $27) `
 
 	// InsertBlockRow inserts a new block row without checking for unique index
 	// conflicts. This should only be used before the unique indexes are created
@@ -273,23 +267,9 @@ const (
 		LIMIT 1;`
 )
 
-func MakeBlockInsertStatement(block *dbtypes.Block, checked bool) string {
-	return makeBlockInsertStatement(block.TxDbIDs, block.STxDbIDs,
-		block.Tx, block.STx, block.Winners, checked)
-}
-
-func makeBlockInsertStatement(txDbIDs, stxDbIDs []uint64, rtxs, stxs, winners []string, checked bool) string {
-	rtxDbIDsARRAY := makeARRAYOfBIGINTs(txDbIDs)
-	stxDbIDsARRAY := makeARRAYOfBIGINTs(stxDbIDs)
-	rtxTEXTARRAY := makeARRAYOfTEXT(rtxs)
-	stxTEXTARRAY := makeARRAYOfTEXT(stxs)
-	winnersARRAY := makeARRAYOfTEXT(winners)
-	var insert string
+func BlockInsertStatement(checked bool) string {
 	if checked {
-		insert = UpsertBlockRow
-	} else {
-		insert = InsertBlockRow
+		return UpsertBlockRow
 	}
-	return fmt.Sprintf(insert, rtxTEXTARRAY, rtxDbIDsARRAY,
-		stxTEXTARRAY, stxDbIDsARRAY, winnersARRAY)
+	return InsertBlockRow
 }

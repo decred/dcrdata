@@ -157,19 +157,29 @@ func updateSchemaVersion(db *sql.DB, schema uint32) error {
 	return err
 }
 
-// updater contains a number of elements necessary to perform a database
+// Upgrader contains a number of elements necessary to perform a database
 // upgrade.
-type updater struct {
+type Upgrader struct {
 	db      *sql.DB
 	bg      BlockGetter
 	stakeDB *stakedb.StakeDatabase
 	ctx     context.Context
 }
 
+// NewUpgrader is a contructor for an Upgrader.
+func NewUpgrader(ctx context.Context, db *sql.DB, bg BlockGetter, stakeDB *stakedb.StakeDatabase) *Upgrader {
+	return &Upgrader{
+		db:      db,
+		bg:      bg,
+		stakeDB: stakeDB,
+		ctx:     ctx,
+	}
+}
+
 // UpgradeDatabase attempts to upgrade the given sql.DB with help from the
 // BlockGetter. The DB version will be compared against the target version to
 // decide what upgrade type to initiate.
-func UpgradeDatabase(u *updater) (bool, error) {
+func (u *Upgrader) UpgradeDatabase() (bool, error) {
 	initVer, upgradeType, err := versionCheck(u.db)
 	if err != nil {
 		return false, err
@@ -181,7 +191,7 @@ func UpgradeDatabase(u *updater) (bool, error) {
 	case Upgrade, Maintenance:
 		// Automatic upgrade is supported. Attempt to upgrade from initVer ->
 		// targetDatabaseVersion.
-		return upgradeDatabase(u, *initVer, *targetDatabaseVersion)
+		return u.upgradeDatabase(*initVer, *targetDatabaseVersion)
 	case TimeTravel:
 		return false, fmt.Errorf("the current table version is newer than supported: "+
 			"%v > %v", initVer, targetDatabaseVersion)
@@ -192,17 +202,16 @@ func UpgradeDatabase(u *updater) (bool, error) {
 	}
 }
 
-func upgradeDatabase(u *updater, current, target DatabaseVersion) (bool, error) {
+func (u *Upgrader) upgradeDatabase(current, target DatabaseVersion) (bool, error) {
 	switch current.compat {
 	case 1:
-		return compatVersion1Upgrades(u, current, target)
+		return u.compatVersion1Upgrades(current, target)
 	default:
 		return false, fmt.Errorf("unsupported DB compatibility version %d", current.compat)
 	}
 }
 
-func compatVersion1Upgrades(u *updater, current, target DatabaseVersion) (bool, error) {
-
+func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool, error) {
 	upgradeCheck := func() (done bool, err error) {
 		switch current.NeededToReach(&target) {
 		case OK:
@@ -243,7 +252,7 @@ func compatVersion1Upgrades(u *updater, current, target DatabaseVersion) (bool, 
 		fallthrough
 	case 1:
 		// Perform upgrade to schema v2.
-		err = upgrade110to120(u)
+		err = u.upgrade110to120()
 		if err != nil {
 			return false, fmt.Errorf("failed to upgrade 1.1.0 to 1.2.0: %v", err)
 		}
@@ -279,9 +288,9 @@ func removeTableComments(db *sql.DB) {
 // necessary to replace information from the sqlite database, which is being
 // dropped. As part of the upgrade, the entire blockchain must be requested and
 // the ticket pool evolved appropriately.
-func upgrade110to120(u *updater) error {
+func (u *Upgrader) upgrade110to120() error {
 	// Create the stats table and height index.
-	log.Infof("performing database upgrade 1.1.0 -> 1.2.0")
+	log.Infof("Performing database upgrade 1.1.0 -> 1.2.0")
 	exists, err := TableExists(u.db, "stats")
 	if err != nil {
 		return err

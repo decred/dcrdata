@@ -414,16 +414,7 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 			}
 		}
 		stakeDBHeight = int64(pgb.stakeDB.Height()) // i
-
 		blockHash := block.Hash()
-
-		// // Winning tickets from StakeDatabase, which just connected the block,
-		// // as signaled via the waitChan.
-		// tpi, ok := pgb.stakeDB.PoolInfo(*blockHash)
-		// if !ok {
-		// 	return ib - 1, fmt.Errorf("stakeDB.PoolInfo could not locate block %s", blockHash.String())
-		// }
-		// winners := tpi.Winners
 
 		// Get the chainwork
 		chainWork, err := client.GetChainWork(blockHash)

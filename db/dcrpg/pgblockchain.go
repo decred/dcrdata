@@ -565,16 +565,12 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 
 		// Upgrades required
 		if client == nil {
-			return nil, fmt.Errorf("a BlockGetter is required for database upgrades")
+			return nil, fmt.Errorf("a rpcclient.Client is required for database upgrades")
 		}
 		// Do upgrades required by meta table versioning.
 		log.Infof("DB schema version %v upgrading to version %v", dbVer, targetDatabaseVersion)
-		success, err := UpgradeDatabase(&updater{
-			db:      db,
-			bg:      client,
-			stakeDB: stakeDB,
-			ctx:     ctx,
-		})
+		upgrader := NewUpgrader(ctx, db, client, stakeDB)
+		success, err := upgrader.UpgradeDatabase()
 		if err != nil {
 			return nil, fmt.Errorf("failed to upgrade database: %v", err)
 		}
@@ -600,7 +596,7 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 		log.Infof("Legacy DB versioning found.")
 		doLegacyUpgrade = true
 		if client == nil {
-			return nil, fmt.Errorf("a BlockGetter is required for database upgrades")
+			return nil, fmt.Errorf("a rpcclient.Client is required for database upgrades")
 		}
 		// Create any missing tables with version comments for legacy upgrades.
 		if err = CreateTablesLegacy(db); err != nil {
@@ -794,12 +790,8 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 
 		// Now run any upgrades from legacyDatabaseVersion to
 		// targetDatabaseVersion.
-		success, err := UpgradeDatabase(&updater{
-			db:      db,
-			bg:      client,
-			stakeDB: stakeDB,
-			ctx:     ctx,
-		})
+		upgrader := NewUpgrader(ctx, db, client, stakeDB)
+		success, err := upgrader.UpgradeDatabase()
 		if err != nil {
 			return chainDB, fmt.Errorf("failed to upgrade legacy database: %v", err)
 		} else if !success {
@@ -2928,8 +2920,8 @@ func (pgb *ChainDB) PurgeBestBlocks(N int64) (*dbtypes.DeletionSummary, int64, e
 }
 
 // RewindStakeDB attempts to disconnect blocks from the stake database to reach
-// the specified height. A channel must be provided for signaling if the rewind
-// should abort. If the specified height is greater than the current stake DB
+// the specified height. A Context may be provided to allow cancellation of the
+// rewind process. If the specified height is greater than the current stake DB
 // height, RewindStakeDB will exit without error, returning the current stake DB
 // height and a nil error.
 func (pgb *ChainDB) RewindStakeDB(ctx context.Context, toHeight int64, quiet ...bool) (stakeDBHeight int64, err error) {
@@ -3584,10 +3576,13 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, isValid, isMainchain,
 			return
 		}
 
-		// Insert the block stats. The tpi (TicketPoolInfo) should only be nil for a
-		// mainchain block if storing the genesis block.
+		// Insert the block stats.
 		if isMainchain && tpi != nil {
-			InsertBlockStats(pgb.db, blockDbID, tpi)
+			err = InsertBlockStats(pgb.db, blockDbID, tpi)
+			if err != nil {
+				err = fmt.Errorf("InsertBlockStats: %v", err)
+				return
+			}
 		}
 	}
 
@@ -4535,13 +4530,6 @@ func (pgb *ChainDB) ChargePoolInfoCache(startHeight int64) error {
 		}
 		pgb.stakeDB.SetPoolInfo(*hash, &tpis[i])
 	}
-	// for i := startHeight; i <= endHeight; i++ {
-	// 	winners, blockHash, err := db.DB.RetrieveWinners(i)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	db.sDB.SetPoolInfo(blockHash)
-	// }
 	return nil
 }
 
@@ -5749,8 +5737,8 @@ func (pgb *ChainDB) GetExplorerFullBlocks(start int, end int) []*exptypes.BlockI
 	return summaries
 }
 
-// Difficulty returns the difficulty.
-func (pgb *ChainDB) Difficulty() (float64, error) {
+// CurrentDifficulty returns the current difficulty from dcrd.
+func (pgb *ChainDB) CurrentDifficulty() (float64, error) {
 	diff, err := pgb.Client.GetDifficulty()
 	if err != nil {
 		log.Error("GetDifficulty failed")
@@ -5759,9 +5747,9 @@ func (pgb *ChainDB) Difficulty() (float64, error) {
 	return diff, nil
 }
 
-// RetreiveDifficulty fetches the difficulty value in the last 24hrs or
-// immediately after 24hrs.
-func (pgb *ChainDB) RetreiveDifficulty(timestamp int64) float64 {
+// Difficulty returns the difficulty for the first block mined after theprovided
+// UNIX timestamp.
+func (pgb *ChainDB) Difficulty(timestamp int64) float64 {
 	sdiff, err := RetrieveDiff(pgb.ctx, pgb.db, timestamp)
 	if err != nil {
 		log.Errorf("Unable to retrieve difficulty: %v", err)

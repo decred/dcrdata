@@ -3462,7 +3462,7 @@ func appendBlockFees(charts *cache.ChartData, rows *sql.Rows) error {
 	return nil
 }
 
-// RetrievePoolAllValueAndSize returns all the pool value and the pool size
+// retrievePoolStats returns all the pool value and the pool size
 // charts data needed to plot ticket-pool-size and ticket-pool value charts on
 // the charts page. This is the Fetcher half of a pair that make up a
 // cache.ChartUpdater.
@@ -3474,8 +3474,8 @@ func retrievePoolStats(ctx context.Context, db *sql.DB, charts *cache.ChartData)
 	return rows, nil
 }
 
-// Append the result from RetrievePoolAllValueAndSize to the provided ChartData.
-// This is the Appender half of a pair that make up a cache.ChartUpdater.
+// Append the result from retrievePoolStats to the provided ChartData. This is
+// the Appender half of a pair that make up a cache.ChartUpdater.
 func appendPoolStats(charts *cache.ChartData, rows *sql.Rows) error {
 	defer rows.Close()
 	blocks := charts.Blocks
@@ -3681,15 +3681,17 @@ func retrieveProposalVotesData(ctx context.Context, db *sql.DB,
 // attempting to insert a duplicate row. If checked is false and there is a
 // duplicate row, an error will be returned.
 func InsertBlock(db *sql.DB, dbBlock *dbtypes.Block, isValid, isMainchain, checked bool) (uint64, error) {
-	insertStatement := internal.MakeBlockInsertStatement(dbBlock, checked)
+	insertStatement := internal.BlockInsertStatement(checked)
 	var id uint64
 	err := db.QueryRow(insertStatement,
 		dbBlock.Hash, dbBlock.Height, dbBlock.Size, isValid, isMainchain,
-		dbBlock.Version, dbBlock.NumTx, dbBlock.NumRegTx, dbBlock.NumStakeTx,
+		dbBlock.Version, dbBlock.NumTx, dbBlock.NumRegTx,
+		pq.Array(dbBlock.Tx), pq.Array(dbBlock.TxDbIDs),
+		dbBlock.NumStakeTx, pq.Array(dbBlock.STx), pq.Array(dbBlock.STxDbIDs),
 		dbBlock.Time, dbBlock.Nonce, dbBlock.VoteBits, dbBlock.Voters,
 		dbBlock.FreshStake, dbBlock.Revocations, dbBlock.PoolSize, dbBlock.Bits,
 		dbBlock.SBits, dbBlock.Difficulty, dbBlock.StakeVersion,
-		dbBlock.PreviousHash, dbBlock.ChainWork).Scan(&id)
+		dbBlock.PreviousHash, dbBlock.ChainWork, pq.Array(dbBlock.Winners)).Scan(&id)
 	return id, err
 }
 
@@ -4460,8 +4462,8 @@ func RetrieveLatestBlockSummary(ctx context.Context, db *sql.DB) (*apitypes.Bloc
 	return bd, nil
 }
 
-// RetrieveDiff returns the difficulty in the last 24hrs or immediately after
-// 24hrs.
+// RetrieveDiff returns the difficulty for the first block mined after the
+// provided UNIX timestamp.
 func RetrieveDiff(ctx context.Context, db *sql.DB, timestamp int64) (float64, error) {
 	var diff float64
 	tDef := dbtypes.NewTimeDefFromUNIX(timestamp)
