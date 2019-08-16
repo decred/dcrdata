@@ -49,7 +49,7 @@ require (
 	github.com/sirupsen/logrus v1.3.0
 	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
-	golang.org/x/net v0.0.0-20190613194153-d28f0bde5980
+	golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
 )
 

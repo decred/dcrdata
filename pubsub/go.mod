@@ -16,5 +16,5 @@ require (
 	github.com/decred/dcrdata/semver v1.0.0
 	github.com/decred/dcrdata/txhelpers/v3 v3.0.2
 	github.com/decred/slog v1.0.0
-	golang.org/x/net v0.0.0-20190613194153-d28f0bde5980
+	golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7
 )
