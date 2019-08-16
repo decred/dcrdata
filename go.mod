@@ -30,8 +30,6 @@ require (
 	github.com/decred/dcrdata/stakedb/v3 v3.0.3
 	github.com/decred/dcrdata/txhelpers/v3 v3.0.2
 	github.com/decred/slog v1.0.0
-	github.com/didip/tollbooth v4.0.1-0.20180415195142-b10a036da5f0+incompatible
-	github.com/didip/tollbooth_chi v0.0.0-20170928041846-6ab5f3083f3d
 	github.com/dmigwi/go-piparser/proposals v0.0.0-20190426030541-8412e0f44f55
 	github.com/dustin/go-humanize v1.0.0
 	github.com/go-chi/chi v4.0.3-0.20190807011452-43097498be03+incompatible
@@ -43,14 +41,12 @@ require (
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/mattn/go-colorable v0.1.1 // indirect
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
-	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/rs/cors v1.6.0
 	github.com/shiena/ansicolor v0.0.0-20151119151921-a422bbe96644
 	github.com/sirupsen/logrus v1.3.0
 	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
 	golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7
-	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
 )
 
 replace (
