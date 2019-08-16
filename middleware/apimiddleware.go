@@ -23,6 +23,8 @@ import (
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types/v4"
+	"github.com/didip/tollbooth/v5"
+	"github.com/didip/tollbooth/v5/limiter"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/docgen"
 )
@@ -76,14 +78,39 @@ func writeHTMLBadRequest(w http.ResponseWriter, str string) {
 	io.WriteString(w, str)
 }
 
-// writeHTMLNotFound is used for the Insight API response for an item NOT FOUND.
-// This means the request was valid but no records were found for the item in
-// question.  For some endpoints responding with an empty array [] is expected
-// such as a transaction query for addresses with no transactions.
-func writeHTMLNotFound(w http.ResponseWriter, str string) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusNotFound)
-	io.WriteString(w, str)
+// Limiter wraps the tollbooth limiter. Use NewLimiter to create a new Limiter.
+type Limiter struct {
+	*limiter.Limiter
+}
+
+// NewLimiter creates a new Limiter for the given maximum allowed request rate
+// in requests per second (may be fractional).
+func NewLimiter(max float64) *Limiter {
+	return &Limiter{tollbooth.NewLimiter(max, nil)}
+}
+
+// Tollboth creates a new rate limiter middleware using the provided Limiter.
+func Tollbooth(l *Limiter) func(http.Handler) http.Handler {
+	// Create a middleware, capturing the Limiter.
+	return func(next http.Handler) http.Handler {
+		hf := func(w http.ResponseWriter, r *http.Request) {
+			// Rate limit using request header.
+			httpError := tollbooth.LimitByRequest(l.Limiter, w, r)
+			if httpError != nil {
+				// Bad client.
+				l.ExecOnLimitReached(w, r)
+				w.Header().Add("Content-Type", l.GetMessageContentType())
+				w.WriteHeader(httpError.StatusCode)
+				// The client may be gone, so just ignore any error on Write.
+				_, _ = w.Write([]byte(httpError.Message))
+				return
+			}
+
+			// Nice client.
+			next.ServeHTTP(w, r)
+		}
+		return http.HandlerFunc(hf)
+	}
 }
 
 // GetBlockStepCtx retrieves the ctxBlockStep data from the request context. If

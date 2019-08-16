@@ -6,11 +6,10 @@
 package insight
 
 import (
+	"fmt"
 	"net/http"
 
 	m "github.com/decred/dcrdata/middleware/v3"
-	"github.com/didip/tollbooth"
-	"github.com/didip/tollbooth_chi"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 )
@@ -30,7 +29,9 @@ func NewInsightApiRouter(app *InsightApi, useRealIP, compression bool) ApiMux {
 	mux := chi.NewRouter()
 
 	// Create a rate limiter struct.
-	limiter := tollbooth.NewLimiter(app.ReqPerSecLimit, nil)
+	limiter := m.NewLimiter(app.ReqPerSecLimit)
+	limiter.SetMessage(fmt.Sprintf(
+		"You have reached the maximum request limit (%g req/s)", app.ReqPerSecLimit))
 
 	if useRealIP {
 		mux.Use(middleware.RealIP)
@@ -41,7 +42,7 @@ func NewInsightApiRouter(app *InsightApi, useRealIP, compression bool) ApiMux {
 	}
 
 	// Put the limiter after RealIP
-	mux.Use(tollbooth_chi.LimitHandler(limiter))
+	mux.Use(m.Tollbooth(limiter))
 
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer)
