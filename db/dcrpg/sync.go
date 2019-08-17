@@ -167,8 +167,9 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		panic("invalid starting height")
 	}
 
-	log.Info("Current best block (chain server):    ", lastBlock)
-	log.Info("Current best block (stakedb):         ", stakeDBHeight)
+	log.Info("Current best block (dcrd):       ", nodeHeight)
+	log.Info("Current best block (primary db): ", lastBlock)
+	log.Info("Current best block (stakedb):    ", stakeDBHeight)
 
 	// Attempt to rewind stake database, if needed, forcing it to the lowest DB
 	// height (or 0 if the lowest DB height is -1).
@@ -324,19 +325,23 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 	tickTime := 20 * time.Second
 	ticker := time.NewTicker(tickTime)
 	startTime := time.Now()
+	startHeight := lastBlock + 1
 	o := sync.Once{}
 	speedReporter := func() {
 		ticker.Stop()
-		totalElapsed := time.Since(startTime).Seconds()
-		if int64(totalElapsed) == 0 {
+		timeElapsed := time.Since(startTime)
+		secsElapsed := timeElapsed.Seconds()
+		if int64(secsElapsed) == 0 {
 			return
 		}
-		totalVoutPerSec := totalVouts / int64(totalElapsed)
-		totalTxPerSec := totalTxs / int64(totalElapsed)
+		totalVoutPerSec := totalVouts / int64(secsElapsed)
+		totalTxPerSec := totalTxs / int64(secsElapsed)
 		if totalTxs == 0 {
 			return
 		}
 		log.Infof("Avg. speed: %d tx/s, %d vout/s", totalTxPerSec, totalVoutPerSec)
+		syncedBlocks := float64(nodeHeight - startHeight + 1)
+		log.Infof("Total sync: %.2f minutes (%.2f blocks/s)", timeElapsed.Minutes(), syncedBlocks/timeElapsed.Seconds())
 	}
 	speedReport := func() { o.Do(speedReporter) }
 	defer speedReport()
@@ -344,7 +349,6 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 	lastProgressUpdateTime := startTime
 
 	// Start syncing blocks.
-	startHeight := lastBlock + 1
 	for ib := startHeight; ib <= nodeHeight; ib++ {
 		// Check for quit signal.
 		select {
