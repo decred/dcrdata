@@ -119,7 +119,7 @@
                           <span>{{.IndexVal}}</span>
                       </td>
                       <td class="text-center">
-                          <a class="fs16 height" href="/blocks?height={{.EndBlock}}&rows=20">{{.EndBlock}}</a>
+                          <a class="fs16 height" data-keynav-priority href="/blocks?height={{.EndBlock}}&rows=20">{{.EndBlock}}</a>
                       </td>
                       <td class="text-center d-none d-sm-table-cell">{{intComma .Transactions}}</td>
                       <td class="text-center d-none d-sm-table-cell">{{intComma .Voters}}</td>

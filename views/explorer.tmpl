@@ -5,7 +5,7 @@
 {{template "html-head" "Decred Blocks List"}}
     {{template "navbar" . }}
     {{template "blocksBanner" .}}
-    <div class="container main" data-controller="time pagenavigation blocklist">
+    <div class="container px-0 main" data-controller="time pagenavigation blocklist">
         {{$pendingBlocks := 0}}
         {{if gt (len $.Data) 0}}{{$pendingBlocks = ((index .Data 0).Height)}}{{end}}
 
@@ -81,7 +81,7 @@
         <div class="bg-white px-1 px-md-4 pb-4">
             <table class="table v3">
                 <thead>
-                    <tr>
+                    <tr class="text-secondary">
                         <th class="text-left pl-0">Height</th>
                         <th class="text-center d-none d-sm-table-cell">
                             <span class="d-none d-md-inline">Regular</span>
@@ -113,7 +113,7 @@
                 <tbody data-target="blocklist.table">
                 {{range .Data}}
                     <tr data-height="{{ .Height }}" data-link-class="medium-sans">
-                        <td data-type="height" class="text-left pl-0"><a href="/block/{{.Height}}" class="medium-sans">{{if not .Valid}}<span class="attention">&#9888;</span>{{end}}{{ .Height }}</a></td>
+                        <td data-type="height" class="text-left pl-0"><a href="/block/{{.Height}}" data-keynav-priority class="medium-sans">{{if not .Valid}}<span class="attention">&#9888;</span>{{end}}{{ .Height }}</a></td>
                         <td class="text-center d-none d-sm-table-cell" data-type="tx" {{if not .Valid}}class="grayed" title="Regular transactions invalidated by stakeholders."{{end}}>{{.Transactions}}</td>
                         <td class="text-center d-none d-sm-table-cell" data-type="votes">{{.Voters}}</td>
                         <td class="text-center d-none d-sm-table-cell" data-type="tickets">{{.FreshStake}}</td>

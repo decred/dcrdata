@@ -111,7 +111,7 @@
               {{range .Data}}
                   <tr>
                       <td class="text-left pl-0"
-                        ><a class="fs16 height" href="{{fetchRowLinkURL $lowerCaseVal .StartTime.T .EndTime.T}}">{{.FormattedStartTime}}</a>
+                        ><a class="fs16 height" data-keynav-priority href="{{fetchRowLinkURL $lowerCaseVal .StartTime.T .EndTime.T}}">{{.FormattedStartTime}}</a>
                       </td>
                       <td class="text-center d-none d-sm-table-cell">{{intComma .Transactions}}</td>
                       <td class="text-center d-none d-sm-table-cell">{{intComma .Voters}}</td>
