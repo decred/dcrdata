@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/blockchain/stake/v2"
+	"github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrutil/v2"
@@ -133,7 +133,7 @@ func (t *MempoolDataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.Me
 			VinCount:  len(msgTx.TxIn),
 			VoutCount: len(msgTx.TxOut),
 			Vin:       exptypes.MsgTxMempoolInputs(msgTx),
-			Coinbase:  blockchain.IsCoinBaseTx(msgTx),
+			Coinbase:  standalone.IsCoinBaseTx(msgTx),
 			Hash:      hashStr,
 			Time:      tx.Time,
 			Size:      tx.Size,

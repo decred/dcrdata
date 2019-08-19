@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/blockchain/stake/v2"
+	"github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v2"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
@@ -247,7 +247,7 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 		VinCount:  len(msgTx.TxIn),
 		VoutCount: len(msgTx.TxOut),
 		Vin:       exptypes.MsgTxMempoolInputs(msgTx),
-		Coinbase:  blockchain.IsCoinBaseTx(msgTx),
+		Coinbase:  standalone.IsCoinBaseTx(msgTx),
 		Hash:      hash,
 		Time:      rawTx.Time,
 		Size:      int32(len(rawTx.Hex) / 2),
