@@ -36,66 +36,14 @@ import (
 	appver "github.com/decred/dcrdata/v5/version"
 )
 
-// DataSourceLite specifies an interface for collecting data from the built-in
-// databases (i.e. SQLite, badger, ffldb)
-type DataSourceLite interface {
-	CoinSupply() *apitypes.CoinSupply
+// DataSource specifies an interface for advanced data collection using the
+// auxiliary DB (e.g. PostgreSQL).
+type DataSource interface {
 	GetHeight() (int64, error)
 	GetBestBlockHash() (string, error)
 	GetBlockHash(idx int64) (string, error)
 	GetBlockHeight(hash string) (int64, error)
 	GetBlockByHash(string) (*wire.MsgBlock, error)
-	GetHeader(idx int) *chainjson.GetBlockHeaderVerboseResult
-	GetBlockHeaderByHash(hash string) (*wire.BlockHeader, error)
-	GetBlockVerbose(idx int, verboseTx bool) *chainjson.GetBlockVerboseResult
-	GetBlockVerboseByHash(hash string, verboseTx bool) *chainjson.GetBlockVerboseResult
-	GetRawTransaction(txid *chainhash.Hash) *apitypes.Tx
-	GetTransactionHex(txid *chainhash.Hash) string
-	GetTrimmedTransaction(txid *chainhash.Hash) *apitypes.TrimmedTx
-	GetRawTransactionWithPrevOutAddresses(txid *chainhash.Hash) (*apitypes.Tx, [][]string, []int64)
-	GetVoteInfo(txid *chainhash.Hash) (*apitypes.VoteInfo, error)
-	GetVoteVersionInfo(ver uint32) (*chainjson.GetVoteInfoResult, error)
-	GetStakeVersions(txHash string, count int32) (*chainjson.GetStakeVersionsResult, error)
-	GetStakeVersionsLatest() (*chainjson.StakeVersions, error)
-	GetAllTxIn(txid *chainhash.Hash) []*apitypes.TxIn
-	GetAllTxOut(txid *chainhash.Hash) []*apitypes.TxOut
-	GetTransactionsForBlock(idx int64) *apitypes.BlockTransactions
-	GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions
-	GetFeeInfo(idx int) *chainjson.FeeInfoBlock
-	//GetStakeDiffEstimate(idx int) *chainjson.EstimateStakeDiffResult
-	GetStakeInfoExtendedByHeight(idx int) *apitypes.StakeInfoExtended
-	GetStakeInfoExtendedByHash(hash string) *apitypes.StakeInfoExtended
-	GetStakeDiffEstimates() *apitypes.StakeDiff
-	//GetBestBlock() *blockdata.BlockData
-	GetSummary(idx int) *apitypes.BlockDataBasic
-	GetSummaryByHash(hash string, withTxTotals bool) *apitypes.BlockDataBasic
-	GetBestBlockSummary() *apitypes.BlockDataBasic
-	GetBlockSize(idx int) (int32, error)
-	GetBlockSizeRange(idx0, idx1 int) ([]int32, error)
-	GetPoolInfo(idx int) *apitypes.TicketPoolInfo
-	GetPoolInfoByHash(hash string) *apitypes.TicketPoolInfo
-	GetPoolInfoRange(idx0, idx1 int) []apitypes.TicketPoolInfo
-	GetPool(idx int64) ([]string, error)
-	GetPoolByHash(hash string) ([]string, error)
-	GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []float64)
-	GetSDiff(idx int) float64
-	GetSDiffRange(idx0, idx1 int) []float64
-	GetMempoolSSTxSummary() *apitypes.MempoolTicketFeeInfo
-	GetMempoolSSTxFeeRates(N int) *apitypes.MempoolTicketFees
-	GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails
-	GetAddressTransactions(addr string, count int) *apitypes.Address
-	GetAddressTransactionsRaw(addr string, count int) []*apitypes.AddressTxRaw
-	GetAddressTransactionsWithSkip(addr string, count, skip int) *apitypes.Address
-	GetAddressTransactionsRawWithSkip(addr string, count, skip int) []*apitypes.AddressTxRaw
-	SendRawTransaction(txhex string) (string, error)
-	GetExplorerAddress(address string, count, offset int64) (*dbtypes.AddressInfo, txhelpers.AddressType, txhelpers.AddressError)
-	GetMempoolPriceCountTime() *apitypes.PriceCountTime
-	UpdateChan() chan uint32
-}
-
-// DataSourceAux specifies an interface for advanced data collection using the
-// auxiliary DB (e.g. PostgreSQL).
-type DataSourceAux interface {
 	SpendingTransaction(fundingTx string, vout uint32) (string, uint32, int8, error)
 	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
 	AddressHistory(address string, N, offset int64, txnType dbtypes.AddrTxnViewType) ([]*dbtypes.AddressRow, *dbtypes.AddressBalance, error)
@@ -115,21 +63,53 @@ type DataSourceAux interface {
 	GetTicketInfo(txid string) (*apitypes.TicketInfo, error)
 	ProposalVotes(proposalToken string) (*dbtypes.ProposalChartsData, error)
 	PowerlessTickets() (*apitypes.PowerlessTickets, error)
+	GetStakeInfoExtendedByHash(hash string) *apitypes.StakeInfoExtended
+	GetStakeInfoExtendedByHeight(idx int) *apitypes.StakeInfoExtended
+	GetPoolInfo(idx int) *apitypes.TicketPoolInfo
+	GetPoolInfoByHash(hash string) *apitypes.TicketPoolInfo
+	GetPoolInfoRange(idx0, idx1 int) []apitypes.TicketPoolInfo
+	GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []uint32)
+	GetPool(idx int64) ([]string, error)
+	CurrentCoinSupply() *apitypes.CoinSupply
+	GetHeader(idx int) *chainjson.GetBlockHeaderVerboseResult
+	GetBlockHeaderByHash(hash string) (*wire.BlockHeader, error)
+	GetBlockVerboseByHash(hash string, verboseTx bool) *chainjson.GetBlockVerboseResult
+	GetRawAPITransaction(txid *chainhash.Hash) *apitypes.Tx
+	GetTransactionHex(txid *chainhash.Hash) string
+	GetTrimmedTransaction(txid *chainhash.Hash) *apitypes.TrimmedTx
+	GetVoteInfo(txid *chainhash.Hash) (*apitypes.VoteInfo, error)
+	GetVoteVersionInfo(ver uint32) (*chainjson.GetVoteInfoResult, error)
+	GetStakeVersionsLatest() (*chainjson.StakeVersions, error)
+	GetAllTxIn(txid *chainhash.Hash) []*apitypes.TxIn
+	GetAllTxOut(txid *chainhash.Hash) []*apitypes.TxOut
+	GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions
+	GetStakeDiffEstimates() *apitypes.StakeDiff
+	GetSummary(idx int) *apitypes.BlockDataBasic
+	GetSummaryByHash(hash string, withTxTotals bool) *apitypes.BlockDataBasic
+	GetBestBlockSummary() *apitypes.BlockDataBasic
+	GetBlockSize(idx int) (int32, error)
+	GetBlockSizeRange(idx0, idx1 int) ([]int32, error)
+	GetSDiff(idx int) float64
+	GetSDiffRange(idx0, idx1 int) []float64
+	GetMempoolSSTxSummary() *apitypes.MempoolTicketFeeInfo
+	GetMempoolSSTxFeeRates(N int) *apitypes.MempoolTicketFees
+	GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails
+	GetAddressTransactionsRawWithSkip(addr string, count, skip int) []*apitypes.AddressTxRaw
+	GetMempoolPriceCountTime() *apitypes.PriceCountTime
 }
 
 // dcrdata application context used by all route handlers
 type appContext struct {
-	nodeClient    *rpcclient.Client
-	Params        *chaincfg.Params
-	BlockData     DataSourceLite
-	AuxDataSource DataSourceAux
-	Status        *apitypes.Status
-	JSONIndent    string
-	xcBot         *exchanges.ExchangeBot
-	AgendaDB      *agendas.AgendaDB
-	maxCSVAddrs   int
-	charts        *cache.ChartData
-	isPiDisabled  bool // is piparser disabled
+	nodeClient   *rpcclient.Client
+	Params       *chaincfg.Params
+	DataSource   DataSource
+	Status       *apitypes.Status
+	JSONIndent   string
+	xcBot        *exchanges.ExchangeBot
+	AgendaDB     *agendas.AgendaDB
+	maxCSVAddrs  int
+	charts       *cache.ChartData
+	isPiDisabled bool // is piparser disabled
 }
 
 // AppContextConfig is the configuration for the appContext and the only
@@ -137,8 +117,7 @@ type appContext struct {
 type AppContextConfig struct {
 	Client             *rpcclient.Client
 	Params             *chaincfg.Params
-	DataSource         DataSourceLite
-	DBSource           DataSourceAux
+	DataSource         DataSource
 	JsonIndent         string
 	XcBot              *exchanges.ExchangeBot
 	AgendasDBInstance  *agendas.AgendaDB
@@ -153,24 +132,23 @@ func NewContext(cfg *AppContextConfig) *appContext {
 	conns, _ := cfg.Client.GetConnectionCount()
 	nodeHeight, _ := cfg.Client.GetBlockCount()
 
-	// auxDataSource is an interface that could have a value of pointer type.
-	if cfg.DBSource == nil || reflect.ValueOf(cfg.DBSource).IsNil() {
-		log.Errorf("NewContext: a DataSourceAux is required.")
+	// DataSource is an interface that could have a value of pointer type.
+	if cfg.DataSource == nil || reflect.ValueOf(cfg.DataSource).IsNil() {
+		log.Errorf("NewContext: a DataSource is required.")
 		return nil
 	}
 
 	return &appContext{
-		nodeClient:    cfg.Client,
-		Params:        cfg.Params,
-		BlockData:     cfg.DataSource,
-		AuxDataSource: cfg.DBSource,
-		xcBot:         cfg.XcBot,
-		AgendaDB:      cfg.AgendasDBInstance,
-		Status:        apitypes.NewStatus(uint32(nodeHeight), conns, APIVersion, appver.Version(), cfg.Params.Name),
-		JSONIndent:    cfg.JsonIndent,
-		maxCSVAddrs:   cfg.MaxAddrs,
-		charts:        cfg.Charts,
-		isPiDisabled:  cfg.IsPiparserDisabled,
+		nodeClient:   cfg.Client,
+		Params:       cfg.Params,
+		DataSource:   cfg.DataSource,
+		xcBot:        cfg.XcBot,
+		AgendaDB:     cfg.AgendasDBInstance,
+		Status:       apitypes.NewStatus(uint32(nodeHeight), conns, APIVersion, appver.Version(), cfg.Params.Name),
+		JSONIndent:   cfg.JsonIndent,
+		maxCSVAddrs:  cfg.MaxAddrs,
+		charts:       cfg.Charts,
+		isPiDisabled: cfg.IsPiparserDisabled,
 	}
 }
 
@@ -240,11 +218,11 @@ out:
 				break out
 			}
 
-			if c.BlockData == nil {
+			if c.DataSource == nil {
 				panic("BlockData DataSourceLite is nil")
 			}
 
-			summary := c.BlockData.GetBestBlockSummary()
+			summary := c.DataSource.GetBestBlockSummary()
 			if summary == nil {
 				log.Errorf("BlockData summary is nil for height %d.", height)
 				break keepon
@@ -252,7 +230,7 @@ out:
 
 			c.Status.DBUpdate(height, summary.Time.UNIX())
 
-			bdHeight, err := c.BlockData.GetHeight()
+			bdHeight, err := c.DataSource.GetHeight()
 			// Catch certain pathological conditions.
 			switch {
 			case err != nil:
@@ -393,7 +371,7 @@ func (c *appContext) statusHappy(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) coinSupply(w http.ResponseWriter, r *http.Request) {
-	supply := c.BlockData.CoinSupply()
+	supply := c.DataSource.CurrentCoinSupply()
 	if supply == nil {
 		apiLog.Error("Unable to get coin supply.")
 		http.Error(w, http.StatusText(422), 422)
@@ -446,7 +424,7 @@ func (c *appContext) getBlockSummary(w http.ResponseWriter, r *http.Request) {
 	txTotalsParam := r.URL.Query().Get("txtotals")
 	withTxTotals := txTotalsParam == "1" || strings.EqualFold(txTotalsParam, "true")
 
-	blockSummary := c.BlockData.GetSummaryByHash(hash, withTxTotals)
+	blockSummary := c.DataSource.GetSummaryByHash(hash, withTxTotals)
 	if blockSummary == nil {
 		apiLog.Errorf("Unable to get block %s summary", hash)
 		http.Error(w, http.StatusText(422), 422)
@@ -463,7 +441,7 @@ func (c *appContext) getBlockTransactions(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	blockTransactions := c.BlockData.GetTransactionsForBlockByHash(hash)
+	blockTransactions := c.DataSource.GetTransactionsForBlockByHash(hash)
 	if blockTransactions == nil {
 		apiLog.Errorf("Unable to get block %s transactions", hash)
 		http.Error(w, http.StatusText(422), 422)
@@ -480,7 +458,7 @@ func (c *appContext) getBlockTransactionsCount(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	blockTransactions := c.BlockData.GetTransactionsForBlockByHash(hash)
+	blockTransactions := c.DataSource.GetTransactionsForBlockByHash(hash)
 	if blockTransactions == nil {
 		apiLog.Errorf("Unable to get block %s transactions", hash)
 		return
@@ -500,7 +478,7 @@ func (c *appContext) getBlockHeader(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	blockHeader := c.BlockData.GetHeader(int(idx))
+	blockHeader := c.DataSource.GetHeader(int(idx))
 	if blockHeader == nil {
 		apiLog.Errorf("Unable to get block %d header", idx)
 		http.Error(w, http.StatusText(422), 422)
@@ -517,7 +495,7 @@ func (c *appContext) getBlockRaw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msgBlock, err := c.BlockData.GetBlockByHash(hash)
+	msgBlock, err := c.DataSource.GetBlockByHash(hash)
 	if err != nil {
 		apiLog.Errorf("Unable to get block %s: %v", hash, err)
 		http.Error(w, http.StatusText(422), 422)
@@ -549,7 +527,7 @@ func (c *appContext) getBlockHeaderRaw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	blockHeader, err := c.BlockData.GetBlockHeaderByHash(hash)
+	blockHeader, err := c.DataSource.GetBlockHeaderByHash(hash)
 	if err != nil {
 		apiLog.Errorf("Unable to get block %s: %v", hash, err)
 		http.Error(w, http.StatusText(422), 422)
@@ -580,7 +558,7 @@ func (c *appContext) getBlockVerbose(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	blockVerbose := c.BlockData.GetBlockVerboseByHash(hash, false)
+	blockVerbose := c.DataSource.GetBlockVerboseByHash(hash, false)
 	if blockVerbose == nil {
 		apiLog.Errorf("Unable to get block %s", hash)
 		http.Error(w, http.StatusText(422), 422)
@@ -597,7 +575,7 @@ func (c *appContext) getVoteInfo(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unable to get vote info for stake version "+verStr, 422)
 		return
 	}
-	voteVersionInfo, err := c.BlockData.GetVoteVersionInfo(uint32(ver))
+	voteVersionInfo, err := c.DataSource.GetVoteVersionInfo(uint32(ver))
 	if err != nil || voteVersionInfo == nil {
 		apiLog.Errorf("Unable to get vote version %d info: %v", ver, err)
 		http.Error(w, "Unable to get vote info for stake version "+verStr, 422)
@@ -613,7 +591,7 @@ func (c *appContext) getVoteInfo(w http.ResponseWriter, r *http.Request) {
 func (c *appContext) setOutputSpends(txid string, vouts []apitypes.Vout) error {
 	// For each output of this transaction, look up any spending transactions,
 	// and the index of the spending transaction input.
-	spendHashes, spendVinInds, voutInds, err := c.AuxDataSource.SpendingTransactions(txid)
+	spendHashes, spendVinInds, voutInds, err := c.DataSource.SpendingTransactions(txid)
 	if dbtypes.IsTimeoutErr(err) {
 		return fmt.Errorf("SpendingTransactions: %v", err)
 	}
@@ -655,7 +633,7 @@ func (c *appContext) getTransaction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tx := c.BlockData.GetRawTransaction(txid)
+	tx := c.DataSource.GetRawAPITransaction(txid)
 	if tx == nil {
 		apiLog.Errorf("Unable to get transaction %s", txid)
 		http.Error(w, http.StatusText(422), 422)
@@ -686,7 +664,7 @@ func (c *appContext) getTransactionHex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hex := c.BlockData.GetTransactionHex(txid)
+	hex := c.DataSource.GetTransactionHex(txid)
 
 	fmt.Fprint(w, hex)
 }
@@ -698,7 +676,7 @@ func (c *appContext) getDecodedTx(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tx := c.BlockData.GetTrimmedTransaction(txid)
+	tx := c.DataSource.GetTrimmedTransaction(txid)
 	if tx == nil {
 		apiLog.Errorf("Unable to get transaction %s", txid)
 		http.Error(w, http.StatusText(422), 422)
@@ -736,7 +714,7 @@ func (c *appContext) getTransactions(w http.ResponseWriter, r *http.Request) {
 
 	txns := make([]*apitypes.Tx, 0, len(txids))
 	for i := range txids {
-		tx := c.BlockData.GetRawTransaction(txids[i])
+		tx := c.DataSource.GetRawAPITransaction(txids[i])
 		if tx == nil {
 			apiLog.Errorf("Unable to get transaction %s", txids[i])
 			http.Error(w, http.StatusText(422), 422)
@@ -768,7 +746,7 @@ func (c *appContext) getDecodedTransactions(w http.ResponseWriter, r *http.Reque
 
 	txns := make([]*apitypes.TrimmedTx, 0, len(txids))
 	for i := range txids {
-		tx := c.BlockData.GetTrimmedTransaction(txids[i])
+		tx := c.DataSource.GetTrimmedTransaction(txids[i])
 		if tx == nil {
 			apiLog.Errorf("Unable to get transaction %v", tx)
 			http.Error(w, http.StatusText(422), 422)
@@ -786,7 +764,7 @@ func (c *appContext) getTxVoteInfo(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
-	vinfo, err := c.BlockData.GetVoteInfo(txid)
+	vinfo, err := c.DataSource.GetVoteInfo(txid)
 	if err != nil {
 		err = fmt.Errorf("unable to get vote info for tx %v: %v",
 			txid, err)
@@ -804,7 +782,7 @@ func (c *appContext) getTxTicketInfo(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
-	tinfo, err := c.AuxDataSource.GetTicketInfo(txid.String())
+	tinfo, err := c.DataSource.GetTicketInfo(txid.String())
 	if err != nil {
 		err = fmt.Errorf("unable to get ticket info for tx %v: %v",
 			txid, err)
@@ -823,7 +801,7 @@ func (c *appContext) getTransactionInputs(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	allTxIn := c.BlockData.GetAllTxIn(txid)
+	allTxIn := c.DataSource.GetAllTxIn(txid)
 	// allTxIn may be empty, but not a nil slice
 	if allTxIn == nil {
 		apiLog.Errorf("Unable to get all TxIn for transaction %s", txid)
@@ -849,7 +827,7 @@ func (c *appContext) getTransactionInput(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	allTxIn := c.BlockData.GetAllTxIn(txid)
+	allTxIn := c.DataSource.GetAllTxIn(txid)
 	// allTxIn may be empty, but not a nil slice
 	if allTxIn == nil {
 		apiLog.Warnf("Unable to get all TxIn for transaction %s", txid)
@@ -874,7 +852,7 @@ func (c *appContext) getTransactionOutputs(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	allTxOut := c.BlockData.GetAllTxOut(txid)
+	allTxOut := c.DataSource.GetAllTxOut(txid)
 	// allTxOut may be empty, but not a nil slice
 	if allTxOut == nil {
 		apiLog.Errorf("Unable to get all TxOut for transaction %s", txid)
@@ -899,7 +877,7 @@ func (c *appContext) getTransactionOutput(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	allTxOut := c.BlockData.GetAllTxOut(txid)
+	allTxOut := c.DataSource.GetAllTxOut(txid)
 	// allTxOut may be empty, but not a nil slice
 	if allTxOut == nil {
 		apiLog.Errorf("Unable to get all TxOut for transaction %s", txid)
@@ -925,7 +903,7 @@ func (c *appContext) getBlockStakeInfoExtendedByHash(w http.ResponseWriter, r *h
 		return
 	}
 
-	stakeinfo := c.BlockData.GetStakeInfoExtendedByHash(hash)
+	stakeinfo := c.DataSource.GetStakeInfoExtendedByHash(hash)
 	if stakeinfo == nil {
 		apiLog.Errorf("Unable to get block fee info for %s", hash)
 		http.Error(w, http.StatusText(422), 422)
@@ -943,9 +921,9 @@ func (c *appContext) getBlockStakeInfoExtendedByHeight(w http.ResponseWriter, r 
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
-	stakeinfo := c.BlockData.GetStakeInfoExtendedByHeight(int(idx))
+	stakeinfo := c.DataSource.GetStakeInfoExtendedByHeight(int(idx))
 	if stakeinfo == nil {
-		apiLog.Errorf("Unable to get block fee info for height %d", idx)
+		apiLog.Errorf("Unable to get stake info for height %d", idx)
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -954,7 +932,7 @@ func (c *appContext) getBlockStakeInfoExtendedByHeight(w http.ResponseWriter, r 
 }
 
 func (c *appContext) getStakeDiffSummary(w http.ResponseWriter, r *http.Request) {
-	stakeDiff := c.BlockData.GetStakeDiffEstimates()
+	stakeDiff := c.DataSource.GetStakeDiffEstimates()
 	if stakeDiff == nil {
 		apiLog.Errorf("Unable to get stake diff info")
 		http.Error(w, http.StatusText(422), 422)
@@ -967,7 +945,7 @@ func (c *appContext) getStakeDiffSummary(w http.ResponseWriter, r *http.Request)
 // Encodes apitypes.PowerlessTickets, which is missed or expired tickets sorted
 // by revocation status.
 func (c *appContext) getPowerlessTickets(w http.ResponseWriter, r *http.Request) {
-	tickets, err := c.AuxDataSource.PowerlessTickets()
+	tickets, err := c.DataSource.PowerlessTickets()
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
@@ -976,7 +954,7 @@ func (c *appContext) getPowerlessTickets(w http.ResponseWriter, r *http.Request)
 }
 
 func (c *appContext) getStakeDiffCurrent(w http.ResponseWriter, r *http.Request) {
-	stakeDiff := c.BlockData.GetStakeDiffEstimates()
+	stakeDiff := c.DataSource.GetStakeDiffEstimates()
 	if stakeDiff == nil {
 		apiLog.Errorf("Unable to get stake diff info")
 		http.Error(w, http.StatusText(422), 422)
@@ -992,7 +970,7 @@ func (c *appContext) getStakeDiffCurrent(w http.ResponseWriter, r *http.Request)
 }
 
 func (c *appContext) getStakeDiffEstimates(w http.ResponseWriter, r *http.Request) {
-	stakeDiff := c.BlockData.GetStakeDiffEstimates()
+	stakeDiff := c.DataSource.GetStakeDiffEstimates()
 	if stakeDiff == nil {
 		apiLog.Errorf("Unable to get stake diff info")
 		http.Error(w, http.StatusText(422), 422)
@@ -1003,7 +981,7 @@ func (c *appContext) getStakeDiffEstimates(w http.ResponseWriter, r *http.Reques
 }
 
 func (c *appContext) getSSTxSummary(w http.ResponseWriter, r *http.Request) {
-	sstxSummary := c.BlockData.GetMempoolSSTxSummary()
+	sstxSummary := c.DataSource.GetMempoolSSTxSummary()
 	if sstxSummary == nil {
 		apiLog.Errorf("Unable to get SSTx info from mempool")
 		http.Error(w, http.StatusText(422), 422)
@@ -1015,7 +993,7 @@ func (c *appContext) getSSTxSummary(w http.ResponseWriter, r *http.Request) {
 
 func (c *appContext) getSSTxFees(w http.ResponseWriter, r *http.Request) {
 	N := m.GetNCtx(r)
-	sstxFees := c.BlockData.GetMempoolSSTxFeeRates(N)
+	sstxFees := c.DataSource.GetMempoolSSTxFeeRates(N)
 	if sstxFees == nil {
 		apiLog.Errorf("Unable to get SSTx fees from mempool")
 		http.Error(w, http.StatusText(422), 422)
@@ -1027,7 +1005,7 @@ func (c *appContext) getSSTxFees(w http.ResponseWriter, r *http.Request) {
 
 func (c *appContext) getSSTxDetails(w http.ResponseWriter, r *http.Request) {
 	N := m.GetNCtx(r)
-	sstxDetails := c.BlockData.GetMempoolSSTxDetails(N)
+	sstxDetails := c.DataSource.GetMempoolSSTxDetails(N)
 	if sstxDetails == nil {
 		apiLog.Errorf("Unable to get SSTx details from mempool")
 		http.Error(w, http.StatusText(422), 422)
@@ -1040,7 +1018,7 @@ func (c *appContext) getSSTxDetails(w http.ResponseWriter, r *http.Request) {
 // getTicketPoolCharts pulls the initial data to populate the /ticketpool page
 // charts.
 func (c *appContext) getTicketPoolCharts(w http.ResponseWriter, r *http.Request) {
-	timeChart, priceChart, outputsChart, height, err := c.AuxDataSource.TicketPoolVisualization(dbtypes.AllGrouping)
+	timeChart, priceChart, outputsChart, height, err := c.DataSource.TicketPoolVisualization(dbtypes.AllGrouping)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("TicketPoolVisualization: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1052,7 +1030,7 @@ func (c *appContext) getTicketPoolCharts(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	mp := c.BlockData.GetMempoolPriceCountTime()
+	mp := c.DataSource.GetMempoolPriceCountTime()
 
 	response := &apitypes.TicketPoolChartsData{
 		ChartHeight:  uint64(height),
@@ -1077,7 +1055,7 @@ func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request)
 	// TicketPoolVisualization here even though it returns a lot of data not
 	// needed by this request.
 	interval := dbtypes.TimeGroupingFromStr(tp)
-	timeChart, _, _, height, err := c.AuxDataSource.TicketPoolVisualization(interval)
+	timeChart, _, _, height, err := c.DataSource.TicketPoolVisualization(interval)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("TicketPoolVisualization: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1109,7 +1087,7 @@ func (c *appContext) getProposalChartData(w http.ResponseWriter, r *http.Request
 	}
 
 	token := m.GetProposalTokenCtx(r)
-	votesData, err := c.AuxDataSource.ProposalVotes(token)
+	votesData, err := c.DataSource.ProposalVotes(token)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("ProposalVotes: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1132,7 +1110,7 @@ func (c *appContext) getBlockSize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	blockSize, err := c.BlockData.GetBlockSize(int(idx))
+	blockSize, err := c.DataSource.GetBlockSize(int(idx))
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -1157,7 +1135,7 @@ func (c *appContext) blockSubsidies(w http.ResponseWriter, r *http.Request) {
 	numVotes := int16(c.Params.TicketsPerBlock)
 	if hash != "" {
 		var err error
-		numVotes, err = c.AuxDataSource.VotesInBlock(hash)
+		numVotes, err = c.DataSource.VotesInBlock(hash)
 		if dbtypes.IsTimeoutErr(err) {
 			apiLog.Errorf("VotesInBlock: %v", err)
 			http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1197,7 +1175,7 @@ func (c *appContext) getBlockRangeSize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	blockSizes, err := c.BlockData.GetBlockSizeRange(idx0, idx)
+	blockSizes, err := c.DataSource.GetBlockSizeRange(idx0, idx)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -1225,7 +1203,7 @@ func (c *appContext) getBlockRangeSteppedSize(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	blockSizesFull, err := c.BlockData.GetBlockSizeRange(idx0, idx)
+	blockSizesFull, err := c.DataSource.GetBlockSizeRange(idx0, idx)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -1277,7 +1255,7 @@ func (c *appContext) getBlockRangeSummary(w http.ResponseWriter, r *http.Request
 	}
 	fmt.Fprintf(w, "[%s%s", newline, prefix)
 	for i := idx0; i <= idx; i++ {
-		summary := c.BlockData.GetSummary(i)
+		summary := c.DataSource.GetSummary(i)
 		if summary == nil {
 			apiLog.Debugf("Unknown block %d", i)
 			http.Error(w, fmt.Sprintf("I don't know block %d", i), http.StatusNotFound)
@@ -1338,7 +1316,7 @@ func (c *appContext) getBlockRangeSteppedSummary(w http.ResponseWriter, r *http.
 	fmt.Fprintf(w, "[%s%s", newline, prefix)
 	// Go through blocks in list, stop after last (i.e. on last+step)
 	for i := idx0; i != last+step; i += step {
-		summary := c.BlockData.GetSummary(i)
+		summary := c.DataSource.GetSummary(i)
 		if summary == nil {
 			apiLog.Debugf("Unknown block %d", i)
 			http.Error(w, fmt.Sprintf("I don't know block %d", i), http.StatusNotFound)
@@ -1366,7 +1344,7 @@ func (c *appContext) getTicketPool(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tp, err := c.BlockData.GetPool(idx)
+	tp, err := c.DataSource.GetPool(idx)
 	if err != nil {
 		apiLog.Errorf("Unable to fetch ticket pool: %v", err)
 		http.Error(w, http.StatusText(422), 422)
@@ -1388,7 +1366,7 @@ func (c *appContext) getTicketPoolInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tpi := c.BlockData.GetPoolInfo(int(idx))
+	tpi := c.DataSource.GetPoolInfo(int(idx))
 	writeJSON(w, tpi, c.getIndentQuery(r))
 }
 
@@ -1411,7 +1389,7 @@ func (c *appContext) getTicketPoolInfoRange(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	tpis := c.BlockData.GetPoolInfoRange(idx0, idx)
+	tpis := c.DataSource.GetPoolInfoRange(idx0, idx)
 	if tpis == nil {
 		http.Error(w, "invalid range", http.StatusUnprocessableEntity)
 		return
@@ -1432,7 +1410,7 @@ func (c *appContext) getTicketPoolValAndSizeRange(w http.ResponseWriter, r *http
 		return
 	}
 
-	pvs, pss := c.BlockData.GetPoolValAndSizeRange(idx0, idx)
+	pvs, pss := c.DataSource.GetPoolValAndSizeRange(idx0, idx)
 	if pvs == nil || pss == nil {
 		http.Error(w, "invalid range", http.StatusUnprocessableEntity)
 		return
@@ -1454,7 +1432,7 @@ func (c *appContext) getStakeDiff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sdiff := c.BlockData.GetSDiff(int(idx))
+	sdiff := c.DataSource.GetSDiff(int(idx))
 	writeJSON(w, []float64{sdiff}, c.getIndentQuery(r))
 }
 
@@ -1471,7 +1449,7 @@ func (c *appContext) getStakeDiffRange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sdiffs := c.BlockData.GetSDiffRange(idx0, idx)
+	sdiffs := c.DataSource.GetSDiffRange(idx0, idx)
 	writeJSON(w, sdiffs, c.getIndentQuery(r))
 }
 
@@ -1483,7 +1461,7 @@ func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
 	}
 
 	address := addresses[0]
-	totals, err := c.AuxDataSource.AddressTotals(address)
+	totals, err := c.DataSource.AddressTotals(address)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("AddressTotals: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1515,7 +1493,7 @@ func (c *appContext) addressIoCsv(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := c.AuxDataSource.AddressTxIoCsv(address)
+	rows, err := c.DataSource.AddressTxIoCsv(address)
 	if err != nil {
 		log.Errorf("Failed to fetch AddressTxIoCsv: %v", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -1546,7 +1524,7 @@ func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	data, err := c.AuxDataSource.TxHistoryData(address, dbtypes.TxsType,
+	data, err := c.DataSource.TxHistoryData(address, dbtypes.TxsType,
 		dbtypes.TimeGroupingFromStr(chartGrouping))
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("TxHistoryData: %v", err)
@@ -1576,7 +1554,7 @@ func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	data, err := c.AuxDataSource.TxHistoryData(address, dbtypes.AmountFlow,
+	data, err := c.DataSource.TxHistoryData(address, dbtypes.AmountFlow,
 		dbtypes.TimeGroupingFromStr(chartGrouping))
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("TxHistoryData: %v", err)
@@ -1671,7 +1649,7 @@ func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Reque
 		skip = 0
 	}
 
-	txs, err := c.AuxDataSource.AddressTransactionDetails(address, count, skip, dbtypes.AddrTxnAll)
+	txs, err := c.DataSource.AddressTransactionDetails(address, count, skip, dbtypes.AddrTxnAll)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("AddressTransactionDetails: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1705,7 +1683,7 @@ func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Re
 	}
 
 	// TODO: add postgresql powered method
-	txs := c.BlockData.GetAddressTransactionsRawWithSkip(address, int(count), int(skip))
+	txs := c.DataSource.GetAddressTransactionsRawWithSkip(address, int(count), int(skip))
 	if txs == nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -1721,7 +1699,7 @@ func (c *appContext) getAgendaData(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
-	chartDataByTime, err := c.AuxDataSource.AgendaVotes(agendaId, 0)
+	chartDataByTime, err := c.DataSource.AgendaVotes(agendaId, 0)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("AgendaVotes timeout error %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1732,7 +1710,7 @@ func (c *appContext) getAgendaData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	chartDataByHeight, err := c.AuxDataSource.AgendaVotes(agendaId, 1)
+	chartDataByHeight, err := c.DataSource.AgendaVotes(agendaId, 1)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("AgendaVotes timeout error: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1801,7 +1779,7 @@ func (c *appContext) getAgendasData(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 
-	voteMilestones, err := c.AuxDataSource.AllAgendas()
+	voteMilestones, err := c.DataSource.AllAgendas()
 	if err != nil {
 		apiLog.Errorf("AllAgendas timeout error: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1827,34 +1805,34 @@ func (c *appContext) getAgendasData(w http.ResponseWriter, _ *http.Request) {
 
 func (c *appContext) StakeVersionLatestCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := m.StakeVersionLatestCtx(r, c.BlockData.GetStakeVersionsLatest)
+		ctx := m.StakeVersionLatestCtx(r, c.DataSource.GetStakeVersionsLatest)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
 func (c *appContext) BlockHashPathAndIndexCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := m.BlockHashPathAndIndexCtx(r, c.BlockData)
+		ctx := m.BlockHashPathAndIndexCtx(r, c.DataSource)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
 func (c *appContext) BlockIndexLatestCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := m.BlockIndexLatestCtx(r, c.BlockData)
+		ctx := m.BlockIndexLatestCtx(r, c.DataSource)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
 func (c *appContext) getBlockHeightCtx(r *http.Request) (int64, error) {
-	return m.GetBlockHeightCtx(r, c.BlockData)
+	return m.GetBlockHeightCtx(r, c.DataSource)
 }
 
 func (c *appContext) getBlockHashCtx(r *http.Request) (string, error) {
 	hash, err := m.GetBlockHashCtx(r)
 	if err != nil {
 		idx := int64(m.GetBlockIndexCtx(r))
-		hash, err = c.BlockData.GetBlockHash(idx)
+		hash, err = c.DataSource.GetBlockHash(idx)
 		if err != nil {
 			apiLog.Errorf("Unable to GetBlockHash: %v", err)
 			return "", err

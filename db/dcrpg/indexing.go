@@ -457,6 +457,9 @@ func (pgb *ChainDB) DeindexAll() error {
 
 		// proposal votes table
 		{DeindexProposalVotesTableOnProposalsID},
+
+		// stats table
+		{DeindexStatsTableOnHeight},
 	}
 
 	var err error
@@ -523,6 +526,9 @@ func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 
 		// Proposals votes table
 		{Msg: "Proposals votes table on Proposals ID", IndexFunc: IndexProposalVotesTableOnProposalsID},
+
+		// stats table
+		{Msg: "stats table on height", IndexFunc: IndexStatsTableOnHeight},
 	}
 
 	for _, val := range allIndexes {
@@ -658,4 +664,16 @@ func (pgb *ChainDB) DeindexAddressTable() error {
 		}
 	}
 	return err
+}
+
+// IndexAddressTableOnVoutID creates the index for the addresses table over
+// vout row ID.
+func IndexStatsTableOnHeight(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexStatsOnHeight)
+	return
+}
+
+func DeindexStatsTableOnHeight(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexStatsOnHeight)
+	return
 }

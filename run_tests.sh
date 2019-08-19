@@ -33,7 +33,6 @@ testrepo () {
 
   # Test application install
   go build
-  (cd cmd/rebuilddb && go build)
   (cd cmd/rebuilddb2 && go build)
   (cd cmd/scanblocks && go build)
   (cd pubsub/democlient && go build)
@@ -42,11 +41,10 @@ testrepo () {
 
   # Check tests
   git clone https://github.com/dcrlabs/bug-free-happiness $TMPDIR/test-data-repo
-  
+
   if [[ $TESTTAGS =~ "pgonline" || $TESTTAGS =~ "chartdata" ]]; then
     mkdir -p ./testutil/dbconfig/test.data
     BLOCK_RANGE="0-199"
-    tar xvf $TMPDIR/test-data-repo/sqlitedb/sqlite_"$BLOCK_RANGE".tar.xz -C ./testutil/dbconfig/test.data
     tar xvf $TMPDIR/test-data-repo/pgdb/pgsql_"$BLOCK_RANGE".tar.xz -C ./testutil/dbconfig/test.data
 
     # Set up the tests db.

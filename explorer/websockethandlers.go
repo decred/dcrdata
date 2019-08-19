@@ -94,7 +94,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 				switch msg.EventId {
 				case "decodetx":
 					log.Debugf("Received decodetx signal for hex: %.40s...", msg.Message)
-					tx, err := exp.blockData.DecodeRawTransaction(msg.Message)
+					tx, err := exp.dataSource.DecodeRawTransaction(msg.Message)
 					if err == nil {
 						message, err := json.MarshalIndent(tx, "", "    ")
 						if err != nil {
@@ -110,7 +110,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 
 				case "sendtx":
 					log.Debugf("Received sendtx signal for hex: %.40s...", msg.Message)
-					txid, err := exp.blockData.SendRawTransaction(msg.Message)
+					txid, err := exp.dataSource.SendRawTransaction(msg.Message)
 					if err != nil {
 						webData.Message = fmt.Sprintf("Error: %v", err)
 					} else {
@@ -171,7 +171,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					// although it is automatically updated by the first caller
 					// who requests data from a stale cache.
 					timeChart, priceChart, outputsChart, chartHeight, err :=
-						exp.explorerSource.TicketPoolVisualization(interval)
+						exp.dataSource.TicketPoolVisualization(interval)
 					if dbtypes.IsTimeoutErr(err) {
 						log.Warnf("TicketPoolVisualization DB timeout: %v", err)
 						webData.Message = "Error: DB timeout"

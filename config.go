@@ -62,7 +62,6 @@ var (
 	defaultMempoolMaxInterval = 120
 	defaultMPTriggerTickets   = 1
 
-	defaultDBFileName        = "dcrdata.sqlt.db"
 	defaultAgendasDBFileName = "agendas.db"
 	defaultProposalsFileName = "proposals.db"
 	defaultPoliteiaAPIURl    = "https://proposals.decred.org"
@@ -117,8 +116,6 @@ type config struct {
 	MempoolMinInterval int    `long:"mp-min-interval" description:"The minimum time in seconds between mempool reports, regardless of number of new tickets seen." env:"DCRDATA_MEMPOOL_MIN_INTERVAL"`
 	MempoolMaxInterval int    `long:"mp-max-interval" description:"The maximum time in seconds between mempool reports (within a couple seconds), regardless of number of new tickets seen." env:"DCRDATA_MEMPOOL_MAX_INTERVAL"`
 	MPTriggerTickets   int    `long:"mp-ticket-trigger" description:"The number minimum number of new tickets that must be seen to trigger a new mempool report." env:"DCRDATA_MP_TRIGGER_TICKETS"`
-	DBFileName         string `long:"dbfile" description:"SQLite DB file name (default is dcrdata.sqlt.db)." env:"DCRDATA_SQLITE_DB_FILE_NAME"`
-	SQLiteMaxConns     int    `long:"sqlite-max-conns" description:"The maximum number of open connections to the SQLite database. By default there is no limit."`
 	AgendasDBFileName  string `long:"agendadbfile" description:"Agendas DB file name (default is agendas.db)." env:"DCRDATA_AGENDAS_DB_FILE_NAME"`
 	ProposalsFileName  string `long:"proposalsdbfile" description:"Proposals DB file name (default is proposals.db)." env:"DCRDATA_PROPOSALS_DB_FILE_NAME"`
 	PoliteiaAPIURL     string `long:"politeiaurl" description:"Defines the root API politeia URL (defaults to https://proposals.decred.org)."`
@@ -127,8 +124,7 @@ type config struct {
 	PiPropRepoName     string `long:"piproposalsrepo" description:"Defines the name of the github repo where Politeia's proposals are pushed."`
 	DisablePiParser    bool   `long:"disable-piparser" description:"Disables the piparser tool from running."`
 
-	PurgeNBestBlocks int  `long:"purge-n-blocks" description:"Purge all data for the N best blocks, using the best block across all DBs if they are out of sync."`
-	FastSQLitePurge  bool `long:"fast-sqlite-purge" description:"Purge all data for the blocks above the specified height."`
+	PurgeNBestBlocks int `long:"purge-n-blocks" description:"Purge all data for the N best blocks, using the best block across all DBs if they are out of sync."`
 
 	FullMode       bool          `long:"pg" description:"Run in \"Full Mode\" mode,  enables postgresql support" env:"DCRDATA_ENABLE_FULL_MODE"`
 	PGDBName       string        `long:"pgdbname" description:"PostgreSQL DB name." env:"DCRDATA_PG_DB_NAME"`
@@ -179,7 +175,6 @@ var (
 		DataDir:             defaultDataDir,
 		LogDir:              defaultLogDir,
 		ConfigFile:          defaultConfigFile,
-		DBFileName:          defaultDBFileName,
 		AgendasDBFileName:   defaultAgendasDBFileName,
 		ProposalsFileName:   defaultProposalsFileName,
 		PoliteiaAPIURL:      defaultPoliteiaAPIURl,
@@ -648,7 +643,6 @@ func loadConfig() (*config, error) {
 
 	// Expand some additional paths.
 	cfg.DcrdCert = cleanAndExpandPath(cfg.DcrdCert)
-	cfg.DBFileName = cleanAndExpandPath(cfg.DBFileName)
 	cfg.AgendasDBFileName = cleanAndExpandPath(cfg.AgendasDBFileName)
 	cfg.ProposalsFileName = cleanAndExpandPath(cfg.ProposalsFileName)
 	cfg.RateCertificate = cleanAndExpandPath(cfg.RateCertificate)

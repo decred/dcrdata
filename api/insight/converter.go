@@ -71,7 +71,7 @@ func (iapi *InsightApi) DcrToInsightTxns(txs []*chainjson.TxRawResult, noAsm, no
 			// work if the funding transaction is confirmed. Otherwise use RPC
 			// to get the funding transaction outpoint addresses.
 			if !vinGenerated {
-				_, addresses, _, err := iapi.BlockData.ChainDB.AddressIDsByOutpoint(vin.Txid, vin.Vout)
+				_, addresses, _, err := iapi.BlockData.AddressIDsByOutpoint(vin.Txid, vin.Vout)
 				if err == nil && len(addresses) > 0 {
 					InsightVin.Addr = addresses[0]
 				} else {
@@ -129,7 +129,7 @@ func (iapi *InsightApi) DcrToInsightTxns(txs []*chainjson.TxRawResult, noAsm, no
 			// Populate the spending status of all vouts. Note: this only
 			// gathers information from the database, which does not include
 			// mempool transactions.
-			addrFull, err := iapi.BlockData.ChainDB.SpendDetailsForFundingTx(txNew.Txid)
+			addrFull, err := iapi.BlockData.SpendDetailsForFundingTx(txNew.Txid)
 			if err != nil {
 				return nil, err
 			}

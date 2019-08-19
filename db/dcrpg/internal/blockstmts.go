@@ -4,12 +4,6 @@
 
 package internal
 
-import (
-	"fmt"
-
-	"github.com/decred/dcrdata/db/dbtypes/v2"
-)
-
 // These queries relate primarily to the "blocks" and "block_chain" tables.
 const (
 	CreateBlockTable = `CREATE TABLE IF NOT EXISTS blocks (
@@ -39,7 +33,8 @@ const (
 		difficulty FLOAT8,
 		stake_version INT4,
 		previous_hash TEXT,
-		chainwork TEXT
+		chainwork TEXT,
+		winners TEXT[]
 	);`
 
 	// Block inserts. is_valid refers to blocks that have been validated by
@@ -53,12 +48,12 @@ const (
 		numtx, num_rtx, tx, txDbIDs, num_stx, stx, stxDbIDs,
 		time, nonce, vote_bits, voters,
 		fresh_stake, revocations, pool_size, bits, sbits,
-		difficulty, stake_version, previous_hash, chainwork)
+		difficulty, stake_version, previous_hash, chainwork, winners)
 	VALUES ($1, $2, $3, $4, $5, $6,
-		$7, $8, %s, %s, $9, %s, %s,
-		$10, $11, $12, $13,
-		$14, $15, $16, $17, $18,
-		$19, $20, $21, $22) `
+		$7, $8, $9, $10, $11, $12, $13,
+		$14, $15, $16, $17, $18, $19,
+		$20, $21, $22, $23, $24, $25,
+		$26, $27) `
 
 	// InsertBlockRow inserts a new block row without checking for unique index
 	// conflicts. This should only be used before the unique indexes are created
@@ -223,24 +218,58 @@ const (
 		WHERE is_mainchain
 		AND height > $1
 		ORDER BY height;`
+
+	// Get the height data. Because stats is unique on height, the inner join will
+	// filter for mainchain as well.
+	SelectBlockDataByHeight = `
+		SELECT blocks.hash, blocks.height, blocks.size,
+			blocks.difficulty, blocks.sbits, blocks.time, stats.pool_size,
+			stats.pool_val, blocks.winners, blocks.is_valid
+		FROM blocks INNER JOIN stats ON blocks.id = stats.blocks_id
+		WHERE blocks.height = $1;`
+
+	SelectBlockDataByHash = `
+			SELECT blocks.hash, blocks.height, blocks.size,
+				blocks.difficulty, blocks.sbits, blocks.time, stats.pool_size,
+				stats.pool_val, blocks.winners, blocks.is_mainchain, blocks.is_valid
+			FROM blocks INNER JOIN stats ON blocks.id = stats.blocks_id
+			WHERE blocks.hash = $1;`
+
+	SelectBlockDataBest = `
+		SELECT blocks.hash, blocks.height, blocks.size,
+			blocks.difficulty, blocks.sbits, blocks.time, stats.pool_size,
+			stats.pool_val, blocks.winners, blocks.is_valid
+		FROM blocks INNER JOIN stats ON blocks.id = stats.blocks_id
+		WHERE blocks.is_mainchain
+		ORDER BY height DESC LIMIT 1;`
+
+	SelectBlockSizeByHeight = `SELECT size
+		FROM blocks
+		WHERE is_mainchain AND height = $1;`
+
+	SelectBlockSizeRange = `SELECT size
+		FROM blocks
+		WHERE is_mainchain
+			AND height BETWEEN $1 AND $2;`
+
+	SelectSBitsByHeight = `SELECT sbits
+		FROM blocks
+		WHERE height = $1 AND is_mainchain;`
+
+	SelectSBitsRange = `SELECT sbits
+		FROM blocks
+		WHERE height BETWEEN $1 AND $2;`
+
+	SelectDiffByTime = `SELECT difficulty
+		FROM blocks
+		WHERE time >= $1
+		ORDER BY time
+		LIMIT 1;`
 )
 
-func MakeBlockInsertStatement(block *dbtypes.Block, checked bool) string {
-	return makeBlockInsertStatement(block.TxDbIDs, block.STxDbIDs,
-		block.Tx, block.STx, checked)
-}
-
-func makeBlockInsertStatement(txDbIDs, stxDbIDs []uint64, rtxs, stxs []string, checked bool) string {
-	rtxDbIDsARRAY := makeARRAYOfBIGINTs(txDbIDs)
-	stxDbIDsARRAY := makeARRAYOfBIGINTs(stxDbIDs)
-	rtxTEXTARRAY := makeARRAYOfTEXT(rtxs)
-	stxTEXTARRAY := makeARRAYOfTEXT(stxs)
-	var insert string
+func BlockInsertStatement(checked bool) string {
 	if checked {
-		insert = UpsertBlockRow
-	} else {
-		insert = InsertBlockRow
+		return UpsertBlockRow
 	}
-	return fmt.Sprintf(insert, rtxTEXTARRAY, rtxDbIDsARRAY,
-		stxTEXTARRAY, stxDbIDsARRAY)
+	return InsertBlockRow
 }

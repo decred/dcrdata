@@ -529,18 +529,6 @@ const (
 	TicketPoolValue = "ticket-pool-value"
 )
 
-var (
-	// SqliteCharts helps select all the charts that use the SQlite db as a data
-	// source from the charts cache data.
-	SqliteCharts = [...]string{FeePerBlock, TicketPoolSize, TicketPoolValue}
-
-	// PgCharts helps select all the charts that use the auxiliary db as a data
-	// source from the charts cache data.
-	PgCharts = [...]string{AvgBlockSize, BlockChainSize, ChainWork, CoinSupply,
-		DurationBTW, HashRate, POWDifficulty, TicketByWindows, TicketPrice,
-		TicketsByBlocks, TicketSpendT, TxPerBlock, TxPerDay}
-)
-
 // MileStone defines the various stages passed by vote on a given agenda.
 // Activated is the height at which the delay time begins before a vote activates.
 // HardForked is the height at which the consensus rule changes.
@@ -1662,19 +1650,20 @@ type Block struct {
 	NumStakeTx   uint32
 	STx          []string `json:"stx"`
 	STxDbIDs     []uint64
-	Time         TimeDef `json:"time"`
-	Nonce        uint64  `json:"nonce"`
-	VoteBits     uint16  `json:"votebits"`
-	Voters       uint16  `json:"voters"`
-	FreshStake   uint8   `json:"freshstake"`
-	Revocations  uint8   `json:"revocations"`
-	PoolSize     uint32  `json:"poolsize"`
-	Bits         uint32  `json:"bits"`
-	SBits        uint64  `json:"sbits"`
-	Difficulty   float64 `json:"difficulty"`
-	StakeVersion uint32  `json:"stakeversion"`
-	PreviousHash string  `json:"previousblockhash"`
-	ChainWork    string  `json:"chainwork"`
+	Time         TimeDef  `json:"time"`
+	Nonce        uint64   `json:"nonce"`
+	VoteBits     uint16   `json:"votebits"`
+	Voters       uint16   `json:"voters"`
+	FreshStake   uint8    `json:"freshstake"`
+	Revocations  uint8    `json:"revocations"`
+	PoolSize     uint32   `json:"poolsize"`
+	Bits         uint32   `json:"bits"`
+	SBits        uint64   `json:"sbits"`
+	Difficulty   float64  `json:"difficulty"`
+	StakeVersion uint32   `json:"stakeversion"`
+	PreviousHash string   `json:"previousblockhash"`
+	ChainWork    string   `json:"chainwork"`
+	Winners      []string `json:"winners"`
 }
 
 type BlockDataBasic struct {

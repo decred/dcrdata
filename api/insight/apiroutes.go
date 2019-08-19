@@ -56,7 +56,7 @@ const (
 // methods include the http.Handlers for the URL path routes.
 type InsightApi struct {
 	nodeClient      *rpcclient.Client
-	BlockData       *dcrpg.ChainDBRPC
+	BlockData       *dcrpg.ChainDB
 	params          *chaincfg.Params
 	mp              rpcutils.MempoolAddressChecker
 	status          *apitypes.Status
@@ -68,7 +68,7 @@ type InsightApi struct {
 }
 
 // NewInsightApi is the constructor for InsightApi.
-func NewInsightApi(client *rpcclient.Client, blockData *dcrpg.ChainDBRPC, params *chaincfg.Params,
+func NewInsightApi(client *rpcclient.Client, blockData *dcrpg.ChainDB, params *chaincfg.Params,
 	memPoolData rpcutils.MempoolAddressChecker, JSONIndent string, maxAddrs int, status *apitypes.Status) *InsightApi {
 
 	newContext := InsightApi{
@@ -184,7 +184,7 @@ func (iapi *InsightApi) getBlockSummary(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		hash, err = iapi.BlockData.ChainDB.GetBlockHash(int64(idx))
+		hash, err = iapi.BlockData.GetBlockHash(int64(idx))
 		if dbtypes.IsTimeoutErr(err) {
 			apiLog.Errorf("GetBlockHash: %v", err)
 			http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -220,12 +220,12 @@ func (iapi *InsightApi) getBlockHash(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	height := iapi.BlockData.ChainDB.Height()
+	height := iapi.BlockData.Height()
 	if idx < 0 || idx > int(height) {
 		writeInsightError(w, "Block height out of range")
 		return
 	}
-	hash, err := iapi.BlockData.ChainDB.GetBlockHash(int64(idx))
+	hash, err := iapi.BlockData.GetBlockHash(int64(idx))
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("GetBlockHash: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -254,7 +254,7 @@ func (iapi *InsightApi) getRawBlock(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		hash, err = iapi.BlockData.ChainDB.GetBlockHash(int64(idx))
+		hash, err = iapi.BlockData.GetBlockHash(int64(idx))
 		if dbtypes.IsTimeoutErr(err) {
 			apiLog.Errorf("GetBlockHash: %v", err)
 			http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -355,7 +355,7 @@ func (iapi *InsightApi) getAddressesTxnOutput(w http.ResponseWriter, r *http.Req
 
 	// Initialize output slice.
 	txnOutputs := make([]*apitypes.AddressTxnOutput, 0)
-	currentHeight := int32(iapi.BlockData.ChainDB.Height())
+	currentHeight := int32(iapi.BlockData.Height())
 
 	for i, address := range addresses {
 		// Unless this goroutine got completion priority on a previous address
@@ -368,7 +368,7 @@ func (iapi *InsightApi) getAddressesTxnOutput(w http.ResponseWriter, r *http.Req
 		tStart := time.Now()
 
 		// Query for UTXOs for the current address.
-		confirmedTxnOutputs, _, err := iapi.BlockData.ChainDB.AddressUTXO(address)
+		confirmedTxnOutputs, _, err := iapi.BlockData.AddressUTXO(address)
 
 		apiLog.Debugf("AddressUTXO completed for %s with %d UTXOs in %v.",
 			address, len(confirmedTxnOutputs), time.Since(tStart))
@@ -623,7 +623,7 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 		}
 
 		hashes, recentTxs, err :=
-			iapi.BlockData.ChainDB.InsightAddressTransactions([]string{address},
+			iapi.BlockData.InsightAddressTransactions([]string{address},
 				int64(iapi.status.Height()-2))
 		if dbtypes.IsTimeoutErr(err) {
 			apiLog.Errorf("InsightAddressTransactions: %v", err)
@@ -790,7 +790,7 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 	var UnconfirmedTxTimes []int64
 
 	rawTxs, recentTxs, err :=
-		iapi.BlockData.ChainDB.InsightAddressTransactions(addresses, int64(iapi.status.Height()-2))
+		iapi.BlockData.InsightAddressTransactions(addresses, int64(iapi.status.Height()-2))
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("InsightAddressTransactions: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1100,7 +1100,7 @@ func (iapi *InsightApi) getBlockSummaryByTime(w http.ResponseWriter, r *http.Req
 
 	// TODO: limit the query rather than returning all and limiting in go.
 	minTime, maxTime := minDate.Unix(), maxDate.Unix()
-	blockSummary, err := iapi.BlockData.ChainDB.BlockSummaryTimeRange(minTime, maxTime, 0)
+	blockSummary, err := iapi.BlockData.BlockSummaryTimeRange(minTime, maxTime, 0)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("BlockSummaryTimeRange: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1157,7 +1157,7 @@ func (iapi *InsightApi) getAddressInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get confirmed balance.
-	balance, _, err := iapi.BlockData.ChainDB.AddressBalance(address)
+	balance, _, err := iapi.BlockData.AddressBalance(address)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("AddressSpentUnspent: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1186,7 +1186,7 @@ func (iapi *InsightApi) getAddressInfo(w http.ResponseWriter, r *http.Request) {
 
 	// Get confirmed transactions.
 	rawTxs, recentTxs, err :=
-		iapi.BlockData.ChainDB.InsightAddressTransactions(addresses, int64(iapi.status.Height()-2))
+		iapi.BlockData.InsightAddressTransactions(addresses, int64(iapi.status.Height()-2))
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("InsightAddressTransactions: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)

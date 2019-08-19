@@ -6,7 +6,6 @@ replace (
 	github.com/decred/dcrdata/db/cache/v2 => ../../db/cache
 	github.com/decred/dcrdata/db/dbtypes/v2 => ../../db/dbtypes
 	github.com/decred/dcrdata/db/dcrpg/v3 => ../../db/dcrpg
-	github.com/decred/dcrdata/db/dcrsqlite/v3 => ../../db/dcrsqlite
 	github.com/decred/dcrdata/dcrrates => ../../dcrrates
 	github.com/decred/dcrdata/exchanges/v2 => ../../exchanges
 	github.com/decred/dcrdata/explorer/types/v2 => ../../explorer/types

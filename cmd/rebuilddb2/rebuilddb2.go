@@ -139,7 +139,7 @@ func mainCore() error {
 	// Construct a ChainDB without a stakeDB to allow quick dropping of tables.
 	mpChecker := rpcutils.NewMempoolAddressChecker(client, activeChain)
 	db, err := dcrpg.NewChainDB(&dbi, activeChain, nil, false, cfg.HidePGConfig, 0,
-		mpChecker, piParser, client)
+		mpChecker, piParser, client, func() {})
 	if db != nil {
 		defer db.Close()
 	}
@@ -348,28 +348,11 @@ func mainCore() error {
 			return fmt.Errorf("GetChainWork failed (%s): %v", blockHash, err)
 		}
 
-		// stake db always has genesis, so do not connect it
-		var winners []string
-		if ib > 0 {
-			if err = stakeDB.ConnectBlock(block); err != nil {
-				return fmt.Errorf("stakedb.ConnectBlock failed: %v", err)
-			}
-
-			tpi, found := stakeDB.PoolInfo(*blockHash)
-			if !found {
-				return fmt.Errorf("stakedb.PoolInfo failed to return info for: %v", blockHash)
-			}
-
-			winners = tpi.Winners
-			// Last winners (validators) are in msgBlock.Header.PrevBlock, but
-			// StoreBlock gets them from the stakedb.
-		}
-
 		var numVins, numVouts int64
 		isValid, isMainchain, updateExistingRecords := true, true, true
-		numVins, numVouts, _, err = db.StoreBlock(block.MsgBlock(), winners,
-			isValid, isMainchain, updateExistingRecords,
-			cfg.AddrSpendInfoOnline, !cfg.TicketSpendInfoBatch, chainWork)
+		numVins, numVouts, _, err = db.StoreBlock(block.MsgBlock(), isValid,
+			isMainchain, updateExistingRecords, cfg.AddrSpendInfoOnline,
+			!cfg.TicketSpendInfoBatch, chainWork)
 		if err != nil {
 			return fmt.Errorf("StoreBlock failed: %v", err)
 		}

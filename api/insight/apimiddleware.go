@@ -34,7 +34,7 @@ const (
 // part {blockhash}, and the corresponding block index, into a request context.
 func (iapi *InsightApi) BlockHashPathAndIndexCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := m.BlockHashPathAndIndexCtx(r, iapi.BlockData.ChainDB)
+		ctx := m.BlockHashPathAndIndexCtx(r, iapi.BlockData)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -44,7 +44,7 @@ func (iapi *InsightApi) BlockHashPathAndIndexCtx(next http.Handler) http.Handler
 // "getBestBlockHash" or "getLastBlockHash".
 func (iapi *InsightApi) StatusInfoCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := m.StatusInfoCtx(r, iapi.BlockData.ChainDB)
+		ctx := m.StatusInfoCtx(r, iapi.BlockData)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 

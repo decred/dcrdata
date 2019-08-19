@@ -12,7 +12,6 @@ import (
 	"github.com/decred/dcrd/rpcclient/v4"
 	"github.com/decred/dcrdata/blockdata/v4"
 	"github.com/decred/dcrdata/db/dcrpg/v4"
-	"github.com/decred/dcrdata/db/dcrsqlite/v4"
 	"github.com/decred/dcrdata/exchanges/v2"
 	"github.com/decred/dcrdata/gov/v2/agendas"
 	"github.com/decred/dcrdata/gov/v2/politeia"
@@ -58,7 +57,6 @@ var (
 	logRotator *rotator.Rotator
 
 	notifyLog     = backendLog.Logger("NTFN")
-	sqliteLog     = backendLog.Logger("SQLT")
 	postgresqlLog = backendLog.Logger("PSQL")
 	stakedbLog    = backendLog.Logger("SKDB")
 	BlockdataLog  = backendLog.Logger("BLKD")
@@ -76,7 +74,6 @@ var (
 
 // Initialize package-global logger variables.
 func init() {
-	dcrsqlite.UseLogger(sqliteLog)
 	dcrpg.UseLogger(postgresqlLog)
 	stakedb.UseLogger(stakedbLog)
 	blockdata.UseLogger(BlockdataLog)
@@ -97,7 +94,6 @@ func init() {
 // subsystemLoggers maps each subsystem identifier to its associated logger.
 var subsystemLoggers = map[string]slog.Logger{
 	"NTFN": notifyLog,
-	"SQLT": sqliteLog,
 	"PSQL": postgresqlLog,
 	"SKDB": stakedbLog,
 	"BLKD": BlockdataLog,

@@ -4,11 +4,6 @@
 
 package internal
 
-import (
-	"bytes"
-	"strconv"
-)
-
 const (
 	// IndexExists checks if an index with a given name in certain namespace
 	// (schema) exists.
@@ -32,39 +27,3 @@ const (
 		timestamptz TIMESTAMPTZ
 	);`
 )
-
-func makeARRAYOfTEXT(text []string) string {
-	if len(text) == 0 {
-		return "ARRAY['']"
-	}
-	buffer := bytes.NewBufferString("ARRAY[")
-	for i, txt := range text {
-		if i == len(text)-1 {
-			buffer.WriteString(`'` + txt + `'`)
-			break
-		}
-		buffer.WriteString(`'` + txt + `', `)
-	}
-	buffer.WriteString("]")
-
-	return buffer.String()
-}
-
-func makeARRAYOfBIGINTs(ints []uint64) string {
-	if len(ints) == 0 {
-		return "'{}'::BIGINT[]" // cockroachdb: "ARRAY[]:::BIGINT[]"
-	}
-
-	buffer := bytes.NewBufferString("'{")
-	for i, v := range ints {
-		u := strconv.FormatUint(v, 10)
-		if i == len(ints)-1 {
-			buffer.WriteString(u)
-			break
-		}
-		buffer.WriteString(u + `, `)
-	}
-	buffer.WriteString("}'::BIGINT[]")
-
-	return buffer.String()
-}

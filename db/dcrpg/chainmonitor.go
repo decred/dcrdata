@@ -17,13 +17,13 @@ import (
 // ChainMonitor responds to block connection and chain reorganization.
 type ChainMonitor struct {
 	ctx            context.Context
-	db             *ChainDBRPC
+	db             *ChainDB
 	ConnectingLock chan struct{}
 	DoneConnecting chan struct{}
 }
 
 // NewChainMonitor creates a new ChainMonitor.
-func (pgb *ChainDBRPC) NewChainMonitor(ctx context.Context) *ChainMonitor {
+func (pgb *ChainDB) NewChainMonitor(ctx context.Context) *ChainMonitor {
 	if pgb == nil {
 		return nil
 	}
@@ -100,15 +100,6 @@ func (p *ChainMonitor) switchToSideChain(reorgData *txhelpers.ReorgData) (int32,
 			}
 		}
 
-		// Get current winning votes from stakedb
-		tpi, found := p.db.stakeDB.PoolInfo(newChain[i])
-		if !found {
-			return 0, nil,
-				fmt.Errorf("stakedb.PoolInfo failed to return info for: %v",
-					newChain[i])
-		}
-		winners := tpi.Winners
-
 		// Get the chainWork
 		blockHash := msgBlock.BlockHash()
 		chainWork, err := p.db.GetChainWork(&blockHash)
@@ -120,7 +111,7 @@ func (p *ChainMonitor) switchToSideChain(reorgData *txhelpers.ReorgData) (int32,
 		// also considered valid unless invalidated by the next block
 		// (invalidation of previous handled inside StoreBlock).
 		isValid, isMainChain, updateExisting := true, true, true
-		_, _, _, err = p.db.StoreBlock(msgBlock, winners, isValid, isMainChain,
+		_, _, _, err = p.db.StoreBlock(msgBlock, isValid, isMainChain,
 			updateExisting, true, true, chainWork)
 		if err != nil {
 			return int32(p.db.bestBlock.Height()), p.db.bestBlock.Hash(),

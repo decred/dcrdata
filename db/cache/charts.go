@@ -118,7 +118,7 @@ const (
 // cacheVersion helps detect when the cache data stored has changed its
 // structure or content. A change on the cache version results to recomputing
 // all the charts data a fresh thereby making the cache to hold the latest changes.
-var cacheVersion = semver.NewSemver(6, 0, 0)
+var cacheVersion = semver.NewSemver(6, 1, 0)
 
 // versionedCacheData defines the cache data contents to be written into a .gob file.
 type versionedCacheData struct {
@@ -261,7 +261,7 @@ type zoomSet struct {
 	Height    ChartUints
 	Time      ChartUints
 	PoolSize  ChartUints
-	PoolValue ChartFloats
+	PoolValue ChartUints
 	BlockSize ChartUints
 	TxCount   ChartUints
 	NewAtoms  ChartUints
@@ -292,7 +292,7 @@ func newBlockSet(size int) *zoomSet {
 		Height:    newChartUints(size),
 		Time:      newChartUints(size),
 		PoolSize:  newChartUints(size),
-		PoolValue: newChartFloats(size),
+		PoolValue: newChartUints(size),
 		BlockSize: newChartUints(size),
 		TxCount:   newChartUints(size),
 		NewAtoms:  newChartUints(size),
@@ -351,7 +351,7 @@ type ChartGobject struct {
 	Height      ChartUints
 	Time        ChartUints
 	PoolSize    ChartUints
-	PoolValue   ChartFloats
+	PoolValue   ChartUints
 	BlockSize   ChartUints
 	TxCount     ChartUints
 	NewAtoms    ChartUints

@@ -3428,6 +3428,69 @@ func appendMissedVotesPerWindow(charts *cache.ChartData, rows *sql.Rows) error {
 	return nil
 }
 
+// retrieveBlockFees retrieves any block fee data that is newer than the data
+// in the provided ChartData. This data is used to plot fees on the /charts page.
+// This is the Fetcher half of a pair that make up a cache.ChartUpdater.
+func retrieveBlockFees(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
+	rows, err := db.QueryContext(ctx, internal.SelectFeesPerBlockAboveHeight, charts.FeesTip())
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+// Append the result from retrieveBlockFees to the provided ChartData. This
+// is the Appender half of a pair that make up a cache.ChartUpdater.
+func appendBlockFees(charts *cache.ChartData, rows *sql.Rows) error {
+	defer rows.Close()
+	blocks := charts.Blocks
+	for rows.Next() {
+		var blockHeight uint64
+		var fees int64
+		if err := rows.Scan(&blockHeight, &fees); err != nil {
+			log.Errorf("Unable to scan for FeeInfoPerBlock fields: %v", err)
+			return err
+		}
+		if fees < 0 {
+			fees *= -1
+		}
+
+		// Converting to atoms.
+		blocks.Fees = append(blocks.Fees, uint64(fees))
+	}
+
+	return nil
+}
+
+// retrievePoolStats returns all the pool value and the pool size
+// charts data needed to plot ticket-pool-size and ticket-pool value charts on
+// the charts page. This is the Fetcher half of a pair that make up a
+// cache.ChartUpdater.
+func retrievePoolStats(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
+	rows, err := db.QueryContext(ctx, internal.SelectPoolStatsAboveHeight, charts.PoolSizeTip())
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+// Append the result from retrievePoolStats to the provided ChartData. This is
+// the Appender half of a pair that make up a cache.ChartUpdater.
+func appendPoolStats(charts *cache.ChartData, rows *sql.Rows) error {
+	defer rows.Close()
+	blocks := charts.Blocks
+	for rows.Next() {
+		var pval, psize uint64
+		if err := rows.Scan(&psize, &pval); err != nil {
+			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
+			return err
+		}
+		blocks.PoolSize = append(blocks.PoolSize, psize)
+		blocks.PoolValue = append(blocks.PoolValue, pval)
+	}
+	return nil
+}
+
 // retrievePowerlessTickets fetches missed or expired tickets sorted by
 // revocation status.
 func retrievePowerlessTickets(ctx context.Context, db *sql.DB) (*apitypes.PowerlessTickets, error) {
@@ -3618,15 +3681,17 @@ func retrieveProposalVotesData(ctx context.Context, db *sql.DB,
 // attempting to insert a duplicate row. If checked is false and there is a
 // duplicate row, an error will be returned.
 func InsertBlock(db *sql.DB, dbBlock *dbtypes.Block, isValid, isMainchain, checked bool) (uint64, error) {
-	insertStatement := internal.MakeBlockInsertStatement(dbBlock, checked)
+	insertStatement := internal.BlockInsertStatement(checked)
 	var id uint64
 	err := db.QueryRow(insertStatement,
 		dbBlock.Hash, dbBlock.Height, dbBlock.Size, isValid, isMainchain,
-		dbBlock.Version, dbBlock.NumTx, dbBlock.NumRegTx, dbBlock.NumStakeTx,
+		dbBlock.Version, dbBlock.NumTx, dbBlock.NumRegTx,
+		pq.Array(dbBlock.Tx), pq.Array(dbBlock.TxDbIDs),
+		dbBlock.NumStakeTx, pq.Array(dbBlock.STx), pq.Array(dbBlock.STxDbIDs),
 		dbBlock.Time, dbBlock.Nonce, dbBlock.VoteBits, dbBlock.Voters,
 		dbBlock.FreshStake, dbBlock.Revocations, dbBlock.PoolSize, dbBlock.Bits,
 		dbBlock.SBits, dbBlock.Difficulty, dbBlock.StakeVersion,
-		dbBlock.PreviousHash, dbBlock.ChainWork).Scan(&id)
+		dbBlock.PreviousHash, dbBlock.ChainWork, pq.Array(dbBlock.Winners)).Scan(&id)
 	return id, err
 }
 
@@ -3637,6 +3702,12 @@ func InsertBlockPrevNext(db *sql.DB, blockDbID uint64,
 	if err == nil {
 		return rows.Close()
 	}
+	return err
+}
+
+// InsertBlockStats inserts the block stats into the stats table.
+func InsertBlockStats(db *sql.DB, blockDbID uint64, tpi *apitypes.TicketPoolInfo) error {
+	_, err := db.Exec(internal.UpsertStats, blockDbID, tpi.Height, tpi.Size, int64(tpi.Value*dcrToAtoms))
 	return err
 }
 
@@ -4095,4 +4166,307 @@ func UpdateBlockNextByNextHash(db SqlExecutor, currentNext, newNext string) erro
 		return fmt.Errorf("%s (%d)", notOneRowErrMsg, numRows)
 	}
 	return nil
+}
+
+// RetrievePoolInfo returns ticket pool info for block height ind
+func RetrievePoolInfo(ctx context.Context, db *sql.DB, ind int64) (*apitypes.TicketPoolInfo, error) {
+	tpi := &apitypes.TicketPoolInfo{
+		Height: uint32(ind),
+	}
+	var hash string
+	var winners []string
+	var val int64
+	err := db.QueryRowContext(ctx, internal.SelectPoolInfoByHeight, ind).Scan(&hash, &tpi.Size,
+		&val, pq.Array(&winners))
+	tpi.Value = dcrutil.Amount(val).ToCoin()
+	tpi.ValAvg = tpi.Value / float64(tpi.Size)
+	tpi.Winners = winners
+	return tpi, err
+}
+
+// RetrievePoolInfoByHash returns ticket pool info for blockhash hash.
+func RetrievePoolInfoByHash(ctx context.Context, db *sql.DB, hash string) (*apitypes.TicketPoolInfo, error) {
+	tpi := new(apitypes.TicketPoolInfo)
+	var winners []string
+	var val int64
+	err := db.QueryRowContext(ctx, internal.SelectPoolInfoByHash, hash).Scan(&tpi.Height, &tpi.Size,
+		&val, pq.Array(&winners))
+	tpi.Value = dcrutil.Amount(val).ToCoin()
+	tpi.ValAvg = tpi.Value / float64(tpi.Size)
+	tpi.Winners = winners
+	return tpi, err
+}
+
+// RetrievePoolInfoRange returns an array of apitypes.TicketPoolInfo for block
+// range ind0 to ind1 and a non-nil error on success
+func RetrievePoolInfoRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) ([]apitypes.TicketPoolInfo, []string, error) {
+	N := ind1 - ind0 + 1
+	if N == 0 {
+		return []apitypes.TicketPoolInfo{}, []string{}, nil
+	}
+	if N < 0 {
+		return nil, nil, fmt.Errorf("Cannot retrieve pool info range (%d>%d)",
+			ind0, ind1)
+	}
+
+	tpis := make([]apitypes.TicketPoolInfo, 0, N)
+	hashes := make([]string, 0, N)
+
+	stmt, err := db.PrepareContext(ctx, internal.SelectPoolInfoRange)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(ind0, ind1)
+	if err != nil {
+		log.Errorf("Query failed: %v", err)
+		return nil, nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var tpi apitypes.TicketPoolInfo
+		var hash string
+		var winners []string
+		var val int64
+		if err = rows.Scan(&tpi.Height, &hash, &tpi.Size, &val,
+			pq.Array(&winners)); err != nil {
+			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
+		}
+		tpi.Value = dcrutil.Amount(val).ToCoin()
+		tpi.ValAvg = tpi.Value / float64(tpi.Size)
+		tpi.Winners = winners
+		tpis = append(tpis, tpi)
+		hashes = append(hashes, hash)
+	}
+	if err = rows.Err(); err != nil {
+		log.Error(err)
+	}
+
+	return tpis, hashes, nil
+}
+
+// RetrievePoolValAndSizeRange returns an array each of the pool values and
+// sizes for block range ind0 to ind1.
+func RetrievePoolValAndSizeRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) ([]float64, []uint32, error) {
+	N := ind1 - ind0 + 1
+	if N == 0 {
+		return []float64{}, []uint32{}, nil
+	}
+	if N < 0 {
+		return nil, nil, fmt.Errorf("Cannot retrieve pool val and size range (%d>%d)",
+			ind0, ind1)
+	}
+
+	poolvals := make([]float64, 0, N)
+	poolsizes := make([]uint32, 0, N)
+
+	stmt, err := db.Prepare(internal.SelectPoolValSizeRange)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.QueryContext(ctx, ind0, ind1)
+	if err != nil {
+		log.Errorf("Query failed: %v", err)
+		return nil, nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var pval int64
+		var psize uint32
+		if err = rows.Scan(&psize, &pval); err != nil {
+			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
+		}
+		poolvals = append(poolvals, dcrutil.Amount(pval).ToCoin())
+		poolsizes = append(poolsizes, psize)
+	}
+	if err = rows.Err(); err != nil {
+		log.Error(err)
+	}
+
+	if len(poolsizes) != int(N) {
+		log.Warnf("RetrievePoolValAndSizeRange: Retrieved pool values (%d) not expected number (%d)",
+			len(poolsizes), N)
+	}
+
+	return poolvals, poolsizes, nil
+}
+
+// RetrieveBlockSummary fetches basic block data for block ind.
+func RetrieveBlockSummary(ctx context.Context, db *sql.DB, ind int64) (*apitypes.BlockDataBasic, error) {
+	bd := apitypes.NewBlockDataBasic()
+	var winners []string
+	var isValid bool
+	var val, sbits int64
+	var timestamp dbtypes.TimeDef
+	err := db.QueryRowContext(ctx, internal.SelectBlockDataByHeight, ind).Scan(
+		&bd.Hash, &bd.Height, &bd.Size, &bd.Difficulty, &sbits, &timestamp,
+		&bd.PoolInfo.Size, &val, pq.Array(&winners), &isValid)
+	if err != nil {
+		return nil, err
+	}
+	bd.PoolInfo.Value = dcrutil.Amount(val).ToCoin()
+	bd.PoolInfo.ValAvg = bd.PoolInfo.Value / float64(bd.Size)
+	bd.Time = apitypes.TimeAPI{S: timestamp}
+	bd.PoolInfo.Winners = winners
+	bd.StakeDiff = dcrutil.Amount(sbits).ToCoin()
+
+	return bd, nil
+}
+
+// RetrieveBlockSummaryByHash fetches basic block data for block hash.
+func RetrieveBlockSummaryByHash(ctx context.Context, db *sql.DB, hash string) (*apitypes.BlockDataBasic, error) {
+	bd := apitypes.NewBlockDataBasic()
+	var winners []string
+	var isMainchain, isValid bool
+	var timestamp dbtypes.TimeDef
+	var val, psize sql.NullInt64 // pool value and size are only stored for mainchain blocks
+	var sbits int64
+	err := db.QueryRowContext(ctx, internal.SelectBlockDataByHash, hash).Scan(
+		&bd.Hash, &bd.Height, &bd.Size, &bd.Difficulty, &sbits, &timestamp,
+		&psize, &val, pq.Array(&winners), &isMainchain, &isValid)
+	if err != nil {
+		return nil, err
+	}
+	bd.PoolInfo.Value = dcrutil.Amount(val.Int64).ToCoin()
+	bd.PoolInfo.Size = uint32(psize.Int64)
+	bd.PoolInfo.ValAvg = bd.PoolInfo.Value / float64(bd.Size)
+	bd.Time = apitypes.TimeAPI{S: timestamp}
+	bd.PoolInfo.Winners = winners
+	bd.StakeDiff = dcrutil.Amount(sbits).ToCoin()
+	return bd, nil
+}
+
+// RetrieveBlockSize return the size of block at height ind.
+func RetrieveBlockSize(ctx context.Context, db *sql.DB, ind int64) (int32, error) {
+	var blockSize int32
+	err := db.QueryRowContext(ctx, internal.SelectBlockSizeByHeight, ind).Scan(&blockSize)
+	if err != nil {
+		return -1, fmt.Errorf("unable to scan for block size: %v", err)
+	}
+
+	return blockSize, nil
+}
+
+// RetrieveBlockSizeRange returns an array of block sizes for block range ind0 to ind1
+func RetrieveBlockSizeRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) ([]int32, error) {
+	N := ind1 - ind0 + 1
+	if N == 0 {
+		return []int32{}, nil
+	}
+	if N < 0 {
+		return nil, fmt.Errorf("Cannot retrieve block size range (%d>%d)",
+			ind0, ind1)
+	}
+
+	blockSizes := make([]int32, 0, N)
+
+	stmt, err := db.Prepare(internal.SelectBlockSizeRange)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.QueryContext(ctx, ind0, ind1)
+	if err != nil {
+		log.Errorf("Query failed: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var blockSize int32
+		if err = rows.Scan(&blockSize); err != nil {
+			log.Errorf("Unable to scan for block size field: %v", err)
+		}
+		blockSizes = append(blockSizes, blockSize)
+	}
+	if err = rows.Err(); err != nil {
+		log.Error(err)
+	}
+
+	return blockSizes, nil
+}
+
+// RetrieveSDiff returns the stake difficulty for block at the specified chain
+// height.
+func RetrieveSDiff(ctx context.Context, db *sql.DB, ind int64) (float64, error) {
+	var sbits int64
+	err := db.QueryRowContext(ctx, internal.SelectSBitsByHeight, ind).Scan(&sbits)
+	return dcrutil.Amount(sbits).ToCoin(), err
+}
+
+// RetrieveSDiffRange returns an array of stake difficulties for block range
+// ind0 to ind1.
+func RetrieveSDiffRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) ([]float64, error) {
+	N := ind1 - ind0 + 1
+	if N == 0 {
+		return []float64{}, nil
+	}
+	if N < 0 {
+		return nil, fmt.Errorf("Cannot retrieve sdiff range (%d>%d)",
+			ind0, ind1)
+	}
+	sdiffs := make([]float64, 0, N)
+
+	stmt, err := db.Prepare(internal.SelectSBitsRange)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.QueryContext(ctx, ind0, ind1)
+	if err != nil {
+		log.Errorf("Query failed: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var sbits int64
+		if err = rows.Scan(&sbits); err != nil {
+			log.Errorf("Unable to scan for sdiff fields: %v", err)
+		}
+		sdiffs = append(sdiffs, dcrutil.Amount(sbits).ToCoin())
+	}
+	if err = rows.Err(); err != nil {
+		log.Error(err)
+	}
+
+	return sdiffs, nil
+}
+
+// RetrieveLatestBlockSummary returns the block summary for the best block.
+func RetrieveLatestBlockSummary(ctx context.Context, db *sql.DB) (*apitypes.BlockDataBasic, error) {
+	bd := apitypes.NewBlockDataBasic()
+
+	var winners []string
+	var timestamp dbtypes.TimeDef
+	var isValid bool
+	var val, sbits int64
+	err := db.QueryRowContext(ctx, internal.SelectBlockDataBest).Scan(
+		&bd.Hash, &bd.Height, &bd.Size, &bd.Difficulty, &sbits, &timestamp,
+		&bd.PoolInfo.Size, &val, pq.Array(&winners), &isValid)
+	if err != nil {
+		return nil, err
+	}
+	bd.PoolInfo.Value = dcrutil.Amount(val).ToCoin()
+	bd.PoolInfo.ValAvg = bd.PoolInfo.Value / float64(bd.PoolInfo.Size)
+	bd.Time = apitypes.TimeAPI{S: timestamp}
+	bd.PoolInfo.Winners = winners
+	bd.StakeDiff = dcrutil.Amount(sbits).ToCoin()
+	return bd, nil
+}
+
+// RetrieveDiff returns the difficulty for the first block mined after the
+// provided UNIX timestamp.
+func RetrieveDiff(ctx context.Context, db *sql.DB, timestamp int64) (float64, error) {
+	var diff float64
+	tDef := dbtypes.NewTimeDefFromUNIX(timestamp)
+	err := db.QueryRowContext(ctx, internal.SelectDiffByTime, tDef).Scan(&diff)
+	return diff, err
 }

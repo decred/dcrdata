@@ -7,6 +7,7 @@ package dcrpg
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -159,6 +160,31 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		return lastBlock, fmt.Errorf("IBDComplete failed: %v", err)
 	}
 
+	// Check and report heights of the DBs. dbHeight is the lowest of the
+	// heights, and may be -1 with an empty DB.
+	stakeDBHeight := int64(pgb.stakeDB.Height())
+	if lastBlock < -1 {
+		panic("invalid starting height")
+	}
+
+	log.Info("Current best block (dcrd):       ", nodeHeight)
+	log.Info("Current best block (primary db): ", lastBlock)
+	log.Info("Current best block (stakedb):    ", stakeDBHeight)
+
+	// Attempt to rewind stake database, if needed, forcing it to the lowest DB
+	// height (or 0 if the lowest DB height is -1).
+	if stakeDBHeight > lastBlock && stakeDBHeight > 0 {
+		if lastBlock < 0 || stakeDBHeight > 2*lastBlock {
+			return -1, fmt.Errorf("delete stake db (ffldb_stake) and try again")
+		}
+		log.Infof("Rewinding stake node from %d to %d", stakeDBHeight, lastBlock)
+		// Rewind best node in ticket DB to larger of lowest DB height or zero.
+		stakeDBHeight, err = pgb.RewindStakeDB(ctx, lastBlock)
+		if err != nil {
+			return lastBlock, fmt.Errorf("RewindStakeDB failed: %v", err)
+		}
+	}
+
 	// When IBD is not yet completed, force reindexing and update of full
 	// spending info in addresses table after block sync.
 	if !ibdComplete {
@@ -299,19 +325,23 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 	tickTime := 20 * time.Second
 	ticker := time.NewTicker(tickTime)
 	startTime := time.Now()
+	startHeight := lastBlock + 1
 	o := sync.Once{}
 	speedReporter := func() {
 		ticker.Stop()
-		totalElapsed := time.Since(startTime).Seconds()
-		if int64(totalElapsed) == 0 {
+		timeElapsed := time.Since(startTime)
+		secsElapsed := timeElapsed.Seconds()
+		if int64(secsElapsed) == 0 {
 			return
 		}
-		totalVoutPerSec := totalVouts / int64(totalElapsed)
-		totalTxPerSec := totalTxs / int64(totalElapsed)
+		totalVoutPerSec := totalVouts / int64(secsElapsed)
+		totalTxPerSec := totalTxs / int64(secsElapsed)
 		if totalTxs == 0 {
 			return
 		}
 		log.Infof("Avg. speed: %d tx/s, %d vout/s", totalTxPerSec, totalVoutPerSec)
+		syncedBlocks := float64(nodeHeight - startHeight + 1)
+		log.Infof("Total sync: %.2f minutes (%.2f blocks/s)", timeElapsed.Minutes(), syncedBlocks/timeElapsed.Seconds())
 	}
 	speedReport := func() { o.Do(speedReporter) }
 	defer speedReport()
@@ -319,7 +349,6 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 	lastProgressUpdateTime := startTime
 
 	// Start syncing blocks.
-	startHeight := lastBlock + 1
 	for ib := startHeight; ib <= nodeHeight; ib++ {
 		// Check for quit signal.
 		select {
@@ -369,9 +398,6 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		default:
 		}
 
-		// Register for notification from stakedb when it connects this block.
-		waitChan := pgb.stakeDB.WaitForHeight(ib)
-
 		// Get the block, making it available to stakedb, which will signal on
 		// the above channel when it is done connecting it.
 		block, err := client.UpdateToBlock(ib)
@@ -380,31 +406,19 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 			return ib - 1, fmt.Errorf("UpdateToBlock (%d) failed: %v", ib, err)
 		}
 
-		// Wait for our StakeDatabase to connect the block.
-		var blockHash *chainhash.Hash
-		select {
-		case blockHash = <-waitChan:
-		case <-ctx.Done():
-			log.Infof("Rescan cancelled at height %d.", ib)
-			return ib - 1, nil
+		// Advance stakedb height, which should always be less than or equal to
+		// PSQL height. stakedb always has genesis, as enforced by the rewinding
+		// code in this function.
+		if ib > stakeDBHeight {
+			if ib != int64(pgb.stakeDB.Height()+1) {
+				panic(fmt.Sprintf("about to connect the wrong block: %d, %d", ib, pgb.stakeDB.Height()))
+			}
+			if err = pgb.stakeDB.ConnectBlock(block); err != nil {
+				return ib - 1, pgb.supplementUnknownTicketError(err)
+			}
 		}
-		if blockHash == nil {
-			log.Errorf("stakedb says that block %d has come and gone", ib)
-			return ib - 1, fmt.Errorf("stakedb says that block %d has come and gone", ib)
-		}
-		// If not master:
-		//blockHash := <-client.WaitForHeight(ib)
-		//block, err := client.Block(blockHash)
-		// direct:
-		//block, blockHash, err := rpcutils.GetBlock(ib, client)
-
-		// Winning tickets from StakeDatabase, which just connected the block,
-		// as signaled via the waitChan.
-		tpi, ok := pgb.stakeDB.PoolInfo(*blockHash)
-		if !ok {
-			return ib - 1, fmt.Errorf("stakeDB.PoolInfo could not locate block %s", blockHash.String())
-		}
-		winners := tpi.Winners
+		stakeDBHeight = int64(pgb.stakeDB.Height()) // i
+		blockHash := block.Hash()
 
 		// Get the chainwork
 		chainWork, err := client.GetChainWork(blockHash)
@@ -417,8 +431,8 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		// updateExisting is ignored if dupCheck=false, but set it to true since
 		// SyncChainDB is processing main chain blocks.
 		updateExisting := true
-		numVins, numVouts, numAddresses, err := pgb.StoreBlock(block.MsgBlock(), winners, isValid,
-			isMainchain, updateExisting, !updateAllAddresses, true, chainWork)
+		numVins, numVouts, numAddresses, err := pgb.StoreBlock(block.MsgBlock(),
+			isValid, isMainchain, updateExisting, !updateAllAddresses, true, chainWork)
 		if err != nil {
 			return ib - 1, fmt.Errorf("StoreBlock failed: %v", err)
 		}
@@ -564,4 +578,41 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		nodeHeight, nodeHeight-startHeight+1, totalTxs, totalVins, totalVouts, totalAddresses)
 
 	return nodeHeight, err
+}
+
+func parseUnknownTicketError(err error) (hash *chainhash.Hash) {
+	// Look for the dreaded ticket database error.
+	re := regexp.MustCompile(`unknown ticket (\w*) spent in block`)
+	matches := re.FindStringSubmatch(err.Error())
+	var unknownTicket string
+	if len(matches) <= 1 {
+		// Unable to parse the error as unknown ticket message.
+		return
+	}
+	unknownTicket = matches[1]
+	ticketHash, err1 := chainhash.NewHashFromStr(unknownTicket)
+	if err1 != nil {
+		return
+	}
+	return ticketHash
+}
+
+// supplementUnknownTicketError checks the passed error for the "unknown ticket
+// [hash] spent in block" message, and supplements matching errors with the
+// block height of the ticket and switches to help recovery.
+func (pgb *ChainDB) supplementUnknownTicketError(err error) error {
+	ticketHash := parseUnknownTicketError(err)
+	if ticketHash == nil {
+		return err
+	}
+	txraw, err1 := pgb.Client.GetRawTransactionVerbose(ticketHash)
+	if err1 != nil {
+		return err
+	}
+	badTxBlock := txraw.BlockHeight
+	sDBHeight := int64(pgb.stakeDB.Height())
+	numToPurge := sDBHeight - badTxBlock + 1
+	return fmt.Errorf("%v\n\t**** Unknown ticket was mined in block %d. "+
+		"Try \"--purge-n-blocks=%d to recover. ****",
+		err, badTxBlock, numToPurge)
 }

@@ -7,7 +7,6 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrdata/db/dcrpg/v4"
-	"github.com/decred/dcrdata/db/dcrsqlite/v4"
 	"github.com/decred/dcrdata/explorer/types/v2"
 )
 
@@ -15,23 +14,22 @@ const (
 	viewsPath = "../views"
 )
 
-// WiredDBStub satisfies explorerDataSourceLite, but will likely panic with a
-// nil pointer dereference for methods we do not explicitly define for
-// WiredDBStub for these tests.
-type WiredDBStub struct {
-	// Embedding *dcrsqlite.WiredDB promotes all of the methods needed for
-	// WireDBStub to satisfy the explorerDataSourceLite interface. This allows
-	// us to only implement for WiredDBStub the methods required for the tests.
-	*dcrsqlite.WiredDB
+// ChainDBStub satisfies explorerDataSource, but will likely panic with a nil
+// pointer dereference for methods we do not explicitly define here.
+type ChainDBStub struct {
+	// Embedding *dcrpg.ChainDB promotes all of the methods needed for
+	// WireDBStub to satisfy the explorerDataSource interface. This allows us to
+	// only implement for ChainDBStub the methods required for the tests.
+	*dcrpg.ChainDB
 }
 
 // GetChainParams is needed by explorer.New.
-func (ws *WiredDBStub) GetChainParams() *chaincfg.Params {
+func (ws *ChainDBStub) GetChainParams() *chaincfg.Params {
 	return chaincfg.MainNetParams()
 }
 
 // GetTip is required to populate a CommonPageData for the explorer.
-func (ws *WiredDBStub) GetTip() (*types.WebBasicBlock, error) {
+func (ws *ChainDBStub) GetTip() (*types.WebBasicBlock, error) {
 	return &types.WebBasicBlock{
 		Hash:       "00000000000000001cf26099864194b77b860fa11241baf9f39aad436d43c7a6",
 		Height:     295566,
@@ -52,36 +50,25 @@ func (ws *WiredDBStub) GetTip() (*types.WebBasicBlock, error) {
 	}, nil
 }
 
-// ChainDBStub satisfies explorerDataSource, but will likely panic with a nil
-// pointer dereference for methods we do not explicitly define here.
-type ChainDBStub struct {
-	// Embedding *dcrpg.ChainDBRPC promotes all of the methods needed for
-	// WireDBStub to satisfy the explorerDataSource interface. This allows us to
-	// only implement for ChainDBStub the methods required for the tests.
-	*dcrpg.ChainDBRPC
-}
-
 func TestStatusPageResponseCodes(t *testing.T) {
 	// req := httptest.NewRequest("GET", "/", nil)
 	rr := httptest.NewRecorder()
 
-	var wiredDBStub WiredDBStub
 	var chainDBStub ChainDBStub
 
 	exp := New(&ExplorerConfig{
-		DataSource:        &wiredDBStub,
-		PrimaryDataSource: &chainDBStub,
-		UseRealIP:         false,
-		AppVersion:        "test",
-		DevPrefetch:       false,
-		Viewsfolder:       viewsPath,
-		XcBot:             nil,
-		Tracker:           nil,
-		AgendasSource:     nil,
-		ProposalsSource:   nil,
-		PoliteiaURL:       "",
-		MainnetLink:       "/",
-		TestnetLink:       "/",
+		DataSource:      &chainDBStub,
+		UseRealIP:       false,
+		AppVersion:      "test",
+		DevPrefetch:     false,
+		Viewsfolder:     viewsPath,
+		XcBot:           nil,
+		Tracker:         nil,
+		AgendasSource:   nil,
+		ProposalsSource: nil,
+		PoliteiaURL:     "",
+		MainnetLink:     "/",
+		TestnetLink:     "/",
 	})
 
 	// handler := http.HandlerFunc()

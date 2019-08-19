@@ -74,7 +74,7 @@ func openDB() (func() error, error) {
 	}
 	var err error
 	db, err = NewChainDB(&dbi, chaincfg.MainNetParams(), nil, true, true,
-		addrCacheCap, nil, new(dummyParser), nil)
+		addrCacheCap, nil, new(dummyParser), nil, func() {})
 	cleanUp := func() error { return nil }
 	if db != nil {
 		cleanUp = db.Close

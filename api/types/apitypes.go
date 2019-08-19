@@ -579,7 +579,7 @@ type TicketPoolValsAndSizes struct {
 	StartHeight uint32    `json:"start_height"`
 	EndHeight   uint32    `json:"end_height"`
 	Value       []float64 `json:"value"`
-	Size        []float64 `json:"size"`
+	Size        []uint32  `json:"size"`
 }
 
 // BlockDataBasic models primary information about a block.

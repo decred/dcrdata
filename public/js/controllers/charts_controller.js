@@ -488,7 +488,7 @@ export default class extends Controller {
         break
 
       case 'ticket-pool-value': // pool value graph
-        d = zip2D(data, data.poolval)
+        d = zip2D(data, data.poolval, atomsToDCR)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Ticket Pool Value'], true,
           'Ticket Pool Value (DCR)', true, false))
         break
