@@ -6,58 +6,69 @@
 package txhelpers
 
 import (
+	"sync"
+
 	"github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/v2"
 )
 
 // ultimateSubsidies stores ultimate subsidy values computed by UltimateSubsidy.
-var ultimateSubsidies = map[*chaincfg.Params]int64{}
+var ultimateSubsidies sync.Map
 
 // UltimateSubsidy computes the total subsidy over the entire subsidy
 // distribution period of the network.
 func UltimateSubsidy(params *chaincfg.Params) int64 {
 	// Check previously computed ultimate subsidies.
-	totalSubsidy, ok := ultimateSubsidies[params]
+	result, ok := ultimateSubsidies.Load(params)
 	if ok {
-		return totalSubsidy
+		return result.(int64)
 	}
 
-	subsidyCache := standalone.NewSubsidyCache(params)
+	votesPerBlock := params.VotesPerBlock()
+	stakeValidationHeight := params.StakeValidationBeginHeight()
+	reductionInterval := params.SubsidyReductionIntervalBlocks()
 
-	totalSubsidy = params.BlockOneSubsidy()
+	subsidyCache := standalone.NewSubsidyCache(params)
+	subsidySum := func(height int64) int64 {
+		work := subsidyCache.CalcWorkSubsidy(height, votesPerBlock)
+		vote := subsidyCache.CalcStakeVoteSubsidy(height) * int64(votesPerBlock)
+		treasury := subsidyCache.CalcTreasurySubsidy(height, votesPerBlock)
+		return work + vote + treasury
+	}
+
+	totalSubsidy := params.BlockOneSubsidy()
 	for i := int64(0); ; i++ {
-		// Genesis block or first block.
-		if i <= 1 {
+		// The first interval contains a few special cases:
+		// 1) Block 0 does not produce any subsidy
+		// 2) Block 1 consists of a special initial coin distribution
+		// 3) Votes do not produce subsidy until voting begins
+		if i == 0 {
+			// Account for the block up to the point voting begins ignoring the
+			// first two special blocks.
+			subsidyCalcHeight := int64(2)
+			nonVotingBlocks := stakeValidationHeight - subsidyCalcHeight
+			totalSubsidy += subsidySum(subsidyCalcHeight) * nonVotingBlocks
+
+			// Account for the blocks remaining in the interval once voting
+			// begins.
+			subsidyCalcHeight = stakeValidationHeight
+			votingBlocks := reductionInterval - subsidyCalcHeight
+			totalSubsidy += subsidySum(subsidyCalcHeight) * votingBlocks
 			continue
 		}
 
-		if i%params.SubsidyReductionInterval == 0 {
-			numBlocks := params.SubsidyReductionInterval
-			// First reduction internal, which is reduction interval - 2 to skip
-			// the genesis block and block one.
-			if i == params.SubsidyReductionInterval {
-				numBlocks -= 2
-			}
-			height := i - numBlocks
-
-			work := subsidyCache.CalcWorkSubsidy(height, params.TicketsPerBlock)
-			stake := subsidyCache.CalcStakeVoteSubsidy(height) * int64(params.TicketsPerBlock)
-			tax := subsidyCache.CalcTreasurySubsidy(height, params.TicketsPerBlock)
-			if (work + stake + tax) == 0 {
-				break // all done
-			}
-			totalSubsidy += ((work + stake + tax) * numBlocks)
-
-			// First reduction internal -- subtract the stake subsidy for blocks
-			// before the staking system is enabled.
-			if i == params.SubsidyReductionInterval {
-				totalSubsidy -= stake * (params.StakeValidationHeight - 2)
-			}
+		// Account for the all other reduction intervals until all subsidy has
+		// been produced.
+		subsidyCalcHeight := i * reductionInterval
+		sum := subsidySum(subsidyCalcHeight)
+		if sum == 0 {
+			break
 		}
+		totalSubsidy += sum * reductionInterval
 	}
 
 	// Update the ultimate subsidy store.
-	ultimateSubsidies[params] = totalSubsidy
+	ultimateSubsidies.Store(params, totalSubsidy)
 
 	return totalSubsidy
 }
