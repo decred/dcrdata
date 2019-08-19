@@ -97,6 +97,22 @@
   content: "\e910";
 }
 
+.dcricon-arrow-right {
+  transform: rotate(90deg);
+}
+
+.dcricon-arrow-right::before {
+  content: "\e911";
+}
+
+.dcricon-arrow-left {
+  transform: rotate(-90deg);
+}
+
+.dcricon-arrow-left::before {
+  content: "\e911";
+}
+
 .dcricon-discussion::before {
   content: "\e912";
 }

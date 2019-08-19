@@ -8,11 +8,10 @@
 
 .top-nav {
   width: 100%;
-  height: 45px;
+  height: 60px;
   top: 0;
   background: #fff;
   border-bottom: 1px solid #00000017;
-  padding: 0.3em 0;
 }
 
 .navbar-fixed-bottom {
@@ -34,18 +33,34 @@
   color: #052f4b;
 }
 
-.navbar-fixed-bottom a,
+.navbar-fixed-bottom a {
+  color: inherit;
+}
+
+ul.pages > li > a {
+  display: block;
+  height: 24px;
+  text-decoration: none;
+  line-height: 24px;
+  padding: 0 8px;
+  border-right: 2px solid #f3f5f6;
+}
+
 .navbar-fixed-bottom a:visited {
   color: inherit;
 }
 
+ul.pages > li:last-child > a {
+  border: none;
+}
+
 .home-link {
-  padding: 2px 1px;
+  min-width: 35px;
 }
 
 .dcrdata-logo {
-  width: 110px;
-  height: 24px;
+  width: 143px;
+  height: 30px;
   background-image: url(/images/themes/light/logo.svg);
   background-repeat: no-repeat;
   display: block;
@@ -55,15 +70,22 @@
 .search-form {
   display: block;
   padding: 0 35px 0 0;
+  margin: 0 20px;
   text-align: center;
   position: relative;
-  max-width: 600px;
-  margin: 2px 0 2px auto;
+  max-width: 550px;
+  height: 35px;
   border-width: 1px;
-  border-color: transparent transparent #ccc transparent;
-  border-style: solid;
+  border: 2px solid #d1d8dd;
+  color: #d1d8dd;
+  border-radius: 6px;
   overflow: hidden;
   transition: all 0.2s;
+  flex-basis: 100%;
+}
+
+.search-form input::placeholder {
+  color: #8997a5;
 }
 
 .search-bttn {
@@ -75,13 +97,13 @@
   top: 0;
   bottom: 0;
   border-style: none none none solid;
-  border-width: 1px;
+  border-width: 2px;
   border-color: transparent;
   background-color: transparent;
   width: 35px;
   cursor: pointer;
-  transition: all 0.2s;
   box-shadow: none;
+  color: inherit;
 }
 
 .search-bttn:hover {
@@ -91,8 +113,68 @@
 
 .search-form:focus-within {
   border-color: #aaa;
+  color: inherit;
   // box-shadow: 0 0 5px #63b9ff;
   // outline: 1px solid #bfdeff;
+}
+
+.blocks-selector {
+  position: absolute;
+  bottom: 0;
+  height: 4px;
+  width: 100%;
+}
+
+.blocks-selector.active {
+  background-color: #ffd16a;
+}
+
+select.dropdown {
+  border: none;
+  font-size: 14px;
+  height: 24px;
+  padding: 0 5px;
+  border-radius: 5px;
+  background-color: white;
+}
+
+ul.pages {
+  display: flex;
+  list-style: none;
+  flex-direction: row;
+  border: none;
+  font-size: 14px;
+  height: 24px;
+  border-radius: 5px;
+  padding: 0;
+  overflow: hidden;
+  background-color: white;
+}
+
+ul.pages > li {
+  height: 24px;
+  position: relative;
+  display: block;
+}
+
+ul.pages > li:hover {
+  background-color: #e9f8fe;
+}
+
+a.pager {
+  display: inline-block;
+  color: #3d5873;
+}
+
+a.pager.active {
+  color: #2970ff;
+  background-color: #e6eaed;
+}
+
+a.pager:hover {
+  text-decoration: none;
+  color: #2970ff;
+  background-color: #e9f8fe;
 }
 
 body.darkBG .search-bttn {
@@ -105,7 +187,7 @@ body.darkBG .search-bttn {
 
 body.darkBG {
   .search-form {
-    border-color: transparent transparent #777 transparent;
+    border-color: #777;
   }
 
   .search-bttn:hover {
@@ -117,13 +199,35 @@ body.darkBG {
   .search-form:focus-within > .search-bttn {
     border-color: #999;
   }
+
+  ul.pages > li > a {
+    border-right: 2px solid #3b3f45;
+  }
+
+  select.dropdown,
+  ul.pages {
+    background-color: #2f3338;
+  }
+
+  ul.pages > li:hover {
+    background-color: black;
+  }
+
+  a.pager.active {
+    color: #4a92ff;
+    background-color: black;
+  }
+
+  a.pager:hover {
+    background-color: black;
+  }
 }
 
 .top-search {
   border: none;
-  line-height: 15px;
+  line-height: 32px;
   width: 100%;
-  padding: 4px 10px;
+  padding: 0 10px;
   font-size: 15px;
   background-color: transparent;
 }
@@ -141,8 +245,7 @@ body.darkBG {
   position: absolute;
   width: 273px;
   margin: -42px 0 0 -243px;
-  padding: 20px 0;
-  padding-top: 50px;
+  padding: 10px 0;
   background: #fff;
   list-style-type: none;
   -webkit-font-smoothing: antialiased;
@@ -221,11 +324,10 @@ body.darkBG {
 #menuToggle .patty {
   display: block;
   width: 20px;
-  height: 2px;
-  top: 2px;
-  margin: 0 5px 4px;
+  height: 3px;
+  margin: 4px 0 4px;
   position: relative;
-  background: #052f4b;
+  background-color: #091440;
   border-radius: 3px;
   z-index: 1;
   transform-origin: top right;
@@ -251,7 +353,7 @@ body.darkBG {
 #menuToggle input:checked ~ .patty {
   opacity: 1;
   background: #232323;
-  transform: rotate(-45deg) translate(0, -2px)  scale(1.1, 1.1);
+  transform: rotate(-45deg) translate(0, -2px)  scale(1.25, 1.25);
 }
 
 #menuToggle input:checked ~ .patty.short {
@@ -263,7 +365,7 @@ body.darkBG {
 }
 
 #menuToggle input:checked ~ .patty:nth-last-child(2) {
-  transform: rotate(45deg) translate(2px, 1px) scale(1.1, 1.1);
+  transform: rotate(45deg) translate(2px, 1px) scale(1.25, 1.25);
 }
 
 @-webkit-keyframes autofill {

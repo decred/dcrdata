@@ -76,7 +76,7 @@ body.darkBG {
   }
 
   table thead tr {
-    background: #2d2d2d;
+    background-color: #2d2d2d;
   }
 
   table tr.disabled-row {
@@ -90,6 +90,11 @@ body.darkBG {
       color: #fdfdfd; // Set this explicitly to prevent bootstrap > 4.3.1 override
       border-bottom: 1px solid #2d2d2d;
     }
+  }
+
+  table.v3 thead tr {
+    background-color: inherit;
+    color: #c1c1c1;
   }
 
   .top-nav,
@@ -157,9 +162,9 @@ body.darkBG {
 
   select,
   input[type=number] {
-    color: #fff !important;
-    background: #2a2a2a !important;
-    border-color: #191919 !important;
+    color: #fff;
+    background: #2a2a2a;
+    border-color: #191919;
   }
 
   .nav-pills .nav-link.active {
@@ -188,7 +193,18 @@ body.darkBG {
     color: #2eefa1;
   }
 
-  .text-abandoned {
+  .text-abandoned,
+  .text-blueish {
     color: #c4cbd2;
+  }
+
+  .unstyled-link,
+  .unstyled-link:hover,
+  .unstyled-link:visited {
+    color: #fff;
+  }
+
+  .block-banner .text-secondary:hover {
+    color: #fff !important;
   }
 }

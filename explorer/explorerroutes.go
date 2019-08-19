@@ -374,7 +374,7 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 	}
 
 	rows, err := strconv.ParseUint(r.URL.Query().Get("rows"), 10, 64)
-	if err != nil || (rows < minExplorerRows && rows == 0) {
+	if err != nil || rows < 1 {
 		rows = minExplorerRows
 	}
 
@@ -394,6 +394,8 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	linkTemplate := "/ticketpricewindows?offset=%d&rows=" + strconv.Itoa(int(rows))
+
 	str, err := exp.templates.exec("windows", struct {
 		*CommonPageData
 		Data         []*dbtypes.BlocksGroupedInfo
@@ -401,6 +403,8 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 		BestWindow   int64
 		OffsetWindow int64
 		Limit        int64
+		TimeGrouping string
+		Pages        pageNumbers
 	}{
 		CommonPageData: exp.commonData(r),
 		Data:           windows,
@@ -408,6 +412,8 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 		BestWindow:     int64(bestWindow),
 		OffsetWindow:   int64(offsetWindow),
 		Limit:          int64(rows),
+		TimeGrouping:   "Windows",
+		Pages:          calcPages(int(bestWindow), int(rows), int(offsetWindow), linkTemplate),
 	})
 
 	if err != nil {
@@ -471,7 +477,7 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 	}
 
 	rows, err := strconv.ParseUint(r.URL.Query().Get("rows"), 10, 64)
-	if err != nil || (rows < minExplorerRows && rows == 0) {
+	if err != nil || rows < 1 {
 		rows = minExplorerRows
 	}
 
@@ -497,6 +503,8 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 		data[0].FormattedStartTime = fmt.Sprintf("%s YTD", time.Now().Format("2006"))
 	}
 
+	linkTemplate := "/" + strings.ToLower(val) + "?offset=%d&rows=" + strconv.Itoa(int(rows))
+
 	str, err := exp.templates.exec("timelisting", struct {
 		*CommonPageData
 		Data         []*dbtypes.BlocksGroupedInfo
@@ -504,6 +512,7 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 		Offset       int64
 		Limit        int64
 		BestGrouping int64
+		Pages        pageNumbers
 	}{
 		CommonPageData: exp.commonData(r),
 		Data:           data,
@@ -511,6 +520,7 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 		Offset:         int64(offset),
 		Limit:          int64(rows),
 		BestGrouping:   maxOffset,
+		Pages:          calcPages(int(maxOffset), int(rows), int(offset), linkTemplate),
 	})
 
 	if err != nil {
@@ -540,7 +550,7 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := strconv.Atoi(r.URL.Query().Get("rows"))
-	if err != nil || (rows < minExplorerRows && rows == 0) {
+	if err != nil || rows < 1 {
 		rows = minExplorerRows
 	}
 
@@ -574,18 +584,24 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 		s.MainChain = blockStatus.IsMainchain
 	}
 
+	linkTemplate := "/blocks?height=%d&rows=" + strconv.Itoa(rows)
+
 	str, err := exp.templates.exec("explorer", struct {
 		*CommonPageData
-		Data       []*types.BlockBasic
-		BestBlock  int64
-		Rows       int64
-		WindowSize int64
+		Data         []*types.BlockBasic
+		BestBlock    int64
+		Rows         int64
+		WindowSize   int64
+		TimeGrouping string
+		Pages        pageNumbers
 	}{
 		CommonPageData: exp.commonData(r),
 		Data:           summaries,
 		BestBlock:      bestBlockHeight,
 		Rows:           int64(rows),
 		WindowSize:     exp.ChainParams.StakeDiffWindowSize,
+		TimeGrouping:   "Blocks",
+		Pages:          calcPagesDesc(int(bestBlockHeight), rows, height, linkTemplate),
 	})
 
 	if err != nil {
@@ -2083,4 +2099,120 @@ func (exp *explorerUI) commonData(r *http.Request) *CommonPageData {
 		},
 		RequestURI: r.URL.RequestURI(),
 	}
+}
+
+// A page number has the information necessary to create numbered pagination
+// links.
+type pageNumber struct {
+	Active bool
+	Link   string
+	Str    string
+}
+
+func makePageNumber(active bool, link, str string) pageNumber {
+	return pageNumber{
+		Active: active,
+		Link:   link,
+		Str:    str,
+	}
+}
+
+type pageNumbers []pageNumber
+
+const ellipsisHTML = "…"
+
+// Get a set of pagination numbers, based on a set number of rows that are
+// assumed to start from page 1 at the highest row and descend from there.
+// For example, if there are 20 pages of 10 rows, 0 - 199, page 1 would start at
+// row 199 and go down to row 190. If the offset is between 190 and 199, the
+// pagination would return the pageNumbers  necessary to create a pagination
+// That looks like 1 2 3 4 5 6 7 8 ... 20. The pageNumber includes a link with
+// the offset inserted using Sprintf.
+func calcPagesDesc(rows, pageSize, offset int, link string) pageNumbers {
+	nums := make(pageNumbers, 0, 11)
+	endIdx := rows / pageSize
+	if endIdx == 0 {
+		return nums
+	}
+	pages := endIdx + 1
+	currentPageIdx := (rows - offset) / pageSize
+	if pages > 10 {
+		nums = append(nums, makePageNumber(currentPageIdx == 0, fmt.Sprintf(link, rows), "1"))
+		start := currentPageIdx - 3
+		endMiddle := start + 6
+		if start <= 1 {
+			start = 1
+			endMiddle = 7
+		} else if endMiddle >= endIdx-1 {
+			endMiddle = endIdx - 1
+			start = endMiddle - 6
+		}
+		if start > 1 {
+			nums = append(nums, makePageNumber(false, "", ellipsisHTML))
+		}
+		for i := start; i <= endMiddle; i++ {
+			nums = append(nums, makePageNumber(i == currentPageIdx, fmt.Sprintf(link, rows-i*pageSize), strconv.Itoa(i+1)))
+		}
+		if endMiddle < endIdx-1 {
+			nums = append(nums, makePageNumber(false, "", ellipsisHTML))
+		}
+		if pages > 1 {
+			nums = append(nums, makePageNumber(currentPageIdx == endIdx, fmt.Sprintf(link, rows-endIdx*pageSize), strconv.Itoa(pages)))
+		}
+	} else {
+		for i := 0; i < pages; i++ {
+			nums = append(nums, makePageNumber(i == currentPageIdx, fmt.Sprintf(link, rows-i*pageSize), strconv.Itoa(i+1)))
+		}
+	}
+
+	return nums
+}
+
+// Get a set of pagination numbers, based on a set number of rows that are
+// assumed to start from page 1 at the lowest row and ascend from there.
+// For example, if there are 20 pages of 10 rows, 0 - 199, page 1 would start at
+// row 0 and go up to row 9. If the offset is between 0 and 9, the
+// pagination would return the pageNumbers  necessary to create a pagination
+// That looks like 1 2 3 4 5 6 7 8 ... 20. The pageNumber includes a link with
+// the offset inserted using Sprintf.
+func calcPages(rows, pageSize, offset int, link string) pageNumbers {
+	nums := make(pageNumbers, 0, 11)
+	endIdx := rows / pageSize
+	if endIdx == 0 {
+		return nums
+	}
+	pages := endIdx + 1
+	currentPageIdx := offset / pageSize
+
+	if pages > 10 {
+		nums = append(nums, makePageNumber(currentPageIdx == 0, fmt.Sprintf(link, 0), "1"))
+		start := currentPageIdx - 3
+		endMiddle := start + 6
+		if start <= 1 {
+			start = 1
+			endMiddle = 7
+		} else if endMiddle >= endIdx-1 {
+			endMiddle = endIdx - 1
+			start = endMiddle - 6
+		}
+		if start > 1 {
+			nums = append(nums, makePageNumber(false, "", ellipsisHTML))
+		}
+
+		for i := start; i <= endMiddle; i++ {
+			nums = append(nums, makePageNumber(i == currentPageIdx, fmt.Sprintf(link, i*pageSize), strconv.Itoa(i+1)))
+		}
+		if endMiddle < endIdx-1 {
+			nums = append(nums, makePageNumber(false, "", ellipsisHTML))
+		}
+		if pages > 1 {
+			nums = append(nums, makePageNumber(currentPageIdx == endIdx, fmt.Sprintf(link, endIdx*pageSize), strconv.Itoa(pages)))
+		}
+	} else {
+		for i := 0; i < pages; i++ {
+			nums = append(nums, makePageNumber(i == currentPageIdx, fmt.Sprintf(link, i*pageSize), strconv.Itoa(i+1)))
+		}
+	}
+
+	return nums
 }

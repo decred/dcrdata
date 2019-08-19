@@ -128,9 +128,9 @@ const (
 		MIN(time) AS time,
 		COUNT(*) AS blocks_count
 		FROM blocks
+		WHERE height BETWEEN $2 AND $3
 		GROUP BY window_start
-		ORDER BY window_start DESC
-		LIMIT $2 OFFSET $3;`
+		ORDER BY window_start DESC;`
 
 	SelectBlocksTimeListingByLimit = `SELECT date_trunc($1, time) as index_value,
 		MAX(height),
