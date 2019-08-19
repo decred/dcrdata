@@ -20,9 +20,8 @@ import (
 	"sync"
 
 	"github.com/decred/base58"
-	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/blockchain/stake/v2"
-	cfg1 "github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrutil/v2"
@@ -89,22 +88,6 @@ const (
 	TxInserted
 	// removed? invalidated?
 )
-
-func ParamsV2ToV1(p *chaincfg.Params) *cfg1.Params {
-	switch p.Net {
-	case wire.MainNet:
-		return &cfg1.MainNetParams
-	case wire.TestNet3:
-		return &cfg1.TestNet3Params
-	case wire.SimNet:
-		return &cfg1.SimNetParams
-	case wire.RegNet:
-		return &cfg1.RegNetParams
-	default:
-		fmt.Println("Unknown network:", p.Net.String())
-		return nil
-	}
-}
 
 // HashInSlice determines if a hash exists in a slice of hashes.
 func HashInSlice(h chainhash.Hash, list []chainhash.Hash) bool {
@@ -741,8 +724,8 @@ func GetDifficultyRatio(bits uint32, params *chaincfg.Params) float64 {
 	// converted back to a number.  Note this is not the same as the proof of
 	// work limit directly because the block difficulty is encoded in a block
 	// with the compact form which loses precision.
-	max := blockchain.CompactToBig(params.PowLimitBits)
-	target := blockchain.CompactToBig(bits)
+	max := standalone.CompactToBig(params.PowLimitBits)
+	target := standalone.CompactToBig(bits)
 
 	difficulty := new(big.Rat).SetFrac(max, target)
 	outString := difficulty.FloatString(8)
