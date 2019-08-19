@@ -102,6 +102,8 @@ github.com/decred/dcrdata/testutil/dbconfig/v2 v2.0.0 h1:3VDeqqb4RNDAYCPwe+yhe8W
 github.com/decred/dcrdata/testutil/dbconfig/v2 v2.0.0/go.mod h1:R3AhuzSGbXK5YG6fst5njhUzDsCtju1+cbAqXsmi11s=
 github.com/decred/dcrdata/txhelpers/v3 v3.0.4 h1:kjvzHU6Tf4//7FJVn+BuwGHskjjrRt4Ps88104Y1vbA=
 github.com/decred/dcrdata/txhelpers/v3 v3.0.4/go.mod h1:tKEDhoO+TbYrFrx+5qKZDxcla8ELQFYs4f5+8gL4cuY=
+github.com/decred/dcrdata/txhelpers/v3 v3.0.5 h1:UhzuJgw9cPIC8h2HUnFXQhIZVWlseumFnoiKYbvZxKE=
+github.com/decred/dcrdata/txhelpers/v3 v3.0.5/go.mod h1:tKEDhoO+TbYrFrx+5qKZDxcla8ELQFYs4f5+8gL4cuY=
 github.com/decred/dcrwallet/rpc/jsonrpc/types v1.1.0 h1:ZOMpbSK/Cz8D8Yfrt7/yNfS+myBUWMNOdgAg31ND7bM=
 github.com/decred/dcrwallet/rpc/jsonrpc/types v1.1.0/go.mod h1:xUT7XXATLOzE0pwwmvgfRWtZdrB+PsWFilo+jkH5/Ig=
 github.com/decred/go-socks v1.0.0 h1:gd5+vE9LmL+FYiN5cxAMtaAVb791mG8E/+Jo411M/BE=
