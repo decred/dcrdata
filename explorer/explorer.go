@@ -603,7 +603,7 @@ func (exp *explorerUI) addRoutes() {
 	exp.Mux.Use(middleware.Logger)
 	exp.Mux.Use(middleware.Recoverer)
 	corsMW := cors.Default()
-	corsMW.Log = loggerFunc(log.Infof)
+	corsMW.Log = loggerFunc(log.Tracef)
 	exp.Mux.Use(corsMW.Handler)
 
 	redirect := func(url string) http.HandlerFunc {

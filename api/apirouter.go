@@ -299,7 +299,7 @@ func stackedMux(useRealIP bool) *chi.Mux {
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer)
 	corsMW := cors.Default()
-	corsMW.Log = loggerFunc(apiLog.Infof)
+	corsMW.Log = loggerFunc(apiLog.Tracef)
 	mux.Use(corsMW.Handler)
 	return mux
 }
