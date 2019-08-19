@@ -187,8 +187,8 @@ github.com/decred/dcrdata/db/dbtypes/v2 v2.1.4 h1:lnCc08oLwhd7hfZlc0hMIjVqtHrr11
 github.com/decred/dcrdata/db/dbtypes/v2 v2.1.4/go.mod h1:UF4KWxcCYhdXqaTwbA2Mb10os4H0UFSZaiu5eeMWQT8=
 github.com/decred/dcrdata/db/dcrpg/v4 v4.0.5 h1:76GPPIvO3kAxM8+g+v6MCdj7FwcicCY7VXjz45V1qic=
 github.com/decred/dcrdata/db/dcrpg/v4 v4.0.5/go.mod h1:tXiibGOh+3D0TMBNjczWXgZBaQxB2Ak9kQvTEEBaBxc=
-github.com/decred/dcrdata/db/dcrsqlite/v4 v4.0.6 h1:2h4nCfDEk/ixXgWMb/wQ8eG/oXIw4i4uT6Q+0rujYlE=
-github.com/decred/dcrdata/db/dcrsqlite/v4 v4.0.6/go.mod h1:6IYbu4fYigD3bFtLFfCOYpFkAtYdyDQqArgJeCAhGy8=
+github.com/decred/dcrdata/db/dcrsqlite/v4 v4.0.7 h1:Za/Li6pp3zy9zyyJDKnUdLCyGd7Sgphb9lELGORCJmI=
+github.com/decred/dcrdata/db/dcrsqlite/v4 v4.0.7/go.mod h1:dvx2aaDiC30bW13iIbtmJIpXMcIG22l3MdvOaJIVVmM=
 github.com/decred/dcrdata/dcrrates v1.1.0/go.mod h1:0YiDI6OS9kpVdkpLlFVo0+EvCLf6U+QY24wrJGf40xg=
 github.com/decred/dcrdata/dcrrates v1.1.2 h1:Ty06Y7D3upFvZLKgJ3RQJW2ETGK5iBAg3W+JIbje+/8=
 github.com/decred/dcrdata/dcrrates v1.1.2/go.mod h1:vD6eXSu5+v40DTCH/KIsw7h1BGqugO3U3DOeRyAyMrs=
@@ -230,6 +230,8 @@ github.com/decred/dcrdata/txhelpers/v2 v2.0.0 h1:X93e5mH+FhkQ45VroSEAUrb4eNM9KIJ
 github.com/decred/dcrdata/txhelpers/v2 v2.0.0/go.mod h1:u8uiIpoUlcuZSSeOu8geJhz5TxN49PSwuYcuqP7anwA=
 github.com/decred/dcrdata/txhelpers/v3 v3.0.4 h1:kjvzHU6Tf4//7FJVn+BuwGHskjjrRt4Ps88104Y1vbA=
 github.com/decred/dcrdata/txhelpers/v3 v3.0.4/go.mod h1:tKEDhoO+TbYrFrx+5qKZDxcla8ELQFYs4f5+8gL4cuY=
+github.com/decred/dcrdata/txhelpers/v3 v3.0.5 h1:UhzuJgw9cPIC8h2HUnFXQhIZVWlseumFnoiKYbvZxKE=
+github.com/decred/dcrdata/txhelpers/v3 v3.0.5/go.mod h1:tKEDhoO+TbYrFrx+5qKZDxcla8ELQFYs4f5+8gL4cuY=
 github.com/decred/dcrtime v0.0.0-20180808181920-4c91c4cbed09/go.mod h1:ix2x3x3d4LivVPyh1l+ZVNjxuycrXyGZolnuVqVfywY=
 github.com/decred/dcrwallet v1.2.3-0.20190128160919-849f7c01c12d h1:29CvbLfATHA5XDxr6w4Z3hYx/tqM+tgnj63LJhUVCCU=
 github.com/decred/dcrwallet v1.2.3-0.20190128160919-849f7c01c12d/go.mod h1:jtNUWAO6lg2t2UHOlT9fmjuxD8os9JMljZNEXaw95Tg=

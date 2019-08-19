@@ -17,7 +17,7 @@ require (
 	github.com/decred/dcrdata/db/cache/v2 v2.2.4
 	github.com/decred/dcrdata/db/dbtypes/v2 v2.1.4
 	github.com/decred/dcrdata/db/dcrpg/v4 v4.0.5
-	github.com/decred/dcrdata/db/dcrsqlite/v4 v4.0.6
+	github.com/decred/dcrdata/db/dcrsqlite/v4 v4.0.7
 	github.com/decred/dcrdata/exchanges/v2 v2.0.3
 	github.com/decred/dcrdata/explorer/types/v2 v2.0.4
 	github.com/decred/dcrdata/gov/v2 v2.0.4
@@ -28,7 +28,7 @@ require (
 	github.com/decred/dcrdata/rpcutils/v2 v2.0.5
 	github.com/decred/dcrdata/semver v1.0.0
 	github.com/decred/dcrdata/stakedb/v3 v3.0.5
-	github.com/decred/dcrdata/txhelpers/v3 v3.0.4
+	github.com/decred/dcrdata/txhelpers/v3 v3.0.5
 	github.com/decred/slog v1.0.0
 	github.com/didip/tollbooth v4.0.1-0.20180415195142-b10a036da5f0+incompatible
 	github.com/didip/tollbooth_chi v0.0.0-20170928041846-6ab5f3083f3d
