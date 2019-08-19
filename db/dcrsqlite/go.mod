@@ -15,7 +15,7 @@ require (
 	github.com/decred/dcrdata/db/cache/v2 v2.2.4
 	github.com/decred/dcrdata/db/dbtypes/v2 v2.1.4
 	github.com/decred/dcrdata/explorer/types/v2 v2.0.4
-	github.com/decred/dcrdata/mempool/v4 v4.0.6
+	github.com/decred/dcrdata/mempool/v4 v4.0.7
 	github.com/decred/dcrdata/rpcutils/v2 v2.0.5
 	github.com/decred/dcrdata/stakedb/v3 v3.0.5
 	github.com/decred/dcrdata/testutil/dbconfig/v2 v2.0.0
