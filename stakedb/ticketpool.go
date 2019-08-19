@@ -603,7 +603,7 @@ func (tp *TicketPool) AdvanceToTip() (int64, error) {
 	tp.mtx.Lock()
 	defer tp.mtx.Unlock()
 	err := tp.advanceTo(tp.tip)
-	return tp.cursor - 1, err
+	return tp.cursor, err
 }
 
 // retreat applies the previous diff in reverse, moving the pool map to the
