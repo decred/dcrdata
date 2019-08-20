@@ -76,24 +76,45 @@ table th.addr-hash-column {
   width: 20em;
 }
 
-table.table.v3 {
-  margin-bottom: 0;
+table.table.v3small {
+  th {
+    font-size: 14px;
+  }
 
+  td {
+    font-size: 15px;
+  }
+}
+
+table.table.v3 {
   tr,
   th,
   td {
     padding: 18px 0.5em;
-    font-family: $font-family-sans-serif;
   }
 
   th {
     font-size: 15px;
-    color: #555;
     padding: 20px 0;
   }
 
   td {
     font-size: 17px;
+  }
+}
+
+table.table.v3,
+table.table.v3small {
+  margin-bottom: 0;
+
+  tr,
+  th,
+  td {
+    font-family: $font-family-sans-serif;
+  }
+
+  th {
+    color: #555;
   }
 
   tr:last-child,
