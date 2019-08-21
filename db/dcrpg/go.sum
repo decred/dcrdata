@@ -40,6 +40,8 @@ github.com/decred/dcrd/blockchain/stake v1.1.0 h1:kCxZdQ2/UfcD+XjE3wlCv0vLKWR9ZF
 github.com/decred/dcrd/blockchain/stake v1.1.0/go.mod h1:WRuaml4bcyZYza1NT3qizlLcQwMIcAQRENvZVb2t884=
 github.com/decred/dcrd/blockchain/stake/v2 v2.0.0 h1:+FMrSt5tPicBKlev0k/r/2VsaVwpIUcm1TPw69XgZw0=
 github.com/decred/dcrd/blockchain/stake/v2 v2.0.0/go.mod h1:jv/rKMcZ87lhvVkHot/tElxeAYEUJ3mnKPHJ7WPq86U=
+github.com/decred/dcrd/blockchain/stake/v2 v2.0.1 h1:mAPZZA+Or8NPENheejmD6Fl90uykhurVuEdOBUMl35s=
+github.com/decred/dcrd/blockchain/stake/v2 v2.0.1/go.mod h1:jv/rKMcZ87lhvVkHot/tElxeAYEUJ3mnKPHJ7WPq86U=
 github.com/decred/dcrd/chaincfg v1.1.1/go.mod h1:UlGtnp8Xx9YK+etBTybGjoFGoGXSw2bxZQuAnwfKv6I=
 github.com/decred/dcrd/chaincfg v1.2.0/go.mod h1:kpoGTMIriKn5hHRSu5b65+Q9LlGUdbQcMzGujac1BVs=
 github.com/decred/dcrd/chaincfg v1.5.1 h1:u1Xbq0VTnAXIHW5ECqrWe0VYSgf5vWHqpSiwoLBzxAQ=
@@ -50,6 +52,8 @@ github.com/decred/dcrd/chaincfg/v2 v2.0.2 h1:VeGY52lHuYT01tIGbvYj+OO0GaGxGaJmnh+
 github.com/decred/dcrd/chaincfg/v2 v2.0.2/go.mod h1:hpKvhLCDAD/xDZ3V1Pqpv9fIKVYYi11DyxETguazyvg=
 github.com/decred/dcrd/chaincfg/v2 v2.1.0 h1:2S7TL9YWnKDDiH5bTpp3xcBo+1gl1IXFi5KU4QwSIDk=
 github.com/decred/dcrd/chaincfg/v2 v2.1.0/go.mod h1:hpKvhLCDAD/xDZ3V1Pqpv9fIKVYYi11DyxETguazyvg=
+github.com/decred/dcrd/chaincfg/v2 v2.2.0 h1:SBkoqeM9+CkMA1V3i3Ffc4gAC4TqN2EoSRw5kjGkvx4=
+github.com/decred/dcrd/chaincfg/v2 v2.2.0/go.mod h1:hpKvhLCDAD/xDZ3V1Pqpv9fIKVYYi11DyxETguazyvg=
 github.com/decred/dcrd/database v1.0.1/go.mod h1:ILCeyOHFew3fZ7K2B9jl+tp5qFOap/pEGoo6Yy6Wk0g=
 github.com/decred/dcrd/database v1.0.3 h1:e5Q3gDt9LwfvpZxYqFF3OVzgr8bGeC1cen+V3mv/CCw=
 github.com/decred/dcrd/database v1.0.3/go.mod h1:TLxRwIV8x85+dxPTLAWu4mHg45TkKrrza5xzwOS1QtA=
@@ -100,10 +104,6 @@ github.com/decred/dcrdata/api/types/v4 v4.0.2 h1:4UtwD1UswZPN7skRVMLL34mY/Lj+ffN
 github.com/decred/dcrdata/api/types/v4 v4.0.2/go.mod h1:9Jnyp9FLSfhx7jlJSyKJaeOJ/33LAOL+uvE1T0bcOns=
 github.com/decred/dcrdata/blockdata/v4 v4.0.3 h1:hLY9MF4c0iCNbTRf900EoCjPzhLnhBdoVYbAirLu4/I=
 github.com/decred/dcrdata/blockdata/v4 v4.0.3/go.mod h1:uf+SPDVBrT/V8z1NMa8aDUuVWVu/HI9BpLRtNZw9/O4=
-github.com/decred/dcrdata/db/cache/v2 v2.2.2 h1:J6l5P51axrncf1sEmL2/SOKKyFB3gHuEpylodKBvP94=
-github.com/decred/dcrdata/db/cache/v2 v2.2.2/go.mod h1:6kGx2d56hZyfosyXjdmKpicgSVDT+TqP/zoJlrnjqWU=
-github.com/decred/dcrdata/db/dbtypes/v2 v2.1.2 h1:lhfitiIQ6skPgNQbR3dgiZ3BpwH02VDjbqwusPeRM+4=
-github.com/decred/dcrdata/db/dbtypes/v2 v2.1.2/go.mod h1:Gb3NmWxL+3nsy9f7kmnLXwVUmHp0oHtn+WblrKIM3DM=
 github.com/decred/dcrdata/dcrrates v1.1.1 h1:/VIzL9i9EbbIrB3GQBbghUX7IkkWCgzL/MKKOZVWCpo=
 github.com/decred/dcrdata/dcrrates v1.1.1/go.mod h1:r/d8jU/E1rA+hska5xMmkpsyUzMupLGuTxXQ9GhBD7Y=
 github.com/decred/dcrdata/exchanges/v2 v2.0.2 h1:WH86yy0WU/3ZIR+WKZhvyosEABDEJ9Zxx3XN02Nh3XM=
@@ -118,8 +118,6 @@ github.com/decred/dcrdata/rpcutils/v2 v2.0.3 h1:wRWTo5+ARLM74Ct6dlkLVafzog2uAi5n
 github.com/decred/dcrdata/rpcutils/v2 v2.0.3/go.mod h1:bN6Mwdd1udV0/0QJiYOG10ChEao1FFnM5TBeoF43mu8=
 github.com/decred/dcrdata/semver v1.0.0 h1:DBqYU/x+4LqHq/3r4xKdF6xG5ewktG2KDC+g/p3f8mc=
 github.com/decred/dcrdata/semver v1.0.0/go.mod h1:z+nQqiAd9fYkHhBLbejysZ2FPHtgkrErWDgMf+JlZWE=
-github.com/decred/dcrdata/stakedb/v3 v3.0.3 h1:4WHdOpwjHcA7XrYgbjZOEwsCJJJolmGfH8F+RRy3CFI=
-github.com/decred/dcrdata/stakedb/v3 v3.0.3/go.mod h1:8B0QvL/RE5Yl7UyKEcdI6SuaDWFry+w5FFOQDO9DBko=
 github.com/decred/dcrdata/testutil/dbconfig/v2 v2.0.0 h1:3VDeqqb4RNDAYCPwe+yhe8WCl9DCtf2BbtRYxx1n6bo=
 github.com/decred/dcrdata/testutil/dbconfig/v2 v2.0.0/go.mod h1:R3AhuzSGbXK5YG6fst5njhUzDsCtju1+cbAqXsmi11s=
 github.com/decred/dcrdata/txhelpers/v3 v3.0.2 h1:ViaYNSyOR0FjNkUAEBXPyj6eBKWNFC7r2vCfTASaOeU=
@@ -144,6 +142,7 @@ github.com/fsnotify/fsnotify v1.4.7 h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/gogo/googleapis v1.1.0/go.mod h1:gf4bu3Q80BeJ6H1S1vYPm8/ELATdvryBaNFGgqEef3s=
 github.com/gogo/protobuf v1.2.0/go.mod h1:r8qH/GZQm5c6nD/R0oafs1akxWv10x8SbQlK7atdtwQ=
+github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b h1:VKtxabqXZkF25pY9ekfRL6a582T4P37/31XEstQ5p58=
 github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b/go.mod h1:SBH7ygxi8pfUlaOkMMuAQtPIUF8ecWP5IEl/CR7VP2Q=
 github.com/golang/mock v1.1.1/go.mod h1:oTYuIxOrZwtPieC+H1uAHpcLFnEyAGVDL/k47Jfbm0A=
 github.com/golang/protobuf v1.1.0/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
@@ -153,6 +152,7 @@ github.com/golang/protobuf v1.3.1 h1:YF8+flBXS5eO826T4nzqPrxfhQThhXl0YzfuUPu4SBg
 github.com/golang/protobuf v1.3.1/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
 github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db h1:woRePGFeVFfLKN/pOkfl+p/TAqKOfFu+7KPlMVpok/w=
 github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db/go.mod h1:/XxbfmMg8lxefKM7IXC3fBNl/7bRcc72aCRzEWrmP2Q=
+github.com/google/go-cmp v0.2.0 h1:+dTQ8DZQJz0Mb/HjFlkptS1FeQ4cWSnN941F8aEG4SQ=
 github.com/google/go-cmp v0.2.0/go.mod h1:oXzfMopK8JAjlY9xF4vHSVASa0yLyX7SntLO5aqRK0M=
 github.com/gorilla/websocket v1.4.0 h1:WDFjx/TMzVgy9VdMMQi2K2Emtwi2QcUQsztZ/zLaH/Q=
 github.com/gorilla/websocket v1.4.0/go.mod h1:E7qHFY5m1UJ88s3WnNqhKjPHQ0heANvMoAMk2YaljkQ=

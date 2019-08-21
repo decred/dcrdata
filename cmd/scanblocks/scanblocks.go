@@ -8,7 +8,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/decred/dcrd/blockchain"
+	"github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/rpcclient/v4"
@@ -165,8 +165,8 @@ func getDifficultyRatio(bits uint32) float64 {
 	// converted back to a number.  Note this is not the same as the proof of
 	// work limit directly because the block difficulty is encoded in a block
 	// with the compact form which loses precision.
-	max := blockchain.CompactToBig(activeNetParams.PowLimitBits)
-	target := blockchain.CompactToBig(bits)
+	max := standalone.CompactToBig(activeNetParams.PowLimitBits)
+	target := standalone.CompactToBig(bits)
 
 	difficulty := new(big.Rat).SetFrac(max, target)
 	outString := difficulty.FloatString(8)
