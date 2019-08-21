@@ -3,7 +3,7 @@ module github.com/decred/dcrdata/pubsub/v3
 go 1.11
 
 require (
-	github.com/decred/dcrd/chaincfg/v2 v2.1.0
+	github.com/decred/dcrd/chaincfg/v2 v2.2.0
 	github.com/decred/dcrd/dcrutil/v2 v2.0.0
 	github.com/decred/dcrd/rpc/jsonrpc/types v1.0.0
 	github.com/decred/dcrd/txscript/v2 v2.0.0
