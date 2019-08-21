@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/db/dcrpg/chkdcrpg
 
-go 1.11
+go 1.12
 
 replace (
 	github.com/decred/dcrdata/db/dcrpg/v4 => ../

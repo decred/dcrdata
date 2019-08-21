@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/explorer/types/v2
 
-go 1.11
+go 1.12
 
 require (
 	github.com/decred/dcrd/chaincfg/v2 v2.2.0

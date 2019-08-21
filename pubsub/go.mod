@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/pubsub/v3
 
-go 1.11
+go 1.12
 
 require (
 	github.com/decred/dcrd/chaincfg/v2 v2.2.0

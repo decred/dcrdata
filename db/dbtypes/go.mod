@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/db/dbtypes/v2
 
-go 1.11
+go 1.12
 
 require (
 	github.com/decred/dcrd/blockchain/stake/v2 v2.0.1

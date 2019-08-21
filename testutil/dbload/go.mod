@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/testutil/dbload
 
-go 1.11
+go 1.12
 
 require (
 	github.com/decred/dcrdata/testutil/dbconfig/v2 v2.0.0

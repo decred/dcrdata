@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/blockdata/v4
 
-go 1.11
+go 1.12
 
 require (
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.1
