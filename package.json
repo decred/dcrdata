@@ -10,14 +10,14 @@
     "watch": "webpack --watch --config webpack.dev.js",
     "start": "webpack-dev-server --open --config webpack.dev.js",
     "analyze": "webpack --config webpack.analyze.js",
-    "build": "webpack --config webpack.prod.js"
+    "build": "webpack --config webpack.prod.js --progress --colors"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/decred/dcrdata.git"
   },
   "keywords": [],
-  "author": "",
+  "author": "Decred",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/decred/dcrdata/issues"
