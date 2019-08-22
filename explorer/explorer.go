@@ -133,7 +133,6 @@ type links struct {
 	Github          string
 	License         string
 	NetParams       string
-	BtcAddress      string
 	DownloadLink    string
 	// Testnet and below are set via dcrdata config.
 	Testnet       string
@@ -144,13 +143,12 @@ type links struct {
 
 var explorerLinks = &links{
 	CoinbaseComment: "https://github.com/decred/dcrd/blob/2a18beb4d56fe59d614a7309308d84891a0cba96/chaincfg/genesis.go#L17-L53",
-	POSExplanation:  "https://docs.decred.org/faq/proof-of-stake/general/#9-what-is-proof-of-stake-voting",
+	POSExplanation:  "https://docs.decred.org/proof-of-stake/overview/",
 	APIDocs:         "https://github.com/decred/dcrdata#apis",
 	InsightAPIDocs:  "https://github.com/decred/dcrdata/blob/master/api/Insight_API_documentation.md",
 	Github:          "https://github.com/decred/dcrdata",
 	License:         "https://github.com/decred/dcrdata/blob/master/LICENSE",
 	NetParams:       "https://github.com/decred/dcrd/blob/master/chaincfg/params.go",
-	BtcAddress:      "https://live.blockcypher.com/btc/address/",
 	DownloadLink:    "https://decred.org/downloads/",
 }
 
