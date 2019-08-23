@@ -166,7 +166,7 @@
                                                     </span>
                                                 </span>
                                                 <div class="fs12 mt-1 d-none d-sm-block">{{secondsToShortDurationString (multiply $blocksRemaining $.TimePerBlock)}} left
-                                                    <span class="text-black-50">({{printf "%.0f" (percentage (subtract 2016 $blocksRemaining) 2016)}}% completed)</span>
+                                                    <span class="text-black-50">({{printf "%.0f" (floor (percentage (subtract 2016 $blocksRemaining) 2016))}}% completed)</span>
                                                 </div>
                                             {{else if lt $votesTotalPercent (toFloat64 $v.QuorumPercentage)}}
                                                 <span class="text-no-quorum position-relative" data-tooltip="Votes did not attain quorum">

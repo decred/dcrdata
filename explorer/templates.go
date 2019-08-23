@@ -597,5 +597,8 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			}
 			return intStr
 		},
+		"floor": func(x float64) float64 {
+			return math.Floor(x)
+		},
 	}
 }
