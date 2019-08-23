@@ -207,7 +207,7 @@ export default class extends Controller {
   }
 
   connect () {
-    this.handleVisualBlocksBlockUpdate = this._handleVisualBlocksUpdate.bind(this)
+    this.handleVisualBlocksUpdate = this._handleVisualBlocksUpdate.bind(this)
     globalEventBus.on('BLOCK_RECEIVED', this.handleVisualBlocksUpdate)
 
     ws.registerEvtHandler('getmempooltrimmedResp', (event) => {
@@ -234,7 +234,7 @@ export default class extends Controller {
     window.removeEventListener('resize', this.refreshBlocksDisplay)
   }
 
-  _handleVisualBlocksBlockUpdate (newBlock) {
+  _handleVisualBlocksUpdate (newBlock) {
     let block = newBlock.block
     // show only regular tx in block.Transactions, exclude coinbase (reward) transactions
     const transactions = block.Tx.filter(tx => !tx.Coinbase)
