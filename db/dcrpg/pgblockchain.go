@@ -3583,6 +3583,9 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, isValid, isMainchain,
 			return
 		}
 
+		// Signal updates to any subscribed heightClients.
+		pgb.SignalHeight(dbBlock.Height)
+
 		// Insert the block stats.
 		if isMainchain && tpi != nil {
 			err = InsertBlockStats(pgb.db, blockDbID, tpi)
