@@ -2899,6 +2899,10 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 	_, _, _, err := pgb.StoreBlock(msgBlock, isValid, isMainChain,
 		updateExistingRecords, updateAddressesSpendingInfo,
 		updateTicketsSpendingInfo, blockData.Header.ChainWork)
+
+	// Signal updates to any subscribed heightClients.
+	pgb.SignalHeight(msgBlock.Header.Height)
+
 	return err
 }
 
@@ -3582,9 +3586,6 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, isValid, isMainchain,
 			err = fmt.Errorf("SetDBBestBlock: %v", err)
 			return
 		}
-
-		// Signal updates to any subscribed heightClients.
-		pgb.SignalHeight(dbBlock.Height)
 
 		// Insert the block stats.
 		if isMainchain && tpi != nil {

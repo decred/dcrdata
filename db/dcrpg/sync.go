@@ -461,6 +461,9 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 	// Final speed report
 	speedReport()
 
+	// Signal the final height to any heightClients.
+	pgb.SignalHeight(uint32(nodeHeight))
+
 	// After the last call to StoreBlock, synchronously update the project fund
 	// and clear the general address balance cache.
 	if err = pgb.FreshenAddressCaches(false, nil); err != nil {
