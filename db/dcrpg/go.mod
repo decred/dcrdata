@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/db/dcrpg/v4
 
-go 1.11
+go 1.12
 
 require (
 	github.com/chappjc/trylock v1.0.0

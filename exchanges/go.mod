@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/exchanges/v2
 
-go 1.11
+go 1.12
 
 require (
 	github.com/carterjones/signalr v0.3.5
