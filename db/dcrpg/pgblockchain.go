@@ -2899,6 +2899,10 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 	_, _, _, err := pgb.StoreBlock(msgBlock, isValid, isMainChain,
 		updateExistingRecords, updateAddressesSpendingInfo,
 		updateTicketsSpendingInfo, blockData.Header.ChainWork)
+
+	// Signal updates to any subscribed heightClients.
+	pgb.SignalHeight(msgBlock.Header.Height)
+
 	return err
 }
 
