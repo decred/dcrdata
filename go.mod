@@ -1,5 +1,14 @@
 module github.com/decred/dcrdata/v5
 
+go 1.12
+
+replace (
+	github.com/go-critic/go-critic v0.0.0-20181204210945-0af0999fabfb => github.com/go-critic/go-critic v0.3.5-0.20190108192714-0af0999fabfb
+	github.com/golangci/errcheck v0.0.0-20181003203344-ef45e06d44b6 => github.com/golangci/errcheck v0.0.0-20181223084120-ef45e06d44b6
+	github.com/golangci/go-tools v0.0.0-20180109140146-35a9f45a5db0 => github.com/golangci/go-tools v0.0.0-20190124090046-35a9f45a5db0
+	github.com/golangci/gofmt v0.0.0-20181105071733-0b8337e80d98 => github.com/golangci/gofmt v0.0.0-20181222123516-0b8337e80d98
+)
+
 require (
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb
