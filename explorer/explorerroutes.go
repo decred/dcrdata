@@ -337,7 +337,7 @@ func (exp *explorerUI) VisualBlocks(w http.ResponseWriter, r *http.Request) {
 	exp.pageData.RLock()
 	mempoolInfo.Subsidy = exp.pageData.HomeInfo.NBlockSubsidy
 
-	str, err := exp.templates.execTemplateToString("visualblocks", struct {
+	str, err := exp.templates.exec("visualblocks", struct {
 		*CommonPageData
 		Info    *types.HomeInfo
 		Mempool *types.TrimmedMempoolInfo
