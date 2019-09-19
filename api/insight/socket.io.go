@@ -5,6 +5,7 @@ package insight
 
 import (
 	"encoding/json"
+	"net/http"
 	"regexp"
 	"sync"
 	"time"
@@ -17,6 +18,8 @@ import (
 	"github.com/decred/dcrdata/blockdata/v4"
 	"github.com/decred/dcrdata/txhelpers/v3"
 	engineio "github.com/googollee/go-engine.io"
+	"github.com/googollee/go-engine.io/transport"
+	"github.com/googollee/go-engine.io/transport/websocket"
 	socketio "github.com/googollee/go-socket.io"
 )
 
@@ -85,9 +88,17 @@ type WebSocketTx struct {
 // NewSocketServer constructs a new SocketServer, registering handlers for the
 // "connection", "disconnection", and "subscribe" events.
 func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionGetter) (*SocketServer, error) {
+	wsTrans := &websocket.Transport{
+		// Without this affirmative CheckOrigin, gorilla's "sensible default" is
+		// to ensure same origin.
+		CheckOrigin: func(req *http.Request) bool {
+			return true
+		},
+	}
 	opts := &engineio.Options{
 		PingInterval: 3 * time.Second,
 		PingTimeout:  5 * time.Second,
+		Transports:   []transport.Transport{wsTrans},
 	}
 	server, err := socketio.NewServer(opts)
 	if err != nil {
