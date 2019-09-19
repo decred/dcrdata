@@ -709,7 +709,7 @@ func _main(ctx context.Context) error {
 		r.Mount("/insight/api", insightMux.Mux)
 
 		if insightSocketServer != nil {
-			r.Get("/insight/socket.io/", insightSocketServer.ServeHTTP)
+			r.With(m.NoOrigin).Get("/insight/socket.io/", insightSocketServer.ServeHTTP)
 		}
 	})
 
