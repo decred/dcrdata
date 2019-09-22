@@ -67,6 +67,12 @@ github.com/carterjones/go-cloudflare-scraper v0.1.2 h1:GNmlJEfhIVPVXaEItnPSDtwOp
 github.com/carterjones/go-cloudflare-scraper v0.1.2/go.mod h1:maO/ygX7QWbdh/TzHqr5uR42b2BW81g/05QRx7fpw38=
 github.com/carterjones/signalr v0.3.5 h1:kJSw+6a9XmsOb/+9HWTnY8SjTrVOdpzCSPV/9IVS2nI=
 github.com/carterjones/signalr v0.3.5/go.mod h1:SOGIwr/0/4GGNjHWSSginY66OVSaOeM85yWCNytdEwE=
+github.com/chappjc/go-engine.io v1.4.3-0.20190921221327-ed6f6f5e78a1 h1:MncZb2xXwmkoWGqKpY9NKBbLplis2zC3MnDKcxQmHAs=
+github.com/chappjc/go-engine.io v1.4.3-0.20190921221327-ed6f6f5e78a1/go.mod h1:iaugrHMOoal16IKAWvH6y6RrXXIzfOULxjNwvXBCV4o=
+github.com/chappjc/go-engine.io v1.4.3-0.20190921234509-4badd2ab5450 h1:4pLQeSRW7wLD/VvK1Zkehz0MQPP8XV6Pza7vXxsVRlk=
+github.com/chappjc/go-engine.io v1.4.3-0.20190921234509-4badd2ab5450/go.mod h1:iaugrHMOoal16IKAWvH6y6RrXXIzfOULxjNwvXBCV4o=
+github.com/chappjc/go-engine.io v1.4.3-0.20190922045117-52c151599331 h1:TsUk/5EFoAOhvGhWrrQXwaAmDO7hi7Y7sGwydDimSVY=
+github.com/chappjc/go-engine.io v1.4.3-0.20190922045117-52c151599331/go.mod h1:iaugrHMOoal16IKAWvH6y6RrXXIzfOULxjNwvXBCV4o=
 github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb h1:aZTKxMminKeQWHtzJBbV8TttfTxzdJ+7iEJFE6FmUzg=
 github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb/go.mod h1:xzXc1S/L+64uglB3pw54o8kqyM6KFYpTeC9Q6+qZIu8=
 github.com/chappjc/trylock v1.0.0 h1:WR9J1cP/+h0x9RoKsxf4I0AnYg7aONYjiwYwys8nibA=

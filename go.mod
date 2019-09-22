@@ -66,4 +66,5 @@ replace (
 	github.com/decred/dcrdata/stakedb/v3 => ./stakedb
 	github.com/decred/dcrdata/testutil/dbconfig/v2 => ./testutil/dbconfig
 	github.com/decred/dcrdata/txhelpers/v3 => ./txhelpers
+	github.com/googollee/go-engine.io => github.com/chappjc/go-engine.io v1.4.3-0.20190922045117-52c151599331
 )
