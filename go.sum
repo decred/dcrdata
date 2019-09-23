@@ -73,6 +73,8 @@ github.com/chappjc/go-engine.io v1.4.3-0.20190921234509-4badd2ab5450 h1:4pLQeSRW
 github.com/chappjc/go-engine.io v1.4.3-0.20190921234509-4badd2ab5450/go.mod h1:iaugrHMOoal16IKAWvH6y6RrXXIzfOULxjNwvXBCV4o=
 github.com/chappjc/go-engine.io v1.4.3-0.20190922045117-52c151599331 h1:TsUk/5EFoAOhvGhWrrQXwaAmDO7hi7Y7sGwydDimSVY=
 github.com/chappjc/go-engine.io v1.4.3-0.20190922045117-52c151599331/go.mod h1:iaugrHMOoal16IKAWvH6y6RrXXIzfOULxjNwvXBCV4o=
+github.com/chappjc/go-engine.io v1.4.3-0.20190922144627-7f2d54c95098 h1:XPUFh7NVZ2FxtgdHx8Ug+JkJmuAy1BrXZTNMhAvUz2k=
+github.com/chappjc/go-engine.io v1.4.3-0.20190922144627-7f2d54c95098/go.mod h1:iaugrHMOoal16IKAWvH6y6RrXXIzfOULxjNwvXBCV4o=
 github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb h1:aZTKxMminKeQWHtzJBbV8TttfTxzdJ+7iEJFE6FmUzg=
 github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb/go.mod h1:xzXc1S/L+64uglB3pw54o8kqyM6KFYpTeC9Q6+qZIu8=
 github.com/chappjc/trylock v1.0.0 h1:WR9J1cP/+h0x9RoKsxf4I0AnYg7aONYjiwYwys8nibA=
