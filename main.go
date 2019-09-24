@@ -628,6 +628,7 @@ func _main(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("Could not create Insight socket.io server: %v", err)
 	}
+	defer insightSocketServer.Close()
 	blockDataSavers = append(blockDataSavers, insightSocketServer)
 
 	// Start dcrdata's JSON web API.
@@ -708,7 +709,7 @@ func _main(ctx context.Context) error {
 		r.Mount("/insight/api", insightMux.Mux)
 
 		if insightSocketServer != nil {
-			r.Get("/insight/socket.io/", insightSocketServer.ServeHTTP)
+			r.With(m.NoOrigin).Get("/insight/socket.io/", insightSocketServer.ServeHTTP)
 		}
 	})
 	// HTTP Error 503 StatusServiceUnavailable for file requests before sync.
