@@ -35,7 +35,8 @@ require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/go-chi/chi v4.0.3-0.20190807011452-43097498be03+incompatible
 	github.com/google/gops v0.3.7-0.20190802051910-59c8be2eaddf
-	github.com/googollee/go-socket.io v0.0.0-20181214084611-0ad7206c347a
+	github.com/googollee/go-engine.io v1.4.3-0.20190924125625-798118fc0dd2
+	github.com/googollee/go-socket.io v1.4.3-0.20190818074643-3f1229f016cf
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/jrick/logrotate v1.0.0
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
@@ -43,7 +44,6 @@ require (
 	github.com/rs/cors v1.7.0
 	github.com/shiena/ansicolor v0.0.0-20151119151921-a422bbe96644
 	github.com/sirupsen/logrus v1.3.0
-	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
 	golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7
 )
 

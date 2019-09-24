@@ -207,6 +207,14 @@ func GetRawHexTx(r *http.Request) (string, error) {
 	return rawHexTx, nil
 }
 
+// NoOrigin removes any Origin from the request header.
+func NoOrigin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Header.Del("Origin")
+		next.ServeHTTP(w, r)
+	})
+}
+
 // OriginalRequestURI checks the X-Original-Request-URI HTTP request header for
 // a valid URI, and patches the request URL's Path and RawPath. This may be
 // useful in the event that a reverse proxy maps requests on path A to path B,
