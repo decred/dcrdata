@@ -65,20 +65,20 @@ function legendFormatter (data) {
 export default class extends Controller {
   static get targets () {
     return [
-      'actualHashRate', 'attackPercent', 'attackPeriod', 'blockHeight', 'countDevice', 'device',
+      'actualHashRate', /* 'attackPercent', */ 'attackPeriod', 'blockHeight', 'countDevice', 'device',
       'deviceCost', 'deviceDesc', 'deviceName', 'devicePower', 'external', 'internal', 'internalHash',
-      'kwhRate', 'kwhRateLabel', 'otherCosts', 'priceDCR', 'priceDCRLabel', 'targetHashRate', 'targetPos',
-      'targetPosLabel', 'targetPow', 'ticketAttackSize', 'ticketPoolAttack', 'ticketPoolSize',
+      'kwhRate', 'kwhRateLabel', 'otherCosts', 'priceDCR', 'priceDCRLabel', 'targetHashRate', /* 'targetPos', */
+      /* 'targetPosLabel', */ 'targetPow', 'ticketAttackSize', 'ticketPoolAttack', 'ticketPoolSize', 'ticketPoolSizeLabel',
       'ticketPoolValue', 'ticketPrice', 'tickets', 'ticketSizeAttach', 'durationLongDesc', 'durationShortDesc',
       'total', 'totalDCRPos', 'totalDeviceCost', 'totalElectricity', 'totalExtraCostRate', 'totalKwh',
-      'totalPos', 'totalPow', 'typeAttack', 'graph', 'labels'
+      'totalPos', 'totalPow', /* 'typeAttack', */ 'graph', 'labels'
     ]
   }
 
   async connect () {
     this.query = new TurboQuery()
     this.settings = TurboQuery.nullTemplate([
-      'attack_time', 'target_pow', 'kwh_rate', 'other_costs', 'target_pos', 'price', 'device', 'attack_type'
+      'attack_time', 'target_pow', 'kwh_rate', 'other_costs', /* 'target_pos', */ 'price', 'device'/* , 'attack_type' */
     ])
 
     height = parseInt(this.data.get('height'))
@@ -92,13 +92,13 @@ export default class extends Controller {
     if (this.settings.target_pow) this.targetPowTarget.value = parseFloat(this.settings.target_pow)
     if (this.settings.kwh_rate) this.kwhRateTarget.value = parseFloat(this.settings.kwh_rate)
     if (this.settings.other_costs) this.otherCostsTarget.value = parseFloat(this.settings.other_cost)
-    if (this.settings.target_pos) this.targetPosTarget.value = parseFloat(this.settings.target_pos)
+    // if (this.settings.target_pos) this.targetPosTarget.value = parseFloat(this.settings.target_pos)
     if (this.settings.price) this.priceDCRTarget.value = parseFloat(this.settings.price)
     if (this.settings.device) this.setDevice(this.settings.device)
-    if (this.settings.attack_type) this.setAttackType(this.settings.attack_type)
+    // if (this.settings.attack_type) this.setAttackType(this.settings.attack_type)
 
     this.setDevicesDesc()
-    this.updateAttackType()
+    // this.updateAttackType()
     this.updateSliderData()
 
     Dygraph = await getDefault(
@@ -163,7 +163,7 @@ export default class extends Controller {
 
   updateTargetPow () {
     this.settings.target_pow = this.targetPowTargetTarget.value
-    this.attackPercentTarget.value = this.targetPowTargetTarget.value / 100
+    // this.attackPercentTarget.value = this.targetPowTargetTarget.value / 100
 
     this.updateSliderData()
   }
@@ -184,7 +184,7 @@ export default class extends Controller {
   }
 
   updateTargetPos () {
-    this.settings.target_pos = this.targetPos.value
+    // this.settings.target_pos = this.targetPos.value
     this.calculate()
   }
 
@@ -194,25 +194,25 @@ export default class extends Controller {
     this.calculate()
   }
 
-  updateAttackType () {
-    if (this.selectedAttackType() === '0') {
-      this.externalTarget.classList.add('d-hide')
-      this.internalTarget.classList.remove('d-hide')
-    } else {
-      this.externalTarget.classList.remove('d-hide')
-      this.internalTarget.classList.add('d-hide')
-    }
-  }
+  // updateAttackType () {
+  //   if (this.selectedAttackType() === '0') {
+  //     this.externalTarget.classList.add('d-hide')
+  //     this.internalTarget.classList.remove('d-hide')
+  //   } else {
+  //     this.externalTarget.classList.remove('d-hide')
+  //     this.internalTarget.classList.add('d-hide')
+  //   }
+  // }
 
-  chooseAttackType () {
-    this.settings.attack_type = this.selectedAttackType()
-    this.updateAttackType()
-    this.calculate()
-  }
+  // chooseAttackType () {
+  //   this.settings.attack_type = this.selectedAttackType()
+  //   this.updateAttackType()
+  //   this.calculate()
+  // }
 
   selectedDevice () { return this.deviceTarget.value }
 
-  selectedAttackType () { return this.typeAttackTarget.value }
+  // selectedAttackType () { return this.typeAttackTarget.value }
 
   selectOption (options) {
     let val = '0'
@@ -230,7 +230,7 @@ export default class extends Controller {
 
   setDevice (selectedVal) { return this.setOption(this.deviceTargets, selectedVal) }
 
-  setAttackType (selectedVal) { return this.setOption(this.typeAttackTargets, selectedVal) }
+  // setAttackType (selectedVal) { return this.setOption(this.typeAttackTargets, selectedVal) }
 
   setOption (options, selectedVal) {
     options.map((n) => { n.selected = n.value === selectedVal })
@@ -244,13 +244,15 @@ export default class extends Controller {
   setActivePoint () {
     // Shows point whose details appear on the legend.
     if (this.chartsView !== undefined) {
-      let row = Math.round(this.attackPercentTarget.value / 0.005)
+      // let row = Math.round(this.attackPercentTarget.value / 0.005)
+      let row = 50.005
       this.chartsView.setSelection(row)
     }
   }
 
   updateSliderData () {
-    var val = this.attackPercentTarget.value
+    // var val = this.attackPercentTarget.value
+    var val = 51
     this.updateTargetHashRate(val * 100)
 
     this.setActivePoint()
@@ -272,20 +274,21 @@ export default class extends Controller {
     var totalElectricity = totalKwh * this.kwhRateTarget.value
     var extraCostsRate = 1 + this.otherCostsTarget.value / 100
     var totalPow = extraCostsRate * totalDeviceCost + totalElectricity
-    var ticketAttackSize = Math.ceil((tpSize * this.targetPosTarget.value) / 100)
+    var ticketAttackSize = Math.ceil((tpSize * /* this.targetPosTarget.value */ 50) / 100)
     var ticketPrice = tpPrice
     // extend attack
-    if (this.selectedAttackType() === '1') {
-      var DCRNeed = hashrate / 0.6
-      ticketPrice = DCRNeed / tpSize
-      this.setAllValues(this.ticketPoolAttackTargets, digitformat(DCRNeed, 3))
-      this.ticketPoolValueTarget.innerHTML = digitformat(hashrate, 3)
-    }
+    // if (this.selectedAttackType() === '1') {
+    var DCRNeed = hashrate / 0.6
+    ticketPrice = DCRNeed / tpSize
+    this.setAllValues(this.ticketPoolAttackTargets, digitformat(DCRNeed, 3))
+    this.ticketPoolValueTarget.innerHTML = digitformat(hashrate, 3)
+    // }
 
     var totalDCRPos = ticketAttackSize * ticketPrice
     var totalPos = totalDCRPos * dcrPrice
     var timeStr = this.attackPeriodTarget.value
     timeStr = this.attackPeriodTarget.value > 1 ? timeStr + ' hours' : timeStr + ' hour'
+    this.ticketPoolSizeLabelTarget.innerHTML = digitformat(tpSize, 2)
 
     this.actualHashRateTarget.innerHTML = digitformat(hashrate, 4)
     this.priceDCRTarget.value = digitformat(dcrPrice, 2)
@@ -303,7 +306,7 @@ export default class extends Controller {
     this.kwhRateLabelTarget.innerHTML = digitformat(parseFloat(this.kwhRateTarget.value), 2)
     this.setAllValues(this.totalElectricityTargets, digitformat(totalElectricity, 2))
     this.setAllValues(this.totalPowTargets, digitformat(totalPow, 2))
-    this.targetPosLabelTarget.innerHTML = this.targetPosTarget.value + '%'
+    this.targetPosLabelTarget.innerHTML = '54%' /* this.targetPosTarget.value + '%' */
     this.setAllValues(this.ticketSizeAttachTargets, digitformat(ticketAttackSize))
     this.setAllValues(this.totalDCRPosTargets, digitformat(totalDCRPos, 2))
     this.setAllValues(this.totalPosTargets, digitformat(totalPos, 2))

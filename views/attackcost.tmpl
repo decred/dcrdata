@@ -36,7 +36,11 @@
                 <div class="pl-1">
                     <span class="h6 d-inline-block pl-2">Description</span>
                 </div>
-                <span>If an attacker has in their control <span class="font-weight-bold">20,884 tickets</span> and <span class="font-weight-bold">205.3436 Ph/s</span> (HashRate) they will be able to generate blocks at the same average speed as the honest network.</span>
+                <span>If an attacker has in their control
+                  <span class="font-weight-bold" data-target="attackcost.tickets">0</span> and
+                  <span class="font-weight-bold" data-target="attackcost.internalHash">0</span> (HashRate)
+                  they will be able to generate blocks at the same average speed as the honest network.
+                </span>
               </div>
             </div>
           </div>
@@ -71,7 +75,7 @@
                 <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
                   <span class="text-secondary fs13">Ticket Pool size</span>
                   <br>
-                  <span class="h4">40,003</span>
+                  <span class="h4" data-target="attackcost.ticketPoolSizeLabel">40,003</span>
                 </div>
               </div>
 
@@ -92,7 +96,7 @@
           </div>
 
           <div class="row mt-1">
-              <div class="col-24 col-md-12 col-lg-24 col-xl-12 row pb-3">
+              <div class="col-24 col-md-12 col-lg-24 col-xl-14 row pb-3">
               <div class="col-12 text-center">
                 <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
                   <span class="text-secondary fs13">Attack Time</span>
@@ -106,7 +110,7 @@
                       min="1"
                       value="1"
                       max="1000"
-                    > hour(s)
+                    >
                   </span>
                   <span class="text-secondary">hrs</span>
                 </div>
@@ -131,7 +135,7 @@
                 </div>
               </div>
             </div>
-            <div class="col-24 col-md-12 col-lg-24 col-xl-12 row pb-3">
+            <div class="col-24 col-md-12 col-lg-24 col-xl-10 row pb-3">
               <div class="col-12 text-center">
                 <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
                   <span class="text-secondary fs13">USD-DCR Rate</span>
@@ -231,7 +235,7 @@
           <span class="h6 d-inline-block pl-2 font-weight-bold">PoS Attack</span>
         </div>
         <div>
-          <div class="mt-1 ml-2">
+          <!--<div class="mt-1 ml-2">
             <span class="mr-1">Attack Type:</span>
             <select
               class="form-control chart-form-control"
@@ -241,40 +245,73 @@
               <option value="0">Internal Attack</option>
               <option value="1">External Attack</option>
             </select>
-          </div>
+          </div>-->
           <div class="mt-1 ml-2">
             A block has at least 5 votes and
-            <span class="position-relative text-secondary font-weight-bold" data-tooltip="3 of 5 votes">60%</span>
+            <span class="position-relative text-secondary font-weight-bold">3/5 votes (60%)</span>
             should approve for it be valid</div>
-          <div class="mt-1 ml-2">We assume that an attacker would need to aquire 60% of the ticket pool to do the attack.</div>
-          <div class="mt-1 ml-2">Total Staked is 5,082,533 DCR.</div>
           <div class="mt-1 ml-2">
-            Amount needed for the attack process:
-            <span class="position-relative text-secondary font-weight-bold" data-tooltip="5,082,533 / 0.6">723.333 DCR</span>
+            We assume that an attacker would need to aquire 
+            <input
+              type="number"
+              data-target="attackcost.targetPos"
+              data-action="change->attackcost#updateTargetPos"
+              step="1"
+              min="1"
+              max="100"
+              value="60"
+              max="1000"
+            >% 
+            of the ticket pool to do the attack.
           </div>
           <div class="mt-1 ml-2">
-            Future ticket price:
-            <span class="position-relative text-secondary font-weight-bold" data-tooltip="723.333 / 40,931 ">0.0177 DCR</span>
+            Total Staked is
+            <span  data-target="attackcost.ticketPoolValue" class="font-weight-bold">0</span> <span class="fs11">USD</span>
+          </div>
+          <div class="mt-1 ml-2">
+            Amount needed for the attack process:
+            <span class="position-relative text-secondary font-weight-bold" data-tooltip='<span data-target="attackcost.ticketPoolValue">0</span> / 0.6'>
+            <span class="font-weight-bold" data-target="attackcost.ticketPoolAttack">0</span>
+            <span class="fs11">DCR</span>.
+            </span>
+          </div>
+          <div class="mt-1 ml-2">
+            The future ticket price:
+            <span class="position-relative text-secondary font-weight-bold" data-tooltip='span data-target="attackcost.ticketPoolAttack">0</span> / <span data-target="attackcost.ticketPoolSize">0</span>'>
+            <span class="font-weight-bold" data-target="attackcost.ticketPrice">0</span>
+            <span class="fs11">DCR</span>.
+            </span>
           </div>
           <div class="mt-1 ml-2">
             Attack Tickets needed: 
-            <span class="position-relative text-secondary font-weight-bold" data-tooltip="40,941 x 60%">24,565 tickets</span>
+            <span class="position-relative text-secondary font-weight-bold" data-tooltip='<span data-target="attackcost.ticketPoolSize">0</span> x <span data-target="attackcost.targetPosLabel">0</span>'>
+              <span class="font-weight-bold" data-target="attackcost.ticketSizeAttach">0</span>
+            </span>
           </div>
           <div class="mt-1 ml-2">
-            24,565 tickets value:
-            <span class="position-relative text-secondary font-weight-bold" data-tooltip="24,565 x 129.3078">3,176,445.96 DCR</span>
+            <span class="font-weight-bold" data-target="attackcost.ticketSizeAttach">0</span> tickets value:
+            <span class="position-relative text-secondary font-weight-bold" data-tooltip='<span data-target="attackcost.ticketSizeAttach">0</span> x <span data-target="attackcost.ticketPrice">0</span>'>
+              <span class="font-weight-bold" data-target="attackcost.totalDCRPos">0</span>
+              <span class="fs11">DCR</span>
+            </span>
           </div>
           <div class="mt-1 ml-2">
-            Total PoS attack cost: 
-            <span class="position-relative text-secondary font-weight-bold" data-tooltip="3,176,445.96 x 24.42">77,568,810.27 USD</span>
+            Total PoS attack cost:
+            <span class="position-relative text-secondary font-weight-bold" data-tooltip='<span data-target="attackcost.totalDCRPos">0</span> x span data-target="attackcost.priceDCRLabel">0</span>'>
+            <span class="font-weight-bold" data-target="attackcost.totalPos">0</span>
+            <span class="fs11">USD</span>.
+            </span>
           </div>
         </div>
       </div>
     </div>
 
     <div class="text-center h4 mb-3 mt-3">
-    73% attack cost:
-    <span class="position-relative text-secondary font-weight-bold" data-tooltip="8,346,868.11 + 77,568,810.27">85,915,678.38 USD</span>
+      73% attack cost:
+      <span class="position-relative text-secondary font-weight-bold" data-tooltip='<span data-target="attackcost.totalPow">0</span> + <span data-target="attackcost.totalPos">0</span>'>
+        <span class="font-weight-bold" data-target="attackcost.total">0</span>
+        <span class="fs11">USD</span>.
+    </span>
     </div>
         
 <!--
