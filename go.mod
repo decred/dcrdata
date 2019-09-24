@@ -35,7 +35,7 @@ require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/go-chi/chi v4.0.3-0.20190807011452-43097498be03+incompatible
 	github.com/google/gops v0.3.7-0.20190802051910-59c8be2eaddf
-	github.com/googollee/go-engine.io v1.4.2
+	github.com/googollee/go-engine.io v1.4.3-0.20190924125625-798118fc0dd2
 	github.com/googollee/go-socket.io v1.4.3-0.20190818074643-3f1229f016cf
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/jrick/logrotate v1.0.0
@@ -66,5 +66,4 @@ replace (
 	github.com/decred/dcrdata/stakedb/v3 => ./stakedb
 	github.com/decred/dcrdata/testutil/dbconfig/v2 => ./testutil/dbconfig
 	github.com/decred/dcrdata/txhelpers/v3 => ./txhelpers
-	github.com/googollee/go-engine.io => github.com/chappjc/go-engine.io v1.4.3-0.20190922144627-7f2d54c95098
 )
