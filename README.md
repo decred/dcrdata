@@ -372,6 +372,25 @@ cp sample-dcrdata.conf ~/.dcrdata/dcrdata.conf
 Then edit dcrdata.conf with your dcrd RPC settings. See the output of `dcrdata
 --help` for a list of all options and their default values.
 
+### Note: Edit postgresql settings in drcdata.conf file. 
+```
+-- Enable or Disable the pg support by default its false
+pg=true 
+pgdbname=<<DB_NAME>> e.g dcrdata_mainnet
+pguser=<<DB_OWNER>> e.g dcrdata
+pgpass=<<PASSWORD>>
+pghost=<<PG_HOST>> e.g 127.0.0.1:5432
+```
+
+#### (Optional): Disable the TLS connection with dcrd
+Run the `dcrd` with no `--notls` option
+
+```
+-- Edit dcrdata.conf to disable TLS for the connection 
+nodaemontls=1
+```
+
+
 ### Using Environment Variables for Configuration
 
 Almost all configuration items are available to set via environment variables.
