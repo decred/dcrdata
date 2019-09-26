@@ -372,6 +372,15 @@ cp sample-dcrdata.conf ~/.dcrdata/dcrdata.conf
 Then edit dcrdata.conf with your dcrd RPC settings. See the output of `dcrdata
 --help` for a list of all options and their default values.
 
+### Edit postgresql settings in drcdata.conf file. 
+
+```ini
+pgdbname=<<DB_NAME>> e.g dcrdata_mainnet
+pguser=<<DB_USER>> e.g dcrdata
+pgpass=<<DB_PASS>>  # or comment out if no password (e.g. UNIX socket for pghost)
+pghost=<<PG_HOST>> e.g 127.0.0.1:5432 or /var/run/postgres
+```
+
 ### Using Environment Variables for Configuration
 
 Almost all configuration items are available to set via environment variables.
