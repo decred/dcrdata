@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -215,12 +216,19 @@ func MenuFormParser(next http.Handler) http.Handler {
 					cookie.Value = "0"
 					cookie.MaxAge = -1
 				}
-				http.SetCookie(w, cookie)
+
+				// Redirect to the specified relative path.
 				requestURI := r.FormValue(requestURIFormKey)
 				if requestURI == "" {
 					requestURI = "/"
 				}
-				http.Redirect(w, r, requestURI, http.StatusFound)
+				URL, err := url.Parse(requestURI)
+				if err != nil {
+					http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+					return
+				}
+				http.SetCookie(w, cookie)
+				http.Redirect(w, r, URL.EscapedPath(), http.StatusFound)
 				return
 			}
 		}
