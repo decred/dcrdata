@@ -176,8 +176,8 @@
           <div class="pl-1">
               <span class="h6 d-inline-block pl-2 font-weight-bold">PoW Attack</span>
           </div>
-          <div class="ml-4">
-            <div class="mt-1 ml-2">
+          <ul class="ml-4">
+            <li class="mt-1 ml-2">
               <span class="mr-1">Mining Device:</span>
               <select
                 class="form-control chart-form-control mr-5"
@@ -187,9 +187,8 @@
                 <option data-target="attackcost.deviceDesc" value="0">DCR5</option>
                 <option data-target="attackcost.deviceDesc" value="1">D1</option>
               </select>
-            </div>
-
-            <div class="mt-1 ml-2">
+            </li>
+            <li class="mt-1 ml-2">
                 A 
                 <input
                   type="number"
@@ -204,25 +203,22 @@
                 >%
                 PoW attack would need <span class="font-weight-bold" data-target="attackcost.targetHashRate">0</span>
                 <span class="pl-1 unit lh15rem">Ph/s</span>.
-            </div>
-
-            <div class="mt-1 ml-2">
+            </li>
+            <li class="mt-1 ml-2">
               In order to aquire a <span class="font-weight-bold" data-target="attackcost.targetHashRate">0</span> Ph/s
               hashrate, it would take
               <span class="font-weight-bold" data-target="attackcost.countDevice">0</span>
               <span class="fs11" data-target="attackcost.deviceName">&mdash;</span>
               at a cost of <span class="font-weight-bold" data-target="attackcost.totalDeviceCost">0</span> 
               <span class="fs11">USD</span> to buy them.
-            </div>
-
-            <div class="mt-1 ml-2">
+            </li>
+            <li class="mt-1 ml-2">
               Total kWh attack for <span data-target="attackcost.durationLongDesc">0</span> :
               <span class="position-relative text-secondary font-weight-bold">
               <span class="font-weight-bold" data-target="attackcost.totalKwh">0</span> <span class="fs11">kWh</span>
               </span>
-            </div>
-
-            <div class="mt-1 ml-2">
+            </li>
+            <li class="mt-1 ml-2">
               Costs of <span data-target="attackcost.durationLongDesc">0</span>
               electricity consumption for 
               <span class="font-weight-bold" data-target="attackcost.countDevice">0</span>
@@ -231,9 +227,8 @@
                 <span class="font-weight-bold" data-target="attackcost.totalElectricity">0</span>
                 <span class="fs11">USD</span>
               </span>
-            </div>
-
-            <div class="mt-1 ml-2">
+            </li>
+            <li class="mt-1 ml-2">
               To carry out the attack, additional costs for facilities and cooling are estimated at
               <input
                 type="number"
@@ -245,28 +240,27 @@
                 value="0"
                 max="1000"
               >% of the cost of the miners. of the cost of the miners.
-            </div>
-            <div class="mt-1 ml-2">
+            </li>
+            <li class="mt-1 ml-2">
               Total PoW attack cost:
               <span class="position-relative text-secondary font-weight-bold">
                 <span class="font-weight-bold" data-target="attackcost.totalPow">0</span>
                 <span class="fs11">USD</span>
               </span>
-            </div>
-            <div></div>
-            <div></div>
-          </div>
+            </li>
+          </ul>
         </div>
         <div class="col-24 col-sm-12 col-md-24 col-lg-11 secondary-card pt-3 pb-3 px-3">
           <div class="pl-1">
             <span class="h6 d-inline-block pl-2 font-weight-bold">PoS Attack</span>
           </div>
-          <div  class="ml-4">
-            <div class="mt-1 ml-2">
+          <ul  class="ml-4">
+            <li class="mt-1 ml-2">
               A block has at least 5 votes and
               <span class="position-relative text-secondary font-weight-bold">3/5 votes (60%)</span>
-              should approve for it be valid</div>
-            <div class="mt-1 ml-2">
+              should approve for it be valid
+            </li>
+            <li class="mt-1 ml-2">
               We assume that an attacker would need to aquire 
               <input
                 type="number"
@@ -279,46 +273,46 @@
                 max="1000"
               >% 
               of the ticket pool to do the attack.
-            </div>
-            <div class="mt-1 ml-2">
+            </li>
+            <li class="mt-1 ml-2">
               Total Staked is
               <span  data-target="attackcost.ticketPoolValue" class="font-weight-bold">0</span> <span class="fs11">USD</span>
-            </div>
-            <div class="mt-1 ml-2">
+            </li>
+            <li class="mt-1 ml-2">
               Amount needed for the attack process:
               <span class="position-relative text-secondary font-weight-bold">
               <span class="font-weight-bold" data-target="attackcost.ticketPoolAttack">0</span>
               <span class="fs11">DCR</span>.
               </span>
-            </div>
-            <div class="mt-1 ml-2">
+            </li>
+            <li class="mt-1 ml-2">
               The future ticket price:
               <span class="position-relative text-secondary font-weight-bold">
               <span class="font-weight-bold" data-target="attackcost.futureTicketPrice">0</span>
               <span class="fs11">DCR</span>.
               </span>
-            </div>
-            <div class="mt-1 ml-2">
+            </li>
+            <li class="mt-1 ml-2">
               Attack Tickets needed: 
               <span class="position-relative text-secondary font-weight-bold">
                 <span class="font-weight-bold" data-target="attackcost.ticketSizeAttack">0</span>
               </span>
-            </div>
-            <div class="mt-1 ml-2">
+            </li>
+            <li class="mt-1 ml-2">
               <span class="font-weight-bold" data-target="attackcost.ticketSizeAttack">0</span> tickets value:
               <span class="position-relative text-secondary font-weight-bold">
                 <span class="font-weight-bold" data-target="attackcost.totalDCRPos">0</span>
                 <span class="fs11">DCR</span>
               </span>
-            </div>
-            <div class="mt-1 ml-2">
+            </li>
+            <li class="mt-1 ml-2">
               Total PoS attack cost:
               <span class="position-relative text-secondary font-weight-bold">
               <span class="font-weight-bold" data-target="attackcost.totalPos">0</span>
               <span class="fs11">USD</span>
               </span>
-            </div>
-          </div>
+            </li>
+          </ul>
         </div>
       </div>
 
