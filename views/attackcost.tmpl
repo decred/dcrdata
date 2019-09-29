@@ -87,7 +87,7 @@
                 <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
                   <span class="text-secondary fs13">Ticket Pool size</span>
                   <br>
-                  <span class="h4" data-target="attackcost.ticketPoolSizeLabel">40,003</span>
+                  <span class="h4" data-target="attackcost.ticketPoolSizeLabel">0</span>
                 </div>
               </div>
 
@@ -95,7 +95,8 @@
                 <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
                   <span class="text-secondary fs13">Ticket Price</span>
                   <br>
-                  <span class="h4">128.3077</span> <span class="text-secondary">DCR</span>
+                  <span class="h4" data-target="attackcost.ticketPrice">0</span>
+                  <span class="text-secondary">DCR</span>
                 </div>
               </div>
             </div>
@@ -104,7 +105,7 @@
 
         <div class="col-24 col-sm-12 col-md-24 col-lg-11 secondary-card pt-3 pb-3 px-3">
           <div class="pl-1">
-            <span class="h6 d-inline-block pl-2 font-weight-bold">Derived Parameters</span>
+            <span class="h6 d-inline-block pl-2 font-weight-bold">Adjustable Parameters</span>
           </div>
 
           <div class="row mt-1">
@@ -175,7 +176,7 @@
           <div class="pl-1">
               <span class="h6 d-inline-block pl-2 font-weight-bold">PoW Attack</span>
           </div>
-          <div class="">
+          <div class="ml-4">
             <div class="mt-1 ml-2">
               <span class="mr-1">Mining Device:</span>
               <select
@@ -223,8 +224,13 @@
 
             <div class="mt-1 ml-2">
               Costs of <span data-target="attackcost.durationLongDesc">0</span>
-              electricity consumption for 6,510 DCR5s :
-              <span class="position-relative text-secondary font-weight-bold">1,048.11 USD</span>
+              electricity consumption for 
+              <span class="font-weight-bold" data-target="attackcost.countDevice">0</span>
+              <span class="fs11" data-target="attackcost.deviceName">&mdash;</span> :
+              <span class="position-relative text-secondary font-weight-bold">
+                <span class="font-weight-bold" data-target="attackcost.totalElectricity">0</span>
+                <span class="fs11">USD</span>
+              </span>
             </div>
 
             <div class="mt-1 ml-2">
@@ -242,7 +248,10 @@
             </div>
             <div class="mt-1 ml-2">
               Total PoW attack cost:
-              <span class="position-relative text-secondary font-weight-bold">8,346,868.11 USD</span>
+              <span class="position-relative text-secondary font-weight-bold">
+                <span class="font-weight-bold" data-target="attackcost.totalPow">0</span>
+                <span class="fs11">USD</span>
+              </span>
             </div>
             <div></div>
             <div></div>
@@ -252,7 +261,7 @@
           <div class="pl-1">
             <span class="h6 d-inline-block pl-2 font-weight-bold">PoS Attack</span>
           </div>
-          <div>
+          <div  class="ml-4">
             <div class="mt-1 ml-2">
               A block has at least 5 votes and
               <span class="position-relative text-secondary font-weight-bold">3/5 votes (60%)</span>
@@ -285,18 +294,18 @@
             <div class="mt-1 ml-2">
               The future ticket price:
               <span class="position-relative text-secondary font-weight-bold">
-              <span class="font-weight-bold" data-target="attackcost.ticketPrice">0</span>
+              <span class="font-weight-bold" data-target="attackcost.futureTicketPrice">0</span>
               <span class="fs11">DCR</span>.
               </span>
             </div>
             <div class="mt-1 ml-2">
               Attack Tickets needed: 
               <span class="position-relative text-secondary font-weight-bold">
-                <span class="font-weight-bold" data-target="attackcost.ticketSizeAttach">0</span>
+                <span class="font-weight-bold" data-target="attackcost.ticketSizeAttack">0</span>
               </span>
             </div>
             <div class="mt-1 ml-2">
-              <span class="font-weight-bold" data-target="attackcost.ticketSizeAttach">0</span> tickets value:
+              <span class="font-weight-bold" data-target="attackcost.ticketSizeAttack">0</span> tickets value:
               <span class="position-relative text-secondary font-weight-bold">
                 <span class="font-weight-bold" data-target="attackcost.totalDCRPos">0</span>
                 <span class="fs11">DCR</span>

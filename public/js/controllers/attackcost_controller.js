@@ -8,7 +8,7 @@ import dompurify from 'dompurify'
 function digitformat (amount, decimalPlaces) {
   if (!amount) return 0
   decimalPlaces = decimalPlaces || 0
-  return amount.toLocaleString(undefined, { maximumFractionDigits: decimalPlaces })
+  return parseFloat(amount).toLocaleString(undefined, { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces }).replace(/\.?0*$/, '')
 }
 
 let Dygraph // lazy loaded on connect
@@ -67,11 +67,11 @@ export default class extends Controller {
     return [
       'actualHashRate', 'attackPercent', 'attackPeriod', 'blockHeight', 'countDevice', 'device',
       'deviceCost', 'deviceDesc', 'deviceName', 'external', 'internal', 'internalHash',
-      'kwhRate', 'kwhRateLabel', 'otherCosts', 'priceDCR', 'targetHashRate', 'targetPos', 'targetPow', 
+      'kwhRate', 'kwhRateLabel', 'otherCosts', 'priceDCR', 'targetHashRate', 'targetPos', 'targetPow',
       'ticketAttackSize', 'ticketPoolAttack', 'ticketPoolSize', 'ticketPoolSizeLabel',
-      'ticketPoolValue', 'ticketPrice', 'tickets', 'ticketSizeAttach', 'durationLongDesc', 
+      'ticketPoolValue', 'ticketPrice', 'tickets', 'ticketSizeAttack', 'durationLongDesc',
       'total', 'totalDCRPos', 'totalDeviceCost', 'totalElectricity', 'totalExtraCostRate', 'totalKwh',
-      'totalPos', 'totalPow', 'graph', 'labels', 'attackPercentLabel'
+      'totalPos', 'totalPow', 'graph', 'labels', 'attackPercentLabel', 'futureTicketPrice'
     ]
   }
 
@@ -139,7 +139,8 @@ export default class extends Controller {
       labelsSeparateLines: true,
       showRangeSelector: false,
       labelsKMB: true,
-      legend: 'always'
+      legend: 'always',
+      logscale: true
     }
 
     this.chartsView = new Dygraph(this.graphTarget, graphData, options)
@@ -161,7 +162,7 @@ export default class extends Controller {
 
   updateTargetPow () {
     this.settings.target_pow = this.targetPowTarget.value
-    this.attackPercentTarget.value = this.targetPowTarget.value / 100
+    this.attackPercentTarget.value = parseFloat(this.targetPowTarget.value) / 100
 
     this.updateSliderData()
   }
@@ -182,7 +183,7 @@ export default class extends Controller {
   }
 
   updateTargetPos () {
-    this.settings.target_pos = this.targetPos.value
+    this.settings.target_pos = this.targetPosTarget.value
     this.calculate()
   }
 
@@ -216,19 +217,19 @@ export default class extends Controller {
 
   updateTargetHashRate (newTargetPow) {
     this.targetPowTarget.value = newTargetPow || this.targetPowTarget.value
-    this.targetHashRate = hashrate * this.targetPowTarget.value / 100
+    this.targetHashRate = hashrate * parseFloat(this.targetPowTarget.value) / 100
   }
 
   setActivePoint () {
     // Shows point whose details appear on the legend.
     if (this.chartsView !== undefined) {
-      let row = Math.round(this.attackPercentTarget.value / 0.005)
+      let row = Math.round(parseFloat(this.attackPercentTarget.value) / 0.005)
       this.chartsView.setSelection(row)
     }
   }
 
   updateSliderData () {
-    var val = this.attackPercentTarget.value
+    var val = parseFloat(this.attackPercentTarget.value) || 0
     this.updateTargetHashRate(val * 100)
 
     this.setActivePoint()
@@ -246,18 +247,18 @@ export default class extends Controller {
     var deviceInfo = deviceList[this.selectedDevice()]
     var deviceCount = Math.ceil((this.targetHashRate * 1000) / deviceInfo.hashrate)
     var totalDeviceCost = deviceCount * deviceInfo.cost
-    var totalKwh = deviceCount * deviceInfo.power * this.attackPeriodTarget.value / 1000
-    var totalElectricity = totalKwh * this.kwhRateTarget.value
-    var extraCostsRate = 1 + this.otherCostsTarget.value / 100
+    var totalKwh = deviceCount * deviceInfo.power * parseFloat(this.attackPeriodTarget.value) / 1000
+    var totalElectricity = totalKwh * parseFloat(this.kwhRateTarget.value)
+    var extraCostsRate = 1 + parseFloat(this.otherCostsTarget.value) / 100
     var totalPow = extraCostsRate * totalDeviceCost + totalElectricity
-    var ticketAttackSize = Math.ceil((tpSize * this.targetPosTarget.value) / 100)
-    var ticketPrice = tpPrice
-    var DCRNeed = hashrate / 0.6
-    ticketPrice = DCRNeed / tpSize
+    var ticketAttackSize = Math.ceil((tpSize * parseFloat(this.targetPosTarget.value)) / 100)
+    ticketAttackSize = ticketAttackSize * this.targetPosTarget.value / 100
+    var DCRNeed = tpValue / 0.6
+    var futureTicketPrice = DCRNeed / tpSize
     this.setAllValues(this.ticketPoolAttackTargets, digitformat(DCRNeed, 3))
     this.ticketPoolValueTarget.innerHTML = digitformat(hashrate, 3)
 
-    var totalDCRPos = ticketAttackSize * ticketPrice
+    var totalDCRPos = ticketAttackSize * futureTicketPrice
     var totalPos = totalDCRPos * dcrPrice
     var timeStr = this.attackPeriodTarget.value
     timeStr = this.attackPeriodTarget.value > 1 ? timeStr + ' hours' : timeStr + ' hour'
@@ -265,7 +266,7 @@ export default class extends Controller {
 
     this.actualHashRateTarget.innerHTML = digitformat(hashrate, 4)
     this.priceDCRTarget.value = digitformat(dcrPrice, 2)
-    this.setAllValues(this.ticketPriceTargets, digitformat(ticketPrice, 4))
+    this.ticketPriceTarget.innerHTML = digitformat(tpPrice, 4)
     this.setAllValues(this.targetHashRateTargets, digitformat(this.targetHashRate, 4))
     this.setAllValues(this.durationLongDescTargets, timeStr)
     this.setAllValues(this.countDeviceTargets, digitformat(deviceCount))
@@ -274,7 +275,7 @@ export default class extends Controller {
     this.setAllValues(this.totalKwhTargets, digitformat(totalKwh, 2))
     this.setAllValues(this.totalElectricityTargets, digitformat(totalElectricity, 2))
     this.setAllValues(this.totalPowTargets, digitformat(totalPow, 2))
-    this.setAllValues(this.ticketSizeAttachTargets, digitformat(ticketAttackSize))
+    this.setAllValues(this.ticketSizeAttackTargets, digitformat(ticketAttackSize))
     this.setAllValues(this.totalDCRPosTargets, digitformat(totalDCRPos, 2))
     this.setAllValues(this.totalPosTargets, digitformat(totalPos, 2))
     this.setAllValues(this.ticketPoolValueTargets, digitformat(tpValue))
@@ -282,6 +283,7 @@ export default class extends Controller {
     this.blockHeightTarget.innerHTML = digitformat(height)
     this.totalTarget.innerHTML = digitformat(totalPow + totalPos, 2)
     this.attackPercentLabelTarget.innerHTML = digitformat(this.targetPowTarget.value, 2)
+    this.futureTicketPriceTarget.innerHTML = digitformat(futureTicketPrice, 2)
   }
 
   setAllValues (targets, data) {
