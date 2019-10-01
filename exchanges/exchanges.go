@@ -761,7 +761,7 @@ func (xc *CommonExchange) wsDepthStatus(connector func()) (tryHttp, initializing
 			var delay time.Duration
 			// wsDepthStatus is only called every DataExpiry, so a delay of zero is ok
 			// until there are a few consecutive errors.
-			switch true {
+			switch {
 			case errCount < 5:
 			case errCount < 20:
 				delay = 10 * time.Minute
@@ -774,7 +774,7 @@ func (xc *CommonExchange) wsDepthStatus(connector func()) (tryHttp, initializing
 				// book over HTTP anyway.
 				connector()
 			} else {
-				log.Errorf("%s websocket disabled. Too many errors. Will attempt to reconnect after %.1f minutes", xc.token, okToTry.Sub(time.Now()).Minutes())
+				log.Errorf("%s websocket disabled. Too many errors. Will attempt to reconnect after %.1f minutes", xc.token, time.Until(okToTry).Minutes())
 			}
 		} else {
 			// Connection has not been initialized. Trigger a silent update, since an
