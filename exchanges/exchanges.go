@@ -631,6 +631,12 @@ func (xc *CommonExchange) setWsFail(err error) {
 	xc.wsSync.fail = time.Now()
 }
 
+func (xc *CommonExchange) wsFailTime() time.Time {
+	xc.wsMtx.RLock()
+	defer xc.wsMtx.RUnlock()
+	return xc.wsSync.fail
+}
+
 // Set the init flag. The websocket is considered failed if the failed flag
 // is later than the init flag.
 func (xc *CommonExchange) wsInitialized() {
@@ -640,11 +646,13 @@ func (xc *CommonExchange) wsInitialized() {
 	xc.wsSync.update = xc.wsSync.init
 }
 
-// Set the updated flag.
+// Set the updated flag. Set the error count to 0 when the client has
+// successfully updated.
 func (xc *CommonExchange) wsUpdated() {
 	xc.wsMtx.Lock()
 	defer xc.wsMtx.Unlock()
 	xc.wsSync.update = time.Now()
+	xc.wsSync.errCount = 0
 }
 
 func (xc *CommonExchange) wsLastUpdate() time.Time {
@@ -681,8 +689,6 @@ func (xc *CommonExchange) connectSignalr(cfg *signalrConfig) (err error) {
 	xc.sr, err = newSignalrConnection(cfg)
 	return
 }
-
-const wsMaxErrors = 5
 
 // An intermediate order representation used to track an orderbook over a
 // websocket connection.
@@ -752,12 +758,23 @@ func (xc *CommonExchange) wsDepthStatus(connector func()) (tryHttp, initializing
 			log.Tracef("using http fallback for %s orderbook data", xc.token)
 			tryHttp = true
 			errCount := xc.wsErrorCount()
-			if errCount < wsMaxErrors {
+			var delay time.Duration
+			// wsDepthStatus is only called every DataExpiry, so a delay of zero is ok
+			// until there are a few consecutive errors.
+			switch {
+			case errCount < 5:
+			case errCount < 20:
+				delay = 10 * time.Minute
+			default:
+				delay = time.Minute * 60
+			}
+			okToTry := xc.wsFailTime().Add(delay)
+			if time.Now().After(okToTry) {
 				// Try to connect, but don't wait for the response. Grab the order
 				// book over HTTP anyway.
 				connector()
-			} else if errCount == wsMaxErrors {
-				log.Errorf("%s websocket being disabled. Too many errors", xc.token)
+			} else {
+				log.Errorf("%s websocket disabled. Too many errors. Will attempt to reconnect after %.1f minutes", xc.token, time.Until(okToTry).Minutes())
 			}
 		} else {
 			// Connection has not been initialized. Trigger a silent update, since an
