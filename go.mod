@@ -48,6 +48,7 @@ require (
 )
 
 replace (
+	github.com/asdine/storm => github.com/asdine/storm v2.1.2+incompatible
 	github.com/decred/dcrdata/api/types/v4 => ./api/types
 	github.com/decred/dcrdata/blockdata/v4 => ./blockdata
 	github.com/decred/dcrdata/db/cache/v2 => ./db/cache
