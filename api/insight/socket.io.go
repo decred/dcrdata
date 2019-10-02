@@ -207,6 +207,7 @@ func (soc *SocketServer) sendNewMsgTx(msgTx *wire.MsgTx) error {
 // []Vout, if it is available. If vouts is zero-length, the output addresses are
 // decoded from their pkScripts.
 func (soc *SocketServer) sendNewTx(msgTx *wire.MsgTx, vouts []chainjson.Vout) error {
+	// Gather vins and their prevouts.
 	var vins []InsightSocketVin
 	for _, v := range msgTx.TxIn {
 		txid := v.PreviousOutPoint.Hash.String()
@@ -236,6 +237,7 @@ func (soc *SocketServer) sendNewTx(msgTx *wire.MsgTx, vouts []chainjson.Vout) er
 		})
 	}
 
+	// Gather vouts.
 	var voutAddrs [][]string
 	for i, v := range msgTx.TxOut {
 		// Allow Vouts to be nil or empty, extracting the addresses from the
@@ -257,7 +259,13 @@ func (soc *SocketServer) sendNewTx(msgTx *wire.MsgTx, vouts []chainjson.Vout) er
 		}
 	}
 
-	hash := msgTx.TxHash().String()
+	// All addresses that have client subscriptions, and are paid to by vouts
+	// and the vins' prevouts.
+	addrTxs := make(map[string]struct{})
+
+	// Create the InsightSocketVout slice for the WebSocketTx struct sent to all
+	// "inv" subscribers. Also record all vout addresses with corresponding
+	// address room subscriptions.
 	var voutsInsight []InsightSocketVout
 	var total int64
 	for i, v := range msgTx.TxOut {
@@ -269,7 +277,7 @@ func (soc *SocketServer) sendNewTx(msgTx *wire.MsgTx, vouts []chainjson.Vout) er
 		soc.watchedAddresses.RLock()
 		for _, address := range voutAddrs[i] {
 			if _, ok := soc.watchedAddresses.c[address]; ok {
-				soc.BroadcastToRoom(address, address, hash)
+				addrTxs[address] = struct{}{}
 			}
 			voutsInsight = append(voutsInsight, InsightSocketVout{
 				Address: address,
@@ -279,6 +287,25 @@ func (soc *SocketServer) sendNewTx(msgTx *wire.MsgTx, vouts []chainjson.Vout) er
 		soc.watchedAddresses.RUnlock()
 	}
 
+	// Record all prevout addresses with corresponding address room
+	// subscriptions.
+	for i := range vins {
+		soc.watchedAddresses.RLock()
+		for _, address := range vins[i].Addresses {
+			if _, ok := soc.watchedAddresses.c[address]; ok {
+				addrTxs[address] = struct{}{}
+			}
+		}
+		soc.watchedAddresses.RUnlock()
+	}
+
+	// Broadcast this tx hash to each relevant address room.
+	hash := msgTx.TxHash().String()
+	for address := range addrTxs {
+		soc.BroadcastToRoom(address, address, hash)
+	}
+
+	// Broadcast the WebSocketTx data to add "inv" room subscribers.
 	tx := WebSocketTx{
 		Hash:     hash,
 		Size:     msgTx.SerializeSize(),
