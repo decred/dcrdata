@@ -1,0 +1,40 @@
+name: Build and Test
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [10.x, 12.x]
+        go: [1.12, 1.13]
+    steps:
+    - uses: actions/checkout@v1
+
+    - name: Set up Go
+      uses: actions/setup-go@v1
+      with:
+        go-version: ${{ matrix.go }}
+
+    - name: Go Build
+      env:
+        GO111MODULE: "on"
+      run: go build ./...
+
+    - name: Use nodejs ${{ matrix.node-version }}
+      uses: actions/setup-node@v1
+      with:
+        node-version: ${{ matrix.node-version }}
+    - name: npm install
+      run: npm install
+    - name: npm run build
+      run: npm run build
+
+    - name: Install Linters
+      run: "curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.19.1"
+    - name: tests
+      env:
+        GO111MODULE: "on"
+      run: |
+        export PATH=${PATH}:$(go env GOPATH)/bin
+        ./run_tests.sh
