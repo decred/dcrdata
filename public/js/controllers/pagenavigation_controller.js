@@ -4,16 +4,26 @@ import Url from 'url-parse'
 
 export default class extends Controller {
   static get targets () {
-    return ['pagesize', 'votestatus', 'listview']
+    return ['pagesize', 'votestatus', 'listview', 'pageage']
   }
 
   setPageSize () {
     var url = Url(window.location.href)
     var q = Url.qs.parse(url.query)
-    delete q.offset
-    delete q.height
     q[this.pagesizeTarget.dataset.offsetkey] = this.pagesizeTarget.dataset.offset
     q['rows'] = this.pagesizeTarget.selectedOptions[0].value
+    if (this.hasVotestatusTarget) {
+      q['byvotestatus'] = this.votestatusTarget.selectedOptions[0].value
+    }
+    url.set('query', q)
+    Turbolinks.visit(url.toString())
+  }
+
+  setPageAge () {
+    var url = Url(window.location.href)
+    var q = Url.qs.parse(url.query)
+    q[this.pagesizeTarget.dataset.offsetkey] = this.pageageTarget.selectedOptions[0].value
+    q['rows'] = this.pageageTarget.dataset.rows
     if (this.hasVotestatusTarget) {
       q['byvotestatus'] = this.votestatusTarget.selectedOptions[0].value
     }

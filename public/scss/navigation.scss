@@ -12,6 +12,7 @@
   top: 0;
   background: #fff;
   border-bottom: 1px solid #00000017;
+  box-shadow: 0 0 25px #dcdcdc;
 }
 
 .navbar-fixed-bottom {
@@ -75,8 +76,7 @@ ul.pages > li:last-child > a {
   position: relative;
   max-width: 550px;
   height: 35px;
-  border-width: 1px;
-  border: 2px solid #d1d8dd;
+  border: 1px solid #d1d8dd;
   color: #d1d8dd;
   border-radius: 6px;
   overflow: hidden;
@@ -126,16 +126,32 @@ ul.pages > li:last-child > a {
 }
 
 .blocks-selector.active {
-  background-color: #ffd16a;
+  background-color: #2ed6a1;
+}
+
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  border: none;
+  height: 30px;
+  font-size: 14px;
+  padding: 0 5px;
+  border-radius: 2px;
+  background-color: #fff !important;
+}
+
+select.pagesize {
+  background: url(/images/dropdown.svg) 95% / 8% no-repeat;
+  width: 100px;
+}
+
+select.pageage {
+  background: url(/images/dropdown.svg) 90% / 11% no-repeat;
+  width: 70px;
 }
 
 select.dropdown {
-  border: none;
-  font-size: 14px;
-  height: 24px;
-  padding: 0 5px;
   border-radius: 5px;
-  background-color: white;
 }
 
 ul.pages {

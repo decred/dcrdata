@@ -82,7 +82,7 @@
 				<input type="checkbox" data-target="menu.toggle" data-action="change->menu#toggle"/>
 				<span class="patty"></span>
 				<span class="patty"></span>
-				<span class="patty short"></span>
+				<span class="patty"></span>
 				<div id="menu">
 					<a class="menu-item" data-keynav-skip href="/" title="Home">Home</a>
 					<a class="menu-item" data-keynav-skip href="/blocks" title="Decred blocks">Blocks</a>
@@ -194,23 +194,6 @@
   {{- else -}}
     <span class="text-danger">{{printf "%.2f" .}} %</span>
   {{- end -}}
-{{end}}
-
-{{define "listViewRouting"}}
-	<div class="fs12 nowrap text-left" style="margin:auto auto auto 0px;">
-		<select
-		  class="form-control-sm mb-2 mr-sm-2 mb-sm-0"
-		  data-target="pagenavigation.listview"
-		  data-action="change->pagenavigation#setListView"
-		  >
-			<option {{if eq . "years"}}selected {{end}}value="years">Years</option>
-			<option {{if eq . "months"}}selected {{end}}value="months">Months</option>
-			<option {{if eq . "weeks"}}selected {{end}}value="weeks">Weeks</option>
-			<option {{if eq . "days"}}selected {{end}}value="days">Days</option>
-			<option {{if eq . "windows"}}selected {{end}}value="ticketpricewindows">Windows</option>
-			<option {{if eq . "blocks"}}selected {{end}}value="blocks">Blocks</option>
-		</select>
-	</div>
 {{end}}
 
 {{define "hashElide"}}
@@ -346,7 +329,7 @@
 <div class="bg-white block-banner">
 	<div class="container px-0">
 		<div class="h3 text-blueish pt-4 pb-2">Explore Blockchain</div>
-		<div class="medium-sans">
+		<div>
 			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/blocks">
 				<span class="px-2{{if eq .TimeGrouping "Blocks"}} unstyled-link{{else}} text-secondary{{end}}">Blocks</span>
 				<div class="blocks-selector{{if eq .TimeGrouping "Blocks"}} active{{end}}"></div>
@@ -355,21 +338,22 @@
 				<span class="px-2{{if eq .TimeGrouping "Windows"}} unstyled-link{{else}} text-secondary{{end}}">Windows</span>
 				<div class="blocks-selector{{if eq .TimeGrouping "Windows"}} active{{end}}"></div>
 			</a>
-			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/days">
-				<span class="px-2{{if eq .TimeGrouping "Days"}} unstyled-link{{else}} text-secondary{{end}}">Days</span>
-				<div class="blocks-selector{{if eq .TimeGrouping "Days"}} active{{end}}"></div>
-			</a>
-			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/weeks">
-				<span class="px-2{{if eq .TimeGrouping "Weeks"}} unstyled-link{{else}} text-secondary{{end}}">Weeks</span>
-				<div class="blocks-selector{{if eq .TimeGrouping "Weeks"}} active{{end}}"></div>
+			<hr class="position-relative d-inline-block mr-4">
+			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/years">
+				<span class="px-2{{if eq .TimeGrouping "Years"}} unstyled-link{{else}} text-secondary{{end}}">Years</span>
+				<div class="blocks-selector{{if eq .TimeGrouping "Years"}} active{{end}}"></div>
 			</a>
 			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/months">
 				<span class="px-2{{if eq .TimeGrouping "Months"}} unstyled-link{{else}} text-secondary{{end}}">Months</span>
 				<div class="blocks-selector{{if eq .TimeGrouping "Months"}} active{{end}}"></div>
 			</a>
-			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/years">
-				<span class="px-2{{if eq .TimeGrouping "Years"}} unstyled-link{{else}} text-secondary{{end}}">Years</span>
-				<div class="blocks-selector{{if eq .TimeGrouping "Years"}} active{{end}}"></div>
+			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/weeks">
+				<span class="px-2{{if eq .TimeGrouping "Weeks"}} unstyled-link{{else}} text-secondary{{end}}">Weeks</span>
+				<div class="blocks-selector{{if eq .TimeGrouping "Weeks"}} active{{end}}"></div>
+			</a>
+			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/days">
+				<span class="px-2{{if eq .TimeGrouping "Days"}} unstyled-link{{else}} text-secondary{{end}}">Days</span>
+				<div class="blocks-selector{{if eq .TimeGrouping "Days"}} active{{end}}"></div>
 			</a>
 		</div>
 	</div>

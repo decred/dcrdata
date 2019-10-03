@@ -16,61 +16,48 @@
             {{$Offset := (subtract .BestBlock $topBlock)}}
             {{$pendingBlocks := ((index .Data 0).Height)}}
             <div class="d-flex justify-content-between align-items-end">
-                <span class="h2 d-flex pt-4 pb-1 pr-2">Blocks</span>
-
+                <span class="h2 d-flex pt-4 pb-1 pr-2">
+                    Per blocks
+                    <span class="dcricon-info ml-3 mt-1"></span>
+                </span>
                 <div class="pb-1 d-flex justify-content-end align-items-end flex-wrap">
-                  <span class="fs12 nowrap text-secondary px-2 my-2">
-                      {{intComma (add $Offset 1)}} &ndash; {{intComma (add $Offset .Rows)}} of {{intComma (add .BestBlock 1) }} rows
-                  </span>
-                  <span class="fs12 nowrap text-right">
+                  <span class="fs12 nowrap text-right mr-2">
                       <select
                           data-target="pagenavigation.pagesize"
                           data-action="change->pagenavigation#setPageSize"
                           data-offset="{{$pendingBlocks}}"
                           data-offsetkey="height"
-                          class="dropdown text-secondary my-2 {{if lt $blocksCount 10}}disabled{{end}}"
-                          {{if lt $blocksCount 10}}disabled="disabled"{{end}}
+                          class="pagesize text-secondary my-2"
                       >
-                      {{if ge $pendingBlocks 20}}<option {{if eq $blocksCount 20}}selected{{end}} value="20">20 per page</option>{{end}}
-                      {{if ge $pendingBlocks 30}}<option {{if eq $blocksCount 30}}selected{{end}} value="30">30 per page</option>{{end}}
-                      {{if ge $pendingBlocks 50}}<option {{if eq $blocksCount 50}}selected{{end}} value="50">50 per page</option>{{end}}
-                      {{if ge $pendingBlocks 100}}<option {{if eq $blocksCount 100}}selected{{end}} value="100">100 per page</option>{{end}}
-                      {{if ge $pendingBlocks .WindowSize}}<option {{if eq $blocksCount .WindowSize}}selected{{end}} value="{{.WindowSize}}">{{.WindowSize}} per page</option>{{end}}
-                      {{if eq $blocksCount 20 30 50 100 .WindowSize}}{{else}}<option selected value="{{$blocksCount}}">{{$blocksCount}} per page</option>{{end}}
+                        <option {{if eq $blocksCount 10}}selected{{end}} value="10">10 per page</option>
+                        <option {{if eq $blocksCount 20}}selected{{end}} value="20">20 per page</option>
+                        <option {{if eq $blocksCount 30}}selected{{end}} value="30">30 per page</option>
+                        <option {{if eq $blocksCount 40}}selected{{end}} value="40">40 per page</option>
+                        <option {{if eq $blocksCount 50}}selected{{end}} value="50">50 per page</option>
+                        {{if eq $blocksCount 10 20 30 40 50}}{{else}}
+                            <option selected value="{{$blocksCount}}">{{$blocksCount}} per page</option>
+                        {{end}}
                       </select>
                   </span>
-                  <nav aria-label="blocks navigation" data-limit="{{.Rows}}" class="ml-2 my-2 d-inline-block text-right">
-                      <ul class="pages mb-0">
-                          {{if lt $topBlock .BestBlock}}
-                          <li>
-                             <a
-                             class="text-secondary"
-                             href="/blocks?height={{.BestBlock}}&rows={{.Rows}}"
-                             > Newest</a>
-                          </li>
-                          <li>
-                             <a
-                             class="text-secondary"
-                             href="/blocks?height={{ add $topBlock (int64 $blocksCount) }}&rows={{.Rows}}"
-                             > Newer</a>
-                          </li>
-                          {{end}}
-                          {{if ge $topBlock .Rows}}
-                            <li>
-                                <a
-                                class="text-secondary"
-                                href="/blocks?height={{ subtract $topBlock (int64 $blocksCount) }}&rows={{.Rows}}"
-                                >Older</a>
-                            </li>
-                            <li>
-                                <a
-                                class="text-secondary"
-                                href="/blocks?height={{subtract .Rows 1}}&rows={{.Rows}}"
-                                >Oldest</a>
-                            </li>
-                          {{end}}
-                      </ul>
-                  </nav>
+                  <span class="fs12 nowrap text-right">
+                      <select
+                          data-target="pagenavigation.pageage"
+                          data-action="change->pagenavigation#setPageAge"
+                          data-rows="{{.Rows}}"
+                          data-offsetkey="height"
+                          class="pageage text-secondary my-2"
+                      >
+                        <option selected disabled>New<option>
+                        {{if lt $topBlock .BestBlock}}
+                            <option value="{{.BestBlock}}">Newest</option>
+                            <option value="{{add $topBlock (int64 $blocksCount)}}">Newer</option>
+                        {{end}}
+                        {{if ge $topBlock .Rows}}
+                            <option value="{{subtract $topBlock (int64 $blocksCount)}}">Older</option>
+                            <option value="{{subtract .Rows 1}}">Oldest</option>
+                        {{end}}
+                      </select>
+                  </span>
                 </div>
             </div>
             {{else}}
@@ -84,7 +71,7 @@
                     <tr class="text-secondary">
                         <th class="text-left pl-0">Height</th>
                         <th class="text-center d-none d-sm-table-cell">
-                            <span class="d-none d-md-inline">Regular</span>
+                            <span class="d-none d-md-inline">Transactions</span>
                             <span class="d-md-none position-relative" data-tooltip="regular transactions">R</span>
                         </th>
                         <th class="text-center d-none d-sm-table-cell">
@@ -106,14 +93,14 @@
                             <span class="d-none d-md-inline">Version</span>
                             <span class="d-md-none position-relative" data-tooltip="block version">Ver</span>
                         </th>
-                        <th class="text-right" class="jsonly">Age</th>
-                        <th class="text-right px-0">Time</th>
+                        <th class="text-center" class="jsonly">Age</th>
+                        <th class="text-center px-0">Time</th>
                     </tr>
                 </thead>
                 <tbody data-target="blocklist.table">
                 {{range .Data}}
-                    <tr data-height="{{ .Height }}" data-link-class="medium-sans">
-                        <td data-type="height" class="text-left pl-0"><a href="/block/{{.Height}}" data-keynav-priority class="medium-sans">{{if not .Valid}}<span class="attention">&#9888;</span>{{end}}{{ .Height }}</a></td>
+                    <tr data-height="{{ .Height }}">
+                        <td data-type="height" class="text-left pl-0"><a href="/block/{{.Height}}" data-keynav-priority>{{if not .Valid}}<span class="attention">&#9888;</span>{{end}}{{ .Height }}</a></td>
                         <td class="text-center d-none d-sm-table-cell" data-type="tx" {{if not .Valid}}class="grayed" title="Regular transactions invalidated by stakeholders."{{end}}>{{.Transactions}}</td>
                         <td class="text-center d-none d-sm-table-cell" data-type="votes">{{.Voters}}</td>
                         <td class="text-center d-none d-sm-table-cell" data-type="tickets">{{.FreshStake}}</td>
@@ -122,8 +109,8 @@
                         <td class="text-center" data-type="value">{{threeSigFigs .Total}}</td>
                         <td class="text-center" data-type="size">{{.FormattedBytes}}</td>
                         <td class="text-center d-none d-sm-table-cell" data-type="version">{{.Version}}</td>
-                        <td class="text-right" data-type="age" class="jsonly" data-target="time.age" data-age="{{.BlockTime.UNIX}}"></td>
-                        <td class="text-right px-0" data-type="time">{{.BlockTime}}</td>
+                        <td class="text-center" data-type="age" class="jsonly" data-target="time.age" data-age="{{.BlockTime.UNIX}}"></td>
+                        <td class="text-center px-0" data-type="time">{{.BlockTime}}</td>
                     </tr>
                 {{end}}
                 </tbody>
