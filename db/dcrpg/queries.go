@@ -2433,31 +2433,6 @@ func RetrieveFundingTxByVinDbID(ctx context.Context, db *sql.DB, vinDbID uint64)
 	return
 }
 
-// TODO: this does not appear correct.
-func RetrieveFundingTxsByTx(db *sql.DB, txHash string) ([]uint64, []*dbtypes.Tx, error) {
-	var ids []uint64
-	var txs []*dbtypes.Tx
-	rows, err := db.Query(internal.SelectFundingTxsByTx, txHash)
-	if err != nil {
-		return ids, txs, err
-	}
-	defer closeRows(rows)
-
-	for rows.Next() {
-		var id uint64
-		var tx dbtypes.Tx
-		err = rows.Scan(&id, &tx)
-		if err != nil {
-			break
-		}
-
-		ids = append(ids, id)
-		txs = append(txs, &tx)
-	}
-
-	return ids, txs, err
-}
-
 // RetrieveSpendingTxByVinID gets the spending transaction input (hash, vin
 // number, and tx tree) for the transaction input specified by row ID in the
 // vins table.

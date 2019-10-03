@@ -2767,36 +2767,6 @@ func (pgb *ChainDB) AddressTransactionDetails(addr string, count, skip int64,
 	}, nil
 }
 
-// TODO: finish
-func (pgb *ChainDB) AddressTransactionRawDetails(addr string, count, skip int64,
-	txnType dbtypes.AddrTxnViewType) ([]*apitypes.AddressTxRaw, error) {
-	addrData, _, err := pgb.addressInfo(addr, count, skip, txnType)
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert each dbtypes.AddressTx to apitypes.AddressTxRaw
-	txs := addrData.Transactions
-	txsRaw := make([]*apitypes.AddressTxRaw, 0, len(txs))
-	for i := range txs {
-		txsRaw = append(txsRaw, &apitypes.AddressTxRaw{
-			Size: int32(txs[i].Size),
-			TxID: txs[i].TxID,
-			// Version
-			// LockTime
-			// Vin
-			// Vout
-			//
-			Confirmations: int64(txs[i].Confirmations),
-			//BlockHash: txs[i].
-			Time: apitypes.TimeAPI{S: txs[i].Time},
-			//Blocktime:
-		})
-	}
-
-	return txsRaw, nil
-}
-
 // UpdateChainState updates the blockchain's state, which includes each of the
 // agenda's VotingDone and Activated heights. If the agenda passed (i.e. status
 // is "lockedIn" or "activated"), Activated is set to the height at which the rule
@@ -4471,7 +4441,8 @@ func (pgb *ChainDB) GetPoolInfo(idx int) *apitypes.TicketPoolInfo {
 	return ticketPoolInfo
 }
 
-// GetPoolInfo retrieves the ticket pool statistics at the specified block hash.
+// GetPoolInfoByHash retrieves the ticket pool statistics at the specified block
+// hash.
 func (pgb *ChainDB) GetPoolInfoByHash(hash string) *apitypes.TicketPoolInfo {
 	ticketPoolInfo, err := RetrievePoolInfoByHash(pgb.ctx, pgb.db, hash)
 	if err != nil {
@@ -4481,7 +4452,7 @@ func (pgb *ChainDB) GetPoolInfoByHash(hash string) *apitypes.TicketPoolInfo {
 	return ticketPoolInfo
 }
 
-// GetPoolInfo retrieves the ticket pool statistics for a range of block
+// GetPoolInfoRange retrieves the ticket pool statistics for a range of block
 // heights, as a slice.
 func (pgb *ChainDB) GetPoolInfoRange(idx0, idx1 int) []apitypes.TicketPoolInfo {
 	ind0 := int64(idx0)
@@ -5020,8 +4991,8 @@ func (pgb *ChainDB) GetMempoolSSTxFeeRates(N int) *apitypes.MempoolTicketFees {
 	return &mpTicketFees
 }
 
-// returns the current mempool ticket info for tickets above height N in the
-// mempool cache.
+// GetMempoolSSTxDetails returns the current mempool ticket info for tickets
+// above height N in the mempool cache.
 func (pgb *ChainDB) GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails {
 	height, timestamp, totalSSTx, details := pgb.MPC.GetTicketsDetails(N)
 	mpTicketDetails := apitypes.MempoolTicketDetails{

@@ -255,6 +255,9 @@ func (pgb *ChainDB) DeleteDuplicates(barLoad chan *dbtypes.ProgressBarLoad) erro
 	return nil
 }
 
+// DeleteDuplicatesRecovery attempts to delete "duplicate" rows in all tables
+// where unique indexes are to be created.  This is like DeleteDuplicates, but
+// it also includes transactions, tickets, votes, and misses.
 func (pgb *ChainDB) DeleteDuplicatesRecovery(barLoad chan *dbtypes.ProgressBarLoad) error {
 	allDuplicates := []dropDuplicatesInfo{
 		// Remove duplicate vins

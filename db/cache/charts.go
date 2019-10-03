@@ -415,7 +415,7 @@ type ChartData struct {
 	updaters     []ChartUpdater
 }
 
-// Check that the length of all arguments is equal.
+// ValidateLengths checks that the length of all arguments is equal.
 func ValidateLengths(lens ...lengther) (int, error) {
 	lenLen := len(lens)
 	if lenLen == 0 {

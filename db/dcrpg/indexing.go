@@ -666,13 +666,13 @@ func (pgb *ChainDB) DeindexAddressTable() error {
 	return err
 }
 
-// IndexAddressTableOnVoutID creates the index for the addresses table over
-// vout row ID.
+// IndexStatsTableOnHeight creates the index for the stats table over height.
 func IndexStatsTableOnHeight(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.IndexStatsOnHeight)
 	return
 }
 
+// DeindexStatsTableOnHeight drops the index for the stats table over height.
 func DeindexStatsTableOnHeight(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.DeindexStatsOnHeight)
 	return

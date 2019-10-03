@@ -32,7 +32,8 @@ import (
 	"github.com/decred/dcrdata/txhelpers/v3"
 )
 
-// A hard deadline for handlers to finish handling before an error is logged.
+// SyncHandlerDeadline is a hard deadline for handlers to finish handling before
+// an error is logged.
 const SyncHandlerDeadline = time.Minute * 5
 
 // BranchTips describes the old and new chain tips involved in a reorganization.
