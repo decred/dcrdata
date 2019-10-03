@@ -230,8 +230,8 @@ func (t *TxInfo) IsImmatureCoinbase() bool {
 	return t.Type == CoinbaseTypeStr && t.Mature == "False"
 }
 
-// IsImmatureCoinbase verifies the conditions: 1. is a revocation,
-// 2. is not mature.
+// IsImmatureRevocation verifies the conditions: 1. is a revocation, 2. is not
+// mature.
 func (t *TxInfo) IsImmatureRevocation() bool {
 	return t.Type == RevTypeStr && t.Mature == "False"
 }

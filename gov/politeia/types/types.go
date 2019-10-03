@@ -204,13 +204,13 @@ func VotesStatuses() map[VoteStatusType]string {
 // IsEqual compares CensorshipRecord, Name, State, NumComments, StatusChangeMsg,
 // Timestamp, CensoredDate, AbandonedDate, PublishedDate, Token, VoteStatus,
 // TotalVotes and count of VoteResults between the two ProposalsInfo structs passed.
-func (a *ProposalInfo) IsEqual(b *ProposalInfo) bool {
-	if a.CensorshipRecord != b.CensorshipRecord || a.Name != b.Name || a.State != b.State ||
-		a.NumComments != b.NumComments || a.StatusChangeMsg != b.StatusChangeMsg ||
-		a.Status != b.Status || a.Timestamp != b.Timestamp || a.Token != b.Token ||
-		a.CensoredDate != b.CensoredDate || a.AbandonedDate != b.AbandonedDate ||
-		a.VoteStatus != b.VoteStatus || a.TotalVotes != b.TotalVotes ||
-		a.PublishedDate != b.PublishedDate || len(a.VoteResults) != len(b.VoteResults) {
+func (pi *ProposalInfo) IsEqual(b *ProposalInfo) bool {
+	if pi.CensorshipRecord != b.CensorshipRecord || pi.Name != b.Name || pi.State != b.State ||
+		pi.NumComments != b.NumComments || pi.StatusChangeMsg != b.StatusChangeMsg ||
+		pi.Status != b.Status || pi.Timestamp != b.Timestamp || pi.Token != b.Token ||
+		pi.CensoredDate != b.CensoredDate || pi.AbandonedDate != b.AbandonedDate ||
+		pi.VoteStatus != b.VoteStatus || pi.TotalVotes != b.TotalVotes ||
+		pi.PublishedDate != b.PublishedDate || len(pi.VoteResults) != len(b.VoteResults) {
 		return false
 	}
 	return true
@@ -240,14 +240,14 @@ type ProposalMetadata struct {
 // prepare figures for display. Many of these manipulations require a tip height
 // and a target block time for the network, so those must be provided as
 // arguments.
-func (pinfo *ProposalInfo) Metadata(tip, targetBlockTime int64) *ProposalMetadata {
+func (pi *ProposalInfo) Metadata(tip, targetBlockTime int64) *ProposalMetadata {
 	meta := new(ProposalMetadata)
-	desc := pinfo.VoteStatus.ShortDesc()
+	desc := pi.VoteStatus.ShortDesc()
 	switch desc {
 	case "Started", "Finished":
-		endHeight, _ := strconv.ParseInt(pinfo.ProposalVotes.Endheight, 10, 64)
+		endHeight, _ := strconv.ParseInt(pi.ProposalVotes.Endheight, 10, 64)
 		meta.StartHeight = endHeight - windowSize
-		for _, count := range pinfo.VoteResults {
+		for _, count := range pi.VoteResults {
 			switch count.Option.OptionID {
 			case "yes":
 				meta.Yes = count.VotesReceived
@@ -256,10 +256,10 @@ func (pinfo *ProposalInfo) Metadata(tip, targetBlockTime int64) *ProposalMetadat
 			}
 		}
 		meta.VoteCount = meta.Yes + meta.No
-		quorumPct := float32(pinfo.QuorumPercentage) / 100
-		meta.QuorumCount = int64(quorumPct * float32(pinfo.NumOfEligibleVotes))
-		meta.PassPercent = float32(pinfo.PassPercentage) / 100
-		pctVoted := float32(meta.VoteCount) / float32(pinfo.NumOfEligibleVotes)
+		quorumPct := float32(pi.QuorumPercentage) / 100
+		meta.QuorumCount = int64(quorumPct * float32(pi.NumOfEligibleVotes))
+		meta.PassPercent = float32(pi.PassPercentage) / 100
+		pctVoted := float32(meta.VoteCount) / float32(pi.NumOfEligibleVotes)
 		meta.QuorumAchieved = pctVoted > quorumPct
 		if meta.VoteCount > 0 {
 			meta.Approval = float32(meta.Yes) / float32(meta.VoteCount)
