@@ -698,7 +698,7 @@ func (ac *AddressCache) BalanceStats() (hits, misses int) {
 	return ac.cacheMetrics.balanceStats()
 }
 
-// rowStats reports the row hit/miss stats.
+// RowStats reports the row hit/miss stats.
 func (ac *AddressCache) RowStats() (hits, misses int) {
 	return ac.cacheMetrics.rowStats()
 }

@@ -54,14 +54,14 @@ func (node *dummyNode) GetBlockHeaderVerbose(hash *chainhash.Hash) (*chainjson.G
 	return nil, nil
 }
 
-var callCounter int = 0
+var callCounter int
 
-// test_TxHandler will be tested async
+// testTxHandler will be tested async
 var mtx sync.RWMutex
 var wg = new(sync.WaitGroup)
 var notifier *Notifier
 
-func test_TxHandler(_ *chainjson.TxRawResult) error {
+func testTxHandler(_ *chainjson.TxRawResult) error {
 	mtx.Lock()
 	defer mtx.Unlock()
 	defer wg.Done()
@@ -69,19 +69,19 @@ func test_TxHandler(_ *chainjson.TxRawResult) error {
 	return nil
 }
 
-var test_TxHandler_2 = test_TxHandler
+var testTxHandler2 = testTxHandler
 
-func test_BlockHandler(_ *wire.BlockHeader) error {
+func testBlockHandler(_ *wire.BlockHeader) error {
 	defer wg.Done()
 	callCounter++
 	return nil
 }
-func test_BlockHandlerLite(_ uint32, _ string) error {
+func testBlockHandlerLite(_ uint32, _ string) error {
 	defer wg.Done()
 	callCounter++
 	return nil
 }
-func test_ReorgHandler(reorg *txhelpers.ReorgData) error {
+func testReorgHandler(reorg *txhelpers.ReorgData) error {
 	defer wg.Done()
 	callCounter++
 	notifier.SetPreviousBlock(reorg.NewChainHead, uint32(reorg.NewChainHeight))
@@ -92,10 +92,10 @@ func TestNotifier(t *testing.T) {
 	ctx, shutdown := context.WithCancel(context.Background())
 	notifier = NewNotifier(ctx)
 	signals := notifier.DcrdHandlers()
-	notifier.RegisterTxHandlerGroup(test_TxHandler, test_TxHandler_2)
-	notifier.RegisterBlockHandlerGroup(test_BlockHandler)
-	notifier.RegisterBlockHandlerLiteGroup(test_BlockHandlerLite)
-	notifier.RegisterReorgHandlerGroup(test_ReorgHandler)
+	notifier.RegisterTxHandlerGroup(testTxHandler, testTxHandler2)
+	notifier.RegisterBlockHandlerGroup(testBlockHandler)
+	notifier.RegisterBlockHandlerLiteGroup(testBlockHandlerLite)
+	notifier.RegisterReorgHandlerGroup(testReorgHandler)
 	wg.Add(5)
 
 	notifier.Listen(&dummyNode{})

@@ -1852,7 +1852,7 @@ func (list DragonExCandlestickList) getFloat(idx int) (float64, error) {
 	return val, nil
 }
 
-// DragonExCandlestickLists is a list of DragonExCandlestickList
+// DragonExCandlestickPts is a list of DragonExCandlestickList.
 type DragonExCandlestickPts []DragonExCandlestickList
 
 // DragonExCandlestickData models the Data field of DragonExCandlestickResponse.
