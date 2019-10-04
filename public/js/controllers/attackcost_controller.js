@@ -172,7 +172,7 @@ export default class extends Controller {
 
   chooseAttackType () {
     this.settings.attackType = this.selectedAttackType()
-    console.log(`Attack Type: ${this.settings.attackType}`)
+    this.calculate()
   }
 
   updateKwhRate () {
@@ -198,7 +198,9 @@ export default class extends Controller {
 
   selectedDevice () { return this.deviceTarget.value }
 
-  selectedAttackType () { return this.attackTypeTarget.value }
+  selectedAttackType () {
+    return this.attackTypeTarget.value
+  }
 
   selectOption (options) {
     let val = '0'
@@ -222,7 +224,17 @@ export default class extends Controller {
 
   updateTargetHashRate (newTargetPow) {
     this.targetPowTarget.value = newTargetPow || this.targetPowTarget.value
-    this.targetHashRate = hashrate * parseFloat(this.targetPowTarget.value) / 100
+
+    console.log(`Hash rate ${hashrate}`)
+
+    switch (this.settings.attackType) {
+      case '1':
+        this.targetHashRate = hashrate / (1 - parseFloat(this.targetPowTarget.value) / 100)
+        return
+      case '0':
+      default:
+        this.targetHashRate = hashrate * parseFloat(this.targetPowTarget.value) / 100
+    }
   }
 
   setActivePoint () {
