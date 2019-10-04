@@ -47,6 +47,7 @@ var (
 	defaultDataDir           = filepath.Join(defaultHomeDir, defaultDataDirname)
 	dcrdHomeDir              = dcrutil.AppDataDir("dcrd", false)
 	defaultDaemonRPCCertFile = filepath.Join(dcrdHomeDir, "rpc.cert")
+	defaultMaxLogZips        = 16
 
 	defaultHost                = "localhost"
 	defaultHTTPProfPath        = "/p"
@@ -90,6 +91,7 @@ type config struct {
 	ConfigFile   string `short:"C" long:"configfile" description:"Path to configuration file" env:"DCRDATA_CONFIG_FILE"`
 	DataDir      string `short:"b" long:"datadir" description:"Directory to store data" env:"DCRDATA_DATA_DIR"`
 	LogDir       string `long:"logdir" description:"Directory to log output." env:"DCRDATA_LOG_DIR"`
+	MaxLogZips   int    `long:"max-log-zips" description:"The number of zipped log files created by the log rotator to be retained. Setting to 0 will keep all."`
 	OutFolder    string `short:"f" long:"outfolder" description:"Folder for file outputs" env:"DCRDATA_OUT_FOLDER"`
 	ShowVersion  bool   `short:"V" long:"version" description:"Display version information and exit"`
 	TestNet      bool   `long:"testnet" description:"Use the test network (default mainnet)" env:"DCRDATA_USE_TESTNET"`
@@ -174,6 +176,7 @@ var (
 		HomeDir:             defaultHomeDir,
 		DataDir:             defaultDataDir,
 		LogDir:              defaultLogDir,
+		MaxLogZips:          defaultMaxLogZips,
 		ConfigFile:          defaultConfigFile,
 		AgendasDBFileName:   defaultAgendasDBFileName,
 		ProposalsFileName:   defaultProposalsFileName,
@@ -554,7 +557,10 @@ func loadConfig() (*config, error) {
 
 	// Initialize log rotation. After log rotation has been initialized, the
 	// logger variables may be used. This creates the LogDir if needed.
-	initLogRotator(filepath.Join(cfg.LogDir, defaultLogFilename))
+	if cfg.MaxLogZips < 0 {
+		cfg.MaxLogZips = 0
+	}
+	initLogRotator(filepath.Join(cfg.LogDir, defaultLogFilename), cfg.MaxLogZips)
 
 	log.Infof("Log folder:  %s", cfg.LogDir)
 	log.Infof("Config file: %s", configFile)
