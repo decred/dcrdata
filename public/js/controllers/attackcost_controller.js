@@ -71,7 +71,7 @@ export default class extends Controller {
       'ticketAttackSize', 'ticketPoolAttack', 'ticketPoolSize', 'ticketPoolSizeLabel',
       'ticketPoolValue', 'ticketPrice', 'tickets', 'ticketSizeAttack', 'durationLongDesc',
       'total', 'totalDCRPos', 'totalDeviceCost', 'totalElectricity', 'totalExtraCostRate', 'totalKwh',
-      'totalPos', 'totalPow', 'graph', 'labels', 'attackPercentLabel', 'futureTicketPrice'
+      'totalPos', 'totalPow', 'graph', 'labels', 'attackPercentLabel', 'futureTicketPrice', 'attackType'
     ]
   }
 
@@ -170,6 +170,11 @@ export default class extends Controller {
     this.calculate()
   }
 
+  chooseAttackType () {
+    this.settings.attackType = this.selectedAttackType()
+    console.log(`Attack Type: ${this.settings.attackType}`)
+  }
+
   updateKwhRate () {
     this.settings.kwh_rate = this.kwhRateTarget.value
     this.calculate()
@@ -192,6 +197,8 @@ export default class extends Controller {
   }
 
   selectedDevice () { return this.deviceTarget.value }
+
+  selectedAttackType () { return this.attackTypeTarget.value }
 
   selectOption (options) {
     let val = '0'
