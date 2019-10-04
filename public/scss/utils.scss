@@ -219,7 +219,7 @@ body.darkBG [data-tooltip]:hover::after {
 }
 
 .clipboard span.clickable,
-.clipboard span.alert-success {
+.clipboard span.alert-copy {
   display: none;
   margin: auto;
   padding: 2px;
@@ -227,7 +227,7 @@ body.darkBG [data-tooltip]:hover::after {
   z-index: 1;
 }
 
-.clipboard span.alert-success {
+.clipboard span.alert-copy {
   border-radius: 3px;
   border-width: 3px 4px 5px 4px;
   border-color: transparent;

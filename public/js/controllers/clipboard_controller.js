@@ -13,6 +13,7 @@ export var alertArea = () => {
   var alertArea = document.createElement('span')
   alertArea.classList.add('alert')
   alertArea.classList.add('alert-success')
+  alertArea.classList.add('alert-copy')
   return alertArea.outerHTML
 }
 
@@ -20,7 +21,7 @@ export default class extends Controller {
   connect () {
     var copySupported = document.queryCommandSupported('copy')
     if (copySupported === false) {
-      for (const classname of ['dcricon-copy', 'alert-success']) {
+      for (const classname of ['dcricon-copy', 'alert-copy']) {
         var icons = document.getElementsByClassName(classname)
         while (icons.length > 0) icons[0].remove()
       }
@@ -36,7 +37,7 @@ export default class extends Controller {
     copyTextArea.select()
     try {
       document.execCommand('copy')
-      var alertCopy = parentNode.getElementsByClassName('alert-success')[0]
+      var alertCopy = parentNode.getElementsByClassName('alert-copy')[0]
       alertCopy.textContent = 'Copied!'
       alertCopy.style.display = 'inline-table'
       setTimeout(function () {
