@@ -26,10 +26,8 @@ const (
 
 	// NewTxBufferSize is the maximum length of the new transaction slice sent
 	// to websocket clients.
-	NewTxBufferSize = 5
-
+	NewTxBufferSize      = 5
 	bufferTickerInterval = 3
-	clientSignalSize     = 5
 
 	maxPayloadBytes = 1 << 20
 )
@@ -38,6 +36,8 @@ const (
 var (
 	sigSubscribe        = pstypes.SigSubscribe
 	sigUnsubscribe      = pstypes.SigUnsubscribe
+	sigDecodeTx         = pstypes.SigDecodeTx
+	sigSentTx           = pstypes.SigSendTx
 	sigNewBlock         = pstypes.SigNewBlock
 	sigMempoolUpdate    = pstypes.SigMempoolUpdate
 	sigPingAndUserCount = pstypes.SigPingAndUserCount
@@ -107,7 +107,7 @@ func (wsh *WebsocketHub) SetReady(ready bool) {
 }
 
 type client struct {
-	sync.RWMutex
+	mtx    sync.RWMutex
 	id     uint64
 	subs   map[pstypes.HubSignal]struct{}
 	addrs  map[string]struct{}
@@ -126,8 +126,8 @@ func newClient() *client {
 }
 
 func (c *client) isSubscribed(msg pstypes.HubMessage) bool {
-	c.RLock()
-	defer c.RUnlock()
+	c.mtx.RLock()
+	defer c.mtx.RUnlock()
 
 	_, subd := c.subs[msg.Signal]
 	if !subd {
@@ -149,8 +149,8 @@ func (c *client) isSubscribed(msg pstypes.HubMessage) bool {
 }
 
 func (c *client) subscribe(msg pstypes.HubMessage) error {
-	c.Lock()
-	defer c.Unlock()
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
 
 	switch msg.Signal {
 	case pstypes.SigAddressTx:
@@ -159,6 +159,13 @@ func (c *client) subscribe(msg pstypes.HubMessage) error {
 			return fmt.Errorf("msg.Msg not a string (SigAddressTx): %T", msg.Msg)
 		}
 		c.addrs[am.Address] = struct{}{}
+	case pstypes.SigPingAndUserCount:
+		log.Warn("Ping from the server no longer a subscription. " +
+			"Pings are sent to all clients.")
+		fallthrough
+	case sigByeNow, sigDecodeTx, sigSentTx, sigSubscribe, sigUnsubscribe:
+		// These are not subscription-based events, do not clutter the subs map.
+		return nil
 	default:
 	}
 
@@ -167,8 +174,8 @@ func (c *client) subscribe(msg pstypes.HubMessage) error {
 }
 
 func (c *client) unsubscribe(msg pstypes.HubMessage) error {
-	c.Lock()
-	defer c.Unlock()
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
 
 	switch msg.Signal {
 	case pstypes.SigAddressTx:
@@ -177,17 +184,21 @@ func (c *client) unsubscribe(msg pstypes.HubMessage) error {
 			return fmt.Errorf("msg.Msg not an AddressMessage (SigAddressTx): %T", msg.Msg)
 		}
 		delete(c.addrs, am.Address)
+		// Unsubscribe from address signals ONLY if this client has no more
+		// watched addresses.
+		if len(c.addrs) == 0 {
+			delete(c.subs, pstypes.SigAddressTx)
+		}
 	default:
+		delete(c.subs, msg.Signal)
 	}
-
-	delete(c.subs, msg.Signal)
 
 	return nil
 }
 
 func (c *client) unsubscribeAll() {
-	c.Lock()
-	defer c.Unlock()
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
 	for sub := range c.subs {
 		delete(c.subs, sub)
 	}
@@ -203,7 +214,7 @@ func NewWebsocketHub() *WebsocketHub {
 		Register:         make(chan *clientHubSpoke),
 		Unregister:       make(chan *hubSpoke),
 		HubRelay:         make(chan pstypes.HubMessage),
-		bufferTickerChan: make(chan int, clientSignalSize),
+		bufferTickerChan: make(chan int, 6),
 		quitWSHandler:    make(chan struct{}),
 		killed:           make(chan struct{}),
 		requestLimit:     maxPayloadBytes, // 1 MB
@@ -381,6 +392,30 @@ func (wsh *WebsocketHub) Run() {
 	// Unregister and wait for each client to shutdown.
 	defer wsh.unregisterAllClients()
 
+	// Only use sendMsg and sendToAll from inside the loop.
+	sendMsg := func(spoke *hubSpoke, client *client, hubMsg pstypes.HubMessage) {
+		// Signal or unregister the client.
+		timer := time.NewTimer(5 * time.Second)
+		select {
+		case <-client.killed:
+			log.Tracef("Unable to send %s message to client %d: gone (killed)",
+				hubMsg, client.id)
+			wsh.unregisterClient(spoke)
+		case *spoke <- hubMsg:
+			log.Tracef("Sent %s message to client %s.", hubMsg, client.id)
+		case <-timer.C:
+			// TODO: remove this case (and timer) once we are
+			// confident there is no change of a deadlock.
+			log.Errorf("Timeout sending %s message to client %s.", hubMsg, client.id)
+		}
+	}
+
+	sendToAll := func(hubMsg pstypes.HubMessage) {
+		for spoke, client := range wsh.clients {
+			sendMsg(spoke, client, hubMsg)
+		}
+	}
+
 	for {
 		//events:
 		select {
@@ -410,6 +445,9 @@ func (wsh *WebsocketHub) Run() {
 				}
 			case sigPingAndUserCount:
 				log.Tracef("Signaling ping/user count to %d websocket clients.", clientsCount)
+				// Ping all clients (not a subscription).
+				sendToAll(hubMsg)
+				continue // break events
 			case sigMempoolUpdate:
 				log.Infof("Signaling mempool inventory refresh to %d websocket clients.", clientsCount)
 			case sigAddressTx:
@@ -421,14 +459,14 @@ func (wsh *WebsocketHub) Run() {
 				}
 			case sigNewTx:
 				log.Tracef("Received sigNewTx")
-				newtx, ok := hubMsg.Msg.(*exptypes.MempoolTx)
-				if !ok || newtx == nil {
+				newTx, ok := hubMsg.Msg.(*exptypes.MempoolTx)
+				if !ok || newTx == nil {
 					continue
 				}
-				log.Tracef("Received new tx %s. Queueing in each client's send buffer...", newtx.Hash)
+				log.Tracef("Received new tx %s. Queueing in each client's send buffer...", newTx.Hash)
 				// Only signal clients if there are tx buffers ready to send or
 				// the ticker has fired.
-				if !(wsh.maybeSendTxns(newtx) || wsh.TimeToSendTxBuffer()) {
+				if !(wsh.maybeSendTxns(newTx) || wsh.TimeToSendTxBuffer()) {
 					break
 				}
 
@@ -447,21 +485,7 @@ func (wsh *WebsocketHub) Run() {
 			case sigByeNow:
 				log.Infof("Warning all %d clients of impending hang-up.", len(wsh.clients))
 				// Broadcast "bye" to all clients (not a subscription).
-				for spoke, client := range wsh.clients {
-					// Signal or unregister the client.
-					timer := time.NewTimer(5 * time.Second)
-					select {
-					case <-client.killed:
-						log.Tracef("client %d gone (killed)", client.id)
-						wsh.unregisterClient(spoke)
-					case *spoke <- hubMsg:
-						log.Trace("Sent ping message to client %s.", hubMsg, client.id)
-					case <-timer.C:
-						// TODO: remove this case (and timer) once we are
-						// confident there is no change of a deadlock.
-						log.Errorf("Timeout sending ping message to client %s.", hubMsg, client.id)
-					}
-				}
+				sendToAll(hubMsg)
 				continue
 			default:
 				log.Errorf("Unknown hub signal: %v", hubMsg.Signal)
@@ -472,7 +496,7 @@ func (wsh *WebsocketHub) Run() {
 			for spoke, client := range wsh.clients {
 				// Verify the client subscription before bothering PubSubHub.
 				// This is why the signal must be changed from sigNewTx to
-				// sigNewTxs.
+				// sigNewTxs in the case of hubMsg.Signal==sigNewTx case above.
 				if !client.isSubscribed(hubMsg) {
 					log.Tracef("Client %d is NOT subscribed to %s.", client.id, hubMsg)
 					continue
@@ -480,19 +504,7 @@ func (wsh *WebsocketHub) Run() {
 				log.Tracef("Client %d is subscribed to %s.", client.id, hubMsg)
 
 				// Signal or unregister the client.
-				timer := time.NewTimer(5 * time.Second)
-				select {
-				case <-client.killed:
-					log.Tracef("Unable to send %s message to client %d: gone (killed)",
-						hubMsg, client.id)
-					wsh.unregisterClient(spoke)
-				case *spoke <- hubMsg:
-					log.Trace("Sent %s message to client %s.", hubMsg, client.id)
-				case <-timer.C:
-					// TODO: remove this case (and timer) once we are confident
-					// there is no change of a deadlock.
-					log.Errorf("Timeout sending ping message to client %s.", hubMsg, client.id)
-				}
+				sendMsg(spoke, client, hubMsg)
 			}
 
 			if hubMsg.Signal == sigNewTxs {

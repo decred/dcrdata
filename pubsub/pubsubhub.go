@@ -28,7 +28,7 @@ import (
 	"golang.org/x/net/websocket"
 )
 
-var version = semver.NewSemver(3, 0, 0)
+var version = semver.NewSemver(3, 1, 0)
 
 // Version indicates the semantic version of the pubsub module.
 func Version() semver.Semver {
@@ -36,8 +36,8 @@ func Version() semver.Semver {
 }
 
 const (
-	wsWriteTimeout = 10 * time.Second
-	wsReadTimeout  = 20 * time.Second
+	wsWriteTimeout = 5 * time.Second
+	wsReadTimeout  = 7 * time.Second
 )
 
 // wsDataSource defines the interface for collecting required data.
@@ -394,7 +394,7 @@ func (psh *PubSubHub) sendLoop(conn *connection) {
 
 loop:
 	for sig := range updateSigChan {
-		log.Tracef("(*PubSubHub)sendLoop: updateSigChan received %v for client %s",
+		log.Tracef("(*PubSubHub)sendLoop: updateSigChan received %v for client %d",
 			sig, clientData.id)
 		// If the update channel is closed, the loop terminates.
 
@@ -522,7 +522,7 @@ loop:
 			}
 			// If the send failed, the client is probably gone, quit the
 			// send loop, unregistering the client from the websocket hub.
-			log.Errorf("websocket.JSON.Send of %v failed: %v", pushMsg, err)
+			log.Errorf("websocket.JSON.Send of %v type message failed: %v", sig, err)
 			return
 		}
 	} // for range { a.k.a. loop:
