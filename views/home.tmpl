@@ -187,7 +187,7 @@
                                 <tbody class="homepage-mempool" data-target="homepage.transactions">
                                 {{range .Mempool.LatestTransactions}}
                                 <tr>
-                                    <td class="text-left pl-1">{{template "hashElide" (hashlink .Hash (print "/tx/" .Hash))}}</td>
+                                    <td class="text-left pl-1 clipboard">{{template "hashElide" (hashlink .Hash (print "/tx/" .Hash))}}</td>
                                     <td class="text-left">{{.Type}}</td>
                                     <td class="text-right">{{threeSigFigs .TotalOut}}</td>
                                     <td class="text-nowrap text-right">{{.Size}} B</td>
