@@ -233,7 +233,7 @@ func (psh *PubSubHub) receiveLoop(conn *connection) {
 
 		// Create the ResponseMessage that is marshalled into resp.Message.
 		respMsg := pstypes.ResponseMessage{
-			RequestEventId: req.Message,
+			RequestEventId: msg.EventId,
 			RequestId:      req.RequestId, // associate the response with the client's request ID
 		}
 
