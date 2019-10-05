@@ -1047,7 +1047,6 @@ func (c *appContext) getTicketPoolCharts(w http.ResponseWriter, r *http.Request)
 	}
 
 	writeJSON(w, response, c.getIndentQuery(r))
-
 }
 
 func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request) {
@@ -1680,7 +1679,6 @@ func (c *appContext) getAgendaData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, data, "")
-
 }
 
 func (c *appContext) getExchanges(w http.ResponseWriter, r *http.Request) {

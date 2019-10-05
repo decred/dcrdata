@@ -737,7 +737,6 @@ func APIDirectory(w http.ResponseWriter, r *http.Request) {
 // blockhash} value in the request into the request context.
 func TransactionsCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 		address := r.FormValue("address")
 		if address != "" {
 			ctx := context.WithValue(r.Context(), CtxAddress, address)

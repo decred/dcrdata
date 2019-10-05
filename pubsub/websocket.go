@@ -519,7 +519,6 @@ func (wsh *WebsocketHub) Run() {
 
 			// Quit the Run loop.
 			return
-
 		} // select { a.k.a. events:
 	} // for {
 }

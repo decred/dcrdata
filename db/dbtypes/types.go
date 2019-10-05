@@ -1831,7 +1831,8 @@ func ReduceAddressHistory(addrHist []*AddressRow) (*AddressInfo, float64, float6
 	}
 
 	var received, sent, fromStake, toStake int64
-	var transactions, creditTxns, debitTxns []*AddressTx
+	var creditTxns, debitTxns []*AddressTx
+	transactions := make([]*AddressTx, 0, len(addrHist))
 	for _, addrOut := range addrHist {
 		if !addrOut.ValidMainChain {
 			continue

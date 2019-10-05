@@ -492,7 +492,6 @@ func OrphanedTipLength(ctx context.Context, client BlockHashGetter,
 		if commonHeight-tipHeight == 7 {
 			log.Warnf("No common ancestor within 6 blocks. This is abnormal")
 		}
-
 	}
 	return tipHeight - commonHeight, nil
 }

@@ -172,7 +172,6 @@ func float64Formatting(v float64, numPlaces int, useCommas bool, boldNumPlaces .
 }
 
 func amountAsDecimalPartsTrimmed(v, numPlaces int64, useCommas bool) []string {
-
 	// Filter numPlaces to only allow up to 8 decimal places trimming (eg. 1.12345678)
 	if numPlaces > 8 {
 		numPlaces = 8
@@ -597,8 +596,6 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			}
 			return intStr
 		},
-		"floor": func(x float64) float64 {
-			return math.Floor(x)
-		},
+		"floor": math.Floor,
 	}
 }

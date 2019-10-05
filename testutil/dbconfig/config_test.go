@@ -37,5 +37,4 @@ func TestScanQueries(t *testing.T) {
 	if !bytes.Equal(token, expectedToken) {
 		t.Fatalf("expected the returned token to be (%v) but found (%v)", string(expectedToken), string(token))
 	}
-
 }

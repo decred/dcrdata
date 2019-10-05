@@ -242,7 +242,7 @@ func (soc *SocketServer) sendNewMsgTx(msgTx *wire.MsgTx) error {
 // decoded from their pkScripts.
 func (soc *SocketServer) sendNewTx(msgTx *wire.MsgTx, vouts []chainjson.Vout) error {
 	// Gather vins and their prevouts.
-	var vins []InsightSocketVin
+	vins := make([]InsightSocketVin, 0, len(msgTx.TxIn))
 	for _, v := range msgTx.TxIn {
 		txid := v.PreviousOutPoint.Hash.String()
 		idx := v.PreviousOutPoint.Index

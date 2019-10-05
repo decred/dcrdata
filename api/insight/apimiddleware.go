@@ -47,7 +47,6 @@ func (iapi *InsightApi) StatusInfoCtx(next http.Handler) http.Handler {
 		ctx := m.StatusInfoCtx(r, iapi.BlockData)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
-
 }
 
 // GetToCtx retrieves the ctxTo data ("to") from the request context. If not

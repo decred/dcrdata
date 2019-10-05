@@ -575,7 +575,6 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked, 
 	_ = stmt.Close()
 
 	return ids, ticketTx, dbtx.Commit()
-
 }
 
 // InsertVotes takes a slice of *dbtypes.Tx, which must contain all the stake
@@ -1911,7 +1910,6 @@ func retrieveAddressIoCsv(ctx context.Context, db *sql.DB, address string) (csvR
 	csvRows = append(csvRows, []string{"tx_hash", "direction", "io_index", "valid_mainchain", "value", "time_stamp", "tx_type", "matching_tx_hash"})
 
 	for dbRows.Next() {
-
 		err = dbRows.Scan(&txHash, &validMainchain, &matchingTxHash,
 			&value, &blockTime, &isFunding, &ioIndex, &txType)
 		if err != nil {

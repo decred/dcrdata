@@ -1305,7 +1305,6 @@ func (pgb *ChainDB) handleTxTypeHistogramUpgrade(bestBlock uint64, upgrade table
 
 			rowModified += (vinsCount + voutsCount)
 		}
-
 	}
 	return rowModified, nil
 }
