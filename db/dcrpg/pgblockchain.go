@@ -1942,7 +1942,7 @@ func (pgb *ChainDB) AddressBalance(address string) (bal *dbtypes.AddressBalance,
 // ongoing query. On completion, the cache should be ready, although it must be
 // checked again. The returned []*dbtypes.AddressRow contains ALL non-merged
 // address transaction rows that were stored in the cache.
-func (pgb *ChainDB) updateAddressRows(address string) (rows []*dbtypes.AddressRow, cacheUpdated bool, err error) {
+func (pgb *ChainDB) updateAddressRows(address string) (rows []*dbtypes.AddressRow, err error) {
 	busy, wait, done := pgb.CacheLocks.rows.TryLock(address)
 	if busy {
 		// Just wait until the updater is finished.
@@ -1969,7 +1969,7 @@ func (pgb *ChainDB) updateAddressRows(address string) (rows []*dbtypes.AddressRo
 	}
 
 	// Update address rows cache.
-	cacheUpdated = pgb.AddressCache.StoreRows(address, rows, blockID)
+	pgb.AddressCache.StoreRows(address, rows, blockID)
 	return
 }
 
@@ -1995,7 +1995,7 @@ func (pgb *ChainDB) AddressRowsMerged(address string) ([]*dbtypes.AddressRowMerg
 	log.Tracef("AddressRowsMerged: rows cache MISS for %s.", address)
 
 	// Update or wait for an update to the cached AddressRows.
-	rows, _, err := pgb.updateAddressRows(address)
+	rows, err := pgb.updateAddressRows(address)
 	if err != nil {
 		if IsRetryError(err) {
 			// Try again, starting with cache.
@@ -2030,7 +2030,7 @@ func (pgb *ChainDB) AddressRowsCompact(address string) ([]*dbtypes.AddressRowCom
 	log.Tracef("AddressRowsCompact: rows cache MISS for %s.", address)
 
 	// Update or wait for an update to the cached AddressRows.
-	rows, _, err := pgb.updateAddressRows(address)
+	rows, err := pgb.updateAddressRows(address)
 	if err != nil {
 		if IsRetryError(err) {
 			// Try again, starting with cache.
@@ -2138,7 +2138,7 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 
 		// Update or wait for an update to the cached AddressRows, returning ALL
 		// NON-MERGED address transaction rows.
-		addressRows, _, err = pgb.updateAddressRows(address)
+		addressRows, err = pgb.updateAddressRows(address)
 		if err != nil && err != sql.ErrNoRows {
 			// See if another caller ran the update, in which case we were just
 			// waiting to avoid a simultaneous query. With luck the cache will
