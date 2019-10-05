@@ -55,7 +55,8 @@ for module in $MODPATHS; do
       --enable structcheck \
       --enable goimports \
       --enable misspell \
-      --enable unparam)
+      --enable unparam \
+  )
 done
 
 if [[ $TESTTAGS =~ "pgonline" || $TESTTAGS =~ "chartdata" ]]; then
