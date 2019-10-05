@@ -217,22 +217,39 @@ func (m HubMessage) IsValid() bool {
 }
 
 func (m HubMessage) String() string {
-	if !m.IsValid() {
-		return "invalid"
+	sigStr := m.Context()
+	if sigStr == "invalid" {
+		return sigStr
 	}
 
-	sigStr := m.Signal.String()
-
+	// Supplement certain signal's context with additional data.
 	switch m.Signal {
 	case SigAddressTx:
 		am := m.Msg.(*AddressMessage)
-		sigStr += ":" + am.String()
+		sigStr += ":" + am.TxHash
 	case SigNewTx:
 		tx := m.Msg.(*exptypes.MempoolTx)
 		sigStr += ":" + tx.Hash
 	case SigNewTxs:
 		txs := m.Msg.([]*exptypes.MempoolTx)
 		sigStr += ":len=" + strconv.Itoa(len(txs))
+	}
+
+	return sigStr
+}
+
+func (m HubMessage) Context() string {
+	if !m.IsValid() {
+		return "invalid"
+	}
+
+	sigStr := m.Signal.String()
+
+	// Further qualify with corresponding subscription data.
+	switch m.Signal {
+	case SigAddressTx:
+		am := m.Msg.(*AddressMessage)
+		sigStr += ":" + am.Address
 	}
 
 	return sigStr

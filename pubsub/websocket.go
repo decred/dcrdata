@@ -402,11 +402,11 @@ func (wsh *WebsocketHub) Run() {
 				hubMsg, client.id)
 			wsh.unregisterClient(spoke)
 		case *spoke <- hubMsg:
-			log.Tracef("Sent %s message to client %s.", hubMsg, client.id)
+			log.Tracef("Sent %s message to client %d.", hubMsg, client.id)
 		case <-timer.C:
 			// TODO: remove this case (and timer) once we are
 			// confident there is no change of a deadlock.
-			log.Errorf("Timeout sending %s message to client %s.", hubMsg, client.id)
+			log.Errorf("Timeout sending %s message to client %d.", hubMsg, client.id)
 		}
 	}
 
@@ -498,7 +498,8 @@ func (wsh *WebsocketHub) Run() {
 				// This is why the signal must be changed from sigNewTx to
 				// sigNewTxs in the case of hubMsg.Signal==sigNewTx case above.
 				if !client.isSubscribed(hubMsg) {
-					log.Tracef("Client %d is NOT subscribed to %s.", client.id, hubMsg)
+					log.Tracef("Client %d is NOT subscribed to %s.", client.id,
+						hubMsg.Context())
 					continue
 				}
 				log.Tracef("Client %d is subscribed to %s.", client.id, hubMsg)
