@@ -111,10 +111,19 @@ const (
 var Subscriptions = map[string]HubSignal{
 	"newblock":       SigNewBlock,
 	"mempool":        SigMempoolUpdate,
-	"ping":           SigPingAndUserCount,
 	"newtxs":         SigNewTxs,
 	"address":        SigAddressTx,
 	"blockchainSync": SigSyncStatus,
+}
+
+func (s HubSignal) SubscriptionBased() bool {
+	switch s {
+	case SigNewBlock, SigMempoolUpdate, SigNewTxs, SigNewTx, SigAddressTx,
+		SigSyncStatus:
+		return true
+	default:
+		return false
+	}
 }
 
 // Event type field for an event.
