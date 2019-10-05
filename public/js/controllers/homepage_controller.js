@@ -7,6 +7,7 @@ import { keyNav } from '../services/keyboard_navigation_service'
 import globalEventBus from '../services/event_bus_service'
 import { fadeIn } from '../helpers/animation_helper'
 import Mempool from '../helpers/mempool_helper'
+import { copyIcon, alertArea } from './clipboard_controller'
 
 function incrementValue (element) {
   if (element) {
@@ -18,7 +19,11 @@ function mempoolTableRow (tx) {
   var tbody = document.createElement('tbody')
   var link = `/tx/${tx.hash}`
   tbody.innerHTML = `<tr>
-    <td class="text-left pl-1">${humanize.hashElide(tx.hash, link)}</td>
+    <td class="text-left pl-1 clipboard">
+      ${humanize.hashElide(tx.hash, link)}
+      ${copyIcon()}
+      ${alertArea()}
+    </td>
     <td class="text-left">${tx.Type}</td>
     <td class="text-right">${humanize.threeSigFigs(tx.total || 0, false, 8)}</td>
     <td class="text-nowrap text-right">${tx.size} B</td>

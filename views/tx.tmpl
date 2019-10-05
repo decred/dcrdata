@@ -43,7 +43,7 @@
           {{end}}
           <div class="text-left lh1rem py-2">
             <div class="fs13 text-secondary pb-1">Transaction ID</div>
-            <div class="d-inline-block fs14 break-word rounded medium-sans">{{.TxID}}</div>
+            <div class="d-inline-block fs14 break-word rounded medium-sans clipboard">{{.TxID}}{{template "copyTextIcon"}}</div>
           </div>
           <div class="row py-2">
             <div class="col-8 text-left">
@@ -212,7 +212,10 @@
                       {{if .Txid}}
                           <tr>
                               <td class="text-right medium-sans text-nowrap pr-2 py-2">Ticket Spent:</td>
-                              <td colspan="3" class="text-left py-1 text-secondary break-word lh1rem"><a href="/tx/{{.Txid}}">{{.Txid}}</a></td>
+                              <td colspan="3" class="text-left py-1 text-secondary break-word lh1rem clipboard">
+                                <a href="/tx/{{.Txid}}">{{.Txid}}</a>
+                                {{template "copyTextIcon"}}
+                              </td>
                           </tr>
                       {{end}}
                   {{end}}
@@ -292,10 +295,10 @@
                     {{range .Vin}}
                     <tr {{if and (eq $.HighlightInOut "in") (eq $.HighlightInOutID .Index)}} class="blue-row" {{end}}>
                         <td class="shrink-to-fit">{{.Index}}</td>
-                        <td class="position-relative">
+                        <td class="position-relative clipboard">
                             {{if .TextIsHash}}{{template "hashElide" (hashlink .DisplayText .Link)}}{{else}}{{.DisplayText}}{{end}}
                         </td>
-                        <td class="position-relative">
+                        <td class="position-relative clipboard">
                             {{if gt (len .Addresses) 0}}
                                 {{range .Addresses}}
                                   {{template "hashElide" (hashlink . (print "/address/" .))}}
@@ -342,7 +345,7 @@
                     {{range $i, $v := .Vout}}
                     <tr {{if and (eq $.HighlightInOut "out") (eq $.HighlightInOutID .Index)}} class="blue-row" {{end}}>
                         <td class="shrink-to-fit">{{.Index}}</td>
-                        <td class="position-relative">
+                        <td class="position-relative clipboard">
                             {{range .Addresses}}
                                 {{template "hashElide" (hashlink . (print "/address/" .))}}
                             {{end}}
