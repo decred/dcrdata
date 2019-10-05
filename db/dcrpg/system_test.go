@@ -46,5 +46,4 @@ func TestParseUnit(t *testing.T) {
 		}
 		t.Logf("multiple=%f, base=%s", mult, base)
 	}
-
 }

@@ -117,7 +117,6 @@ func TestTimeAPI_MarshalJSON(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 // TestTimeAPI_UnmarshalJSON ensures that (*TimeAPI).UnmarshalJSON works with a
@@ -189,5 +188,4 @@ func TestTimeAPI_MarshalUnmarshalJSON(t *testing.T) {
 			}
 		})
 	}
-
 }

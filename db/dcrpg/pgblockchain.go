@@ -2498,7 +2498,6 @@ func (pgb *ChainDB) FillAddressTransactions(addrInfo *dbtypes.AddressInfo) error
 				} else {
 					addrInfo.Transactions[i].MatchedTxIndex = idx
 				}
-
 			} else {
 				// Funding transaction: lookup by the matching (spending) tx
 				// hash and tx index.
@@ -5457,7 +5456,6 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 			tx.Mature = "True"
 		}
 		tx.Maturity = int64(pgb.chainParams.CoinbaseMaturity)
-
 	}
 	if tx.IsVote() || tx.IsTicket() {
 		if tx.Confirmations > 0 && pgb.Height() >=
@@ -5819,7 +5817,6 @@ func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
 			validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, pgb.chainParams)
 			if err != nil {
 				log.Debugf("Cannot get vote choices for %s", hash)
-
 			} else {
 				voteInfo = &exptypes.VoteInfo{
 					Validation: exptypes.BlockValidation{

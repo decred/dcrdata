@@ -981,7 +981,6 @@ func encode(sets lengtherMap, seed chartResponse) ([]byte, error) {
 		seed[k] = v.Truncate(smaller)
 	}
 	return json.Marshal(seed)
-
 }
 
 // Each point is translated to the sum of all points before and itself.

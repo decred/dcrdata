@@ -665,7 +665,6 @@ func (exp *explorerUI) simulateASR(StartingDCRBalance float64, IntegerTicketQty 
 			2e-05*math.Pow(blocknum, 2) +
 			29.757*blocknum + 76963 +
 			1680000) // Premine 1.68M
-
 	}
 
 	CoinAdjustmentFactor := ActualCoinbase / MaxCoinSupplyAtBlock(CurrentBlockNum)
@@ -675,7 +674,6 @@ func (exp *explorerUI) simulateASR(StartingDCRBalance float64, IntegerTicketQty 
 		TicketPoolSize := (float64(exp.MeanVotingBlocks) + float64(exp.ChainParams.TicketMaturity) +
 			float64(exp.ChainParams.CoinbaseMaturity)) * float64(exp.ChainParams.TicketsPerBlock)
 		return ProjectedCoinsCirculating / TicketPoolSize
-
 	}
 	TicketAdjustmentFactor := ActualTicketPrice / TheoreticalTicketPrice(CurrentBlockNum)
 
@@ -690,7 +688,6 @@ func (exp *explorerUI) simulateASR(StartingDCRBalance float64, IntegerTicketQty 
 		TicketPrice, StakeRewardAtBlock(simblock))
 
 	for simblock < (BlocksPerYear + CurrentBlockNum) {
-
 		// Simulate a Purchase on simblock
 		TicketPrice = TheoreticalTicketPrice(simblock) * TicketAdjustmentFactor
 

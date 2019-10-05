@@ -20,7 +20,6 @@ package notification
 
 import (
 	"context"
-	"strings"
 	"sync"
 	"time"
 
@@ -224,11 +223,11 @@ func (notifier *Notifier) onReorganization(oldHash *chainhash.Hash, oldHeight in
 
 // rpcclient.NotificationHandlers.OnWinningTickets
 func (notifier *Notifier) onWinningTickets(_ *chainhash.Hash, _ int64, tickets []*chainhash.Hash) {
-	var txstr []string
+	txstr := make([]string, 0, len(tickets))
 	for _, t := range tickets {
 		txstr = append(txstr, t.String())
 	}
-	log.Tracef("Winning tickets: %v", strings.Join(txstr, ", "))
+	log.Tracef("Winning tickets: %+v", txstr)
 }
 
 // rpcclient.NotificationHandlers.OnNewTickets

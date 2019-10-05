@@ -842,14 +842,11 @@ func (pq *BlockPriorityQueue) RescanMinMax() {
 
 // updateMinMax updates the queue's min/max block height given the input height.
 // This function is NOT thread-safe.
-func (pq *BlockPriorityQueue) updateMinMax(h uint32) (updated bool) {
+func (pq *BlockPriorityQueue) updateMinMax(h uint32) {
 	if int64(h) > pq.maxHeight {
 		pq.maxHeight = int64(h)
-		updated = true
 	}
 	if int64(h) < pq.minHeight {
 		pq.minHeight = int64(h)
-		updated = true
 	}
-	return
 }

@@ -177,7 +177,6 @@ func TestHashStartEnd(t *testing.T) {
 }
 
 func TestAmountAsDecimalPartsTrimmed(t *testing.T) {
-
 	in := []struct {
 		amt    int64
 		n      int64
@@ -238,7 +237,5 @@ func TestAmountAsDecimalPartsTrimmed(t *testing.T) {
 				out[0], out[1], out[2],
 				expected[i].whole, expected[i].frac, expected[i].tail)
 		}
-
 	}
-
 }

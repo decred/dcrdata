@@ -2850,5 +2850,4 @@ func (poloniex *PoloniexExchange) Refresh() {
 	} else {
 		poloniex.Update(update)
 	}
-
 }

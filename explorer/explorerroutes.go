@@ -1318,7 +1318,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 
 // AddressTable is the page handler for the "/addresstable" path.
 func (exp *explorerUI) AddressTable(w http.ResponseWriter, r *http.Request) {
-
 	// Grab the URL query parameters
 	address, txnType, limitN, offsetAddrOuts, err := parseAddressParams(r)
 	if err != nil {

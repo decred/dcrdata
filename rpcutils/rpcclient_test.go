@@ -213,5 +213,4 @@ func TestOrphanedTipLength(t *testing.T) {
 	if uncommon != 0 {
 		t.Fatal(fmt.Errorf("Unexpected results from OrphanedTipLength test 5"))
 	}
-
 }

@@ -153,5 +153,4 @@ func TestTimeDef_Scan(t *testing.T) {
 	if err == nil {
 		t.Fatal("TimeDef.Scan(int64) should have failed")
 	}
-
 }

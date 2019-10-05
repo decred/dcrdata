@@ -6,7 +6,6 @@ import (
 )
 
 func TestIsRetryError(t *testing.T) {
-
 	tests := []struct {
 		name string
 		err  error

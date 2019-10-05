@@ -241,7 +241,6 @@ func (db *ProposalDB) saveProposals(publicProposals pitypes.Proposals) (int, err
 
 			// First try wasn't successful if err != nil.
 			if err != nil {
-
 				for c := 1; c <= maxLoop; c++ {
 					// Drop the previously assigned ID.
 					val.ID = 0

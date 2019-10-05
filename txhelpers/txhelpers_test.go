@@ -154,7 +154,6 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool) (*rpcclient.
 		if err != nil {
 			return nil, nodeVer, err
 		}
-
 	}
 
 	connCfgDaemon := &rpcclient.ConnConfig{

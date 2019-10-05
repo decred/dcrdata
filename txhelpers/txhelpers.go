@@ -510,7 +510,6 @@ func TxConsumesOutpointWithAddress(msgTx *wire.MsgTx, addr string,
 				})
 			}
 		}
-
 	}
 	return
 }

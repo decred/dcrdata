@@ -44,6 +44,7 @@ func queryEndpoint(urlStr string, statusCode int) error {
 		if err != nil {
 			return fmt.Errorf("failed to fetch %s url data at iteration %d: error: %v", urlStr, i, err)
 		}
+		res.Body.Close()
 
 		if res.StatusCode != statusCode {
 			return fmt.Errorf("on iteration %d expected status code %d but got %d",

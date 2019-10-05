@@ -245,7 +245,6 @@ func (iapi *InsightApi) getBlockHash(w http.ResponseWriter, r *http.Request) {
 }
 
 func (iapi *InsightApi) getRawBlock(w http.ResponseWriter, r *http.Request) {
-
 	hash, err := m.GetBlockHashCtx(r)
 	if err != nil {
 		idx := m.GetBlockIndexCtx(r)
@@ -1053,7 +1052,6 @@ func (iapi *InsightApi) getStatusInfo(w http.ResponseWriter, r *http.Request) {
 
 		writeJSON(w, info, iapi.getIndentQuery(r))
 	}
-
 }
 
 func dateFromStr(format, dateStr string) (date time.Time, isToday bool, err error) {
