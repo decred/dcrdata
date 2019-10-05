@@ -137,7 +137,7 @@ func (p *BlockPrefetchClient) GetBlockData(hash *chainhash.Hash) (*wire.MsgBlock
 
 	// Immediately retrieve msgBlock and header verbose result while fetcher is
 	// blocked by the Mutex.
-	msgBlock, headerResult, _, err := p.retrieveBlockAndHeaderResult(hash)
+	msgBlock, headerResult, err := p.retrieveBlockAndHeaderResult(hash)
 	if err != nil {
 		p.Unlock()
 		return nil, nil, err
@@ -199,19 +199,18 @@ func (p *BlockPrefetchClient) storeNext(msgBlock *wire.MsgBlock, headerResult *c
 	}
 }
 
-func (p *BlockPrefetchClient) retrieveBlockAndHeaderResult(hash *chainhash.Hash) (*wire.MsgBlock, *chainjson.GetBlockHeaderVerboseResult, uint32, error) {
+func (p *BlockPrefetchClient) retrieveBlockAndHeaderResult(hash *chainhash.Hash) (*wire.MsgBlock, *chainjson.GetBlockHeaderVerboseResult, error) {
 	msgBlock, err := p.f.GetBlock(hash)
 	if err != nil {
-		return nil, nil, 0, err
+		return nil, nil, err
 	}
-	height := msgBlock.Header.Height
 
 	headerResult, err := p.f.GetBlockHeaderVerbose(hash)
 	if err != nil {
-		return nil, nil, 0, err
+		return nil, nil, err
 	}
 
-	return msgBlock, headerResult, height, nil
+	return msgBlock, headerResult, nil
 }
 
 // RetrieveAndStoreNext retrieves the next block specified by the Hash, if it is
@@ -226,7 +225,7 @@ func (p *BlockPrefetchClient) RetrieveAndStoreNext(nextHash *chainhash.Hash) {
 		return
 	}
 
-	msgBlock, headerResult, _, err := p.retrieveBlockAndHeaderResult(nextHash)
+	msgBlock, headerResult, err := p.retrieveBlockAndHeaderResult(nextHash)
 	if err != nil {
 		if strings.HasPrefix(err.Error(), outOfRangeErr) {
 			log.Errorf("retrieveBlockAndHeaderResult(%v): %v",
