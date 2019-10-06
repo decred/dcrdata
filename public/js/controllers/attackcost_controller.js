@@ -8,7 +8,7 @@ import dompurify from 'dompurify'
 function digitformat (amount, decimalPlaces) {
   if (!amount) return 0
   decimalPlaces = decimalPlaces || 0
-  return parseFloat(amount).toLocaleString(undefined, { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces }).replace(/\.?0*$/, '')
+  return parseFloat(amount).toLocaleString(undefined, { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces }).replace(/\.0*$/, '')
 }
 
 let Dygraph // lazy loaded on connect
@@ -103,6 +103,8 @@ export default class extends Controller {
       import(/* webpackChunkName: "dygraphs" */ '../vendor/dygraphs.min.js')
     )
 
+    Dygraph.prototype.doZoomY_ = function (lowY, highY) {}
+
     this.plotGraph()
     this.processNightMode = (params) => {
       this.chartsView.updateOptions(
@@ -140,7 +142,8 @@ export default class extends Controller {
       showRangeSelector: false,
       labelsKMB: true,
       legend: 'always',
-      logscale: true
+      logscale: true,
+      interactionModel: { mousemove: Dygraph.defaultInteractionModel.mousemove }
     }
 
     this.chartsView = new Dygraph(this.graphTarget, graphData, options)
@@ -225,8 +228,6 @@ export default class extends Controller {
   updateTargetHashRate (newTargetPow) {
     this.targetPowTarget.value = newTargetPow || this.targetPowTarget.value
 
-    console.log(`Hash rate ${hashrate}`)
-
     switch (this.settings.attackType) {
       case '1':
         this.targetHashRate = hashrate / (1 - parseFloat(this.targetPowTarget.value) / 100)
@@ -248,6 +249,9 @@ export default class extends Controller {
   updateSliderData () {
     var val = parseFloat(this.attackPercentTarget.value) || 0
     this.updateTargetHashRate(val * 100)
+
+    // Makes PoS to be affected by the slider
+    this.targetPosTarget.value = val * 100
 
     this.setActivePoint()
 
