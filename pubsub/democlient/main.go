@@ -10,8 +10,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrdata/db/dbtypes/v2"
 	exptypes "github.com/decred/dcrdata/explorer/types/v2"
 	pstypes "github.com/decred/dcrdata/pubsub/types/v3"
 	"github.com/decred/dcrdata/pubsub/v3/psclient"
@@ -34,8 +34,6 @@ func main() {
 	backend.SetLevel(slog.LevelDebug)
 	psclient.UseLogger(backend)
 
-	params := chaincfg.MainNetParams()
-
 	// Create the pubsub client, opening a connection to the URL.
 	ctx, cancel := context.WithCancel(context.Background())
 	opts := psclient.Opts{
@@ -51,9 +49,12 @@ func main() {
 
 	log.Printf("You are now connected to %s.\n", cfg.URL)
 
+	devAddr, _ := dbtypes.DevSubsidyAddress(activeChain)
+
 	// Subscribe/unsubscribe to several events.
 	var currentSubs []string
-	allSubs := []string{"ping", "newtxs", "newblock", "mempool", "address:Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx", "address"}
+	devAddrSub := "address:" + devAddr
+	allSubs := []string{"newtxs", "newblock", "mempool", devAddrSub, "address"}
 	subscribe := func(newsubs []string) error {
 		for _, sub := range newsubs {
 			if subd, _ := strInSlice(currentSubs, sub); subd {
@@ -137,7 +138,7 @@ func main() {
 							log.Fatal(err)
 							continue
 						}
-						_, err = dcrutil.DecodeAddress(addr, params)
+						_, err = dcrutil.DecodeAddress(addr, activeChain)
 						if err != nil {
 							log.Fatalf("Invalid address %s: %v", addr, err)
 							continue
