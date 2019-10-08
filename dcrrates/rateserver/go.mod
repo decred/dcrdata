@@ -9,3 +9,5 @@ require (
 	github.com/jrick/logrotate v1.0.0
 	google.golang.org/grpc v1.20.0
 )
+
+replace github.com/decred/dcrdata/exchanges/v2 => ../../exchanges

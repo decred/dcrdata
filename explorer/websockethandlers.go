@@ -146,7 +146,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					webData.Message = string(msg)
 
 				case "getmempooltrimmed":
-					// TrimmedMempoolInfo. Used in nexthome.
+					// TrimmedMempoolInfo. Used in visualblocks.
 					// construct mempool object with properties required in template
 					inv := exp.MempoolInventory()
 					mempoolInfo := inv.Trim() // Trim internally locks the MempoolInfo.

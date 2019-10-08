@@ -346,7 +346,7 @@ func New(cfg *ExplorerConfig) *explorerUI {
 
 	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
 		"rawtx", "status", "parameters", "agenda", "agendas", "charts",
-		"sidechains", "disapproved", "ticketpool", "nexthome", "statistics",
+		"sidechains", "disapproved", "ticketpool", "visualblocks", "statistics",
 		"windows", "timelisting", "addresstable", "proposals", "proposal",
 		"market", "insight_root", "attackcost"}
 
@@ -660,9 +660,9 @@ func (exp *explorerUI) simulateASR(StartingDCRBalance float64, IntegerTicketQty 
 		// 4th order poly best fit curve to Decred mainnet emissions plot.
 		// Curve fit was done with 0 Y intercept and Pre-Mine added after.
 
-		return (-9E-19*math.Pow(blocknum, 4) +
-			7E-12*math.Pow(blocknum, 3) -
-			2E-05*math.Pow(blocknum, 2) +
+		return (-9e-19*math.Pow(blocknum, 4) +
+			7e-12*math.Pow(blocknum, 3) -
+			2e-05*math.Pow(blocknum, 2) +
 			29.757*blocknum + 76963 +
 			1680000) // Premine 1.68M
 

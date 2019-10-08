@@ -1,17 +1,17 @@
-FROM golang:1.12.4 as daemon
+FROM golang:1.13 as daemon
 
 COPY . /go/src
 WORKDIR /go/src
 RUN env GO111MODULE=on go build
 
-FROM node:10.15.3 as gui
+FROM node:lts as gui
 
 WORKDIR /root
 COPY . /root
 RUN npm install
 RUN npm run build
 
-FROM golang:1.12.4
+FROM golang:1.13
 WORKDIR /
 COPY --from=daemon /go/src/dcrdata /dcrdata
 COPY --from=daemon /go/src/views /views

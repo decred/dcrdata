@@ -118,7 +118,7 @@ const (
 // cacheVersion helps detect when the cache data stored has changed its
 // structure or content. A change on the cache version results to recomputing
 // all the charts data a fresh thereby making the cache to hold the latest changes.
-var cacheVersion = semver.NewSemver(6, 1, 0)
+var cacheVersion = semver.NewSemver(6, 1, 1)
 
 // versionedCacheData defines the cache data contents to be written into a .gob file.
 type versionedCacheData struct {
@@ -415,7 +415,7 @@ type ChartData struct {
 	updaters     []ChartUpdater
 }
 
-// Check that the length of all arguments is equal.
+// ValidateLengths checks that the length of all arguments is equal.
 func ValidateLengths(lens ...lengther) (int, error) {
 	lenLen := len(lens)
 	if lenLen == 0 {
@@ -487,7 +487,9 @@ func (charts *ChartData) Lengthen() error {
 	end := midnight(blocks.Time[len(blocks.Time)-1])
 	var start uint64
 	if len(days.Time) > 0 {
-		start = days.Time[len(days.Time)-1] // already truncated to midnight
+		// Begin the scan at the beginning of the next day. The stamps in the Time
+		// set are the midnight that starts the day.
+		start = days.Time[len(days.Time)-1] + aDay
 	} else {
 		// Start from the beginning.
 		// Already checked for empty blocks above.

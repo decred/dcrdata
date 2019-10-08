@@ -89,7 +89,7 @@ func NewLimiter(max float64) *Limiter {
 	return &Limiter{tollbooth.NewLimiter(max, nil)}
 }
 
-// Tollboth creates a new rate limiter middleware using the provided Limiter.
+// Tollbooth creates a new rate limiter middleware using the provided Limiter.
 func Tollbooth(l *Limiter) func(http.Handler) http.Handler {
 	// Create a middleware, capturing the Limiter.
 	return func(next http.Handler) http.Handler {
@@ -205,6 +205,14 @@ func GetRawHexTx(r *http.Request) (string, error) {
 		return "", fmt.Errorf("failed to deserialize tx: %v", err)
 	}
 	return rawHexTx, nil
+}
+
+// NoOrigin removes any Origin from the request header.
+func NoOrigin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Header.Del("Origin")
+		next.ServeHTTP(w, r)
+	})
 }
 
 // OriginalRequestURI checks the X-Original-Request-URI HTTP request header for
@@ -965,7 +973,7 @@ func RetrieveExchangeTokenCtx(r *http.Request) string {
 	return token
 }
 
-// ExchangeTokenContext pulls the bin width from the URL.
+// StickWidthContext pulls the bin width from the URL.
 func StickWidthContext(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		bin := chi.URLParam(r, "bin")

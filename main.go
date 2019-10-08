@@ -628,6 +628,7 @@ func _main(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("Could not create Insight socket.io server: %v", err)
 	}
+	defer insightSocketServer.Close()
 	blockDataSavers = append(blockDataSavers, insightSocketServer)
 
 	// Start dcrdata's JSON web API.
@@ -661,7 +662,7 @@ func _main(ctx context.Context) error {
 	webMux := chi.NewRouter()
 	webMux.With(explore.SyncStatusPageIntercept).Group(func(r chi.Router) {
 		r.Get("/", explore.Home)
-		r.Get("/nexthome", explore.NextHome)
+		r.Get("/visualblocks", explore.VisualBlocks)
 	})
 	webMux.Get("/ws", explore.RootWebsocket)
 	webMux.Get("/ps", psHub.WebSocketHandler)
@@ -708,7 +709,7 @@ func _main(ctx context.Context) error {
 		r.Mount("/insight/api", insightMux.Mux)
 
 		if insightSocketServer != nil {
-			r.Get("/insight/socket.io/", insightSocketServer.ServeHTTP)
+			r.With(m.NoOrigin).Get("/insight/socket.io/", insightSocketServer.ServeHTTP)
 		}
 	})
 	// HTTP Error 503 StatusServiceUnavailable for file requests before sync.

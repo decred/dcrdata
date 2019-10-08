@@ -25,7 +25,9 @@
               <div class="fs22 pb-3">Address</div>
           {{- end}}
           <div class="text-left d-flex align-items-start flex-wrap">
-            <div class="fs15 medium-sans break-word d-inline-block hash-box mb-3" data-target="address.addr">{{.Address}}</div>
+            <div class="fs15 medium-sans break-word d-inline-block hash-box mb-3 clipboard" data-target="address.addr">
+              {{.Address}}{{template "copyTextIcon"}}
+            </div>
             <a
               data-action="click->address#showQRCode"
               data-target="address.qricon"
