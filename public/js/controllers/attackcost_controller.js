@@ -143,7 +143,10 @@ export default class extends Controller {
       labelsKMB: true,
       legend: 'always',
       logscale: true,
-      interactionModel: { mousemove: Dygraph.defaultInteractionModel.mousemove }
+      interactionModel: {
+        mousemove: Dygraph.defaultInteractionModel.mousemove,
+        click: Dygraph.defaultInteractionModel.click
+      }
     }
 
     this.chartsView = new Dygraph(this.graphTarget, graphData, options)
