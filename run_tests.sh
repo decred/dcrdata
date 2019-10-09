@@ -15,7 +15,9 @@ REPO=dcrdata
 go version
 
 if [[ -v TESTTAGS ]]; then
-  TESTTAGSWITCH=-tags
+  TESTTAGS="-tags \"${TESTTAGS}\""
+elsif
+  TESTTAGS=
 fi
 
 # Check tests
@@ -44,7 +46,7 @@ MODPATHS=$(go list -m -f {{.Dir}} all 2>/dev/null | grep "^$ROOTPATHPATTERN")
 for module in $MODPATHS; do
   echo "==> ${module}"
   (cd ${module} && \
-    go test -v $TESTTAGSWITCH "$TESTTAGS" ./... && \
+    go test -v $TESTTAGS ./... && \
     golangci-lint run --deadline=10m \
       --disable-all \
       --enable govet \
