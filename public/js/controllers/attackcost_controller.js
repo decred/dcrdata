@@ -71,7 +71,7 @@ export default class extends Controller {
       'ticketAttackSize', 'ticketPoolAttack', 'ticketPoolSize', 'ticketPoolSizeLabel',
       'ticketPoolValue', 'ticketPrice', 'tickets', 'ticketSizeAttack', 'durationLongDesc',
       'total', 'totalDCRPos', 'totalDeviceCost', 'totalElectricity', 'totalExtraCostRate', 'totalKwh',
-      'totalPos', 'totalPow', 'graph', 'labels', 'attackPercentLabel', 'futureTicketPrice', 'attackType'
+      'totalPos', 'totalPow', 'graph', 'labels', 'attackPercentLabel', 'projectedTicketPrice', 'attackType'
     ]
   }
 
@@ -277,12 +277,12 @@ export default class extends Controller {
     var totalPow = extraCostsRate * totalDeviceCost + totalElectricity
     var ticketAttackSize = Math.ceil((tpSize * parseFloat(this.targetPosTarget.value)) / 100)
     ticketAttackSize = ticketAttackSize * this.targetPosTarget.value / 100
-    var DCRNeed = tpValue / 0.6
-    var futureTicketPrice = DCRNeed / tpSize
+    var DCRNeed = tpValue / (this.targetPosTarget.value / 100)
+    var projectedTicketPrice = DCRNeed / tpSize
     this.setAllValues(this.ticketPoolAttackTargets, digitformat(DCRNeed, 3))
     this.ticketPoolValueTarget.innerHTML = digitformat(hashrate, 3)
 
-    var totalDCRPos = ticketAttackSize * futureTicketPrice
+    var totalDCRPos = ticketAttackSize * projectedTicketPrice
     var totalPos = totalDCRPos * dcrPrice
     var timeStr = this.attackPeriodTarget.value
     timeStr = this.attackPeriodTarget.value > 1 ? timeStr + ' hours' : timeStr + ' hour'
@@ -307,7 +307,7 @@ export default class extends Controller {
     this.blockHeightTarget.innerHTML = digitformat(height)
     this.totalTarget.innerHTML = digitformat(totalPow + totalPos, 2)
     this.attackPercentLabelTarget.innerHTML = digitformat(this.targetPowTarget.value, 2)
-    this.futureTicketPriceTarget.innerHTML = digitformat(futureTicketPrice, 2)
+    this.projectedTicketPriceTarget.innerHTML = digitformat(projectedTicketPrice, 2)
   }
 
   setAllValues (targets, data) {
