@@ -154,6 +154,14 @@ select.dropdown {
   border-radius: 5px;
 }
 
+span.separator {
+  border-right: 1px #6c757d solid;
+}
+
+div.separator {
+  width: 65%;
+}
+
 ul.pages {
   display: flex;
   list-style: none;

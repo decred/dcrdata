@@ -335,12 +335,11 @@
 				<div class="blocks-selector{{if eq .TimeGrouping "Blocks"}} active{{end}}"></div>
 			</a>
 			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/ticketpricewindows">
-				<span class="px-2{{if eq .TimeGrouping "Windows"}} unstyled-link{{else}} text-secondary{{end}}">Windows</span>
-				<div class="blocks-selector{{if eq .TimeGrouping "Windows"}} active{{end}}"></div>
+				<span class="separator pl-2 pr-5{{if eq .TimeGrouping "Windows"}} unstyled-link{{else}} text-secondary{{end}}">Windows</span>
+				<div class="separator blocks-selector{{if eq .TimeGrouping "Windows"}} active{{end}}"></div>
 			</a>
-			<hr class="position-relative d-inline-block mr-4">
 			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/years">
-				<span class="px-2{{if eq .TimeGrouping "Years"}} unstyled-link{{else}} text-secondary{{end}}">Years</span>
+				<span class="pr-2 pl-3{{if eq .TimeGrouping "Years"}} unstyled-link{{else}} text-secondary{{end}}">Years</span>
 				<div class="blocks-selector{{if eq .TimeGrouping "Years"}} active{{end}}"></div>
 			</a>
 			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/months">
