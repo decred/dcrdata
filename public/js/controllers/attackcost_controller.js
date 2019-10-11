@@ -262,7 +262,7 @@ export default class extends Controller {
 
     var rate = rateCalculation(val)
     console.log(`Rate: ${rate}`)
-    this.internalHashTarget.innerHTML = digitformat((rate * this.targetHashRate), 4) + ' Ph/s '
+    // this.internalHashTarget.innerHTML = digitformat((rate * this.targetHashRate), 4) + ' Ph/s '
     this.internalHashTarget.innerHTML = digitformat((this.targetHashRate), 4) + ' Ph/s '
     this.ticketsTarget.innerHTML = digitformat(val * tpSize) + ' tickets '
     this.calculate(true)
