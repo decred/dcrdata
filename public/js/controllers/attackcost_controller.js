@@ -144,10 +144,7 @@ export default class extends Controller {
       labelsKMB: true,
       legend: 'always',
       logscale: true,
-      interactionModel: {
-        mousemove: Dygraph.defaultInteractionModel.mousemove,
-        click: Dygraph.defaultInteractionModel.click
-      }
+      interactionModel: { mousemove: Dygraph.defaultInteractionModel.mousemove }
     }
 
     this.chartsView = new Dygraph(this.graphTarget, graphData, options)
@@ -194,7 +191,9 @@ export default class extends Controller {
 
   updateTargetPos () {
     this.settings.target_pos = this.targetPosTarget.value
-    this.calculate()
+    this.attackPercentTarget.value = parseFloat(this.targetPosTarget.value) / 100
+    // this.calculate()
+    this.updateSliderData()
   }
 
   updatePrice () {
@@ -232,6 +231,8 @@ export default class extends Controller {
   updateTargetHashRate (newTargetPow) {
     this.targetPowTarget.value = newTargetPow || this.targetPowTarget.value
 
+    console.log(`Hash Rate: ${hashrate}`)
+
     switch (this.settings.attackType) {
       case '1':
         this.targetHashRate = hashrate / (1 - parseFloat(this.targetPowTarget.value) / 100)
@@ -260,7 +261,9 @@ export default class extends Controller {
     this.setActivePoint()
 
     var rate = rateCalculation(val)
+    console.log(`Rate: ${rate}`)
     this.internalHashTarget.innerHTML = digitformat((rate * this.targetHashRate), 4) + ' Ph/s '
+    this.internalHashTarget.innerHTML = digitformat((this.targetHashRate), 4) + ' Ph/s '
     this.ticketsTarget.innerHTML = digitformat(val * tpSize) + ' tickets '
     this.calculate(true)
   }
@@ -276,9 +279,9 @@ export default class extends Controller {
     var totalElectricity = totalKwh * parseFloat(this.kwhRateTarget.value)
     var extraCostsRate = 1 + parseFloat(this.otherCostsTarget.value) / 100
     var totalPow = extraCostsRate * totalDeviceCost + totalElectricity
-    var ticketAttackSize = Math.ceil((tpSize * parseFloat(this.targetPosTarget.value)) / 100)
-    ticketAttackSize = ticketAttackSize * this.targetPosTarget.value / 100
-    var DCRNeed = tpValue / (this.targetPosTarget.value / 100)
+    var ticketAttackSize = (tpSize * parseFloat(this.targetPosTarget.value)) / 100
+    // ticketAttackSize = ticketAttackSize * parseFloat(this.targetPosTarget.value) / 100
+    var DCRNeed = tpValue / (parseFloat(this.targetPosTarget.value) / 100)
     var projectedTicketPrice = DCRNeed / tpSize
     this.setAllValues(this.ticketPoolAttackTargets, digitformat(DCRNeed, 3))
     this.ticketPoolValueTarget.innerHTML = digitformat(hashrate, 3)
