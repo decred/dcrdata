@@ -95,6 +95,7 @@ export default class extends Controller {
     if (this.settings.target_pos) this.targetPosTarget.value = parseFloat(this.settings.target_pos)
     if (this.settings.price) this.priceDCRTarget.value = parseFloat(this.settings.price)
     if (this.settings.device) this.setDevice(this.settings.device)
+    if (this.settings.attackType) this.attackTypeTarget.value = this.settings.attackType
 
     this.setDevicesDesc()
     this.updateSliderData()
