@@ -231,8 +231,6 @@ export default class extends Controller {
   updateTargetHashRate (newTargetPow) {
     this.targetPowTarget.value = newTargetPow || this.targetPowTarget.value
 
-    console.log(`Hash Rate: ${hashrate}`)
-
     switch (this.settings.attackType) {
       case '1':
         this.targetHashRate = hashrate / (1 - parseFloat(this.targetPowTarget.value) / 100)
@@ -260,8 +258,7 @@ export default class extends Controller {
 
     this.setActivePoint()
 
-    var rate = rateCalculation(val)
-    console.log(`Rate: ${rate}`)
+    // var rate = rateCalculation(val)
     // this.internalHashTarget.innerHTML = digitformat((rate * this.targetHashRate), 4) + ' Ph/s '
     this.internalHashTarget.innerHTML = digitformat((this.targetHashRate), 4) + ' Ph/s '
     this.ticketsTarget.innerHTML = digitformat(val * tpSize) + ' tickets '
