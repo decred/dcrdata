@@ -258,9 +258,8 @@ export default class extends Controller {
 
     this.setActivePoint()
 
-    // var rate = rateCalculation(val)
-    // this.internalHashTarget.innerHTML = digitformat((rate * this.targetHashRate), 4) + ' Ph/s '
-    this.internalHashTarget.innerHTML = digitformat((this.targetHashRate), 4) + ' Ph/s '
+    var rate = rateCalculation(val)
+    this.internalHashTarget.innerHTML = digitformat((rate * this.targetHashRate), 4) + ' Ph/s '
     this.ticketsTarget.innerHTML = digitformat(val * tpSize) + ' tickets '
     this.calculate(true)
   }
