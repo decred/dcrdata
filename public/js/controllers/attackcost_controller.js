@@ -78,8 +78,11 @@ export default class extends Controller {
   async connect () {
     this.query = new TurboQuery()
     this.settings = TurboQuery.nullTemplate([
-      'attack_time', 'target_pow', 'kwh_rate', 'other_costs', 'target_pos', 'price', 'device'
+      'attack_time', 'target_pow', 'kwh_rate', 'other_costs', 'target_pos', 'price', 'device', 'attack_type'
     ])
+
+    // Get initial view settings from the url
+    this.query.update(this.settings)
 
     height = parseInt(this.data.get('height'))
     hashrate = parseInt(this.data.get('hashrate'))
@@ -95,7 +98,8 @@ export default class extends Controller {
     if (this.settings.target_pos) this.targetPosTarget.value = parseFloat(this.settings.target_pos)
     if (this.settings.price) this.priceDCRTarget.value = parseFloat(this.settings.price)
     if (this.settings.device) this.setDevice(this.settings.device)
-    if (this.settings.attackType) this.attackTypeTarget.value = this.settings.attackType
+    if (this.settings.attack_type) this.attackTypeTarget.value = parseInt(this.settings.attack_type)
+    if (this.settings.target_pos || this.settings.target_pow) this.attackPercentTarget.value = (this.targetPowTarget.value || this.targetPosTarget.value) / 100
 
     this.setDevicesDesc()
     this.updateSliderData()
@@ -175,7 +179,7 @@ export default class extends Controller {
   }
 
   chooseAttackType () {
-    this.settings.attackType = this.selectedAttackType()
+    this.settings.attack_type = this.selectedAttackType()
     this.calculate()
   }
 
@@ -192,7 +196,6 @@ export default class extends Controller {
   updateTargetPos () {
     this.settings.target_pos = this.targetPosTarget.value
     this.attackPercentTarget.value = parseFloat(this.targetPosTarget.value) / 100
-    // this.calculate()
     this.updateSliderData()
   }
 
@@ -230,8 +233,9 @@ export default class extends Controller {
 
   updateTargetHashRate (newTargetPow) {
     this.targetPowTarget.value = newTargetPow || this.targetPowTarget.value
+    this.targetPosTarget.value = newTargetPow || this.targetPowTarget.value
 
-    switch (this.settings.attackType) {
+    switch (this.settings.attack_type) {
       case '1':
         this.targetHashRate = hashrate / (1 - parseFloat(this.targetPowTarget.value) / 100)
         return
@@ -267,6 +271,8 @@ export default class extends Controller {
   calculate (disableHashRateUpdate) {
     if (!disableHashRateUpdate) this.updateTargetHashRate()
 
+    this.settings.target_pow = digitformat(parseFloat(this.targetPowTarget.value), 2)
+    this.settings.target_pos = digitformat(parseFloat(this.targetPosTarget.value), 2)
     this.query.replace(this.settings)
     var deviceInfo = deviceList[this.selectedDevice()]
     var deviceCount = Math.ceil((this.targetHashRate * 1000) / deviceInfo.hashrate)
@@ -290,6 +296,8 @@ export default class extends Controller {
 
     this.actualHashRateTarget.innerHTML = digitformat(hashrate, 4)
     this.priceDCRTarget.value = digitformat(dcrPrice, 2)
+    this.targetPowTarget.value = digitformat(parseFloat(this.targetPowTarget.value), 2)
+    this.targetPosTarget.value = digitformat(parseFloat(this.targetPosTarget.value), 2)
     this.ticketPriceTarget.innerHTML = digitformat(tpPrice, 4)
     this.setAllValues(this.targetHashRateTargets, digitformat(this.targetHashRate, 4))
     this.setAllValues(this.durationLongDescTargets, timeStr)
