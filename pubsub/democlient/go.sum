@@ -10,8 +10,6 @@ github.com/Sereal/Sereal v0.0.0-20181211220259-509a78ddbda3 h1:Xu7z47ZiE/J+sKXHZ
 github.com/Sereal/Sereal v0.0.0-20181211220259-509a78ddbda3/go.mod h1:D0JMgToj/WdxCgd30Kc1UcA9E+WdZoJqeVOuYW7iTBM=
 github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412 h1:w1UutsfOrms1J05zt7ISrnJIXKzwaspym5BTKGx93EI=
 github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412/go.mod h1:WPjqKcmVOxf0XSf3YxCJs6N6AOSrOx3obionmG7T0y0=
-github.com/asdine/storm v2.2.0+incompatible h1:+FsfKd7PRAEZvK9BkgB6O+hKZMxKrA0EMxnEOLiT/kU=
-github.com/asdine/storm v2.2.0+incompatible/go.mod h1:cMLKpjHSP4q0P133fV15ojQgwWWB2IMv+hrFsmBF/wI=
 github.com/boltdb/bolt v1.3.1/go.mod h1:clJnj/oiGkjum5o1McbSZDSLxVThjynRyGBgiAx27Ps=
 github.com/btcsuite/goleveldb v1.0.0 h1:Tvd0BfvqX9o823q1j2UZ/epQo09eJh6dTcRp79ilIN4=
 github.com/btcsuite/goleveldb v1.0.0/go.mod h1:QiK9vBlgftBg6rWQIj6wFzbPfRjiykIEhBH4obrXJ/I=

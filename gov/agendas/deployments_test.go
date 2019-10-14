@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/asdine/storm"
+	"github.com/asdine/storm/v3"
 	"github.com/decred/dcrd/chaincfg/v2"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrdata/db/dbtypes/v2"

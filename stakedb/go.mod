@@ -5,8 +5,7 @@ go 1.12
 require (
 	github.com/AndreasBriese/bbloom v0.0.0-20190306092124-e2d15f34fcf9 // indirect
 	github.com/DataDog/zstd v1.4.1 // indirect
-	github.com/asdine/storm v2.2.0+incompatible
-	github.com/boltdb/bolt v1.3.1 // indirect
+	github.com/asdine/storm/v3 v3.0.0-20191014164809-c6fa66c747fe
 	github.com/decred/dcrd/blockchain/stake/v2 v2.0.1
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.1
 	github.com/decred/dcrd/chaincfg/v2 v2.2.0
@@ -22,5 +21,7 @@ require (
 	github.com/dgryski/go-farm v0.0.0-20190423205320-6a90982ecee2 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/pkg/errors v0.8.1 // indirect
+	go.etcd.io/bbolt v1.3.3 // indirect
+	golang.org/x/sys v0.0.0-20191010194322-b09406accb47 // indirect
 	google.golang.org/appengine v1.6.1 // indirect
 )
