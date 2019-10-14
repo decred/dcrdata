@@ -148,7 +148,8 @@ export default class extends Controller {
       labelsKMB: true,
       legend: 'always',
       logscale: true,
-      interactionModel: { mousemove: Dygraph.defaultInteractionModel.mousemove }
+      interactionModel: {}
+      // clickCallback: this.updateFromChart
     }
 
     this.chartsView = new Dygraph(this.graphTarget, graphData, options)
@@ -158,6 +159,9 @@ export default class extends Controller {
       shortText: 'L',
       text: '51% Attack'
     }])
+    this.chartsView.updateOptions({
+      clickCallback: this.updateFromChart
+    })
     this.setActivePoint()
   }
 
@@ -233,7 +237,7 @@ export default class extends Controller {
 
   updateTargetHashRate (newTargetPow) {
     this.targetPowTarget.value = newTargetPow || this.targetPowTarget.value
-    this.targetPosTarget.value = newTargetPow || this.targetPowTarget.value
+    // this.targetPosTarget.value = newTargetPow || this.targetPosTarget.value
 
     switch (this.settings.attack_type) {
       case '1':
@@ -268,11 +272,18 @@ export default class extends Controller {
     this.calculate(true)
   }
 
+  updateFromChart (e, attackTickets, points) {
+    console.log(`Attack tickets: ${attackTickets}`)
+    // this.targetPosTarget.innerHTML = parseFloat((attackTickets / tpSize) * 100)
+    // console.log(`Target PoS: ${parseFloat((attackTickets / tpSize) * 100)}`)
+    // this.calculate()
+  }
+
   calculate (disableHashRateUpdate) {
     if (!disableHashRateUpdate) this.updateTargetHashRate()
 
     this.settings.target_pow = digitformat(parseFloat(this.targetPowTarget.value), 2)
-    this.settings.target_pos = digitformat(parseFloat(this.targetPosTarget.value), 2)
+    // this.settings.target_pos = digitformat(parseFloat(this.targetPosTarget.value), 2)
     this.query.replace(this.settings)
     var deviceInfo = deviceList[this.selectedDevice()]
     var deviceCount = Math.ceil((this.targetHashRate * 1000) / deviceInfo.hashrate)
@@ -283,6 +294,7 @@ export default class extends Controller {
     var totalPow = extraCostsRate * totalDeviceCost + totalElectricity
     var ticketAttackSize = (tpSize * parseFloat(this.targetPosTarget.value)) / 100
     // ticketAttackSize = ticketAttackSize * parseFloat(this.targetPosTarget.value) / 100
+    // console.log(`tpValue: ${tpValue}`)
     var DCRNeed = tpValue / (parseFloat(this.targetPosTarget.value) / 100)
     var projectedTicketPrice = DCRNeed / tpSize
     this.setAllValues(this.ticketPoolAttackTargets, digitformat(DCRNeed, 3))
