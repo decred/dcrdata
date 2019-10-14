@@ -71,7 +71,9 @@ export default class extends Controller {
       'ticketAttackSize', 'ticketPoolAttack', 'ticketPoolSize', 'ticketPoolSizeLabel',
       'ticketPoolValue', 'ticketPrice', 'tickets', 'ticketSizeAttack', 'durationLongDesc',
       'total', 'totalDCRPos', 'totalDeviceCost', 'totalElectricity', 'totalExtraCostRate', 'totalKwh',
-      'totalPos', 'totalPow', 'graph', 'labels', 'attackPercentLabel', 'projectedTicketPrice', 'attackType'
+      'totalPos', 'totalPow', 'graph', 'labels', 'attackPercentLabel', 'projectedTicketPrice', 'attackType',
+      'attackPosPercentNeededLabel', 'attackPosPercentAmountLabel', 'dcrPriceLabel', 'totalDCRPosLabel',
+      'projectedPriceDiv'
     ]
   }
 
@@ -237,15 +239,18 @@ export default class extends Controller {
 
   updateTargetHashRate (newTargetPow) {
     this.targetPowTarget.value = newTargetPow || this.targetPowTarget.value
-    // this.targetPosTarget.value = newTargetPow || this.targetPosTarget.value
+
+    // this.projectedPriceDiv = document.getElementById('projectedPriceDiv')
 
     switch (this.settings.attack_type) {
       case '1':
         this.targetHashRate = hashrate / (1 - parseFloat(this.targetPowTarget.value) / 100)
+        this.projectedPriceDivTarget.style.display = 'block'
         return
       case '0':
       default:
         this.targetHashRate = hashrate * parseFloat(this.targetPowTarget.value) / 100
+        this.projectedPriceDivTarget.style.display = 'none'
     }
   }
 
@@ -293,11 +298,13 @@ export default class extends Controller {
     var extraCostsRate = 1 + parseFloat(this.otherCostsTarget.value) / 100
     var totalPow = extraCostsRate * totalDeviceCost + totalElectricity
     var ticketAttackSize = (tpSize * parseFloat(this.targetPosTarget.value)) / 100
-    // ticketAttackSize = ticketAttackSize * parseFloat(this.targetPosTarget.value) / 100
-    // console.log(`tpValue: ${tpValue}`)
-    var DCRNeed = tpValue / (parseFloat(this.targetPosTarget.value) / 100)
+    console.log(`Hash Rate: ${hashrate}`)
+    console.log(`tpValue: ${tpValue}`)
+    console.log(`Target PoS: ${this.targetPosTarget.value}`)
+    // var DCRNeed = tpValue / (parseFloat(this.targetPosTarget.value) / 100)
+    var DCRNeed = tpValue * (parseFloat(this.targetPosTarget.value) / 100)
     var projectedTicketPrice = DCRNeed / tpSize
-    this.setAllValues(this.ticketPoolAttackTargets, digitformat(DCRNeed, 3))
+    this.setAllValues(this.ticketPoolAttackTargets, digitformat(DCRNeed))
     this.ticketPoolValueTarget.innerHTML = digitformat(hashrate, 3)
 
     var totalDCRPos = ticketAttackSize * projectedTicketPrice
@@ -321,13 +328,17 @@ export default class extends Controller {
     this.setAllValues(this.totalPowTargets, digitformat(totalPow, 2))
     this.setAllValues(this.ticketSizeAttackTargets, digitformat(ticketAttackSize))
     this.setAllValues(this.totalDCRPosTargets, digitformat(totalDCRPos, 2))
-    this.setAllValues(this.totalPosTargets, digitformat(totalPos, 2))
+    this.setAllValues(this.totalPosTargets, digitformat(totalPos))
     this.setAllValues(this.ticketPoolValueTargets, digitformat(tpValue))
     this.setAllValues(this.ticketPoolSizeTargets, digitformat(tpSize))
     this.blockHeightTarget.innerHTML = digitformat(height)
     this.totalTarget.innerHTML = digitformat(totalPow + totalPos, 2)
     this.attackPercentLabelTarget.innerHTML = digitformat(this.targetPowTarget.value, 2)
     this.projectedTicketPriceTarget.innerHTML = digitformat(projectedTicketPrice, 2)
+    this.attackPosPercentNeededLabelTarget.innerHTML = digitformat(this.targetPosTarget.value, 2)
+    this.attackPosPercentAmountLabelTarget.innerHTML = digitformat(this.targetPosTarget.value, 2)
+    this.totalDCRPosLabelTarget.innerHTML = digitformat(totalDCRPos, 2)
+    this.dcrPriceLabelTarget.innerHTML = digitformat(dcrPrice, 2)
   }
 
   setAllValues (targets, data) {
