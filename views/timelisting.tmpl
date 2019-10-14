@@ -29,8 +29,8 @@
                           data-action="change->pagenavigation#setPageSize"
                           data-offset="{{$.Offset}}"
                           data-offsetkey="offset"
-                          class="dropdown text-secondary my-2 {{if lt $pending 20}}disabled{{end}}"
-                          {{if lt $pending 20}}disabled="disabled"{{end}}
+                          class="dropdown text-secondary my-2 {{if lt $pending 10}}disabled{{end}}"
+                          {{if lt $pending 10}}disabled="disabled"{{end}}
                       >
                       {{if ge $pending 20}}<option {{if eq $count 20}}selected{{end}} value="20">20 per page</option>{{end}}
                       {{if ge $pending 30}}<option {{if eq $count 30}}selected{{end}} value="30">30 per page</option>{{end}}
