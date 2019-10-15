@@ -25,8 +25,10 @@ import (
 
 var isAlphaNumeric = regexp.MustCompile(`^[a-zA-Z0-9]+$`).MatchString
 
+const maxAddressSubsPerConn uint32 = 32768
+
 type roomSubscriptionCounter struct {
-	*sync.RWMutex
+	sync.RWMutex
 	c map[string]int
 }
 
@@ -34,7 +36,7 @@ type roomSubscriptionCounter struct {
 type SocketServer struct {
 	socketio.Server
 	params           *chaincfg.Params
-	watchedAddresses roomSubscriptionCounter
+	watchedAddresses *roomSubscriptionCounter
 	txGetter         txhelpers.RawTransactionGetter
 }
 
@@ -100,20 +102,23 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 		PingTimeout:  5 * time.Second,
 		Transports:   []transport.Transport{wsTrans},
 	}
-	server, err := socketio.NewServer(opts)
+	socketIOServer, err := socketio.NewServer(opts)
 	if err != nil {
 		apiLog.Errorf("Could not create socket.io server: %v", err)
 		return nil, err
 	}
 
-	// Set maximum number of connections.
-	//server.SetMaxConnection(16384)
-
 	// Each address subscription uses its own room, which has the same name as
 	// the address. The number of subscribers for each room is tracked.
-	addrs := roomSubscriptionCounter{
-		RWMutex: new(sync.RWMutex),
-		c:       make(map[string]int),
+	addrs := &roomSubscriptionCounter{
+		c: make(map[string]int),
+	}
+
+	server := &SocketServer{
+		Server:           *socketIOServer,
+		params:           params,
+		watchedAddresses: addrs,
+		txGetter:         txGetter,
 	}
 
 	server.OnConnect("/", func(so socketio.Conn) error {
@@ -132,6 +137,16 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 			return
 		}
 		if _, err := dcrutil.DecodeAddress(room, params); err == nil {
+			// Enforce the maximum address room subscription limit.
+			numAddrSubs, _ := so.Context().(uint32)
+			if numAddrSubs >= maxAddressSubsPerConn {
+				apiLog.Warnf("Client %s failed to subscribe, at the limit.", so.ID())
+				so.Emit("error", `"too many address subscriptions"`)
+				return
+			}
+			numAddrSubs++
+			so.SetContext(numAddrSubs)
+
 			so.Join(room)
 			apiLog.Debugf("socket.io client joining room: %s", room)
 
@@ -143,16 +158,20 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 
 	// Disconnection decrements or deletes the subscriber counter for each
 	// address room to which the client was subscribed.
-	server.OnDisconnect("/", func(s socketio.Conn, msg string) {
+	server.OnDisconnect("/", func(so socketio.Conn, msg string) {
 		apiLog.Debugf("socket.io client disconnected. %d clients are connected. msg: %s",
 			server.RoomLen("inv"), msg)
 		addrs.Lock()
-		for _, str := range s.Rooms() {
+		for _, str := range so.Rooms() {
 			if c, ok := addrs.c[str]; ok {
 				if c == 1 {
 					delete(addrs.c, str)
 				} else {
 					addrs.c[str]--
+				}
+
+				if numAddrSubs, _ := so.Context().(uint32); numAddrSubs > 0 {
+					so.SetContext(numAddrSubs - 1)
 				}
 			}
 		}
@@ -165,15 +184,8 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 
 	apiLog.Infof("Started Insight socket.io server.")
 
-	sockServ := SocketServer{
-		Server:           *server,
-		params:           params,
-		watchedAddresses: addrs,
-		txGetter:         txGetter,
-	}
-
 	go server.Serve()
-	return &sockServ, nil
+	return server, nil
 }
 
 // Store broadcasts the lastest block hash to the the inv room. The coinbase
