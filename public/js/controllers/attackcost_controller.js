@@ -240,8 +240,6 @@ export default class extends Controller {
   updateTargetHashRate (newTargetPow) {
     this.targetPowTarget.value = newTargetPow || this.targetPowTarget.value
 
-    // this.projectedPriceDiv = document.getElementById('projectedPriceDiv')
-
     switch (this.settings.attack_type) {
       case '1':
         this.targetHashRate = hashrate / (1 - parseFloat(this.targetPowTarget.value) / 100)
@@ -264,11 +262,12 @@ export default class extends Controller {
 
   updateSliderData () {
     var val = parseFloat(this.attackPercentTarget.value) || 0
-    this.updateTargetHashRate(val * 100)
 
     // Makes PoS to be affected by the slider
+    // Target PoS value increases when slider moves to the right
     this.targetPosTarget.value = val * 100
 
+    this.updateTargetHashRate(val * 100)
     this.setActivePoint()
 
     var rate = rateCalculation(val)
@@ -298,9 +297,6 @@ export default class extends Controller {
     var extraCostsRate = 1 + parseFloat(this.otherCostsTarget.value) / 100
     var totalPow = extraCostsRate * totalDeviceCost + totalElectricity
     var ticketAttackSize = (tpSize * parseFloat(this.targetPosTarget.value)) / 100
-    console.log(`Hash Rate: ${hashrate}`)
-    console.log(`tpValue: ${tpValue}`)
-    console.log(`Target PoS: ${this.targetPosTarget.value}`)
     // var DCRNeed = tpValue / (parseFloat(this.targetPosTarget.value) / 100)
     var DCRNeed = tpValue * (parseFloat(this.targetPosTarget.value) / 100)
     var projectedTicketPrice = DCRNeed / tpSize
