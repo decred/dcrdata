@@ -21,9 +21,15 @@
 
         sio.on('connect', function () {
             update('Connected to dcrdata\'s Insight socket.io server. Updates will be shown below.')
-            sio.emit('subscribe', 'Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx');
-            sio.emit('subscribe', 'DsiDegkW7HxidcUCNpRqpgskc9JFCkqwWeu');
-            sio.emit('subscribe', 'Dsbryr6dktHaqsrzLbZTaVFXTiVPQ2GmRW3');
+            sio.emit('subscribe', 'Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx',  (data) => {
+                update('subscribe: ' + data);
+            });
+            sio.emit('subscribe', 'DsiDegkW7HxidcUCNpRqpgskc9JFCkqwWeu',  (data) => {
+                update('subscribe: ' + data);
+            });
+            sio.emit('subscribe', 'Dsbryr6dktHaqsrzLbZTaVFXTiVPQ2GmRW3',  (data) => {
+                update('subscribe: ' + data);
+            });
         })
 
         sio.on('disconnect', (reason) => {

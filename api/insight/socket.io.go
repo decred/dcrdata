@@ -132,9 +132,9 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 
 	// Subscription to a room checks the room name is as expected for an
 	// address, joins the room, and increments the room's subscriber count.
-	server.OnEvent("/", "subscribe", func(so socketio.Conn, room string) {
+	server.OnEvent("/", "subscribe", func(so socketio.Conn, room string) string {
 		if len(room) > 64 || !isAlphaNumeric(room) {
-			return
+			return "bad address"
 		}
 		if _, err := dcrutil.DecodeAddress(room, params); err == nil {
 			// Enforce the maximum address room subscription limit.
@@ -142,7 +142,7 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 			if numAddrSubs >= maxAddressSubsPerConn {
 				apiLog.Warnf("Client %s failed to subscribe, at the limit.", so.ID())
 				so.Emit("error", `"too many address subscriptions"`)
-				return
+				return "too many address subscriptions"
 			}
 			numAddrSubs++
 			so.SetContext(numAddrSubs)
@@ -153,7 +153,9 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 			addrs.Lock()
 			addrs.c[room]++
 			addrs.Unlock()
+			return "ok"
 		}
+		return "bad address: " + err.Error()
 	})
 
 	// Disconnection decrements or deletes the subscriber counter for each
