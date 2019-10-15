@@ -191,7 +191,7 @@ func NewVoteTracker(params *chaincfg.Params, node VoteDataSource, counter voteCo
 func (tracker *VoteTracker) Refresh() {
 	voteInfo, err := tracker.refreshRCI()
 	if err != nil {
-		log.Errorf("VoteTracker.Refresh -> refreshRCI: %v")
+		log.Errorf("VoteTracker.Refresh -> refreshRCI: %v", err)
 		return
 	}
 	if voteInfo == nil {
@@ -200,12 +200,12 @@ func (tracker *VoteTracker) Refresh() {
 	}
 	blocksToAdd, stakeVersion, err := tracker.fetchBlocks(voteInfo)
 	if err != nil {
-		log.Errorf("VoteTracker.Refresh -> fetchBlocks: %v")
+		log.Errorf("VoteTracker.Refresh -> fetchBlocks: %v", err)
 		return
 	}
 	stakeInfo, err := tracker.refreshSVIs(voteInfo)
 	if err != nil {
-		log.Errorf("VoteTracker.Refresh -> refreshSVIs: %v")
+		log.Errorf("VoteTracker.Refresh -> refreshSVIs: %v", err)
 		return
 	}
 	tracker.update(voteInfo, blocksToAdd, stakeInfo, stakeVersion)
