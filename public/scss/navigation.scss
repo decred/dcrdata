@@ -12,7 +12,7 @@
   top: 0;
   background: #fff;
   border-bottom: 1px solid #00000017;
-  box-shadow: 0 0 25px #dcdcdc;
+  box-shadow: 0 0 10px #dcdcdc;
 }
 
 .navbar-fixed-bottom {
@@ -137,21 +137,11 @@ select {
   font-size: 14px;
   padding: 0 5px;
   border-radius: 2px;
-  background-color: #fff !important;
-}
-
-select.pagesize {
-  background: url(/images/dropdown.svg) 95% / 8% no-repeat;
-  width: 100px;
-}
-
-select.pageage {
-  background: url(/images/dropdown.svg) 90% / 11% no-repeat;
-  width: 70px;
 }
 
 select.dropdown {
-  border-radius: 5px;
+  background: url(/images/dropdown.svg) 95% / 8% no-repeat #fff;
+  width: 100px;
 }
 
 span.separator {
@@ -172,7 +162,7 @@ ul.pages {
   border-radius: 5px;
   padding: 0;
   overflow: hidden;
-  background-color: white;
+  background-color: #fff;
 }
 
 ul.pages > li {
