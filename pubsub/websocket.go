@@ -5,8 +5,6 @@
 package pubsub
 
 import (
-	"crypto/rand"
-	"encoding/binary"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -228,13 +226,10 @@ type clientHubSpoke struct {
 	c  *hubSpoke
 }
 
+var idCounter uint64
+
 func newClientID() uint64 {
-	var id [8]byte
-	n, err := rand.Read(id[:])
-	if n != 8 || err != nil {
-		panic("newClientID: rand.Read failed!")
-	}
-	return binary.LittleEndian.Uint64(id[:])
+	return atomic.AddUint64(&idCounter, 1)
 }
 
 // NewClientHubSpoke registers a connection with the hub, and returns a pointer
