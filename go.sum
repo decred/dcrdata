@@ -43,6 +43,7 @@ github.com/asdine/storm v2.1.2+incompatible h1:dczuIkyqwY2LrtXPz8ixMrU/OFgZp71kb
 github.com/asdine/storm v2.1.2+incompatible/go.mod h1:RarYDc9hq1UPLImuiXK3BIWPJLdIygvV3PsInK0FbVQ=
 github.com/asdine/storm/v3 v3.0.0-20191014164809-c6fa66c747fe h1:bA7K2/S7IIItrXSM0PSHGesR9vljOKSj82NxTI56pe4=
 github.com/asdine/storm/v3 v3.0.0-20191014164809-c6fa66c747fe/go.mod h1:wncSIXIbR3lvJQhBpnwAeNPQneL5Vx2KUox2jARUdmw=
+github.com/asdine/storm/v3 v3.0.0-20191014171123-c370e07ad6d4/go.mod h1:wncSIXIbR3lvJQhBpnwAeNPQneL5Vx2KUox2jARUdmw=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/boltdb/bolt v1.3.1 h1:JQmyP4ZBrce+ZQu0dY660FMfatumYDLun9hBCUVIkF4=
 github.com/boltdb/bolt v1.3.1/go.mod h1:clJnj/oiGkjum5o1McbSZDSLxVThjynRyGBgiAx27Ps=
