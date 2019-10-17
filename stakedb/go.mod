@@ -5,7 +5,7 @@ go 1.12
 require (
 	github.com/AndreasBriese/bbloom v0.0.0-20190306092124-e2d15f34fcf9 // indirect
 	github.com/DataDog/zstd v1.4.1 // indirect
-	github.com/asdine/storm/v3 v3.0.0-20191014164809-c6fa66c747fe
+	github.com/asdine/storm/v3 v3.0.0-20191014171123-c370e07ad6d4
 	github.com/decred/dcrd/blockchain/stake/v2 v2.0.1
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.1
 	github.com/decred/dcrd/chaincfg/v2 v2.2.0
