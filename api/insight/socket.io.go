@@ -121,32 +121,33 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 		txGetter:         txGetter,
 	}
 
-	socketIOServer.OnConnect("/", func(so socketio.Conn) error {
+	server.OnConnect("/", func(so socketio.Conn) error {
 		// New connections automatically join the inv and sync rooms.
 		so.Join("inv")
 		so.Join("sync")
-		so.SetContext(uint32(0))
+		//so.SetContext(uint32(0))
 		apiLog.Debugf("New socket.io connection (%s). %d clients are connected.",
-			so.ID(), socketIOServer.RoomLen("inv"))
+			so.ID(), server.RoomLen("inv"))
 		return nil
 	})
 
 	// Subscription to a room checks the room name is as expected for an
 	// address, joins the room, and increments the room's subscriber count.
-	socketIOServer.OnEvent("/", "subscribe", func(so socketio.Conn, room string) string {
+	server.OnEvent("/", "subscribe", func(so socketio.Conn, room string) string {
+		return "i got nothin"
 		if len(room) > 64 || !isAlphaNumeric(room) {
 			return "bad address"
 		}
 		if _, err := dcrutil.DecodeAddress(room, params); err == nil {
 			// Enforce the maximum address room subscription limit.
-			numAddrSubs, _ := so.Context().(uint32)
-			if numAddrSubs >= maxAddressSubsPerConn {
-				apiLog.Warnf("Client %s failed to subscribe, at the limit.", so.ID())
-				so.Emit("error", `"too many address subscriptions"`)
-				return "too many address subscriptions"
-			}
-			numAddrSubs++
-			so.SetContext(numAddrSubs)
+			// numAddrSubs, _ := so.Context().(uint32)
+			// if numAddrSubs >= maxAddressSubsPerConn {
+			// 	apiLog.Warnf("Client %s failed to subscribe, at the limit.", so.ID())
+			// 	so.Emit("error", `"too many address subscriptions"`)
+			// 	return "too many address subscriptions"
+			// }
+			// numAddrSubs++
+			// so.SetContext(numAddrSubs)
 
 			so.Join(room)
 			apiLog.Debugf("socket.io client joining room: %s", room)
@@ -161,9 +162,9 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 
 	// Disconnection decrements or deletes the subscriber counter for each
 	// address room to which the client was subscribed.
-	socketIOServer.OnDisconnect("/", func(so socketio.Conn, msg string) {
+	server.OnDisconnect("/", func(so socketio.Conn, msg string) {
 		apiLog.Debugf("socket.io client disconnected (%s). %d clients are connected. msg: %s",
-			so.ID(), socketIOServer.RoomLen("inv"), msg)
+			so.ID(), server.RoomLen("inv"), msg)
 		addrs.Lock()
 		for _, str := range so.Rooms() {
 			if c, ok := addrs.c[str]; ok {
@@ -177,13 +178,13 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 		addrs.Unlock()
 	})
 
-	socketIOServer.OnError("/", func(err error) {
+	server.OnError("/", func(err error) {
 		apiLog.Errorf("Insight socket.io server error: %v", err)
 	})
 
 	apiLog.Infof("Started Insight socket.io server.")
 
-	go socketIOServer.Serve()
+	go server.Serve()
 	return server, nil
 }
 
