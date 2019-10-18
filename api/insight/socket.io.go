@@ -125,8 +125,9 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 		// New connections automatically join the inv and sync rooms.
 		so.Join("inv")
 		so.Join("sync")
-		apiLog.Debugf("New socket.io connection. %d clients are connected.",
-			server.RoomLen("inv"))
+		so.SetContext(uint32(0))
+		apiLog.Debugf("New socket.io connection (%d). %d clients are connected.",
+			so.ID(), server.RoomLen("inv"))
 		return nil
 	})
 
@@ -138,14 +139,14 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 		}
 		if _, err := dcrutil.DecodeAddress(room, params); err == nil {
 			// Enforce the maximum address room subscription limit.
-			// numAddrSubs, _ := so.Context().(uint32)
-			// if numAddrSubs >= maxAddressSubsPerConn {
-			// 	apiLog.Warnf("Client %s failed to subscribe, at the limit.", so.ID())
-			// 	so.Emit("error", `"too many address subscriptions"`)
-			// 	return "too many address subscriptions"
-			// }
-			// numAddrSubs++
-			// so.SetContext(numAddrSubs)
+			numAddrSubs, _ := so.Context().(uint32)
+			if numAddrSubs >= maxAddressSubsPerConn {
+				apiLog.Warnf("Client %s failed to subscribe, at the limit.", so.ID())
+				so.Emit("error", `"too many address subscriptions"`)
+				return "too many address subscriptions"
+			}
+			numAddrSubs++
+			so.SetContext(numAddrSubs)
 
 			so.Join(room)
 			apiLog.Debugf("socket.io client joining room: %s", room)
@@ -161,9 +162,10 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 	// Disconnection decrements or deletes the subscriber counter for each
 	// address room to which the client was subscribed.
 	server.OnDisconnect("/", func(so socketio.Conn, msg string) {
-		apiLog.Debugf("socket.io client disconnected. %d clients are connected. msg: %s",
-			server.RoomLen("inv"), msg)
+		apiLog.Debugf("socket.io client disconnected (%d). %d clients are connected. msg: %s",
+			so.ID(), server.RoomLen("inv"), msg)
 		addrs.Lock()
+		so.SetContext(uint32(0))
 		for _, str := range so.Rooms() {
 			if c, ok := addrs.c[str]; ok {
 				if c == 1 {
@@ -171,13 +173,10 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 				} else {
 					addrs.c[str]--
 				}
-
-				// if numAddrSubs, _ := so.Context().(uint32); numAddrSubs > 0 {
-				// 	so.SetContext(numAddrSubs - 1)
-				// }
 			}
 		}
 		addrs.Unlock()
+		so.LeaveAll()
 	})
 
 	server.OnError("/", func(err error) {
