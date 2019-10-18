@@ -34,7 +34,7 @@ type roomSubscriptionCounter struct {
 
 // SocketServer wraps the socket.io server with the watched address list.
 type SocketServer struct {
-	socketio.Server
+	*socketio.Server
 	params           *chaincfg.Params
 	watchedAddresses *roomSubscriptionCounter
 	txGetter         txhelpers.RawTransactionGetter
@@ -115,7 +115,7 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 	}
 
 	server := &SocketServer{
-		Server:           *socketIOServer,
+		Server:           socketIOServer,
 		params:           params,
 		watchedAddresses: addrs,
 		txGetter:         txGetter,
@@ -138,14 +138,14 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 		}
 		if _, err := dcrutil.DecodeAddress(room, params); err == nil {
 			// Enforce the maximum address room subscription limit.
-			numAddrSubs, _ := so.Context().(uint32)
-			if numAddrSubs >= maxAddressSubsPerConn {
-				apiLog.Warnf("Client %s failed to subscribe, at the limit.", so.ID())
-				so.Emit("error", `"too many address subscriptions"`)
-				return "too many address subscriptions"
-			}
-			numAddrSubs++
-			so.SetContext(numAddrSubs)
+			// numAddrSubs, _ := so.Context().(uint32)
+			// if numAddrSubs >= maxAddressSubsPerConn {
+			// 	apiLog.Warnf("Client %s failed to subscribe, at the limit.", so.ID())
+			// 	so.Emit("error", `"too many address subscriptions"`)
+			// 	return "too many address subscriptions"
+			// }
+			// numAddrSubs++
+			// so.SetContext(numAddrSubs)
 
 			so.Join(room)
 			apiLog.Debugf("socket.io client joining room: %s", room)
@@ -172,9 +172,9 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 					addrs.c[str]--
 				}
 
-				if numAddrSubs, _ := so.Context().(uint32); numAddrSubs > 0 {
-					so.SetContext(numAddrSubs - 1)
-				}
+				// if numAddrSubs, _ := so.Context().(uint32); numAddrSubs > 0 {
+				// 	so.SetContext(numAddrSubs - 1)
+				// }
 			}
 		}
 		addrs.Unlock()
