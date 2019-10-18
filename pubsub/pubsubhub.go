@@ -28,7 +28,7 @@ import (
 	"golang.org/x/net/websocket"
 )
 
-var version = semver.NewSemver(3, 0, 0)
+var version = semver.NewSemver(3, 1, 0)
 
 // Version indicates the semantic version of the pubsub module.
 func Version() semver.Semver {
@@ -36,8 +36,8 @@ func Version() semver.Semver {
 }
 
 const (
-	wsWriteTimeout = 10 * time.Second
-	wsReadTimeout  = 20 * time.Second
+	wsWriteTimeout = 5 * time.Second
+	wsReadTimeout  = 7 * time.Second
 )
 
 // wsDataSource defines the interface for collecting required data.
@@ -90,9 +90,7 @@ type PubSubHub struct {
 	ver        pstypes.Ver
 }
 
-// NewPubSubHub constructs a PubSubHub given a primary and auxiliary data
-// source. The primary data source is required, while the aux. source may be
-// nil, which indicates a "lite" mode of operation. The WebSocketHub is
+// NewPubSubHub constructs a PubSubHub given a data source. The WebSocketHub is
 // automatically started.
 func NewPubSubHub(dataSource wsDataSource) (*PubSubHub, error) {
 	psh := new(PubSubHub)
@@ -396,21 +394,22 @@ func (psh *PubSubHub) sendLoop(conn *connection) {
 
 loop:
 	for sig := range updateSigChan {
-		log.Tracef("(*PubSubHub)sendLoop: updateSigChan received %v", sig)
+		log.Tracef("(*PubSubHub)sendLoop: updateSigChan received %v for client %d",
+			sig, clientData.id)
 		// If the update channel is closed, the loop terminates.
 
 		if !sig.IsValid() {
-			log.Errorf("invalid signal to send: %s / %d", sig.Signal.String(), int(sig.Signal))
+			log.Errorf("invalid signal to send: %s / %d", sig.Signal, int(sig.Signal))
 			continue loop
 		}
 
 		if sig.Signal != sigByeNow && !clientData.isSubscribed(sig) {
 			log.Errorf("Client not subscribed for %s events. "+
-				"WebSocketHub should have caught this.", sig.Signal.String())
+				"WebSocketHub should have caught this.", sig)
 			continue loop // break
 		}
 
-		log.Tracef("signaling client: %p", conn.client.c) // ID by address
+		log.Tracef("signaling client %d with %s", clientData.id, sig)
 
 		// Respond to the websocket client.
 		pushMsg := pstypes.WebSocketMessage{
@@ -435,6 +434,8 @@ loop:
 			if err != nil {
 				log.Warnf("Encode(AddressMessage) failed: %v", err)
 			}
+
+			log.Debugf("Sending sigAddressTx to client %d: %s", clientData.id, am)
 
 			pushMsg.Message = buff.Bytes()
 		case sigNewBlock:
@@ -521,7 +522,7 @@ loop:
 			}
 			// If the send failed, the client is probably gone, quit the
 			// send loop, unregistering the client from the websocket hub.
-			log.Errorf("websocket.JSON.Send of %v failed: %v", pushMsg, err)
+			log.Errorf("websocket.JSON.Send of %v type message failed: %v", sig, err)
 			return
 		}
 	} // for range { a.k.a. loop:
