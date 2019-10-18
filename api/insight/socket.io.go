@@ -121,19 +121,19 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 		txGetter:         txGetter,
 	}
 
-	server.OnConnect("/", func(so socketio.Conn) error {
+	socketIOServer.OnConnect("/", func(so socketio.Conn) error {
 		// New connections automatically join the inv and sync rooms.
 		so.Join("inv")
 		so.Join("sync")
 		so.SetContext(uint32(0))
-		apiLog.Debugf("New socket.io connection (%d). %d clients are connected.",
-			so.ID(), server.RoomLen("inv"))
+		apiLog.Debugf("New socket.io connection (%s). %d clients are connected.",
+			so.ID(), socketIOServer.RoomLen("inv"))
 		return nil
 	})
 
 	// Subscription to a room checks the room name is as expected for an
 	// address, joins the room, and increments the room's subscriber count.
-	server.OnEvent("/", "subscribe", func(so socketio.Conn, room string) string {
+	socketIOServer.OnEvent("/", "subscribe", func(so socketio.Conn, room string) string {
 		if len(room) > 64 || !isAlphaNumeric(room) {
 			return "bad address"
 		}
@@ -161,11 +161,10 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 
 	// Disconnection decrements or deletes the subscriber counter for each
 	// address room to which the client was subscribed.
-	server.OnDisconnect("/", func(so socketio.Conn, msg string) {
-		apiLog.Debugf("socket.io client disconnected (%d). %d clients are connected. msg: %s",
-			so.ID(), server.RoomLen("inv"), msg)
+	socketIOServer.OnDisconnect("/", func(so socketio.Conn, msg string) {
+		apiLog.Debugf("socket.io client disconnected (%s). %d clients are connected. msg: %s",
+			so.ID(), socketIOServer.RoomLen("inv"), msg)
 		addrs.Lock()
-		so.SetContext(uint32(0))
 		for _, str := range so.Rooms() {
 			if c, ok := addrs.c[str]; ok {
 				if c == 1 {
@@ -176,16 +175,15 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 			}
 		}
 		addrs.Unlock()
-		so.LeaveAll()
 	})
 
-	server.OnError("/", func(err error) {
+	socketIOServer.OnError("/", func(err error) {
 		apiLog.Errorf("Insight socket.io server error: %v", err)
 	})
 
 	apiLog.Infof("Started Insight socket.io server.")
 
-	go server.Serve()
+	go socketIOServer.Serve()
 	return server, nil
 }
 
