@@ -1,5 +1,7 @@
 module github.com/decred/dcrdata/pubsub/democlient
 
+go 1.12
+
 replace (
 	github.com/decred/dcrdata/api/types/v4 => ../../api/types
 	github.com/decred/dcrdata/blockdata/v4 => ../../blockdata
@@ -25,8 +27,9 @@ replace (
 require (
 	github.com/decred/dcrd/chaincfg/v2 v2.2.0
 	github.com/decred/dcrd/dcrutil/v2 v2.0.0
-	github.com/decred/dcrdata/explorer/types/v2 v2.0.2
-	github.com/decred/dcrdata/pubsub/types/v3 v3.0.2
+	github.com/decred/dcrdata/db/dbtypes/v2 v2.1.4
+	github.com/decred/dcrdata/explorer/types/v2 v2.0.4
+	github.com/decred/dcrdata/pubsub/types/v3 v3.0.4
 	github.com/decred/dcrdata/pubsub/v3 v3.0.3
 	github.com/decred/dcrdata/semver v1.0.0
 	github.com/decred/slog v1.0.0

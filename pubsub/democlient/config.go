@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/decred/dcrd/chaincfg/v2"
 	flags "github.com/jessevdk/go-flags"
 )
 
@@ -11,8 +12,12 @@ const (
 	defaultURL = "ws://localhost:7777/ps"
 )
 
+var activeChain = chaincfg.MainNetParams()
+
 type config struct {
 	ConfigPath string `short:"c" long:"config" description:"Path to a custom configuration file."`
+	TestNet    bool   `long:"testnet" description:"Use the test network (default mainnet)."`
+	SimNet     bool   `long:"simnet" description:"Use the simulation test network (default mainnet)."`
 	URL        string `short:"u" long:"url" description:"Target URL, with protocol and path."`
 }
 
@@ -59,6 +64,25 @@ func loadConfig() (*config, error) {
 			parser.WriteHelp(os.Stderr)
 		}
 		return nil, fmt.Errorf("Error parsing command line arguments: %v", err)
+	}
+
+	// Choose the active network params based on the selected network. Multiple
+	// networks can't be selected simultaneously.
+	var numNets int
+	activeChain = chaincfg.MainNetParams()
+	if cfg.TestNet {
+		activeChain = chaincfg.TestNet3Params()
+		numNets++
+	}
+	if cfg.SimNet {
+		activeChain = chaincfg.SimNetParams()
+		numNets++
+	}
+	if numNets > 1 {
+		str := "the testnet and simnet options can't be used together"
+		fmt.Fprintln(os.Stderr, str)
+		parser.WriteHelp(os.Stderr)
+		return nil, fmt.Errorf(str)
 	}
 
 	return &cfg, nil

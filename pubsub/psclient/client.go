@@ -406,10 +406,10 @@ func (c *Client) ServerVersion() (*pstypes.Ver, error) {
 
 	// Send the server version message.
 	if err := c.send(msg); err != nil {
-		return nil, fmt.Errorf("failed to send unsubscribe message: %v", err)
+		return nil, fmt.Errorf("failed to send version message: %v", err)
 	}
 
-	// Wait for a response with the requestID
+	// Wait for a response with the requestID.
 	resp := <-respChan
 	if !resp.Success {
 		return nil, fmt.Errorf("failed to obtain server version")
