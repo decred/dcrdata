@@ -21,7 +21,7 @@
 
         sio.on('connect', function () {
             update('Connected to dcrdata\'s Insight socket.io server. Updates will be shown below.')
-            so.emit('subscribe', 'inv', (data) => {
+            sio.emit('subscribe', 'inv', (data) => {
                 update('subscribe "inv": ' + data);
             })
             sio.emit('subscribe', 'Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx', (data) => {
