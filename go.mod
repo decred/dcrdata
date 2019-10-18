@@ -3,6 +3,8 @@ module github.com/decred/dcrdata/v5
 go 1.12
 
 replace (
+	github.com/decred/dcrdata/pubsub/types/v3 => ./pubsub/types
+	github.com/decred/dcrdata/pubsub/v3 => ./pubsub
 	github.com/go-critic/go-critic v0.0.0-20181204210945-0af0999fabfb => github.com/go-critic/go-critic v0.3.5-0.20190108192714-0af0999fabfb
 	github.com/golangci/errcheck v0.0.0-20181003203344-ef45e06d44b6 => github.com/golangci/errcheck v0.0.0-20181223084120-ef45e06d44b6
 	github.com/golangci/go-tools v0.0.0-20180109140146-35a9f45a5db0 => github.com/golangci/go-tools v0.0.0-20190124090046-35a9f45a5db0
