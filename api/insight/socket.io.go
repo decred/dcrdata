@@ -34,7 +34,7 @@ type roomSubscriptionCounter struct {
 
 // SocketServer wraps the socket.io server with the watched address list.
 type SocketServer struct {
-	*socketio.Server
+	socketio.Server
 	params           *chaincfg.Params
 	watchedAddresses *roomSubscriptionCounter
 	txGetter         txhelpers.RawTransactionGetter
@@ -115,7 +115,7 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 	}
 
 	server := &SocketServer{
-		Server:           socketIOServer,
+		Server:           *socketIOServer,
 		params:           params,
 		watchedAddresses: addrs,
 		txGetter:         txGetter,
