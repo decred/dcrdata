@@ -15,7 +15,7 @@ require (
 	github.com/decred/dcrd/txscript/v2 v2.0.0
 	github.com/decred/dcrd/wire v1.2.0
 	github.com/decred/dcrdata/api/types/v4 v4.0.2
-	github.com/decred/dcrdata/blockdata/v4 v4.0.3
+	github.com/decred/dcrdata/blockdata/v4 v4.0.4-0.20191018131105-43d40fcf6525
 	github.com/decred/dcrdata/db/cache/v2 v2.2.2
 	github.com/decred/dcrdata/db/dbtypes/v2 v2.1.2
 	github.com/decred/dcrdata/db/dcrpg/v4 v4.0.3
