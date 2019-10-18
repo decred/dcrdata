@@ -5,6 +5,7 @@ package insight
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"regexp"
 	"sync"
@@ -121,43 +122,58 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 		txGetter:         txGetter,
 	}
 
+	// OnConnect sets the address room subscription counter to 0. There are no
+	// default subscriptions. The client must subscribe to "inv" if they want
+	// notification of all new transactions.
 	server.OnConnect("/", func(so socketio.Conn) error {
-		// New connections automatically join the inv and sync rooms.
-		so.Join("inv")
-		so.Join("sync")
-		//so.SetContext(uint32(0))
+		so.SetContext(uint32(0))
 		apiLog.Debugf("New socket.io connection (%s). %d clients are connected.",
 			so.ID(), server.RoomLen("inv"))
 		return nil
 	})
 
-	// Subscription to a room checks the room name is as expected for an
-	// address, joins the room, and increments the room's subscriber count.
+	// Subscription to a room checks the room name is a valid subscription
+	// (currently just "inv" or a valid Decred address), joins the room, and
+	// increments the room's subscriber count.
 	server.OnEvent("/", "subscribe", func(so socketio.Conn, room string) string {
-		return "i got nothin"
-		if len(room) > 64 || !isAlphaNumeric(room) {
-			return "bad address"
-		}
-		if _, err := dcrutil.DecodeAddress(room, params); err == nil {
-			// Enforce the maximum address room subscription limit.
-			// numAddrSubs, _ := so.Context().(uint32)
-			// if numAddrSubs >= maxAddressSubsPerConn {
-			// 	apiLog.Warnf("Client %s failed to subscribe, at the limit.", so.ID())
-			// 	so.Emit("error", `"too many address subscriptions"`)
-			// 	return "too many address subscriptions"
-			// }
-			// numAddrSubs++
-			// so.SetContext(numAddrSubs)
-
+		switch room {
+		case "inv": // list other valid non-address rooms here
 			so.Join(room)
-			apiLog.Debugf("socket.io client joining room: %s", room)
-
-			addrs.Lock()
-			addrs.c[room]++
-			addrs.Unlock()
 			return "ok"
+		case "sync":
+			msg := `"sync" not implemented`
+			so.Emit("error", msg)
+			return "error: " + msg
 		}
-		return "bad address: " + err.Error()
+
+		// See if the room is a Decred address.
+		if _, err = dcrutil.DecodeAddress(room, params); err != nil {
+			apiLog.Debugf("socket.io connection %s requested invalid subscription: %s",
+				so.ID(), room)
+			msg := fmt.Sprintf(`invalid subscription "%s"`, room)
+			so.Emit("error", msg)
+			return "error: " + msg
+		}
+
+		// The room is a valid address, but enforce the maximum address room
+		// subscription limit.
+		numAddrSubs, _ := so.Context().(uint32)
+		if numAddrSubs >= maxAddressSubsPerConn {
+			apiLog.Warnf("Client %s failed to subscribe, at the limit.", so.ID())
+			msg := `"too many address subscriptions"`
+			so.Emit("error", msg)
+			return "error: " + msg
+		}
+		numAddrSubs++
+		so.SetContext(numAddrSubs)
+
+		so.Join(room)
+		apiLog.Debugf("socket.io client joining room: %s", room)
+
+		addrs.Lock()
+		addrs.c[room]++
+		addrs.Unlock()
+		return "ok"
 	})
 
 	// Disconnection decrements or deletes the subscriber counter for each
