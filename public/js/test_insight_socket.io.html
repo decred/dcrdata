@@ -21,7 +21,18 @@
 
         sio.on('connect', function () {
             update('Connected to dcrdata\'s Insight socket.io server. Updates will be shown below.')
-            sio.emit('subscribe', 'Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx');
+            sio.emit('subscribe', 'inv', (data) => {
+                update('subscribe "inv": ' + data);
+            })
+            sio.emit('subscribe', 'Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx', (data) => {
+                update('subscribe "Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx": ' + data);
+            });
+            sio.emit('subscribe', 'DsiDegkW7HxidcUCNpRqpgskc9JFCkqwWeu', (data) => {
+                update('subscribe "DsiDegkW7HxidcUCNpRqpgskc9JFCkqwWeu": ' + data);
+            });
+            sio.emit('subscribe', 'Dsbryr6dktHaqsrzLbZTaVFXTiVPQ2GmRW3', (data) => {
+                update('subscribe "Dsbryr6dktHaqsrzLbZTaVFXTiVPQ2GmRW3": ' + data);
+            });
         })
 
         sio.on('disconnect', (reason) => {
@@ -54,6 +65,10 @@
         {{/* sio.on('ping', () => {
             update("pinging")
         }) */}}
+
+        sio.on('error', (err) => {
+            update("bad news: " + err.toString())
+        })
 
         sio.on('pong', (latency) => {
             update("got a pong back in " + latency.toString() + "ms")
