@@ -26,7 +26,7 @@
               <span class="fs12 nowrap text-secondary px-2 my-2">
                     {{intComma (add .OffsetWindow 1)}} &ndash; {{intComma $oldest}} of {{ intComma $lastWindow }} rows
                 </span>
-                <span class="fs12 nowrap text-right mr-2">
+                <span class="fs12 nowrap text-right">
                     <select
                         data-target="pagenavigation.pagesize"
                         data-action="change->pagenavigation#setPageSize"
@@ -35,14 +35,12 @@
                         class="dropdown text-secondary my-2 {{if lt $pendingWindows 10}}disabled{{end}}"
                         {{if lt $pendingWindows 10}}disabled="disabled"{{end}}
                     >
-                      <option {{if eq $windowsCount 10}}selected{{end}} value="10">10 per page</option>
-                      <option {{if eq $windowsCount 20}}selected{{end}} value="20">20 per page</option>
-                      <option {{if eq $windowsCount 30}}selected{{end}} value="30">30 per page</option>
-                      <option {{if eq $windowsCount 40}}selected{{end}} value="40">40 per page</option>
-                      <option {{if eq $windowsCount 50}}selected{{end}} value="50">50 per page</option>
-                      {{if eq $windowsCount 10 20 30 40 50}}{{else}}
-                          <option selected value="{{$windowsCount}}">{{$windowsCount}} per page</option>
-                      {{end}}
+                      {{if ge $pendingWindows 20}}<option {{if eq $windowsCount 20}}selected{{end}} value="20">20 per page</option>{{end}}
+                      {{if ge $pendingWindows 30}}<option {{if eq $windowsCount 30}}selected{{end}} value="30">30 per page</option>{{end}}
+                      {{if ge $pendingWindows 50}}<option {{if eq $windowsCount 50}}selected{{end}} value="50">50 per page</option>{{end}}
+                      {{if ge $pendingWindows 100}}<option {{if eq $windowsCount 100}}selected{{end}} value="100">100 per page</option>{{end}}
+                      {{if eq $dropVal $windowsCount 20 30 50 100}}{{else}}<option value="{{$dropVal}}">{{$dropVal}} per page</option>{{end}}
+                      {{if eq $windowsCount 20 30 50 100 200}}{{else}}<option selected value="{{$windowsCount}}">{{$windowsCount}} per page</option>{{end}}
                     </select>
                 </span>
                 <nav aria-label="blocks navigation" data-limit="{{.Limit}}" class="ml-2 my-2 d-inline-block text-right">

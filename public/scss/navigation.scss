@@ -40,10 +40,10 @@
 
 ul.pages > li > a {
   display: block;
-  height: 24px;
+  height: 30px;
   text-decoration: none;
   line-height: 24px;
-  padding: 0 8px;
+  padding: 3px 8px 0 8px;
   border-right: 2px solid #f3f5f6;
 }
 
@@ -158,15 +158,15 @@ ul.pages {
   flex-direction: row;
   border: none;
   font-size: 14px;
-  height: 24px;
-  border-radius: 5px;
+  height: 30px;
+  border-radius: 2px;
   padding: 0;
   overflow: hidden;
   background-color: #fff;
 }
 
 ul.pages > li {
-  height: 24px;
+  height: 30px;
   position: relative;
   display: block;
 }
@@ -202,6 +202,10 @@ body.darkBG .search-bttn {
 body.darkBG {
   .search-form {
     border-color: #777;
+  }
+
+  select.dropdown {
+    background: url(/images/dropdown-light.svg) 95% / 8% no-repeat #fff;
   }
 
   .search-bttn:hover {
