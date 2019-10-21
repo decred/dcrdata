@@ -124,8 +124,13 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 
 	// OnConnect sets the address room subscription counter to 0. There are no
 	// default subscriptions. The client must subscribe to "inv" if they want
-	// notification of all new transactions.
+	// notification of all new transactions. Note that OnConnect previously
+	// subscribed all clients to "inv", but this was incorrect. Clients that
+	// need it should explicitly subscribe, and this seems to be how clients
+	// behave already.
 	server.OnConnect("/", func(so socketio.Conn) error {
+		// Initialize the Conn's context, the connection's general purpose data,
+		// to hold the address room subscription count.
 		so.SetContext(uint32(0))
 		apiLog.Debugf("New socket.io connection (%s). %d clients are connected.",
 			so.ID(), server.RoomLen("inv"))
@@ -168,7 +173,8 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 		so.SetContext(numAddrSubs)
 
 		so.Join(room)
-		apiLog.Debugf("socket.io client joining room: %s", room)
+		apiLog.Debugf("socket.io client %s joined address room %s (%d subscriptions)",
+			so.ID(), room, numAddrSubs)
 
 		addrs.Lock()
 		addrs.c[room]++
