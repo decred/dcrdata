@@ -15,7 +15,7 @@ function legendFormatter (data) {
     var labeledData = ' <span style="color: ' + series.color + ';">' + series.labelHTML + ': ' + series.yHTML
     html += '<br>' + series.dashHTML + labeledData + '</span>'
   })
-  dompurify.sanitize(html)
+  dompurify.sanitize(html, { FORBID_TAGS: ['svg', 'math'] })
   return html
 }
 

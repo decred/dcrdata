@@ -29,7 +29,7 @@ function mempoolTableRow (tx) {
     <td class="text-nowrap text-right">${tx.size} B</td>
     <td class="text-right pr-1 text-nowrap" data-target="time.age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
   </tr>`
-  dompurify.sanitize(tbody, { IN_PLACE: true })
+  dompurify.sanitize(tbody, { IN_PLACE: true, FORBID_TAGS: ['svg', 'math'] })
   return tbody.firstChild
 }
 
