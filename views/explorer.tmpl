@@ -108,7 +108,7 @@
                             <span class="d-none d-md-inline">Version</span>
                             <span class="d-md-none position-relative" data-tooltip="block version">Ver</span>
                         </th>
-                        <th class="text-right" class="jsonly">Age</th>
+                        <th class="text-right px-0" class="jsonly">Age</th>
                         <th class="text-right px-0">Time</th>
                     </tr>
                 </thead>
@@ -124,7 +124,7 @@
                         <td class="text-center" data-type="value">{{threeSigFigs .Total}}</td>
                         <td class="text-center" data-type="size">{{.FormattedBytes}}</td>
                         <td class="text-center d-none d-sm-table-cell" data-type="version">{{.Version}}</td>
-                        <td class="text-right" data-type="age" class="jsonly" data-target="time.age" data-age="{{.BlockTime.UNIX}}"></td>
+                        <td class="text-right px-0" data-type="age" class="jsonly" data-target="time.age" data-age="{{.BlockTime.UNIX}}"></td>
                         <td class="text-right px-0" data-type="time">{{.BlockTime}}</td>
                     </tr>
                 {{end}}
