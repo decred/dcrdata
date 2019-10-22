@@ -7,7 +7,7 @@ const conversionRate = 100000000
 
 function makeNode (html) {
   var div = document.createElement('div')
-  div.innerHTML = dompurify.sanitize(html)
+  div.innerHTML = dompurify.sanitize(html, {FORBID_TAGS: ['svg', 'math']} )
   return div.firstChild
 }
 
