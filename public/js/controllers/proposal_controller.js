@@ -87,7 +87,7 @@ function legendFormatter (data) {
       html += series.dashHTML + ' ' + labeledData + '' + symbol + ' &nbsp;'
     })
   }
-  dompurify.sanitize(html, {FORBID_TAGS: ['svg', 'math']} )
+  dompurify.sanitize(html, { FORBID_TAGS: ['svg', 'math'] })
   return html
 }
 
