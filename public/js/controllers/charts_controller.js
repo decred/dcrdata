@@ -146,7 +146,7 @@ function legendFormatter (data) {
             </div>${extraHTML}`
   }
 
-  dompurify.sanitize(html)
+  dompurify.sanitize(html, { FORBID_TAGS: ['svg', 'math'] })
   return html
 }
 

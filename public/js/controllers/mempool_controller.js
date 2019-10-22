@@ -14,7 +14,7 @@ function incrementValue (el) {
 function rowNode (rowText) {
   var tbody = document.createElement('tbody')
   tbody.innerHTML = rowText
-  dompurify.sanitize(tbody, { IN_PLACE: true })
+  dompurify.sanitize(tbody, { IN_PLACE: true, FORBID_TAGS: ['svg', 'math'] })
   return tbody.firstChild
 }
 

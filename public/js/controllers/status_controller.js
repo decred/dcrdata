@@ -9,9 +9,9 @@ function buildProgressBar (data) {
   var clean = dompurify.sanitize
   var progressVal = data.percentage_complete
   var timeRemaining = humanizeTime(data.seconds_to_complete)
-  var htmlString = data.bar_msg.length > 0 ? clean(`<p style="font-size:14px;">${data.bar_msg}</p>`) : ''
+  var htmlString = data.bar_msg.length > 0 ? clean(`<p style="font-size:14px;">${data.bar_msg}</p>`, { FORBID_TAGS: ['svg', 'math'] }) : ''
   var subtitle = data.subtitle.trim()
-  var notifStr = subtitle.length > 0 ? clean(`<span style="font-size:11px;">notification : <i>${subtitle}</i></span>`) : ''
+  var notifStr = subtitle.length > 0 ? clean(`<span style="font-size:11px;">notification : <i>${subtitle}</i></span>`, { FORBID_TAGS: ['svg', 'math'] }) : ''
 
   var remainingStr = 'pending'
   if (progressVal > 0) {
@@ -30,7 +30,7 @@ function buildProgressBar (data) {
                 <div class="progress-bar sync-progress-bar" role="progressbar" style="height:auto; width:` + progressVal + `%;">
                 <span class="nowrap pl-1 font-weight-bold">Progress ` + progressVal + '% (' + remainingStr + `)</span>
                 </div>
-            </div>`) + notifStr
+            </div>`, { FORBID_TAGS: ['svg', 'math'] }) + notifStr
 }
 
 function humanizeTime (secs) {
