@@ -1448,7 +1448,8 @@ func (pgb *ChainDB) AgendaVotes(agendaID string, chartType int) (*dbtypes.Agenda
 	return avc, pgb.replaceCancelError(err)
 }
 
-// AgendasVotesSummary fetches the total vote choices count for the provided agenda.
+// AgendasVotesSummary fetches the total vote choices count for the provided
+// agenda.
 func (pgb *ChainDB) AgendasVotesSummary(agendaID string) (summary *dbtypes.AgendaSummary, err error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
@@ -2797,8 +2798,8 @@ func (pgb *ChainDB) AddressTransactionRawDetails(addr string, count, skip int64,
 
 // UpdateChainState updates the blockchain's state, which includes each of the
 // agenda's VotingDone and Activated heights. If the agenda passed (i.e. status
-// is "lockedIn" or "activated"), Activated is set to the height at which the rule
-// change will take(or took) place.
+// is "lockedIn" or "activated"), Activated is set to the height at which the
+// rule change will take(or took) place.
 func (pgb *ChainDB) UpdateChainState(blockChainInfo *chainjson.GetBlockChainInfoResult) {
 	if pgb == nil {
 		return
@@ -2822,10 +2823,10 @@ func (pgb *ChainDB) UpdateChainState(blockChainInfo *chainjson.GetBlockChainInfo
 		MaxBlockSize:           blockChainInfo.MaxBlockSize,
 	}
 
-	var voteMilestones = make(map[string]dbtypes.MileStone)
+	chainInfo.AgendaMileStones = make(map[string]dbtypes.MileStone, len(blockChainInfo.Deployments))
 
 	for agendaID, entry := range blockChainInfo.Deployments {
-		var agendaInfo = dbtypes.MileStone{
+		agendaInfo := dbtypes.MileStone{
 			Status:     dbtypes.AgendaStatusFromStr(entry.Status),
 			StartTime:  time.Unix(int64(entry.StartTime), 0).UTC(),
 			ExpireTime: time.Unix(int64(entry.ExpireTime), 0).UTC(),
@@ -2852,17 +2853,16 @@ func (pgb *ChainDB) UpdateChainState(blockChainInfo *chainjson.GetBlockChainInfo
 			agendaInfo.Activated = entry.Since
 		}
 
-		agendaInfo.VotingStarted = agendaInfo.VotingDone - ruleChangeInterval
+		if agendaInfo.VotingDone != 0 {
+			agendaInfo.VotingStarted = agendaInfo.VotingDone - ruleChangeInterval
+		}
 
-		voteMilestones[agendaID] = agendaInfo
+		chainInfo.AgendaMileStones[agendaID] = agendaInfo
 	}
 
-	chainInfo.AgendaMileStones = voteMilestones
-
 	pgb.deployments.mtx.Lock()
-	defer pgb.deployments.mtx.Unlock()
-
 	pgb.deployments.chainInfo = &chainInfo
+	pgb.deployments.mtx.Unlock()
 }
 
 // ChainInfo guarantees thread-safe access of the deployment data.

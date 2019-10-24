@@ -74,7 +74,7 @@ func (source dataSourceStub) GetStakeVersionInfo(version int32) (*chainjson.GetS
 
 func (source dataSourceStub) GetVoteInfo(version uint32) (*chainjson.GetVoteInfoResult, error) {
 	if version > 6 {
-		return nil, fmt.Errorf(" ")
+		return nil, fmt.Errorf("stake version %d does not exist", version)
 	}
 	h := int64(version * 50000)
 	return &chainjson.GetVoteInfoResult{
@@ -152,10 +152,9 @@ func counter(hash string) (uint32, uint32, uint32, error) {
 }
 
 func TestVoteTracker(t *testing.T) {
-	data := map[uint32][]chaincfg.ConsensusDeployment{4: {{StartTime: 1493164800}}}
-	tracker, err := NewVoteTracker(chaincfg.MainNetParams(), dataSourceStub{}, counter, data)
+	tracker, err := NewVoteTracker(chaincfg.MainNetParams(), dataSourceStub{}, counter)
 	if err != nil {
-		t.Errorf("NewVoteTracker error: %v", err)
+		t.Fatalf("NewVoteTracker error: %v", err)
 	}
 
 	summary := tracker.Summary()
