@@ -3,6 +3,7 @@ module github.com/decred/dcrdata/v5
 go 1.12
 
 replace (
+	github.com/decred/dcrdata/gov/v2 => ./gov
 	github.com/decred/dcrdata/pubsub/types/v3 => ./pubsub/types
 	github.com/decred/dcrdata/pubsub/v3 => ./pubsub
 	github.com/go-critic/go-critic v0.0.0-20181204210945-0af0999fabfb => github.com/go-critic/go-critic v0.3.5-0.20190108192714-0af0999fabfb

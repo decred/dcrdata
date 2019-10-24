@@ -167,14 +167,14 @@ class Meter {
     var opts = this.options
     var theme = this.activeTheme
     var halfLen = this.norm(opts.meterWidth) * 0.5
-    var start = super.normedPolarToCartesian(this.radius - halfLen, value)
-    var end = super.normedPolarToCartesian(this.radius + halfLen, value)
+    var start = this.normedPolarToCartesian(this.radius - halfLen, value)
+    var end = this.normedPolarToCartesian(this.radius + halfLen, value)
     ctx.lineWidth = 1.5
     ctx.strokeStyle = color
-    super.dot(start, color, opts.dotSize)
-    super.dot(end, color, opts.dotSize)
+    this.dot(start, color, opts.dotSize)
+    this.dot(end, color, opts.dotSize)
     ctx.strokeStyle = theme.text
-    super.line(start, end)
+    this.line(start, end)
   }
 
   async animate (key, target) {

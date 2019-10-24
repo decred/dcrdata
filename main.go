@@ -571,7 +571,7 @@ func _main(ctx context.Context) error {
 
 	// A vote tracker tracks current block and stake versions and votes.
 	tracker, err := agendas.NewVoteTracker(activeChain, dcrdClient,
-		pgDB.AgendaVoteCounts, activeChain.Deployments)
+		pgDB.AgendaVoteCounts)
 	if err != nil {
 		return fmt.Errorf("Unable to initialize vote tracker: %v", err)
 	}
@@ -1114,9 +1114,7 @@ func _main(ctx context.Context) error {
 
 	// The proposals and agenda db updates are run after the db indexing.
 	// Retrieve blockchain deployment updates and add them to the agendas db.
-	// activeChain.Deployments contains a list of all agendas supported in the
-	// current environment.
-	if err = agendasInstance.CheckAgendasUpdates(activeChain.Deployments); err != nil {
+	if err = agendasInstance.UpdateAgendas(); err != nil {
 		return fmt.Errorf("updating agendas db failed: %v", err)
 	}
 

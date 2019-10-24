@@ -127,7 +127,7 @@ type PoliteiaBackend interface {
 type agendaBackend interface {
 	AgendaInfo(agendaID string) (*agendas.AgendaTagged, error)
 	AllAgendas() (agendas []*agendas.AgendaTagged, err error)
-	CheckAgendasUpdates(activeVersions map[uint32][]chaincfg.ConsensusDeployment) error
+	UpdateAgendas() error
 }
 
 // links to be passed with common page data.
@@ -564,7 +564,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 			// Update the Agendas DB. Run this asynchronously to avoid
 			// blocking other processes.
 			go func() {
-				err := exp.agendasSource.CheckAgendasUpdates(exp.ChainParams.Deployments)
+				err := exp.agendasSource.UpdateAgendas()
 				if err != nil {
 					log.Error(err)
 				}
