@@ -397,8 +397,12 @@ func (tracker *VoteTracker) newVoteSummary() *VoteSummary {
 			}
 		}
 		agendaSummary.VoteCount = agendaSummary.Aye + agendaSummary.Nay
-		agendaSummary.Approval = float32(agendaSummary.Aye) / float32(agendaSummary.VoteCount)
-		agendaSummary.AbstainRate = float32(agendaSummary.Abstain) / float32(agendaSummary.VoteCount+agendaSummary.Abstain)
+		if agendaSummary.VoteCount > 0 {
+			agendaSummary.Approval = float32(agendaSummary.Aye) / float32(agendaSummary.VoteCount)
+		}
+		if agendaSummary.VoteCount+agendaSummary.Abstain > 0 {
+			agendaSummary.AbstainRate = float32(agendaSummary.Abstain) / float32(agendaSummary.VoteCount+agendaSummary.Abstain)
+		}
 		agendaSummary.QuorumProgress = float32(agendaSummary.VoteCount) / float32(agendaSummary.Quorum)
 		agendaSummary.FailThreshold = 1 - agendaSummary.PassThreshold
 

@@ -22,7 +22,7 @@ function agendasLegendFormatter (data) {
     return total + n.y
   }, 0)
   data.series.forEach((series) => {
-    let percentage = ((series.y * 100) / total).toFixed(2)
+    let percentage = total !== 0 ? ((series.y * 100) / total).toFixed(2) : 0
     html = '<span style="color:#2d2d2d;">' + html + '</span>'
     html += `<br>${series.dashHTML}<span style="color: ${series.color};">${series.labelHTML}: ${series.yHTML} (${percentage}%)</span>`
   })
@@ -30,7 +30,7 @@ function agendasLegendFormatter (data) {
 }
 
 function cumulativeVoteChoicesData (d) {
-  if (d == null || !(d.yes instanceof Array)) return [[0, 0, 0]]
+  if (d == null || !(d.yes instanceof Array)) return [[0, 0, 0, 0]]
   return d.yes.map((n, i) => {
     return [
       new Date(d.time[i]),
