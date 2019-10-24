@@ -263,6 +263,8 @@ export default class extends Controller {
   updateSliderData () {
     var val = parseFloat(this.attackPercentTarget.value) || 0
 
+    console.log(`Attack Percent: ${this.attackPercentTarget.value}`)
+
     // Makes PoS to be affected by the slider
     // Target PoS value increases when slider moves to the right
     this.targetPosTarget.value = val * 100
@@ -285,6 +287,12 @@ export default class extends Controller {
 
   calculate (disableHashRateUpdate) {
     if (!disableHashRateUpdate) this.updateTargetHashRate()
+
+    console.log(`Target hash rate: ${this.targetHashRate}`)
+
+    this.targetHashRate *= rateCalculation(this.targetPosTarget.value / 100)
+
+    console.log(`Calculated: ${rateCalculation(this.targetPosTarget.value / 100)}`)
 
     this.settings.target_pow = digitformat(parseFloat(this.targetPowTarget.value), 2)
     // this.settings.target_pos = digitformat(parseFloat(this.targetPosTarget.value), 2)

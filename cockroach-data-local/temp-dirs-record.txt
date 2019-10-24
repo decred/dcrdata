@@ -1,0 +1,1 @@
+/home/kingmoses/go/src/github.com/decred/dcrdata/cockroach-data-local/cockroach-temp007727042
