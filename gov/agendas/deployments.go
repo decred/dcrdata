@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/asdine/storm/v3"
+	"github.com/asdine/storm/v3/q"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/semver"
@@ -300,7 +301,7 @@ func (db *AgendaDB) AllAgendas() (agendas []*AgendaTagged, err error) {
 		return nil, errDefault
 	}
 
-	err = db.sdb.All(&agendas)
+	err = db.sdb.Select(q.True()).OrderBy("VoteVersion", "ID").Reverse().Find(&agendas)
 	if err != nil {
 		log.Errorf("Failed to fetch data from Agendas DB: %v", err)
 	}
