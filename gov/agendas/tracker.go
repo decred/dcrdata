@@ -127,25 +127,17 @@ type VoteTracker struct {
 }
 
 // NewVoteTracker is a constructor for a VoteTracker.
-func NewVoteTracker(params *chaincfg.Params, node VoteDataSource, counter voteCounter,
-	activeVersions map[uint32][]chaincfg.ConsensusDeployment) (*VoteTracker, error) {
-	var latestStakeVersion uint32
-	var starttime uint64
-
-	// Consensus deployments that share a stake version as the key should also
-	// have matching starttime.
-	for stakeVersion, val := range activeVersions {
-		if latestStakeVersion == 0 {
-			latestStakeVersion = stakeVersion
-			starttime = val[0].StartTime
-		} else if val[0].StartTime >= starttime {
-			latestStakeVersion = stakeVersion
-			starttime = val[0].StartTime
-		}
+func NewVoteTracker(params *chaincfg.Params, node VoteDataSource, counter voteCounter) (*VoteTracker, error) {
+	stakeVersions, err := listStakeVersions(node)
+	if err != nil {
+		return nil, err
 	}
+	if len(stakeVersions) == 0 {
+		return nil, fmt.Errorf("no stake versions found")
+	}
+	latestStakeVersion := stakeVersions[len(stakeVersions)-1]
 
 	tracker := &VoteTracker{
-		mtx:            sync.RWMutex{},
 		node:           node,
 		voteCounter:    counter,
 		countCache:     make(map[string]*voteCount),
