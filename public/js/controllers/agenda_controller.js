@@ -30,7 +30,7 @@ function agendasLegendFormatter (data) {
 }
 
 function cumulativeVoteChoicesData (d) {
-  if (!(d.yes instanceof Array)) return [[0, 0, 0]]
+  if (d == null || !(d.yes instanceof Array)) return [[0, 0, 0]]
   return d.yes.map((n, i) => {
     return [
       new Date(d.time[i]),
@@ -42,7 +42,7 @@ function cumulativeVoteChoicesData (d) {
 }
 
 function voteChoicesByBlockData (d) {
-  if (!(d.yes instanceof Array)) return [[0, 0, 0, 0]]
+  if (d == null || !(d.yes instanceof Array)) return [[0, 0, 0, 0]]
   return d.yes.map((n, i) => {
     return [
       d.height[i],
