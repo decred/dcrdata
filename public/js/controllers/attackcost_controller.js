@@ -132,7 +132,7 @@ export default class extends Controller {
     graphData = []
 
     // populate graphData
-    for (var i = 0.01; i <= 0.99; i += 0.005) {
+    for (var i = 0.01; i <= 1; i += 0.005) {
       graphData.push([i * tpSize, rateCalculation(i)])
     }
 
@@ -273,6 +273,11 @@ export default class extends Controller {
     this.setActivePoint()
 
     var rate = rateCalculation(val)
+
+    var randomVal = (rate * this.targetHashRate) / parseFloat(hashrate) * 100
+
+    this.targetPowTarget.value = Math.floor(randomVal * 100) / 100
+    console.log(this.targetPowTarget.value)
     this.internalHashTarget.innerHTML = digitformat((rate * this.targetHashRate), 4) + ' Ph/s '
     this.ticketsTarget.innerHTML = digitformat(val * tpSize) + ' tickets '
     this.calculate(true)
@@ -288,13 +293,13 @@ export default class extends Controller {
   calculate (disableHashRateUpdate) {
     if (!disableHashRateUpdate) this.updateTargetHashRate()
 
-    console.log(`Target hash rate: ${this.targetHashRate}`)
+    // console.log(`Target hash rate: ${this.targetHashRate}`)
 
     this.targetHashRate *= rateCalculation(this.targetPosTarget.value / 100)
 
-    console.log(`Calculated: ${rateCalculation(this.targetPosTarget.value / 100)}`)
+    // console.log(`Calculated: ${rateCalculation(this.targetPosTarget.value / 100)}`)
 
-    this.settings.target_pow = digitformat(parseFloat(this.targetPowTarget.value), 2)
+    // this.settings.target_pow = digitformat(parseFloat(this.targetPowTarget.value), 2)
     // this.settings.target_pos = digitformat(parseFloat(this.targetPosTarget.value), 2)
     this.query.replace(this.settings)
     var deviceInfo = deviceList[this.selectedDevice()]
