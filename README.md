@@ -139,9 +139,10 @@ Always run the Current release or on the Current stable branch. Do not use `mast
   current best block on the network. On startup, dcrdata will verify that the
   dcrd version is compatible. dcrdata v3.1.x and later required dcrd v1.4.x or a
   later version with JSON-RPC server version 5.x.y.
-- PostgreSQL 10.5+. Version 11.x is supported and recommended for improved
-  performance with a number of tasks. Support for CockroachDB is an experimental
-  feature. See [CockroachDB Support (experimental)](#cockroachdb-support-experimental) for details.
+- PostgreSQL 10.5+. Versions 11.x and 12.x are supported and recommended for
+  improved performance with a number of tasks. Support for CockroachDB is an
+  experimental feature. See [CockroachDB Support
+  (experimental)](#cockroachdb-support-experimental) for details.
 
 ## Docker Support
 
