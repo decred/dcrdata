@@ -8,10 +8,11 @@ package agendas
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/asdine/storm/v3"
-	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/asdine/storm/v3/q"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/semver"
@@ -19,9 +20,9 @@ import (
 
 // AgendaDB represents the data for the stored DB.
 type AgendaDB struct {
-	sdb        *storm.DB
-	NumAgendas int
-	rpcClient  DeploymentSource
+	sdb           *storm.DB
+	stakeVersions []uint32
+	deploySource  DeploymentSource
 }
 
 // AgendaTagged has the same fields as chainjson.Agenda plus the VoteVersion
@@ -41,16 +42,16 @@ type AgendaTagged struct {
 }
 
 var (
-	// errDefault defines an error message returned if the agenda db wasn't properly
-	// initialized.
+	// errDefault defines an error message returned if the agenda db wasn't
+	// properly initialized.
 	errDefault = fmt.Errorf("AgendaDB was not initialized correctly")
 
 	// dbVersion is the current required version of the agendas.db.
 	dbVersion = semver.NewSemver(1, 0, 0)
 )
 
-// dbinfo defines the property that holds the db version.
-const dbinfo = "_agendas.db_"
+// dbInfo defines the property that holds the db version.
+const dbInfo = "_agendas.db_"
 
 // DeploymentSource provides a cleaner way to track the rpcclient methods used
 // in this package. It also allows usage of alternative implementations to
@@ -60,9 +61,8 @@ type DeploymentSource interface {
 }
 
 // NewAgendasDB opens an existing database or create a new one using with the
-// specified file name. An initialized agendas db connection is returned.
-// It also checks the db version, Reindexes the db if need be and sets the
-// required db version.
+// specified file name. It also checks the DB version, reindexes the DB if need
+// be, and sets the required DB version.
 func NewAgendasDB(client DeploymentSource, dbPath string) (*AgendaDB, error) {
 	if dbPath == "" {
 		return nil, fmt.Errorf("empty db Path found")
@@ -82,9 +82,9 @@ func NewAgendasDB(client DeploymentSource, dbPath string) (*AgendaDB, error) {
 		return nil, err
 	}
 
-	// Checks if the correct db version has been set.
+	// Check if the correct DB version has been set.
 	var version string
-	err = db.Get(dbinfo, "version", &version)
+	err = db.Get(dbInfo, "version", &version)
 	if err != nil && err != storm.ErrNotFound {
 		return nil, err
 	}
@@ -100,27 +100,90 @@ func NewAgendasDB(client DeploymentSource, dbPath string) (*AgendaDB, error) {
 		}
 
 		// Set the required db version.
-		err = db.Set(dbinfo, "version", dbVersion.String())
+		err = db.Set(dbInfo, "version", dbVersion.String())
 		if err != nil {
 			return nil, err
 		}
 		log.Infof("agendas.db version %v was set", dbVersion)
 	}
 
-	return &AgendaDB{sdb: db, rpcClient: client}, nil
-}
-
-// countProperties fetches the Agendas count and appends it to the AgendaDB
-// receiver.
-func (db *AgendaDB) countProperties() error {
-	numAgendas, err := db.sdb.Count(&AgendaTagged{})
+	// Determine stake versions known by dcrd.
+	stakeVersions, err := listStakeVersions(client)
 	if err != nil {
-		log.Errorf("Agendas count failed: %v\n", err)
-		return err
+		return nil, err
 	}
 
-	db.NumAgendas = numAgendas
-	return nil
+	adb := &AgendaDB{
+		sdb:           db,
+		deploySource:  client,
+		stakeVersions: stakeVersions,
+	}
+	return adb, nil
+}
+
+func listStakeVersions(client DeploymentSource) ([]uint32, error) {
+	// The regexp is needed because dcrd does not currently return
+	// ErrRPCInvalidParameter, instead ErrRPCInternal.
+	re := regexp.MustCompile(`stake version \d+ does not exist`)
+
+	agendaIDs := func(agendas []chainjson.Agenda) (ids []string) {
+		for i := range agendas {
+			ids = append(ids, agendas[i].ID)
+		}
+		return
+	}
+
+	var firstVer uint32
+	for {
+		voteInfo, err := client.GetVoteInfo(firstVer)
+		if err == nil {
+			// That's the first version.
+			log.Debugf("Stake version %d: %v", firstVer, agendaIDs(voteInfo.Agendas))
+			// startTime = voteInfo.Agendas[0].StartTime
+			break
+		}
+
+		if re.MatchString(err.Error()) {
+			// Try again.
+			firstVer++
+			continue
+		}
+		// Something went wrong.
+		return nil, err
+
+		// When dcrd fixes the code, do this instead of regexp:
+		// if jerr, ok := err.(*dcrjson.RPCError); ok {
+		// 	switch jerr.Code {
+		// 	case dcrjson.ErrRPCInvalidParameter:
+		// 		continue
+		// 	default:
+		// 		return nil, err
+		// 	}
+		// } else {
+		// 	return nil, err
+		// }
+		//
+		// firstVer++
+	}
+
+	versions := []uint32{firstVer}
+	for i := firstVer + 1; ; i++ {
+		voteInfo, err := client.GetVoteInfo(i)
+		if err == nil {
+			log.Debugf("Stake version %d: %v", i, agendaIDs(voteInfo.Agendas))
+			versions = append(versions, i)
+			continue
+		}
+
+		if re.MatchString(err.Error()) {
+			// Previous was the highest known stake version.
+			break
+		}
+		// Something went wrong.
+		return nil, err
+	}
+
+	return versions, nil
 }
 
 // Close should be called when you are done with the AgendaDB to close the
@@ -170,15 +233,14 @@ func agendasForVoteVersion(ver uint32, client DeploymentSource) ([]AgendaTagged,
 	return agendas, nil
 }
 
-// updatedb checks if vote versions available in chaincfg.ConsensusDeployment
-// are already updated in the agendas db, if not yet their data is updated.
-// chainjson.GetVoteInfoResult and chaincfg.ConsensusDeployment hold almost similar
-// data contents but chaincfg.Vote does not contain the important vote status
-// field that is found in chainjson.Agenda.
-func (db *AgendaDB) updatedb(activeVersions map[uint32][]chaincfg.ConsensusDeployment) (int, error) {
+// updateDB updates the agenda data for all configured vote versions.
+// chainjson.GetVoteInfoResult and chaincfg.ConsensusDeployment hold almost
+// similar data contents but chaincfg.Vote does not contain the important vote
+// status field that is found in chainjson.Agenda.
+func (db *AgendaDB) updateDB() (int, error) {
 	var agendas []AgendaTagged
-	for voteVersion := range activeVersions {
-		taggedAgendas, err := agendasForVoteVersion(voteVersion, db.rpcClient)
+	for _, voteVersion := range db.stakeVersions {
+		taggedAgendas, err := agendasForVoteVersion(voteVersion, db.deploySource)
 		if err != nil || len(taggedAgendas) == 0 {
 			return -1, fmt.Errorf("vote version %d agendas retrieval failed: %v",
 				voteVersion, err)
@@ -204,28 +266,22 @@ func (db *AgendaDB) storeAgenda(agenda *AgendaTagged) error {
 	return db.sdb.Save(agenda)
 }
 
-// CheckAgendasUpdates checks for update at the start of the process and will
-// proceed to update when necessary.
-func (db *AgendaDB) CheckAgendasUpdates(activeVersions map[uint32][]chaincfg.ConsensusDeployment) error {
+// UpdateAgendas updates agenda data for all configured vote versions.
+func (db *AgendaDB) UpdateAgendas() error {
 	if db == nil || db.sdb == nil {
 		return errDefault
 	}
 
-	if len(activeVersions) == 0 {
-		return nil
-	}
-
-	numRecords, err := db.updatedb(activeVersions)
+	numRecords, err := db.updateDB()
 	if err != nil {
-		return fmt.Errorf("agendas.CheckAgendasUpdates failed: %v", err)
+		return fmt.Errorf("agendas.UpdateAgendas failed: %v", err)
 	}
 
 	log.Infof("%d agenda records (agendas) were updated", numRecords)
-
-	return db.countProperties()
+	return nil
 }
 
-// AgendaInfo fetches an agenda's details given it's agendaID.
+// AgendaInfo fetches an agenda's details given its agendaID.
 func (db *AgendaDB) AgendaInfo(agendaID string) (*AgendaTagged, error) {
 	if db == nil || db.sdb == nil {
 		return nil, errDefault
@@ -245,7 +301,7 @@ func (db *AgendaDB) AllAgendas() (agendas []*AgendaTagged, err error) {
 		return nil, errDefault
 	}
 
-	err = db.sdb.All(&agendas)
+	err = db.sdb.Select(q.True()).OrderBy("VoteVersion", "ID").Reverse().Find(&agendas)
 	if err != nil {
 		log.Errorf("Failed to fetch data from Agendas DB: %v", err)
 	}

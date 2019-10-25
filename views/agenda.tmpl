@@ -48,13 +48,13 @@
                         <tr>
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117 medium-sans">Voting Start</td>
                             <td class="lh1rem">
-                                <span class="hash break-word"><a href="/block/{{$.VotingStarted}}">{{$.VotingStarted}}</a></span>
+                                <span class="hash break-word">{{if eq $.VotingStarted 0}}N/A{{else}}<a href="/block/{{$.VotingStarted}}">{{$.VotingStarted}}</a>{{end}}</span>
                             </td>
                         </tr>
                          <tr>
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117 medium-sans">Voting End</td>
                             <td class="lh1rem">
-                                <span class="hash break-word"></a><a href="/block/{{$.LockedIn}}">{{$.LockedIn}}</a></span>
+                                <span class="hash break-word">{{if eq $.LockedIn 0}}N/A{{else}}<a href="/block/{{$.LockedIn}}">{{$.LockedIn}}</a>{{end}}</span>
                             </td>
                         </tr>
                         <tr>

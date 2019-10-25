@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/asdine/storm/v3"
-	"github.com/decred/dcrd/chaincfg/v2"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 )
@@ -79,7 +78,7 @@ type testClient int
 // GetVoteInfo implementation showing a sample data format expected.
 func (*testClient) GetVoteInfo(version uint32) (*chainjson.GetVoteInfoResult, error) {
 	if version != 5 {
-		return &chainjson.GetVoteInfoResult{}, fmt.Errorf(voteVersionErrMsg, version)
+		return nil, fmt.Errorf("stake version %d does not exist", version)
 	}
 	resp := &chainjson.GetVoteInfoResult{
 		CurrentHeight: 319842,
@@ -176,11 +175,6 @@ func TestNewAgendasDB(t *testing.T) {
 	}
 }
 
-// voteVersionErrMsg is a sample error message that does not imply the format of
-// the actual error rpcclient.GetVoteInfo returns when an invalid votes version
-// is provided.
-var voteVersionErrMsg = "invalid vote version %d found"
-
 var expectedAgenda = &AgendaTagged{
 	ID:             "TestAgenda0001",
 	Description:    "This agenda just shows chainjson.GetVoteInfoResult payload format",
@@ -216,79 +210,39 @@ var expectedAgenda = &AgendaTagged{
 	VoteVersion: 5,
 }
 
-var activeVersions = map[uint32][]chaincfg.ConsensusDeployment{
-	5: {
-		{
-			Vote: chaincfg.Vote{
-				Id:          "TestAgenda0001",
-				Description: "This agenda just shows chainjson.GetVoteInfoResult payload format",
-				Mask:        6,
-				Choices: []chaincfg.Choice{
-					{
-						Id:          "abstain",
-						Description: "abstain voting for change",
-						Bits:        0,
-						IsAbstain:   true,
-						IsNo:        false,
-					},
-					{
-						Id:          "no",
-						Description: "keep the existing consensus rules",
-						Bits:        2,
-						IsAbstain:   false,
-						IsNo:        true,
-					},
-					{
-						Id:          "yes",
-						Description: "change to the new consensus rules",
-						Bits:        4,
-						IsAbstain:   false,
-						IsNo:        false,
-					},
-				},
-			},
-			StartTime:  1548633600,
-			ExpireTime: 1580169600,
-		},
-	},
-}
-
 // TestUpdateAndRetrievals tests the agendas db updating and retrieval of one
 // and many agendas.
 func TestUpdateAndRetrievals(t *testing.T) {
 	var client *testClient
 
-	dbInstance := &AgendaDB{sdb: db, rpcClient: client}
-	invalidVersions := map[uint32][]chaincfg.ConsensusDeployment{20: {}}
+	voteVersions := []uint32{5}
+	dbInstance := &AgendaDB{
+		sdb:           db,
+		deploySource:  client,
+		stakeVersions: voteVersions,
+	}
 
 	type testData struct {
-		db           *AgendaDB
-		voteVersions map[uint32][]chaincfg.ConsensusDeployment
-		errMsg       string
+		db     *AgendaDB
+		errMsg string
 	}
 
 	td := []testData{
-		{nil, nil, "AgendaDB was not initialized correctly"},
-		{&AgendaDB{}, nil, "AgendaDB was not initialized correctly"},
-		{dbInstance, activeVersions, ""},
-		{dbInstance, invalidVersions, `agendas.CheckAgendasUpdates failed: vote ` +
-			`version 20 agendas retrieval failed: invalid vote version 20 found`},
+		{nil, "AgendaDB was not initialized correctly"},
+		{&AgendaDB{}, "AgendaDB was not initialized correctly"},
+		{dbInstance, ""},
 	}
 
 	// Test saving updates to agendas db.
 	for i, val := range td {
-		t.Run("Test_CheckAgendasUpdates_#"+strconv.Itoa(i), func(t *testing.T) {
-			err := val.db.CheckAgendasUpdates(val.voteVersions)
+		t.Run("Test_UpdateAgendas_#"+strconv.Itoa(i), func(t *testing.T) {
+			err := val.db.UpdateAgendas()
 			if err != nil && val.errMsg != err.Error() {
 				t.Fatalf("expect to find error '%s' but found '%v' ", val.errMsg, err)
 			}
 
 			if err == nil && val.errMsg != "" {
 				t.Fatalf("expected to find error '%s' but none was returned ", val.errMsg)
-			}
-
-			if err == nil && val.db.NumAgendas != 2 {
-				t.Fatalf("expected to find 2 agendas added but found '%d'", val.db.NumAgendas)
 			}
 		})
 	}
