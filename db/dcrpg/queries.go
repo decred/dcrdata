@@ -4320,6 +4320,102 @@ func RetrieveBlockSummaryByHash(ctx context.Context, db *sql.DB, hash string) (*
 	return bd, nil
 }
 
+// RetrieveBlockSummaryRange fetches basic block data for the blocks in range
+// (ind0, ind1).
+func RetrieveBlockSummaryRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) ([]*apitypes.BlockDataBasic, error) {
+	var desc bool
+	low, high := ind0, ind1
+	if low > high {
+		low, high = ind1, ind0
+		desc = true
+	}
+	expCount := high - low + 1
+	if expCount <= 0 {
+		return nil, fmt.Errorf("invalid block range %d-%d", ind0, ind1)
+	}
+	tmpl := internal.SelectBlockDataRange
+	if desc {
+		tmpl = internal.SelectBlockDataRangeDesc
+	}
+	rows, err := db.QueryContext(ctx, tmpl, low, high)
+	if err != nil {
+		return nil, err
+	}
+	blocks := make([]*apitypes.BlockDataBasic, 0, expCount)
+	defer rows.Close()
+	for rows.Next() {
+		bd := apitypes.NewBlockDataBasic()
+		var winners []string
+		var isValid bool
+		var val, sbits int64
+		var timestamp dbtypes.TimeDef
+		err := rows.Scan(
+			&bd.Hash, &bd.Height, &bd.Size, &bd.Difficulty, &sbits, &timestamp,
+			&bd.PoolInfo.Size, &val, pq.Array(&winners), &isValid,
+		)
+		if err != nil {
+			return nil, err
+		}
+		bd.PoolInfo.Value = dcrutil.Amount(val).ToCoin()
+		bd.PoolInfo.ValAvg = bd.PoolInfo.Value / float64(bd.Size)
+		bd.Time = apitypes.TimeAPI{S: timestamp}
+		bd.PoolInfo.Winners = winners
+		bd.StakeDiff = dcrutil.Amount(sbits).ToCoin()
+		blocks = append(blocks, bd)
+	}
+	// error here if count not correct?
+	return blocks, nil
+}
+
+// RetrieveBlockSummaryRangeStepped fetches basic block data for every step'th
+// block in range (ind0, ind1).
+func RetrieveBlockSummaryRangeStepped(ctx context.Context, db *sql.DB, ind0, ind1, step int64) ([]*apitypes.BlockDataBasic, error) {
+	var desc bool
+	stepMod := ind0 % step
+	low, high := ind0, ind1
+	if low > high {
+		desc = true
+		low, high = ind1, ind0
+	}
+	expCount := high - low + 1
+	if expCount <= 0 {
+		return nil, fmt.Errorf("invalid block range %d-%d", ind0, ind1)
+	}
+	tmpl := internal.SelectBlockDataRangeWithSkip
+	if desc {
+		tmpl = internal.SelectBlockDataRangeWithSkipDesc
+	}
+	query := fmt.Sprintf(tmpl, step, stepMod)
+	rows, err := db.QueryContext(ctx, query, low, high)
+	if err != nil {
+		return nil, err
+	}
+	blocks := make([]*apitypes.BlockDataBasic, 0, expCount)
+	defer rows.Close()
+	for rows.Next() {
+		bd := apitypes.NewBlockDataBasic()
+		var winners []string
+		var isValid bool
+		var val, sbits int64
+		var timestamp dbtypes.TimeDef
+		err := rows.Scan(
+			&bd.Hash, &bd.Height, &bd.Size, &bd.Difficulty, &sbits, &timestamp,
+			&bd.PoolInfo.Size, &val, pq.Array(&winners), &isValid,
+		)
+		if err != nil {
+			return nil, err
+		}
+		bd.PoolInfo.Value = dcrutil.Amount(val).ToCoin()
+		bd.PoolInfo.ValAvg = bd.PoolInfo.Value / float64(bd.Size)
+		bd.Time = apitypes.TimeAPI{S: timestamp}
+		bd.PoolInfo.Winners = winners
+		bd.StakeDiff = dcrutil.Amount(sbits).ToCoin()
+		blocks = append(blocks, bd)
+	}
+	// error here if count not correct?
+	return blocks, nil
+}
+
 // RetrieveBlockSize return the size of block at height ind.
 func RetrieveBlockSize(ctx context.Context, db *sql.DB, ind int64) (int32, error) {
 	var blockSize int32

@@ -36,6 +36,10 @@ import (
 	appver "github.com/decred/dcrdata/v5/version"
 )
 
+// maxBlockRangeCount is the maximum number of blocks that can be requested at
+// once.
+const maxBlockRangeCount = 1000
+
 // DataSource specifies an interface for advanced data collection using the
 // auxiliary DB (e.g. PostgreSQL).
 type DataSource interface {
@@ -85,6 +89,8 @@ type DataSource interface {
 	GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions
 	GetStakeDiffEstimates() *apitypes.StakeDiff
 	GetSummary(idx int) *apitypes.BlockDataBasic
+	GetSummaryRange(idx0, idx1 int) []*apitypes.BlockDataBasic
+	GetSummaryRangeStepped(idx0, idx1, step int) []*apitypes.BlockDataBasic
 	GetSummaryByHash(hash string, withTxTotals bool) *apitypes.BlockDataBasic
 	GetBestBlockSummary() *apitypes.BlockDataBasic
 	GetBlockSize(idx int) (int32, error)
@@ -1226,114 +1232,61 @@ func (c *appContext) getBlockRangeSteppedSize(w http.ResponseWriter, r *http.Req
 
 func (c *appContext) getBlockRangeSummary(w http.ResponseWriter, r *http.Request) {
 	idx0 := m.GetBlockIndex0Ctx(r)
-	if idx0 < 0 {
+	idx1 := m.GetBlockIndexCtx(r)
+
+	low, high := idx0, idx1
+	if idx0 > idx1 {
+		low, high = idx1, idx0
+	}
+	if low < 0 || uint32(high) > c.Status.Height() {
+		http.Error(w, "invalid block range", http.StatusBadRequest)
+		return
+	}
+
+	if high-low+1 > maxBlockRangeCount {
+		http.Error(w, fmt.Sprintf("requested more than %d-block maximum", maxBlockRangeCount), http.StatusBadRequest)
+		return
+	}
+
+	blocks := c.DataSource.GetSummaryRange(idx0, idx1)
+	if blocks == nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	idx := m.GetBlockIndexCtx(r)
-	if idx < 0 {
-		http.Error(w, http.StatusText(422), 422)
-		return
-	}
-
-	// w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	// N := idx - idx0 + 1
-	// summaries := make([]*apitypes.BlockDataBasic, 0, N)
-	// for i := idx0; i <= idx; i++ {
-	// 	summaries = append(summaries, c.BlockData.GetSummary(i))
-	// }
-	// writeJSON(w, summaries, c.getIndentQuery(r))
-
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	encoder := json.NewEncoder(w)
-	indent := c.getIndentQuery(r)
-	prefix, newline := indent, ""
-	encoder.SetIndent(prefix, indent)
-	if indent != "" {
-		newline = "\n"
-	}
-	fmt.Fprintf(w, "[%s%s", newline, prefix)
-	for i := idx0; i <= idx; i++ {
-		summary := c.DataSource.GetSummary(i)
-		if summary == nil {
-			apiLog.Debugf("Unknown block %d", i)
-			http.Error(w, fmt.Sprintf("I don't know block %d", i), http.StatusNotFound)
-			return
-		}
-		// TODO: deal with the extra newline from Encode, if needed
-		if err := encoder.Encode(summary); err != nil {
-			apiLog.Infof("JSON encode error: %v", err)
-			http.Error(w, http.StatusText(422), 422)
-			return
-		}
-		if i != idx {
-			fmt.Fprintf(w, ",%s%s", newline, prefix)
-		}
-	}
-	fmt.Fprintf(w, "]")
+	writeJSON(w, blocks, c.getIndentQuery(r))
 }
 
 func (c *appContext) getBlockRangeSteppedSummary(w http.ResponseWriter, r *http.Request) {
 	idx0 := m.GetBlockIndex0Ctx(r)
-	if idx0 < 0 {
-		http.Error(w, http.StatusText(422), 422)
-		return
-	}
-
-	idx := m.GetBlockIndexCtx(r)
-	if idx < 0 {
-		http.Error(w, http.StatusText(422), 422)
-		return
-	}
-
+	idx1 := m.GetBlockIndexCtx(r)
 	step := m.GetBlockStepCtx(r)
 	if step <= 0 {
 		http.Error(w, "Yeaaah, that step's not gonna work with me.", 422)
 		return
 	}
 
-	// Compute the last block in the range
-	numSteps := (idx - idx0) / step
-	last := idx0 + step*numSteps
-	// Support reverse list (e.g. 10/0/5 counts down from 10 to 0 in steps of 5)
-	if idx0 > idx {
-		step = -step
-		// TODO: support reverse in other endpoints
+	low, high := idx0, idx1
+	if idx0 > idx1 {
+		low, high = idx1, idx0
+	}
+	if low < 0 || uint32(high) > c.Status.Height() {
+		http.Error(w, "invalid block range", http.StatusBadRequest)
+		return
 	}
 
-	// Prepare JSON encode for streaming response
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	encoder := json.NewEncoder(w)
-	indent := c.getIndentQuery(r)
-	prefix, newline := indent, ""
-	encoder.SetIndent(prefix, indent)
-	if indent != "" {
-		newline = "\n"
+	if (high-low)/step+1 > maxBlockRangeCount {
+		http.Error(w, fmt.Sprintf("requested more than %d-block maximum", maxBlockRangeCount), http.StatusBadRequest)
+		return
 	}
 
-	// Manually structure outer JSON array
-	fmt.Fprintf(w, "[%s%s", newline, prefix)
-	// Go through blocks in list, stop after last (i.e. on last+step)
-	for i := idx0; i != last+step; i += step {
-		summary := c.DataSource.GetSummary(i)
-		if summary == nil {
-			apiLog.Debugf("Unknown block %d", i)
-			http.Error(w, fmt.Sprintf("I don't know block %d", i), http.StatusNotFound)
-			return
-		}
-		// TODO: deal with the extra newline from Encode, if needed
-		if err := encoder.Encode(summary); err != nil {
-			apiLog.Infof("JSON encode error: %v", err)
-			http.Error(w, http.StatusText(422), 422)
-			return
-		}
-		// After last block, do not print comma+newline+prefix
-		if i != last {
-			fmt.Fprintf(w, ",%s%s", newline, prefix)
-		}
+	blocks := c.DataSource.GetSummaryRangeStepped(idx0, idx1, step)
+	if blocks == nil {
+		http.Error(w, http.StatusText(422), 422)
+		return
 	}
-	fmt.Fprintf(w, "]")
+
+	writeJSON(w, blocks, c.getIndentQuery(r))
 }
 
 func (c *appContext) getTicketPool(w http.ResponseWriter, r *http.Request) {
