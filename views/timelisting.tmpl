@@ -17,7 +17,10 @@
                 {{$pending := (subtract $lastGrouping .Offset)}}
                 {{$dropVal := $lastGrouping}}
                 {{if gt $lastGrouping 200}}{{$dropVal = 200}}{{end}}
-                <span class="h2 d-flex pt-4 pb-1 pr-2">{{.TimeGrouping}}</span>
+                <span class="h2 d-flex pt-4 pb-1 pr-2">
+                    {{.TimeGrouping}}
+                    <span class="dcricon-info fs24 ml-3 mt-2"></span>
+                </span>
 
                 <div class="pb-1 d-flex justify-content-end align-items-end flex-wrap">
                   <span class="fs12 nowrap text-secondary px-2 my-2">
@@ -32,12 +35,12 @@
                           class="dropdown text-secondary my-2 {{if lt $pending 10}}disabled{{end}}"
                           {{if lt $pending 10}}disabled="disabled"{{end}}
                       >
-                      {{if ge $pending 20}}<option {{if eq $count 20}}selected{{end}} value="20">20 per page</option>{{end}}
-                      {{if ge $pending 30}}<option {{if eq $count 30}}selected{{end}} value="30">30 per page</option>{{end}}
-                      {{if ge $pending 50}}<option {{if eq $count 50}}selected{{end}} value="50">50 per page</option>{{end}}
-                      {{if ge $pending 100}}<option {{if eq $count 100}}selected{{end}} value="100">100 per page</option>{{end}}
-                      {{if eq $dropVal $count 20 30 50 100}}{{else}}<option value="{{$dropVal}}">{{$dropVal}} per page</option>{{end}}
-                      {{if eq $count 20 30 50 100 200}}{{else}}<option selected value="{{$count}}">{{$count}} per page</option>{{end}}
+                        {{if ge $pending 20}}<option {{if eq $count 20}}selected{{end}} value="20">20 per page</option>{{end}}
+                        {{if ge $pending 30}}<option {{if eq $count 30}}selected{{end}} value="30">30 per page</option>{{end}}
+                        {{if ge $pending 50}}<option {{if eq $count 50}}selected{{end}} value="50">50 per page</option>{{end}}
+                        {{if ge $pending 100}}<option {{if eq $count 100}}selected{{end}} value="100">100 per page</option>{{end}}
+                        {{if eq $dropVal $count 20 30 50 100}}{{else}}<option value="{{$dropVal}}">{{$dropVal}} per page</option>{{end}}
+                        {{if eq $count 20 30 50 100 200}}{{else}}<option selected value="{{$count}}">{{$count}} per page</option>{{end}}
                       </select>
                   </span>
                   <nav aria-label="blocks navigation" data-limit="{{.Limit}}" class="ml-2 my-2 d-inline-block text-right">
@@ -142,8 +145,9 @@
               <a href="/{{$lowerCaseVal}}?offset={{add .Offset .Limit}}&rows={{.Limit}}"
               class="d-inline-block dcricon-arrow-right m-1 fs20"></a>
             {{end}}
+          </div>
+          {{end}}
         </div>
-        {{end}}
     </div>
 
 {{ template "footer" . }}
