@@ -103,7 +103,7 @@ func (t *templates) execWithReload(name string, data interface{}) (string, error
 	if err != nil {
 		return "", fmt.Errorf("execWithReload: %v", err)
 	}
-	log.Debugf("reloaded HTML template \"%s\"", name)
+	log.Debugf("reloaded HTML template %q", name)
 	return t.execTemplateToString(name, data)
 }
 

@@ -29,7 +29,7 @@ const (
 	// This includes changes such as creating tables, adding/deleting columns,
 	// adding/deleting indexes or any other operations that create, delete, or
 	// modify the definition of any database relation.
-	schemaVersion = 2
+	schemaVersion = 3
 
 	// maintVersion indicates when certain maintenance operations should be
 	// performed for the same compatVersion and schemaVersion. Such operations
@@ -92,7 +92,7 @@ func (v *DatabaseVersion) NeededToReach(other *DatabaseVersion) CompatAction {
 	switch {
 	case v.compat < other.compat:
 		return Rebuild
-	case v.compat < other.compat:
+	case v.compat > other.compat:
 		return TimeTravel
 	case v.schema < other.schema:
 		return Upgrade
@@ -251,7 +251,7 @@ func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool
 		// Continue to upgrades for the next schema version.
 		fallthrough
 	case 1:
-		// Perform upgrade to schema v2.
+		// Upgrade to schema v2.
 		err = u.upgrade110to120()
 		if err != nil {
 			return false, fmt.Errorf("failed to upgrade 1.1.0 to 1.2.0: %v", err)
@@ -262,7 +262,19 @@ func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool
 		}
 		fallthrough
 	case 2:
-		// Perform schema v2 maintenance.
+		// Upgrade to schema v3.
+		err = u.upgrade120to130()
+		if err != nil {
+			return false, fmt.Errorf("failed to upgrade 1.2.0 to 1.3.0: %v", err)
+		}
+		current.schema++
+		if err = updateSchemaVersion(u.db, current.schema); err != nil {
+			return false, fmt.Errorf("failed to update schema version: %v", err)
+		}
+		fallthrough
+
+	case 3:
+		// Perform schema v3 maintenance.
 		// --> noop, but would switch on current.maint
 
 		// No further upgrades.
@@ -282,6 +294,23 @@ func removeTableComments(db *sql.DB) {
 			log.Errorf(`Failed to remove comment on table %s.`, tableName)
 		}
 	}
+}
+
+// This indexes the blocks table on the "time" column.
+func (u *Upgrader) upgrade120to130() error {
+	// Create the stats table and height index.
+	log.Infof("Performing database upgrade 1.2.0 -> 1.3.0")
+
+	existsIdx, err := ExistsIndex(u.db, internal.IndexBlocksTableOnTime)
+	if err != nil {
+		return err
+	}
+	if existsIdx {
+		log.Warnf("The index %s already exists!", internal.IndexOfBlocksTableOnTime)
+		return nil
+	}
+
+	return IndexBlockTableOnTime(u.db)
 }
 
 // This upgrade creates a stats table and adds a winners row to the blocks table

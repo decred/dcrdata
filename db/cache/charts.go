@@ -413,6 +413,7 @@ type ChartData struct {
 	cacheMtx     sync.RWMutex
 	cache        map[string]*cachedChart
 	updaters     []ChartUpdater
+	updateMtx    sync.Mutex
 }
 
 // ValidateLengths checks that the length of all arguments is equal.
@@ -801,13 +802,19 @@ func (charts *ChartData) MissedVotesTip() int32 {
 // AddUpdater adds a ChartUpdater to the Updaters slice. Updaters are run
 // sequentially during (*ChartData).Update.
 func (charts *ChartData) AddUpdater(updater ChartUpdater) {
+	charts.updateMtx.Lock()
 	charts.updaters = append(charts.updaters, updater)
+	charts.updateMtx.Unlock()
 }
 
 // Update refreshes chart data by calling the ChartUpdaters sequentially. The
 // Update is abandoned with a warning if stateID changes while running a Fetcher
 // (likely due to a new update starting during a query).
 func (charts *ChartData) Update() error {
+	// Block simultaneous updates.
+	charts.updateMtx.Lock()
+	defer charts.updateMtx.Unlock()
+
 	for _, updater := range charts.updaters {
 		stateID := charts.StateID()
 		rows, cancel, err := updater.Fetcher(charts)

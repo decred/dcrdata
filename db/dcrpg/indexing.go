@@ -80,6 +80,11 @@ func IndexBlockTableOnHeight(db *sql.DB) (err error) {
 	return
 }
 
+func IndexBlockTableOnTime(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexBlocksTableOnTime)
+	return
+}
+
 func DeindexBlockTableOnHash(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.DeindexBlockTableOnHash)
 	return
@@ -87,6 +92,11 @@ func DeindexBlockTableOnHash(db *sql.DB) (err error) {
 
 func DeindexBlockTableOnHeight(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.DeindexBlocksTableOnHeight)
+	return
+}
+
+func DeindexBlockTableOnTime(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexBlocksTableOnTime)
 	return
 }
 
@@ -486,6 +496,7 @@ func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 		// blocks table
 		{Msg: "blocks table on hash", IndexFunc: IndexBlockTableOnHash},
 		{Msg: "blocks table on height", IndexFunc: IndexBlockTableOnHeight},
+		{Msg: "blocks table on time", IndexFunc: IndexBlockTableOnTime},
 
 		// transactions table
 		{Msg: "transactions table on tx/block hashes", IndexFunc: IndexTransactionTableOnHashes},

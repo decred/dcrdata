@@ -401,7 +401,7 @@ func (db *ProposalDB) CheckProposalsUpdates() error {
 	// Add the sum of the newly added proposals.
 	numRecords += n
 
-	log.Infof("%d proposal records (politeia proposals-storm) were updated", numRecords)
+	log.Infof("%d politeia proposal DB records were updated", numRecords)
 
 	return nil
 }

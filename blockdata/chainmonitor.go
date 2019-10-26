@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
+	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v2"
@@ -76,7 +77,7 @@ func (p *chainMonitor) collect(hash *chainhash.Hash) (*wire.MsgBlock, *BlockData
 	return msgBlock, blockData, nil
 }
 
-// ConnectBlock is a sychronous version of BlockConnectedHandler that collects
+// ConnectBlock is a synchronous version of BlockConnectedHandler that collects
 // and stores data for a block specified by the given hash. ConnectBlock
 // satisfies notification.BlockHandler, and is registered as a handler in
 // main.go.
@@ -95,11 +96,14 @@ func (p *chainMonitor) ConnectBlock(header *wire.BlockHeader) error {
 	// Store block data with each saver.
 	for _, s := range p.dataSavers {
 		if s != nil {
+			tStart := time.Now()
 			// Save data to wherever the saver wants to put it.
 			if err0 := s.Store(blockData, msgBlock); err0 != nil {
 				log.Errorf("(%v).Store failed: %v", reflect.TypeOf(s), err0)
 				err = err0
 			}
+			log.Tracef("(*chainMonitor).ConnectBlock: Completed %s.Store in %v.",
+				reflect.TypeOf(s), time.Since(tStart))
 		}
 	}
 	return err

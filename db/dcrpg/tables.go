@@ -73,9 +73,9 @@ func DropTables(db *sql.DB) {
 	for i := range createTableStatements {
 		pair := createTableStatements[lastIndex-i]
 		tableName := pair[0]
-		log.Infof("DROPPING the \"%s\" table.", tableName)
+		log.Infof("DROPPING the %q table.", tableName)
 		if err := dropTable(db, tableName); err != nil {
-			log.Errorf(`DROP TABLE "%s" failed.`, tableName)
+			log.Errorf("DROP TABLE %q; failed.", tableName)
 		}
 	}
 }
