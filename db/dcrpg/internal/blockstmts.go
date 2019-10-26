@@ -228,6 +228,40 @@ const (
 		FROM blocks INNER JOIN stats ON blocks.id = stats.blocks_id
 		WHERE blocks.height = $1;`
 
+	SelectBlockDataRange = `
+		SELECT blocks.hash, blocks.height, blocks.size,
+			blocks.difficulty, blocks.sbits, blocks.time, stats.pool_size,
+			stats.pool_val, blocks.winners, blocks.is_valid
+		FROM blocks INNER JOIN stats ON blocks.id = stats.blocks_id
+		WHERE blocks.height BETWEEN $1 AND $2
+		ORDER BY blocks.height;`
+
+	SelectBlockDataRangeDesc = `
+		SELECT blocks.hash, blocks.height, blocks.size,
+			blocks.difficulty, blocks.sbits, blocks.time, stats.pool_size,
+			stats.pool_val, blocks.winners, blocks.is_valid
+		FROM blocks INNER JOIN stats ON blocks.id = stats.blocks_id
+		WHERE blocks.height BETWEEN $1 AND $2
+		ORDER BY blocks.height DESC;`
+
+	SelectBlockDataRangeWithSkip = `
+		SELECT blocks.hash, blocks.height, blocks.size,
+			blocks.difficulty, blocks.sbits, blocks.time, stats.pool_size,
+			stats.pool_val, blocks.winners, blocks.is_valid
+		FROM blocks INNER JOIN stats ON blocks.id = stats.blocks_id
+		WHERE blocks.height BETWEEN $1 AND $2
+			AND blocks.height %% %d = %d
+		ORDER BY blocks.height;`
+
+	SelectBlockDataRangeWithSkipDesc = `
+		SELECT blocks.hash, blocks.height, blocks.size,
+			blocks.difficulty, blocks.sbits, blocks.time, stats.pool_size,
+			stats.pool_val, blocks.winners, blocks.is_valid
+		FROM blocks INNER JOIN stats ON blocks.id = stats.blocks_id
+		WHERE blocks.height BETWEEN $1 AND $2
+			AND blocks.height %% %d = %d
+		ORDER BY blocks.height DESC;`
+
 	SelectBlockDataByHash = `
 			SELECT blocks.hash, blocks.height, blocks.size,
 				blocks.difficulty, blocks.sbits, blocks.time, stats.pool_size,

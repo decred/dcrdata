@@ -4780,6 +4780,40 @@ func (pgb *ChainDB) BlockSummary(ind int64) (*apitypes.BlockDataBasic, error) {
 	return bd, nil
 }
 
+// GetSummary returns the *apitypes.BlockDataBasic for a range of block heights.
+func (pgb *ChainDB) GetSummaryRange(idx0, idx1 int) []*apitypes.BlockDataBasic {
+	summaries, err := pgb.BlockSummaryRange(int64(idx0), int64(idx1))
+	if err != nil {
+		log.Errorf("Unable to retrieve block summaries: %v", err)
+		return nil
+	}
+	return summaries
+}
+
+// BlockSummaryRange returns the *apitypes.BlockDataBasic for a range of block
+// height.
+func (pgb *ChainDB) BlockSummaryRange(idx0, idx1 int64) ([]*apitypes.BlockDataBasic, error) {
+	return RetrieveBlockSummaryRange(pgb.ctx, pgb.db, idx0, idx1)
+}
+
+// GetSummaryStepped returns the []*apitypes.BlockDataBasic for a given block
+// height.
+func (pgb *ChainDB) GetSummaryRangeStepped(idx0, idx1, step int) []*apitypes.BlockDataBasic {
+	summaries, err := pgb.BlockSummaryRangeStepped(int64(idx0), int64(idx1), int64(step))
+	if err != nil {
+		log.Errorf("Unable to retrieve block summaries: %v", err)
+		return nil
+	}
+
+	return summaries
+}
+
+// BlockSummaryRangeStepped returns the []*apitypes.BlockDataBasic for every
+// step'th block in a specified range.
+func (pgb *ChainDB) BlockSummaryRangeStepped(idx0, idx1, step int64) ([]*apitypes.BlockDataBasic, error) {
+	return RetrieveBlockSummaryRangeStepped(pgb.ctx, pgb.db, idx0, idx1, step)
+}
+
 // GetSummaryByHash returns a *apitypes.BlockDataBasic for a given hex-encoded
 // block hash. If withTxTotals is true, the TotalSent and MiningFee fields will
 // be set, but it's costly because it requires a GetBlockVerboseByHash RPC call.
