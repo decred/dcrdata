@@ -429,6 +429,7 @@ func (exp *explorerUI) StoreMPData(_ *mempool.StakeData, _ []types.MempoolTx, in
 	log.Debugf("Updated mempool details for the explorerUI.")
 }
 
+// Store implements BlockDataSaver.
 func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
 	// Retrieve block data for the passed block hash.
 	newBlockData := exp.dataSource.GetExplorerBlock(msgBlock.BlockHash().String())
@@ -456,14 +457,6 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 	if blockData.PoolInfo != nil {
 		stakePerc = blockData.PoolInfo.Value / dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin()
 	}
-	// Simulate the annual staking rate
-	ASR, _ := exp.simulateASR(1000, false, stakePerc,
-		dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin(),
-		float64(newBlockData.Height),
-		blockData.CurrentStakeDiff.CurrentStakeDifficulty)
-
-	// Trigger a vote info refresh
-	go exp.voteTracker.Refresh()
 
 	// Update pageData with block data and chain (home) info.
 	p := exp.pageData
@@ -518,7 +511,6 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 		int64(exp.ChainParams.CoinbaseMaturity)
 	p.HomeInfo.RewardPeriod = fmt.Sprintf("%.2f days", float64(avgSSTxToSSGenMaturity)*
 		exp.ChainParams.TargetTimePerBlock.Hours()/24)
-	p.HomeInfo.ASR = ASR
 
 	// If exchange monitoring is enabled, set the exchange rate.
 	if exp.xcBot != nil {
@@ -526,41 +518,6 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 	}
 
 	p.Unlock()
-
-	if exp.devPrefetch {
-		go exp.updateDevFundBalance()
-	}
-
-	// Do not run updates if blockchain sync is running.
-	if !exp.AreDBsSyncing() {
-		// Politeia updates happen hourly thus if every blocks takes an average
-		// of 5 minutes to mine then 12 blocks take approximately 1hr.
-		// https://docs.decred.org/advanced/navigating-politeia-data/#voting-and-comment-data
-		if newBlockData.Height%12 == 0 && exp.proposalsSource != nil {
-			// Update the proposal DB. This is run asynchronously since it involves
-			// a query to Politeia (a remote system) and we do not want to block
-			// execution.
-			go func() {
-				err := exp.proposalsSource.CheckProposalsUpdates()
-				if err != nil {
-					log.Error(err)
-				}
-			}()
-		}
-
-		// Update in every 5 blocks implys that in approximately every 25mins
-		// an update will be queried.
-		if newBlockData.Height%5 == 0 {
-			// Update the Agendas DB. Run this asynchronously to avoid
-			// blocking other processes.
-			go func() {
-				err := exp.agendasSource.UpdateAgendas()
-				if err != nil {
-					log.Error(err)
-				}
-			}()
-		}
-	}
 
 	// Signal to the websocket hub that a new block was received, but do not
 	// block Store(), and do not hang forever in a goroutine waiting to send.
@@ -573,6 +530,55 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 	}()
 
 	log.Debugf("Got new block %d for the explorer.", newBlockData.Height)
+
+	// Do not run remaining updates when blockchain sync is running.
+	if exp.AreDBsSyncing() {
+		return nil
+	}
+
+	// Simulate the annual staking rate.
+	go func(height int64, sdiff float64, supply int64) {
+		ASR, _ := exp.simulateASR(1000, false, stakePerc,
+			dcrutil.Amount(supply).ToCoin(),
+			float64(height), sdiff)
+		p.Lock()
+		p.HomeInfo.ASR = ASR
+		p.Unlock()
+	}(newBlockData.Height, blockData.CurrentStakeDiff.CurrentStakeDifficulty,
+		blockData.ExtraInfo.CoinSupply) // eval args now instead of in closure
+
+	// Project fund balance, not useful while syncing.
+	if exp.devPrefetch {
+		go exp.updateDevFundBalance()
+	}
+
+	// Trigger a vote info refresh.
+	go exp.voteTracker.Refresh()
+
+	// Politeia updates happen hourly. Thus, if blocks take 5 minutes on average
+	// to mine, then 12 blocks take approximately 1hr.
+	// https://docs.decred.org/advanced/navigating-politeia-data/#voting-and-comment-data
+	if newBlockData.Height%12 == 0 && exp.proposalsSource != nil {
+		// Update the proposal DB. This is run asynchronously since it involves
+		// a query to Politeia (a remote system) and we do not want to block
+		// execution.
+		go func() {
+			err := exp.proposalsSource.CheckProposalsUpdates()
+			if err != nil {
+				log.Errorf("(PoliteiaBackend).CheckProposalsUpdates: %v", err)
+			}
+		}()
+	}
+
+	// Update consensus agendas data every 5 blocks.
+	if newBlockData.Height%5 == 0 {
+		go func() {
+			err := exp.agendasSource.UpdateAgendas()
+			if err != nil {
+				log.Errorf("(agendaBackend).UpdateAgendas: %v", err)
+			}
+		}()
+	}
 
 	return nil
 }

@@ -20,6 +20,8 @@ package notification
 
 import (
 	"context"
+	"reflect"
+	"runtime"
 	"sync"
 	"time"
 
@@ -296,6 +298,10 @@ func (notifier *Notifier) SetPreviousBlock(prevHash chainhash.Hash, prevHeight u
 	notifier.previous.height = prevHeight
 }
 
+func functionName(i interface{}) string {
+	return runtime.FuncForPC(reflect.ValueOf(i).Pointer()).Name()
+}
+
 // processBlock calls the BlockHandler/BlockHandlerLite groups one at a time in
 // the order that they were registered.
 func (notifier *Notifier) processBlock(bh *wire.BlockHeader) {
@@ -313,18 +319,20 @@ func (notifier *Notifier) processBlock(bh *wire.BlockHeader) {
 	}
 
 	start := time.Now()
-	for i, handlers := range notifier.block {
+	for _, handlers := range notifier.block {
 		wg := new(sync.WaitGroup)
-		for j, h := range handlers {
+		for _, h := range handlers {
 			wg.Add(1)
-			go func(h BlockHandler, i, j int) {
+			go func(h BlockHandler) {
+				tStart := time.Now()
 				defer wg.Done()
-				defer log.Tracef("Notifier: BlockHandler %d.%d completed", i, j)
+				defer log.Tracef("Notifier: BlockHandler %s completed in %v",
+					functionName(h), time.Since(tStart))
 				if err := h(bh); err != nil {
 					log.Errorf("block handler failed: %v", err)
 					return
 				}
-			}(h, i, j)
+			}(h)
 		}
 		done := make(chan struct{})
 		go func() {

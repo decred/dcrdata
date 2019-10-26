@@ -260,12 +260,21 @@ type ChainDB struct {
 	MPC                *mempool.MempoolDataCache
 	// BlockCache stores apitypes.BlockDataBasic and apitypes.StakeInfoExtended
 	// in StoreBlock for quick retrieval without a DB query.
-	BlockCache      *apitypes.APICache
-	heightClients   []chan uint32
-	shutdownDcrdata func()
-	Client          *rpcclient.Client
-	tipMtx          sync.RWMutex
-	tipSummary      *apitypes.BlockDataBasic
+	BlockCache        *apitypes.APICache
+	heightClients     []chan uint32
+	shutdownDcrdata   func()
+	Client            *rpcclient.Client
+	tipMtx            sync.RWMutex
+	tipSummary        *apitypes.BlockDataBasic
+	lastExplorerBlock struct {
+		sync.Mutex
+		hash      string
+		blockInfo *exptypes.BlockInfo
+		// Somewhat unrelated, difficulties is a map of timestamps to mining
+		// difficulties. It is in this cache struct since these values are
+		// commonly retrieved when the explorer block is updated.
+		difficulties map[int64]float64
+	}
 }
 
 // ChainDeployments is mutex-protected blockchain deployment data.
@@ -754,6 +763,7 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 		shutdownDcrdata:    shutdown,
 		Client:             client,
 	}
+	chainDB.lastExplorerBlock.difficulties = make(map[int64]float64)
 
 	// Update the current chain state in the ChainDB
 	if client != nil {
@@ -5208,7 +5218,19 @@ func (pgb *ChainDB) BlockSubsidy(height int64, voters uint16) *chainjson.GetBloc
 	return blockSubsidy
 }
 
+// GetExplorerBlock gets a *exptypes.Blockinfo for the specified block.
 func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
+	// This function is quit expensive, and it is used by multiple
+	// BlockDataSavers, so remember the BlockInfo generated for this block hash.
+	// This also disallows concurrently calling this function for the same block
+	// hash.
+	pgb.lastExplorerBlock.Lock()
+	if pgb.lastExplorerBlock.hash == hash {
+		defer pgb.lastExplorerBlock.Unlock()
+		return pgb.lastExplorerBlock.blockInfo
+	}
+	pgb.lastExplorerBlock.Unlock()
+
 	data := pgb.GetBlockVerboseByHash(hash, true)
 	if data == nil {
 		log.Error("Unable to get block for block hash " + hash)
@@ -5331,6 +5353,12 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 		getTotalSent(block.Tickets) + getTotalSent(block.Votes)).ToCoin()
 	block.MiningFee = (getTotalFee(block.Tx) + getTotalFee(block.Revs) +
 		getTotalFee(block.Tickets) + getTotalFee(block.Votes)).ToCoin()
+
+	pgb.lastExplorerBlock.Lock()
+	pgb.lastExplorerBlock.hash = hash
+	pgb.lastExplorerBlock.blockInfo = block
+	pgb.lastExplorerBlock.difficulties = make(map[int64]float64) // used by the Difficulty method
+	pgb.lastExplorerBlock.Unlock()
 
 	return block
 }
@@ -5761,15 +5789,25 @@ func (pgb *ChainDB) CurrentDifficulty() (float64, error) {
 	return diff, nil
 }
 
-// Difficulty returns the difficulty for the first block mined after theprovided
-// UNIX timestamp.
+// Difficulty returns the difficulty for the first block mined after the
+// provided UNIX timestamp.
 func (pgb *ChainDB) Difficulty(timestamp int64) float64 {
-	sdiff, err := RetrieveDiff(pgb.ctx, pgb.db, timestamp)
+	pgb.lastExplorerBlock.Lock()
+	diff, ok := pgb.lastExplorerBlock.difficulties[timestamp]
+	pgb.lastExplorerBlock.Unlock()
+	if ok {
+		return diff
+	}
+
+	diff, err := RetrieveDiff(pgb.ctx, pgb.db, timestamp)
 	if err != nil {
 		log.Errorf("Unable to retrieve difficulty: %v", err)
 		return -1
 	}
-	return sdiff
+	pgb.lastExplorerBlock.Lock()
+	pgb.lastExplorerBlock.difficulties[timestamp] = diff
+	pgb.lastExplorerBlock.Unlock()
+	return diff
 }
 
 func (pgb *ChainDB) getRawTransactionWithHex(txid *chainhash.Hash) (tx *apitypes.Tx, hex string) {

@@ -499,9 +499,6 @@ func _main(ctx context.Context) error {
 	explore.UseSIGToReloadTemplates()
 	defer explore.StopWebsocketHub()
 
-	blockDataSavers = append(blockDataSavers, explore)
-	mempoolSavers = append(mempoolSavers, explore)
-
 	// Create the pub sub hub.
 	psHub, err := pubsub.NewPubSubHub(chainDB)
 	if err != nil {
@@ -511,6 +508,10 @@ func _main(ctx context.Context) error {
 
 	blockDataSavers = append(blockDataSavers, psHub)
 	mempoolSavers = append(mempoolSavers, psHub) // individual transactions are from mempool monitor
+
+	// Store explorerUI data after pubsubhub.
+	blockDataSavers = append(blockDataSavers, explore)
+	mempoolSavers = append(mempoolSavers, explore)
 
 	// Create the mempool data collector.
 	mpoolCollector := mempool.NewMempoolDataCollector(dcrdClient, activeChain)
@@ -970,8 +971,13 @@ func _main(ctx context.Context) error {
 	if err = charts.Load(dumpPath); err != nil {
 		log.Warnf("Failed to load charts data cache: %v", err)
 	}
-	// Add charts saver method after explorer and any databases.
-	blockDataSavers = append(blockDataSavers, blockdata.BlockTrigger{Saver: charts.TriggerUpdate})
+
+	// Add charts saver method after explorer and database stores. This may run
+	// asynchronously.
+	blockDataSavers = append(blockDataSavers, blockdata.BlockTrigger{
+		Async: true,
+		Saver: charts.TriggerUpdate,
+	})
 
 	// This dumps the cache charts data into a file for future use on system
 	// exit.

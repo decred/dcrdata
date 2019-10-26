@@ -6,6 +6,7 @@ const (
 
 	IndexOfBlocksTableOnHash   = "uix_block_hash"
 	IndexOfBlocksTableOnHeight = "uix_block_height"
+	IndexOfBlocksTableOnTime   = "uix_block_time"
 
 	// transactions table
 

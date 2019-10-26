@@ -90,6 +90,11 @@ const (
 	IndexBlocksTableOnHeight   = `CREATE INDEX ` + IndexOfBlocksTableOnHeight + ` ON blocks(height);`
 	DeindexBlocksTableOnHeight = `DROP INDEX ` + IndexOfBlocksTableOnHeight + ` CASCADE;`
 
+	// IndexBlocksTableOnHeight creates the index uix_block_time on (time).
+	// This is not unique because of side chains.
+	IndexBlocksTableOnTime   = `CREATE INDEX ` + IndexOfBlocksTableOnTime + ` ON blocks("time");`
+	DeindexBlocksTableOnTime = `DROP INDEX ` + IndexOfBlocksTableOnTime + ` CASCADE;`
+
 	SelectBlockByTimeRangeSQL = `SELECT hash, height, size, time, numtx
 		FROM blocks WHERE time BETWEEN $1 and $2 ORDER BY time DESC LIMIT $3;`
 	SelectBlockByTimeRangeSQLNoLimit = `SELECT hash, height, size, time, numtx
