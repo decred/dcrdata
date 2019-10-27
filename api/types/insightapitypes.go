@@ -53,8 +53,8 @@ type InsightRawTx struct {
 // InsightMultiAddrsTx models the POST request for the multi-address endpoints.
 type InsightMultiAddrsTx struct {
 	Addresses   string      `json:"addrs"`
-	From        json.Number `json:"from,Number,omitempty"`
-	To          json.Number `json:"to,Number,omitempty"`
+	From        json.Number `json:"from,omitempty"`
+	To          json.Number `json:"to,omitempty"`
 	NoAsm       json.Number `json:"noAsm"`
 	NoScriptSig json.Number `json:"noScriptSig"`
 	NoSpent     json.Number `json:"noSpent"`
