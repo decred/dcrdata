@@ -238,7 +238,7 @@ func agendasForVoteVersion(ver uint32, client DeploymentSource) ([]AgendaTagged,
 // similar data contents but chaincfg.Vote does not contain the important vote
 // status field that is found in chainjson.Agenda.
 func (db *AgendaDB) updateDB() (int, error) {
-	agendas := make([]AgendaTagged, 0, len(activeVersions))
+	agendas := make([]AgendaTagged, 0, len(db.stakeVersions))
 	for _, voteVersion := range db.stakeVersions {
 		taggedAgendas, err := agendasForVoteVersion(voteVersion, db.deploySource)
 		if err != nil || len(taggedAgendas) == 0 {
