@@ -10,7 +10,7 @@ import (
 	"github.com/decred/dcrd/database/v2"
 	_ "github.com/decred/dcrd/database/v2/ffldb" // init the ffldb driver
 	"github.com/decred/dcrd/dcrutil/v2"
-	"github.com/decred/dcrd/rpcclient/v4"
+	"github.com/decred/dcrd/rpcclient/v5"
 	"github.com/decred/dcrd/wire"
 )
 
