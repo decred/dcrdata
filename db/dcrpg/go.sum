@@ -125,6 +125,7 @@ github.com/decred/dcrdata/semver v1.0.0/go.mod h1:z+nQqiAd9fYkHhBLbejysZ2FPHtgkr
 github.com/decred/dcrdata/stakedb/v3 v3.0.4-0.20191016213257-fb798036d9dc/go.mod h1:8oDaFvlGbOocULLymbQ40Ju7qQgfPRbIyV5wxUFFHL0=
 github.com/decred/dcrdata/stakedb/v3 v3.0.4-0.20191018131657-8f5538d3b4b3 h1:rQb/KeTFtUutnAfYYHq1JgKgKPMua+d85UDhs/7MBv0=
 github.com/decred/dcrdata/stakedb/v3 v3.0.4-0.20191018131657-8f5538d3b4b3/go.mod h1:RBl5O7GP4R+4Nm70c/zBkmr76c4STN7MGUeNMA0b7/w=
+github.com/decred/dcrdata/testutil/dbconfig/v2 v2.0.0 h1:3VDeqqb4RNDAYCPwe+yhe8WCl9DCtf2BbtRYxx1n6bo=
 github.com/decred/dcrdata/testutil/dbconfig/v2 v2.0.0/go.mod h1:R3AhuzSGbXK5YG6fst5njhUzDsCtju1+cbAqXsmi11s=
 github.com/decred/dcrdata/txhelpers/v3 v3.0.2/go.mod h1:iukqEl5AR6BdippUWKsC8OzaV9TW/KMBYpIwKv8IkW0=
 github.com/decred/dcrdata/txhelpers/v3 v3.0.3-0.20191018131657-8f5538d3b4b3 h1:PY3yUTM50nGTbxfb96wHzIY0c1Y1W/U8JWQtWFFFuE4=
