@@ -13,8 +13,8 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrutil/v2"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrdata/db/cache/v2"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
+	"github.com/decred/dcrdata/db/cache/v3"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 )
 
