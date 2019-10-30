@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/txhelpers/v4"
 )
