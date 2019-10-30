@@ -12,7 +12,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/txhelpers/v3"
+	"github.com/decred/dcrdata/txhelpers/v4"
 )
 
 // ChainMonitor connects blocks to the stake DB as they come in.
