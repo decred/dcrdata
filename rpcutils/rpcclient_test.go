@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
 )
 
 func TestSideChainTips(t *testing.T) {

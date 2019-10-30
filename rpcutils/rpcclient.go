@@ -15,12 +15,12 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrutil/v2"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrd/rpcclient/v4"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
+	"github.com/decred/dcrd/rpcclient/v5"
 	"github.com/decred/dcrd/wire"
-	apitypes "github.com/decred/dcrdata/api/types/v4"
+	apitypes "github.com/decred/dcrdata/api/types/v5"
 	"github.com/decred/dcrdata/semver"
-	"github.com/decred/dcrdata/txhelpers/v3"
+	"github.com/decred/dcrdata/txhelpers/v4"
 )
 
 // Any of the following dcrd RPC API versions are deemed compatible with
