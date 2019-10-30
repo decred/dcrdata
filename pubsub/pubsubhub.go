@@ -15,16 +15,16 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrutil/v2"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
 	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/blockdata/v4"
+	"github.com/decred/dcrdata/blockdata/v5"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	exptypes "github.com/decred/dcrdata/explorer/types/v2"
-	"github.com/decred/dcrdata/mempool/v4"
+	"github.com/decred/dcrdata/mempool/v5"
 	pstypes "github.com/decred/dcrdata/pubsub/types/v3"
 	"github.com/decred/dcrdata/semver"
-	"github.com/decred/dcrdata/txhelpers/v3"
+	"github.com/decred/dcrdata/txhelpers/v4"
 	"golang.org/x/net/websocket"
 )
 
