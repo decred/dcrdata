@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/decred/dcrd/chaincfg/v2"
-	"github.com/decred/dcrdata/db/cache/v2"
+	"github.com/decred/dcrdata/db/cache/v3"
 )
 
 func registerDummyFeeAndPoolInfo(charts *cache.ChartData) {

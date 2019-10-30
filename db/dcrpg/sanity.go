@@ -7,7 +7,7 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/decred/dcrdata/db/dcrpg/v4/internal"
+	"github.com/decred/dcrdata/db/dcrpg/v5/internal"
 )
 
 // CheckUnmatchedSpending checks the addresses table for spending rows where the

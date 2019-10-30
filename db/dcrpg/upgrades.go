@@ -11,7 +11,7 @@ import (
 	"os"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrdata/db/dcrpg/v4/internal"
+	"github.com/decred/dcrdata/db/dcrpg/v5/internal"
 	"github.com/decred/dcrdata/stakedb/v3"
 	"github.com/lib/pq"
 )

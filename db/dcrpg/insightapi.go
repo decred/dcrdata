@@ -10,12 +10,12 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v2"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
-	apitypes "github.com/decred/dcrdata/api/types/v4"
-	"github.com/decred/dcrdata/db/cache/v2"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
+	apitypes "github.com/decred/dcrdata/api/types/v5"
+	"github.com/decred/dcrdata/db/cache/v3"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/rpcutils/v2"
-	"github.com/decred/dcrdata/txhelpers/v3"
+	"github.com/decred/dcrdata/rpcutils/v3"
+	"github.com/decred/dcrdata/txhelpers/v4"
 )
 
 // GetRawTransaction gets a chainjson.TxRawResult for the specified transaction
