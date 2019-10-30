@@ -15,10 +15,10 @@ import (
 	"github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v2"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
 	exptypes "github.com/decred/dcrdata/explorer/types/v2"
 	pstypes "github.com/decred/dcrdata/pubsub/types/v3"
-	"github.com/decred/dcrdata/txhelpers/v3"
+	"github.com/decred/dcrdata/txhelpers/v4"
 	humanize "github.com/dustin/go-humanize"
 )
 
