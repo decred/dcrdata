@@ -691,8 +691,8 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 			// storedAgendas map if doesn't exist or when its status has changed.
 			if !ok || (d.Status != m.Status) || (d.Activated != m.Activated) ||
 				(d.VotingDone != m.VotingDone) {
-				err = agendaStmt.QueryRow(name, d.Status, d.VotingDone,
-					d.Activated, d.HardForked).Scan(&id)
+				err = agendaStmt.QueryRow(name, d.Status, int32(d.VotingDone),
+					int32(d.Activated), int32(d.HardForked)).Scan(&id)
 				if err != nil {
 					bail()
 					return nil, nil, nil, nil, nil,
@@ -756,7 +756,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 		var votesRowID uint64
 		err = voteStmt.QueryRow(
 			tx.BlockHeight, tx.TxID, tx.BlockHash, candidateBlockHash,
-			voteVersion, voteBits, validBlock.Validity,
+			int32(voteVersion), int16(voteBits), validBlock.Validity,
 			stakeSubmissionTxHash, ticketTxDbID, stakeSubmissionAmount,
 			voteReward, tx.IsMainchainBlock, tx.BlockTime).Scan(&votesRowID)
 		if err != nil {
@@ -789,8 +789,8 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 			p := votesMilestones.AgendaMileStones[val.ID]
 			s := storedAgendas[val.ID]
 			if s.Status != p.Status {
-				err = agendaStmt.QueryRow(val.ID, p.Status,
-					p.VotingDone, p.Activated, p.HardForked).Scan(&s.ID)
+				err = agendaStmt.QueryRow(val.ID, p.Status, int32(p.VotingDone),
+					int32(p.Activated), int32(p.HardForked)).Scan(&s.ID)
 				if err != nil {
 					bail()
 					return nil, nil, nil, nil, nil, fmt.Errorf("agenda INSERT failed: : %v", err)
@@ -2228,8 +2228,8 @@ func InsertVout(db *sql.DB, dbVout *dbtypes.Vout, checked bool, updateOnConflict
 	var id uint64
 	err := db.QueryRow(insertStatement,
 		dbVout.TxHash, dbVout.TxIndex, dbVout.TxTree,
-		dbVout.Value, dbVout.Version,
-		dbVout.ScriptPubKey, dbVout.ScriptPubKeyData.ReqSigs,
+		dbVout.Value, int32(dbVout.Version),
+		dbVout.ScriptPubKey, int32(dbVout.ScriptPubKeyData.ReqSigs),
 		dbVout.ScriptPubKeyData.Type,
 		pq.Array(dbVout.ScriptPubKeyData.Addresses)).Scan(&id)
 	return id, err
@@ -2243,8 +2243,8 @@ func InsertVoutsStmt(stmt *sql.Stmt, dbVouts []*dbtypes.Vout, checked bool, doUp
 	for _, vout := range dbVouts {
 		var id uint64
 		err := stmt.QueryRow(
-			vout.TxHash, vout.TxIndex, vout.TxTree, vout.Value, vout.Version,
-			vout.ScriptPubKey, vout.ScriptPubKeyData.ReqSigs,
+			vout.TxHash, vout.TxIndex, vout.TxTree, vout.Value, int32(vout.Version),
+			vout.ScriptPubKey, int32(vout.ScriptPubKeyData.ReqSigs),
 			vout.ScriptPubKeyData.Type,
 			pq.Array(vout.ScriptPubKeyData.Addresses)).Scan(&id)
 		if err != nil {
@@ -2904,8 +2904,8 @@ func InsertTx(db *sql.DB, dbTx *dbtypes.Tx, checked, updateExistingRecords bool)
 	var id uint64
 	err := db.QueryRow(insertStatement,
 		dbTx.BlockHash, dbTx.BlockHeight, dbTx.BlockTime, dbTx.Time,
-		dbTx.TxType, dbTx.Version, dbTx.Tree, dbTx.TxID, dbTx.BlockIndex,
-		dbTx.Locktime, dbTx.Expiry, dbTx.Size, dbTx.Spent, dbTx.Sent, dbTx.Fees,
+		dbTx.TxType, int16(dbTx.Version), dbTx.Tree, dbTx.TxID, dbTx.BlockIndex,
+		int32(dbTx.Locktime), int32(dbTx.Expiry), dbTx.Size, dbTx.Spent, dbTx.Sent, dbTx.Fees,
 		dbTx.NumVin, dbtypes.UInt64Array(dbTx.VinDbIds),
 		dbTx.NumVout, dbtypes.UInt64Array(dbTx.VoutDbIds),
 		dbTx.IsValidBlock, dbTx.IsMainchainBlock).Scan(&id)
@@ -2918,8 +2918,8 @@ func InsertTxnsStmt(stmt *sql.Stmt, dbTxns []*dbtypes.Tx, checked, updateExistin
 		var id uint64
 		err := stmt.QueryRow(
 			tx.BlockHash, tx.BlockHeight, tx.BlockTime, tx.Time,
-			tx.TxType, tx.Version, tx.Tree, tx.TxID, tx.BlockIndex,
-			tx.Locktime, tx.Expiry, tx.Size, tx.Spent, tx.Sent, tx.Fees,
+			tx.TxType, int16(tx.Version), tx.Tree, tx.TxID, tx.BlockIndex,
+			int32(tx.Locktime), int32(tx.Expiry), tx.Size, tx.Spent, tx.Sent, tx.Fees,
 			tx.NumVin, dbtypes.UInt64Array(tx.VinDbIds),
 			tx.NumVout, dbtypes.UInt64Array(tx.VoutDbIds), tx.IsValidBlock,
 			tx.IsMainchainBlock).Scan(&id)
@@ -2970,8 +2970,8 @@ func InsertTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked, updateExistingRecords
 		var id uint64
 		err := stmt.QueryRow(
 			tx.BlockHash, tx.BlockHeight, tx.BlockTime, tx.Time,
-			tx.TxType, tx.Version, tx.Tree, tx.TxID, tx.BlockIndex,
-			tx.Locktime, tx.Expiry, tx.Size, tx.Spent, tx.Sent, tx.Fees,
+			tx.TxType, int16(tx.Version), tx.Tree, tx.TxID, tx.BlockIndex,
+			int32(tx.Locktime), int32(tx.Expiry), tx.Size, tx.Spent, tx.Sent, tx.Fees,
 			tx.NumVin, dbtypes.UInt64Array(tx.VinDbIds),
 			tx.NumVout, dbtypes.UInt64Array(tx.VoutDbIds), tx.IsValidBlock,
 			tx.IsMainchainBlock).Scan(&id)
@@ -3662,12 +3662,12 @@ func InsertBlock(db *sql.DB, dbBlock *dbtypes.Block, isValid, isMainchain, check
 	var id uint64
 	err := db.QueryRow(insertStatement,
 		dbBlock.Hash, dbBlock.Height, dbBlock.Size, isValid, isMainchain,
-		dbBlock.Version, dbBlock.NumTx, dbBlock.NumRegTx,
+		int32(dbBlock.Version), dbBlock.NumTx, dbBlock.NumRegTx,
 		pq.Array(dbBlock.Tx), pq.Array(dbBlock.TxDbIDs),
 		dbBlock.NumStakeTx, pq.Array(dbBlock.STx), pq.Array(dbBlock.STxDbIDs),
-		dbBlock.Time, dbBlock.Nonce, dbBlock.VoteBits, dbBlock.Voters,
-		dbBlock.FreshStake, dbBlock.Revocations, dbBlock.PoolSize, dbBlock.Bits,
-		dbBlock.SBits, dbBlock.Difficulty, dbBlock.StakeVersion,
+		dbBlock.Time, int64(dbBlock.Nonce), int16(dbBlock.VoteBits), dbBlock.Voters,
+		dbBlock.FreshStake, dbBlock.Revocations, dbBlock.PoolSize, int64(dbBlock.Bits),
+		int64(dbBlock.SBits), dbBlock.Difficulty, int32(dbBlock.StakeVersion),
 		dbBlock.PreviousHash, dbBlock.ChainWork, pq.Array(dbBlock.Winners)).Scan(&id)
 	return id, err
 }

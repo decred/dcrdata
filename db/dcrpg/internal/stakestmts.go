@@ -170,7 +170,7 @@ const (
 		tx_hash TEXT NOT NULL,
 		block_hash TEXT NOT NULL,
 		candidate_block_hash TEXT NOT NULL,
-		version INT2,
+		version INT4,
 		vote_bits INT2,
 		block_valid BOOLEAN,
 		ticket_hash TEXT,
