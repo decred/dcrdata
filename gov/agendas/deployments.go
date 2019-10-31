@@ -8,11 +8,11 @@ package agendas
 import (
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 
 	"github.com/asdine/storm/v3"
 	"github.com/asdine/storm/v3/q"
+	"github.com/decred/dcrd/dcrjson/v3"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/semver"
@@ -122,10 +122,6 @@ func NewAgendasDB(client DeploymentSource, dbPath string) (*AgendaDB, error) {
 }
 
 func listStakeVersions(client DeploymentSource) ([]uint32, error) {
-	// The regexp is needed because dcrd does not currently return
-	// ErrRPCInvalidParameter, instead ErrRPCInternal.
-	re := regexp.MustCompile(`stake version \d+ does not exist`)
-
 	agendaIDs := func(agendas []chainjson.Agenda) (ids []string) {
 		for i := range agendas {
 			ids = append(ids, agendas[i].ID)
@@ -143,27 +139,14 @@ func listStakeVersions(client DeploymentSource) ([]uint32, error) {
 			break
 		}
 
-		if re.MatchString(err.Error()) {
-			// Try again.
+		// When dcrd fixes the code, do this instead of regexp:
+		if jerr, ok := err.(*dcrjson.RPCError); ok &&
+			jerr.Code == dcrjson.ErrRPCInvalidParameter {
 			firstVer++
 			continue
 		}
-		// Something went wrong.
-		return nil, err
 
-		// When dcrd fixes the code, do this instead of regexp:
-		// if jerr, ok := err.(*dcrjson.RPCError); ok {
-		// 	switch jerr.Code {
-		// 	case dcrjson.ErrRPCInvalidParameter:
-		// 		continue
-		// 	default:
-		// 		return nil, err
-		// 	}
-		// } else {
-		// 	return nil, err
-		// }
-		//
-		// firstVer++
+		return nil, err
 	}
 
 	versions := []uint32{firstVer}
@@ -175,10 +158,11 @@ func listStakeVersions(client DeploymentSource) ([]uint32, error) {
 			continue
 		}
 
-		if re.MatchString(err.Error()) {
-			// Previous was the highest known stake version.
+		if jerr, ok := err.(*dcrjson.RPCError); ok &&
+			jerr.Code == dcrjson.ErrRPCInvalidParameter {
 			break
 		}
+
 		// Something went wrong.
 		return nil, err
 	}
