@@ -29,7 +29,7 @@ const (
 	// This includes changes such as creating tables, adding/deleting columns,
 	// adding/deleting indexes or any other operations that create, delete, or
 	// modify the definition of any database relation.
-	schemaVersion = 3
+	schemaVersion = 4
 
 	// maintVersion indicates when certain maintenance operations should be
 	// performed for the same compatVersion and schemaVersion. Such operations
@@ -274,7 +274,19 @@ func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool
 		fallthrough
 
 	case 3:
-		// Perform schema v3 maintenance.
+		// Upgrade to schema v4.
+		err = u.upgrade130to140()
+		if err != nil {
+			return false, fmt.Errorf("failed to upgrade 1.3.0 to 1.4.0: %v", err)
+		}
+		current.schema++
+		if err = updateSchemaVersion(u.db, current.schema); err != nil {
+			return false, fmt.Errorf("failed to update schema version: %v", err)
+		}
+		fallthrough
+
+	case 4:
+		// Perform schema v4 maintenance.
 		// --> noop, but would switch on current.maint
 
 		// No further upgrades.
@@ -294,6 +306,14 @@ func removeTableComments(db *sql.DB) {
 			log.Errorf(`Failed to remove comment on table %s.`, tableName)
 		}
 	}
+}
+
+// This changes the data type of votes.version from INT2 to INT4.
+func (u *Upgrader) upgrade130to140() error {
+	// Create the stats table and height index.
+	log.Infof("Performing database upgrade 1.3.0 -> 1.4.0")
+	_, err := u.db.Exec(`ALTER TABLE votes ALTER COLUMN version TYPE INT4`)
+	return err
 }
 
 // This indexes the blocks table on the "time" column.
