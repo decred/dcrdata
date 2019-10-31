@@ -26,11 +26,11 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrd/rpcclient/v4"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
+	"github.com/decred/dcrd/rpcclient/v5"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/rpcutils/v2"
-	"github.com/decred/dcrdata/txhelpers/v3"
+	"github.com/decred/dcrdata/rpcutils/v3"
+	"github.com/decred/dcrdata/txhelpers/v4"
 )
 
 // SyncHandlerDeadline is a hard deadline for handlers to finish handling before

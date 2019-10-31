@@ -23,16 +23,16 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v2"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrd/rpcclient/v4"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
+	"github.com/decred/dcrd/rpcclient/v5"
 	"github.com/decred/dcrd/wire"
-	apitypes "github.com/decred/dcrdata/api/types/v4"
-	"github.com/decred/dcrdata/db/cache/v2"
+	apitypes "github.com/decred/dcrdata/api/types/v5"
+	"github.com/decred/dcrdata/db/cache/v3"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/exchanges/v2"
 	"github.com/decred/dcrdata/gov/v3/agendas"
 	m "github.com/decred/dcrdata/middleware/v3"
-	"github.com/decred/dcrdata/txhelpers/v3"
+	"github.com/decred/dcrdata/txhelpers/v4"
 	appver "github.com/decred/dcrdata/v5/version"
 )
 

@@ -20,13 +20,13 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrutil/v2"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrd/rpcclient/v4"
-	apitypes "github.com/decred/dcrdata/api/types/v4"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
+	"github.com/decred/dcrd/rpcclient/v5"
+	apitypes "github.com/decred/dcrdata/api/types/v5"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/db/dcrpg/v4"
+	"github.com/decred/dcrdata/db/dcrpg/v5"
 	m "github.com/decred/dcrdata/middleware/v3"
-	"github.com/decred/dcrdata/rpcutils/v2"
+	"github.com/decred/dcrdata/rpcutils/v3"
 )
 
 const (

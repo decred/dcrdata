@@ -16,9 +16,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/decred/dcrdata/db/dcrpg/v4"
-	"github.com/decred/dcrdata/rpcutils/v2"
-	"github.com/decred/dcrdata/txhelpers/v3"
+	"github.com/decred/dcrdata/db/dcrpg/v5"
+	"github.com/decred/dcrdata/rpcutils/v3"
+	"github.com/decred/dcrdata/txhelpers/v4"
 )
 
 func mainCore(ctx context.Context) error {
@@ -129,7 +129,7 @@ func mainCore(ctx context.Context) error {
 	mpChecker := rpcutils.NewMempoolAddressChecker(client, activeChain)
 	var piParser dcrpg.ProposalsFetcher
 	db, err := dcrpg.NewChainDBWithCancel(ctx, &dbi, activeChain, nil, true, // nil => stakeDB
-		cfg.HidePGConfig, 0, mpChecker, piParser, client)
+		cfg.HidePGConfig, 0, mpChecker, piParser, client, func() {})
 	if db != nil {
 		defer db.Close()
 	}

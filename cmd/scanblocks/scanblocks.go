@@ -11,11 +11,11 @@ import (
 	"github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrutil/v2"
-	"github.com/decred/dcrd/rpcclient/v4"
-	apitypes "github.com/decred/dcrdata/api/types/v4"
+	"github.com/decred/dcrd/rpcclient/v5"
+	apitypes "github.com/decred/dcrdata/api/types/v5"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/rpcutils/v2"
-	"github.com/decred/dcrdata/txhelpers/v3"
+	"github.com/decred/dcrdata/rpcutils/v3"
+	"github.com/decred/dcrdata/txhelpers/v4"
 	"github.com/decred/slog"
 )
 

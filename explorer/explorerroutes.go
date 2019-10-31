@@ -20,7 +20,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrutil/v2"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
 	"github.com/decred/dcrd/txscript/v2"
 
 	"github.com/decred/dcrdata/db/dbtypes/v2"
@@ -28,7 +28,7 @@ import (
 	"github.com/decred/dcrdata/explorer/types/v2"
 	"github.com/decred/dcrdata/gov/v3/agendas"
 	pitypes "github.com/decred/dcrdata/gov/v3/politeia/types"
-	"github.com/decred/dcrdata/txhelpers/v3"
+	"github.com/decred/dcrdata/txhelpers/v4"
 
 	humanize "github.com/dustin/go-humanize"
 )

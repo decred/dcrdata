@@ -14,7 +14,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v2"
 	exptypes "github.com/decred/dcrdata/explorer/types/v2"
 	pstypes "github.com/decred/dcrdata/pubsub/types/v3"
-	"github.com/decred/dcrdata/pubsub/v3/psclient"
+	"github.com/decred/dcrdata/pubsub/v4/psclient"
 	"github.com/decred/dcrdata/semver"
 	"github.com/decred/slog"
 	survey "gopkg.in/AlecAivazis/survey.v1"

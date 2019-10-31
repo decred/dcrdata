@@ -12,7 +12,7 @@ import (
 	"net/http"
 	"strconv"
 
-	apitypes "github.com/decred/dcrdata/api/types/v4"
+	apitypes "github.com/decred/dcrdata/api/types/v5"
 	m "github.com/decred/dcrdata/middleware/v3"
 	"github.com/go-chi/chi"
 )

@@ -8,9 +8,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/decred/dcrd/rpcclient/v4"
-	"github.com/decred/dcrdata/db/dcrpg/v4"
-	"github.com/decred/dcrdata/rpcutils/v2"
+	"github.com/decred/dcrd/rpcclient/v5"
+	"github.com/decred/dcrdata/db/dcrpg/v5"
+	"github.com/decred/dcrdata/rpcutils/v3"
 	"github.com/decred/dcrdata/stakedb/v3"
 	"github.com/decred/slog"
 	"github.com/jrick/logrotate/rotator"
