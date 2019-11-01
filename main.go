@@ -661,6 +661,7 @@ func _main(ctx context.Context) error {
 
 	// Configure the explorer web pages router.
 	webMux := chi.NewRouter()
+	webMux.Use(m.Server(version.AppName + "-" + version.Version()))
 	webMux.With(explore.SyncStatusPageIntercept).Group(func(r chi.Router) {
 		r.Get("/", explore.Home)
 		r.Get("/visualblocks", explore.VisualBlocks)
