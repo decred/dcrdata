@@ -252,8 +252,8 @@ function poolSizeFunc (data) {
 
 function percentStakedFunc (data) {
   rawCoinSupply = data.circulation.map(v => v * atomsToDCR)
-  rawPoolValue = data.poolval
-  var ys = data.poolval.map((v, i) => [v / rawCoinSupply[i] * 100])
+  rawPoolValue = data.poolval.map(v => v * atomsToDCR)
+  var ys = rawPoolValue.map((v, i) => [v / rawCoinSupply[i] * 100])
   if (data.axis === 'height') {
     if (data.bin === 'block') return zipIvY(ys)
     return zipHvY(data.h, ys)
