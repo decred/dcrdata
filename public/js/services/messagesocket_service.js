@@ -53,7 +53,8 @@ class MessageSocket {
       event: eventID,
       message: message
     })
-    console.log('send', payload)
+
+    if (window.loggingDebug) console.log('send', payload)
     this.connection.send(payload)
   }
 

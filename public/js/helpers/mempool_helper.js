@@ -54,14 +54,14 @@ export default class Mempool {
   }
 
   initType (txType, total, count, avgSize) {
-    var fauxVal = total / count
+    var fauxVal = count === 0 ? 0 : total / count
     for (var i = 0; i < count; i++) {
       this.mempool.push(makeTx('', txType, fauxVal, null, avgSize))
     }
   }
 
   initVotes (tallyTargets, total, count, avgSize) {
-    var fauxVal = total / count
+    var fauxVal = count === 0 ? 0 : total / count
     tallyTargets.forEach((span) => {
       let affirmed = parseInt(span.dataset.affirmed)
       for (var i = 0; i < parseInt(span.dataset.count); i++) {

@@ -11,7 +11,7 @@ export default class extends Controller {
     this.indicatorTarget.classList.remove('hidden')
 
     ws.registerEvtHandler('open', () => {
-      console.log('Connected')
+      if (window.loggingDebug) console.log('Connected')
       this.updateConnectionStatus('Connected', true)
     })
 
@@ -26,7 +26,7 @@ export default class extends Controller {
     })
 
     ws.registerEvtHandler('ping', (evt) => {
-      console.debug('ping. users online: ', evt)
+      if (window.loggingDebug) console.debug('ping. users online: ', evt)
     })
   }
 

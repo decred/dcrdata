@@ -37,8 +37,11 @@ async function createWebSocket (loc) {
   ws.connect(uri)
 
   var updateBlockData = function (event) {
-    console.log('Received newblock message', event)
     var newBlock = JSON.parse(event)
+    if (window.loggingDebug) {
+      console.log('Block received')
+      console.log(newBlock)
+    }
     newBlock.block.unixStamp = new Date(newBlock.block.time).getTime() / 1000
     globalEventBus.publish('BLOCK_RECEIVED', newBlock)
   }
@@ -46,6 +49,15 @@ async function createWebSocket (loc) {
   ws.registerEvtHandler('exchange', e => {
     globalEventBus.publish('EXCHANGE_UPDATE', JSON.parse(e))
   })
+}
+
+// Debug logging can be enabled by entering logDebug(true) in the console.
+// Your setting will persist across sessions.
+window.loggingDebug = window.localStorage.getItem('loggingDebug') === '1'
+window.logDebug = yes => {
+  window.loggingDebug = yes
+  window.localStorage.setItem('loggingDebug', yes ? '1' : '0')
+  return 'debug logging set to ' + (yes ? 'true' : 'false')
 }
 
 createWebSocket(window.location)
