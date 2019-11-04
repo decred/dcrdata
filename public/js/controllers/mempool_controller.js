@@ -126,7 +126,7 @@ export default class extends Controller {
     })
     ws.registerEvtHandler('getmempooltxsResp', (evt) => {
       var m = JSON.parse(evt)
-      this.mempool.mergeMempool(m)
+      this.mempool.replace(m)
       this.handleTxsResp(m)
       this.setMempoolFigures()
       this.labelVotes()

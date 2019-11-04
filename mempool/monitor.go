@@ -292,6 +292,7 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 		votingInfo := &p.inventory.VotingInfo
 		if tx.VoteInfo.ForLastBlock && !votingInfo.VotedTickets[tx.VoteInfo.TicketSpent] {
 			votingInfo.VotedTickets[tx.VoteInfo.TicketSpent] = true
+			votingInfo.TicketsVoted++
 			p.inventory.LikelyMineable.VoteTotal += tx.TotalOut
 			p.inventory.VotingInfo.Tally(tx.VoteInfo)
 		} else {
