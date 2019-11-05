@@ -268,6 +268,28 @@
   transform: rotate(-90deg);
 }
 
+.chartview {
+  width: 96%;
+  min-height: 73vh;
+  margin: 0 2%;
+}
+
+.chartview .dygraph-ylabel {
+  color: #2970ff;
+}
+
+body.darkBG .chartview .dygraph-ylabel {
+  color: #2dd8a3;
+}
+
+.chartview .dygraph-y2label {
+  color: #066;
+}
+
+body.darkBG .chartview .dygraph-y2label {
+  color: #2970ff;
+}
+
 #tickets_by_purchase_date .dygraph-ylabel {
   color: #2971ff;
   font-weight: bold;
@@ -349,7 +371,7 @@
 .legend {
   background: #ececec;
   z-index: 10000;
-  padding: 0 2px 0 5px;
+  padding: 5px 10px 5px 20px;
   font-size: 14px;
 }
 
@@ -452,22 +474,6 @@ body.darkBG .customcheck input:checked ~ .tickets-price {
 
 body.darkBG .customcheck input:checked ~ .tickets-bought {
   background-color: #2970ff;
-}
-
-#chart .dygraph-ylabel {
-  color: #2970ff;
-}
-
-body.darkBG #chart .dygraph-ylabel {
-  color: #2dd8a3;
-}
-
-#chart .dygraph-y2label {
-  color: #066;
-}
-
-body.darkBG #chart .dygraph-y2label {
-  color: #2970ff;
 }
 
 .checkmark::after {
