@@ -22,7 +22,7 @@ require (
 	github.com/decred/dcrdata/exchanges/v2 v2.1.0
 	github.com/decred/dcrdata/explorer/types/v2 v2.1.1
 	github.com/decred/dcrdata/gov/v3 v3.0.0
-	github.com/decred/dcrdata/mempool/v5 v5.0.1
+	github.com/decred/dcrdata/mempool/v5 v5.0.2
 	github.com/decred/dcrdata/middleware/v3 v3.1.0
 	github.com/decred/dcrdata/pubsub/types/v3 v3.0.5
 	github.com/decred/dcrdata/pubsub/v4 v4.0.1
@@ -48,5 +48,3 @@ require (
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
 	golang.org/x/net v0.0.0-20191028085509-fe3aa8a45271
 )
-
-replace github.com/decred/dcrdata/mempool/v5 => ./mempool

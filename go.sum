@@ -268,6 +268,8 @@ github.com/decred/dcrdata/gov/v3 v3.0.0/go.mod h1:PbEUL/2QCdEOjDY/k8+KmdgpEEs5TQ
 github.com/decred/dcrdata/mempool/v4 v4.0.4-0.20191018131657-8f5538d3b4b3/go.mod h1:ysaPY8oraR1Hv+xTaTeF6QK9TaGDC5eS56KN7AAd7+Y=
 github.com/decred/dcrdata/mempool/v5 v5.0.1 h1:q5v0L8npGIW3DXhAcCLk9CDI/dOoPreotzLgLsUo608=
 github.com/decred/dcrdata/mempool/v5 v5.0.1/go.mod h1:ZxNwSAxRnrqWk6dhnYIsv/o9xreDVPAMHjcOe7ihd08=
+github.com/decred/dcrdata/mempool/v5 v5.0.2 h1:/1wHd5X9KpXf2SptlnGjWmV/IUFQi9JBoDnSUCcCj30=
+github.com/decred/dcrdata/mempool/v5 v5.0.2/go.mod h1:ZxNwSAxRnrqWk6dhnYIsv/o9xreDVPAMHjcOe7ihd08=
 github.com/decred/dcrdata/middleware/v3 v3.1.0 h1:K8HBFXmDFRDR86THjCyASTgcyzwcFzTFwyWWESB2l5w=
 github.com/decred/dcrdata/middleware/v3 v3.1.0/go.mod h1:cfESjGBK+3m6oHFYmo29yKoN1wTu/JnGhg/7wesVKG4=
 github.com/decred/dcrdata/pubsub/types/v3 v3.0.2 h1:N/nSQJ3eK69LfCHV7y92/gvksSOVEhMwJwI5/FA6lQI=

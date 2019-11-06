@@ -76,8 +76,8 @@ github.com/decred/dcrdata/exchanges/v2 v2.1.0/go.mod h1:FSznqV6aSwu3JZs6uwp9dXvg
 github.com/decred/dcrdata/explorer/types/v2 v2.1.0/go.mod h1:cS4mZ4ikEsHCHyjXQdYKq5ZuIrPWhJuoRI4x4oPode4=
 github.com/decred/dcrdata/explorer/types/v2 v2.1.1 h1:Ly1XuqH6IvdXEjfdJ9pNMh4JwmEledc8vtQL9jjBz2E=
 github.com/decred/dcrdata/explorer/types/v2 v2.1.1/go.mod h1:tzjXFj7r6Z75n8CoaeiG/1HNJc7PCjpA1+3vh8Ny3sE=
-github.com/decred/dcrdata/mempool/v5 v5.0.1 h1:q5v0L8npGIW3DXhAcCLk9CDI/dOoPreotzLgLsUo608=
-github.com/decred/dcrdata/mempool/v5 v5.0.1/go.mod h1:ZxNwSAxRnrqWk6dhnYIsv/o9xreDVPAMHjcOe7ihd08=
+github.com/decred/dcrdata/mempool/v5 v5.0.2 h1:/1wHd5X9KpXf2SptlnGjWmV/IUFQi9JBoDnSUCcCj30=
+github.com/decred/dcrdata/mempool/v5 v5.0.2/go.mod h1:ZxNwSAxRnrqWk6dhnYIsv/o9xreDVPAMHjcOe7ihd08=
 github.com/decred/dcrdata/pubsub/types/v3 v3.0.5 h1:DTXSmk6adST4mYzaYZw8oHNKqfqYJ+wFdsRCjDotmkc=
 github.com/decred/dcrdata/pubsub/types/v3 v3.0.5/go.mod h1:msVpLMm6G8Qk/KQ/oU+gXphcIJAUXCmxwCegEFDsXl4=
 github.com/decred/dcrdata/rpcutils/v3 v3.0.1 h1:9loa+/DaoYwVxhjmPtHpqz6XA5KMviVI2mLtt2rDuzU=
