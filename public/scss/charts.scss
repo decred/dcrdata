@@ -252,20 +252,20 @@
 
 .dygraph-label-rotate-left {
   text-align: center;
-  transform: rotate(90deg);
   -webkit-transform: rotate(90deg);
   -moz-transform: rotate(90deg);
   -o-transform: rotate(90deg);
   -ms-transform: rotate(90deg);
+  transform: rotate(90deg);
 }
 
 .dygraph-label-rotate-right {
   text-align: center;
-  transform: rotate(-90deg);
   -webkit-transform: rotate(-90deg);
   -moz-transform: rotate(-90deg);
   -o-transform: rotate(-90deg);
   -ms-transform: rotate(-90deg);
+  transform: rotate(-90deg);
 }
 
 #tickets_by_purchase_date .dygraph-ylabel {
