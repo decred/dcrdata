@@ -137,9 +137,17 @@ func mainCore() error {
 	}
 
 	// Construct a ChainDB without a stakeDB to allow quick dropping of tables.
+	dbCfg := &dcrpg.ChainDBCfg{
+		DBi:                  &dbi,
+		Params:               activeChain,
+		DevPrefetch:          true,
+		HidePGConfig:         false,
+		AddrCacheAddrCap:     2,
+		AddrCacheRowCap:      2,
+		AddrCacheUTXOByteCap: 1 << 5,
+	}
 	mpChecker := rpcutils.NewMempoolAddressChecker(client, activeChain)
-	db, err := dcrpg.NewChainDB(&dbi, activeChain, nil, true, cfg.HidePGConfig, 0,
-		mpChecker, piParser, client, func() {})
+	db, err := dcrpg.NewChainDB(dbCfg, nil, mpChecker, piParser, client, func() {})
 	if db != nil {
 		defer db.Close()
 	}

@@ -464,18 +464,25 @@ type DBInfo struct {
 	QueryTimeout                   time.Duration
 }
 
+type ChainDBCfg struct {
+	DBi                               *DBInfo
+	Params                            *chaincfg.Params
+	DevPrefetch, HidePGConfig         bool
+	AddrCacheRowCap, AddrCacheAddrCap int
+	AddrCacheUTXOByteCap              int
+}
+
 // NewChainDB constructs a ChainDB for the given connection and Decred network
 // parameters. By default, duplicate row checks on insertion are enabled. See
 // NewChainDBWithCancel to enable context cancellation of running queries.
 // proposalsUpdateChan is used to manage politeia update notifications trigger
 // between the notifier and the handler method. A non-nil BlockGetter is only
 // needed if database upgrades are required.
-func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeDatabase,
-	devPrefetch, hidePGConfig bool, addrCacheCap int, mp rpcutils.MempoolAddressChecker,
-	parser ProposalsFetcher, client *rpcclient.Client, shutdown func()) (*ChainDB, error) {
+func NewChainDB(cfg *ChainDBCfg, stakeDB *stakedb.StakeDatabase,
+	mp rpcutils.MempoolAddressChecker, parser ProposalsFetcher, client *rpcclient.Client,
+	shutdown func()) (*ChainDB, error) {
 	ctx := context.Background()
-	chainDB, err := NewChainDBWithCancel(ctx, dbi, params, stakeDB,
-		devPrefetch, hidePGConfig, addrCacheCap, mp, parser, client, shutdown)
+	chainDB, err := NewChainDBWithCancel(ctx, cfg, stakeDB, mp, parser, client, shutdown)
 	if err != nil {
 		return nil, err
 	}
@@ -490,11 +497,11 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeData
 // (context.Background()) except by the pg timeouts. If it is necessary to
 // cancel queries with CTRL+C, for example, use NewChainDBWithCancel. A non-nil
 // BlockGetter is only needed if database upgrades are required.
-func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Params,
-	stakeDB *stakedb.StakeDatabase, devPrefetch, hidePGConfig bool, addrCacheCap int,
+func NewChainDBWithCancel(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb.StakeDatabase,
 	mp rpcutils.MempoolAddressChecker, parser ProposalsFetcher, client *rpcclient.Client,
 	shutdown func()) (*ChainDB, error) {
 	// Connect to the PostgreSQL daemon and return the *sql.DB.
+	dbi := cfg.DBi
 	db, err := Connect(dbi.Host, dbi.Port, dbi.User, dbi.Pass, dbi.DBName)
 	if err != nil {
 		return nil, err
@@ -522,7 +529,7 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 	cockroach := strings.Contains(pgVersion, "CockroachDB")
 
 	// Optionally logs the PostgreSQL configuration.
-	if !cockroach && !hidePGConfig {
+	if !cockroach && !cfg.HidePGConfig {
 		perfSettings, err := RetrieveSysSettingsPerformance(db)
 		if err != nil {
 			return nil, err
@@ -578,6 +585,8 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 				crdbGCInterval, dbi.DBName, err)
 		}
 	}
+
+	params := cfg.Params
 
 	// Perform any necessary database schema upgrades.
 	var doLegacyUpgrade bool
@@ -752,7 +761,8 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 
 	// Create the address cache with the given capacity. The project fund
 	// address is set to prevent purging its data when cache reaches capacity.
-	addrCache := cache.NewAddressCache(addrCacheCap)
+	addrCache := cache.NewAddressCache(cfg.AddrCacheRowCap, cfg.AddrCacheAddrCap,
+		cfg.AddrCacheUTXOByteCap)
 	addrCache.ProjectAddress = projectFundAddress
 
 	chainDB := &ChainDB{
@@ -769,7 +779,7 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 		unspentTicketCache: unspentTicketCache,
 		AddressCache:       addrCache,
 		CacheLocks:         cacheLocks{cache.NewCacheLock(), cache.NewCacheLock(), cache.NewCacheLock(), cache.NewCacheLock()},
-		devPrefetch:        devPrefetch,
+		devPrefetch:        cfg.DevPrefetch,
 		tpUpdatePermission: tpUpdatePermissions,
 		utxoCache:          newUtxoStore(5e4),
 		deployments:        new(ChainDeployments),
