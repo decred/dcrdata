@@ -20,9 +20,12 @@ const windowScales = ['ticket-price', 'pow-difficulty', 'missed-votes']
 const lineScales = ['ticket-price']
 // index 0 represents y1 and 1 represents y2 axes.
 const yValueRanges = { 'ticket-price': [1] }
+var chainworkUnits = ['exahash', 'zettahash', 'yottahash']
+var hashrateUnits = ['Th/s', 'Ph/s', 'Eh/s']
 var ticketPoolSizeTarget, premine, stakeValHeight, stakeShare
 var baseSubsidy, subsidyInterval, subsidyExponent, windowSize, avgBlockTime
 var rawCoinSupply, rawPoolValue
+var yFormatter, legendEntry, legendMarker, legendElement
 
 function usesWindowUnits (chart) {
   return windowScales.indexOf(chart) > -1
@@ -57,20 +60,9 @@ function axesToRestoreYRange (chartName, origYRange, newYRange) {
   return axes
 }
 
-function formatHashRate (value, displayType) {
-  value = parseInt(value)
-  if (value <= 0) return value
-  var shortUnits = ['Th', 'Ph', 'Eh']
-  var labelUnits = ['terahash/s', 'petahash/s', 'exahash/s']
-  for (var i = 0; i < labelUnits.length; i++) {
-    var quo = Math.pow(1000, i)
-    var max = Math.pow(1000, i + 1)
-    if ((value > quo && value <= max) || i + 1 === labelUnits.length) {
-      var data = intComma(Math.floor(value / quo))
-      if (displayType === 'axis') return data + '' + shortUnits[i]
-      return data + ' ' + labelUnits[i]
-    }
-  }
+function withBigUnits (v, units) {
+  var i = v === 0 ? 0 : Math.floor(Math.log10(v) / 3)
+  return (v / Math.pow(1000, i)).toFixed(3) + ' ' + units[i]
 }
 
 function blockReward (height) {
@@ -80,74 +72,30 @@ function blockReward (height) {
   return 0
 }
 
+function addLegendEntryFmt (div, series, fmt) {
+  div.appendChild(legendEntry(`${series.dashHTML} ${series.labelHTML}: ${fmt(series.y)}`))
+}
+
+function addLegendEntry (div, series) {
+  div.appendChild(legendEntry(`${series.dashHTML} ${series.labelHTML}: ${series.yHTML}`))
+}
+
+function defaultYFormatter (div, data) {
+  addLegendEntry(div, data.series[0])
+}
+
+function customYFormatter (fmt) {
+  return (div, data) => addLegendEntryFmt(div, data.series[0], fmt)
+}
+
 function legendFormatter (data) {
-  var html = ''
-  if (data.x == null) {
-    let dashLabels = data.series.reduce((nodes, series) => {
-      return `${nodes} <div class="pr-2">${series.dashHTML} ${series.labelHTML}</div>`
-    }, '')
-    html = `<div class="d-flex flex-wrap justify-content-center align-items-center">
-              <div class="pr-3">${this.getLabels()[0]}: N/A</div>
-              <div class="d-flex flex-wrap">${dashLabels}</div>
-            </div>`
-  } else {
-    var i = data.dygraph.getOption('legendIndex')
-    var extraHTML = ''
-    // The circulation chart has an additional legend entry showing percent
-    // difference.
-    if (data.series.length === 2 && data.series[0].label.toLowerCase().includes('coin supply')) {
-      let inflation = data.dygraph.getOption('inflation')
-      if (i < inflation.length) {
-        let actual = data.series[0].y
-        let predicted = inflation[i]
-        let unminted = predicted - actual
-        let change = ((unminted / predicted) * 100).toFixed(2)
-        extraHTML = `<div class="pr-2">&nbsp;&nbsp;Unminted: ${intComma(unminted)} DCR (${change}%)</div>`
-      }
-    }
-
-    let yVals = data.series.reduce((nodes, series) => {
-      if (!series.isVisible) return nodes
-      let yVal = series.yHTML
-      switch (series.label.toLowerCase()) {
-        case 'ticket pool value':
-        case 'inflation limit':
-        case 'coin supply':
-          yVal = intComma(series.y) + ' DCR'
-          break
-
-        case 'total fee':
-        case 'ticket price':
-          yVal = series.y + ' DCR'
-          break
-
-        case 'hashrate':
-          yVal = formatHashRate(series.y)
-          break
-
-        case 'stake participation':
-          yVal = series.y.toFixed(4) + '%'
-          break
-      }
-      let result = `${nodes} <div class="pr-2">${series.dashHTML} ${series.labelHTML}: ${yVal}</div>`
-
-      if (series.label.toLowerCase() === 'stake participation' && rawCoinSupply.length === rawPoolValue.length &&
-          rawPoolValue.length !== 0 && i !== null) {
-        result += `<div class="pr-2"><div class="dygraph-legend-line"></div> Ticket Pool Value: ${intComma(rawPoolValue[i])} DCR</div>
-          <div class="pr-2"><div class="dygraph-legend-line"></div> Coin Supply: ${intComma(rawCoinSupply[i])} DCR</div>`
-      }
-
-      return result
-    }, '')
-
-    html = `<div class="d-flex flex-wrap justify-content-center align-items-center">
-                <div class="pr-3">${this.getLabels()[0]}: ${data.xHTML}</div>
-                <div class="d-flex flex-wrap"> ${yVals}</div>
-            </div>${extraHTML}`
-  }
-
-  dompurify.sanitize(html, { FORBID_TAGS: ['svg', 'math'] })
-  return html
+  if (data.x == null) return legendElement.classList.add('d-hide')
+  legendElement.classList.remove('d-hide')
+  var div = document.createElement('div')
+  div.appendChild(legendEntry(`${data.dygraph.getLabels()[0]}: ${data.xHTML}`))
+  yFormatter(div, data, data.dygraph.getOption('legendIndex'))
+  dompurify.sanitize(div, { IN_PLACE: true, FORBID_TAGS: ['svg', 'math'] })
+  return div.innerHTML
 }
 
 function nightModeOptions (nightModeOn) {
@@ -349,7 +297,9 @@ export default class extends Controller {
       'ticketsPurchase',
       'ticketsPrice',
       'vSelector',
-      'binSize'
+      'binSize',
+      'legendEntry',
+      'legendMarker'
     ]
   }
 
@@ -364,6 +314,25 @@ export default class extends Controller {
     subsidyExponent = parseFloat(this.data.get('mulSubsidy')) / parseFloat(this.data.get('divSubsidy'))
     windowSize = parseInt(this.data.get('windowSize'))
     avgBlockTime = parseInt(this.data.get('blockTime')) * 1000
+    legendElement = this.labelsTarget
+
+    // Prepare the legend element generators.
+    var lm = this.legendMarkerTarget
+    lm.remove()
+    lm.removeAttribute('data-target')
+    legendMarker = () => {
+      let node = document.createElement('div')
+      node.appendChild(lm.cloneNode())
+      return node.innerHTML
+    }
+    var le = this.legendEntryTarget
+    le.remove()
+    le.removeAttribute('data-target')
+    legendEntry = s => {
+      let node = le.cloneNode()
+      node.innerHTML = s
+      return node
+    }
 
     this.settings = TurboQuery.nullTemplate(['chart', 'zoom', 'scale', 'bin', 'axis'])
     this.query.update(this.settings)
@@ -405,7 +374,7 @@ export default class extends Controller {
       pointSize: 0.25,
       legend: 'always',
       labelsSeparateLines: true,
-      labelsDiv: this.labelsTarget,
+      labelsDiv: legendElement,
       legendFormatter: legendFormatter,
       highlightCircleSize: 4,
       ylabel: 'Ticket Price',
@@ -449,6 +418,7 @@ export default class extends Controller {
     }
     rawPoolValue = []
     rawCoinSupply = []
+    yFormatter = defaultYFormatter
     var xlabel = data.t ? 'Date' : 'Block Height'
 
     switch (chartName) {
@@ -465,6 +435,7 @@ export default class extends Controller {
           valueRange: [0, windowSize * 20 * 8],
           axisLabelFormatter: (y) => Math.round(y)
         }
+        yFormatter = customYFormatter(y => y.toFixed(8) + ' DCR')
         break
 
       case 'ticket-pool-size': // pool size graph
@@ -479,18 +450,25 @@ export default class extends Controller {
             color: '#888'
           }
         }
+        yFormatter = customYFormatter(y => `${intComma(y)} tickets &nbsp;&nbsp; (network target ${intComma(ticketPoolSizeTarget)})`)
         break
 
       case 'stake-participation':
         d = percentStakedFunc(data)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Stake Participation'], true,
           'Stake Participation (%)', true, false))
+        yFormatter = (div, data, i) => {
+          addLegendEntryFmt(div, data.series[0], y => y.toFixed(4) + '%')
+          div.appendChild(legendEntry(`${legendMarker()} Ticket Pool Value: ${intComma(rawPoolValue[i])} DCR`))
+          div.appendChild(legendEntry(`${legendMarker()} Coin Supply: ${intComma(rawCoinSupply[i])} DCR`))
+        }
         break
 
       case 'ticket-pool-value': // pool value graph
         d = zip2D(data, data.poolval, atomsToDCR)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Ticket Pool Value'], true,
           'Ticket Pool Value (DCR)', true, false))
+        yFormatter = customYFormatter(y => intComma(y) + ' DCR')
         break
 
       case 'block-size': // block size graph
@@ -527,6 +505,16 @@ export default class extends Controller {
           }
         }
         gOptions.inflation = d.inflation
+        yFormatter = (div, data, i) => {
+          addLegendEntryFmt(div, data.series[0], y => intComma(y) + ' DCR')
+          var change = 0
+          if (i < d.inflation.length) {
+            let predicted = d.inflation[i]
+            let unminted = predicted - data.series[0].y
+            change = ((unminted / predicted) * 100).toFixed(2)
+            div.appendChild(legendEntry(`${legendMarker()} Unminted: ${intComma(unminted)} DCR (${change}%)`))
+          }
+        }
         break
 
       case 'fees': // block fee graph
@@ -544,12 +532,14 @@ export default class extends Controller {
         d = zip2D(data, data.work)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Cumulative Chainwork (exahash)'],
           false, 'Cumulative Chainwork (exahash)', true, false))
+        yFormatter = customYFormatter(y => withBigUnits(y, chainworkUnits))
         break
 
       case 'hashrate': // Total chainwork over time
-        d = zip2D(data, data.rate, 1, data.offset)
-        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Network Hashrate (terahash/s)'],
-          false, 'Network Hashrate (terahash/s)', true, false))
+        d = zip2D(data, data.rate, 1e-3, data.offset)
+        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Network Hashrate (petahash/s)'],
+          false, 'Network Hashrate (petahash/s)', true, false))
+        yFormatter = customYFormatter(y => withBigUnits(y * 1e3, hashrateUnits))
         break
 
       case 'missed-votes':

@@ -195,9 +195,9 @@
 
 
         <div data-target="charts.chartWrapper" class="chart-wrapper pl-2 pr-2 mb-5">
-            <div id="chart"
-                data-target="charts.chartsView"
-                style="width:100%; height:73vh; margin:0 auto;">
+            <div
+                class="chartview"
+                data-target="charts.chartsView">
             </div>
             <div class="d-flex flex-wrap justify-content-center align-items-center mb-1 mt-1">
                 <div class="chart-control chart-control-wrapper">
@@ -231,7 +231,9 @@
                 </div>
             </div>
             <div class="d-flex justify-content-center legend-wrapper">
-                <div class="legend d-flex" data-target="charts.labels"></div>
+                <div class="legend d-flex align-items-center" data-target="charts.labels">
+                  <div class="pr-3" data-target="charts.legendEntry"><div class="dygraph-legend-line" data-target="charts.legendMarker"></div></div>
+                </div>
             </div>
         </div>
 
