@@ -264,7 +264,7 @@ type ChainDB struct {
 	heightClients     []chan uint32
 	shutdownDcrdata   func()
 	Client            *rpcclient.Client
-	tipMtx            sync.RWMutex
+	tipMtx            sync.Mutex
 	tipSummary        *apitypes.BlockDataBasic
 	lastExplorerBlock struct {
 		sync.Mutex
@@ -5396,6 +5396,53 @@ func (pgb *ChainDB) GetExplorerBlocks(start int, end int) []*exptypes.BlockBasic
 	return summaries
 }
 
+// txWithTicketPrice is a way to perform getrawtransaction and if the
+// transaction is unconfirmed, getstakedifficulty, while the chain server's best
+// block remains unchanged. If the transaction is confirmed, the ticket price is
+// queryied from ChainDB's database.
+func (pgb *ChainDB) txWithTicketPrice(txhash *chainhash.Hash) (*chainjson.TxRawResult, int64, error) {
+	// If the transaction is unconfirmed, the RPC client must provide the ticket
+	// price. Ensure the best block does not change between calls to
+	// getrawtransaction and getstakedifficulty.
+	blockHash, _, err := pgb.Client.GetBestBlock()
+	if err != nil {
+		return nil, 0, fmt.Errorf("GetBestBlock failed: %v", err)
+	}
+
+	var txraw *chainjson.TxRawResult
+	var ticketPrice int64
+	for {
+		txraw, err = pgb.Client.GetRawTransactionVerbose(txhash)
+		if err != nil {
+			return nil, 0, fmt.Errorf("GetRawTransactionVerbose failed for %v: %v", txhash, err)
+		}
+
+		if txraw.Confirmations > 0 {
+			return txraw, pgb.GetSBitsByHash(txraw.BlockHash), nil
+		}
+
+		sdiffRes, err := pgb.Client.GetStakeDifficulty()
+		if err != nil {
+			return nil, 0, fmt.Errorf("GetStakeDifficulty failed: %v", err)
+		}
+
+		blockHash1, _, err := pgb.Client.GetBestBlock()
+		if err != nil {
+			return nil, 0, fmt.Errorf("GetBestBlock failed: %v", err)
+		}
+
+		sdiff, _ := dcrutil.NewAmount(sdiffRes.CurrentStakeDifficulty) // sdiff==0 for err !=nil
+		ticketPrice = int64(sdiff)
+
+		if blockHash.IsEqual(blockHash1) {
+			break
+		}
+		blockHash = blockHash1 // try again
+	}
+
+	return txraw, ticketPrice, nil
+}
+
 // GetExplorerTx creates a *exptypes.TxInfo for the transaction with the given
 // ID.
 func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
@@ -5404,11 +5451,13 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		log.Errorf("Invalid transaction hash %s", txid)
 		return nil
 	}
-	txraw, err := pgb.Client.GetRawTransactionVerbose(txhash)
+
+	txraw, ticketPrice, err := pgb.txWithTicketPrice(txhash)
 	if err != nil {
-		log.Warnf("GetRawTransactionVerbose failed for %v: %v", txhash, err)
+		log.Errorf("txWithTicketPrice: %v", err)
 		return nil
 	}
+
 	msgTx, err := txhelpers.MsgTxFromHex(txraw.Hex)
 	if err != nil {
 		log.Errorf("Cannot create MsgTx for tx %v: %v", txhash, err)
@@ -5421,20 +5470,7 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 	if !txhelpers.IsStakeTx(msgTx) {
 		isMix, mixDenom, mixCount = txhelpers.IsMixTx(msgTx)
 		if !isMix {
-			var ticketPrice int64
-			if txraw.Confirmations > 0 {
-				ticketPrice = pgb.GetSBitsByHash(txraw.BlockHash)
-			} else {
-				sdiffRes, err := pgb.Client.GetStakeDifficulty()
-				if err == nil {
-					sdiff, _ := dcrutil.NewAmount(sdiffRes.CurrentStakeDifficulty) // err means sdiff==0
-					ticketPrice = int64(sdiff)
-				}
-			}
-			isMix, mixCount = txhelpers.IsMixedSplitTx(msgTx, ticketPrice)
-			if isMix {
-				mixDenom = ticketPrice
-			}
+			isMix, mixDenom, mixCount = txhelpers.IsMixedSplitTx(msgTx, txhelpers.DefaultRelayFeePerKb, ticketPrice)
 		}
 	}
 
@@ -5763,8 +5799,8 @@ func (pgb *ChainDB) GetTip() (*exptypes.WebBasicBlock, error) {
 // getTip returns the last block stored using StoreBlockSummary.
 // If no block has been stored yet, it returns the best block in the database.
 func (pgb *ChainDB) getTip() (*apitypes.BlockDataBasic, error) {
-	pgb.tipMtx.RLock()
-	defer pgb.tipMtx.RUnlock()
+	pgb.tipMtx.Lock()
+	defer pgb.tipMtx.Unlock()
 	if pgb.tipSummary != nil && pgb.tipSummary.Hash == pgb.BestBlockHashStr() {
 		return pgb.tipSummary, nil
 	}

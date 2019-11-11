@@ -5,17 +5,6 @@ import (
 	"github.com/decred/dcrd/wire"
 )
 
-// 42.94967296: https://dcrdata.decred.org/tx/30d861942410e042cec6a88dcc3065ebab4d9f5e23fa2f7e2c7f64cdc28153d4/out/3
-// 10.73741824: https://dcrdata.decred.org/tx/4e3cdbc6ff756a0fc7eba8626713a677cc70517c731c3485494b3fdb8746c7ae/out/10
-// 2.68435456: https://dcrdata.decred.org/tx/ab70b9b3fc88feb7be0c1a1b9ba47cac9dea10f158911fd9cfaf3af3f80878f3/out/2
-// 0.67108864: https://dcrdata.decred.org/tx/86986953f5534fb6942e38ccde8c8f4335828613abfe49a5d01c074b3bb2105b/out/10
-// 0.16777216: https://dcrdata.decred.org/tx/9ba917606149761e32b03e0f65c4f45fa3aa6b550f422d2089f89b763fab6104/out/8
-// 0.04194304: https://dcrdata.decred.org/tx/fe01cf6fde802d2c1241312e7d3edcba857c7462eb584f4830dee7de8f287a95/out/0
-// 0.01048576: https://dcrdata.decred.org/tx/88690788e1559a99d79a95dfb427228fe3dae2229fff4dc6382af3eb3ff993e8/out/1
-// 0.00262144: https://dcrdata.decred.org/tx/c1586230bacfea4384488a5c29f8bf90bb93fd1e46f657dde79cb09054d860cc/out/1
-
-// all feeding a mix split tx: https://dcrdata.decred.org/tx/9575c5eb83ed4ac9eece7213ffa28cf5abab39fd202d0c89cfaa8416a178031b/in/49
-
 // must be sorted large to small
 var splitPoints = [...]dcrutil.Amount{
 	1 << 36, // 687.19476736
@@ -38,6 +27,10 @@ func init() {
 	}
 }
 
+// IsMixTx test if a transaction is a CSPP-mixed transaction, which must have 3
+// or more inputs of the same amount, which is one of the pre-defined mix
+// denominations. mixDenom is the largest of such denominations. mixCount is the
+// number of inputs of this denomination.
 func IsMixTx(tx *wire.MsgTx) (isMix bool, mixDenom int64, mixCount uint32) {
 	mixedOuts := make(map[int64]uint32)
 	for _, o := range tx.TxOut {
@@ -58,40 +51,75 @@ func IsMixTx(tx *wire.MsgTx) (isMix bool, mixDenom int64, mixCount uint32) {
 		}
 	}
 
-	isMix = mixCount > uint32(len(tx.TxOut)/2)
+	isMix = mixCount >= uint32(len(tx.TxOut)/2)
 	return
 }
 
-func IsMixedSplitTx(tx *wire.MsgTx, ticketPrice int64) (bool, uint32) {
-	var numTickets uint32
+// FeeForSerializeSize calculates the required fee for a transaction of some
+// arbitrary size given a mempool's relay fee policy.
+func FeeForSerializeSize(relayFeePerKb dcrutil.Amount, txSerializeSize int) dcrutil.Amount {
+	fee := relayFeePerKb * dcrutil.Amount(txSerializeSize) / 1000
+
+	if fee == 0 && relayFeePerKb > 0 {
+		fee = relayFeePerKb
+	}
+
+	if fee < 0 || fee > dcrutil.MaxAmount {
+		fee = dcrutil.MaxAmount
+	}
+
+	return fee
+}
+
+// DefaultRelayFeePerKb is the default minimum relay fee policy for a mempool.
+const DefaultRelayFeePerKb int64 = 1e4
+
+// The size of a solo (non-pool) ticket purchase transaction assumes a specific
+// transaction structure and worst-case signature script sizes.
+func soloTicketTxSize() int {
+	inSizes := []int{RedeemP2PKHSigScriptSize}
+	outSizes := []int{P2PKHPkScriptSize + 1, TicketCommitmentScriptSize, P2PKHPkScriptSize + 1}
+	return EstimateSerializeSizeFromScriptSizes(inSizes, outSizes, 0)
+}
+
+// IsMixedSplitTx tests if a transaction is a CSPP-mixed ticket split
+// transaction (the transaction that creates appropriately-sized outputs to be
+// spent by a ticket purchase). Such a transaction must have 3 or more outputs
+// with an amount equal to the ticket price plus transaction fees. The expected
+// fees to be included in the amount are based on the provided fee rate,
+// relayFeeRate, and an assumed serialized size of a solo ticket transaction
+// with one P2PKH input, two P2PKH outputs and one ticket commitment output.
+func IsMixedSplitTx(tx *wire.MsgTx, relayFeeRate, ticketPrice int64) (isMix bool, ticketOutAmt int64, numTickets uint32) {
+	ticketTxFee := FeeForSerializeSize(dcrutil.Amount(relayFeeRate), soloTicketTxSize())
+	ticketOutAmt = ticketPrice + int64(ticketTxFee)
+
+	var numOtherOut uint32
 	for _, o := range tx.TxOut {
-		if o.Value == ticketPrice {
+		if o.Value == ticketOutAmt {
 			numTickets++
+		} else {
+			numOtherOut++
 		}
 	}
 
-	if numTickets < 3 {
-		return false, 0
+	if numTickets < 3 || numOtherOut < 3 {
+		return false, 0, 0
 	}
 
-	// Check that there are mix denomination inputs.
-	var numMixedIns uint32
-	mixedIns := make(map[int64]int64)
-	for _, in := range tx.TxIn {
-		val := in.ValueIn
-		if _, ok := splitPointMap[val]; ok {
-			mixedIns[val]++
-			numMixedIns++
-			continue
-		}
-	}
+	// The input amounts do not indicate if a split tx is a mix, although it is
+	// common to fund such a split transaction with mixed outputs.
 
-	// What about the mixed Inputs?
-	// either a mixed amount or a vote output?
+	// Count the mix denomination inputs.
+	// mixedIns := make(map[int64]int64)
+	// for _, in := range tx.TxIn {
+	// 	val := in.ValueIn
+	// 	if _, ok := splitPointMap[val]; ok {
+	// 		mixedIns[val]++
+	// 		//numMixedIns++
+	// 		continue
+	// 	}
+	// }
 
-	if numMixedIns < numTickets {
-		return false, 0
-	}
-
-	return true, numTickets
+	isMix = true
+	return
 }

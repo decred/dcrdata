@@ -218,6 +218,14 @@ body.darkBG [data-tooltip]:hover::after {
   color: #2dd8a3;
 }
 
+.mix-box {
+  border: 1px double #2b87e7;
+  border-radius: 2px;
+  vertical-align: top;
+  padding: 1px 8px;
+  color: #2b87e7;
+}
+
 .clipboard span.clickable,
 .clipboard span.alert-copy {
   display: none;

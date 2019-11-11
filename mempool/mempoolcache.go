@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/decred/dcrd/dcrutil/v2"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
 	apitypes "github.com/decred/dcrdata/api/types/v5"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
@@ -35,7 +36,7 @@ type MempoolDataCache struct {
 	allFeeRates             []float64
 	lowestMineableByFeeRate float64
 	allTicketsDetails       TicketsDetails
-	stakeDiff               float64
+	stakeDiff               int64
 }
 
 // StoreMPData stores info from data in the mempool cache. It is advisable to
@@ -57,7 +58,8 @@ func (c *MempoolDataCache) StoreMPData(stakeData *StakeData, txsCopy []exptypes.
 	c.allFeeRates = stakeData.MinableFees.allFeeRates
 	c.lowestMineableByFeeRate = stakeData.MinableFees.lowestMineableFee
 	c.allTicketsDetails = stakeData.AllTicketsDetails
-	c.stakeDiff = stakeData.StakeDiff
+	sbits, _ := dcrutil.NewAmount(stakeData.StakeDiff) // 0 if err!=nil
+	c.stakeDiff = int64(sbits)
 }
 
 // GetHeight returns the mempool height
@@ -65,6 +67,14 @@ func (c *MempoolDataCache) GetHeight() uint32 {
 	c.mtx.RLock()
 	defer c.mtx.RUnlock()
 	return c.height
+}
+
+// SBits returns the current stake difficulty, and the current best block
+// height.
+func (c *MempoolDataCache) SBits() (int64, uint32) {
+	c.mtx.RLock()
+	defer c.mtx.RUnlock()
+	return c.stakeDiff, c.height
 }
 
 // GetNumTickets returns the mempool height and number of tickets
@@ -189,7 +199,7 @@ func (c *MempoolDataCache) GetTicketPriceCountTime(feeAvgLength int) *apitypes.P
 	feeAvg /= float64(feeAvgLength)
 
 	return &apitypes.PriceCountTime{
-		Price: c.stakeDiff + feeAvg,
+		Price: dcrutil.Amount(c.stakeDiff).ToCoin() + feeAvg,
 		Count: numFees,
 		Time:  dbtypes.NewTimeDef(c.timestamp),
 	}

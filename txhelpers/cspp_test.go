@@ -7,7 +7,14 @@ import (
 )
 
 func TestIsMixedSplitTx(t *testing.T) {
+	ticketPrice0 := int64(13909274457)
 	tx0, err := MsgTxFromHex(hugeMixedSplitTx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ticketPrice1 := int64(12978960619)
+	tx1, err := MsgTxFromHex(smallNonMixedPoolSplitTx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -18,35 +25,49 @@ func TestIsMixedSplitTx(t *testing.T) {
 	}
 
 	tests := []struct {
-		name        string
-		tx          *wire.MsgTx
-		ticketPrice int64
-		isMix       bool
-		numTickets  uint32
+		name           string
+		tx             *wire.MsgTx
+		ticketPrice    int64
+		isMix          bool
+		wantNumTickets uint32
+		wantMixDenom   int64
 	}{
 		{
 			"ok",
 			tx0,
-			13909277437,
+			ticketPrice0,
 			true,
 			9,
+			13909277437,
+		},
+		{
+			"ok",
+			tx1,
+			ticketPrice1,
+			false,
+			0,
+			0,
 		},
 		{
 			"no, coinbase",
 			coinbaseTx,
-			13909277437,
+			ticketPrice0,
 			false,
+			0,
 			0,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			isMix, numTickets := IsMixedSplitTx(tt.tx, tt.ticketPrice)
+			isMix, mixDenom, numTickets := IsMixedSplitTx(tt.tx, DefaultRelayFeePerKb, tt.ticketPrice)
 			if isMix != tt.isMix {
 				t.Errorf("IsMixedSplitTx() isMix = %v, wanted %v", isMix, tt.isMix)
 			}
-			if numTickets != tt.numTickets {
-				t.Errorf("IsMixedSplitTx() numTickets = %v, wanted %v", numTickets, tt.numTickets)
+			if numTickets != tt.wantNumTickets {
+				t.Errorf("IsMixedSplitTx() numTickets = %v, wanted %v", numTickets, tt.wantNumTickets)
+			}
+			if mixDenom != tt.wantMixDenom {
+				t.Errorf("IsMixedSplitTx() mixDenom = %v, wanted %v", mixDenom, tt.wantMixDenom)
 			}
 		})
 	}
@@ -157,6 +178,33 @@ const (
 		"9832ade1d1a90c0bb6f582f369cfdc446988ac0000000000000000015eb6d9440000000000000000ff" +
 		"ffffff0800002f646372642f"
 
+	smallNonMixedPoolSplitTx = "01000000042730048942ff9ec8e8f67f786cad5596e580e2101ed9cc1f52ef3b8fc875207403000000" +
+		"01ffffffff632369c6ae70d0d133108fe524f647050f685335131862cd5b75a7f46b4f4bad03000000" +
+		"01ffffffff96f9cdb210170ee118036b88f7a12748cb86de0f3091e7d78bc9f0f4b0c7345a03000000" +
+		"01ffffffffa9676c45e8ae3fbd3e531f242fcb4891163c61cfb7b9b56b29d981f472e8f2e103000000" +
+		"01ffffffff093cb30e000000000000001976a9141a80e16e5f48e123295df661bf6b912f0f49c3c088" +
+		"acdb9a8c050300000000001976a9141a80e16e5f48e123295df661bf6b912f0f49c3c088ac3cb30e00" +
+		"0000000000001976a9141a80e16e5f48e123295df661bf6b912f0f49c3c088acdb9a8c050300000000" +
+		"001976a9141a80e16e5f48e123295df661bf6b912f0f49c3c088ac3cb30e000000000000001976a914" +
+		"1a80e16e5f48e123295df661bf6b912f0f49c3c088acdb9a8c050300000000001976a9141a80e16e5f" +
+		"48e123295df661bf6b912f0f49c3c088ac3cb30e000000000000001976a9141a80e16e5f48e123295d" +
+		"f661bf6b912f0f49c3c088acdb9a8c050300000000001976a9141a80e16e5f48e123295df661bf6b91" +
+		"2f0f49c3c088ac9343bb840000000000001976a9145fb115a6e7c13bef6ce08016efb21a970d369ee8" +
+		"88ac0000000000000000043d18111f0300000032130600010000006a47304402203982a7d90678ce6a" +
+		"7dc94e6949f34b75f05514e93bb748ece96123ffd6c2a30802207d1b587ebcd58079a20c21cda69247" +
+		"f5e7925c35c9197c6cb77660cf48a6a92001210249212fd874f4d127a96529d56ac2eadd09c9845e65" +
+		"3b87a78b0c63e4ec4f3dea3a47513c0300000031130600000000006a473044022034b942c8d2e2622a" +
+		"1edde8479108d1e63041b21922de15dbe43258199e32a6f902207859bc8c4de8e069cb194d146d8fba" +
+		"1f3ab3aa7a4bdb01431c3ec9f02673f89f012102b96037c4f0afd0d4bcc935be4129467be8ecc97544" +
+		"7c1d6379f13349a1294ee6e60ae33903000000ef120600010000006b483045022100ecee918b133da4" +
+		"de9b470969f4eb93ca2db82b90b2deab726f341f590ac56aa802200ff2776d12814527d59de561d277" +
+		"7d5be9b7566072fccccaa034b5b277f4b746012103b35ea4fdc9228769064cf29c7baccae8dad409c1" +
+		"9ed5b3601a8e29f017b1b174c038e305030000002d130600020000006a47304402203b4f59d0d5eb0b" +
+		"083c5b8f9724c37ec537455f4abfc1c0ab23018b104ac2902b02203af9d684340a3d77d055d3fa6a4c" +
+		"ba1c4975f3bbe4919b58008d9b66195a3b6101210358bea4a7534fc079dae3b1e10866d39e7e8581a1" +
+		"025236bf32523ec3d87a104f"
+
+	// https://dcrdata.decred.org/tx/9575c5eb83ed4ac9eece7213ffa28cf5abab39fd202d0c89cfaa8416a178031b
 	hugeMixedSplitTx = "010000006af37808f8f33aafcfd91f9158f110ea9dac7ca49b1b1a0cbeb7fe88fcb3b970ab02000000" +
 		"00ffffffff0461ab3f769bf889202d420f556baaa35ff4c4650f3eb0321e7649616017a99b08000000" +
 		"00ffffffff49916036cca27342bdf04d38bc08003a10053108635e63573849dbdc0320b20f07000000" +
