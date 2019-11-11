@@ -170,6 +170,9 @@ type TrimmedTxInfo struct {
 // TxInfo models data needed for display on the tx page
 type TxInfo struct {
 	*TxBasic
+	IsMix            bool
+	MixDenom         int64
+	MixCount         uint32
 	SpendingTxns     []TxInID
 	Type             string
 	Vin              []Vin
