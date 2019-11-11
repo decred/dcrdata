@@ -4592,6 +4592,14 @@ func RetrieveSDiff(ctx context.Context, db *sql.DB, ind int64) (float64, error) 
 	return dcrutil.Amount(sbits).ToCoin(), err
 }
 
+// RetrieveSBitsByHash returns the stake difficulty in atoms for the specified
+// block.
+func RetrieveSBitsByHash(ctx context.Context, db *sql.DB, hash string) (int64, error) {
+	var sbits int64
+	err := db.QueryRowContext(ctx, internal.SelectSBitsByHash, hash).Scan(&sbits)
+	return sbits, err
+}
+
 // RetrieveSDiffRange returns an array of stake difficulties for block range
 // ind0 to ind1.
 func RetrieveSDiffRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) ([]float64, error) {

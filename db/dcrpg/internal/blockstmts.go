@@ -295,6 +295,10 @@ const (
 		FROM blocks
 		WHERE height = $1 AND is_mainchain;`
 
+	SelectSBitsByHash = `SELECT sbits
+		FROM blocks
+		WHERE hash = $1;`
+
 	SelectSBitsRange = `SELECT sbits
 		FROM blocks
 		WHERE height BETWEEN $1 AND $2;`

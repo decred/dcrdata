@@ -49,4 +49,23 @@ require (
 	golang.org/x/net v0.0.0-20191028085509-fe3aa8a45271
 )
 
-replace github.com/decred/dcrdata/db/dcrpg/v5 => ./db/dcrpg
+replace (
+	github.com/decred/dcrdata/api/types/v5 => ./api/types
+	github.com/decred/dcrdata/blockdata/v5 => ./blockdata
+	github.com/decred/dcrdata/db/cache/v3 => ./db/cache
+	github.com/decred/dcrdata/db/dbtypes/v2 => ./db/dbtypes
+	github.com/decred/dcrdata/db/dcrpg/v5 => ./db/dcrpg
+	github.com/decred/dcrdata/dcrrates => ./dcrrates
+	github.com/decred/dcrdata/exchanges/v2 => ./exchanges
+	github.com/decred/dcrdata/explorer/types/v2 => ./explorer/types
+	github.com/decred/dcrdata/gov/v3 => ./gov
+	github.com/decred/dcrdata/mempool/v5 => ./mempool
+	github.com/decred/dcrdata/middleware/v3 => ./middleware
+	github.com/decred/dcrdata/pubsub/types/v3 => ./pubsub/types
+	github.com/decred/dcrdata/pubsub/v4 => ./pubsub
+	github.com/decred/dcrdata/rpcutils/v3 => ./rpcutils
+	github.com/decred/dcrdata/semver => ./semver
+	github.com/decred/dcrdata/stakedb/v3 => ./stakedb
+	github.com/decred/dcrdata/testutil/dbconfig/v2 => ./testutil/dbconfig
+	github.com/decred/dcrdata/txhelpers/v4 => ./txhelpers
+)

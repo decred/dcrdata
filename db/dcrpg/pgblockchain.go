@@ -4998,6 +4998,16 @@ func (pgb *ChainDB) GetSDiff(idx int) float64 {
 	return sdiff
 }
 
+// GetSBitsByHash gets the stake difficulty in DCR for a given block height.
+func (pgb *ChainDB) GetSBitsByHash(hash string) int64 {
+	sbits, err := RetrieveSBitsByHash(pgb.ctx, pgb.db, hash)
+	if err != nil {
+		log.Errorf("Unable to retrieve stake difficulty: %v", err)
+		return -1
+	}
+	return sbits
+}
+
 // GetSDiffRange gets the stake difficulties in DCR for a range of block heights.
 func (pgb *ChainDB) GetSDiffRange(idx0, idx1 int) []float64 {
 	sdiffs, err := pgb.SDiffRange(int64(idx0), int64(idx1))
@@ -5404,16 +5414,43 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		log.Errorf("Cannot create MsgTx for tx %v: %v", txhash, err)
 		return nil
 	}
+
+	var isMix bool
+	var mixDenom int64
+	var mixCount uint32
+	if !txhelpers.IsStakeTx(msgTx) {
+		isMix, mixDenom, mixCount = txhelpers.IsMixTx(msgTx)
+		if !isMix {
+			var ticketPrice int64
+			if txraw.Confirmations > 0 {
+				ticketPrice = pgb.GetSBitsByHash(txraw.BlockHash)
+			} else {
+				sdiffRes, err := pgb.Client.GetStakeDifficulty()
+				if err == nil {
+					sdiff, _ := dcrutil.NewAmount(sdiffRes.CurrentStakeDifficulty) // err means sdiff==0
+					ticketPrice = int64(sdiff)
+				}
+			}
+			isMix, mixCount = txhelpers.IsMixedSplitTx(msgTx, ticketPrice)
+			if isMix {
+				mixDenom = ticketPrice
+			}
+		}
+	}
+
 	txBasic := makeExplorerTxBasic(*txraw, msgTx, pgb.chainParams)
 	tx := &exptypes.TxInfo{
-		TxBasic: txBasic,
+		TxBasic:       txBasic,
+		IsMix:         isMix,
+		MixDenom:      mixDenom,
+		MixCount:      mixCount,
+		Type:          txhelpers.DetermineTxTypeString(msgTx),
+		BlockHeight:   txraw.BlockHeight,
+		BlockIndex:    txraw.BlockIndex,
+		BlockHash:     txraw.BlockHash,
+		Confirmations: txraw.Confirmations,
+		Time:          exptypes.NewTimeDefFromUNIX(txraw.Time),
 	}
-	tx.Type = txhelpers.DetermineTxTypeString(msgTx)
-	tx.BlockHeight = txraw.BlockHeight
-	tx.BlockIndex = txraw.BlockIndex
-	tx.BlockHash = txraw.BlockHash
-	tx.Confirmations = txraw.Confirmations
-	tx.Time = exptypes.NewTimeDefFromUNIX(txraw.Time)
 
 	inputs := make([]exptypes.Vin, 0, len(txraw.Vin))
 	for i, vin := range txraw.Vin {
