@@ -161,7 +161,7 @@ Always:
 - Highlight any breaking changes.  This includes any syntax changes, added or removed struct fields, interface changes, file renames or deletions, etc.
 - Scroll down and review the code diffs. Verify that the changes are what you expect to see based on your earlier review of the diffs and your git commit log (you did that, right?).
 
-Excellent [PR guidelines](https://github.com/deromka/kubernetes-1/blob/master/docs/devel/faster_reviews.md) from Kubernetes project.
+Excellent [PR guidelines](https://github.com/kubernetes/community/blob/master/contributors/guide/pull-requests.md) from Kubernetes project.
 
 10. Receive feedback and make changes
 
