@@ -859,7 +859,7 @@ here's the gist of it:
 **DO NOT merge from master to your feature branch; rebase.**
 
 Note that all dcrdata.org community and team members are expected to follow the Code Contribution Guidelines, described in the [Code Contribution Guidelines](https://github.com/decred/dcrd/blob/master/docs/code_contribution_guidelines.md)
-file. These guidelines are generally not a challenge for decent humans.
+file.
 
 Also, [come chat with us on Matrix](https://www.decred.org/matrix/) in the
 dcrdata channel!
