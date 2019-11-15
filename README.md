@@ -64,7 +64,7 @@ Always run the Current release or on the Current stable branch. Do not use `mast
 
 |             | Series  | Branch        | Latest release tag | `dcrd` RPC server version required |
 | ----------- | ------- | ------------- | ------------------ | ---------------------------------- |
-| Current     | 5.2     | `5.2-stable`  | `v5.2.0`           | ^6.1.1 (dcrd v1.6.0-pre@[`e7acd36b`](https://github.com/decred/dcrd/commit/e7acd36be3381288a46046ee9d7bc6cf2513aeb8) to `HEAD`) |
+| Current     | 5.2     | `5.2-stable`  | `v5.2.0`           | ^6.1.1 (dcrd v1.6.0-pre@[`7b060207`](https://github.com/decred/dcrd/commit/7b060207b19595ef8cc7ae4ee120c66af623239a) to `HEAD`) |
 | Legacy      | 5.1     | `5.1-stable`  | `v5.1.3`           | ^5.0.0-^6.1.0 (dcrd v1.5-pre@[`fd3e180a`](https://github.com/decred/dcrd/commit/fd3e180a7e19fe72adaddd3d88370cb50fa636e2) to v1.6.0-pre@[`ccae4aa1`](https://github.com/decred/dcrd/commit/ccae4aa1a8a3ee8025bab6fee2f73d778d0315fd)) |
 | Development | 6.0     | `master`      | N/A                | same as dcrdata 5.2 |
 
