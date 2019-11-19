@@ -68,10 +68,21 @@ func processTransactions(msgBlock *wire.MsgBlock, tree int8, chainParams *chainc
 	dbTxVouts := make([][]*Vout, len(txs))
 	dbTxVins := make([]VinTxPropertyARRAY, len(txs))
 
+	ticketPrice := msgBlock.Header.SBits
+
 	for txIndex, tx := range txs {
-		if txhelpers.IsStakeTx(tx) && tree != wire.TxTreeStake {
+		isStake := txhelpers.IsStakeTx(tx)
+		if isStake && tree != wire.TxTreeStake {
 			// You are doing it wrong
 			return nil, nil, nil
+		}
+		var mixDenom int64
+		var mixCount uint32
+		if !isStake {
+			_, mixDenom, mixCount = txhelpers.IsMixTx(tx)
+			if mixCount == 0 {
+				_, mixDenom, mixCount = txhelpers.IsMixedSplitTx(tx, txhelpers.DefaultRelayFeePerKb, ticketPrice)
+			}
 		}
 		var spent, sent int64
 		for _, txin := range tx.TxIn {
@@ -97,6 +108,8 @@ func processTransactions(msgBlock *wire.MsgBlock, tree int8, chainParams *chainc
 			Spent:            spent,
 			Sent:             sent,
 			Fees:             fees,
+			MixCount:         int32(mixCount),
+			MixDenom:         mixDenom,
 			NumVin:           uint32(len(tx.TxIn)),
 			NumVout:          uint32(len(tx.TxOut)),
 			IsValidBlock:     isValid,

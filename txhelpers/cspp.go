@@ -28,10 +28,14 @@ func init() {
 }
 
 // IsMixTx test if a transaction is a CSPP-mixed transaction, which must have 3
-// or more inputs of the same amount, which is one of the pre-defined mix
+// or more outputs of the same amount, which is one of the pre-defined mix
 // denominations. mixDenom is the largest of such denominations. mixCount is the
 // number of inputs of this denomination.
 func IsMixTx(tx *wire.MsgTx) (isMix bool, mixDenom int64, mixCount uint32) {
+	if len(tx.TxOut) < 3 {
+		return false, 0, 0
+	}
+
 	mixedOuts := make(map[int64]uint32)
 	for _, o := range tx.TxOut {
 		val := o.Value
@@ -76,21 +80,34 @@ const DefaultRelayFeePerKb int64 = 1e4
 
 // The size of a solo (non-pool) ticket purchase transaction assumes a specific
 // transaction structure and worst-case signature script sizes.
-func soloTicketTxSize() int {
+func calcSoloTicketTxSize() int {
 	inSizes := []int{RedeemP2PKHSigScriptSize}
 	outSizes := []int{P2PKHPkScriptSize + 1, TicketCommitmentScriptSize, P2PKHPkScriptSize + 1}
 	return EstimateSerializeSizeFromScriptSizes(inSizes, outSizes, 0)
 }
 
+var (
+	soloTicketTxSize    = calcSoloTicketTxSize()
+	defaultFeeForTicket = FeeForSerializeSize(dcrutil.Amount(DefaultRelayFeePerKb), soloTicketTxSize)
+)
+
 // IsMixedSplitTx tests if a transaction is a CSPP-mixed ticket split
 // transaction (the transaction that creates appropriately-sized outputs to be
 // spent by a ticket purchase). Such a transaction must have 3 or more outputs
-// with an amount equal to the ticket price plus transaction fees. The expected
-// fees to be included in the amount are based on the provided fee rate,
-// relayFeeRate, and an assumed serialized size of a solo ticket transaction
-// with one P2PKH input, two P2PKH outputs and one ticket commitment output.
+// with an amount equal to the ticket price plus transaction fees, and at least
+// as many other outputs. The expected fees to be included in the amount are
+// based on the provided fee rate, relayFeeRate, and an assumed serialized size
+// of a solo ticket transaction with one P2PKH input, two P2PKH outputs and one
+// ticket commitment output.
 func IsMixedSplitTx(tx *wire.MsgTx, relayFeeRate, ticketPrice int64) (isMix bool, ticketOutAmt int64, numTickets uint32) {
-	ticketTxFee := FeeForSerializeSize(dcrutil.Amount(relayFeeRate), soloTicketTxSize())
+	if len(tx.TxOut) < 6 {
+		return false, 0, 0
+	}
+
+	ticketTxFee := defaultFeeForTicket
+	if relayFeeRate != DefaultRelayFeePerKb {
+		ticketTxFee = FeeForSerializeSize(dcrutil.Amount(relayFeeRate), soloTicketTxSize)
+	}
 	ticketOutAmt = ticketPrice + int64(ticketTxFee)
 
 	var numOtherOut uint32
@@ -102,6 +119,7 @@ func IsMixedSplitTx(tx *wire.MsgTx, relayFeeRate, ticketPrice int64) (isMix bool
 		}
 	}
 
+	// NOTE: The numOtherOut requirement may be too strict,
 	if numTickets < 3 || numOtherOut < 3 {
 		return false, 0, 0
 	}

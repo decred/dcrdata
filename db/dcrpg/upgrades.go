@@ -11,8 +11,10 @@ import (
 	"os"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/db/dcrpg/v5/internal"
 	"github.com/decred/dcrdata/stakedb/v3"
+	"github.com/decred/dcrdata/txhelpers/v4"
 	"github.com/lib/pq"
 )
 
@@ -29,7 +31,7 @@ const (
 	// This includes changes such as creating tables, adding/deleting columns,
 	// adding/deleting indexes or any other operations that create, delete, or
 	// modify the definition of any database relation.
-	schemaVersion = 4
+	schemaVersion = 5
 
 	// maintVersion indicates when certain maintenance operations should be
 	// performed for the same compatVersion and schemaVersion. Such operations
@@ -286,7 +288,19 @@ func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool
 		fallthrough
 
 	case 4:
-		// Perform schema v4 maintenance.
+		// Upgrade to schema v5.
+		err = u.upgrade140to150()
+		if err != nil {
+			return false, fmt.Errorf("failed to upgrade 1.4.0 to 1.5.0: %v", err)
+		}
+		current.schema++
+		if err = updateSchemaVersion(u.db, current.schema); err != nil {
+			return false, fmt.Errorf("failed to update schema version: %v", err)
+		}
+		fallthrough
+
+	case 5:
+		// Perform schema v5 maintenance.
 		// --> noop, but would switch on current.maint
 
 		// No further upgrades.
@@ -308,9 +322,89 @@ func removeTableComments(db *sql.DB) {
 	}
 }
 
+func (u *Upgrader) upgrade140to150() error {
+	// Add the mix_count and mix_denom columns to the transactions table.
+	log.Infof("Performing database upgrade 1.4.0 -> 1.5.0")
+	_, err := u.db.Exec(`ALTER TABLE transactions
+		ADD COLUMN IF NOT EXISTS mix_count INT4 DEFAULT 0,
+		ADD COLUMN IF NOT EXISTS mix_denom INT8 DEFAULT 0;`)
+	if err != nil {
+		return fmt.Errorf("ALTER TABLE transactions error: %v", err)
+	}
+
+	log.Infof("Retrieving possible mix transactions...")
+	txnRows, err := u.db.Query(`SELECT transactions.id, transactions.tx_hash, array_agg(value), min(blocks.sbits)
+		FROM transactions
+		JOIN vouts ON vouts.id=ANY(vout_db_ids)
+		JOIN blocks ON blocks.hash = transactions.block_hash
+		WHERE tree = 0 AND num_vout>=3
+		GROUP BY transactions.id;`)
+	if err != nil {
+		return fmt.Errorf("transaction query error: %v", err)
+	}
+
+	var mixIDs []int64
+	var mixDenoms []int64
+	var mixCounts []uint32
+
+	msgTx := new(wire.MsgTx)
+	for txnRows.Next() {
+		var vals []int64
+		var hash string
+		var id, ticketPrice int64
+		err = txnRows.Scan(&id, &hash, pq.Array(&vals), &ticketPrice)
+		if err != nil {
+			txnRows.Close()
+			return fmt.Errorf("Scan failed: %v", err)
+		}
+
+		txouts := make([]*wire.TxOut, 0, len(vals))
+		for _, v := range vals {
+			txouts = append(txouts, &wire.TxOut{
+				Value: v,
+			})
+		}
+		msgTx.TxOut = txouts
+
+		_, mixDenom, mixCount := txhelpers.IsMixTx(msgTx)
+		if mixCount == 0 {
+			_, mixDenom, mixCount = txhelpers.IsMixedSplitTx(msgTx, txhelpers.DefaultRelayFeePerKb, ticketPrice)
+		}
+
+		if mixCount == 0 {
+			continue
+		}
+
+		mixIDs = append(mixIDs, id)
+		mixDenoms = append(mixDenoms, mixDenom)
+		mixCounts = append(mixCounts, mixCount)
+	}
+
+	txnRows.Close()
+
+	stmt, err := u.db.Prepare(`UPDATE transactions SET mix_count = $2, mix_denom = $3 WHERE id = $1;`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	log.Infof("Updating transaction data for %d mix transactions...", len(mixIDs))
+	for i := range mixIDs {
+		N, err := sqlExecStmt(stmt, "failed to update transaction: ", mixIDs[i], mixCounts[i], mixDenoms[i])
+		if err != nil {
+			return err
+		}
+		if N != 1 {
+			log.Warnf("Updated %d transactions rows instead of 1", N)
+		}
+	}
+
+	return err
+}
+
 // This changes the data type of votes.version from INT2 to INT4.
 func (u *Upgrader) upgrade130to140() error {
-	// Create the stats table and height index.
+	// Change the data type of votes.version.
 	log.Infof("Performing database upgrade 1.3.0 -> 1.4.0")
 	_, err := u.db.Exec(`ALTER TABLE votes ALTER COLUMN version TYPE INT4`)
 	return err
@@ -423,7 +517,7 @@ func (u *Upgrader) upgrade110to120() error {
 			return makeErr("height mismatch %d != %d. database corrupted!", height, checkHeight)
 		}
 		checkHeight += 1
-		// A periodic update messaage.
+		// A periodic update message.
 		if height%10000 == 0 {
 			log.Infof("Processing blocks %d - %d", height, height+9999)
 		}
