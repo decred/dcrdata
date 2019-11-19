@@ -230,3 +230,7 @@ recompile the go type definitions.
 
 You can use the script at
 `dcdrrates/runprotoc.sh` to recompile `dcrrates.pb.go`.
+
+### Further reading
+
+[Code Contribution Guidelines](https://github.com/decred/dcrd/blob/master/docs/code_contribution_guidelines.md) (dcrd repo)
