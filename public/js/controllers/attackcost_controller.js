@@ -12,7 +12,7 @@ function digitformat (amount, decimalPlaces) {
 }
 
 let Dygraph // lazy loaded on connect
-var height, dcrPrice, hashrate, tpSize, tpValue, tpPrice, graphData
+var height, dcrPrice, hashrate, tpSize, tpValue, tpPrice, graphData, currentPoint
 
 function rateCalculation (y) {
   y = y || 0.99
@@ -129,6 +129,7 @@ export default class extends Controller {
   }
 
   plotGraph () {
+    const that = this
     graphData = []
 
     // populate graphData
@@ -150,7 +151,15 @@ export default class extends Controller {
       labelsKMB: true,
       legend: 'always',
       logscale: true,
-      interactionModel: {}
+      interactionModel: {
+        'click': function (e) {
+          that.attackPercentTarget.value = currentPoint.x
+          that.updateSliderData()
+        }
+      },
+      highlightCallback: function (event, x, p) {
+        currentPoint = p[0]
+      }
       // clickCallback: this.updateFromChart
     }
 
