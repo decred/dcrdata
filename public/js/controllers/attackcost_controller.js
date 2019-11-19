@@ -15,8 +15,8 @@ let Dygraph // lazy loaded on connect
 var height, dcrPrice, hashrate, tpSize, tpValue, tpPrice, graphData, currentPoint
 
 function rateCalculation (y) {
-  y = y || 0.99
-  var x = 1 - y
+  y = y || 0.99 // 0.99 TODO confirm why 0.99 is used as default instead of 1
+  let x = 1 - y
 
   // equation to determine hashpower requirement based on percentage of live stake:
   // (6 (1-f_s)⁵ -15(1-f_s) + 10(1-f_s)³) / (6f_s⁵-15f_s⁴ + 10f_s³)
@@ -53,10 +53,10 @@ function legendFormatter (data) {
   } else {
     let yVals = data.series.reduce((nodes, series) => {
       if (!series.isVisible) return nodes
-      return `${nodes} <span class="ml-3" style="color:${series.color};">${series.dashHTML} ${series.labelHTML}: </span>${digitformat(series.y, 4)}`
+      return `${nodes} <span class="ml-3" style="color:${series.color};">${series.dashHTML} ${series.labelHTML}: </span>${digitformat(series.y, 6)}`
     }, '<br>')
 
-    html = `<span>${this.getLabels()[0]}: ${digitformat(data.x)}</span>${yVals}`
+    html = `<span>${this.getLabels()[0]}: ${digitformat(data.x, 1)}</span>${yVals}`
   }
   dompurify.sanitize(html)
   return html
@@ -67,7 +67,8 @@ export default class extends Controller {
     return [
       'actualHashRate', 'attackPercent', 'attackPeriod', 'blockHeight', 'countDevice', 'device',
       'deviceCost', 'deviceDesc', 'deviceName', 'external', 'internal', 'internalHash',
-      'kwhRate', 'kwhRateLabel', 'otherCosts', 'priceDCR', 'targetHashRate', 'targetPos', 'targetPow',
+      'kwhRate', 'kwhRateLabel', 'otherCosts', 'priceDCR', 'internalAttackText', 'targetHashRate', 'externalAttackText',
+      'additionalHashRate', 'existingHashRate', 'targetExtHashRate', 'targetPos', 'targetPow',
       'ticketAttackSize', 'ticketPoolAttack', 'ticketPoolSize', 'ticketPoolSizeLabel',
       'ticketPoolValue', 'ticketPrice', 'tickets', 'ticketSizeAttack', 'durationLongDesc',
       'total', 'totalDCRPos', 'totalDeviceCost', 'totalElectricity', 'totalExtraCostRate', 'totalKwh',
@@ -133,8 +134,10 @@ export default class extends Controller {
     graphData = []
 
     // populate graphData
-    for (var i = 0.01; i <= 1; i += 0.005) {
-      graphData.push([i * tpSize, rateCalculation(i)])
+    // to avoid javascript decimal math issue, the iteration is done over whole number and reduced to the expected decimal value within the loop
+    for (let i = 10; i <= 1000; i += 5) {
+      const y = i / 1000
+      graphData.push([y * tpSize, rateCalculation(y)])
     }
 
     let options = {
@@ -142,6 +145,11 @@ export default class extends Controller {
       labels: ['Attackers Tickets', 'Hashpower multiplier'],
       ylabel: 'Hash Power Multiplier',
       xlabel: 'Attackers Tickets',
+      axes: {
+        y: {
+          axisLabelWidth: 70
+        }
+      },
       highlightSeriesOpts: { strokeWidth: 2 },
       legendFormatter: legendFormatter,
       hideOverlayOnMouseOut: false,
@@ -247,17 +255,24 @@ export default class extends Controller {
   }
 
   updateTargetHashRate (newTargetPow) {
-    this.targetPowTarget.value = newTargetPow || this.targetPowTarget.value
+    this.targetPowTarget.value = digitformat(newTargetPow || this.targetPowTarget.value, 4)
 
     switch (this.settings.attack_type) {
       case '1':
         this.targetHashRate = hashrate / (1 - parseFloat(this.targetPowTarget.value) / 100)
+        this.additionalHashRateTarget.innerHTML = digitformat(this.targetHashRate - hashrate, 4)
+        this.existingHashRateTarget.innerHTML = hashrate
+        this.targetExtHashRateTarget.innerHTML = digitformat(this.targetHashRate, 4)
         this.projectedPriceDivTarget.style.display = 'block'
+        this.internalAttackTextTarget.classList.add('d-none')
+        this.externalAttackTextTarget.classList.remove('d-none')
         return
       case '0':
       default:
         this.targetHashRate = hashrate * parseFloat(this.targetPowTarget.value) / 100
         this.projectedPriceDivTarget.style.display = 'none'
+        this.externalAttackTextTarget.classList.add('d-none')
+        this.internalAttackTextTarget.classList.remove('d-none')
     }
   }
 
@@ -271,7 +286,6 @@ export default class extends Controller {
 
   updateSliderData () {
     var val = parseFloat(this.attackPercentTarget.value) || 0
-
     console.log(`Attack Percent: ${this.attackPercentTarget.value}`)
 
     // Makes PoS to be affected by the slider
