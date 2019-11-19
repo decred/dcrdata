@@ -161,12 +161,12 @@ Always:
 - Highlight any breaking changes.  This includes any syntax changes, added or removed struct fields, interface changes, file renames or deletions, etc.
 - Scroll down and review the code diffs. Verify that the changes are what you expect to see based on your earlier review of the diffs and your git commit log (you did that, right?).
 
-Excellent [PR guidelines](https://github.com/kubernetes/community/blob/master/contributors/devel/pull-requests.md#best-practices-for-faster-reviews) from Kubernetes project.
+Excellent [PR guidelines](https://github.com/kubernetes/community/blob/master/contributors/guide/pull-requests.md) from Kubernetes project.
 
 10. Receive feedback and make changes
 
 You will typically receive feedback from other developers. Before responding, take a moment to review the
-[Code of Conduct](https://github.com/decred/dcrdata/blob/master/CODE_OF_CONDUCT.md).
+[Code Contribution Guidelines](https://github.com/decred/dcrd/blob/master/docs/code_contribution_guidelines.md).
 
 Work through the comments and resolve any confusion with others. Make whatever revisions are necessary.
 
@@ -230,3 +230,7 @@ recompile the go type definitions.
 
 You can use the script at
 `dcdrrates/runprotoc.sh` to recompile `dcrrates.pb.go`.
+
+### Further reading
+
+[Code Contribution Guidelines](https://github.com/decred/dcrd/blob/master/docs/code_contribution_guidelines.md) (dcrd repo)

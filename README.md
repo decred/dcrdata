@@ -858,10 +858,6 @@ here's the gist of it:
 
 **DO NOT merge from master to your feature branch; rebase.**
 
-Note that all dcrdata.org community and team members are expected to adhere to
-the code of conduct, described in the [CODE_OF_CONDUCT](docs/CODE_OF_CONDUCT.md)
-file. These guidelines are generally not a challenge for decent humans.
-
 Also, [come chat with us on Matrix](https://www.decred.org/matrix/) in the
 dcrdata channel!
 
