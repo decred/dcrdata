@@ -57,7 +57,7 @@
                     <span class="text-secondary fs13">Total Sent</span>
                     <br>
                     <span class="lh1rem d-inline-block pt-1"
-                      ><span class="fs18 fs14-decimal font-weight-bold">{{template "decimalParts" (float64AsDecimalParts .TotalSent 8 true 2)}}</span><span class="text-secondary fs14">DCR</span>
+                      ><span class="fs18 fs14-decimal font-weight-bold">{{template "decimalParts" (float64AsDecimalParts .TotalSent 8 true 2)}}</span><span class="text-secondary fs14"> DCR</span>
                     </span>
                     {{if $.FiatConversion}}
                     <br>
@@ -66,6 +66,10 @@
                     <span class="fs14">{{$.FiatConversion.Index}}</span>
                     </span>
                     {{end}}
+                    <br>
+                    <span class="lh1rem d-inline-block pt-1"
+                      ><span class="fs14 fs14-decimal">Mixed: {{template "decimalParts" (amountAsDecimalParts .TotalMixed true)}}</span><span class="text-secondary fs14"> DCR</span>
+                    </span>
                 </div>
                 <div class="col-7 col-sm-8 text-left">
                     <span class="text-secondary fs13">Size</span>
@@ -328,6 +332,7 @@
                       <thead>
                           <th>Transaction ID</th>
                           <th class="text-right">Total DCR</th>
+                          <th class="text-right">Mixed</th>
                           <th class="text-right">Fee</th>
                           <th class="text-right">Size</th>
                       </thead>
@@ -342,6 +347,13 @@
                               </td>
                               <td class="mono fs15 text-right">
                                 {{template "decimalParts" (float64AsDecimalParts .Total 8 false)}}
+                              </td>
+                              <td class="mono fs15 text-right">
+                                {{ if gt .MixCount 0 -}}
+                                  {{.MixCount}}x {{template "decimalParts" (amountAsDecimalParts .MixDenom false)}}
+                                {{ else }}
+                                  -
+                                {{- end}}
                               </td>
                               <td class="mono fs15 text-right">{{.Fee}}</td>
                               <td class="mono fs15 text-right">{{.FormattedSize}}</td>

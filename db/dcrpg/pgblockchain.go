@@ -5173,7 +5173,7 @@ func makeExplorerBlockBasic(data *chainjson.GetBlockVerboseResult, params *chain
 	return block
 }
 
-func makeExplorerTxBasic(data chainjson.TxRawResult, msgTx *wire.MsgTx, params *chaincfg.Params) *exptypes.TxBasic {
+func makeExplorerTxBasic(data chainjson.TxRawResult, ticketPrice int64, msgTx *wire.MsgTx, params *chaincfg.Params) *exptypes.TxBasic {
 	tx := new(exptypes.TxBasic)
 	tx.TxID = data.Txid
 	tx.FormattedSize = humanize.Bytes(uint64(len(data.Hex) / 2))
@@ -5201,14 +5201,21 @@ func makeExplorerTxBasic(data chainjson.TxRawResult, msgTx *wire.MsgTx, params *
 			Bits:    bits,
 			Choices: choices,
 		}
+	} else if !txhelpers.IsStakeTx(msgTx) {
+		_, mixDenom, mixCount := txhelpers.IsMixTx(msgTx)
+		if mixCount == 0 {
+			_, mixDenom, mixCount = txhelpers.IsMixedSplitTx(msgTx, txhelpers.DefaultRelayFeePerKb, ticketPrice)
+		}
+		tx.MixCount = mixCount
+		tx.MixDenom = mixDenom
 	}
 	return tx
 }
 
-func trimmedTxInfoFromMsgTx(txraw chainjson.TxRawResult, msgTx *wire.MsgTx, params *chaincfg.Params) *exptypes.TrimmedTxInfo {
-	txBasic := makeExplorerTxBasic(txraw, msgTx, params)
+func trimmedTxInfoFromMsgTx(txraw chainjson.TxRawResult, ticketPrice int64, msgTx *wire.MsgTx, params *chaincfg.Params) *exptypes.TrimmedTxInfo {
+	txBasic := makeExplorerTxBasic(txraw, ticketPrice, msgTx, params)
 
-	voteValid := false
+	var voteValid bool
 	if txBasic.VoteInfo != nil {
 		voteValid = txBasic.VoteInfo.Validation.Validity
 	}
@@ -5279,6 +5286,9 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 	revocations := make([]*exptypes.TrimmedTxInfo, 0, block.Revocations)
 	tickets := make([]*exptypes.TrimmedTxInfo, 0, block.FreshStake)
 
+	sbits, _ := dcrutil.NewAmount(block.SBits) // sbits==0 for err!=nil
+	ticketPrice := int64(sbits)
+
 	for _, tx := range data.RawSTx {
 		msgTx, err := txhelpers.MsgTxFromHex(tx.Hex)
 		if err != nil {
@@ -5287,7 +5297,7 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 		}
 		switch stake.DetermineTxType(msgTx) {
 		case stake.TxTypeSSGen:
-			stx := trimmedTxInfoFromMsgTx(tx, msgTx, pgb.chainParams)
+			stx := trimmedTxInfoFromMsgTx(tx, ticketPrice, msgTx, pgb.chainParams)
 			// Fees for votes should be zero, but if the transaction was created
 			// with unmatched inputs/outputs then the remainder becomes a fee.
 			// Account for this possibility by calculating the fee for votes as
@@ -5297,13 +5307,15 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 			}
 			votes = append(votes, stx)
 		case stake.TxTypeSStx:
-			stx := trimmedTxInfoFromMsgTx(tx, msgTx, pgb.chainParams)
+			stx := trimmedTxInfoFromMsgTx(tx, ticketPrice, msgTx, pgb.chainParams)
 			tickets = append(tickets, stx)
 		case stake.TxTypeSSRtx:
-			stx := trimmedTxInfoFromMsgTx(tx, msgTx, pgb.chainParams)
+			stx := trimmedTxInfoFromMsgTx(tx, ticketPrice, msgTx, pgb.chainParams)
 			revocations = append(revocations, stx)
 		}
 	}
+
+	var totalMixed int64
 
 	txs := make([]*exptypes.TrimmedTxInfo, 0, block.Transactions)
 	for _, tx := range data.RawTx {
@@ -5313,19 +5325,21 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 			return nil
 		}
 
-		exptx := trimmedTxInfoFromMsgTx(tx, msgTx, pgb.chainParams)
+		exptx := trimmedTxInfoFromMsgTx(tx, ticketPrice, msgTx, pgb.chainParams)
 		for _, vin := range tx.Vin {
 			if vin.IsCoinBase() {
 				exptx.Fee, exptx.FeeRate, exptx.Fees = 0.0, 0.0, 0.0
 			}
 		}
 		txs = append(txs, exptx)
+		totalMixed += int64(exptx.MixCount) * exptx.MixDenom
 	}
 
 	block.Tx = txs
 	block.Votes = votes
 	block.Revs = revocations
 	block.Tickets = tickets
+	block.TotalMixed = totalMixed
 
 	sortTx := func(txs []*exptypes.TrimmedTxInfo) {
 		sort.Slice(txs, func(i, j int) bool {
@@ -5464,22 +5478,9 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		return nil
 	}
 
-	var isMix bool
-	var mixDenom int64
-	var mixCount uint32
-	if !txhelpers.IsStakeTx(msgTx) {
-		isMix, mixDenom, mixCount = txhelpers.IsMixTx(msgTx)
-		if !isMix {
-			isMix, mixDenom, mixCount = txhelpers.IsMixedSplitTx(msgTx, txhelpers.DefaultRelayFeePerKb, ticketPrice)
-		}
-	}
-
-	txBasic := makeExplorerTxBasic(*txraw, msgTx, pgb.chainParams)
+	txBasic := makeExplorerTxBasic(*txraw, ticketPrice, msgTx, pgb.chainParams)
 	tx := &exptypes.TxInfo{
 		TxBasic:       txBasic,
-		IsMix:         isMix,
-		MixDenom:      mixDenom,
-		MixCount:      mixCount,
 		Type:          txhelpers.DetermineTxTypeString(msgTx),
 		BlockHeight:   txraw.BlockHeight,
 		BlockIndex:    txraw.BlockIndex,

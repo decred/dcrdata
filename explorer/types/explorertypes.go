@@ -147,6 +147,8 @@ type TxBasic struct {
 	FeeRate       dcrutil.Amount
 	VoteInfo      *VoteInfo
 	Coinbase      bool
+	MixCount      uint32
+	MixDenom      int64
 }
 
 // TrimmedTxInfo for use with /visualblocks
@@ -161,9 +163,6 @@ type TrimmedTxInfo struct {
 // TxInfo models data needed for display on the tx page
 type TxInfo struct {
 	*TxBasic
-	IsMix            bool
-	MixDenom         int64
-	MixCount         uint32
 	SpendingTxns     []TxInID
 	Type             string
 	Vin              []Vin
@@ -400,6 +399,7 @@ type BlockInfo struct {
 	NextHash              string
 	TotalSent             float64
 	MiningFee             float64
+	TotalMixed            int64
 	StakeValidationHeight int64
 	Subsidy               *chainjson.GetBlockSubsidyResult
 }

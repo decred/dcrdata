@@ -37,7 +37,7 @@
                   unconfirmed
                 {{end}}
               </div>
-              {{if .IsMix -}}
+              {{if gt .MixCount 0}}
               <div class="d-inline-block mix-box mx-2 fs14">Mix: {{.MixCount}} outputs of {{template "decimalParts" (amountAsDecimalParts .MixDenom false)}} DCR
               </div>
               {{- end}}
