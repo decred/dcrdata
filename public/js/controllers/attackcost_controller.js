@@ -68,7 +68,7 @@ export default class extends Controller {
       'actualHashRate', 'attackPercent', 'attackPeriod', 'blockHeight', 'countDevice', 'device',
       'deviceCost', 'deviceDesc', 'deviceName', 'external', 'internal', 'internalHash',
       'kwhRate', 'kwhRateLabel', 'otherCosts', 'priceDCR', 'internalAttackText', 'targetHashRate', 'externalAttackText',
-      'additionalHashRate', 'existingHashRate', 'targetExtHashRate', 'targetPos', 'targetPow',
+      'additionalHashRate', 'targetPos', 'targetPow',
       'ticketAttackSize', 'ticketPoolAttack', 'ticketPoolSize', 'ticketPoolSizeLabel',
       'ticketPoolValue', 'ticketPrice', 'tickets', 'ticketSizeAttack', 'durationLongDesc',
       'total', 'totalDCRPos', 'totalDeviceCost', 'totalElectricity', 'totalExtraCostRate', 'totalKwh',
@@ -231,7 +231,7 @@ export default class extends Controller {
   selectedDevice () { return this.deviceTarget.value }
 
   selectedAttackType () {
-    return this.attackTypeTarget.value
+    return parseInt(this.attackTypeTarget.value)
   }
 
   selectOption (options) {
@@ -258,16 +258,13 @@ export default class extends Controller {
     this.targetPowTarget.value = newTargetPow || this.targetPowTarget.value
 
     switch (this.settings.attack_type) {
-      case '1':
+      case 1:
         this.targetHashRate = hashrate / (1 - parseFloat(this.targetPowTarget.value) / 100)
-        this.additionalHashRateTarget.innerHTML = digitformat(this.targetHashRate - hashrate, 4)
-        this.existingHashRateTarget.innerHTML = hashrate
-        this.targetExtHashRateTarget.innerHTML = digitformat(this.targetHashRate, 4)
         this.projectedPriceDivTarget.style.display = 'block'
         this.internalAttackTextTarget.classList.add('d-none')
         this.externalAttackTextTarget.classList.remove('d-none')
         return
-      case '0':
+      case 0:
       default:
         this.targetHashRate = hashrate * parseFloat(this.targetPowTarget.value) / 100
         this.projectedPriceDivTarget.style.display = 'none'
@@ -343,12 +340,13 @@ export default class extends Controller {
     timeStr = this.attackPeriodTarget.value > 1 ? timeStr + ' hours' : timeStr + ' hour'
     this.ticketPoolSizeLabelTarget.innerHTML = digitformat(tpSize, 2)
 
-    this.actualHashRateTarget.innerHTML = digitformat(hashrate, 4)
+    this.setAllValues(this.actualHashRateTargets, digitformat(hashrate, 4))
     this.priceDCRTarget.value = digitformat(dcrPrice, 2)
     this.targetPowTarget.value = digitformat(parseFloat(this.targetPowTarget.value), 2)
     this.targetPosTarget.value = digitformat(parseFloat(this.targetPosTarget.value), 2)
     this.ticketPriceTarget.innerHTML = digitformat(tpPrice, 4)
     this.setAllValues(this.targetHashRateTargets, digitformat(this.targetHashRate, 4))
+    this.setAllValues(this.additionalHashRateTargets, digitformat(this.targetHashRate - hashrate, 4))
     this.setAllValues(this.durationLongDescTargets, timeStr)
     this.setAllValues(this.countDeviceTargets, digitformat(deviceCount))
     this.setAllValues(this.deviceNameTargets, `<a href="${deviceInfo.link}">${deviceInfo.name}</a>s`)
