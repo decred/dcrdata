@@ -255,7 +255,7 @@ export default class extends Controller {
   }
 
   updateTargetHashRate (newTargetPow) {
-    this.targetPowTarget.value = digitformat(newTargetPow || this.targetPowTarget.value, 4)
+    this.targetPowTarget.value = newTargetPow || this.targetPowTarget.value
 
     switch (this.settings.attack_type) {
       case '1':
@@ -286,7 +286,6 @@ export default class extends Controller {
 
   updateSliderData () {
     var val = parseFloat(this.attackPercentTarget.value) || 0
-    console.log(`Attack Percent: ${this.attackPercentTarget.value}`)
 
     // Makes PoS to be affected by the slider
     // Target PoS value increases when slider moves to the right
@@ -300,7 +299,6 @@ export default class extends Controller {
     var randomVal = (rate * this.targetHashRate) / parseFloat(hashrate) * 100
 
     this.targetPowTarget.value = Math.floor(randomVal * 100) / 100
-    console.log(this.targetPowTarget.value)
     this.internalHashTarget.innerHTML = digitformat((rate * this.targetHashRate), 4) + ' Ph/s '
     this.ticketsTarget.innerHTML = digitformat(val * tpSize) + ' tickets '
     this.calculate(true)
