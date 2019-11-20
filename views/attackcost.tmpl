@@ -207,6 +207,7 @@
             <div class="mt-1 ml-2">
                 A
                 <input
+                  readonly {{/*target PoW is set to readonly as the inverse (6x⁵-15x⁴ +10x³) / (6y⁵-15y⁴ +10y³) not yet gotten */}}
                   type="number"
                   data-target="attackcost.targetPow"
                   data-action="change->attackcost#updateTargetPow"
@@ -234,7 +235,7 @@
               hashrate, it would take
               <span class="font-weight-bold" data-target="attackcost.countDevice">0</span>
               <span class="fs11" data-target="attackcost.deviceName">&mdash;</span>
-              at a cost of <span class="font-weight-bold" data-target="attackcost.totalDeviceCost">0</span>
+              at a cost of $<span class="font-weight-bold" data-target="attackcost.totalDeviceCost">0</span>
               <span class="fs11">USD</span> to buy them.
             </div>
             <div class="mt-1 ml-2">
@@ -249,7 +250,7 @@
               <span class="font-weight-bold" data-target="attackcost.countDevice">0</span>
               <span class="fs11" data-target="attackcost.deviceName">&mdash;</span> :
               <span class="position-relative text-secondary font-weight-bold">
-                <span class="font-weight-bold" data-target="attackcost.totalElectricity">0</span>
+                $<span class="font-weight-bold" data-target="attackcost.totalElectricity">0</span>
                 <span class="fs11">USD</span>
               </span>
             </div>
@@ -268,7 +269,7 @@
             <div class="mt-1 ml-2">
               Total PoW attack cost:
               <span class="position-relative text-secondary font-weight-bold">
-                <span class="font-weight-bold" data-target="attackcost.totalPow">0</span>
+                $<span class="font-weight-bold" data-target="attackcost.totalPow">0</span>
                 <span class="fs11">USD</span>
               </span>
             </div>
@@ -281,7 +282,7 @@
           <div class="ml-4">
             <div class="mt-1 ml-2">
               We assume that an attacker would need to aquire
-              <input
+              <input readonly
                 type="number"
                 data-target="attackcost.targetPos"
                 data-action="change->attackcost#updateTargetPos"
@@ -343,9 +344,20 @@
       </div>
 
       <div class="text-center h4 mb-3 mt-3">
-        <span data-target="attackcost.attackPercentLabel">0</span>% attack cost:
+        {{/*<span data-target="attackcost.attackPercentLabel">0</span>% */}}
+        PoS attack cost:
         <span class="position-relative text-secondary font-weight-bold">
-          <span class="font-weight-bold" data-target="attackcost.total">0</span>
+          $<span class="font-weight-bold" data-target="attackcost.totalPos">0</span>
+          <span class="fs11">USD</span>
+        </span>
+        PoW attack cost:
+        <span class="position-relative text-secondary font-weight-bold">
+          $<span class="font-weight-bold" data-target="attackcost.totalPow">0</span>
+          <span class="fs11">USD</span>
+        </span>
+        Total attack cost:
+        <span class="position-relative text-secondary font-weight-bold">
+          $<span class="font-weight-bold" data-target="attackcost.total">0</span>
           <span class="fs11">USD</span>
         </span>
       </div>

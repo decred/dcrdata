@@ -72,7 +72,7 @@ export default class extends Controller {
       'ticketAttackSize', 'ticketPoolAttack', 'ticketPoolSize', 'ticketPoolSizeLabel',
       'ticketPoolValue', 'ticketPrice', 'tickets', 'ticketSizeAttack', 'durationLongDesc',
       'total', 'totalDCRPos', 'totalDeviceCost', 'totalElectricity', 'totalExtraCostRate', 'totalKwh',
-      'totalPos', 'totalPow', 'graph', 'labels', 'attackPercentLabel', 'projectedTicketPrice', 'attackType',
+      'totalPos', 'totalPow', 'graph', 'labels', 'projectedTicketPrice', 'attackType',
       'attackPosPercentNeededLabel', 'attackPosPercentAmountLabel', 'dcrPriceLabel', 'totalDCRPosLabel',
       'projectedPriceDiv'
     ]
@@ -190,10 +190,12 @@ export default class extends Controller {
   }
 
   updateTargetPow () {
-    this.settings.target_pow = this.targetPowTarget.value
-    this.attackPercentTarget.value = parseFloat(this.targetPowTarget.value) / 100
+    // todo use the inverse of (6x⁵-15x⁴ +10x³) / (6y⁵-15y⁴ +10y³) where y = this.value and x = 1-y to get the
+    //  appropriate multiplier for the selected attack percentage
+    // this.settings.target_pow = this.targetPowTarget.value
+    // this.attackPercentTarget.value = parseFloat(this.targetPowTarget.value) / 100
 
-    this.updateSliderData()
+    // this.updateSliderData()
   }
 
   chooseDevice () {
@@ -203,7 +205,7 @@ export default class extends Controller {
 
   chooseAttackType () {
     this.settings.attack_type = this.selectedAttackType()
-    this.calculate()
+    this.updateSliderData()
   }
 
   updateKwhRate () {
@@ -231,6 +233,7 @@ export default class extends Controller {
   selectedDevice () { return this.deviceTarget.value }
 
   selectedAttackType () {
+    // TurboQuery parses the attack_type from the url as int
     return parseInt(this.attackTypeTarget.value)
   }
 
@@ -254,6 +257,14 @@ export default class extends Controller {
     options.map((n) => { n.selected = n.value === selectedVal })
   }
 
+  setActivePoint () {
+    // Shows point whose details appear on the legend.
+    if (this.chartsView !== undefined) {
+      let row = Math.round(parseFloat(this.attackPercentTarget.value) / 0.005)
+      this.chartsView.setSelection(row)
+    }
+  }
+
   updateTargetHashRate (newTargetPow) {
     this.targetPowTarget.value = newTargetPow || this.targetPowTarget.value
 
@@ -270,14 +281,6 @@ export default class extends Controller {
         this.projectedPriceDivTarget.style.display = 'none'
         this.externalAttackTextTarget.classList.add('d-none')
         this.internalAttackTextTarget.classList.remove('d-none')
-    }
-  }
-
-  setActivePoint () {
-    // Shows point whose details appear on the legend.
-    if (this.chartsView !== undefined) {
-      let row = Math.round(parseFloat(this.attackPercentTarget.value) / 0.005)
-      this.chartsView.setSelection(row)
     }
   }
 
@@ -361,7 +364,7 @@ export default class extends Controller {
     this.setAllValues(this.ticketPoolSizeTargets, digitformat(tpSize))
     this.blockHeightTarget.innerHTML = digitformat(height)
     this.totalTarget.innerHTML = digitformat(totalPow + totalPos, 2)
-    this.attackPercentLabelTarget.innerHTML = digitformat(this.targetPowTarget.value, 2)
+    // this.attackPercentLabelTarget.innerHTML = digitformat(this.targetPowTarget.value, 2)
     this.projectedTicketPriceTarget.innerHTML = digitformat(projectedTicketPrice, 2)
     this.attackPosPercentNeededLabelTarget.innerHTML = digitformat(this.targetPosTarget.value, 2)
     this.attackPosPercentAmountLabelTarget.innerHTML = digitformat(this.targetPosTarget.value, 2)
