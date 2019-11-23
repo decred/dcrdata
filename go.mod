@@ -48,3 +48,5 @@ require (
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
 	golang.org/x/net v0.0.0-20191028085509-fe3aa8a45271
 )
+
+replace github.com/decred/dcrdata/db/dcrpg/v5 => ./db/dcrpg
