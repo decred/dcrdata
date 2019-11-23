@@ -2819,23 +2819,28 @@ func (pgb *ChainDB) UpdateChainState(blockChainInfo *chainjson.GetBlockChainInfo
 		// chainParams.RuleChangeActivationInterval blocks
 		switch agendaInfo.Status {
 		case dbtypes.StartedAgendaStatus:
-			agendaInfo.VotingDone = entry.Since + ruleChangeInterval
-			agendaInfo.Activated = agendaInfo.VotingDone + ruleChangeInterval
+			// The voting period start height is not necessarily the height when the
+			// state changed to StartedAgendaStatus because there could have already
+			// been one or more RCIs of voting that failed to reach quorum. Get the
+			// right voting period start height here.
+			h := blockChainInfo.Blocks
+			agendaInfo.VotingStarted = h - (h-entry.Since)%ruleChangeInterval
+			agendaInfo.Activated = agendaInfo.VotingStarted + 2*ruleChangeInterval
 
 		case dbtypes.FailedAgendaStatus:
-			agendaInfo.VotingDone = entry.Since
+			agendaInfo.VotingStarted = entry.Since - ruleChangeInterval
 
 		case dbtypes.LockedInAgendaStatus:
-			agendaInfo.VotingDone = entry.Since
+			agendaInfo.VotingStarted = entry.Since - ruleChangeInterval
 			agendaInfo.Activated = entry.Since + ruleChangeInterval
 
 		case dbtypes.ActivatedAgendaStatus:
-			agendaInfo.VotingDone = entry.Since - ruleChangeInterval
+			agendaInfo.VotingStarted = entry.Since - 2*ruleChangeInterval
 			agendaInfo.Activated = entry.Since
 		}
 
-		if agendaInfo.VotingDone != 0 {
-			agendaInfo.VotingStarted = agendaInfo.VotingDone - ruleChangeInterval
+		if agendaInfo.VotingStarted != 0 {
+			agendaInfo.VotingDone = agendaInfo.VotingStarted + ruleChangeInterval - 1
 		}
 
 		chainInfo.AgendaMileStones[agendaID] = agendaInfo
