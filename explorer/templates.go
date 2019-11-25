@@ -400,6 +400,9 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"threeSigFigs": threeSigFigs,
 		"remaining": func(idx int, max, t int64) string {
 			x := (max - int64(idx)) * t
+			if x == 0 {
+				return "imminent"
+			}
 			allsecs := int(time.Duration(x).Seconds())
 			str := ""
 			if allsecs > 604799 {
