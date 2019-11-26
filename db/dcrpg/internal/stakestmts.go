@@ -455,7 +455,8 @@ const (
 		FROM agenda_votes
 		INNER JOIN votes ON agenda_votes.votes_row_id = votes.id
 		WHERE agenda_votes.agendas_row_id = (SELECT id from agendas WHERE name = $4)
-		AND votes.height >= $5 AND votes.height <= $6 `
+			AND votes.height >= $5 AND votes.height <= $6
+			AND votes.is_mainchain = TRUE `
 
 	// Proposals Table
 
