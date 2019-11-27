@@ -44,7 +44,7 @@ for i in $(find . -name go.mod -type f -print); do
   module=$(dirname ${i})
   echo "==> ${module}"
   (cd ${module} && \
-    go test -v $TESTTAGS ./... && \
+    go test $TESTTAGS ./... && \
     golangci-lint run --deadline=10m \
       --disable-all \
       --enable govet \
