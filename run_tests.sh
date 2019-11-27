@@ -15,7 +15,9 @@ REPO=dcrdata
 go version
 
 if [[ -v TESTTAGS ]]; then
-  TESTTAGSWITCH=-tags
+  TESTTAGS="-tags \"${TESTTAGS}\""
+elsif
+  TESTTAGS=
 fi
 
 # Check tests
@@ -38,23 +40,23 @@ fi
 tar xvf $TMPDIR/test-data-repo/stakedb/test_ticket_pool.bdgr.tar.xz -C ./stakedb
 
 # run tests on all modules
-ROOTPATH=$(go list -m -f {{.Dir}} 2>/dev/null)
-ROOTPATHPATTERN=$(echo $ROOTPATH | sed 's/\\/\\\\/g' | sed 's/\//\\\//g')
-MODPATHS=$(go list -m -f {{.Dir}} all 2>/dev/null | grep "^$ROOTPATHPATTERN")
-for module in $MODPATHS; do
+for i in $(find . -name go.mod -type f -print); do
+  module=$(dirname ${i})
   echo "==> ${module}"
-  env GORACE='halt_on_error=1' go test -v $TESTTAGSWITCH "$TESTTAGS"
-  golangci-lint run --deadline=10m \
-    --disable-all \
-    --enable govet \
-    --enable staticcheck \
-    --enable gosimple \
-    --enable unconvert \
-    --enable ineffassign \
-    --enable structcheck \
-    --enable goimports \
-    --enable misspell \
-    --enable unparam
+  (cd ${module} && \
+    go test $TESTTAGS ./... && \
+    golangci-lint run --deadline=10m \
+      --disable-all \
+      --enable govet \
+      --enable staticcheck \
+      --enable gosimple \
+      --enable unconvert \
+      --enable ineffassign \
+      --enable structcheck \
+      --enable goimports \
+      --enable misspell \
+      --enable unparam \
+  )
 done
 
 if [[ $TESTTAGS =~ "pgonline" || $TESTTAGS =~ "chartdata" ]]; then

@@ -154,7 +154,7 @@ func TestNewAgendasDB(t *testing.T) {
 		{client, testPath, true, ""},
 	}
 
-	for _, val := range td {
+	for i, val := range td {
 		results, err := NewAgendasDB(val.rpc, val.dbPath)
 		if err == nil && val.errMsg != "" {
 			t.Fatalf("expected no error but found '%v' ", err)
@@ -165,7 +165,7 @@ func TestNewAgendasDB(t *testing.T) {
 		}
 
 		if results == nil && val.IsDBInstance {
-			t.Fatal("expected a non-nil db instance but found a nil instance")
+			t.Fatalf("%d: expected a non-nil db instance but found a nil instance", i)
 		}
 
 		// If a valid db instance is expected test if the corresponding db exists.

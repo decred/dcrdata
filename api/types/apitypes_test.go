@@ -144,7 +144,6 @@ func TestTimeAPI_UnmarshalJSON(t *testing.T) {
 			if err := td.UnmarshalJSON(tt.data); (err != nil) != tt.wantErr {
 				t.Errorf("TimeAPI.UnmarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			t.Logf("UNIX: %d, formatted: %s", td.UNIX(), td)
 		})
 	}
 }
