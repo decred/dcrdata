@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/dcrjson/v3"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
 )
 
@@ -74,7 +75,8 @@ func (source dataSourceStub) GetStakeVersionInfo(version int32) (*chainjson.GetS
 
 func (source dataSourceStub) GetVoteInfo(version uint32) (*chainjson.GetVoteInfoResult, error) {
 	if version > 6 {
-		return nil, fmt.Errorf("stake version %d does not exist", version)
+		msg := fmt.Sprintf("stake version %d does not exist", version)
+		return nil, dcrjson.NewRPCError(dcrjson.ErrRPCInvalidParameter, msg)
 	}
 	h := int64(version * 50000)
 	return &chainjson.GetVoteInfoResult{

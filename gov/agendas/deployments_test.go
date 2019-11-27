@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/asdine/storm/v3"
+	"github.com/decred/dcrd/dcrjson/v3"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
 )
@@ -78,7 +79,8 @@ type testClient int
 // GetVoteInfo implementation showing a sample data format expected.
 func (*testClient) GetVoteInfo(version uint32) (*chainjson.GetVoteInfoResult, error) {
 	if version != 5 {
-		return nil, fmt.Errorf("stake version %d does not exist", version)
+		msg := fmt.Sprintf("stake version %d does not exist", version)
+		return nil, dcrjson.NewRPCError(dcrjson.ErrRPCInvalidParameter, msg)
 	}
 	resp := &chainjson.GetVoteInfoResult{
 		CurrentHeight: 319842,
