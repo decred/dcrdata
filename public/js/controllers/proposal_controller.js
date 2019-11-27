@@ -166,6 +166,15 @@ export default class extends Controller {
       cumulativeData.push([formatedDate, total])
       hourlyVotesData.push([formatedDate, chartData.yes[i], chartData.no[i] * -1])
     })
+
+    // add empty data at the beginning and end of hourlyVotesData
+    // to pad the bar chart data on both ends
+    var firstDate = new Date(chartData.time[0])
+    firstDate.setHours(firstDate.getHours() - 1)
+    var lastDate = new Date(chartData.time[chartData.time.length - 1])
+    lastDate.setHours(lastDate.getHours() + 1)
+    hourlyVotesData.unshift([firstDate, 0, 0])
+    hourlyVotesData.push([lastDate, 0, 0])
   }
 
   plotGraph () {
