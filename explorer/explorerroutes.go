@@ -2308,3 +2308,51 @@ func calcPages(rows, pageSize, offset int, link string) pageNumbers {
 
 	return nums
 }
+
+// AttackCost is the page handler for the "/attack-cost" path.
+func (exp *explorerUI) AttackCost(w http.ResponseWriter, r *http.Request) {
+	price := 24.42
+	if exp.xcBot != nil {
+		if rate := exp.xcBot.Conversion(1.0); rate != nil {
+			price = rate.Value
+		}
+	}
+
+	exp.pageData.RLock()
+
+	height := exp.pageData.BlockInfo.Height
+	ticketPoolValue := exp.pageData.HomeInfo.PoolInfo.Value
+	ticketPoolSize := exp.pageData.HomeInfo.PoolInfo.Size
+	ticketPrice := exp.pageData.HomeInfo.StakeDiff
+	HashRate := exp.pageData.HomeInfo.HashRate
+
+	exp.pageData.RUnlock()
+
+	str, err := exp.templates.execTemplateToString("attackcost", struct {
+		*CommonPageData
+		HashRate        float64
+		Height          int64
+		DCRPrice        float64
+		TicketPrice     float64
+		TicketPoolSize  int64
+		TicketPoolValue float64
+	}{
+		CommonPageData:  exp.commonData(r),
+		HashRate:        HashRate,
+		Height:          height,
+		DCRPrice:        price,
+		TicketPrice:     ticketPrice,
+		TicketPoolSize:  int64(ticketPoolSize),
+		TicketPoolValue: ticketPoolValue,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}

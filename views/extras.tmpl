@@ -1,6 +1,7 @@
 {{define "html-head"}}
 <head data-turbolinks-eval="false">
 	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
 	<meta name="description" content="dcrdata, an original Decred block explorer powered by Go">
@@ -25,15 +26,15 @@
 		<link rel="icon" href="/images/favicon/favicon-16x16.png?v=yHh3NA" type="image/png" sizes="16x16">
 
 		<!-- Android PWA -->
-		<link rel="manifest" href="/images/favicon/site.webmanifest?v=yHh3NA">
+		<link rel="manifest" href="/images/favicon/manifest.json?v=yHh3NA">
 
 		<!-- Safari -->
 		<link rel="mask-icon" href="/images/favicon/safari-pinned-tab.svg?v=yHh3NA" color="#091440">
 
 		<!-- Windows PWA -->
 		<meta name="msapplication-TileColor" content="#091440">
-		<meta name="msapplication-TileImage" content="/images/favicon/mstile-144x144.png?v=55tv3">
-		<meta name="msapplication-config" content="/images/favicon/browserconfig.xml?v=55tv3">
+		<meta name="msapplication-TileImage" content="/images/favicon/mstile-144x144.png?v=fi5jKKtbwv">
+		<meta name="msapplication-config" content="/images/favicon/browserconfig.xml?v=fi5jKKtbwv">
 	<!-- End custom favicon -->
 
 	<meta name="turbolinks-cache-control" content="no-cache">
@@ -48,7 +49,7 @@
 	<link rel="preload" href="/images/disconnected.svg?x=55tv3" as="image" type="image/svg+xml" />
 	<link href="/dist/css/style.css?x=9nfyu4m" rel="stylesheet">
 
-	<script src="/js/vendor/turbolinks.min.js?x=55tv3"></script>
+	<script src="/js/vendor/turbolinks.min.js"></script>
 </head>
 {{end}}
 
@@ -73,9 +74,8 @@
 				class="top-search mousetrap"
 				placeholder="Search for blocks, addresses, transactions or proposal tokens"
 				spellcheck="false"
-				autocomplete="off"
 			/>
-			<button class="search-bttn" type="submit"><span class="dcricon-search"></span></button>
+			<button class="search-bttn"><span class="dcricon-search"></span></button>
 		</form>
 		<nav id="hamburger-menu" data-controller="menu" data-turbolinks-permanent>
 			<div id="menuToggle">
@@ -92,6 +92,7 @@
 					<a class="menu-item" data-keynav-skip href="/agendas" title="Agendas">Agendas</a>
 					<a class="menu-item" data-keynav-skip href="/proposals" title="Proposals">Proposals</a>
 					<a class="menu-item" data-keynav-skip href="/market" title="Market">Market</a>
+					<a class="menu-item" data-keynav-skip href="/attack-cost" title="Decred Attack Cost">Attack Cost</a>
 					<a class="menu-item" data-keynav-skip href="/parameters" title="Chain Parameters">Parameters</a>
 					<a class="menu-item" data-keynav-skip href="/address/{{.DevAddress}}?txntype=merged_debit" title="Decred Treasury">Treasury</a>
 					<a class="menu-item" data-keynav-skip href="/decodetx" title="Decode or send a raw transaction">Decode/Broadcast Tx</a>
@@ -165,12 +166,12 @@
 		</span>
 	</div>
 	<script
-		src="/dist/js/vendors~app.bundle.js?x=55tv3"
+		src="/dist/js/vendors~app.bundle.js"
 		data-turbolinks-eval="false"
 		data-turbolinks-suppress-warning
 	></script>
 	<script
-		src="/dist/js/app.bundle.js?x=55tv3"
+		src="/dist/js/app.bundle.js"
 		data-turbolinks-eval="false"
 		data-turbolinks-suppress-warning
 	></script>
@@ -203,6 +204,23 @@
   {{- else -}}
     <span class="text-danger">{{printf "%.2f" .}} %</span>
   {{- end -}}
+{{end}}
+
+{{define "listViewRouting"}}
+	<div class="fs12 nowrap text-left" style="margin:auto auto auto 0px;">
+		<select
+		  class="form-control-sm mb-2 mr-sm-2 mb-sm-0"
+		  data-target="pagenavigation.listview"
+		  data-action="change->pagenavigation#setListView"
+		  >
+			<option {{if eq . "years"}}selected {{end}}value="years">Years</option>
+			<option {{if eq . "months"}}selected {{end}}value="months">Months</option>
+			<option {{if eq . "weeks"}}selected {{end}}value="weeks">Weeks</option>
+			<option {{if eq . "days"}}selected {{end}}value="days">Days</option>
+			<option {{if eq . "windows"}}selected {{end}}value="ticketpricewindows">Windows</option>
+			<option {{if eq . "blocks"}}selected {{end}}value="blocks">Blocks</option>
+		</select>
+	</div>
 {{end}}
 
 {{define "hashElide"}}
@@ -345,24 +363,24 @@
 				<div class="blocks-selector{{if eq .TimeGrouping "Blocks"}} active{{end}}"></div>
 			</a>
 			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/ticketpricewindows">
-				<span class="separator pl-2 pr-5{{if eq .TimeGrouping "Windows"}} unstyled-link{{else}} text-secondary{{end}}">Windows</span>
-				<div class="separator blocks-selector{{if eq .TimeGrouping "Windows"}} active{{end}}"></div>
+				<span class="px-2{{if eq .TimeGrouping "Windows"}} unstyled-link{{else}} text-secondary{{end}}">Windows</span>
+				<div class="blocks-selector{{if eq .TimeGrouping "Windows"}} active{{end}}"></div>
 			</a>
-			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/years">
-				<span class="pr-2 pl-3{{if eq .TimeGrouping "Years"}} unstyled-link{{else}} text-secondary{{end}}">Years</span>
-				<div class="blocks-selector{{if eq .TimeGrouping "Years"}} active{{end}}"></div>
-			</a>
-			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/months">
-				<span class="px-2{{if eq .TimeGrouping "Months"}} unstyled-link{{else}} text-secondary{{end}}">Months</span>
-				<div class="blocks-selector{{if eq .TimeGrouping "Months"}} active{{end}}"></div>
+			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/days">
+				<span class="px-2{{if eq .TimeGrouping "Days"}} unstyled-link{{else}} text-secondary{{end}}">Days</span>
+				<div class="blocks-selector{{if eq .TimeGrouping "Days"}} active{{end}}"></div>
 			</a>
 			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/weeks">
 				<span class="px-2{{if eq .TimeGrouping "Weeks"}} unstyled-link{{else}} text-secondary{{end}}">Weeks</span>
 				<div class="blocks-selector{{if eq .TimeGrouping "Weeks"}} active{{end}}"></div>
 			</a>
-			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/days">
-				<span class="px-2{{if eq .TimeGrouping "Days"}} unstyled-link{{else}} text-secondary{{end}}">Days</span>
-				<div class="blocks-selector{{if eq .TimeGrouping "Days"}} active{{end}}"></div>
+			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/months">
+				<span class="px-2{{if eq .TimeGrouping "Months"}} unstyled-link{{else}} text-secondary{{end}}">Months</span>
+				<div class="blocks-selector{{if eq .TimeGrouping "Months"}} active{{end}}"></div>
+			</a>
+			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/years">
+				<span class="px-2{{if eq .TimeGrouping "Years"}} unstyled-link{{else}} text-secondary{{end}}">Years</span>
+				<div class="blocks-selector{{if eq .TimeGrouping "Years"}} active{{end}}"></div>
 			</a>
 		</div>
 	</div>
