@@ -410,8 +410,12 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		// PSQL height. stakedb always has genesis, as enforced by the rewinding
 		// code in this function.
 		if ib > stakeDBHeight {
-			if ib != int64(pgb.stakeDB.Height()+1) {
-				panic(fmt.Sprintf("about to connect the wrong block: %d, %d", ib, pgb.stakeDB.Height()))
+			behind := ib - stakeDBHeight
+			if behind != 1 {
+				panic(fmt.Sprintf("About to connect the wrong block: %d, %d\n"+
+					"The stake database is corrupted. "+
+					"Restart with --purge-n-blocks=%d to recover.",
+					ib, stakeDBHeight, 2*behind))
 			}
 			if err = pgb.stakeDB.ConnectBlock(block); err != nil {
 				return ib - 1, pgb.supplementUnknownTicketError(err)
