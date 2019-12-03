@@ -1268,7 +1268,9 @@ func (pgb *ChainDB) handleTxTypeHistogramUpgrade(bestBlock uint64, upgrade table
 
 			dbIDs = append(dbIDs, rowIDs)
 		}
-
+		if err := rows.Err(); err != nil {
+			return 0, err
+		}
 		closeRows(rows)
 
 		switch upgrade {
@@ -1951,6 +1953,9 @@ func verifyChainWork(client BlockGetter, db *sql.DB) (int64, error) {
 			tReport = time.Now()
 			log.Infof("Chainwork sync is %.1f%% complete.", float64(updated)/float64(count)*100)
 		}
+	}
+	if err := rows.Err(); err != nil {
+		return updated, err
 	}
 
 	log.Info("Chainwork sync complete.")

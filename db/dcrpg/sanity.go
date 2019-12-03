@@ -30,6 +30,9 @@ func CheckUnmatchedSpending(ctx context.Context, db *sql.DB) (ids []uint64, addr
 		ids = append(ids, id)
 		addresses = append(addresses, address)
 	}
+	if err = rows.Err(); err != nil {
+		return nil, nil, err
+	}
 
 	return
 }
@@ -56,6 +59,9 @@ func CheckExtraMainchainBlocks(ctx context.Context, db *sql.DB) (ids, heights []
 		heights = append(heights, height)
 		hashes = append(hashes, hash)
 	}
+	if err = rows.Err(); err != nil {
+		return nil, nil, nil, err
+	}
 
 	return
 }
@@ -79,6 +85,9 @@ func CheckMislabeledInvalidBlocks(ctx context.Context, db *sql.DB) (ids []uint64
 		}
 		ids = append(ids, id)
 		hashes = append(hashes, hash)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, nil, err
 	}
 
 	return
@@ -104,6 +113,9 @@ func CheckUnspentTicketsWithSpendInfo(ctx context.Context, db *sql.DB) (ids, spe
 		spendHeights = append(spendHeights, height)
 		spendTxDbIDs = append(spendTxDbIDs, txID)
 	}
+	if err = rows.Err(); err != nil {
+		return nil, nil, nil, err
+	}
 
 	return
 }
@@ -127,6 +139,9 @@ func CheckSpentTicketsWithoutSpendInfo(ctx context.Context, db *sql.DB) (ids, sp
 		ids = append(ids, id)
 		spendHeights = append(spendHeights, height)
 		spendTxDbIDs = append(spendTxDbIDs, txID)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, nil, nil, err
 	}
 
 	return
@@ -154,6 +169,9 @@ func CheckMislabeledTicketTransactions(ctx context.Context, db *sql.DB) (ids []u
 		txTypes = append(txTypes, txType)
 		txHashes = append(txHashes, txHash)
 	}
+	if err = rows.Err(); err != nil {
+		return nil, nil, nil, err
+	}
 
 	return
 }
@@ -180,6 +198,9 @@ func CheckMissingTickets(ctx context.Context, db *sql.DB) (ids []uint64, txTypes
 		txTypes = append(txTypes, txType)
 		txHashes = append(txHashes, txHash)
 	}
+	if err = rows.Err(); err != nil {
+		return nil, nil, nil, err
+	}
 
 	return
 }
@@ -203,6 +224,9 @@ func CheckMissingTicketTransactions(ctx context.Context, db *sql.DB) (ids []uint
 		}
 		ids = append(ids, id)
 		txHashes = append(txHashes, txHash)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, nil, err
 	}
 
 	return
@@ -229,6 +253,9 @@ func CheckBadSpentLiveTickets(ctx context.Context, db *sql.DB) (ids []uint64, tx
 		txHashes = append(txHashes, txHash)
 		spendTypes = append(spendTypes, spendType)
 	}
+	if err = rows.Err(); err != nil {
+		return nil, nil, nil, err
+	}
 
 	return
 }
@@ -253,6 +280,9 @@ func CheckBadVotedTickets(ctx context.Context, db *sql.DB) (ids []uint64, txHash
 		ids = append(ids, id)
 		txHashes = append(txHashes, txHash)
 		spendTypes = append(spendTypes, spendType)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, nil, nil, err
 	}
 
 	return
@@ -279,6 +309,9 @@ func CheckBadExpiredVotedTickets(ctx context.Context, db *sql.DB) (ids []uint64,
 		txHashes = append(txHashes, txHash)
 		spendTypes = append(spendTypes, spendType)
 	}
+	if err = rows.Err(); err != nil {
+		return nil, nil, nil, err
+	}
 
 	return
 }
@@ -303,6 +336,9 @@ func CheckBadMissedVotedTickets(ctx context.Context, db *sql.DB) (ids []uint64, 
 		ids = append(ids, id)
 		txHashes = append(txHashes, txHash)
 		spendTypes = append(spendTypes, spendType)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, nil, nil, err
 	}
 
 	return
@@ -332,6 +368,9 @@ func CheckBadBlockApproval(ctx context.Context, db *sql.DB) (hashes []string, ap
 		totals = append(totals, tot)
 		approvedActual = append(approvedActual, apprAct)
 		approvedSet = append(approvedSet, apprSet)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, nil, nil, nil, nil, nil, err
 	}
 
 	return

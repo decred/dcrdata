@@ -261,6 +261,9 @@ func deleteDupVinsAlt(db *sql.DB) (int64, error) {
 			deleteIDs = append(deleteIDs, dupIDs[1:]...)
 		}
 	}
+	if err = rows.Err(); err != nil {
+		return 0, err
+	}
 
 	fmt.Println(deleteIDs)
 
@@ -385,6 +388,9 @@ func deleteDupVoutsAlt(db *sql.DB) (int64, error) {
 		if len(dupIDs) > 1 {
 			deleteIDs = append(deleteIDs, dupIDs[1:]...)
 		}
+	}
+	if err = rows.Err(); err != nil {
+		return 0, err
 	}
 
 	fmt.Println(deleteIDs)
@@ -888,11 +894,13 @@ func RetrieveMissedVotesInBlock(ctx context.Context, db *sql.DB, blockHash strin
 		var hash string
 		err = rows.Scan(&hash)
 		if err != nil {
-			break
+			return
 		}
 
 		ticketHashes = append(ticketHashes, hash)
 	}
+	err = rows.Err()
+
 	return
 }
 
@@ -913,12 +921,14 @@ func RetrieveMissesForTicket(ctx context.Context, db *sql.DB, ticketHash string)
 		var height int64
 		err = rows.Scan(&height, &hash)
 		if err != nil {
-			break
+			return
 		}
 
 		blockHashes = append(blockHashes, hash)
 		blockHeights = append(blockHeights, height)
 	}
+	err = rows.Err()
+
 	return
 }
 
@@ -947,11 +957,12 @@ func retrieveAllAgendas(db *sql.DB) (map[string]dbtypes.MileStone, error) {
 		err = rows.Scan(&m.ID, &name, &m.Status, &m.VotingDone,
 			&m.Activated, &m.HardForked)
 		if err != nil {
-			break
+			return nil, err
 		}
 
 		currentMilestones[name] = m
 	}
+	err = rows.Err()
 
 	return currentMilestones, err
 }
@@ -977,7 +988,7 @@ func RetrieveAllRevokes(ctx context.Context, db *sql.DB) (ids []uint64, hashes [
 		var hash string
 		err = rows.Scan(&id, &hash, &height, &vinDbID)
 		if err != nil {
-			break
+			return
 		}
 
 		ids = append(ids, id)
@@ -985,6 +996,8 @@ func RetrieveAllRevokes(ctx context.Context, db *sql.DB) (ids []uint64, hashes [
 		hashes = append(hashes, hash)
 		vinDbIDs = append(vinDbIDs, vinDbID)
 	}
+	err = rows.Err()
+
 	return
 }
 
@@ -1006,13 +1019,15 @@ func RetrieveAllVotesDbIDsHeightsTicketDbIDs(ctx context.Context, db *sql.DB) (i
 		var height int64
 		err = rows.Scan(&id, &height, &ticketDbID)
 		if err != nil {
-			break
+			return
 		}
 
 		ids = append(ids, id)
 		heights = append(heights, height)
 		ticketDbIDs = append(ticketDbIDs, ticketDbID)
 	}
+	err = rows.Err()
+
 	return
 }
 
@@ -1061,6 +1076,9 @@ func retrieveWindowBlocks(ctx context.Context, db *sql.DB, windowSize, currentHe
 			StartTime:     timestamp,
 		})
 	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
 
 	return data, nil
 }
@@ -1105,6 +1123,10 @@ func retrieveTimeBasedBlockListing(ctx context.Context, db *sql.DB, timeInterval
 			FormattedEndTime:   endTime.Format("2006-01-02"),
 		})
 	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return data, nil
 }
 
@@ -1113,7 +1135,7 @@ func RetrieveUnspentTickets(ctx context.Context, db *sql.DB) (ids []uint64, hash
 	var rows *sql.Rows
 	rows, err = db.QueryContext(ctx, internal.SelectUnspentTickets)
 	if err != nil {
-		return ids, hashes, err
+		return nil, nil, err
 	}
 	defer closeRows(rows)
 
@@ -1122,14 +1144,17 @@ func RetrieveUnspentTickets(ctx context.Context, db *sql.DB) (ids []uint64, hash
 		var hash string
 		err = rows.Scan(&id, &hash)
 		if err != nil {
-			break
+			return nil, nil, err
 		}
 
 		ids = append(ids, id)
 		hashes = append(hashes, hash)
 	}
+	if err = rows.Err(); err != nil {
+		return nil, nil, err
+	}
 
-	return ids, hashes, err
+	return ids, hashes, nil
 }
 
 // RetrieveTicketIDByHashNoCancel gets the db row ID (primary key) in the
@@ -1262,6 +1287,9 @@ func retrieveTicketsByDate(ctx context.Context, db *sql.DB, maturityBlock int64,
 		total = float64(live + immature)
 		tickets.Price = append(tickets.Price, dcrutil.Amount(price/total).ToCoin())
 	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
 
 	return tickets, nil
 }
@@ -1291,6 +1319,9 @@ func retrieveTicketByPrice(ctx context.Context, db *sql.DB, maturityBlock int64)
 		tickets.Live = append(tickets.Live, live)
 		tickets.Price = append(tickets.Price, price)
 	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
 
 	return tickets, nil
 }
@@ -1319,6 +1350,9 @@ func retrieveTicketsGroupedByType(ctx context.Context, db *sql.DB) (*dbtypes.Poo
 		// It is a script hash used for payout of voting and is calculated using
 		// the formula (n-1)/2 where n = all possible outputs.
 		tickets.Outputs = append(tickets.Outputs, (output-1)/2)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return tickets, nil
@@ -1597,7 +1631,7 @@ func RetrieveAddressBalance(ctx context.Context, db *sql.DB, address string) (ba
 		var noMatchingTx, isFunding, isRegular bool
 		err = rows.Scan(&isRegular, &count, &totalValue, &isFunding, &noMatchingTx)
 		if err != nil {
-			break
+			return
 		}
 
 		// Unspent == funding with no matching transaction
@@ -1620,6 +1654,9 @@ func RetrieveAddressBalance(ctx context.Context, db *sql.DB, address string) (ba
 		} else if !isRegular {
 			fromStake += totalValue
 		}
+	}
+	if err = rows.Err(); err != nil {
+		return
 	}
 
 	totalTransfer := balance.TotalSpent + balance.TotalUnspent
@@ -1705,6 +1742,7 @@ func RetrieveAddressUTXOs(ctx context.Context, db *sql.DB, address string, curre
 		if err = rows.Scan(&txnOutput.Address, &txnOutput.TxnID,
 			&atoms, &blockHeight, &blockTime, &txnOutput.Vout, &pkScript); err != nil {
 			log.Error(err)
+			return nil, err
 		}
 		txnOutput.BlockTime = blockTime.UNIX()
 		txnOutput.ScriptPubKey = hex.EncodeToString(pkScript)
@@ -1713,6 +1751,9 @@ func RetrieveAddressUTXOs(ctx context.Context, db *sql.DB, address string, curre
 		txnOutput.Height = blockHeight
 		txnOutput.Confirmations = currentBlockHeight - blockHeight + 1
 		outputs = append(outputs, txnOutput)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return outputs, nil
@@ -1745,14 +1786,19 @@ func RetrieveAddressDbUTXOs(ctx context.Context, db *sql.DB, address string) ([]
 			&txnOutput.Atoms, &txnOutput.Height, &blockTime,
 			&txnOutput.Vout, &pkScript); err != nil {
 			log.Error(err)
+			return nil, err
 		}
 		txnOutput.BlockTime = blockTime.UNIX()
 		err = chainhash.Decode(&txnOutput.TxHash, txHash)
 		if err != nil {
 			log.Error(err)
+			return nil, err
 		}
 		txnOutput.PkScript = hex.EncodeToString(pkScript)
 		outputs = append(outputs, txnOutput)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return outputs, nil
@@ -1795,6 +1841,8 @@ func RetrieveAddressTxnsOrdered(ctx context.Context, db *sql.DB, addresses []str
 			recenttxs = append(recenttxs, *tx)
 		}
 	}
+	err = rows.Err()
+
 	return
 }
 
@@ -1978,6 +2026,8 @@ func scanAddressMergedRows(rows *sql.Rows, addr string, queryType int, onlyValid
 
 		addressRows = append(addressRows, &addr)
 	}
+	err = rows.Err()
+
 	return
 }
 
@@ -2023,6 +2073,8 @@ func scanAddressQueryRows(rows *sql.Rows, queryType int) (addressRows []*dbtypes
 
 		addressRows = append(addressRows, &addr)
 	}
+	err = rows.Err()
+
 	return
 }
 
@@ -2034,7 +2086,7 @@ func RetrieveAddressIDsByOutpoint(ctx context.Context, db *sql.DB, txHash string
 	var value int64
 	rows, err := db.QueryContext(ctx, internal.SelectAddressIDsByFundingOutpoint, txHash, voutIndex)
 	if err != nil {
-		return ids, addresses, 0, err
+		return nil, nil, 0, err
 	}
 	defer closeRows(rows)
 
@@ -2043,12 +2095,16 @@ func RetrieveAddressIDsByOutpoint(ctx context.Context, db *sql.DB, txHash string
 		var addr string
 		err = rows.Scan(&id, &addr, &value)
 		if err != nil {
-			break
+			return nil, nil, 0, err
 		}
 
 		ids = append(ids, id)
 		addresses = append(addresses, addr)
 	}
+	if err = rows.Err(); err != nil {
+		return nil, nil, 0, err
+	}
+
 	return ids, addresses, value, err
 }
 
@@ -2089,6 +2145,10 @@ func retrieveTxHistoryByType(ctx context.Context, db *sql.DB, addr, timeInterval
 		items.Votes = append(items.Votes, votes)
 		items.RevokeTx = append(items.RevokeTx, revokeTx)
 	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return items, nil
 }
 
@@ -2123,6 +2183,10 @@ func retrieveTxHistoryByAmountFlow(ctx context.Context, db *sql.DB, addr, timeIn
 		// is negative then for the given block more amount was sent than received.
 		items.Net = append(items.Net, dcrutil.Amount(received-sent).ToCoin())
 	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return items, nil
 }
 
@@ -2354,13 +2418,14 @@ func RetrieveVoutValues(ctx context.Context, db *sql.DB, txHash string) (values 
 		var tree int8
 		err = rows.Scan(&v, &ind, &tree)
 		if err != nil {
-			break
+			return
 		}
 
 		values = append(values, v)
 		txInds = append(txInds, ind)
 		txTrees = append(txTrees, tree)
 	}
+	err = rows.Err()
 
 	return
 }
@@ -2380,11 +2445,12 @@ func RetrieveAllVinDbIDs(db *sql.DB) (vinDbIDs []uint64, err error) {
 		var id uint64
 		err = rows.Scan(&id)
 		if err != nil {
-			break
+			return
 		}
 
 		vinDbIDs = append(vinDbIDs, id)
 	}
+	err = rows.Err()
 
 	return
 }
@@ -2471,7 +2537,7 @@ func RetrieveSpendingTxsByFundingTx(ctx context.Context, db *sql.DB, fundingTxID
 		var vin, vout uint32
 		err = rows.Scan(&id, &tx, &vin, &vout)
 		if err != nil {
-			break
+			return
 		}
 
 		dbIDs = append(dbIDs, id)
@@ -2479,6 +2545,7 @@ func RetrieveSpendingTxsByFundingTx(ctx context.Context, db *sql.DB, fundingTxID
 		vinInds = append(vinInds, vin)
 		voutInds = append(voutInds, vout)
 	}
+	err = rows.Err()
 
 	return
 }
@@ -2504,6 +2571,8 @@ func RetrieveSpendingTxsByFundingTxWithBlockHeight(ctx context.Context, db *sql.
 
 		aSpendByFunHash = append(aSpendByFunHash, &addr)
 	}
+	err = rows.Err()
+
 	return
 }
 
@@ -2606,6 +2675,9 @@ func RetrieveUTXOs(ctx context.Context, db *sql.DB) ([]dbtypes.UTXO, error) {
 		}
 
 		utxos = append(utxos, utxo)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return utxos, nil
@@ -2879,6 +2951,9 @@ func retrieveAgendaVoteChoices(ctx context.Context, db *sql.DB, agendaID string,
 		totalVotes.No = append(totalVotes.No, n)
 		totalVotes.Total = append(totalVotes.Total, t)
 	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
 
 	return totalVotes, nil
 }
@@ -3056,7 +3131,7 @@ func RetrieveDbTxsByHash(ctx context.Context, db *sql.DB, txHash string) (ids []
 			&dbTx.Fees, &dbTx.NumVin, &vinids, &dbTx.NumVout, &voutids,
 			&dbTx.IsValidBlock, &dbTx.IsMainchainBlock)
 		if err != nil {
-			break
+			return
 		}
 
 		dbTx.VinDbIds = vinids
@@ -3065,6 +3140,8 @@ func RetrieveDbTxsByHash(ctx context.Context, db *sql.DB, txHash string) (ids []
 		ids = append(ids, id)
 		dbTxs = append(dbTxs, &dbTx)
 	}
+	err = rows.Err()
+
 	return
 }
 
@@ -3086,13 +3163,15 @@ func RetrieveTxnsVinsByBlock(ctx context.Context, db *sql.DB, blockHash string) 
 		var isValid, isMainchain bool
 		err = rows.Scan(&ids, &isValid, &isMainchain)
 		if err != nil {
-			break
+			return
 		}
 
 		vinDbIDs = append(vinDbIDs, ids)
 		areValid = append(areValid, isValid)
 		areMainchain = append(areMainchain, isMainchain)
 	}
+	err = rows.Err()
+
 	return
 }
 
@@ -3119,13 +3198,15 @@ func RetrieveTxnsVinsVoutsByBlock(ctx context.Context, db *sql.DB, blockHash str
 		var isMainchain bool
 		err = rows.Scan(&vinIDs, &voutIDs, &isMainchain)
 		if err != nil {
-			break
+			return
 		}
 
 		vinDbIDs = append(vinDbIDs, vinIDs)
 		voutDbIDs = append(voutDbIDs, voutIDs)
 		areMainchain = append(areMainchain, isMainchain)
 	}
+	err = rows.Err()
+
 	return
 }
 
@@ -3160,7 +3241,7 @@ func RetrieveTxsByBlockHash(ctx context.Context, db *sql.DB, blockHash string) (
 		var tree int8
 		err = rows.Scan(&id, &tx, &bind, &tree, &blockTime)
 		if err != nil {
-			break
+			return
 		}
 
 		ids = append(ids, id)
@@ -3169,6 +3250,7 @@ func RetrieveTxsByBlockHash(ctx context.Context, db *sql.DB, blockHash string) (
 		trees = append(trees, tree)
 		blockTimes = append(blockTimes, blockTime)
 	}
+	err = rows.Err()
 
 	return
 }
@@ -3191,7 +3273,7 @@ func RetrieveTxnsBlocks(ctx context.Context, db *sql.DB, txHash string) (blockHa
 		var isValid, isMainchain bool
 		err = rows.Scan(&height, &hash, &idx, &isValid, &isMainchain)
 		if err != nil {
-			break
+			return
 		}
 
 		blockHeights = append(blockHeights, height)
@@ -3200,6 +3282,8 @@ func RetrieveTxnsBlocks(ctx context.Context, db *sql.DB, txHash string) (blockHa
 		areValid = append(areValid, isValid)
 		areMainchain = append(areMainchain, isMainchain)
 	}
+	err = rows.Err()
+
 	return
 }
 
@@ -3260,15 +3344,18 @@ func appendChartBlocks(charts *cache.ChartData, rows *sql.Rows) error {
 		blocks.Time = append(blocks.Time, uint64(timeDef.T.Unix()))
 		blocks.BlockSize = append(blocks.BlockSize, size)
 	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("appendChartBlocks: iteration error: %v", err)
+	}
 	if badRows > 0 {
 		log.Errorf("%d rows have invalid chainwork values.", badRows)
 	}
 	chainLen := len(blocks.Chainwork)
 	if rowCount > 0 && uint64(chainLen-1) != height {
-		return fmt.Errorf("retrieveChartBlocks: height misalignment. last height = %d. data length = %d", height, chainLen)
+		return fmt.Errorf("appendChartBlocks: height misalignment. last height = %d. data length = %d", height, chainLen)
 	}
 	if len(blocks.Time) != chainLen || len(blocks.TxCount) != chainLen {
-		return fmt.Errorf("retrieveChartBlocks: data length misalignment. len(chainwork) = %d, len(stamps) = %d, len(counts) = %d",
+		return fmt.Errorf("appendChartBlocks: data length misalignment. len(chainwork) = %d, len(stamps) = %d, len(counts) = %d",
 			chainLen, len(blocks.Time), len(blocks.TxCount))
 	}
 
@@ -3326,7 +3413,7 @@ func appendWindowStats(charts *cache.ChartData, rows *sql.Rows) error {
 		} // else height < nextWindowHeight-1
 	}
 
-	return nil
+	return rows.Err()
 }
 
 // retrieveCoinSupply fetches the coin supply data from the vins table.
@@ -3352,6 +3439,10 @@ func appendCoinSupply(charts *cache.ChartData, rows *sql.Rows) error {
 
 		blocks.NewAtoms = append(blocks.NewAtoms, uint64(value))
 	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
 	// Set the genesis block to zero because the DB stores it as -1
 	if len(blocks.NewAtoms) > 0 {
 		blocks.NewAtoms[0] = 0
@@ -3402,7 +3493,7 @@ func appendMissedVotesPerWindow(charts *cache.ChartData, rows *sql.Rows) error {
 		} // else height < nextWindowHeight-1
 	}
 
-	return nil
+	return rows.Err()
 }
 
 // retrieveBlockFees retrieves any block fee data that is newer than the data
@@ -3435,8 +3526,7 @@ func appendBlockFees(charts *cache.ChartData, rows *sql.Rows) error {
 		// Converting to atoms.
 		blocks.Fees = append(blocks.Fees, uint64(fees))
 	}
-
-	return nil
+	return rows.Err()
 }
 
 // retrievePoolStats returns all the pool value and the pool size
@@ -3465,7 +3555,7 @@ func appendPoolStats(charts *cache.ChartData, rows *sql.Rows) error {
 		blocks.PoolSize = append(blocks.PoolSize, psize)
 		blocks.PoolValue = append(blocks.PoolValue, pval)
 	}
-	return nil
+	return rows.Err()
 }
 
 // retrievePowerlessTickets fetches missed or expired tickets sorted by
@@ -3499,6 +3589,9 @@ func retrievePowerlessTickets(ctx context.Context, db *sql.DB) (*apitypes.Powerl
 		case revokedType:
 			revoked = append(revoked, ticket)
 		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return &apitypes.PowerlessTickets{
 		Revoked: revoked,
@@ -3536,7 +3629,9 @@ func retrieveTxPerDay(ctx context.Context, db *sql.DB, timeArr []dbtypes.TimeDef
 		timeArr = append(timeArr, dbtypes.NewTimeDef(blockTime))
 		txCountArr = append(txCountArr, count)
 	}
-	return timeArr, txCountArr, nil
+	err = rows.Err()
+
+	return timeArr, txCountArr, err
 }
 
 // retrieveTicketByOutputCount fetches the data for ticket-by-outputs-windows
@@ -3592,8 +3687,9 @@ func retrieveTicketByOutputCount(ctx context.Context, db *sql.DB, interval int64
 		soloArr = append(soloArr, solo)
 		pooledArr = append(pooledArr, pooled)
 	}
+	err = rows.Err()
 
-	return heightArr, soloArr, pooledArr, nil
+	return heightArr, soloArr, pooledArr, err
 }
 
 // --- Proposals and Proposal_votes tables ---
@@ -3646,6 +3742,7 @@ func retrieveProposalVotesData(ctx context.Context, db *sql.DB,
 		data.Yes = append(data.Yes, yes)
 		data.Time = append(data.Time, dbtypes.NewTimeDef(timestamp))
 	}
+	err = rows.Err()
 
 	return data, err
 }
@@ -3748,7 +3845,7 @@ func RetrieveBlocksHashesAll(ctx context.Context, db *sql.DB) ([]string, error) 
 	var hashes []string
 	rows, err := db.QueryContext(ctx, internal.SelectBlocksHashes)
 	if err != nil {
-		return hashes, err
+		return nil, err
 	}
 	defer closeRows(rows)
 
@@ -3756,11 +3853,13 @@ func RetrieveBlocksHashesAll(ctx context.Context, db *sql.DB) ([]string, error) 
 		var hash string
 		err = rows.Scan(&hash)
 		if err != nil {
-			break
+			return nil, err
 		}
 
 		hashes = append(hashes, hash)
 	}
+	err = rows.Err()
+
 	return hashes, err
 }
 
@@ -3791,6 +3890,8 @@ func RetrieveSideChainBlocks(ctx context.Context, db *sql.DB) (blocks []*dbtypes
 
 		blocks = append(blocks, &bs)
 	}
+	err = rows.Err()
+
 	return
 }
 
@@ -3814,6 +3915,8 @@ func RetrieveSideChainTips(ctx context.Context, db *sql.DB) (blocks []*dbtypes.B
 
 		blocks = append(blocks, &bs)
 	}
+	err = rows.Err()
+
 	return
 }
 
@@ -3836,6 +3939,8 @@ func RetrieveDisapprovedBlocks(ctx context.Context, db *sql.DB) (blocks []*dbtyp
 
 		blocks = append(blocks, &bs)
 	}
+	err = rows.Err()
+
 	return
 }
 
@@ -3895,12 +4000,13 @@ func RetrieveBlockSummaryByTimeRange(ctx context.Context, db *sql.DB, minTime, m
 			&blockTime, &dbBlock.NumTx)
 		if err != nil {
 			log.Errorf("Unable to scan for block fields: %v", err)
+			return nil, err
 		}
 		dbBlock.Time = blockTime
 		blocks = append(blocks, dbBlock)
 	}
 	if err = rows.Err(); err != nil {
-		log.Error(err)
+		return nil, err
 	}
 	return blocks, nil
 }
@@ -3936,14 +4042,15 @@ func UpdateTransactionsMainchain(db *sql.DB, blockHash string, isMainchain bool)
 		var id uint64
 		err = rows.Scan(&id)
 		if err != nil {
-			break
+			return 0, nil, err
 		}
 
 		txRowIDs = append(txRowIDs, id)
 		numRows++
 	}
+	err = rows.Err()
 
-	return numRows, txRowIDs, nil
+	return numRows, txRowIDs, err
 }
 
 // UpdateTransactionsValid sets the is_valid column of the transactions table
@@ -3961,14 +4068,15 @@ func UpdateTransactionsValid(db *sql.DB, blockHash string, isValid bool) (int64,
 		var id uint64
 		err = rows.Scan(&id)
 		if err != nil {
-			break
+			return 0, nil, err
 		}
 
 		txRowIDs = append(txRowIDs, id)
 		numRows++
 	}
+	err = rows.Err()
 
-	return numRows, txRowIDs, nil
+	return numRows, txRowIDs, err
 }
 
 // UpdateVotesMainchain sets the is_mainchain column for the votes in the
@@ -4210,6 +4318,7 @@ func RetrievePoolInfoRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) ([
 		if err = rows.Scan(&tpi.Height, &hash, &tpi.Size, &val,
 			pq.Array(&winners)); err != nil {
 			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
+			return nil, nil, err
 		}
 		tpi.Value = dcrutil.Amount(val).ToCoin()
 		tpi.ValAvg = tpi.Value / float64(tpi.Size)
@@ -4218,7 +4327,7 @@ func RetrievePoolInfoRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) ([
 		hashes = append(hashes, hash)
 	}
 	if err = rows.Err(); err != nil {
-		log.Error(err)
+		return nil, nil, err
 	}
 
 	return tpis, hashes, nil
@@ -4257,12 +4366,13 @@ func RetrievePoolValAndSizeRange(ctx context.Context, db *sql.DB, ind0, ind1 int
 		var psize uint32
 		if err = rows.Scan(&psize, &pval); err != nil {
 			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
+			return nil, nil, err
 		}
 		poolvals = append(poolvals, dcrutil.Amount(pval).ToCoin())
 		poolsizes = append(poolsizes, psize)
 	}
 	if err = rows.Err(); err != nil {
-		log.Error(err)
+		return nil, nil, err
 	}
 
 	if len(poolsizes) != int(N) {
@@ -4361,6 +4471,10 @@ func RetrieveBlockSummaryRange(ctx context.Context, db *sql.DB, ind0, ind1 int64
 		bd.StakeDiff = dcrutil.Amount(sbits).ToCoin()
 		blocks = append(blocks, bd)
 	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
 	// error here if count not correct?
 	return blocks, nil
 }
@@ -4410,6 +4524,10 @@ func RetrieveBlockSummaryRangeStepped(ctx context.Context, db *sql.DB, ind0, ind
 		bd.StakeDiff = dcrutil.Amount(sbits).ToCoin()
 		blocks = append(blocks, bd)
 	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
 	// error here if count not correct?
 	return blocks, nil
 }
@@ -4455,11 +4573,12 @@ func RetrieveBlockSizeRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) (
 		var blockSize int32
 		if err = rows.Scan(&blockSize); err != nil {
 			log.Errorf("Unable to scan for block size field: %v", err)
+			return nil, err
 		}
 		blockSizes = append(blockSizes, blockSize)
 	}
 	if err = rows.Err(); err != nil {
-		log.Error(err)
+		return nil, err
 	}
 
 	return blockSizes, nil
@@ -4503,11 +4622,12 @@ func RetrieveSDiffRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) ([]fl
 		var sbits int64
 		if err = rows.Scan(&sbits); err != nil {
 			log.Errorf("Unable to scan for sdiff fields: %v", err)
+			return nil, err
 		}
 		sdiffs = append(sdiffs, dcrutil.Amount(sbits).ToCoin())
 	}
 	if err = rows.Err(); err != nil {
-		log.Error(err)
+		return nil, err
 	}
 
 	return sdiffs, nil
