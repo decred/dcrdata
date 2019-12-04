@@ -58,6 +58,7 @@ var (
 	defaultCacheControlMaxAge  = 86400
 	defaultInsightReqRateLimit = 20.0
 	defaultMaxCSVAddrs         = 25
+	defaultServerHeader        = "dcrdata"
 
 	defaultMempoolMinInterval = 2
 	defaultMempoolMaxInterval = 120
@@ -113,6 +114,7 @@ type config struct {
 	InsightReqRateLimit float64 `long:"insight-limit-rps" description:"Requests/second per client IP for the Insight API's rate limiter." env:"DCRDATA_INSIGHT_RATE_LIMIT"`
 	MaxCSVAddrs         int     `long:"max-api-addrs" description:"Maximum allowed comma-separated addresses for endpoints that accept multiple addresses."`
 	CompressAPI         bool    `long:"compress-api" description:"Use compression for a number of endpoints with commonly large responses."`
+	ServerHeader        string  `long:"server-http-header" description:"Set the HTTP response header Server key value. Valid values are \"off\", \"version\", or a custom string."`
 
 	// Data I/O
 	MempoolMinInterval int    `long:"mp-min-interval" description:"The minimum time in seconds between mempool reports, regardless of number of new tickets seen." env:"DCRDATA_MEMPOOL_MIN_INTERVAL"`
@@ -190,6 +192,7 @@ var (
 		CacheControlMaxAge:  defaultCacheControlMaxAge,
 		InsightReqRateLimit: defaultInsightReqRateLimit,
 		MaxCSVAddrs:         defaultMaxCSVAddrs,
+		ServerHeader:        defaultServerHeader,
 		DcrdCert:            defaultDaemonRPCCertFile,
 		MempoolMinInterval:  defaultMempoolMinInterval,
 		MempoolMaxInterval:  defaultMempoolMaxInterval,
@@ -645,6 +648,13 @@ func loadConfig() (*config, error) {
 	cfg.APIListen, err = normalizeNetworkAddress(cfg.APIListen, defaultHost, defaultAPIPort)
 	if err != nil {
 		return loadConfigError(err)
+	}
+
+	switch cfg.ServerHeader {
+	case "off":
+		cfg.ServerHeader = ""
+	case "version":
+		cfg.ServerHeader = version.AppName + "-" + version.Version()
 	}
 
 	// Expand some additional paths.

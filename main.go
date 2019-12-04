@@ -661,7 +661,10 @@ func _main(ctx context.Context) error {
 
 	// Configure the explorer web pages router.
 	webMux := chi.NewRouter()
-	webMux.Use(m.Server(version.AppName + "-" + version.Version()))
+	if cfg.ServerHeader != "" {
+		log.Debugf("Using Server HTTP response header %q", cfg.ServerHeader)
+		webMux.Use(m.Server(cfg.ServerHeader))
+	}
 	webMux.With(explore.SyncStatusPageIntercept).Group(func(r chi.Router) {
 		r.Get("/", explore.Home)
 		r.Get("/visualblocks", explore.VisualBlocks)
