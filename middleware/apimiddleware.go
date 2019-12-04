@@ -516,6 +516,16 @@ func CacheControl(maxAge int64) func(http.Handler) http.Handler {
 	}
 }
 
+// Server sets the Server header element.
+func Server(server string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Server", server)
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 // BlockStepPathCtx returns a http.HandlerFunc that embeds the value at the url
 // part {step} into the request context.
 func BlockStepPathCtx(next http.Handler) http.Handler {

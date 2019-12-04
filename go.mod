@@ -2,6 +2,8 @@ module github.com/decred/dcrdata/v5
 
 go 1.12
 
+replace github.com/decred/dcrdata/middleware/v3 => ./middleware
+
 require (
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb
