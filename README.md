@@ -1,9 +1,12 @@
-# dcrdata
+dcrdata
+=======
 
-[![Build Status](https://img.shields.io/travis/decred/dcrdata.svg)](https://travis-ci.org/decred/dcrdata)
+[![Build Status](https://github.com/decred/dcrdata/workflows/Build%20and%20Test/badge.svg)](https://github.com/decred/dcrdata/actions)
 [![Latest tag](https://img.shields.io/github/tag/decred/dcrdata.svg)](https://github.com/decred/dcrdata/tags)
 [![Go Report Card](https://goreportcard.com/badge/github.com/decred/dcrdata)](https://goreportcard.com/report/github.com/decred/dcrdata)
 [![ISC License](https://img.shields.io/badge/license-ISC-blue.svg)](http://copyfree.org)
+
+## Overview
 
 dcrdata is an original [Decred](https://www.decred.org/) block explorer, with
 packages and apps for data collection, presentation, and storage. The backend
@@ -11,6 +14,7 @@ and middleware are written in Go. On the front end, Webpack enables the use of
 modern javascript features, as well as SCSS for styling.
 
 - [dcrdata](#dcrdata)
+  - [Overview](#overview)
   - [Release Status](#release-status)
   - [Repository Overview](#repository-overview)
   - [Requirements](#requirements)
@@ -132,7 +136,7 @@ Always run the Current release or on the Current stable branch. Do not use `mast
 
 ## Requirements
 
-- [Go](http://golang.org) 1.12.12+ or 1.13.3+.
+- [Go](https://golang.org) 1.12.12+ or 1.13.3+.
 - [Node.js](https://nodejs.org/en/download/) 12.x or 13.x. Node.js is only used
   as a build tool, and is **not used at runtime**.
 - Running `dcrd` running with `--txindex --addrindex`, and synchronized to the
@@ -162,7 +166,7 @@ NOTE: The following instructions assume a Unix-like shell (e.g. bash).
 
 ### Preparation
 
-- [Install Go](http://golang.org/doc/install)
+- [Install Go](https://golang.org/doc/install)
 
 - Verify Go installation:
 
