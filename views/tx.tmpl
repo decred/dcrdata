@@ -285,11 +285,13 @@
             <h5 class="pb-2">{{len .Vin}} Input{{if gt (len .Vin) 1}}s{{end}} Consumed</h5>
             <table class="table">
                 <thead>
+                  <tr>
                     <th class="shrink-to-fit">#</th>
                     <th class="text-nowrap">Previous Outpoint</th>
                     <th class="addr-hash-column">Addresses</th>
                     <th class="text-center shrink-to-fit">Block</th>
                     <th class="text-right shrink-to-fit">DCR</th>
+                  </tr>
                 </thead>
                 <tbody>
                     {{range .Vin}}
@@ -335,11 +337,13 @@
             <h5 class="pb-2">{{len .Vout}} Output{{if gt (len .Vout) 1}}s{{end}} Created</h5>
             <table class="table">
                 <thead>
+                  <tr>
                     <th class="shrink-to-fit">#</th>
                     <th class="addr-hash-column"><div class="pl-1">Address</div></th>
                     <th class="text-left shrink-to-fit">Type</th>
                     <th class="text-left shrink-to-fit">Spent</th>
                     <th class="text-right shrink-to-fit">DCR</th>
+                  </tr>
                 </thead>
                 <tbody>
                     {{range $i, $v := .Vout}}
@@ -399,10 +403,12 @@
             </p>
             <table class="table">
                 <thead>
+                  <tr>
                     <th class="text-right">Issue ID</th>
                     <th>Issue Description</th>
                     <th>Choice ID</th>
                     <th>Choice Description</th>
+                  </tr>
                 </thead>
                 <tbody>
                     {{range .Choices}}

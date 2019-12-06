@@ -166,9 +166,11 @@
               {{if eq .Coinbase true}}
                   <table class="table">
                       <thead>
+                        <tr>
                           <th>Transaction ID</th>
                           <th class="text-right">Total DCR</th>
                           <th class="text-right">Size</th>
+                        </tr>
                       </thead>
                       <tbody {{if $Invalidated}}class="invalidated-tx" title="Regular transactions invalidated."{{end}}>
                           <tr>
@@ -207,11 +209,13 @@
           {{else}}
               <table class="table">
                   <thead>
+                    <tr>
                       <th>Transactions ID</th>
                       <th class="text-right">Vote Version</th>
                       <th class="text-right">Last Block</th>
                       <th class="text-right">Total DCR</th>
                       <th class="text-right">Size</th>
+                    </tr>
                   </thead>
                   <tbody>
                       {{range .Votes}}
@@ -238,7 +242,9 @@
             <span class="d-inline-block pt-4 pb-1 h4">Missed Votes</span>
             <table class="table">
                 <thead>
+                  <tr>
                     <th>Ticket ID</th>
+                  </tr>
                 </thead>
                 <tbody>
                     {{range .Misses}}
@@ -265,10 +271,12 @@
             {{else}}
                 <table class="table">
                     <thead>
+                      <tr>
                         <th>Transaction ID</th>
                         <th class="text-right">Total DCR</th>
                         <th class="text-right">Fee</th>
                         <th class="text-right">Size</th>
+                      </tr>
                     </thead>
                     <tbody>
                     {{ range .Tickets}}
@@ -293,10 +301,12 @@
             <span class="d-inline-block pt-4 pb-1 h4">Revocations</span>
             <table class="table">
                 <thead>
+                  <tr>
                     <th>Transaction ID</th>
                     <th class="text-right">Total DCR</th>
                     <th class="text-right">Fee</th>
                     <th class="text-right">Size</th>
+                  </tr>
                 </thead>
                 <tbody>
                     {{ range .Revs}}
@@ -326,10 +336,12 @@
               {{else}}
                   <table class="table">
                       <thead>
+                        <tr>
                           <th>Transaction ID</th>
                           <th class="text-right">Total DCR</th>
                           <th class="text-right">Fee</th>
                           <th class="text-right">Size</th>
+                        </tr>
                       </thead>
                       <tbody {{if $Invalidated}}class="invalidated-tx" title="Regular transactions invalidated."{{end}}>
                           {{range .Tx}}
