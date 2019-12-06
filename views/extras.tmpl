@@ -56,7 +56,7 @@
 <body class="{{ theme }}{{if .Cookies.DarkMode}} darkBG{{end}}">
 <header class="top-nav d-flex align-items-center" id="navBar" data-blocktime="{{.BlockTimeUnix}}">
 	<div class="container d-flex justify-content-between align-items-center">
-		<a class="no-underline d-block home-link dcrdata-logo" a href="/"></a>
+		<a class="no-underline d-block home-link dcrdata-logo" href="/"></a>
 		<form
 			class="search-form"
 			role="search"
@@ -77,7 +77,7 @@
 			/>
 			<button class="search-bttn" type="submit"><span class="dcricon-search"></span></button>
 		</form>
-		<nav role="navigation" id="hamburger-menu" data-controller="menu" data-turbolinks-permanent>
+		<nav id="hamburger-menu" data-controller="menu" data-turbolinks-permanent>
 			<div id="menuToggle">
 				<input type="checkbox" data-target="menu.toggle" data-action="change->menu#toggle"/>
 				<span class="patty"></span>
@@ -213,6 +213,7 @@
 {{- if .Transactions}}
 <table class="table table-mono-cells table-responsive-sm">
 	<thead>
+		<tr>
 		<th class="d-none d-sm-table-cell">Tx Type</th>
 		<th class="text-left">Input/&#8203;Output ID</th>
 	{{- if eq $txType "merged_debit"}}
@@ -237,6 +238,7 @@
 		<th class="text-right">Age</th>
 		<th class="text-right"><span class="d-sm-none position-relative" data-tooltip="Confirmations">Cons</span><span class="d-none d-sm-inline">Confirms</span></th>
 		<th class="d-none d-sm-table-cell text-right">Size</th>
+		</tr>
 	</thead>
 	<tbody>
 	{{- range .Transactions}}

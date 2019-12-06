@@ -107,6 +107,7 @@
             {{$showProgress := or $isProgress $isNotDone}}
             <table class="table table-mono-cells table-sm my-3">
                 <thead>
+                  <tr>
                     <th>ID</th>
                     <th>Description</th>
                     <th class="text-right">Bits</th>
@@ -114,6 +115,7 @@
                     {{if $showProgress}}
                         <th class="text-right">Progress</th>
                    {{end}}
+                  </tr>
                 </thead>
                 <tbody>
                 {{range $i, $v := .Choices}}

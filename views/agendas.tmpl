@@ -126,7 +126,7 @@
                             >
                             {{printf "%.1f" (f32x100 .MinerProgress)}}%
                           </div><br>
-                          <span class="text-secondary fs14 lh1rem">threshold <span class="font-weight-bold">{{printf "%.0f" (f32x100 .MinerThreshold)}} %<span></span>
+                          <span class="text-secondary fs14 lh1rem">threshold <span class="font-weight-bold">{{printf "%.0f" (f32x100 .MinerThreshold)}} %</span></span>
                         </div>
                         <div class="d-inline-block text-center p-4">
                           <span class="fs16 font-weight-bold">v{{.Version}} Voters</span><br>
@@ -239,12 +239,14 @@
             {{ else }}
             <table class="table table-mono-cells">
                 <thead>
+                  <tr>
                     <th>Agenda ID</th>
                     <th class="d-none d-md-table-cell">Description</th>
                     <th class="text-right">Status</th>
                     <th class="text-right">Vote Version</th>
                     <th class="text-right d-none d-sm-table-cell">Start Time</th>
                     <th class="text-right d-none d-sm-table-cell">Expire Time</th>
+                  </tr>
                 </thead>
                 {{range $i, $v := .Agendas}}
                 {{with $v}}
