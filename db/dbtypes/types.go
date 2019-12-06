@@ -1625,6 +1625,8 @@ type Tx struct {
 	Spent       int64   `json:"spent"`
 	Sent        int64   `json:"sent"`
 	Fees        int64   `json:"fees"`
+	MixCount    int32   `json:"mix_count"`
+	MixDenom    int64   `json:"mix_denom"`
 	NumVin      uint32  `json:"numvin"`
 	//Vins        VinTxPropertyARRAY `json:"vins"`
 	VinDbIds  []uint64 `json:"vindbids"`

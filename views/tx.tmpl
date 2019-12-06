@@ -37,6 +37,10 @@
                   unconfirmed
                 {{end}}
               </div>
+              {{if gt .MixCount 0}}
+              <div class="d-inline-block mix-box mx-2 fs14">Mix: {{.MixCount}} outputs of {{template "decimalParts" (amountAsDecimalParts .MixDenom false)}} DCR
+              </div>
+              {{- end}}
           </div>
           {{if and (ne .BlockHeight 0) (not $.IsConfirmedMainchain)}}
               <span class="attention">This transaction is not included in a stakeholder-approved mainchain block.</span>

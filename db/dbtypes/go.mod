@@ -2,6 +2,8 @@ module github.com/decred/dcrdata/db/dbtypes/v2
 
 go 1.12
 
+replace github.com/decred/dcrdata/txhelpers/v4 => ../../txhelpers
+
 require (
 	github.com/decred/dcrd/blockchain/stake/v2 v2.0.2
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.2

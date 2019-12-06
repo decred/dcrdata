@@ -2,6 +2,13 @@ module github.com/decred/dcrdata/db/dcrpg/v5
 
 go 1.12
 
+replace (
+	github.com/decred/dcrdata/db/dbtypes/v2 => ../dbtypes
+	github.com/decred/dcrdata/explorer/types/v2 => ../../explorer/types
+	github.com/decred/dcrdata/mempool/v5 => ../../mempool
+	github.com/decred/dcrdata/txhelpers/v4 => ../../txhelpers
+)
+
 require (
 	github.com/chappjc/trylock v1.0.0
 	github.com/davecgh/go-spew v1.1.1

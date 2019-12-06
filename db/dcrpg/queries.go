@@ -2981,6 +2981,7 @@ func InsertTx(db *sql.DB, dbTx *dbtypes.Tx, checked, updateExistingRecords bool)
 		dbTx.BlockHash, dbTx.BlockHeight, dbTx.BlockTime, dbTx.Time,
 		dbTx.TxType, int16(dbTx.Version), dbTx.Tree, dbTx.TxID, dbTx.BlockIndex,
 		int32(dbTx.Locktime), int32(dbTx.Expiry), dbTx.Size, dbTx.Spent, dbTx.Sent, dbTx.Fees,
+		dbTx.MixCount, dbTx.MixDenom,
 		dbTx.NumVin, dbtypes.UInt64Array(dbTx.VinDbIds),
 		dbTx.NumVout, dbtypes.UInt64Array(dbTx.VoutDbIds),
 		dbTx.IsValidBlock, dbTx.IsMainchainBlock).Scan(&id)
@@ -2995,6 +2996,7 @@ func InsertTxnsStmt(stmt *sql.Stmt, dbTxns []*dbtypes.Tx, checked, updateExistin
 			tx.BlockHash, tx.BlockHeight, tx.BlockTime, tx.Time,
 			tx.TxType, int16(tx.Version), tx.Tree, tx.TxID, tx.BlockIndex,
 			int32(tx.Locktime), int32(tx.Expiry), tx.Size, tx.Spent, tx.Sent, tx.Fees,
+			tx.MixCount, tx.MixDenom,
 			tx.NumVin, dbtypes.UInt64Array(tx.VinDbIds),
 			tx.NumVout, dbtypes.UInt64Array(tx.VoutDbIds), tx.IsValidBlock,
 			tx.IsMainchainBlock).Scan(&id)
@@ -3047,6 +3049,7 @@ func InsertTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked, updateExistingRecords
 			tx.BlockHash, tx.BlockHeight, tx.BlockTime, tx.Time,
 			tx.TxType, int16(tx.Version), tx.Tree, tx.TxID, tx.BlockIndex,
 			int32(tx.Locktime), int32(tx.Expiry), tx.Size, tx.Spent, tx.Sent, tx.Fees,
+			tx.MixCount, tx.MixDenom,
 			tx.NumVin, dbtypes.UInt64Array(tx.VinDbIds),
 			tx.NumVout, dbtypes.UInt64Array(tx.VoutDbIds), tx.IsValidBlock,
 			tx.IsMainchainBlock).Scan(&id)
@@ -3081,8 +3084,8 @@ func RetrieveDbTxByHash(ctx context.Context, db *sql.DB, txHash string) (id uint
 		&dbTx.BlockHash, &dbTx.BlockHeight, &dbTx.BlockTime, &dbTx.Time,
 		&dbTx.TxType, &dbTx.Version, &dbTx.Tree, &dbTx.TxID, &dbTx.BlockIndex,
 		&dbTx.Locktime, &dbTx.Expiry, &dbTx.Size, &dbTx.Spent, &dbTx.Sent,
-		&dbTx.Fees, &dbTx.NumVin, &vinDbIDs, &dbTx.NumVout, &voutDbIDs,
-		&dbTx.IsValidBlock, &dbTx.IsMainchainBlock)
+		&dbTx.Fees, &dbTx.MixCount, &dbTx.MixDenom, &dbTx.NumVin, &vinDbIDs,
+		&dbTx.NumVout, &voutDbIDs, &dbTx.IsValidBlock, &dbTx.IsMainchainBlock)
 	dbTx.VinDbIds = vinDbIDs
 	dbTx.VoutDbIds = voutDbIDs
 	return
@@ -3095,13 +3098,14 @@ func RetrieveFullTxByHash(ctx context.Context, db *sql.DB, txHash string) (id ui
 	blockHash string, blockHeight int64, blockTime, timeVal dbtypes.TimeDef,
 	txType int16, version int32, tree int8, blockInd uint32,
 	lockTime, expiry int32, size uint32, spent, sent, fees int64,
+	mixCount int32, mixDenom int64,
 	numVin int32, vinDbIDs []int64, numVout int32, voutDbIDs []int64,
 	isValidBlock, isMainchainBlock bool, err error) {
 	var hash string
 	err = db.QueryRowContext(ctx, internal.SelectFullTxByHash, txHash).Scan(&id, &blockHash,
 		&blockHeight, &blockTime, &timeVal, &txType, &version, &tree,
 		&hash, &blockInd, &lockTime, &expiry, &size, &spent, &sent, &fees,
-		&numVin, &vinDbIDs, &numVout, &voutDbIDs,
+		&mixCount, &mixDenom, &numVin, &vinDbIDs, &numVout, &voutDbIDs,
 		&isValidBlock, &isMainchainBlock)
 	return
 }
@@ -3128,7 +3132,8 @@ func RetrieveDbTxsByHash(ctx context.Context, db *sql.DB, txHash string) (ids []
 			&dbTx.BlockHash, &dbTx.BlockHeight, &dbTx.BlockTime, &dbTx.Time,
 			&dbTx.TxType, &dbTx.Version, &dbTx.Tree, &dbTx.TxID, &dbTx.BlockIndex,
 			&dbTx.Locktime, &dbTx.Expiry, &dbTx.Size, &dbTx.Spent, &dbTx.Sent,
-			&dbTx.Fees, &dbTx.NumVin, &vinids, &dbTx.NumVout, &voutids,
+			&dbTx.Fees, &dbTx.MixCount, &dbTx.MixDenom, &dbTx.NumVin, &vinids,
+			&dbTx.NumVout, &voutids,
 			&dbTx.IsValidBlock, &dbTx.IsMainchainBlock)
 		if err != nil {
 			return
@@ -4590,6 +4595,14 @@ func RetrieveSDiff(ctx context.Context, db *sql.DB, ind int64) (float64, error) 
 	var sbits int64
 	err := db.QueryRowContext(ctx, internal.SelectSBitsByHeight, ind).Scan(&sbits)
 	return dcrutil.Amount(sbits).ToCoin(), err
+}
+
+// RetrieveSBitsByHash returns the stake difficulty in atoms for the specified
+// block.
+func RetrieveSBitsByHash(ctx context.Context, db *sql.DB, hash string) (int64, error) {
+	var sbits int64
+	err := db.QueryRowContext(ctx, internal.SelectSBitsByHash, hash).Scan(&sbits)
+	return sbits, err
 }
 
 // RetrieveSDiffRange returns an array of stake difficulties for block range
