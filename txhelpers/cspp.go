@@ -27,12 +27,12 @@ func init() {
 	}
 }
 
-// IsMixTx test if a transaction is a CSPP-mixed transaction, which must have 3
+// IsMixTx tests if a transaction is a CSPP-mixed transaction, which must have 3
 // or more outputs of the same amount, which is one of the pre-defined mix
 // denominations. mixDenom is the largest of such denominations. mixCount is the
-// number of inputs of this denomination.
+// number of outputs of this denomination.
 func IsMixTx(tx *wire.MsgTx) (isMix bool, mixDenom int64, mixCount uint32) {
-	if len(tx.TxOut) < 3 {
+	if len(tx.TxOut) < 3 || len(tx.TxIn) < 3 {
 		return false, 0, 0
 	}
 
@@ -55,6 +55,7 @@ func IsMixTx(tx *wire.MsgTx) (isMix bool, mixDenom int64, mixCount uint32) {
 		}
 	}
 
+	// TODO: revisit the input count requirements
 	isMix = mixCount >= uint32(len(tx.TxOut)/2)
 	return
 }
@@ -100,7 +101,7 @@ var (
 // of a solo ticket transaction with one P2PKH input, two P2PKH outputs and one
 // ticket commitment output.
 func IsMixedSplitTx(tx *wire.MsgTx, relayFeeRate, ticketPrice int64) (isMix bool, ticketOutAmt int64, numTickets uint32) {
-	if len(tx.TxOut) < 6 {
+	if len(tx.TxOut) < 6 || len(tx.TxIn) < 3 {
 		return false, 0, 0
 	}
 

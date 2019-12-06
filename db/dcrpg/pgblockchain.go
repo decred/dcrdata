@@ -5413,7 +5413,7 @@ func (pgb *ChainDB) GetExplorerBlocks(start int, end int) []*exptypes.BlockBasic
 // txWithTicketPrice is a way to perform getrawtransaction and if the
 // transaction is unconfirmed, getstakedifficulty, while the chain server's best
 // block remains unchanged. If the transaction is confirmed, the ticket price is
-// queryied from ChainDB's database.
+// queryied from ChainDB's database. This is an ugly solution to atomic RPCs.
 func (pgb *ChainDB) txWithTicketPrice(txhash *chainhash.Hash) (*chainjson.TxRawResult, int64, error) {
 	// If the transaction is unconfirmed, the RPC client must provide the ticket
 	// price. Ensure the best block does not change between calls to
