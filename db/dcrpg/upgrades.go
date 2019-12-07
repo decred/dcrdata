@@ -38,7 +38,7 @@ const (
 	// include duplicate row check and removal, forced table analysis, patching
 	// or recomputation of data values, reindexing, or any other operations that
 	// do not create, delete or modify the definition of any database relation.
-	maintVersion = 0
+	maintVersion = 1
 )
 
 var (
@@ -159,6 +159,11 @@ func updateSchemaVersion(db *sql.DB, schema uint32) error {
 	return err
 }
 
+func updateMaintVersion(db *sql.DB, maint uint32) error {
+	_, err := db.Exec(internal.SetDBMaintenanceVersion, maint)
+	return err
+}
+
 // Upgrader contains a number of elements necessary to perform a database
 // upgrade.
 type Upgrader struct {
@@ -239,6 +244,7 @@ func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool
 	}
 
 	// Process schema upgrades and table maintenance.
+	initSchema := current.schema
 	switch current.schema {
 	case 0: // legacyDatabaseVersion
 		// Remove table comments where the versions were stored.
@@ -301,10 +307,31 @@ func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool
 
 	case 5:
 		// Perform schema v5 maintenance.
-		// --> noop, but would switch on current.maint
+		switch current.maint {
+		case 0:
+			// The maint 0 -> 1 upgrade is only needed if the user had upgraded
+			// to 1.5.0 before 1.5.1 was defined.
+			log.Infof("Performing database upgrade 1.5.0 -> 1.5.1")
+			if initSchema == 5 {
+				err = u.setTxMixData()
+				if err != nil {
+					return false, fmt.Errorf("failed to upgrade 1.5.0 to 1.5.1: %v", err)
+				}
+			}
+			current.maint++
+			if err = updateMaintVersion(u.db, current.maint); err != nil {
+				return false, fmt.Errorf("failed to update maintenance version: %v", err)
+			}
+			fallthrough
+		case 1:
+			// all ready
+		default:
+			return false, fmt.Errorf("unsupported maint version %d", current.maint)
+		}
 
 		// No further upgrades.
 		return upgradeCheck()
+
 		// Or continue to upgrades for the next schema version.
 		// fallthrough
 	default:
@@ -332,6 +359,10 @@ func (u *Upgrader) upgrade140to150() error {
 		return fmt.Errorf("ALTER TABLE transactions error: %v", err)
 	}
 
+	return u.setTxMixData()
+}
+
+func (u *Upgrader) setTxMixData() error {
 	log.Infof("Retrieving possible mix transactions...")
 	txnRows, err := u.db.Query(`SELECT transactions.id, transactions.tx_hash, array_agg(value), min(blocks.sbits)
 		FROM transactions
@@ -359,20 +390,22 @@ func (u *Upgrader) upgrade140to150() error {
 		}
 
 		txouts := make([]*wire.TxOut, 0, len(vals))
+		txins := make([]*wire.TxIn, 0, len(vals))
 		for _, v := range vals {
 			txouts = append(txouts, &wire.TxOut{
 				Value: v,
 			})
+			txins = append(txins, &wire.TxIn{ /*dummy*/ })
 		}
 		msgTx.TxOut = txouts
+		msgTx.TxIn = txins
 
 		_, mixDenom, mixCount := txhelpers.IsMixTx(msgTx)
 		if mixCount == 0 {
 			_, mixDenom, mixCount = txhelpers.IsMixedSplitTx(msgTx, txhelpers.DefaultRelayFeePerKb, ticketPrice)
-		}
-
-		if mixCount == 0 {
-			continue
+			if mixCount == 0 {
+				continue
+			}
 		}
 
 		mixIDs = append(mixIDs, id)
