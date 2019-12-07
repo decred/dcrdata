@@ -43,4 +43,7 @@ const (
 
 	SetDBSchemaVersion = `UPDATE meta
 		SET schema_version = $1;`
+
+	SetDBMaintenanceVersion = `UPDATE meta
+		SET maintenance_version = $1;`
 )
