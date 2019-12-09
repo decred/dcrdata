@@ -21,6 +21,7 @@ const (
 	// vouts table
 
 	IndexOfVoutsTableOnTxHashInd = "uix_vout_txhash_ind"
+	IndexOfVoutsTableOnSpendTxID = "uix_vout_spendtxid_ind"
 
 	// addresses table
 
@@ -84,6 +85,7 @@ var IndexDescriptions = map[string]string{
 	IndexOfVinsTableOnVin:                  "vins on transaction hash and index",
 	IndexOfVinsTableOnPrevOut:              "vins on previous outpoint",
 	IndexOfVoutsTableOnTxHashInd:           "vouts on transaction hash and index",
+	IndexOfVoutsTableOnSpendTxID:           "vouts on spend_tx_row_id",
 	IndexOfAddressTableOnAddress:           "addresses table on address",
 	IndexOfAddressTableOnVoutID:            "addresses table on vout row id, address, and is_funding",
 	IndexOfAddressTableOnBlockTime:         "addresses table on block time",

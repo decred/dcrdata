@@ -1057,11 +1057,7 @@ func TxIsRegular(txType int) bool {
 // IsStakeTx indicates if the input MsgTx is a stake transaction.
 func IsStakeTx(msgTx *wire.MsgTx) bool {
 	switch stake.DetermineTxType(msgTx) {
-	case stake.TxTypeSSGen:
-		fallthrough
-	case stake.TxTypeSStx:
-		fallthrough
-	case stake.TxTypeSSRtx:
+	case stake.TxTypeSSGen, stake.TxTypeSStx, stake.TxTypeSSRtx:
 		return true
 	default:
 		return false

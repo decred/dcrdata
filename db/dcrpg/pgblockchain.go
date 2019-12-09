@@ -165,33 +165,50 @@ func (u *utxoStore) Get(txHash string, txIndex uint32) (*dbtypes.UTXOData, bool)
 	return utxoData, ok
 }
 
-func (u *utxoStore) set(txHash string, txIndex uint32, addrs []string, val int64) {
+func (u *utxoStore) Peek(txHash string, txIndex uint32) *dbtypes.UTXOData {
+	u.Lock()
+	defer u.Unlock()
+	txVals, ok := u.c[txHash]
+	if !ok {
+		return nil
+	}
+	return txVals[txIndex]
+}
+
+func (u *utxoStore) set(txHash string, txIndex uint32, voutDbID int64, addrs []string, val int64, mixed bool) {
 	txUTXOVals, ok := u.c[txHash]
 	if !ok {
 		u.c[txHash] = map[uint32]*dbtypes.UTXOData{
 			txIndex: {
 				Addresses: addrs,
 				Value:     val,
+				Mixed:     mixed,
+				VoutDbID:  voutDbID,
 			},
 		}
 	} else {
 		txUTXOVals[txIndex] = &dbtypes.UTXOData{
 			Addresses: addrs,
 			Value:     val,
+			Mixed:     mixed,
+			VoutDbID:  voutDbID,
 		}
 	}
 }
 
 // Set stores the addresses and amount in a UTXOData entry in the cache for the
 // given outpoint.
-func (u *utxoStore) Set(txHash string, txIndex uint32, addrs []string, val int64) {
+func (u *utxoStore) Set(txHash string, txIndex uint32, voutDbID int64, addrs []string, val int64, mixed bool) {
 	u.Lock()
 	defer u.Unlock()
-	u.set(txHash, txIndex, addrs, val)
+	u.set(txHash, txIndex, voutDbID, addrs, val, mixed)
 }
 
 // Reinit re-initializes the utxoStore with the given UTXOs.
 func (u *utxoStore) Reinit(utxos []dbtypes.UTXO) {
+	if len(utxos) == 0 {
+		return
+	}
 	u.Lock()
 	defer u.Unlock()
 	// Pre-allocate the transaction hash map assuming the number of unique
@@ -199,7 +216,7 @@ func (u *utxoStore) Reinit(utxos []dbtypes.UTXO) {
 	prealloc := 2 * len(utxos) / 3
 	u.c = make(map[string]map[uint32]*dbtypes.UTXOData, prealloc)
 	for i := range utxos {
-		u.set(utxos[i].TxHash, utxos[i].TxIndex, utxos[i].Addresses, utxos[i].Value)
+		u.set(utxos[i].TxHash, utxos[i].TxIndex, utxos[i].VoutDbID, utxos[i].Addresses, utxos[i].Value, utxos[i].Mixed)
 	}
 }
 
@@ -3344,7 +3361,14 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 		txnsUpdated += rowsUpdated
 		log.Debugf("UpdateTransactionsMainchain: %v", time.Since(now))
 
-		// 3. Vins. Set is_mainchain=false on all vins, returning the number of
+		// 3. Vouts. For all transactions in this block, locate any vouts that
+		// reference them in vouts.spend_tx_row_id, and unset spend_tx_row_id.
+		err = clearVoutAllSpendTxRowIDs(pgb.db, tipHash)
+		if err != nil {
+			log.Errorf("clearVoutAllSpendTxRowIDs for block %s: %v", tipHash, err)
+		}
+
+		// 4. Vins. Set is_mainchain=false on all vins, returning the number of
 		// vins updated, the vins table row IDs, and the vouts table row IDs.
 		now = time.Now()
 		rowsUpdated, vinDbIDsBlk, voutDbIDsBlk, err := pgb.SetVinsMainchainByBlock(tipHash) // isMainchain from transactions table
@@ -3355,7 +3379,7 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 		vinsUpdated += rowsUpdated
 		log.Debugf("SetVinsMainchainByBlock: %v", time.Since(now))
 
-		// 4. Addresses. Set valid_mainchain=false on all addresses rows
+		// 5. Addresses. Set valid_mainchain=false on all addresses rows
 		// corresponding to the spending transactions specified by the vins DB
 		// row IDs, and the funding transactions specified by the vouts DB row
 		// IDs. The IDs come for free via RetrieveTxnsVinsVoutsByBlock.
@@ -3369,7 +3393,7 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 		addrsUpdated += numAddrSpending + numAddrFunding
 		log.Debugf("UpdateAddressesMainchainByIDs: %v", time.Since(now))
 
-		// 5. Votes. Sets is_mainchain=false on all votes in the tip block.
+		// 6. Votes. Sets is_mainchain=false on all votes in the tip block.
 		now = time.Now()
 		rowsUpdated, err = UpdateVotesMainchain(pgb.db, tipHash, false)
 		if err != nil {
@@ -3379,7 +3403,7 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 		votesUpdated += rowsUpdated
 		log.Debugf("UpdateVotesMainchain: %v", time.Since(now))
 
-		// 6. Tickets. Sets is_mainchain=false on all tickets in the tip block.
+		// 7. Tickets. Sets is_mainchain=false on all tickets in the tip block.
 		now = time.Now()
 		rowsUpdated, err = UpdateTicketsMainchain(pgb.db, tipHash, false)
 		if err != nil {
@@ -3554,7 +3578,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, isValid, isMainchain,
 	// vins, addresses, and transactions.
 	err = pgb.UpdateLastBlock(msgBlock, isMainchain)
 	if err != nil && err != sql.ErrNoRows {
-		err = fmt.Errorf("InsertBlockPrevNext: %v", err)
+		err = fmt.Errorf("UpdateLastBlock: %v", err)
 		return
 	}
 
@@ -3565,12 +3589,6 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, isValid, isMainchain,
 		pgb.bestBlock.hash = dbBlock.Hash
 		pgb.bestBlock.mtx.Unlock()
 
-		// Update the best block in the meta table.
-		if err = pgb.SetDBBestBlock(); err != nil {
-			err = fmt.Errorf("SetDBBestBlock: %v", err)
-			return
-		}
-
 		// Insert the block stats.
 		if isMainchain && tpi != nil {
 			err = InsertBlockStats(pgb.db, blockDbID, tpi)
@@ -3578,6 +3596,13 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, isValid, isMainchain,
 				err = fmt.Errorf("InsertBlockStats: %v", err)
 				return
 			}
+		}
+
+		// Update the best block in the meta table.
+		err = SetDBBestBlock(pgb.db, dbBlock.Hash, int64(dbBlock.Height))
+		if err != nil {
+			err = fmt.Errorf("SetDBBestBlock: %v", err)
+			return
 		}
 	}
 
@@ -3595,8 +3620,9 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, isValid, isMainchain,
 // SetDBBestBlock stores ChainDB's BestBlock data in the meta table.
 func (pgb *ChainDB) SetDBBestBlock() error {
 	pgb.bestBlock.mtx.RLock()
-	defer pgb.bestBlock.mtx.RUnlock()
-	return SetDBBestBlock(pgb.db, pgb.bestBlock.hash, pgb.bestBlock.height)
+	bbHash, bbHeight := pgb.bestBlock.hash, pgb.bestBlock.height
+	pgb.bestBlock.mtx.RUnlock()
+	return SetDBBestBlock(pgb.db, bbHash, bbHeight)
 }
 
 // UpdateLastBlock set the previous block's next block hash in the block_chain
@@ -3664,6 +3690,13 @@ func (pgb *ChainDB) UpdateLastBlock(msgBlock *wire.MsgBlock, isMainchain bool) e
 		err := UpdateLastBlockValid(pgb.db, lastBlockDbID, lastIsValid)
 		if err != nil {
 			return fmt.Errorf("UpdateLastBlockValid: %v", err)
+		}
+
+		// For the transactions invalidated by this block, locate any vouts that
+		// reference them in vouts.spend_tx_row_id, and unset spend_tx_row_id.
+		err = clearVoutRegularSpendTxRowIDs(pgb.db, lastBlockHash.String())
+		if err != nil {
+			return fmt.Errorf("clearVoutRegularSpendTxRowIDs: %v", err)
 		}
 
 		// Update the is_valid flag for the last block's vins.
@@ -3808,6 +3841,50 @@ func (pgb *ChainDB) storeBlockTxnTree(msgBlock *MsgBlockPG, txTree int8,
 	dbTransactions, dbTxVouts, dbTxVins := dbtypes.ExtractBlockTransactions(
 		msgBlock.MsgBlock, txTree, chainParams, isValid, isMainchain)
 
+	// The transactions' VinDbIds are not yet set, but update the UTXO cache
+	// without it so we can check the mixed status of stake transaction inputs
+	// without missing prevouts generated by txns mined in the same block
+	pgb.updateUtxoCache(dbTxVouts, dbTransactions)
+
+	// Check the previous outputs funding the stake transactions and certain
+	// regular transactions, tagging the new outputs as mixed if all of the
+	// previous outputs were mixed.
+txns:
+	for it, tx := range dbTransactions {
+		if tx.MixCount > 0 {
+			continue
+		}
+
+		// This only applies to stake transactions that spend the mixed outputs.
+		if txhelpers.TxIsRegular(int(tx.TxType)) {
+			continue
+		}
+
+		for iv := range dbTxVins[it] {
+			vin := &dbTxVins[it][iv]
+			if txhelpers.IsZeroHashStr(vin.PrevTxHash) {
+				continue
+			}
+			utxo := pgb.utxoCache.Peek(vin.PrevTxHash, vin.PrevTxIndex)
+			if utxo == nil {
+				log.Warnf("Unable to find cached UTXO data for %s:%d",
+					vin.PrevTxHash, vin.PrevTxIndex)
+				continue txns
+			}
+			if !utxo.Mixed {
+				continue txns
+			}
+		}
+
+		log.Tracef("Tagging outputs of txn %s (%s) as mixed.", tx.TxID,
+			txhelpers.TxTypeToString(int(tx.TxType)))
+		for _, vout := range dbTxVouts[it] {
+			vout.Mixed = true
+		}
+
+		//pgb.updateUtxoCache([][]*dbtypes.Vout{dbTxVouts[it]}, []*dbtypes.Tx{tx})
+	}
+
 	// Store the transactions, vins, and vouts. This sets the VoutDbIds,
 	// VinDbIds, and Vouts fields of each Tx in the dbTransactions slice.
 	dbAddressRows, txDbIDs, totalAddressRows, numOuts, numIns, err :=
@@ -3824,17 +3901,22 @@ func (pgb *ChainDB) storeBlockTxnTree(msgBlock *MsgBlockPG, txTree int8,
 		txDbIDs:  txDbIDs,
 	}
 
-	// Flatten the address rows into a single slice, and update the utxoCache.
+	// Flatten the address rows into a single slice, and update the utxoCache
+	// (again, now that vin DB IDs are set in dbTransactions).
 	var dbAddressRowsFlat []*dbtypes.AddressRow
 	var wg sync.WaitGroup
 	processAddressRows := func() {
-		dbAddressRowsFlat = pgb.flattenAddressRows(dbAddressRows, dbTransactions,
-			isMainchain && isValid)
+		dbAddressRowsFlat = pgb.flattenAddressRows(dbAddressRows, dbTransactions)
 		wg.Done()
 	}
-	// Do this in parallel with stake tree tree data insertion.
-	wg.Add(1)
+	updateUTXOCache := func() {
+		pgb.updateUtxoCache(dbTxVouts, dbTransactions)
+		wg.Done()
+	}
+	// Do this concurrently with stake transaction data insertion.
+	wg.Add(2)
 	go processAddressRows()
+	go updateUTXOCache()
 
 	// For a side chain block, set Validators to an empty slice so that there
 	// will be no misses even if there are less than 5 votes. Any Validators
@@ -3846,9 +3928,9 @@ func (pgb *ChainDB) storeBlockTxnTree(msgBlock *MsgBlockPG, txTree int8,
 		msgBlock.Validators = []string{}
 	}
 
-	// If processing stake tree transactions, insert tickets, votes, and misses.
-	// Also update pool status and spending information in tickets table
-	// pertaining to the new votes, revokes, misses, and expires.
+	// If processing stake transactions, insert tickets, votes, and misses. Also
+	// update pool status and spending information in tickets table pertaining
+	// to the new votes, revokes, misses, and expires.
 	if txTree == wire.TxTreeStake {
 		// Tickets: Insert new (unspent) tickets
 		newTicketDbIDs, newTicketTx, err := InsertTickets(pgb.db, dbTransactions, txDbIDs,
@@ -4011,15 +4093,15 @@ func (pgb *ChainDB) storeBlockTxnTree(msgBlock *MsgBlockPG, txTree int8,
 
 	// Begin a database transaction to insert spending address rows, and (if
 	// updateAddressesSpendingInfo) update matching_tx_hash in corresponding
-	// funding rows.
+	// funding rows and spend_tx_row_id in vouts.
 	dbTx, err := pgb.db.Begin()
 	if err != nil {
 		txRes.err = fmt.Errorf(`unable to begin database transaction: %v`, err)
 		return txRes
 	}
 
-	// Insert each new AddressRow, absent MatchingTxHash (spending txn since
-	// these new address rows are *funding*).
+	// Insert each new funding AddressRow, absent MatchingTxHash (spending txn
+	// since these new address rows are *funding*).
 	_, err = InsertAddressRowsDbTx(dbTx, dbAddressRowsFlat, pgb.dupChecks, updateExistingRecords)
 	if err != nil {
 		_ = dbTx.Rollback()
@@ -4036,6 +4118,13 @@ func (pgb *ChainDB) storeBlockTxnTree(msgBlock *MsgBlockPG, txTree int8,
 	for it, tx := range dbTransactions {
 		// vins array for this transaction
 		txVins := dbTxVins[it]
+		txDbID := txDbIDs[it] // for the newly-spent TXOs in the vouts table
+		var voutDbIDs []int64
+		if updateAddressesSpendingInfo {
+			voutDbIDs = make([]int64, 0, len(txVins))
+		}
+
+		validatedTx := tx.IsValid || tx.Tree == wire.TxTreeStake
 		for iv := range txVins {
 			// Transaction that spends an outpoint paying to >=0 addresses
 			vin := &txVins[iv]
@@ -4047,29 +4136,46 @@ func (pgb *ChainDB) storeBlockTxnTree(msgBlock *MsgBlockPG, txTree int8,
 			}
 
 			// Insert spending txn data in addresses table, and updated spend
-			// status for the previous outpoints' rows in the same table.
+			// status for the previous outpoints' rows in the same table and in
+			// the vouts table.
 			vinDbID := tx.VinDbIds[iv]
 			spendingTxHash := vin.TxID
 			spendingTxIndex := vin.TxIndex
-			validMainchain := tx.IsValidBlock && tx.IsMainchainBlock
+
 			// Attempt to retrieve cached data for this now-spent TXO. A
 			// successful get will delete the entry from the cache.
 			utxoData, ok := pgb.utxoCache.Get(vin.PrevTxHash, vin.PrevTxIndex)
 			if !ok {
 				log.Tracef("Data for that utxo (%s:%d) wasn't cached!", vin.PrevTxHash, vin.PrevTxIndex)
 			}
-			numAddressRowsSet, err := insertSpendingAddressRow(dbTx,
+			numAddressRowsSet, voutDbID, err := insertSpendingAddressRow(dbTx,
 				vin.PrevTxHash, vin.PrevTxIndex, int8(vin.PrevTxTree),
 				spendingTxHash, spendingTxIndex, vinDbID, utxoData, pgb.dupChecks,
-				updateExistingRecords, validMainchain, vin.TxType, updateAddressesSpendingInfo,
-				tx.BlockTime)
+				updateExistingRecords, tx.IsMainchainBlock, validatedTx,
+				vin.TxType, updateAddressesSpendingInfo, tx.BlockTime)
 			if err != nil {
-				_ = dbTx.Rollback()
 				txRes.err = fmt.Errorf(`insertSpendingAddressRow: %v + %v (rollback)`,
 					err, dbTx.Rollback())
 				return txRes
 			}
 			txRes.numAddresses += numAddressRowsSet
+			if updateAddressesSpendingInfo {
+				voutDbIDs = append(voutDbIDs, int64(voutDbID))
+			}
+		}
+
+		// NOTE: vouts.spend_tx_row_id is not updated if this is a side chain
+		// block or if the transaction is stake-invalidated. Spending
+		// information for extended side chain transaction outputs must still be
+		// done via addresses.matching_tx_hash.
+		if updateAddressesSpendingInfo && validatedTx && tx.IsMainchainBlock {
+			// Set spend_tx_row_id for each prevout consumed by this txn.
+			err = setSpendingForVouts(dbTx, voutDbIDs, txDbID)
+			if err != nil {
+				txRes.err = fmt.Errorf(`setSpendingForVouts: %v + %v (rollback)`,
+					err, dbTx.Rollback())
+				return txRes
+			}
 		}
 	}
 
@@ -4078,25 +4184,66 @@ func (pgb *ChainDB) storeBlockTxnTree(msgBlock *MsgBlockPG, txTree int8,
 	return txRes
 }
 
-func (pgb *ChainDB) flattenAddressRows(dbAddressRows [][]dbtypes.AddressRow, txns []*dbtypes.Tx, validMainchain bool) []*dbtypes.AddressRow {
+func (pgb *ChainDB) updateUtxoCache(dbVouts [][]*dbtypes.Vout, txns []*dbtypes.Tx) {
+	for it, tx := range txns {
+		utxos := make([]*dbtypes.UTXO, 0, tx.NumVout)
+		for iv, vout := range dbVouts[it] {
+			// Do not store zero-value output data.
+			if vout.Value == 0 {
+				continue
+			}
+
+			// Allow tx.VoutDbIds to be unset.
+			voutDbID := int64(-1)
+			if len(tx.VoutDbIds) == len(dbVouts[it]) {
+				voutDbID = int64(tx.VoutDbIds[iv])
+			}
+
+			utxos = append(utxos, &dbtypes.UTXO{
+				TxHash:  vout.TxHash,
+				TxIndex: vout.TxIndex,
+				UTXOData: dbtypes.UTXOData{
+					Addresses: vout.ScriptPubKeyData.Addresses,
+					Value:     int64(vout.Value),
+					Mixed:     vout.Mixed,
+					VoutDbID:  voutDbID,
+				},
+			})
+		}
+
+		// Store each output of this transaction in the UTXO cache.
+		for _, utxo := range utxos {
+			pgb.utxoCache.Set(utxo.TxHash, utxo.TxIndex, utxo.VoutDbID, utxo.Addresses, utxo.Value, utxo.Mixed)
+		}
+	}
+}
+
+func (pgb *ChainDB) flattenAddressRows(dbAddressRows [][]dbtypes.AddressRow, txns []*dbtypes.Tx) []*dbtypes.AddressRow {
 	var totalAddressRows int
 	for it := range dbAddressRows {
-		totalAddressRows += len(dbAddressRows[it])
+		for ia := range dbAddressRows[it] {
+			if dbAddressRows[it][ia].Value > 0 {
+				totalAddressRows++
+			}
+		}
 	}
-	// Store txn block time and mainchain validity status in AddressRows, and
-	// set IsFunding to true since InsertVouts is supplying the AddressRows.
+
 	dbAddressRowsFlat := make([]*dbtypes.AddressRow, 0, totalAddressRows)
+
 	for it, tx := range txns {
+		// Store txn block time and mainchain validity status in AddressRows, and
+		// set IsFunding to true since InsertVouts is supplying the AddressRows.
+		validMainChainTx := tx.IsMainchainBlock && (tx.IsValid || tx.Tree == wire.TxTreeStake)
+
 		// A UTXO may have multiple addresses associated with it, so check each
 		// addresses table row for multiple entries for the same output of this
 		// txn. This can only happen if the output's pkScript is a P2PK or P2PKH
 		// multisignature script. This does not refer to P2SH, where a single
 		// address corresponds to the redeem script hash even though the script
 		// may be a multi-signature script.
-		utxos := make([]*dbtypes.UTXO, tx.NumVout)
-		for iv := range dbAddressRows[it] {
+		for ia := range dbAddressRows[it] {
 			// Transaction that pays to the address
-			dba := &dbAddressRows[it][iv]
+			dba := &dbAddressRows[it][ia]
 
 			// Do not store zero-value output data.
 			if dba.Value == 0 {
@@ -4110,40 +4257,11 @@ func (pgb *ChainDB) flattenAddressRows(dbAddressRows [][]dbtypes.AddressRow, txn
 			// SetSpendingForFundingOP below, and other places).
 			dba.TxBlockTime = tx.BlockTime
 			dba.IsFunding = true // from vouts
-			dba.ValidMainChain = validMainchain
+			dba.ValidMainChain = validMainChainTx
 
 			// Funding tx hash, vout id, value, and address are already assigned
 			// by InsertVouts. Only the block time and is_funding was needed.
 			dbAddressRowsFlat = append(dbAddressRowsFlat, dba)
-
-			// See if this output has already been assigned to a UTXO.
-			utxo := utxos[dba.TxVinVoutIndex]
-			if utxo == nil {
-				// New UTXO. Initialize with this address.
-				utxos[dba.TxVinVoutIndex] = &dbtypes.UTXO{
-					TxHash:  tx.TxID,
-					TxIndex: dba.TxVinVoutIndex,
-					UTXOData: dbtypes.UTXOData{
-						Addresses: []string{dba.Address},
-						Value:     int64(dba.Value),
-					},
-				}
-				continue
-			}
-
-			// Existing UTXO. Append address for this likely-bare multisig output.
-			utxo.UTXOData.Addresses = append(utxo.UTXOData.Addresses, dba.Address)
-			log.Infof(" ============== BARE MULTISIG: %s:%d ============== ",
-				dba.TxHash, dba.TxVinVoutIndex)
-		}
-
-		// Store each output of this transaction in the UTXO cache.
-		for _, utxo := range utxos {
-			// Skip any that were not set (e.g. zero-value, no address, etc.).
-			if utxo == nil {
-				continue
-			}
-			pgb.utxoCache.Set(utxo.TxHash, utxo.TxIndex, utxo.Addresses, utxo.Value)
 		}
 	}
 	return dbAddressRowsFlat
@@ -4216,70 +4334,60 @@ func (pgb *ChainDB) CollectTicketSpendDBInfo(dbTxns []*dbtypes.Tx, txDbIDs []uin
 // after syncing all other tables and creating their indexes, particularly the
 // indexes on the vins table, and the addresses table index on the funding tx
 // columns. This can be used instead of using updateAddressesSpendingInfo=true
-// with storeBlockTxnTree, which will update these addresses table columns too, but much
-// more slowly for a number of reasons (that are well worth investigating BTW!).
+// with storeBlockTxnTree, which will update these addresses table columns too,
+// but much more slowly for a number of reasons (that are well worth
+// investigating BTW!).
 func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses(barLoad chan *dbtypes.ProgressBarLoad) (int64, error) {
-	// Get the full list of vinDbIDs
-	allVinDbIDs, err := RetrieveAllVinDbIDs(pgb.db)
+	heightDB, err := pgb.HeightDB()
 	if err != nil {
-		log.Errorf("RetrieveAllVinDbIDs: %v", err)
-		return 0, err
+		return 0, fmt.Errorf("DBBestBlock: %v", err)
 	}
 
-	updatesPerDBTx := 1000
-	totalVinIbIDs := len(allVinDbIDs)
+	tStart := time.Now()
 
-	timeStart := time.Now()
-
-	log.Infof("Updating spending tx info for %d addresses...", totalVinIbIDs)
-	var numAddresses int64
-	for i := 0; i < totalVinIbIDs; i += updatesPerDBTx {
-		if i%100000 == 0 {
-			endRange := i + 100000 - 1
-			if endRange > totalVinIbIDs {
-				endRange = totalVinIbIDs
-			}
-			log.Infof("Updating from vins %d to %d...", i, endRange)
+	chunk := int64(10000)
+	var rowsTouched int64
+	for i := int64(0); i <= heightDB; i += chunk {
+		end := i + chunk
+		if end > heightDB+1 {
+			end = heightDB + 1
 		}
-
-		var numAddressRowsSet int64
-		endChunk := i + updatesPerDBTx
-		if endChunk > totalVinIbIDs {
-			endChunk = totalVinIbIDs
+		log.Infof("Updating address rows for blocks [%d,%d]...", i, end-1)
+		res, err := pgb.db.Exec(internal.UpdateAllAddressesMatchingTxHashRange, i, end)
+		if err != nil {
+			return 0, err
 		}
+		N, err := res.RowsAffected()
+		if err != nil {
+			return 0, err
+		}
+		rowsTouched += N
 
 		if barLoad != nil {
-			timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endChunk-i))
+			timeTakenPerBlock := (time.Since(tStart).Seconds() / float64(end-i))
 			barLoad <- &dbtypes.ProgressBarLoad{
-				From:      int64(i),
-				To:        int64(totalVinIbIDs),
+				From:      i,
+				To:        heightDB,
 				Msg:       addressesSyncStatusMsg,
 				BarID:     dbtypes.AddressesTableSync,
-				Timestamp: int64(timeTakenPerBlock * float64(totalVinIbIDs-endChunk)),
+				Timestamp: int64(timeTakenPerBlock * float64(heightDB-i)),
 			}
 
-			timeStart = time.Now()
+			tStart = time.Now()
 		}
-
-		_, numAddressRowsSet, err = SetSpendingForVinDbIDs(pgb.db, allVinDbIDs[i:endChunk])
-		if err != nil {
-			log.Errorf("SetSpendingForVinDbIDs: %v", err)
-			continue
-		}
-		numAddresses += numAddressRowsSet
 	}
 
 	// Signal the completion of the sync to the status page.
 	if barLoad != nil {
 		barLoad <- &dbtypes.ProgressBarLoad{
-			From:  int64(totalVinIbIDs),
-			To:    int64(totalVinIbIDs),
+			From:  heightDB,
+			To:    heightDB,
 			Msg:   addressesSyncStatusMsg,
 			BarID: dbtypes.AddressesTableSync,
 		}
 	}
 
-	return numAddresses, err
+	return rowsTouched, nil
 }
 
 // UpdateSpendingInfoInAllTickets reviews all votes and revokes and sets this
@@ -4529,7 +4637,7 @@ func (pgb *ChainDB) ChargePoolInfoCache(startHeight int64) error {
 	return nil
 }
 
-// GetPool retreives all the live ticket hashes at a given height.
+// GetPool retrieves all the live ticket hashes at a given height.
 func (pgb *ChainDB) GetPool(idx int64) ([]string, error) {
 	hs, err := pgb.stakeDB.PoolDB.Pool(idx)
 	if err != nil {

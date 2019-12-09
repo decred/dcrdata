@@ -114,6 +114,16 @@ func DeindexVoutTableOnTxHashIdx(db *sql.DB) (err error) {
 	return
 }
 
+func IndexVoutTableOnSpendTxID(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexVoutTableOnSpendTxID)
+	return
+}
+
+func DeindexVoutTableOnSpendTxID(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexVoutTableOnSpendTxID)
+	return
+}
+
 // addresses table indexes
 
 // IndexBlockTimeOnTableAddress creates the index for the addresses table over
@@ -128,15 +138,15 @@ func DeindexBlockTimeOnTableAddress(db *sql.DB) (err error) {
 	return
 }
 
-// IndexMatchingTxHashOnTableAddress creates the index for the addresses table
+// IndexAddressTableOnMatchingTxHash creates the index for the addresses table
 // over matching transaction hash.
-func IndexMatchingTxHashOnTableAddress(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexMatchingTxHashOnTableAddress)
+func IndexAddressTableOnMatchingTxHash(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexAddressTableOnMatchingTxHash)
 	return
 }
 
-func DeindexMatchingTxHashOnTableAddress(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexMatchingTxHashOnTableAddress)
+func DeindexAddressTableOnMatchingTxHash(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexAddressTableOnMatchingTxHash)
 	return
 }
 
@@ -426,6 +436,7 @@ func (pgb *ChainDB) DeindexAll() error {
 		// blocks table
 		{DeindexBlockTableOnHash},
 		{DeindexBlockTableOnHeight},
+		{DeindexBlockTableOnTime},
 
 		// transactions table
 		{DeindexTransactionTableOnHashes},
@@ -437,10 +448,11 @@ func (pgb *ChainDB) DeindexAll() error {
 
 		// vouts table
 		{DeindexVoutTableOnTxHashIdx},
+		{DeindexVoutTableOnSpendTxID},
 
 		// addresses table
 		{DeindexBlockTimeOnTableAddress},
-		{DeindexMatchingTxHashOnTableAddress},
+		{DeindexAddressTableOnMatchingTxHash},
 		{DeindexAddressTableOnAddress},
 		{DeindexAddressTableOnVoutID},
 		{DeindexAddressTableOnTxHash},
@@ -486,11 +498,9 @@ func (pgb *ChainDB) DeindexAll() error {
 	return err
 }
 
-// IndexAll creates most indexes in the tables. Exceptions: (1) Use
-// IndexAddressTable to create IndexAddressTableOnVoutID and
-// IndexAddressTableOnAddress. (2) Use IndexTicketsTable to create
-// IndexTicketsTableOnHashes, IndexTicketsTableOnPoolStatus, and
-// IndexTicketsTableOnTxDbID.
+// IndexAll creates most indexes in the tables. Exceptions: (1)
+// addresses.matching_tx_hash is not indexed, and (2) tickets table (use
+// IndexTicketsTable).
 func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 	allIndexes := []indexingInfo{
 		// blocks table
@@ -526,11 +536,12 @@ func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 		// agenda votes table
 		{Msg: "agenda votes table on Agenda ID", IndexFunc: IndexAgendaVotesTableOnAgendaID},
 
-		// Not indexing the address table on vout ID or address here. See
-		// IndexAddressTable to create those indexes.
+		// Not indexing the address table on matching_tx_hash here. See
+		// IndexAddressTable to create them all.
 		{Msg: "addresses table on tx hash", IndexFunc: IndexAddressTableOnTxHash},
-		{Msg: "addresses table on matching tx hash", IndexFunc: IndexMatchingTxHashOnTableAddress},
 		{Msg: "addresses table on block time", IndexFunc: IndexBlockTimeOnTableAddress},
+		{Msg: "addresses table on address", IndexFunc: IndexAddressTableOnAddress},
+		{Msg: "addresses table on vout DB ID", IndexFunc: IndexAddressTableOnVoutID},
 
 		// proposals table
 		{Msg: "proposals table on Token+Time", IndexFunc: IndexProposalsTableOnToken},
@@ -632,10 +643,10 @@ func (pgb *ChainDB) ReindexAddressesBlockTime() error {
 func (pgb *ChainDB) IndexAddressTable(barLoad chan *dbtypes.ProgressBarLoad) error {
 	addressesTableIndexes := []indexingInfo{
 		{Msg: "address", IndexFunc: IndexAddressTableOnAddress},
-		{Msg: "matching tx hash", IndexFunc: IndexMatchingTxHashOnTableAddress},
+		{Msg: "matching tx hash", IndexFunc: IndexAddressTableOnMatchingTxHash},
 		{Msg: "block time", IndexFunc: IndexBlockTimeOnTableAddress},
 		{Msg: "vout Db ID", IndexFunc: IndexAddressTableOnVoutID},
-		//{Msg: "tx hash", IndexFunc: IndexAddressTableOnTxHash},
+		{Msg: "tx hash", IndexFunc: IndexAddressTableOnTxHash},
 	}
 
 	for _, val := range addressesTableIndexes {
@@ -661,10 +672,10 @@ func (pgb *ChainDB) IndexAddressTable(barLoad chan *dbtypes.ProgressBarLoad) err
 func (pgb *ChainDB) DeindexAddressTable() error {
 	addressesDeindexes := []deIndexingInfo{
 		{DeindexAddressTableOnAddress},
-		{DeindexMatchingTxHashOnTableAddress},
+		{DeindexAddressTableOnMatchingTxHash},
 		{DeindexBlockTimeOnTableAddress},
 		{DeindexAddressTableOnVoutID},
-		//{DeindexAddressTableOnTxHash},
+		{DeindexAddressTableOnTxHash},
 	}
 
 	var err error

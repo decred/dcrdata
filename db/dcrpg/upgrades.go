@@ -31,14 +31,14 @@ const (
 	// This includes changes such as creating tables, adding/deleting columns,
 	// adding/deleting indexes or any other operations that create, delete, or
 	// modify the definition of any database relation.
-	schemaVersion = 5
+	schemaVersion = 6
 
 	// maintVersion indicates when certain maintenance operations should be
 	// performed for the same compatVersion and schemaVersion. Such operations
 	// include duplicate row check and removal, forced table analysis, patching
 	// or recomputation of data values, reindexing, or any other operations that
 	// do not create, delete or modify the definition of any database relation.
-	maintVersion = 1
+	maintVersion = 0
 )
 
 var (
@@ -329,6 +329,24 @@ func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool
 			return false, fmt.Errorf("unsupported maint version %d", current.maint)
 		}
 
+		// Upgrade to schema v6.
+		err = u.upgrade151to160()
+		if err != nil {
+			return false, fmt.Errorf("failed to upgrade 1.5.1 to 1.6.0: %v", err)
+		}
+		current.schema++
+		if err = updateSchemaVersion(u.db, current.schema); err != nil {
+			return false, fmt.Errorf("failed to update schema version: %v", err)
+		}
+		current.maint = 0
+		if err = updateMaintVersion(u.db, current.maint); err != nil {
+			return false, fmt.Errorf("failed to update maintenance version: %v", err)
+		}
+		fallthrough
+
+	case 6:
+		// Perform schema v6 maintenance.
+
 		// No further upgrades.
 		return upgradeCheck()
 
@@ -347,6 +365,113 @@ func removeTableComments(db *sql.DB) {
 			log.Errorf(`Failed to remove comment on table %s.`, tableName)
 		}
 	}
+}
+
+func (u *Upgrader) upgrade151to160() error {
+	// Add the mixed column to vouts table.
+	log.Infof("Performing database upgrade 1.5.1 -> 1.6.0")
+	_, err := u.db.Exec(`ALTER TABLE vouts
+		ADD COLUMN mixed BOOLEAN DEFAULT FALSE,
+		ADD COLUMN spend_tx_row_id INT8;`)
+	if err != nil {
+		return fmt.Errorf("ALTER TABLE vouts error: %v", err)
+	}
+
+	// Set the vouts.mixed column based on transactions.mix_denom and
+	// transactions.vout_db_ids and vouts.value.
+	log.Infof("Setting vouts.mixed (BOOLEAN) column for mixing transaction outputs with mix_denom value...")
+	_, err = u.db.Exec(`UPDATE vouts SET mixed=true
+		FROM transactions
+		WHERE vouts.id=ANY(transactions.vout_db_ids)
+			AND vouts.value=transactions.mix_denom
+			AND transactions.mix_denom>0;`)
+	if err != nil {
+		return fmt.Errorf("UPDATE vouts.mixed error: %v", err)
+	}
+
+	// Set vouts.spend_tx_row_id using vouts.tx_hash, vins.prev_tx_hash, and
+	// transactions.tx_hash.
+	log.Infof("Setting vouts.spend_tx_row_id (INT8) column. This will take a while...")
+	var N int64
+	N, err = updateSpendTxInfoInAllVouts(u.db)
+	if err != nil {
+		return fmt.Errorf("UPDATE vouts.spend_tx_row_id error: %v", err)
+	}
+	log.Debugf("Updated %d rows of vouts table.", N)
+
+	// var rows *sql.Rows
+	// rows, err = u.db.Query(`SELECT vouts.id AS vout_id, transactions.block_height AS spend_height
+	// 	FROM vouts
+	// 	JOIN vins ON vouts.tx_hash=vins.prev_tx_hash AND mixed=TRUE AND vins.is_mainchain=TRUE
+	// 	JOIN transactions ON transactions.tx_hash=vins.tx_hash;`)
+	// if err != nil {
+	// 	return fmt.Errorf("SELECT error: %v", err)
+	// }
+	// defer rows.Close()
+
+	// var voutIDs, spendHeights []int64
+	// for rows.Next() {
+	// 	var voutID, spendHeight int64
+	// 	err = rows.Scan(&voutID, &spendHeight)
+	// 	if err != nil {
+	// 		return fmt.Errorf("Scan error: %v", err)
+	// 	}
+	// 	voutIDs = append(voutIDs, voutID)
+	// 	spendHeights = append(spendHeights, spendHeight)
+	// }
+
+	// for i := range voutIDs {
+	// 	var N int64
+	// 	N, err = sqlExec(u.db, `UPDATE vouts SET spend_height = $1 WHERE id=$2`, "UPDATE vouts error",
+	// 		spendHeights[i], voutIDs[i])
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	if N != 1 {
+	// 		return fmt.Errorf("failed to update 1 row, updated %d", N)
+	// 	}
+	// }
+
+	// For all mixed vouts where spending tx is type stake.TxTypeSStx (a
+	// ticket), set the ticket's vouts as mixed.
+	log.Infof("Setting vouts.mixed (BOOLEAN) column for tickets funded by mixing split txns...")
+	_, err = u.db.Exec(`UPDATE vouts SET mixed=TRUE
+		FROM (SELECT DISTINCT ON(transactions.id) transactions.vout_db_ids
+			FROM vouts
+			JOIN transactions
+				ON vouts.spend_tx_row_id=transactions.id
+					AND vouts.mixed=true
+					AND transactions.tx_type=1) AS mix_funded_tickets
+		WHERE vouts.id=ANY(mix_funded_tickets.vout_db_ids)
+			AND vouts.value > 0;`)
+	if err != nil {
+		return fmt.Errorf("UPDATE ticket vouts error: %v", err)
+	}
+
+	// For all mixed vouts where spending tx is type stake.TxTypeGen (a vote),
+	// set the vote's vouts as mixed.
+	log.Infof("Setting vouts.mixed (BOOLEAN) column for votes and revokes funded by tickets funded by mixing split txns...")
+	_, err = u.db.Exec(`UPDATE vouts SET mixed=TRUE
+		FROM (SELECT DISTINCT ON(transactions.id) transactions.vout_db_ids
+			FROM vouts
+			JOIN transactions
+				ON vouts.spend_tx_row_id=transactions.id
+					AND vouts.mixed=true
+					AND (transactions.tx_type=2 OR transactions.tx_type=3)) AS mix_funded_votes
+		WHERE vouts.id=ANY(mix_funded_votes.vout_db_ids)
+			AND vouts.value > 0;`)
+	if err != nil {
+		return fmt.Errorf("UPDATE vote vouts error: %v", err)
+	}
+
+	// NOTE: fund and spend heights of mix transaction outputs
+	// `SELECT vouts.value, fund_tx.block_height, spend_tx.block_height
+	// 	FROM vouts
+	// 	JOIN transactions AS fund_tx ON vouts.tx_hash=fund_tx.tx_hash
+	// 	JOIN transactions AS spend_tx ON spend_tx_row_id=spend_tx.id
+	// 	WHERE mixed=true;`
+
+	return nil
 }
 
 func (u *Upgrader) upgrade140to150() error {

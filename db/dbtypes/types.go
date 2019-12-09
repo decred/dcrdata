@@ -753,12 +753,15 @@ type Vout struct {
 	Version          uint16           `json:"version"`
 	ScriptPubKey     []byte           `json:"pkScriptHex"`
 	ScriptPubKeyData ScriptPubKeyData `json:"pkScript"`
+	Mixed            bool             `json:"mixed"`
 }
 
 // UTXOData stores an address and value associated with a transaction output.
 type UTXOData struct {
 	Addresses []string
 	Value     int64
+	Mixed     bool
+	VoutDbID  int64
 }
 
 // UTXO represents a transaction output, but it is intended to help track
@@ -1635,7 +1638,7 @@ type Tx struct {
 	VoutDbIds []uint64 `json:"voutdbids"`
 	// NOTE: VoutDbIds may not be needed if there is a vout table since each
 	// vout will have a tx_dbid
-	IsValidBlock     bool `json:"valid_block"`
+	IsValid          bool `json:"valid"`
 	IsMainchainBlock bool `json:"mainchain"`
 }
 
