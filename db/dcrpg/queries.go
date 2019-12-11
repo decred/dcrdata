@@ -3619,6 +3619,51 @@ func appendBlockFees(charts *cache.ChartData, rows *sql.Rows) error {
 	return rows.Err()
 }
 
+// retrieveBlockCoinJoins retrieves any block total mixed data that is newer than the data
+// in the provided ChartData. This data is used to plot coinjoin on the /charts page.
+// This is the Fetcher half of a pair that make up a cache.ChartUpdater.
+func retrieveBlockCoinJoins(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
+	rows, err := db.QueryContext(ctx, internal.SelectTotalMixedPerBlockAboveHeight, charts.TotalMixedTip())
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+// Append the result from retrieveBlockCoinJoins to the provided ChartData. This
+// is the Appender half of a pair that make up a cache.ChartUpdater.
+func appendBlockCoinJoins(charts *cache.ChartData, rows *sql.Rows) error {
+	defer rows.Close()
+	blocks := charts.Blocks
+	heightMap := make(map[uint64]int, len(blocks.Height))
+	for i, h := range blocks.Height {
+		heightMap[h] = i
+	}
+
+	for rows.Next() {
+		var blockHeight uint64
+		var totalMixed int64
+		if err := rows.Scan(&blockHeight, &totalMixed); err != nil {
+			log.Errorf("Unable to scan for CoinJoinInfoPerBlock fields: %v", err)
+			return err
+		}
+
+		if totalMixed < 0 {
+			totalMixed *= -1
+		}
+
+		// the query retreives ticket transactions that has mixed amount alone, fill 0s for missing height
+		curLen := heightMap[blockHeight]
+		for len(blocks.TotalMixed) < curLen {
+			blocks.TotalMixed = append(blocks.TotalMixed, 0)
+		}
+
+		blocks.TotalMixed = append(blocks.TotalMixed, uint64(totalMixed))
+	}
+
+	return nil
+}
+
 // retrievePoolStats returns all the pool value and the pool size
 // charts data needed to plot ticket-pool-size and ticket-pool value charts on
 // the charts page. This is the Fetcher half of a pair that make up a

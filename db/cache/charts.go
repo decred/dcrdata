@@ -30,30 +30,33 @@ const (
 	TicketPrice     = "ticket-price"
 	TxCount         = "tx-count"
 	Fees            = "fees"
+	Coinjoins       = "coinjoins"
 	TicketPoolSize  = "ticket-pool-size"
 	TicketPoolValue = "ticket-pool-value"
 	WindMissedVotes = "missed-votes"
 	PercentStaked   = "stake-participation"
 
 	// Some chartResponse keys
-	heightKey      = "h"
-	timeKey        = "t"
-	binKey         = "bin"
-	axisKey        = "axis"
-	supplyKey      = "supply"
-	windowKey      = "window"
-	diffKey        = "diff"
-	priceKey       = "price"
-	countKey       = "count"
-	offsetKey      = "offset"
-	circulationKey = "circulation"
-	poolValKey     = "poolval"
-	missedKey      = "missed"
-	sizeKey        = "size"
-	feesKey        = "fees"
-	durationKey    = "duration"
-	workKey        = "work"
-	rateKey        = "rate"
+	heightKey      		  = "h"
+	timeKey        		  = "t"
+	binKey         		  = "bin"
+	axisKey        		  = "axis"
+	supplyKey      		  = "supply"
+	windowKey      		  = "window"
+	diffKey        		  = "diff"
+	priceKey       		  = "price"
+	countKey       		  = "count"
+	offsetKey      		  = "offset"
+	circulationKey 		  = "circulation"
+	poolValKey     		  = "poolval"
+	missedKey      		  = "missed"
+	sizeKey        		  = "size"
+	feesKey        		  = "fees"
+	coinjoinsKey   		  = "coinjoins"
+	coinjoinsKeyMovingSum = "coinjoinsMovingSum"
+	durationKey    		  = "duration"
+	workKey        		  = "work"
+	rateKey        		  = "rate"
 )
 
 // binLevel specifies the granularity of data.
@@ -257,16 +260,18 @@ func newChartUints(size int) ChartUints {
 // cacheID is updated anytime new data is added and validated (see
 // Lengthen), typically once per bin duration.
 type zoomSet struct {
-	cacheID   uint64
-	Height    ChartUints
-	Time      ChartUints
-	PoolSize  ChartUints
-	PoolValue ChartUints
-	BlockSize ChartUints
-	TxCount   ChartUints
-	NewAtoms  ChartUints
-	Chainwork ChartUints
-	Fees      ChartUints
+	cacheID          uint64
+	Height           ChartUints
+	Time             ChartUints
+	PoolSize         ChartUints
+	PoolValue        ChartUints
+	BlockSize        ChartUints
+	TxCount          ChartUints
+	NewAtoms         ChartUints
+	Chainwork        ChartUints
+	Fees             ChartUints
+	TotalMixed       ChartUints
+	MovingTotalMixed ChartUints
 }
 
 // Snip truncates the zoomSet to a provided length.
@@ -283,21 +288,25 @@ func (set *zoomSet) Snip(length int) {
 	set.NewAtoms = set.NewAtoms.snip(length)
 	set.Chainwork = set.Chainwork.snip(length)
 	set.Fees = set.Fees.snip(length)
+	set.TotalMixed = set.TotalMixed.snip(length)
+	set.MovingTotalMixed = set.MovingTotalMixed.snip(length)
 }
 
 // Constructor for a sized zoomSet for blocks, which has has no Height slice
 // since the height is implicit for block-binned data.
 func newBlockSet(size int) *zoomSet {
 	return &zoomSet{
-		Height:    newChartUints(size),
-		Time:      newChartUints(size),
-		PoolSize:  newChartUints(size),
-		PoolValue: newChartUints(size),
-		BlockSize: newChartUints(size),
-		TxCount:   newChartUints(size),
-		NewAtoms:  newChartUints(size),
-		Chainwork: newChartUints(size),
-		Fees:      newChartUints(size),
+		Height:           newChartUints(size),
+		Time:             newChartUints(size),
+		PoolSize:         newChartUints(size),
+		PoolValue:        newChartUints(size),
+		BlockSize:        newChartUints(size),
+		TxCount:          newChartUints(size),
+		NewAtoms:         newChartUints(size),
+		Chainwork:        newChartUints(size),
+		Fees:             newChartUints(size),
+		TotalMixed:       newChartUints(size),
+		MovingTotalMixed: newChartUints(size),
 	}
 }
 
@@ -362,6 +371,7 @@ type ChartGobject struct {
 	TicketPrice ChartUints
 	StakeCount  ChartUints
 	MissedVotes ChartUints
+	TotalMixed  ChartUints
 }
 
 // The chart data is cached with the current cacheID of the zoomSet or windowSet.
@@ -410,6 +420,7 @@ type ChartData struct {
 	Blocks       *zoomSet
 	Windows      *windowSet
 	Days         *zoomSet
+	chainParams  *chaincfg.Params
 	cacheMtx     sync.RWMutex
 	cache        map[string]*cachedChart
 	updaters     []ChartUpdater
@@ -459,7 +470,7 @@ func (charts *ChartData) Lengthen() error {
 	blocks := charts.Blocks
 	shortest, err := ValidateLengths(blocks.Height, blocks.Time,
 		blocks.PoolSize, blocks.PoolValue, blocks.BlockSize, blocks.TxCount,
-		blocks.NewAtoms, blocks.Chainwork, blocks.Fees)
+		blocks.NewAtoms, blocks.Chainwork, blocks.Fees, blocks.TotalMixed)
 	if err != nil {
 		log.Warnf("ChartData.Lengthen: block data length mismatch detected. "+
 			"Truncating blocks length to %d", shortest)
@@ -507,6 +518,16 @@ func (charts *ChartData) Lengthen() error {
 	}
 
 	intervals := [][2]int{}
+	movingInterval := [][2]int{} // stores the start and end index for the vote reward period, ~29.07 days on mainnet, moving sum
+	miStart := start
+	// The actual reward of a ticket needs to also take into consideration the
+	// ticket maturity (time from ticket purchase until its eligible to vote)
+	// and coinbase maturity (time after vote until funds distributed to ticket
+	// holder are available to use).
+	meanVotingBlocks := txhelpers.CalcMeanVotingBlocks(charts.chainParams)
+	avgSSTxToSSGenMaturity := meanVotingBlocks + int64(charts.chainParams.TicketMaturity) + 
+		int64(charts.chainParams.CoinbaseMaturity)
+	rewardPeriod := float64(avgSSTxToSSGenMaturity)* charts.chainParams.TargetTimePerBlock.Hours()/24
 	// If there is day or more worth of new data, append to the Days zoomSet by
 	// finding the first and last+1 blocks of each new day, and taking averages
 	// or sums of the blocks in the interval.
@@ -527,6 +548,7 @@ func (charts *ChartData) Lengthen() error {
 				}
 			}
 		}
+
 		for _, interval := range intervals {
 			// For each new day, take an appropriate snapshot. Some sets use sums,
 			// some use averages, and some use the last value of the day.
@@ -538,13 +560,42 @@ func (charts *ChartData) Lengthen() error {
 			days.NewAtoms = append(days.NewAtoms, blocks.NewAtoms.Sum(interval[0], interval[1]))
 			days.Chainwork = append(days.Chainwork, blocks.Chainwork[interval[1]])
 			days.Fees = append(days.Fees, blocks.Fees.Sum(interval[0], interval[1]))
+			days.TotalMixed = append(days.TotalMixed, blocks.TotalMixed.Sum(interval[0], interval[1]))
+		}
+
+		minIndex := func(t uint64, previousIndex int) int {
+			for i := previousIndex; i < len(blocks.Time); i++ {
+				if blocks.Time[i] >= t {
+					return i
+				}
+			}
+			return 0
+		}
+
+		next = miStart + aDay
+		lastIndex := 0
+		for i, t := range blocks.Time[offset:] {
+			if t >= next {
+				// Once passed the next midnight. prepare a {rewardPeriod} day(s) window by storing the range of indices
+				minTime := blocks.Time[i] - uint64(rewardPeriod*aDay)
+				startIdx := minIndex(minTime, lastIndex)
+				movingInterval = append(movingInterval, [2]int{startIdx, i + offset})
+				next += aDay
+				lastIndex = startIdx
+				if t > end {
+					break
+				}
+			}
+		}
+		for _, interval := range movingInterval {
+			days.MovingTotalMixed = append(days.MovingTotalMixed, blocks.TotalMixed.Sum(interval[0], interval[1]))
 		}
 	}
 
 	// Check that all relevant datasets have been updated to the same length.
 	daysLen, err := ValidateLengths(days.Height, days.Time, days.PoolSize,
 		days.PoolValue, days.BlockSize, days.TxCount, days.NewAtoms,
-		days.Chainwork, days.Fees)
+		days.Chainwork, days.Fees, days.TotalMixed, days.MovingTotalMixed)
 	if err != nil {
 		return fmt.Errorf("day bin: %v", err)
 	} else if daysLen == 0 {
@@ -654,6 +705,7 @@ func (charts *ChartData) readCacheFile(filePath string) error {
 	charts.Blocks.NewAtoms = gobject.NewAtoms
 	charts.Blocks.Chainwork = gobject.Chainwork
 	charts.Blocks.Fees = gobject.Fees
+	charts.Blocks.TotalMixed = gobject.TotalMixed
 	charts.Windows.Time = gobject.WindowTime
 	charts.Windows.PowDiff = gobject.PowDiff
 	charts.Windows.TicketPrice = gobject.TicketPrice
@@ -722,6 +774,7 @@ func (charts *ChartData) gobject() *ChartGobject {
 		NewAtoms:    charts.Blocks.NewAtoms,
 		Chainwork:   charts.Blocks.Chainwork,
 		Fees:        charts.Blocks.Fees,
+		TotalMixed:  charts.Blocks.TotalMixed,
 		WindowTime:  charts.Windows.Time,
 		PowDiff:     charts.Windows.PowDiff,
 		TicketPrice: charts.Windows.TicketPrice,
@@ -769,6 +822,13 @@ func (charts *ChartData) FeesTip() int32 {
 	charts.mtx.RLock()
 	defer charts.mtx.RUnlock()
 	return int32(len(charts.Blocks.Fees)) - 1
+}
+
+// TotalMixedTip is the height of the CoinJoin Total Mixed data
+func (charts *ChartData) TotalMixedTip() int32 {
+	charts.mtx.RLock()
+	defer charts.mtx.RUnlock()
+	return int32(len(charts.Blocks.TotalMixed)) - 1
 }
 
 // NewAtomsTip is the height of the NewAtoms data.
@@ -859,6 +919,7 @@ func NewChartData(ctx context.Context, height uint32, chainParams *chaincfg.Para
 	size := int(height * 5 / 4)
 	days := int(time.Since(genesis)/time.Hour/24)*5/4 + 1 // at least one day
 	windows := int(base64Height/chainParams.StakeDiffWindowSize+1) * 5 / 4
+
 	return &ChartData{
 		ctx:          ctx,
 		DiffInterval: int32(chainParams.StakeDiffWindowSize),
@@ -866,6 +927,7 @@ func NewChartData(ctx context.Context, height uint32, chainParams *chaincfg.Para
 		Blocks:       newBlockSet(size),
 		Windows:      newWindowSet(windows),
 		Days:         newDaySet(days),
+		chainParams:  chainParams,
 		cache:        make(map[string]*cachedChart),
 		updaters:     make([]ChartUpdater, 0),
 	}
@@ -931,6 +993,7 @@ var chartMakers = map[string]ChartMaker{
 	TicketPrice:     ticketPriceChart,
 	TxCount:         txCountChart,
 	Fees:            feesChart,
+	Coinjoins:       coinJoinsChart,
 	TicketPoolSize:  ticketPoolSizeChart,
 	TicketPoolValue: poolValueChart,
 	WindMissedVotes: missedVotesChart,
@@ -996,6 +1059,20 @@ func accumulate(data ChartUints) ChartUints {
 	var accumulator uint64
 	for _, v := range data {
 		accumulator += v
+		d = append(d, accumulator)
+	}
+	return d
+}
+
+// Each point is translated to the sum of all x-1 points before and itself.
+func accumulateX(data ChartUints, x int) ChartUints {
+	d := make(ChartUints, 0, len(data))
+	var accumulator uint64
+	for i, v := range data {
+		accumulator += v
+		if i >= x {
+			accumulator -= data[i - x]
+		}
 		d = append(d, accumulator)
 	}
 	return d
@@ -1149,32 +1226,45 @@ func chainWorkChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, err
 }
 
 func coinSupplyChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
+	// The actual reward of a ticket needs to also take into consideration the
+	// ticket maturity (time from ticket purchase until its eligible to vote)
+	// and coinbase maturity (time after vote until funds distributed to ticket
+	// holder are available to use).
+	meanVotingBlocks := txhelpers.CalcMeanVotingBlocks(charts.chainParams)
+	avgSSTxToSSGenMaturity := meanVotingBlocks + int64(charts.chainParams.TicketMaturity) + 
+	int64(charts.chainParams.CoinbaseMaturity)
+	rewardPeriod := float64(avgSSTxToSSGenMaturity) * charts.chainParams.TargetTimePerBlock.Hours()/24
+
 	seed := binAxisSeed(bin, axis)
 	switch bin {
 	case BlockBin:
 		switch axis {
 		case HeightAxis:
 			return encode(lengtherMap{
-				supplyKey: accumulate(charts.Blocks.NewAtoms),
+				supplyKey: 				accumulate(charts.Blocks.NewAtoms),
+				// coinjoinsKeyMovingSum:  accumulateD(charts.Blocks.TotalMixed, charts.Blocks.Time, uint64(rewardPeriod*aDay)),
 			}, seed)
 		default:
 			return encode(lengtherMap{
-				timeKey:   charts.Blocks.Time,
-				supplyKey: accumulate(charts.Blocks.NewAtoms),
+				timeKey:   			   charts.Blocks.Time,
+				supplyKey: 			   accumulate(charts.Blocks.NewAtoms),
+				// coinjoinsKeyMovingSum: accumulateD(charts.Blocks.TotalMixed, charts.Blocks.Time, uint64(rewardPeriod*aDay)),
 			}, seed)
 		}
 	case DayBin:
 		switch axis {
 		case HeightAxis:
 			return encode(lengtherMap{
-				heightKey: charts.Days.Height,
-				supplyKey: accumulate(charts.Days.NewAtoms),
+				heightKey:    		   charts.Days.Height,
+				supplyKey:    		   accumulate(charts.Days.NewAtoms),
+				coinjoinsKeyMovingSum: accumulateX(charts.Days.TotalMixed, int(rewardPeriod)),
 			}, seed)
 		default:
 			return encode(lengtherMap{
-				timeKey:   charts.Days.Time,
-				supplyKey: accumulate(charts.Days.NewAtoms),
-				heightKey: charts.Days.Height,
+				timeKey:      		   charts.Days.Time,
+				supplyKey:    		   accumulate(charts.Days.NewAtoms),
+				coinjoinsKeyMovingSum: accumulateX(charts.Days.TotalMixed, int(rewardPeriod)),
+				heightKey:    		   charts.Days.Height,
 			}, seed)
 		}
 	}
@@ -1409,6 +1499,55 @@ func feesChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
 			return encode(lengtherMap{
 				timeKey: charts.Days.Time,
 				feesKey: charts.Days.Fees,
+			}, seed)
+		}
+	}
+	return nil, InvalidBinErr
+}
+
+func coinJoinsChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
+	firstIndex := func (data ChartUints) int {
+		for i, v := range data {
+			if v > 0 {
+				return i
+			}
+		}
+		return data.Length() - 1
+	}
+
+	fromIdx := func (data ChartUints, idx int) ChartUints {
+		if idx > len(data) - 1 || idx == -1{
+			return data
+		}
+		return data[idx:]
+	}
+
+	seed := binAxisSeed(bin, axis)
+	switch bin {
+	case BlockBin:
+		switch axis {
+		case HeightAxis:
+			return encode(lengtherMap{
+				heightKey:	  fromIdx(charts.Blocks.Height, firstIndex(charts.Blocks.TotalMixed)),
+				coinjoinsKey: fromIdx(charts.Blocks.TotalMixed, firstIndex(charts.Blocks.TotalMixed)),
+			}, seed)
+		default:
+			return encode(lengtherMap{
+				timeKey:      fromIdx(charts.Blocks.Time, firstIndex(charts.Blocks.TotalMixed)),
+				coinjoinsKey: fromIdx(charts.Blocks.TotalMixed, firstIndex(charts.Blocks.TotalMixed)),
+			}, seed)
+		}
+	case DayBin:
+		switch axis {
+		case HeightAxis:
+			return encode(lengtherMap{
+				heightKey:    		   fromIdx(charts.Days.Height, firstIndex(charts.Days.TotalMixed)),
+				coinjoinsKey: 		   fromIdx(charts.Days.TotalMixed, firstIndex(charts.Days.TotalMixed)),
+			}, seed)
+		default:
+			return encode(lengtherMap{
+				timeKey:      		   fromIdx(charts.Days.Time, firstIndex(charts.Days.TotalMixed)),
+				coinjoinsKey: 		   fromIdx(charts.Days.TotalMixed, firstIndex(charts.Days.TotalMixed)),
 			}, seed)
 		}
 	}

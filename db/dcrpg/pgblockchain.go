@@ -1049,6 +1049,12 @@ func (pgb *ChainDB) RegisterCharts(charts *cache.ChartData) {
 	})
 
 	charts.AddUpdater(cache.ChartUpdater{
+		Tag:      "coinjoin",
+		Fetcher:  pgb.blockCoinJoins,
+		Appender: appendBlockCoinJoins,
+	})
+
+	charts.AddUpdater(cache.ChartUpdater{
 		Tag:      "pool stats",
 		Fetcher:  pgb.poolStats,
 		Appender: appendPoolStats,
@@ -3154,6 +3160,19 @@ func (pgb *ChainDB) blockFees(charts *cache.ChartData) (*sql.Rows, func(), error
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 
 	rows, err := retrieveBlockFees(ctx, pgb.db, charts)
+	if err != nil {
+		return nil, cancel, fmt.Errorf("chartBlocks: %v", pgb.replaceCancelError(err))
+	}
+	return rows, cancel, nil
+}
+
+// blockFees sets or updates a series of per-block fees.
+// This is the Fetcher half of a pair that make up a cache.ChartUpdater. The
+// Appender half is appendBlockFees.
+func (pgb *ChainDB) blockCoinJoins(charts *cache.ChartData) (*sql.Rows, func(), error) {
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+
+	rows, err := retrieveBlockCoinJoins(ctx, pgb.db, charts)
 	if err != nil {
 		return nil, cancel, fmt.Errorf("chartBlocks: %v", pgb.replaceCancelError(err))
 	}
