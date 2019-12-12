@@ -518,7 +518,7 @@ func (charts *ChartData) Lengthen() error {
 	}
 
 	intervals := [][2]int{}
-	movingInterval := [][2]int{} // stores the start and end index for the vote reward period, ~29.07 days on mainnet, moving sum
+	movingInterval := [][2]int{} // stores the start and end index for the vote reward period(~29.07 days on mainnet) moving sum
 	miStart := start
 	// The actual reward of a ticket needs to also take into consideration the
 	// ticket maturity (time from ticket purchase until its eligible to vote)
@@ -527,7 +527,7 @@ func (charts *ChartData) Lengthen() error {
 	meanVotingBlocks := txhelpers.CalcMeanVotingBlocks(charts.chainParams)
 	avgSSTxToSSGenMaturity := meanVotingBlocks + int64(charts.chainParams.TicketMaturity) + 
 		int64(charts.chainParams.CoinbaseMaturity)
-	rewardPeriod := float64(avgSSTxToSSGenMaturity)* charts.chainParams.TargetTimePerBlock.Hours()/24
+	rewardPeriod := avgSSTxToSSGenMaturity * int64(charts.chainParams.TargetTimePerBlock.Seconds())
 	// If there is day or more worth of new data, append to the Days zoomSet by
 	// finding the first and last+1 blocks of each new day, and taking averages
 	// or sums of the blocks in the interval.
@@ -577,7 +577,7 @@ func (charts *ChartData) Lengthen() error {
 		for i, t := range blocks.Time[offset:] {
 			if t >= next {
 				// Once passed the next midnight. prepare a {rewardPeriod} day(s) window by storing the range of indices
-				minTime := blocks.Time[i] - uint64(rewardPeriod*aDay)
+				minTime := blocks.Time[i] - uint64(rewardPeriod)
 				startIdx := minIndex(minTime, lastIndex)
 				movingInterval = append(movingInterval, [2]int{startIdx, i + offset})
 				next += aDay
@@ -1226,15 +1226,6 @@ func chainWorkChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, err
 }
 
 func coinSupplyChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
-	// The actual reward of a ticket needs to also take into consideration the
-	// ticket maturity (time from ticket purchase until its eligible to vote)
-	// and coinbase maturity (time after vote until funds distributed to ticket
-	// holder are available to use).
-	meanVotingBlocks := txhelpers.CalcMeanVotingBlocks(charts.chainParams)
-	avgSSTxToSSGenMaturity := meanVotingBlocks + int64(charts.chainParams.TicketMaturity) + 
-	int64(charts.chainParams.CoinbaseMaturity)
-	rewardPeriod := float64(avgSSTxToSSGenMaturity) * charts.chainParams.TargetTimePerBlock.Hours()/24
-
 	seed := binAxisSeed(bin, axis)
 	switch bin {
 	case BlockBin:
@@ -1242,13 +1233,11 @@ func coinSupplyChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, er
 		case HeightAxis:
 			return encode(lengtherMap{
 				supplyKey: 				accumulate(charts.Blocks.NewAtoms),
-				// coinjoinsKeyMovingSum:  accumulateD(charts.Blocks.TotalMixed, charts.Blocks.Time, uint64(rewardPeriod*aDay)),
 			}, seed)
 		default:
 			return encode(lengtherMap{
 				timeKey:   			   charts.Blocks.Time,
 				supplyKey: 			   accumulate(charts.Blocks.NewAtoms),
-				// coinjoinsKeyMovingSum: accumulateD(charts.Blocks.TotalMixed, charts.Blocks.Time, uint64(rewardPeriod*aDay)),
 			}, seed)
 		}
 	case DayBin:
@@ -1257,13 +1246,13 @@ func coinSupplyChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, er
 			return encode(lengtherMap{
 				heightKey:    		   charts.Days.Height,
 				supplyKey:    		   accumulate(charts.Days.NewAtoms),
-				coinjoinsKeyMovingSum: accumulateX(charts.Days.TotalMixed, int(rewardPeriod)),
+				coinjoinsKeyMovingSum: charts.Days.MovingTotalMixed, 
 			}, seed)
 		default:
 			return encode(lengtherMap{
 				timeKey:      		   charts.Days.Time,
 				supplyKey:    		   accumulate(charts.Days.NewAtoms),
-				coinjoinsKeyMovingSum: accumulateX(charts.Days.TotalMixed, int(rewardPeriod)),
+				coinjoinsKeyMovingSum: charts.Days.MovingTotalMixed, 
 				heightKey:    		   charts.Days.Height,
 			}, seed)
 		}
@@ -1506,48 +1495,32 @@ func feesChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
 }
 
 func coinJoinsChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
-	firstIndex := func (data ChartUints) int {
-		for i, v := range data {
-			if v > 0 {
-				return i
-			}
-		}
-		return data.Length() - 1
-	}
-
-	fromIdx := func (data ChartUints, idx int) ChartUints {
-		if idx > len(data) - 1 || idx == -1{
-			return data
-		}
-		return data[idx:]
-	}
-
 	seed := binAxisSeed(bin, axis)
 	switch bin {
 	case BlockBin:
 		switch axis {
 		case HeightAxis:
 			return encode(lengtherMap{
-				heightKey:	  fromIdx(charts.Blocks.Height, firstIndex(charts.Blocks.TotalMixed)),
-				coinjoinsKey: fromIdx(charts.Blocks.TotalMixed, firstIndex(charts.Blocks.TotalMixed)),
+				heightKey:	  charts.Blocks.Height,
+				coinjoinsKey: charts.Blocks.TotalMixed,
 			}, seed)
 		default:
 			return encode(lengtherMap{
-				timeKey:      fromIdx(charts.Blocks.Time, firstIndex(charts.Blocks.TotalMixed)),
-				coinjoinsKey: fromIdx(charts.Blocks.TotalMixed, firstIndex(charts.Blocks.TotalMixed)),
+				timeKey:      charts.Blocks.Time,
+				coinjoinsKey: charts.Blocks.TotalMixed,
 			}, seed)
 		}
 	case DayBin:
 		switch axis {
 		case HeightAxis:
 			return encode(lengtherMap{
-				heightKey:    		   fromIdx(charts.Days.Height, firstIndex(charts.Days.TotalMixed)),
-				coinjoinsKey: 		   fromIdx(charts.Days.TotalMixed, firstIndex(charts.Days.TotalMixed)),
+				heightKey:    charts.Days.Height,
+				coinjoinsKey: charts.Days.TotalMixed,
 			}, seed)
 		default:
 			return encode(lengtherMap{
-				timeKey:      		   fromIdx(charts.Days.Time, firstIndex(charts.Days.TotalMixed)),
-				coinjoinsKey: 		   fromIdx(charts.Days.TotalMixed, firstIndex(charts.Days.TotalMixed)),
+				timeKey:      charts.Days.Time,
+				coinjoinsKey: charts.Days.TotalMixed,
 			}, seed)
 		}
 	}

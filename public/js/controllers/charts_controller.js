@@ -188,18 +188,38 @@ function zip2D (data, ys, yMult, offset) {
   return zipTvY(data.t, ys, yMult)
 }
 
-function coinJoinFunc (data, selectedBin) {
+function coinJoinFunc (data) {
+  let d
+  let start = -1
+  let end = 0
   if (data.axis === 'height') {
     if (data.bin === 'block') {
-      return data.coinjoins.map((y, i) => {
+      d = data.coinjoins.map((y, i) => {
+        if (start === -1 && y > 0) {
+          start = i
+        }
+        end = i
         return [i, y * atomsToDCR]
       })
+    } else {
+      d = data.coinjoins.map((y, i) => {
+        if (start === -1 && y > 0) {
+          start = i
+        }
+        end = data.h[i]
+        return [data.h[i], y * atomsToDCR]
+      })
     }
-    return data.coinjoins.map((y, i) => {
-      return selectedBin === [data.h[i], y * atomsToDCR]
+  } else {
+    d = data.t.map((t, i) => {
+      if (start === -1 && data.coinjoins[i] > 0) {
+        start = t * 1000
+      }
+      end = t * 1000
+      return [new Date(t * 1000), data.coinjoins[i] * atomsToDCR]
     })
   }
-  return zipWindowTvY(data.t, data.coinjoins, atomsToDCR)
+  return { data: d, limits: [start, end] }
 }
 
 function ticketPriceFunc (data) {
@@ -591,7 +611,8 @@ export default class extends Controller {
 
       case 'coinjoins': // coinjoins graph
         d = coinJoinFunc(data)
-        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Mixed'], false, 'Mixed (DCR)', true, false))
+        this.customLimits = d.limits
+        assign(gOptions, mapDygraphOptions(d.data, [xlabel, 'Mixed'], false, 'Mixed (DCR)', true, false))
         break
 
       case 'duration-btw-blocks': // Duration between blocks graph
@@ -629,6 +650,7 @@ export default class extends Controller {
 
   async selectChart () {
     var selection = this.settings.chart = this.chartSelectTarget.value
+    this.customLimits = null
     this.chartWrapperTarget.classList.add('loading')
     if (isScaleDisabled(selection)) {
       this.scaleSelectorTarget.classList.add('d-hide')
@@ -688,10 +710,15 @@ export default class extends Controller {
     let oldLimits = this.limits || this.chartsView.xAxisExtremes()
     this.limits = this.chartsView.xAxisExtremes()
     var selected = this.selectedZoom()
-    if (selected) {
+    if (selected && !(selectedChart === 'coinjoins' && selected === 'all')) {
       this.lastZoom = Zoom.validate(selected, this.limits,
         this.isTimeAxis() ? avgBlockTime : 1, this.isTimeAxis() ? 1 : avgBlockTime)
     } else {
+      // if this is for the coinjoins chart, then zoom to the beginning of the record
+      if (selectedChart === 'coinjoins') {
+        this.limits = oldLimits = this.customLimits
+        this.settings.zoom = Zoom.object(this.limits[0], this.limits[1])
+      }
       this.lastZoom = Zoom.project(this.settings.zoom, oldLimits, this.limits)
     }
     if (this.lastZoom) {
