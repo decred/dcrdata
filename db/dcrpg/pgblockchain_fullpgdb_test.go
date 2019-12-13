@@ -3,12 +3,45 @@
 package dcrpg
 
 import (
+	"encoding/csv"
+	"fmt"
+	"os"
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/db/dcrpg/v5/internal"
 )
+
+func TestMixedUtxosByHeight(t *testing.T) {
+	heights, utxoCountReg, utxoValueReg, utxoCountStk, utxoValueStk, err := db.MixedUtxosByHeight()
+	if err != nil {
+		t.Fatalf("failed: %v", err)
+	}
+
+	csvfile, err := os.Create("utxos.csv")
+	if err != nil {
+		t.Fatalf("error creating utxos file: %s", err)
+	}
+	defer csvfile.Close()
+
+	csvwriter := csv.NewWriter(csvfile)
+	defer csvwriter.Flush()
+
+	for i := range heights {
+		err = csvwriter.Write([]string{
+			fmt.Sprint(heights[i]),
+			fmt.Sprint(utxoCountReg[i]),
+			fmt.Sprint(utxoValueReg[i] / 1e8),
+			fmt.Sprint(utxoCountStk[i]),
+			fmt.Sprint(utxoValueStk[i] / 1e8),
+		})
+		if err != nil {
+			t.Fatalf("csvwriter.Write: %s", err)
+		}
+	}
+
+}
 
 func TestAddressRows(t *testing.T) {
 	rows, err := db.AddressRowsMerged("Dsh6khiGjTuyExADXxjtDgz1gRr9C5dEUf6")

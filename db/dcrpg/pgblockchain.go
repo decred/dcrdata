@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"runtime"
 	"sort"
 	"strconv"
@@ -6096,4 +6097,74 @@ func (pgb *ChainDB) SignalHeight(height uint32) {
 			pgb.shutdownDcrdata()
 		}
 	}
+}
+
+func (pgb *ChainDB) MixedUtxosByHeight() (heights, utxoCountReg, utxoValueReg, utxoCountStk, utxoValueStk []int64, err error) {
+	var rows *sql.Rows
+	rows, err = pgb.db.Query(`SELECT vouts.value, fund_tx.block_height, spend_tx.block_height, vouts.tx_tree
+		FROM vouts
+		JOIN transactions AS fund_tx ON vouts.tx_hash=fund_tx.tx_hash
+		LEFT OUTER JOIN transactions AS spend_tx ON spend_tx_row_id=spend_tx.id
+		WHERE mixed=true and value>0;`)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	var vals, fundHeights, spendHeights []int64
+	var trees []uint8
+
+	var maxHeight int64
+	minHeight := int64(math.MaxInt64)
+	for rows.Next() {
+		var value, fundHeight, spendHeight int64
+		var spendHeightNull sql.NullInt64
+		var tree uint8
+		err = rows.Scan(&value, &fundHeight, &spendHeightNull, &tree)
+		if err != nil {
+			return
+		}
+		vals = append(vals, value)
+		fundHeights = append(fundHeights, fundHeight)
+		trees = append(trees, tree)
+		if spendHeightNull.Valid {
+			spendHeight = spendHeightNull.Int64
+		} else {
+			spendHeight = -1
+		}
+		spendHeights = append(spendHeights, spendHeight)
+		if fundHeight < minHeight {
+			minHeight = fundHeight
+		}
+		if spendHeight > maxHeight {
+			maxHeight = spendHeight
+		}
+	}
+
+	N := maxHeight - minHeight + 1
+	heights = make([]int64, N)
+	utxoCountReg = make([]int64, N)
+	utxoValueReg = make([]int64, N)
+	utxoCountStk = make([]int64, N)
+	utxoValueStk = make([]int64, N)
+
+	for h := minHeight; h <= maxHeight; h++ {
+		i := h - minHeight
+		heights[i] = h
+		for iu := range vals {
+			if h >= fundHeights[iu] && (h <= spendHeights[iu] || spendHeights[iu] == -1) {
+				if trees[iu] == 0 {
+					utxoCountReg[i]++
+					utxoValueReg[i] += vals[iu]
+				} else {
+					utxoCountStk[i]++
+					utxoValueStk[i] += vals[iu]
+				}
+			}
+		}
+	}
+
+	err = rows.Err()
+	return
+
 }
