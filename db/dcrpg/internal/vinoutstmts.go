@@ -120,25 +120,33 @@ const (
 		prev_tx_hash, prev_tx_index, prev_tx_tree, value_in, tx_type FROM vins WHERE id = $1;`
 	SelectVinVoutPairByID = `SELECT tx_hash, tx_index, prev_tx_hash, prev_tx_index FROM vins WHERE id = $1;`
 
-	SelectUTXOs = `SELECT vouts.tx_hash, vouts.tx_index,  -- outpoint
-			vouts.script_addresses, vouts.value           -- value and addresses of output
-		FROM vouts LEFT OUTER JOIN vins                   -- LEFT JOIN to identify when there is no matching input (spend)
+	SelectUTXOsViaVinsMatch = `SELECT vouts.id, vouts.tx_hash, vouts.tx_index,   -- row ID and outpoint
+			vouts.script_addresses, vouts.value, vouts.mixed         -- value, addresses, and mixed flag of output
+		FROM vouts
+		LEFT OUTER JOIN vins                   -- LEFT JOIN to identify when there is no matching input (spend)
 		ON vouts.tx_hash=vins.prev_tx_hash
 			AND vouts.tx_index=vins.prev_tx_index
-		WHERE vins.prev_tx_hash IS NULL                   -- unspent
+		JOIN transactions ON transactions.tx_hash=vouts.tx_hash
+		WHERE vins.prev_tx_hash IS NULL                   -- unspent, condition applied after join, which will put NULL when no vin matches the vout
 			AND array_length(script_addresses, 1)>0
-			AND value>0;`
+			AND transactions.is_mainchain AND transactions.is_valid;`
+
+	SelectUTXOs = `SELECT vouts.id, vouts.tx_hash, vouts.tx_index, vouts.script_addresses, vouts.value, vouts.mixed
+		FROM vouts
+		JOIN transactions ON transactions.tx_hash=vouts.tx_hash
+		WHERE vouts.spend_tx_row_id IS NULL AND vouts.value>0
+			AND transactions.is_mainchain AND transactions.is_valid;`
 
 	SetIsValidIsMainchainByTxHash = `UPDATE vins SET is_valid = $1, is_mainchain = $2
-		WHERE tx_hash = $3 AND block_time = $4 AND tx_tree = $5;`
+		WHERE tx_hash = $3 AND block_time = $4;`
 	SetIsValidIsMainchainByVinID = `UPDATE vins SET is_valid = $2, is_mainchain = $3
 		WHERE id = $1;`
 	SetIsValidByTxHash = `UPDATE vins SET is_valid = $1
-		WHERE tx_hash = $2 AND block_time = $3 AND tx_tree = $4;`
+		WHERE tx_hash = $2 AND block_time = $3;`
 	SetIsValidByVinID = `UPDATE vins SET is_valid = $2
 		WHERE id = $1;`
 	SetIsMainchainByTxHash = `UPDATE vins SET is_mainchain = $1
-		WHERE tx_hash = $2 AND block_time = $3 AND tx_tree = $4;`
+		WHERE tx_hash = $2 AND block_time = $3;`
 	SetIsMainchainByVinID = `UPDATE vins SET is_mainchain = $2
 		WHERE id = $1;`
 
@@ -170,13 +178,15 @@ const (
 		pkscript BYTEA,
 		script_req_sigs INT4,
 		script_type TEXT,
-		script_addresses TEXT[]
+		script_addresses TEXT[],
+		mixed BOOLEAN DEFAULT FALSE,
+		spend_tx_row_id INT8
 	);`
 
 	// insertVinRow is the basis for several vout insert/upsert statements.
 	insertVoutRow = `INSERT INTO vouts (tx_hash, tx_index, tx_tree, value,
-		version, pkscript, script_req_sigs, script_type, script_addresses)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) `
+		version, pkscript, script_req_sigs, script_type, script_addresses, mixed)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) `  // not with spend_tx_row_id
 
 	// InsertVoutRow inserts a new vout row without checking for unique index
 	// conflicts. This should only be used before the unique indexes are created
@@ -187,6 +197,10 @@ const (
 	// inserted/updated vout row id.
 	UpsertVoutRow = insertVoutRow + `ON CONFLICT (tx_hash, tx_index, tx_tree) DO UPDATE
 		SET version = $5 RETURNING id;`
+
+	UpdateVoutSpendTxRowID  = `UPDATE vouts SET spend_tx_row_id = $1 WHERE id = $2;`
+	UpdateVoutsSpendTxRowID = `UPDATE vouts SET spend_tx_row_id = $1 WHERE id = ANY($2);`
+	ResetVoutSpendTxRowIDs  = `UPDATE vouts SET spend_tx_row_id = NULL WHERE id = ANY($1);`
 
 	// InsertVoutRowOnConflictDoNothing allows an INSERT with a DO NOTHING on
 	// conflict with vouts' unique tx index, while returning the row id of
@@ -236,11 +250,15 @@ const (
 
 	// IndexVoutTableOnTxHashIdx creates the unique index uix_vout_txhash_ind on
 	// (tx_hash, tx_index, tx_tree).
-	IndexVoutTableOnTxHashIdx = `CREATE UNIQUE INDEX ` + IndexOfVoutsTableOnTxHashInd +
+	IndexVoutTableOnTxHashIdx = `CREATE UNIQUE INDEX IF NOT EXISTS ` + IndexOfVoutsTableOnTxHashInd +
 		` ON vouts(tx_hash, tx_index, tx_tree);`
-	DeindexVoutTableOnTxHashIdx = `DROP INDEX ` + IndexOfVoutsTableOnTxHashInd + ` CASCADE;`
+	DeindexVoutTableOnTxHashIdx = `DROP INDEX IF EXISTS ` + IndexOfVoutsTableOnTxHashInd + ` CASCADE;`
 
-	SelectAddressByTxHash = `SELECT script_addresses, value FROM vouts
+	IndexVoutTableOnSpendTxID = `CREATE INDEX IF NOT EXISTS ` + IndexOfVoutsTableOnSpendTxID +
+		` ON vouts(spend_tx_row_id);`
+	DeindexVoutTableOnSpendTxID = `DROP INDEX IF EXISTS ` + IndexOfVoutsTableOnSpendTxID + ` CASCADE;`
+
+	SelectAddressByTxHash = `SELECT id, script_addresses, value, mixed FROM vouts
 		WHERE tx_hash = $1 AND tx_index = $2 AND tx_tree = $3;`
 
 	SelectPkScriptByID       = `SELECT version, pkscript FROM vouts WHERE id=$1;`

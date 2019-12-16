@@ -59,8 +59,27 @@ func deleteTicketsForBlock(dbTx SqlExecutor, hash string) (rowsDeleted int64, er
 	return sqlExec(dbTx, internal.DeleteTicketsSimple, "failed to delete tickets", hash)
 }
 
-func deleteTransactionsForBlock(dbTx SqlExecutor, hash string) (rowsDeleted int64, err error) {
-	return sqlExec(dbTx, internal.DeleteTransactionsSimple, "failed to delete transactions", hash)
+func deleteTransactionsForBlock(dbTx *sql.Tx, hash string) (txRowIds []int64, err error) {
+	var rows *sql.Rows
+	rows, err = dbTx.Query(internal.DeleteTransactionsSimple, hash)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id int64
+		if err = rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		txRowIds = append(txRowIds, id)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return
 }
 
 func deleteVoutsForBlock(dbTx SqlExecutor, hash string) (rowsDeleted int64, err error) {
@@ -189,11 +208,25 @@ func DeleteBlockData(ctx context.Context, db *sql.DB, hash string) (res dbtypes.
 	// rows since the transactions table is used to identify the vin and vout DB
 	// row IDs for a transaction.
 	start = time.Now()
-	if res.Transactions, err = deleteTransactionsForBlock(dbTx, hash); err != nil {
+	var txIDsRemoved []int64
+	if txIDsRemoved, err = deleteTransactionsForBlock(dbTx, hash); err != nil {
 		err = fmt.Errorf(`deleteTransactionsForBlock failed with "%v". Rollback: %v`,
 			err, dbTx.Rollback())
 		return
 	}
+	var voutsReset int64
+	voutsReset, err = resetSpendingForVoutsByTxRowID(dbTx, txIDsRemoved)
+	if err != nil {
+		err = fmt.Errorf(`resetSpendingForVoutsByTxRowID failed with "%v". Rollback: %v`,
+			err, dbTx.Rollback())
+		return
+	}
+	if voutsReset != int64(len(txIDsRemoved)) {
+		log.Warnf(`resetSpendingForVoutsByTxRowID reset %d rows, expected %d`,
+			voutsReset, len(txIDsRemoved))
+	}
+	log.Tracef("Reset spend_tx_row_id for %d vouts.", voutsReset)
+	res.Transactions = int64(len(txIDsRemoved))
 	res.Timings.Transactions = time.Since(start).Nanoseconds()
 
 	start = time.Now()

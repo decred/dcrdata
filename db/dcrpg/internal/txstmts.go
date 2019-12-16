@@ -132,9 +132,9 @@ const (
 		LIMIT 1;`
 
 	SelectFullTxByHash = `SELECT id, block_hash, block_height, block_time,
-		time, tx_type, version, tree, tx_hash, block_index, lock_time, expiry,
-		size, spent, sent, fees, mix_count, mix_denom, num_vin, vin_db_ids,
-		num_vout, vout_db_ids, is_valid, is_mainchain
+			time, tx_type, version, tree, tx_hash, block_index, lock_time, expiry,
+			size, spent, sent, fees, mix_count, mix_denom, num_vin, vin_db_ids,
+			num_vout, vout_db_ids, is_valid, is_mainchain
 		FROM transactions WHERE tx_hash = $1
 		ORDER BY is_mainchain DESC, is_valid DESC, block_time DESC
 		LIMIT 1;`

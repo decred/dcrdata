@@ -24,10 +24,26 @@ import (
 	"github.com/decred/dcrd/rpcclient/v5"
 	apitypes "github.com/decred/dcrdata/api/types/v5"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/db/dcrpg/v5"
 	m "github.com/decred/dcrdata/middleware/v3"
 	"github.com/decred/dcrdata/rpcutils/v3"
 )
+
+type BlockDataSource interface {
+	AddressBalance(address string) (bal *dbtypes.AddressBalance, cacheUpdated bool, err error)
+	AddressIDsByOutpoint(txHash string, voutIndex uint32) ([]uint64, []string, int64, error)
+	AddressUTXO(address string) ([]*dbtypes.AddressTxnOutput, bool, error)
+	BlockSummaryTimeRange(min, max int64, limit int) ([]dbtypes.BlockDataBasic, error)
+	GetBlockHash(idx int64) (string, error)
+	GetBlockHeight(hash string) (int64, error)
+	GetBlockVerboseByHash(hash string, verboseTx bool) *chainjson.GetBlockVerboseResult
+	GetHeight() (int64, error)
+	GetRawTransaction(txid *chainhash.Hash) (*chainjson.TxRawResult, error)
+	GetTransactionHex(txid *chainhash.Hash) string
+	Height() int64
+	InsightAddressTransactions(addr []string, recentBlockHeight int64) (txs, recentTxs []chainhash.Hash, err error)
+	SendRawTransaction(txhex string) (string, error)
+	SpendDetailsForFundingTx(fundHash string) ([]*apitypes.SpendByFundingHash, error)
+}
 
 const (
 	defaultReqPerSecLimit = 20.0
@@ -56,7 +72,7 @@ const (
 // methods include the http.Handlers for the URL path routes.
 type InsightApi struct {
 	nodeClient      *rpcclient.Client
-	BlockData       *dcrpg.ChainDB
+	BlockData       BlockDataSource
 	params          *chaincfg.Params
 	mp              rpcutils.MempoolAddressChecker
 	status          *apitypes.Status
@@ -68,7 +84,7 @@ type InsightApi struct {
 }
 
 // NewInsightApi is the constructor for InsightApi.
-func NewInsightApi(client *rpcclient.Client, blockData *dcrpg.ChainDB, params *chaincfg.Params,
+func NewInsightApi(client *rpcclient.Client, blockData BlockDataSource, params *chaincfg.Params,
 	memPoolData rpcutils.MempoolAddressChecker, JSONIndent string, maxAddrs int, status *apitypes.Status) *InsightApi {
 
 	newContext := InsightApi{

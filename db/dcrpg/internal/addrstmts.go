@@ -53,27 +53,27 @@ const (
 
 	// IndexAddressTableOnVoutID creates the unique index uix_addresses_vout_id
 	// on (tx_vin_vout_row_id, address, is_funding).
-	IndexAddressTableOnVoutID = `CREATE UNIQUE INDEX ` + IndexOfAddressTableOnVoutID +
+	IndexAddressTableOnVoutID = `CREATE UNIQUE INDEX IF NOT EXISTS ` + IndexOfAddressTableOnVoutID +
 		` ON addresses(tx_vin_vout_row_id, address, is_funding);`
-	DeindexAddressTableOnVoutID = `DROP INDEX ` + IndexOfAddressTableOnVoutID + ` CASCADE;`
+	DeindexAddressTableOnVoutID = `DROP INDEX IF EXISTS ` + IndexOfAddressTableOnVoutID + ` CASCADE;`
 
 	// IndexBlockTimeOnTableAddress creates a sorted index on block_time, which
 	// accelerates queries with ORDER BY block_time LIMIT n OFFSET m.
-	IndexBlockTimeOnTableAddress = `CREATE INDEX ` + IndexOfAddressTableOnBlockTime +
+	IndexBlockTimeOnTableAddress = `CREATE INDEX IF NOT EXISTS ` + IndexOfAddressTableOnBlockTime +
 		` ON addresses(block_time DESC NULLS LAST);`
-	DeindexBlockTimeOnTableAddress = `DROP INDEX ` + IndexOfAddressTableOnBlockTime + ` CASCADE;`
+	DeindexBlockTimeOnTableAddress = `DROP INDEX IF EXISTS ` + IndexOfAddressTableOnBlockTime + ` CASCADE;`
 
-	IndexMatchingTxHashOnTableAddress = `CREATE INDEX ` + IndexOfAddressTableOnMatchingTx +
+	IndexAddressTableOnMatchingTxHash = `CREATE INDEX IF NOT EXISTS ` + IndexOfAddressTableOnMatchingTx +
 		` ON addresses(matching_tx_hash);`
-	DeindexMatchingTxHashOnTableAddress = `DROP INDEX ` + IndexOfAddressTableOnMatchingTx + ` CASCADE;`
+	DeindexAddressTableOnMatchingTxHash = `DROP INDEX IF EXISTS ` + IndexOfAddressTableOnMatchingTx + ` CASCADE;`
 
-	IndexAddressTableOnAddress = `CREATE INDEX ` + IndexOfAddressTableOnAddress +
+	IndexAddressTableOnAddress = `CREATE INDEX IF NOT EXISTS ` + IndexOfAddressTableOnAddress +
 		` ON addresses(address);`
-	DeindexAddressTableOnAddress = `DROP INDEX ` + IndexOfAddressTableOnAddress + ` CASCADE;`
+	DeindexAddressTableOnAddress = `DROP INDEX IF EXISTS ` + IndexOfAddressTableOnAddress + ` CASCADE;`
 
-	IndexAddressTableOnTxHash = `CREATE INDEX ` + IndexOfAddressTableOnTx +
+	IndexAddressTableOnTxHash = `CREATE INDEX IF NOT EXISTS ` + IndexOfAddressTableOnTx +
 		` ON addresses(tx_hash);`
-	DeindexAddressTableOnTxHash = `DROP INDEX ` + IndexOfAddressTableOnTx + ` CASCADE;`
+	DeindexAddressTableOnTxHash = `DROP INDEX IF EXISTS ` + IndexOfAddressTableOnTx + ` CASCADE;`
 
 	// SelectSpendingTxsByPrevTx = `SELECT id, tx_hash, tx_index, prev_tx_index FROM vins WHERE prev_tx_hash=$1;`
 	// SelectSpendingTxByPrevOut = `SELECT id, tx_hash, tx_index FROM vins WHERE prev_tx_hash=$1 AND prev_tx_index=$2;`
@@ -260,11 +260,46 @@ const (
 
 	// UPDATEs/SETs
 
+	UpdateAllAddressesMatchingTxHashRange = `UPDATE addresses SET matching_tx_hash=transactions.tx_hash
+		FROM vouts, transactions
+		WHERE block_height >= $1 AND block_height < $2 AND vouts.value>0 AND addresses.is_funding
+			AND vouts.tx_hash=addresses.tx_hash
+			AND vouts.tx_index=addresses.tx_vin_vout_index
+			AND transactions.id=vouts.spend_tx_row_id;`
+
+	UpdateAllAddressesMatchingTxHash = `UPDATE addresses SET matching_tx_hash=transactions.tx_hash
+		FROM vouts, transactions
+		WHERE vouts.value>0 AND addresses.is_funding
+			AND vouts.tx_hash=addresses.tx_hash
+			AND vouts.tx_index=addresses.tx_vin_vout_index
+			AND transactions.id=vouts.spend_tx_row_id;`
+
+	UpdateAllAddressesMatchingTxHash1 = `UPDATE addresses SET matching_tx_hash=stuff.matching
+		FROM (SELECT transactions.tx_hash AS matching, vouts.tx_hash, vouts.tx_index
+			FROM transactions
+			JOIN vouts ON vouts.value>0
+				AND transactions.id=vouts.spend_tx_row_id)
+			AS stuff
+		WHERE addresses.is_funding
+			AND stuff.tx_hash=addresses.tx_hash
+			AND stuff.tx_index=addresses.tx_vin_vout_index;`
+
+	UpdateAllAddressesMatchingTxHash2 = `UPDATE addresses SET matching_tx_hash=transactions.tx_hash
+		FROM transactions, (SELECT addresses.id AS addr_id, spend_tx_row_id
+			FROM vouts
+			JOIN addresses ON vouts.value>0
+				AND addresses.is_funding
+				AND vouts.tx_hash=addresses.tx_hash
+				AND vouts.tx_index=addresses.tx_vin_vout_index)
+			AS stuff
+		WHERE addresses.id=stuff.addr_id
+			AND transactions.id=stuff.spend_tx_row_id;`
+
 	// SetAddressMatchingTxHashForOutpoint sets the matching tx hash (a spending
 	// transaction) for the addresses rows corresponding to the specified
 	// outpoint (tx_hash:tx_vin_vout_index), a funding tx row.
 	SetAddressMatchingTxHashForOutpoint = `UPDATE addresses SET matching_tx_hash=$1
-		WHERE tx_hash=$2 AND is_funding AND tx_vin_vout_index=$3`  // not terminated with ;
+		WHERE tx_hash=$2 AND is_funding AND tx_vin_vout_index=$3 AND valid_mainchain = $4 `  // not terminated with ;
 
 	// AssignMatchingTxHashForOutpoint is like
 	// SetAddressMatchingTxHashForOutpoint except that it only updates rows

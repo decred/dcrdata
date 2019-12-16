@@ -112,7 +112,7 @@ func processTransactions(msgBlock *wire.MsgBlock, tree int8, chainParams *chainc
 			MixDenom:         mixDenom,
 			NumVin:           uint32(len(tx.TxIn)),
 			NumVout:          uint32(len(tx.TxOut)),
-			IsValidBlock:     isValid,
+			IsValid:          isValid || tree == wire.TxTreeStake,
 			IsMainchainBlock: isMainchain,
 		}
 
@@ -134,7 +134,7 @@ func processTransactions(msgBlock *wire.MsgBlock, tree int8, chainParams *chainc
 				BlockHeight: txin.BlockHeight,
 				BlockIndex:  txin.BlockIndex,
 				ScriptHex:   txin.SignatureScript,
-				IsValid:     isValid,
+				IsValid:     dbTx.IsValid,
 				IsMainchain: isMainchain,
 			})
 		}
@@ -153,6 +153,7 @@ func processTransactions(msgBlock *wire.MsgBlock, tree int8, chainParams *chainc
 				Value:        uint64(txout.Value),
 				Version:      txout.Version,
 				ScriptPubKey: txout.PkScript,
+				Mixed:        mixDenom == txout.Value, // later, check ticket and vote outputs against the spent outputs' mixed status
 			}
 			scriptClass, scriptAddrs, reqSigs, err := txscript.ExtractPkScriptAddrs(
 				vout.Version, vout.ScriptPubKey, chainParams)

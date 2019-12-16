@@ -2310,7 +2310,7 @@ func InsertVoutsStmt(stmt *sql.Stmt, dbVouts []*dbtypes.Vout, checked bool, doUp
 			vout.TxHash, vout.TxIndex, vout.TxTree, vout.Value, int32(vout.Version),
 			vout.ScriptPubKey, int32(vout.ScriptPubKeyData.ReqSigs),
 			vout.ScriptPubKeyData.Type,
-			pq.Array(vout.ScriptPubKeyData.Addresses)).Scan(&id)
+			pq.Array(vout.ScriptPubKeyData.Addresses), vout.Mixed).Scan(&id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				continue
@@ -2638,17 +2638,30 @@ func RetrieveVoutsByIDs(ctx context.Context, db *sql.DB, voutDbIDs []uint64) ([]
 	return vouts, nil
 }
 
+func RetrieveUTXOsByVinsJoin(ctx context.Context, db *sql.DB) ([]dbtypes.UTXO, error) {
+	return retrieveUTXOs(ctx, db, internal.SelectUTXOsViaVinsMatch)
+}
+
 // RetrieveUTXOs gets the entire UTXO set from the vouts and vins tables.
 func RetrieveUTXOs(ctx context.Context, db *sql.DB) ([]dbtypes.UTXO, error) {
+	return retrieveUTXOs(ctx, db, internal.SelectUTXOs)
+}
+
+// retrieveUTXOs gets the entire UTXO set from the vouts and vins tables.
+func retrieveUTXOs(ctx context.Context, db *sql.DB, stmt string) ([]dbtypes.UTXO, error) {
 	_, height, err := DBBestBlock(ctx, db)
 	if err != nil {
 		return nil, err
 	}
 
+	if height < 1 {
+		return nil, nil
+	}
+
 	initUTXOCap := 250 * height / 100
 	utxos := make([]dbtypes.UTXO, 0, initUTXOCap)
 
-	rows, err := db.QueryContext(ctx, internal.SelectUTXOs)
+	rows, err := db.QueryContext(ctx, stmt)
 	if err != nil {
 		return nil, err
 	}
@@ -2659,7 +2672,7 @@ func RetrieveUTXOs(ctx context.Context, db *sql.DB) ([]dbtypes.UTXO, error) {
 	for rows.Next() {
 		var addresses string
 		var utxo dbtypes.UTXO
-		err = rows.Scan(&utxo.TxHash, &utxo.TxIndex, &addresses, &utxo.Value)
+		err = rows.Scan(&utxo.VoutDbID, &utxo.TxHash, &utxo.TxIndex, &addresses, &utxo.Value, &utxo.Mixed)
 		if err != nil {
 			return nil, err
 		}
@@ -2730,7 +2743,7 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 		// Set the spending tx info (addresses table) for the funding transaction
 		// rows indicated by the vin DB ID.
 		addressRowsUpdated[iv], err = SetSpendingForFundingOP(dbtx,
-			prevOutHash, prevOutVoutInd, txHash, txVinInd)
+			prevOutHash, prevOutVoutInd, txHash, txVinInd, true)
 		if err != nil {
 			return addressRowsUpdated, 0, fmt.Errorf(`insertSpendingTxByPrptStmt: `+
 				`%v + %v (rollback)`, err, bail())
@@ -2773,7 +2786,7 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 	// Set the spending tx info (addresses table) for the funding transaction
 	// rows indicated by the vin DB ID.
 	N, err := SetSpendingForFundingOP(dbtx, prevOutHash, prevOutVoutInd,
-		txHash, txVinInd)
+		txHash, txVinInd, true)
 	if err != nil {
 		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
 			err, dbtx.Rollback())
@@ -2783,13 +2796,17 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 }
 
 // SetSpendingForFundingOP updates funding rows of the addresses table with the
-// provided spending transaction output info.
+// provided spending transaction output info. Only update rows of mainchain or
+// side chain transactions according to forMainchain. Technically
+// forMainchain=false also permits updating rows that are stake invalidated, but
+// consensus-validated transactions cannot spend outputs from stake-invalidated
+// transactions so the funding tx must not be invalid.
 func SetSpendingForFundingOP(db SqlExecutor, fundingTxHash string, fundingTxVoutIndex uint32,
-	spendingTxHash string, _ /*spendingTxVinIndex*/ uint32) (int64, error) {
+	spendingTxHash string, _ /*spendingTxVinIndex*/ uint32, forMainchain bool) (int64, error) {
 	// Update the matchingTxHash for the funding tx output. matchingTxHash here
 	// is the hash of the funding tx.
 	res, err := db.Exec(internal.SetAddressMatchingTxHashForOutpoint,
-		spendingTxHash, fundingTxHash, fundingTxVoutIndex)
+		spendingTxHash, fundingTxHash, fundingTxVoutIndex, forMainchain)
 	if err != nil || res == nil {
 		return 0, fmt.Errorf("SetAddressMatchingTxHashForOutpoint: %v", err)
 	}
@@ -2797,56 +2814,120 @@ func SetSpendingForFundingOP(db SqlExecutor, fundingTxHash string, fundingTxVout
 	return res.RowsAffected()
 }
 
+func setSpendingForVout(tx *sql.Tx, fundVoutRowID, spendTxRowID uint64) error {
+	res, err := tx.Exec(internal.UpdateVoutSpendTxRowID, spendTxRowID, fundVoutRowID)
+	if err != nil || res == nil {
+		return err
+	}
+
+	N, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if N != 1 {
+		return fmt.Errorf("updated %d rows, expected 1", N)
+	}
+	return nil
+}
+
+func setSpendingForVouts(tx *sql.Tx, fundVoutRowIDs []int64, spendTxRowID uint64) error {
+	res, err := tx.Exec(internal.UpdateVoutsSpendTxRowID, spendTxRowID, pq.Int64Array(fundVoutRowIDs))
+	if err != nil || res == nil {
+		return err
+	}
+
+	N, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if N != int64(len(fundVoutRowIDs)) {
+		return fmt.Errorf("updated %d rows, expected %d", N, len(fundVoutRowIDs))
+	}
+	return nil
+}
+
+func resetSpendingForVoutsByTxRowID(tx *sql.Tx, spendingTxRowIDs []int64) (int64, error) {
+	res, err := tx.Exec(internal.ResetVoutSpendTxRowIDs, pq.Int64Array(spendingTxRowIDs))
+	if err != nil || res == nil {
+		return 0, err
+	}
+
+	N, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	return N, nil
+}
+
 // InsertSpendingAddressRow inserts a new spending tx row, and updates any
 // corresponding funding tx row.
 func InsertSpendingAddressRow(db *sql.DB, fundingTxHash string,
 	fundingTxVoutIndex uint32, fundingTxTree int8, spendingTxHash string,
 	spendingTxVinIndex uint32, vinDbID uint64, utxoData *dbtypes.UTXOData,
-	checked, updateExisting, isValidMainchain bool,
-	txType int16, updateFundingRow bool, spendingTXBlockTime dbtypes.TimeDef) (int64, error) {
-	// Only allow atomic transactions to happen
+	checked, updateExisting, mainchain, valid bool,
+	txType int16, updateFundingRow bool, spendingTXBlockTime dbtypes.TimeDef) (int64, uint64, error) {
+	// Only allow atomic transactions to happen.
 	dbtx, err := db.Begin()
 	if err != nil {
-		return 0, fmt.Errorf(`unable to begin database transaction: %v`, err)
+		return 0, 0, fmt.Errorf(`unable to begin database transaction: %v`, err)
 	}
 
-	c, err := insertSpendingAddressRow(dbtx, fundingTxHash, fundingTxVoutIndex,
+	c, voutDbID, err := insertSpendingAddressRow(dbtx, fundingTxHash, fundingTxVoutIndex,
 		fundingTxTree, spendingTxHash, spendingTxVinIndex, vinDbID, utxoData, checked,
-		updateExisting, isValidMainchain, txType, updateFundingRow, spendingTXBlockTime)
+		updateExisting, mainchain, valid, txType, updateFundingRow, spendingTXBlockTime)
 	if err != nil {
-		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
+		return 0, 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
 			err, dbtx.Rollback())
 	}
 
-	return c, dbtx.Commit()
+	return c, voutDbID, dbtx.Commit()
+}
+
+func updateSpendTxInfoInAllVouts(db SqlExecutor) (int64, error) {
+	// Set vouts.spend_tx_row_id using vouts.tx_hash, vins.prev_tx_hash, and
+	// transactions.tx_hash.
+	log.Infof("Setting vouts.spend_tx_row_id (INT8) column. This will take a while...")
+	res, err := db.Exec(`UPDATE vouts SET spend_tx_row_id = transactions.id
+			FROM vins, transactions
+			WHERE vouts.tx_hash=vins.prev_tx_hash
+				AND vouts.tx_index=vins.prev_tx_index
+				AND vouts.value > 0
+				AND vins.is_mainchain=TRUE
+				AND transactions.tx_hash=vins.tx_hash
+				AND transactions.is_valid;`) // transactions.tree=1 implies transactions.is_valid=true
+	if err != nil {
+		return 0, fmt.Errorf("UPDATE vouts.spend_tx_row_id error: %v", err)
+	}
+	return res.RowsAffected()
 }
 
 // insertSpendingAddressRow inserts a new row in the addresses table for a new
 // transaction input, and updates the spending information for the addresses
-// table row corresponding to the previous outpoint.
+// table row and vouts table row corresponding to the previous outpoint.
 func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutIndex uint32,
 	fundingTxTree int8, spendingTxHash string, spendingTxVinIndex uint32, vinDbID uint64,
-	utxoData *dbtypes.UTXOData, checked, updateExisting, validMainchain bool, txType int16,
-	updateFundingRow bool, blockT ...dbtypes.TimeDef) (int64, error) {
+	spentUtxoData *dbtypes.UTXOData, checked, updateExisting, mainchain, valid bool, txType int16,
+	updateFundingRow bool, blockT ...dbtypes.TimeDef) (int64, uint64, error) {
 
 	// Select addresses and value from the matching funding tx output. A maximum
 	// of one row and a minimum of none are expected.
 	var addrs []string
-	var value uint64
+	var value, voutDbID uint64
+	var mixed bool
 
 	// When no previous output information is provided, query the vouts table
-	// for the addresses and value.
-	if utxoData == nil {
+	// for the addresses, value, and mixed status.
+	if spentUtxoData == nil {
 		// The addresses column of the vouts table contains an array of
 		// addresses that the pkScript pays to (i.e. >1 for multisig).
 		var addrArray string
 		err := tx.QueryRow(internal.SelectAddressByTxHash,
-			fundingTxHash, fundingTxVoutIndex, fundingTxTree).Scan(&addrArray, &value)
+			fundingTxHash, fundingTxVoutIndex, fundingTxTree).Scan(&voutDbID, &addrArray, &value, &mixed)
 		switch err {
 		case sql.ErrNoRows, nil:
 			// If no row found or error is nil, continue
 		default:
-			return 0, fmt.Errorf("SelectAddressByTxHash: %v", err)
+			return 0, 0, fmt.Errorf("SelectAddressByTxHash: %v", err)
 		}
 
 		// Get address list.
@@ -2854,8 +2935,10 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 		addrArray = replacer.Replace(addrArray)
 		addrs = strings.Split(addrArray, ",")
 	} else {
-		addrs = utxoData.Addresses
-		value = uint64(utxoData.Value)
+		addrs = spentUtxoData.Addresses
+		value = uint64(spentUtxoData.Value)
+		mixed = spentUtxoData.Mixed
+		voutDbID = uint64(spentUtxoData.VoutDbID)
 	}
 
 	// Check if the block time was provided.
@@ -2866,7 +2949,7 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 		// Fetch the block time from the tx table.
 		err := tx.QueryRow(internal.SelectTxBlockTimeByHash, spendingTxHash).Scan(&blockTime)
 		if err != nil {
-			return 0, fmt.Errorf("SelectTxBlockTimeByHash: %v", err)
+			return 0, 0, fmt.Errorf("SelectTxBlockTimeByHash: %v", err)
 		}
 	}
 
@@ -2877,18 +2960,22 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 		var rowID uint64
 		err := tx.QueryRow(sqlStmt, addrs[i], fundingTxHash, spendingTxHash,
 			spendingTxVinIndex, vinDbID, value, blockTime, isFunding,
-			validMainchain, txType).Scan(&rowID)
+			mainchain && valid, txType).Scan(&rowID)
 		if err != nil {
-			return 0, fmt.Errorf("InsertAddressRow: %v", err)
+			return 0, 0, fmt.Errorf("InsertAddressRow: %v", err)
 		}
 	}
 
-	if updateFundingRow {
-		// Update the matching funding addresses row with the spending info.
-		return SetSpendingForFundingOP(tx, fundingTxHash, fundingTxVoutIndex,
-			spendingTxHash, spendingTxVinIndex)
+	if updateFundingRow && valid {
+		// Update the matching funding addresses row with the spending info. If
+		// the spending transaction is side chain, so must be the funding tx to
+		// update it. (Similarly for mainchain, but a mainchain block always has
+		// a parent on the main chain).
+		N, err := SetSpendingForFundingOP(tx, fundingTxHash, fundingTxVoutIndex,
+			spendingTxHash, spendingTxVinIndex, mainchain)
+		return N, voutDbID, err
 	}
-	return 0, nil
+	return 0, voutDbID, nil
 }
 
 // --- agendas table ---
@@ -2984,7 +3071,7 @@ func InsertTx(db *sql.DB, dbTx *dbtypes.Tx, checked, updateExistingRecords bool)
 		dbTx.MixCount, dbTx.MixDenom,
 		dbTx.NumVin, dbtypes.UInt64Array(dbTx.VinDbIds),
 		dbTx.NumVout, dbtypes.UInt64Array(dbTx.VoutDbIds),
-		dbTx.IsValidBlock, dbTx.IsMainchainBlock).Scan(&id)
+		dbTx.IsValid, dbTx.IsMainchainBlock).Scan(&id)
 	return id, err
 }
 
@@ -2998,7 +3085,7 @@ func InsertTxnsStmt(stmt *sql.Stmt, dbTxns []*dbtypes.Tx, checked, updateExistin
 			int32(tx.Locktime), int32(tx.Expiry), tx.Size, tx.Spent, tx.Sent, tx.Fees,
 			tx.MixCount, tx.MixDenom,
 			tx.NumVin, dbtypes.UInt64Array(tx.VinDbIds),
-			tx.NumVout, dbtypes.UInt64Array(tx.VoutDbIds), tx.IsValidBlock,
+			tx.NumVout, dbtypes.UInt64Array(tx.VoutDbIds), tx.IsValid,
 			tx.IsMainchainBlock).Scan(&id)
 		if err != nil {
 			if err == sql.ErrNoRows {
@@ -3051,7 +3138,7 @@ func InsertTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked, updateExistingRecords
 			int32(tx.Locktime), int32(tx.Expiry), tx.Size, tx.Spent, tx.Sent, tx.Fees,
 			tx.MixCount, tx.MixDenom,
 			tx.NumVin, dbtypes.UInt64Array(tx.VinDbIds),
-			tx.NumVout, dbtypes.UInt64Array(tx.VoutDbIds), tx.IsValidBlock,
+			tx.NumVout, dbtypes.UInt64Array(tx.VoutDbIds), tx.IsValid,
 			tx.IsMainchainBlock).Scan(&id)
 		if err != nil {
 			if err == sql.ErrNoRows {
@@ -3073,9 +3160,9 @@ func InsertTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked, updateExistingRecords
 }
 
 // RetrieveDbTxByHash retrieves a row of the transactions table corresponding to
-// the given transaction hash. Transactions in valid and mainchain blocks are
-// chosen first. This function is used by FillAddressTransactions, an important
-// component of the addresses page.
+// the given transaction hash. Stake-validated transactions in mainchain blocks
+// are chosen first. This function is used by FillAddressTransactions, an
+// important component of the addresses page.
 func RetrieveDbTxByHash(ctx context.Context, db *sql.DB, txHash string) (id uint64, dbTx *dbtypes.Tx, err error) {
 	dbTx = new(dbtypes.Tx)
 	vinDbIDs := dbtypes.UInt64Array(dbTx.VinDbIds)
@@ -3085,7 +3172,7 @@ func RetrieveDbTxByHash(ctx context.Context, db *sql.DB, txHash string) (id uint
 		&dbTx.TxType, &dbTx.Version, &dbTx.Tree, &dbTx.TxID, &dbTx.BlockIndex,
 		&dbTx.Locktime, &dbTx.Expiry, &dbTx.Size, &dbTx.Spent, &dbTx.Sent,
 		&dbTx.Fees, &dbTx.MixCount, &dbTx.MixDenom, &dbTx.NumVin, &vinDbIDs,
-		&dbTx.NumVout, &voutDbIDs, &dbTx.IsValidBlock, &dbTx.IsMainchainBlock)
+		&dbTx.NumVout, &voutDbIDs, &dbTx.IsValid, &dbTx.IsMainchainBlock)
 	dbTx.VinDbIds = vinDbIDs
 	dbTx.VoutDbIds = voutDbIDs
 	return
@@ -3133,8 +3220,7 @@ func RetrieveDbTxsByHash(ctx context.Context, db *sql.DB, txHash string) (ids []
 			&dbTx.TxType, &dbTx.Version, &dbTx.Tree, &dbTx.TxID, &dbTx.BlockIndex,
 			&dbTx.Locktime, &dbTx.Expiry, &dbTx.Size, &dbTx.Spent, &dbTx.Sent,
 			&dbTx.Fees, &dbTx.MixCount, &dbTx.MixDenom, &dbTx.NumVin, &vinids,
-			&dbTx.NumVout, &voutids,
-			&dbTx.IsValidBlock, &dbTx.IsMainchainBlock)
+			&dbTx.NumVout, &voutids, &dbTx.IsValid, &dbTx.IsMainchainBlock)
 		if err != nil {
 			return
 		}
@@ -4153,6 +4239,37 @@ func UpdateLastBlockValid(db SqlExecutor, blockDbID uint64, isValid bool) error 
 	return nil
 }
 
+func clearVoutRegularSpendTxRowIDs(db *sql.DB, invalidatedBlockHash string) error {
+	n, err := sqlExec(db, `UPDATE vouts SET spend_tx_row_id = NULL
+		FROM transactions
+		WHERE transactions.tree=0 
+			AND transactions.block_hash=$1
+			AND transactions.id=spend_tx_row_id;`,
+		"failed to update vouts.spend_tx_row_id for vouts spent by invalidate block",
+		invalidatedBlockHash)
+	if err != nil {
+		return err
+	}
+	log.Debugf("Unset spend_tx_row_id for %d vouts previously spent by "+
+		"regular transactions in invalidated block %s", n, invalidatedBlockHash)
+	return nil
+}
+
+func clearVoutAllSpendTxRowIDs(db *sql.DB, transactionsBlockHash string) error {
+	n, err := sqlExec(db, `UPDATE vouts SET spend_tx_row_id = NULL
+		FROM transactions
+		WHERE transactions.block_hash=$1
+			AND transactions.id=spend_tx_row_id;`,
+		"failed to update vouts.spend_tx_row_id for vouts spent by invalidate block",
+		transactionsBlockHash)
+	if err != nil {
+		return err
+	}
+	log.Debugf("Unset spend_tx_row_id for %d vouts previously spent by "+
+		"transactions in block %s", n, transactionsBlockHash)
+	return nil
+}
+
 // UpdateLastVins updates the is_valid and is_mainchain columns in the vins
 // table for all of the transactions in the block specified by the given block
 // hash.
@@ -4166,9 +4283,10 @@ func UpdateLastVins(db *sql.DB, blockHash string, isValid, isMainchain bool) err
 	}
 
 	for i, txHash := range txs {
+		thisValid := isValid || trees[i] == wire.TxTreeStake
 		n, err := sqlExec(db, internal.SetIsValidIsMainchainByTxHash,
-			"failed to update last vins tx validity: ", isValid, isMainchain,
-			txHash, timestamps[i], trees[i])
+			"failed to update last vins tx validity: ", thisValid, isMainchain,
+			txHash, timestamps[i])
 		if err != nil {
 			return err
 		}

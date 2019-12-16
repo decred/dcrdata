@@ -218,7 +218,8 @@ const (
 		WHERE transactions.id = ANY(array_cat(blocks.txdbids, blocks.stxdbids))
 		AND blocks.hash=$1;`
 	DeleteTransactionsSimple = `DELETE FROM transactions
-		WHERE block_hash=$1;`
+		WHERE block_hash=$1
+		RETURNING id;`
 
 	DeleteBlock = `DELETE FROM blocks
 		WHERE hash=$1;`

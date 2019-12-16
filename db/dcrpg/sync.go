@@ -19,80 +19,12 @@ import (
 
 const (
 	quickStatsTarget         = 250
-	deepStatsTarget          = 1000
+	deepStatsTarget          = 600
 	rescanLogBlockChunk      = 500
 	initialLoadSyncStatusMsg = "Syncing stake, base and auxiliary DBs..."
+	voutsSyncStatusMsg       = "Syncing vouts table with spending info..."
 	addressesSyncStatusMsg   = "Syncing addresses table with spending info..."
 )
-
-/////////// Coordinated synchronization of base DB and auxiliary DB. ///////////
-//
-// A challenge is to keep base and aux DBs syncing at the same height. One of
-// the main reasons is that there is one StakeDatabase, which is shared between
-// the two, and both DBs need access to it for each height.
-//
-// rpcutils.BlockGetter is an interface with basic accessor methods like Block
-// and WaitForHash that can request current data and channels for future data,
-// but do not update the state of the object. The rpcutils.MasterBlockGetter is
-// an interface that embeds the regular BlockGetter, adding with functions that
-// can change state and signal to the BlockGetters, such as UpdateToHeight,
-// which will get the block via RPC and signal to all channels configured for
-// that block.
-//
-// ChainDB has the MasterBlockGetter and WiredDB has the BlockGetter. The way
-// ChainDB is in charge of requesting blocks on demand from RPC without getting
-// ahead of WiredDB during sync is that StakeDatabase has a very similar
-// coordination mechanism (WaitForHeight).
-//
-// 1. In main, we make a new `rpcutils.BlockGate`, a concrete type that
-//    implements `MasterBlockGetter` and thus `BlockGetter` too.  This
-//    "smart client" is provided to `baseDB` (a `WiredDB`) as a `BlockGetter`,
-//    and to `auxDB` (a `ChainDB`) as a `MasterBlockGetter`.
-//
-// 2. `baseDB` makes a channel using `BlockGetter.WaitForHeight` and starts
-//    waiting for the current block to come across the channel.
-//
-// 3. `auxDB` makes a channel using `StakeDatabase.WaitForHeight`, which
-//    instructs the shared stake DB to send notification when it connects the
-//    specified block. `auxDB` does not start waiting for the signal yet.
-//
-// 4. `auxDB` requests that the same current block be retrieved via RPC using
-//    `MasterBlockGetter.UpdateToBlock`.
-//
-// 5. `auxDB` immediately begins waiting for the signal that `StakeDatabase` has
-//    connected the block.
-//
-// 6. The call to `UpdateToBlock` causes the underlying (shared) smartClient to
-//    send a signal on all channels registered for that block.
-//
-// 7. `baseDB`gets notification on the channel and retrieves the block (which
-//    the channel signaled is now available) via `BlockGetter.Block`.
-//
-// 8. Before connecting the block in the `StakeDatabase`, `baseDB` gets a new
-//    channel for the following (i+1) block, so that when `auxDB` requests it
-//    later the channel will be registered already.
-//
-// 9. `baseDB` connects the block in `StakeDatabase`.
-//
-// 10. `StakeDatabase` signals to all waiters (`auxDB`, see 5) that the stake db
-//    is ready at the needed height.
-//
-// 11. `baseDB` finishes block data processing/storage and goes back to 2. for
-//    the next block.
-//
-// 12. Concurrent with `baseDB` processing in 11., `auxDB` receives the
-//    notification from `StakeDatabase` sent in 10. and continues block data
-//    processing/storage.  When done processing, `auxDB` goes back to step 3.
-//    for the next block.  As with the previous iteration, it sets the pace with
-//    `UpdateToBlock`.
-//
-// With the above approach, (a) the DBs share a single StakeDatabase, (b) the
-// DBs are in sync (tightly coupled), (c) there is ample opportunity for
-// concurrent computations, and (d) the shared blockGetter (as a
-// MasterBlockGetter in auxDB, and a BlockGetter in baseDB) makes it so a given
-// block will only be fetched via RPC ONCE and stored for the BlockGetters that
-// are waiting for the block.
-////////////////////////////////////////////////////////////////////////////////
 
 // SyncChainDBAsync is like SyncChainDB except it also takes a result channel on
 // which the caller should wait to receive the result. As such, this method
@@ -197,7 +129,7 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		}
 		if !updateAllAddresses {
 			updateAllAddresses = true
-			log.Warnf("Forcing full update of spending information in addresses table.")
+			log.Warnf("Forcing full update of spending information in addresses and vouts tables.")
 		}
 	}
 
@@ -212,59 +144,25 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		// Disable duplicate checks on insert queries since the unique indexes
 		// that enforce the constraints will not exist.
 		pgb.EnableDuplicateCheckOnInsert(false)
-
-		// Syncing blocks without indexes requires a UTXO cache to avoid
-		// extremely expensive queries. Warm the UTXO cache if resuming an
-		// interrupted initial sync.
-		blocksToSync := nodeHeight - lastBlock
-		if lastBlock > 0 && (blocksToSync > 50 || pgb.cockroach) {
-			if pgb.cockroach {
-				log.Infof("Removing duplicate vins prior to indexing.")
-				N, err := pgb.DeleteDuplicateVinsCockroach()
-				if err != nil {
-					return -1, fmt.Errorf("failed to remove duplicate vins: %v", err)
-				}
-				log.Infof("Removed %d duplicate vins rows.", N)
-				log.Infof("Indexing vins table on vins for CockroachDB to load UTXO set.")
-				if err = IndexVinTableOnVins(pgb.db); err != nil {
-					return -1, fmt.Errorf("failed to index vins on vins: %v", err)
-				}
-				log.Infof("Indexing vins table on prevouts for CockroachDB to load UTXO set.")
-				if err = IndexVinTableOnPrevOuts(pgb.db); err != nil {
-					return -1, fmt.Errorf("failed to index vins on prevouts: %v", err)
-				}
-
-				log.Infof("Removing duplicate vouts prior to indexing.")
-				N, err = pgb.DeleteDuplicateVoutsCockroach()
-				if err != nil {
-					return -1, fmt.Errorf("failed to remove duplicate vouts: %v", err)
-				}
-				log.Infof("Removed %d duplicate vouts rows.", N)
-				log.Infof("Indexing vouts table on tx hash and idx for CockroachDB to load UTXO set.")
-				if err = IndexVoutTableOnTxHashIdx(pgb.db); err != nil {
-					return -1, fmt.Errorf("failed to index vouts on tx hash and idx: %v", err)
-				}
-			}
-			log.Infof("Collecting all UTXO data prior to height %d...", lastBlock+1)
-			utxos, err := RetrieveUTXOs(ctx, pgb.db)
-			if err != nil {
-				return -1, fmt.Errorf("RetrieveUTXOs: %v", err)
-			}
-			if pgb.cockroach {
-				err = pgb.DeindexAll()
-				if err != nil && !strings.Contains(err.Error(), "does not exist") {
-					return lastBlock, err
-				}
-			}
-			log.Infof("Pre-warming UTXO cache with %d UTXOs...", len(utxos))
-			pgb.InitUtxoCache(utxos)
-			log.Infof("UTXO cache is ready.")
-		}
 	} else {
 		// When the unique indexes exist, inserts should check for conflicts
 		// with the tables' constraints.
 		pgb.EnableDuplicateCheckOnInsert(true)
 	}
+
+	log.Infof("Collecting all UTXO data prior to height %d...", lastBlock+1)
+	utxoFunc := RetrieveUTXOs
+	if updateAllAddresses {
+		utxoFunc = RetrieveUTXOsByVinsJoin
+	}
+	utxos, err := utxoFunc(ctx, pgb.db)
+	if err != nil {
+		return -1, fmt.Errorf("RetrieveUTXOs: %v", err)
+	}
+
+	log.Infof("Pre-warming UTXO cache with %d UTXOs...", len(utxos))
+	pgb.InitUtxoCache(utxos)
+	log.Infof("UTXO cache is ready.")
 
 	// When reindexing or adding a large amount of data, ANALYZE tables.
 	requireAnalyze := reindexing || nodeHeight-lastBlock > 10000
@@ -464,13 +362,6 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 	// Signal the final height to any heightClients.
 	pgb.SignalHeight(uint32(nodeHeight))
 
-	// After the last call to StoreBlock, synchronously update the project fund
-	// and clear the general address balance cache.
-	if err = pgb.FreshenAddressCaches(false, nil); err != nil {
-		log.Warnf("FreshenAddressCaches: %v", err)
-		err = nil // not an error with sync
-	}
-
 	// Signal the end of the initial load sync.
 	sendProgressUpdate(&dbtypes.ProgressBarLoad{
 		From:  nodeHeight,
@@ -493,19 +384,23 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 			return 0, err
 		}
 
-		// Create all indexes.
+		// Create all indexes except addresses and tickets indexes.
 		if err = pgb.IndexAll(barLoad); err != nil {
 			return nodeHeight, fmt.Errorf("IndexAll failed: %v", err)
 		}
 
-		// Only reindex addresses table here if not doing it below.
 		if !updateAllAddresses {
-			if err = pgb.IndexAddressTable(barLoad); err != nil {
-				return nodeHeight, fmt.Errorf("IndexAddressTable failed: %v", err)
+			// The addresses.matching_tx_hash index is not included in IndexAll.
+			if err = IndexAddressTableOnMatchingTxHash(pgb.db); err != nil {
+				return nodeHeight, fmt.Errorf("IndexAddressTableOnMatchingTxHash failed: %v", err)
+			}
+			// The vouts.spend_tx_row_id index is not included in IndexAll.
+			if err := IndexVoutTableOnSpendTxID(pgb.db); err != nil {
+				return nodeHeight, fmt.Errorf("IndexVoutTableOnSpendTxID: %v", err)
 			}
 		}
 
-		// Tickets table index is not included in IndexAll.
+		// Tickets table indexes are not included in IndexAll.
 		if err = pgb.IndexTicketsTable(barLoad); err != nil {
 			return nodeHeight, fmt.Errorf("IndexTicketsTable failed: %v", err)
 		}
@@ -518,27 +413,67 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		analyzed = true
 	}
 
+	// After the last call to StoreBlock, synchronously update the project fund
+	// and clear the general address balance cache.
+	log.Infof("Updating project fund balance...")
+	if err = pgb.FreshenAddressCaches(false, nil); err != nil {
+		log.Warnf("FreshenAddressCaches: %v", err)
+		err = nil // not an error with sync
+	}
+
 	// Batch update addresses table with spending info.
 	if updateAllAddresses {
-		// Analyze vins and table first.
+		// Analyze vouts and transactions tables first.
 		if !analyzed {
 			log.Infof("Performing an ANALYZE(%d) on vins table...", deepStatsTarget)
 			if err = AnalyzeTable(pgb.db, "vins", deepStatsTarget); err != nil {
 				return nodeHeight, fmt.Errorf("failed to ANALYZE vins table: %v", err)
 			}
+			log.Infof("Performing an ANALYZE(%d) on vouts table...", deepStatsTarget)
+			if err = AnalyzeTable(pgb.db, "vouts", deepStatsTarget); err != nil {
+				return nodeHeight, fmt.Errorf("failed to ANALYZE vouts table: %v", err)
+			}
+			log.Infof("Performing an ANALYZE(%d) on transactions table...", deepStatsTarget)
+			if err = AnalyzeTable(pgb.db, "transactions", deepStatsTarget); err != nil {
+				return nodeHeight, fmt.Errorf("failed to ANALYZE transactions table: %v", err)
+			}
 		}
 
-		// Remove existing indexes not on funding txns
-		_ = pgb.DeindexAddressTable() // ignore errors for non-existent indexes
-		log.Infof("Populating spending tx info in address table...")
+		// Set spend_tx_row_id in each vouts row.
+		log.Info("Setting spend_tx_row_id for all spent vouts...")
+		sendProgressUpdate(&dbtypes.ProgressBarLoad{
+			Msg:   voutsSyncStatusMsg,
+			BarID: dbtypes.AddressesTableSync,
+		})
+
+		N, err := updateSpendTxInfoInAllVouts(pgb.db)
+		if err != nil {
+			return nodeHeight, fmt.Errorf("UPDATE vouts.spend_tx_row_id error: %v", err)
+		}
+		log.Debug("Updated %d rows of vouts table.", N)
+		log.Debug("Indexing vouts table on spend_tx_row_id...")
+		if err := IndexVoutTableOnSpendTxID(pgb.db); err != nil {
+			return nodeHeight, fmt.Errorf("IndexVoutTableOnSpendTxID: %v", err)
+		}
+
+		log.Infof("Performing an ANALYZE(%d) on vouts table...", deepStatsTarget)
+		if err = AnalyzeTable(pgb.db, "vouts", deepStatsTarget); err != nil {
+			return nodeHeight, fmt.Errorf("failed to ANALYZE vouts table: %v", err)
+		}
+
+		log.Debug("Dropping index on addresses.matching_tx_hash during update...")
+		_ = DeindexAddressTableOnMatchingTxHash(pgb.db) // ignore error is the index is absent
+		log.Info("Populating spending tx info in addresses table...")
 		numAddresses, err := pgb.UpdateSpendingInfoInAllAddresses(barLoad)
 		if err != nil {
-			log.Errorf("UpdateSpendingInfoInAllAddresses FAILED: %v", err)
+			return nodeHeight, fmt.Errorf("UpdateSpendingInfoInAllAddresses FAILED: %v", err)
 		}
-		// Index addresses table
-		log.Infof("Updated %d rows of address table", numAddresses)
-		if err = pgb.IndexAddressTable(barLoad); err != nil {
-			log.Errorf("IndexAddressTable FAILED: %v", err)
+		// Index addresses table on matching_tx_hash.
+		log.Infof("Updated %d rows of addresses table.", numAddresses)
+
+		log.Info("Indexing addresses table on matching_tx_hash...")
+		if err = IndexAddressTableOnMatchingTxHash(pgb.db); err != nil {
+			return nodeHeight, fmt.Errorf("IndexAddressTableOnMatchingTxHash failed: %v", err)
 		}
 
 		// Deep ANALYZE the newly indexed addresses table.

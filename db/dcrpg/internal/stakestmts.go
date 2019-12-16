@@ -77,9 +77,9 @@ const (
 
 	// IndexTicketsTableOnHashes creates the unique index
 	// uix_ticket_hashes_index on (tx_hash, block_hash).
-	IndexTicketsTableOnHashes = `CREATE UNIQUE INDEX ` + IndexOfTicketsTableOnHashes +
+	IndexTicketsTableOnHashes = `CREATE UNIQUE INDEX IF NOT EXISTS ` + IndexOfTicketsTableOnHashes +
 		` ON tickets(tx_hash, block_hash);`
-	DeindexTicketsTableOnHashes = `DROP INDEX ` + IndexOfTicketsTableOnHashes + ` CASCADE;`
+	DeindexTicketsTableOnHashes = `DROP INDEX IF EXISTS ` + IndexOfTicketsTableOnHashes + ` CASCADE;`
 
 	// IndexTicketsTableOnTxDbID creates the unique index that ensures only one
 	// row in the tickets table may refer to a certain row of the transactions
@@ -88,13 +88,13 @@ const (
 	// block_hash) that allows a transaction appearing in multiple blocks (e.g.
 	// side chains and/or invalidated blocks) to have multiple rows in the
 	// transactions table.
-	IndexTicketsTableOnTxDbID = `CREATE UNIQUE INDEX ` + IndexOfTicketsTableOnTxRowID +
+	IndexTicketsTableOnTxDbID = `CREATE UNIQUE INDEX IF NOT EXISTS ` + IndexOfTicketsTableOnTxRowID +
 		` ON tickets(purchase_tx_db_id);`
-	DeindexTicketsTableOnTxDbID = `DROP INDEX ` + IndexOfTicketsTableOnTxRowID + ` CASCADE;`
+	DeindexTicketsTableOnTxDbID = `DROP INDEX IF EXISTS ` + IndexOfTicketsTableOnTxRowID + ` CASCADE;`
 
-	IndexTicketsTableOnPoolStatus = `CREATE INDEX ` + IndexOfTicketsTableOnPoolStatus +
+	IndexTicketsTableOnPoolStatus = `CREATE INDEX IF NOT EXISTS ` + IndexOfTicketsTableOnPoolStatus +
 		` ON tickets(pool_status);`
-	DeindexTicketsTableOnPoolStatus = `DROP INDEX ` + IndexOfTicketsTableOnPoolStatus + ` CASCADE;`
+	DeindexTicketsTableOnPoolStatus = `DROP INDEX IF EXISTS ` + IndexOfTicketsTableOnPoolStatus + ` CASCADE;`
 
 	SelectTicketsInBlock        = `SELECT * FROM tickets WHERE block_hash = $1;`
 	SelectTicketsTxDbIDsInBlock = `SELECT purchase_tx_db_id FROM tickets WHERE block_hash = $1;`
