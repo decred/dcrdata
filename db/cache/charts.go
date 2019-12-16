@@ -270,7 +270,8 @@ type zoomSet struct {
 	NewAtoms         ChartUints
 	Chainwork        ChartUints
 	Fees             ChartUints
-	TotalMixed       ChartUints
+	TotalMixedStk    ChartUints
+	TotalMixedReg	 ChartUints
 	MovingTotalMixed ChartUints
 }
 
@@ -288,7 +289,8 @@ func (set *zoomSet) Snip(length int) {
 	set.NewAtoms = set.NewAtoms.snip(length)
 	set.Chainwork = set.Chainwork.snip(length)
 	set.Fees = set.Fees.snip(length)
-	set.TotalMixed = set.TotalMixed.snip(length)
+	set.TotalMixedStk = set.TotalMixedStk.snip(length)
+	set.TotalMixedReg = set.TotalMixedReg.snip(length)
 	set.MovingTotalMixed = set.MovingTotalMixed.snip(length)
 }
 
@@ -305,7 +307,8 @@ func newBlockSet(size int) *zoomSet {
 		NewAtoms:         newChartUints(size),
 		Chainwork:        newChartUints(size),
 		Fees:             newChartUints(size),
-		TotalMixed:       newChartUints(size),
+		TotalMixedStk:    newChartUints(size),
+		TotalMixedReg:    newChartUints(size),
 		MovingTotalMixed: newChartUints(size),
 	}
 }
@@ -357,21 +360,22 @@ func newWindowSet(size int) *windowSet {
 // has a lot of extraneous fields, and also embeds sync.RWMutex, so is not
 // suitable for gobbing.
 type ChartGobject struct {
-	Height      ChartUints
-	Time        ChartUints
-	PoolSize    ChartUints
-	PoolValue   ChartUints
-	BlockSize   ChartUints
-	TxCount     ChartUints
-	NewAtoms    ChartUints
-	Chainwork   ChartUints
-	Fees        ChartUints
-	WindowTime  ChartUints
-	PowDiff     ChartFloats
-	TicketPrice ChartUints
-	StakeCount  ChartUints
-	MissedVotes ChartUints
-	TotalMixed  ChartUints
+	Height         ChartUints
+	Time           ChartUints
+	PoolSize       ChartUints
+	PoolValue      ChartUints
+	BlockSize      ChartUints
+	TxCount        ChartUints
+	NewAtoms       ChartUints
+	Chainwork      ChartUints
+	Fees           ChartUints
+	WindowTime     ChartUints
+	PowDiff        ChartFloats
+	TicketPrice    ChartUints
+	StakeCount     ChartUints
+	MissedVotes    ChartUints
+	TotalMixedStk  ChartUints
+	TotalMixedReg  ChartUints
 }
 
 // The chart data is cached with the current cacheID of the zoomSet or windowSet.
@@ -470,7 +474,7 @@ func (charts *ChartData) Lengthen() error {
 	blocks := charts.Blocks
 	shortest, err := ValidateLengths(blocks.Height, blocks.Time,
 		blocks.PoolSize, blocks.PoolValue, blocks.BlockSize, blocks.TxCount,
-		blocks.NewAtoms, blocks.Chainwork, blocks.Fees, blocks.TotalMixed)
+		blocks.NewAtoms, blocks.Chainwork, blocks.Fees, blocks.TotalMixedStk, blocks.TotalMixedReg)
 	if err != nil {
 		log.Warnf("ChartData.Lengthen: block data length mismatch detected. "+
 			"Truncating blocks length to %d", shortest)
@@ -560,7 +564,8 @@ func (charts *ChartData) Lengthen() error {
 			days.NewAtoms = append(days.NewAtoms, blocks.NewAtoms.Sum(interval[0], interval[1]))
 			days.Chainwork = append(days.Chainwork, blocks.Chainwork[interval[1]])
 			days.Fees = append(days.Fees, blocks.Fees.Sum(interval[0], interval[1]))
-			days.TotalMixed = append(days.TotalMixed, blocks.TotalMixed.Sum(interval[0], interval[1]))
+			days.TotalMixedStk = append(days.TotalMixedStk, blocks.TotalMixedStk.Sum(interval[0], interval[1]))
+			days.TotalMixedReg = append(days.TotalMixedReg, blocks.TotalMixedReg.Sum(interval[0], interval[1]))
 		}
 
 		minIndex := func(t uint64, previousIndex int) int {
@@ -588,14 +593,14 @@ func (charts *ChartData) Lengthen() error {
 			}
 		}
 		for _, interval := range movingInterval {
-			days.MovingTotalMixed = append(days.MovingTotalMixed, blocks.TotalMixed.Sum(interval[0], interval[1]))
+			days.MovingTotalMixed = append(days.MovingTotalMixed, blocks.TotalMixedStk.Sum(interval[0], interval[1]))
 		}
 	}
 
 	// Check that all relevant datasets have been updated to the same length.
 	daysLen, err := ValidateLengths(days.Height, days.Time, days.PoolSize,
 		days.PoolValue, days.BlockSize, days.TxCount, days.NewAtoms,
-		days.Chainwork, days.Fees, days.TotalMixed, days.MovingTotalMixed)
+		days.Chainwork, days.Fees, days.TotalMixedStk, days.TotalMixedReg, days.MovingTotalMixed)
 	if err != nil {
 		return fmt.Errorf("day bin: %v", err)
 	} else if daysLen == 0 {
@@ -705,7 +710,8 @@ func (charts *ChartData) readCacheFile(filePath string) error {
 	charts.Blocks.NewAtoms = gobject.NewAtoms
 	charts.Blocks.Chainwork = gobject.Chainwork
 	charts.Blocks.Fees = gobject.Fees
-	charts.Blocks.TotalMixed = gobject.TotalMixed
+	charts.Blocks.TotalMixedStk = gobject.TotalMixedStk
+	charts.Blocks.TotalMixedReg = gobject.TotalMixedReg
 	charts.Windows.Time = gobject.WindowTime
 	charts.Windows.PowDiff = gobject.PowDiff
 	charts.Windows.TicketPrice = gobject.TicketPrice
@@ -774,7 +780,8 @@ func (charts *ChartData) gobject() *ChartGobject {
 		NewAtoms:    charts.Blocks.NewAtoms,
 		Chainwork:   charts.Blocks.Chainwork,
 		Fees:        charts.Blocks.Fees,
-		TotalMixed:  charts.Blocks.TotalMixed,
+		TotalMixedStk:  charts.Blocks.TotalMixedStk,
+		TotalMixedReg:  charts.Blocks.TotalMixedReg,
 		WindowTime:  charts.Windows.Time,
 		PowDiff:     charts.Windows.PowDiff,
 		TicketPrice: charts.Windows.TicketPrice,
@@ -828,7 +835,7 @@ func (charts *ChartData) FeesTip() int32 {
 func (charts *ChartData) TotalMixedTip() int32 {
 	charts.mtx.RLock()
 	defer charts.mtx.RUnlock()
-	return int32(len(charts.Blocks.TotalMixed)) - 1
+	return int32(len(charts.Blocks.TotalMixedStk)) - 1
 }
 
 // NewAtomsTip is the height of the NewAtoms data.
@@ -1074,6 +1081,23 @@ func accumulateX(data ChartUints, x int) ChartUints {
 			accumulator -= data[i - x]
 		}
 		d = append(d, accumulator)
+	}
+	return d
+}
+
+// merge returns a set whose point at each index is a sum of all the points at that index in the supplied record set
+func merge(items ...ChartUints) ChartUints {
+	if len(items) == 0 {
+		return ChartUints{}
+	}
+	
+	d := make(ChartUints, 0, len(items[0]))
+	for i := range items[0] {
+		var v uint64
+		for _, item := range items {
+			v += item[i]
+		}
+		d = append(d, v)
 	}
 	return d
 }
@@ -1498,29 +1522,31 @@ func coinJoinsChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, err
 	seed := binAxisSeed(bin, axis)
 	switch bin {
 	case BlockBin:
+		totalMixed := merge(charts.Blocks.TotalMixedStk, charts.Blocks.TotalMixedReg)
 		switch axis {
 		case HeightAxis:
 			return encode(lengtherMap{
 				heightKey:	  charts.Blocks.Height,
-				coinjoinsKey: charts.Blocks.TotalMixed,
+				coinjoinsKey: totalMixed,
 			}, seed)
 		default:
 			return encode(lengtherMap{
 				timeKey:      charts.Blocks.Time,
-				coinjoinsKey: charts.Blocks.TotalMixed,
+				coinjoinsKey: totalMixed,
 			}, seed)
 		}
 	case DayBin:
+		totalMixed := merge(charts.Days.TotalMixedStk, charts.Days.TotalMixedReg)
 		switch axis {
 		case HeightAxis:
 			return encode(lengtherMap{
 				heightKey:    charts.Days.Height,
-				coinjoinsKey: charts.Days.TotalMixed,
+				coinjoinsKey: totalMixed,
 			}, seed)
 		default:
 			return encode(lengtherMap{
 				timeKey:      charts.Days.Time,
-				coinjoinsKey: charts.Days.TotalMixed,
+				coinjoinsKey: totalMixed,
 			}, seed)
 		}
 	}

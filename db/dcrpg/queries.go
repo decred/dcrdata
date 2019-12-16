@@ -3654,11 +3654,14 @@ func appendBlockCoinJoins(charts *cache.ChartData, rows *sql.Rows) error {
 
 		// the query retreives ticket transactions that has mixed amount alone, fill 0s for missing height
 		curLen := heightMap[blockHeight]
-		for len(blocks.TotalMixed) < curLen {
-			blocks.TotalMixed = append(blocks.TotalMixed, 0)
+		for len(blocks.TotalMixedStk) < curLen {
+			blocks.TotalMixedStk = append(blocks.TotalMixedStk, 0)
+			blocks.TotalMixedReg = append(charts.Blocks.TotalMixedReg, 0)
 		}
 
-		blocks.TotalMixed = append(blocks.TotalMixed, uint64(totalMixed))
+		// TODO set for reg tx when #1639 is merged
+		blocks.TotalMixedReg = append(charts.Blocks.TotalMixedReg, 0)
+		blocks.TotalMixedStk = append(blocks.TotalMixedStk, uint64(totalMixed))
 	}
 
 	return nil
