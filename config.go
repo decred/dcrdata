@@ -69,12 +69,14 @@ var (
 	defaultPoliteiaAPIURl    = "https://proposals.decred.org"
 	defaultChartsCacheDump   = "chartscache.gob"
 
-	defaultPGHost         = "127.0.0.1:5432"
-	defaultPGUser         = "dcrdata"
-	defaultPGPass         = ""
-	defaultPGDBName       = "dcrdata"
-	defaultPGQueryTimeout = time.Hour
-	defaultAddrCacheCap   = 1 << 27 // 128 MiB
+	defaultPGHost           = "127.0.0.1:5432"
+	defaultPGUser           = "dcrdata"
+	defaultPGPass           = ""
+	defaultPGDBName         = "dcrdata"
+	defaultPGQueryTimeout   = time.Hour
+	defaultAddrCacheCap     = 1 << 28 // 256 MiB
+	defaultAddrCacheLimit   = 2048
+	defaultAddrCacheUXTOCap = 1 << 28
 
 	defaultExchangeIndex     = "USD"
 	defaultDisabledExchanges = "huobi,dragonex"
@@ -130,15 +132,17 @@ type config struct {
 
 	PurgeNBestBlocks int `long:"purge-n-blocks" description:"Purge all data for the N best blocks, using the best block across all DBs if they are out of sync."`
 
-	FullMode       bool          `long:"pg" description:"Run in \"Full Mode\" mode,  enables postgresql support" env:"DCRDATA_ENABLE_FULL_MODE"`
-	PGDBName       string        `long:"pgdbname" description:"PostgreSQL DB name." env:"DCRDATA_PG_DB_NAME"`
-	PGUser         string        `long:"pguser" description:"PostgreSQL DB user." env:"DCRDATA_POSTGRES_USER"`
-	PGPass         string        `long:"pgpass" description:"PostgreSQL DB password." env:"DCRDATA_POSTGRES_PASS"`
-	PGHost         string        `long:"pghost" description:"PostgreSQL server host:port or UNIX socket (e.g. /run/postgresql)." env:"DCRDATA_POSTGRES_HOST_URL"`
-	PGQueryTimeout time.Duration `short:"T" long:"pgtimeout" description:"Timeout (a time.Duration string) for most PostgreSQL queries used for user initiated queries."`
-	HidePGConfig   bool          `long:"hidepgconfig" description:"Blocks logging of the PostgreSQL db configuration on system start up."`
-	AddrCacheCap   int           `long:"addr-cache-cap" description:"Address cache capacity in bytes."`
-	DropIndexes    bool          `long:"drop-inds" short:"D" description:"Drop all table indexes and exit."`
+	FullMode         bool          `long:"pg" description:"Run in \"Full Mode\" mode,  enables postgresql support" env:"DCRDATA_ENABLE_FULL_MODE"`
+	PGDBName         string        `long:"pgdbname" description:"PostgreSQL DB name." env:"DCRDATA_PG_DB_NAME"`
+	PGUser           string        `long:"pguser" description:"PostgreSQL DB user." env:"DCRDATA_POSTGRES_USER"`
+	PGPass           string        `long:"pgpass" description:"PostgreSQL DB password." env:"DCRDATA_POSTGRES_PASS"`
+	PGHost           string        `long:"pghost" description:"PostgreSQL server host:port or UNIX socket (e.g. /run/postgresql)." env:"DCRDATA_POSTGRES_HOST_URL"`
+	PGQueryTimeout   time.Duration `short:"T" long:"pgtimeout" description:"Timeout (a time.Duration string) for most PostgreSQL queries used for user initiated queries."`
+	HidePGConfig     bool          `long:"hidepgconfig" description:"Blocks logging of the PostgreSQL db configuration on system start up."`
+	AddrCacheCap     int           `long:"addr-cache-cap" description:"Address cache capacity in bytes."`
+	AddrCacheLimit   int           `long:"addr-cache-address-limit" description:"Maximum number of addresses allowed in the address cache."`
+	AddrCacheUXTOCap int           `long:"addr-cache-utxo-cap" description:"UTXO cache capacity in bytes."`
+	DropIndexes      bool          `long:"drop-inds" short:"D" description:"Drop all table indexes and exit."`
 
 	NoDevPrefetch    bool `long:"no-dev-prefetch" description:"Disable automatic dev fund balance query on new blocks. When true, the query will still be run on demand, but not automatically after new blocks are connected." env:"DCRDATA_DISABLE_DEV_PREFETCH"`
 	SyncAndQuit      bool `long:"sync-and-quit" description:"Sync to the best block and exit. Do not start the explorer or API." env:"DCRDATA_ENABLE_SYNC_N_QUIT"`
@@ -203,6 +207,8 @@ var (
 		PGHost:              defaultPGHost,
 		PGQueryTimeout:      defaultPGQueryTimeout,
 		AddrCacheCap:        defaultAddrCacheCap,
+		AddrCacheLimit:      defaultAddrCacheLimit,
+		AddrCacheUXTOCap:    defaultAddrCacheUXTOCap,
 		ExchangeCurrency:    defaultExchangeIndex,
 		DisabledExchanges:   defaultDisabledExchanges,
 		RateCertificate:     defaultRateCertFile,

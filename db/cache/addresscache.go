@@ -19,20 +19,10 @@ import (
 )
 
 const (
-	// addressCapacity is an absolute limit on the number of addresses that may
-	// have cached data, regardless of the number of rows.
-	addressCapacity = 1024
-
 	// The size of a dbtypes.AddressTxnOutput varies since address and pkScript
 	// lengths vary, but it is roughly 180 bytes (88 bytes for the struct and
 	// ~92 bytes for the string buffers).
 	approxTxnOutSize = 180
-
-	// Unlike address rows, which are counted precisely, UTXO limits are
-	// enforced per-address. maxUTXOsPerAddr is set to require at most 128 MiB
-	// given the approximate AddressTxnOutput size and full address capacity.
-	// maxUTXOsPerAddr * 256 * 1024 = 128 MiB, maxUTXOsPerAddr = 512.
-	maxUTXOsPerAddr = (1 << 27) / approxTxnOutSize / addressCapacity
 )
 
 // CacheLock is a "try lock" for coordinating multiple accessors, while allowing
@@ -670,25 +660,36 @@ func (cm *cacheMetrics) historyMiss() {
 // AddressCache maintains a store of address data. Use NewAddressCache to create
 // a new AddressCache with initialized internal data structures.
 type AddressCache struct {
-	mtx            sync.RWMutex
-	a              map[string]*AddressCacheItem
-	cap            int
-	capAddr        int
-	cacheMetrics   cacheMetrics
-	ProjectAddress string
+	mtx     sync.RWMutex
+	a       map[string]*AddressCacheItem
+	cap     int
+	capAddr int
+	// Unlike addresses and address rows, which are counted precisely, UTXO
+	// limits are enforced per-address. maxUTXOsPerAddr is computed on
+	// construction from the specified total utxo capacity specified in bytes.
+	maxUTXOsPerAddr int
+	cacheMetrics    cacheMetrics
+	ProjectAddress  string
 }
 
 // NewAddressCache constructs an AddressCache with capacity for the specified
-// number of address rows.
-func NewAddressCache(rowCapacity int) *AddressCache {
-	if rowCapacity < 0 {
-		rowCapacity = 0
+// number of address rows. rowCapacity is an absolute limit on the number of
+// address data table rows that may have cached data, while addressCapacity is a
+// limit on the number of unique addresses in the cache, regardless of the
+// number of rows. utxoCapacityBytes is the capacity in bytes of the UTXO cache.
+func NewAddressCache(rowCapacity, addressCapacity, utxoCapacityBytes int) *AddressCache {
+	var maxUTXOsPerAddr int
+	if addressCapacity > 0 {
+		maxUTXOsPerAddr = utxoCapacityBytes / approxTxnOutSize / addressCapacity
 	}
 	ac := &AddressCache{
-		a:       make(map[string]*AddressCacheItem),
-		cap:     rowCapacity,
-		capAddr: addressCapacity,
+		a:               make(map[string]*AddressCacheItem),
+		cap:             rowCapacity,
+		capAddr:         addressCapacity,
+		maxUTXOsPerAddr: maxUTXOsPerAddr,
 	}
+	log.Debugf("Allowing %d cached UTXOs per address (max %d addresses), using ~%.0f MiB.",
+		ac.maxUTXOsPerAddr, addressCapacity, float64(utxoCapacityBytes)/1024/1024)
 	defer func() { go ac.Reporter() }()
 	return ac
 }
@@ -1185,7 +1186,7 @@ func (ac *AddressCache) StoreUTXOs(addr string, utxos []*dbtypes.AddressTxnOutpu
 	}
 
 	// Only allow storing maxUTXOsPerAddr.
-	if len(utxos) > maxUTXOsPerAddr && addr != ac.ProjectAddress {
+	if len(utxos) > ac.maxUTXOsPerAddr && addr != ac.ProjectAddress {
 		return false
 	}
 

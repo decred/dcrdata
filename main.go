@@ -198,13 +198,23 @@ func _main(ctx context.Context) error {
 	// Rough estimate of capacity in rows, using size of struct plus some
 	// for the string buffer of the Address field.
 	rowCap := cfg.AddrCacheCap / int(32+reflect.TypeOf(dbtypes.AddressRowCompact{}).Size())
-	log.Infof("Address cache capacity: %d rows, %d bytes", rowCap, cfg.AddrCacheCap)
+	log.Infof("Address cache capacity: %d addresses: ~%.0f MiB tx data (%d items) + %.0f MiB UTXOs",
+		cfg.AddrCacheLimit, float64(cfg.AddrCacheCap)/1024/1024, rowCap, float64(cfg.AddrCacheUXTOCap)/1024/1024)
 
 	// Open and upgrade the database.
+	dbCfg := dcrpg.ChainDBCfg{
+		DBi:                  &dbi,
+		Params:               activeChain,
+		DevPrefetch:          !cfg.NoDevPrefetch,
+		HidePGConfig:         cfg.HidePGConfig,
+		AddrCacheAddrCap:     cfg.AddrCacheLimit,
+		AddrCacheRowCap:      rowCap,
+		AddrCacheUTXOByteCap: cfg.AddrCacheUXTOCap,
+	}
+
 	mpChecker := rpcutils.NewMempoolAddressChecker(dcrdClient, activeChain)
-	chainDB, err := dcrpg.NewChainDBWithCancel(ctx, &dbi, activeChain,
-		stakeDB, !cfg.NoDevPrefetch, cfg.HidePGConfig, rowCap,
-		mpChecker, piParser, dcrdClient, requestShutdown)
+	chainDB, err := dcrpg.NewChainDBWithCancel(ctx, &dbCfg,
+		stakeDB, mpChecker, piParser, dcrdClient, requestShutdown)
 	if chainDB != nil {
 		defer chainDB.Close()
 	}
