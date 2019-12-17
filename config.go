@@ -74,7 +74,7 @@ var (
 	defaultPGPass           = ""
 	defaultPGDBName         = "dcrdata"
 	defaultPGQueryTimeout   = time.Hour
-	defaultAddrCacheCap     = 1 << 28 // 258 MiB
+	defaultAddrCacheCap     = 1 << 28 // 256 MiB
 	defaultAddrCacheLimit   = 2048
 	defaultAddrCacheUXTOCap = 1 << 28
 
