@@ -3,6 +3,7 @@
 
 .progress-bar {
   text-shadow: 1px 1px 0 #00000012;
+  overflow: visible;
 }
 
 .v2-progress.progress {
@@ -12,5 +13,6 @@
 .v2-progress {
   .progress-bar {
     background-color: #2dd8a3;
+    overflow: visible;
   }
 }
