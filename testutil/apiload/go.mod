@@ -1,5 +1,7 @@
 module github.com/decred/dcrdata/testutil/apiload
 
+go 1.12
+
 require (
 	github.com/bmizerany/perks v0.0.0-20141205001514-d9a9656a3a4b // indirect
 	github.com/dgryski/go-gk v0.0.0-20140819190930-201884a44051 // indirect
