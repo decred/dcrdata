@@ -2,6 +2,11 @@ module github.com/decred/dcrdata/v5
 
 go 1.12
 
+replace (
+	github.com/decred/dcrdata/db/dcrpg/v5 => ./db/dcrpg
+	github.com/decred/dcrdata/pubsub/v4 => ./pubsub
+)
+
 require (
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb
@@ -48,5 +53,3 @@ require (
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
 	golang.org/x/net v0.0.0-20191028085509-fe3aa8a45271
 )
-
-replace github.com/decred/dcrdata/db/dcrpg/v5 => ./db/dcrpg
