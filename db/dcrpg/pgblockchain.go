@@ -1049,9 +1049,9 @@ func (pgb *ChainDB) RegisterCharts(charts *cache.ChartData) {
 	})
 
 	charts.AddUpdater(cache.ChartUpdater{
-		Tag:      "coinjoin",
-		Fetcher:  pgb.blockCoinJoins,
-		Appender: appendBlockCoinJoins,
+		Tag:      "anonymitySet",
+		Fetcher:  pgb.anonymitySet,
+		Appender: appendAnonymitySet,
 	})
 
 	charts.AddUpdater(cache.ChartUpdater{
@@ -3168,11 +3168,11 @@ func (pgb *ChainDB) blockFees(charts *cache.ChartData) (*sql.Rows, func(), error
 
 // blockFees sets or updates a series of per-block fees.
 // This is the Fetcher half of a pair that make up a cache.ChartUpdater. The
-// Appender half is appendBlockFees.
-func (pgb *ChainDB) blockCoinJoins(charts *cache.ChartData) (*sql.Rows, func(), error) {
+// Appender half is appendAnonymitySet.
+func (pgb *ChainDB) anonymitySet(charts *cache.ChartData) (*sql.Rows, func(), error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 
-	rows, err := retrieveBlockCoinJoins(ctx, pgb.db, charts)
+	rows, err := retrieveAnonymitySet(ctx, pgb.db, charts)
 	if err != nil {
 		return nil, cancel, fmt.Errorf("chartBlocks: %v", pgb.replaceCancelError(err))
 	}
@@ -6187,7 +6187,7 @@ func (pgb *ChainDB) MixedUtxosByHeight() (heights, utxoCountReg, utxoValueReg, u
 		i := h - minHeight
 		heights[i] = h
 		for iu := range vals {
-			if h >= fundHeights[iu] && (h <= spendHeights[iu] || spendHeights[iu] == -1) {
+			if h >= fundHeights[iu] && (h < spendHeights[iu] || spendHeights[iu] == -1) {
 				if trees[iu] == 0 {
 					utxoCountReg[i]++
 					utxoValueReg[i] += vals[iu]

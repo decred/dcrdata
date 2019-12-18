@@ -274,14 +274,20 @@ var (
 		GROUP BY block_height
 		ORDER BY block_height;`
 
-	SelectTotalMixedPerBlockAboveHeight = `
+/*	SelectTotalMixedPerBlockAboveHeight = `
 		SELECT tx.block_height as block_height, SUM(tx.mix_count * tx.mix_denom) as total_mixed
 		FROM transactions tx INNER JOIN blocks b ON tx.block_height = b.height
 		WHERE tx.is_mainchain
 			AND tx.block_height > $1
 			AND ((tx.mix_denom - tx.fees) >= (b.sbits * 0.99) AND (tx.mix_denom - tx.fees) <= b.sbits)
 		GROUP BY tx.block_height
-		ORDER BY tx.block_height;`
+		ORDER BY tx.block_height;`*/
+	SelectTotalMixedPerBlockAboveHeight = `
+		SELECT vouts.value, fund_tx.block_height, spend_tx.block_height, vouts.tx_tree
+		FROM vouts
+		JOIN transactions AS fund_tx ON vouts.tx_hash=fund_tx.tx_hash
+		LEFT OUTER JOIN transactions AS spend_tx ON spend_tx_row_id=spend_tx.id
+		WHERE fund_tx.block_height > $1 and mixed=true and value>0;`
 )
 
 // MakeTxInsertStatement returns the appropriate transaction insert statement

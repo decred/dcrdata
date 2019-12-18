@@ -10,6 +10,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"math/big"
 	"strconv"
 	"strings"
@@ -3619,20 +3620,48 @@ func appendBlockFees(charts *cache.ChartData, rows *sql.Rows) error {
 	return rows.Err()
 }
 
-// retrieveBlockCoinJoins retrieves any block total mixed data that is newer than the data
-// in the provided ChartData. This data is used to plot coinjoin on the /charts page.
+// retrieveAnonymitySet retrieves any block total mixed data that is newer than the data
+// in the provided ChartData. This data is used to plot anonymity-set on the /charts page.
 // This is the Fetcher half of a pair that make up a cache.ChartUpdater.
-func retrieveBlockCoinJoins(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
-	rows, err := db.QueryContext(ctx, internal.SelectTotalMixedPerBlockAboveHeight, charts.TotalMixedTip())
+func retrieveAnonymitySet(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
+	h := charts.TotalMixedTip()
+	if h < 350000 {
+		h = 350000 // anonymity set started at a height >350000
+	}
+	rows, err := db.QueryContext(ctx, internal.SelectTotalMixedPerBlockAboveHeight, h)
 	if err != nil {
 		return nil, err
 	}
 	return rows, nil
 }
 
-// Append the result from retrieveBlockCoinJoins to the provided ChartData. This
+func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) error {
+	blocks := charts.Blocks
+	heights, _, utxoValueReg, _, utxoValueStk, err := extractMixedUtxosByHeight(rows)
+	if err != nil {
+		log.Errorf("Unable to scan for BlockCoinJoins fields: %v", err)
+	}
+
+	heightMap := make(map[uint64]int, len(blocks.Height))
+	for i, h := range blocks.Height {
+		heightMap[h] = i
+	}
+
+	for i := range heights {
+		// the query retreives ticket transactions that has mixed amount alone, fill 0s for missing height
+		curLen := heightMap[uint64(heights[i])]
+		for len(blocks.TotalMixed) < curLen {
+			blocks.TotalMixed = append(blocks.TotalMixed, 0)
+		}
+
+		blocks.TotalMixed = append(blocks.TotalMixed, uint64(utxoValueReg[i] + utxoValueStk[i]))
+	}
+	return nil
+}
+
+// Append the result from retrieveAnonymitySet to the provided ChartData. This
 // is the Appender half of a pair that make up a cache.ChartUpdater.
-func appendBlockCoinJoins(charts *cache.ChartData, rows *sql.Rows) error {
+/*func appendAnonymitySet1(charts *cache.ChartData, rows *sql.Rows) error {
 	defer rows.Close()
 	blocks := charts.Blocks
 	heightMap := make(map[uint64]int, len(blocks.Height))
@@ -3654,17 +3683,80 @@ func appendBlockCoinJoins(charts *cache.ChartData, rows *sql.Rows) error {
 
 		// the query retreives ticket transactions that has mixed amount alone, fill 0s for missing height
 		curLen := heightMap[blockHeight]
-		for len(blocks.TotalMixedStk) < curLen {
-			blocks.TotalMixedStk = append(blocks.TotalMixedStk, 0)
+		for len(blocks.TotalMixed) < curLen {
+			blocks.TotalMixed = append(blocks.TotalMixed, 0)
 			blocks.TotalMixedReg = append(charts.Blocks.TotalMixedReg, 0)
 		}
 
 		// TODO set for reg tx when #1639 is merged
 		blocks.TotalMixedReg = append(charts.Blocks.TotalMixedReg, 0)
-		blocks.TotalMixedStk = append(blocks.TotalMixedStk, uint64(totalMixed))
+		blocks.TotalMixed = append(blocks.TotalMixed, uint64(totalMixed))
 	}
 
 	return nil
+}
+*/
+func extractMixedUtxosByHeight(rows *sql.Rows) (heights, utxoCountReg, utxoValueReg, utxoCountStk, utxoValueStk []int64, err error) {
+	defer rows.Close()
+
+	var vals, fundHeights, spendHeights []int64
+	var trees []uint8
+
+	var maxHeight int64
+	minHeight := int64(math.MaxInt64)
+	for rows.Next() {
+		var value, fundHeight, spendHeight int64
+		var spendHeightNull sql.NullInt64
+		var tree uint8
+		err = rows.Scan(&value, &fundHeight, &spendHeightNull, &tree)
+		if err != nil {
+			return
+		}
+		vals = append(vals, value)
+		fundHeights = append(fundHeights, fundHeight)
+		trees = append(trees, tree)
+		if spendHeightNull.Valid {
+			spendHeight = spendHeightNull.Int64
+		} else {
+			spendHeight = -1
+		}
+		spendHeights = append(spendHeights, spendHeight)
+		if fundHeight < minHeight {
+			minHeight = fundHeight
+		}
+		if spendHeight > maxHeight {
+			maxHeight = spendHeight
+		}
+	}
+
+	N := maxHeight - minHeight + 1
+	if N < 0 {
+		N = 0
+	}
+	heights = make([]int64, N)
+	utxoCountReg = make([]int64, N)
+	utxoValueReg = make([]int64, N)
+	utxoCountStk = make([]int64, N)
+	utxoValueStk = make([]int64, N)
+
+	for h := minHeight; h <= maxHeight; h++ {
+		i := h - minHeight
+		heights[i] = h
+		for iu := range vals {
+			if h == fundHeights[iu] && (h < spendHeights[iu] || spendHeights[iu] == -1) {
+				if trees[iu] == 0 {
+					utxoCountReg[i]++
+					utxoValueReg[i] += vals[iu]
+				} else {
+					utxoCountStk[i]++
+					utxoValueStk[i] += vals[iu]
+				}
+			}
+		}
+	}
+
+	err = rows.Err()
+	return
 }
 
 // retrievePoolStats returns all the pool value and the pool size

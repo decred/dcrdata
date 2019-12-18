@@ -39,7 +39,7 @@
                             <option value="pow-difficulty">PoW Difficulty</option>
                             <option value="coin-supply">Circulation</option>
                             <option value="fees">Fees</option>
-                            <option value="coinjoins">CoinShuffle++</option>
+                            <option value="anonymity-set">Anonymity Set</option>
                             <option value="duration-btw-blocks">Duration Between Blocks</option>
                             <option value="chainwork">Total Work</option>
                             <option value="hashrate">Hashrate</option>
@@ -187,12 +187,12 @@
                                 </label>
                             </li>
                             <li class="nav-item">
-                                <label class="customcheck mx-2 d-inline-flex" 
-                                    data-target="charts.vSelectorItem" data-bin="day" data-charts="coin-supply">{{.RewardPeriod}} Mixed
+                                <label class="customcheck mx-2 d-inline-flex"
+                                    data-target="charts.vSelectorItem" data-bin="day" data-charts="coin-supply">Anonymity Set
                                     <input
                                         type="checkbox"
                                         data-action="click->charts#setVisibility"
-                                        data-target="charts.totalMixed28Days"
+                                        data-target="charts.anonymitySet"
                                     >
                                     <span class="checkmark total-mixed"></span>
                                 </label>

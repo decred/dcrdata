@@ -17,9 +17,9 @@ const aDay = 86400 * 1000 // in milliseconds
 const aMonth = 30 // in days
 const atomsToDCR = 1e-8
 const windowScales = ['ticket-price', 'pow-difficulty', 'missed-votes']
-const hybridScales = ['coinjoins']
-const lineScales = ['ticket-price', 'coinjoins']
-const multiYAxisChart = ['ticket-price', 'coin-supply', 'coinjoins']
+const hybridScales = ['anonymity-set']
+const lineScales = ['ticket-price', 'anonymity-set']
+const multiYAxisChart = ['ticket-price', 'coin-supply', 'anonymity-set']
 // index 0 represents y1 and 1 represents y2 axes.
 const yValueRanges = { 'ticket-price': [1] }
 var chainworkUnits = ['exahash', 'zettahash', 'yottahash']
@@ -188,13 +188,13 @@ function zip2D (data, ys, yMult, offset) {
   return zipTvY(data.t, ys, yMult)
 }
 
-function coinJoinFunc (data) {
+function anonymitySetFunc (data) {
   let d
   let start = -1
   let end = 0
   if (data.axis === 'height') {
     if (data.bin === 'block') {
-      d = data.coinjoins.map((y, i) => {
+      d = data.anonymitySet.map((y, i) => {
         if (start === -1 && y > 0) {
           start = i
         }
@@ -202,7 +202,7 @@ function coinJoinFunc (data) {
         return [i, y * atomsToDCR]
       })
     } else {
-      d = data.coinjoins.map((y, i) => {
+      d = data.anonymitySet.map((y, i) => {
         if (start === -1 && y > 0) {
           start = i
         }
@@ -212,11 +212,11 @@ function coinJoinFunc (data) {
     }
   } else {
     d = data.t.map((t, i) => {
-      if (start === -1 && data.coinjoins[i] > 0) {
+      if (start === -1 && data.anonymitySet[i] > 0) {
         start = t * 1000
       }
       end = t * 1000
-      return [new Date(t * 1000), data.coinjoins[i] * atomsToDCR]
+      return [new Date(t * 1000), data.anonymitySet[i] * atomsToDCR]
     })
   }
   return { data: d, limits: [start, end] }
@@ -271,7 +271,7 @@ function circulationFunc (chartData, showMovingSum) {
   var heights = chartData.h
   var times = chartData.t
   var supplies = chartData.supply
-  var coinjoins = chartData.coinjoinsMovingSum
+  var anonymitySet = chartData.anonymitySetMovingSum
   var isHeightAxis = chartData.axis === 'height'
   var xFunc, hFunc
   if (chartData.bin === 'day') {
@@ -287,7 +287,7 @@ function circulationFunc (chartData, showMovingSum) {
     let height = hFunc(i)
     addDough(height)
     inflation.push(yMax)
-    return showMovingSum ? [xFunc(i), supplies[i] * atomsToDCR, null, coinjoins[i] * atomsToDCR]
+    return showMovingSum ? [xFunc(i), supplies[i] * atomsToDCR, null, anonymitySet[i] * atomsToDCR]
       : [xFunc(i), supplies[i] * atomsToDCR, null]
   })
 
@@ -343,7 +343,7 @@ export default class extends Controller {
       'scaleSelector',
       'ticketsPurchase',
       'ticketsPrice',
-      'totalMixed28Days',
+      'anonymitySet',
       'vSelectorItem',
       'vSelector',
       'binSize',
@@ -559,7 +559,7 @@ export default class extends Controller {
           gOptions.y2label = 'Inflation Limit'
           gOptions.y3label = 'Mixed'
           gOptions.series = { 'Inflation Limit': { axis: 'y2' }, 'Mixed': { axis: 'y3' } }
-          this.visibility = [true, true, this.totalMixed28DaysTarget.checked]
+          this.visibility = [true, true, this.anonymitySetTarget.checked]
           gOptions.visibility = this.visibility
           gOptions.series = {
             'Inflation Limit': {
@@ -595,7 +595,7 @@ export default class extends Controller {
             let unminted = predicted - data.series[0].y
             change = ((unminted / predicted) * 100).toFixed(2)
             div.appendChild(legendEntry(`${legendMarker()} Unminted: ${intComma(unminted)} DCR (${change}%)`))
-            if (showMovingSum && this.totalMixed28DaysTarget.checked) {
+            if (showMovingSum && this.anonymitySetTarget.checked) {
               const mixed = data.series[2].y
               const mixedPercentage = ((mixed / supply) * 100).toFixed(2)
               div.appendChild(legendEntry(`${legendMarker()} Mixed: ${intComma(mixed)} DCR (${mixedPercentage}%)`))
@@ -609,8 +609,8 @@ export default class extends Controller {
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Total Fee'], false, 'Total Fee (DCR)', true, false))
         break
 
-      case 'coinjoins': // coinjoins graph
-        d = coinJoinFunc(data)
+      case 'anonymity-set': // anonymity set graph
+        d = anonymitySetFunc(data)
         this.customLimits = d.limits
         assign(gOptions, mapDygraphOptions(d.data, [xlabel, 'Mixed'], false, 'Mixed (DCR)', true, false))
         break
@@ -710,12 +710,12 @@ export default class extends Controller {
     let oldLimits = this.limits || this.chartsView.xAxisExtremes()
     this.limits = this.chartsView.xAxisExtremes()
     var selected = this.selectedZoom()
-    if (selected && !(selectedChart === 'coinjoins' && selected === 'all')) {
+    if (selected && !(selectedChart === 'anonymity-set' && selected === 'all')) {
       this.lastZoom = Zoom.validate(selected, this.limits,
         this.isTimeAxis() ? avgBlockTime : 1, this.isTimeAxis() ? 1 : avgBlockTime)
     } else {
-      // if this is for the coinjoins chart, then zoom to the beginning of the record
-      if (selectedChart === 'coinjoins') {
+      // if this is for the anonymity-set chart, then zoom to the beginning of the record
+      if (selectedChart === 'anonymity-set') {
         this.limits = oldLimits = this.customLimits
         this.settings.zoom = Zoom.object(this.limits[0], this.limits[1])
       }
@@ -861,15 +861,15 @@ export default class extends Controller {
         break
       case 'coin-supply':
         if (this.visibility.length !== 3) {
-          this.visibility = [true, true, this.totalMixed28DaysTarget.checked]
+          this.visibility = [true, true, this.anonymitySetTarget.checked]
         }
-        this.totalMixed28DaysTarget.checked = this.visibility[2]
+        this.anonymitySetTarget.checked = this.visibility[2]
         break
-      case 'coinjoins':
+      case 'anonymity-set':
         if (this.visibility.length !== 2) {
-          this.visibility = [true, this.totalMixed28DaysTarget.checked]
+          this.visibility = [true, this.anonymitySetTarget.checked]
         }
-        this.totalMixed28DaysTarget.checked = this.visibility[1]
+        this.anonymitySetTarget.checked = this.visibility[1]
         break
       default:
         return
@@ -888,10 +888,10 @@ export default class extends Controller {
         this.visibility = [this.ticketsPriceTarget.checked, this.ticketsPurchaseTarget.checked]
         break
       case 'coin-supply':
-        this.visibility = [true, true, this.totalMixed28DaysTarget.checked]
+        this.visibility = [true, true, this.anonymitySetTarget.checked]
         break
-      case 'coinjoins':
-        this.visibility = [true, this.totalMixed28DaysTarget.checked]
+      case 'anonymity-set':
+        this.visibility = [true, this.anonymitySetTarget.checked]
         break
       default:
         return
