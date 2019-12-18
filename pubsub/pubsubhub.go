@@ -403,10 +403,15 @@ loop:
 			continue loop
 		}
 
-		if sig.Signal != sigByeNow && !clientData.isSubscribed(sig) {
-			log.Errorf("Client not subscribed for %s events. "+
-				"WebSocketHub should have caught this.", sig)
-			continue loop // break
+		switch sig.Signal {
+		case sigByeNow, sigPingAndUserCount:
+			// These signals are not subscription-based.
+		default:
+			if !clientData.isSubscribed(sig) {
+				log.Errorf("Client not subscribed for %s events. "+
+					"WebSocketHub should have caught this.", sig)
+				continue loop // break
+			}
 		}
 
 		log.Tracef("signaling client %d with %s", clientData.id, sig)

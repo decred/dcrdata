@@ -397,11 +397,11 @@ func (wsh *WebsocketHub) Run() {
 				hubMsg, client.id)
 			wsh.unregisterClient(spoke)
 		case *spoke <- hubMsg:
-			log.Tracef("Sent %s message to client %s.", hubMsg, client.id)
+			log.Tracef("Sent %s message to client %d.", hubMsg, client.id)
 		case <-timer.C:
 			// TODO: remove this case (and timer) once we are
 			// confident there is no change of a deadlock.
-			log.Errorf("Timeout sending %s message to client %s.", hubMsg, client.id)
+			log.Errorf("Timeout sending %s message to client %d.", hubMsg, client.id)
 		}
 	}
 
