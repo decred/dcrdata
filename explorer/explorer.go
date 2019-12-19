@@ -139,6 +139,7 @@ type links struct {
 	Mainnet       string
 	TestnetSearch string
 	MainnetSearch string
+	OnionURL      string
 }
 
 var explorerLinks = &links{
@@ -277,6 +278,7 @@ type ExplorerConfig struct {
 	PoliteiaURL     string
 	MainnetLink     string
 	TestnetLink     string
+	OnionAddress    string
 	ReloadHTML      bool
 }
 
@@ -299,6 +301,10 @@ func New(cfg *ExplorerConfig) *explorerUI {
 	explorerLinks.Testnet = cfg.TestnetLink
 	explorerLinks.MainnetSearch = cfg.MainnetLink + "search?search="
 	explorerLinks.TestnetSearch = cfg.TestnetLink + "search?search="
+
+	if cfg.OnionAddress != "" {
+		explorerLinks.OnionURL = fmt.Sprintf("http://%s/", cfg.OnionAddress)
+	}
 
 	// explorerDataSource is an interface that could have a value of pointer type.
 	if exp.dataSource == nil || reflect.ValueOf(exp.dataSource).IsNil() {
