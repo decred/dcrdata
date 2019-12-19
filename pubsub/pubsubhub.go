@@ -28,7 +28,7 @@ import (
 	"golang.org/x/net/websocket"
 )
 
-var version = semver.NewSemver(3, 1, 0)
+var version = semver.NewSemver(3, 2, 0)
 
 // Version indicates the semantic version of the pubsub module.
 func Version() semver.Semver {
@@ -247,14 +247,24 @@ func (psh *PubSubHub) receiveLoop(conn *connection) {
 				break
 			}
 
-			err = conn.client.cl.subscribe(pstypes.HubMessage{Signal: sig, Msg: sigMsg})
+			var ok bool
+			ok, err = conn.client.cl.subscribe(pstypes.HubMessage{Signal: sig, Msg: sigMsg})
 			if err != nil {
 				log.Debugf("Failed to subscribe: %.40s...", reqEvent)
 				respMsg.Data = "error: " + err.Error()
 				break
 			}
+			if !ok && sig != sigPingAndUserCount { // don't error on users over the legacy ping subscription request
+				log.Debugf("Client CANNOT subscribe to: %v.", reqEvent)
+				respMsg.Data = "cannot subscribed to " + reqEvent
+				break
+			}
 
-			log.Debugf("Client subscribed for: %v.", reqEvent)
+			if sig != sigPingAndUserCount {
+				log.Debugf("Client subscribed for: %v.", reqEvent)
+				// Do not error on old clients that try to subscribe to ping
+				// since they will get pings automatically.
+			}
 			respMsg.Data = "subscribed to " + reqEvent
 			respMsg.Success = true
 
@@ -403,10 +413,15 @@ loop:
 			continue loop
 		}
 
-		if sig.Signal != sigByeNow && !clientData.isSubscribed(sig) {
-			log.Errorf("Client not subscribed for %s events. "+
-				"WebSocketHub should have caught this.", sig)
-			continue loop // break
+		switch sig.Signal {
+		case sigByeNow, sigPingAndUserCount:
+			// These signals are not subscription-based.
+		default:
+			if !clientData.isSubscribed(sig) {
+				log.Errorf("Client not subscribed for %s events. "+
+					"WebSocketHub should have caught this.", sig)
+				continue loop // break
+			}
 		}
 
 		log.Tracef("signaling client %d with %s", clientData.id, sig)

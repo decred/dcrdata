@@ -39,7 +39,7 @@ func main() {
 	// Create the pubsub client, opening a connection to the URL.
 	ctx, cancel := context.WithCancel(context.Background())
 	opts := psclient.Opts{
-		ReadTimeout:  3 * time.Second,
+		ReadTimeout:  psclient.DefaultReadTimeout,
 		WriteTimeout: 3 * time.Second,
 	}
 	cl, err := psclient.New(cfg.URL, ctx, &opts)

@@ -17,7 +17,9 @@ import (
 type hubSpoke chan pstypes.HubMessage
 
 const (
-	pingInterval = 45 * time.Second
+	// PingInterval is how frequently the server will ping all clients. The
+	// clients should set their read deadlines to more than this.
+	PingInterval = 30 * time.Second
 
 	tickerSigReset int = iota
 	tickerSigStop
@@ -146,7 +148,7 @@ func (c *client) isSubscribed(msg pstypes.HubMessage) bool {
 	return subd
 }
 
-func (c *client) subscribe(msg pstypes.HubMessage) error {
+func (c *client) subscribe(msg pstypes.HubMessage) (bool, error) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
@@ -154,21 +156,17 @@ func (c *client) subscribe(msg pstypes.HubMessage) error {
 	case pstypes.SigAddressTx:
 		am, ok := msg.Msg.(*pstypes.AddressMessage)
 		if !ok {
-			return fmt.Errorf("msg.Msg not a string (SigAddressTx): %T", msg.Msg)
+			return false, fmt.Errorf("msg.Msg not a string (SigAddressTx): %T", msg.Msg)
 		}
 		c.addrs[am.Address] = struct{}{}
-	case pstypes.SigPingAndUserCount:
-		log.Warn("Ping from the server no longer a subscription. " +
-			"Pings are sent to all clients.")
-		fallthrough
-	case sigByeNow, sigDecodeTx, sigSentTx, sigSubscribe, sigUnsubscribe:
+	case sigPingAndUserCount, sigByeNow, sigDecodeTx, sigSentTx, sigSubscribe, sigUnsubscribe:
 		// These are not subscription-based events, do not clutter the subs map.
-		return nil
+		return false, nil
 	default:
 	}
 
 	c.subs[msg.Signal] = struct{}{}
-	return nil
+	return true, nil
 }
 
 func (c *client) unsubscribe(msg pstypes.HubMessage) error {
@@ -321,7 +319,7 @@ func (wsh *WebsocketHub) pingClients() chan<- struct{} {
 
 	go func() {
 		// start the client ping ticker
-		ticker := time.NewTicker(pingInterval)
+		ticker := time.NewTicker(PingInterval)
 		defer ticker.Stop()
 
 		for {
@@ -397,11 +395,11 @@ func (wsh *WebsocketHub) Run() {
 				hubMsg, client.id)
 			wsh.unregisterClient(spoke)
 		case *spoke <- hubMsg:
-			log.Tracef("Sent %s message to client %s.", hubMsg, client.id)
+			log.Tracef("Sent %s message to client %d.", hubMsg, client.id)
 		case <-timer.C:
 			// TODO: remove this case (and timer) once we are
 			// confident there is no change of a deadlock.
-			log.Errorf("Timeout sending %s message to client %s.", hubMsg, client.id)
+			log.Errorf("Timeout sending %s message to client %d.", hubMsg, client.id)
 		}
 	}
 

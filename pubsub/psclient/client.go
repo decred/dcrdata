@@ -92,7 +92,10 @@ func newPingMsg(reqID int64) []byte {
 	return pingMsg
 }
 
-var defaultTimeout = 10 * time.Second
+const (
+	DefaultReadTimeout  = pubsub.PingInterval * 10 / 9
+	DefaultWriteTimeout = 5 * time.Second
+)
 
 // Opts defines the psclient Client options.
 type Opts struct {
@@ -122,7 +125,7 @@ func New(url string, ctx context.Context, opts *Opts) (*Client, error) {
 		return nil, err
 	}
 
-	readTimeout, writeTimeout := defaultTimeout, defaultTimeout
+	readTimeout, writeTimeout := DefaultReadTimeout, DefaultWriteTimeout
 	if opts != nil {
 		readTimeout = opts.ReadTimeout
 		writeTimeout = opts.WriteTimeout
@@ -170,7 +173,7 @@ func NewFromConn(ws *websocket.Conn, ctx context.Context, opts *Opts) *Client {
 		return nil
 	}
 
-	readTimeout, writeTimeout := defaultTimeout, defaultTimeout
+	readTimeout, writeTimeout := DefaultReadTimeout, DefaultWriteTimeout
 	if opts != nil {
 		readTimeout = opts.ReadTimeout
 		writeTimeout = opts.WriteTimeout
@@ -241,9 +244,8 @@ func (c *Client) receiver() {
 
 		resp, err := c.receiveMsg()
 		if err != nil {
-			if pstypes.IsIOTimeoutErr(err) {
-				continue
-			}
+			// Even a timeout should close shutdown the client since that
+			// indicates pings from the server did not arrive in time.
 			log.Errorf("ReceiveMsg failed: %v", err)
 			return
 		}
@@ -347,9 +349,15 @@ func (c *Client) deleteRequestID(reqID int64) {
 // after validating it. The response is returned.
 func (c *Client) Subscribe(event string) (*pstypes.ResponseMessage, error) {
 	// Validate the event type.
-	_, _, ok := pstypes.ValidateSubscription(event)
+	sig, _, ok := pstypes.ValidateSubscription(event)
 	if !ok {
 		return nil, fmt.Errorf("invalid subscription %s", event)
+	}
+
+	if sig == pstypes.SigPingAndUserCount {
+		log.Warn("Pings from the server no longer require a subscription. " +
+			"Pings are sent to all clients.")
+		// Let the request go through.
 	}
 
 	respChan, reqID := c.newResponseChan()
