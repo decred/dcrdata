@@ -92,7 +92,7 @@ func newPingMsg(reqID int64) []byte {
 	return pingMsg
 }
 
-var defaultTimeout = 10 * time.Second
+const defaultTimeout = pubsub.PingInterval * 10 / 9
 
 // Opts defines the psclient Client options.
 type Opts struct {
@@ -241,9 +241,8 @@ func (c *Client) receiver() {
 
 		resp, err := c.receiveMsg()
 		if err != nil {
-			if pstypes.IsIOTimeoutErr(err) {
-				continue
-			}
+			// Even a timeout should close shutdown the client since that
+			// indicates pings from the server did not arrive in time.
 			log.Errorf("ReceiveMsg failed: %v", err)
 			return
 		}
