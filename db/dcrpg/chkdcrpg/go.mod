@@ -2,7 +2,10 @@ module github.com/decred/dcrdata/db/dcrpg/chkdcrpg
 
 go 1.12
 
-replace github.com/decred/dcrdata/v5 => ../../..
+replace (
+	github.com/decred/dcrdata/v5 => ../../..
+	github.com/decred/dcrdata/txhelpers/v4 => ../../txhelpers
+)
 
 require (
 	github.com/decred/dcrd/chaincfg/v2 v2.3.0
