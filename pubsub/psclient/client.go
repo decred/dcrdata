@@ -349,9 +349,15 @@ func (c *Client) deleteRequestID(reqID int64) {
 // after validating it. The response is returned.
 func (c *Client) Subscribe(event string) (*pstypes.ResponseMessage, error) {
 	// Validate the event type.
-	_, _, ok := pstypes.ValidateSubscription(event)
+	sig, _, ok := pstypes.ValidateSubscription(event)
 	if !ok {
 		return nil, fmt.Errorf("invalid subscription %s", event)
+	}
+
+	if sig == pstypes.SigPingAndUserCount {
+		log.Warn("Pings from the server no longer require a subscription. " +
+			"Pings are sent to all clients.")
+		// Let the request go through.
 	}
 
 	respChan, reqID := c.newResponseChan()
