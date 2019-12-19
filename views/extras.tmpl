@@ -136,6 +136,15 @@
 				target="_blank"
 				rel="noopener noreferrer"
 			>dcrdata v{{.Version}}</a>
+			{{- if ne .Links.OnionURL "" }}
+			<a
+				class="text-nowrap d-none d-md-inline-block pr-3"
+				href="{{.Links.OnionURL}}"
+				title="Access dcrdata over Tor"
+				target="_blank"
+				rel="noopener noreferrer"
+			>Tor site</a>
+			{{ end }}
 			<a
 				class="text-nowrap"
 				href="{{.Links.License}}"
