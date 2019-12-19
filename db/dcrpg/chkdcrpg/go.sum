@@ -290,6 +290,8 @@ github.com/decred/dcrdata/mempool/v4 v4.0.4-0.20191018131657-8f5538d3b4b3 h1:ot5
 github.com/decred/dcrdata/mempool/v4 v4.0.4-0.20191018131657-8f5538d3b4b3/go.mod h1:ysaPY8oraR1Hv+xTaTeF6QK9TaGDC5eS56KN7AAd7+Y=
 github.com/decred/dcrdata/mempool/v5 v5.0.1 h1:q5v0L8npGIW3DXhAcCLk9CDI/dOoPreotzLgLsUo608=
 github.com/decred/dcrdata/mempool/v5 v5.0.1/go.mod h1:ZxNwSAxRnrqWk6dhnYIsv/o9xreDVPAMHjcOe7ihd08=
+github.com/decred/dcrdata/mempool/v5 v5.0.2 h1:/1wHd5X9KpXf2SptlnGjWmV/IUFQi9JBoDnSUCcCj30=
+github.com/decred/dcrdata/mempool/v5 v5.0.2/go.mod h1:ZxNwSAxRnrqWk6dhnYIsv/o9xreDVPAMHjcOe7ihd08=
 github.com/decred/dcrdata/middleware/v3 v3.0.2 h1:YS21tXTwIBNVgCsO/QRAhCugaE5VhJft5UjA/yVqmqY=
 github.com/decred/dcrdata/middleware/v3 v3.0.2/go.mod h1:9to56gp9wHzMZvpeXrAY1cYlHeCCc3ryfoHuzIDyEcM=
 github.com/decred/dcrdata/middleware/v3 v3.1.0 h1:K8HBFXmDFRDR86THjCyASTgcyzwcFzTFwyWWESB2l5w=
