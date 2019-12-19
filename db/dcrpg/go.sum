@@ -105,8 +105,8 @@ github.com/dgraph-io/badger v1.5.5-0.20190214192501-3196cc1d7a5f h1:zpnMq37RjYYJ
 github.com/dgraph-io/badger v1.5.5-0.20190214192501-3196cc1d7a5f/go.mod h1:VZxzAIRPHRVNRKRo6AXrX9BJegn6il06VMTZVJYCIjQ=
 github.com/dgryski/go-farm v0.0.0-20190423205320-6a90982ecee2 h1:tdlZCpZ/P9DhczCTSixgIKmwPv6+wP5DGjqLYw5SUiA=
 github.com/dgryski/go-farm v0.0.0-20190423205320-6a90982ecee2/go.mod h1:SqUrOPUnsFjfmXRMNPybcSiG0BgUW2AuFH8PAnS2iTw=
-github.com/dmigwi/go-piparser/proposals v0.0.0-20190426030541-8412e0f44f55 h1:OdHelch2TXiEFTcV75lw+PhQkI8rKOdQ6j6b0TtchT8=
-github.com/dmigwi/go-piparser/proposals v0.0.0-20190426030541-8412e0f44f55/go.mod h1:bVFHMc7PF69eSpDREy2MnoZYr8YMQjGDEUJudtQUEis=
+github.com/dmigwi/go-piparser/proposals v0.0.0-20191219171828-ae8cbf4067e1 h1:8+y5flqx5OCcYOuzKGnUS1PluG9hexfL5I3IAN4aym4=
+github.com/dmigwi/go-piparser/proposals v0.0.0-20191219171828-ae8cbf4067e1/go.mod h1:bVFHMc7PF69eSpDREy2MnoZYr8YMQjGDEUJudtQUEis=
 github.com/dustin/go-humanize v1.0.0 h1:VSnTsYCnlFHaM2/igO1h6X3HA71jcobQuxemgkq4zYo=
 github.com/dustin/go-humanize v1.0.0/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
 github.com/elazarl/goproxy v0.0.0-20181111060418-2ce16c963a8a/go.mod h1:/Zj4wYkgs4iZTTu3o/KG3Itv/qCCa8VVMlb3i9OVuzc=

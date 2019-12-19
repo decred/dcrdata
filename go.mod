@@ -31,7 +31,7 @@ require (
 	github.com/decred/dcrdata/stakedb/v3 v3.1.1
 	github.com/decred/dcrdata/txhelpers/v4 v4.0.1
 	github.com/decred/slog v1.0.0
-	github.com/dmigwi/go-piparser/proposals v0.0.0-20190426030541-8412e0f44f55
+	github.com/dmigwi/go-piparser/proposals v0.0.0-20191219171828-ae8cbf4067e1
 	github.com/dustin/go-humanize v1.0.0
 	github.com/go-chi/chi v4.0.3-0.20191031103402-221acf29d02b+incompatible
 	github.com/google/gops v0.3.7-0.20190802051910-59c8be2eaddf
