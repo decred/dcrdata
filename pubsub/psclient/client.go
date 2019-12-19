@@ -92,7 +92,10 @@ func newPingMsg(reqID int64) []byte {
 	return pingMsg
 }
 
-const defaultTimeout = pubsub.PingInterval * 10 / 9
+const (
+	DefaultReadTimeout  = pubsub.PingInterval * 10 / 9
+	DefaultWriteTimeout = 5 * time.Second
+)
 
 // Opts defines the psclient Client options.
 type Opts struct {
@@ -122,7 +125,7 @@ func New(url string, ctx context.Context, opts *Opts) (*Client, error) {
 		return nil, err
 	}
 
-	readTimeout, writeTimeout := defaultTimeout, defaultTimeout
+	readTimeout, writeTimeout := DefaultReadTimeout, DefaultWriteTimeout
 	if opts != nil {
 		readTimeout = opts.ReadTimeout
 		writeTimeout = opts.WriteTimeout
@@ -170,7 +173,7 @@ func NewFromConn(ws *websocket.Conn, ctx context.Context, opts *Opts) *Client {
 		return nil
 	}
 
-	readTimeout, writeTimeout := defaultTimeout, defaultTimeout
+	readTimeout, writeTimeout := DefaultReadTimeout, DefaultWriteTimeout
 	if opts != nil {
 		readTimeout = opts.ReadTimeout
 		writeTimeout = opts.WriteTimeout
