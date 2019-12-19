@@ -17,7 +17,9 @@ import (
 type hubSpoke chan pstypes.HubMessage
 
 const (
-	pingInterval = 45 * time.Second
+	// PingInterval is how frequently the server will ping all clients. The
+	// clients should set their read deadlines to more than this.
+	PingInterval = 30 * time.Second
 
 	tickerSigReset int = iota
 	tickerSigStop
@@ -321,7 +323,7 @@ func (wsh *WebsocketHub) pingClients() chan<- struct{} {
 
 	go func() {
 		// start the client ping ticker
-		ticker := time.NewTicker(pingInterval)
+		ticker := time.NewTicker(PingInterval)
 		defer ticker.Stop()
 
 		for {
