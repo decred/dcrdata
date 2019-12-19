@@ -4,7 +4,7 @@ go 1.12
 
 replace (
 	github.com/decred/dcrdata/v5 => ../../..
-	github.com/decred/dcrdata/txhelpers/v4 => ../../txhelpers
+	github.com/decred/dcrdata/txhelpers/v4 => ../../../txhelpers
 )
 
 require (
