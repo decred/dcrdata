@@ -454,7 +454,7 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		if err != nil {
 			return nodeHeight, fmt.Errorf("UPDATE vouts.spend_tx_row_id error: %v", err)
 		}
-		log.Debug("Updated %d rows of vouts table.", N)
+		log.Debugf("Updated %d rows of vouts table.", N)
 		log.Debug("Indexing vouts table on spend_tx_row_id...")
 		if err := IndexVoutTableOnSpendTxID(pgb.db); err != nil {
 			return nodeHeight, fmt.Errorf("IndexVoutTableOnSpendTxID: %v", err)
