@@ -28,7 +28,7 @@ import (
 	"golang.org/x/net/websocket"
 )
 
-var version = semver.NewSemver(3, 1, 0)
+var version = semver.NewSemver(3, 2, 0)
 
 // Version indicates the semantic version of the pubsub module.
 func Version() semver.Semver {
