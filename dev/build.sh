@@ -53,20 +53,23 @@ npm run build
 echo "Gzipping assets for use with gzip_static..."
 find ./public -type f -name "*.gz" -execdir rm {} \;
 # Use GNU parallel if it is installed.
+FINDCMD='find ./public -type f -not -name "*.gz" -not -name "*.scss" -not -name "*.png" -not -name "*.woff2"'
 if [ -x "$(command -v parallel)" ]; then
     if [ -x "$(command -v 7za)" ]; then
-        find ./public -type f -not -name "*.gz" | parallel --will-cite --bar 7za a -tgzip -mx=9 -mpass=13 {}.gz {} > /dev/null
+        $FINDCMD | parallel --will-cite --bar 7za a -tgzip -mx=9 -mpass=13 {}.gz {} > /dev/null
     else
-        find ./public -type f -not -name "*.gz" | parallel --will-cite --bar gzip -k9f {} > /dev/null
+        $FINDCMD | parallel --will-cite --bar gzip -k9f {} > /dev/null
     fi
 elif [ -x "$(command -v 7za)" ]; then
-    find ./public -type f -not -name "*.gz" -execdir 7za a -tgzip -mx=9 -mpass=13 {}.gz {} \; > /dev/null    
+    $FINDCMD -execdir 7za a -tgzip -mx=9 -mpass=13 {}.gz {} \; > /dev/null    
 else
-    find ./public -type f -not -name "*.gz" -execdir gzip -k9f {} \; > /dev/null
+    $FINDCMD -execdir gzip -k9f {} \; > /dev/null
 fi
 
-# Clean up incompressible files.
+# Clean up incompressible and files not part of the distribution.
 find ./public -type f -name "*.png.gz" -execdir rm {} \;
+find ./public -type f -name "*.scss.gz" -execdir rm {} \;
+find ./public -type f -name "*.woff2.gz" -execdir rm {} \;
 find ./public -type f -name "*.gz.gz" -execdir rm {} \;
 
 DEST=$2
