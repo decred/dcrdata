@@ -3625,9 +3625,9 @@ func appendBlockFees(charts *cache.ChartData, rows *sql.Rows) error {
 // This is the Fetcher half of a pair that make up a cache.ChartUpdater.
 func retrieveAnonymitySet(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
 	h := charts.TotalMixedTip()
-	if h < 350000 {
+	/*if h < 350000 {
 		h = 350000 // anonymity set started at a height >350000
-	}
+	}*/
 	rows, err := db.QueryContext(ctx, internal.SelectTotalMixedPerBlockAboveHeight, h)
 	if err != nil {
 		return nil, err
@@ -3635,70 +3635,7 @@ func retrieveAnonymitySet(ctx context.Context, db *sql.DB, charts *cache.ChartDa
 	return rows, nil
 }
 
-func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) error {
-	blocks := charts.Blocks
-	heights, _, utxoValueReg, _, utxoValueStk, err := extractMixedUtxosByHeight(rows)
-	if err != nil {
-		log.Errorf("Unable to scan for BlockCoinJoins fields: %v", err)
-	}
-
-	heightMap := make(map[uint64]int, len(blocks.Height))
-	for i, h := range blocks.Height {
-		heightMap[h] = i
-	}
-
-	for i := range heights {
-		// the query retreives ticket transactions that has mixed amount alone, fill 0s for missing height
-		curLen := heightMap[uint64(heights[i])]
-		for len(blocks.TotalMixed) < curLen {
-			blocks.TotalMixed = append(blocks.TotalMixed, 0)
-		}
-
-		blocks.TotalMixed = append(blocks.TotalMixed, uint64(utxoValueReg[i] + utxoValueStk[i]))
-	}
-	return nil
-}
-
-// Append the result from retrieveAnonymitySet to the provided ChartData. This
-// is the Appender half of a pair that make up a cache.ChartUpdater.
-/*func appendAnonymitySet1(charts *cache.ChartData, rows *sql.Rows) error {
-	defer rows.Close()
-	blocks := charts.Blocks
-	heightMap := make(map[uint64]int, len(blocks.Height))
-	for i, h := range blocks.Height {
-		heightMap[h] = i
-	}
-
-	for rows.Next() {
-		var blockHeight uint64
-		var totalMixed int64
-		if err := rows.Scan(&blockHeight, &totalMixed); err != nil {
-			log.Errorf("Unable to scan for CoinJoinInfoPerBlock fields: %v", err)
-			return err
-		}
-
-		if totalMixed < 0 {
-			totalMixed *= -1
-		}
-
-		// the query retreives ticket transactions that has mixed amount alone, fill 0s for missing height
-		curLen := heightMap[blockHeight]
-		for len(blocks.TotalMixed) < curLen {
-			blocks.TotalMixed = append(blocks.TotalMixed, 0)
-			blocks.TotalMixedReg = append(charts.Blocks.TotalMixedReg, 0)
-		}
-
-		// TODO set for reg tx when #1639 is merged
-		blocks.TotalMixedReg = append(charts.Blocks.TotalMixedReg, 0)
-		blocks.TotalMixed = append(blocks.TotalMixed, uint64(totalMixed))
-	}
-
-	return nil
-}
-*/
-func extractMixedUtxosByHeight(rows *sql.Rows) (heights, utxoCountReg, utxoValueReg, utxoCountStk, utxoValueStk []int64, err error) {
-	defer rows.Close()
-
+func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 	var vals, fundHeights, spendHeights []int64
 	var trees []uint8
 
@@ -3729,15 +3666,19 @@ func extractMixedUtxosByHeight(rows *sql.Rows) (heights, utxoCountReg, utxoValue
 		}
 	}
 
+	err = rows.Err()
+	if err != nil {
+		log.Errorf("Unable to scan for BlockCoinJoins fields: %v", err)
+	}
+
+	blocks := charts.Blocks
 	N := maxHeight - minHeight + 1
 	if N < 0 {
 		N = 0
 	}
-	heights = make([]int64, N)
-	utxoCountReg = make([]int64, N)
-	utxoValueReg = make([]int64, N)
-	utxoCountStk = make([]int64, N)
-	utxoValueStk = make([]int64, N)
+	heights := make([]int64, N)
+	utxoValueReg := make([]int64, N)
+	utxoValueStk := make([]int64, N)
 
 	for h := minHeight; h <= maxHeight; h++ {
 		i := h - minHeight
@@ -3745,17 +3686,113 @@ func extractMixedUtxosByHeight(rows *sql.Rows) (heights, utxoCountReg, utxoValue
 		for iu := range vals {
 			if h == fundHeights[iu] && (h < spendHeights[iu] || spendHeights[iu] == -1) {
 				if trees[iu] == 0 {
-					utxoCountReg[i]++
 					utxoValueReg[i] += vals[iu]
 				} else {
-					utxoCountStk[i]++
 					utxoValueStk[i] += vals[iu]
 				}
 			}
 		}
 	}
 
-	err = rows.Err()
+	heightMap := make(map[uint64]int, len(blocks.Height))
+	for i, h := range blocks.Height {
+		heightMap[h] = i
+	}
+
+	for i := range heights {
+		// the query retreives ticket transactions that has mixed amount alone, fill 0s for missing height
+		curLen := heightMap[uint64(heights[i])]
+		for len(blocks.TotalMixed) < curLen {
+			blocks.TotalMixed = append(blocks.TotalMixed, 0)
+		}
+
+		blocks.TotalMixed = append(blocks.TotalMixed, uint64(utxoValueReg[i] + utxoValueStk[i]))
+	}
+
+	// block anonymity set
+	for _, h := range blocks.Height[len(blocks.AnonymitySet) :] {
+		var anonymitySet uint64
+		for iu := range vals {
+			if h >= uint64(fundHeights[iu]) && (h < uint64(spendHeights[iu]) || spendHeights[iu] == -1) {
+				anonymitySet += uint64(vals[iu])
+			}
+		}
+		blocks.AnonymitySet = append(blocks.AnonymitySet, anonymitySet)
+	}
+
+	// append days
+	days := charts.Days
+
+	// Get the current first and last midnight stamps.
+	end := midnight(blocks.Time[len(blocks.Time)-1])
+	var start uint64
+	if len(days.Time) > 0 {
+		// Begin the scan at the beginning of the next day. The stamps in the Time
+		// set are the midnight that starts the day.
+		start = days.Time[len(days.Time)-1] + aDay
+	} else {
+		// Start from the beginning.
+		// Already checked for empty blocks above.
+		start = midnight(blocks.Time[0])
+	}
+
+	// Find the index that begins new data.
+	offset := 0
+	for i, t := range blocks.Time {
+		if t > start {
+			offset = i
+			break
+		}
+	}
+
+	var intervals [][2]int
+	if end > start+aDay {
+		next := start + aDay
+		startIdx := 0
+		for i, t := range blocks.Time[offset:] {
+			if t >= next {
+				// Once passed the next midnight, prepare a day window by storing the
+				// range of indices.
+				intervals = append(intervals, [2]int{startIdx + offset, i + offset})
+				// days.Time = append(days.Time, start) populated in Lengthen
+				start = next
+				next += aDay
+				startIdx = i
+				if t > end {
+					break
+				}
+			}
+		}
+
+		for _, interval := range intervals {
+			if blocks.Height[interval[1]] < uint64(minHeight) {
+				days.AnonymitySet = append(days.AnonymitySet, 0)
+				continue
+			}
+
+			var anonymitySet uint64
+			for iu := range vals {
+				_, maxHeight := blocks.Height[interval[0]], blocks.Height[interval[1]]
+
+				if uint64(fundHeights[iu]) < maxHeight && (uint64(spendHeights[iu]) > maxHeight || spendHeights[iu] == -1) {
+
+					anonymitySet += uint64(vals[iu])
+				}
+			}
+
+			days.AnonymitySet = append(days.AnonymitySet, anonymitySet)
+		}
+	}
+
+	return nil
+}
+
+const aDay = 86400
+
+func midnight(t uint64) (mid uint64) {
+	if t > 0 {
+		mid = t - t%aDay
+	}
 	return
 }
 

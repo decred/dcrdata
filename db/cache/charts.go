@@ -53,7 +53,8 @@ const (
 	sizeKey                  = "size"
 	feesKey                  = "fees"
 	anonymitySetKey          = "anonymitySet"
-	anonymitySetKeyMovingSum = "anonymitySetMovingSum"
+	anonymitySetKeyStk          = "anonymitySetStk"
+	anonymitySetKeyReg          = "anonymitySetReg"
 	durationKey              = "duration"
 	workKey                  = "work"
 	rateKey                  = "rate"
@@ -261,17 +262,17 @@ func newChartUints(size int) ChartUints {
 // Lengthen), typically once per bin duration.
 type zoomSet struct {
 	cacheID          uint64
-	Height           ChartUints
-	Time             ChartUints
-	PoolSize         ChartUints
-	PoolValue        ChartUints
-	BlockSize        ChartUints
-	TxCount          ChartUints
-	NewAtoms         ChartUints
-	Chainwork        ChartUints
-	Fees             ChartUints
-	TotalMixed       ChartUints
-	MovingTotalMixed ChartUints
+	Height        ChartUints
+	Time          ChartUints
+	PoolSize      ChartUints
+	PoolValue     ChartUints
+	BlockSize     ChartUints
+	TxCount       ChartUints
+	NewAtoms      ChartUints
+	Chainwork     ChartUints
+	Fees          ChartUints
+	TotalMixed    ChartUints
+	AnonymitySet  ChartUints
 }
 
 // Snip truncates the zoomSet to a provided length.
@@ -289,24 +290,24 @@ func (set *zoomSet) Snip(length int) {
 	set.Chainwork = set.Chainwork.snip(length)
 	set.Fees = set.Fees.snip(length)
 	set.TotalMixed = set.TotalMixed.snip(length)
-	set.MovingTotalMixed = set.MovingTotalMixed.snip(length)
+	set.AnonymitySet = set.AnonymitySet.snip(length)
 }
 
 // Constructor for a sized zoomSet for blocks, which has has no Height slice
 // since the height is implicit for block-binned data.
 func newBlockSet(size int) *zoomSet {
 	return &zoomSet{
-		Height:           newChartUints(size),
-		Time:             newChartUints(size),
-		PoolSize:         newChartUints(size),
-		PoolValue:        newChartUints(size),
-		BlockSize:        newChartUints(size),
-		TxCount:          newChartUints(size),
-		NewAtoms:         newChartUints(size),
-		Chainwork:        newChartUints(size),
-		Fees:             newChartUints(size),
-		TotalMixed:       newChartUints(size),
-		MovingTotalMixed: newChartUints(size),
+		Height:        newChartUints(size),
+		Time:          newChartUints(size),
+		PoolSize:      newChartUints(size),
+		PoolValue:     newChartUints(size),
+		BlockSize:     newChartUints(size),
+		TxCount:       newChartUints(size),
+		NewAtoms:      newChartUints(size),
+		Chainwork:     newChartUints(size),
+		Fees:          newChartUints(size),
+		TotalMixed:    newChartUints(size),
+		AnonymitySet:  newChartUints(size),
 	}
 }
 
@@ -357,10 +358,10 @@ func newWindowSet(size int) *windowSet {
 // has a lot of extraneous fields, and also embeds sync.RWMutex, so is not
 // suitable for gobbing.
 type ChartGobject struct {
-	Height         ChartUints
-	Time           ChartUints
-	PoolSize       ChartUints
-	PoolValue      ChartUints
+	Height        ChartUints
+	Time          ChartUints
+	PoolSize      ChartUints
+	PoolValue     ChartUints
 	BlockSize     ChartUints
 	TxCount       ChartUints
 	NewAtoms      ChartUints
@@ -372,6 +373,7 @@ type ChartGobject struct {
 	StakeCount    ChartUints
 	MissedVotes   ChartUints
 	TotalMixed    ChartUints
+	AnonymitySet  ChartUints
 }
 
 // The chart data is cached with the current cacheID of the zoomSet or windowSet.
@@ -470,7 +472,7 @@ func (charts *ChartData) Lengthen() error {
 	blocks := charts.Blocks
 	shortest, err := ValidateLengths(blocks.Height, blocks.Time,
 		blocks.PoolSize, blocks.PoolValue, blocks.BlockSize, blocks.TxCount,
-		blocks.NewAtoms, blocks.Chainwork, blocks.Fees, blocks.TotalMixed)
+		blocks.NewAtoms, blocks.Chainwork, blocks.Fees, blocks.TotalMixed, blocks.AnonymitySet)
 	if err != nil {
 		log.Warnf("ChartData.Lengthen: block data length mismatch detected. "+
 			"Truncating blocks length to %d", shortest)
@@ -518,16 +520,6 @@ func (charts *ChartData) Lengthen() error {
 	}
 
 	intervals := [][2]int{}
-	movingInterval := [][2]int{} // stores the start and end index for the vote reward period(~29.07 days on mainnet) moving sum
-	miStart := start
-	// The actual reward of a ticket needs to also take into consideration the
-	// ticket maturity (time from ticket purchase until its eligible to vote)
-	// and coinbase maturity (time after vote until funds distributed to ticket
-	// holder are available to use).
-	meanVotingBlocks := txhelpers.CalcMeanVotingBlocks(charts.chainParams)
-	avgSSTxToSSGenMaturity := meanVotingBlocks + int64(charts.chainParams.TicketMaturity) +
-		int64(charts.chainParams.CoinbaseMaturity)
-	rewardPeriod := avgSSTxToSSGenMaturity * int64(charts.chainParams.TargetTimePerBlock.Seconds())
 	// If there is day or more worth of new data, append to the Days zoomSet by
 	// finding the first and last+1 blocks of each new day, and taking averages
 	// or sums of the blocks in the interval.
@@ -562,40 +554,12 @@ func (charts *ChartData) Lengthen() error {
 			days.Fees = append(days.Fees, blocks.Fees.Sum(interval[0], interval[1]))
 			days.TotalMixed = append(days.TotalMixed, blocks.TotalMixed.Sum(interval[0], interval[1]))
 		}
-
-		minIndex := func(t uint64, previousIndex int) int {
-			for i := previousIndex; i < len(blocks.Time); i++ {
-				if blocks.Time[i] >= t {
-					return i
-				}
-			}
-			return 0
-		}
-
-		next = miStart + aDay
-		lastIndex := 0
-		for i, t := range blocks.Time[offset:] {
-			if t >= next {
-				// Once passed the next midnight. prepare a {rewardPeriod} day(s) window by storing the range of indices
-				minTime := blocks.Time[i] - uint64(rewardPeriod)
-				startIdx := minIndex(minTime, lastIndex)
-				movingInterval = append(movingInterval, [2]int{startIdx, i + offset})
-				next += aDay
-				lastIndex = startIdx
-				if t > end {
-					break
-				}
-			}
-		}
-		for _, interval := range movingInterval {
-			days.MovingTotalMixed = append(days.MovingTotalMixed, blocks.TotalMixed.Sum(interval[0], interval[1]))
-		}
 	}
 
 	// Check that all relevant datasets have been updated to the same length.
 	daysLen, err := ValidateLengths(days.Height, days.Time, days.PoolSize,
 		days.PoolValue, days.BlockSize, days.TxCount, days.NewAtoms,
-		days.Chainwork, days.Fees, days.TotalMixed, days.MovingTotalMixed)
+		days.Chainwork, days.Fees, days.TotalMixed, days.AnonymitySet,)
 	if err != nil {
 		return fmt.Errorf("day bin: %v", err)
 	} else if daysLen == 0 {
@@ -706,6 +670,7 @@ func (charts *ChartData) readCacheFile(filePath string) error {
 	charts.Blocks.Chainwork = gobject.Chainwork
 	charts.Blocks.Fees = gobject.Fees
 	charts.Blocks.TotalMixed = gobject.TotalMixed
+	charts.Blocks.AnonymitySet = gobject.AnonymitySet
 	charts.Windows.Time = gobject.WindowTime
 	charts.Windows.PowDiff = gobject.PowDiff
 	charts.Windows.TicketPrice = gobject.TicketPrice
@@ -775,6 +740,7 @@ func (charts *ChartData) gobject() *ChartGobject {
 		Chainwork:     charts.Blocks.Chainwork,
 		Fees:          charts.Blocks.Fees,
 		TotalMixed:    charts.Blocks.TotalMixed,
+		AnonymitySet:  charts.Blocks.AnonymitySet,
 		WindowTime:    charts.Windows.Time,
 		PowDiff:       charts.Windows.PowDiff,
 		TicketPrice:   charts.Windows.TicketPrice,
@@ -1232,28 +1198,30 @@ func coinSupplyChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, er
 		switch axis {
 		case HeightAxis:
 			return encode(lengtherMap{
-				supplyKey: 				accumulate(charts.Blocks.NewAtoms),
+				supplyKey:       accumulate(charts.Blocks.NewAtoms),
+				anonymitySetKey: charts.Blocks.AnonymitySet,
 			}, seed)
 		default:
 			return encode(lengtherMap{
-				timeKey:   			   charts.Blocks.Time,
-				supplyKey: 			   accumulate(charts.Blocks.NewAtoms),
+				timeKey:         charts.Blocks.Time,
+				supplyKey:       accumulate(charts.Blocks.NewAtoms),
+				anonymitySetKey: charts.Blocks.AnonymitySet,
 			}, seed)
 		}
 	case DayBin:
 		switch axis {
 		case HeightAxis:
 			return encode(lengtherMap{
-				heightKey:                charts.Days.Height,
-				supplyKey:                accumulate(charts.Days.NewAtoms),
-				anonymitySetKeyMovingSum: accumulate(charts.Days.TotalMixed),
+				heightKey:       charts.Days.Height,
+				supplyKey:       accumulate(charts.Days.NewAtoms),
+				anonymitySetKey: charts.Days.AnonymitySet,
 			}, seed)
 		default:
 			return encode(lengtherMap{
-				timeKey:                  charts.Days.Time,
-				supplyKey:                accumulate(charts.Days.NewAtoms),
-				anonymitySetKeyMovingSum: accumulate(charts.Days.TotalMixed),
-				heightKey:                charts.Days.Height,
+				timeKey:         charts.Days.Time,
+				supplyKey:       accumulate(charts.Days.NewAtoms),
+				anonymitySetKey: charts.Days.AnonymitySet,
+				heightKey:       charts.Days.Height,
 			}, seed)
 		}
 	}

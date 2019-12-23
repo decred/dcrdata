@@ -271,7 +271,7 @@ function circulationFunc (chartData, showMovingSum) {
   var heights = chartData.h
   var times = chartData.t
   var supplies = chartData.supply
-  var anonymitySet = chartData.anonymitySetMovingSum
+  var anonymitySet = chartData.anonymitySet
   var isHeightAxis = chartData.axis === 'height'
   var xFunc, hFunc
   if (chartData.bin === 'day') {
@@ -287,8 +287,7 @@ function circulationFunc (chartData, showMovingSum) {
     let height = hFunc(i)
     addDough(height)
     inflation.push(yMax)
-    return showMovingSum ? [xFunc(i), supplies[i] * atomsToDCR, null, anonymitySet[i] * atomsToDCR]
-      : [xFunc(i), supplies[i] * atomsToDCR, null]
+    return [xFunc(i), supplies[i] * atomsToDCR, null, anonymitySet[i] * atomsToDCR]
   })
 
   var dailyBlocks = aDay / avgBlockTime
@@ -300,11 +299,11 @@ function circulationFunc (chartData, showMovingSum) {
   xFunc = isHeightAxis ? xx => xx : xx => { return new Date(xx) }
   var xIncrement = isHeightAxis ? dailyBlocks : aDay
   var projection = 6 * aMonth
-  data.push(showMovingSum ? [xFunc(x), null, yMax, null] : [xFunc(x), null, yMax])
+  data.push([xFunc(x), null, yMax, null])
   for (var i = 1; i <= projection; i++) {
     addDough(h + dailyBlocks)
     x += xIncrement
-    data.push(showMovingSum ? [xFunc(x), null, yMax, null] : [xFunc(x), null, yMax])
+    data.push([xFunc(x), null, yMax, null])
   }
   return {
     data: data,
@@ -551,38 +550,22 @@ export default class extends Controller {
         break
 
       case 'coin-supply': // supply graph
-        const showMovingSum = this.selectedBin() === 'day'
-        d = circulationFunc(data, showMovingSum)
-        if (showMovingSum) {
-          assign(gOptions, mapDygraphOptions(d.data, [xlabel, 'Coin Supply', 'Inflation Limit', 'Mixed'],
-            true, 'Coin Supply (DCR)', true, false))
-          gOptions.y2label = 'Inflation Limit'
-          gOptions.y3label = 'Mixed'
-          gOptions.series = { 'Inflation Limit': { axis: 'y2' }, 'Mixed': { axis: 'y3' } }
-          this.visibility = [true, true, this.anonymitySetTarget.checked]
-          gOptions.visibility = this.visibility
-          gOptions.series = {
-            'Inflation Limit': {
-              strokePattern: [5, 5],
-              color: '#888',
-              strokeWidth: 1.5
-            },
-            'Mixed': {
-              color: '#2dd8a3'
-            }
-          }
-        } else {
-          assign(gOptions, mapDygraphOptions(d.data, [xlabel, 'Coin Supply', 'Inflation Limit'],
-            true, 'Coin Supply (DCR)', true, false))
-          gOptions.y2label = 'Inflation Limit'
-          gOptions.series = { 'Inflation Limit': { axis: 'y2' } }
-          gOptions.visibility = [true, true]
-          gOptions.series = {
-            'Inflation Limit': {
-              strokePattern: [5, 5],
-              color: '#888',
-              strokeWidth: 1.5
-            }
+        d = circulationFunc(data)
+        assign(gOptions, mapDygraphOptions(d.data, [xlabel, 'Coin Supply', 'Inflation Limit', 'Anonymity Set'],
+          true, 'Coin Supply (DCR)', true, false))
+        gOptions.y2label = 'Inflation Limit'
+        gOptions.y3label = 'Anonymity Set'
+        gOptions.series = { 'Inflation Limit': { axis: 'y2' }, 'Anonymity Set': { axis: 'y3' } }
+        this.visibility = [true, true, this.anonymitySetTarget.checked]
+        gOptions.visibility = this.visibility
+        gOptions.series = {
+          'Inflation Limit': {
+            strokePattern: [5, 5],
+            color: '#888',
+            strokeWidth: 1.5
+          },
+          'Anonymity Set': {
+            color: '#2dd8a3'
           }
         }
         gOptions.inflation = d.inflation
@@ -595,7 +578,7 @@ export default class extends Controller {
             let unminted = predicted - data.series[0].y
             change = ((unminted / predicted) * 100).toFixed(2)
             div.appendChild(legendEntry(`${legendMarker()} Unminted: ${intComma(unminted)} DCR (${change}%)`))
-            if (showMovingSum && this.anonymitySetTarget.checked) {
+            if (this.anonymitySetTarget.checked) {
               const mixed = data.series[2].y
               const mixedPercentage = ((mixed / supply) * 100).toFixed(2)
               div.appendChild(legendEntry(`${legendMarker()} Mixed: ${intComma(mixed)} DCR (${mixedPercentage}%)`))
@@ -612,7 +595,8 @@ export default class extends Controller {
       case 'anonymity-set': // anonymity set graph
         d = anonymitySetFunc(data)
         this.customLimits = d.limits
-        assign(gOptions, mapDygraphOptions(d.data, [xlabel, 'Mixed'], false, 'Mixed (DCR)', true, false))
+        const label = this.selectedBin() === 'block' ? 'Mixed' : 'Anonymity Set'
+        assign(gOptions, mapDygraphOptions(d.data, [xlabel, label], false, `${label} (DCR)`, true, false))
         break
 
       case 'duration-btw-blocks': // Duration between blocks graph
