@@ -259,7 +259,7 @@ function powDiffFunc (data) {
   return zipWindowHvY(data.diff, data.window)
 }
 
-function circulationFunc (chartData, showMovingSum) {
+function circulationFunc (chartData) {
   var yMax = 0
   var h = -1
   var addDough = (newHeight) => {

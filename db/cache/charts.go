@@ -53,8 +53,6 @@ const (
 	sizeKey                  = "size"
 	feesKey                  = "fees"
 	anonymitySetKey          = "anonymitySet"
-	anonymitySetKeyStk          = "anonymitySetStk"
-	anonymitySetKeyReg          = "anonymitySetReg"
 	durationKey              = "duration"
 	workKey                  = "work"
 	rateKey                  = "rate"
@@ -1025,20 +1023,6 @@ func accumulate(data ChartUints) ChartUints {
 	var accumulator uint64
 	for _, v := range data {
 		accumulator += v
-		d = append(d, accumulator)
-	}
-	return d
-}
-
-// Each point is translated to the sum of all x-1 points before and itself.
-func accumulateX(data ChartUints, x int) ChartUints {
-	d := make(ChartUints, 0, len(data))
-	var accumulator uint64
-	for i, v := range data {
-		accumulator += v
-		if i >= x {
-			accumulator -= data[i - x]
-		}
 		d = append(d, accumulator)
 	}
 	return d

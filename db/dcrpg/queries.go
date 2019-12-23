@@ -3625,9 +3625,6 @@ func appendBlockFees(charts *cache.ChartData, rows *sql.Rows) error {
 // This is the Fetcher half of a pair that make up a cache.ChartUpdater.
 func retrieveAnonymitySet(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
 	h := charts.TotalMixedTip()
-	/*if h < 350000 {
-		h = 350000 // anonymity set started at a height >350000
-	}*/
 	rows, err := db.QueryContext(ctx, internal.SelectTotalMixedPerBlockAboveHeight, h)
 	if err != nil {
 		return nil, err
@@ -3637,7 +3634,6 @@ func retrieveAnonymitySet(ctx context.Context, db *sql.DB, charts *cache.ChartDa
 
 func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 	var vals, fundHeights, spendHeights []int64
-	var trees []uint8
 
 	var maxHeight int64
 	minHeight := int64(math.MaxInt64)
@@ -3651,7 +3647,6 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 		}
 		vals = append(vals, value)
 		fundHeights = append(fundHeights, fundHeight)
-		trees = append(trees, tree)
 		if spendHeightNull.Valid {
 			spendHeight = spendHeightNull.Int64
 		} else {
@@ -3677,19 +3672,14 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 		N = 0
 	}
 	heights := make([]int64, N)
-	utxoValueReg := make([]int64, N)
-	utxoValueStk := make([]int64, N)
+	valueReg := make([]int64, N)
 
 	for h := minHeight; h <= maxHeight; h++ {
 		i := h - minHeight
 		heights[i] = h
 		for iu := range vals {
 			if h == fundHeights[iu] && (h < spendHeights[iu] || spendHeights[iu] == -1) {
-				if trees[iu] == 0 {
-					utxoValueReg[i] += vals[iu]
-				} else {
-					utxoValueStk[i] += vals[iu]
-				}
+				valueReg[i] += vals[iu]
 			}
 		}
 	}
@@ -3706,7 +3696,7 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 			blocks.TotalMixed = append(blocks.TotalMixed, 0)
 		}
 
-		blocks.TotalMixed = append(blocks.TotalMixed, uint64(utxoValueReg[i] + utxoValueStk[i]))
+		blocks.TotalMixed = append(blocks.TotalMixed, uint64(valueReg[i]))
 	}
 
 	// block anonymity set
