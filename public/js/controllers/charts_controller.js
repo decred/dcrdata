@@ -17,9 +17,9 @@ const aDay = 86400 * 1000 // in milliseconds
 const aMonth = 30 // in days
 const atomsToDCR = 1e-8
 const windowScales = ['ticket-price', 'pow-difficulty', 'missed-votes']
-const hybridScales = ['anonymity-set']
-const lineScales = ['ticket-price', 'anonymity-set']
-const multiYAxisChart = ['ticket-price', 'coin-supply', 'anonymity-set']
+const hybridScales = ['privacy-participation']
+const lineScales = ['ticket-price', 'privacy-participation']
+const multiYAxisChart = ['ticket-price', 'coin-supply', 'privacy-participation']
 // index 0 represents y1 and 1 represents y2 axes.
 const yValueRanges = { 'ticket-price': [1] }
 var chainworkUnits = ['exahash', 'zettahash', 'yottahash']
@@ -551,11 +551,11 @@ export default class extends Controller {
 
       case 'coin-supply': // supply graph
         d = circulationFunc(data)
-        assign(gOptions, mapDygraphOptions(d.data, [xlabel, 'Coin Supply', 'Inflation Limit', 'Anonymity Set'],
+        assign(gOptions, mapDygraphOptions(d.data, [xlabel, 'Coin Supply', 'Inflation Limit', 'Coinjoins'],
           true, 'Coin Supply (DCR)', true, false))
         gOptions.y2label = 'Inflation Limit'
-        gOptions.y3label = 'Anonymity Set'
-        gOptions.series = { 'Inflation Limit': { axis: 'y2' }, 'Anonymity Set': { axis: 'y3' } }
+        gOptions.y3label = 'Coinjoins'
+        gOptions.series = { 'Inflation Limit': { axis: 'y2' }, 'Coinjoins': { axis: 'y3' } }
         this.visibility = [true, true, this.anonymitySetTarget.checked]
         gOptions.visibility = this.visibility
         gOptions.series = {
@@ -564,7 +564,7 @@ export default class extends Controller {
             color: '#888',
             strokeWidth: 1.5
           },
-          'Anonymity Set': {
+          'Coinjoins': {
             color: '#2dd8a3'
           }
         }
@@ -592,10 +592,10 @@ export default class extends Controller {
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Total Fee'], false, 'Total Fee (DCR)', true, false))
         break
 
-      case 'anonymity-set': // anonymity set graph
+      case 'privacy-participation': // anonymity set graph
         d = anonymitySetFunc(data)
         this.customLimits = d.limits
-        const label = this.selectedBin() === 'block' ? 'Mixed' : 'Anonymity Set'
+        const label = 'Coinjoins'
         assign(gOptions, mapDygraphOptions(d.data, [xlabel, label], false, `${label} (DCR)`, true, false))
         break
 
@@ -694,12 +694,12 @@ export default class extends Controller {
     let oldLimits = this.limits || this.chartsView.xAxisExtremes()
     this.limits = this.chartsView.xAxisExtremes()
     var selected = this.selectedZoom()
-    if (selected && !(selectedChart === 'anonymity-set' && selected === 'all')) {
+    if (selected && !(selectedChart === 'privacy-participation' && selected === 'all')) {
       this.lastZoom = Zoom.validate(selected, this.limits,
         this.isTimeAxis() ? avgBlockTime : 1, this.isTimeAxis() ? 1 : avgBlockTime)
     } else {
-      // if this is for the anonymity-set chart, then zoom to the beginning of the record
-      if (selectedChart === 'anonymity-set') {
+      // if this is for the privacy-participation chart, then zoom to the beginning of the record
+      if (selectedChart === 'privacy-participation') {
         this.limits = oldLimits = this.customLimits
         this.settings.zoom = Zoom.object(this.limits[0], this.limits[1])
       }
@@ -849,7 +849,7 @@ export default class extends Controller {
         }
         this.anonymitySetTarget.checked = this.visibility[2]
         break
-      case 'anonymity-set':
+      case 'privacy-participation':
         if (this.visibility.length !== 2) {
           this.visibility = [true, this.anonymitySetTarget.checked]
         }
@@ -874,7 +874,7 @@ export default class extends Controller {
       case 'coin-supply':
         this.visibility = [true, true, this.anonymitySetTarget.checked]
         break
-      case 'anonymity-set':
+      case 'privacy-participation':
         this.visibility = [true, this.anonymitySetTarget.checked]
         break
       default:

@@ -30,7 +30,7 @@ const (
 	TicketPrice     = "ticket-price"
 	TxCount         = "tx-count"
 	Fees            = "fees"
-	AnonymitySet    = "anonymity-set"
+	AnonymitySet    = "privacy-participation"
 	TicketPoolSize  = "ticket-pool-size"
 	TicketPoolValue = "ticket-pool-value"
 	WindMissedVotes = "missed-votes"
