@@ -43,6 +43,8 @@
                     <a class="fs13" href="/block/{{.PreviousHash}}">previous </a>|
                     {{if ne .NextHash ""}}
                       <a class="fs13" href="/block/{{.NextHash}}">next </a>|
+                    {{ else }}
+                      <a class="fs13" href="/mempool">mempool </a>|
                     {{end}}
                     <a class="fs13" href="/api/block/{{.Height}}/verbose?indent=true" data-turbolinks="false">api</a>
                   </div>
