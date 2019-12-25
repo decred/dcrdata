@@ -865,8 +865,9 @@ type TicketPoolInfo struct {
 
 // MempoolTx models the tx basic data for the mempool page
 type MempoolTx struct {
-	TxID string  `json:"txid"`
-	Fees float64 `json:"fees"`
+	TxID    string  `json:"txid"`
+	Fees    float64 `json:"fees"`
+	FeeRate float64 `json:"fee_rate"`
 	// Consider atom representation:
 	//FeeAmount   int64        `json:"fee_amount"`
 	VinCount  int            `json:"vin_count"`

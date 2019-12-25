@@ -168,6 +168,7 @@
                               <th>Transaction ID</th>
                               <th class="text-right">Total DCR</th>
                               <th class="text-right">Size</th>
+                              <th class="text-right">Fee Rate</th>
                               <th class="text-right">Time in Mempool</th>
                             </tr>
                           </thead>
@@ -183,12 +184,13 @@
                                     {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
                                   </td>
                                   <td class="mono fs15 text-right">{{.Size}} B</td>
+                                  <td class="mono fs15 text-right">{{.FeeRate}} DCR/kB</td>
                                   <td class="mono fs15 text-right" data-target="time.age" data-age="{{.Time}}"></td>
                               </tr>
                               {{end}}
                               {{else}}
                               <tr class="no-tx-tr">
-                                  <td colspan="4">No tickets in mempool.</td>
+                                  <td colspan="5">No tickets in mempool.</td>
                               </tr>
                               {{end}}
                           </tbody>
@@ -242,6 +244,7 @@
                               <th>Transaction ID</th>
                               <th class="text-right">Total DCR</th>
                               <th class="text-right">Size</th>
+                              <th class="text-right">Fee Rate</th>
                               <th class="text-right">Time in Mempool</th>
                             </tr>
                           </thead>
@@ -257,12 +260,13 @@
                                     {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
                                   </td>
                                   <td class="mono fs15 text-right">{{.Size}} B</td>
+                                  <td class="mono fs15 text-right">{{.FeeRate}} DCR/kB</td>
                                   <td class="mono fs15 text-right" data-target="time.age" data-age="{{.Time}}"></td>
                               </tr>
                               {{end}}
                               {{else}}
                               <tr class="no-tx-tr">
-                                  <td colspan="4">No regular transactions in mempool.</td>
+                                  <td colspan="5">No regular transactions in mempool.</td>
                               </tr>
                               {{end}}
                           </tbody>

@@ -127,9 +127,12 @@ func (t *MempoolDataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.Me
 		//fee, _ := txhelpers.TxFeeRate(msgTx)
 		// log.Tracef("tx fee: GRM result = %f, msgTx = %f", tx.Fee, fee.ToCoin())
 
+		_, feeRate := txhelpers.TxFeeRate(msgTx)
+
 		txs = append(txs, exptypes.MempoolTx{
 			TxID:      msgTx.TxHash().String(),
 			Fees:      tx.Fee,
+			FeeRate:   feeRate.ToCoin(),
 			VinCount:  len(msgTx.TxIn),
 			VoutCount: len(msgTx.TxOut),
 			Vin:       exptypes.MsgTxMempoolInputs(msgTx),

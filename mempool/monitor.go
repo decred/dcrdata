@@ -239,11 +239,12 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 	for i, txini := range msgTx.TxIn {
 		txini.ValueIn = valsIn[i]
 	}
-	fee, _ := txhelpers.TxFeeRate(msgTx)
+	fee, feeRate := txhelpers.TxFeeRate(msgTx)
 
 	tx := exptypes.MempoolTx{
 		TxID:      hash,
 		Fees:      fee.ToCoin(),
+		FeeRate:   feeRate.ToCoin(),
 		VinCount:  len(msgTx.TxIn),
 		VoutCount: len(msgTx.TxOut),
 		Vin:       exptypes.MsgTxMempoolInputs(msgTx),
