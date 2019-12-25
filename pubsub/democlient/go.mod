@@ -2,7 +2,10 @@ module github.com/decred/dcrdata/pubsub/democlient
 
 go 1.12
 
-replace github.com/decred/dcrdata/pubsub/v4 => ../
+replace (
+	github.com/decred/dcrdata/pubsub/v4 => ../
+	github.com/decred/dcrdata/explorer/types/v2 => ../../explorer/types
+)
 
 require (
 	github.com/decred/dcrd/chaincfg/v2 v2.3.0

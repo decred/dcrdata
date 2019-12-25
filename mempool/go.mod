@@ -19,3 +19,5 @@ require (
 	github.com/decred/slog v1.0.0
 	github.com/dustin/go-humanize v1.0.0
 )
+
+replace github.com/decred/dcrdata/explorer/types/v2 => ../explorer/types

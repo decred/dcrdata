@@ -406,6 +406,8 @@ github.com/didip/tollbooth/v5 v5.1.1-0.20190817151620-2c720dff9427/go.mod h1:d9r
 github.com/didip/tollbooth_chi v0.0.0-20170928041846-6ab5f3083f3d/go.mod h1:YWyIfq3y4ArRfWZ9XksmuusP+7Mad+T0iFZ0kv0XG/M=
 github.com/dmigwi/go-piparser/proposals v0.0.0-20190426030541-8412e0f44f55 h1:OdHelch2TXiEFTcV75lw+PhQkI8rKOdQ6j6b0TtchT8=
 github.com/dmigwi/go-piparser/proposals v0.0.0-20190426030541-8412e0f44f55/go.mod h1:bVFHMc7PF69eSpDREy2MnoZYr8YMQjGDEUJudtQUEis=
+github.com/dmigwi/go-piparser/proposals v0.0.0-20191219171828-ae8cbf4067e1 h1:8+y5flqx5OCcYOuzKGnUS1PluG9hexfL5I3IAN4aym4=
+github.com/dmigwi/go-piparser/proposals v0.0.0-20191219171828-ae8cbf4067e1/go.mod h1:bVFHMc7PF69eSpDREy2MnoZYr8YMQjGDEUJudtQUEis=
 github.com/dustin/go-humanize v1.0.0 h1:VSnTsYCnlFHaM2/igO1h6X3HA71jcobQuxemgkq4zYo=
 github.com/dustin/go-humanize v1.0.0/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
 github.com/eapache/go-resiliency v1.1.0/go.mod h1:kFI+JgMyC7bLPUVY133qvEBtVayf5mFgVsvEsIPBvNs=

@@ -6067,8 +6067,13 @@ func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
 				}
 			}
 		}
+
+		fee, feeRate := txhelpers.TxFeeRate(msgTx)
+
 		txs = append(txs, exptypes.MempoolTx{
 			TxID:     msgTx.TxHash().String(),
+			Fees:     fee.ToCoin(),
+			FeeRate:  feeRate.ToCoin(),
 			Hash:     hashStr,
 			Time:     tx.Time,
 			Size:     tx.Size,
