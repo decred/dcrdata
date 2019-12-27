@@ -65,16 +65,20 @@ func (p *dummyParser) ProposalsHistorySince(since time.Time) ([]*pitypes.History
 }
 
 func openDB() (func() error, error) {
-	dbi := DBInfo{
+	dbi := &DBInfo{
 		Host:   dbconfig.PGTestsHost,
 		Port:   dbconfig.PGTestsPort,
 		User:   dbconfig.PGTestsUser,
 		Pass:   dbconfig.PGTestsPass,
 		DBName: dbconfig.PGTestsDBName,
 	}
+	cfg := &ChainDBCfg{
+		dbi,
+		chaincfg.MainNetParams(),
+		true, false, 24, 1024, 1 << 16,
+	}
 	var err error
-	db, err = NewChainDB(&dbi, chaincfg.MainNetParams(), nil, true, true,
-		addrCacheCap, nil, new(dummyParser), nil, func() {})
+	db, err = NewChainDB(cfg, nil, nil, new(dummyParser), nil, func() {})
 	cleanUp := func() error { return nil }
 	if db != nil {
 		cleanUp = db.Close
