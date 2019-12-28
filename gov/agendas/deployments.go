@@ -21,6 +21,7 @@ import (
 // AgendaDB represents the data for the stored DB.
 type AgendaDB struct {
 	sdb           *storm.DB
+	simnet        bool
 	stakeVersions []uint32
 	deploySource  DeploymentSource
 }
@@ -42,10 +43,6 @@ type AgendaTagged struct {
 }
 
 var (
-	// errDefault defines an error message returned if the agenda db wasn't
-	// properly initialized.
-	errDefault = fmt.Errorf("AgendaDB was not initialized correctly")
-
 	// dbVersion is the current required version of the agendas.db.
 	dbVersion = semver.NewSemver(1, 0, 0)
 )
@@ -63,7 +60,7 @@ type DeploymentSource interface {
 // NewAgendasDB opens an existing database or create a new one using with the
 // specified file name. It also checks the DB version, reindexes the DB if need
 // be, and sets the required DB version.
-func NewAgendasDB(client DeploymentSource, dbPath string) (*AgendaDB, error) {
+func NewAgendasDB(client DeploymentSource, dbPath string, simnet bool) (*AgendaDB, error) {
 	if dbPath == "" {
 		return nil, fmt.Errorf("empty db Path found")
 	}
@@ -108,13 +105,17 @@ func NewAgendasDB(client DeploymentSource, dbPath string) (*AgendaDB, error) {
 	}
 
 	// Determine stake versions known by dcrd.
-	stakeVersions, err := listStakeVersions(client)
-	if err != nil {
-		return nil, err
+	var stakeVersions []uint32
+	if !simnet {
+		stakeVersions, err = listStakeVersions(client)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	adb := &AgendaDB{
 		sdb:           db,
+		simnet:        simnet,
 		deploySource:  client,
 		stakeVersions: stakeVersions,
 	}
@@ -252,8 +253,9 @@ func (db *AgendaDB) storeAgenda(agenda *AgendaTagged) error {
 
 // UpdateAgendas updates agenda data for all configured vote versions.
 func (db *AgendaDB) UpdateAgendas() error {
-	if db == nil || db.sdb == nil {
-		return errDefault
+	if db.simnet {
+		log.Debugf("skipping agendas update on simnet")
+		return nil
 	}
 
 	numRecords, err := db.updateDB()
@@ -267,8 +269,8 @@ func (db *AgendaDB) UpdateAgendas() error {
 
 // AgendaInfo fetches an agenda's details given its agendaID.
 func (db *AgendaDB) AgendaInfo(agendaID string) (*AgendaTagged, error) {
-	if db == nil || db.sdb == nil {
-		return nil, errDefault
+	if db.simnet {
+		return nil, fmt.Errorf("No deployments on simnet")
 	}
 
 	agenda, err := db.loadAgenda(agendaID)
@@ -281,8 +283,8 @@ func (db *AgendaDB) AgendaInfo(agendaID string) (*AgendaTagged, error) {
 
 // AllAgendas returns all agendas and their info in the db.
 func (db *AgendaDB) AllAgendas() (agendas []*AgendaTagged, err error) {
-	if db == nil || db.sdb == nil {
-		return nil, errDefault
+	if db.simnet {
+		return []*AgendaTagged{}, nil
 	}
 
 	err = db.sdb.Select(q.True()).OrderBy("VoteVersion", "ID").Reverse().Find(&agendas)

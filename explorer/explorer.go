@@ -559,7 +559,9 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 	}
 
 	// Trigger a vote info refresh.
-	go exp.voteTracker.Refresh()
+	if exp.voteTracker != nil {
+		go exp.voteTracker.Refresh()
+	}
 
 	// Politeia updates happen hourly. Thus, if blocks take 5 minutes on average
 	// to mine, then 12 blocks take approximately 1hr.

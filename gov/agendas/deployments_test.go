@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strconv"
 	"testing"
 
 	"github.com/asdine/storm/v3"
@@ -155,7 +154,7 @@ func TestNewAgendasDB(t *testing.T) {
 	}
 
 	for i, val := range td {
-		results, err := NewAgendasDB(val.rpc, val.dbPath)
+		results, err := NewAgendasDB(val.rpc, val.dbPath, false)
 		if err == nil && val.errMsg != "" {
 			t.Fatalf("expected no error but found '%v' ", err)
 		}
@@ -224,29 +223,9 @@ func TestUpdateAndRetrievals(t *testing.T) {
 		stakeVersions: voteVersions,
 	}
 
-	type testData struct {
-		db     *AgendaDB
-		errMsg string
-	}
-
-	td := []testData{
-		{nil, "AgendaDB was not initialized correctly"},
-		{&AgendaDB{}, "AgendaDB was not initialized correctly"},
-		{dbInstance, ""},
-	}
-
-	// Test saving updates to agendas db.
-	for i, val := range td {
-		t.Run("Test_UpdateAgendas_#"+strconv.Itoa(i), func(t *testing.T) {
-			err := val.db.UpdateAgendas()
-			if err != nil && val.errMsg != err.Error() {
-				t.Fatalf("expect to find error '%s' but found '%v' ", val.errMsg, err)
-			}
-
-			if err == nil && val.errMsg != "" {
-				t.Fatalf("expected to find error '%s' but none was returned ", val.errMsg)
-			}
-		})
+	err := dbInstance.UpdateAgendas()
+	if err != nil {
+		t.Fatalf("agenda update error: %v", err)
 	}
 
 	// Test retrieval of all agendas.

@@ -1771,9 +1771,15 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 
 // AgendasPage is the page handler for the "/agendas" path.
 func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
+	if exp.voteTracker == nil {
+		log.Warnf("Agendas requested with nil voteTracker")
+		exp.StatusPage(w, "", "agendas disabled on simnet", "", ExpStatusPageDisabled)
+		return
+	}
+
 	agenda, err := exp.agendasSource.AllAgendas()
 	if err != nil {
-		log.Errorf("Template execute failure: %v", err)
+		log.Errorf("Error fetching agendas: %v", err)
 		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
