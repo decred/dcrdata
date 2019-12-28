@@ -52,8 +52,9 @@ var (
 	defaultHost                = "localhost"
 	defaultHTTPProfPath        = "/p"
 	defaultAPIProto            = "http"
-	defaultAPIPort             = "7777"
-	defaultAPIListen           = defaultHost + ":" + defaultAPIPort
+	defaultMainnetPort         = "7777"
+	defaultTestnetPort         = "17778"
+	defaultSimnetPort          = "17779"
 	defaultIndentJSON          = "   "
 	defaultCacheControlMaxAge  = 86400
 	defaultInsightReqRateLimit = 20.0
@@ -110,7 +111,7 @@ type config struct {
 
 	// API
 	APIProto            string  `long:"apiproto" description:"Protocol for API (http or https)" env:"DCRDATA_ENABLE_HTTPS"`
-	APIListen           string  `long:"apilisten" description:"Listen address for API" env:"DCRDATA_LISTEN_URL"`
+	APIListen           string  `long:"apilisten" description:"Listen address for API. default localhost:7777, :17778 testnet, :17779 simnet" env:"DCRDATA_LISTEN_URL"`
 	IndentJSON          string  `long:"indentjson" description:"String for JSON indentation (default is \"   \"), when indentation is requested via URL query."`
 	UseRealIP           bool    `long:"userealip" description:"Use the RealIP middleware from the pressly/chi/middleware package to get the client's real IP from the X-Forwarded-For or X-Real-IP headers, in that order." env:"DCRDATA_USE_REAL_IP"`
 	CacheControlMaxAge  int     `long:"cachecontrol-maxage" description:"Set CacheControl in the HTTP response header to a value in seconds for clients to cache the response. This applies only to FileServer routes." env:"DCRDATA_MAX_CACHE_AGE"`
@@ -193,7 +194,6 @@ var (
 		DebugLevel:          defaultLogLevel,
 		HTTPProfPath:        defaultHTTPProfPath,
 		APIProto:            defaultAPIProto,
-		APIListen:           defaultAPIListen,
 		IndentJSON:          defaultIndentJSON,
 		CacheControlMaxAge:  defaultCacheControlMaxAge,
 		InsightReqRateLimit: defaultInsightReqRateLimit,
@@ -522,15 +522,17 @@ func loadConfig() (*config, error) {
 	numNets := 0
 	activeNet = &netparams.MainNetParams
 	activeChain = chaincfg.MainNetParams()
+	defaultPort := defaultMainnetPort
 	if cfg.TestNet {
 		activeNet = &netparams.TestNet3Params
 		activeChain = chaincfg.TestNet3Params()
+		defaultPort = defaultTestnetPort
 		numNets++
 	}
 	if cfg.SimNet {
 		activeNet = &netparams.SimNetParams
 		activeChain = chaincfg.SimNetParams()
-
+		defaultPort = defaultSimnetPort
 		// If on simnet, disable piparser tool automatically.
 		cfg.DisablePiParser = true
 		numNets++
@@ -654,9 +656,13 @@ func loadConfig() (*config, error) {
 	cfg.PoliteiaAPIURL = urlPath
 
 	// Check the supplied APIListen address
-	cfg.APIListen, err = normalizeNetworkAddress(cfg.APIListen, defaultHost, defaultAPIPort)
-	if err != nil {
-		return loadConfigError(err)
+	if cfg.APIListen == "" {
+		cfg.APIListen = defaultHost + ":" + defaultPort
+	} else {
+		cfg.APIListen, err = normalizeNetworkAddress(cfg.APIListen, defaultHost, defaultPort)
+		if err != nil {
+			return loadConfigError(err)
+		}
 	}
 
 	switch cfg.ServerHeader {
