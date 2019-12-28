@@ -127,8 +127,9 @@ func TestDefaultConfigAPIListen(t *testing.T) {
 		t.Fatalf("Failed to load dcrdata config: %v", err)
 	}
 
-	if cfg.APIListen != defaultAPIListen {
-		t.Errorf("Expected API listen URL %s, got %s", defaultAPIListen, cfg.APIListen)
+	defaultAddr := defaultHost + ":" + defaultMainnetPort
+	if cfg.APIListen != defaultAddr {
+		t.Errorf("Expected API listen URL %s, got %s", defaultAddr, cfg.APIListen)
 	}
 }
 
