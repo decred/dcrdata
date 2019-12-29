@@ -31,7 +31,7 @@ const (
 	// This includes changes such as creating tables, adding/deleting columns,
 	// adding/deleting indexes or any other operations that create, delete, or
 	// modify the definition of any database relation.
-	schemaVersion = 6
+	schemaVersion = 7
 
 	// maintVersion indicates when certain maintenance operations should be
 	// performed for the same compatVersion and schemaVersion. Such operations
@@ -345,7 +345,22 @@ func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool
 		fallthrough
 
 	case 6:
-		// Perform schema v6 maintenance.
+		err = u.upgrade160to170()
+		if err != nil {
+			return false, fmt.Errorf("failed to upgrade 1.6.0 to 1.7.0: %v", err)
+		}
+		current.schema++
+		if err = updateSchemaVersion(u.db, current.schema); err != nil {
+			return false, fmt.Errorf("failed to update schema version: %v", err)
+		}
+		current.maint = 0
+		if err = updateMaintVersion(u.db, current.maint); err != nil {
+			return false, fmt.Errorf("failed to update maintenance version: %v", err)
+		}
+		fallthrough
+
+	case 7:
+		// Perform schema v7 maintenance.
 
 		// No further upgrades.
 		return upgradeCheck()
@@ -365,6 +380,11 @@ func removeTableComments(db *sql.DB) {
 			log.Errorf(`Failed to remove comment on table %s.`, tableName)
 		}
 	}
+}
+
+func (u *Upgrader) upgrade160to170() error {
+	// Create the missing vouts.spend_tx_row_id index.
+	return IndexVoutTableOnSpendTxID(u.db)
 }
 
 func (u *Upgrader) upgrade151to160() error {
