@@ -2886,7 +2886,6 @@ func InsertSpendingAddressRow(db *sql.DB, fundingTxHash string,
 func updateSpendTxInfoInAllVouts(db SqlExecutor) (int64, error) {
 	// Set vouts.spend_tx_row_id using vouts.tx_hash, vins.prev_tx_hash, and
 	// transactions.tx_hash.
-	log.Infof("Setting vouts.spend_tx_row_id (INT8) column. This will take a while...")
 	res, err := db.Exec(`UPDATE vouts SET spend_tx_row_id = transactions.id
 			FROM vins, transactions
 			WHERE vouts.tx_hash=vins.prev_tx_hash
