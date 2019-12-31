@@ -597,6 +597,10 @@ export default class extends Controller {
         this.customLimits = d.limits
         const label = 'Coinjoins'
         assign(gOptions, mapDygraphOptions(d.data, [xlabel, label], false, `${label} (DCR)`, true, false))
+
+        yFormatter = (div, data, i) => {
+          addLegendEntryFmt(div, data.series[0], y => intComma(y) + ' DCR')
+        }
         break
 
       case 'duration-btw-blocks': // Duration between blocks graph

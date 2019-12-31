@@ -287,7 +287,7 @@ var (
 		FROM vouts
 		JOIN transactions AS fund_tx ON vouts.tx_hash=fund_tx.tx_hash
 		LEFT OUTER JOIN transactions AS spend_tx ON spend_tx_row_id=spend_tx.id
-		WHERE fund_tx.block_height > $1 and mixed=true and value>0;`
+		WHERE mixed=true and value>0;`
 )
 
 // MakeTxInsertStatement returns the appropriate transaction insert statement

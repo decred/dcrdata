@@ -3624,8 +3624,8 @@ func appendBlockFees(charts *cache.ChartData, rows *sql.Rows) error {
 // in the provided ChartData. This data is used to plot anonymity-set on the /charts page.
 // This is the Fetcher half of a pair that make up a cache.ChartUpdater.
 func retrieveAnonymitySet(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
-	h := charts.TotalMixedTip()
-	rows, err := db.QueryContext(ctx, internal.SelectTotalMixedPerBlockAboveHeight, h)
+	// h := charts.TotalMixedTip()
+	rows, err := db.QueryContext(ctx, internal.SelectTotalMixedPerBlockAboveHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -3690,7 +3690,7 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 	}
 
 	for i := range heights {
-		// the query retreives ticket transactions that has mixed amount alone, fill 0s for missing height
+		// fill 0s for missing height
 		curLen := heightMap[uint64(heights[i])]
 		for len(blocks.TotalMixed) < curLen {
 			blocks.TotalMixed = append(blocks.TotalMixed, 0)
@@ -3762,7 +3762,7 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 
 			var anonymitySet uint64
 			for iu := range vals {
-				_, maxHeight := blocks.Height[interval[0]], blocks.Height[interval[1]]
+				maxHeight := blocks.Height[interval[1]]
 
 				if uint64(fundHeights[iu]) < maxHeight && (uint64(spendHeights[iu]) > maxHeight || spendHeights[iu] == -1) {
 
