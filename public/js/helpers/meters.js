@@ -32,7 +32,7 @@ class Meter {
     this.radius = opts.radius || 0.4
     this.parent = parent
     this.canvas = document.createElement('canvas')
-    opts.padding = opts.padding || 15
+    opts.padding = opts.padding || 5
     // Add a little padding around the drawing area by offsetting all drawing.
     // This allows element like text to overflow the drawing area slightly
     // without being cut off.
@@ -59,7 +59,7 @@ class Meter {
     this.offsetMiddle = addOffset(this.middle, this.offset)
     this.startAngle = Math.PI / 2
     var meterSpace = 0.5 // radians
-    if (parent.classList.contains('large-gap')) meterSpace = Math.PI / 2
+    if (parent.classList.contains('large-gap')) meterSpace = Math.PI / 1.5
     if (parent.classList.contains('arch')) meterSpace = Math.PI
     this.meterSpecs = {
       meterSpace: meterSpace,
@@ -208,6 +208,7 @@ class Meter {
 export class VoteMeter extends Meter {
   constructor (parent, opts) {
     super(parent, opts)
+    this.writeCentralPercent = wcp.bind(this)
     this.buttCap()
     opts = this.options
     var d = parent.dataset
@@ -218,14 +219,14 @@ export class VoteMeter extends Meter {
     this.rejectThreshold = 1 - d.threshold
 
     // Options
-    opts.centralFontSize = opts.centralFontSize || 18
+    opts.centralFontSize = opts.centralFontSize || 20
     opts.meterColor = opts.meterColor || '#2dd8a3'
     opts.meterWidth = opts.meterWidth || 12
     opts.approveColor = opts.approveColor || '#2dd8a3'
     opts.revoteColor = opts.revoteColor || '#ffe4a7'
     opts.rejectColor = opts.rejectColor || '#ed6d47'
     opts.dotColor = opts.dotColor || '#888'
-    if (opts.showIndicator === undefined) opts.showIndictor = true
+    if (opts.showIndicator === undefined) opts.showIndicator = true
     this.darkTheme = opts.darkTheme || {
       text: 'white',
       tray: '#999'
@@ -245,10 +246,6 @@ export class VoteMeter extends Meter {
 
   draw () {
     super.clear()
-    this.drawVote()
-  }
-
-  drawVote () {
     var ctx = this.ctx
     var opts = this.options
     var indicatorColor
@@ -294,14 +291,10 @@ export class VoteMeter extends Meter {
     ctx.strokeStyle = strokeColor
     super.line(start, end)
     super.dot(start, strokeColor, 3)
-    super.dot(end, strokeColor, 5)
+    super.dot(end, strokeColor, 3.5)
     super.dot(end, indicatorColor, 3)
 
-    // The central value
-    var offset = opts.showIndicator ? super.denorm(0.05) : 0
-    this.ctx.fillStyle = this.activeTheme.text
-    this.ctx.font = `bold ${opts.centralFontSize}px sans-serif`
-    this.write(`${parseInt(this.data.approval * 100)}%`, makePt(this.middle.x, this.middle.y + offset), super.denorm(0.5))
+    this.writeCentralPercent(this.data.approval)
   }
 }
 
@@ -311,6 +304,7 @@ export class VoteMeter extends Meter {
 export class ProgressMeter extends Meter {
   constructor (parent, opts) {
     super(parent, opts)
+    this.writeCentralPercent = wcp.bind(this)
     this.buttCap()
     opts = this.options
     this.threshold = parseFloat(parent.dataset.threshold)
@@ -320,10 +314,10 @@ export class ProgressMeter extends Meter {
 
     opts.meterColor = opts.meterColor || '#2970ff'
     opts.meterWidth = opts.meterWidth || 14
-    opts.centralFontSize = opts.centralFontSize || 18
+    opts.centralFontSize = opts.centralFontSize || 20
     opts.successColor = opts.successColor = '#2dd8a3'
     opts.dotSize = opts.dotSize || 3
-    if (opts.showIndicator === undefined) opts.showIndictor = true
+    if (opts.showIndicator === undefined) opts.showIndicator = false
     this.darkTheme = opts.darkTheme || {
       tray: '#777',
       text: 'white'
@@ -362,11 +356,34 @@ export class ProgressMeter extends Meter {
       super.write(this.checkmark, makePt(this.middle.x, super.denorm(0.35)))
     }
 
-    var offset = opts.showIndicator ? super.denorm(0.05) : 0
-    this.ctx.fillStyle = this.activeTheme.text
-    this.ctx.font = `500 ${opts.centralFontSize}px 'source-sans-pro-semibold', sans-serif`
-    this.write(`${parseInt(this.data.progress * 100)}%`, makePt(this.middle.x, this.middle.y + offset), super.denorm(0.5))
+    this.writeCentralPercent(this.data.progress)
   }
+}
+
+// wcp is the writeCentralPercent method used by VoteMeter and ProgressMeter.
+function wcp (v) {
+  var [ctx, opts] = [this.ctx, this.options]
+  ctx.save()
+  var [whole, fraction] = (v * 100).toFixed(2).split('.')
+  // Shift the text up a little if the indicator is showing. Also shift it
+  // to the left slightly for aesthetics.
+  var offset = opts.showIndicator ? this.denorm(0.02) : -this.denorm(0.02)
+  ctx.fillStyle = this.activeTheme.text
+  // special handling for 100%
+  if (whole === '100') {
+    let center = makePt(this.middle.x, this.middle.y + offset)
+    ctx.font = `${opts.centralFontSize}px 'source-sans-pro-semibold', sans-serif`
+    this.write('100%', center, this.denorm(0.5))
+  } else {
+    let center = makePt(this.middle.x - this.denorm(0.05), this.middle.y + offset)
+    ctx.textAlign = 'right'
+    ctx.font = `${opts.centralFontSize}px 'source-sans-pro-semibold', sans-serif`
+    this.write(whole, center, this.denorm(0.5))
+    ctx.font = `${opts.centralFontSize * 0.7}px 'source-sans-pro-semibold', sans-serif`
+    ctx.textAlign = 'left'
+    this.write(`.${fraction}%`, center, this.denorm(0.5))
+  }
+  ctx.restore()
 }
 
 // Mini meter is a semi-circular meter with a needle. The segment definitions
