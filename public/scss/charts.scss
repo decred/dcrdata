@@ -554,8 +554,8 @@ body.darkBG .customcheck input:checked ~ .tickets-bought {
 
 .meter {
   display: inline-block;
-  width: 135px;
-  height: 135px;
+  width: 110px;
+  height: 110px;
   font-size: 14px;
   overflow: hidden;
 }
@@ -570,12 +570,12 @@ body.darkBG .customcheck input:checked ~ .tickets-bought {
 }
 
 .meter.large-gap {
-  height: 110px;
+  height: 80px;
 }
 
 .meter > canvas {
-  width: 135px;
-  height: 135px;
+  width: 110px;
+  height: 110px;
 }
 
 .meter.lil > canvas {

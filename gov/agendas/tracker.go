@@ -272,7 +272,6 @@ func (tracker *VoteTracker) fetchBlocks(voteInfo *chainjson.GetVoteInfoResult) (
 	var block chainjson.StakeVersions
 	for i := 0; i < blockCount; i++ {
 		block = r.StakeVersions[blockCount-i-1] // iterate backwards
-		tracker.ringIndex = (tracker.ringIndex + 1) % blockCount
 		blocks[i] = block.BlockVersion
 	}
 	return blocks, block.StakeVersion, nil
