@@ -4,6 +4,7 @@ go 1.12
 
 replace (
 	github.com/decred/dcrdata/db/dcrpg/v5 => ./db/dcrpg
+	github.com/decred/dcrdata/gov/v3 => ./gov
 	github.com/decred/dcrdata/pubsub/v4 => ./pubsub
 )
 
