@@ -1049,6 +1049,12 @@ func (pgb *ChainDB) RegisterCharts(charts *cache.ChartData) {
 	})
 
 	charts.AddUpdater(cache.ChartUpdater{
+		Tag:      "privacyParticipation",
+		Fetcher:  pgb.privacyParticipation,
+		Appender: appendPrivacyParticipation,
+	})
+
+	charts.AddUpdater(cache.ChartUpdater{
 		Tag:      "anonymitySet",
 		Fetcher:  pgb.anonymitySet,
 		Appender: appendAnonymitySet,
@@ -3166,7 +3172,20 @@ func (pgb *ChainDB) blockFees(charts *cache.ChartData) (*sql.Rows, func(), error
 	return rows, cancel, nil
 }
 
-// blockFees sets or updates a series of per-block fees.
+// appendAnonymitySet sets or updates a series of per-block privacy participation.
+// This is the Fetcher half of a pair that make up a cache.ChartUpdater. The
+// Appender half is appendPrivacyParticipation.
+func (pgb *ChainDB) privacyParticipation(charts *cache.ChartData) (*sql.Rows, func(), error) {
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+
+	rows, err := retrievePrivacyParticipation(ctx, pgb.db, charts)
+	if err != nil {
+		return nil, cancel, fmt.Errorf("chartPrivacyParticipation: %v", pgb.replaceCancelError(err))
+	}
+	return rows, cancel, nil
+}
+
+// anonymitySet sets or updates a series of per-block anonymity set.
 // This is the Fetcher half of a pair that make up a cache.ChartUpdater. The
 // Appender half is appendAnonymitySet.
 func (pgb *ChainDB) anonymitySet(charts *cache.ChartData) (*sql.Rows, func(), error) {
@@ -3847,6 +3866,9 @@ func (pgb *ChainDB) storeTxns(txns []*dbtypes.Tx, vouts [][]*dbtypes.Vout, vins 
 
 		// Return the transactions vout slice.
 		Tx.Vouts = vouts[it]
+
+		// cache new tx vouts
+		cacheMixedVouts(Tx.VoutDbIds, vouts[it], Tx.BlockHeight)
 	}
 
 	// Get the tx PK IDs for storage in the blocks, tickets, and votes table.
@@ -4207,6 +4229,8 @@ txns:
 					err, dbTx.Rollback())
 				return txRes
 			}
+
+			setSpendingForVoutsCaches(voutDbIDs, tx.BlockHeight)
 		}
 	}
 

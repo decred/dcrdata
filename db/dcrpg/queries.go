@@ -14,6 +14,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/decred/dcrd/blockchain/stake/v2"
@@ -3620,94 +3621,116 @@ func appendBlockFees(charts *cache.ChartData, rows *sql.Rows) error {
 	return rows.Err()
 }
 
-// retrieveAnonymitySet retrieves any block total mixed data that is newer than the data
-// in the provided ChartData. This data is used to plot anonymity-set on the /charts page.
+// retrievePrivacyParticipation retrieves the sum of all mixed vouts that is newer than the data
+// in the provided ChartData. This data is used to plot fees on the /charts page.
 // This is the Fetcher half of a pair that make up a cache.ChartUpdater.
-func retrieveAnonymitySet(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
-	// h := charts.TotalMixedTip()
-	rows, err := db.QueryContext(ctx, internal.SelectTotalMixedPerBlockAboveHeight)
+func retrievePrivacyParticipation(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
+	rows, err := db.QueryContext(ctx, internal.SelectMixedTotalPerBlock, charts.TotalMixedTip())
 	if err != nil {
 		return nil, err
 	}
 	return rows, nil
 }
 
-func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
+// Append the result from retrievePrivacyParticipation to the provided ChartData. This
+// is the Appender half of a pair that make up a cache.ChartUpdater.
+func appendPrivacyParticipation(charts *cache.ChartData, rows *sql.Rows) error {
+	defer rows.Close()
+	blocks := charts.Blocks
+	for rows.Next() {
+		var blockHeight uint64
+		var totalMixed int64
+		if err := rows.Scan(&blockHeight, &totalMixed); err != nil {
+			log.Errorf("Unable to scan for MixedVoutsPerBlock fields: %v", err)
+			return err
+		}
+		if totalMixed < 0 {
+			totalMixed *= -1
+		}
+
+		// Converting to atoms.
+		blocks.TotalMixed = append(blocks.TotalMixed, uint64(totalMixed))
+	}
+	return rows.Err()
+}
+
+// retrieveAnonymitySet retrieves any block total mixed data that is newer than the data
+// in the provided ChartData. This data is used to plot anonymity-set on the /charts page.
+// This is the Fetcher half of a pair that make up a cache.ChartUpdater.
+func retrieveAnonymitySet(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
+	if len(mixedVouts) == 0 {
+		mixedVoutMutex.Lock()
+		defer mixedVoutMutex.Unlock()
+		rows, err := db.QueryContext(ctx, internal.SelectMixedVouts)
+		if err != nil {
+			return nil, err
+		}
+		mixedVouts = make(map[int64]mixedVout)
+		for rows.Next() {
+			var id int64
+			var value, fundHeight int64
+			var spendHeightNull sql.NullInt64
+			var tree uint8
+			err = rows.Scan(&id, &value, &fundHeight, &spendHeightNull, &tree)
+			if err != nil {
+				return nil, err
+			}
+			output := mixedVout{
+				value: value,
+				fundHeight: fundHeight,
+			}
+
+			if spendHeightNull.Valid {
+				output.spendHeight = spendHeightNull.Int64
+			} else {
+				output.spendHeight = -1
+			}
+
+			mixedVouts[id] = output
+		}
+
+		err = rows.Err()
+		if err != nil {
+			log.Errorf("Unable to scan for BlockCoinJoins fields: %v", err)
+		}
+	}
+
+	return &sql.Rows{}, nil
+}
+
+// Append the result from retrieveAnonymitySet to the provided ChartData. This
+// is the Appender half of a pair that make up a cache.ChartUpdater.
+func appendAnonymitySet(charts *cache.ChartData, _ *sql.Rows) (err error) {
 	var vals, fundHeights, spendHeights []int64
 
 	var maxHeight int64
 	minHeight := int64(math.MaxInt64)
-	for rows.Next() {
-		var value, fundHeight, spendHeight int64
-		var spendHeightNull sql.NullInt64
-		var tree uint8
-		err = rows.Scan(&value, &fundHeight, &spendHeightNull, &tree)
-		if err != nil {
-			return
+	mixedVoutMutex.Lock()
+	for _, vout := range mixedVouts {
+		vals = append(vals, vout.value)
+		fundHeights = append(fundHeights, vout.fundHeight)
+		spendHeights = append(spendHeights, vout.spendHeight)
+		if vout.fundHeight < minHeight {
+			minHeight = vout.fundHeight
 		}
-		vals = append(vals, value)
-		fundHeights = append(fundHeights, fundHeight)
-		if spendHeightNull.Valid {
-			spendHeight = spendHeightNull.Int64
-		} else {
-			spendHeight = -1
-		}
-		spendHeights = append(spendHeights, spendHeight)
-		if fundHeight < minHeight {
-			minHeight = fundHeight
-		}
-		if spendHeight > maxHeight {
-			maxHeight = spendHeight
-		}
-	}
 
-	err = rows.Err()
-	if err != nil {
-		log.Errorf("Unable to scan for BlockCoinJoins fields: %v", err)
+		if vout.spendHeight > maxHeight {
+			maxHeight = vout.spendHeight
+		}
 	}
+	mixedVoutMutex.Unlock()
 
 	blocks := charts.Blocks
-	N := maxHeight - minHeight + 1
-	if N < 0 {
-		N = 0
-	}
-	heights := make([]int64, N)
-	valueReg := make([]int64, N)
-
-	for h := minHeight; h <= maxHeight; h++ {
-		i := h - minHeight
-		heights[i] = h
-		for iu := range vals {
-			if h == fundHeights[iu] && (h < spendHeights[iu] || spendHeights[iu] == -1) {
-				valueReg[i] += vals[iu]
-			}
-		}
-	}
-
-	heightMap := make(map[uint64]int, len(blocks.Height))
-	for i, h := range blocks.Height {
-		heightMap[h] = i
-	}
-
-	for i := range heights {
-		// fill 0s for missing height
-		curLen := heightMap[uint64(heights[i])]
-		for len(blocks.TotalMixed) < curLen {
-			blocks.TotalMixed = append(blocks.TotalMixed, 0)
-		}
-
-		blocks.TotalMixed = append(blocks.TotalMixed, uint64(valueReg[i]))
-	}
 
 	// block anonymity set
 	for _, h := range blocks.Height[len(blocks.AnonymitySet) :] {
-		var anonymitySet uint64
+		var anonymitySet int64
 		for iu := range vals {
 			if h >= uint64(fundHeights[iu]) && (h < uint64(spendHeights[iu]) || spendHeights[iu] == -1) {
-				anonymitySet += uint64(vals[iu])
+				anonymitySet += vals[iu]
 			}
 		}
-		blocks.AnonymitySet = append(blocks.AnonymitySet, anonymitySet)
+		blocks.AnonymitySet = append(blocks.AnonymitySet, uint64(anonymitySet))
 	}
 
 	// append days
@@ -3760,17 +3783,17 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 				continue
 			}
 
-			var anonymitySet uint64
+			var anonymitySet int64
 			for iu := range vals {
 				maxHeight := blocks.Height[interval[1]]
 
 				if uint64(fundHeights[iu]) < maxHeight && (uint64(spendHeights[iu]) > maxHeight || spendHeights[iu] == -1) {
 
-					anonymitySet += uint64(vals[iu])
+					anonymitySet += vals[iu]
 				}
 			}
 
-			days.AnonymitySet = append(days.AnonymitySet, anonymitySet)
+			days.AnonymitySet = append(days.AnonymitySet, uint64(anonymitySet))
 		}
 	}
 
@@ -3784,6 +3807,49 @@ func midnight(t uint64) (mid uint64) {
 		mid = t - t%aDay
 	}
 	return
+}
+
+// cache mixed vouts
+var mixedVouts map[int64]mixedVout
+
+type mixedVout struct {
+	fundHeight  int64
+	spendHeight int64
+	value       int64
+}
+
+var mixedVoutMutex sync.Mutex
+
+func setSpendingForVoutsCaches(voutDbIDs []int64, blockHeight int64) {
+	if mixedVouts == nil {
+		return
+	}
+
+	mixedVoutMutex.Lock()
+	for _, id := range voutDbIDs {
+		if vout, found := mixedVouts[id]; found {
+			vout.spendHeight = blockHeight
+		}
+	}
+
+	mixedVoutMutex.Unlock()
+}
+
+func cacheMixedVouts(ids []uint64, vouts []*dbtypes.Vout, height int64) {
+	if mixedVouts == nil {
+		return
+	}
+	mixedVoutMutex.Lock()
+	for i, id := range ids {
+		if _, found := mixedVouts[int64(id)]; !found {
+			mixedVouts[int64(id)] = mixedVout{
+				fundHeight:  height,
+				spendHeight: -1,
+				value:       int64(vouts[i].Value),
+			}
+		}
+	}
+	mixedVoutMutex.Unlock()
 }
 
 // retrievePoolStats returns all the pool value and the pool size
