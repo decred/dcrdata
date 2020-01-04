@@ -35,12 +35,12 @@
                         class="dropdown text-secondary my-2 {{if lt $pendingWindows 10}}disabled{{end}}"
                         {{if lt $pendingWindows 10}}disabled="disabled"{{end}}
                     >
+                      {{if eq $windowsCount 20 30 50 100 200}}{{else}}<option selected value="{{$windowsCount}}">{{$windowsCount}} per page</option>{{end}}
                       {{if ge $pendingWindows 20}}<option {{if eq $windowsCount 20}}selected{{end}} value="20">20 per page</option>{{end}}
                       {{if ge $pendingWindows 30}}<option {{if eq $windowsCount 30}}selected{{end}} value="30">30 per page</option>{{end}}
                       {{if ge $pendingWindows 50}}<option {{if eq $windowsCount 50}}selected{{end}} value="50">50 per page</option>{{end}}
                       {{if ge $pendingWindows 100}}<option {{if eq $windowsCount 100}}selected{{end}} value="100">100 per page</option>{{end}}
-                      {{if eq $dropVal $windowsCount 20 30 50 100}}{{else}}<option value="{{$dropVal}}">{{$dropVal}} per page</option>{{end}}
-                      {{if eq $windowsCount 20 30 50 100 200}}{{else}}<option selected value="{{$windowsCount}}">{{$windowsCount}} per page</option>{{end}}
+                      {# {{if eq $dropVal $windowsCount 20 30 50 100}}{{else}}<option value="{{$dropVal}}">{{$dropVal}} per page</option>{{end}} #}
                     </select>
                 </span>
                 <nav aria-label="blocks navigation" data-limit="{{.Limit}}" class="ml-2 my-2 d-inline-block text-right">

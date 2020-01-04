@@ -33,12 +33,11 @@
                           class="dropdown text-secondary my-2 {{if lt $blocksCount 10}}disabled{{end}}"
                           {{if lt $blocksCount 10}}disabled="disabled"{{end}}
                       >
+                        {{if eq $blocksCount 20 30 50 100 .WindowSize}}{{else}}<option selected value="{{$blocksCount}}">{{$blocksCount}} per page</option>{{end}}
                         {{if ge $pendingBlocks 20}}<option {{if eq $blocksCount 20}}selected{{end}} value="20">20 per page</option>{{end}}
                         {{if ge $pendingBlocks 30}}<option {{if eq $blocksCount 30}}selected{{end}} value="30">30 per page</option>{{end}}
                         {{if ge $pendingBlocks 50}}<option {{if eq $blocksCount 50}}selected{{end}} value="50">50 per page</option>{{end}}
                         {{if ge $pendingBlocks 100}}<option {{if eq $blocksCount 100}}selected{{end}} value="100">100 per page</option>{{end}}
-                        {{if ge $pendingBlocks .WindowSize}}<option {{if eq $blocksCount .WindowSize}}selected{{end}} value="{{.WindowSize}}">{{.WindowSize}} per page</option>{{end}}
-                        {{if eq $blocksCount 20 30 50 100 .WindowSize}}{{else}}<option selected value="{{$blocksCount}}">{{$blocksCount}} per page</option>{{end}}
                       </select>
                   </span>
                   <nav aria-label="blocks navigation" data-limit="{{.Rows}}" class="ml-2 my-2 d-inline-block text-right">
