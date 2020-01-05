@@ -470,24 +470,23 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 	}
 
 	oldestBlockTime := exp.ChainParams.GenesisBlock.Header.Timestamp.Unix()
-	maxOffset := int64(math.Ceil((float64(time.Now().Unix()) - float64(oldestBlockTime)) / float64(i)))
+	maxOffset := (time.Now().Unix() - oldestBlockTime) / int64(i)
 	m := uint64(maxOffset)
 	if offset > m {
 		offset = m
 	}
 
-	if grouping != dbtypes.WeekGrouping {
+	if grouping == dbtypes.YearGrouping || grouping == dbtypes.MonthGrouping {
 
-		oldestBlockMonth := exp.ChainParams.GenesisBlock.Header.Timestamp.Month()
-		oldestBlockDay := exp.ChainParams.GenesisBlock.Header.Timestamp.Day()
+		oldestBlockTimestamp := exp.ChainParams.GenesisBlock.Header.Timestamp
+		oldestBlockMonth := oldestBlockTimestamp.Month()
+		oldestBlockDay := oldestBlockTimestamp.Day()
 
 		switch now := time.Now(); {
 		case now.Month() < oldestBlockMonth:
 			maxOffset = maxOffset + 1
-			break
 		case (now.Month() == oldestBlockMonth) && (now.Day() < oldestBlockDay):
 			maxOffset = maxOffset + 1
-			break
 		default:
 		}
 	}
@@ -574,12 +573,16 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 		rows = maxExplorerRows
 	}
 
+	var end int
+
 	oldestBlock := height - rows + 1
 	if oldestBlock < 0 {
-		height = rows - 1
+		end = -1
+	} else {
+		end = height - rows
 	}
 
-	summaries := exp.dataSource.GetExplorerBlocks(height, height-rows)
+	summaries := exp.dataSource.GetExplorerBlocks(height, end)
 	if summaries == nil {
 		log.Errorf("Unable to get blocks: height=%d&rows=%d", height, rows)
 		exp.StatusPage(w, defaultErrorCode, "could not find those blocks", "",
