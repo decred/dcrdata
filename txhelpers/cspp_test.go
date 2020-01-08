@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrwallet/wallet/v3/txrules"
 )
 
 func TestIsMixedSplitTx(t *testing.T) {
@@ -59,7 +60,7 @@ func TestIsMixedSplitTx(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			isMix, mixDenom, numTickets := IsMixedSplitTx(tt.tx, DefaultRelayFeePerKb, tt.ticketPrice)
+			isMix, mixDenom, numTickets := IsMixedSplitTx(tt.tx, int64(txrules.DefaultRelayFeePerKb), tt.ticketPrice)
 			if isMix != tt.isMix {
 				t.Errorf("IsMixedSplitTx() isMix = %v, wanted %v", isMix, tt.isMix)
 			}

@@ -10,6 +10,7 @@ import (
 	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/txhelpers/v4"
+	"github.com/decred/dcrwallet/wallet/v3/txrules"
 )
 
 // DevSubsidyAddress returns the development subsidy address for the specified
@@ -81,7 +82,7 @@ func processTransactions(msgBlock *wire.MsgBlock, tree int8, chainParams *chainc
 		if !isStake {
 			_, mixDenom, mixCount = txhelpers.IsMixTx(tx)
 			if mixCount == 0 {
-				_, mixDenom, mixCount = txhelpers.IsMixedSplitTx(tx, txhelpers.DefaultRelayFeePerKb, ticketPrice)
+				_, mixDenom, mixCount = txhelpers.IsMixedSplitTx(tx, int64(txrules.DefaultRelayFeePerKb), ticketPrice)
 			}
 		}
 		var spent, sent int64

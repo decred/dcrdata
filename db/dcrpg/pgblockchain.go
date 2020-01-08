@@ -38,6 +38,7 @@ import (
 	"github.com/decred/dcrdata/rpcutils/v3"
 	"github.com/decred/dcrdata/stakedb/v3"
 	"github.com/decred/dcrdata/txhelpers/v4"
+	"github.com/decred/dcrwallet/wallet/v3/txrules"
 	pitypes "github.com/dmigwi/go-piparser/proposals/types"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/lib/pq"
@@ -5323,7 +5324,7 @@ func makeExplorerTxBasic(data chainjson.TxRawResult, ticketPrice int64, msgTx *w
 	} else if !txhelpers.IsStakeTx(msgTx) {
 		_, mixDenom, mixCount := txhelpers.IsMixTx(msgTx)
 		if mixCount == 0 {
-			_, mixDenom, mixCount = txhelpers.IsMixedSplitTx(msgTx, txhelpers.DefaultRelayFeePerKb, ticketPrice)
+			_, mixDenom, mixCount = txhelpers.IsMixedSplitTx(msgTx, int64(txrules.DefaultRelayFeePerKb), ticketPrice)
 		}
 		tx.MixCount = mixCount
 		tx.MixDenom = mixDenom

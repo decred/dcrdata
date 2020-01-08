@@ -3,6 +3,8 @@ package txhelpers
 import (
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrwallet/wallet/v3/txrules"
+	"github.com/decred/dcrwallet/wallet/v3/txsizes"
 )
 
 // must be sorted large to small
@@ -60,36 +62,17 @@ func IsMixTx(tx *wire.MsgTx) (isMix bool, mixDenom int64, mixCount uint32) {
 	return
 }
 
-// FeeForSerializeSize calculates the required fee for a transaction of some
-// arbitrary size given a mempool's relay fee policy.
-func FeeForSerializeSize(relayFeePerKb dcrutil.Amount, txSerializeSize int) dcrutil.Amount {
-	fee := relayFeePerKb * dcrutil.Amount(txSerializeSize) / 1000
-
-	if fee == 0 && relayFeePerKb > 0 {
-		fee = relayFeePerKb
-	}
-
-	if fee < 0 || fee > dcrutil.MaxAmount {
-		fee = dcrutil.MaxAmount
-	}
-
-	return fee
-}
-
-// DefaultRelayFeePerKb is the default minimum relay fee policy for a mempool.
-const DefaultRelayFeePerKb int64 = 1e4
-
 // The size of a solo (non-pool) ticket purchase transaction assumes a specific
 // transaction structure and worst-case signature script sizes.
 func calcSoloTicketTxSize() int {
-	inSizes := []int{RedeemP2PKHSigScriptSize}
-	outSizes := []int{P2PKHPkScriptSize + 1, TicketCommitmentScriptSize, P2PKHPkScriptSize + 1}
-	return EstimateSerializeSizeFromScriptSizes(inSizes, outSizes, 0)
+	inSizes := []int{txsizes.RedeemP2PKHSigScriptSize}
+	outSizes := []int{txsizes.P2PKHPkScriptSize + 1, txsizes.TicketCommitmentScriptSize, txsizes.P2PKHPkScriptSize + 1}
+	return txsizes.EstimateSerializeSizeFromScriptSizes(inSizes, outSizes, 0)
 }
 
 var (
 	soloTicketTxSize    = calcSoloTicketTxSize()
-	defaultFeeForTicket = FeeForSerializeSize(dcrutil.Amount(DefaultRelayFeePerKb), soloTicketTxSize)
+	defaultFeeForTicket = txrules.FeeForSerializeSize(txrules.DefaultRelayFeePerKb, soloTicketTxSize)
 )
 
 // IsMixedSplitTx tests if a transaction is a CSPP-mixed ticket split
@@ -106,8 +89,8 @@ func IsMixedSplitTx(tx *wire.MsgTx, relayFeeRate, ticketPrice int64) (isMix bool
 	}
 
 	ticketTxFee := defaultFeeForTicket
-	if relayFeeRate != DefaultRelayFeePerKb {
-		ticketTxFee = FeeForSerializeSize(dcrutil.Amount(relayFeeRate), soloTicketTxSize)
+	if relayFeeRate != int64(txrules.DefaultRelayFeePerKb) {
+		ticketTxFee = txrules.FeeForSerializeSize(dcrutil.Amount(relayFeeRate), soloTicketTxSize)
 	}
 	ticketOutAmt = ticketPrice + int64(ticketTxFee)
 
