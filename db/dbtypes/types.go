@@ -50,8 +50,9 @@ type TimeDef struct {
 }
 
 const (
-	timeDefFmtHuman = "2006-01-02 15:04:05 (MST)"
-	timeDefFmtJS    = time.RFC3339
+	timeDefFmtHuman        = "2006-01-02 15:04:05 (MST)"
+	timeDefFmtDateTimeNoTZ = "2006-01-02 15:04:05"
+	timeDefFmtJS           = time.RFC3339
 )
 
 // String formats the time in a human-friendly layout. This may be used when
@@ -72,6 +73,12 @@ func (t TimeDef) UNIX() int64 {
 
 func (t TimeDef) Format(layout string) string {
 	return t.T.Format(layout)
+}
+
+// DatetimeWithoutTZ formats the time in a human-friendly layout, without
+// time zone.
+func (t *TimeDef) DatetimeWithoutTZ() string {
+	return t.T.Format(timeDefFmtDateTimeNoTZ)
 }
 
 // MarshalJSON is set as the default marshalling function for TimeDef struct.

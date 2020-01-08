@@ -160,8 +160,10 @@ var humanize = {
   },
   date: function (stamp, withTimezone) {
     var d = new Date(stamp)
-    return `${String(d.getUTCFullYear())}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')} ` +
-          `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}:${String(d.getUTCSeconds()).padStart(2, '0')} (UTC)`
+    var dateStr = `${String(d.getUTCFullYear())}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')} ` +
+          `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}:${String(d.getUTCSeconds()).padStart(2, '0')}`
+    if (withTimezone) dateStr += ' (UTC)'
+    return dateStr
   },
   hashElide: function (hash, link, asNode) {
     var div = document.createElement(link ? 'a' : 'div')
