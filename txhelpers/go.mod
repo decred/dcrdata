@@ -15,6 +15,5 @@ require (
 	github.com/decred/dcrd/txscript/v2 v2.1.0
 	github.com/decred/dcrd/wire v1.3.0
 	github.com/decred/dcrdata/semver v1.0.0
-	golang.org/x/net v0.0.0-20190613194153-d28f0bde5980 // indirect
-	golang.org/x/text v0.3.2 // indirect
+	github.com/decred/dcrwallet/wallet/v3 v3.1.1-0.20191230143837-6a86dc4676f0
 )

@@ -32,6 +32,7 @@ require (
 	github.com/decred/dcrdata/stakedb/v3 v3.1.1
 	github.com/decred/dcrdata/testutil/dbconfig/v2 v2.0.0
 	github.com/decred/dcrdata/txhelpers/v4 v4.0.1
+	github.com/decred/dcrwallet/wallet/v3 v3.1.1-0.20191230143837-6a86dc4676f0
 	github.com/decred/slog v1.0.0
 	github.com/dmigwi/go-piparser/proposals v0.0.0-20191219171828-ae8cbf4067e1
 	github.com/dustin/go-humanize v1.0.0

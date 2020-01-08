@@ -15,6 +15,7 @@ import (
 	"github.com/decred/dcrdata/db/dcrpg/v5/internal"
 	"github.com/decred/dcrdata/stakedb/v3"
 	"github.com/decred/dcrdata/txhelpers/v4"
+	"github.com/decred/dcrwallet/wallet/v3/txrules"
 	"github.com/lib/pq"
 )
 
@@ -547,7 +548,7 @@ func (u *Upgrader) setTxMixData() error {
 
 		_, mixDenom, mixCount := txhelpers.IsMixTx(msgTx)
 		if mixCount == 0 {
-			_, mixDenom, mixCount = txhelpers.IsMixedSplitTx(msgTx, txhelpers.DefaultRelayFeePerKb, ticketPrice)
+			_, mixDenom, mixCount = txhelpers.IsMixedSplitTx(msgTx, int64(txrules.DefaultRelayFeePerKb), ticketPrice)
 			if mixCount == 0 {
 				continue
 			}
