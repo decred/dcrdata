@@ -86,7 +86,7 @@
 					<br>
 					<span class="fs18 font-weight-bold lh1rem d-inline-block pt-1">{{.BlockTime.PrettyMDY}}</span>
 					<br>
-					<span class="fs14 text-secondary">{{.BlockTime.HMSTZ}}</span>
+					<span class="fs14 text-secondary">{{.BlockTime.HMSTZ}} <span class="jsonly">(<span data-target="time.age" data-age="{{.BlockTime.UNIX}}"></span> ago)</span></span>
 				</div>
 			</div>
 			<div class="d-flex justify-content-around fs15 text-center text-secondary my-2">
