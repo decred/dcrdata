@@ -244,8 +244,8 @@
                     <th class="d-none d-md-table-cell">Description</th>
                     <th class="text-right">Status</th>
                     <th class="text-right">Vote Version</th>
-                    <th class="text-right d-none d-sm-table-cell">Start Time</th>
-                    <th class="text-right d-none d-sm-table-cell">Expire Time</th>
+                    <th class="text-right d-none d-sm-table-cell">Start Time (UTC)</th>
+                    <th class="text-right d-none d-sm-table-cell">Expire Time (UTC)</th>
                   </tr>
                 </thead>
                 {{range $i, $v := .Agendas}}
@@ -255,8 +255,8 @@
                     <td class="d-none d-md-table-cell truncate">{{.Description}}</td>
                     <td class="text-right">{{.Status}}</td>
                     <td class="text-right">{{.VoteVersion}}</td>
-                    <td class="text-right d-none d-sm-table-cell">{{TimeConversion .StartTime}}</td>
-                    <td class="text-right d-none d-sm-table-cell">{{TimeConversion .ExpireTime}}</td>
+                    <td class="text-right d-none d-sm-table-cell">{{dateTimeWithoutTimeZone .StartTime}}</td>
+                    <td class="text-right d-none d-sm-table-cell">{{dateTimeWithoutTimeZone .ExpireTime}}</td>
                 </tbody>
                 {{end}}
                 {{end}}

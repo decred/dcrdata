@@ -455,12 +455,12 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			dateTime := time.Unix(int64(a), 0).UTC()
 			return dateTime.Format("2006-01-02 15:04:05 MST")
 		},
-		"timeWithoutDateAndTimeZone": func(a uint64) string {
+		"dateTimeWithoutTimeZone": func(a uint64) string {
 			if a == 0 {
 				return "N/A"
 			}
 			dateTime := time.Unix(int64(a), 0).UTC()
-			return dateTime.Format("2006-01-02")
+			return dateTime.Format("2006-01-02 15:04:05")
 		},
 		"toLowerCase": strings.ToLower,
 		"toTitleCase": strings.Title,

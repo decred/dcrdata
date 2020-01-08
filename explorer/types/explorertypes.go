@@ -35,8 +35,9 @@ type TimeDef struct {
 }
 
 const (
-	timeDefFmtHuman = "2006-01-02 15:04:05 (MST)"
-	timeDefFmtJS    = time.RFC3339
+	timeDefFmtHuman        = "2006-01-02 15:04:05 (MST)"
+	timeDefFmtDateTimeNoTZ = "2006-01-02 15:04:05"
+	timeDefFmtJS           = time.RFC3339
 )
 
 // String formats the time in a human-friendly layout. This ends up on the
@@ -88,6 +89,12 @@ func (t *TimeDef) PrettyMDY() string {
 // HMSTZ is the hour:minute:second with 3-digit timezone code.
 func (t *TimeDef) HMSTZ() string {
 	return t.T.Format("15:04:05 MST")
+}
+
+// DatetimeWithoutTZ formats the time in a human-friendly layout, without
+// time zone.
+func (t *TimeDef) DatetimeWithoutTZ() string {
+	return t.T.Format(timeDefFmtDateTimeNoTZ)
 }
 
 // NewTimeDef constructs a TimeDef from the given time.Time. It presets the
