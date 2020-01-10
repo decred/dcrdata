@@ -14,7 +14,6 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/decred/dcrd/blockchain/stake/v2"
@@ -3657,68 +3656,56 @@ func appendPrivacyParticipation(charts *cache.ChartData, rows *sql.Rows) error {
 // retrieveAnonymitySet retrieves any block total mixed data that is newer than the data
 // in the provided ChartData. This data is used to plot anonymity-set on the /charts page.
 // This is the Fetcher half of a pair that make up a cache.ChartUpdater.
-func retrieveAnonymitySet(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
-	if len(mixedVouts) == 0 {
-		mixedVoutMutex.Lock()
-		defer mixedVoutMutex.Unlock()
-		rows, err := db.QueryContext(ctx, internal.SelectMixedVouts)
-		if err != nil {
-			return nil, err
-		}
-		mixedVouts = make(map[int64]mixedVout)
-		for rows.Next() {
-			var id int64
-			var value, fundHeight int64
-			var spendHeightNull sql.NullInt64
-			var tree uint8
-			err = rows.Scan(&id, &value, &fundHeight, &spendHeightNull, &tree)
-			if err != nil {
-				return nil, err
-			}
-			output := mixedVout{
-				value: value,
-				fundHeight: fundHeight,
-			}
-
-			if spendHeightNull.Valid {
-				output.spendHeight = spendHeightNull.Int64
-			} else {
-				output.spendHeight = -1
-			}
-
-			mixedVouts[id] = output
-		}
-
-		err = rows.Err()
-		if err != nil {
-			log.Errorf("Unable to scan for BlockCoinJoins fields: %v", err)
-		}
+func retrieveAnonymitySet(ctx context.Context, db *sql.DB, _ *cache.ChartData) (*sql.Rows, error) {
+	rows, err := db.QueryContext(ctx, internal.SelectMixedVouts)
+	if err != nil {
+		return nil, err
 	}
 
-	return &sql.Rows{}, nil
+	return rows, nil
 }
 
 // Append the result from retrieveAnonymitySet to the provided ChartData. This
 // is the Appender half of a pair that make up a cache.ChartUpdater.
-func appendAnonymitySet(charts *cache.ChartData, _ *sql.Rows) (err error) {
+func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 	var vals, fundHeights, spendHeights []int64
 
 	var maxHeight int64
 	minHeight := int64(math.MaxInt64)
-	mixedVoutMutex.Lock()
-	for _, vout := range mixedVouts {
-		vals = append(vals, vout.value)
-		fundHeights = append(fundHeights, vout.fundHeight)
-		spendHeights = append(spendHeights, vout.spendHeight)
-		if vout.fundHeight < minHeight {
-			minHeight = vout.fundHeight
+
+
+	for rows.Next() {
+		var value, fundHeight, spendHeight int64
+		var spendHeightNull sql.NullInt64
+		var tree uint8
+		err = rows.Scan(&value, &fundHeight, &spendHeightNull, &tree)
+		if err != nil {
+			return err
 		}
 
-		if vout.spendHeight > maxHeight {
-			maxHeight = vout.spendHeight
+		if spendHeightNull.Valid {
+			spendHeight = spendHeightNull.Int64
+		} else {
+			spendHeight = -1
 		}
+
+		if fundHeight < minHeight {
+			minHeight = fundHeight
+		}
+
+		if spendHeight > maxHeight {
+			maxHeight = spendHeight
+		}
+
+		vals = append(vals, value)
+		fundHeights = append(fundHeights, fundHeight)
+		spendHeights = append(spendHeights, spendHeight)
 	}
-	mixedVoutMutex.Unlock()
+
+	err = rows.Err()
+	if err != nil {
+		log.Errorf("Unable to scan for BlockCoinJoins fields: %v", err)
+	}
 
 	blocks := charts.Blocks
 
@@ -3807,49 +3794,6 @@ func midnight(t uint64) (mid uint64) {
 		mid = t - t%aDay
 	}
 	return
-}
-
-// cache mixed vouts
-var mixedVouts map[int64]mixedVout
-
-type mixedVout struct {
-	fundHeight  int64
-	spendHeight int64
-	value       int64
-}
-
-var mixedVoutMutex sync.Mutex
-
-func setSpendingForVoutsCaches(voutDbIDs []int64, blockHeight int64) {
-	if mixedVouts == nil {
-		return
-	}
-
-	mixedVoutMutex.Lock()
-	for _, id := range voutDbIDs {
-		if vout, found := mixedVouts[id]; found {
-			vout.spendHeight = blockHeight
-		}
-	}
-
-	mixedVoutMutex.Unlock()
-}
-
-func cacheMixedVouts(ids []uint64, vouts []*dbtypes.Vout, height int64) {
-	if mixedVouts == nil {
-		return
-	}
-	mixedVoutMutex.Lock()
-	for i, id := range ids {
-		if _, found := mixedVouts[int64(id)]; !found {
-			mixedVouts[int64(id)] = mixedVout{
-				fundHeight:  height,
-				spendHeight: -1,
-				value:       int64(vouts[i].Value),
-			}
-		}
-	}
-	mixedVoutMutex.Unlock()
 }
 
 // retrievePoolStats returns all the pool value and the pool size
