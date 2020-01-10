@@ -476,19 +476,15 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 		offset = m
 	}
 
-	if grouping == dbtypes.YearGrouping || grouping == dbtypes.MonthGrouping {
+	oldestBlockTimestamp := exp.ChainParams.GenesisBlock.Header.Timestamp
+	oldestBlockMonth := oldestBlockTimestamp.Month()
+	oldestBlockDay := oldestBlockTimestamp.Day()
 
-		oldestBlockTimestamp := exp.ChainParams.GenesisBlock.Header.Timestamp
-		oldestBlockMonth := oldestBlockTimestamp.Month()
-		oldestBlockDay := oldestBlockTimestamp.Day()
+	now := time.Now()
 
-		switch now := time.Now(); {
-		case now.Month() < oldestBlockMonth:
-			maxOffset = maxOffset + 1
-		case (now.Month() == oldestBlockMonth) && (now.Day() < oldestBlockDay):
-			maxOffset = maxOffset + 1
-		default:
-		}
+	if (grouping == dbtypes.YearGrouping && now.Month() < oldestBlockMonth) ||
+		grouping == dbtypes.MonthGrouping && now.Day() < oldestBlockDay {
+		maxOffset = maxOffset + 1
 	}
 
 	rows, err := strconv.ParseUint(r.URL.Query().Get("rows"), 10, 64)
