@@ -458,7 +458,7 @@ func _main(ctx context.Context) error {
 	// is found, its deleted pending the data update that restores valid data.
 	var agendaDB *agendas.AgendaDB
 	agendaDB, err = agendas.NewAgendasDB(
-		dcrdClient, filepath.Join(cfg.DataDir, cfg.AgendasDBFileName), cfg.SimNet)
+		dcrdClient, filepath.Join(cfg.DataDir, cfg.AgendasDBFileName))
 	if err != nil {
 		return fmt.Errorf("failed to create new agendas db instance: %v", err)
 	}

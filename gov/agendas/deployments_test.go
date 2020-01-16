@@ -154,7 +154,7 @@ func TestNewAgendasDB(t *testing.T) {
 	}
 
 	for i, val := range td {
-		results, err := NewAgendasDB(val.rpc, val.dbPath, false)
+		results, err := NewAgendasDB(val.rpc, val.dbPath)
 		if err == nil && val.errMsg != "" {
 			t.Fatalf("expected no error but found '%v' ", err)
 		}
