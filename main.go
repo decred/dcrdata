@@ -456,8 +456,9 @@ func _main(ctx context.Context) error {
 	// store and retrieves agendas data. Agendas votes are On-Chain
 	// transactions that appear in the decred blockchain. If corrupted data is
 	// is found, its deleted pending the data update that restores valid data.
-	agendasInstance, err := agendas.NewAgendasDB(dcrdClient,
-		filepath.Join(cfg.DataDir, cfg.AgendasDBFileName))
+	var agendaDB *agendas.AgendaDB
+	agendaDB, err = agendas.NewAgendasDB(
+		dcrdClient, filepath.Join(cfg.DataDir, cfg.AgendasDBFileName))
 	if err != nil {
 		return fmt.Errorf("failed to create new agendas db instance: %v", err)
 	}
@@ -479,11 +480,16 @@ func _main(ctx context.Context) error {
 		log.Info("Piparser is disabled. Proposals API has been disabled too")
 	}
 
-	// A vote tracker tracks current block and stake versions and votes.
-	tracker, err := agendas.NewVoteTracker(activeChain, dcrdClient,
-		chainDB.AgendaVoteCounts)
-	if err != nil {
-		return fmt.Errorf("Unable to initialize vote tracker: %v", err)
+	// A vote tracker tracks current block and stake versions and votes. Only
+	// initialize the vote tracker if not on simnet. nil tracker is a sentinel
+	// value throughout.
+	var tracker *agendas.VoteTracker
+	if !cfg.SimNet {
+		tracker, err = agendas.NewVoteTracker(activeChain, dcrdClient,
+			chainDB.AgendaVoteCounts)
+		if err != nil {
+			return fmt.Errorf("Unable to initialize vote tracker: %v", err)
+		}
 	}
 
 	// Create the explorer system.
@@ -494,7 +500,7 @@ func _main(ctx context.Context) error {
 		DevPrefetch:     !cfg.NoDevPrefetch,
 		Viewsfolder:     "views",
 		XcBot:           xcBot,
-		AgendasSource:   agendasInstance,
+		AgendasSource:   agendaDB,
 		Tracker:         tracker,
 		ProposalsSource: proposalsInstance,
 		PoliteiaURL:     cfg.PoliteiaAPIURL,
@@ -650,7 +656,7 @@ func _main(ctx context.Context) error {
 		DataSource:         chainDB,
 		JsonIndent:         cfg.IndentJSON,
 		XcBot:              xcBot,
-		AgendasDBInstance:  agendasInstance,
+		AgendasDBInstance:  agendaDB,
 		MaxAddrs:           cfg.MaxCSVAddrs,
 		Charts:             charts,
 		IsPiparserDisabled: cfg.DisablePiParser,
@@ -1014,7 +1020,7 @@ func _main(ctx context.Context) error {
 
 	// The proposals and agenda db updates are run after the db indexing.
 	// Retrieve blockchain deployment updates and add them to the agendas db.
-	if err = agendasInstance.UpdateAgendas(); err != nil {
+	if err = agendaDB.UpdateAgendas(); err != nil {
 		return fmt.Errorf("updating agendas db failed: %v", err)
 	}
 

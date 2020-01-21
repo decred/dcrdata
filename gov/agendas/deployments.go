@@ -42,10 +42,6 @@ type AgendaTagged struct {
 }
 
 var (
-	// errDefault defines an error message returned if the agenda db wasn't
-	// properly initialized.
-	errDefault = fmt.Errorf("AgendaDB was not initialized correctly")
-
 	// dbVersion is the current required version of the agendas.db.
 	dbVersion = semver.NewSemver(1, 0, 0)
 )
@@ -143,6 +139,10 @@ func listStakeVersions(client DeploymentSource) ([]uint32, error) {
 		if jerr, ok := err.(*dcrjson.RPCError); ok &&
 			jerr.Code == dcrjson.ErrRPCInvalidParameter {
 			firstVer++
+			if firstVer == 10 {
+				log.Warnf("No stake versions found < 10. aborting scan")
+				return nil, nil
+			}
 			continue
 		}
 
@@ -252,8 +252,9 @@ func (db *AgendaDB) storeAgenda(agenda *AgendaTagged) error {
 
 // UpdateAgendas updates agenda data for all configured vote versions.
 func (db *AgendaDB) UpdateAgendas() error {
-	if db == nil || db.sdb == nil {
-		return errDefault
+	if db.stakeVersions == nil {
+		log.Debugf("skipping agendas update")
+		return nil
 	}
 
 	numRecords, err := db.updateDB()
@@ -267,8 +268,8 @@ func (db *AgendaDB) UpdateAgendas() error {
 
 // AgendaInfo fetches an agenda's details given its agendaID.
 func (db *AgendaDB) AgendaInfo(agendaID string) (*AgendaTagged, error) {
-	if db == nil || db.sdb == nil {
-		return nil, errDefault
+	if db.stakeVersions == nil {
+		return nil, fmt.Errorf("No deployments")
 	}
 
 	agenda, err := db.loadAgenda(agendaID)
@@ -281,8 +282,8 @@ func (db *AgendaDB) AgendaInfo(agendaID string) (*AgendaTagged, error) {
 
 // AllAgendas returns all agendas and their info in the db.
 func (db *AgendaDB) AllAgendas() (agendas []*AgendaTagged, err error) {
-	if db == nil || db.sdb == nil {
-		return nil, errDefault
+	if db.stakeVersions == nil {
+		return []*AgendaTagged{}, nil
 	}
 
 	err = db.sdb.Select(q.True()).OrderBy("VoteVersion", "ID").Reverse().Find(&agendas)
