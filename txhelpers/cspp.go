@@ -96,8 +96,7 @@ func IsMixedSplitTx(tx *wire.MsgTx, relayFeeRate, ticketPrice int64) (isMix bool
 
 	var numOtherOut uint32
 	for _, o := range tx.TxOut {
-		// earlier testnet transactions paid higher fees, checking a range to accommodate those
-		if fee := o.Value - ticketPrice; fee >= int64(ticketTxFee) && fee <= 60000 {
+		if o.Value == ticketOutAmt {
 			numTickets++
 		} else {
 			numOtherOut++
