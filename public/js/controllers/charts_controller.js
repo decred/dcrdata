@@ -599,7 +599,7 @@ export default class extends Controller {
         assign(gOptions, mapDygraphOptions(d.data, [xlabel, label], false, `${label} (DCR)`, true, false))
 
         yFormatter = (div, data, i) => {
-          addLegendEntryFmt(div, data.series[0], y => intComma(y) + ' DCR')
+          addLegendEntryFmt(div, data.series[0], y => y > 0 ? intComma(y) : '0' + ' DCR')
         }
         break
 
