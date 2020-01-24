@@ -1447,12 +1447,18 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 
 // Charts handles the charts displays showing the various charts plotted.
 func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
+	exp.pageData.RLock()
+	tpSize := exp.pageData.HomeInfo.PoolInfo.Target
+	exp.pageData.RUnlock()
+
 	str, err := exp.templates.exec("charts", struct {
 		*CommonPageData
-		Premine int64
+		Premine        int64
+		TargetPoolSize uint32
 	}{
 		CommonPageData: exp.commonData(r),
 		Premine:        exp.premine,
+		TargetPoolSize: tpSize,
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)

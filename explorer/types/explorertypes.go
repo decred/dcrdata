@@ -859,7 +859,7 @@ type TicketPoolInfo struct {
 	Value         float64 `json:"value"`
 	ValAvg        float64 `json:"valavg"`
 	Percentage    float64 `json:"percent"`
-	Target        uint16  `json:"target"`
+	Target        uint32  `json:"target"`
 	PercentTarget float64 `json:"percent_target"`
 }
 

@@ -5,7 +5,7 @@
     {{template "navbar" . }}
 
     <div data-controller="charts"
-         data-charts-tps="{{.ChainParams.TicketExpiry}}"
+         data-charts-tps="{{.TargetPoolSize}}"
          data-charts-svh="{{.ChainParams.StakeValidationHeight}}"
          data-charts-pos="{{.ChainParams.StakeRewardProportion}}"
          data-charts-premine="{{.Premine}}"
