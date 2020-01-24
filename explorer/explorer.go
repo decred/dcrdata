@@ -340,7 +340,7 @@ func New(cfg *ExplorerConfig) *explorerUI {
 				MeanVotingBlocks: exp.MeanVotingBlocks,
 			},
 			PoolInfo: types.TicketPoolInfo{
-				Target: exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock,
+				Target: uint32(exp.ChainParams.TicketPoolSize) * uint32(exp.ChainParams.TicketsPerBlock),
 			},
 		},
 	}
@@ -492,7 +492,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 	// If BlockData contains non-nil PoolInfo, copy values.
 	p.HomeInfo.PoolInfo = types.TicketPoolInfo{}
 	if blockData.PoolInfo != nil {
-		tpTarget := exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock
+		tpTarget := uint32(exp.ChainParams.TicketPoolSize) * uint32(exp.ChainParams.TicketsPerBlock)
 		p.HomeInfo.PoolInfo = types.TicketPoolInfo{
 			Size:          blockData.PoolInfo.Size,
 			Value:         blockData.PoolInfo.Value,

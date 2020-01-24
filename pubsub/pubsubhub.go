@@ -123,7 +123,7 @@ func NewPubSubHub(dataSource wsDataSource) (*PubSubHub, error) {
 				MeanVotingBlocks: txhelpers.CalcMeanVotingBlocks(params),
 			},
 			PoolInfo: exptypes.TicketPoolInfo{
-				Target: params.TicketPoolSize * params.TicketsPerBlock,
+				Target: uint32(params.TicketPoolSize) * uint32(params.TicketsPerBlock),
 			},
 		},
 		// BlockInfo and BlockchainInfo are set by Store()
@@ -664,7 +664,7 @@ func (psh *PubSubHub) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBl
 	// If BlockData contains non-nil PoolInfo, copy values.
 	p.GeneralInfo.PoolInfo = exptypes.TicketPoolInfo{}
 	if blockData.PoolInfo != nil {
-		tpTarget := psh.params.TicketPoolSize * psh.params.TicketsPerBlock
+		tpTarget := uint32(psh.params.TicketPoolSize) * uint32(psh.params.TicketsPerBlock)
 		p.GeneralInfo.PoolInfo = exptypes.TicketPoolInfo{
 			Size:          blockData.PoolInfo.Size,
 			Value:         blockData.PoolInfo.Value,
