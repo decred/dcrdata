@@ -99,7 +99,7 @@ export default class extends Controller {
       'deviceCost', 'deviceDesc', 'deviceName', 'external', 'internal', 'internalHash',
       'kwhRate', 'kwhRateLabel', 'otherCosts', 'priceDCR', 'internalAttackText', 'targetHashRate', 'externalAttackText',
       'externalAttackPosText', 'additionalTickets', 'newTicketPoolValue', 'internalAttackPosText',
-      'additionalHashRate', 'targetPos', 'targetPow',
+      'additionalHashRate', 'targetPos', 'targetPow', 'operatorSign',
       'ticketAttackSize', 'ticketPoolAttack', 'ticketPoolSize', 'ticketPoolSizeLabel',
       'ticketPoolValue', 'ticketPrice', 'tickets', 'ticketSizeAttack', 'durationLongDesc',
       'total', 'totalDCRPos', 'totalDeviceCost', 'totalElectricity', 'totalExtraCostRate', 'totalKwh',
@@ -298,14 +298,19 @@ export default class extends Controller {
         this.targetHashRate = hashrate / (1 - parseFloat(this.targetPowTarget.value) / 100) - hashrate
         this.projectedPriceDivTarget.style.display = 'block'
         this.internalAttackTextTarget.classList.add('d-none')
+        this.internalAttackPosTextTarget.classList.add('d-none')
         this.externalAttackTextTarget.classList.remove('d-none')
+        this.externalAttackPosTextTarget.classList.remove('d-node')
+        console.log(this.externalAttackPosTextTarget)
         return
       case 0:
       default:
         this.targetHashRate = hashrate * parseFloat(this.targetPowTarget.value) / 100
         this.projectedPriceDivTarget.style.display = 'none'
         this.externalAttackTextTarget.classList.add('d-none')
+        this.externalAttackPosTextTarget.classList.add('d-node')
         this.internalAttackTextTarget.classList.remove('d-none')
+        this.internalAttackPosTextTarget.classList.remove('d-none')
     }
   }
 
@@ -326,13 +331,13 @@ export default class extends Controller {
     this.ticketsTarget.innerHTML = digitformat(val * tpSize) + ' tickets '
     switch (this.settings.attack_type) {
       case 1:
-        this.hideAll(this.internalAttackPosTextTarget)
+        this.hideAll(this.internalAttackPosTextTargets)
         this.showAll(this.externalAttackPosTextTargets)
         break
       case 0:
       default:
         this.hideAll(this.externalAttackPosTextTargets)
-        this.showAll(this.internalAttackPosTextTarget)
+        this.showAll(this.internalAttackPosTextTargets)
     }
 
     this.calculate(true)
@@ -353,12 +358,14 @@ export default class extends Controller {
     var ticketAttackSize, DCRNeed
     if (this.settings.attack_type === 1) {
       ticketAttackSize = tpSize / (1 - parseFloat(this.targetPosTarget.value) / 100)
-      this.additionalTicketsTarget.innerHTML = digitformat(ticketAttackSize - tpSize, 2)
-      this.newTicketPoolValueTarget.innerHTML = digitformat(ticketAttackSize, 2)
       DCRNeed = tpValue / (1 - parseFloat(this.targetPosTarget.value) / 100)
+      this.setAllValues(this.additionalTicketsTargets, digitformat(ticketAttackSize - tpSize, 0))
+      this.setAllValues(this.newTicketPoolValueTargets, digitformat(ticketAttackSize, 0))
+      this.setAllValues(this.operatorSignTargets, '+')
     } else {
       ticketAttackSize = (tpSize * parseFloat(this.targetPosTarget.value)) / 100
       DCRNeed = tpValue * (parseFloat(this.targetPosTarget.value) / 100)
+      this.setAllValues(this.operatorSignTargets, '*')
     }
     var projectedTicketPrice = DCRNeed / tpSize
     this.setAllValues(this.ticketPoolAttackTargets, digitformat(DCRNeed))
@@ -399,14 +406,14 @@ export default class extends Controller {
   }
 
   setAllValues (targets, data) {
-    targets.map((n) => { n.innerHTML = data })
+    targets.forEach((n) => { n.innerHTML = data })
   }
 
   hideAll (targets) {
-    targets.map(el => el.classList.add('d-none'))
+    targets.forEach(el => el.classList.add('d-none'))
   }
 
   showAll (targets) {
-    targets.map(el => el.classList.remove('d-none'))
+    targets.forEach(el => el.classList.remove('d-none'))
   }
 }
