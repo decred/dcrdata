@@ -98,6 +98,7 @@ export default class extends Controller {
       'actualHashRate', 'attackPercent', 'attackPeriod', 'blockHeight', 'countDevice', 'device',
       'deviceCost', 'deviceDesc', 'deviceName', 'external', 'internal', 'internalHash',
       'kwhRate', 'kwhRateLabel', 'otherCosts', 'priceDCR', 'internalAttackText', 'targetHashRate', 'externalAttackText',
+      'externalAttackPosText', 'additionalTickets', 'newTicketPoolValue', 'internalAttackPosText',
       'additionalHashRate', 'targetPos', 'targetPow',
       'ticketAttackSize', 'ticketPoolAttack', 'ticketPoolSize', 'ticketPoolSizeLabel',
       'ticketPoolValue', 'ticketPrice', 'tickets', 'ticketSizeAttack', 'durationLongDesc',
@@ -294,7 +295,7 @@ export default class extends Controller {
 
     switch (this.settings.attack_type) {
       case 1:
-        this.targetHashRate = hashrate / (1 - parseFloat(this.targetPowTarget.value) / 100)
+        this.targetHashRate = hashrate / (1 - parseFloat(this.targetPowTarget.value) / 100) - hashrate
         this.projectedPriceDivTarget.style.display = 'block'
         this.internalAttackTextTarget.classList.add('d-none')
         this.externalAttackTextTarget.classList.remove('d-none')
@@ -323,6 +324,16 @@ export default class extends Controller {
     this.targetPowTarget.value = Math.floor(randomVal * 100) / 100
     this.internalHashTarget.innerHTML = digitformat((rate * this.targetHashRate), 4) + ' Ph/s '
     this.ticketsTarget.innerHTML = digitformat(val * tpSize) + ' tickets '
+    switch (this.settings.attack_type) {
+      case 1:
+        this.hideAll(this.internalAttackPosTextTarget)
+        this.showAll(this.externalAttackPosTextTargets)
+        break
+      case 0:
+      default:
+        this.hideAll(this.externalAttackPosTextTargets)
+        this.showAll(this.internalAttackPosTextTarget)
+    }
 
     this.calculate(true)
   }
@@ -339,8 +350,16 @@ export default class extends Controller {
     var totalElectricity = totalKwh * parseFloat(this.kwhRateTarget.value)
     var extraCostsRate = 1 + parseFloat(this.otherCostsTarget.value) / 100
     var totalPow = extraCostsRate * totalDeviceCost + totalElectricity
-    var ticketAttackSize = (tpSize * parseFloat(this.targetPosTarget.value)) / 100
-    var DCRNeed = tpValue * (parseFloat(this.targetPosTarget.value) / 100)
+    var ticketAttackSize, DCRNeed
+    if (this.settings.attack_type === 1) {
+      ticketAttackSize = tpSize / (1 - parseFloat(this.targetPosTarget.value) / 100)
+      this.additionalTicketsTarget.innerHTML = digitformat(ticketAttackSize - tpSize, 2)
+      this.newTicketPoolValueTarget.innerHTML = digitformat(ticketAttackSize, 2)
+      DCRNeed = tpValue / (1 - parseFloat(this.targetPosTarget.value) / 100)
+    } else {
+      ticketAttackSize = (tpSize * parseFloat(this.targetPosTarget.value)) / 100
+      DCRNeed = tpValue * (parseFloat(this.targetPosTarget.value) / 100)
+    }
     var projectedTicketPrice = DCRNeed / tpSize
     this.setAllValues(this.ticketPoolAttackTargets, digitformat(DCRNeed))
     this.ticketPoolValueTarget.innerHTML = digitformat(hashrate, 3)
@@ -381,5 +400,13 @@ export default class extends Controller {
 
   setAllValues (targets, data) {
     targets.map((n) => { n.innerHTML = data })
+  }
+
+  hideAll (targets) {
+    targets.map(el => el.classList.add('d-none'))
+  }
+
+  showAll (targets) {
+    targets.map(el => el.classList.remove('d-none'))
   }
 }
