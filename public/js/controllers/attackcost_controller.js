@@ -2,7 +2,6 @@ import { Controller } from 'stimulus'
 import TurboQuery from '../helpers/turbolinks_helper'
 import { getDefault } from '../helpers/module_helper'
 import globalEventBus from '../services/event_bus_service'
-import { nightModeOptions } from '../helpers/chart_helper'
 import dompurify from 'dompurify'
 
 function digitformat (amount, decimalPlaces, noComma) {
@@ -92,6 +91,21 @@ function legendFormatter (data) {
   return html
 }
 
+function nightModeOptions (nightModeOn) {
+  if (nightModeOn) {
+    return {
+      rangeSelectorAlpha: 0.3,
+      gridLineColor: '#596D81',
+      colors: ['#2DD8A3', '#2970FF', '#FFC84E']
+    }
+  }
+  return {
+    rangeSelectorAlpha: 0.4,
+    gridLineColor: '#C4CBD2',
+    colors: ['#2970FF', '#006600', '#FF0090']
+  }
+}
+
 export default class extends Controller {
   static get targets () {
     return [
@@ -142,6 +156,8 @@ export default class extends Controller {
       import(/* webpackChunkName: "dygraphs" */ '../vendor/dygraphs.min.js')
     )
 
+    // dygraph does not provide a way to disable zoom on y-axis https://code.google.com/archive/p/dygraphs/issues/384
+    // this is a hack as doZoomY_ is marked as private
     Dygraph.prototype.doZoomY_ = function (lowY, highY) {}
 
     this.plotGraph()
