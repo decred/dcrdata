@@ -189,6 +189,34 @@
                     </div>
                 </div>
 
+                <div class="chart-control-wrapper mr-2 mb-1" data-target="charts.modeSelector">
+                    <div class="chart-control-label">MODE</div>
+                    <div class="chart-control">
+                        <ul
+                            class="nav nav-pills"
+                        >
+                            <li class="nav-item active">
+                                <a
+                                    class="nav-link active"
+                                    href="javascript:void(0);"
+                                    data-target="charts.modeOption"
+                                    data-action="click->charts#setMode"
+                                    data-option="smooth"
+                                >Smooth</a>
+                            </li>
+                            <li class="nav-item">
+                                <a
+                                    class="nav-link"
+                                    href="javascript:void(0);"
+                                    data-target="charts.modeOption"
+                                    data-action="click->charts#setMode"
+                                    data-option="stepped"
+                                >Stepped</a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
             </div>
 
         </div>
