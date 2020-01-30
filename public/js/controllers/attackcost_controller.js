@@ -143,7 +143,7 @@ export default class extends Controller {
     if (this.settings.target_pow) this.targetPowTarget.value = parseFloat(this.settings.target_pow)
     if (this.settings.kwh_rate) this.kwhRateTarget.value = parseFloat(this.settings.kwh_rate)
     if (this.settings.other_costs) this.otherCostsTarget.value = parseFloat(this.settings.other_cost)
-    if (this.settings.target_pos) this.targetPosTarget.value = parseFloat(this.settings.target_pos)
+    if (this.settings.target_pos) this.setAllInputs(this.targetPosTargets, parseFloat(this.settings.target_pos))
     if (this.settings.price) this.priceDCRTarget.value = parseFloat(this.settings.price)
     if (this.settings.device) this.setDevice(this.settings.device)
     if (this.settings.attack_type) this.attackTypeTarget.value = parseInt(this.settings.attack_type)
@@ -334,7 +334,7 @@ export default class extends Controller {
     var val = Math.min(parseFloat(this.attackPercentTarget.value) || 0, 0.99)
     // Makes PoS to be affected by the slider
     // Target PoS value increases when slider moves to the right
-    this.targetPosTarget.value = val * 100
+    this.setAllInputs(this.targetPosTargets, val * 100)
 
     this.updateTargetHashRate(val * 100)
     this.setActivePoint()
@@ -394,7 +394,7 @@ export default class extends Controller {
     this.setAllValues(this.actualHashRateTargets, digitformat(hashrate, 4))
     this.priceDCRTarget.value = digitformat(dcrPrice, 2)
     this.targetPowTarget.value = digitformat(parseFloat(this.targetPowTarget.value), 2, true)
-    this.targetPosTarget.value = digitformat(parseFloat(this.targetPosTarget.value), 2)
+    this.setAllInputs(this.targetPosTargets, digitformat(parseFloat(this.targetPosTarget.value), 2))
     this.ticketPriceTarget.innerHTML = digitformat(tpPrice, 4)
     this.setAllValues(this.targetHashRateTargets, digitformat(this.targetHashRate, 4))
     this.setAllValues(this.additionalHashRateTargets, digitformat(this.targetHashRate - hashrate, 4))
@@ -421,6 +421,10 @@ export default class extends Controller {
 
   setAllValues (targets, data) {
     targets.forEach((n) => { n.innerHTML = data })
+  }
+
+  setAllInputs (targets, data) {
+    targets.forEach((n) => { n.value = data })
   }
 
   hideAll (targets) {
