@@ -112,7 +112,7 @@ export default class extends Controller {
       'actualHashRate', 'attackPercent', 'attackPeriod', 'blockHeight', 'countDevice', 'device',
       'deviceCost', 'deviceDesc', 'deviceName', 'external', 'internal', 'internalHash',
       'kwhRate', 'kwhRateLabel', 'otherCosts', 'priceDCR', 'internalAttackText', 'targetHashRate', 'externalAttackText',
-      'externalAttackPosText', 'additionalTickets', 'newTicketPoolValue', 'internalAttackPosText',
+      'externalAttackPosText', 'additionalTickets', 'internalAttackPosText',
       'additionalHashRate', 'targetPos', 'targetPow', 'operatorSign',
       'ticketAttackSize', 'ticketPoolAttack', 'ticketPoolSize', 'ticketPoolSizeLabel',
       'ticketPoolValue', 'ticketPrice', 'tickets', 'ticketSizeAttack', 'durationLongDesc',
@@ -376,7 +376,7 @@ export default class extends Controller {
       ticketAttackSize = tpSize / (1 - parseFloat(this.targetPosTarget.value) / 100)
       DCRNeed = tpValue / (1 - parseFloat(this.targetPosTarget.value) / 100)
       this.setAllValues(this.additionalTicketsTargets, digitformat(ticketAttackSize - tpSize, 0))
-      this.setAllValues(this.newTicketPoolValueTargets, digitformat(ticketAttackSize, 0))
+      // this.setAllValues(this.newTicketPoolValueTargets, digitformat(ticketAttackSize, 0))
       this.setAllValues(this.operatorSignTargets, '+')
     } else {
       ticketAttackSize = (tpSize * parseFloat(this.targetPosTarget.value)) / 100
