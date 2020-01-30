@@ -112,8 +112,8 @@ export default class extends Controller {
       'actualHashRate', 'attackPercent', 'attackPeriod', 'blockHeight', 'countDevice', 'device',
       'deviceCost', 'deviceDesc', 'deviceName', 'external', 'internal', 'internalHash',
       'kwhRate', 'kwhRateLabel', 'otherCosts', 'priceDCR', 'internalAttackText', 'targetHashRate', 'externalAttackText',
-      'externalAttackPosText', 'additionalTickets', 'internalAttackPosText',
-      'additionalHashRate', 'targetPos', 'targetPow', 'operatorSign',
+      'externalAttackPosText', 'additionalDcr', 'newTicketPoolValue', 'internalAttackPosText',
+      'additionalHashRate', 'targetPos', 'targetPow',
       'ticketAttackSize', 'ticketPoolAttack', 'ticketPoolSize', 'ticketPoolSizeLabel',
       'ticketPoolValue', 'ticketPrice', 'tickets', 'ticketSizeAttack', 'durationLongDesc',
       'total', 'totalDCRPos', 'totalDeviceCost', 'totalElectricity', 'totalExtraCostRate', 'totalKwh',
@@ -373,21 +373,19 @@ export default class extends Controller {
     var totalPow = extraCostsRate * totalDeviceCost + totalElectricity
     var ticketAttackSize, DCRNeed
     if (this.settings.attack_type === 1) {
-      ticketAttackSize = tpSize / (1 - parseFloat(this.targetPosTarget.value) / 100)
+      // ticketAttackSize = tpSize / (1 - parseFloat(this.targetPosTarget.value) / 100)
       DCRNeed = tpValue / (1 - parseFloat(this.targetPosTarget.value) / 100)
-      this.setAllValues(this.additionalTicketsTargets, digitformat(ticketAttackSize - tpSize, 0))
-      // this.setAllValues(this.newTicketPoolValueTargets, digitformat(ticketAttackSize, 0))
-      this.setAllValues(this.operatorSignTargets, '+')
+      this.setAllValues(this.newTicketPoolValueTargets, digitformat(DCRNeed, 2))
+      this.setAllValues(this.additionalDcrTargets, digitformat(DCRNeed - tpValue, 2))
     } else {
       ticketAttackSize = (tpSize * parseFloat(this.targetPosTarget.value)) / 100
       DCRNeed = tpValue * (parseFloat(this.targetPosTarget.value) / 100)
-      this.setAllValues(this.operatorSignTargets, '*')
+      this.setAllValues(this.ticketPoolAttackTargets, digitformat(DCRNeed))
     }
     var projectedTicketPrice = DCRNeed / tpSize
-    this.setAllValues(this.ticketPoolAttackTargets, digitformat(DCRNeed))
     this.ticketPoolValueTarget.innerHTML = digitformat(hashrate, 3)
 
-    var totalDCRPos = ticketAttackSize * projectedTicketPrice
+    var totalDCRPos = this.settings.attack_type === 1 ? DCRNeed - tpValue : ticketAttackSize * projectedTicketPrice
     var totalPos = totalDCRPos * dcrPrice
     var timeStr = this.attackPeriodTarget.value
     timeStr = this.attackPeriodTarget.value > 1 ? timeStr + ' hours' : timeStr + ' hour'
@@ -417,8 +415,8 @@ export default class extends Controller {
     this.projectedTicketPriceTarget.innerHTML = digitformat(projectedTicketPrice, 2)
     this.attackPosPercentNeededLabelTarget.innerHTML = digitformat(this.targetPosTarget.value, 2)
     this.attackPosPercentAmountLabelTarget.innerHTML = digitformat(this.targetPosTarget.value, 2)
-    this.totalDCRPosLabelTarget.innerHTML = digitformat(totalDCRPos, 2)
-    this.dcrPriceLabelTarget.innerHTML = digitformat(dcrPrice, 2)
+    this.setAllValues(this.totalDCRPosLabelTargets, digitformat(totalDCRPos, 2))
+    this.setAllValues(this.dcrPriceLabelTargets, digitformat(dcrPrice, 2))
   }
 
   setAllValues (targets, data) {

@@ -284,7 +284,7 @@
             <span class="h6 d-inline-block pl-2 font-weight-bold">PoS Attack</span>
           </div>
 
-          <div class="ml-4">
+          <div class="ml-4 d-none" data-target="attackcost.internalAttackPosText">
             <div class="mt-1 ml-2">
               A <input
                 type="number"
@@ -296,20 +296,11 @@
                 value="60"
                 autofocus
               >%
-              <span data-target="attackcost.internalAttackPosText">
-                PoS attack would need
-                <span class="position-relative text-secondary font-weight-bold">
+              PoS attack would need
+              <span class="position-relative text-secondary font-weight-bold">
                   <span class="font-weight-bold" data-target="attackcost.ticketSizeAttack">0</span>
                   <span> tickets</span>
                 </span>.
-              </span>
-
-              <span data-target="attackcost.externalAttackPosText" class="d-none">
-                PoS attack requires adding <span class="font-weight-bold" data-target="attackcost.additionalTickets">0</span>
-                <span class="pl-1 unit lh15rem">tickets</span> to the existing <span class="font-weight-bold" data-target="attackcost.ticketPoolSize">0</span>
-                <span class="pl-1 unit lh15rem">tickets</span>.
-              </span>
-
             </div>
             <div class="mt-1 ml-2">
               Total staked is
@@ -330,9 +321,9 @@
             <div class="mt-1 ml-2">
               <span class="position-relative text-secondary font-weight-bold">
                 <span class="font-weight-bold" data-target="attackcost.ticketPoolAttack">0</span>
-                <span class="fs11">DCR</span>.
+                <span class="fs11">DCR</span>
               </span>
-              needed for the attack
+              is needed for the attack
               (<span class="position-relative text-secondary font-weight-bold">
                 <span data-target="attackcost.ticketPoolValue">0</span><span class="fs11"> DCR</span>
                 <span data-target="attackcost.operatorSign"> * </span>
@@ -350,14 +341,59 @@
                 <span data-target="attackcost.dcrPriceLabel">0</span><span class="fs11"> USD/DCR</span>
               </span>)
             </div>
+          </div>
+
+          <div class="ml-4 d-none" data-target="attackcost.externalAttackPosText">
+            <div class="mt-1 ml-2">
+              An external <input
+                      type="number"
+                      data-target="attackcost.targetPos"
+                      data-action="change->attackcost#updateTargetPos"
+                      step="1"
+                      min="1"
+                      max="100"
+                      value="60"
+                      autofocus
+              >%
+              PoS attack would raise the value of the ticket pool by
+              <span class="font-weight-bold" data-target="attackcost.additionalDcr">0</span><span class="fs11"> DCR</span>,
+              from <span class="font-weight-bold" data-target="attackcost.ticketPoolValue">0</span> <span class="fs11"> DCR</span>
+              to <span class="font-weight-bold" data-target="attackcost.newTicketPoolValue">0</span> <span class="fs11"> DCR</span>.
+            </div>
+            <div class="mt-1 ml-2">
+              Total staked is
+              <span  data-target="attackcost.ticketPoolValue" class="font-weight-bold">0</span> <span class="fs11">DCR</span>
+            </div>
+            <div class="mt-1 ml-2">
+              <span class="position-relative text-secondary font-weight-bold">
+                <span class="font-weight-bold" data-target="attackcost.additionalDcr">0</span>
+                <span class="fs11">DCR</span>
+              </span>
+              is needed for the attack
+            </div>
+
+            <div class="mt-1 ml-2">
+              <span class="position-relative text-secondary font-weight-bold">
+                <span>$</span><span class="font-weight-bold" data-target="attackcost.totalPos">0</span>
+              </span>
+              total attack cost
+              (<span class="position-relative text-secondary font-weight-bold">
+                <span data-target="attackcost.totalDCRPosLabel">0</span><span class="fs11"> DCR</span>
+                <span> * </span>
+                <span data-target="attackcost.dcrPriceLabel">0</span><span class="fs11"> USD/DCR</span>
+              </span>)
+            </div>
+
             <div class="mt-1 ml-2" data-target="attackcost.projectedPriceDiv" style="{display: block}">
-              The projected ticket price
+              The projected ticket price is
               <span class="position-relative text-secondary font-weight-bold">
               <span class="font-weight-bold" data-target="attackcost.projectedTicketPrice">0</span>
               <span class="fs11">DCR</span>.
               </span>
             </div>
+
           </div>
+
         </div>
       </div>
 
