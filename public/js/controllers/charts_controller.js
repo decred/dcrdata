@@ -733,7 +733,6 @@ export default class extends Controller {
   selectedBin () { return this.selectedOption(this.binSizeTargets) }
   selectedScale () { return this.selectedOption(this.scaleTypeTargets) }
   selectedAxis () { return this.selectedOption(this.axisOptionTargets) }
-  selectedMode () { return this.selectedOption(this.modeOptionTargets) }
 
   selectedOption (optTargets) {
     var key = false
