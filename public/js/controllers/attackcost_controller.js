@@ -111,7 +111,7 @@ export default class extends Controller {
     return [
       'actualHashRate', 'attackPercent', 'attackPeriod', 'blockHeight', 'countDevice', 'device',
       'deviceCost', 'deviceDesc', 'deviceName', 'external', 'internal', 'internalHash',
-      'kwhRate', 'kwhRateLabel', 'otherCosts', 'priceDCR', 'internalAttackText', 'targetHashRate', 'externalAttackText',
+      'kwhRate', 'kwhRateLabel', 'otherCosts', 'otherCostsValue', 'priceDCR', 'internalAttackText', 'targetHashRate', 'externalAttackText',
       'externalAttackPosText', 'additionalDcr', 'newTicketPoolValue', 'internalAttackPosText',
       'additionalHashRate', 'targetPos', 'targetPow',
       'ticketAttackSize', 'ticketPoolAttack', 'ticketPoolSize', 'ticketPoolSizeLabel',
@@ -369,8 +369,8 @@ export default class extends Controller {
     var totalDeviceCost = deviceCount * deviceInfo.cost
     var totalKwh = deviceCount * deviceInfo.power * parseFloat(this.attackPeriodTarget.value) / 1000
     var totalElectricity = totalKwh * parseFloat(this.kwhRateTarget.value)
-    var extraCostsRate = 1 + parseFloat(this.otherCostsTarget.value) / 100
-    var totalPow = extraCostsRate * totalDeviceCost + totalElectricity
+    var extraCost = parseFloat(this.otherCostsTarget.value) / 100 * (totalDeviceCost + totalElectricity)
+    var totalPow = extraCost * totalDeviceCost + totalElectricity
     var ticketAttackSize, DCRNeed
     if (this.settings.attack_type === 1) {
       // ticketAttackSize = tpSize / (1 - parseFloat(this.targetPosTarget.value) / 100)
@@ -404,6 +404,7 @@ export default class extends Controller {
     this.setAllValues(this.totalDeviceCostTargets, digitformat(totalDeviceCost))
     this.setAllValues(this.totalKwhTargets, digitformat(totalKwh, 2))
     this.setAllValues(this.totalElectricityTargets, digitformat(totalElectricity, 2))
+    this.setAllValues(this.otherCostsValueTargets, digitformat(extraCost, 2))
     this.setAllValues(this.totalPowTargets, digitformat(totalPow, 2))
     this.setAllValues(this.ticketSizeAttackTargets, digitformat(ticketAttackSize))
     this.setAllValues(this.totalDCRPosTargets, digitformat(totalDCRPos, 2))
