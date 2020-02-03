@@ -606,6 +606,7 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 		Data         []*types.BlockBasic
 		BestBlock    int64
 		Rows         int64
+		RowsCount    int64
 		WindowSize   int64
 		TimeGrouping string
 		Pages        pageNumbers
@@ -614,6 +615,7 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 		Data:           summaries,
 		BestBlock:      bestBlockHeight,
 		Rows:           int64(rows),
+		RowsCount:      int64(len(summaries)),
 		WindowSize:     exp.ChainParams.StakeDiffWindowSize,
 		TimeGrouping:   "Blocks",
 		Pages:          calcPagesDesc(int(bestBlockHeight), rows, height, linkTemplate),

@@ -15,7 +15,6 @@
             {{$topBlock = ((index .Data 0).Height)}}
             {{$Offset := (subtract .BestBlock $topBlock)}}
             {{$pendingBlocks := ((index .Data 0).Height)}}
-            {{$rowsCount := (int64 $blocksCount)}}
             <div class="d-flex justify-content-between align-items-end">
                 <span class="h2 d-flex pt-4 pb-1 pr-2">
                     Blocks
@@ -23,8 +22,7 @@
                 </span>
                 <div class="pb-1 d-flex justify-content-end align-items-end flex-wrap">
                   <span class="fs12 nowrap text-secondary px-2 my-2">
-                      <!-- {{intComma (add $Offset 1)}} &ndash; {{intComma (add $Offset .Rows)}} of {{intComma (add .BestBlock 1) }} rows -->
-                      {{intComma (add $Offset 1)}} &ndash; {{intComma (add $Offset $rowsCount)}} of {{intComma (add .BestBlock 1) }} rows
+                      {{intComma (add $Offset 1)}} &ndash; {{intComma (add $Offset .RowsCount)}} of {{intComma (add .BestBlock 1) }} rows
                   </span>
                   <span class="fs12 nowrap text-right">
                       <select
