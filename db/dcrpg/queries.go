@@ -3713,7 +3713,7 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 	blocks := charts.Blocks
 
 	// block anonymity set
-	for h := len(blocks.AnonymitySet)+1; h <= len(blocks.Height); h++ {
+	for h := len(blocks.AnonymitySet) + 1; h <= len(blocks.Height); h++ {
 		var anonymitySet int64
 		for iu := range vals {
 			if int64(h) >= fundHeights[iu] && (int64(h) < spendHeights[iu] || spendHeights[iu] == -1) {

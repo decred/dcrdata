@@ -37,25 +37,25 @@ const (
 	PercentStaked   = "stake-participation"
 
 	// Some chartResponse keys
-	heightKey      		  = "h"
-	timeKey        		  = "t"
-	binKey         		  = "bin"
-	axisKey        		  = "axis"
-	supplyKey      		  = "supply"
-	windowKey             = "window"
-	diffKey                  = "diff"
-	priceKey                 = "price"
-	countKey                 = "count"
-	offsetKey                = "offset"
-	circulationKey           = "circulation"
-	poolValKey               = "poolval"
-	missedKey                = "missed"
-	sizeKey                  = "size"
-	feesKey                  = "fees"
-	anonymitySetKey          = "anonymitySet"
-	durationKey              = "duration"
-	workKey                  = "work"
-	rateKey                  = "rate"
+	heightKey       = "h"
+	timeKey         = "t"
+	binKey          = "bin"
+	axisKey         = "axis"
+	supplyKey       = "supply"
+	windowKey       = "window"
+	diffKey         = "diff"
+	priceKey        = "price"
+	countKey        = "count"
+	offsetKey       = "offset"
+	circulationKey  = "circulation"
+	poolValKey      = "poolval"
+	missedKey       = "missed"
+	sizeKey         = "size"
+	feesKey         = "fees"
+	anonymitySetKey = "anonymitySet"
+	durationKey     = "duration"
+	workKey         = "work"
+	rateKey         = "rate"
 )
 
 // binLevel specifies the granularity of data.
@@ -295,17 +295,17 @@ func (set *zoomSet) Snip(length int) {
 // since the height is implicit for block-binned data.
 func newBlockSet(size int) *zoomSet {
 	return &zoomSet{
-		Height:        newChartUints(size),
-		Time:          newChartUints(size),
-		PoolSize:      newChartUints(size),
-		PoolValue:     newChartUints(size),
-		BlockSize:     newChartUints(size),
-		TxCount:       newChartUints(size),
-		NewAtoms:      newChartUints(size),
-		Chainwork:     newChartUints(size),
-		Fees:          newChartUints(size),
-		TotalMixed:    newChartUints(size),
-		AnonymitySet:  newChartUints(size),
+		Height:       newChartUints(size),
+		Time:         newChartUints(size),
+		PoolSize:     newChartUints(size),
+		PoolValue:    newChartUints(size),
+		BlockSize:    newChartUints(size),
+		TxCount:      newChartUints(size),
+		NewAtoms:     newChartUints(size),
+		Chainwork:    newChartUints(size),
+		Fees:         newChartUints(size),
+		TotalMixed:   newChartUints(size),
+		AnonymitySet: newChartUints(size),
 	}
 }
 
@@ -356,22 +356,22 @@ func newWindowSet(size int) *windowSet {
 // has a lot of extraneous fields, and also embeds sync.RWMutex, so is not
 // suitable for gobbing.
 type ChartGobject struct {
-	Height        ChartUints
-	Time          ChartUints
-	PoolSize      ChartUints
-	PoolValue     ChartUints
-	BlockSize     ChartUints
-	TxCount       ChartUints
-	NewAtoms      ChartUints
-	Chainwork     ChartUints
-	Fees          ChartUints
-	WindowTime    ChartUints
-	PowDiff       ChartFloats
-	TicketPrice   ChartUints
-	StakeCount    ChartUints
-	MissedVotes   ChartUints
-	TotalMixed    ChartUints
-	AnonymitySet  ChartUints
+	Height       ChartUints
+	Time         ChartUints
+	PoolSize     ChartUints
+	PoolValue    ChartUints
+	BlockSize    ChartUints
+	TxCount      ChartUints
+	NewAtoms     ChartUints
+	Chainwork    ChartUints
+	Fees         ChartUints
+	WindowTime   ChartUints
+	PowDiff      ChartFloats
+	TicketPrice  ChartUints
+	StakeCount   ChartUints
+	MissedVotes  ChartUints
+	TotalMixed   ChartUints
+	AnonymitySet ChartUints
 }
 
 // keep track of mixed vouts to help in building anonymity set's day bin data
@@ -578,7 +578,7 @@ func (charts *ChartData) Lengthen() error {
 	// Check that all relevant datasets have been updated to the same length.
 	daysLen, err := ValidateLengths(days.Height, days.Time, days.PoolSize,
 		days.PoolValue, days.BlockSize, days.TxCount, days.NewAtoms,
-		days.Chainwork, days.Fees, days.TotalMixed, days.AnonymitySet,)
+		days.Chainwork, days.Fees, days.TotalMixed, days.AnonymitySet)
 	if err != nil {
 		return fmt.Errorf("day bin: %v", err)
 	} else if daysLen == 0 {
@@ -749,22 +749,22 @@ func (charts *ChartData) TriggerUpdate(_ string, _ uint32) error {
 
 func (charts *ChartData) gobject() *ChartGobject {
 	return &ChartGobject{
-		Height:        charts.Blocks.Height,
-		Time:          charts.Blocks.Time,
-		PoolSize:      charts.Blocks.PoolSize,
-		PoolValue:     charts.Blocks.PoolValue,
-		BlockSize:     charts.Blocks.BlockSize,
-		TxCount:       charts.Blocks.TxCount,
-		NewAtoms:      charts.Blocks.NewAtoms,
-		Chainwork:     charts.Blocks.Chainwork,
-		Fees:          charts.Blocks.Fees,
-		TotalMixed:    charts.Blocks.TotalMixed,
-		AnonymitySet:  charts.Blocks.AnonymitySet,
-		WindowTime:    charts.Windows.Time,
-		PowDiff:       charts.Windows.PowDiff,
-		TicketPrice:   charts.Windows.TicketPrice,
-		StakeCount:    charts.Windows.StakeCount,
-		MissedVotes:   charts.Windows.MissedVotes,
+		Height:       charts.Blocks.Height,
+		Time:         charts.Blocks.Time,
+		PoolSize:     charts.Blocks.PoolSize,
+		PoolValue:    charts.Blocks.PoolValue,
+		BlockSize:    charts.Blocks.BlockSize,
+		TxCount:      charts.Blocks.TxCount,
+		NewAtoms:     charts.Blocks.NewAtoms,
+		Chainwork:    charts.Blocks.Chainwork,
+		Fees:         charts.Blocks.Fees,
+		TotalMixed:   charts.Blocks.TotalMixed,
+		AnonymitySet: charts.Blocks.AnonymitySet,
+		WindowTime:   charts.Windows.Time,
+		PowDiff:      charts.Windows.PowDiff,
+		TicketPrice:  charts.Windows.TicketPrice,
+		StakeCount:   charts.Windows.StakeCount,
+		MissedVotes:  charts.Windows.MissedVotes,
 	}
 }
 

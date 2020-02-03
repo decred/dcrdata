@@ -303,15 +303,15 @@ func TestChartReorg(t *testing.T) {
 			Fees:      newUints(),
 		}
 		charts.Blocks = &zoomSet{
-			cacheID:   0,
-			Time:      newUints(),
-			PoolSize:  newUints(),
-			PoolValue: newUints(),
-			BlockSize: newUints(),
-			TxCount:   newUints(),
-			NewAtoms:  newUints(),
-			Chainwork: newUints(),
-			Fees:      newUints(),
+			cacheID:    0,
+			Time:       newUints(),
+			PoolSize:   newUints(),
+			PoolValue:  newUints(),
+			BlockSize:  newUints(),
+			TxCount:    newUints(),
+			NewAtoms:   newUints(),
+			Chainwork:  newUints(),
+			Fees:       newUints(),
 			TotalMixed: newUints(),
 		}
 	}
