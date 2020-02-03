@@ -483,7 +483,8 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 	now := time.Now()
 
 	if (grouping == dbtypes.YearGrouping && now.Month() < oldestBlockMonth) ||
-		grouping == dbtypes.MonthGrouping && now.Day() < oldestBlockDay {
+		grouping == dbtypes.MonthGrouping && now.Day() < oldestBlockDay ||
+		grouping == dbtypes.YearGrouping && now.Month() == oldestBlockMonth && now.Day() < oldestBlockDay {
 		maxOffset = maxOffset + 1
 	}
 
@@ -601,10 +602,13 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 
 	linkTemplate := "/blocks?height=%d&rows=" + strconv.Itoa(rows)
 
+	oldestHeight := int(bestBlockHeight) % rows
+
 	str, err := exp.templates.exec("explorer", struct {
 		*CommonPageData
 		Data         []*types.BlockBasic
 		BestBlock    int64
+		OldestHeight int64
 		Rows         int64
 		RowsCount    int64
 		WindowSize   int64
@@ -614,6 +618,7 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 		CommonPageData: exp.commonData(r),
 		Data:           summaries,
 		BestBlock:      bestBlockHeight,
+		OldestHeight:   int64(oldestHeight),
 		Rows:           int64(rows),
 		RowsCount:      int64(len(summaries)),
 		WindowSize:     exp.ChainParams.StakeDiffWindowSize,
