@@ -3620,9 +3620,10 @@ func appendBlockFees(charts *cache.ChartData, rows *sql.Rows) error {
 	return rows.Err()
 }
 
-// retrievePrivacyParticipation retrieves the sum of all mixed vouts that is newer than the data
-// in the provided ChartData. This data is used to plot fees on the /charts page.
-// This is the Fetcher half of a pair that make up a cache.ChartUpdater.
+// retrievePrivacyParticipation retrieves the sum of all mixed vouts that is
+// newer than the data in the provided ChartData. This data is used to plot fees
+// on the /charts page. This is the Fetcher half of a pair that make up a
+// cache.ChartUpdater.
 func retrievePrivacyParticipation(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
 	rows, err := db.QueryContext(ctx, internal.SelectMixedTotalPerBlock, charts.TotalMixedTip())
 	if err != nil {
@@ -3631,8 +3632,9 @@ func retrievePrivacyParticipation(ctx context.Context, db *sql.DB, charts *cache
 	return rows, nil
 }
 
-// Append the result from retrievePrivacyParticipation to the provided ChartData. This
-// is the Appender half of a pair that make up a cache.ChartUpdater.
+// Append the result from retrievePrivacyParticipation to the provided
+// ChartData. This is the Appender half of a pair that make up a
+// cache.ChartUpdater.
 func appendPrivacyParticipation(charts *cache.ChartData, rows *sql.Rows) error {
 	defer rows.Close()
 	blocks := charts.Blocks
@@ -3653,9 +3655,10 @@ func appendPrivacyParticipation(charts *cache.ChartData, rows *sql.Rows) error {
 	return rows.Err()
 }
 
-// retrieveAnonymitySet retrieves any block total mixed data that is newer than the data
-// in the provided ChartData. This data is used to plot anonymity-set on the /charts page.
-// This is the Fetcher half of a pair that make up a cache.ChartUpdater.
+// retrieveAnonymitySet retrieves any block total mixed data that is newer than
+// the data in the provided ChartData. This data is used to plot anonymity-set
+// on the /charts page. This is the Fetcher half of a pair that make up a
+// cache.ChartUpdater.
 func retrieveAnonymitySet(ctx context.Context, db *sql.DB, _ *cache.ChartData) (*sql.Rows, error) {
 	rows, err := db.QueryContext(ctx, internal.SelectMixedVouts)
 	if err != nil {
@@ -3672,7 +3675,6 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 
 	var maxHeight int64
 	minHeight := int64(math.MaxInt64)
-
 
 	for rows.Next() {
 		var value, fundHeight, spendHeight int64
@@ -3704,96 +3706,28 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 
 	err = rows.Err()
 	if err != nil {
-		log.Errorf("Unable to scan for BlockCoinJoins fields: %v", err)
+		log.Errorf("Unable to scan for MixedVouts fields: %v", err)
+		return err
 	}
 
 	blocks := charts.Blocks
 
 	// block anonymity set
-	for _, h := range blocks.Height[len(blocks.AnonymitySet) :] {
+	for h := len(blocks.AnonymitySet)+1; h <= len(blocks.Height); h++ {
 		var anonymitySet int64
 		for iu := range vals {
-			if h >= uint64(fundHeights[iu]) && (h < uint64(spendHeights[iu]) || spendHeights[iu] == -1) {
+			if int64(h) >= fundHeights[iu] && (int64(h) < spendHeights[iu] || spendHeights[iu] == -1) {
 				anonymitySet += vals[iu]
 			}
 		}
 		blocks.AnonymitySet = append(blocks.AnonymitySet, uint64(anonymitySet))
 	}
 
-	// append days
-	days := charts.Days
-
-	// Get the current first and last midnight stamps.
-	end := midnight(blocks.Time[len(blocks.Time)-1])
-	var start uint64
-	if len(days.Time) > 0 {
-		// Begin the scan at the beginning of the next day. The stamps in the Time
-		// set are the midnight that starts the day.
-		start = days.Time[len(days.Time)-1] + aDay
-	} else {
-		// Start from the beginning.
-		// Already checked for empty blocks above.
-		start = midnight(blocks.Time[0])
-	}
-
-	// Find the index that begins new data.
-	offset := 0
-	for i, t := range blocks.Time {
-		if t > start {
-			offset = i
-			break
-		}
-	}
-
-	var intervals [][2]int
-	if end > start+aDay {
-		next := start + aDay
-		startIdx := 0
-		for i, t := range blocks.Time[offset:] {
-			if t >= next {
-				// Once passed the next midnight, prepare a day window by storing the
-				// range of indices.
-				intervals = append(intervals, [2]int{startIdx + offset, i + offset})
-				// days.Time = append(days.Time, start) populated in Lengthen
-				start = next
-				next += aDay
-				startIdx = i
-				if t > end {
-					break
-				}
-			}
-		}
-
-		for _, interval := range intervals {
-			if blocks.Height[interval[1]] < uint64(minHeight) {
-				days.AnonymitySet = append(days.AnonymitySet, 0)
-				continue
-			}
-
-			var anonymitySet int64
-			for iu := range vals {
-				maxHeight := blocks.Height[interval[1]]
-
-				if uint64(fundHeights[iu]) < maxHeight && (uint64(spendHeights[iu]) > maxHeight || spendHeights[iu] == -1) {
-
-					anonymitySet += vals[iu]
-				}
-			}
-
-			days.AnonymitySet = append(days.AnonymitySet, uint64(anonymitySet))
-		}
-	}
+	charts.MixedVouts.FundingHeight = fundHeights
+	charts.MixedVouts.SpendingHeights = spendHeights
+	charts.MixedVouts.Values = vals
 
 	return nil
-}
-
-const aDay = 86400
-
-func midnight(t uint64) (mid uint64) {
-	if t > 0 {
-		mid = t - t%aDay
-	}
-	return
 }
 
 // retrievePoolStats returns all the pool value and the pool size
