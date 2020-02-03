@@ -299,7 +299,9 @@ export default class extends Controller {
       'vSelector',
       'binSize',
       'legendEntry',
-      'legendMarker'
+      'legendMarker',
+      'modeSelector',
+      'modeOption'
     ]
   }
 
@@ -393,6 +395,7 @@ export default class extends Controller {
     if (this.settings.scale === 'log') this.setScale(this.settings.scale)
     if (this.settings.zoom) this.setZoom(this.settings.zoom)
     this.setBin(this.settings.bin ? this.settings.bin : 'day')
+    this.setMode(this.settings.mode ? this.settings.mode : 'smooth')
 
     var ogLegendGenerator = Dygraph.Plugins.Legend.generateLegendHTML
     Dygraph.Plugins.Legend.generateLegendHTML = (g, x, pts, w, row) => {
@@ -411,7 +414,7 @@ export default class extends Controller {
       valueRange: [null, null],
       visibility: null,
       y2label: null,
-      stepPlot: false,
+      stepPlot: this.settings.mode === 'stepped',
       axes: {},
       series: null,
       inflation: null
@@ -424,7 +427,6 @@ export default class extends Controller {
     switch (chartName) {
       case 'ticket-price': // price graph
         d = ticketPriceFunc(data)
-        gOptions.stepPlot = true
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Price', 'Tickets Bought'], true,
           'Price (DCR)', true, false))
         gOptions.y2label = 'Tickets Bought'
@@ -561,9 +563,11 @@ export default class extends Controller {
     if (isScaleDisabled(selection)) {
       this.scaleSelectorTarget.classList.add('d-hide')
       this.vSelectorTarget.classList.remove('d-hide')
+      this.modeSelectorTarget.classList.remove('d-hide')
     } else {
       this.scaleSelectorTarget.classList.remove('d-hide')
       this.vSelectorTarget.classList.add('d-hide')
+      this.modeSelectorTarget.classList.add('d-hide')
     }
     if (selectedChart !== selection || this.settings.bin !== this.selectedBin() ||
       this.settings.axis !== this.selectedAxis()) {
@@ -678,6 +682,19 @@ export default class extends Controller {
       this.chartsView.updateOptions({ logscale: option === 'log' })
     }
     this.settings.scale = option
+    this.query.replace(this.settings)
+  }
+
+  setMode (e) {
+    var target = e.srcElement || e.target
+    var option = target ? target.dataset.option : e
+    if (!option) return
+    this.setActiveOptionBtn(option, this.modeOptionTargets)
+    if (!target) return // Exit if running for the first time.
+    if (this.chartsView) {
+      this.chartsView.updateOptions({ stepPlot: option === 'stepped' })
+    }
+    this.settings.mode = option
     this.query.replace(this.settings)
   }
 
