@@ -374,13 +374,6 @@ type ChartGobject struct {
 	AnonymitySet ChartUints
 }
 
-// keep track of mixed vouts to help in building anonymity set's day bin data
-type mixedVouts struct {
-	FundingHeight   []int64
-	SpendingHeights []int64
-	Values          []int64
-}
-
 // The chart data is cached with the current cacheID of the zoomSet or windowSet.
 type cachedChart struct {
 	cacheID uint64
@@ -424,7 +417,6 @@ type ChartData struct {
 	ctx          context.Context
 	DiffInterval int32
 	StartPOS     int32
-	MixedVouts   *mixedVouts
 	Blocks       *zoomSet
 	Windows      *windowSet
 	Days         *zoomSet
@@ -559,19 +551,7 @@ func (charts *ChartData) Lengthen() error {
 			days.Chainwork = append(days.Chainwork, blocks.Chainwork[interval[1]])
 			days.Fees = append(days.Fees, blocks.Fees.Sum(interval[0], interval[1]))
 			days.TotalMixed = append(days.TotalMixed, blocks.TotalMixed.Sum(interval[0], interval[1]))
-
-			var anonymitySet int64
-			for iu := range charts.MixedVouts.Values {
-				maxHeight := blocks.Height[interval[1]]
-
-				if uint64(charts.MixedVouts.FundingHeight[iu]) < maxHeight &&
-					(uint64(charts.MixedVouts.SpendingHeights[iu]) > maxHeight || charts.MixedVouts.SpendingHeights[iu] == -1) {
-
-					anonymitySet += charts.MixedVouts.Values[iu]
-				}
-			}
-
-			days.AnonymitySet = append(days.AnonymitySet, uint64(anonymitySet))
+			days.AnonymitySet = append(days.AnonymitySet, blocks.AnonymitySet.Avg(interval[0], interval[1]))
 		}
 	}
 

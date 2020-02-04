@@ -10,7 +10,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"math"
 	"math/big"
 	"strconv"
 	"strings"
@@ -3671,10 +3670,22 @@ func retrieveAnonymitySet(ctx context.Context, db *sql.DB, _ *cache.ChartData) (
 // Append the result from retrieveAnonymitySet to the provided ChartData. This
 // is the Appender half of a pair that make up a cache.ChartUpdater.
 func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
-	var vals, fundHeights, spendHeights []int64
 
-	var maxHeight int64
-	minHeight := int64(math.MaxInt64)
+	blocks := charts.Blocks
+	var maxHeight, anonymitySet int64
+	spendHeights := make(map[int64][]int64)
+	subtract := func(value int64, items ...int64) int64 {
+		for _, item := range items {
+			value -= item
+		}
+
+		return value
+	}
+
+	// TODO: The entire vouts is be process each time, get the max age vouts to
+	// reduce the amount of data that is being processed subsequently
+
+	blocks.AnonymitySet = blocks.AnonymitySet.Truncate(0).(cache.ChartUints)
 
 	for rows.Next() {
 		var value, fundHeight, spendHeight int64
@@ -3691,17 +3702,27 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 			spendHeight = -1
 		}
 
-		if fundHeight < minHeight {
-			minHeight = fundHeight
-		}
-
 		if spendHeight > maxHeight {
 			maxHeight = spendHeight
 		}
 
-		vals = append(vals, value)
-		fundHeights = append(fundHeights, fundHeight)
-		spendHeights = append(spendHeights, spendHeight)
+		spendHeights[spendHeight] = append(spendHeights[spendHeight], value)
+		if fundHeight == int64(len(blocks.AnonymitySet)) {
+			anonymitySet += value
+			continue
+		}
+
+		// loop from previous to the current height to cover heights without
+		// mixed output
+		for h := int64(len(blocks.AnonymitySet)); h < fundHeight; h++ {
+			if spentVouts, found := spendHeights[h]; found {
+				anonymitySet = subtract(anonymitySet, spentVouts...)
+				delete(spendHeights, h)
+			}
+			blocks.AnonymitySet = append(blocks.AnonymitySet, uint64(anonymitySet))
+		}
+
+		anonymitySet += value
 	}
 
 	err = rows.Err()
@@ -3710,22 +3731,13 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 		return err
 	}
 
-	blocks := charts.Blocks
-
-	// block anonymity set
-	for h := len(blocks.AnonymitySet) + 1; h <= len(blocks.Height); h++ {
-		var anonymitySet int64
-		for iu := range vals {
-			if int64(h) >= fundHeights[iu] && (int64(h) < spendHeights[iu] || spendHeights[iu] == -1) {
-				anonymitySet += vals[iu]
-			}
+	// fill missing values
+	for h := int64(len(blocks.AnonymitySet)); h <= maxHeight; h++ {
+		if spentVouts, found := spendHeights[h]; found {
+			anonymitySet = subtract(anonymitySet, spentVouts...)
 		}
 		blocks.AnonymitySet = append(blocks.AnonymitySet, uint64(anonymitySet))
 	}
-
-	charts.MixedVouts.FundingHeight = fundHeights
-	charts.MixedVouts.SpendingHeights = spendHeights
-	charts.MixedVouts.Values = vals
 
 	return nil
 }

@@ -77,19 +77,12 @@ func TestChartsCache(t *testing.T) {
 	seedTimes := ChartUints{1, 2 + aDay, 3 + aDay, 4 + 2*aDay, 5 + 2*aDay, 6 + 3*aDay}
 	uintDaysAvg := ChartUints{1, 2, 4}
 	uintDaysSum := ChartUints{1, 5, 9}
-	mixedVouts := &mixedVouts{
-		FundingHeight:   []int64{1, 2, 3, 4, 5, 6},
-		SpendingHeights: []int64{3, 3, 6, 6, -1, -1},
-		Values:          []int64{1, 2, 3, 4, 5, 6},
-	}
-	dayAnonymitySet := ChartUints{1, 3, 5}
 
 	resetCharts := func() {
 		charts = NewChartData(ctx, 0, chaincfg.MainNetParams())
 		for i, t := range seedTimes {
 			appendPt(t, seedUints[i])
 		}
-		charts.MixedVouts = mixedVouts
 	}
 	resetCharts()
 
@@ -184,7 +177,7 @@ func TestChartsCache(t *testing.T) {
 		comp("Chainwork after Lengthen", charts.Days.Chainwork, ChartUints{2, 4, 6}, true)
 		comp("Fees after Lengthen", charts.Days.Fees, uintDaysSum, true)
 		comp("TotalMixed after Lengthen", charts.Days.TotalMixed, uintDaysSum, true)
-		comp("AnonymitySet after Lengthen", charts.Days.AnonymitySet, dayAnonymitySet, true)
+		comp("AnonymitySet after Lengthen", charts.Days.AnonymitySet, uintDaysAvg, true)
 
 		// An additional call to lengthen should not add any data.
 		timeLen := len(charts.Days.Time)
