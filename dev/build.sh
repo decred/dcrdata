@@ -47,7 +47,7 @@ echo "Building the dcrdata binary..."
 GO111MODULE=on go build -v -o dcrdata
 
 echo "Packaging static frontend assets..."
-npm install
+npm clean-install
 npm run build
 
 echo "Gzipping assets for use with gzip_static..."
