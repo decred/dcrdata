@@ -476,6 +476,18 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 		offset = m
 	}
 
+	oldestBlockTimestamp := exp.ChainParams.GenesisBlock.Header.Timestamp
+	oldestBlockMonth := oldestBlockTimestamp.Month()
+	oldestBlockDay := oldestBlockTimestamp.Day()
+
+	now := time.Now()
+
+	if (grouping == dbtypes.YearGrouping && now.Month() < oldestBlockMonth) ||
+		grouping == dbtypes.MonthGrouping && now.Day() < oldestBlockDay ||
+		grouping == dbtypes.YearGrouping && now.Month() == oldestBlockMonth && now.Day() < oldestBlockDay {
+		maxOffset = maxOffset + 1
+	}
+
 	rows, err := strconv.ParseUint(r.URL.Query().Get("rows"), 10, 64)
 	if err != nil || rows < 1 {
 		rows = minExplorerRows
@@ -558,12 +570,16 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 		rows = maxExplorerRows
 	}
 
+	var end int
+
 	oldestBlock := height - rows + 1
 	if oldestBlock < 0 {
-		height = rows - 1
+		end = -1
+	} else {
+		end = height - rows
 	}
 
-	summaries := exp.dataSource.GetExplorerBlocks(height, height-rows)
+	summaries := exp.dataSource.GetExplorerBlocks(height, end)
 	if summaries == nil {
 		log.Errorf("Unable to get blocks: height=%d&rows=%d", height, rows)
 		exp.StatusPage(w, defaultErrorCode, "could not find those blocks", "",
@@ -586,11 +602,15 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 
 	linkTemplate := "/blocks?height=%d&rows=" + strconv.Itoa(rows)
 
+	oldestHeight := int(bestBlockHeight) % rows
+
 	str, err := exp.templates.exec("explorer", struct {
 		*CommonPageData
 		Data         []*types.BlockBasic
 		BestBlock    int64
+		OldestHeight int64
 		Rows         int64
+		RowsCount    int64
 		WindowSize   int64
 		TimeGrouping string
 		Pages        pageNumbers
@@ -598,7 +618,9 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 		CommonPageData: exp.commonData(r),
 		Data:           summaries,
 		BestBlock:      bestBlockHeight,
+		OldestHeight:   int64(oldestHeight),
 		Rows:           int64(rows),
+		RowsCount:      int64(len(summaries)),
 		WindowSize:     exp.ChainParams.StakeDiffWindowSize,
 		TimeGrouping:   "Blocks",
 		Pages:          calcPagesDesc(int(bestBlockHeight), rows, height, linkTemplate),

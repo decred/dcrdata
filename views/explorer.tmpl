@@ -22,7 +22,7 @@
                 </span>
                 <div class="pb-1 d-flex justify-content-end align-items-end flex-wrap">
                   <span class="fs12 nowrap text-secondary px-2 my-2">
-                      {{intComma (add $Offset 1)}} &ndash; {{intComma (add $Offset .Rows)}} of {{intComma (add .BestBlock 1) }} rows
+                      {{intComma (add $Offset 1)}} &ndash; {{intComma (add $Offset .RowsCount)}} of {{intComma (add .BestBlock 1) }} rows
                   </span>
                   <span class="fs12 nowrap text-right">
                       <select
@@ -33,12 +33,11 @@
                           class="dropdown text-secondary my-2 {{if lt $blocksCount 10}}disabled{{end}}"
                           {{if lt $blocksCount 10}}disabled="disabled"{{end}}
                       >
+                        {{if eq $blocksCount 20 30 50 100 .WindowSize}}{{else}}<option selected value="{{$blocksCount}}">{{$blocksCount}} per page</option>{{end}}
                         {{if ge $pendingBlocks 20}}<option {{if eq $blocksCount 20}}selected{{end}} value="20">20 per page</option>{{end}}
                         {{if ge $pendingBlocks 30}}<option {{if eq $blocksCount 30}}selected{{end}} value="30">30 per page</option>{{end}}
                         {{if ge $pendingBlocks 50}}<option {{if eq $blocksCount 50}}selected{{end}} value="50">50 per page</option>{{end}}
                         {{if ge $pendingBlocks 100}}<option {{if eq $blocksCount 100}}selected{{end}} value="100">100 per page</option>{{end}}
-                        {{if ge $pendingBlocks .WindowSize}}<option {{if eq $blocksCount .WindowSize}}selected{{end}} value="{{.WindowSize}}">{{.WindowSize}} per page</option>{{end}}
-                        {{if eq $blocksCount 20 30 50 100 .WindowSize}}{{else}}<option selected value="{{$blocksCount}}">{{$blocksCount}} per page</option>{{end}}
                       </select>
                   </span>
                   <nav aria-label="blocks navigation" data-limit="{{.Rows}}" class="ml-2 my-2 d-inline-block text-right">
@@ -67,7 +66,7 @@
                             <li>
                                 <a
                                 class="text-secondary"
-                                href="/blocks?height={{subtract .Rows 1}}&rows={{.Rows}}"
+                                href="/blocks?height={{.OldestHeight}}&rows={{.Rows}}"
                                 >Oldest</a>
                             </li>
                           {{end}}
