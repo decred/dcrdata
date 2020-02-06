@@ -3644,9 +3644,6 @@ func appendPrivacyParticipation(charts *cache.ChartData, rows *sql.Rows) error {
 			log.Errorf("Unable to scan for MixedVoutsPerBlock fields: %v", err)
 			return err
 		}
-		if totalMixed < 0 {
-			totalMixed *= -1
-		}
 
 		// Converting to atoms.
 		blocks.TotalMixed = append(blocks.TotalMixed, uint64(totalMixed))
@@ -3696,6 +3693,10 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 			return err
 		}
 
+		if maxHeight < fundHeight {
+			maxHeight = fundHeight
+		}
+
 		if spendHeightNull.Valid {
 			spendHeight = spendHeightNull.Int64
 		} else {
@@ -3732,8 +3733,8 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 	}
 
 	// fill missing values
-	for h := int64(len(blocks.AnonymitySet)); h <= maxHeight; h++ {
-		if spentVouts, found := spendHeights[h]; found {
+	for h := len(blocks.AnonymitySet); h < len(blocks.Height) || int64(h) <= maxHeight; h++ {
+		if spentVouts, found := spendHeights[int64(h)]; found {
 			anonymitySet = subtract(anonymitySet, spentVouts...)
 		}
 		blocks.AnonymitySet = append(blocks.AnonymitySet, uint64(anonymitySet))
