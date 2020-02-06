@@ -420,7 +420,6 @@ type ChartData struct {
 	Blocks       *zoomSet
 	Windows      *windowSet
 	Days         *zoomSet
-	chainParams  *chaincfg.Params
 	cacheMtx     sync.RWMutex
 	cache        map[string]*cachedChart
 	updaters     []ChartUpdater
@@ -892,7 +891,6 @@ func NewChartData(ctx context.Context, height uint32, chainParams *chaincfg.Para
 		Blocks:       newBlockSet(size),
 		Windows:      newWindowSet(windows),
 		Days:         newDaySet(days),
-		chainParams:  chainParams,
 		cache:        make(map[string]*cachedChart),
 		updaters:     make([]ChartUpdater, 0),
 	}
