@@ -551,11 +551,11 @@ export default class extends Controller {
 
       case 'coin-supply': // supply graph
         d = circulationFunc(data)
-        assign(gOptions, mapDygraphOptions(d.data, [xlabel, 'Coin Supply', 'Inflation Limit', 'Coinjoins'],
+        assign(gOptions, mapDygraphOptions(d.data, [xlabel, 'Coin Supply', 'Inflation Limit', 'Mix Rate'],
           true, 'Coin Supply (DCR)', true, false))
         gOptions.y2label = 'Inflation Limit'
-        gOptions.y3label = 'Coinjoins'
-        gOptions.series = { 'Inflation Limit': { axis: 'y2' }, 'Coinjoins': { axis: 'y3' } }
+        gOptions.y3label = 'Mix Rate'
+        gOptions.series = { 'Inflation Limit': { axis: 'y2' }, 'Mix Rate': { axis: 'y3' } }
         this.visibility = [true, true, this.anonymitySetTarget.checked]
         gOptions.visibility = this.visibility
         gOptions.series = {
@@ -564,7 +564,7 @@ export default class extends Controller {
             color: '#888',
             strokeWidth: 1.5
           },
-          'Coinjoins': {
+          'Mix Rate': {
             color: '#2dd8a3'
           }
         }
@@ -574,15 +574,15 @@ export default class extends Controller {
           var change = 0
           if (i < d.inflation.length) {
             const supply = data.series[0].y
-            let predicted = d.inflation[i]
-            let unminted = predicted - data.series[0].y
-            change = ((unminted / predicted) * 100).toFixed(2)
-            div.appendChild(legendEntry(`${legendMarker()} Unminted: ${intComma(unminted)} DCR (${change}%)`))
             if (this.anonymitySetTarget.checked) {
               const mixed = data.series[2].y
               const mixedPercentage = ((mixed / supply) * 100).toFixed(2)
               div.appendChild(legendEntry(`${legendMarker()} Mixed: ${intComma(mixed)} DCR (${mixedPercentage}%)`))
             }
+            let predicted = d.inflation[i]
+            let unminted = predicted - data.series[0].y
+            change = ((unminted / predicted) * 100).toFixed(2)
+            div.appendChild(legendEntry(`${legendMarker()} Unminted: ${intComma(unminted)} DCR (${change}%)`))
           }
         }
         break
@@ -595,7 +595,7 @@ export default class extends Controller {
       case 'privacy-participation': // anonymity set graph
         d = anonymitySetFunc(data)
         this.customLimits = d.limits
-        const label = 'Coinjoins'
+        const label = 'Mix Rate'
         assign(gOptions, mapDygraphOptions(d.data, [xlabel, label], false, `${label} (DCR)`, true, false))
 
         yFormatter = (div, data, i) => {
