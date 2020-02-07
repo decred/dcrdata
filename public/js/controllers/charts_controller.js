@@ -17,7 +17,9 @@ const aDay = 86400 * 1000 // in milliseconds
 const aMonth = 30 // in days
 const atomsToDCR = 1e-8
 const windowScales = ['ticket-price', 'pow-difficulty', 'missed-votes']
-const lineScales = ['ticket-price']
+const hybridScales = ['privacy-participation']
+const lineScales = ['ticket-price', 'privacy-participation']
+const multiYAxisChart = ['ticket-price', 'coin-supply', 'privacy-participation']
 // index 0 represents y1 and 1 represents y2 axes.
 const yValueRanges = { 'ticket-price': [1] }
 var chainworkUnits = ['exahash', 'zettahash', 'yottahash']
@@ -31,11 +33,20 @@ function usesWindowUnits (chart) {
   return windowScales.indexOf(chart) > -1
 }
 
+function usesHybridUnits (chart) {
+  return hybridScales.indexOf(chart) > -1
+}
+
 function isScaleDisabled (chart) {
   return lineScales.indexOf(chart) > -1
 }
 
+function hasMultipleVisibility (chart) {
+  return multiYAxisChart.indexOf(chart) > -1
+}
+
 function intComma (amount) {
+  if (!amount) return ''
   return amount.toLocaleString(undefined, { maximumFractionDigits: 0 })
 }
 
@@ -154,7 +165,7 @@ function zipTvY (times, ys, yMult) {
 
 function zipIvY (ys, yMult, offset) {
   yMult = yMult || 1
-  offset = offset || 1
+  offset = offset || 1 // TODO: check for why offset is set to a default value of 1 when genesis block has a height of 0
   return ys.map((y, i) => {
     return [offset + i, y * yMult]
   })
@@ -175,6 +186,40 @@ function zip2D (data, ys, yMult, offset) {
     return zipHvY(data.h, ys, yMult, offset)
   }
   return zipTvY(data.t, ys, yMult)
+}
+
+function anonymitySetFunc (data) {
+  let d
+  let start = -1
+  let end = 0
+  if (data.axis === 'height') {
+    if (data.bin === 'block') {
+      d = data.anonymitySet.map((y, i) => {
+        if (start === -1 && y > 0) {
+          start = i
+        }
+        end = i
+        return [i, y * atomsToDCR]
+      })
+    } else {
+      d = data.anonymitySet.map((y, i) => {
+        if (start === -1 && y > 0) {
+          start = i
+        }
+        end = data.h[i]
+        return [data.h[i], y * atomsToDCR]
+      })
+    }
+  } else {
+    d = data.t.map((t, i) => {
+      if (start === -1 && data.anonymitySet[i] > 0) {
+        start = t * 1000
+      }
+      end = t * 1000
+      return [new Date(t * 1000), data.anonymitySet[i] * atomsToDCR]
+    })
+  }
+  return { data: d, limits: [start, end] }
 }
 
 function ticketPriceFunc (data) {
@@ -226,6 +271,7 @@ function circulationFunc (chartData) {
   var heights = chartData.h
   var times = chartData.t
   var supplies = chartData.supply
+  var anonymitySet = chartData.anonymitySet
   var isHeightAxis = chartData.axis === 'height'
   var xFunc, hFunc
   if (chartData.bin === 'day') {
@@ -241,7 +287,7 @@ function circulationFunc (chartData) {
     let height = hFunc(i)
     addDough(height)
     inflation.push(yMax)
-    return [xFunc(i), supplies[i] * atomsToDCR, null]
+    return [xFunc(i), supplies[i] * atomsToDCR, null, anonymitySet[i] * atomsToDCR]
   })
 
   var dailyBlocks = aDay / avgBlockTime
@@ -253,11 +299,11 @@ function circulationFunc (chartData) {
   xFunc = isHeightAxis ? xx => xx : xx => { return new Date(xx) }
   var xIncrement = isHeightAxis ? dailyBlocks : aDay
   var projection = 6 * aMonth
-  data.push([xFunc(x), null, yMax])
+  data.push([xFunc(x), null, yMax, null])
   for (var i = 1; i <= projection; i++) {
     addDough(h + dailyBlocks)
     x += xIncrement
-    data.push([xFunc(x), null, yMax])
+    data.push([xFunc(x), null, yMax, null])
   }
   return {
     data: data,
@@ -296,6 +342,8 @@ export default class extends Controller {
       'scaleSelector',
       'ticketsPurchase',
       'ticketsPrice',
+      'anonymitySet',
+      'vSelectorItem',
       'vSelector',
       'binSize',
       'legendEntry',
@@ -336,13 +384,19 @@ export default class extends Controller {
       return node
     }
 
-    this.settings = TurboQuery.nullTemplate(['chart', 'zoom', 'scale', 'bin', 'axis'])
+    this.settings = TurboQuery.nullTemplate(['chart', 'zoom', 'scale', 'bin', 'axis', 'visibility'])
     this.query.update(this.settings)
     this.settings.chart = this.settings.chart || 'ticket-price'
     this.zoomCallback = this._zoomCallback.bind(this)
     this.drawCallback = this._drawCallback.bind(this)
     this.limits = null
     this.lastZoom = null
+    this.visibility = []
+    if (this.settings.visibility) {
+      this.settings.visibility.split(',', -1).forEach(s => {
+        this.visibility.push(s === 'true')
+      })
+    }
     Dygraph = await getDefault(
       import(/* webpackChunkName: "dygraphs" */ '../vendor/dygraphs.min.js')
     )
@@ -497,13 +551,21 @@ export default class extends Controller {
 
       case 'coin-supply': // supply graph
         d = circulationFunc(data)
-        assign(gOptions, mapDygraphOptions(d.data, [xlabel, 'Coin Supply', 'Inflation Limit'],
+        assign(gOptions, mapDygraphOptions(d.data, [xlabel, 'Coin Supply', 'Inflation Limit', 'Coinjoins'],
           true, 'Coin Supply (DCR)', true, false))
+        gOptions.y2label = 'Inflation Limit'
+        gOptions.y3label = 'Coinjoins'
+        gOptions.series = { 'Inflation Limit': { axis: 'y2' }, 'Coinjoins': { axis: 'y3' } }
+        this.visibility = [true, true, this.anonymitySetTarget.checked]
+        gOptions.visibility = this.visibility
         gOptions.series = {
           'Inflation Limit': {
             strokePattern: [5, 5],
             color: '#888',
             strokeWidth: 1.5
+          },
+          'Coinjoins': {
+            color: '#2dd8a3'
           }
         }
         gOptions.inflation = d.inflation
@@ -511,10 +573,16 @@ export default class extends Controller {
           addLegendEntryFmt(div, data.series[0], y => intComma(y) + ' DCR')
           var change = 0
           if (i < d.inflation.length) {
+            const supply = data.series[0].y
             let predicted = d.inflation[i]
             let unminted = predicted - data.series[0].y
             change = ((unminted / predicted) * 100).toFixed(2)
             div.appendChild(legendEntry(`${legendMarker()} Unminted: ${intComma(unminted)} DCR (${change}%)`))
+            if (this.anonymitySetTarget.checked) {
+              const mixed = data.series[2].y
+              const mixedPercentage = ((mixed / supply) * 100).toFixed(2)
+              div.appendChild(legendEntry(`${legendMarker()} Mixed: ${intComma(mixed)} DCR (${mixedPercentage}%)`))
+            }
           }
         }
         break
@@ -522,6 +590,17 @@ export default class extends Controller {
       case 'fees': // block fee graph
         d = zip2D(data, data.fees, atomsToDCR)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Total Fee'], false, 'Total Fee (DCR)', true, false))
+        break
+
+      case 'privacy-participation': // anonymity set graph
+        d = anonymitySetFunc(data)
+        this.customLimits = d.limits
+        const label = 'Coinjoins'
+        assign(gOptions, mapDygraphOptions(d.data, [xlabel, label], false, `${label} (DCR)`, true, false))
+
+        yFormatter = (div, data, i) => {
+          addLegendEntryFmt(div, data.series[0], y => y > 0 ? intComma(y) : '0' + ' DCR')
+        }
         break
 
       case 'duration-btw-blocks': // Duration between blocks graph
@@ -559,6 +638,7 @@ export default class extends Controller {
 
   async selectChart () {
     var selection = this.settings.chart = this.chartSelectTarget.value
+    this.customLimits = null
     this.chartWrapperTarget.classList.add('loading')
     if (isScaleDisabled(selection)) {
       this.scaleSelectorTarget.classList.add('d-hide')
@@ -566,18 +646,35 @@ export default class extends Controller {
       this.modeSelectorTarget.classList.remove('d-hide')
     } else {
       this.scaleSelectorTarget.classList.remove('d-hide')
+    }
+    if (hasMultipleVisibility(selection)) {
+      this.vSelectorTarget.classList.remove('d-hide')
+      this.updateVSelector(selection)
+    } else {
       this.vSelectorTarget.classList.add('d-hide')
       this.modeSelectorTarget.classList.add('d-hide')
     }
     if (selectedChart !== selection || this.settings.bin !== this.selectedBin() ||
       this.settings.axis !== this.selectedAxis()) {
       let url = '/api/chart/' + selection
-      if (usesWindowUnits(selection)) {
+      if (usesWindowUnits(selection) && !usesHybridUnits(selection)) {
         this.binSelectorTarget.classList.add('d-hide')
         this.settings.bin = 'window'
       } else {
         this.binSelectorTarget.classList.remove('d-hide')
         this.settings.bin = this.selectedBin()
+        this.binSizeTargets.forEach(el => {
+          if (el.dataset.option !== 'window') return
+          if (usesHybridUnits(selection)) {
+            el.classList.remove('d-hide')
+          } else {
+            el.classList.add('d-hide')
+            if (this.settings.bin === 'window') {
+              this.settings.bin = 'day'
+              this.setActiveOptionBtn(this.settings.bin, this.binSizeTargets)
+            }
+          }
+        })
       }
       url += `?bin=${this.settings.bin}`
 
@@ -601,10 +698,15 @@ export default class extends Controller {
     let oldLimits = this.limits || this.chartsView.xAxisExtremes()
     this.limits = this.chartsView.xAxisExtremes()
     var selected = this.selectedZoom()
-    if (selected) {
+    if (selected && !(selectedChart === 'privacy-participation' && selected === 'all')) {
       this.lastZoom = Zoom.validate(selected, this.limits,
         this.isTimeAxis() ? avgBlockTime : 1, this.isTimeAxis() ? 1 : avgBlockTime)
     } else {
+      // if this is for the privacy-participation chart, then zoom to the beginning of the record
+      if (selectedChart === 'privacy-participation') {
+        this.limits = oldLimits = this.customLimits
+        this.settings.zoom = Zoom.object(this.limits[0], this.limits[1])
+      }
       this.lastZoom = Zoom.project(this.settings.zoom, oldLimits, this.limits)
     }
     if (this.lastZoom) {
@@ -665,8 +767,10 @@ export default class extends Controller {
   setBin (e) {
     var target = e.srcElement || e.target
     var option = target ? target.dataset.option : e
-    if (!option || option === 'window') return
+    if (!option) return
     this.setActiveOptionBtn(option, this.binSizeTargets)
+    // hide vSelector
+    this.updateVSelector()
     if (!target) return // Exit if running for the first time.
     selectedChart = null // Force fetch
     this.selectChart()
@@ -708,15 +812,81 @@ export default class extends Controller {
     this.selectChart()
   }
 
-  setVisibility (e) {
-    if (this.chartSelectTarget.value !== 'ticket-price') return
-    if (!this.ticketsPriceTarget.checked && !this.ticketsPurchaseTarget.checked) {
-      this.ticketsPriceTarget.checked = this.visibility[0]
-      this.ticketsPurchaseTarget.checked = this.visibility[1]
-    } else {
-      this.visibility = [this.ticketsPriceTarget.checked, this.ticketsPurchaseTarget.checked]
-      this.chartsView.updateOptions({ visibility: this.visibility })
+  updateVSelector (chart) {
+    if (!chart) {
+      chart = this.chartSelectTarget.value
     }
+    const that = this
+    let showWrapper = false
+    this.vSelectorItemTargets.forEach(el => {
+      let show = el.dataset.charts.indexOf(chart) > -1
+      if (el.dataset.bin && el.dataset.bin.indexOf(that.selectedBin()) === -1) {
+        show = false
+      }
+      if (show) {
+        el.classList.remove('d-hide')
+        showWrapper = true
+      } else {
+        el.classList.add('d-hide')
+      }
+    })
+    if (showWrapper) {
+      this.vSelectorTarget.classList.remove('d-hide')
+    } else {
+      this.vSelectorTarget.classList.add('d-hide')
+    }
+    this.setVisibilityFromSettings()
+  }
+
+  setVisibilityFromSettings () {
+    switch (this.chartSelectTarget.value) {
+      case 'ticket-price':
+        if (this.visibility.length !== 2) {
+          this.visibility = [true, this.ticketsPurchaseTarget.checked]
+        }
+        this.ticketsPriceTarget.checked = this.visibility[0]
+        this.ticketsPurchaseTarget.checked = this.visibility[1]
+        break
+      case 'coin-supply':
+        if (this.visibility.length !== 3) {
+          this.visibility = [true, true, this.anonymitySetTarget.checked]
+        }
+        this.anonymitySetTarget.checked = this.visibility[2]
+        break
+      case 'privacy-participation':
+        if (this.visibility.length !== 2) {
+          this.visibility = [true, this.anonymitySetTarget.checked]
+        }
+        this.anonymitySetTarget.checked = this.visibility[1]
+        break
+      default:
+        return
+    }
+    this.settings.visibility = this.visibility.join(',')
+    this.query.replace(this.settings)
+  }
+
+  setVisibility (e) {
+    switch (this.chartSelectTarget.value) {
+      case 'ticket-price':
+        if (!this.ticketsPriceTarget.checked && !this.ticketsPurchaseTarget.checked) {
+          e.currentTarget.checked = true
+          return
+        }
+        this.visibility = [this.ticketsPriceTarget.checked, this.ticketsPurchaseTarget.checked]
+        break
+      case 'coin-supply':
+        this.visibility = [true, true, this.anonymitySetTarget.checked]
+        break
+      case 'privacy-participation':
+        this.visibility = [true, this.anonymitySetTarget.checked]
+        break
+      default:
+        return
+    }
+    this.chartsView.updateOptions({ visibility: this.visibility })
+    this.settings.visibility = this.visibility.join(',')
+    this.query.replace(this.settings)
   }
 
   setActiveOptionBtn (opt, optTargets) {

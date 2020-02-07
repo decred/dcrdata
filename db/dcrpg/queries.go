@@ -3619,6 +3619,130 @@ func appendBlockFees(charts *cache.ChartData, rows *sql.Rows) error {
 	return rows.Err()
 }
 
+// retrievePrivacyParticipation retrieves the sum of all mixed vouts that is
+// newer than the data in the provided ChartData. This data is used to plot fees
+// on the /charts page. This is the Fetcher half of a pair that make up a
+// cache.ChartUpdater.
+func retrievePrivacyParticipation(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
+	rows, err := db.QueryContext(ctx, internal.SelectMixedTotalPerBlock, charts.TotalMixedTip())
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+// Append the result from retrievePrivacyParticipation to the provided
+// ChartData. This is the Appender half of a pair that make up a
+// cache.ChartUpdater.
+func appendPrivacyParticipation(charts *cache.ChartData, rows *sql.Rows) error {
+	defer rows.Close()
+	blocks := charts.Blocks
+	for rows.Next() {
+		var blockHeight uint64
+		var totalMixed int64
+		if err := rows.Scan(&blockHeight, &totalMixed); err != nil {
+			log.Errorf("Unable to scan for MixedVoutsPerBlock fields: %v", err)
+			return err
+		}
+
+		// Converting to atoms.
+		blocks.TotalMixed = append(blocks.TotalMixed, uint64(totalMixed))
+	}
+	return rows.Err()
+}
+
+// retrieveAnonymitySet retrieves any block total mixed data that is newer than
+// the data in the provided ChartData. This data is used to plot anonymity-set
+// on the /charts page. This is the Fetcher half of a pair that make up a
+// cache.ChartUpdater.
+func retrieveAnonymitySet(ctx context.Context, db *sql.DB, _ *cache.ChartData) (*sql.Rows, error) {
+	rows, err := db.QueryContext(ctx, internal.SelectMixedVouts)
+	if err != nil {
+		return nil, err
+	}
+
+	return rows, nil
+}
+
+// Append the result from retrieveAnonymitySet to the provided ChartData. This
+// is the Appender half of a pair that make up a cache.ChartUpdater.
+func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
+
+	blocks := charts.Blocks
+	var maxHeight, anonymitySet int64
+	spendHeights := make(map[int64][]int64)
+	subtract := func(value int64, items ...int64) int64 {
+		for _, item := range items {
+			value -= item
+		}
+
+		return value
+	}
+
+	// TODO: The entire vouts is be process each time, get the max age vouts to
+	// reduce the amount of data that is being processed subsequently
+
+	blocks.AnonymitySet = blocks.AnonymitySet.Truncate(0).(cache.ChartUints)
+
+	for rows.Next() {
+		var value, fundHeight, spendHeight int64
+		var spendHeightNull sql.NullInt64
+		var tree uint8
+		err = rows.Scan(&value, &fundHeight, &spendHeightNull, &tree)
+		if err != nil {
+			return err
+		}
+
+		if maxHeight < fundHeight {
+			maxHeight = fundHeight
+		}
+
+		if spendHeightNull.Valid {
+			spendHeight = spendHeightNull.Int64
+		} else {
+			spendHeight = -1
+		}
+
+		if spendHeight > maxHeight {
+			maxHeight = spendHeight
+		}
+
+		spendHeights[spendHeight] = append(spendHeights[spendHeight], value)
+		if fundHeight == int64(len(blocks.AnonymitySet)) {
+			anonymitySet += value
+			continue
+		}
+
+		// loop from previous to the current height to cover heights without
+		// mixed output
+		for h := int64(len(blocks.AnonymitySet)); h < fundHeight; h++ {
+			if spentVouts, found := spendHeights[h]; found {
+				anonymitySet = subtract(anonymitySet, spentVouts...)
+				delete(spendHeights, h)
+			}
+			blocks.AnonymitySet = append(blocks.AnonymitySet, uint64(anonymitySet))
+		}
+
+		anonymitySet += value
+	}
+
+	err = rows.Err()
+	if err != nil {
+		log.Errorf("Unable to scan for MixedVouts fields: %v", err)
+		return err
+	}
+
+	// fill missing values
+	for h := len(blocks.AnonymitySet); h < len(blocks.Height) || int64(h) <= maxHeight; h++ {
+		if spentVouts, found := spendHeights[int64(h)]; found {
+			anonymitySet = subtract(anonymitySet, spentVouts...)
+		}
+		blocks.AnonymitySet = append(blocks.AnonymitySet, uint64(anonymitySet))
+	}
+
+	return nil
+}
+
 // retrievePoolStats returns all the pool value and the pool size
 // charts data needed to plot ticket-pool-size and ticket-pool value charts on
 // the charts page. This is the Fetcher half of a pair that make up a

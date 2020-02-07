@@ -1049,6 +1049,18 @@ func (pgb *ChainDB) RegisterCharts(charts *cache.ChartData) {
 	})
 
 	charts.AddUpdater(cache.ChartUpdater{
+		Tag:      "privacyParticipation",
+		Fetcher:  pgb.privacyParticipation,
+		Appender: appendPrivacyParticipation,
+	})
+
+	charts.AddUpdater(cache.ChartUpdater{
+		Tag:      "anonymitySet",
+		Fetcher:  pgb.anonymitySet,
+		Appender: appendAnonymitySet,
+	})
+
+	charts.AddUpdater(cache.ChartUpdater{
 		Tag:      "pool stats",
 		Fetcher:  pgb.poolStats,
 		Appender: appendPoolStats,
@@ -3154,6 +3166,32 @@ func (pgb *ChainDB) blockFees(charts *cache.ChartData) (*sql.Rows, func(), error
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 
 	rows, err := retrieveBlockFees(ctx, pgb.db, charts)
+	if err != nil {
+		return nil, cancel, fmt.Errorf("chartBlocks: %v", pgb.replaceCancelError(err))
+	}
+	return rows, cancel, nil
+}
+
+// appendAnonymitySet sets or updates a series of per-block privacy
+// participation. This is the Fetcher half of a pair that make up a
+// cache.ChartUpdater. The Appender half is appendPrivacyParticipation.
+func (pgb *ChainDB) privacyParticipation(charts *cache.ChartData) (*sql.Rows, func(), error) {
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+
+	rows, err := retrievePrivacyParticipation(ctx, pgb.db, charts)
+	if err != nil {
+		return nil, cancel, fmt.Errorf("privacyParticipation: %v", pgb.replaceCancelError(err))
+	}
+	return rows, cancel, nil
+}
+
+// anonymitySet sets or updates a series of per-block anonymity set. This is the
+// Fetcher half of a pair that make up a cache.ChartUpdater. The Appender half
+// is appendAnonymitySet.
+func (pgb *ChainDB) anonymitySet(charts *cache.ChartData) (*sql.Rows, func(), error) {
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+
+	rows, err := retrieveAnonymitySet(ctx, pgb.db, charts)
 	if err != nil {
 		return nil, cancel, fmt.Errorf("chartBlocks: %v", pgb.replaceCancelError(err))
 	}
@@ -6117,11 +6155,7 @@ func (pgb *ChainDB) SignalHeight(height uint32) {
 
 func (pgb *ChainDB) MixedUtxosByHeight() (heights, utxoCountReg, utxoValueReg, utxoCountStk, utxoValueStk []int64, err error) {
 	var rows *sql.Rows
-	rows, err = pgb.db.Query(`SELECT vouts.value, fund_tx.block_height, spend_tx.block_height, vouts.tx_tree
-		FROM vouts
-		JOIN transactions AS fund_tx ON vouts.tx_hash=fund_tx.tx_hash
-		LEFT OUTER JOIN transactions AS spend_tx ON spend_tx_row_id=spend_tx.id
-		WHERE mixed=true and value>0;`)
+	rows, err = pgb.db.Query(internal.SelectMixedVouts)
 	if err != nil {
 		return
 	}
@@ -6168,7 +6202,7 @@ func (pgb *ChainDB) MixedUtxosByHeight() (heights, utxoCountReg, utxoValueReg, u
 		i := h - minHeight
 		heights[i] = h
 		for iu := range vals {
-			if h >= fundHeights[iu] && (h <= spendHeights[iu] || spendHeights[iu] == -1) {
+			if h >= fundHeights[iu] && (h < spendHeights[iu] || spendHeights[iu] == -1) {
 				if trees[iu] == 0 {
 					utxoCountReg[i]++
 					utxoValueReg[i] += vals[iu]

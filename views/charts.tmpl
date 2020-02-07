@@ -39,6 +39,7 @@
                             <option value="pow-difficulty">PoW Difficulty</option>
                             <option value="coin-supply">Circulation</option>
                             <option value="fees">Fees</option>
+                            <option value="privacy-participation">Privacy Participation</option>
                             <option value="duration-btw-blocks">Duration Between Blocks</option>
                             <option value="chainwork">Total Work</option>
                             <option value="hashrate">Hashrate</option>
@@ -164,7 +165,7 @@
                         <ul
                             class="nav nav-pills"
                         >
-                            <li class="nav-item">
+                            <li class="nav-item" data-target="charts.vSelectorItem" data-charts="ticket-price">
                                 <label class="customcheck ml-2 d-inline-flex">Price
                                     <input
                                         type="checkbox"
@@ -175,7 +176,7 @@
                                     <span class="checkmark tickets-price"></span>
                                 </label>
                             </li>
-                            <li class="nav-item">
+                            <li class="nav-item" data-target="charts.vSelectorItem" data-charts="ticket-price">
                                 <label class="customcheck mx-2 d-inline-flex">Tickets Bought
                                     <input
                                         type="checkbox"
@@ -183,6 +184,17 @@
                                         data-target="charts.ticketsPurchase"
                                     >
                                     <span class="checkmark tickets-bought"></span>
+                                </label>
+                            </li>
+                            <li class="nav-item">
+                                <label class="customcheck mx-2 d-inline-flex"
+                                    data-target="charts.vSelectorItem" data-charts="coin-supply">Anonymity Set
+                                    <input
+                                        type="checkbox"
+                                        data-action="click->charts#setVisibility"
+                                        data-target="charts.anonymitySet"
+                                    >
+                                    <span class="checkmark total-mixed"></span>
                                 </label>
                             </li>
                         </ul>

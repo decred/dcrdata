@@ -273,6 +273,21 @@ var (
 			AND block_height > $1
 		GROUP BY block_height
 		ORDER BY block_height;`
+
+	SelectMixedTotalPerBlock = `
+		SELECT tx.block_height as block_height, SUM(tx.mix_count * tx.mix_denom) as total_mixed
+		FROM transactions tx
+		WHERE tx.is_mainchain
+			AND tx.block_height > $1
+		GROUP BY tx.block_height
+		ORDER BY tx.block_height;`
+
+	SelectMixedVouts = `
+		SELECT vouts.value, fund_tx.block_height, spend_tx.block_height, vouts.tx_tree
+		FROM vouts
+		JOIN transactions AS fund_tx ON vouts.tx_hash=fund_tx.tx_hash
+		LEFT OUTER JOIN transactions AS spend_tx ON spend_tx_row_id=spend_tx.id
+		WHERE mixed=true and value>0 ORDER BY fund_tx.block_height;`
 )
 
 // MakeTxInsertStatement returns the appropriate transaction insert statement

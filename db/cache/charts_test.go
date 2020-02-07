@@ -64,6 +64,8 @@ func TestChartsCache(t *testing.T) {
 		charts.Blocks.NewAtoms = append(charts.Blocks.NewAtoms, v)
 		charts.Blocks.Chainwork = append(charts.Blocks.Chainwork, v)
 		charts.Blocks.Fees = append(charts.Blocks.Fees, v)
+		charts.Blocks.TotalMixed = append(charts.Blocks.TotalMixed, v)
+		charts.Blocks.AnonymitySet = append(charts.Blocks.AnonymitySet, v)
 		charts.Windows.Time = ChartUints{0}
 		charts.Windows.PowDiff = ChartFloats{0}
 		charts.Windows.TicketPrice = ChartUints{0}
@@ -144,6 +146,8 @@ func TestChartsCache(t *testing.T) {
 		comp("NewAtoms before read", charts.Blocks.NewAtoms, seedUints, false)
 		comp("Chainwork before read", charts.Blocks.Chainwork, seedUints, false)
 		comp("Fees before read", charts.Blocks.Fees, seedUints, false)
+		comp("TotalMixed before read", charts.Blocks.TotalMixed, seedUints, false)
+		comp("AnonymitySet before read", charts.Blocks.AnonymitySet, seedUints, false)
 
 		err := charts.readCacheFile(gobPath)
 		if err != nil {
@@ -159,6 +163,8 @@ func TestChartsCache(t *testing.T) {
 		comp("NewAtoms after read", charts.Blocks.NewAtoms, seedUints, true)
 		comp("Chainwork after read", charts.Blocks.Chainwork, seedUints, true)
 		comp("Fees after read", charts.Blocks.Fees, seedUints, true)
+		comp("TotalMissed after read", charts.Blocks.TotalMixed, seedUints, true)
+		comp("AnonymitySet after read", charts.Blocks.AnonymitySet, seedUints, true)
 
 		// Lengthen is called during readCacheFile, so Days should be properly calculated
 		comp("Time after Lengthen", charts.Days.Time, ChartUints{0, aDay, 2 * aDay}, true)
@@ -170,6 +176,8 @@ func TestChartsCache(t *testing.T) {
 		// Chainwork will just be the last entry from each day
 		comp("Chainwork after Lengthen", charts.Days.Chainwork, ChartUints{2, 4, 6}, true)
 		comp("Fees after Lengthen", charts.Days.Fees, uintDaysSum, true)
+		comp("TotalMixed after Lengthen", charts.Days.TotalMixed, uintDaysSum, true)
+		comp("AnonymitySet after Lengthen", charts.Days.AnonymitySet, uintDaysAvg, true)
 
 		// An additional call to lengthen should not add any data.
 		timeLen := len(charts.Days.Time)
@@ -288,15 +296,16 @@ func TestChartReorg(t *testing.T) {
 			Fees:      newUints(),
 		}
 		charts.Blocks = &zoomSet{
-			cacheID:   0,
-			Time:      newUints(),
-			PoolSize:  newUints(),
-			PoolValue: newUints(),
-			BlockSize: newUints(),
-			TxCount:   newUints(),
-			NewAtoms:  newUints(),
-			Chainwork: newUints(),
-			Fees:      newUints(),
+			cacheID:    0,
+			Time:       newUints(),
+			PoolSize:   newUints(),
+			PoolValue:  newUints(),
+			BlockSize:  newUints(),
+			TxCount:    newUints(),
+			NewAtoms:   newUints(),
+			Chainwork:  newUints(),
+			Fees:       newUints(),
+			TotalMixed: newUints(),
 		}
 	}
 	// this test reorg will replace the entire chain.
