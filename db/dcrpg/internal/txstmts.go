@@ -288,7 +288,7 @@ var (
 		FROM vouts
 		JOIN transactions AS fund_tx ON vouts.tx_hash=fund_tx.tx_hash
 		LEFT OUTER JOIN transactions AS spend_tx ON spend_tx_row_id=spend_tx.id
-		WHERE fund_tx.block_height > $1 and mixed=true and value>0 
+		WHERE (spend_tx.block_height > $1 or spend_tx.block_height is null) and mixed=true and value>0 
 		ORDER BY fund_tx.block_height;`
 )
 

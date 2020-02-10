@@ -372,8 +372,6 @@ type ChartGobject struct {
 	MissedVotes  ChartUints
 	TotalMixed   ChartUints
 	AnonymitySet ChartUints
-
-	VoutSpendHeight map[int64][]int64
 }
 
 // The chart data is cached with the current cacheID of the zoomSet or windowSet.
@@ -422,7 +420,6 @@ type ChartData struct {
 	Blocks          *zoomSet
 	Windows         *windowSet
 	Days            *zoomSet
-	VoutSpendHeight map[int64][]int64
 	cacheMtx        sync.RWMutex
 	cache           map[string]*cachedChart
 	updaters        []ChartUpdater
@@ -678,7 +675,6 @@ func (charts *ChartData) readCacheFile(filePath string) error {
 	charts.Windows.StakeCount = gobject.StakeCount
 	charts.Windows.MissedVotes = gobject.MissedVotes
 
-	charts.VoutSpendHeight = gobject.VoutSpendHeight
 	charts.mtx.Unlock()
 
 	err = charts.Lengthen()
@@ -749,8 +745,6 @@ func (charts *ChartData) gobject() *ChartGobject {
 		TicketPrice:  charts.Windows.TicketPrice,
 		StakeCount:   charts.Windows.StakeCount,
 		MissedVotes:  charts.Windows.MissedVotes,
-
-		VoutSpendHeight: charts.VoutSpendHeight,
 	}
 }
 
@@ -806,15 +800,7 @@ func (charts *ChartData) TotalMixedTip() int32 {
 func (charts *ChartData) AnonymitySetUpdateOffset() int32 {
 	charts.mtx.RLock()
 	charts.mtx.RUnlock()
-	// maxVoutAge is the difference between the funding and spending height of
-	// vouts as gotten from manually checking the historic data todo: check if
-	// this information is accurately available in the system
-	maxVoutAge := 60597
-	if len(charts.Blocks.AnonymitySet) < maxVoutAge {
-		return int32(len(charts.Blocks.AnonymitySet)) - 1
-	}
-
-	return int32(len(charts.Blocks.AnonymitySet) - maxVoutAge) - 1
+	return int32(len(charts.Blocks.AnonymitySet)) - 1
 }
 
 // NewAtomsTip is the height of the NewAtoms data.
@@ -913,7 +899,6 @@ func NewChartData(ctx context.Context, height uint32, chainParams *chaincfg.Para
 		Blocks:          newBlockSet(size),
 		Windows:         newWindowSet(windows),
 		Days:            newDaySet(days),
-		VoutSpendHeight: make(map[int64][]int64),
 		cache:           make(map[string]*cachedChart),
 		updaters:        make([]ChartUpdater, 0),
 	}
