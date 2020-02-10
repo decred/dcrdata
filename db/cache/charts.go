@@ -372,6 +372,8 @@ type ChartGobject struct {
 	MissedVotes  ChartUints
 	TotalMixed   ChartUints
 	AnonymitySet ChartUints
+
+	VoutSpendHeight map[int64][]int64
 }
 
 // The chart data is cached with the current cacheID of the zoomSet or windowSet.
@@ -413,17 +415,18 @@ type ChartUpdater struct {
 // and Windows fields must be updated by (presumably) a database package. The
 // Days data is auto-generated from the Blocks data during Lengthen-ing.
 type ChartData struct {
-	mtx          sync.RWMutex
-	ctx          context.Context
-	DiffInterval int32
-	StartPOS     int32
-	Blocks       *zoomSet
-	Windows      *windowSet
-	Days         *zoomSet
-	cacheMtx     sync.RWMutex
-	cache        map[string]*cachedChart
-	updaters     []ChartUpdater
-	updateMtx    sync.Mutex
+	mtx             sync.RWMutex
+	ctx             context.Context
+	DiffInterval    int32
+	StartPOS        int32
+	Blocks          *zoomSet
+	Windows         *windowSet
+	Days            *zoomSet
+	VoutSpendHeight map[int64][]int64
+	cacheMtx        sync.RWMutex
+	cache           map[string]*cachedChart
+	updaters        []ChartUpdater
+	updateMtx       sync.Mutex
 }
 
 // ValidateLengths checks that the length of all arguments is equal.
@@ -674,6 +677,8 @@ func (charts *ChartData) readCacheFile(filePath string) error {
 	charts.Windows.TicketPrice = gobject.TicketPrice
 	charts.Windows.StakeCount = gobject.StakeCount
 	charts.Windows.MissedVotes = gobject.MissedVotes
+
+	charts.VoutSpendHeight = gobject.VoutSpendHeight
 	charts.mtx.Unlock()
 
 	err = charts.Lengthen()
@@ -744,6 +749,8 @@ func (charts *ChartData) gobject() *ChartGobject {
 		TicketPrice:  charts.Windows.TicketPrice,
 		StakeCount:   charts.Windows.StakeCount,
 		MissedVotes:  charts.Windows.MissedVotes,
+
+		VoutSpendHeight: charts.VoutSpendHeight,
 	}
 }
 
@@ -798,10 +805,7 @@ func (charts *ChartData) TotalMixedTip() int32 {
 // AnonymitySetUpdateOffset is the height offset for update of the anonymity set
 func (charts *ChartData) AnonymitySetUpdateOffset() int32 {
 	charts.mtx.RLock()
-	defer func() {
-		fmt.Println("tip read")
-		charts.mtx.RUnlock()
-	}()
+	charts.mtx.RUnlock()
 	// maxVoutAge is the difference between the funding and spending height of
 	// vouts as gotten from manually checking the historic data todo: check if
 	// this information is accurately available in the system
@@ -903,14 +907,15 @@ func NewChartData(ctx context.Context, height uint32, chainParams *chaincfg.Para
 	windows := int(base64Height/chainParams.StakeDiffWindowSize+1) * 5 / 4
 
 	return &ChartData{
-		ctx:          ctx,
-		DiffInterval: int32(chainParams.StakeDiffWindowSize),
-		StartPOS:     int32(chainParams.StakeValidationHeight),
-		Blocks:       newBlockSet(size),
-		Windows:      newWindowSet(windows),
-		Days:         newDaySet(days),
-		cache:        make(map[string]*cachedChart),
-		updaters:     make([]ChartUpdater, 0),
+		ctx:             ctx,
+		DiffInterval:    int32(chainParams.StakeDiffWindowSize),
+		StartPOS:        int32(chainParams.StakeValidationHeight),
+		Blocks:          newBlockSet(size),
+		Windows:         newWindowSet(windows),
+		Days:            newDaySet(days),
+		VoutSpendHeight: make(map[int64][]int64),
+		cache:           make(map[string]*cachedChart),
+		updaters:        make([]ChartUpdater, 0),
 	}
 }
 

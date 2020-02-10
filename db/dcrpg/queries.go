@@ -3675,13 +3675,17 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 
 	blocks := charts.Blocks
 	var maxHeight, anonymitySet int64
-	spendHeights := make(map[int64][]int64)
+	spendHeights := charts.VoutSpendHeight
 	subtract := func(value int64, items ...int64) int64 {
 		for _, item := range items {
 			value -= item
 		}
 
 		return value
+	}
+
+	if spendHeights == nil {
+		spendHeights = make(map[int64][]int64)
 	}
 
 	if anonymitySetUpdateOffset >= 0 {
@@ -3745,10 +3749,12 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 	for h := len(blocks.AnonymitySet); h < len(blocks.Height) || int64(h) <= maxHeight; h++ {
 		if spentVouts, found := spendHeights[int64(h)]; found {
 			anonymitySet = subtract(anonymitySet, spentVouts...)
+			delete(spendHeights, int64(h))
 		}
 		blocks.AnonymitySet = append(blocks.AnonymitySet, uint64(anonymitySet))
 	}
-	fmt.Println("Anom 10")
+
+	charts.VoutSpendHeight = spendHeights
 
 	return nil
 }
