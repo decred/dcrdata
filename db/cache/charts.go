@@ -795,6 +795,24 @@ func (charts *ChartData) TotalMixedTip() int32 {
 	return int32(len(charts.Blocks.TotalMixed)) - 1
 }
 
+// AnonymitySetUpdateOffset is the height offset for update of the anonymity set
+func (charts *ChartData) AnonymitySetUpdateOffset() int32 {
+	charts.mtx.RLock()
+	defer func() {
+		fmt.Println("tip read")
+		charts.mtx.RUnlock()
+	}()
+	// maxVoutAge is the difference between the funding and spending height of
+	// vouts as gotten from manually checking the historic data todo: check if
+	// this information is accurately available in the system
+	maxVoutAge := 60597
+	if len(charts.Blocks.AnonymitySet) < maxVoutAge {
+		return int32(len(charts.Blocks.AnonymitySet)) - 1
+	}
+
+	return int32(len(charts.Blocks.AnonymitySet) - maxVoutAge) - 1
+}
+
 // NewAtomsTip is the height of the NewAtoms data.
 func (charts *ChartData) NewAtomsTip() int32 {
 	charts.mtx.RLock()

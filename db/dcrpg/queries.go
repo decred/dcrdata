@@ -3651,12 +3651,17 @@ func appendPrivacyParticipation(charts *cache.ChartData, rows *sql.Rows) error {
 	return rows.Err()
 }
 
+// store the offset for reuse in the appender where
+// (*cache.ChartData).AnonymitySetUpdateOffset() cannot be called
+var anonymitySetUpdateOffset int32
+
 // retrieveAnonymitySet retrieves any block total mixed data that is newer than
 // the data in the provided ChartData. This data is used to plot anonymity-set
 // on the /charts page. This is the Fetcher half of a pair that make up a
 // cache.ChartUpdater.
-func retrieveAnonymitySet(ctx context.Context, db *sql.DB, _ *cache.ChartData) (*sql.Rows, error) {
-	rows, err := db.QueryContext(ctx, internal.SelectMixedVouts)
+func retrieveAnonymitySet(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
+	anonymitySetUpdateOffset = charts.AnonymitySetUpdateOffset()
+	rows, err := db.QueryContext(ctx, internal.SelectMixedVouts, anonymitySetUpdateOffset)
 	if err != nil {
 		return nil, err
 	}
@@ -3679,11 +3684,13 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 		return value
 	}
 
-	// TODO: The entire vouts is be process each time, get the max age vouts to
-	// reduce the amount of data that is being processed subsequently
+	if anonymitySetUpdateOffset >= 0 {
+		// there is at least one record for the anonymity set
+		blocks.AnonymitySet = blocks.AnonymitySet.Truncate(int(anonymitySetUpdateOffset) + 1).(cache.ChartUints)
+		anonymitySet = int64(blocks.AnonymitySet[len(blocks.AnonymitySet) - 1])
+	}
 
-	blocks.AnonymitySet = blocks.AnonymitySet.Truncate(0).(cache.ChartUints)
-
+	no := 1
 	for rows.Next() {
 		var value, fundHeight, spendHeight int64
 		var spendHeightNull sql.NullInt64
@@ -3722,6 +3729,8 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 			}
 			blocks.AnonymitySet = append(blocks.AnonymitySet, uint64(anonymitySet))
 		}
+		no++
+
 
 		anonymitySet += value
 	}
@@ -3739,6 +3748,7 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 		}
 		blocks.AnonymitySet = append(blocks.AnonymitySet, uint64(anonymitySet))
 	}
+	fmt.Println("Anom 10")
 
 	return nil
 }
