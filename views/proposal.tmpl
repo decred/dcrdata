@@ -80,7 +80,7 @@
                   <div class="col-auto d-flex flex-column justify-content-between pl-3">
                     <span class="fs17 lh1em">
                       <span class="fs22 medium-sans">{{printf "%.1f" (f32x100 $metadata.Approval)}}%</span>
-                      approval of {{intComma $metadata.VoteCount}} votes
+                      approval of {{intComma $metadata.VoteCount}} votes ({{printf "%.0f" (percentage $metadata.VoteCount .NumOfEligibleVotes)}}% turnout)
                     </span>
                     {{if $metadata.QuorumAchieved}}
                       <div class="d-flex align-items-center"><span class="fs20 dcricon-affirm mr-2"></span>
