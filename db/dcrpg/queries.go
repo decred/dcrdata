@@ -3683,7 +3683,7 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 
 	if lenAnonymitySet > 0 {
 		// there is at least one record for the anonymity set
-		anonymitySet = int64(blocks.AnonymitySet[lenAnonymitySet - 1])
+		anonymitySet = int64(blocks.AnonymitySet[lenAnonymitySet-1])
 	}
 
 	for rows.Next() {
@@ -3716,7 +3716,7 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 		if fundHeight < int64(lenAnonymitySet) {
 			continue
 		}
-		
+
 		if fundHeight == int64(len(blocks.AnonymitySet)) {
 			anonymitySet += value
 			continue
