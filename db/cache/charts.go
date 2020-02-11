@@ -796,8 +796,8 @@ func (charts *ChartData) TotalMixedTip() int32 {
 	return int32(len(charts.Blocks.TotalMixed)) - 1
 }
 
-// AnonymitySetUpdateOffset is the height offset for update of the anonymity set
-func (charts *ChartData) AnonymitySetUpdateOffset() int32 {
+// AnonymitySetTip is the height of the anonymity set
+func (charts *ChartData) AnonymitySetTip() int32 {
 	charts.mtx.RLock()
 	charts.mtx.RUnlock()
 	return int32(len(charts.Blocks.AnonymitySet)) - 1

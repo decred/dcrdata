@@ -3656,7 +3656,7 @@ func appendPrivacyParticipation(charts *cache.ChartData, rows *sql.Rows) error {
 // on the /charts page. This is the Fetcher half of a pair that make up a
 // cache.ChartUpdater.
 func retrieveAnonymitySet(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
-	rows, err := db.QueryContext(ctx, internal.SelectMixedVouts, charts.AnonymitySetUpdateOffset())
+	rows, err := db.QueryContext(ctx, internal.SelectMixedVouts, charts.AnonymitySetTip())
 	if err != nil {
 		return nil, err
 	}
@@ -3679,14 +3679,13 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 		return value
 	}
 
-	anonymitySetUpdateOffset := len(charts.Blocks.AnonymitySet)
+	lenAnonymitySet := len(charts.Blocks.AnonymitySet)
 
-	if anonymitySetUpdateOffset >= 0 {
+	if lenAnonymitySet > 0 {
 		// there is at least one record for the anonymity set
-		anonymitySet = int64(blocks.AnonymitySet[len(blocks.AnonymitySet) - 1])
+		anonymitySet = int64(blocks.AnonymitySet[lenAnonymitySet - 1])
 	}
 
-	no := 1
 	for rows.Next() {
 		var value, fundHeight, spendHeight int64
 		var spendHeightNull sql.NullInt64
@@ -3712,9 +3711,12 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 
 		spendHeights[spendHeight] = append(spendHeights[spendHeight], value)
 
-		if fundHeight <= int64(anonymitySetUpdateOffset) {
+		// we only need to get spend height for values that has praviously been
+		// added to the running sum
+		if fundHeight < int64(lenAnonymitySet) {
 			continue
 		}
+		
 		if fundHeight == int64(len(blocks.AnonymitySet)) {
 			anonymitySet += value
 			continue
@@ -3729,8 +3731,6 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 			}
 			blocks.AnonymitySet = append(blocks.AnonymitySet, uint64(anonymitySet))
 		}
-		no++
-
 
 		anonymitySet += value
 	}
