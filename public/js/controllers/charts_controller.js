@@ -393,7 +393,7 @@ export default class extends Controller {
     this.lastZoom = null
     this.visibility = []
     if (this.settings.visibility) {
-      this.settings.visibility.split(',', -1).forEach(s => {
+      this.settings.visibility.split('-', -1).forEach(s => {
         this.visibility.push(s === 'true')
       })
     }
@@ -862,7 +862,7 @@ export default class extends Controller {
       default:
         return
     }
-    this.settings.visibility = this.visibility.join(',')
+    this.settings.visibility = this.visibility.join('-')
     this.query.replace(this.settings)
   }
 
@@ -885,7 +885,7 @@ export default class extends Controller {
         return
     }
     this.chartsView.updateOptions({ visibility: this.visibility })
-    this.settings.visibility = this.visibility.join(',')
+    this.settings.visibility = this.visibility.join('-')
     this.query.replace(this.settings)
   }
 
