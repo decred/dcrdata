@@ -413,17 +413,17 @@ type ChartUpdater struct {
 // and Windows fields must be updated by (presumably) a database package. The
 // Days data is auto-generated from the Blocks data during Lengthen-ing.
 type ChartData struct {
-	mtx             sync.RWMutex
-	ctx             context.Context
-	DiffInterval    int32
-	StartPOS        int32
-	Blocks          *zoomSet
-	Windows         *windowSet
-	Days            *zoomSet
-	cacheMtx        sync.RWMutex
-	cache           map[string]*cachedChart
-	updaters        []ChartUpdater
-	updateMtx       sync.Mutex
+	mtx          sync.RWMutex
+	ctx          context.Context
+	DiffInterval int32
+	StartPOS     int32
+	Blocks       *zoomSet
+	Windows      *windowSet
+	Days         *zoomSet
+	cacheMtx     sync.RWMutex
+	cache        map[string]*cachedChart
+	updaters     []ChartUpdater
+	updateMtx    sync.Mutex
 }
 
 // ValidateLengths checks that the length of all arguments is equal.
@@ -893,14 +893,14 @@ func NewChartData(ctx context.Context, height uint32, chainParams *chaincfg.Para
 	windows := int(base64Height/chainParams.StakeDiffWindowSize+1) * 5 / 4
 
 	return &ChartData{
-		ctx:             ctx,
-		DiffInterval:    int32(chainParams.StakeDiffWindowSize),
-		StartPOS:        int32(chainParams.StakeValidationHeight),
-		Blocks:          newBlockSet(size),
-		Windows:         newWindowSet(windows),
-		Days:            newDaySet(days),
-		cache:           make(map[string]*cachedChart),
-		updaters:        make([]ChartUpdater, 0),
+		ctx:          ctx,
+		DiffInterval: int32(chainParams.StakeDiffWindowSize),
+		StartPOS:     int32(chainParams.StakeValidationHeight),
+		Blocks:       newBlockSet(size),
+		Windows:      newWindowSet(windows),
+		Days:         newDaySet(days),
+		cache:        make(map[string]*cachedChart),
+		updaters:     make([]ChartUpdater, 0),
 	}
 }
 
