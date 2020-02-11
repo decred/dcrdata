@@ -227,7 +227,8 @@ export default class extends Controller {
 
   bindElements () {
     this.flowBoxes = this.flowTarget.querySelectorAll('input')
-    this.pageSizeOptions = this.pagesizeTarget.querySelectorAll('option')
+    // pagesizeTarget is not available for addresses without txns
+    this.pageSizeOptions = this.data.get('isDummy') === 'false' ? this.pagesizeTarget.querySelectorAll('option') : []
     this.zoomButtons = this.zoomTarget.querySelectorAll('button')
     this.binputs = this.intervalTarget.querySelectorAll('button')
   }
