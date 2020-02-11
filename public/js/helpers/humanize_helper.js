@@ -138,25 +138,31 @@ var humanize = {
       }
       return result
     }
+    var pad = function (x) {
+      if (x < 10) {
+        return `0${x}`
+      }
+      return x
+    }
     interval = Math.floor(seconds / 3600)
     if (interval >= 1) {
       let extra = Math.floor((seconds - interval * 3600) / 60)
       let result = interval + 'h'
       if (extra > 0) {
-        result = result + ' ' + extra + 'm'
+        result = result + ' ' + pad(extra) + 'm'
       }
       return result
     }
     interval = Math.floor(seconds / 60)
     if (interval >= 1) {
       let extra = seconds - interval * 60
-      let result = interval + 'm'
+      let result = pad(interval) + 'm'
       if (extra > 0) {
-        result = result + ' ' + extra + 's'
+        result = result + ' ' + pad(extra) + 's'
       }
       return result
     }
-    return Math.floor(seconds) + 's'
+    return pad(Math.floor(seconds)) + 's'
   },
   date: function (stamp, withTimezone) {
     var d = new Date(stamp)
