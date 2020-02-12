@@ -20,7 +20,7 @@ function agendasLegendFormatter (data) {
   if (data.x == null) return ''
   var html
   if (this.getLabels()[0] === 'Date') {
-    html = this.getLabels()[0] + ':' + humanize.date(data.x)
+    html = this.getLabels()[0] + ': ' + humanize.date(data.x)
   } else {
     html = this.getLabels()[0] + ': ' + data.xHTML
   }
