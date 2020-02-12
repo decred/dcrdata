@@ -106,7 +106,7 @@ function legendFormatter (data) {
   var div = document.createElement('div')
   var xHTML = data.xHTML
   if (data.dygraph.getLabels()[0] === 'Date') {
-    xHTML = humanize.date(data.x)
+    xHTML = humanize.date(data.x, false, selectedChart !== 'ticket-price')
   }
   div.appendChild(legendEntry(`${data.dygraph.getLabels()[0]}: ${xHTML}`))
   yFormatter(div, data, data.dygraph.getOption('legendIndex'))
