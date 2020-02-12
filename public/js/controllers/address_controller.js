@@ -53,7 +53,11 @@ function amountFlowProcessor (d, binSize) {
 }
 
 function formatter (data) {
-  var html = this.getLabels()[0] + ': ' + ((data.xHTML === undefined) ? '' : data.xHTML)
+  var xHTML = ''
+  if (data.xHTML !== undefined) {
+    xHTML = humanize.date(data.x, false, true)
+  }
+  var html = this.getLabels()[0] + ': ' + xHTML
   data.series.map((series) => {
     if (series.color === undefined) return ''
     // Skip display of zeros
@@ -66,7 +70,11 @@ function formatter (data) {
 }
 
 function customizedFormatter (data) {
-  var html = this.getLabels()[0] + ': ' + ((data.xHTML === undefined) ? '' : data.xHTML)
+  var xHTML = ''
+  if (data.xHTML !== undefined) {
+    xHTML = humanize.date(data.x, false, true)
+  }
+  var html = this.getLabels()[0] + ': ' + xHTML
   data.series.map((series) => {
     if (series.color === undefined) return ''
     // Skip display of zeros
