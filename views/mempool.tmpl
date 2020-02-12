@@ -184,7 +184,7 @@
                                     {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
                                   </td>
                                   <td class="mono fs15 text-right">{{.Size}} B</td>
-                                  <td class="mono fs15 text-right">{{.FeeRate}} DCR/kB</td>
+                                  <td class="mono fs15 text-right">{{printf "%.8f" (.FeeRate)}} DCR/kB</td>
                                   <td class="mono fs15 text-right" data-target="time.age" data-age="{{.Time}}"></td>
                               </tr>
                               {{end}}
@@ -260,7 +260,7 @@
                                     {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
                                   </td>
                                   <td class="mono fs15 text-right">{{.Size}} B</td>
-                                  <td class="mono fs15 text-right">{{.FeeRate}} DCR/kB</td>
+                                  <td class="mono fs15 text-right">{{printf "%.8f" (.FeeRate)}} DCR/kB</td>
                                   <td class="mono fs15 text-right" data-target="time.age" data-age="{{.Time}}"></td>
                               </tr>
                               {{end}}
