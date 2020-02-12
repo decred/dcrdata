@@ -140,7 +140,7 @@ var humanize = {
     }
     var pad = function (x) {
       if (x < 10) {
-        return `0${x}`
+        return `&nbsp${x}`
       }
       return x
     }
