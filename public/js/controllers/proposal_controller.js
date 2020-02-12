@@ -6,6 +6,7 @@ import { getDefault } from '../helpers/module_helper'
 import { multiColumnBarPlotter, synchronize } from '../helpers/chart_helper'
 import dompurify from 'dompurify'
 import axios from 'axios'
+import humanize from '../helpers/humanize_helper'
 
 let common = {
   labelsKMB: true,
@@ -68,7 +69,7 @@ function legendFormatter (data) {
         series.color + ';">' + series.labelHTML + ' </span> '
     }).join('')
   } else {
-    html = this.getLabels()[0] + ': ' + data.xHTML + ' UTC &nbsp;&nbsp;'
+    html = this.getLabels()[0] + ': ' + humanize.date(data.x) + ' UTC &nbsp;&nbsp;'
     data.series.forEach(function (series, index) {
       if (!series.isVisible) return
 
