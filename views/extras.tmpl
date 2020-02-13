@@ -1,13 +1,13 @@
 {{define "html-head"}}
-	<head data-turbolinks-eval="false">
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1">
-		<!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
-		<meta name="description" content="dcrdata, an original Decred block explorer powered by Go">
-		<meta name="author" content="The Decred developers">
-		<meta name="application-name"           content="Decred - Autonomous Digital Currency">
-		<meta name="apple-mobile-web-app-title" content="Decred - Autonomous Digital Currency">
-		<!--  Custom favicon  -->
+<head data-turbolinks-eval="false">
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+	<meta name="description" content="dcrdata, an original Decred block explorer powered by Go">
+	<meta name="author" content="The Decred developers">
+	<meta name="application-name"           content="Decred - Autonomous Digital Currency">
+	<meta name="apple-mobile-web-app-title" content="Decred - Autonomous Digital Currency">
+	<!--  Custom favicon  -->
 		<!-- Apple PWA -->
 		<link rel="apple-touch-icon" sizes="57x57"   href="/images/favicon/apple-touch-icon-57x57.png?v=yHh3NA">
 		<link rel="apple-touch-icon" sizes="60x60"   href="/images/favicon/apple-touch-icon-60x60.png?v=yHh3NA">
@@ -34,347 +34,347 @@
 		<meta name="msapplication-TileColor" content="#091440">
 		<meta name="msapplication-TileImage" content="/images/favicon/mstile-144x144.png?v=55tv3">
 		<meta name="msapplication-config" content="/images/favicon/browserconfig.xml?v=55tv3">
-		<!-- End custom favicon -->
+	<!-- End custom favicon -->
 
-		<meta name="turbolinks-cache-control" content="no-cache">
-		<title>{{.}}</title>
-		<link rel="preload" href="/fonts/icomoon.ttf?g003m6" as="font" type="font/ttf" crossorigin="anonymous" />
-		<link rel="preload" href="/fonts/inconsolata-v15-latin-regular.woff?x=55tv3" as="font" type="font/woff" crossorigin="anonymous" />
-		<link rel="preload" href="/fonts/source-sans-pro-v9-latin-regular.woff?x=55tv3" as="font" type="font/woff" crossorigin="anonymous" />
-		<link rel="preload" href="/fonts/source-sans-pro-semibold.woff?x=55tv3" as="font" type="font/woff" crossorigin="anonymous" />
-		<link rel="preload" href="/images/connecting.svg?x=55tv3" as="image" type="image/svg+xml" />
-		<link rel="preload" href="/images/themes/light/logo.svg?x=55tv3" as="image" type="image/svg+xml" />
-		<link rel="preload" href="/images/connected.svg?x=55tv3" as="image" type="image/svg+xml" />
-		<link rel="preload" href="/images/disconnected.svg?x=55tv3" as="image" type="image/svg+xml" />
-		<link href="/dist/css/style.css?x=9nfyu4m" rel="stylesheet">
+	<meta name="turbolinks-cache-control" content="no-cache">
+	<title>{{.}}</title>
+	<link rel="preload" href="/fonts/icomoon.ttf?g003m6" as="font" type="font/ttf" crossorigin="anonymous" />
+	<link rel="preload" href="/fonts/inconsolata-v15-latin-regular.woff?x=55tv3" as="font" type="font/woff" crossorigin="anonymous" />
+	<link rel="preload" href="/fonts/source-sans-pro-v9-latin-regular.woff?x=55tv3" as="font" type="font/woff" crossorigin="anonymous" />
+	<link rel="preload" href="/fonts/source-sans-pro-semibold.woff?x=55tv3" as="font" type="font/woff" crossorigin="anonymous" />
+	<link rel="preload" href="/images/connecting.svg?x=55tv3" as="image" type="image/svg+xml" />
+	<link rel="preload" href="/images/themes/light/logo.svg?x=55tv3" as="image" type="image/svg+xml" />
+	<link rel="preload" href="/images/connected.svg?x=55tv3" as="image" type="image/svg+xml" />
+	<link rel="preload" href="/images/disconnected.svg?x=55tv3" as="image" type="image/svg+xml" />
+	<link href="/dist/css/style.css?x=9nfyu4m" rel="stylesheet">
 
-		<script src="/js/vendor/turbolinks.min.js?x=55tv3"></script>
-	</head>
+	<script src="/js/vendor/turbolinks.min.js?x=55tv3"></script>
+</head>
 {{end}}
 
 {{define "navbar"}}
-	<body class="{{ theme }}{{if .Cookies.DarkMode}} darkBG{{end}}">
-	<header class="top-nav d-flex align-items-center" id="navBar" data-blocktime="{{.BlockTimeUnix}}">
-		<div class="container d-flex justify-content-between align-items-center">
-			<a class="no-underline d-block home-link dcrdata-logo" href="/"></a>
-			<form
-					class="search-form"
-					role="search"
-					id="search-form"
-					action="/search"
-					data-controller="search"
-					data-action="submit->search#execute"
-			>
-				<input
-						tabindex="0"
-						type="text"
-						name="search"
-						id="search"
-						class="top-search mousetrap"
-						placeholder="Search for blocks, addresses, transactions or proposal tokens"
-						spellcheck="false"
-						autocomplete="off"
-				/>
-				<button class="search-bttn" type="submit"><span class="dcricon-search"></span></button>
-			</form>
-			<nav id="hamburger-menu" data-controller="menu" data-turbolinks-permanent>
-				<div id="menuToggle">
-					<input type="checkbox" data-target="menu.toggle" data-action="change->menu#toggle"/>
-					<span class="patty"></span>
-					<span class="patty"></span>
-					<span class="patty short"></span>
-					<div id="menu">
-						<a class="menu-item" data-keynav-skip href="/" title="Home">Home</a>
-						<a class="menu-item" data-keynav-skip href="/blocks" title="Decred blocks">Blocks</a>
-						<a class="menu-item" data-keynav-skip href="/mempool" title="Decred mempool">Mempool</a>
-						<a class="menu-item" data-keynav-skip href="/ticketpool" title="Decred ticket pool">Ticket Pool</a>
-						<a class="menu-item jsonly" data-keynav-skip href="/charts" title="Decred charts">Charts</a>
-						<a class="menu-item" data-keynav-skip href="/agendas" title="Agendas">Agendas</a>
-						<a class="menu-item" data-keynav-skip href="/proposals" title="Proposals">Proposals</a>
-						<a class="menu-item" data-keynav-skip href="/market" title="Market">Market</a>
-						<a class="menu-item" data-keynav-skip href="/attack-cost" title="Decred Attack Cost">Attack Cost</a>
-						<a class="menu-item" data-keynav-skip href="/parameters" title="Chain Parameters">Parameters</a>
-						<a class="menu-item" data-keynav-skip href="/address/{{.DevAddress}}?txntype=merged_debit" title="Decred Treasury">Treasury</a>
-						<a class="menu-item" data-keynav-skip href="/decodetx" title="Decode or send a raw transaction">Decode/Broadcast Tx</a>
-						{{- if eq .NetName "Mainnet"}}
-							<a class="menu-item" data-keynav-skip href="{{.Links.Testnet}}" title="Home">Switch To Testnet</a>
-						{{- else}}
-							<a class="menu-item" data-keynav-skip href="{{.Links.Mainnet}}" title="Home">Switch To Mainnet</a>
-						{{- end}}
-						<form action="/set" method="post" data-target="menu.form" class="menu-form">
-							<input type="hidden" name="darkmode" value="darkmode">
-							<input type="hidden" name="requestURI" value="{{.RequestURI}}">
-							<button type="submit" data-action="click->menu#onSunClick"
-									class="menu-submit text-left w-100 p-0"
-									data-keynav-skip>
+<body class="{{ theme }}{{if .Cookies.DarkMode}} darkBG{{end}}">
+<header class="top-nav d-flex align-items-center" id="navBar" data-blocktime="{{.BlockTimeUnix}}">
+	<div class="container d-flex justify-content-between align-items-center">
+		<a class="no-underline d-block home-link dcrdata-logo" href="/"></a>
+		<form
+			class="search-form"
+			role="search"
+			id="search-form"
+			action="/search"
+			data-controller="search"
+			data-action="submit->search#execute"
+		>
+			<input
+				tabindex="0"
+				type="text"
+				name="search"
+				id="search"
+				class="top-search mousetrap"
+				placeholder="Search for blocks, addresses, transactions or proposal tokens"
+				spellcheck="false"
+				autocomplete="off"
+			/>
+			<button class="search-bttn" type="submit"><span class="dcricon-search"></span></button>
+		</form>
+		<nav id="hamburger-menu" data-controller="menu" data-turbolinks-permanent>
+			<div id="menuToggle">
+				<input type="checkbox" data-target="menu.toggle" data-action="change->menu#toggle"/>
+				<span class="patty"></span>
+				<span class="patty"></span>
+				<span class="patty short"></span>
+				<div id="menu">
+					<a class="menu-item" data-keynav-skip href="/" title="Home">Home</a>
+					<a class="menu-item" data-keynav-skip href="/blocks" title="Decred blocks">Blocks</a>
+					<a class="menu-item" data-keynav-skip href="/mempool" title="Decred mempool">Mempool</a>
+					<a class="menu-item" data-keynav-skip href="/ticketpool" title="Decred ticket pool">Ticket Pool</a>
+					<a class="menu-item jsonly" data-keynav-skip href="/charts" title="Decred charts">Charts</a>
+					<a class="menu-item" data-keynav-skip href="/agendas" title="Agendas">Agendas</a>
+					<a class="menu-item" data-keynav-skip href="/proposals" title="Proposals">Proposals</a>
+					<a class="menu-item" data-keynav-skip href="/market" title="Market">Market</a>
+					<a class="menu-item" data-keynav-skip href="/attack-cost" title="Decred Attack Cost">Attack Cost</a>
+					<a class="menu-item" data-keynav-skip href="/parameters" title="Chain Parameters">Parameters</a>
+					<a class="menu-item" data-keynav-skip href="/address/{{.DevAddress}}?txntype=merged_debit" title="Decred Treasury">Treasury</a>
+					<a class="menu-item" data-keynav-skip href="/decodetx" title="Decode or send a raw transaction">Decode/Broadcast Tx</a>
+				{{- if eq .NetName "Mainnet"}}
+					<a class="menu-item" data-keynav-skip href="{{.Links.Testnet}}" title="Home">Switch To Testnet</a>
+				{{- else}}
+					<a class="menu-item" data-keynav-skip href="{{.Links.Mainnet}}" title="Home">Switch To Mainnet</a>
+				{{- end}}
+					<form action="/set" method="post" data-target="menu.form" class="menu-form">
+						<input type="hidden" name="darkmode" value="darkmode">
+						<input type="hidden" name="requestURI" value="{{.RequestURI}}">
+						<button type="submit" data-action="click->menu#onSunClick"
+								class="menu-submit text-left w-100 p-0"
+								data-keynav-skip>
 								<div class="menu-item">
-									<span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span>
-									Night Mode
+								  <span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span>
+								  Night Mode
 								</div>
-							</button>
-						</form>
-						<a class="menu-item jsonly" data-keynav-skip data-turbolinks="false" href="#" id="keynav-toggle">
-							<span class="text">Enable Hot Keys</span><span class="keys-hint">(&nbsp;&nbsp;<span class="arrows"> &#8592;<br>&#8594;</span>&nbsp;&nbsp;enter&nbsp;&nbsp;\&nbsp;&nbsp;=&nbsp;&nbsp;)</span>
-						</a>
-						<a class="menu-item" data-keynav-skip href="{{.Links.APIDocs}}" title="API Endpoints" target="_blank" rel="noopener noreferrer">JSON API Docs</a>
-					</div>
+						</button>
+					</form>
+					<a class="menu-item jsonly" data-keynav-skip data-turbolinks="false" href="#" id="keynav-toggle">
+						<span class="text">Enable Hot Keys</span><span class="keys-hint">(&nbsp;&nbsp;<span class="arrows"> &#8592;<br>&#8594;</span>&nbsp;&nbsp;enter&nbsp;&nbsp;\&nbsp;&nbsp;=&nbsp;&nbsp;)</span>
+					</a>
+					<a class="menu-item" data-keynav-skip href="{{.Links.APIDocs}}" title="API Endpoints" target="_blank" rel="noopener noreferrer">JSON API Docs</a>
 				</div>
-			</nav>
-		</div>
-	</header>
+			</div>
+		</nav>
+	</div>
+</header>
 {{end}}
 
 {{define "footer"}}
-	<footer class="navbar-fixed-bottom">
-		<div class="container d-flex justify-content-between align-items-center">
+<footer class="navbar-fixed-bottom">
+	<div class="container d-flex justify-content-between align-items-center">
 		<span>
 			<span data-controller="time" data-target="time.blocktime" data-stamp="{{$.Tip.Time}}"></span> <span class="d-none d-sm-inline">since last block</span>
 		</span>
-			<span>
+		<span>
 			<a
-					class="text-nowrap d-none d-md-inline-block pr-3"
-					href="{{.Links.Github}}"
-					title="dcrdata on GitHub"
-					target="_blank"
-					rel="noopener noreferrer"
+				class="text-nowrap d-none d-md-inline-block pr-3"
+				href="{{.Links.Github}}"
+				title="dcrdata on GitHub"
+				target="_blank"
+				rel="noopener noreferrer"
 			>dcrdata v{{.Version}}</a>
 			{{- if ne .Links.OnionURL "" }}
-				<a
-						class="text-nowrap d-none d-md-inline-block pr-3"
-						href="{{.Links.OnionURL}}"
-						title="Access dcrdata over Tor"
-						target="_blank"
-						rel="noopener noreferrer"
-				>Tor site</a>
+			<a
+				class="text-nowrap d-none d-md-inline-block pr-3"
+				href="{{.Links.OnionURL}}"
+				title="Access dcrdata over Tor"
+				target="_blank"
+				rel="noopener noreferrer"
+			>Tor site</a>
 			{{ end }}
 			<a
-					class="text-nowrap"
-					href="{{.Links.License}}"
-					target="_blank"
-					rel="noopener noreferrer"
+				class="text-nowrap"
+				href="{{.Links.License}}"
+				target="_blank"
+				rel="noopener noreferrer"
 			>© 2020 The Decred developers (ISC)</a>
 		</span>
-			<span
-					id="connection"
-					class="text-nowrap align-items-center clickable d-inline-block"
-					data-turbolinks-permanent
-					data-controller="connection"
-					data-target="connection.indicator"
-					data-action="click->connection#requestNotifyPermission"
-					title="While connected, you will receive live page updates and, if enabled, desktop notifications (click to enable)."
+		<span
+			id="connection"
+			class="text-nowrap align-items-center clickable d-inline-block"
+			data-turbolinks-permanent
+			data-controller="connection"
+			data-target="connection.indicator"
+			data-action="click->connection#requestNotifyPermission"
+			title="While connected, you will receive live page updates and, if enabled, desktop notifications (click to enable)."
 			><span class="d-none d-sm-inline" data-target="connection.status">Connecting <span class="d-none d-md-inline-block">to WebSocket...</span></span><div></div>
 		</span>
-		</div>
-		<script
-				src="/dist/js/vendors~app.bundle.js?x=55tv3"
-				data-turbolinks-eval="false"
-				data-turbolinks-suppress-warning
-		></script>
-		<script
-				src="/dist/js/app.bundle.js?x=55tv3"
-				data-turbolinks-eval="false"
-				data-turbolinks-suppress-warning
-		></script>
-	</footer>
+	</div>
+	<script
+		src="/dist/js/vendors~app.bundle.js?x=55tv3"
+		data-turbolinks-eval="false"
+		data-turbolinks-suppress-warning
+	></script>
+	<script
+		src="/dist/js/app.bundle.js?x=55tv3"
+		data-turbolinks-eval="false"
+		data-turbolinks-suppress-warning
+	></script>
+</footer>
 {{end}}
 
 {{define "decimalParts" -}}
-	<div class="decimal-parts d-inline-block">
-		{{- if eq (len .) 4 -}}
-			<span class="int">{{ index . 0 }}.{{ index . 1 }}</span>
-			{{- if gt (len (index . 2)) 0 -}}
-				<span class="decimal">{{ index . 2 }}</span>
-				{{- /* trailing zeros  */ -}}
-				<span class="decimal trailing-zeroes">{{ index . 3 }}</span>
-			{{- end}}
-		{{- else -}}
-			<span class="int">{{index . 0}}</span>
-			{{- if gt (len (index . 1)) 0 -}}
-				<span class="decimal dot">.</span><span class="decimal">{{index . 1 }}</span>
-				{{- /* trailing zeros  */ -}}
-				<span class="decimal trailing-zeroes">{{index . 2}}</span>
-			{{- end}}
-		{{- end -}}
+<div class="decimal-parts d-inline-block">
+	{{- if eq (len .) 4 -}}
+		<span class="int">{{ index . 0 }}.{{ index . 1 }}</span>
+		{{- if gt (len (index . 2)) 0 -}}
+		<span class="decimal">{{ index . 2 }}</span>
+		{{- /* trailing zeros  */ -}}
+		<span class="decimal trailing-zeroes">{{ index . 3 }}</span>
+		{{- end}}
+	{{- else -}}
+		<span class="int">{{index . 0}}</span>
+		{{- if gt (len (index . 1)) 0 -}}
+		<span class="decimal dot">.</span><span class="decimal">{{index . 1 }}</span>
+		{{- /* trailing zeros  */ -}}
+		<span class="decimal trailing-zeroes">{{index . 2}}</span>
+		{{- end}}
+	{{- end -}}
 	</div>
 {{- end}}
 
 {{define "fmtPercentage"}}
-	{{- if gt . 0.0 -}}
-		<span class="text-green">+{{printf "%.2f" .}} %</span>
-	{{- else -}}
-		<span class="text-danger">{{printf "%.2f" .}} %</span>
-	{{- end -}}
+  {{- if gt . 0.0 -}}
+    <span class="text-green">+{{printf "%.2f" .}} %</span>
+  {{- else -}}
+    <span class="text-danger">{{printf "%.2f" .}} %</span>
+  {{- end -}}
 {{end}}
 
 {{define "hashElide"}}
-	{{- $hash := (index . 0) -}}
-	{{- $link := (index . 1) -}}
-	{{- if eq $link "" -}}
-		<div
-	{{- else -}}
-		<a href="{{$link}}"
-	{{- end}} data-keynav-priority class="elidedhash mono" data-head="{{hashStart $hash}}" data-tail="{{hashEnd $hash}}">
-	{{- $hash}}
-	{{- if eq $link ""}}</div>{{else}}</a>{{template "copyTextIcon"}}{{end -}}
+  {{- $hash := (index . 0) -}}
+  {{- $link := (index . 1) -}}
+  {{- if eq $link "" -}}
+	<div
+  {{- else -}}
+	<a href="{{$link}}"
+  {{- end}} data-keynav-priority class="elidedhash mono" data-head="{{hashStart $hash}}" data-tail="{{hashEnd $hash}}">
+  {{- $hash}}
+  {{- if eq $link ""}}</div>{{else}}</a>{{template "copyTextIcon"}}{{end -}}
 {{end}}
 
 {{define "addressTable"}}
-	{{- $txType := .TxnType}}
-	{{- if .Transactions}}
-		<table class="table table-mono-cells table-responsive-sm">
-			<thead>
-			<tr>
-				<th class="d-none d-sm-table-cell">Tx Type</th>
-				<th class="text-left">Input/&#8203;Output ID</th>
-				{{- if eq $txType "merged_debit"}}
-					<th class="text-right"><span class="d-sm-none position-relative" data-tooltip="merged input count">Cnt</span
-						><span class="d-none d-sm-inline">Inputs</span>
-					</th>
-					<th class="text-right">Debit DCR</th>
-				{{- else if eq $txType "merged_credit" }}
-					<th class="text-right"><span class="d-sm-none position-relative" data-tooltip="merged output count">Cnt</span
-						><span class="d-none d-sm-inline">Outputs</span>
-					</th>
-					<th class="text-right">Credit DCR</th>
-				{{- else if eq $txType "merged" }}
-					<th title="Count of address's inputs and outputs in the transaction." class="text-right"><span class="d-none d-sm-inline-block">I/O Count</span><span class="d-sm-none position-relative" data-tooltip="# of inputs and outputs">#</span></th>
-					<th class="text-right">Credit DCR</th>
-					<th class="text-right">Debit DCR</th>
-				{{- else}}
-					<th class="text-right">Credit DCR</th>
-					<th class="text-right">Debit DCR</th>
-				{{- end}}
-				<th class="d-none d-sm-table-cell text-right">Time (UTC)</th>
-				<th class="text-right">Age</th>
-				<th class="text-right"><span class="d-sm-none position-relative" data-tooltip="Confirmations">Cons</span><span class="d-none d-sm-inline">Confirms</span></th>
-				<th class="d-none d-sm-table-cell text-right">Size</th>
-			</tr>
-			</thead>
-			<tbody>
-			{{- range .Transactions}}
-				<tr{{if eq .Confirmations 0}} data-target="address.pending" data-txid="{{.TxID}}"{{end}}>
-					<td class="d-none d-sm-table-cell">{{.TxType}}</td>
-					<td class="clipboard">{{template "hashElide" (hashlink .TxID .Link)}}</td>
-					{{- if eq $txType "merged_debit"}}
-						<td class="text-right">{{.MergedTxnCount}}</td>
-						<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</td>
-					{{- else if eq $txType "merged_credit"}}
-						<td class="text-right">{{.MergedTxnCount}}</td>
-						<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</td>
-					{{- else if eq $txType "merged"}}
-						<td class="text-right">{{.MergedTxnCount}}</td>
-						{{- if .IsFunding}}
-							<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</td>
-							<td class="text-right">&mdash;</td>
-						{{- else}}
-							<td class="text-right">&mdash;</td>
-							<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</td>
-						{{- end}}
-					{{- else if or (eq $txType "credit") .IsFunding}}{{/* .IsFunding = true && txType = "all" is a credit */}}
-					<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</td>
-					{{- if ne .MatchedTx ""}}
-						<td class="text-right"><a href="/tx/{{.MatchedTx}}/in/{{.MatchedTxIndex}}"
-												  data-txid="{{.MatchedTx}}"
-												  data-action="mouseover->address#hashOver mouseout->address#hashOut"
-							>spent</a></td>
-					{{- else}}
-						<td class="text-right">unspent</td>
-					{{- end}}
-					{{- else}}{{/* either "debit", or "all" with .IsFunding = false */ -}}
-					{{- if eq .SentTotal 0.0}}
-						<td class="text-right">sstxcommitment</td>
-					{{- else if ne .MatchedTx ""}}
-						<td class="text-right"><a href="/tx/{{.MatchedTx}}/out/{{.MatchedTxIndex}}" data-action="mouseover->address#hashOver mouseout->address#hashOut">source</a></td>
-					{{- else}}
-						<td class="text-right">N/A</td>
-					{{- end}}
-					<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</td>
-					{{- end}}
-					<td class="addr-tx-time d-none d-sm-table-cell text-right">{{if eq .Confirmations 0}}Unconfirmed{{else}}{{.Time.DatetimeWithoutTZ}}{{end}}</td>
-					<td class="addr-tx-age text-right">
-						{{- if eq (.Time.T.Unix) 0}}
-							N/A
-						{{- else}}
-							<span data-controller="time" data-target="time.age" data-age="{{.Time.UNIX}}"></span>
-						{{- end}}
-					</td>
-					<td class="addr-tx-confirms text-right"	{{/*Update confirmations with Stimulus*/ -}}
-						data-target="newblock.confirmations" {{/*trim*/ -}}
-						data-confirmations="{{.Confirmations}}" {{/*trim*/ -}}
-						data-confirmation-block-height="{{if eq .Confirmations 0}}-1{{else}}{{.BlockHeight}}{{end}}" {{/*trim*/ -}}
-						data-yes="#" {{/*trim*/ -}}
-						data-no="(unconfirmed)" {{/*trim*/ -}}
-					>{{.Confirmations}}</td>
-					<td class="text-right d-none d-sm-table-cell text-right">{{.FormattedSize}}</td>
-				</tr>
-			{{- end}}
-			</tbody>
-		</table>
+{{- $txType := .TxnType}}
+{{- if .Transactions}}
+<table class="table table-mono-cells table-responsive-sm">
+	<thead>
+		<tr>
+		<th class="d-none d-sm-table-cell">Tx Type</th>
+		<th class="text-left">Input/&#8203;Output ID</th>
+	{{- if eq $txType "merged_debit"}}
+		<th class="text-right"><span class="d-sm-none position-relative" data-tooltip="merged input count">Cnt</span
+			><span class="d-none d-sm-inline">Inputs</span>
+		</th>
+		<th class="text-right">Debit DCR</th>
+	{{- else if eq $txType "merged_credit" }}
+		<th class="text-right"><span class="d-sm-none position-relative" data-tooltip="merged output count">Cnt</span
+			><span class="d-none d-sm-inline">Outputs</span>
+		</th>
+		<th class="text-right">Credit DCR</th>
+	{{- else if eq $txType "merged" }}
+		<th title="Count of address's inputs and outputs in the transaction." class="text-right"><span class="d-none d-sm-inline-block">I/O Count</span><span class="d-sm-none position-relative" data-tooltip="# of inputs and outputs">#</span></th>
+		<th class="text-right">Credit DCR</th>
+		<th class="text-right">Debit DCR</th>
 	{{- else}}
-		<table class="table table-mono-cells">
-			<tr>
-				<td>
-					No transactions found for this address.
-				</td>
-			</tr>
-		</table>
+		<th class="text-right">Credit DCR</th>
+		<th class="text-right">Debit DCR</th>
 	{{- end}}
+		<th class="d-none d-sm-table-cell text-right">Time (UTC)</th>
+		<th class="text-right">Age</th>
+		<th class="text-right"><span class="d-sm-none position-relative" data-tooltip="Confirmations">Cons</span><span class="d-none d-sm-inline">Confirms</span></th>
+		<th class="d-none d-sm-table-cell text-right">Size</th>
+		</tr>
+	</thead>
+	<tbody>
+	{{- range .Transactions}}
+		<tr{{if eq .Confirmations 0}} data-target="address.pending" data-txid="{{.TxID}}"{{end}}>
+			<td class="d-none d-sm-table-cell">{{.TxType}}</td>
+			<td class="clipboard">{{template "hashElide" (hashlink .TxID .Link)}}</td>
+		{{- if eq $txType "merged_debit"}}
+			<td class="text-right">{{.MergedTxnCount}}</td>
+			<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</td>
+		{{- else if eq $txType "merged_credit"}}
+			<td class="text-right">{{.MergedTxnCount}}</td>
+			<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</td>
+		{{- else if eq $txType "merged"}}
+			<td class="text-right">{{.MergedTxnCount}}</td>
+			{{- if .IsFunding}}
+			<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</td>
+			<td class="text-right">&mdash;</td>
+			{{- else}}
+			<td class="text-right">&mdash;</td>
+			<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</td>
+			{{- end}}
+		{{- else if or (eq $txType "credit") .IsFunding}}{{/* .IsFunding = true && txType = "all" is a credit */}}
+			<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</td>
+			{{- if ne .MatchedTx ""}}
+			<td class="text-right"><a href="/tx/{{.MatchedTx}}/in/{{.MatchedTxIndex}}"
+				data-txid="{{.MatchedTx}}"
+				data-action="mouseover->address#hashOver mouseout->address#hashOut"
+				>spent</a></td>
+			{{- else}}
+			<td class="text-right">unspent</td>
+			{{- end}}
+		{{- else}}{{/* either "debit", or "all" with .IsFunding = false */ -}}
+			{{- if eq .SentTotal 0.0}}
+			<td class="text-right">sstxcommitment</td>
+			{{- else if ne .MatchedTx ""}}
+			<td class="text-right"><a href="/tx/{{.MatchedTx}}/out/{{.MatchedTxIndex}}" data-action="mouseover->address#hashOver mouseout->address#hashOut">source</a></td>
+			{{- else}}
+			<td class="text-right">N/A</td>
+			{{- end}}
+			<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</td>
+		{{- end}}
+			<td class="addr-tx-time d-none d-sm-table-cell text-right">{{if eq .Confirmations 0}}Unconfirmed{{else}}{{.Time.DatetimeWithoutTZ}}{{end}}</td>
+			<td class="addr-tx-age text-right">
+			{{- if eq (.Time.T.Unix) 0}}
+				N/A
+			{{- else}}
+				<span data-controller="time" data-target="time.age" data-age="{{.Time.UNIX}}"></span>
+			{{- end}}
+			</td>
+			<td class="addr-tx-confirms text-right"	{{/*Update confirmations with Stimulus*/ -}}
+				data-target="newblock.confirmations" {{/*trim*/ -}}
+				data-confirmations="{{.Confirmations}}" {{/*trim*/ -}}
+				data-confirmation-block-height="{{if eq .Confirmations 0}}-1{{else}}{{.BlockHeight}}{{end}}" {{/*trim*/ -}}
+				data-yes="#" {{/*trim*/ -}}
+				data-no="(unconfirmed)" {{/*trim*/ -}}
+			>{{.Confirmations}}</td>
+			<td class="text-right d-none d-sm-table-cell text-right">{{.FormattedSize}}</td>
+		</tr>
+	{{- end}}
+	</tbody>
+</table>
+{{- else}}
+<table class="table table-mono-cells">
+	<tr>
+		<td>
+			No transactions found for this address.
+		</td>
+	</tr>
+</table>
+{{- end}}
 {{- end}}
 
 {{define "mempoolDump"}}
-	{{$likely := .LikelyMineable}}
-	data-id="{{.Ident}}"
-	data-total="{{$likely.Total}}"
-	data-size="{{$likely.Size}}"
-	data-count="{{$likely.Count}}"
-	data-reg-total="{{$likely.RegularTotal}}"
-	data-reg-count="{{.NumRegular}}"
-	data-vote-total="{{$likely.VoteTotal}}"
-	data-vote-count="{{.VotingInfo.TicketsVoted}}"
-	data-ticket-total="{{$likely.TicketTotal}}"
-	data-ticket-count="{{.NumTickets}}"
-	data-rev-total="{{$likely.RevokeTotal}}"
-	data-rev-count="{{.NumRevokes}}"
+  {{$likely := .LikelyMineable}}
+  data-id="{{.Ident}}"
+  data-total="{{$likely.Total}}"
+  data-size="{{$likely.Size}}"
+  data-count="{{$likely.Count}}"
+  data-reg-total="{{$likely.RegularTotal}}"
+  data-reg-count="{{.NumRegular}}"
+  data-vote-total="{{$likely.VoteTotal}}"
+  data-vote-count="{{.VotingInfo.TicketsVoted}}"
+  data-ticket-total="{{$likely.TicketTotal}}"
+  data-ticket-count="{{.NumTickets}}"
+  data-rev-total="{{$likely.RevokeTotal}}"
+  data-rev-count="{{.NumRevokes}}"
 {{end}}
 
 {{define "blocksBanner"}}
-	<div class="bg-white block-banner">
-		<div class="container px-0">
-			<div>
-				<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/blocks">
-					<span class="px-2{{if eq .TimeGrouping "Blocks"}} unstyled-link{{else}} text-secondary{{end}}">Blocks</span>
-					<div class="blocks-selector{{if eq .TimeGrouping "Blocks"}} active{{end}}"></div>
-				</a>
-				<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/ticketpricewindows">
-					<span class="separator pl-2 pr-5{{if eq .TimeGrouping "Windows"}} unstyled-link{{else}} text-secondary{{end}}">Windows</span>
-					<div class="separator blocks-selector{{if eq .TimeGrouping "Windows"}} active{{end}}"></div>
-				</a>
-				<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/years">
-					<span class="pr-2 pl-3{{if eq .TimeGrouping "Years"}} unstyled-link{{else}} text-secondary{{end}}">Years</span>
-					<div class="blocks-selector{{if eq .TimeGrouping "Years"}} active{{end}}"></div>
-				</a>
-				<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/months">
-					<span class="px-2{{if eq .TimeGrouping "Months"}} unstyled-link{{else}} text-secondary{{end}}">Months</span>
-					<div class="blocks-selector{{if eq .TimeGrouping "Months"}} active{{end}}"></div>
-				</a>
-				<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/weeks">
-					<span class="px-2{{if eq .TimeGrouping "Weeks"}} unstyled-link{{else}} text-secondary{{end}}">Weeks</span>
-					<div class="blocks-selector{{if eq .TimeGrouping "Weeks"}} active{{end}}"></div>
-				</a>
-				<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/days">
-					<span class="px-2{{if eq .TimeGrouping "Days"}} unstyled-link{{else}} text-secondary{{end}}">Days</span>
-					<div class="blocks-selector{{if eq .TimeGrouping "Days"}} active{{end}}"></div>
-				</a>
-			</div>
+<div class="bg-white block-banner">
+	<div class="container px-0">
+		<div>
+			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/blocks">
+				<span class="px-2{{if eq .TimeGrouping "Blocks"}} unstyled-link{{else}} text-secondary{{end}}">Blocks</span>
+				<div class="blocks-selector{{if eq .TimeGrouping "Blocks"}} active{{end}}"></div>
+			</a>
+			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/ticketpricewindows">
+				<span class="separator pl-2 pr-5{{if eq .TimeGrouping "Windows"}} unstyled-link{{else}} text-secondary{{end}}">Windows</span>
+				<div class="separator blocks-selector{{if eq .TimeGrouping "Windows"}} active{{end}}"></div>
+			</a>
+			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/years">
+				<span class="pr-2 pl-3{{if eq .TimeGrouping "Years"}} unstyled-link{{else}} text-secondary{{end}}">Years</span>
+				<div class="blocks-selector{{if eq .TimeGrouping "Years"}} active{{end}}"></div>
+			</a>
+			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/months">
+				<span class="px-2{{if eq .TimeGrouping "Months"}} unstyled-link{{else}} text-secondary{{end}}">Months</span>
+				<div class="blocks-selector{{if eq .TimeGrouping "Months"}} active{{end}}"></div>
+			</a>
+			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/weeks">
+				<span class="px-2{{if eq .TimeGrouping "Weeks"}} unstyled-link{{else}} text-secondary{{end}}">Weeks</span>
+				<div class="blocks-selector{{if eq .TimeGrouping "Weeks"}} active{{end}}"></div>
+			</a>
+			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/days">
+				<span class="px-2{{if eq .TimeGrouping "Days"}} unstyled-link{{else}} text-secondary{{end}}">Days</span>
+				<div class="blocks-selector{{if eq .TimeGrouping "Days"}} active{{end}}"></div>
+			</a>
 		</div>
 	</div>
+</div>
 {{end}}
 
 {{define "copyTextIcon"}}
-	<span class="dcricon-copy clickable"
-		  data-controller="clipboard"
-		  data-action="click->clipboard#copyTextToClipboard"
-	></span>
-	<span class="alert alert-success alert-copy">
+  <span class="dcricon-copy clickable"
+  data-controller="clipboard"
+  data-action="click->clipboard#copyTextToClipboard"
+  ></span>
+  <span class="alert alert-success alert-copy">
   </span>
 {{end}}
