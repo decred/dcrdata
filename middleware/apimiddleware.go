@@ -280,6 +280,10 @@ func GetTxIDCtx(r *http.Request) (*chainhash.Hash, error) {
 		apiLog.Trace("txid not set")
 		return nil, fmt.Errorf("txid not set")
 	}
+	if len(hashStr) != chainhash.MaxHashStringSize {
+		apiLog.Tracef("invalid hash: %v", hashStr)
+		return nil, fmt.Errorf("invalid hash")
+	}
 	hash, err := chainhash.NewHashFromStr(hashStr)
 	if err != nil {
 		apiLog.Trace("invalid hash '%s': %v", hashStr, err)
@@ -300,6 +304,10 @@ func GetTxnsCtx(r *http.Request) ([]*chainhash.Hash, error) {
 
 	hashes := make([]*chainhash.Hash, 0, len(hashStrs))
 	for _, hashStr := range hashStrs {
+		if len(hashStr) != chainhash.MaxHashStringSize {
+			apiLog.Tracef("invalid hash: %v", hashStr)
+			return nil, fmt.Errorf("invalid hash '%s'", hashStr)
+		}
 		hash, err := chainhash.NewHashFromStr(hashStr)
 		if err != nil {
 			apiLog.Trace("invalid hash '%s': %v", hashStr, err)
@@ -364,17 +372,21 @@ func ValidateTxnsPostCtx(next http.Handler) http.Handler {
 // GetBlockHashCtx retrieves the ctxBlockHash data from the request context. If
 // not set, the return value is an empty string.
 func GetBlockHashCtx(r *http.Request) (string, error) {
-	hash, ok := r.Context().Value(ctxBlockHash).(string)
+	hashStr, ok := r.Context().Value(ctxBlockHash).(string)
 	if !ok {
 		apiLog.Trace("block hash not set")
 		return "", fmt.Errorf("block hash not set")
 	}
-	if _, err := chainhash.NewHashFromStr(hash); err != nil {
-		apiLog.Trace("invalid hash '%s': %v", hash, err)
-		return "", fmt.Errorf("invalid hash '%s': %v", hash, err)
+	if len(hashStr) != chainhash.MaxHashStringSize {
+		apiLog.Tracef("invalid hash: %v", hashStr)
+		return "", fmt.Errorf("invalid hash")
+	}
+	if _, err := chainhash.NewHashFromStr(hashStr); err != nil {
+		apiLog.Trace("invalid hash '%s': %v", hashStr, err)
+		return "", fmt.Errorf("invalid hash '%s': %v", hashStr, err)
 	}
 
-	return hash, nil
+	return hashStr, nil
 }
 
 // GetAddressCtx retrieves the CtxAddress data from the request context. If not
