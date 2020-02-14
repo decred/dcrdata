@@ -371,6 +371,17 @@ func (c *appContext) coinSupply(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, supply, m.GetIndentCtx(r))
 }
 
+func (c *appContext) coinSupplyCirculating(w http.ResponseWriter, r *http.Request) {
+	supply := c.DataSource.CurrentCoinSupply()
+	if supply == nil {
+		apiLog.Error("Unable to get coin supply.")
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	writeJSONBytes(w, []byte(strconv.Itoa(int(supply.Mined))))
+}
+
 func (c *appContext) currentHeight(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	if _, err := io.WriteString(w, strconv.Itoa(int(c.Status.Height()))); err != nil {
