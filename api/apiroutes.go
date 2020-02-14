@@ -718,6 +718,19 @@ func (c *appContext) getTransaction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Look up any spending transactions for each output of this transaction
+	// when the client requests spends with the URL query ?spends=true.
+	var withSpends bool
+	if spendParam := r.URL.Query().Get("spends"); spendParam != "" {
+		b, err := strconv.ParseBool(spendParam)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+
+		withSpends = b
+	}
+
 	txid, err := m.GetTxIDCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -730,11 +743,6 @@ func (c *appContext) getTransaction(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
-
-	// Look up any spending transactions for each output of this transaction
-	// when the client requests spends with the URL query ?spends=true.
-	spendParam := r.URL.Query().Get("spends")
-	withSpends := spendParam == "1" || strings.EqualFold(spendParam, "true")
 
 	if withSpends {
 		if err := c.setTxSpends(tx); err != nil {
@@ -767,6 +775,19 @@ func (c *appContext) getDecodedTx(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Look up any spending transactions for each output of this transaction
+	// when the client requests spends with the URL query ?spends=true.
+	var withSpends bool
+	if spendParam := r.URL.Query().Get("spends"); spendParam != "" {
+		b, err := strconv.ParseBool(spendParam)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+
+		withSpends = b
+	}
+
 	txid, err := m.GetTxIDCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -779,11 +800,6 @@ func (c *appContext) getDecodedTx(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
-
-	// Look up any spending transactions for each output of this transaction
-	// when the client requests spends with the URL query ?spends=true.
-	spendParam := r.URL.Query().Get("spends")
-	withSpends := spendParam == "1" || strings.EqualFold(spendParam, "true")
 
 	if withSpends {
 		if err := c.setTrimmedTxSpends(tx); err != nil {
@@ -803,17 +819,24 @@ func (c *appContext) getTransactions(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
+	// Look up any spending transactions for each output of this transaction
+	// when the client requests spends with the URL query ?spends=true.
+	var withSpends bool
+	if spendParam := r.URL.Query().Get("spends"); spendParam != "" {
+		b, err := strconv.ParseBool(spendParam)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+
+		withSpends = b
+	}
 
 	txids, err := m.GetTxnsCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
-
-	// Look up any spending transactions for each output of this transaction
-	// when the client requests spends with the URL query ?spends=true.
-	spendParam := r.URL.Query().Get("spends")
-	withSpends := spendParam == "1" || strings.EqualFold(spendParam, "true")
 
 	txns := make([]*apitypes.Tx, 0, len(txids))
 	for i := range txids {
@@ -1524,6 +1547,15 @@ func (c *appContext) getTicketPool(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
+	var sortPool bool
+	if sortParam := r.URL.Query().Get("sort"); sortParam != "" {
+		val, err := strconv.ParseBool(sortParam)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+		sortPool = val
+	}
 
 	// getBlockHeightCtx falls back to try hash if height fails
 	idx, err := c.getBlockHeightCtx(r)
@@ -1539,11 +1571,9 @@ func (c *appContext) getTicketPool(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sortPool := r.URL.Query().Get("sort")
-	if sortPool == "1" || sortPool == "true" {
+	if sortPool {
 		sort.Strings(tp)
 	}
-
 	writeJSON(w, tp, indent)
 }
 
@@ -1571,6 +1601,16 @@ func (c *appContext) getTicketPoolInfoRange(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	if useArray := r.URL.Query().Get("arrays"); useArray != "" {
+		_, err := strconv.ParseBool(useArray)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+		c.getTicketPoolValAndSizeRange(w, r)
+		return
+	}
+
 	idx0 := m.GetBlockIndex0Ctx(r)
 	if idx0 < 0 {
 		http.Error(w, http.StatusText(422), 422)
@@ -1580,12 +1620,6 @@ func (c *appContext) getTicketPoolInfoRange(w http.ResponseWriter, r *http.Reque
 	idx := m.GetBlockIndexCtx(r)
 	if idx < 0 {
 		http.Error(w, http.StatusText(422), 422)
-		return
-	}
-
-	useArray := r.URL.Query().Get("arrays")
-	if useArray == "1" || useArray == "true" {
-		c.getTicketPoolValAndSizeRange(w, r)
 		return
 	}
 
@@ -1703,6 +1737,18 @@ func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
 // Handler for address activity CSV file download.
 // /download/address/io/{address}?cr=[true|false]
 func (c *appContext) addressIoCsv(w http.ResponseWriter, r *http.Request) {
+	// Check if ?cr=true was specified.
+	var useCRLF bool
+	if crlfParam := r.URL.Query().Get("cr"); crlfParam != "" {
+		b, err := strconv.ParseBool(crlfParam)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+
+		useCRLF = b
+	}
+
 	addresses, err := m.GetAddressCtx(r, c.Params, 1)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
@@ -1726,10 +1772,6 @@ func (c *appContext) addressIoCsv(w http.ResponseWriter, r *http.Request) {
 
 	filename := fmt.Sprintf("address-io-%s-%d-%s.csv", address,
 		c.Status.Height(), strconv.FormatInt(time.Now().Unix(), 10))
-
-	// Check if ?cr=true was specified.
-	crlfParam := r.URL.Query().Get("cr")
-	useCRLF := crlfParam == "1" || strings.EqualFold(crlfParam, "true")
 
 	writeCSV(w, rows, filename, useCRLF)
 }
