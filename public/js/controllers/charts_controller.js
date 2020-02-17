@@ -19,6 +19,7 @@ const atomsToDCR = 1e-8
 const windowScales = ['ticket-price', 'pow-difficulty', 'missed-votes']
 const hybridScales = ['privacy-participation']
 const lineScales = ['ticket-price', 'privacy-participation']
+const modeScales = ['ticket-price']
 const multiYAxisChart = ['ticket-price', 'coin-supply', 'privacy-participation']
 // index 0 represents y1 and 1 represents y2 axes.
 const yValueRanges = { 'ticket-price': [1] }
@@ -39,6 +40,10 @@ function usesHybridUnits (chart) {
 
 function isScaleDisabled (chart) {
   return lineScales.indexOf(chart) > -1
+}
+
+function isModeEnabled (chart) {
+  return modeScales.indexOf(chart) > -1
 }
 
 function hasMultipleVisibility (chart) {
@@ -643,16 +648,19 @@ export default class extends Controller {
     if (isScaleDisabled(selection)) {
       this.scaleSelectorTarget.classList.add('d-hide')
       this.vSelectorTarget.classList.remove('d-hide')
-      this.modeSelectorTarget.classList.remove('d-hide')
     } else {
       this.scaleSelectorTarget.classList.remove('d-hide')
+    }
+    if (isModeEnabled(selection)) {
+      this.modeSelectorTarget.classList.remove('d-hide')
+    } else {
+      this.modeSelectorTarget.classList.add('d-hide')
     }
     if (hasMultipleVisibility(selection)) {
       this.vSelectorTarget.classList.remove('d-hide')
       this.updateVSelector(selection)
     } else {
       this.vSelectorTarget.classList.add('d-hide')
-      this.modeSelectorTarget.classList.add('d-hide')
     }
     if (selectedChart !== selection || this.settings.bin !== this.selectedBin() ||
       this.settings.axis !== this.selectedAxis()) {
