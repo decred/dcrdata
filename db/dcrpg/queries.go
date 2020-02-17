@@ -1057,7 +1057,7 @@ func retrieveWindowBlocks(ctx context.Context, db *sql.DB, windowSize, currentHe
 			return nil, err
 		}
 
-		endBlock := startBlock + windowSize
+		endBlock := startBlock + windowSize - 1
 		index := dbtypes.CalculateWindowIndex(endBlock, windowSize)
 
 		data = append(data, &dbtypes.BlocksGroupedInfo{

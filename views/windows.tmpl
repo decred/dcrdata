@@ -109,15 +109,14 @@
                       <th class="text-center d-none d-sm-table-cell">Difficulty</th>
                       <th class="text-center"><span class="d-none d-sm-inline">Ticket </span>Price<span class="d-none d-sm-inline"> (DCR)</span></th>
                       <th class="text-right pr-0 jsonly">Age</th>
-                      <th class="text-right pr-0 d-none d-sm-table-cell">Start Time</th>
+                      <th class="text-right pr-0 d-none d-sm-table-cell">Start Time (UTC)</th>
                   </tr>
               </thead>
               <tbody>
               {{range .Data}}
                   <tr>
                       <td class="text-left pl-0">
-                          {{$blocksCount := (.BlocksCount)}}
-                          {{if lt .BlocksCount $.WindowSize}}{{$blocksCount = (subtract .BlocksCount 1)}} <span>({{$blocksCount}}/{{$.WindowSize}}) </span>{{end}}
+                          {{if lt .BlocksCount $.WindowSize}} <span>({{.BlocksCount}}/{{$.WindowSize}}) </span>{{end}}
                           <span>{{.IndexVal}}</span>
                       </td>
                       <td class="text-center">
@@ -132,7 +131,7 @@
                       <td class="text-center d-none d-sm-table-cell">{{template "decimalParts" (float64AsDecimalParts .Difficulty 0 true)}}</td>
                       <td class="text-center">{{printf "%.2f" (toFloat64Amount .TicketPrice)}}</td>
                       <td class="text-right pr-0 jsonly" data-controller="time" data-target="time.age" data-age="{{.StartTime.UNIX}}"></td>
-                      <td class="text-right pr-0 d-none d-sm-table-cell">{{.StartTime}}</td>
+                      <td class="text-right pr-0 d-none d-sm-table-cell">{{.StartTime.DatetimeWithoutTZ}}</td>
                   </tr>
               {{end}}
               </tbody>
