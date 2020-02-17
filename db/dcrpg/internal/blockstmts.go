@@ -138,7 +138,7 @@ const (
 		GROUP BY window_start
 		ORDER BY window_start DESC;`
 
-	SelectBlocksTimeListingByLimit = `SELECT date_trunc($1, time) as index_value,
+	SelectBlocksTimeListingByLimit = `SELECT date_trunc($1, time at time zone 'utc') as index_value,
 		MAX(height),
 		SUM(num_rtx) AS txs,
 		SUM(fresh_stake) AS tickets,

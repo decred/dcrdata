@@ -476,7 +476,7 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			}
 			return strings.TrimRight(prefix, "/") + "/" + strings.TrimLeft(path, "/")
 		},
-		"fetchRowLinkURL": func(groupingStr string, start, end time.Time) string {
+		"fetchRowLinkURL": func(groupingStr string, endBlock int64, start, end time.Time) string {
 			// fetchRowLinkURL creates links url to be used in the blocks list
 			// views in hierarchical order i.e. /years -> /months -> weeks ->
 			// /days -> /blocks (/years -> /months) simply means that on
@@ -506,7 +506,7 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			intervalVal, err := dbtypes.TimeBasedGroupingToInterval(matchingVal)
 			if err != nil {
 				log.Debugf("Resolving the new group interval failed: error : %v", err)
-				return "/blocks?offset=0&rows=20"
+				return fmt.Sprintf("/blocks?height=%d&rows=20", endBlock)
 			}
 
 			rowsCount := int64(end.Sub(start).Seconds()/intervalVal) + 1

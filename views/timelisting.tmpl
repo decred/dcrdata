@@ -89,7 +89,7 @@
           <table class="table v3">
               <thead>
                   <tr>
-                      <th class="text-left pl-0">Start Date</th>
+                      <th class="text-left pl-0">Start Date (UTC)</th>
                       <th class="text-center d-none d-sm-table-cell">
                           <span class="d-none d-md-inline">Regular</span>
                           <span class="d-md-none position-relative" data-tooltip="regular transactions">R</span>
@@ -116,7 +116,7 @@
               {{range .Data}}
                   <tr>
                       <td class="text-left pl-0"
-                        ><a class="fs16 height" data-keynav-priority href="{{fetchRowLinkURL $lowerCaseVal .StartTime.T .EndTime.T}}">{{.FormattedStartTime}}</a>
+                        ><a class="fs16 height" data-keynav-priority href="{{fetchRowLinkURL $lowerCaseVal .EndBlock .StartTime.T .EndTime.T}}">{{.FormattedStartTime}}</a>
                       </td>
                       <td class="text-center d-none d-sm-table-cell">{{intComma .Transactions}}</td>
                       <td class="text-center d-none d-sm-table-cell">{{intComma .Voters}}</td>
