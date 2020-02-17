@@ -134,6 +134,7 @@ const (
 		COUNT(*) AS blocks_count
 		FROM blocks
 		WHERE height BETWEEN $2 AND $3
+			AND is_mainchain
 		GROUP BY window_start
 		ORDER BY window_start DESC;`
 
