@@ -654,7 +654,7 @@ func (psh *PubSubHub) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBl
 	p.GeneralInfo.NextExpectedBoundsMin = blockData.EstStakeDiff.Min
 	p.GeneralInfo.NextExpectedBoundsMax = blockData.EstStakeDiff.Max
 	p.GeneralInfo.IdxBlockInWindow = blockData.IdxBlockInWindow
-	p.GeneralInfo.IdxInRewardWindow = int(newBlockData.Height % psh.params.SubsidyReductionInterval)
+	p.GeneralInfo.IdxInRewardWindow = int(newBlockData.Height%psh.params.SubsidyReductionInterval) + 1
 	p.GeneralInfo.Difficulty = difficulty
 	p.GeneralInfo.NBlockSubsidy.Dev = blockData.ExtraInfo.NextBlockSubsidy.Developer
 	p.GeneralInfo.NBlockSubsidy.PoS = blockData.ExtraInfo.NextBlockSubsidy.PoS
