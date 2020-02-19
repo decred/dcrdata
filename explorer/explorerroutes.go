@@ -363,21 +363,30 @@ func (exp *explorerUI) VisualBlocks(w http.ResponseWriter, r *http.Request) {
 
 // StakeDiffWindows is the page handler for the "/ticketpricewindows" path.
 func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) {
-	offsetWindow, err := strconv.ParseUint(r.URL.Query().Get("offset"), 10, 64)
-	if err != nil {
-		offsetWindow = 0
+	var offsetWindow uint64
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		o, err := strconv.ParseUint(offsetStr, 10, 64)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+		offsetWindow = o
+	}
+
+	var rows uint64
+	if rowsStr := r.URL.Query().Get("rows"); rowsStr != "" {
+		o, err := strconv.ParseUint(rowsStr, 10, 64)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+		rows = o
 	}
 
 	bestWindow := uint64(exp.Height() / exp.ChainParams.StakeDiffWindowSize)
 	if offsetWindow > bestWindow {
 		offsetWindow = bestWindow
 	}
-
-	rows, err := strconv.ParseUint(r.URL.Query().Get("rows"), 10, 64)
-	if err != nil || rows < 1 {
-		rows = minExplorerRows
-	}
-
 	if rows > maxExplorerRows {
 		rows = maxExplorerRows
 	}
@@ -394,7 +403,7 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	linkTemplate := "/ticketpricewindows?offset=%d&rows=" + strconv.Itoa(int(rows))
+	linkTemplate := "/ticketpricewindows?offset=%d&rows=" + strconv.FormatUint(rows, 10)
 
 	str, err := exp.templates.exec("windows", struct {
 		*CommonPageData
@@ -450,6 +459,24 @@ func (exp *explorerUI) YearBlocksListing(w http.ResponseWriter, r *http.Request)
 // TimeBasedBlocksListing is the main handler for "/day", "/week", "/month" and
 // "/year".
 func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter, r *http.Request) {
+	var offset uint64
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		o, err := strconv.ParseUint(offsetStr, 10, 64)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+		offset = o
+	}
+	var rows uint64
+	if rowsStr := r.URL.Query().Get("rows"); rowsStr != "" {
+		o, err := strconv.ParseUint(rowsStr, 10, 64)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+		rows = o
+	}
 	grouping := dbtypes.TimeGroupingFromStr(val)
 	i, err := dbtypes.TimeBasedGroupingToInterval(grouping)
 	if err != nil {
@@ -462,11 +489,6 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 			return
 		}
 		grouping = dbtypes.YearGrouping
-	}
-
-	offset, err := strconv.ParseUint(r.URL.Query().Get("offset"), 10, 64)
-	if err != nil {
-		offset = 0
 	}
 
 	oldestBlockTime := exp.ChainParams.GenesisBlock.Header.Timestamp.Unix()
@@ -488,12 +510,9 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 		maxOffset = maxOffset + 1
 	}
 
-	rows, err := strconv.ParseUint(r.URL.Query().Get("rows"), 10, 64)
-	if err != nil || rows < 1 {
+	if rows == 0 {
 		rows = minExplorerRows
-	}
-
-	if rows > maxExplorerRows {
+	} else if rows > maxExplorerRows {
 		rows = maxExplorerRows
 	}
 
@@ -548,6 +567,26 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 
 // Blocks is the page handler for the "/blocks" path.
 func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
+	var height int64
+	if heightStr := r.URL.Query().Get("height"); heightStr != "" {
+		h, err := strconv.ParseUint(heightStr, 10, 64)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+		height = int64(h)
+	}
+
+	var rows int64
+	if rowsStr := r.URL.Query().Get("rows"); rowsStr != "" {
+		h, err := strconv.ParseUint(rowsStr, 10, 64)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+		rows = int64(h)
+	}
+
 	bestBlockHeight, err := exp.dataSource.GetHeight()
 	if err != nil {
 		log.Errorf("GetHeight failed: %v", err)
@@ -556,30 +595,21 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	height, err := strconv.Atoi(r.URL.Query().Get("height"))
-	if err != nil || height > int(bestBlockHeight) {
-		height = int(bestBlockHeight)
+	if height > bestBlockHeight {
+		height = bestBlockHeight
 	}
-
-	rows, err := strconv.Atoi(r.URL.Query().Get("rows"))
-	if err != nil || rows < 1 {
-		rows = minExplorerRows
-	}
-
 	if rows > maxExplorerRows {
 		rows = maxExplorerRows
 	}
-
 	var end int
-
 	oldestBlock := height - rows + 1
 	if oldestBlock < 0 {
 		end = -1
 	} else {
-		end = height - rows
+		end = int(height - rows)
 	}
 
-	summaries := exp.dataSource.GetExplorerBlocks(height, end)
+	summaries := exp.dataSource.GetExplorerBlocks(int(height), end)
 	if summaries == nil {
 		log.Errorf("Unable to get blocks: height=%d&rows=%d", height, rows)
 		exp.StatusPage(w, defaultErrorCode, "could not find those blocks", "",
@@ -600,9 +630,9 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 		s.MainChain = blockStatus.IsMainchain
 	}
 
-	linkTemplate := "/blocks?height=%d&rows=" + strconv.Itoa(rows)
+	linkTemplate := "/blocks?height=%d&rows=" + strconv.FormatInt(rows, 10)
 
-	oldestHeight := int(bestBlockHeight) % rows
+	oldestHeight := bestBlockHeight % rows
 
 	str, err := exp.templates.exec("explorer", struct {
 		*CommonPageData
@@ -618,12 +648,12 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 		CommonPageData: exp.commonData(r),
 		Data:           summaries,
 		BestBlock:      bestBlockHeight,
-		OldestHeight:   int64(oldestHeight),
-		Rows:           int64(rows),
+		OldestHeight:   oldestHeight,
+		Rows:           rows,
 		RowsCount:      int64(len(summaries)),
 		WindowSize:     exp.ChainParams.StakeDiffWindowSize,
 		TimeGrouping:   "Blocks",
-		Pages:          calcPagesDesc(int(bestBlockHeight), rows, height, linkTemplate),
+		Pages:          calcPagesDesc(int(bestBlockHeight), int(rows), int(height), linkTemplate),
 	})
 
 	if err != nil {
@@ -1391,8 +1421,6 @@ func (exp *explorerUI) AddressTable(w http.ResponseWriter, r *http.Request) {
 func parseAddressParams(r *http.Request) (address string, txnType dbtypes.AddrTxnViewType, limitN, offsetAddrOuts int64, err error) {
 	// Get the address URL parameter, which should be set in the request context
 	// by the addressPathCtx middleware.
-	var parseErr error
-
 	address, ok := r.Context().Value(ctxAddress).(string)
 	if !ok {
 		log.Trace("address not set")
@@ -1402,20 +1430,31 @@ func parseAddressParams(r *http.Request) (address string, txnType dbtypes.AddrTx
 
 	// Number of outputs for the address to query the database for. The URL
 	// query parameter "n" is used to specify the limit (e.g. "?n=20").
-	limitN, parseErr = strconv.ParseInt(r.URL.Query().Get("n"), 10, 64)
-	if parseErr != nil || limitN < 0 {
-		limitN = defaultAddressRows
-	} else if limitN > MaxAddressRows {
-		log.Warnf("addressPage: requested up to %d address rows, "+
-			"limiting to %d", limitN, MaxAddressRows)
-		limitN = MaxAddressRows
+	limitN = defaultAddressRows
+	if nParam := r.URL.Query().Get("n"); nParam != "" {
+		var val uint64
+		val, err = strconv.ParseUint(nParam, 10, 64)
+		if err != nil {
+			err = fmt.Errorf("invalid n value")
+			return
+		}
+		if int64(val) > MaxAddressRows {
+			log.Warnf("addressPage: requested up to %d address rows, "+
+				"limiting to %d", limitN, MaxAddressRows)
+			limitN = MaxAddressRows
+		}
 	}
 
 	// Number of outputs to skip (OFFSET in database query). For UX reasons, the
 	// "start" URL query parameter is used.
-	offsetAddrOuts, parseErr = strconv.ParseInt(r.URL.Query().Get("start"), 10, 64)
-	if parseErr != nil || offsetAddrOuts < 0 {
-		offsetAddrOuts = 0
+	if startParam := r.URL.Query().Get("start"); startParam != "" {
+		var val uint64
+		val, err = strconv.ParseUint(startParam, 10, 64)
+		if err != nil {
+			err = fmt.Errorf("invalid start value")
+			return
+		}
+		offsetAddrOuts = int64(val)
 	}
 
 	// Transaction types to show.
@@ -1893,24 +1932,44 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rowsCount, err := strconv.ParseUint(r.URL.Query().Get("rows"), 10, 64)
-	if err != nil || rowsCount == 0 {
-		// Number of rows displayed to the by default should be 20.
-		rowsCount = 20
+	rowsCount := uint64(20)
+	if rowsStr := r.URL.Query().Get("rows"); rowsStr != "" {
+		val, err := strconv.ParseUint(rowsStr, 10, 64)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+		if val > 0 {
+			rowsCount = val
+		}
+	}
+	var offset uint64
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		val, err := strconv.ParseUint(offsetStr, 10, 64)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+		offset = val
+	}
+	var filterBy uint64
+	if filterByStr := r.URL.Query().Get("byvotestatus"); filterByStr != "" {
+		val, err := strconv.ParseUint(filterByStr, 10, 64)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+		filterBy = val
 	}
 
-	// Ignore the error if it ever happens.
-	offset, _ := strconv.ParseUint(r.URL.Query().Get("offset"), 10, 64)
-
+	var err error
 	var count int
 	var proposals []*pitypes.ProposalInfo
 
-	// Check if filter by votes status query parameter was passed. Ignore the
-	// error message if it occurs.
-	filterBy, _ := strconv.Atoi(r.URL.Query().Get("byvotestatus"))
+	// Check if filter by votes status query parameter was passed.
 	if filterBy > 0 {
 		proposals, count, err = exp.proposalsSource.AllProposals(int(offset),
-			int(rowsCount), filterBy)
+			int(rowsCount), int(filterBy))
 	} else {
 		proposals, count, err = exp.proposalsSource.AllProposals(int(offset),
 			int(rowsCount))
@@ -1940,7 +1999,7 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 		VotesStatus:    pitypes.VotesStatuses(),
 		Offset:         int64(offset),
 		Limit:          int64(rowsCount),
-		VStatusFilter:  filterBy,
+		VStatusFilter:  int(filterBy),
 		TotalCount:     int64(count),
 		PoliteiaURL:    exp.politeiaAPIURL,
 		LastVotesSync:  exp.dataSource.LastPiParserSync().UTC().Unix(),
