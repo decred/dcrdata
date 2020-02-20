@@ -9,6 +9,7 @@ import TurboQuery from '../helpers/turbolinks_helper'
 import globalEventBus from '../services/event_bus_service'
 import { isEqual } from '../helpers/chart_helper'
 import dompurify from 'dompurify'
+import humanize from '../helpers/humanize_helper'
 
 var selectedChart
 let Dygraph // lazy loaded on connect
@@ -103,7 +104,11 @@ function legendFormatter (data) {
   if (data.x == null) return legendElement.classList.add('d-hide')
   legendElement.classList.remove('d-hide')
   var div = document.createElement('div')
-  div.appendChild(legendEntry(`${data.dygraph.getLabels()[0]}: ${data.xHTML}`))
+  var xHTML = data.xHTML
+  if (data.dygraph.getLabels()[0] === 'Date') {
+    xHTML = humanize.date(data.x, false, selectedChart !== 'ticket-price')
+  }
+  div.appendChild(legendEntry(`${data.dygraph.getLabels()[0]}: ${xHTML}`))
   yFormatter(div, data, data.dygraph.getOption('legendIndex'))
   dompurify.sanitize(div, { IN_PLACE: true, FORBID_TAGS: ['svg', 'math'] })
   return div.innerHTML

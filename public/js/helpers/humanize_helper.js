@@ -158,10 +158,12 @@ var humanize = {
     }
     return Math.floor(seconds) + 's'
   },
-  date: function (stamp, withTimezone) {
+  date: function (stamp, withTimezone, hideHisForMidnight) {
     var d = new Date(stamp)
-    var dateStr = `${String(d.getUTCFullYear())}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')} ` +
-          `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}:${String(d.getUTCSeconds()).padStart(2, '0')}`
+    var dateStr = `${String(d.getUTCFullYear())}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
+    if (!hideHisForMidnight) {
+      dateStr += ` ${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}:${String(d.getUTCSeconds()).padStart(2, '0')}`
+    }
     if (withTimezone) dateStr += ' (UTC)'
     return dateStr
   },

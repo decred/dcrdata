@@ -1,6 +1,7 @@
 import { Controller } from 'stimulus'
 import { barChartPlotter } from '../helpers/chart_helper'
 import { getDefault } from '../helpers/module_helper'
+import humanize from '../helpers/humanize_helper'
 import axios from 'axios'
 
 var chartLayout = {
@@ -17,7 +18,12 @@ var chartLayout = {
 
 function agendasLegendFormatter (data) {
   if (data.x == null) return ''
-  var html = this.getLabels()[0] + ': ' + data.xHTML
+  var html
+  if (this.getLabels()[0] === 'Date') {
+    html = this.getLabels()[0] + ': ' + humanize.date(data.x)
+  } else {
+    html = this.getLabels()[0] + ': ' + data.xHTML
+  }
   var total = data.series.reduce((total, n) => {
     return total + n.y
   }, 0)
