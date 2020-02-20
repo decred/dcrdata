@@ -13,7 +13,6 @@
       data-address-dcraddress="{{.Address}}"
       data-address-txn-count="{{$TxnCount}}"
       data-address-balance="{{toFloat64Amount .Balance.TotalUnspent}}"
-      data-address-is-dummy="{{.IsDummyAddress}}"
     >
     <div class="fullscreen d-none" data-target="address.fullscreen" data-action="click->address#exitFullscreen">
       <div class="secondary-card d-inline-block w-100 h-100 p-4" data-target="address.bigchart"></div>
