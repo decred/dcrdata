@@ -139,10 +139,7 @@ var humanize = {
       return result
     }
     var pad = function (x) {
-      if (x < 10) {
-        return `&nbsp${x}`
-      }
-      return x
+      return x.toString().padStart(2, '\u00a0')
     }
     interval = Math.floor(seconds / 3600)
     if (interval >= 1) {
