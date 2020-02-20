@@ -370,10 +370,9 @@ export default class extends Controller {
     var totalKwh = deviceCount * deviceInfo.power * parseFloat(this.attackPeriodTarget.value) / 1000
     var totalElectricity = totalKwh * parseFloat(this.kwhRateTarget.value)
     var extraCost = parseFloat(this.otherCostsTarget.value) / 100 * (totalDeviceCost + totalElectricity)
-    var totalPow = extraCost * totalDeviceCost + totalElectricity
+    var totalPow = extraCost + totalDeviceCost + totalElectricity
     var ticketAttackSize, DCRNeed
     if (this.settings.attack_type === 1) {
-      // ticketAttackSize = tpSize / (1 - parseFloat(this.targetPosTarget.value) / 100)
       DCRNeed = tpValue / (1 - parseFloat(this.targetPosTarget.value) / 100)
       this.setAllValues(this.newTicketPoolValueTargets, digitformat(DCRNeed, 2))
       this.setAllValues(this.additionalDcrTargets, digitformat(DCRNeed - tpValue, 2))
