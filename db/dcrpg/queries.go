@@ -10,7 +10,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"math/big"
 	"strconv"
 	"strings"
@@ -3667,11 +3666,14 @@ func appendPrivacyParticipation(charts *cache.ChartData, rows *sql.Rows) error {
 // cache.ChartUpdater.
 func retrieveAnonymitySet(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
 	// only fetch from the database if this is the first time or there is a
-	// special need for full update or if the height of the chart is less
+	// special need for full update like when the height of the chart is less
 	// than the best block
-	if !charts.RequiresFullUpdate && len(charts.UnspentOutputs) > 0 {
+	if !charts.RequiresFullUpdate && len(charts.UnspentOutputs) > 0 &&
+		(len(charts.Blocks.Height)-len(charts.Blocks.AnonymitySet) <= 1) {
 		return &sql.Rows{}, nil
 	}
+
+	charts.RequiresFullUpdate = true
 	rows, err := db.QueryContext(ctx, internal.SelectMixedVouts, charts.AnonymitySetTip())
 	if err != nil {
 		return nil, err
@@ -3683,6 +3685,13 @@ func retrieveAnonymitySet(ctx context.Context, db *sql.DB, charts *cache.ChartDa
 // Append the result from retrieveAnonymitySet to the provided ChartData. This
 // is the Appender half of a pair that make up a cache.ChartUpdater.
 func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
+
+	// make the charts obj available for the global vouts cache functions
+	_charts = charts
+
+	if !charts.RequiresFullUpdate {
+		return nil
+	}
 
 	blocks := charts.Blocks
 	var maxHeight, anonymitySet int64
@@ -3702,12 +3711,13 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 		anonymitySet = int64(blocks.AnonymitySet[lenAnonymitySet-1])
 	}
 
+	charts.UnspentOutputs = make(map[uint64]uint64)
+
 	for rows.Next() {
-		var value, fundHeight, spendHeight int64
+		var id, value, fundHeight, spendHeight int64
 		var spendHeightNull sql.NullInt64
 		var tree uint8
-		// todo: also fetch the ids and append unspent vouts to the chart cache
-		err = rows.Scan(&value, &fundHeight, &spendHeightNull, &tree)
+		err = rows.Scan(&id, &value, &fundHeight, &spendHeightNull, &tree)
 		if err != nil {
 			return err
 		}
@@ -3720,6 +3730,7 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 			spendHeight = spendHeightNull.Int64
 		} else {
 			spendHeight = -1
+			charts.UnspentOutputs[uint64(id)] = uint64(value)
 		}
 
 		if spendHeight > maxHeight {
@@ -3767,27 +3778,24 @@ func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
 		blocks.AnonymitySet = append(blocks.AnonymitySet, uint64(anonymitySet))
 	}
 
-	// make the charts obj available for the global vouts cache functions
-	_charts = charts
+	charts.RequiresFullUpdate = false
+
 	return nil
 }
 
 // the _charts variable is set in appendAnonymitySet during the first call
 var _charts *cache.ChartData
 
-func appendNewVoutsToCharts(voutDbIds []uint64, vals []uint64, spendingHeight int64) {
+func appendNewVoutsToCharts(voutDbIds []uint64, vals []uint64, fundingHeight int64) {
 	if _charts == nil {
 		return
 	}
 
-	// todo: it is assumed that appendNewVoutsToCharts will be called
-	// before setVoutsSpendingHeightOnCharts, needs verification
-	// if the incoming height is not the next height expected height, reload the set
-	if spendingHeight != int64(len(_charts.Blocks.AnonymitySet)) + 1 {
-		_charts.RequiresFullUpdate = true
+	if _charts.RequiresFullUpdate {
 		return
 	}
-	var anonymitySet = _charts.Blocks.AnonymitySet[len(_charts.Blocks.AnonymitySet) - 1]
+
+	var anonymitySet = _charts.Blocks.AnonymitySet[len(_charts.Blocks.AnonymitySet)-1]
 	for i, id := range voutDbIds {
 		if _, f := _charts.UnspentOutputs[id]; !f {
 			anonymitySet += vals[i]
@@ -3795,8 +3803,11 @@ func appendNewVoutsToCharts(voutDbIds []uint64, vals []uint64, spendingHeight in
 		}
 	}
 
-	spew.Dump("New anonymity set added: ", anonymitySet)
-	_charts.Blocks.AnonymitySet = append(_charts.Blocks.AnonymitySet, anonymitySet)
+	if fundingHeight == int64(len(_charts.Blocks.AnonymitySet)) {
+		_charts.Blocks.AnonymitySet = append(_charts.Blocks.AnonymitySet, anonymitySet)
+	} else if fundingHeight == int64(len(_charts.Blocks.AnonymitySet))-1 {
+		_charts.Blocks.AnonymitySet[len(_charts.Blocks.AnonymitySet)-1] = anonymitySet
+	}
 }
 
 // it is assumed that appendNewVoutsToCharts will be call first
@@ -3804,13 +3815,18 @@ func setVoutsSpendingHeightOnCharts(voutDbIds []int64, spendingHeight uint32) {
 	if _charts == nil {
 		return
 	}
+
+	if _charts.RequiresFullUpdate {
+		return
+	}
+
+	curIndex := len(_charts.Blocks.AnonymitySet) - 1
 	for _, id := range voutDbIds {
 		if val, f := _charts.UnspentOutputs[uint64(id)]; f {
-			_charts.Blocks.AnonymitySet[int(spendingHeight)] -= val
+			_charts.Blocks.AnonymitySet[curIndex] -= val
 			delete(_charts.UnspentOutputs, uint64(id))
 		}
 	}
-	spew.Dump("New anonymity set updated: ", spendingHeight)
 }
 
 func resetVoutsSpendingHeightOnCharts() {
@@ -3819,7 +3835,6 @@ func resetVoutsSpendingHeightOnCharts() {
 	}
 	_charts.RequiresFullUpdate = true
 }
-
 
 // retrievePoolStats returns all the pool value and the pool size
 // charts data needed to plot ticket-pool-size and ticket-pool value charts on

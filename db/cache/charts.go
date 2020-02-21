@@ -479,6 +479,7 @@ func (charts *ChartData) Lengthen() error {
 		log.Warnf("ChartData.Lengthen: block data length mismatch detected. "+
 			"Truncating blocks length to %d", shortest)
 		blocks.Snip(shortest)
+		charts.RequiresFullUpdate = true
 	}
 	if shortest == 0 {
 		// No blocks yet. Not an error.

@@ -6169,10 +6169,10 @@ func (pgb *ChainDB) MixedUtxosByHeight() (heights, utxoCountReg, utxoValueReg, u
 	var maxHeight int64
 	minHeight := int64(math.MaxInt64)
 	for rows.Next() {
-		var value, fundHeight, spendHeight int64
+		var id, value, fundHeight, spendHeight int64
 		var spendHeightNull sql.NullInt64
 		var tree uint8
-		err = rows.Scan(&value, &fundHeight, &spendHeightNull, &tree)
+		err = rows.Scan(&id, &value, &fundHeight, &spendHeightNull, &tree)
 		if err != nil {
 			return
 		}
