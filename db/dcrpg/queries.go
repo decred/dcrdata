@@ -3795,6 +3795,9 @@ func appendNewVoutsToCharts(voutDbIds []uint64, vals []uint64, fundingHeight int
 		return
 	}
 
+	_charts.UnspentOutputsMtx.Lock()
+	defer _charts.UnspentOutputsMtx.Unlock()
+
 	var anonymitySet = _charts.Blocks.AnonymitySet[len(_charts.Blocks.AnonymitySet)-1]
 	for i, id := range voutDbIds {
 		if _, f := _charts.UnspentOutputs[id]; !f {
@@ -3819,6 +3822,9 @@ func setVoutsSpendingHeightOnCharts(voutDbIds []int64, spendingHeight uint32) {
 	if _charts.RequiresFullUpdate {
 		return
 	}
+
+	_charts.UnspentOutputsMtx.Lock()
+	defer _charts.UnspentOutputsMtx.Unlock()
 
 	curIndex := len(_charts.Blocks.AnonymitySet) - 1
 	for _, id := range voutDbIds {

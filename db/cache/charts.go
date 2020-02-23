@@ -429,6 +429,7 @@ type ChartData struct {
 
 	RequiresFullUpdate bool
 	UnspentOutputs     map[uint64]uint64
+	UnspentOutputsMtx  sync.Mutex
 }
 
 // ValidateLengths checks that the length of all arguments is equal.
