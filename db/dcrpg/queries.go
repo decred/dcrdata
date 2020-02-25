@@ -3814,7 +3814,7 @@ func appendNewVoutsToCharts(voutDbIds []uint64, vals []uint64, fundingHeight int
 }
 
 // it is assumed that appendNewVoutsToCharts will be call first
-func setVoutsSpendingHeightOnCharts(voutDbIds []int64, spendingHeight uint32) {
+func setVoutsSpendingHeightOnCharts(voutDbIds []int64) {
 	if _charts == nil {
 		return
 	}

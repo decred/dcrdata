@@ -4227,7 +4227,7 @@ txns:
 				return txRes
 			}
 			// notify chart cache to update vouts
-			setVoutsSpendingHeightOnCharts(voutDbIDs, msgBlock.Header.Height)
+			setVoutsSpendingHeightOnCharts(voutDbIDs)
 		}
 	}
 
