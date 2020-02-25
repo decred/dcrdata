@@ -43,7 +43,7 @@ function isScaleDisabled (chart) {
 }
 
 function isModeEnabled (chart) {
-  return modeScales.indexOf(chart) > -1
+  return modeScales.includes(chart)
 }
 
 function hasMultipleVisibility (chart) {
