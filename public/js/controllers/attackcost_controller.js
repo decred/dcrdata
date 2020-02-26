@@ -307,26 +307,26 @@ export default class extends Controller {
   }
 
   updateTargetHashRate (newTargetPow) {
-    this.targetPowTarget.value = newTargetPow || this.targetPowTarget.value
-
+    let ticketPercentage = newTargetPow || this.targetPosTargets.value
+    this.targetHashRate = hashrate * rateCalculation(ticketPercentage / 100)
+    this.targetPowTarget.value = digitformat(100 * this.targetHashRate / hashrate, 2)
     switch (this.settings.attack_type) {
       case 1:
-        this.targetHashRate = hashrate / (1 - parseFloat(this.targetPowTarget.value) / 100) - hashrate
+        this.targetHashRate += hashrate
         this.projectedPriceDivTarget.style.display = 'block'
         this.internalAttackTextTarget.classList.add('d-none')
         this.internalAttackPosTextTarget.classList.add('d-none')
         this.externalAttackTextTarget.classList.remove('d-none')
         this.externalAttackPosTextTarget.classList.remove('d-node')
-        console.log(this.externalAttackPosTextTarget)
         return
       case 0:
       default:
-        this.targetHashRate = hashrate * parseFloat(this.targetPowTarget.value) / 100
         this.projectedPriceDivTarget.style.display = 'none'
         this.externalAttackTextTarget.classList.add('d-none')
         this.externalAttackPosTextTarget.classList.add('d-node')
         this.internalAttackTextTarget.classList.remove('d-none')
         this.internalAttackPosTextTarget.classList.remove('d-none')
+        this.internalHashTarget.innerHTML = digitformat((this.targetHashRate), 4) + ' Ph/s '
     }
   }
 
@@ -339,11 +339,6 @@ export default class extends Controller {
     this.updateTargetHashRate(val * 100)
     this.setActivePoint()
 
-    var rate = rateCalculation(val)
-    var randomVal = (rate * this.targetHashRate) / parseFloat(hashrate) * 100
-
-    this.targetPowTarget.value = Math.floor(randomVal * 100) / 100
-    this.internalHashTarget.innerHTML = digitformat((rate * this.targetHashRate), 4) + ' Ph/s '
     this.ticketsTarget.innerHTML = digitformat(val * tpSize) + ' tickets '
     switch (this.settings.attack_type) {
       case 1:
@@ -362,7 +357,7 @@ export default class extends Controller {
   calculate (disableHashRateUpdate) {
     if (!disableHashRateUpdate) this.updateTargetHashRate()
 
-    this.targetHashRate *= rateCalculation(this.targetPosTarget.value / 100)
+    // this.targetHashRate *= rateCalculation(this.targetPosTarget.value / 100)
     this.query.replace(this.settings)
     var deviceInfo = deviceList[this.selectedDevice()]
     var deviceCount = Math.ceil((this.targetHashRate * 1000) / deviceInfo.hashrate)
