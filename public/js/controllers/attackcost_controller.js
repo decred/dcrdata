@@ -117,7 +117,7 @@ export default class extends Controller {
       'ticketAttackSize', 'ticketPoolAttack', 'ticketPoolSize', 'ticketPoolSizeLabel',
       'ticketPoolValue', 'ticketPrice', 'tickets', 'ticketSizeAttack', 'durationLongDesc',
       'total', 'totalDCRPos', 'totalDeviceCost', 'totalElectricity', 'totalExtraCostRate', 'totalKwh',
-      'totalPos', 'totalPow', 'graph', 'labels', 'projectedTicketPrice', 'attackType',
+      'totalPos', 'totalPow', 'graph', 'labels', 'projectedTicketPrice', 'projectedTicketPriceIncrease', 'attackType',
       'attackPosPercentNeededLabel', 'attackPosPercentAmountLabel', 'dcrPriceLabel', 'totalDCRPosLabel',
       'projectedPriceDiv'
     ]
@@ -377,6 +377,7 @@ export default class extends Controller {
       this.setAllValues(this.ticketPoolAttackTargets, digitformat(DCRNeed))
     }
     var projectedTicketPrice = DCRNeed / tpSize
+    this.projectedTicketPriceIncreaseTarget.innerHTML = digitformat(100 * (projectedTicketPrice - tpPrice) / tpPrice, 2)
     this.ticketPoolValueTarget.innerHTML = digitformat(hashrate, 3)
 
     var totalDCRPos = this.settings.attack_type === 1 ? DCRNeed - tpValue : ticketAttackSize * projectedTicketPrice
