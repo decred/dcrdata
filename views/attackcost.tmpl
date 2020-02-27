@@ -124,6 +124,7 @@
                       data-action="change->attackcost#updateAttackTime"
                       step="1"
                       min="1"
+                      max="1000"
                       value="1"
                     >
                   </span>
@@ -176,8 +177,8 @@
                     class="form-control chart-form-control mr-5"
                     data-action="attackcost#chooseAttackType"
                     data-target="attackcost.attackType">
-                    <option data-target="attackcost.attackTypeDesc" value="0">Internal</option>
-                    <option data-target="attackcost.attackTypeDesc" value="1">External</option>
+                    <option data-target="attackcost.attackTypeDesc" value="0">External</option>
+                    <option data-target="attackcost.attackTypeDesc" value="1">Internal</option>
                   </select>
                 </div>
               </div>
@@ -354,7 +355,7 @@
                       step="1"
                       min="1"
                       max="100"
-                      value="60"
+                      value="50"
                       autofocus
               >% PoS attack would add
               <span class="font-weight-bold" data-target="attackcost.additionalDcr">0</span><span class="fs11"> DCR</span>
@@ -370,8 +371,8 @@
               <span class="position-relative font-weight-bold">
               <span class="font-weight-bold" data-target="attackcost.projectedTicketPrice">0</span>
                 <span class="fs11">DCR</span>
-                (A <span class="font-weight-bold" data-target="attackcost.projectedTicketPriceIncrease">0</span>% increase).
               </span>
+              (A <span class="font-weight-bold" data-target="attackcost.projectedTicketPriceIncrease">0</span>% increase).
             </div>
 
             <div class="mt-1 ml-2">

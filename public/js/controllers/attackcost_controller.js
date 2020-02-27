@@ -147,8 +147,11 @@ export default class extends Controller {
     if (this.settings.price) this.priceDCRTarget.value = parseFloat(this.settings.price)
     if (this.settings.device) this.setDevice(this.settings.device)
     if (this.settings.attack_type) this.attackTypeTarget.value = parseInt(this.settings.attack_type)
-    if (this.settings.target_pos || this.settings.target_pow) this.attackPercentTarget.value = (this.targetPowTarget.value || this.targetPosTarget.value) / 100
+    if (this.settings.target_pos) this.attackPercentTarget.value = parseInt(this.targetPosTarget.value) / 100
 
+    if (this.settings.attack_type !== 1) {
+      this.settings.attack_type = 0
+    }
     this.setDevicesDesc()
     this.updateSliderData()
 
@@ -258,8 +261,10 @@ export default class extends Controller {
     this.updateSliderData()
   }
 
-  updateTargetPos () {
-    this.settings.target_pos = this.targetPosTarget.value
+  updateTargetPos (e) {
+    this.settings.target_pos = e.currentTarget.value
+    this.setAllInputs(this.targetPosTargets, e.currentTarget.value)
+    this.query.replace(this.settings)
     this.attackPercentTarget.value = parseFloat(this.targetPosTarget.value) / 100
     this.updateSliderData()
   }
@@ -306,27 +311,29 @@ export default class extends Controller {
     }
   }
 
-  updateTargetHashRate (newTargetPow) {
-    let ticketPercentage = newTargetPow || this.targetPosTargets.value
+  updateTargetHashRate () {
+    let ticketPercentage = parseFloat(this.targetPosTarget.value)
     this.targetHashRate = hashrate * rateCalculation(ticketPercentage / 100)
-    this.targetPowTarget.value = digitformat(100 * this.targetHashRate / hashrate, 2)
+    const powPercentage = 100 * this.targetHashRate / hashrate
+    this.targetPowTarget.value = digitformat(powPercentage, 2, true)
+    this.setAllValues(this.internalHashTargets, digitformat((this.targetHashRate), 4) + ' Ph/s ')
     switch (this.settings.attack_type) {
-      case 1:
+      case 0:
         this.targetHashRate += hashrate
         this.projectedPriceDivTarget.style.display = 'block'
         this.internalAttackTextTarget.classList.add('d-none')
         this.internalAttackPosTextTarget.classList.add('d-none')
         this.externalAttackTextTarget.classList.remove('d-none')
         this.externalAttackPosTextTarget.classList.remove('d-node')
-        return
-      case 0:
+        break
+      case 1:
       default:
         this.projectedPriceDivTarget.style.display = 'none'
         this.externalAttackTextTarget.classList.add('d-none')
         this.externalAttackPosTextTarget.classList.add('d-node')
         this.internalAttackTextTarget.classList.remove('d-none')
         this.internalAttackPosTextTarget.classList.remove('d-none')
-        this.internalHashTarget.innerHTML = digitformat((this.targetHashRate), 4) + ' Ph/s '
+        break
     }
   }
 
@@ -336,16 +343,16 @@ export default class extends Controller {
     // Target PoS value increases when slider moves to the right
     this.setAllInputs(this.targetPosTargets, val * 100)
 
-    this.updateTargetHashRate(val * 100)
+    this.updateTargetHashRate()
     this.setActivePoint()
 
     this.ticketsTarget.innerHTML = digitformat(val * tpSize) + ' tickets '
     switch (this.settings.attack_type) {
-      case 1:
+      case 0:
         this.hideAll(this.internalAttackPosTextTargets)
         this.showAll(this.externalAttackPosTextTargets)
         break
-      case 0:
+      case 1:
       default:
         this.hideAll(this.externalAttackPosTextTargets)
         this.showAll(this.internalAttackPosTextTargets)
@@ -357,7 +364,6 @@ export default class extends Controller {
   calculate (disableHashRateUpdate) {
     if (!disableHashRateUpdate) this.updateTargetHashRate()
 
-    // this.targetHashRate *= rateCalculation(this.targetPosTarget.value / 100)
     this.query.replace(this.settings)
     var deviceInfo = deviceList[this.selectedDevice()]
     var deviceCount = Math.ceil((this.targetHashRate * 1000) / deviceInfo.hashrate)
@@ -367,7 +373,7 @@ export default class extends Controller {
     var extraCost = parseFloat(this.otherCostsTarget.value) / 100 * (totalDeviceCost + totalElectricity)
     var totalPow = extraCost + totalDeviceCost + totalElectricity
     var ticketAttackSize, DCRNeed
-    if (this.settings.attack_type === 1) {
+    if (this.settings.attack_type === 0) {
       DCRNeed = tpValue / (1 - parseFloat(this.targetPosTarget.value) / 100)
       this.setAllValues(this.newTicketPoolValueTargets, digitformat(DCRNeed, 2))
       this.setAllValues(this.additionalDcrTargets, digitformat(DCRNeed - tpValue, 2))
@@ -380,7 +386,7 @@ export default class extends Controller {
     this.projectedTicketPriceIncreaseTarget.innerHTML = digitformat(100 * (projectedTicketPrice - tpPrice) / tpPrice, 2)
     this.ticketPoolValueTarget.innerHTML = digitformat(hashrate, 3)
 
-    var totalDCRPos = this.settings.attack_type === 1 ? DCRNeed - tpValue : ticketAttackSize * projectedTicketPrice
+    var totalDCRPos = this.settings.attack_type === 0 ? DCRNeed - tpValue : ticketAttackSize * projectedTicketPrice
     var totalPos = totalDCRPos * dcrPrice
     var timeStr = this.attackPeriodTarget.value
     timeStr = this.attackPeriodTarget.value > 1 ? timeStr + ' hours' : timeStr + ' hour'
@@ -388,7 +394,6 @@ export default class extends Controller {
 
     this.setAllValues(this.actualHashRateTargets, digitformat(hashrate, 4))
     this.priceDCRTarget.value = digitformat(dcrPrice, 2)
-    this.targetPowTarget.value = digitformat(parseFloat(this.targetPowTarget.value), 2, true)
     this.setAllInputs(this.targetPosTargets, digitformat(parseFloat(this.targetPosTarget.value), 2))
     this.ticketPriceTarget.innerHTML = digitformat(tpPrice, 4)
     this.setAllValues(this.targetHashRateTargets, digitformat(this.targetHashRate, 4))
