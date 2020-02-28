@@ -71,6 +71,9 @@ const deviceList = {
   }
 }
 
+const externalAttackType = 'external'
+const internalAttackType = 'internal'
+
 function legendFormatter (data) {
   var html = ''
   if (data.x == null) {
@@ -118,7 +121,7 @@ export default class extends Controller {
       'ticketPoolValue', 'ticketPrice', 'tickets', 'ticketSizeAttack', 'durationLongDesc',
       'total', 'totalDCRPos', 'totalDeviceCost', 'totalElectricity', 'totalExtraCostRate', 'totalKwh',
       'totalPos', 'totalPow', 'graph', 'labels', 'projectedTicketPrice', 'projectedTicketPriceIncrease', 'attackType',
-      'attackPosPercentNeededLabel', 'attackPosPercentAmountLabel', 'dcrPriceLabel', 'totalDCRPosLabel',
+      'attackPosPercentAmountLabel', 'dcrPriceLabel', 'totalDCRPosLabel',
       'projectedPriceDiv'
     ]
   }
@@ -146,11 +149,11 @@ export default class extends Controller {
     if (this.settings.target_pos) this.setAllInputs(this.targetPosTargets, parseFloat(this.settings.target_pos))
     if (this.settings.price) this.priceDCRTarget.value = parseFloat(this.settings.price)
     if (this.settings.device) this.setDevice(this.settings.device)
-    if (this.settings.attack_type) this.attackTypeTarget.value = parseInt(this.settings.attack_type)
+    if (this.settings.attack_type) this.attackTypeTarget.value = this.settings.attack_type
     if (this.settings.target_pos) this.attackPercentTarget.value = parseInt(this.targetPosTarget.value) / 100
 
-    if (this.settings.attack_type !== 1) {
-      this.settings.attack_type = 0
+    if (this.settings.attack_type !== internalAttackType) {
+      this.settings.attack_type = externalAttackType
     }
     this.setDevicesDesc()
     this.updateSliderData()
@@ -278,8 +281,7 @@ export default class extends Controller {
   selectedDevice () { return this.deviceTarget.value }
 
   selectedAttackType () {
-    // TurboQuery parses the attack_type from the url as int
-    return parseInt(this.attackTypeTarget.value)
+    return this.attackTypeTarget.value
   }
 
   selectOption (options) {
@@ -318,7 +320,7 @@ export default class extends Controller {
     this.targetPowTarget.value = digitformat(powPercentage, 2, true)
     this.setAllValues(this.internalHashTargets, digitformat((this.targetHashRate), 4) + ' Ph/s ')
     switch (this.settings.attack_type) {
-      case 0:
+      case externalAttackType:
         this.targetHashRate += hashrate
         this.projectedPriceDivTarget.style.display = 'block'
         this.internalAttackTextTarget.classList.add('d-none')
@@ -326,7 +328,7 @@ export default class extends Controller {
         this.externalAttackTextTarget.classList.remove('d-none')
         this.externalAttackPosTextTarget.classList.remove('d-node')
         break
-      case 1:
+      case internalAttackType:
       default:
         this.projectedPriceDivTarget.style.display = 'none'
         this.externalAttackTextTarget.classList.add('d-none')
@@ -348,11 +350,11 @@ export default class extends Controller {
 
     this.ticketsTarget.innerHTML = digitformat(val * tpSize) + ' tickets '
     switch (this.settings.attack_type) {
-      case 0:
+      case externalAttackType:
         this.hideAll(this.internalAttackPosTextTargets)
         this.showAll(this.externalAttackPosTextTargets)
         break
-      case 1:
+      case internalAttackType:
       default:
         this.hideAll(this.externalAttackPosTextTargets)
         this.showAll(this.internalAttackPosTextTargets)
@@ -373,7 +375,7 @@ export default class extends Controller {
     var extraCost = parseFloat(this.otherCostsTarget.value) / 100 * (totalDeviceCost + totalElectricity)
     var totalPow = extraCost + totalDeviceCost + totalElectricity
     var ticketAttackSize, DCRNeed
-    if (this.settings.attack_type === 0) {
+    if (this.settings.attack_type === externalAttackType) {
       DCRNeed = tpValue / (1 - parseFloat(this.targetPosTarget.value) / 100)
       this.setAllValues(this.newTicketPoolValueTargets, digitformat(DCRNeed, 2))
       this.setAllValues(this.additionalDcrTargets, digitformat(DCRNeed - tpValue, 2))
@@ -386,7 +388,7 @@ export default class extends Controller {
     this.projectedTicketPriceIncreaseTarget.innerHTML = digitformat(100 * (projectedTicketPrice - tpPrice) / tpPrice, 2)
     this.ticketPoolValueTarget.innerHTML = digitformat(hashrate, 3)
 
-    var totalDCRPos = this.settings.attack_type === 0 ? DCRNeed - tpValue : ticketAttackSize * projectedTicketPrice
+    var totalDCRPos = this.settings.attack_type === externalAttackType ? DCRNeed - tpValue : ticketAttackSize * projectedTicketPrice
     var totalPos = totalDCRPos * dcrPrice
     var timeStr = this.attackPeriodTarget.value
     timeStr = this.attackPeriodTarget.value > 1 ? timeStr + ' hours' : timeStr + ' hour'
@@ -414,7 +416,7 @@ export default class extends Controller {
     this.blockHeightTarget.innerHTML = digitformat(height)
     this.totalTarget.innerHTML = digitformat(totalPow + totalPos, 2)
     this.projectedTicketPriceTarget.innerHTML = digitformat(projectedTicketPrice, 2)
-    this.attackPosPercentNeededLabelTarget.innerHTML = digitformat(this.targetPosTarget.value, 2)
+    // this.attackPosPercentNeededLabelTarget.innerHTML = digitformat(this.targetPosTarget.value, 2)
     this.attackPosPercentAmountLabelTarget.innerHTML = digitformat(this.targetPosTarget.value, 2)
     this.setAllValues(this.totalDCRPosLabelTargets, digitformat(totalDCRPos, 2))
     this.setAllValues(this.dcrPriceLabelTargets, digitformat(dcrPrice, 2))

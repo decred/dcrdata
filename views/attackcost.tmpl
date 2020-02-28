@@ -177,8 +177,8 @@
                     class="form-control chart-form-control mr-5"
                     data-action="attackcost#chooseAttackType"
                     data-target="attackcost.attackType">
-                    <option data-target="attackcost.attackTypeDesc" value="0">External</option>
-                    <option data-target="attackcost.attackTypeDesc" value="1">Internal</option>
+                    <option data-target="attackcost.attackTypeDesc" value="external">External</option>
+                    <option data-target="attackcost.attackTypeDesc" value="internal">Internal</option>
                   </select>
                 </div>
               </div>
@@ -305,18 +305,6 @@
             <div class="mt-1 ml-2">
               Total staked is
               <span  data-target="attackcost.ticketPoolValue" class="font-weight-bold">0</span> <span class="fs11">DCR</span>
-            </div>
-            <div class="mt-1 ml-2">
-              <span class="position-relative font-weight-bold">
-                <span class="font-weight-bold" data-target="attackcost.ticketSizeAttack">0</span>
-                <span> tickets</span>
-              </span>
-              needed for the attack
-              (<span class="position-relative font-weight-bold">
-                <span data-target="attackcost.ticketPoolSize">0</span><span class="fs11"> tickets</span>
-                <span data-target="attackcost.operatorSign"> * </span>
-                <span data-target="attackcost.attackPosPercentNeededLabel">0</span><span class="fs11">%</span>
-              </span>)
             </div>
             <div class="mt-1 ml-2">
               <span class="position-relative font-weight-bold">
