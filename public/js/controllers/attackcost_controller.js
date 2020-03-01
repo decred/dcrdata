@@ -116,7 +116,7 @@ export default class extends Controller {
       'deviceCost', 'deviceDesc', 'deviceName', 'external', 'internal', 'internalHash',
       'kwhRate', 'kwhRateLabel', 'otherCosts', 'otherCostsValue', 'priceDCR', 'internalAttackText', 'targetHashRate', 'externalAttackText',
       'externalAttackPosText', 'additionalDcr', 'newTicketPoolValue', 'internalAttackPosText',
-      'additionalHashRate', 'targetPos', 'targetPow',
+      'additionalHashRate', 'newHashRate', 'targetPos', 'targetPow',
       'ticketAttackSize', 'ticketPoolAttack', 'ticketPoolSize', 'ticketPoolSizeLabel',
       'ticketPoolValue', 'ticketPrice', 'tickets', 'ticketSizeAttack', 'durationLongDesc',
       'total', 'totalDCRPos', 'totalDeviceCost', 'totalElectricity', 'totalExtraCostRate', 'totalKwh',
@@ -185,12 +185,15 @@ export default class extends Controller {
   plotGraph () {
     const that = this
     graphData = []
+    this.ratioTable = new Map()
 
     // populate graphData
     // to avoid javascript decimal math issue, the iteration is done over whole number and reduced to the expected decimal value within the loop
     for (let i = 10; i <= 1000; i += 5) {
       const y = i / 1000
-      graphData.push([y * tpSize, rateCalculation(y)])
+      const x = rateCalculation(y)
+      this.ratioTable.set(x, y)
+      graphData.push([y * tpSize, x])
     }
 
     let options = {
@@ -238,10 +241,29 @@ export default class extends Controller {
     this.updateSliderData()
   }
 
-  updateTargetPow () {
-    // todo use the inverse of (6x⁵-15x⁴ +10x³) / (6y⁵-15y⁴ +10y³) where y = this.value and x = 1-y to get the
-    //  appropriate multiplier for the selected attack percentage
-    // this.updateSliderData()
+  updateTargetPow (e) {
+    this.preserveTargetPow = true
+    var targetPercentage = parseFloat(e.currentTarget.value) / 100
+    var target = this.ratioTable.get(targetPercentage)
+    if (target === undefined) {
+      let previousKey = 0
+      let previousValue = 0
+      this.ratioTable.forEach((value, key) => {
+        if ((previousKey <= targetPercentage && targetPercentage <= key) || (previousKey >= targetPercentage && targetPercentage >= key)) {
+          const gap = Math.abs(key - targetPercentage)
+          const preGap = Math.abs(previousKey - targetPercentage)
+          if (gap < preGap) {
+            target = value
+          } else {
+            target = previousValue
+          }
+        }
+        previousKey = key
+        previousValue = value
+      })
+    }
+    this.attackPercentTarget.value = target
+    this.updateSliderData()
   }
 
   chooseDevice () {
@@ -266,6 +288,7 @@ export default class extends Controller {
 
   updateTargetPos (e) {
     this.settings.target_pos = e.currentTarget.value
+    this.preserveTargetPoS = true
     this.setAllInputs(this.targetPosTargets, e.currentTarget.value)
     this.query.replace(this.settings)
     this.attackPercentTarget.value = parseFloat(this.targetPosTarget.value) / 100
@@ -317,11 +340,16 @@ export default class extends Controller {
     let ticketPercentage = parseFloat(this.targetPosTarget.value)
     this.targetHashRate = hashrate * rateCalculation(ticketPercentage / 100)
     const powPercentage = 100 * this.targetHashRate / hashrate
-    this.targetPowTarget.value = digitformat(powPercentage, 2, true)
+    if (!this.preserveTargetPow) {
+      this.targetPowTarget.value = digitformat(powPercentage, 2, true)
+    } else {
+      this.preserveTargetPow = false
+    }
     this.setAllValues(this.internalHashTargets, digitformat((this.targetHashRate), 4) + ' Ph/s ')
     switch (this.settings.attack_type) {
       case externalAttackType:
-        this.targetHashRate += hashrate
+        this.setAllValues(this.newHashRateTargets, digitformat(this.targetHashRate + hashrate, 4))
+        this.setAllValues(this.additionalHashRateTargets, digitformat(this.targetHashRate, 4))
         this.projectedPriceDivTarget.style.display = 'block'
         this.internalAttackTextTarget.classList.add('d-none')
         this.internalAttackPosTextTarget.classList.add('d-none')
@@ -343,7 +371,11 @@ export default class extends Controller {
     var val = Math.min(parseFloat(this.attackPercentTarget.value) || 0, 0.99)
     // Makes PoS to be affected by the slider
     // Target PoS value increases when slider moves to the right
-    this.setAllInputs(this.targetPosTargets, val * 100)
+    if (!this.preserveTargetPoS) {
+      this.setAllInputs(this.targetPosTargets, val * 100)
+    } else {
+      this.preserveTargetPoS = false
+    }
 
     this.updateTargetHashRate()
     this.setActivePoint()
@@ -399,7 +431,7 @@ export default class extends Controller {
     this.setAllInputs(this.targetPosTargets, digitformat(parseFloat(this.targetPosTarget.value), 2))
     this.ticketPriceTarget.innerHTML = digitformat(tpPrice, 4)
     this.setAllValues(this.targetHashRateTargets, digitformat(this.targetHashRate, 4))
-    this.setAllValues(this.additionalHashRateTargets, digitformat(this.targetHashRate - hashrate, 4))
+    this.setAllValues(this.additionalHashRateTargets, digitformat(this.targetHashRate, 4))
     this.setAllValues(this.durationLongDescTargets, timeStr)
     this.setAllValues(this.countDeviceTargets, digitformat(deviceCount))
     this.setAllValues(this.deviceNameTargets, `<a href="${deviceInfo.link}">${deviceInfo.name}</a>s`)

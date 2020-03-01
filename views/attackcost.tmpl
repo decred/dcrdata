@@ -211,7 +211,6 @@
             <div class="mt-1 ml-2">
                 A
                 <input
-                  readonly {{/*target PoW is set to readonly as the inverse (6x⁵-15x⁴ +10x³) / (6y⁵-15y⁴ +10y³) not yet gotten */}}
                   type="number"
                   data-target="attackcost.targetPow"
                   data-action="change->attackcost#updateTargetPow"
@@ -228,7 +227,7 @@
                 PoW attack requires adding <span class="font-weight-bold" data-target="attackcost.additionalHashRate">0</span>
                 <span class="pl-1 unit lh15rem">Ph/s</span> to the existing <span class="font-weight-bold" data-target="attackcost.actualHashRate">0</span>
                 <span class="pl-1 unit lh15rem">Ph/s</span> network hashrate. New network hashrate will be
-                <span class="font-weight-bold" data-target="attackcost.targetHashRate">0</span>
+                <span class="font-weight-bold" data-target="attackcost.newHashRate">0</span>
                 <span class="pl-1 unit lh15rem">Ph/s</span>.
               </span>
             </div>
@@ -267,7 +266,7 @@
                 min="1"
                 max="100"
                 value="5"
-              >% of the cost of the miners. The additional facility cost is $<span data-target="attackcost.otherCostsValue">0</span>.
+              >% of the cost of the miners. The additional facility cost is $<span class="font-weight-bold" data-target="attackcost.otherCostsValue">0</span>.
             </div>
             <div class="mt-1 ml-2">
               Total PoW attack cost is
@@ -322,7 +321,7 @@
               <span class="position-relative font-weight-bold">
                 <span>$</span><span class="font-weight-bold" data-target="attackcost.totalPos">0</span>
               </span>
-              total attack cost
+              total PoS attack cost
               (<span class="position-relative font-weight-bold">
                 <span data-target="attackcost.totalDCRPosLabel">0</span><span class="fs11"> DCR</span>
                 <span> * </span>
@@ -367,7 +366,7 @@
               <span class="position-relative font-weight-bold">
                 <span>$</span><span class="font-weight-bold" data-target="attackcost.totalPos">0</span>
               </span>
-              total attack cost
+              total PoS attack cost
               (<span class="position-relative font-weight-bold">
                 <span data-target="attackcost.totalDCRPosLabel">0</span><span class="fs11"> DCR</span>
                 <span> * </span>
