@@ -387,7 +387,9 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 	if offsetWindow > bestWindow {
 		offsetWindow = bestWindow
 	}
-	if rows > maxExplorerRows {
+	if rows == 0 {
+		rows = minExplorerRows
+	} else if rows > maxExplorerRows {
 		rows = maxExplorerRows
 	}
 
@@ -534,7 +536,7 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 		data[0].FormattedStartTime = fmt.Sprintf("%s YTD", time.Now().Format("2006"))
 	}
 
-	linkTemplate := "/" + strings.ToLower(val) + "?offset=%d&rows=" + strconv.Itoa(int(rows))
+	linkTemplate := "/" + strings.ToLower(val) + "?offset=%d&rows=" + strconv.FormatUint(rows, 10)
 
 	str, err := exp.templates.exec("timelisting", struct {
 		*CommonPageData
@@ -567,6 +569,14 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 
 // Blocks is the page handler for the "/blocks" path.
 func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
+	bestBlockHeight, err := exp.dataSource.GetHeight()
+	if err != nil {
+		log.Errorf("GetHeight failed: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "",
+			ExpStatusError)
+		return
+	}
+
 	var height int64
 	if heightStr := r.URL.Query().Get("height"); heightStr != "" {
 		h, err := strconv.ParseUint(heightStr, 10, 64)
@@ -575,6 +585,8 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		height = int64(h)
+	} else {
+		height = bestBlockHeight
 	}
 
 	var rows int64
@@ -587,18 +599,12 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 		rows = int64(h)
 	}
 
-	bestBlockHeight, err := exp.dataSource.GetHeight()
-	if err != nil {
-		log.Errorf("GetHeight failed: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "",
-			ExpStatusError)
-		return
-	}
-
 	if height > bestBlockHeight {
 		height = bestBlockHeight
 	}
-	if rows > maxExplorerRows {
+	if rows == 0 {
+		rows = minExplorerRows
+	} else if rows > maxExplorerRows {
 		rows = maxExplorerRows
 	}
 	var end int
