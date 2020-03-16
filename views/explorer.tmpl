@@ -84,26 +84,26 @@
                 <thead>
                     <tr class="text-secondary">
                         <th class="text-left pl-0">Height</th>
-                        <th class="text-center d-none d-sm-table-cell">
+                        <th class="text-right d-none d-sm-table-cell">
                             <span class="d-none d-md-inline">Transactions</span>
                             <span class="d-md-none position-relative" data-tooltip="regular transactions">R</span>
                         </th>
-                        <th class="text-center d-none d-sm-table-cell">
+                        <th class="text-right d-none d-sm-table-cell">
                             <span class="d-none d-md-inline">Votes</span>
                             <span class="d-md-none position-relative" data-tooltip="votes">V</span>
                         </th>
-                        <th class="text-center d-none d-sm-table-cell">
+                        <th class="text-right d-none d-sm-table-cell">
                             <span class="d-none d-md-inline">Tickets</span>
                             <span class="d-md-none position-relative" data-tooltip="tickets">T</span>
                         </th>
-                        <th class="text-center d-none d-sm-table-cell">
+                        <th class="text-right d-none d-sm-table-cell">
                             <span class="d-none d-md-inline">Revocations</span>
                             <span class="d-md-none position-relative" data-tooltip="revocations">X</span>
                         </th>
-                        <th class="text-center d-table-cell d-sm-none">Txns</th>
-                        <th class="text-center">DCR</th>
-                        <th class="text-center">Size</th>
-                        <th class="text-center d-none d-sm-table-cell">
+                        <th class="text-right d-table-cell d-sm-none">Txns</th>
+                        <th class="text-right">DCR</th>
+                        <th class="text-right">Size</th>
+                        <th class="text-right d-none d-sm-table-cell">
                             <span class="d-none d-md-inline">Version</span>
                             <span class="d-md-none position-relative" data-tooltip="block version">Ver</span>
                         </th>
@@ -115,14 +115,14 @@
                 {{range .Data}}
                     <tr data-height="{{ .Height }}">
                         <td data-type="height" class="text-left pl-0"><a href="/block/{{.Height}}" data-keynav-priority>{{if not .Valid}}<span class="attention">&#9888;</span>{{end}}{{ .Height }}</a></td>
-                        <td class="text-center d-none d-sm-table-cell" data-type="tx" {{if not .Valid}}class="grayed" title="Regular transactions invalidated by stakeholders."{{end}}>{{.Transactions}}</td>
-                        <td class="text-center d-none d-sm-table-cell" data-type="votes">{{.Voters}}</td>
-                        <td class="text-center d-none d-sm-table-cell" data-type="tickets">{{.FreshStake}}</td>
-                        <td class="text-center d-none d-sm-table-cell" data-type="revocations">{{.Revocations}}</td>
-                        <td class="text-center d-table-cell d-sm-none" data-type="tx_count">{{.TxCount}}</td>
-                        <td class="text-center" data-type="value">{{threeSigFigs .Total}}</td>
-                        <td class="text-center" data-type="size">{{.FormattedBytes}}</td>
-                        <td class="text-center d-none d-sm-table-cell" data-type="version">{{.Version}}</td>
+                        <td class="text-right d-none d-sm-table-cell" data-type="tx" {{if not .Valid}}class="grayed" title="Regular transactions invalidated by stakeholders."{{end}}>{{.Transactions}}</td>
+                        <td class="text-right d-none d-sm-table-cell" data-type="votes">{{.Voters}}</td>
+                        <td class="text-right d-none d-sm-table-cell" data-type="tickets">{{.FreshStake}}</td>
+                        <td class="text-right d-none d-sm-table-cell" data-type="revocations">{{.Revocations}}</td>
+                        <td class="text-right d-table-cell d-sm-none" data-type="tx_count">{{.TxCount}}</td>
+                        <td class="text-right" data-type="value">{{threeSigFigs .Total}}</td>
+                        <td class="text-right" data-type="size">{{.FormattedBytes}}</td>
+                        <td class="text-right d-none d-sm-table-cell" data-type="version">{{.Version}}</td>
                         <td class="text-right px-0" data-type="age" class="jsonly" data-target="time.age" data-age="{{.BlockTime.UNIX}}"></td>
                         <td class="text-right px-0" data-type="time">{{.BlockTime.DatetimeWithoutTZ}}</td>
                     </tr>

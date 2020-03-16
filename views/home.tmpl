@@ -58,16 +58,16 @@
                                 <thead>
                                     <tr>
                                         <th class="text-left pl-2">Height</th>
-                                        <th class="text-center"
+                                        <th class="text-right"
                                           ><span class="d-sm-none position-relative" data-tooltip="regular transactions">Txn</span
                                           ><span class="d-none d-sm-inline">Transactions</span></th>
-                                        <th class="text-center"
+                                        <th class="text-right"
                                           ><span class="d-sm-none position-relative" data-tooltip="vote transactions">Vote</span
                                           ><span class="d-none d-sm-inline">Votes</span></th>
-                                        <th class="text-center"
+                                        <th class="text-right"
                                           ><span class="d-sm-none position-relative" data-tooltip="ticket transactions">Tkt</span
                                           ><span class="d-none d-sm-inline">Tickets</span></th>
-                                        <th class="text-center"
+                                        <th class="text-right"
                                           ><span class="d-sm-none position-relative" data-tooltip="ticket revocations">Rev</span
                                           ><span class="d-none d-sm-inline">Revokes</span></th>
                                         <th class="text-right" data-tooltip="total DCR sent">DCR</th>
@@ -79,10 +79,10 @@
                                     {{range .Blocks}}
                                     <tr data-height="{{.Height}}" data-link-class="fs18">
                                         <td class="text-left pl-1" data-type="height"><a href="/block/{{.Height}}" class="fs18">{{.Height}}</a></td>
-                                        <td class="text-center" data-type="tx">{{.Transactions}}</td>
-                                        <td class="text-center" data-type="votes">{{.Voters}}</td>
-                                        <td class="text-center" data-type="tickets">{{.FreshStake}}</td>
-                                        <td class="text-center" data-type="revocations">{{.Revocations}}</td>
+                                        <td class="text-right" data-type="tx">{{.Transactions}}</td>
+                                        <td class="text-right" data-type="votes">{{.Voters}}</td>
+                                        <td class="text-right" data-type="tickets">{{.FreshStake}}</td>
+                                        <td class="text-right" data-type="revocations">{{.Revocations}}</td>
                                         <td class="text-right" data-type="value">{{threeSigFigs .Total}}</td>
                                         <td class="text-right d-none d-sm-table-cell d-md-none d-lg-table-cell text-nowrap" data-type="size">{{.FormattedBytes}}</td>
                                         <td class="text-right pr-1 text-nowrap" data-type="age" data-target="time.age" data-age="{{.BlockTime.UNIX}}">{{.BlockTime.DatetimeWithoutTZ}}</td>
