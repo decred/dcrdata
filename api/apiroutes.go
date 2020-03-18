@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -111,7 +111,6 @@ type appContext struct {
 	Params       *chaincfg.Params
 	DataSource   DataSource
 	Status       *apitypes.Status
-	JSONIndent   string
 	xcBot        *exchanges.ExchangeBot
 	AgendaDB     *agendas.AgendaDB
 	maxCSVAddrs  int
@@ -125,7 +124,6 @@ type AppContextConfig struct {
 	Client             *rpcclient.Client
 	Params             *chaincfg.Params
 	DataSource         DataSource
-	JsonIndent         string
 	XcBot              *exchanges.ExchangeBot
 	AgendasDBInstance  *agendas.AgendaDB
 	MaxAddrs           int
@@ -152,7 +150,6 @@ func NewContext(cfg *AppContextConfig) *appContext {
 		xcBot:        cfg.XcBot,
 		AgendaDB:     cfg.AgendasDBInstance,
 		Status:       apitypes.NewStatus(uint32(nodeHeight), conns, APIVersion, appver.Version(), cfg.Params.Name),
-		JSONIndent:   cfg.JsonIndent,
 		maxCSVAddrs:  cfg.MaxAddrs,
 		charts:       cfg.Charts,
 		isPiDisabled: cfg.IsPiparserDisabled,
@@ -268,12 +265,6 @@ func (c *appContext) root(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprint(w, "dcrdata api running")
 }
 
-func (c *appContext) writeJSONHandlerFunc(thing interface{}) http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, thing, c.JSONIndent)
-	}
-}
-
 func writeJSON(w http.ResponseWriter, thing interface{}, indent string) {
 	writeJSONWithStatus(w, thing, http.StatusOK, indent)
 }
@@ -337,20 +328,6 @@ func writeCSV(w http.ResponseWriter, rows [][]string, filename string, useCRLF b
 	}
 }
 
-func (c *appContext) getIndentQuery(r *http.Request) (string, error) {
-	useIndentation := r.URL.Query().Get("indent")
-	if useIndentation != "" {
-		b, err := strconv.ParseBool(useIndentation)
-		if err != nil {
-			return "", err
-		}
-		if b {
-			return c.JSONIndent, nil
-		}
-	}
-	return "", nil
-}
-
 func getVoteVersionQuery(r *http.Request) (int32, string, error) {
 	verLatest := int64(m.GetLatestVoteVersionCtx(r))
 	voteVersion := r.URL.Query().Get("version")
@@ -370,38 +347,20 @@ func getVoteVersionQuery(r *http.Request) (int32, string, error) {
 }
 
 func (c *appContext) status(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
-	writeJSON(w, c.Status.API(), indent)
+	writeJSON(w, c.Status.API(), m.GetIndentCtx(r))
 }
 
 func (c *appContext) statusHappy(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	happy := c.Status.Happy()
 	statusCode := http.StatusOK
 	if !happy.Happy {
 		// For very simple health checks, set the status code.
 		statusCode = http.StatusServiceUnavailable
 	}
-	writeJSONWithStatus(w, happy, statusCode, indent)
+	writeJSONWithStatus(w, happy, statusCode, m.GetIndentCtx(r))
 }
 
 func (c *appContext) coinSupply(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	supply := c.DataSource.CurrentCoinSupply()
 	if supply == nil {
 		apiLog.Error("Unable to get coin supply.")
@@ -409,7 +368,7 @@ func (c *appContext) coinSupply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, supply, indent)
+	writeJSON(w, supply, m.GetIndentCtx(r))
 }
 
 func (c *appContext) currentHeight(w http.ResponseWriter, _ *http.Request) {
@@ -455,13 +414,9 @@ func (c *appContext) getBlockSummary(w http.ResponseWriter, r *http.Request) {
 
 		withTxTotals = b
 	}
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
 
-	// attempt to get hash of block set by hash or (fallback) height set on path
+	// Attempt to get hash of block set by hash or (fallback) height set on
+	// path.
 	hash, err := c.getBlockHashCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -475,16 +430,10 @@ func (c *appContext) getBlockSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, blockSummary, indent)
+	writeJSON(w, blockSummary, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getBlockTransactions(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	hash, err := c.getBlockHashCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -498,16 +447,10 @@ func (c *appContext) getBlockTransactions(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	writeJSON(w, blockTransactions, indent)
+	writeJSON(w, blockTransactions, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getBlockTransactionsCount(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	hash, err := c.getBlockHashCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -524,16 +467,10 @@ func (c *appContext) getBlockTransactionsCount(w http.ResponseWriter, r *http.Re
 		Tx:  len(blockTransactions.Tx),
 		STx: len(blockTransactions.STx),
 	}
-	writeJSON(w, counts, indent)
+	writeJSON(w, counts, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getBlockHeader(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	idx, err := c.getBlockHeightCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -547,16 +484,10 @@ func (c *appContext) getBlockHeader(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, blockHeader, indent)
+	writeJSON(w, blockHeader, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getBlockRaw(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	hash, err := c.getBlockHashCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -585,16 +516,10 @@ func (c *appContext) getBlockRaw(w http.ResponseWriter, r *http.Request) {
 		Hex:    hexString.String(),
 	}
 
-	writeJSON(w, blockRaw, indent)
+	writeJSON(w, blockRaw, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getBlockHeaderRaw(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	hash, err := c.getBlockHashCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -622,16 +547,10 @@ func (c *appContext) getBlockHeaderRaw(w http.ResponseWriter, r *http.Request) {
 		Hex:    hexString.String(),
 	}
 
-	writeJSON(w, blockRaw, indent)
+	writeJSON(w, blockRaw, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getBlockVerbose(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	hash, err := c.getBlockHashCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -645,16 +564,10 @@ func (c *appContext) getBlockVerbose(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, blockVerbose, indent)
+	writeJSON(w, blockVerbose, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getVoteInfo(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	ver, verStr, err := getVoteVersionQuery(r)
 	if err != nil || ver < 0 {
 		apiLog.Errorf("Unable to get vote info for stake version %s", verStr)
@@ -667,7 +580,7 @@ func (c *appContext) getVoteInfo(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unable to get vote info for stake version "+verStr, 422)
 		return
 	}
-	writeJSON(w, voteVersionInfo, indent)
+	writeJSON(w, voteVersionInfo, m.GetIndentCtx(r))
 }
 
 // setOutputSpends retrieves spending transaction information for each output of
@@ -713,12 +626,6 @@ func (c *appContext) setTrimmedTxSpends(tx *apitypes.TrimmedTx) error {
 }
 
 func (c *appContext) getTransaction(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	// Look up any spending transactions for each output of this transaction
 	// when the client requests spends with the URL query ?spends=true.
 	var withSpends bool
@@ -754,7 +661,7 @@ func (c *appContext) getTransaction(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, tx, indent)
+	writeJSON(w, tx, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getTransactionHex(w http.ResponseWriter, r *http.Request) {
@@ -770,12 +677,6 @@ func (c *appContext) getTransactionHex(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getDecodedTx(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	// Look up any spending transactions for each output of this transaction
 	// when the client requests spends with the URL query ?spends=true.
 	var withSpends bool
@@ -811,15 +712,10 @@ func (c *appContext) getDecodedTx(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, tx, indent)
+	writeJSON(w, tx, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getTransactions(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
 	// Look up any spending transactions for each output of this transaction
 	// when the client requests spends with the URL query ?spends=true.
 	var withSpends bool
@@ -861,16 +757,10 @@ func (c *appContext) getTransactions(w http.ResponseWriter, r *http.Request) {
 		txns = append(txns, tx)
 	}
 
-	writeJSON(w, txns, indent)
+	writeJSON(w, txns, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getDecodedTransactions(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	txids, err := m.GetTxnsCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -888,16 +778,10 @@ func (c *appContext) getDecodedTransactions(w http.ResponseWriter, r *http.Reque
 		txns = append(txns, tx)
 	}
 
-	writeJSON(w, txns, indent)
+	writeJSON(w, txns, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getTxVoteInfo(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	txid, err := m.GetTxIDCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -911,17 +795,11 @@ func (c *appContext) getTxVoteInfo(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 422)
 		return
 	}
-	writeJSON(w, vinfo, indent)
+	writeJSON(w, vinfo, m.GetIndentCtx(r))
 }
 
 // For /tx/{txid}/tinfo
 func (c *appContext) getTxTicketInfo(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	txid, err := m.GetTxIDCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -935,17 +813,11 @@ func (c *appContext) getTxTicketInfo(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 422)
 		return
 	}
-	writeJSON(w, tinfo, indent)
+	writeJSON(w, tinfo, m.GetIndentCtx(r))
 }
 
 // getTransactionInputs serves []TxIn
 func (c *appContext) getTransactionInputs(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	txid, err := m.GetTxIDCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -960,17 +832,11 @@ func (c *appContext) getTransactionInputs(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	writeJSON(w, allTxIn, indent)
+	writeJSON(w, allTxIn, m.GetIndentCtx(r))
 }
 
 // getTransactionInput serves TxIn[i]
 func (c *appContext) getTransactionInput(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	txid, err := m.GetTxIDCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -998,17 +864,11 @@ func (c *appContext) getTransactionInput(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	writeJSON(w, *allTxIn[index], indent)
+	writeJSON(w, *allTxIn[index], m.GetIndentCtx(r))
 }
 
 // getTransactionOutputs serves []TxOut
 func (c *appContext) getTransactionOutputs(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	txid, err := m.GetTxIDCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -1023,17 +883,11 @@ func (c *appContext) getTransactionOutputs(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	writeJSON(w, allTxOut, indent)
+	writeJSON(w, allTxOut, m.GetIndentCtx(r))
 }
 
 // getTransactionOutput serves TxOut[i]
 func (c *appContext) getTransactionOutput(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	txid, err := m.GetTxIDCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -1060,18 +914,12 @@ func (c *appContext) getTransactionOutput(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	writeJSON(w, *allTxOut[index], indent)
+	writeJSON(w, *allTxOut[index], m.GetIndentCtx(r))
 }
 
 // getBlockStakeInfoExtendedByHash retrieves the apitype.StakeInfoExtended
 // for the given blockhash
 func (c *appContext) getBlockStakeInfoExtendedByHash(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	hash, err := c.getBlockHashCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -1085,18 +933,12 @@ func (c *appContext) getBlockStakeInfoExtendedByHash(w http.ResponseWriter, r *h
 		return
 	}
 
-	writeJSON(w, stakeinfo, indent)
+	writeJSON(w, stakeinfo, m.GetIndentCtx(r))
 }
 
 // getBlockStakeInfoExtendedByHeight retrieves the apitype.StakeInfoExtended
 // for the given blockheight on mainchain
 func (c *appContext) getBlockStakeInfoExtendedByHeight(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	idx, err := c.getBlockHeightCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -1109,16 +951,10 @@ func (c *appContext) getBlockStakeInfoExtendedByHeight(w http.ResponseWriter, r 
 		return
 	}
 
-	writeJSON(w, stakeinfo, indent)
+	writeJSON(w, stakeinfo, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getStakeDiffSummary(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	stakeDiff := c.DataSource.GetStakeDiffEstimates()
 	if stakeDiff == nil {
 		apiLog.Errorf("Unable to get stake diff info")
@@ -1126,34 +962,22 @@ func (c *appContext) getStakeDiffSummary(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	writeJSON(w, stakeDiff, indent)
+	writeJSON(w, stakeDiff, m.GetIndentCtx(r))
 }
 
 // Encodes apitypes.PowerlessTickets, which is missed or expired tickets sorted
 // by revocation status.
 func (c *appContext) getPowerlessTickets(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	tickets, err := c.DataSource.PowerlessTickets()
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
-	writeJSON(w, tickets, indent)
+	writeJSON(w, tickets, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getStakeDiffCurrent(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	stakeDiff := c.DataSource.GetStakeDiffEstimates()
 	if stakeDiff == nil {
 		apiLog.Errorf("Unable to get stake diff info")
@@ -1166,16 +990,10 @@ func (c *appContext) getStakeDiffCurrent(w http.ResponseWriter, r *http.Request)
 		NextStakeDifficulty:    stakeDiff.NextStakeDifficulty,
 	}
 
-	writeJSON(w, stakeDiffCurrent, indent)
+	writeJSON(w, stakeDiffCurrent, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getStakeDiffEstimates(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	stakeDiff := c.DataSource.GetStakeDiffEstimates()
 	if stakeDiff == nil {
 		apiLog.Errorf("Unable to get stake diff info")
@@ -1183,16 +1001,10 @@ func (c *appContext) getStakeDiffEstimates(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	writeJSON(w, stakeDiff.Estimates, indent)
+	writeJSON(w, stakeDiff.Estimates, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getSSTxSummary(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	sstxSummary := c.DataSource.GetMempoolSSTxSummary()
 	if sstxSummary == nil {
 		apiLog.Errorf("Unable to get SSTx info from mempool")
@@ -1200,16 +1012,10 @@ func (c *appContext) getSSTxSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, sstxSummary, indent)
+	writeJSON(w, sstxSummary, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getSSTxFees(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	N := m.GetNCtx(r)
 	sstxFees := c.DataSource.GetMempoolSSTxFeeRates(N)
 	if sstxFees == nil {
@@ -1218,16 +1024,10 @@ func (c *appContext) getSSTxFees(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, sstxFees, indent)
+	writeJSON(w, sstxFees, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getSSTxDetails(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	N := m.GetNCtx(r)
 	sstxDetails := c.DataSource.GetMempoolSSTxDetails(N)
 	if sstxDetails == nil {
@@ -1236,18 +1036,12 @@ func (c *appContext) getSSTxDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, sstxDetails, indent)
+	writeJSON(w, sstxDetails, m.GetIndentCtx(r))
 }
 
 // getTicketPoolCharts pulls the initial data to populate the /ticketpool page
 // charts.
 func (c *appContext) getTicketPoolCharts(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	timeChart, priceChart, outputsChart, height, err := c.DataSource.TicketPoolVisualization(dbtypes.AllGrouping)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("TicketPoolVisualization: %v", err)
@@ -1270,16 +1064,10 @@ func (c *appContext) getTicketPoolCharts(w http.ResponseWriter, r *http.Request)
 		Mempool:      mp,
 	}
 
-	writeJSON(w, response, indent)
+	writeJSON(w, response, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	tp := m.GetTpCtx(r)
 	// default to day if no grouping was sent
 	if tp == "" {
@@ -1310,16 +1098,10 @@ func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request)
 		timeChart, // purchase time distribution
 	}
 
-	writeJSON(w, tpResponse, indent)
+	writeJSON(w, tpResponse, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getProposalChartData(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	if c.isPiDisabled {
 		errMsg := "piparser is disabled."
 		apiLog.Errorf("%s. Remove the disable-piparser flag to activate it.", errMsg)
@@ -1341,7 +1123,7 @@ func (c *appContext) getProposalChartData(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	writeJSON(w, votesData, indent)
+	writeJSON(w, votesData, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getBlockSize(w http.ResponseWriter, r *http.Request) {
@@ -1361,12 +1143,6 @@ func (c *appContext) getBlockSize(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) blockSubsidies(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	idx, err := c.getBlockHeightCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -1406,7 +1182,7 @@ func (c *appContext) blockSubsidies(w http.ResponseWriter, r *http.Request) {
 		Total:      work + stake*int64(numVotes) + tax,
 	}
 
-	writeJSON(w, rewards, indent)
+	writeJSON(w, rewards, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getBlockRangeSize(w http.ResponseWriter, r *http.Request) {
@@ -1472,12 +1248,6 @@ func (c *appContext) getBlockRangeSteppedSize(w http.ResponseWriter, r *http.Req
 }
 
 func (c *appContext) getBlockRangeSummary(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	idx0 := m.GetBlockIndex0Ctx(r)
 	idx1 := m.GetBlockIndexCtx(r)
 
@@ -1501,16 +1271,10 @@ func (c *appContext) getBlockRangeSummary(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	writeJSON(w, blocks, indent)
+	writeJSON(w, blocks, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getBlockRangeSteppedSummary(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	idx0 := m.GetBlockIndex0Ctx(r)
 	idx1 := m.GetBlockIndexCtx(r)
 	step := m.GetBlockStepCtx(r)
@@ -1539,15 +1303,10 @@ func (c *appContext) getBlockRangeSteppedSummary(w http.ResponseWriter, r *http.
 		return
 	}
 
-	writeJSON(w, blocks, indent)
+	writeJSON(w, blocks, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getTicketPool(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
 	var sortPool bool
 	if sortParam := r.URL.Query().Get("sort"); sortParam != "" {
 		val, err := strconv.ParseBool(sortParam)
@@ -1575,16 +1334,10 @@ func (c *appContext) getTicketPool(w http.ResponseWriter, r *http.Request) {
 	if sortPool {
 		sort.Strings(tp)
 	}
-	writeJSON(w, tp, indent)
+	writeJSON(w, tp, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getTicketPoolInfo(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	idx, err := c.getBlockHeightCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -1592,16 +1345,10 @@ func (c *appContext) getTicketPoolInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tpi := c.DataSource.GetPoolInfo(int(idx))
-	writeJSON(w, tpi, indent)
+	writeJSON(w, tpi, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getTicketPoolInfoRange(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	if useArray := r.URL.Query().Get("arrays"); useArray != "" {
 		_, err := strconv.ParseBool(useArray)
 		if err != nil {
@@ -1629,16 +1376,10 @@ func (c *appContext) getTicketPoolInfoRange(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "invalid range", http.StatusUnprocessableEntity)
 		return
 	}
-	writeJSON(w, tpis, indent)
+	writeJSON(w, tpis, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getTicketPoolValAndSizeRange(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	idx0 := m.GetBlockIndex0Ctx(r)
 	if idx0 < 0 {
 		http.Error(w, http.StatusText(422), 422)
@@ -1663,16 +1404,10 @@ func (c *appContext) getTicketPoolValAndSizeRange(w http.ResponseWriter, r *http
 		Value:       pvs,
 		Size:        pss,
 	}
-	writeJSON(w, tPVS, indent)
+	writeJSON(w, tPVS, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getStakeDiff(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	idx, err := c.getBlockHeightCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -1680,16 +1415,10 @@ func (c *appContext) getStakeDiff(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sdiff := c.DataSource.GetSDiff(int(idx))
-	writeJSON(w, []float64{sdiff}, indent)
+	writeJSON(w, []float64{sdiff}, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getStakeDiffRange(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	idx0 := m.GetBlockIndex0Ctx(r)
 	if idx0 < 0 {
 		http.Error(w, http.StatusText(422), 422)
@@ -1703,16 +1432,10 @@ func (c *appContext) getStakeDiffRange(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sdiffs := c.DataSource.GetSDiffRange(idx0, idx)
-	writeJSON(w, sdiffs, indent)
+	writeJSON(w, sdiffs, m.GetIndentCtx(r))
 }
 
 func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	addresses, err := m.GetAddressCtx(r, c.Params)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
@@ -1732,19 +1455,13 @@ func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, totals, indent)
+	writeJSON(w, totals, m.GetIndentCtx(r))
 }
 
 // addressExists provides access to the existsaddresses RPC call and parses the
 // hexadecimal string into a list of bools. A maximum of 64 addresses can be
 // provided. Duplicates are not filtered.
 func (c *appContext) addressExists(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	addresses, err := m.GetAddressRawCtx(r, c.Params)
 	if err != nil {
 		apiLog.Errorf("addressExists rejecting request: %v", err)
@@ -1767,7 +1484,7 @@ func (c *appContext) addressExists(w http.ResponseWriter, r *http.Request) {
 	for n := range addresses {
 		exists = append(exists, (mask&(1<<uint8(n))) != 0)
 	}
-	writeJSON(w, exists, indent)
+	writeJSON(w, exists, m.GetIndentCtx(r))
 }
 
 // Handler for address activity CSV file download.
@@ -1813,12 +1530,6 @@ func (c *appContext) addressIoCsv(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	addresses, err := m.GetAddressCtx(r, c.Params)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
@@ -1845,16 +1556,10 @@ func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	writeJSON(w, data, indent)
+	writeJSON(w, data, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	addresses, err := m.GetAddressCtx(r, c.Params)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
@@ -1881,7 +1586,7 @@ func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	writeJSON(w, data, indent)
+	writeJSON(w, data, m.GetIndentCtx(r))
 }
 
 func (c *appContext) ChartTypeData(w http.ResponseWriter, r *http.Request) {
@@ -1945,12 +1650,6 @@ func (c *appContext) getDepthChart(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	addresses, err := m.GetAddressCtx(r, c.Params)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
@@ -1980,16 +1679,10 @@ func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Reque
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
-	writeJSON(w, txs, indent)
+	writeJSON(w, txs, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Request) {
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
 	addresses, err := m.GetAddressCtx(r, c.Params)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
@@ -2015,7 +1708,7 @@ func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	writeJSON(w, txs, indent)
+	writeJSON(w, txs, m.GetIndentCtx(r))
 }
 
 // getAgendaData processes a request for agenda chart data from /agenda/{agendaId}.
@@ -2065,15 +1758,11 @@ func (c *appContext) getExchanges(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("No exchange data available"), http.StatusNotFound)
 		return
 	}
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
 
 	code := r.URL.Query().Get("code")
 	var state *exchanges.ExchangeBotState
 	if code != "" && code != c.xcBot.BtcIndex {
+		var err error
 		state, err = c.xcBot.ConvertedState(code)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("No exchange data for code %s", code), http.StatusNotFound)
@@ -2082,17 +1771,12 @@ func (c *appContext) getExchanges(w http.ResponseWriter, r *http.Request) {
 	} else {
 		state = c.xcBot.State()
 	}
-	writeJSON(w, state, indent)
+	writeJSON(w, state, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getCurrencyCodes(w http.ResponseWriter, r *http.Request) {
 	if c.xcBot == nil {
 		http.Error(w, "Exchange monitoring disabled.", http.StatusServiceUnavailable)
-		return
-	}
-	indent, err := c.getIndentQuery(r)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
@@ -2101,7 +1785,7 @@ func (c *appContext) getCurrencyCodes(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("No codes found."), http.StatusNotFound)
 		return
 	}
-	writeJSON(w, codes, indent)
+	writeJSON(w, codes, m.GetIndentCtx(r))
 }
 
 // getAgendasData returns high level agendas details that includes Name,

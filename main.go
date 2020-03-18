@@ -654,7 +654,6 @@ func _main(ctx context.Context) error {
 		Client:             dcrdClient,
 		Params:             activeChain,
 		DataSource:         chainDB,
-		JsonIndent:         cfg.IndentJSON,
 		XcBot:              xcBot,
 		AgendasDBInstance:  agendaDB,
 		MaxAddrs:           cfg.MaxCSVAddrs,
@@ -671,7 +670,7 @@ func _main(ctx context.Context) error {
 	}
 
 	// Configure the URL path to http handler router for the API.
-	apiMux := api.NewAPIRouter(app, cfg.UseRealIP, cfg.CompressAPI)
+	apiMux := api.NewAPIRouter(app, cfg.IndentJSON, cfg.UseRealIP, cfg.CompressAPI)
 
 	// File downloads piggy-back on the API.
 	fileMux := api.NewFileRouter(app, cfg.UseRealIP)

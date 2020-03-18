@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -24,9 +24,15 @@ type fileMux struct {
 
 // NewAPIRouter creates a new HTTP request path router/mux for the given API,
 // appContext.
-func NewAPIRouter(app *appContext, useRealIP, compressLarge bool) apiMux {
+func NewAPIRouter(app *appContext, JSONIndent string, useRealIP, compressLarge bool) apiMux {
 	// chi router
 	mux := stackedMux(useRealIP)
+
+	// Check for and validate the "indent" URL query. Each API request handler
+	// may now access the configured indentation string if indent was specified
+	// and parsed as a boolean, otherwise the empty string, from
+	// m.GetIndentCtx(*http.Request).
+	mux.Use(m.Indent(JSONIndent))
 
 	mux.Get("/", app.root)
 
@@ -274,7 +280,10 @@ func NewAPIRouter(app *appContext, useRealIP, compressLarge bool) apiMux {
 		return patterns
 	}
 
-	mux.HandleFunc("/list", app.writeJSONHandlerFunc(listRoutePatterns(mux.Routes())))
+	mux.HandleFunc("/list", func(w http.ResponseWriter, _ *http.Request) {
+		routeList := listRoutePatterns(mux.Routes())
+		writeJSON(w, routeList, JSONIndent)
+	})
 
 	return apiMux{mux}
 }
