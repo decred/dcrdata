@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/binary"
 	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
@@ -36,9 +37,15 @@ import (
 	appver "github.com/decred/dcrdata/v5/version"
 )
 
-// maxBlockRangeCount is the maximum number of blocks that can be requested at
-// once.
-const maxBlockRangeCount = 1000
+const (
+	// maxBlockRangeCount is the maximum number of blocks that can be requested at
+	// once.
+	maxBlockRangeCount = 1000
+
+	// maxExistsAddrs is the highest number of addresses accepted to the
+	// address/{address}/exists request.
+	maxExistAddrs = 64
+)
 
 // DataSource specifies an interface for advanced data collection using the
 // auxiliary DB (e.g. PostgreSQL).
@@ -1732,6 +1739,41 @@ func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, totals, indent)
+}
+
+// addressExists provides access to the existsaddresses RPC call and parses the
+// hexadecimal string into a list of bools. A maximum of 64 addresses can be
+// provided. Duplicates are not filtered.
+func (c *appContext) addressExists(w http.ResponseWriter, r *http.Request) {
+	indent, err := c.getIndentQuery(r)
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	addresses, err := m.GetAddressRawCtx(r, c.Params, maxExistAddrs)
+	if err != nil {
+		apiLog.Errorf("addressExists rejecting request: %v", err)
+		http.Error(w, "address parsing error", http.StatusBadRequest)
+		return
+	}
+	// GetAddressCtx throws an error if there would be no addresses.
+	strMask, err := c.nodeClient.ExistsAddresses(addresses)
+	if err != nil {
+		log.Warnf("existsaddress error: %v", err)
+		http.Error(w, http.StatusText(422), 422)
+	}
+	b, err := hex.DecodeString(strMask)
+	if err != nil {
+		log.Warnf("existsaddress error: %v", err)
+		http.Error(w, http.StatusText(422), 422)
+	}
+	mask := binary.LittleEndian.Uint64(append(b, make([]byte, 8-len(b))...))
+	exists := make([]bool, 0, len(addresses))
+	for n := range addresses {
+		exists = append(exists, (mask&(1<<uint8(n))) != 0)
+	}
+	writeJSON(w, exists, indent)
 }
 
 // Handler for address activity CSV file download.

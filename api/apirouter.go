@@ -167,6 +167,7 @@ func NewAPIRouter(app *appContext, useRealIP, compressLarge bool) apiMux {
 		r.Route("/{address}", func(rd chi.Router) {
 			rd.Use(m.AddressPathCtx)
 			rd.Get("/totals", app.addressTotals)
+			rd.Get("/exists", app.addressExists)
 			rd.Get("/", app.getAddressTransactions)
 			rd.With(m.ChartGroupingCtx).Get("/types/{chartgrouping}", app.getAddressTxTypesData)
 			rd.With(m.ChartGroupingCtx).Get("/amountflow/{chartgrouping}", app.getAddressTxAmountFlowData)

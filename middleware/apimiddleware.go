@@ -389,20 +389,13 @@ func GetBlockHashCtx(r *http.Request) (string, error) {
 	return hashStr, nil
 }
 
-// GetAddressCtx retrieves the CtxAddress data from the request context. If not
-// set, the return value is an empty string. The CtxAddress string data may be a
-// comma-separated list of addresses, subject to the provided maximum number of
-// addresses allowed. Duplicate addresses are removed, but the limit is enforced
-// prior to removal of duplicates.
+// GetAddressCtx returns a slice of base-58 encoded addresses parsed from the
+// {address} URL parameter. Duplicate addresses are removed. Multiple
+// comma-delimited address can be specified.
 func GetAddressCtx(r *http.Request, activeNetParams *chaincfg.Params, maxAddrs int) ([]string, error) {
-	addressStr, ok := r.Context().Value(CtxAddress).(string)
-	if !ok || len(addressStr) == 0 {
-		apiLog.Trace("address not set")
-		return nil, fmt.Errorf("address not set")
-	}
-	addressStrs := strings.Split(addressStr, ",")
-	if len(addressStrs) > maxAddrs {
-		return nil, fmt.Errorf("maximum of %d addresses allowed", maxAddrs)
+	addressStrs, err := addressStrings(r, maxAddrs)
+	if err != nil {
+		return nil, err
 	}
 
 	strInSlice := func(sl []string, s string) bool {
@@ -414,19 +407,59 @@ func GetAddressCtx(r *http.Request, activeNetParams *chaincfg.Params, maxAddrs i
 		return false
 	}
 
-	var addrStrs []string
+	// Allocate as if all addresses are unique.
+	addrStrs := make([]string, 0, len(addressStrs))
+	for _, addrStr := range addressStrs {
+		if strInSlice(addrStrs, addrStr) {
+			continue
+		}
+		addrStrs = append(addrStrs, addrStr)
+	}
+
 	for _, addrStr := range addressStrs {
 		_, err := dcrutil.DecodeAddress(addrStr, activeNetParams)
 		if err != nil {
 			return nil, fmt.Errorf("invalid address '%v' for this network: %v",
 				addrStr, err)
 		}
-		if strInSlice(addrStrs, addrStr) {
-			continue
-		}
-		addrStrs = append(addrStrs, addrStr)
 	}
 	return addrStrs, nil
+}
+
+// GetAddressRawCtx returns a slice of addresses parsed from the {address} URL
+// parameter. Multiple comma-delimited address strings can be specified.
+func GetAddressRawCtx(r *http.Request, activeNetParams *chaincfg.Params, maxAddrs int) ([]dcrutil.Address, error) {
+	addressStrs, err := addressStrings(r, maxAddrs)
+	if err != nil {
+		return nil, err
+	}
+	addresses := make([]dcrutil.Address, 0, len(addressStrs))
+	for _, addrStr := range addressStrs {
+		addr, err := dcrutil.DecodeAddress(addrStr, activeNetParams)
+		if err != nil {
+			return nil, fmt.Errorf("invalid address '%v' for this network: %v",
+				addrStr, err)
+		}
+		addresses = append(addresses, addr)
+	}
+	return addresses, nil
+}
+
+// addressStrings retrieves the CtxAddress data from the request context. If not
+// set, an error is generated. The CtxAddress string data may be a
+// comma-separated list of addresses, subject to the maxAddrs limit.
+func addressStrings(r *http.Request, maxAddrs int) ([]string, error) {
+	addressStr, ok := r.Context().Value(CtxAddress).(string)
+	if !ok || len(addressStr) == 0 {
+		apiLog.Trace("address not set")
+		return nil, fmt.Errorf("address not set")
+	}
+	addressStrs := strings.Split(addressStr, ",")
+	if len(addressStrs) > maxAddrs {
+		return nil, fmt.Errorf("maximum of %d addresses allowed", maxAddrs)
+	}
+
+	return addressStrs, nil
 }
 
 // GetChartTypeCtx retrieves the ctxChart data from the request context.
