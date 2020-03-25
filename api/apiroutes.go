@@ -37,15 +37,9 @@ import (
 	appver "github.com/decred/dcrdata/v5/version"
 )
 
-const (
-	// maxBlockRangeCount is the maximum number of blocks that can be requested at
-	// once.
-	maxBlockRangeCount = 1000
-
-	// maxExistsAddrs is the highest number of addresses accepted to the
-	// address/{address}/exists request.
-	maxExistAddrs = 64
-)
+// maxBlockRangeCount is the maximum number of blocks that can be requested at
+// once.
+const maxBlockRangeCount = 1000
 
 // DataSource specifies an interface for advanced data collection using the
 // auxiliary DB (e.g. PostgreSQL).
@@ -1719,7 +1713,7 @@ func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	addresses, err := m.GetAddressCtx(r, c.Params, 1)
+	addresses, err := m.GetAddressCtx(r, c.Params)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -1751,7 +1745,7 @@ func (c *appContext) addressExists(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	addresses, err := m.GetAddressRawCtx(r, c.Params, maxExistAddrs)
+	addresses, err := m.GetAddressRawCtx(r, c.Params)
 	if err != nil {
 		apiLog.Errorf("addressExists rejecting request: %v", err)
 		http.Error(w, "address parsing error", http.StatusBadRequest)
@@ -1791,7 +1785,7 @@ func (c *appContext) addressIoCsv(w http.ResponseWriter, r *http.Request) {
 		useCRLF = b
 	}
 
-	addresses, err := m.GetAddressCtx(r, c.Params, 1)
+	addresses, err := m.GetAddressCtx(r, c.Params)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return
@@ -1825,7 +1819,7 @@ func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	addresses, err := m.GetAddressCtx(r, c.Params, 1)
+	addresses, err := m.GetAddressCtx(r, c.Params)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -1861,7 +1855,7 @@ func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	addresses, err := m.GetAddressCtx(r, c.Params, 1)
+	addresses, err := m.GetAddressCtx(r, c.Params)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -1957,7 +1951,7 @@ func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	addresses, err := m.GetAddressCtx(r, c.Params, 1)
+	addresses, err := m.GetAddressCtx(r, c.Params)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -1996,7 +1990,7 @@ func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	addresses, err := m.GetAddressCtx(r, c.Params, 1)
+	addresses, err := m.GetAddressCtx(r, c.Params)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
 		return
