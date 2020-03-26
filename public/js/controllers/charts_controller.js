@@ -359,7 +359,8 @@ export default class extends Controller {
       'legendEntry',
       'legendMarker',
       'modeSelector',
-      'modeOption'
+      'modeOption',
+      'rawDataURL'
     ]
   }
 
@@ -639,6 +640,9 @@ export default class extends Controller {
           'Missed Votes per Window', true, false))
         break
     }
+
+    const baseURL = `${this.query.url.protocol}//${this.query.url.host}`
+    this.rawDataURLTarget.textContent = `${baseURL}/api/chart/${chartName}?axis=${this.settings.axis}&bin=${this.settings.bin}`
 
     this.chartsView.plotter_.clear()
     this.chartsView.updateOptions(gOptions, false)
