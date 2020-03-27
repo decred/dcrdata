@@ -1437,7 +1437,9 @@ func parseAddressParams(r *http.Request) (address string, txnType dbtypes.AddrTx
 	// Number of outputs for the address to query the database for. The URL
 	// query parameter "n" is used to specify the limit (e.g. "?n=20").
 	limitN = defaultAddressRows
+
 	if nParam := r.URL.Query().Get("n"); nParam != "" {
+
 		var val uint64
 		val, err = strconv.ParseUint(nParam, 10, 64)
 		if err != nil {
@@ -1448,6 +1450,8 @@ func parseAddressParams(r *http.Request) (address string, txnType dbtypes.AddrTx
 			log.Warnf("addressPage: requested up to %d address rows, "+
 				"limiting to %d", limitN, MaxAddressRows)
 			limitN = MaxAddressRows
+		} else {
+			limitN = int64(val)
 		}
 	}
 
