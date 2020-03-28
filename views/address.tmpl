@@ -228,51 +228,50 @@
         <span class="fs13 py-1 d-block{{if not .IsMerged}} d-hide{{end}}" data-target="address.mergedMsg">
             *No unconfirmed transactions shown in merged views.
         </span>
-        <div
-            class="d-flex align-items-center justify-content-between"
-        >
+        <div class="d-flex align-items-center justify-content-between">
           {{- if gt $TxnCount 0}}
           <a class="d-inline-block p-2 rounded download text-nowrap" href="/download/address/io/{{.Address}}{{if $.CRLFDownload}}?cr=true{{end}}" type="text/csv" download><span class="dcricon-download mx-1"></span> Download CSV</a>
           {{- end}}
           <span></span>{{/*This dummy span ensures left/right alignment of the buttons, even if one is hidden.*/}}
-          <div class="d-inline-block text-right">
-            <label class="mb-0 mr-1" for="txntype">Type</label>
-            <select
-                name="txntype"
-                data-target="address.txntype"
-                data-action="change->address#changeTxType"
-                class="form-control-sm mb-2 mr-sm-2 mb-sm-0"
-            >
-                <option {{if eq $txType "all"}}selected{{end}} value="all">All</option>
-                <option {{if eq $txType "credit"}}selected{{end}} value="credit">Credits</option>
-                <option {{if eq $txType "debit"}}selected{{end}} value="debit">Debits</option>
-                <option {{if eq $txType "merged"}}selected{{end}} value="merged">Merged View</option>
-                <option {{if eq $txType "merged_credit"}}selected{{end}} value="merged_credit">Merged Credits</option>
-                <option {{if eq $txType "merged_debit"}}selected{{end}} value="merged_debit">Merged Debits</option>
-            </select>
+          <div class="d-flex flex-row">
+            <div class="d-inline-block text-right">
+              <label class="mb-0 mr-1" for="txntype">Type</label>
+              <select
+                  name="txntype"
+                  data-target="address.txntype"
+                  data-action="change->address#changeTxType"
+                  class="form-control-sm mb-2 mr-sm-2 mb-sm-0">
+                  <option {{if eq $txType "all"}}selected{{end}} value="all">All</option>
+                  <option {{if eq $txType "credit"}}selected{{end}} value="credit">Credits</option>
+                  <option {{if eq $txType "debit"}}selected{{end}} value="debit">Debits</option>
+                  <option {{if eq $txType "merged"}}selected{{end}} value="merged">Merged View</option>
+                  <option {{if eq $txType "merged_credit"}}selected{{end}} value="merged_credit">Merged Credits</option>
+                  <option {{if eq $txType "merged_debit"}}selected{{end}} value="merged_debit">Merged Debits</option>
+              </select>
+            </div>
+            <div class="d-inline-block text-right">
+              <label class="mb-0 mr-1" for="pagesize">Page size</label>
+              <select
+                  name="pagesize"
+                  id="pagesize"
+                  data-target="address.pagesize"
+                  data-action="change->address#changePageSize"
+                  class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $TxnCount 20}}disabled{{end}}"
+                  {{- if lt $TxnCount 20}} disabled{{end}}
+              >
+              {{- $Txlen := len .Transactions}}
+                <option {{if eq $Txlen 20}}selected {{end}}value="20"{{if lt $TxnCount 20}} disabled{{end}}>20</option>
+                <option {{if eq $Txlen 40}}selected {{end}}value="40"{{if lt $TxnCount 40}} disabled{{end}}>40</option>
+                <option {{if eq $Txlen 80}}selected {{end}}value="80"{{if lt $TxnCount 80}} disabled{{end}}>80</option>
+              {{- if lt $TxnCount 160}}
+                <option {{if eq $Txlen $TxnCount}}selected {{end}}value="{{$TxnCount}}"{{if le $TxnCount 160}} disabled{{end}}>{{$TxnCount}}</option>
+              {{- else}}
+                <option {{if ge $Txlen 160}}selected {{end}}value="160">160</option>
+              {{- end}}
+              </select>
+              </select>
+            </div>
           </div>
-        </div>
-        <div class="hidden d-flex align-items-center justify-content-end">
-            <label class="my-2 mr-1" for="pagesize">Page size</label>
-            <select
-                name="pagesize"
-                id="pagesize"
-                data-target="address.pagesize"
-                data-action="change->address#changePageSize"
-                class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $TxnCount 20}}disabled{{end}}"
-                {{- if lt $TxnCount 20}} disabled{{end}}
-            >
-            {{- $Txlen := len .Transactions}}
-              <option {{if eq $Txlen 20}}selected {{end}}value="20"{{if lt $TxnCount 20}} disabled{{end}}>20</option>
-              <option {{if eq $Txlen 40}}selected {{end}}value="40"{{if lt $TxnCount 40}} disabled{{end}}>40</option>
-              <option {{if eq $Txlen 80}}selected {{end}}value="80"{{if lt $TxnCount 80}} disabled{{end}}>80</option>
-            {{- if lt $TxnCount 160}}
-              <option {{if eq $Txlen $TxnCount}}selected {{end}}value="{{$TxnCount}}"{{if le $TxnCount 160}} disabled{{end}}>{{$TxnCount}}</option>
-            {{- else}}
-              <option {{if ge $Txlen 160}}selected {{end}}value="160">160</option>
-            {{- end}}
-            </select>
-            </select>
         </div>
     </div>
     {{- end}}{{/* if not .IsDummyAddress */}}
