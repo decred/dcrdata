@@ -3,6 +3,7 @@ import TurboQuery from '../helpers/turbolinks_helper'
 import { getDefault } from '../helpers/module_helper'
 import globalEventBus from '../services/event_bus_service'
 import dompurify from 'dompurify'
+import _ from 'lodash-es'
 
 function digitformat (amount, decimalPlaces, noComma) {
   if (!amount) return 0
@@ -142,6 +143,17 @@ export default class extends Controller {
     tpValue = parseFloat(this.data.get('ticketPoolValue'))
     tpSize = parseInt(this.data.get('ticketPoolSize'))
 
+    this.defaultSettings = {
+      attack_time: 1,
+      target_pow: 100,
+      kwh_rate: 0.1,
+      other_costs: 5,
+      target_pos: 51,
+      price: dcrPrice,
+      device: 0,
+      attack_type: externalAttackType
+    }
+
     if (this.settings.attack_time) this.attackPeriodTarget.value = parseInt(this.settings.attack_time)
     if (this.settings.target_pow) this.targetPowTarget.value = parseFloat(this.settings.target_pow)
     if (this.settings.kwh_rate) this.kwhRateTarget.value = parseFloat(this.settings.kwh_rate)
@@ -236,6 +248,20 @@ export default class extends Controller {
     this.setActivePoint()
   }
 
+  updateQueryString () {
+    let updatedSettings = {}
+    const settingsEntries = Object.entries(this.settings)
+    const defaultSettingsEntries = Object.entries(this.defaultSettings)
+    for (const [key, val] of settingsEntries) {
+      let defaultValue = _.find(defaultSettingsEntries, (entry) => {
+        return entry[0] === key
+      })
+      if (val === null || val.toString() === defaultValue[1].toString()) continue
+      updatedSettings[key] = val
+    }
+    this.query.replace(updatedSettings)
+  }
+
   updateAttackTime () {
     this.settings.attack_time = this.attackPeriodTarget.value
     this.updateSliderData()
@@ -290,7 +316,7 @@ export default class extends Controller {
     this.settings.target_pos = e.currentTarget.value
     this.preserveTargetPoS = true
     this.setAllInputs(this.targetPosTargets, e.currentTarget.value)
-    this.query.replace(this.settings)
+    this.updateQueryString()
     this.attackPercentTarget.value = parseFloat(this.targetPosTarget.value) / 100
     this.updateSliderData()
   }
@@ -398,7 +424,7 @@ export default class extends Controller {
   calculate (disableHashRateUpdate) {
     if (!disableHashRateUpdate) this.updateTargetHashRate()
 
-    this.query.replace(this.settings)
+    this.updateQueryString()
     var deviceInfo = deviceList[this.selectedDevice()]
     var deviceCount = Math.ceil((this.targetHashRate * 1000) / deviceInfo.hashrate)
     var totalDeviceCost = deviceCount * deviceInfo.cost
