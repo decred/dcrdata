@@ -52,6 +52,10 @@ function amountFlowProcessor (d, binSize) {
   }
 }
 
+function numberWithCommas (x) {
+  return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+}
+
 function formatter (data) {
   var xHTML = ''
   if (data.xHTML !== undefined) {
@@ -158,7 +162,7 @@ export default class extends Controller {
       'range', 'chartbox', 'noconfirms', 'chart', 'pagebuttons',
       'pending', 'hash', 'matchhash', 'view', 'mergedMsg',
       'chartLoader', 'listLoader', 'expando', 'littlechart', 'bigchart',
-      'fullscreen']
+      'fullscreen', 'tablePagination']
   }
 
   async connect () {
@@ -324,12 +328,15 @@ export default class extends Controller {
     ctrl.paginationParams.count = data.tx_count
     ctrl.query.replace(settings)
     ctrl.paginationParams.offset = offset
+    ctrl.paginationParams.pagesize = count
     ctrl.setPageability()
     if (txType.indexOf('merged') === -1) {
       this.mergedMsgTarget.classList.add('d-hide')
     } else {
       this.mergedMsgTarget.classList.remove('d-hide')
     }
+    ctrl.tablePaginationParams = data.pages
+    ctrl.setTablePaginationLinks()
     ctrl.listLoaderTarget.classList.remove('loading')
   }
 
@@ -369,7 +376,7 @@ export default class extends Controller {
     var rangeEnd = params.offset + count
     if (rangeEnd > rowMax) rangeEnd = rowMax
     ctrl.rangeTarget.innerHTML = 'showing ' + (params.offset + 1) + ' &ndash; ' +
-    rangeEnd + ' of ' + rowMax + ' transaction' + suffix
+    rangeEnd + ' of ' + numberWithCommas(rowMax) + ' transaction' + suffix
   }
 
   createGraph (processedData, otherOptions) {
@@ -378,6 +385,44 @@ export default class extends Controller {
       processedData,
       { ...commonOptions, ...otherOptions }
     )
+  }
+
+  setTablePaginationLinks () {
+    var tablePagesLink = ctrl.tablePaginationParams
+    var txCount = ctrl.paginationParams.count
+    var offset = ctrl.paginationParams.offset
+    var pageSize = ctrl.paginationParams.pagesize
+
+    var links = ''
+
+    var i
+    for (i = 0; i < tablePagesLink.length; i++) {
+      var link
+      if (tablePagesLink[i].link === '') {
+        link = '<span>' + tablePagesLink[i].str + '</span>'
+      } else {
+        var active
+        if (tablePagesLink[i].active) {
+          active = ' active'
+        } else {
+          active = ''
+        }
+        link = '<a href="' + tablePagesLink[i].link + '" class="fs18 pager px-1' + active + '">' + tablePagesLink[i].str + '</a>'
+      }
+
+      if (links === '') {
+        links = link
+        continue
+      }
+
+      links = links + '\n' + link
+    }
+
+    if ((txCount - offset) > pageSize) {
+      link = '<a href="/address/' + this.dcrAddress + '?start=' + (offset + pageSize) + '&n=' + pageSize + '" class="d-inline-block dcricon-arrow-right m-1 fs20"></a>'
+      links = links + '\n' + link
+    }
+    ctrl.tablePaginationTarget.innerHTML = links
   }
 
   drawGraph () {

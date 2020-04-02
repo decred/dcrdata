@@ -228,6 +228,23 @@
         <span class="fs13 py-1 d-block{{if not .IsMerged}} d-hide{{end}}" data-target="address.mergedMsg">
             *No unconfirmed transactions shown in merged views.
         </span>
+        <div class="text-right pr-3" data-target="address.tablePagination">
+          {{if ne .Offset 0}}
+            <a href="/address/{{.Address}}?start={{subtract .Offset .Limit}}&n={{.Limit}}"
+            class="d-inline-block dcricon-arrow-left m-1 fs20"></a>
+          {{end}}
+          {{range $.Pages}}
+            {{if eq .Link ""}}
+              <span>{{.Str}}</span>
+            {{else}}
+              <a href="{{.Link}}" class="fs18 pager px-1{{if .Active}} active{{end}}">{{.Str}}</a>
+            {{end}}
+          {{end}}
+          {{if gt (subtract $TxnCount .Offset) .Limit}}
+            <a href="/address/{{.Address}}?start={{add .Offset .Limit}}&n={{.Limit}}"
+            class="d-inline-block dcricon-arrow-right m-1 fs20"></a>
+          {{end}}
+        </div>
         <div class="d-flex align-items-center justify-content-between">
           {{- if gt $TxnCount 0}}
           <a class="d-inline-block p-2 rounded download text-nowrap" href="/download/address/io/{{.Address}}{{if $.CRLFDownload}}?cr=true{{end}}" type="text/csv" download><span class="dcricon-download mx-1"></span> Download CSV</a>
