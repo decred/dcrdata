@@ -372,6 +372,8 @@ type ChartGobject struct {
 	MissedVotes  ChartUints
 	TotalMixed   ChartUints
 	AnonymitySet ChartUints
+
+	UnspentOutputs map[uint64]uint64
 }
 
 // The chart data is cached with the current cacheID of the zoomSet or windowSet.
@@ -424,6 +426,10 @@ type ChartData struct {
 	cache        map[string]*cachedChart
 	updaters     []ChartUpdater
 	updateMtx    sync.Mutex
+
+	RequiresFullUpdate bool
+	UnspentOutputs     map[uint64]uint64
+	UnspentOutputsMtx  sync.Mutex
 }
 
 // ValidateLengths checks that the length of all arguments is equal.
@@ -474,6 +480,7 @@ func (charts *ChartData) Lengthen() error {
 		log.Warnf("ChartData.Lengthen: block data length mismatch detected. "+
 			"Truncating blocks length to %d", shortest)
 		blocks.Snip(shortest)
+		charts.RequiresFullUpdate = true
 	}
 	if shortest == 0 {
 		// No blocks yet. Not an error.
@@ -674,6 +681,8 @@ func (charts *ChartData) readCacheFile(filePath string) error {
 	charts.Windows.TicketPrice = gobject.TicketPrice
 	charts.Windows.StakeCount = gobject.StakeCount
 	charts.Windows.MissedVotes = gobject.MissedVotes
+	charts.UnspentOutputs = gobject.UnspentOutputs
+
 	charts.mtx.Unlock()
 
 	err = charts.Lengthen()
@@ -728,22 +737,23 @@ func (charts *ChartData) TriggerUpdate(_ string, _ uint32) error {
 
 func (charts *ChartData) gobject() *ChartGobject {
 	return &ChartGobject{
-		Height:       charts.Blocks.Height,
-		Time:         charts.Blocks.Time,
-		PoolSize:     charts.Blocks.PoolSize,
-		PoolValue:    charts.Blocks.PoolValue,
-		BlockSize:    charts.Blocks.BlockSize,
-		TxCount:      charts.Blocks.TxCount,
-		NewAtoms:     charts.Blocks.NewAtoms,
-		Chainwork:    charts.Blocks.Chainwork,
-		Fees:         charts.Blocks.Fees,
-		TotalMixed:   charts.Blocks.TotalMixed,
-		AnonymitySet: charts.Blocks.AnonymitySet,
-		WindowTime:   charts.Windows.Time,
-		PowDiff:      charts.Windows.PowDiff,
-		TicketPrice:  charts.Windows.TicketPrice,
-		StakeCount:   charts.Windows.StakeCount,
-		MissedVotes:  charts.Windows.MissedVotes,
+		Height:         charts.Blocks.Height,
+		Time:           charts.Blocks.Time,
+		PoolSize:       charts.Blocks.PoolSize,
+		PoolValue:      charts.Blocks.PoolValue,
+		BlockSize:      charts.Blocks.BlockSize,
+		TxCount:        charts.Blocks.TxCount,
+		NewAtoms:       charts.Blocks.NewAtoms,
+		Chainwork:      charts.Blocks.Chainwork,
+		Fees:           charts.Blocks.Fees,
+		TotalMixed:     charts.Blocks.TotalMixed,
+		AnonymitySet:   charts.Blocks.AnonymitySet,
+		WindowTime:     charts.Windows.Time,
+		PowDiff:        charts.Windows.PowDiff,
+		TicketPrice:    charts.Windows.TicketPrice,
+		StakeCount:     charts.Windows.StakeCount,
+		MissedVotes:    charts.Windows.MissedVotes,
+		UnspentOutputs: charts.UnspentOutputs,
 	}
 }
 
@@ -793,6 +803,13 @@ func (charts *ChartData) TotalMixedTip() int32 {
 	charts.mtx.RLock()
 	defer charts.mtx.RUnlock()
 	return int32(len(charts.Blocks.TotalMixed)) - 1
+}
+
+// AnonymitySetTip is the height of the anonymity set
+func (charts *ChartData) AnonymitySetTip() int32 {
+	charts.mtx.RLock()
+	defer charts.mtx.RUnlock()
+	return int32(len(charts.Blocks.AnonymitySet)) - 1
 }
 
 // NewAtomsTip is the height of the NewAtoms data.
@@ -885,14 +902,15 @@ func NewChartData(ctx context.Context, height uint32, chainParams *chaincfg.Para
 	windows := int(base64Height/chainParams.StakeDiffWindowSize+1) * 5 / 4
 
 	return &ChartData{
-		ctx:          ctx,
-		DiffInterval: int32(chainParams.StakeDiffWindowSize),
-		StartPOS:     int32(chainParams.StakeValidationHeight),
-		Blocks:       newBlockSet(size),
-		Windows:      newWindowSet(windows),
-		Days:         newDaySet(days),
-		cache:        make(map[string]*cachedChart),
-		updaters:     make([]ChartUpdater, 0),
+		ctx:            ctx,
+		DiffInterval:   int32(chainParams.StakeDiffWindowSize),
+		StartPOS:       int32(chainParams.StakeValidationHeight),
+		Blocks:         newBlockSet(size),
+		Windows:        newWindowSet(windows),
+		Days:           newDaySet(days),
+		cache:          make(map[string]*cachedChart),
+		updaters:       make([]ChartUpdater, 0),
+		UnspentOutputs: make(map[uint64]uint64),
 	}
 }
 

@@ -3841,7 +3841,7 @@ func (pgb *ChainDB) storeTxns(txns []*dbtypes.Tx, vouts [][]*dbtypes.Vout, vins 
 	for it, Tx := range txns {
 		// Insert vouts, and collect AddressRows to add to address table for
 		// each output.
-		Tx.VoutDbIds, dbAddressRows[it], err = InsertVoutsStmt(voutStmt,
+		Tx.VoutDbIds, dbAddressRows[it], err = InsertVoutsStmt(voutStmt, Tx.BlockHeight,
 			vouts[it], pgb.dupChecks, updateExistingRecords)
 		if err != nil && err != sql.ErrNoRows {
 			err = fmt.Errorf("failure in InsertVoutsStmt: %v", err)
@@ -4226,6 +4226,8 @@ txns:
 					err, dbTx.Rollback())
 				return txRes
 			}
+			// notify chart cache to update vouts
+			setVoutsSpendingHeightOnCharts(voutDbIDs)
 		}
 	}
 
@@ -6167,10 +6169,10 @@ func (pgb *ChainDB) MixedUtxosByHeight() (heights, utxoCountReg, utxoValueReg, u
 	var maxHeight int64
 	minHeight := int64(math.MaxInt64)
 	for rows.Next() {
-		var value, fundHeight, spendHeight int64
+		var id, value, fundHeight, spendHeight int64
 		var spendHeightNull sql.NullInt64
 		var tree uint8
-		err = rows.Scan(&value, &fundHeight, &spendHeightNull, &tree)
+		err = rows.Scan(&id, &value, &fundHeight, &spendHeightNull, &tree)
 		if err != nil {
 			return
 		}
