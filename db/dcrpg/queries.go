@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -2301,10 +2301,9 @@ func InsertVout(db *sql.DB, dbVout *dbtypes.Vout, checked bool, updateOnConflict
 
 // InsertVoutsStmt is like InsertVouts, except that it takes a sql.Stmt. The
 // caller is required to Close the statement.
-func InsertVoutsStmt(stmt *sql.Stmt, blockHeight int64, dbVouts []*dbtypes.Vout, checked bool, doUpsert bool) ([]uint64, []dbtypes.AddressRow, error) {
+func InsertVoutsStmt(stmt *sql.Stmt, dbVouts []*dbtypes.Vout, checked bool, doUpsert bool) ([]uint64, []dbtypes.AddressRow, error) {
 	addressRows := make([]dbtypes.AddressRow, 0, len(dbVouts)) // may grow with multisig
 	ids := make([]uint64, 0, len(dbVouts))
-	mixedVals, mixedIds := make([]uint64, 0, len(dbVouts)), make([]uint64, 0, len(dbVouts))
 	for _, vout := range dbVouts {
 		var id uint64
 		err := stmt.QueryRow(
@@ -2317,10 +2316,6 @@ func InsertVoutsStmt(stmt *sql.Stmt, blockHeight int64, dbVouts []*dbtypes.Vout,
 				continue
 			}
 			return nil, nil, err
-		}
-		if vout.Mixed {
-			mixedVals = append(mixedVals, vout.Value)
-			mixedIds = append(mixedIds, id)
 		}
 
 		for _, addr := range vout.ScriptPubKeyData.Addresses {
@@ -2338,20 +2333,19 @@ func InsertVoutsStmt(stmt *sql.Stmt, blockHeight int64, dbVouts []*dbtypes.Vout,
 		ids = append(ids, id)
 	}
 
-	appendNewVoutsToCharts(mixedIds, mixedVals, blockHeight)
 	return ids, addressRows, nil
 }
 
 // InsertVoutsDbTxn is like InsertVouts, except that it takes a sql.Tx. The
 // caller is required to Commit or Rollback the transaction depending on the
 // returned error value.
-func InsertVoutsDbTxn(dbTx *sql.Tx, blockHeight int64, dbVouts []*dbtypes.Vout, checked bool, doUpsert bool) ([]uint64, []dbtypes.AddressRow, error) {
+func InsertVoutsDbTxn(dbTx *sql.Tx, dbVouts []*dbtypes.Vout, checked bool, doUpsert bool) ([]uint64, []dbtypes.AddressRow, error) {
 	stmt, err := dbTx.Prepare(internal.MakeVoutInsertStatement(checked, doUpsert))
 	if err != nil {
 		return nil, nil, err
 	}
 
-	ids, addressRows, err := InsertVoutsStmt(stmt, blockHeight, dbVouts, checked, doUpsert)
+	ids, addressRows, err := InsertVoutsStmt(stmt, dbVouts, checked, doUpsert)
 	errClose := stmt.Close()
 	if err != nil {
 		return nil, nil, err
@@ -2365,7 +2359,7 @@ func InsertVoutsDbTxn(dbTx *sql.Tx, blockHeight int64, dbVouts []*dbtypes.Vout, 
 
 // InsertVouts is like InsertVout, except that it operates on a slice of vout
 // data.
-func InsertVouts(db *sql.DB, blockHeight int64, dbVouts []*dbtypes.Vout, checked bool, updateOnConflict ...bool) ([]uint64, []dbtypes.AddressRow, error) {
+func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool, updateOnConflict ...bool) ([]uint64, []dbtypes.AddressRow, error) {
 	// All inserts in atomic DB transaction
 	dbTx, err := db.Begin()
 	if err != nil {
@@ -2377,7 +2371,7 @@ func InsertVouts(db *sql.DB, blockHeight int64, dbVouts []*dbtypes.Vout, checked
 		doUpsert = updateOnConflict[0]
 	}
 
-	ids, addressRows, err := InsertVoutsDbTxn(dbTx, blockHeight, dbVouts, checked, doUpsert)
+	ids, addressRows, err := InsertVoutsDbTxn(dbTx, dbVouts, checked, doUpsert)
 	if err != nil {
 		_ = dbTx.Rollback() // try, but we want the Prepare error back
 		return nil, nil, err
@@ -2863,33 +2857,30 @@ func resetSpendingForVoutsByTxRowID(tx *sql.Tx, spendingTxRowIDs []int64) (int64
 	if err != nil {
 		return 0, err
 	}
-
-	resetVoutsSpendingHeightOnCharts()
 	return N, nil
 }
 
 // InsertSpendingAddressRow inserts a new spending tx row, and updates any
 // corresponding funding tx row.
-func InsertSpendingAddressRow(db *sql.DB, fundingTxHash string,
-	fundingTxVoutIndex uint32, fundingTxTree int8, spendingTxHash string,
-	spendingTxVinIndex uint32, vinDbID uint64, utxoData *dbtypes.UTXOData,
-	checked, updateExisting, mainchain, valid bool,
-	txType int16, updateFundingRow bool, spendingTXBlockTime dbtypes.TimeDef) (int64, uint64, error) {
+func InsertSpendingAddressRow(db *sql.DB, fundingTxHash string, fundingTxVoutIndex uint32, fundingTxTree int8,
+	spendingTxHash string, spendingTxVinIndex uint32, vinDbID uint64, utxoData *dbtypes.UTXOData,
+	checked, updateExisting, mainchain, valid bool, txType int16, updateFundingRow bool,
+	spendingTXBlockTime dbtypes.TimeDef) (int64, uint64, bool, error) {
 	// Only allow atomic transactions to happen.
 	dbtx, err := db.Begin()
 	if err != nil {
-		return 0, 0, fmt.Errorf(`unable to begin database transaction: %v`, err)
+		return 0, 0, false, fmt.Errorf(`unable to begin database transaction: %v`, err)
 	}
 
-	c, voutDbID, err := insertSpendingAddressRow(dbtx, fundingTxHash, fundingTxVoutIndex,
+	c, voutDbID, mixedOut, err := insertSpendingAddressRow(dbtx, fundingTxHash, fundingTxVoutIndex,
 		fundingTxTree, spendingTxHash, spendingTxVinIndex, vinDbID, utxoData, checked,
 		updateExisting, mainchain, valid, txType, updateFundingRow, spendingTXBlockTime)
 	if err != nil {
-		return 0, 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
+		return 0, 0, false, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
 			err, dbtx.Rollback())
 	}
 
-	return c, voutDbID, dbtx.Commit()
+	return c, voutDbID, mixedOut, dbtx.Commit()
 }
 
 func updateSpendTxInfoInAllVouts(db SqlExecutor) (int64, error) {
@@ -2915,7 +2906,7 @@ func updateSpendTxInfoInAllVouts(db SqlExecutor) (int64, error) {
 func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutIndex uint32,
 	fundingTxTree int8, spendingTxHash string, spendingTxVinIndex uint32, vinDbID uint64,
 	spentUtxoData *dbtypes.UTXOData, checked, updateExisting, mainchain, valid bool, txType int16,
-	updateFundingRow bool, blockT ...dbtypes.TimeDef) (int64, uint64, error) {
+	updateFundingRow bool, blockT ...dbtypes.TimeDef) (int64, uint64, bool, error) {
 
 	// Select addresses and value from the matching funding tx output. A maximum
 	// of one row and a minimum of none are expected.
@@ -2935,7 +2926,7 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 		case sql.ErrNoRows, nil:
 			// If no row found or error is nil, continue
 		default:
-			return 0, 0, fmt.Errorf("SelectAddressByTxHash: %v", err)
+			return 0, 0, mixed, fmt.Errorf("SelectAddressByTxHash: %v", err)
 		}
 
 		// Get address list.
@@ -2957,7 +2948,7 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 		// Fetch the block time from the tx table.
 		err := tx.QueryRow(internal.SelectTxBlockTimeByHash, spendingTxHash).Scan(&blockTime)
 		if err != nil {
-			return 0, 0, fmt.Errorf("SelectTxBlockTimeByHash: %v", err)
+			return 0, 0, mixed, fmt.Errorf("SelectTxBlockTimeByHash: %v", err)
 		}
 	}
 
@@ -2970,7 +2961,7 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 			spendingTxVinIndex, vinDbID, value, blockTime, isFunding,
 			mainchain && valid, txType).Scan(&rowID)
 		if err != nil {
-			return 0, 0, fmt.Errorf("InsertAddressRow: %v", err)
+			return 0, 0, mixed, fmt.Errorf("InsertAddressRow: %v", err)
 		}
 	}
 
@@ -2981,9 +2972,9 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 		// a parent on the main chain).
 		N, err := SetSpendingForFundingOP(tx, fundingTxHash, fundingTxVoutIndex,
 			spendingTxHash, spendingTxVinIndex, mainchain)
-		return N, voutDbID, err
+		return N, voutDbID, mixed, err
 	}
-	return 0, voutDbID, nil
+	return 0, voutDbID, mixed, nil
 }
 
 // --- agendas table ---
@@ -3645,7 +3636,6 @@ func retrievePrivacyParticipation(ctx context.Context, db *sql.DB, charts *cache
 // cache.ChartUpdater.
 func appendPrivacyParticipation(charts *cache.ChartData, rows *sql.Rows) error {
 	defer rows.Close()
-	blocks := charts.Blocks
 	for rows.Next() {
 		var blockHeight uint64
 		var totalMixed int64
@@ -3655,191 +3645,57 @@ func appendPrivacyParticipation(charts *cache.ChartData, rows *sql.Rows) error {
 		}
 
 		// Converting to atoms.
-		blocks.TotalMixed = append(blocks.TotalMixed, uint64(totalMixed))
+		charts.Blocks.TotalMixed = append(charts.Blocks.TotalMixed, uint64(totalMixed))
 	}
 	return rows.Err()
 }
 
-// retrieveAnonymitySet retrieves any block total mixed data that is newer than
-// the data in the provided ChartData. This data is used to plot anonymity-set
-// on the /charts page. This is the Fetcher half of a pair that make up a
+// appendAnonymitySet appends the result from retrieveAnonymitySet to the
+// provided ChartData. This is the Appender half of a pair that make up a
 // cache.ChartUpdater.
-func retrieveAnonymitySet(ctx context.Context, db *sql.DB, charts *cache.ChartData) (*sql.Rows, error) {
-	// only fetch from the database if this is the first time or there is a
-	// special need for full update like when the height of the chart is less
-	// than the best block
-	if !charts.RequiresFullUpdate && len(charts.UnspentOutputs) > 0 &&
-		(len(charts.Blocks.Height)-len(charts.Blocks.AnonymitySet) <= 1) {
-		return &sql.Rows{}, nil
-	}
-
-	charts.RequiresFullUpdate = true
-	rows, err := db.QueryContext(ctx, internal.SelectMixedVouts, charts.AnonymitySetTip())
-	if err != nil {
-		return nil, err
-	}
-
-	return rows, nil
-}
-
-// Append the result from retrieveAnonymitySet to the provided ChartData. This
-// is the Appender half of a pair that make up a cache.ChartUpdater.
-func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) (err error) {
-
-	// make the charts obj available for the global vouts cache functions
-	_charts = charts
-
-	if !charts.RequiresFullUpdate {
-		return nil
-	}
-
+func appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) error {
 	blocks := charts.Blocks
-	var maxHeight, anonymitySet int64
-	spendHeights := make(map[int64][]int64)
-	subtract := func(value int64, items ...int64) int64 {
-		for _, item := range items {
-			value -= item
-		}
+	nextHeight := int64(len(blocks.AnonymitySet))
+	endHeight := int64(len(blocks.Height) - 1)
 
-		return value
-	}
-
-	lenAnonymitySet := len(charts.Blocks.AnonymitySet)
-
-	if lenAnonymitySet > 0 {
-		// there is at least one record for the anonymity set
-		anonymitySet = int64(blocks.AnonymitySet[lenAnonymitySet-1])
-	}
-
-	charts.UnspentOutputs = make(map[uint64]uint64)
-
+	setDiffs := make(map[int64]int64, endHeight-nextHeight+1) // map[height]value_diff
 	for rows.Next() {
-		var id, value, fundHeight, spendHeight int64
-		var spendHeightNull sql.NullInt64
-		var tree uint8
-		err = rows.Scan(&id, &value, &fundHeight, &spendHeightNull, &tree)
+		var value, fundHeight int64
+		var spendHeight sql.NullInt64
+		var tree uint8 // not used
+		err := rows.Scan(&value, &fundHeight, &spendHeight, &tree)
 		if err != nil {
 			return err
 		}
 
-		if maxHeight < fundHeight {
-			maxHeight = fundHeight
+		// The query allows spend height (> best) OR (= NULL).
+		if spendHeight.Valid {
+			setDiffs[spendHeight.Int64] -= value
 		}
 
-		if spendHeightNull.Valid {
-			spendHeight = spendHeightNull.Int64
-		} else {
-			spendHeight = -1
-			charts.UnspentOutputs[uint64(id)] = uint64(value)
-		}
-
-		if spendHeight > maxHeight {
-			maxHeight = spendHeight
-		}
-
-		spendHeights[spendHeight] = append(spendHeights[spendHeight], value)
-
-		// we only need to get spend height for values that has praviously been
-		// added to the running sum
-		if fundHeight < int64(lenAnonymitySet) {
+		if fundHeight < nextHeight {
+			// The funding of this output has already been recorded.
 			continue
 		}
 
-		if fundHeight == int64(len(blocks.AnonymitySet)) {
-			anonymitySet += value
-			continue
-		}
-
-		// loop from previous to the current height to cover heights without
-		// mixed output
-		for h := int64(len(blocks.AnonymitySet)); h < fundHeight; h++ {
-			if spentVouts, found := spendHeights[h]; found {
-				anonymitySet = subtract(anonymitySet, spentVouts...)
-				delete(spendHeights, h)
-			}
-			blocks.AnonymitySet = append(blocks.AnonymitySet, uint64(anonymitySet))
-		}
-
-		anonymitySet += value
+		setDiffs[fundHeight] += value
 	}
 
-	err = rows.Err()
-	if err != nil {
-		log.Errorf("Unable to scan for MixedVouts fields: %v", err)
+	if err := rows.Err(); err != nil {
+		log.Errorf("appendAnonymitySet Scan error: %v", err)
 		return err
 	}
 
-	// fill missing values
-	for h := len(blocks.AnonymitySet); h < len(blocks.Height) || int64(h) <= maxHeight; h++ {
-		if spentVouts, found := spendHeights[int64(h)]; found {
-			anonymitySet = subtract(anonymitySet, spentVouts...)
-			delete(spendHeights, int64(h))
+	for h := nextHeight; h <= endHeight; h++ {
+		// next = previous + delta
+		nextAnonSet := setDiffs[h] // setDiffs[h] may be not found (zero) or negative
+		if h > 0 {
+			nextAnonSet += int64(blocks.AnonymitySet[h-1])
 		}
-		blocks.AnonymitySet = append(blocks.AnonymitySet, uint64(anonymitySet))
+		blocks.AnonymitySet = append(blocks.AnonymitySet, uint64(nextAnonSet))
 	}
-
-	charts.RequiresFullUpdate = false
 
 	return nil
-}
-
-// the _charts variable is set in appendAnonymitySet during the first call
-var _charts *cache.ChartData
-
-func appendNewVoutsToCharts(voutDbIds []uint64, vals []uint64, fundingHeight int64) {
-	if _charts == nil {
-		return
-	}
-
-	if _charts.RequiresFullUpdate {
-		return
-	}
-
-	_charts.UnspentOutputsMtx.Lock()
-	defer _charts.UnspentOutputsMtx.Unlock()
-
-	var anonymitySet = _charts.Blocks.AnonymitySet[len(_charts.Blocks.AnonymitySet)-1]
-	for i, id := range voutDbIds {
-		if _, f := _charts.UnspentOutputs[id]; !f {
-			anonymitySet += vals[i]
-			_charts.UnspentOutputs[id] = vals[i]
-		}
-	}
-
-	if fundingHeight == int64(len(_charts.Blocks.AnonymitySet)) {
-		_charts.Blocks.AnonymitySet = append(_charts.Blocks.AnonymitySet, anonymitySet)
-	} else if fundingHeight == int64(len(_charts.Blocks.AnonymitySet))-1 {
-		_charts.Blocks.AnonymitySet[len(_charts.Blocks.AnonymitySet)-1] = anonymitySet
-	}
-}
-
-// it is assumed that appendNewVoutsToCharts will be call first
-func setVoutsSpendingHeightOnCharts(voutDbIds []int64) {
-	if _charts == nil {
-		return
-	}
-
-	if _charts.RequiresFullUpdate {
-		return
-	}
-
-	_charts.UnspentOutputsMtx.Lock()
-	defer _charts.UnspentOutputsMtx.Unlock()
-
-	curIndex := len(_charts.Blocks.AnonymitySet) - 1
-	for _, id := range voutDbIds {
-		if val, f := _charts.UnspentOutputs[uint64(id)]; f {
-			_charts.Blocks.AnonymitySet[curIndex] -= val
-			delete(_charts.UnspentOutputs, uint64(id))
-		}
-	}
-}
-
-func resetVoutsSpendingHeightOnCharts() {
-	if _charts == nil {
-		return
-	}
-	_charts.RequiresFullUpdate = true
 }
 
 // retrievePoolStats returns all the pool value and the pool size

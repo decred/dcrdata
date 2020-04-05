@@ -128,7 +128,7 @@ func TestChartsCache(t *testing.T) {
 		}
 
 		// check if the new dump file path exists
-		if !isfileExists(gobPath) {
+		if !isFileExists(gobPath) {
 			t.Fatalf("expected to find the newly created file but its missing")
 		}
 	})

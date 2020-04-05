@@ -1127,7 +1127,7 @@ func _main(ctx context.Context) error {
 	notifier.RegisterBlockHandlerLiteGroup(app.UpdateNodeHeight, mpm.BlockHandler)
 	notifier.RegisterReorgHandlerGroup(sdbChainMonitor.ReorgHandler)
 	notifier.RegisterReorgHandlerGroup(wsChainMonitor.ReorgHandler, chainDBChainMonitor.ReorgHandler)
-	notifier.RegisterReorgHandlerGroup(charts.ReorgHandler)
+	notifier.RegisterReorgHandlerGroup(charts.ReorgHandler) // snip charts data
 	notifier.RegisterTxHandlerGroup(mpm.TxHandler, insightSocketServer.SendNewTx)
 
 	// Register for notifications from dcrd. This also sets the daemon RPC

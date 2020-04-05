@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -111,9 +111,8 @@ const (
 		` ON transactions(tx_hash, block_hash);`
 	DeindexTransactionTableOnHashes = `DROP INDEX ` + IndexOfTransactionsTableOnHashes + ` CASCADE;`
 
-	// Investigate removing this. block_hash is already indexed. It would be
-	// unique with just (block_hash, block_index). And tree is likely not
-	// important to index.  NEEDS TESTING BEFORE REMOVAL.
+	// Investigate removing this. block_hash is already indexed. Block index AND
+	// tree are likely not important to index.  NEEDS TESTING BEFORE REMOVAL.
 	IndexTransactionTableOnBlockIn = `CREATE UNIQUE INDEX ` + IndexOfTransactionsTableOnBlockInd +
 		` ON transactions(block_hash, block_index, tree);`
 	DeindexTransactionTableOnBlockIn = `DROP INDEX ` + IndexOfTransactionsTableOnBlockInd + ` CASCADE;`
@@ -218,7 +217,7 @@ const (
 		JOIN tickets
 		ON transactions.id=purchase_tx_db_id
 		WHERE pool_status=0
-		AND tickets.is_mainchain = TRUE
+			AND tickets.is_mainchain
 		GROUP BY num_vout;`
 
 	SelectTxnByDbID = `SELECT block_hash, block_height, tx_hash FROM transactions WHERE id = $1;`
@@ -239,13 +238,6 @@ const (
 
 	// RetrieveVoutDbIDs = `SELECT unnest(vout_db_ids) FROM transactions WHERE id = $1;`
 	// RetrieveVoutDbID  = `SELECT vout_db_ids[$2] FROM transactions WHERE id = $1;`
-)
-
-var (
-	SelectAllRevokes = fmt.Sprintf(`SELECT id, tx_hash, block_height, vin_db_ids[0]
-		FROM transactions
-		WHERE tx_type = %d;`,
-		stake.TxTypeSSRtx)
 
 	SelectTicketsOutputCountByAllBlocks = `SELECT block_height,
 		SUM(CASE WHEN num_vout = 3 THEN 1 ELSE 0 END) as solo,
@@ -284,12 +276,21 @@ var (
 		ORDER BY tx.block_height;`
 
 	SelectMixedVouts = `
-		SELECT vouts.id, vouts.value, fund_tx.block_height, spend_tx.block_height, vouts.tx_tree
+		SELECT vouts.value, fund_tx.block_height, spend_tx.block_height, vouts.tx_tree
 		FROM vouts
 		JOIN transactions AS fund_tx ON vouts.tx_hash=fund_tx.tx_hash
 		LEFT OUTER JOIN transactions AS spend_tx ON spend_tx_row_id=spend_tx.id
-		WHERE (spend_tx.block_height > $1 or spend_tx.block_height is null) and mixed=true and value>0 
+		WHERE (spend_tx.block_height > $1 or spend_tx.block_height is null)
+			AND mixed AND value>0
+			AND fund_tx.is_mainchain
 		ORDER BY fund_tx.block_height;`
+)
+
+var (
+	SelectAllRevokes = fmt.Sprintf(`SELECT id, tx_hash, block_height, vin_db_ids[0]
+		FROM transactions
+		WHERE tx_type = %d;`,
+		stake.TxTypeSSRtx)
 )
 
 // MakeTxInsertStatement returns the appropriate transaction insert statement
