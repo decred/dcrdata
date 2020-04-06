@@ -32,7 +32,7 @@ const (
 	// This includes changes such as creating tables, adding/deleting columns,
 	// adding/deleting indexes or any other operations that create, delete, or
 	// modify the definition of any database relation.
-	schemaVersion = 7
+	schemaVersion = 8
 
 	// maintVersion indicates when certain maintenance operations should be
 	// performed for the same compatVersion and schemaVersion. Such operations
@@ -361,7 +361,22 @@ func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool
 		fallthrough
 
 	case 7:
-		// Perform schema v7 maintenance.
+		err = u.upgrade170to180()
+		if err != nil {
+			return false, fmt.Errorf("failed to upgrade 1.7.0 to 1.8.0: %v", err)
+		}
+		current.schema++
+		if err = updateSchemaVersion(u.db, current.schema); err != nil {
+			return false, fmt.Errorf("failed to update schema version: %v", err)
+		}
+		current.maint = 0
+		if err = updateMaintVersion(u.db, current.maint); err != nil {
+			return false, fmt.Errorf("failed to update maintenance version: %v", err)
+		}
+		fallthrough
+
+	case 8:
+		// Perform schema v8 maintenance.
 
 		// No further upgrades.
 		return upgradeCheck()
@@ -381,6 +396,13 @@ func removeTableComments(db *sql.DB) {
 			log.Errorf(`Failed to remove comment on table %s.`, tableName)
 		}
 	}
+}
+
+func (u *Upgrader) upgrade170to180() error {
+	// Index the transactions table on block height. This drastically
+	// accelerates several queries including those for the following charts
+	// updaters: fees, coin supply, privacy participation, and anonymity set.
+	return IndexTransactionTableOnBlockHeight(u.db)
 }
 
 func (u *Upgrader) upgrade160to170() error {

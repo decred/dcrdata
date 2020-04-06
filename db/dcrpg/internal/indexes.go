@@ -10,8 +10,9 @@ const (
 
 	// transactions table
 
-	IndexOfTransactionsTableOnHashes   = "uix_tx_hashes"
-	IndexOfTransactionsTableOnBlockInd = "uix_tx_block_in"
+	IndexOfTransactionsTableOnHashes      = "uix_tx_hashes"
+	IndexOfTransactionsTableOnBlockInd    = "uix_tx_block_in"
+	IndexOfTransactionsTableOnBlockHeight = "ix_tx_block_height"
 
 	// vins table
 
@@ -81,7 +82,8 @@ var IndexDescriptions = map[string]string{
 	IndexOfBlocksTableOnHash:               "blocks on hash",
 	IndexOfBlocksTableOnHeight:             "blocks on height",
 	IndexOfTransactionsTableOnHashes:       "transactions on block hash and transaction hash",
-	IndexOfTransactionsTableOnBlockInd:     "transactions on block hash and block index",
+	IndexOfTransactionsTableOnBlockInd:     "transactions on block hash, block index, and tx tree",
+	IndexOfTransactionsTableOnBlockHeight:  "transactions on block height",
 	IndexOfVinsTableOnVin:                  "vins on transaction hash and index",
 	IndexOfVinsTableOnPrevOut:              "vins on previous outpoint",
 	IndexOfVoutsTableOnTxHashInd:           "vouts on transaction hash and index",

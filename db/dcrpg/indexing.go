@@ -68,6 +68,16 @@ func DeindexTransactionTableOnBlockIn(db *sql.DB) (err error) {
 	return
 }
 
+func IndexTransactionTableOnBlockHeight(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexTransactionTableOnBlockHeight)
+	return
+}
+
+func DeindexTransactionTableOnBlockHeight(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexTransactionTableOnBlockHeight)
+	return
+}
+
 // Blocks table indexes
 
 func IndexBlockTableOnHash(db *sql.DB) (err error) {
