@@ -725,9 +725,10 @@ func _main(ctx context.Context) error {
 		r.Mount("/api", apiMux.Mux)
 		// Setup and mount the Insight API.
 		insightApp := insight.NewInsightApi(dcrdClient, chainDB,
-			activeChain, mpm, cfg.IndentJSON, cfg.MaxCSVAddrs, app.Status)
+			activeChain, mpm, cfg.IndentJSON, app.Status)
 		insightApp.SetReqRateLimit(cfg.InsightReqRateLimit)
-		insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP, cfg.CompressAPI)
+		insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP,
+			cfg.CompressAPI, cfg.MaxCSVAddrs)
 		r.Mount("/insight/api", insightMux.Mux)
 
 		if insightSocketServer != nil {

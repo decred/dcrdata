@@ -78,14 +78,13 @@ type InsightApi struct {
 	status          *apitypes.Status
 	JSONIndent      string
 	ReqPerSecLimit  float64
-	maxCSVAddrs     int
 	inflightUTXOs   int64
 	inflightLimiter sync.Mutex
 }
 
 // NewInsightApi is the constructor for InsightApi.
 func NewInsightApi(client *rpcclient.Client, blockData BlockDataSource, params *chaincfg.Params,
-	memPoolData rpcutils.MempoolAddressChecker, JSONIndent string, maxAddrs int, status *apitypes.Status) *InsightApi {
+	memPoolData rpcutils.MempoolAddressChecker, JSONIndent string, status *apitypes.Status) *InsightApi {
 
 	newContext := InsightApi{
 		nodeClient:     client,
@@ -94,7 +93,6 @@ func NewInsightApi(client *rpcclient.Client, blockData BlockDataSource, params *
 		mp:             memPoolData,
 		status:         status,
 		ReqPerSecLimit: defaultReqPerSecLimit,
-		maxCSVAddrs:    maxAddrs,
 	}
 	return &newContext
 }
@@ -343,7 +341,7 @@ func (iapi *InsightApi) broadcastTransactionRaw(w http.ResponseWriter, r *http.R
 }
 
 func (iapi *InsightApi) getAddressesTxnOutput(w http.ResponseWriter, r *http.Request) {
-	addresses, err := m.GetAddressCtx(r, iapi.params, iapi.maxCSVAddrs) // Required
+	addresses, err := m.GetAddressCtx(r, iapi.params) // Required
 	if err != nil {
 		writeInsightError(w, err.Error())
 		return
@@ -560,7 +558,7 @@ func removeSliceElements(txOuts []*apitypes.AddressTxnOutput, inds []int) []*api
 func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) {
 	pageNum := m.GetPageNumCtx(r)
 	hash, blockerr := m.GetBlockHashCtx(r)
-	addresses, addrerr := m.GetAddressCtx(r, iapi.params, 1)
+	addresses, addrerr := m.GetAddressCtx(r, iapi.params)
 
 	if blockerr != nil && addrerr != nil {
 		msg := fmt.Sprintf(`Required query parameters (address or block) not present. `+
@@ -768,7 +766,7 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 }
 
 func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) {
-	addresses, err := m.GetAddressCtx(r, iapi.params, iapi.maxCSVAddrs) // Required
+	addresses, err := m.GetAddressCtx(r, iapi.params) // Required
 	if err != nil {
 		writeInsightError(w, err.Error())
 		return
@@ -1154,7 +1152,7 @@ func (iapi *InsightApi) getBlockSummaryByTime(w http.ResponseWriter, r *http.Req
 }
 
 func (iapi *InsightApi) getAddressInfo(w http.ResponseWriter, r *http.Request) {
-	addresses, err := m.GetAddressCtx(r, iapi.params, 1)
+	addresses, err := m.GetAddressCtx(r, iapi.params)
 	if err != nil {
 		writeInsightError(w, err.Error())
 		return

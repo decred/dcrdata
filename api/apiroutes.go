@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/binary"
 	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
@@ -1712,7 +1713,7 @@ func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	addresses, err := m.GetAddressCtx(r, c.Params, 1)
+	addresses, err := m.GetAddressCtx(r, c.Params)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -1734,6 +1735,41 @@ func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, totals, indent)
 }
 
+// addressExists provides access to the existsaddresses RPC call and parses the
+// hexadecimal string into a list of bools. A maximum of 64 addresses can be
+// provided. Duplicates are not filtered.
+func (c *appContext) addressExists(w http.ResponseWriter, r *http.Request) {
+	indent, err := c.getIndentQuery(r)
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	addresses, err := m.GetAddressRawCtx(r, c.Params)
+	if err != nil {
+		apiLog.Errorf("addressExists rejecting request: %v", err)
+		http.Error(w, "address parsing error", http.StatusBadRequest)
+		return
+	}
+	// GetAddressCtx throws an error if there would be no addresses.
+	strMask, err := c.nodeClient.ExistsAddresses(addresses)
+	if err != nil {
+		log.Warnf("existsaddress error: %v", err)
+		http.Error(w, http.StatusText(422), 422)
+	}
+	b, err := hex.DecodeString(strMask)
+	if err != nil {
+		log.Warnf("existsaddress error: %v", err)
+		http.Error(w, http.StatusText(422), 422)
+	}
+	mask := binary.LittleEndian.Uint64(append(b, make([]byte, 8-len(b))...))
+	exists := make([]bool, 0, len(addresses))
+	for n := range addresses {
+		exists = append(exists, (mask&(1<<uint8(n))) != 0)
+	}
+	writeJSON(w, exists, indent)
+}
+
 // Handler for address activity CSV file download.
 // /download/address/io/{address}?cr=[true|false]
 func (c *appContext) addressIoCsv(w http.ResponseWriter, r *http.Request) {
@@ -1749,7 +1785,7 @@ func (c *appContext) addressIoCsv(w http.ResponseWriter, r *http.Request) {
 		useCRLF = b
 	}
 
-	addresses, err := m.GetAddressCtx(r, c.Params, 1)
+	addresses, err := m.GetAddressCtx(r, c.Params)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return
@@ -1783,7 +1819,7 @@ func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	addresses, err := m.GetAddressCtx(r, c.Params, 1)
+	addresses, err := m.GetAddressCtx(r, c.Params)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -1819,7 +1855,7 @@ func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	addresses, err := m.GetAddressCtx(r, c.Params, 1)
+	addresses, err := m.GetAddressCtx(r, c.Params)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -1915,7 +1951,7 @@ func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	addresses, err := m.GetAddressCtx(r, c.Params, 1)
+	addresses, err := m.GetAddressCtx(r, c.Params)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -1954,7 +1990,7 @@ func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	addresses, err := m.GetAddressCtx(r, c.Params, 1)
+	addresses, err := m.GetAddressCtx(r, c.Params)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
 		return
