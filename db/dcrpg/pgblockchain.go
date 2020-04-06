@@ -5567,7 +5567,7 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 			// Account for this possibility by calculating the fee for votes as
 			// well.
 			if stx.Fee > 0 {
-				log.Tracef("Vote with fee! %v, %v DCR", stx.Fee, stx.Fees)
+				log.Tracef("Vote with fee: %d atoms, %.8f DCR", int64(stx.Fee), stx.Fees)
 			}
 			votes = append(votes, stx)
 		case stake.TxTypeSStx:

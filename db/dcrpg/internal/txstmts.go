@@ -117,6 +117,10 @@ const (
 		` ON transactions(block_hash, block_index, tree);`
 	DeindexTransactionTableOnBlockIn = `DROP INDEX ` + IndexOfTransactionsTableOnBlockInd + ` CASCADE;`
 
+	IndexTransactionTableOnBlockHeight = `CREATE INDEX ` + IndexOfTransactionsTableOnBlockHeight +
+		` ON transactions(block_height);`
+	DeindexTransactionTableOnBlockHeight = `DROP INDEX ` + IndexOfTransactionsTableOnBlockHeight + ` CASCADE;`
+
 	SelectTxByHash = `SELECT id, block_hash, block_index, tree
 		FROM transactions
 		WHERE tx_hash = $1
@@ -139,9 +143,9 @@ const (
 		LIMIT 1;`
 
 	SelectFullTxsByHash = `SELECT id, block_hash, block_height, block_time,
-		time, tx_type, version, tree, tx_hash, block_index, lock_time, expiry,
-		size, spent, sent, fees, mix_count, mix_denom, num_vin, vin_db_ids,
-		num_vout, vout_db_ids, is_valid, is_mainchain
+			time, tx_type, version, tree, tx_hash, block_index, lock_time, expiry,
+			size, spent, sent, fees, mix_count, mix_denom, num_vin, vin_db_ids,
+			num_vout, vout_db_ids, is_valid, is_mainchain
 		FROM transactions WHERE tx_hash = $1
 		ORDER BY is_mainchain DESC, is_valid DESC, block_time DESC;`
 
@@ -177,11 +181,11 @@ const (
 
 	UpdateRegularTxnsValidMainchainByBlock = `UPDATE transactions
 		SET is_valid=$1, is_mainchain=$2
-		WHERE block_hash=$3 and tree=0;`
+		WHERE block_hash=$3 AND tree=0;`
 
 	UpdateRegularTxnsValidByBlock = `UPDATE transactions
 		SET is_valid=$1
-		WHERE block_hash=$2 and tree=0;`
+		WHERE block_hash=$2 AND tree=0;`
 
 	UpdateTxnsMainchainByBlock = `UPDATE transactions
 		SET is_mainchain=$1
@@ -214,13 +218,13 @@ const (
 
 	SelectTicketsByType = `SELECT DISTINCT num_vout, COUNT(*)
 		FROM transactions
-		JOIN tickets
-		ON transactions.id=purchase_tx_db_id
+		JOIN tickets ON transactions.id=purchase_tx_db_id
 		WHERE pool_status=0
 			AND tickets.is_mainchain
 		GROUP BY num_vout;`
 
-	SelectTxnByDbID = `SELECT block_hash, block_height, tx_hash FROM transactions WHERE id = $1;`
+	SelectTxnByDbID = `SELECT block_hash, block_height, tx_hash
+		FROM transactions WHERE id = $1;`
 
 	//SelectTxByPrevOut = `SELECT * FROM transactions WHERE vins @> json_build_array(json_build_object('prevtxhash',$1)::jsonb)::jsonb;`
 	//SelectTxByPrevOut = `SELECT * FROM transactions WHERE vins #>> '{"prevtxhash"}' = '$1';`
@@ -240,26 +244,26 @@ const (
 	// RetrieveVoutDbID  = `SELECT vout_db_ids[$2] FROM transactions WHERE id = $1;`
 
 	SelectTicketsOutputCountByAllBlocks = `SELECT block_height,
-		SUM(CASE WHEN num_vout = 3 THEN 1 ELSE 0 END) as solo,
-		SUM(CASE WHEN num_vout = 5 THEN 1 ELSE 0 END) as pooled
+		SUM(CASE WHEN num_vout = 3 THEN 1 ELSE 0 END) AS solo,
+		SUM(CASE WHEN num_vout = 5 THEN 1 ELSE 0 END) AS pooled
 		FROM transactions
 		WHERE tx_type = $1
-		AND block_height > $2
+			AND block_height > $2
 		GROUP BY block_height
 		ORDER BY block_height;`
 
 	SelectTicketsOutputCountByTPWindow = `SELECT
-		floor(block_height/$3) as count,
-		SUM(CASE WHEN num_vout = 3 THEN 1 ELSE 0 END) as solo,
-		SUM(CASE WHEN num_vout = 5 THEN 1 ELSE 0 END) as pooled
+		floor(block_height/$3) AS count,
+		SUM(CASE WHEN num_vout = 3 THEN 1 ELSE 0 END) AS solo,
+		SUM(CASE WHEN num_vout = 5 THEN 1 ELSE 0 END) AS pooled
 		FROM transactions
 		WHERE tx_type = $1
-		AND block_height > $2
+			AND block_height > $2
 		GROUP BY count
 		ORDER BY count;`
 
 	SelectFeesPerBlockAboveHeight = `
-		SELECT block_height, SUM(fees) as fees
+		SELECT block_height, SUM(fees) AS fees
 		FROM transactions
 		WHERE is_mainchain
 			AND block_height > $1
@@ -267,20 +271,20 @@ const (
 		ORDER BY block_height;`
 
 	SelectMixedTotalPerBlock = `
-		SELECT tx.block_height as block_height, 
-		SUM(tx.mix_count * tx.mix_denom) as total_mixed
-		FROM transactions tx
-		WHERE tx.is_mainchain
-			AND tx.block_height > $1
-		GROUP BY tx.block_height
-		ORDER BY tx.block_height;`
+		SELECT block_height AS block_height, 
+			SUM(mix_count * mix_denom) AS total_mixed
+		FROM transactions
+		WHERE is_mainchain
+			AND block_height > $1
+		GROUP BY block_height
+		ORDER BY block_height;`
 
 	SelectMixedVouts = `
 		SELECT vouts.value, fund_tx.block_height, spend_tx.block_height, vouts.tx_tree
 		FROM vouts
 		JOIN transactions AS fund_tx ON vouts.tx_hash=fund_tx.tx_hash
 		LEFT OUTER JOIN transactions AS spend_tx ON spend_tx_row_id=spend_tx.id
-		WHERE (spend_tx.block_height > $1 or spend_tx.block_height is null)
+		WHERE (spend_tx.block_height > $1 OR spend_tx.block_height IS NULL)
 			AND mixed AND value>0
 			AND fund_tx.is_mainchain
 		ORDER BY fund_tx.block_height;`
