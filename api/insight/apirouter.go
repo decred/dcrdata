@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -43,6 +43,12 @@ func NewInsightApiRouter(app *InsightApi, useRealIP, compression bool, maxAddrs 
 
 	// Put the limiter after RealIP
 	mux.Use(m.Tollbooth(limiter))
+
+	// Check for and validate the "indent" URL query. Each API request handler
+	// may now access the configured indentation string if indent was specified
+	// and parsed as a boolean, otherwise the empty string, from
+	// m.GetIndentCtx(*http.Request).
+	mux.Use(m.Indent(app.JSONIndent))
 
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer)

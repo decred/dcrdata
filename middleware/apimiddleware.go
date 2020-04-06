@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -59,6 +59,7 @@ const (
 	ctxProposalToken
 	ctxXcToken
 	ctxStickWidth
+	ctxIndent
 )
 
 type DataSource interface {
@@ -542,6 +543,37 @@ func CacheControl(maxAge int64) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// Indent creates a middleware for using the specified JSON indentation string
+// when the "indent" URL query parameter parses to a true boolean value. Use
+// GetIndentCtx with request handlers with the Indent middeware.
+func Indent(indent string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			useIndentation := r.URL.Query().Get("indent")
+			if useIndentation != "" {
+				b, err := strconv.ParseBool(useIndentation)
+				if err != nil {
+					http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+					return // end request handling
+				}
+				if b {
+					// Use the configured indent string.
+					ctx := context.WithValue(r.Context(), ctxIndent, indent)
+					r = r.WithContext(ctx)
+				}
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// GetIndentCtx retrieves the ctxIndent data from the request context. If not
+// set, the return value is an empty string.
+func GetIndentCtx(r *http.Request) string {
+	indent, _ := r.Context().Value(ctxIndent).(string)
+	return indent
 }
 
 // Server sets the Server header element.
