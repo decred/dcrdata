@@ -1352,11 +1352,11 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	// endings.
 	UseCRLF := strings.Contains(r.UserAgent(), "Windows")
 
-	linkTemplate := "/address/" + addrData.Address + "?start=%d&n=" + strconv.FormatInt(limitN, 10) + "&txntype=" + fmt.Sprintf("%v", txnType)
-
 	if limitN == 0 {
 		limitN = 20
 	}
+
+	linkTemplate := fmt.Sprintf("/address/%s?start=%%d&n=%d&txntype=%v", addrData.Address, limitN, txnType)
 
 	// Execute the HTML template.
 	pageData := AddressPageData{

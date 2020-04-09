@@ -230,19 +230,23 @@
         </span>
         <div class="text-right pr-3" data-target="address.tablePagination">
           {{if ne .Offset 0}}
-            <a href="/address/{{.Address}}?start={{subtract .Offset .Limit}}&n={{.Limit}}"
-            class="d-inline-block dcricon-arrow-left m-1 fs20"></a>
+            <a  class="d-inline-block dcricon-arrow-left m-1 fz20"
+                data-action="click->address#pageNumberLink"
+                href="/address/{{.Address}}?start={{subtract .Offset .Limit}}&n={{.Limit}}&txntype={{$txType}}"></a>
           {{end}}
           {{range $.Pages}}
             {{if eq .Link ""}}
               <span>{{.Str}}</span>
             {{else}}
-              <a href="{{.Link}}" class="fs18 pager px-1{{if .Active}} active{{end}}">{{.Str}}</a>
+              <a  class="fs18 pager px-1{{if .Active}} active{{end}}"
+                  data-action="click->address#pageNumberLink"
+                  href="{{.Link}}">{{.Str}}</a>
             {{end}}
           {{end}}
           {{if gt (subtract $TxnCount .Offset) .Limit}}
-            <a href="/address/{{.Address}}?start={{add .Offset .Limit}}&n={{.Limit}}"
-            class="d-inline-block dcricon-arrow-right m-1 fs20"></a>
+            <a  class="d-inline-block dcricon-arrow-right m-1 fs20"
+                data-action="click->address#pageNumberLink"
+                href="/address/{{.Address}}?start={{add .Offset .Limit}}&n={{.Limit}}&txntype={{$txType}}"></a>
           {{end}}
         </div>
         <div class="d-flex align-items-center justify-content-between">

@@ -52,10 +52,6 @@ function amountFlowProcessor (d, binSize) {
   }
 }
 
-function numberWithCommas (x) {
-  return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-}
-
 function formatter (data) {
   var xHTML = ''
   if (data.xHTML !== undefined) {
@@ -305,6 +301,16 @@ export default class extends Controller {
     this.toPage(-1)
   }
 
+  pageNumberLink (e) {
+    e.preventDefault()
+    let url = e.target.href
+    let parser = new URL(url)
+    let start = parser.searchParams.get('start')
+    let pagesize = parser.searchParams.get('n')
+    let txntype = parser.searchParams.get('txntype')
+    this.fetchTable(txntype, pagesize, start)
+  }
+
   toPage (direction) {
     var params = ctrl.paginationParams
     var count = ctrl.pageSize
@@ -329,6 +335,7 @@ export default class extends Controller {
     ctrl.query.replace(settings)
     ctrl.paginationParams.offset = offset
     ctrl.paginationParams.pagesize = count
+    ctrl.paginationParams.txntype = txType
     ctrl.setPageability()
     if (txType.indexOf('merged') === -1) {
       this.mergedMsgTarget.classList.add('d-hide')
@@ -376,7 +383,7 @@ export default class extends Controller {
     var rangeEnd = params.offset + count
     if (rangeEnd > rowMax) rangeEnd = rowMax
     ctrl.rangeTarget.innerHTML = 'showing ' + (params.offset + 1) + ' &ndash; ' +
-    rangeEnd + ' of ' + numberWithCommas(rowMax) + ' transaction' + suffix
+    rangeEnd + ' of ' + rowMax.toLocaleString() + ' transaction' + suffix
   }
 
   createGraph (processedData, otherOptions) {
@@ -389,39 +396,27 @@ export default class extends Controller {
 
   setTablePaginationLinks () {
     var tablePagesLink = ctrl.tablePaginationParams
-    var txCount = ctrl.paginationParams.count
-    var offset = ctrl.paginationParams.offset
-    var pageSize = ctrl.paginationParams.pagesize
-
+    var txCount = parseInt(ctrl.paginationParams.count)
+    var offset = parseInt(ctrl.paginationParams.offset)
+    var pageSize = parseInt(ctrl.paginationParams.pagesize)
+    var txnType = ctrl.paginationParams.txntype
     var links = ''
 
-    var i
-    for (i = 0; i < tablePagesLink.length; i++) {
-      var link
-      if (tablePagesLink[i].link === '') {
-        link = '<span>' + tablePagesLink[i].str + '</span>'
-      } else {
-        var active
-        if (tablePagesLink[i].active) {
-          active = ' active'
-        } else {
-          active = ''
-        }
-        link = '<a href="' + tablePagesLink[i].link + '" class="fs18 pager px-1' + active + '">' + tablePagesLink[i].str + '</a>'
-      }
-
-      if (links === '') {
-        links = link
-        continue
-      }
-
-      links = links + '\n' + link
+    if (typeof offset !== 'undefined' && offset > 0) {
+      links = `<a href="/address/${this.dcrAddress}?start=${offset - pageSize}&n=${pageSize}&txntype=${txnType}" ` +
+      `class="d-inline-block dcricon-arrow-left m-1 fz20" data-action="click->address#pageNumberLink"></a>` + '\n'
     }
+
+    links += tablePagesLink.map(d => {
+      if (!d.link) return `<span>${d.str}</span>`
+      return `<a href="${d.link}" class="fs18 pager px-1${d.active ? ' active' : ''}" data-action="click->address#pageNumberLink">${d.str}</a>`
+    }).join('\n')
 
     if ((txCount - offset) > pageSize) {
-      link = '<a href="/address/' + this.dcrAddress + '?start=' + (offset + pageSize) + '&n=' + pageSize + '" class="d-inline-block dcricon-arrow-right m-1 fs20"></a>'
-      links = links + '\n' + link
+      links += '\n' + `<a href="/address/${this.dcrAddress}?start=${(offset + pageSize)}&n=${pageSize}&txntype=${txnType}" ` +
+      `class="d-inline-block dcricon-arrow-right m-1 fs20" data-action="click->address#pageNumberLink"></a>`
     }
+
     ctrl.tablePaginationTarget.innerHTML = links
   }
 
