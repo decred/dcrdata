@@ -1631,8 +1631,27 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Split searchStr to the first part corresponding to a transaction hash and
+	// to the second part corresponding to a transaction output index.
+	searchStrSplit := strings.Split(searchStr, ":")
+	searchStrRewritten := searchStrSplit[0]
+	switch {
+	case len(searchStrSplit) > 2:
+		exp.StatusPage(w, "search failed", "Transaction outpoint does not have a valid format: "+searchStr,
+			"", ExpStatusNotFound)
+		return
+	case len(searchStrSplit) > 1:
+		if _, err := strconv.ParseInt(searchStrSplit[1], 10, 0); err == nil {
+			searchStrRewritten = searchStrRewritten + "/out/" + searchStrSplit[1]
+		} else {
+			exp.StatusPage(w, "search failed", "Transaction output index is not a valid integer: "+searchStrSplit[1],
+				"", ExpStatusNotFound)
+			return
+		}
+	}
+
 	// Remaining possibilities are hashes, so verify the string is a hash.
-	if _, err = chainhash.NewHashFromStr(searchStr); err != nil {
+	if _, err = chainhash.NewHashFromStr(searchStrSplit[0]); err != nil {
 		exp.StatusPage(w, "search failed",
 			"Search string is not a valid hash or address: "+searchStr,
 			"", ExpStatusNotFound)
@@ -1641,27 +1660,27 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 
 	// Attempt to get a block index by calling GetBlockHeight to see if the
 	// value is a block hash and then redirect to the block page if it is.
-	_, err = exp.dataSource.GetBlockHeight(searchStr)
+	_, err = exp.dataSource.GetBlockHeight(searchStrSplit[0])
 	if err == nil {
-		http.Redirect(w, r, "/block/"+searchStr, http.StatusPermanentRedirect)
+		http.Redirect(w, r, "/block/"+searchStrSplit[0], http.StatusPermanentRedirect)
 		return
 	}
 
 	// Call GetExplorerTx to see if the value is a transaction hash and then
 	// redirect to the tx page if it is.
-	tx := exp.dataSource.GetExplorerTx(searchStr)
+	tx := exp.dataSource.GetExplorerTx(searchStrSplit[0])
 	if tx != nil {
-		http.Redirect(w, r, "/tx/"+searchStr, http.StatusPermanentRedirect)
+		http.Redirect(w, r, "/tx/"+searchStrRewritten, http.StatusPermanentRedirect)
 		return
 	}
 
 	// Also check the aux DB as it may have transactions from orphaned blocks.
-	dbTxs, err := exp.dataSource.Transaction(searchStr)
+	dbTxs, err := exp.dataSource.Transaction(searchStrSplit[0])
 	if err != nil && err != sql.ErrNoRows {
 		log.Errorf("Searching for transaction failed: %v", err)
 	}
 	if dbTxs != nil {
-		http.Redirect(w, r, "/tx/"+searchStr, http.StatusPermanentRedirect)
+		http.Redirect(w, r, "/tx/"+searchStrRewritten, http.StatusPermanentRedirect)
 		return
 	}
 
