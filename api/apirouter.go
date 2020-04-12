@@ -39,7 +39,7 @@ func NewAPIRouter(app *appContext, JSONIndent string, useRealIP, compressLarge b
 	mux.Get("/status", app.status)
 	mux.Get("/status/happy", app.statusHappy)
 	mux.Get("/supply", app.coinSupply)
-	mux.Get("/supply/now", app.coinSupplyCirculating)
+	mux.Get("/supply/circulating", app.coinSupplyCirculating)
 
 	compMiddleware := m.Next
 	if compressLarge {
