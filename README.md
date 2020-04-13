@@ -676,12 +676,13 @@ Exchange monitoring is off by default. Server must be started with
 The server will set a default currency code. To use a different code, pass URL
 parameter `?code=[code]`. For example, `/exchanges?code=EUR`.
 
-| Other                           | Path            | Type               |
-| ------------------------------- | --------------- | ------------------ |
-| Status                          | `/status`       | `types.Status`     |
-| Health (HTTP 200 or 503)        | `/status/happy` | `types.Happy`     |
-| Coin Supply                     | `/supply`       | `types.CoinSupply` |
-| Endpoint list (always indented) | `/list`         | `[]string`         |
+| Other                           | Path                                          | Type                                    |
+| ------------------------------- | --------------------------------------------- | --------------------------------------- |
+| Status                          | `/status`                                     | `types.Status`                          |
+| Health (HTTP 200 or 503)        | `/status/happy`                               | `types.Happy`                           |
+| Coin Supply                     | `/supply`                                     | `types.CoinSupply`                      |
+| Coin Supply Circulating (Mined) | `/supply/circulating?dcr=[true\|false]`       | `int` (default) or `float` (`dcr=true`) |
+| Endpoint list (always indented) | `/list`                                       | `[]string`                              |
 
 All JSON endpoints accept the URL query `indent=[true|false]`. For example,
 `/stake/diff?indent=true`. By default, indentation is off. The characters to use

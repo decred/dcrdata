@@ -24,6 +24,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/dcrutil/v2"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
 	"github.com/decred/dcrd/rpcclient/v5"
 	"github.com/decred/dcrd/wire"
@@ -369,6 +370,33 @@ func (c *appContext) coinSupply(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, supply, m.GetIndentCtx(r))
+}
+
+func (c *appContext) coinSupplyCirculating(w http.ResponseWriter, r *http.Request) {
+	var dcr bool
+	if dcrParam := r.URL.Query().Get("dcr"); dcrParam != "" {
+		var err error
+		dcr, err = strconv.ParseBool(dcrParam)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+	}
+
+	supply := c.DataSource.CurrentCoinSupply()
+	if supply == nil {
+		apiLog.Error("Unable to get coin supply.")
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	if dcr {
+		coinSupply := dcrutil.Amount(supply.Mined).ToCoin()
+		writeJSONBytes(w, []byte(strconv.FormatFloat(coinSupply, 'f', 8, 64)))
+		return
+	}
+
+	writeJSONBytes(w, []byte(strconv.FormatInt(supply.Mined, 10)))
 }
 
 func (c *appContext) currentHeight(w http.ResponseWriter, _ *http.Request) {
