@@ -417,7 +417,7 @@ export default class extends Controller {
       `class="d-inline-block dcricon-arrow-right m-1 fs20" data-action="click->address#pageNumberLink"></a>`
     }
 
-    ctrl.tablePaginationTarget.innerHTML = links
+    ctrl.tablePaginationTarget.innerHTML = dompurify.sanitize(links)
   }
 
   drawGraph () {
