@@ -158,7 +158,7 @@ export default class extends Controller {
       'range', 'chartbox', 'noconfirms', 'chart', 'pagebuttons',
       'pending', 'hash', 'matchhash', 'view', 'mergedMsg',
       'chartLoader', 'listLoader', 'expando', 'littlechart', 'bigchart',
-      'fullscreen']
+      'fullscreen', 'tablePagination']
   }
 
   async connect () {
@@ -301,6 +301,16 @@ export default class extends Controller {
     this.toPage(-1)
   }
 
+  pageNumberLink (e) {
+    e.preventDefault()
+    let url = e.target.href
+    let parser = new URL(url)
+    let start = parser.searchParams.get('start')
+    let pagesize = parser.searchParams.get('n')
+    let txntype = parser.searchParams.get('txntype')
+    this.fetchTable(txntype, pagesize, start)
+  }
+
   toPage (direction) {
     var params = ctrl.paginationParams
     var count = ctrl.pageSize
@@ -324,12 +334,16 @@ export default class extends Controller {
     ctrl.paginationParams.count = data.tx_count
     ctrl.query.replace(settings)
     ctrl.paginationParams.offset = offset
+    ctrl.paginationParams.pagesize = count
+    ctrl.paginationParams.txntype = txType
     ctrl.setPageability()
     if (txType.indexOf('merged') === -1) {
       this.mergedMsgTarget.classList.add('d-hide')
     } else {
       this.mergedMsgTarget.classList.remove('d-hide')
     }
+    ctrl.tablePaginationParams = data.pages
+    ctrl.setTablePaginationLinks()
     ctrl.listLoaderTarget.classList.remove('loading')
   }
 
@@ -369,7 +383,7 @@ export default class extends Controller {
     var rangeEnd = params.offset + count
     if (rangeEnd > rowMax) rangeEnd = rowMax
     ctrl.rangeTarget.innerHTML = 'showing ' + (params.offset + 1) + ' &ndash; ' +
-    rangeEnd + ' of ' + rowMax + ' transaction' + suffix
+    rangeEnd + ' of ' + rowMax.toLocaleString() + ' transaction' + suffix
   }
 
   createGraph (processedData, otherOptions) {
@@ -378,6 +392,32 @@ export default class extends Controller {
       processedData,
       { ...commonOptions, ...otherOptions }
     )
+  }
+
+  setTablePaginationLinks () {
+    var tablePagesLink = ctrl.tablePaginationParams
+    var txCount = parseInt(ctrl.paginationParams.count)
+    var offset = parseInt(ctrl.paginationParams.offset)
+    var pageSize = parseInt(ctrl.paginationParams.pagesize)
+    var txnType = ctrl.paginationParams.txntype
+    var links = ''
+
+    if (typeof offset !== 'undefined' && offset > 0) {
+      links = `<a href="/address/${this.dcrAddress}?start=${offset - pageSize}&n=${pageSize}&txntype=${txnType}" ` +
+      `class="d-inline-block dcricon-arrow-left m-1 fz20" data-action="click->address#pageNumberLink"></a>` + '\n'
+    }
+
+    links += tablePagesLink.map(d => {
+      if (!d.link) return `<span>${d.str}</span>`
+      return `<a href="${d.link}" class="fs18 pager px-1${d.active ? ' active' : ''}" data-action="click->address#pageNumberLink">${d.str}</a>`
+    }).join('\n')
+
+    if ((txCount - offset) > pageSize) {
+      links += '\n' + `<a href="/address/${this.dcrAddress}?start=${(offset + pageSize)}&n=${pageSize}&txntype=${txnType}" ` +
+      `class="d-inline-block dcricon-arrow-right m-1 fs20" data-action="click->address#pageNumberLink"></a>`
+    }
+
+    ctrl.tablePaginationTarget.innerHTML = dompurify.sanitize(links)
   }
 
   drawGraph () {

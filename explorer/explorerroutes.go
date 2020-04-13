@@ -1270,6 +1270,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		Data         *dbtypes.AddressInfo
 		CRLFDownload bool
 		FiatBalance  *exchanges.Conversion
+		Pages        []pageNumber
 	}
 
 	// Grab the URL query parameters
@@ -1351,12 +1352,19 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	// endings.
 	UseCRLF := strings.Contains(r.UserAgent(), "Windows")
 
+	if limitN == 0 {
+		limitN = 20
+	}
+
+	linkTemplate := fmt.Sprintf("/address/%s?start=%%d&n=%d&txntype=%v", addrData.Address, limitN, txnType)
+
 	// Execute the HTML template.
 	pageData := AddressPageData{
 		CommonPageData: exp.commonData(r),
 		Data:           addrData,
 		CRLFDownload:   UseCRLF,
 		FiatBalance:    conversion,
+		Pages:          calcPages(int(addrData.TxnCount), int(limitN), int(offsetAddrOuts), linkTemplate),
 	}
 	str, err := exp.templates.exec("address", pageData)
 	if err != nil {
@@ -1392,11 +1400,15 @@ func (exp *explorerUI) AddressTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	linkTemplate := "/address/" + addrData.Address + "?start=%d&n=" + strconv.FormatInt(limitN, 10) + "&txntype=" + fmt.Sprintf("%v", txnType)
+
 	response := struct {
-		TxnCount int64  `json:"tx_count"`
-		HTML     string `json:"html"`
+		TxnCount int64        `json:"tx_count"`
+		HTML     string       `json:"html"`
+		Pages    []pageNumber `json:"pages"`
 	}{
 		TxnCount: addrData.TxnCount + addrData.NumUnconfirmed,
+		Pages:    calcPages(int(addrData.TxnCount), int(limitN), int(offsetAddrOuts), linkTemplate),
 	}
 
 	response.HTML, err = exp.templates.exec("addresstable", struct {
@@ -1437,7 +1449,9 @@ func parseAddressParams(r *http.Request) (address string, txnType dbtypes.AddrTx
 	// Number of outputs for the address to query the database for. The URL
 	// query parameter "n" is used to specify the limit (e.g. "?n=20").
 	limitN = defaultAddressRows
+
 	if nParam := r.URL.Query().Get("n"); nParam != "" {
+
 		var val uint64
 		val, err = strconv.ParseUint(nParam, 10, 64)
 		if err != nil {
@@ -1448,6 +1462,8 @@ func parseAddressParams(r *http.Request) (address string, txnType dbtypes.AddrTx
 			log.Warnf("addressPage: requested up to %d address rows, "+
 				"limiting to %d", limitN, MaxAddressRows)
 			limitN = MaxAddressRows
+		} else {
+			limitN = int64(val)
 		}
 	}
 
@@ -2202,9 +2218,9 @@ func (exp *explorerUI) commonData(r *http.Request) *CommonPageData {
 // A page number has the information necessary to create numbered pagination
 // links.
 type pageNumber struct {
-	Active bool
-	Link   string
-	Str    string
+	Active bool   `json:"active"`
+	Link   string `json:"link"`
+	Str    string `json:"str"`
 }
 
 func makePageNumber(active bool, link, str string) pageNumber {
