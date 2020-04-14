@@ -451,6 +451,7 @@ func (pgb *ChainDB) DeindexAll() error {
 		// transactions table
 		{DeindexTransactionTableOnHashes},
 		{DeindexTransactionTableOnBlockIn},
+		{DeindexTransactionTableOnBlockHeight},
 
 		// vins table
 		{DeindexVinTableOnVins},
@@ -508,9 +509,10 @@ func (pgb *ChainDB) DeindexAll() error {
 	return err
 }
 
-// IndexAll creates most indexes in the tables. Exceptions: (1)
-// addresses.matching_tx_hash is not indexed, and (2) tickets table (use
-// IndexTicketsTable).
+// IndexAll creates most indexes in the tables. Exceptions: (1) addresses on
+// matching_tx_hash (use IndexAddressTable or do it individually), (2) all
+// tickets table indexes (use IndexTicketsTable), and (3) vouts on tx hash and
+// index.
 func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 	allIndexes := []indexingInfo{
 		// blocks table
@@ -520,7 +522,8 @@ func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 
 		// transactions table
 		{Msg: "transactions table on tx/block hashes", IndexFunc: IndexTransactionTableOnHashes},
-		{Msg: "transactions table on block id/indx", IndexFunc: IndexTransactionTableOnBlockIn},
+		{Msg: "transactions table on block id/idx", IndexFunc: IndexTransactionTableOnBlockIn},
+		{Msg: "transactions table on block height", IndexFunc: IndexTransactionTableOnBlockHeight},
 
 		// vins table
 		{Msg: "vins table on txin", IndexFunc: IndexVinTableOnVins},
@@ -528,6 +531,7 @@ func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 
 		// vouts table
 		{Msg: "vouts table on tx hash and index", IndexFunc: IndexVoutTableOnTxHashIdx},
+		// {Msg: "vouts table on spend tx row id", IndexFunc: IndexVoutTableOnSpendTxID},
 
 		// votes table
 		{Msg: "votes table on candidate block", IndexFunc: IndexVotesTableOnCandidate},
@@ -536,6 +540,8 @@ func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 		{Msg: "votes table on vote version", IndexFunc: IndexVotesTableOnVoteVersion},
 		{Msg: "votes table on height", IndexFunc: IndexVotesTableOnHeight},
 		{Msg: "votes table on Block Time", IndexFunc: IndexVotesTableOnBlockTime},
+
+		// tickets table is done separately by IndexTicketsTable
 
 		// misses table
 		{Msg: "misses table", IndexFunc: IndexMissesTableOnHashes},
@@ -552,6 +558,7 @@ func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 		{Msg: "addresses table on block time", IndexFunc: IndexBlockTimeOnTableAddress},
 		{Msg: "addresses table on address", IndexFunc: IndexAddressTableOnAddress},
 		{Msg: "addresses table on vout DB ID", IndexFunc: IndexAddressTableOnVoutID},
+		//{Msg: "addresses table on matching tx hash", IndexFunc: IndexAddressTableOnMatchingTxHash},
 
 		// proposals table
 		{Msg: "proposals table on Token+Time", IndexFunc: IndexProposalsTableOnToken},
