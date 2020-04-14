@@ -832,7 +832,7 @@ func TransactionsCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		address := r.FormValue("address")
 		if address != "" {
-			ctx := context.WithValue(r.Context(), CtxAddress, address)
+			ctx := context.WithValue(r.Context(), CtxAddress, []string{address})
 			next.ServeHTTP(w, r.WithContext(ctx))
 		}
 
@@ -899,7 +899,7 @@ func PageNumCtx(next http.Handler) http.Handler {
 func AddressPostCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		address := r.PostFormValue("addrs")
-		ctx := context.WithValue(r.Context(), CtxAddress, address)
+		ctx := context.WithValue(r.Context(), CtxAddress, []string{address})
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
