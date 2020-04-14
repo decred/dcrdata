@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 
 	apitypes "github.com/decred/dcrdata/api/types/v5"
 	m "github.com/decred/dcrdata/middleware/v3"
@@ -159,7 +160,8 @@ func PostAddrsTxsCtx(next http.Handler) http.Handler {
 		}
 
 		// addrs must come from POST body.
-		ctx := context.WithValue(r.Context(), m.CtxAddress, req.Addresses)
+		addrs := strings.Split(req.Addresses, ",")
+		ctx := context.WithValue(r.Context(), m.CtxAddress, addrs)
 
 		// Other parameters may come from the POST body or URL query values.
 
@@ -236,7 +238,8 @@ func PostAddrsUtxoCtx(next http.Handler) http.Handler {
 		}
 
 		// Successful extraction of Body JSON
-		ctx := context.WithValue(r.Context(), m.CtxAddress, req.Addrs)
+		addrs := strings.Split(req.Addrs, ",")
+		ctx := context.WithValue(r.Context(), m.CtxAddress, addrs)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
