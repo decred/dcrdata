@@ -33,7 +33,7 @@ require (
 	github.com/decred/slog v1.0.0
 	github.com/dmigwi/go-piparser/proposals v0.0.0-20191219171828-ae8cbf4067e1
 	github.com/dustin/go-humanize v1.0.0
-	github.com/go-chi/chi v4.0.3-0.20191031103402-221acf29d02b+incompatible
+	github.com/go-chi/chi v4.1.0+incompatible
 	github.com/google/gops v0.3.7-0.20190802051910-59c8be2eaddf
 	github.com/googollee/go-engine.io v1.4.3-0.20190924125625-798118fc0dd2
 	github.com/googollee/go-socket.io v1.4.3-0.20191016204530-42fe90fa9ed0

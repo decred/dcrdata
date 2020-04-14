@@ -54,7 +54,7 @@ func NewInsightApiRouter(app *InsightApi, useRealIP, compression bool, maxAddrs 
 	mux.Use(middleware.Recoverer)
 	mux.Use(middleware.StripSlashes)
 	if compression {
-		mux.Use(middleware.NewCompressor(3).Handler())
+		mux.Use(middleware.Compress(3))
 	}
 
 	mux.With(m.OriginalRequestURI).Get("/", func(w http.ResponseWriter, r *http.Request) {

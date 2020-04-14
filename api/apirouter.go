@@ -44,7 +44,7 @@ func NewAPIRouter(app *appContext, JSONIndent string, useRealIP, compressLarge b
 	compMiddleware := m.Next
 	if compressLarge {
 		log.Debug("Enabling compressed responses for large JSON payload endpoints.")
-		compMiddleware = middleware.NewCompressor(3).Handler()
+		compMiddleware = middleware.Compress(3)
 	}
 
 	mux.Route("/block", func(r chi.Router) {
