@@ -1641,10 +1641,10 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 			"", ExpStatusNotFound)
 		return
 	case len(searchStrSplit) > 1:
-		if _, err := strconv.ParseInt(searchStrSplit[1], 10, 0); err == nil {
+		if _, err := strconv.ParseUint(searchStrSplit[1], 10, 32); err == nil {
 			searchStrRewritten = searchStrRewritten + "/out/" + searchStrSplit[1]
 		} else {
-			exp.StatusPage(w, "search failed", "Transaction output index is not a valid integer: "+searchStrSplit[1],
+			exp.StatusPage(w, "search failed", "Transaction output index is not a valid non-negative integer: "+searchStrSplit[1],
 				"", ExpStatusNotFound)
 			return
 		}
