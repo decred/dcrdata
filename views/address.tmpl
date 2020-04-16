@@ -258,17 +258,19 @@
             <div class="d-inline-block text-right">
               <label class="mb-0 mr-1" for="txntype">Type</label>
               <select
-                  name="txntype"
-                  data-target="address.txntype"
-                  data-action="change->address#changeTxType"
-                  class="form-control-sm mb-2 mr-sm-2 mb-sm-0">
-                  <option {{if eq $txType "all"}}selected{{end}} value="all">All</option>
-                  <option {{if eq $txType "credit"}}selected{{end}} value="credit">Credits</option>
-                  <option {{if eq $txType "debit"}}selected{{end}} value="debit">Debits</option>
-                  <option {{if eq $txType "merged"}}selected{{end}} value="merged">Merged View</option>
-                  <option {{if eq $txType "merged_credit"}}selected{{end}} value="merged_credit">Merged Credits</option>
-                  <option {{if eq $txType "merged_debit"}}selected{{end}} value="merged_debit">Merged Debits</option>
-              </select>
+                name="txntype"
+                data-target="address.txntype"
+                data-action="change->address#changeTxType"
+                class="form-control-sm mb-2 mr-sm-2 mb-sm-0"
+            >
+                <option {{if eq $txType "all"}}selected{{end}} value="all">All</option>
+                <option {{if eq $txType "unspent"}}selected{{end}} value="unspent">Unspent</option>
+                <option {{if eq $txType "credit"}}selected{{end}} value="credit">Credits</option>
+                <option {{if eq $txType "debit"}}selected{{end}} value="debit">Debits</option>
+                <option {{if eq $txType "merged"}}selected{{end}} value="merged">Merged View</option>
+                <option {{if eq $txType "merged_credit"}}selected{{end}} value="merged_credit">Merged Credits</option>
+                <option {{if eq $txType "merged_debit"}}selected{{end}} value="merged_debit">Merged Debits</option>
+            </select>
             </div>
             <div class="d-inline-block text-right">
               <label class="mb-0 mr-1" for="pagesize">Page size</label>

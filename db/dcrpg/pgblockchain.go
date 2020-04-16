@@ -2338,6 +2338,8 @@ func (pgb *ChainDB) AddressData(address string, limitN, offsetAddrOuts int64,
 			case dbtypes.AddrTxnDebit:
 				addrData.TxnCount = addrData.KnownSpendingTxns
 				addrData.Transactions = addrData.TxnsSpending
+			case dbtypes.AddrUnspentTxn:
+				addrData.TxnCount = addrData.NumFundingTxns - addrData.NumSpendingTxns
 			}
 		}
 
@@ -2396,7 +2398,7 @@ FUNDING_TX_DUPLICATE_CHECK:
 			log.Errorf("An outpoint's transaction is unexpectedly confirmed.")
 			continue
 		}
-		if txnType == dbtypes.AddrTxnAll || txnType == dbtypes.AddrTxnCredit {
+		if txnType == dbtypes.AddrTxnAll || txnType == dbtypes.AddrTxnCredit || txnType == dbtypes.AddrUnspentTxn {
 			addrTx := &dbtypes.AddressTx{
 				TxID:          fundingTx.Hash().String(),
 				TxType:        txhelpers.DetermineTxTypeString(fundingTx.Tx),

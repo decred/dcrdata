@@ -279,6 +279,7 @@ const (
 	AddrMergedTxnDebit
 	AddrMergedTxnCredit
 	AddrMergedTxn
+	AddrUnspentTxn
 	AddrTxnUnknown
 )
 
@@ -290,6 +291,7 @@ var AddrTxnViewTypes = map[AddrTxnViewType]string{
 	AddrMergedTxnDebit:  "merged_debit",
 	AddrMergedTxnCredit: "merged_credit",
 	AddrMergedTxn:       "merged",
+	AddrUnspentTxn:      "unspent",
 	AddrTxnUnknown:      "unknown",
 }
 
@@ -301,7 +303,7 @@ func (a AddrTxnViewType) String() string {
 // the type is invalid, a non-nil error is returned.
 func (a AddrTxnViewType) IsMerged() (bool, error) {
 	switch a {
-	case AddrTxnAll, AddrTxnCredit, AddrTxnDebit:
+	case AddrTxnAll, AddrTxnCredit, AddrTxnDebit, AddrUnspentTxn:
 		return false, nil
 	case AddrMergedTxn, AddrMergedTxnCredit, AddrMergedTxnDebit:
 		return true, nil
@@ -326,6 +328,8 @@ func AddrTxnViewTypeFromStr(txnType string) AddrTxnViewType {
 		return AddrMergedTxnCredit
 	case "merged":
 		return AddrMergedTxn
+	case "unspent":
+		return AddrUnspentTxn
 	default:
 		return AddrTxnUnknown
 	}
@@ -889,6 +893,8 @@ func SliceAddressRows(rows []*AddressRow, N, offset int, txnView AddrTxnViewType
 		}
 		// []*AddressRowMerged -> []*AddressRow
 		return UncompactMergedRows(mergedRows), nil
+	case AddrUnspentTxn:
+		return SliceAddressUnspentCreditRows(rows, N, offset), nil
 	default:
 		return nil, fmt.Errorf("unrecognized address transaction view: %v", txnView)
 	}
@@ -928,6 +934,17 @@ func CountCreditDebitRows(rows []*AddressRow) (numCredit, numDebit int) {
 	return
 }
 
+// CountUnspentCreditRows returns the numbers of unspent credit (funding)
+// address rows in a []*AddressRow.
+func CountUnspentCreditRows(rows []*AddressRow) (numCredit, numDebit int) {
+	for _, r := range rows {
+		if r.IsFunding && r.MatchingTxHash == "" {
+			numCredit++
+		}
+	}
+	return
+}
+
 // SliceAddressCreditRows selects a subset of the crediting elements of the
 // AddressRow slice given the count and offset.
 func SliceAddressCreditRows(rows []*AddressRow, N, offset int) []*AddressRow {
@@ -940,6 +957,44 @@ func SliceAddressCreditRows(rows []*AddressRow, N, offset int) []*AddressRow {
 
 	// Count the number of IsFunding rows in the input slice.
 	numCreditRows, _ := CountCreditDebitRows(rows)
+	if numCreditRows < N {
+		N = numCreditRows
+	}
+	if offset >= numCreditRows {
+		return nil
+	}
+
+	var skipped int
+	out := make([]*AddressRow, 0, N)
+	for _, row := range rows {
+		if !row.IsFunding {
+			continue
+		}
+		if skipped < offset {
+			skipped++
+			continue
+		}
+		// Append this row, and break the loop if we have N rows.
+		out = append(out, row)
+		if len(out) == N {
+			break
+		}
+	}
+	return out
+}
+
+// SliceAddressUnspentCreditRows selects a subset of the unspent crediting elements of the
+// AddressRow slice given the count and offset.
+func SliceAddressUnspentCreditRows(rows []*AddressRow, N, offset int) []*AddressRow {
+	if rows == nil {
+		return nil
+	}
+	if offset >= len(rows) {
+		return []*AddressRow{}
+	}
+
+	// Count the number of IsFunding rows in the input slice.
+	numCreditRows, _ := CountUnspentCreditRows(rows)
 	if numCreditRows < N {
 		N = numCreditRows
 	}

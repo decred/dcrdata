@@ -16,6 +16,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrdata/db/dbtypes/v2"
+	"github.com/decred/dcrdata/txhelpers/v4"
 )
 
 const (
@@ -86,6 +87,17 @@ func CountCreditDebitRowsCompact(rows []*dbtypes.AddressRowCompact) (numCredit, 
 			numCredit++
 		} else {
 			numDebit++
+		}
+	}
+	return
+}
+
+// CountUnspentCreditRowsCompact returns the numbers of credit (funding) which is unspent
+// in a []dbtypes.AddressRowCompact.
+func CountUnspentCreditRowsCompact(rows []*dbtypes.AddressRowCompact) (numCredit int) {
+	for _, row := range rows {
+		if row.IsFunding && txhelpers.IsZeroHash(row.MatchingTxHash) {
+			numCredit++
 		}
 	}
 	return
@@ -297,6 +309,44 @@ func debitAddressRowsMerged(rows []*dbtypes.AddressRowMerged, N, offset int) []*
 		if row.IsFunding() {
 			continue
 		}
+		if skipped < offset {
+			skipped++
+			continue
+		}
+		// Append this row, and break the loop if we have N rows.
+		out = append(out, row)
+		if len(out) == N {
+			break
+		}
+	}
+	return out
+}
+
+func unspentCreditAddressRows(rows []*dbtypes.AddressRowCompact, N, offset int) []*dbtypes.AddressRowCompact {
+	if rows == nil {
+		return nil
+	}
+	if offset >= len(rows) {
+		return []*dbtypes.AddressRowCompact{}
+	}
+
+	// Count the number of IsFunding rows in the input slice.
+	numUnspentCreditRows := CountUnspentCreditRowsCompact(rows)
+
+	if numUnspentCreditRows < N {
+		N = numUnspentCreditRows
+	}
+	if offset >= numUnspentCreditRows {
+		return nil
+	}
+
+	var skipped int
+	out := make([]*dbtypes.AddressRowCompact, 0, N)
+	for _, row := range rows {
+		if !row.IsFunding || !txhelpers.IsZeroHash(row.MatchingTxHash) {
+			continue
+		}
+
 		if skipped < offset {
 			skipped++
 			continue
@@ -523,6 +573,8 @@ func (d *AddressCacheItem) Transactions(N, offset int, txnView dbtypes.AddrTxnVi
 	case dbtypes.AddrMergedTxn, dbtypes.AddrMergedTxnCredit, dbtypes.AddrMergedTxnDebit:
 		// []*dbtypes.AddressRowMerged
 		return dbtypes.MergeRowsCompactRange(d.rows, N, offset, txnView), blockID, nil
+	case dbtypes.AddrUnspentTxn:
+		return unspentCreditAddressRows(d.rows, N, offset), blockID, nil
 	default:
 		// This should already be caught by IsMerged err check.
 		return nil, nil, fmt.Errorf("unrecognized address transaction view: %v", txnView)
