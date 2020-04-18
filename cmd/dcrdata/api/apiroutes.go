@@ -26,6 +26,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v3"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
 	"github.com/decred/dcrd/rpcclient/v6"
+	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
 
 	m "github.com/decred/dcrdata/cmd/dcrdata/middleware"
@@ -34,6 +35,7 @@ import (
 	apitypes "github.com/decred/dcrdata/v6/api/types"
 	"github.com/decred/dcrdata/v6/db/cache"
 	"github.com/decred/dcrdata/v6/db/dbtypes"
+	"github.com/decred/dcrdata/v6/rpcutils"
 	"github.com/decred/dcrdata/v6/txhelpers"
 )
 
@@ -702,6 +704,97 @@ func (c *appContext) getDecodedTx(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, tx, m.GetIndentCtx(r))
+}
+
+// getTxSwapsInfo checks the inputs and outputs of the specified transaction for
+// information about completed atomic swaps that were created and/or redeemed in
+// the transaction.
+func (c *appContext) getTxSwapsInfo(w http.ResponseWriter, r *http.Request) {
+	txid, err := m.GetTxIDCtx(r)
+	if err != nil {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	rawtx, err := c.nodeClient.GetRawTransactionVerbose(r.Context(), txid)
+	if err != nil {
+		apiLog.Errorf("Unable to get transaction %s: %v", txid, err)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	// Check if tx is a stake tree tx or coinbase tx and return empty swap info.
+	var isStakeOrCoinbaseTx bool
+	for _, input := range rawtx.Vin {
+		if input.IsCoinBase() || input.IsStakeBase() {
+			isStakeOrCoinbaseTx = true
+			break
+		}
+	}
+	if isStakeOrCoinbaseTx {
+		noSwaps := &txhelpers.TxAtomicSwaps{
+			TxID:  txid.String(),
+			Found: "No created or redeemed swaps in tx",
+		}
+		writeJSON(w, noSwaps, m.GetIndentCtx(r))
+		return
+	}
+
+	// Fetch spending info for this tx if there is at least 1 p2sh output.
+	// P2SH outputs may be contracts and the spending input sig is required
+	// to know for sure.
+	var maybeHasContracts bool
+	for _, vout := range rawtx.Vout {
+		if vout.ScriptPubKey.Type == txscript.ScriptHashTy.String() {
+			maybeHasContracts = true
+			break
+		}
+	}
+
+	outputSpenders := make(map[uint32]*txhelpers.OutputSpender)
+	if maybeHasContracts {
+		spendingTxHashes, spendingTxVinInds, voutInds, err := c.DataSource.SpendingTransactions(rawtx.Txid)
+		if err != nil {
+			apiLog.Errorf("Unable to retrieve spending transactions for %s: %v", rawtx.Txid, err)
+			http.Error(w, http.StatusText(422), 422)
+			return
+		}
+		for i, voutIndex := range voutInds {
+			if int(voutIndex) >= len(rawtx.Vout) {
+				apiLog.Errorf("Invalid spending transactions data for %s: %v", rawtx.Txid)
+				http.Error(w, http.StatusText(422), 422)
+				return
+			}
+			vout := rawtx.Vout[voutIndex]
+			if vout.ScriptPubKey.Type != txscript.ScriptHashTy.String() {
+				// only retrieve spending tx for p2sh outputs
+				continue
+			}
+			spendingTxHash, spendingInputIndex := spendingTxHashes[i], spendingTxVinInds[i]
+			spendingTx, err := rpcutils.GetTransactionVerboseByHashString(c.nodeClient, spendingTxHash)
+			if err != nil {
+				apiLog.Errorf("Unable to get transaction %s: %v", spendingTxHash, err)
+				http.Error(w, http.StatusText(422), 422)
+				return
+			}
+			outputSpenders[voutIndex] = &txhelpers.OutputSpender{
+				Tx:         spendingTx,
+				InputIndex: spendingInputIndex,
+			}
+		}
+	}
+
+	swapsInfo, err := txhelpers.TxAtomicSwapsInfo(rawtx, outputSpenders, c.Params)
+	if err != nil {
+		apiLog.Errorf("Unable to get atomic swap info for transaction %v: %v", txid, err)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	if swapsInfo.Found == "" {
+		swapsInfo.Found = "No created or redeemed swaps in tx"
+	}
+	writeJSON(w, swapsInfo, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getTransactions(w http.ResponseWriter, r *http.Request) {

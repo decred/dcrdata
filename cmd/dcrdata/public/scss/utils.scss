@@ -218,7 +218,8 @@ body.darkBG [data-tooltip]:hover::after {
   color: #2dd8a3;
 }
 
-.mix-box {
+.mix-box,
+.swap-box {
   border: 1px double #2b87e7;
   border-radius: 2px;
   vertical-align: top;

@@ -1004,6 +1004,17 @@ func MsgTxToHex(msgTx *wire.MsgTx) (string, error) {
 	return hexBuilder.String(), nil
 }
 
+// Transaction type constants.
+const (
+	TxTypeVote          string = "Vote"
+	TxTypeTicket        string = "Ticket"
+	TxTypeRevocation    string = "Revocation"
+	TxTypeRegular       string = "Regular"
+	TxTypeTreasurybase  string = "Treasurybase"
+	TxTypeTreasurySpend string = "Treasury Spend"
+	TxTypeTreasuryAdd   string = "Treasury Add"
+)
+
 // DetermineTxTypeString returns a string representing the transaction type given
 // a wire.MsgTx struct
 func DetermineTxTypeString(msgTx *wire.MsgTx /* , treasuryActive bool */) string {
@@ -1019,19 +1030,19 @@ func DetermineTxTypeString(msgTx *wire.MsgTx /* , treasuryActive bool */) string
 func TxTypeToString(txType int) string {
 	switch stake.TxType(txType) {
 	case stake.TxTypeSSGen:
-		return "Vote"
+		return TxTypeVote
 	case stake.TxTypeSStx:
-		return "Ticket"
+		return TxTypeTicket
 	case stake.TxTypeSSRtx:
-		return "Revocation"
+		return TxTypeRevocation
 	case stake.TxTypeTAdd:
-		return "Treasury Add"
+		return TxTypeTreasuryAdd
 	case stake.TxTypeTSpend:
-		return "Treasury Spend"
+		return TxTypeTreasurySpend
 	case stake.TxTypeTreasuryBase:
-		return "Treasurybase"
+		return TxTypeTreasurybase
 	default:
-		return "Regular"
+		return TxTypeRegular
 	}
 }
 
