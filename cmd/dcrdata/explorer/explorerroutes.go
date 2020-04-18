@@ -1204,6 +1204,13 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		}
 	} // tx.IsTicket()
 
+	// Find atomic swaps related to this tx.
+	swapsInfo, err := exp.txAtomicSwapsInfo(tx)
+	if err != nil {
+		log.Errorf("Unable to get atomic swap info for transaction %v: %v", tx.TxID, err)
+		swapsInfo = new(txhelpers.TxAtomicSwaps)
+	}
+
 	// Prepare the string to display for previous outpoint.
 	for idx := range tx.Vin {
 		vin := &tx.Vin[idx]
@@ -1213,9 +1220,21 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			vin.DisplayText = "Stakebase"
 		} else {
 			voutStr := strconv.Itoa(int(vin.Vout))
-			vin.DisplayText = vin.Txid + ":" + voutStr
 			vin.TextIsHash = true
 			vin.Link = "/tx/" + vin.Txid + "/out/" + voutStr
+			if swapsInfo.Redemptions[vin.Index] != nil || swapsInfo.Refunds[vin.Index] != nil {
+				vin.DisplayText = "Swap"
+			} else {
+				vin.DisplayText = vin.Txid + ":" + voutStr
+			}
+		}
+	}
+
+	// Set Type for swap-related outputs.
+	for idx := range tx.Vout {
+		vout := &tx.Vout[idx]
+		if swapsInfo.Contracts[vout.Index] != nil {
+			vout.Type = "swap"
 		}
 	}
 
@@ -1232,6 +1251,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		IsConfirmedMainchain bool
 		HighlightInOut       string
 		HighlightInOutID     int64
+		SwapsFound           string
 		Conversions          struct {
 			Total *exchanges.Conversion
 			Fees  *exchanges.Conversion
@@ -1244,6 +1264,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		IsConfirmedMainchain: isConfirmedMainchain,
 		HighlightInOut:       inout,
 		HighlightInOutID:     inoutid,
+		SwapsFound:           swapsInfo.Found,
 	}
 
 	// Get a fiat-converted value for the total and the fees.
@@ -1262,6 +1283,39 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Turbolinks-Location", r.URL.RequestURI())
 	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, str)
+}
+
+func (exp *explorerUI) txAtomicSwapsInfo(tx *types.TxInfo) (*txhelpers.TxAtomicSwaps, error) {
+	// Check if tx is a stake tree tx or coinbase tx and return empty swap info.
+	if tx.Type != txhelpers.TxTypeRegular || tx.Coinbase {
+		return new(txhelpers.TxAtomicSwaps), nil
+	}
+
+	rawtx, err := exp.dataSource.GetRawTransactionByHash(tx.TxID)
+	if err != nil {
+		return nil, fmt.Errorf("GetRawTransaction failed for %s: %v", tx.TxID, err)
+	}
+
+	// Spending information for P2SH outputs are required to determine
+	// contract outputs in this tx.
+	outputSpenders := make(map[uint32]*txhelpers.OutputSpender)
+	for _, vout := range tx.Vout {
+		if !vout.Spent || rawtx.Vout[vout.Index].ScriptPubKey.Type != txscript.ScriptHashTy.String() {
+			// only retrieve spending tx for spent p2sh outputs
+			continue
+		}
+		spender := tx.SpendingTxns[vout.Index]
+		spendingTx, err := exp.dataSource.GetRawTransactionByHash(spender.Hash)
+		if err != nil {
+			return nil, fmt.Errorf("GetRawTransaction failed for %s: %v", spender.Hash, err)
+		}
+		outputSpenders[vout.Index] = &txhelpers.OutputSpender{
+			Tx:         spendingTx,
+			InputIndex: spender.Index,
+		}
+	}
+
+	return txhelpers.TxAtomicSwapsInfo(rawtx, outputSpenders, exp.ChainParams)
 }
 
 // TreasuryPage is the page handler for the "/treasury" path

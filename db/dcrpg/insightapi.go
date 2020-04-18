@@ -19,6 +19,17 @@ import (
 	"github.com/decred/dcrdata/v6/txhelpers"
 )
 
+// GetRawTransactionByHash gets a chainjson.TxRawResult for the specified
+// transaction hash string.
+func (pgb *ChainDB) GetRawTransactionByHash(txid string) (*chainjson.TxRawResult, error) {
+	txraw, err := rpcutils.GetTransactionVerboseByHashString(pgb.Client, txid)
+	if err != nil {
+		log.Errorf("GetRawTransactionVerbose failed for: %s", txid)
+		return nil, err
+	}
+	return txraw, nil
+}
+
 // GetRawTransaction gets a chainjson.TxRawResult for the specified transaction
 // hash.
 func (pgb *ChainDB) GetRawTransaction(txid *chainhash.Hash) (*chainjson.TxRawResult, error) {
