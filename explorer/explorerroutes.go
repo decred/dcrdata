@@ -2184,7 +2184,7 @@ func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// MarketPage is the page handler for the "/agendas" path.
+// MarketPage is the page handler for the "/market" path.
 func (exp *explorerUI) MarketPage(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.exec("market", struct {
 		*CommonPageData
