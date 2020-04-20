@@ -3,7 +3,6 @@ import TurboQuery from '../helpers/turbolinks_helper'
 import { getDefault } from '../helpers/module_helper'
 import globalEventBus from '../services/event_bus_service'
 import dompurify from 'dompurify'
-import _ from 'lodash-es'
 
 function digitformat (amount, decimalPlaces, noComma) {
   if (!amount) return 0
@@ -249,17 +248,12 @@ export default class extends Controller {
   }
 
   updateQueryString () {
-    let updatedSettings = {}
-    const settingsEntries = Object.entries(this.settings)
-    const defaultSettingsEntries = Object.entries(this.defaultSettings)
-    for (const [key, val] of settingsEntries) {
-      let defaultValue = _.find(defaultSettingsEntries, (entry) => {
-        return entry[0] === key
-      })
-      if (val === null || val.toString() === defaultValue[1].toString()) continue
-      updatedSettings[key] = val
+    const [query, settings, defaults] = [{}, this.settings, this.defaultSettings]
+    for (const k in settings) {
+      if (!settings[k] || settings[k].toString() === defaults[k].toString()) continue
+      query[k] = settings[k]
     }
-    this.query.replace(updatedSettings)
+    this.query.replace(query)
   }
 
   updateAttackTime () {
