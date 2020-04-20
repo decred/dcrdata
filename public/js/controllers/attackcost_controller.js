@@ -3,6 +3,7 @@ import TurboQuery from '../helpers/turbolinks_helper'
 import { getDefault } from '../helpers/module_helper'
 import globalEventBus from '../services/event_bus_service'
 import dompurify from 'dompurify'
+import axios from 'axios'
 
 function digitformat (amount, decimalPlaces, noComma) {
   if (!amount) return 0
@@ -120,7 +121,8 @@ export default class extends Controller {
       'ticketPoolSizeLabel', 'ticketPoolValue', 'ticketPrice', 'tickets', 'ticketSizeAttack', 'durationLongDesc',
       'total', 'totalDCRPos', 'totalDeviceCost', 'totalElectricity', 'totalExtraCostRate', 'totalKwh', 'totalPos', 'totalPow',
       'graph', 'labels', 'projectedTicketPrice', 'projectedTicketPriceIncrease', 'attackType', 'attackPosPercentAmountLabel',
-      'dcrPriceLabel', 'totalDCRPosLabel', 'projectedPriceDiv', 'attackNotPossibleWrapperDiv', 'coinSupply', 'totalAttackCostContainer'
+      'dcrPriceLabel', 'totalDCRPosLabel', 'projectedPriceDiv', 'attackNotPossibleWrapperDiv', 'coinSupply', 'totalAttackCostContainer',
+      'projectedDcrPriceDiv', 'projectedDcrPrice', 'projectedDcrPriceIncrease'
     ]
   }
 
@@ -370,6 +372,7 @@ export default class extends Controller {
         this.setAllValues(this.newHashRateTargets, digitformat(this.targetHashRate + hashrate, 4))
         this.setAllValues(this.additionalHashRateTargets, digitformat(this.targetHashRate, 4))
         this.projectedPriceDivTarget.style.display = 'block'
+        this.projectedDcrPriceDivTarget.style.display = 'block'
         this.internalAttackTextTarget.classList.add('d-none')
         this.internalAttackPosTextTarget.classList.add('d-none')
         this.externalAttackTextTarget.classList.remove('d-none')
@@ -378,12 +381,33 @@ export default class extends Controller {
       case internalAttackType:
       default:
         this.projectedPriceDivTarget.style.display = 'none'
+        this.projectedDcrPriceDivTarget.style.display = 'none'
         this.externalAttackTextTarget.classList.add('d-none')
         this.externalAttackPosTextTarget.classList.add('d-node')
         this.internalAttackTextTarget.classList.remove('d-none')
         this.internalAttackPosTextTarget.classList.remove('d-none')
         break
     }
+  }
+
+  async predictPrice (dcrNeeded) {
+    const orderDeptUrl = '/api/chart/market/aggregated/depth'
+    let response = await axios.get(orderDeptUrl)
+    let totalVolume = 0
+    let maxAskPrice = 0
+    for (let ask in response.data.asks) {
+      totalVolume += ask.volume.reduce((a, b) => { return a + b }, 0)
+      if (ask.price > maxAskPrice) {
+        maxAskPrice = ask.price
+      }
+    }
+    const exRate = await axios.get('/api/exchanges/rate')
+    let priceMultiplier = 1
+    if (dcrNeeded > totalVolume) {
+      priceMultiplier = dcrNeeded / totalVolume
+    }
+    let priceChange = (maxAskPrice * exRate.data.btc_fait_price) - exRate.data.price
+    return exRate.data.price + priceChange * priceMultiplier
   }
 
   updateSliderData () {
@@ -438,6 +462,10 @@ export default class extends Controller {
     var projectedTicketPrice = DCRNeed / tpSize
     this.projectedTicketPriceIncreaseTarget.innerHTML = digitformat(100 * (projectedTicketPrice - tpPrice) / tpPrice, 2)
     this.ticketPoolValueTarget.innerHTML = digitformat(hashrate, 3)
+
+    var projectedDcrPrice = this.predictPrice(DCRNeed)
+    this.projectedDcrPriceIncreaseTarget.innerHTML = digitformat(100 * (projectedDcrPrice - dcrPrice) / dcrPrice, 2)
+    this.projectedDcrPriceTarget.innerHTML = digitformat(projectedDcrPrice, 2)
 
     var totalDCRPos = this.settings.attack_type === externalAttackType ? DCRNeed - tpValue : ticketAttackSize * projectedTicketPrice
     var totalPos = totalDCRPos * dcrPrice
