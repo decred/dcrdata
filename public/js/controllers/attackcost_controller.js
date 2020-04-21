@@ -393,21 +393,23 @@ export default class extends Controller {
   async predictPrice (dcrNeeded) {
     const orderDeptUrl = '/api/chart/market/aggregated/depth'
     let response = await axios.get(orderDeptUrl)
+    const aggMarket = response.data
     let totalVolume = 0
     let maxAskPrice = 0
-    for (let ask in response.data.asks) {
-      totalVolume += ask.volume.reduce((a, b) => { return a + b }, 0)
+    aggMarket.data.asks.forEach(ask => {
+      if (Array.isArray(ask.volumes)) {
+        totalVolume += ask.volumes.reduce((a, b) => { return a + b }, 0)
+      }
       if (ask.price > maxAskPrice) {
         maxAskPrice = ask.price
       }
-    }
-    const exRate = await axios.get('/api/exchanges/rate')
+    })
     let priceMultiplier = 1
     if (dcrNeeded > totalVolume) {
       priceMultiplier = dcrNeeded / totalVolume
     }
-    let priceChange = (maxAskPrice * exRate.data.btc_fait_price) - exRate.data.price
-    return exRate.data.price + priceChange * priceMultiplier
+    let priceChange = (maxAskPrice * aggMarket.btc_fiat_price) - aggMarket.price
+    return aggMarket.price + priceChange * priceMultiplier
   }
 
   updateSliderData () {
@@ -438,7 +440,7 @@ export default class extends Controller {
     this.calculate(true)
   }
 
-  calculate (disableHashRateUpdate) {
+  async calculate (disableHashRateUpdate) {
     if (!disableHashRateUpdate) this.updateTargetHashRate()
 
     this.updateQueryString()
@@ -463,7 +465,7 @@ export default class extends Controller {
     this.projectedTicketPriceIncreaseTarget.innerHTML = digitformat(100 * (projectedTicketPrice - tpPrice) / tpPrice, 2)
     this.ticketPoolValueTarget.innerHTML = digitformat(hashrate, 3)
 
-    var projectedDcrPrice = this.predictPrice(DCRNeed)
+    var projectedDcrPrice = await this.predictPrice(DCRNeed)
     this.projectedDcrPriceIncreaseTarget.innerHTML = digitformat(100 * (projectedDcrPrice - dcrPrice) / dcrPrice, 2)
     this.projectedDcrPriceTarget.innerHTML = digitformat(projectedDcrPrice, 2)
 

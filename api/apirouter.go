@@ -245,7 +245,6 @@ func NewAPIRouter(app *appContext, JSONIndent string, useRealIP, compressLarge b
 	mux.Route("/exchanges", func(r chi.Router) {
 		r.Get("/", app.getExchanges)
 		r.Get("/codes", app.getCurrencyCodes)
-		r.Get("/rates", app.rates)
 	})
 
 	mux.NotFound(func(w http.ResponseWriter, r *http.Request) {

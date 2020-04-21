@@ -1816,28 +1816,6 @@ func (c *appContext) getCurrencyCodes(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, codes, m.GetIndentCtx(r))
 }
 
-func (c *appContext) rates(w http.ResponseWriter, r *http.Request) {
-	if c.xcBot == nil {
-		http.Error(w, "Exchange monitoring disabled.", http.StatusServiceUnavailable)
-		return
-	}
-
-	code := r.URL.Query().Get("code")
-	var state *exchanges.ExchangeBotState
-	if code != "" && code != c.xcBot.BtcIndex {
-		var err error
-		state, err = c.xcBot.ConvertedState(code)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("No exchange data for code %s", code), http.StatusNotFound)
-			return
-		}
-	} else {
-		state = c.xcBot.State()
-	}
-
-	writeJSON(w, map[string]interface{}{"price": state.Price, "btc_fiat_price": state.BtcPrice}, m.GetIndentCtx(r))
-}
-
 // getAgendasData returns high level agendas details that includes Name,
 // Description, Vote Version, VotingDone height, Activated, HardForked,
 // StartTime and ExpireTime.
