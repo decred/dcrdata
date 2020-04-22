@@ -55,6 +55,18 @@
 				<div class="fs13 text-secondary pb-1">Block Hash</div>
 				<div class="d-inline-block fs14 break-word rounded font-weight-bold">{{.Hash}}</div>
 			</div>
+			{{range $.AltBlocks}}
+			<div class="text-left lh1rem pt-2 pb-1">
+				<div class="fs13 text-secondary pb-1">
+					Alt. Block (on {{if .IsMainchain}}main chain{{else}}side chain{{end}})
+				</div>
+				<div class="d-inline-block fs14 break-word rounded font-weight-bold">
+					<a href="/block/{{.Hash}}" title="Valid: {{.IsValid}}">
+						{{.Hash}}
+					</a>
+				</div>
+			</div>
+			{{end}}
 			<div class="row py-2">
 				<div class="col-10 col-sm-8 text-left">
 					<span class="text-secondary fs13">Total Sent</span>

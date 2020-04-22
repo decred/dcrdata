@@ -706,24 +706,33 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		log.Warnf("Unable to retrieve missed votes for block %s: %v", hash, err)
 	}
 
-	var blockStatus dbtypes.BlockStatus
-	blockStatus, err = exp.dataSource.BlockStatus(hash)
-	if exp.timeoutErrorPage(w, err, "BlockStatus") {
+	var relatedBlocks []*dbtypes.BlockStatus
+	relatedBlocks, err = exp.dataSource.BlockStatuses(data.Height)
+	if exp.timeoutErrorPage(w, err, "BlockStatuses") {
 		return
 	}
 	if err != nil && err != sql.ErrNoRows {
 		log.Warnf("Unable to retrieve chain status for block %s: %v", hash, err)
 	}
-	data.Valid = blockStatus.IsValid
-	data.MainChain = blockStatus.IsMainchain
+
+	for i, block := range relatedBlocks {
+		if block.Hash == hash {
+			data.Valid = block.IsValid
+			data.MainChain = block.IsMainchain
+			relatedBlocks = append(relatedBlocks[:i], relatedBlocks[i+1:]...)
+			break
+		}
+	}
 
 	pageData := struct {
 		*CommonPageData
 		Data           *types.BlockInfo
+		AltBlocks      []*dbtypes.BlockStatus
 		FiatConversion *exchanges.Conversion
 	}{
 		CommonPageData: exp.commonData(r),
 		Data:           data,
+		AltBlocks:      relatedBlocks,
 	}
 
 	if exp.xcBot != nil && time.Since(data.BlockTime.T) < time.Hour {

@@ -980,6 +980,15 @@ func (pgb *ChainDB) BlockStatus(hash string) (dbtypes.BlockStatus, error) {
 	return bs, pgb.replaceCancelError(err)
 }
 
+// BlockStatuses retrieves the block chain statuses of all blocks at the given
+// height.
+func (pgb *ChainDB) BlockStatuses(height int64) ([]*dbtypes.BlockStatus, error) {
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	defer cancel()
+	blocks, err := RetrieveBlockStatuses(ctx, pgb.db, height)
+	return blocks, pgb.replaceCancelError(err)
+}
+
 // blockFlags retrieves the block's isValid and isMainchain flags.
 func (pgb *ChainDB) blockFlags(ctx context.Context, hash string) (bool, bool, error) {
 	iv, im, err := RetrieveBlockFlags(ctx, pgb.db, hash)
