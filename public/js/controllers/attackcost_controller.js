@@ -40,7 +40,7 @@ function removeTrailingZeros (value) {
 }
 
 let Dygraph // lazy loaded on connect
-var height, dcrPrice, hashrate, tpSize, tpValue, tpPrice, graphData, currentPoint, coinSupply
+var height, dcrPrice, btcPrice, maxAskPrice, marketVolume, hashrate, tpSize, tpValue, tpPrice, graphData, currentPoint, coinSupply
 
 function rateCalculation (y) {
   y = y || 0.99 // 0.99 TODO confirm why 0.99 is used as default instead of 1
@@ -391,25 +391,32 @@ export default class extends Controller {
   }
 
   async predictPrice (dcrNeeded) {
+    let priceMultiplier = 1
+    if (dcrNeeded > marketVolume) {
+      priceMultiplier = dcrNeeded / marketVolume
+    }
+    let priceChange = (maxAskPrice * btcPrice) - dcrPrice
+    return dcrPrice + priceChange * priceMultiplier
+  }
+
+  async refreshMarketData () {
     const orderDeptUrl = '/api/chart/market/aggregated/depth'
     let response = await axios.get(orderDeptUrl)
     const aggMarket = response.data
     let totalVolume = 0
-    let maxAskPrice = 0
-    aggMarket.data.asks.forEach(ask => {
+    let maxPrice = 0
+    for (let i = 0; i <= 0.95 * aggMarket.data.asks.length; i++) {
+      let ask = aggMarket.data.asks[i]
       if (Array.isArray(ask.volumes)) {
         totalVolume += ask.volumes.reduce((a, b) => { return a + b }, 0)
       }
-      if (ask.price > maxAskPrice) {
-        maxAskPrice = ask.price
+      if (ask.price > maxPrice) {
+        maxPrice = ask.price
       }
-    })
-    let priceMultiplier = 1
-    if (dcrNeeded > totalVolume) {
-      priceMultiplier = dcrNeeded / totalVolume
     }
-    let priceChange = (maxAskPrice * aggMarket.btc_fiat_price) - aggMarket.price
-    return aggMarket.price + priceChange * priceMultiplier
+    marketVolume = totalVolume
+    maxAskPrice = maxPrice
+    btcPrice = aggMarket.btc_fiat_price
   }
 
   updateSliderData () {
