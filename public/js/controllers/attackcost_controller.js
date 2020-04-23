@@ -178,6 +178,7 @@ export default class extends Controller {
     // this is a hack as doZoomY_ is marked as private
     Dygraph.prototype.doZoomY_ = function (lowY, highY) {}
 
+    await this.refreshMarketData()
     this.plotGraph()
     this.processNightMode = (params) => {
       this.chartsView.updateOptions(
