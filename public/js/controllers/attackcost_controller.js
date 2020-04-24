@@ -138,6 +138,7 @@ export default class extends Controller {
     height = parseInt(this.data.get('height'))
     hashrate = parseInt(this.data.get('hashrate'))
     dcrPrice = parseFloat(this.data.get('dcrprice'))
+    btcPrice = parseFloat(this.data.get('btcprice'))
     tpPrice = parseFloat(this.data.get('ticketPrice'))
     tpValue = parseFloat(this.data.get('ticketPoolValue'))
     tpSize = parseInt(this.data.get('ticketPoolSize'))
@@ -167,6 +168,7 @@ export default class extends Controller {
     if (this.settings.attack_type !== internalAttackType) {
       this.settings.attack_type = externalAttackType
     }
+    await this.refreshMarketData()
     this.setDevicesDesc()
     this.updateSliderData()
 
@@ -178,7 +180,6 @@ export default class extends Controller {
     // this is a hack as doZoomY_ is marked as private
     Dygraph.prototype.doZoomY_ = function (lowY, highY) {}
 
-    await this.refreshMarketData()
     this.plotGraph()
     this.processNightMode = (params) => {
       this.chartsView.updateOptions(
@@ -417,7 +418,6 @@ export default class extends Controller {
     }
     marketVolume = totalVolume
     maxAskPrice = maxPrice
-    btcPrice = aggMarket.btc_fiat_price
   }
 
   updateSliderData () {

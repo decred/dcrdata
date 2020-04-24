@@ -2353,10 +2353,13 @@ func calcPages(rows, pageSize, offset int, link string) pageNumbers {
 // AttackCost is the page handler for the "/attack-cost" path.
 func (exp *explorerUI) AttackCost(w http.ResponseWriter, r *http.Request) {
 	price := 24.42
+	btcPrice := 0.0
 	if exp.xcBot != nil {
 		if rate := exp.xcBot.Conversion(1.0); rate != nil {
 			price = rate.Value
 		}
+
+		btcPrice = exp.xcBot.State().BtcPrice
 	}
 
 	exp.pageData.RLock()
@@ -2375,6 +2378,7 @@ func (exp *explorerUI) AttackCost(w http.ResponseWriter, r *http.Request) {
 		HashRate        float64
 		Height          int64
 		DCRPrice        float64
+		BTCPrice        float64
 		TicketPrice     float64
 		TicketPoolSize  int64
 		TicketPoolValue float64
@@ -2384,6 +2388,7 @@ func (exp *explorerUI) AttackCost(w http.ResponseWriter, r *http.Request) {
 		HashRate:        HashRate,
 		Height:          height,
 		DCRPrice:        price,
+		BTCPrice:        btcPrice,
 		TicketPrice:     ticketPrice,
 		TicketPoolSize:  int64(ticketPoolSize),
 		TicketPoolValue: ticketPoolValue,
