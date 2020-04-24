@@ -40,7 +40,7 @@ function removeTrailingZeros (value) {
 }
 
 let Dygraph // lazy loaded on connect
-var height, dcrPrice, btcPrice, maxAskPrice, marketVolume, hashrate, tpSize, tpValue, tpPrice, graphData, currentPoint, coinSupply
+var height, dcrPrice, btcPrice, marketAvgDcrPrice, marketVolume, marketValue, hashrate, tpSize, tpValue, tpPrice, graphData, currentPoint, coinSupply
 
 function rateCalculation (y) {
   y = y || 0.99 // 0.99 TODO confirm why 0.99 is used as default instead of 1
@@ -122,7 +122,7 @@ export default class extends Controller {
       'ticketPoolValue', 'ticketPrice', 'tickets', 'ticketSizeAttack', 'durationLongDesc',
       'total', 'totalDCRPos', 'totalDeviceCost', 'totalElectricity', 'totalExtraCostRate', 'totalKwh',
       'totalPos', 'totalPow', 'graph', 'labels', 'projectedTicketPrice', 'projectedTicketPriceIncrease', 'attackType',
-      'marketVolume', 'maxAskPrice', 'projectedDcrPriceDiv', 'projectedDcrPrice', 'projectedDcrPriceIncrease', 'dcrPriceIncrease',
+      'marketVolume', 'marketValue', 'marketAvgDcrPrice', 'projectedDcrPriceDiv', 'projectedDcrPrice', 'projectedDcrPriceIncrease', 'dcrPriceIncrease',
       'attackPosPercentAmountLabel', 'dcrPriceLabel', 'totalDCRPosLabel',
       'projectedPriceDiv', 'attackNotPossibleWrapperDiv', 'coinSupply', 'totalAttackCostContainer'
     ]
@@ -399,7 +399,7 @@ export default class extends Controller {
     if (dcrNeeded > marketVolume) {
       priceMultiplier = dcrNeeded / marketVolume
     }
-    let priceChange = (maxAskPrice * btcPrice) - dcrPrice
+    let priceChange = (marketAvgDcrPrice * btcPrice) - dcrPrice
     return dcrPrice + priceChange * priceMultiplier
   }
 
@@ -408,18 +408,20 @@ export default class extends Controller {
     let response = await axios.get(orderDeptUrl)
     const aggMarket = response.data
     let totalVolume = 0
-    let maxPrice = 0
-    for (let i = 0; i <= 0.95 * aggMarket.data.asks.length; i++) {
+    let totalCost = 0
+    const orderCount = aggMarket.data.asks.length
+    for (let i = 0; i <= 0.99 * orderCount; i++) {
       let ask = aggMarket.data.asks[i]
+      if (ask === undefined) continue
       if (Array.isArray(ask.volumes)) {
-        totalVolume += ask.volumes.reduce((a, b) => { return a + b }, 0)
-      }
-      if (ask.price > maxPrice) {
-        maxPrice = ask.price
+        let volume = ask.volumes.reduce((a, b) => { return a + b }, 0)
+        totalVolume += volume
+        totalCost += (volume * ask.price)
       }
     }
+    marketValue = totalCost
     marketVolume = totalVolume
-    maxAskPrice = maxPrice
+    marketAvgDcrPrice = totalCost / totalVolume
   }
 
   updateSliderData () {
@@ -479,8 +481,9 @@ export default class extends Controller {
     this.projectedDcrPriceIncreaseTarget.innerHTML = digitformat(100 * (projectedDcrPrice - dcrPrice) / dcrPrice, 2)
     this.setAllValues(this.projectedDcrPriceTargets, digitformat(projectedDcrPrice, 2))
     this.setAllValues(this.marketVolumeTargets, digitformat(marketVolume, 2))
-    this.setAllValues(this.maxAskPriceTargets, digitformat(maxAskPrice * btcPrice, 2))
-    this.setAllValues(this.dcrPriceIncreaseTargets, digitformat(maxAskPrice * btcPrice - dcrPrice))
+    this.setAllValues(this.marketAvgDcrPriceTargets, digitformat(marketAvgDcrPrice * btcPrice, 2))
+    this.setAllValues(this.dcrPriceIncreaseTargets, digitformat(marketAvgDcrPrice * btcPrice - dcrPrice))
+    this.setAllValues(this.marketValueTargets, digitformat(marketValue * btcPrice, 2))
 
     var totalDCRPos = this.settings.attack_type === externalAttackType ? DCRNeed - tpValue : ticketAttackSize * projectedTicketPrice
     var totalPos = totalDCRPos * dcrPrice
