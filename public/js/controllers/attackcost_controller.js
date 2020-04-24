@@ -114,15 +114,17 @@ export default class extends Controller {
   static get targets () {
     return [
       'actualHashRate', 'attackPercent', 'attackPeriod', 'blockHeight', 'countDevice', 'device',
-      'deviceCost', 'deviceDesc', 'deviceName', 'external', 'internal', 'internalHash', 'kwhRate',
-      'kwhRateLabel', 'otherCosts', 'otherCostsValue', 'priceDCR', 'internalAttackText', 'targetHashRate',
-      'externalAttackText', 'externalAttackPosText', 'additionalDcr', 'newTicketPoolValue', 'internalAttackPosText',
-      'additionalHashRate', 'newHashRate', 'targetPos', 'targetPow', 'ticketAttackSize', 'ticketPoolAttack', 'ticketPoolSize',
-      'ticketPoolSizeLabel', 'ticketPoolValue', 'ticketPrice', 'tickets', 'ticketSizeAttack', 'durationLongDesc',
-      'total', 'totalDCRPos', 'totalDeviceCost', 'totalElectricity', 'totalExtraCostRate', 'totalKwh', 'totalPos', 'totalPow',
-      'graph', 'labels', 'projectedTicketPrice', 'projectedTicketPriceIncrease', 'attackType', 'attackPosPercentAmountLabel',
-      'dcrPriceLabel', 'totalDCRPosLabel', 'projectedPriceDiv', 'attackNotPossibleWrapperDiv', 'coinSupply', 'totalAttackCostContainer',
-      'projectedDcrPriceDiv', 'projectedDcrPrice', 'projectedDcrPriceIncrease'
+      'deviceCost', 'deviceDesc', 'deviceName', 'external', 'internal', 'internalHash',
+      'kwhRate', 'kwhRateLabel', 'otherCosts', 'otherCostsValue', 'priceDCR', 'internalAttackText', 'targetHashRate', 'externalAttackText',
+      'externalAttackPosText', 'additionalDcr', 'newTicketPoolValue', 'internalAttackPosText',
+      'additionalHashRate', 'newHashRate', 'targetPos', 'targetPow',
+      'ticketAttackSize', 'ticketPoolAttack', 'ticketPoolSize', 'ticketPoolSizeLabel',
+      'ticketPoolValue', 'ticketPrice', 'tickets', 'ticketSizeAttack', 'durationLongDesc',
+      'total', 'totalDCRPos', 'totalDeviceCost', 'totalElectricity', 'totalExtraCostRate', 'totalKwh',
+      'totalPos', 'totalPow', 'graph', 'labels', 'projectedTicketPrice', 'projectedTicketPriceIncrease', 'attackType',
+      'marketVolume', 'maxAskPrice', 'projectedDcrPriceDiv', 'projectedDcrPrice', 'projectedDcrPriceIncrease', 'dcrPriceIncrease',
+      'attackPosPercentAmountLabel', 'dcrPriceLabel', 'totalDCRPosLabel',
+      'projectedPriceDiv', 'attackNotPossibleWrapperDiv', 'coinSupply', 'totalAttackCostContainer'
     ]
   }
 
@@ -475,7 +477,10 @@ export default class extends Controller {
 
     var projectedDcrPrice = await this.predictPrice(DCRNeed)
     this.projectedDcrPriceIncreaseTarget.innerHTML = digitformat(100 * (projectedDcrPrice - dcrPrice) / dcrPrice, 2)
-    this.projectedDcrPriceTarget.innerHTML = digitformat(projectedDcrPrice, 2)
+    this.setAllValues(this.projectedDcrPriceTargets, digitformat(projectedDcrPrice, 2))
+    this.setAllValues(this.marketVolumeTargets, digitformat(marketVolume, 2))
+    this.setAllValues(this.maxAskPriceTargets, digitformat(maxAskPrice * btcPrice, 2))
+    this.setAllValues(this.dcrPriceIncreaseTargets, digitformat(maxAskPrice * btcPrice - dcrPrice))
 
     var totalDCRPos = this.settings.attack_type === externalAttackType ? DCRNeed - tpValue : ticketAttackSize * projectedTicketPrice
     var totalPos = totalDCRPos * dcrPrice
