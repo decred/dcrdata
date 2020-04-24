@@ -157,7 +157,6 @@
               <div class="col-12 text-center">
                 <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
                   <span class="text-secondary fs13">USD-DCR Rate</span>
-                  <br>
                   <span class="h4">
                     <input
                       type="number"
@@ -184,7 +183,38 @@
                   </select>
                 </div>
               </div>
+              <div class="col-12 text-center">
+                <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
+                  <span class="text-secondary fs13">Price - Use</span>
+                  <br>
+                  <div class="chart-control">
+                        <ul
+                            class="nav nav-pills"
+                        >
+                            <li class="nav-item active">
+                                <a 
+                                    class="nav-link active"
+                                    href="javascript:void(0);"
+                                    data-target="charts.scaleType"
+                                    data-action="click->attackcost#setPrice"
+                                    data-option="current"
+                                >Current</a>
+                            </li>
+                            <li class="nav-item">
+                                <a 
+                                    class="nav-link"
+                                    href="javascript:void(0);"
+                                    data-target="charts.scaleType"
+                                    data-action="click->attackcost#setPrice"
+                                    data-option="predicted"
+                                >Predicted</a>
+                            </li>
+                        </ul>
+                  </div>
+                </div>
+              </div>
             </div>
+            
           </div>
         </div>
       </div>
