@@ -39,7 +39,7 @@ function removeTrailingZeros (value) {
 }
 
 let Dygraph // lazy loaded on connect
-var height, dcrPrice, hashrate, tpSize, tpValue, tpPrice, graphData, currentPoint
+var height, dcrPrice, hashrate, tpSize, tpValue, tpPrice, graphData, currentPoint, coinSupply
 
 function rateCalculation (y) {
   y = y || 0.99 // 0.99 TODO confirm why 0.99 is used as default instead of 1
@@ -122,7 +122,8 @@ export default class extends Controller {
       'total', 'totalDCRPos', 'totalDeviceCost', 'totalElectricity', 'totalExtraCostRate', 'totalKwh',
       'totalPos', 'totalPow', 'graph', 'labels', 'projectedTicketPrice', 'projectedTicketPriceIncrease', 'attackType',
       'attackPosPercentAmountLabel', 'dcrPriceLabel', 'totalDCRPosLabel',
-      'projectedPriceDiv'
+      'projectedPriceDiv', 'attackNotPossibleWrapperDiv', 'coinSupply',
+      'totalAttackCostContainer'
     ]
   }
 
@@ -141,6 +142,7 @@ export default class extends Controller {
     tpPrice = parseFloat(this.data.get('ticketPrice'))
     tpValue = parseFloat(this.data.get('ticketPoolValue'))
     tpSize = parseInt(this.data.get('ticketPoolSize'))
+    coinSupply = parseInt(this.data.get('coinSupply'))
 
     if (this.settings.attack_time) this.attackPeriodTarget.value = parseInt(this.settings.attack_time)
     if (this.settings.target_pow) this.targetPowTarget.value = parseFloat(this.settings.target_pow)
@@ -425,7 +427,6 @@ export default class extends Controller {
     var timeStr = this.attackPeriodTarget.value
     timeStr = this.attackPeriodTarget.value > 1 ? timeStr + ' hours' : timeStr + ' hour'
     this.ticketPoolSizeLabelTarget.innerHTML = digitformat(tpSize, 2)
-
     this.setAllValues(this.actualHashRateTargets, digitformat(hashrate, 4))
     this.priceDCRTarget.value = digitformat(dcrPrice, 2)
     this.setAllInputs(this.targetPosTargets, digitformat(parseFloat(this.targetPosTarget.value), 2))
@@ -452,6 +453,7 @@ export default class extends Controller {
     this.attackPosPercentAmountLabelTarget.innerHTML = digitformat(this.targetPosTarget.value, 2)
     this.setAllValues(this.totalDCRPosLabelTargets, digitformat(totalDCRPos, 2))
     this.setAllValues(this.dcrPriceLabelTargets, digitformat(dcrPrice, 2))
+    this.calcPosWarning(DCRNeed)
   }
 
   setAllValues (targets, data) {
@@ -468,5 +470,17 @@ export default class extends Controller {
 
   showAll (targets) {
     targets.forEach(el => el.classList.remove('d-none'))
+  }
+
+  calcPosWarning (DCRNeed) {
+    var totalDCRInCirculation = coinSupply / 100000000
+    if (DCRNeed > totalDCRInCirculation) {
+      this.coinSupplyTarget.textContent = digitformat(totalDCRInCirculation, 2)
+      this.totalAttackCostContainerTarget.style.cssText = 'color: #f12222 !important'
+      this.showAll(this.attackNotPossibleWrapperDivTargets)
+    } else {
+      this.totalAttackCostContainerTarget.style.cssText = 'color: #6c757d !important'
+      this.hideAll(this.attackNotPossibleWrapperDivTargets)
+    }
   }
 }
