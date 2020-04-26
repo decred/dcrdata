@@ -40,7 +40,7 @@ function removeTrailingZeros (value) {
 }
 
 let Dygraph // lazy loaded on connect
-var height, dcrPrice, btcPrice, marketAvgDcrPrice, marketVolume, marketValue, hashrate, tpSize, tpValue, tpPrice, graphData, currentPoint, coinSupply
+var height, currentDcrPrice, dcrPrice, btcPrice, marketAvgDcrPrice, marketVolume, marketValue, hashrate, tpSize, tpValue, tpPrice, graphData, currentPoint, coinSupply
 
 function rateCalculation (y) {
   y = y || 0.99 // 0.99 TODO confirm why 0.99 is used as default instead of 1
@@ -122,7 +122,8 @@ export default class extends Controller {
       'ticketPoolValue', 'ticketPrice', 'tickets', 'ticketSizeAttack', 'durationLongDesc',
       'total', 'totalDCRPos', 'totalDeviceCost', 'totalElectricity', 'totalExtraCostRate', 'totalKwh',
       'totalPos', 'totalPow', 'graph', 'labels', 'projectedTicketPrice', 'projectedTicketPriceIncrease', 'attackType',
-      'marketVolume', 'marketValue', 'marketAvgDcrPrice', 'projectedDcrPriceDiv', 'projectedDcrPrice', 'projectedDcrPriceIncrease', 'dcrPriceIncrease',
+      'marketVolume', 'marketValue', 'marketAvgDcrPrice', 'priceType',
+      'projectedDcrPriceDiv', 'projectedDcrPrice', 'projectedDcrPriceIncrease', 'dcrPriceIncrease',
       'attackPosPercentAmountLabel', 'dcrPriceLabel', 'totalDCRPosLabel',
       'projectedPriceDiv', 'attackNotPossibleWrapperDiv', 'coinSupply', 'totalAttackCostContainer'
     ]
@@ -139,7 +140,7 @@ export default class extends Controller {
 
     height = parseInt(this.data.get('height'))
     hashrate = parseInt(this.data.get('hashrate'))
-    dcrPrice = parseFloat(this.data.get('dcrprice'))
+    currentDcrPrice = parseFloat(this.data.get('dcrprice'))
     btcPrice = parseFloat(this.data.get('btcprice'))
     tpPrice = parseFloat(this.data.get('ticketPrice'))
     tpValue = parseFloat(this.data.get('ticketPoolValue'))
@@ -394,13 +395,13 @@ export default class extends Controller {
     }
   }
 
-  async predictPrice (dcrNeeded) {
-    let priceMultiplier = 1
-    if (dcrNeeded > marketVolume) {
-      priceMultiplier = dcrNeeded / marketVolume
-    }
-    let priceChange = (marketAvgDcrPrice * btcPrice) - dcrPrice
-    return dcrPrice + priceChange * priceMultiplier
+  setPriceType (e) {
+    this.settings.priceType = e.currentTarget.value
+    this.calculate()
+  }
+
+  priceTypeChanged () {
+    this.calculate()
   }
 
   async refreshMarketData () {
@@ -477,13 +478,26 @@ export default class extends Controller {
     this.projectedTicketPriceIncreaseTarget.innerHTML = digitformat(100 * (projectedTicketPrice - tpPrice) / tpPrice, 2)
     this.ticketPoolValueTarget.innerHTML = digitformat(hashrate, 3)
 
-    var projectedDcrPrice = await this.predictPrice(DCRNeed)
-    this.projectedDcrPriceIncreaseTarget.innerHTML = digitformat(100 * (projectedDcrPrice - dcrPrice) / dcrPrice, 2)
+    // projected dcr price
+    let priceChange = (marketAvgDcrPrice * btcPrice) - currentDcrPrice
+    let increasePerDcr = priceChange / marketVolume
+    let projectedDcrPrice = currentDcrPrice
+    for (let i = 1; i <= DCRNeed; i++) {
+      projectedDcrPrice += increasePerDcr
+    }
+
+    this.projectedDcrPriceIncreaseTarget.innerHTML = digitformat(100 * (projectedDcrPrice - currentDcrPrice) / currentDcrPrice, 2)
     this.setAllValues(this.projectedDcrPriceTargets, digitformat(projectedDcrPrice, 2))
     this.setAllValues(this.marketVolumeTargets, digitformat(marketVolume, 2))
-    this.setAllValues(this.marketAvgDcrPriceTargets, digitformat(marketAvgDcrPrice * btcPrice, 2))
-    this.setAllValues(this.dcrPriceIncreaseTargets, digitformat(marketAvgDcrPrice * btcPrice - dcrPrice))
+    this.setAllValues(this.marketAvgDcrPriceTargets, digitformat(increasePerDcr, 5))
+    this.setAllValues(this.dcrPriceIncreaseTargets, digitformat(marketAvgDcrPrice * btcPrice - currentDcrPrice))
     this.setAllValues(this.marketValueTargets, digitformat(marketValue * btcPrice, 2))
+
+    if (this.settings.priceType === 'predicted') {
+      dcrPrice = projectedDcrPrice
+    } else {
+      dcrPrice = currentDcrPrice
+    }
 
     var totalDCRPos = this.settings.attack_type === externalAttackType ? DCRNeed - tpValue : ticketAttackSize * projectedTicketPrice
     var totalPos = totalDCRPos * dcrPrice

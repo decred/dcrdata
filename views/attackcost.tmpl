@@ -188,32 +188,15 @@
             <div class="col-24 col-md-12 col-lg-24 col-xl-10 row pb-3">
               <div class="col-24 text-center">
                 <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
-                  <span class="text-secondary fs13">Price - Use</span>
+                  <span class="text-secondary fs13">Rate Type</span>
                   <br>
-                  <div class="chart-control">
-                        <ul
-                            class="nav nav-pills"
-                        >
-                            <li class="nav-item active">
-                                <a 
-                                    class="nav-link active"
-                                    href="javascript:void(0);"
-                                    data-target="charts.scaleType"
-                                    data-action="click->attackcost#setPrice"
-                                    data-option="current"
-                                >Current</a>
-                            </li>
-                            <li class="nav-item">
-                                <a 
-                                    class="nav-link"
-                                    href="javascript:void(0);"
-                                    data-target="charts.scaleType"
-                                    data-action="click->attackcost#setPrice"
-                                    data-option="predicted"
-                                >Predicted</a>
-                            </li>
-                        </ul>
-                  </div>
+                  
+                  <select
+                    class="form-control chart-form-control mr-5"
+                    data-action="attackcost#setPriceType">
+                    <option value="current">Current</option>
+                    <option value="predicted">Predicted</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -407,7 +390,7 @@
               (A $<span class="font-weight-bold" data-target="attackcost.dcrPriceIncrease">0</span> increase) per DCR.
               Assuming that the price of DCR will go up by 
               $<span class="font-weight-bold" data-target="attackcost.dcrPriceIncrease">0</span> for every
-              <span class="font-weight-bold" data-target="attackcost.marketVolume">0</span>
+              <span class="font-weight-bold">1</span>
               <span class="fs11"> DCR</span> increase in demand,
               then to buy the 
               <span class="font-weight-bold" data-target="attackcost.additionalDcr">0</span>
