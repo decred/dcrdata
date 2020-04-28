@@ -479,18 +479,15 @@ export default class extends Controller {
     this.ticketPoolValueTarget.innerHTML = digitformat(hashrate, 3)
 
     // projected dcr price
-    let priceChange = (marketAvgDcrPrice * btcPrice) - currentDcrPrice
-    let increasePerDcr = priceChange / marketVolume
-    let projectedDcrPrice = currentDcrPrice
-    for (let i = 1; i <= DCRNeed; i++) {
-      projectedDcrPrice += increasePerDcr
-    }
+    let rateOfIncrement = Math.pow((marketAvgDcrPrice * btcPrice) / currentDcrPrice, 1 / (marketVolume - 1)) - 1
+    let projectedDcrPrice = currentDcrPrice * Math.pow(1 + rateOfIncrement, DCRNeed - 1)
 
-    this.projectedDcrPriceIncreaseTarget.innerHTML = digitformat(100 * (projectedDcrPrice - currentDcrPrice) / currentDcrPrice, 2)
-    this.setAllValues(this.projectedDcrPriceTargets, digitformat(projectedDcrPrice, 2))
+    const increasePercentage = 100 * (projectedDcrPrice - currentDcrPrice) / currentDcrPrice
+    this.projectedDcrPriceIncreaseTarget.innerHTML = increasePercentage.toExponential()
+    this.setAllValues(this.projectedDcrPriceTargets, projectedDcrPrice.toExponential())
     this.setAllValues(this.marketVolumeTargets, digitformat(marketVolume, 2))
-    this.setAllValues(this.marketAvgDcrPriceTargets, digitformat(increasePerDcr, 5))
-    this.setAllValues(this.dcrPriceIncreaseTargets, digitformat(marketAvgDcrPrice * btcPrice - currentDcrPrice))
+    this.setAllValues(this.dcrPriceIncreaseTargets, digitformat(rateOfIncrement, 8))
+    this.setAllValues(this.marketAvgDcrPriceTargets, digitformat(marketAvgDcrPrice * btcPrice - currentDcrPrice))
     this.setAllValues(this.marketValueTargets, digitformat(marketValue * btcPrice, 2))
 
     if (this.settings.priceType === 'predicted') {
