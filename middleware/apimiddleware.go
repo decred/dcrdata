@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -59,6 +59,7 @@ const (
 	ctxProposalToken
 	ctxXcToken
 	ctxStickWidth
+	ctxIndent
 )
 
 type DataSource interface {
@@ -389,20 +390,13 @@ func GetBlockHashCtx(r *http.Request) (string, error) {
 	return hashStr, nil
 }
 
-// GetAddressCtx retrieves the CtxAddress data from the request context. If not
-// set, the return value is an empty string. The CtxAddress string data may be a
-// comma-separated list of addresses, subject to the provided maximum number of
-// addresses allowed. Duplicate addresses are removed, but the limit is enforced
-// prior to removal of duplicates.
-func GetAddressCtx(r *http.Request, activeNetParams *chaincfg.Params, maxAddrs int) ([]string, error) {
-	addressStr, ok := r.Context().Value(CtxAddress).(string)
-	if !ok || len(addressStr) == 0 {
-		apiLog.Trace("address not set")
-		return nil, fmt.Errorf("address not set")
-	}
-	addressStrs := strings.Split(addressStr, ",")
-	if len(addressStrs) > maxAddrs {
-		return nil, fmt.Errorf("maximum of %d addresses allowed", maxAddrs)
+// GetAddressCtx returns a slice of base-58 encoded addresses parsed from the
+// {address} URL parameter. Duplicate addresses are removed. Multiple
+// comma-delimited address can be specified.
+func GetAddressCtx(r *http.Request, activeNetParams *chaincfg.Params) ([]string, error) {
+	addressStrs, ok := r.Context().Value(CtxAddress).([]string)
+	if !ok {
+		return nil, fmt.Errorf("type assertion failed")
 	}
 
 	strInSlice := func(sl []string, s string) bool {
@@ -414,19 +408,42 @@ func GetAddressCtx(r *http.Request, activeNetParams *chaincfg.Params, maxAddrs i
 		return false
 	}
 
-	var addrStrs []string
+	// Allocate as if all addresses are unique.
+	addrStrs := make([]string, 0, len(addressStrs))
+	for _, addrStr := range addressStrs {
+		if strInSlice(addrStrs, addrStr) {
+			continue
+		}
+		addrStrs = append(addrStrs, addrStr)
+	}
+
 	for _, addrStr := range addressStrs {
 		_, err := dcrutil.DecodeAddress(addrStr, activeNetParams)
 		if err != nil {
 			return nil, fmt.Errorf("invalid address '%v' for this network: %v",
 				addrStr, err)
 		}
-		if strInSlice(addrStrs, addrStr) {
-			continue
-		}
-		addrStrs = append(addrStrs, addrStr)
 	}
 	return addrStrs, nil
+}
+
+// GetAddressRawCtx returns a slice of addresses parsed from the {address} URL
+// parameter. Multiple comma-delimited address strings can be specified.
+func GetAddressRawCtx(r *http.Request, activeNetParams *chaincfg.Params) ([]dcrutil.Address, error) {
+	addressStrs, ok := r.Context().Value(CtxAddress).([]string)
+	if !ok {
+		return nil, fmt.Errorf("type assertion failed")
+	}
+	addresses := make([]dcrutil.Address, 0, len(addressStrs))
+	for _, addrStr := range addressStrs {
+		addr, err := dcrutil.DecodeAddress(addrStr, activeNetParams)
+		if err != nil {
+			return nil, fmt.Errorf("invalid address '%v' for this network: %v",
+				addrStr, err)
+		}
+		addresses = append(addresses, addr)
+	}
+	return addresses, nil
 }
 
 // GetChartTypeCtx retrieves the ctxChart data from the request context.
@@ -526,6 +543,37 @@ func CacheControl(maxAge int64) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// Indent creates a middleware for using the specified JSON indentation string
+// when the "indent" URL query parameter parses to a true boolean value. Use
+// GetIndentCtx with request handlers with the Indent middeware.
+func Indent(indent string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			useIndentation := r.URL.Query().Get("indent")
+			if useIndentation != "" {
+				b, err := strconv.ParseBool(useIndentation)
+				if err != nil {
+					http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+					return // end request handling
+				}
+				if b {
+					// Use the configured indent string.
+					ctx := context.WithValue(r.Context(), ctxIndent, indent)
+					r = r.WithContext(ctx)
+				}
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// GetIndentCtx retrieves the ctxIndent data from the request context. If not
+// set, the return value is an empty string.
+func GetIndentCtx(r *http.Request) string {
+	indent, _ := r.Context().Value(ctxIndent).(string)
+	return indent
 }
 
 // Server sets the Server header element.
@@ -695,14 +743,37 @@ func TransactionIOIndexCtx(next http.Handler) http.Handler {
 	})
 }
 
-// AddressPathCtx returns a http.HandlerFunc that embeds the value at the url
-// part {address} into the request context.
-func AddressPathCtx(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		address := chi.URLParam(r, "address")
-		ctx := context.WithValue(r.Context(), CtxAddress, address)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
+const (
+	addressLength = 35
+)
+
+// AddressPathCtxN constructs a middleware that returns a http.HandlerFunc which
+// parses the value at the url part {address} into the a list of addresses not
+// longer than n, and embeds the slice into the request context.
+func AddressPathCtxN(n int) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			addressStr := chi.URLParam(r, "address")
+			if len(addressStr) < addressLength {
+				http.Error(w, "invalid address", http.StatusUnprocessableEntity)
+				return
+			}
+			// string can't be longer than n addresses, plus n - 1 commas.
+			if len(addressStr) > n*(addressLength+1)-1 {
+				apiLog.Warnf("AddressPathCtxN rejecting address parameter of length %d", len(addressStr))
+				http.Error(w, "too many address", http.StatusUnprocessableEntity)
+				return
+			}
+			addrs := strings.Split(addressStr, ",")
+			if len(addrs) > n {
+				apiLog.Warnf("AddressPathCtxN parsed %d > %d strings", len(addrs), n)
+				http.Error(w, "address parse error", http.StatusUnprocessableEntity)
+				return
+			}
+			ctx := context.WithValue(r.Context(), CtxAddress, addrs)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
 }
 
 // ChartTypeCtx returns a http.HandlerFunc that embeds the value at the url
@@ -761,7 +832,7 @@ func TransactionsCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		address := r.FormValue("address")
 		if address != "" {
-			ctx := context.WithValue(r.Context(), CtxAddress, address)
+			ctx := context.WithValue(r.Context(), CtxAddress, []string{address})
 			next.ServeHTTP(w, r.WithContext(ctx))
 		}
 
@@ -828,7 +899,7 @@ func PageNumCtx(next http.Handler) http.Handler {
 func AddressPostCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		address := r.PostFormValue("addrs")
-		ctx := context.WithValue(r.Context(), CtxAddress, address)
+		ctx := context.WithValue(r.Context(), CtxAddress, []string{address})
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

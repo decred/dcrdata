@@ -102,9 +102,9 @@ const (
 	SelectSpendingTxsByPrevTxWithBlockHeight = `SELECT prev_tx_index, vins.tx_hash, vins.tx_index, block_height
 		FROM vins LEFT JOIN transactions ON
 			transactions.tx_hash=vins.tx_hash AND
-			transactions.is_valid=TRUE AND
-			transactions.is_mainchain=TRUE
-		WHERE prev_tx_hash=$1 AND vins.is_valid=TRUE AND vins.is_mainchain=TRUE;`
+			transactions.is_valid AND
+			transactions.is_mainchain
+		WHERE prev_tx_hash=$1 AND vins.is_valid AND vins.is_mainchain;`
 	SelectSpendingTxByPrevOut = `SELECT id, tx_hash, tx_index, tx_tree FROM vins
 		WHERE prev_tx_hash=$1 AND prev_tx_index=$2 ORDER BY is_valid DESC, is_mainchain DESC, block_time DESC;`
 	SelectFundingTxsByTx        = `SELECT id, prev_tx_hash FROM vins WHERE tx_hash=$1;`

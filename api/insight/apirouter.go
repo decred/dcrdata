@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -24,7 +24,7 @@ const APIVersion = 0
 
 // NewInsightApiRouter returns a new HTTP path router, ApiMux, for the Insight
 // API, app.
-func NewInsightApiRouter(app *InsightApi, useRealIP, compression bool) ApiMux {
+func NewInsightApiRouter(app *InsightApi, useRealIP, compression bool, maxAddrs int) ApiMux {
 	// chi router
 	mux := chi.NewRouter()
 
@@ -44,11 +44,17 @@ func NewInsightApiRouter(app *InsightApi, useRealIP, compression bool) ApiMux {
 	// Put the limiter after RealIP
 	mux.Use(m.Tollbooth(limiter))
 
+	// Check for and validate the "indent" URL query. Each API request handler
+	// may now access the configured indentation string if indent was specified
+	// and parsed as a boolean, otherwise the empty string, from
+	// m.GetIndentCtx(*http.Request).
+	mux.Use(m.Indent(app.JSONIndent))
+
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer)
 	mux.Use(middleware.StripSlashes)
 	if compression {
-		mux.Use(middleware.NewCompressor(3).Handler())
+		mux.Use(middleware.Compress(3))
 	}
 
 	mux.With(m.OriginalRequestURI).Get("/", func(w http.ResponseWriter, r *http.Request) {
@@ -74,10 +80,13 @@ func NewInsightApiRouter(app *InsightApi, useRealIP, compression bool) ApiMux {
 	mux.With(NbBlocksCtx).Get("/utils/estimatefee", app.getEstimateFee)
 	mux.Get("/peer", app.GetPeerStatus)
 
+	addrs1Ctx := m.AddressPathCtxN(1)
+	addrsMaxCtx := m.AddressPathCtxN(maxAddrs)
+
 	// Addresses endpoints
 	mux.Route("/addrs", func(rd chi.Router) {
 		rd.Route("/{address}", func(ra chi.Router) {
-			ra.Use(m.AddressPathCtx, FromToPaginationCtx)
+			ra.Use(addrsMaxCtx, FromToPaginationCtx)
 			ra.Get("/txs", app.getAddressesTxn)
 			ra.Get("/utxo", app.getAddressesTxnOutput)
 		})
@@ -90,11 +99,10 @@ func NewInsightApiRouter(app *InsightApi, useRealIP, compression bool) ApiMux {
 
 	// Address endpoints
 	mux.Route("/addr/{address}", func(rd chi.Router) {
-		rd.Use(m.AddressPathCtx)
-		rd.With(FromToPaginationCtx, NoTxListCtx).Get("/", app.getAddressInfo)
-		rd.Get("/utxo", app.getAddressesTxnOutput)
+		rd.With(addrs1Ctx, FromToPaginationCtx, NoTxListCtx).Get("/", app.getAddressInfo)
+		rd.With(addrsMaxCtx).Get("/utxo", app.getAddressesTxnOutput)
 		rd.Route("/{command}", func(ra chi.Router) {
-			ra.With(AddressCommandCtx).Get("/", app.getAddressInfo)
+			ra.With(addrs1Ctx, AddressCommandCtx).Get("/", app.getAddressInfo)
 		})
 	})
 

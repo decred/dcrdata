@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -78,39 +78,29 @@ type InsightApi struct {
 	status          *apitypes.Status
 	JSONIndent      string
 	ReqPerSecLimit  float64
-	maxCSVAddrs     int
 	inflightUTXOs   int64
 	inflightLimiter sync.Mutex
 }
 
 // NewInsightApi is the constructor for InsightApi.
 func NewInsightApi(client *rpcclient.Client, blockData BlockDataSource, params *chaincfg.Params,
-	memPoolData rpcutils.MempoolAddressChecker, JSONIndent string, maxAddrs int, status *apitypes.Status) *InsightApi {
+	memPoolData rpcutils.MempoolAddressChecker, JSONIndent string, status *apitypes.Status) *InsightApi {
 
-	newContext := InsightApi{
+	return &InsightApi{
 		nodeClient:     client,
 		BlockData:      blockData,
 		params:         params,
 		mp:             memPoolData,
 		status:         status,
+		JSONIndent:     JSONIndent,
 		ReqPerSecLimit: defaultReqPerSecLimit,
-		maxCSVAddrs:    maxAddrs,
 	}
-	return &newContext
 }
 
 // SetReqRateLimit is used to set the requests/second/IP for the Insight API's
 // rate limiter.
 func (iapi *InsightApi) SetReqRateLimit(reqPerSecLimit float64) {
 	iapi.ReqPerSecLimit = reqPerSecLimit
-}
-
-func (iapi *InsightApi) getIndentQuery(r *http.Request) (indent string) {
-	useIndentation := r.URL.Query().Get("indent")
-	if useIndentation == "1" || useIndentation == "true" {
-		indent = iapi.JSONIndent
-	}
-	return
 }
 
 // Insight API successful response for JSON return items.
@@ -167,7 +157,7 @@ func (iapi *InsightApi) getTransaction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, txsNew[0], iapi.getIndentQuery(r))
+	writeJSON(w, txsNew[0], m.GetIndentCtx(r))
 }
 
 func (iapi *InsightApi) getTransactionHex(w http.ResponseWriter, r *http.Request) {
@@ -187,7 +177,7 @@ func (iapi *InsightApi) getTransactionHex(w http.ResponseWriter, r *http.Request
 		Rawtx: txHex,
 	}
 
-	writeJSON(w, hexOutput, iapi.getIndentQuery(r))
+	writeJSON(w, hexOutput, m.GetIndentCtx(r))
 }
 
 func (iapi *InsightApi) getBlockSummary(w http.ResponseWriter, r *http.Request) {
@@ -226,7 +216,7 @@ func (iapi *InsightApi) getBlockSummary(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	writeJSON(w, blockInsight, iapi.getIndentQuery(r))
+	writeJSON(w, blockInsight, m.GetIndentCtx(r))
 }
 
 func (iapi *InsightApi) getBlockHash(w http.ResponseWriter, r *http.Request) {
@@ -257,7 +247,7 @@ func (iapi *InsightApi) getBlockHash(w http.ResponseWriter, r *http.Request) {
 	}{
 		hash,
 	}
-	writeJSON(w, blockOutput, iapi.getIndentQuery(r))
+	writeJSON(w, blockOutput, m.GetIndentCtx(r))
 }
 
 func (iapi *InsightApi) getRawBlock(w http.ResponseWriter, r *http.Request) {
@@ -306,7 +296,7 @@ func (iapi *InsightApi) getRawBlock(w http.ResponseWriter, r *http.Request) {
 	}{
 		hex.EncodeToString(blockHex.Bytes()),
 	}
-	writeJSON(w, blockJSON, iapi.getIndentQuery(r))
+	writeJSON(w, blockJSON, m.GetIndentCtx(r))
 }
 
 func (iapi *InsightApi) broadcastTransactionRaw(w http.ResponseWriter, r *http.Request) {
@@ -339,11 +329,11 @@ func (iapi *InsightApi) broadcastTransactionRaw(w http.ResponseWriter, r *http.R
 	}{
 		txid,
 	}
-	writeJSON(w, txidJSON, iapi.getIndentQuery(r))
+	writeJSON(w, txidJSON, m.GetIndentCtx(r))
 }
 
 func (iapi *InsightApi) getAddressesTxnOutput(w http.ResponseWriter, r *http.Request) {
-	addresses, err := m.GetAddressCtx(r, iapi.params, iapi.maxCSVAddrs) // Required
+	addresses, err := m.GetAddressCtx(r, iapi.params) // Required
 	if err != nil {
 		writeInsightError(w, err.Error())
 		return
@@ -535,7 +525,7 @@ func (iapi *InsightApi) getAddressesTxnOutput(w http.ResponseWriter, r *http.Req
 		return txnOutputs[i].Confirmations < txnOutputs[j].Confirmations
 	})
 
-	writeJSON(w, txnOutputs, iapi.getIndentQuery(r))
+	writeJSON(w, txnOutputs, m.GetIndentCtx(r))
 }
 
 // removeSliceElements removes elements of the input slice at the specified
@@ -560,7 +550,7 @@ func removeSliceElements(txOuts []*apitypes.AddressTxnOutput, inds []int) []*api
 func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) {
 	pageNum := m.GetPageNumCtx(r)
 	hash, blockerr := m.GetBlockHashCtx(r)
-	addresses, addrerr := m.GetAddressCtx(r, iapi.params, 1)
+	addresses, addrerr := m.GetAddressCtx(r, iapi.params)
 
 	if blockerr != nil && addrerr != nil {
 		msg := fmt.Sprintf(`Required query parameters (address or block) not present. `+
@@ -591,7 +581,7 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 			addrTransactions := apitypes.InsightBlockAddrTxSummary{
 				Txs: []apitypes.InsightTx{},
 			}
-			writeJSON(w, addrTransactions, iapi.getIndentQuery(r))
+			writeJSON(w, addrTransactions, m.GetIndentCtx(r))
 			return
 		}
 
@@ -624,7 +614,7 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 			PagesTotal: int64(txCount),
 			Txs:        txsNew,
 		}
-		writeJSON(w, blockTransactions, iapi.getIndentQuery(r))
+		writeJSON(w, blockTransactions, m.GetIndentCtx(r))
 		return
 	}
 
@@ -719,7 +709,7 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 			addrTransactions := apitypes.InsightBlockAddrTxSummary{
 				Txs: []apitypes.InsightTx{},
 			}
-			writeJSON(w, addrTransactions, iapi.getIndentQuery(r))
+			writeJSON(w, addrTransactions, m.GetIndentCtx(r))
 			return
 		}
 
@@ -763,12 +753,12 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 			PagesTotal: int64(pagesTotal),
 			Txs:        txsNew,
 		}
-		writeJSON(w, addrTransactions, iapi.getIndentQuery(r))
+		writeJSON(w, addrTransactions, m.GetIndentCtx(r))
 	}
 }
 
 func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) {
-	addresses, err := m.GetAddressCtx(r, iapi.params, iapi.maxCSVAddrs) // Required
+	addresses, err := m.GetAddressCtx(r, iapi.params) // Required
 	if err != nil {
 		writeInsightError(w, err.Error())
 		return
@@ -940,7 +930,7 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 		addressOutput.Items = make([]apitypes.InsightTx, 0)
 	}
 
-	writeJSON(w, addressOutput, iapi.getIndentQuery(r))
+	writeJSON(w, addressOutput, m.GetIndentCtx(r))
 }
 
 func (iapi *InsightApi) getSyncInfo(w http.ResponseWriter, r *http.Request) {
@@ -956,7 +946,7 @@ func (iapi *InsightApi) getSyncInfo(w http.ResponseWriter, r *http.Request) {
 			Status: "error",
 			Error:  errorString,
 		}
-		writeJSON(w, syncInfo, iapi.getIndentQuery(r))
+		writeJSON(w, syncInfo, m.GetIndentCtx(r))
 	}
 
 	blockChainHeight, err := iapi.nodeClient.GetBlockCount()
@@ -980,7 +970,7 @@ func (iapi *InsightApi) getSyncInfo(w http.ResponseWriter, r *http.Request) {
 		Height:           height,
 		Type:             "from RPC calls",
 	}
-	writeJSON(w, syncInfo, iapi.getIndentQuery(r))
+	writeJSON(w, syncInfo, m.GetIndentCtx(r))
 }
 
 func (iapi *InsightApi) getStatusInfo(w http.ResponseWriter, r *http.Request) {
@@ -1004,7 +994,7 @@ func (iapi *InsightApi) getStatusInfo(w http.ResponseWriter, r *http.Request) {
 		}{
 			infoResult.Difficulty,
 		}
-		writeJSON(w, info, iapi.getIndentQuery(r))
+		writeJSON(w, info, m.GetIndentCtx(r))
 	case "getBestBlockHash":
 		blockhash, err := iapi.nodeClient.GetBlockHash(int64(infoResult.Blocks))
 		if err != nil {
@@ -1018,7 +1008,7 @@ func (iapi *InsightApi) getStatusInfo(w http.ResponseWriter, r *http.Request) {
 		}{
 			blockhash.String(),
 		}
-		writeJSON(w, info, iapi.getIndentQuery(r))
+		writeJSON(w, info, m.GetIndentCtx(r))
 	case "getLastBlockHash":
 		blockhashtip, err := iapi.nodeClient.GetBlockHash(int64(infoResult.Blocks))
 		if err != nil {
@@ -1040,7 +1030,7 @@ func (iapi *InsightApi) getStatusInfo(w http.ResponseWriter, r *http.Request) {
 			blockhashtip.String(),
 			lastblockhash.String(),
 		}
-		writeJSON(w, info, iapi.getIndentQuery(r))
+		writeJSON(w, info, m.GetIndentCtx(r))
 	default:
 		info := struct {
 			Version         int32   `json:"version"`
@@ -1066,7 +1056,7 @@ func (iapi *InsightApi) getStatusInfo(w http.ResponseWriter, r *http.Request) {
 			infoResult.Errors,
 		}
 
-		writeJSON(w, info, iapi.getIndentQuery(r))
+		writeJSON(w, info, m.GetIndentCtx(r))
 	}
 }
 
@@ -1150,11 +1140,11 @@ func (iapi *InsightApi) getBlockSummaryByTime(w http.ResponseWriter, r *http.Req
 	summaryOutput.Pagination.CurrentTs = maxTime
 	summaryOutput.Length = len(summaryOutput.Blocks)
 
-	writeJSON(w, summaryOutput, iapi.getIndentQuery(r))
+	writeJSON(w, summaryOutput, m.GetIndentCtx(r))
 }
 
 func (iapi *InsightApi) getAddressInfo(w http.ResponseWriter, r *http.Request) {
-	addresses, err := m.GetAddressCtx(r, iapi.params, 1)
+	addresses, err := m.GetAddressCtx(r, iapi.params)
 	if err != nil {
 		writeInsightError(w, err.Error())
 		return
@@ -1187,13 +1177,13 @@ func (iapi *InsightApi) getAddressInfo(w http.ResponseWriter, r *http.Request) {
 	if isCmd {
 		switch command {
 		case "balance":
-			writeJSON(w, balance.TotalUnspent, iapi.getIndentQuery(r))
+			writeJSON(w, balance.TotalUnspent, m.GetIndentCtx(r))
 			return
 		case "totalReceived":
-			writeJSON(w, balance.TotalSpent+balance.TotalUnspent, iapi.getIndentQuery(r))
+			writeJSON(w, balance.TotalSpent+balance.TotalUnspent, m.GetIndentCtx(r))
 			return
 		case "totalSent":
-			writeJSON(w, balance.TotalSpent, iapi.getIndentQuery(r))
+			writeJSON(w, balance.TotalSpent, m.GetIndentCtx(r))
 			return
 		}
 	}
@@ -1274,7 +1264,7 @@ func (iapi *InsightApi) getAddressInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if isCmd && command == "unconfirmedBalance" {
-		writeJSON(w, unconfirmedBalanceSat, iapi.getIndentQuery(r))
+		writeJSON(w, unconfirmedBalanceSat, m.GetIndentCtx(r))
 		return
 	}
 
@@ -1324,7 +1314,7 @@ func (iapi *InsightApi) getAddressInfo(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, addressInfo, iapi.getIndentQuery(r))
+	writeJSON(w, addressInfo, m.GetIndentCtx(r))
 }
 
 // fromToForSlice takes ?from=A&to=B from the URL queries where A is the "from"
@@ -1380,7 +1370,7 @@ func (iapi *InsightApi) getEstimateFee(w http.ResponseWriter, r *http.Request) {
 		strconv.Itoa(nbBlocks): infoResult.RelayFee,
 	}
 
-	writeJSON(w, estimateFee, iapi.getIndentQuery(r))
+	writeJSON(w, estimateFee, m.GetIndentCtx(r))
 }
 
 // GetPeerStatus handles requests for node peer info (i.e. getpeerinfo RPC).
@@ -1398,5 +1388,5 @@ func (iapi *InsightApi) GetPeerStatus(w http.ResponseWriter, r *http.Request) {
 		connected, "127.0.0.1", port,
 	}
 
-	writeJSON(w, peerInfo, iapi.getIndentQuery(r))
+	writeJSON(w, peerInfo, m.GetIndentCtx(r))
 }

@@ -1270,6 +1270,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		Data         *dbtypes.AddressInfo
 		CRLFDownload bool
 		FiatBalance  *exchanges.Conversion
+		Pages        []pageNumber
 	}
 
 	// Grab the URL query parameters
@@ -1351,12 +1352,19 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	// endings.
 	UseCRLF := strings.Contains(r.UserAgent(), "Windows")
 
+	if limitN == 0 {
+		limitN = 20
+	}
+
+	linkTemplate := fmt.Sprintf("/address/%s?start=%%d&n=%d&txntype=%v", addrData.Address, limitN, txnType)
+
 	// Execute the HTML template.
 	pageData := AddressPageData{
 		CommonPageData: exp.commonData(r),
 		Data:           addrData,
 		CRLFDownload:   UseCRLF,
 		FiatBalance:    conversion,
+		Pages:          calcPages(int(addrData.TxnCount), int(limitN), int(offsetAddrOuts), linkTemplate),
 	}
 	str, err := exp.templates.exec("address", pageData)
 	if err != nil {
@@ -1392,11 +1400,15 @@ func (exp *explorerUI) AddressTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	linkTemplate := "/address/" + addrData.Address + "?start=%d&n=" + strconv.FormatInt(limitN, 10) + "&txntype=" + fmt.Sprintf("%v", txnType)
+
 	response := struct {
-		TxnCount int64  `json:"tx_count"`
-		HTML     string `json:"html"`
+		TxnCount int64        `json:"tx_count"`
+		HTML     string       `json:"html"`
+		Pages    []pageNumber `json:"pages"`
 	}{
 		TxnCount: addrData.TxnCount + addrData.NumUnconfirmed,
+		Pages:    calcPages(int(addrData.TxnCount), int(limitN), int(offsetAddrOuts), linkTemplate),
 	}
 
 	response.HTML, err = exp.templates.exec("addresstable", struct {
@@ -1437,7 +1449,9 @@ func parseAddressParams(r *http.Request) (address string, txnType dbtypes.AddrTx
 	// Number of outputs for the address to query the database for. The URL
 	// query parameter "n" is used to specify the limit (e.g. "?n=20").
 	limitN = defaultAddressRows
+
 	if nParam := r.URL.Query().Get("n"); nParam != "" {
+
 		var val uint64
 		val, err = strconv.ParseUint(nParam, 10, 64)
 		if err != nil {
@@ -1448,6 +1462,8 @@ func parseAddressParams(r *http.Request) (address string, txnType dbtypes.AddrTx
 			log.Warnf("addressPage: requested up to %d address rows, "+
 				"limiting to %d", limitN, MaxAddressRows)
 			limitN = MaxAddressRows
+		} else {
+			limitN = int64(val)
 		}
 	}
 
@@ -1615,8 +1631,27 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Split searchStr to the first part corresponding to a transaction hash and
+	// to the second part corresponding to a transaction output index.
+	searchStrSplit := strings.Split(searchStr, ":")
+	searchStrRewritten := searchStrSplit[0]
+	switch {
+	case len(searchStrSplit) > 2:
+		exp.StatusPage(w, "search failed", "Transaction outpoint does not have a valid format: "+searchStr,
+			"", ExpStatusNotFound)
+		return
+	case len(searchStrSplit) > 1:
+		if _, err := strconv.ParseUint(searchStrSplit[1], 10, 32); err == nil {
+			searchStrRewritten = searchStrRewritten + "/out/" + searchStrSplit[1]
+		} else {
+			exp.StatusPage(w, "search failed", "Transaction output index is not a valid non-negative integer: "+searchStrSplit[1],
+				"", ExpStatusNotFound)
+			return
+		}
+	}
+
 	// Remaining possibilities are hashes, so verify the string is a hash.
-	if _, err = chainhash.NewHashFromStr(searchStr); err != nil {
+	if _, err = chainhash.NewHashFromStr(searchStrSplit[0]); err != nil {
 		exp.StatusPage(w, "search failed",
 			"Search string is not a valid hash or address: "+searchStr,
 			"", ExpStatusNotFound)
@@ -1625,27 +1660,27 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 
 	// Attempt to get a block index by calling GetBlockHeight to see if the
 	// value is a block hash and then redirect to the block page if it is.
-	_, err = exp.dataSource.GetBlockHeight(searchStr)
+	_, err = exp.dataSource.GetBlockHeight(searchStrSplit[0])
 	if err == nil {
-		http.Redirect(w, r, "/block/"+searchStr, http.StatusPermanentRedirect)
+		http.Redirect(w, r, "/block/"+searchStrSplit[0], http.StatusPermanentRedirect)
 		return
 	}
 
 	// Call GetExplorerTx to see if the value is a transaction hash and then
 	// redirect to the tx page if it is.
-	tx := exp.dataSource.GetExplorerTx(searchStr)
+	tx := exp.dataSource.GetExplorerTx(searchStrSplit[0])
 	if tx != nil {
-		http.Redirect(w, r, "/tx/"+searchStr, http.StatusPermanentRedirect)
+		http.Redirect(w, r, "/tx/"+searchStrRewritten, http.StatusPermanentRedirect)
 		return
 	}
 
 	// Also check the aux DB as it may have transactions from orphaned blocks.
-	dbTxs, err := exp.dataSource.Transaction(searchStr)
+	dbTxs, err := exp.dataSource.Transaction(searchStrSplit[0])
 	if err != nil && err != sql.ErrNoRows {
 		log.Errorf("Searching for transaction failed: %v", err)
 	}
 	if dbTxs != nil {
-		http.Redirect(w, r, "/tx/"+searchStr, http.StatusPermanentRedirect)
+		http.Redirect(w, r, "/tx/"+searchStrRewritten, http.StatusPermanentRedirect)
 		return
 	}
 
@@ -2202,9 +2237,9 @@ func (exp *explorerUI) commonData(r *http.Request) *CommonPageData {
 // A page number has the information necessary to create numbered pagination
 // links.
 type pageNumber struct {
-	Active bool
-	Link   string
-	Str    string
+	Active bool   `json:"active"`
+	Link   string `json:"link"`
+	Str    string `json:"str"`
 }
 
 func makePageNumber(active bool, link, str string) pageNumber {
@@ -2331,6 +2366,7 @@ func (exp *explorerUI) AttackCost(w http.ResponseWriter, r *http.Request) {
 	ticketPoolSize := exp.pageData.HomeInfo.PoolInfo.Size
 	ticketPrice := exp.pageData.HomeInfo.StakeDiff
 	HashRate := exp.pageData.HomeInfo.HashRate
+	coinSupply := exp.pageData.HomeInfo.CoinSupply
 
 	exp.pageData.RUnlock()
 
@@ -2342,6 +2378,7 @@ func (exp *explorerUI) AttackCost(w http.ResponseWriter, r *http.Request) {
 		TicketPrice     float64
 		TicketPoolSize  int64
 		TicketPoolValue float64
+		CoinSupply      int64
 	}{
 		CommonPageData:  exp.commonData(r),
 		HashRate:        HashRate,
@@ -2350,6 +2387,7 @@ func (exp *explorerUI) AttackCost(w http.ResponseWriter, r *http.Request) {
 		TicketPrice:     ticketPrice,
 		TicketPoolSize:  int64(ticketPoolSize),
 		TicketPoolValue: ticketPoolValue,
+		CoinSupply:      coinSupply,
 	})
 
 	if err != nil {

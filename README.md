@@ -68,9 +68,9 @@ Always run the Current release or on the Current stable branch. Do not use `mast
 
 |             | Series  | Branch        | Latest release tag | `dcrd` RPC server version required |
 | ----------- | ------- | ------------- | ------------------ | ---------------------------------- |
-| Current     | 5.2     | `5.2-stable`  | `v5.2.0`           | ^6.1.1 (dcrd v1.6.0-pre@[`7b060207`](https://github.com/decred/dcrd/commit/7b060207b19595ef8cc7ae4ee120c66af623239a) to `HEAD`) |
-| Legacy      | 5.1     | `5.1-stable`  | `v5.1.3`           | ^5.0.0-^6.1.0 (dcrd v1.5-pre@[`fd3e180a`](https://github.com/decred/dcrd/commit/fd3e180a7e19fe72adaddd3d88370cb50fa636e2) to v1.6.0-pre@[`ccae4aa1`](https://github.com/decred/dcrd/commit/ccae4aa1a8a3ee8025bab6fee2f73d778d0315fd)) |
-| Development | 6.0     | `master`      | N/A                | same as dcrdata 5.2 |
+| Current     | 5.3     | `5.3-stable`  | `v5.3.0`           | same as dcrdata 5.3                |
+| Legacy      | 5.2     | `5.2-stable`  | `v5.2.2`           | ^6.1.1 (dcrd v1.6.0-pre@[`7b060207`](https://github.com/decred/dcrd/commit/7b060207b19595ef8cc7ae4ee120c66af623239a) to `HEAD`) |
+| Development | 6.0     | `master`      | N/A                | same as dcrdata 5.3                |
 
 ## Repository Overview
 
@@ -676,12 +676,13 @@ Exchange monitoring is off by default. Server must be started with
 The server will set a default currency code. To use a different code, pass URL
 parameter `?code=[code]`. For example, `/exchanges?code=EUR`.
 
-| Other                           | Path            | Type               |
-| ------------------------------- | --------------- | ------------------ |
-| Status                          | `/status`       | `types.Status`     |
-| Health (HTTP 200 or 503)        | `/status/happy` | `types.Happy`     |
-| Coin Supply                     | `/supply`       | `types.CoinSupply` |
-| Endpoint list (always indented) | `/list`         | `[]string`         |
+| Other                           | Path                                          | Type                                    |
+| ------------------------------- | --------------------------------------------- | --------------------------------------- |
+| Status                          | `/status`                                     | `types.Status`                          |
+| Health (HTTP 200 or 503)        | `/status/happy`                               | `types.Happy`                           |
+| Coin Supply                     | `/supply`                                     | `types.CoinSupply`                      |
+| Coin Supply Circulating (Mined) | `/supply/circulating?dcr=[true\|false]`       | `int` (default) or `float` (`dcr=true`) |
+| Endpoint list (always indented) | `/list`                                       | `[]string`                              |
 
 All JSON endpoints accept the URL query `indent=[true|false]`. For example,
 `/stake/diff?indent=true`. By default, indentation is off. The characters to use

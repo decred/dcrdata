@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -24,20 +24,27 @@ type fileMux struct {
 
 // NewAPIRouter creates a new HTTP request path router/mux for the given API,
 // appContext.
-func NewAPIRouter(app *appContext, useRealIP, compressLarge bool) apiMux {
+func NewAPIRouter(app *appContext, JSONIndent string, useRealIP, compressLarge bool) apiMux {
 	// chi router
 	mux := stackedMux(useRealIP)
+
+	// Check for and validate the "indent" URL query. Each API request handler
+	// may now access the configured indentation string if indent was specified
+	// and parsed as a boolean, otherwise the empty string, from
+	// m.GetIndentCtx(*http.Request).
+	mux.Use(m.Indent(JSONIndent))
 
 	mux.Get("/", app.root)
 
 	mux.Get("/status", app.status)
 	mux.Get("/status/happy", app.statusHappy)
 	mux.Get("/supply", app.coinSupply)
+	mux.Get("/supply/circulating", app.coinSupplyCirculating)
 
 	compMiddleware := m.Next
 	if compressLarge {
 		log.Debug("Enabling compressed responses for large JSON payload endpoints.")
-		compMiddleware = middleware.NewCompressor(3).Handler()
+		compMiddleware = middleware.Compress(3)
 	}
 
 	mux.Route("/block", func(r chi.Router) {
@@ -163,24 +170,32 @@ func NewAPIRouter(app *appContext, useRealIP, compressLarge bool) apiMux {
 		r.Post("/trimmed", app.getDecodedTransactions)
 	})
 
+	// DO NOT CHANGE maxExistAddrs.
+	// maxExistsAddrs must be <= 64 so that the bit mask can fit into a uint64.
+	const maxExistAddrs = 64
+
 	mux.Route("/address", func(r chi.Router) {
 		r.Route("/{address}", func(rd chi.Router) {
-			rd.Use(m.AddressPathCtx)
-			rd.Get("/totals", app.addressTotals)
-			rd.Get("/", app.getAddressTransactions)
-			rd.With(m.ChartGroupingCtx).Get("/types/{chartgrouping}", app.getAddressTxTypesData)
-			rd.With(m.ChartGroupingCtx).Get("/amountflow/{chartgrouping}", app.getAddressTxAmountFlowData)
-			rd.With(compMiddleware).Get("/raw", app.getAddressTransactionsRaw)
-			rd.Route("/count/{N}", func(ri chi.Router) {
-				ri.Use(m.NPathCtx)
-				ri.Get("/", app.getAddressTransactions)
-				ri.With(compMiddleware).Get("/raw", app.getAddressTransactionsRaw)
-				ri.Route("/skip/{M}", func(rj chi.Router) {
-					rj.Use(m.MPathCtx)
-					rj.Get("/", app.getAddressTransactions)
-					rj.With(compMiddleware).Get("/raw", app.getAddressTransactionsRaw)
+			rd.With(m.AddressPathCtxN(maxExistAddrs)).Get("/exists", app.addressExists)
+			rd.Group(func(re chi.Router) {
+				re.Use(m.AddressPathCtxN(1))
+				re.Get("/totals", app.addressTotals)
+				re.Get("/", app.getAddressTransactions)
+				re.With(m.ChartGroupingCtx).Get("/types/{chartgrouping}", app.getAddressTxTypesData)
+				re.With(m.ChartGroupingCtx).Get("/amountflow/{chartgrouping}", app.getAddressTxAmountFlowData)
+				re.With(compMiddleware).Get("/raw", app.getAddressTransactionsRaw)
+				re.Route("/count/{N}", func(ri chi.Router) {
+					ri.Use(m.NPathCtx)
+					ri.Get("/", app.getAddressTransactions)
+					ri.With(compMiddleware).Get("/raw", app.getAddressTransactionsRaw)
+					ri.Route("/skip/{M}", func(rj chi.Router) {
+						rj.Use(m.MPathCtx)
+						rj.Get("/", app.getAddressTransactions)
+						rj.With(compMiddleware).Get("/raw", app.getAddressTransactionsRaw)
+					})
 				})
 			})
+
 		})
 	})
 
@@ -266,7 +281,10 @@ func NewAPIRouter(app *appContext, useRealIP, compressLarge bool) apiMux {
 		return patterns
 	}
 
-	mux.HandleFunc("/list", app.writeJSONHandlerFunc(listRoutePatterns(mux.Routes())))
+	mux.HandleFunc("/list", func(w http.ResponseWriter, _ *http.Request) {
+		routeList := listRoutePatterns(mux.Routes())
+		writeJSON(w, routeList, JSONIndent)
+	})
 
 	return apiMux{mux}
 }
@@ -278,7 +296,7 @@ func NewFileRouter(app *appContext, useRealIP bool) fileMux {
 	mux.Route("/address", func(rd chi.Router) {
 		// Allow browser cache for 3 minutes.
 		rd.Use(m.CacheControl(180))
-		rd.With(m.AddressPathCtx).Get("/io/{address}", app.addressIoCsv)
+		rd.With(m.AddressPathCtxN(1)).Get("/io/{address}", app.addressIoCsv)
 	})
 
 	return fileMux{mux}

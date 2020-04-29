@@ -13,6 +13,7 @@
       data-attackcost-ticket-price="{{.TicketPrice}}"
       data-attackcost-ticket-pool-value="{{.TicketPoolValue}}"
       data-attackcost-ticket-pool-size="{{.TicketPoolSize}}"
+     data-attackcost-coin-supply="{{.CoinSupply}}"
     >
     <div class="col-md-24 p-0">
       <div class="bg-white mb-1 py-2 px-3 my-0">
@@ -277,12 +278,12 @@
             </div>
           </div>
         </div>
+
         {{- /* POS ATTACK */ -}}
         <div class="col-24 col-sm-12 col-md-24 col-lg-11 secondary-card pt-3 pb-3 px-3">
           <div class="pl-1">
             <span class="h6 d-inline-block pl-2 font-weight-bold">PoS Attack</span>
           </div>
-
           <div class="ml-4 d-none" data-target="attackcost.internalAttackPosText">
             <div class="mt-1 ml-2">
               A <input
@@ -348,47 +349,47 @@
               <span class="font-weight-bold" data-target="attackcost.additionalDcr">0</span><span class="fs11"> DCR</span>
               to the total staked.
             </div>
-
             <div class="mt-1 ml-2">
               New total staked will be <span class="font-weight-bold" data-target="attackcost.newTicketPoolValue">0</span> <span class="fs11"> DCR</span>.
             </div>
 
-            <div class="mt-1 ml-2" data-target="attackcost.projectedPriceDiv" style="{display: block}">
-              The projected ticket price is
-              <span class="position-relative font-weight-bold">
-              <span class="font-weight-bold" data-target="attackcost.projectedTicketPrice">0</span>
-                <span class="fs11">DCR</span>
-              </span>
-              (A <span class="font-weight-bold" data-target="attackcost.projectedTicketPriceIncrease">0</span>% increase).
-            </div>
-
-            <div class="mt-1 ml-2">
-              <span class="position-relative font-weight-bold">
-                <span>$</span><span class="font-weight-bold" data-target="attackcost.totalPos">0</span>
-              </span>
-              total PoS attack cost
-              (<span class="position-relative font-weight-bold">
-                <span data-target="attackcost.totalDCRPosLabel">0</span><span class="fs11"> DCR</span>
-                <span> * </span>
-                <span data-target="attackcost.dcrPriceLabel">0</span><span class="fs11"> USD/DCR</span>
-              </span>)
-            </div>
-
-          </div>
-
+        {{- /* CALCULATED PoS WARNING DISPLAY */ -}}
+        <div data-target="attackcost.attackNotPossibleWrapperDiv" class="mt-1 ml-2 blink-container d-none" style="color: #f12222; margin-left: 8px; ">
+            Attack not possible. Total coin supply is <span  data-target="attackcost.coinSupply" class="font-weight-bold">0</span> <span class="fs11">DCR</span>.
         </div>
+        <div class="mt-1 ml-2" data-target="attackcost.projectedPriceDiv" style="{display: block}">
+            The projected ticket price is
+            <span class="position-relative font-weight-bold">
+            <span class="font-weight-bold" data-target="attackcost.projectedTicketPrice">0</span>
+              <span class="fs11">DCR</span>
+            </span>
+            (A <span class="font-weight-bold" data-target="attackcost.projectedTicketPriceIncrease">0</span>% increase).
+        </div>
+        <div class="mt-1 ml-2">
+            <span class="position-relative font-weight-bold">
+              <span>$</span><span class="font-weight-bold" data-target="attackcost.totalPos">0</span>
+            </span>
+            total PoS attack cost
+            (<span class="position-relative font-weight-bold">
+              <span data-target="attackcost.totalDCRPosLabel">0</span><span class="fs11"> DCR</span>
+              <span> * </span>
+              <span data-target="attackcost.dcrPriceLabel">0</span><span class="fs11"> USD/DCR</span>
+            </span>)
+        </div>
+      </div>
+      </div>
       </div>
 
       {{- /* CALCULATION SUMMARY */ -}}
       <div class="text-center h4 mb-3 mt-3">
         Total attack cost:
-        <span class="position-relative text-secondary font-weight-bold">
+        <span class="position-relative text-secondary font-weight-bold" data-target="attackcost.totalAttackCostContainer">
           $<span class="font-weight-bold" data-target="attackcost.total">0</span>
           <span class="fs11">USD</span>
         </span>
       </div>
     </div>
-    </div>
+    </div>   
   </div>
  {{ template "footer" . }}
 </body>

@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -272,6 +272,8 @@ type ChainDB struct {
 	InReorg            bool
 	tpUpdatePermission map[dbtypes.TimeBasedGrouping]*trylock.Mutex
 	utxoCache          utxoStore
+	mixSetDiffsMtx     sync.Mutex
+	mixSetDiffs        map[uint32]int64 // height to value diff
 	deployments        *ChainDeployments
 	piparser           ProposalsFetcher
 	proposalsSync      lastSync
@@ -783,6 +785,7 @@ func NewChainDBWithCancel(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb
 		devPrefetch:        cfg.DevPrefetch,
 		tpUpdatePermission: tpUpdatePermissions,
 		utxoCache:          newUtxoStore(5e4),
+		mixSetDiffs:        make(map[uint32]int64),
 		deployments:        new(ChainDeployments),
 		piparser:           parser,
 		cockroach:          cockroach,
@@ -1057,7 +1060,7 @@ func (pgb *ChainDB) RegisterCharts(charts *cache.ChartData) {
 	charts.AddUpdater(cache.ChartUpdater{
 		Tag:      "anonymitySet",
 		Fetcher:  pgb.anonymitySet,
-		Appender: appendAnonymitySet,
+		Appender: pgb.appendAnonymitySet, // ChainDB's method since it caches data.
 	})
 
 	charts.AddUpdater(cache.ChartUpdater{
@@ -3185,17 +3188,92 @@ func (pgb *ChainDB) privacyParticipation(charts *cache.ChartData) (*sql.Rows, fu
 	return rows, cancel, nil
 }
 
-// anonymitySet sets or updates a series of per-block anonymity set. This is the
-// Fetcher half of a pair that make up a cache.ChartUpdater. The Appender half
-// is appendAnonymitySet.
+// anonymitySet ensures that all data is available to update the anonymity set
+// charts, first checking if the necessary data is already cached, and querying
+// the DB only if necessary. If the data is already cached, a nil *sql.Rows is
+// returned with a nil error as a signal to the appender. This is the Fetcher
+// half of a pair that make up a cache.ChartUpdater. The Appender half is
+// appendAnonymitySet.
 func (pgb *ChainDB) anonymitySet(charts *cache.ChartData) (*sql.Rows, func(), error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	// First check if the necessary data is available in mixSetDiffs.
+	nextDataHeight := uint32(len(charts.Blocks.AnonymitySet))
+	targetDataHeight := uint32(len(charts.Blocks.Height) - 1)
 
-	rows, err := retrieveAnonymitySet(ctx, pgb.db, charts)
+	pgb.mixSetDiffsMtx.Lock()
+	defer pgb.mixSetDiffsMtx.Unlock()
+
+	for h := nextDataHeight; h <= targetDataHeight; h++ {
+		if _, found := pgb.mixSetDiffs[h]; !found {
+			log.Debugf("Mixed set deltas not available at height %d. Querying DB...", h)
+			// A DB query is necessary.
+			return pgb.retrieveAnonymitySet(int32(nextDataHeight) - 1) // -1 means include genesis
+		}
+	}
+
+	// appendAnonymitySet has all the data it needs in mixSetDiffs.
+	return nil, func() {}, nil
+}
+
+// retrieveAnonymitySet fetches the mixed output fund/spend heights and values
+// for outputs funded after bestHeight. To include all blocks including genesis
+// use -1 for bestHeight.
+func (pgb *ChainDB) retrieveAnonymitySet(bestHeight int32) (*sql.Rows, func(), error) {
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	rows, err := pgb.db.QueryContext(ctx, internal.SelectMixedVouts, bestHeight)
 	if err != nil {
 		return nil, cancel, fmt.Errorf("chartBlocks: %v", pgb.replaceCancelError(err))
 	}
 	return rows, cancel, nil
+}
+
+// appendAnonymitySet appends the result from anonymitySet to the provided
+// ChartData. If rows is nil, the cached mixSetDiffs are used. This is the
+// Appender half of a pair that make up a cache.ChartUpdater.
+func (pgb *ChainDB) appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) error {
+	if rows != nil {
+		// DB query in progress. Scan the Rows.
+		return appendAnonymitySet(charts, rows)
+	}
+
+	// dbFallback := func(best uint32) error {
+	// 	rows, cancel, err := pgb.retrieveAnonymitySet(best)
+	// 	defer cancel()
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	return appendAnonymitySet(charts, rows)
+	// }
+
+	// Update with pgb.mixSetDiffs up to the length of charts.Blocks.Height.
+	nextDataHeight := uint32(len(charts.Blocks.AnonymitySet))
+	targetDataHeight := uint32(len(charts.Blocks.Height) - 1)
+
+	pgb.mixSetDiffsMtx.Lock()
+	defer pgb.mixSetDiffsMtx.Unlock()
+
+	nextSets := make([]uint64, 0, targetDataHeight-nextDataHeight+1)
+	var lastSet int64
+	if nextDataHeight > 0 {
+		lastSet = int64(charts.Blocks.AnonymitySet[nextDataHeight-1])
+	}
+	for h := nextDataHeight; h <= targetDataHeight; h++ {
+		setDiff, found := pgb.mixSetDiffs[h]
+		if !found {
+			// log.Errorf("mix set change for height %d not found, falling back to DB query", h)
+			// return dbFallback(nextDataHeight-1)
+			return fmt.Errorf("mix set delta for height %d not found", h)
+		}
+		delete(pgb.mixSetDiffs, h)
+
+		lastSet += setDiff
+		nextSets = append(nextSets, uint64(lastSet))
+		// Only append after we are sure we have all the data, but the Fetcher
+		// (anonymitySet) should have already verified that we do.
+	}
+
+	charts.Blocks.AnonymitySet = append(charts.Blocks.AnonymitySet, nextSets...)
+
+	return nil
 }
 
 // poolStats sets or updates a series of per-height ticket pool statistics.
@@ -3484,9 +3562,8 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 // StoreBlock processes the input wire.MsgBlock, and saves to the data tables.
 // The number of vins and vouts stored are returned.
 func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, isValid, isMainchain,
-	updateExistingRecords, updateAddressesSpendingInfo,
-	updateTicketsSpendingInfo bool, chainWork string) (
-	numVins int64, numVouts int64, numAddresses int64, err error) {
+	updateExistingRecords, updateAddressesSpendingInfo, updateTicketsSpendingInfo bool,
+	chainWork string) (numVins int64, numVouts int64, numAddresses int64, err error) {
 
 	// winningTickets is only set during initial chain sync.
 	// Retrieve it from the stakeDB.
@@ -3565,35 +3642,41 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, isValid, isMainchain,
 		log.Debugf("UTXO cache size: %d", pgb.utxoCache.Size())
 	}
 
-	errReg := <-resChanReg
-	errStk := <-resChanStake
-	if errStk.err != nil {
-		if errReg.err == nil {
-			err = errStk.err
-			numVins = errReg.numVins
-			numVouts = errReg.numVouts
-			numAddresses = errReg.numAddresses
+	resReg := <-resChanReg
+	resStk := <-resChanStake
+	if resStk.err != nil {
+		if resReg.err == nil {
+			err = resStk.err
+			numVins = resReg.numVins
+			numVouts = resReg.numVouts
+			numAddresses = resReg.numAddresses
 			return
 		}
-		err = errors.New(errReg.Error() + ", " + errStk.Error())
+		err = errors.New(resReg.Error() + ", " + resStk.Error())
 		return
-	} else if errReg.err != nil {
-		err = errReg.err
-		numVins = errStk.numVins
-		numVouts = errStk.numVouts
-		numAddresses = errStk.numAddresses
+	} else if resReg.err != nil {
+		err = resReg.err
+		numVins = resStk.numVins
+		numVouts = resStk.numVouts
+		numAddresses = resStk.numAddresses
 		return
 	}
 
-	numVins = errStk.numVins + errReg.numVins
-	numVouts = errStk.numVouts + errReg.numVouts
-	numAddresses = errStk.numAddresses + errReg.numAddresses
-	dbBlock.TxDbIDs = errReg.txDbIDs
-	dbBlock.STxDbIDs = errStk.txDbIDs
+	numVins = resStk.numVins + resReg.numVins
+	numVouts = resStk.numVouts + resReg.numVouts
+	numAddresses = resStk.numAddresses + resReg.numAddresses
+	dbBlock.TxDbIDs = resReg.txDbIDs
+	dbBlock.STxDbIDs = resStk.txDbIDs
+
+	if isMainchain {
+		pgb.mixSetDiffsMtx.Lock()
+		pgb.mixSetDiffs[msgBlock.Header.Height] = resReg.mixSetDelta + resStk.mixSetDelta
+		pgb.mixSetDiffsMtx.Unlock()
+	}
 
 	// Merge the affected addresses, which are to be purged from the cache.
-	affectedAddresses := errReg.addresses
-	for ad := range errStk.addresses {
+	affectedAddresses := resReg.addresses
+	for ad := range resStk.addresses {
 		affectedAddresses[ad] = struct{}{}
 	}
 	// Put them in a slice.
@@ -3640,7 +3723,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, isValid, isMainchain,
 		pgb.bestBlock.mtx.Unlock()
 
 		// Insert the block stats.
-		if isMainchain && tpi != nil {
+		if tpi != nil {
 			err = InsertBlockStats(pgb.db, blockDbID, tpi)
 			if err != nil {
 				err = fmt.Errorf("InsertBlockStats: %v", err)
@@ -3782,6 +3865,7 @@ type storeTxnsResult struct {
 	txDbIDs                         []uint64
 	err                             error
 	addresses                       map[string]struct{}
+	mixSetDelta                     int64
 }
 
 func (r *storeTxnsResult) Error() string {
@@ -3841,7 +3925,7 @@ func (pgb *ChainDB) storeTxns(txns []*dbtypes.Tx, vouts [][]*dbtypes.Vout, vins 
 	for it, Tx := range txns {
 		// Insert vouts, and collect AddressRows to add to address table for
 		// each output.
-		Tx.VoutDbIds, dbAddressRows[it], err = InsertVoutsStmt(voutStmt, Tx.BlockHeight,
+		Tx.VoutDbIds, dbAddressRows[it], err = InsertVoutsStmt(voutStmt,
 			vouts[it], pgb.dupChecks, updateExistingRecords)
 		if err != nil && err != sql.ErrNoRows {
 			err = fmt.Errorf("failure in InsertVoutsStmt: %v", err)
@@ -3887,13 +3971,15 @@ func (pgb *ChainDB) storeBlockTxnTree(msgBlock *MsgBlockPG, txTree int8,
 	updateExistingRecords, updateAddressesSpendingInfo,
 	updateTicketsSpendingInfo bool) storeTxnsResult {
 	// For the given block and transaction tree, extract the transactions, vins,
-	// and vouts.
+	// and vouts. Note that each txn in dbTransactions has IsValid set according
+	// to the isValid flag for the block and the tree of the transaction itself,
+	// where TxTreeStake transactions are never invalidated.
 	dbTransactions, dbTxVouts, dbTxVins := dbtypes.ExtractBlockTransactions(
 		msgBlock.MsgBlock, txTree, chainParams, isValid, isMainchain)
 
 	// The transactions' VinDbIds are not yet set, but update the UTXO cache
 	// without it so we can check the mixed status of stake transaction inputs
-	// without missing prevouts generated by txns mined in the same block
+	// without missing prevouts generated by txns mined in the same block.
 	pgb.updateUtxoCache(dbTxVouts, dbTransactions)
 
 	// Check the previous outputs funding the stake transactions and certain
@@ -3933,6 +4019,22 @@ txns:
 		}
 
 		//pgb.updateUtxoCache([][]*dbtypes.Vout{dbTxVouts[it]}, []*dbtypes.Tx{tx})
+	}
+
+	var mixDiff int64
+	if isMainchain {
+		for it, tx := range dbTransactions {
+			if !tx.IsValid {
+				continue
+			}
+
+			for _, vout := range dbTxVouts[it] {
+				if !vout.Mixed {
+					continue
+				}
+				mixDiff += int64(vout.Value)
+			}
+		}
 	}
 
 	// Store the transactions, vins, and vouts. This sets the VoutDbIds,
@@ -4174,7 +4276,6 @@ txns:
 			voutDbIDs = make([]int64, 0, len(txVins))
 		}
 
-		validatedTx := tx.IsValid || tx.Tree == wire.TxTreeStake
 		for iv := range txVins {
 			// Transaction that spends an outpoint paying to >=0 addresses
 			vin := &txVins[iv]
@@ -4198,10 +4299,10 @@ txns:
 			if !ok {
 				log.Tracef("Data for that utxo (%s:%d) wasn't cached!", vin.PrevTxHash, vin.PrevTxIndex)
 			}
-			numAddressRowsSet, voutDbID, err := insertSpendingAddressRow(dbTx,
+			numAddressRowsSet, voutDbID, mixedVout, err := insertSpendingAddressRow(dbTx,
 				vin.PrevTxHash, vin.PrevTxIndex, int8(vin.PrevTxTree),
 				spendingTxHash, spendingTxIndex, vinDbID, utxoData, pgb.dupChecks,
-				updateExistingRecords, tx.IsMainchainBlock, validatedTx,
+				updateExistingRecords, tx.IsMainchainBlock, tx.IsValid,
 				vin.TxType, updateAddressesSpendingInfo, tx.BlockTime)
 			if err != nil {
 				txRes.err = fmt.Errorf(`insertSpendingAddressRow: %v + %v (rollback)`,
@@ -4212,13 +4313,17 @@ txns:
 			if updateAddressesSpendingInfo {
 				voutDbIDs = append(voutDbIDs, int64(voutDbID))
 			}
+
+			if mixedVout && tx.IsValid && isMainchain {
+				mixDiff -= vin.ValueIn
+			}
 		}
 
 		// NOTE: vouts.spend_tx_row_id is not updated if this is a side chain
 		// block or if the transaction is stake-invalidated. Spending
 		// information for extended side chain transaction outputs must still be
 		// done via addresses.matching_tx_hash.
-		if updateAddressesSpendingInfo && validatedTx && tx.IsMainchainBlock {
+		if updateAddressesSpendingInfo && tx.IsValid && isMainchain {
 			// Set spend_tx_row_id for each prevout consumed by this txn.
 			err = setSpendingForVouts(dbTx, voutDbIDs, txDbID)
 			if err != nil {
@@ -4226,12 +4331,11 @@ txns:
 					err, dbTx.Rollback())
 				return txRes
 			}
-			// notify chart cache to update vouts
-			setVoutsSpendingHeightOnCharts(voutDbIDs)
 		}
 	}
 
 	txRes.err = dbTx.Commit()
+	txRes.mixSetDelta = mixDiff
 
 	return txRes
 }
@@ -5463,7 +5567,7 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 			// Account for this possibility by calculating the fee for votes as
 			// well.
 			if stx.Fee > 0 {
-				log.Tracef("Vote with fee! %v, %v DCR", stx.Fee, stx.Fees)
+				log.Tracef("Vote with fee: %d atoms, %.8f DCR", int64(stx.Fee), stx.Fees)
 			}
 			votes = append(votes, stx)
 		case stake.TxTypeSStx:
@@ -6157,7 +6261,7 @@ func (pgb *ChainDB) SignalHeight(height uint32) {
 
 func (pgb *ChainDB) MixedUtxosByHeight() (heights, utxoCountReg, utxoValueReg, utxoCountStk, utxoValueStk []int64, err error) {
 	var rows *sql.Rows
-	rows, err = pgb.db.Query(internal.SelectMixedVouts)
+	rows, err = pgb.db.Query(internal.SelectMixedVouts, -1)
 	if err != nil {
 		return
 	}
@@ -6169,10 +6273,10 @@ func (pgb *ChainDB) MixedUtxosByHeight() (heights, utxoCountReg, utxoValueReg, u
 	var maxHeight int64
 	minHeight := int64(math.MaxInt64)
 	for rows.Next() {
-		var id, value, fundHeight, spendHeight int64
+		var value, fundHeight, spendHeight int64
 		var spendHeightNull sql.NullInt64
 		var tree uint8
-		err = rows.Scan(&id, &value, &fundHeight, &spendHeightNull, &tree)
+		err = rows.Scan(&value, &fundHeight, &spendHeightNull, &tree)
 		if err != nil {
 			return
 		}

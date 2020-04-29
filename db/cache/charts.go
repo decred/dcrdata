@@ -1,4 +1,4 @@
-// Copyright (c) 2019, The Decred developers
+// Copyright (c) 2019-2020, The Decred developers
 // See LICENSE for details.
 
 package cache
@@ -372,8 +372,6 @@ type ChartGobject struct {
 	MissedVotes  ChartUints
 	TotalMixed   ChartUints
 	AnonymitySet ChartUints
-
-	UnspentOutputs map[uint64]uint64
 }
 
 // The chart data is cached with the current cacheID of the zoomSet or windowSet.
@@ -424,12 +422,8 @@ type ChartData struct {
 	Days         *zoomSet
 	cacheMtx     sync.RWMutex
 	cache        map[string]*cachedChart
-	updaters     []ChartUpdater
 	updateMtx    sync.Mutex
-
-	RequiresFullUpdate bool
-	UnspentOutputs     map[uint64]uint64
-	UnspentOutputsMtx  sync.Mutex
+	updaters     []ChartUpdater
 }
 
 // ValidateLengths checks that the length of all arguments is equal.
@@ -475,12 +469,12 @@ func (charts *ChartData) Lengthen() error {
 	blocks := charts.Blocks
 	shortest, err := ValidateLengths(blocks.Height, blocks.Time,
 		blocks.PoolSize, blocks.PoolValue, blocks.BlockSize, blocks.TxCount,
-		blocks.NewAtoms, blocks.Chainwork, blocks.Fees, blocks.TotalMixed, blocks.AnonymitySet)
+		blocks.NewAtoms, blocks.Chainwork, blocks.Fees, blocks.TotalMixed,
+		blocks.AnonymitySet)
 	if err != nil {
 		log.Warnf("ChartData.Lengthen: block data length mismatch detected. "+
 			"Truncating blocks length to %d", shortest)
 		blocks.Snip(shortest)
-		charts.RequiresFullUpdate = true
 	}
 	if shortest == 0 {
 		// No blocks yet. Not an error.
@@ -588,9 +582,9 @@ func (charts *ChartData) Lengthen() error {
 // satisfies notification.ReorgHandler, and is registered as a handler in
 // main.go.
 func (charts *ChartData) ReorgHandler(reorg *txhelpers.ReorgData) error {
-	commonAncestorHeight := uint64(reorg.NewChainHeight) - uint64(len(reorg.NewChain))
+	commonAncestorHeight := int(reorg.NewChainHeight) - len(reorg.NewChain)
 	charts.mtx.Lock()
-	newHeight := int(commonAncestorHeight) + 1
+	newHeight := commonAncestorHeight + 1
 	log.Debugf("ChartData.ReorgHandler snipping blocks height to %d", newHeight)
 	charts.Blocks.Snip(newHeight)
 	// Snip the last two days
@@ -607,9 +601,9 @@ func (charts *ChartData) ReorgHandler(reorg *txhelpers.ReorgData) error {
 	return nil
 }
 
-// isfileExists checks if the provided file paths exists. It returns true if
+// isFileExists checks if the provided file paths exists. It returns true if
 // it does exist and false if otherwise.
-func isfileExists(filePath string) bool {
+func isFileExists(filePath string) bool {
 	_, err := os.Stat(filePath)
 	return !os.IsNotExist(err)
 }
@@ -619,7 +613,7 @@ func isfileExists(filePath string) bool {
 // Drops the old .gob dump before creating a new one. Delete the old cache here
 // rather than after loading so that a dump will still be available after a crash.
 func (charts *ChartData) writeCacheFile(filePath string) error {
-	if isfileExists(filePath) {
+	if isFileExists(filePath) {
 		// delete the old dump files before creating new ones.
 		os.RemoveAll(filePath)
 	}
@@ -681,7 +675,6 @@ func (charts *ChartData) readCacheFile(filePath string) error {
 	charts.Windows.TicketPrice = gobject.TicketPrice
 	charts.Windows.StakeCount = gobject.StakeCount
 	charts.Windows.MissedVotes = gobject.MissedVotes
-	charts.UnspentOutputs = gobject.UnspentOutputs
 
 	charts.mtx.Unlock()
 
@@ -737,23 +730,22 @@ func (charts *ChartData) TriggerUpdate(_ string, _ uint32) error {
 
 func (charts *ChartData) gobject() *ChartGobject {
 	return &ChartGobject{
-		Height:         charts.Blocks.Height,
-		Time:           charts.Blocks.Time,
-		PoolSize:       charts.Blocks.PoolSize,
-		PoolValue:      charts.Blocks.PoolValue,
-		BlockSize:      charts.Blocks.BlockSize,
-		TxCount:        charts.Blocks.TxCount,
-		NewAtoms:       charts.Blocks.NewAtoms,
-		Chainwork:      charts.Blocks.Chainwork,
-		Fees:           charts.Blocks.Fees,
-		TotalMixed:     charts.Blocks.TotalMixed,
-		AnonymitySet:   charts.Blocks.AnonymitySet,
-		WindowTime:     charts.Windows.Time,
-		PowDiff:        charts.Windows.PowDiff,
-		TicketPrice:    charts.Windows.TicketPrice,
-		StakeCount:     charts.Windows.StakeCount,
-		MissedVotes:    charts.Windows.MissedVotes,
-		UnspentOutputs: charts.UnspentOutputs,
+		Height:       charts.Blocks.Height,
+		Time:         charts.Blocks.Time,
+		PoolSize:     charts.Blocks.PoolSize,
+		PoolValue:    charts.Blocks.PoolValue,
+		BlockSize:    charts.Blocks.BlockSize,
+		TxCount:      charts.Blocks.TxCount,
+		NewAtoms:     charts.Blocks.NewAtoms,
+		Chainwork:    charts.Blocks.Chainwork,
+		Fees:         charts.Blocks.Fees,
+		TotalMixed:   charts.Blocks.TotalMixed,
+		AnonymitySet: charts.Blocks.AnonymitySet,
+		WindowTime:   charts.Windows.Time,
+		PowDiff:      charts.Windows.PowDiff,
+		TicketPrice:  charts.Windows.TicketPrice,
+		StakeCount:   charts.Windows.StakeCount,
+		MissedVotes:  charts.Windows.MissedVotes,
 	}
 }
 
@@ -856,7 +848,11 @@ func (charts *ChartData) Update() error {
 	charts.updateMtx.Lock()
 	defer charts.updateMtx.Unlock()
 
+	t := time.Now()
+	log.Debugf("Running charts updaters for data at height %d...", charts.Height())
+
 	for _, updater := range charts.updaters {
+		ti := time.Now()
 		stateID := charts.StateID()
 		rows, cancel, err := updater.Fetcher(charts)
 		if err != nil {
@@ -877,7 +873,12 @@ func (charts *ChartData) Update() error {
 		if err != nil {
 			return err
 		}
+		log.Tracef(" - Chart updater %q completed in %f seconds.",
+			updater.Tag, time.Since(ti).Seconds())
 	}
+
+	log.Debugf("Charts updaters complete at height %d in %f seconds.",
+		charts.Height(), time.Since(t).Seconds())
 
 	// Since the charts db data query is complete. Update chart.Days derived dataset.
 	if err := charts.Lengthen(); err != nil {
@@ -902,15 +903,14 @@ func NewChartData(ctx context.Context, height uint32, chainParams *chaincfg.Para
 	windows := int(base64Height/chainParams.StakeDiffWindowSize+1) * 5 / 4
 
 	return &ChartData{
-		ctx:            ctx,
-		DiffInterval:   int32(chainParams.StakeDiffWindowSize),
-		StartPOS:       int32(chainParams.StakeValidationHeight),
-		Blocks:         newBlockSet(size),
-		Windows:        newWindowSet(windows),
-		Days:           newDaySet(days),
-		cache:          make(map[string]*cachedChart),
-		updaters:       make([]ChartUpdater, 0),
-		UnspentOutputs: make(map[uint64]uint64),
+		ctx:          ctx,
+		DiffInterval: int32(chainParams.StakeDiffWindowSize),
+		StartPOS:     int32(chainParams.StakeValidationHeight),
+		Blocks:       newBlockSet(size),
+		Windows:      newWindowSet(windows),
+		Days:         newDaySet(days),
+		cache:        make(map[string]*cachedChart),
+		updaters:     make([]ChartUpdater, 0),
 	}
 }
 

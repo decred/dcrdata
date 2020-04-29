@@ -654,7 +654,6 @@ func _main(ctx context.Context) error {
 		Client:             dcrdClient,
 		Params:             activeChain,
 		DataSource:         chainDB,
-		JsonIndent:         cfg.IndentJSON,
 		XcBot:              xcBot,
 		AgendasDBInstance:  agendaDB,
 		MaxAddrs:           cfg.MaxCSVAddrs,
@@ -671,7 +670,7 @@ func _main(ctx context.Context) error {
 	}
 
 	// Configure the URL path to http handler router for the API.
-	apiMux := api.NewAPIRouter(app, cfg.UseRealIP, cfg.CompressAPI)
+	apiMux := api.NewAPIRouter(app, cfg.IndentJSON, cfg.UseRealIP, cfg.CompressAPI)
 
 	// File downloads piggy-back on the API.
 	fileMux := api.NewFileRouter(app, cfg.UseRealIP)
@@ -725,9 +724,10 @@ func _main(ctx context.Context) error {
 		r.Mount("/api", apiMux.Mux)
 		// Setup and mount the Insight API.
 		insightApp := insight.NewInsightApi(dcrdClient, chainDB,
-			activeChain, mpm, cfg.IndentJSON, cfg.MaxCSVAddrs, app.Status)
+			activeChain, mpm, cfg.IndentJSON, app.Status)
 		insightApp.SetReqRateLimit(cfg.InsightReqRateLimit)
-		insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP, cfg.CompressAPI)
+		insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP,
+			cfg.CompressAPI, cfg.MaxCSVAddrs)
 		r.Mount("/insight/api", insightMux.Mux)
 
 		if insightSocketServer != nil {
@@ -1127,7 +1127,7 @@ func _main(ctx context.Context) error {
 	notifier.RegisterBlockHandlerLiteGroup(app.UpdateNodeHeight, mpm.BlockHandler)
 	notifier.RegisterReorgHandlerGroup(sdbChainMonitor.ReorgHandler)
 	notifier.RegisterReorgHandlerGroup(wsChainMonitor.ReorgHandler, chainDBChainMonitor.ReorgHandler)
-	notifier.RegisterReorgHandlerGroup(charts.ReorgHandler)
+	notifier.RegisterReorgHandlerGroup(charts.ReorgHandler) // snip charts data
 	notifier.RegisterTxHandlerGroup(mpm.TxHandler, insightSocketServer.SendNewTx)
 
 	// Register for notifications from dcrd. This also sets the daemon RPC
