@@ -154,7 +154,7 @@
               </div>
             </div>
             <div class="col-24 col-md-14 col-lg-24 col-xl-14 row pb-3">
-              <div class="col-8 text-center">
+              <div class="col-12 text-center">
                 <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
                   <span class="text-secondary fs13">USD-DCR Price</span>
                   <br>
@@ -166,26 +166,11 @@
                     <option value="predicted">Predicted</option>
                     <option value="current">Current</option>
                   </select>
+                  Rate: $<span data-target="attackcost.priceDCR">0</span>
                 </div>
               </div>
 
-              <div class="col-8 text-center">
-                <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
-                  <span class="text-secondary fs13">USD-DCR Rate</span>
-                  <span class="h4">
-                    <input
-                      type="number"
-                      data-target="attackcost.priceDCR"
-                      data-action="change->attackcost#updatePrice"
-                      step="0.1"
-                      min="0.01"
-                      value="20"
-                      max="1000"
-                    >
-                  </span> <span class="text-secondary">USD/DCR</span>
-                </div>
-              </div>
-              <div class="col-8 text-center">
+              <div class="col-12 text-center">
                 <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
                   <span class="text-secondary fs13">Attack Type</span>
                   <br>
@@ -382,29 +367,28 @@
             <div class="mt-1 ml-2" data-target="attackcost.projectedDcrPriceDiv" style="{display: block}">
               Offered DCR on all orderbooks is
               <span class="font-weight-bold" data-target="attackcost.marketVolume">0</span>
-              <span class="fs11"> DCR</span> valued at
-              $<span class="font-weight-bold" data-target="attackcost.marketValue">0</span>
-              with a price of 
+              <span class="fs11"> DCR</span>, valued at
+              $<span class="font-weight-bold" data-target="attackcost.marketValue">0</span>.
+              Buying it all would have an average cost of
               $<span class="font-weight-bold" data-target="attackcost.marketAvgDcrPrice">0</span>
-              and an increase rate of 
+              with an increase rate of
               <span class="font-weight-bold" data-target="attackcost.dcrPriceIncrease">0</span>% per DCR.
-              With this rate, to buy the 
+              If buying
               <span class="font-weight-bold" data-target="attackcost.additionalDcr">0</span>
-              <span class="fs11"> DCR</span> needed for the attack,
-              the price of <span class="font-weight-bold">1</span><span class="fs11"> DCR</span> 
-              is projected to rise to
+              <span class="fs11"> DCR</span>, needed for the attack,
+              we estimate the market price would rise to
               <span class="position-relative font-weight-bold">
               $<span class="font-weight-bold" data-target="attackcost.projectedDcrPrice">0</span>
               </span>
-              (A <span class="font-weight-bold" data-target="attackcost.projectedDcrPriceIncrease">0</span>% increase).<br/>
-              The cost of DCR acquired will be 
+              (A <span class="font-weight-bold" data-target="attackcost.projectedDcrPriceIncrease">0</span>x increase).<br/>
+              The estimate cost of acquiring the DCR is 
               <span class="position-relative font-weight-bold">
                 $<span class="font-weight-bold" data-target="attackcost.acquiredDcrCost">0</span>
-              </span>.<br/>
-              The final value of DCR acquired will be 
+              </span> 
+              (final market value
               <span class="position-relative font-weight-bold">
                 $<span class="font-weight-bold" data-target="attackcost.acquiredDcrValue">0</span>
-              </span>.
+              </span>).
             </div>
 
             <div class="mt-1 ml-2">
