@@ -122,8 +122,8 @@ export default class extends Controller {
       'ticketPoolValue', 'ticketPrice', 'tickets', 'ticketSizeAttack', 'durationLongDesc',
       'total', 'totalDCRPos', 'totalDeviceCost', 'totalElectricity', 'totalExtraCostRate', 'totalKwh',
       'totalPos', 'totalPow', 'graph', 'labels', 'projectedTicketPrice', 'projectedTicketPriceIncrease', 'attackType',
-      'marketVolume', 'marketValue', 'marketAvgDcrPrice', 'priceType',
-      'projectedDcrPriceDiv', 'projectedDcrPrice', 'projectedDcrPriceIncrease', 'dcrPriceIncrease',
+      'marketVolume', 'marketValue', 'marketAvgDcrPrice', 'priceType', 'projectedDcrPriceDiv', 'projectedDcrPrice',
+      'projectedDcrPriceIncrease', 'dcrPriceIncrease', 'acquiredDcrCost', 'acquiredDcrValue',
       'attackPosPercentAmountLabel', 'dcrPriceLabel', 'totalDCRPosLabel',
       'projectedPriceDiv', 'attackNotPossibleWrapperDiv', 'coinSupply', 'totalAttackCostContainer'
     ]
@@ -425,6 +425,14 @@ export default class extends Controller {
     marketAvgDcrPrice = totalCost / totalVolume
   }
 
+  calcAcquiredDcrCost (currentDcrPrice, averageIncreaseValue, buyVolume) {
+    let commutator = 0
+    for (let v = 1; v <= buyVolume; v++) {
+      commutator += currentDcrPrice + (averageIncreaseValue * v)
+    }
+    return commutator
+  }
+
   updateSliderData () {
     var val = Math.min(parseFloat(this.attackPercentTarget.value) || 0, 0.99)
     // Makes PoS to be affected by the slider
@@ -479,16 +487,22 @@ export default class extends Controller {
     this.ticketPoolValueTarget.innerHTML = digitformat(hashrate, 3)
 
     // projected dcr price
-    let rateOfIncrement = Math.pow((marketAvgDcrPrice * btcPrice) / currentDcrPrice, 1 / (marketVolume - 1)) - 1
-    let projectedDcrPrice = currentDcrPrice * Math.pow(1 + rateOfIncrement, DCRNeed - 1)
+    let increaseRate = Math.pow((marketAvgDcrPrice * btcPrice) / currentDcrPrice, 1 / (marketVolume - 1)) - 1
+    const increaseValue = increaseRate * currentDcrPrice
+    const averageIncreaseValue = increaseValue * currentDcrPrice
+    let projectedDcrPrice = currentDcrPrice + (averageIncreaseValue * DCRNeed)
+    const acquiredDcrCost = this.calcAcquiredDcrCost(currentDcrPrice, averageIncreaseValue, DCRNeed)
+    // Tn = T0 + (avgIncVal * n)
 
     const increasePercentage = 100 * (projectedDcrPrice - currentDcrPrice) / currentDcrPrice
-    this.projectedDcrPriceIncreaseTarget.innerHTML = increasePercentage.toExponential()
-    this.setAllValues(this.projectedDcrPriceTargets, projectedDcrPrice.toExponential())
+    this.projectedDcrPriceIncreaseTarget.innerHTML = digitformat(increasePercentage, 2)
+    this.setAllValues(this.projectedDcrPriceTargets, digitformat(projectedDcrPrice, 2))
     this.setAllValues(this.marketVolumeTargets, digitformat(marketVolume, 2))
-    this.setAllValues(this.dcrPriceIncreaseTargets, digitformat(rateOfIncrement, 8))
+    this.setAllValues(this.dcrPriceIncreaseTargets, digitformat(increaseRate, 8))
     this.setAllValues(this.marketAvgDcrPriceTargets, digitformat(marketAvgDcrPrice * btcPrice - currentDcrPrice))
     this.setAllValues(this.marketValueTargets, digitformat(marketValue * btcPrice, 2))
+    this.setAllValues(this.acquiredDcrCostTargets, digitformat(acquiredDcrCost, 2))
+    this.setAllValues(this.acquiredDcrValueTargets, digitformat(DCRNeed * projectedDcrPrice, 2))
 
     if (this.settings.priceType === 'predicted') {
       dcrPrice = projectedDcrPrice
