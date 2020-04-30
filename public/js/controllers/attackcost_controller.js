@@ -529,8 +529,7 @@ export default class extends Controller {
 
     // projected dcr price
     let increaseRate = Math.pow(((totalObCost / totalObUnits) * btcPrice) / currentDcrPrice, 1 / (totalObUnits - 1)) - 1
-    const increaseValue = increaseRate * currentDcrPrice
-    const averageIncreaseValue = increaseValue * currentDcrPrice
+    const averageIncreaseValue = increaseRate * currentDcrPrice
     let projectedDcrPrice = currentDcrPrice + (averageIncreaseValue * totalDCRPos)
     const acquiredDcrCost = this.calcAcquiredDcrCost(currentDcrPrice, averageIncreaseValue, totalDCRPos)
     // Tn = T0 + (avgIncVal * n)
