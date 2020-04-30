@@ -398,14 +398,14 @@ export default class extends Controller {
         this.internalAttackTextTarget.classList.add('d-none')
         this.internalAttackPosTextTarget.classList.add('d-none')
         this.externalAttackTextTarget.classList.remove('d-none')
-        this.externalAttackPosTextTarget.classList.remove('d-node')
+        this.externalAttackPosTextTarget.classList.remove('d-none')
         break
       case internalAttackType:
       default:
         this.projectedPriceDivTarget.style.display = 'none'
         this.projectedDcrPriceDivTarget.style.display = 'none'
         this.externalAttackTextTarget.classList.add('d-none')
-        this.externalAttackPosTextTarget.classList.add('d-node')
+        this.externalAttackPosTextTarget.classList.add('d-none')
         this.internalAttackTextTarget.classList.remove('d-none')
         this.internalAttackPosTextTarget.classList.remove('d-none')
         break
@@ -507,10 +507,11 @@ export default class extends Controller {
       ? DCRNeed - tpValue : ticketAttackSize * projectedTicketPrice
     var totalPos = totalDCRPos * dcrPrice
 
+    console.log(totalDCRPos > totalObUnits)
     if (totalDCRPos > totalObUnits) {
-      this.lowOrderBookWarningTarget.classList.remove('d-node')
+      this.showAll(this.lowOrderBookWarningTargets)
     } else {
-      this.lowOrderBookWarningTarget.classList.add('d-node')
+      this.hideAll(this.lowOrderBookWarningTargets)
     }
 
     // projected dcr price

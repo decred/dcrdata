@@ -348,21 +348,22 @@
               <span class="font-weight-bold" data-target="attackcost.additionalDcr">0</span><span class="fs11"> DCR</span>
               to the total staked.
             </div>
-            <div class="mt-1 ml-2">
-              New total staked will be <span class="font-weight-bold" data-target="attackcost.newTicketPoolValue">0</span> <span class="fs11"> DCR</span>.
+
+            <div class="mt-1 ml-2 d-none" data-target="attackcost.lowOrderBookWarning" style="display: block; color: red">
+              Attack not possible. Only
+              <span class="font-weight-bold" data-target="attackcost.marketVolume">0</span>
+              <span class="fs11"> DCR</span> is being offered on the orderbooks.
             </div>
             {{- /* CALCULATED PoS WARNING DISPLAY */ -}}
             <div data-target="attackcost.attackNotPossibleWrapperDiv" class="mt-1 ml-2 blink-container d-none" style="color: #f12222; margin-left: 8px; ">
                 Attack not possible. Total coin supply is <span data-target="attackcost.coinSupply" class="font-weight-bold">0</span> <span class="fs11">DCR</span>.
             </div>
 
-            <div class="mt-1 ml-2 d-none" data-target="attackcost.lowOrderBookWarning" style="{display: block; color: red}">
-              Attack not possible. Offered DCR on all orderbooks is
-              <span class="font-weight-bold" data-target="attackcost.marketVolume">0</span>
-              <span class="fs11"> DCR</span>
+            <div class="mt-1 ml-2">
+              New total staked will be <span class="font-weight-bold" data-target="attackcost.newTicketPoolValue">0</span> <span class="fs11"> DCR</span>.
             </div>
 
-            <div class="mt-1 ml-2" data-target="attackcost.projectedPriceDiv" style="{display: block}">
+            <div class="mt-1 ml-2" data-target="attackcost.projectedPriceDiv" style="display: block">
               The projected ticket price is
               <span class="position-relative font-weight-bold">
                 <span class="font-weight-bold" data-target="attackcost.projectedTicketPrice">0</span>
@@ -371,7 +372,7 @@
               (A <span class="font-weight-bold" data-target="attackcost.projectedTicketPriceIncrease">0</span>% increase).
             </div>
 
-            <div class="mt-1 ml-2" data-target="attackcost.projectedDcrPriceDiv" style="{display: block}">
+            <div class="mt-1 ml-2" data-target="attackcost.projectedDcrPriceDiv" style="display: block">
               Offered DCR on all orderbooks is
               <span class="font-weight-bold" data-target="attackcost.marketVolume">0</span>
               <span class="fs11"> DCR</span>, valued at
