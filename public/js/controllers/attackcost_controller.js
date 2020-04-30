@@ -123,7 +123,7 @@ export default class extends Controller {
       'total', 'totalDCRPos', 'totalDeviceCost', 'totalElectricity', 'totalExtraCostRate', 'totalKwh',
       'totalPos', 'totalPow', 'graph', 'labels', 'projectedTicketPrice', 'projectedTicketPriceIncrease', 'attackType',
       'marketVolume', 'marketValue', 'marketAvgDcrPrice', 'priceType', 'projectedDcrPriceDiv', 'projectedDcrPrice',
-      'projectedDcrPriceIncrease', 'dcrPriceIncrease', 'acquiredDcrCost', 'acquiredDcrValue',
+      'projectedDcrPriceIncrease', 'dcrPriceIncrease', 'acquiredDcrCost', 'acquiredDcrValue', 'lowOrderBookWarning',
       'attackPosPercentAmountLabel', 'dcrPriceLabel', 'totalDCRPosLabel',
       'projectedPriceDiv', 'attackNotPossibleWrapperDiv', 'coinSupply', 'totalAttackCostContainer'
     ]
