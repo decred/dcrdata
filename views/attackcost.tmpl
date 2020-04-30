@@ -355,6 +355,13 @@
             <div data-target="attackcost.attackNotPossibleWrapperDiv" class="mt-1 ml-2 blink-container d-none" style="color: #f12222; margin-left: 8px; ">
                 Attack not possible. Total coin supply is <span data-target="attackcost.coinSupply" class="font-weight-bold">0</span> <span class="fs11">DCR</span>.
             </div>
+
+            <div class="mt-1 ml-2 d-none" data-target="attackcost.lowOrderBookWarning" style="{display: block; color: red}">
+              Attack not possible. Offered DCR on all orderbooks is
+              <span class="font-weight-bold" data-target="attackcost.marketVolume">0</span>
+              <span class="fs11"> DCR</span>
+            </div>
+
             <div class="mt-1 ml-2" data-target="attackcost.projectedPriceDiv" style="{display: block}">
               The projected ticket price is
               <span class="position-relative font-weight-bold">

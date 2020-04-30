@@ -40,7 +40,7 @@ function removeTrailingZeros (value) {
 }
 
 let Dygraph // lazy loaded on connect
-var height, currentDcrPrice, dcrPrice, btcPrice, marketAvgDcrPrice, totalObUnits, TotalObCost, hashrate, tpSize, tpValue, tpPrice, graphData, currentPoint, coinSupply
+var height, currentDcrPrice, dcrPrice, btcPrice, marketAvgDcrPrice, totalObUnits, totalObCost, hashrate, tpSize, tpValue, tpPrice, graphData, currentPoint, coinSupply
 
 function rateCalculation (y) {
   y = y || 0.99 // 0.99 TODO confirm why 0.99 is used as default instead of 1
@@ -437,7 +437,7 @@ export default class extends Controller {
         totalCost += (volume * ask.price)
       }
     }
-    TotalObCost = totalCost
+    totalObCost = totalCost
     totalObUnits = totalVolume
     marketAvgDcrPrice = totalCost / totalVolume
   }
@@ -507,8 +507,14 @@ export default class extends Controller {
       ? DCRNeed - tpValue : ticketAttackSize * projectedTicketPrice
     var totalPos = totalDCRPos * dcrPrice
 
+    if (totalDCRPos > totalObUnits) {
+      this.lowOrderBookWarningTarget.classList.remove('d-node')
+    } else {
+      this.lowOrderBookWarningTarget.classList.add('d-node')
+    }
+
     // projected dcr price
-    let increaseRate = Math.pow(((TotalObCost / totalObUnits) * btcPrice) / currentDcrPrice, 1 / (totalObUnits - 1)) - 1
+    let increaseRate = Math.pow(((totalObCost / totalObUnits) * btcPrice) / currentDcrPrice, 1 / (totalObUnits - 1)) - 1
     const increaseValue = increaseRate * currentDcrPrice
     const averageIncreaseValue = increaseValue * currentDcrPrice
     let projectedDcrPrice = currentDcrPrice + (averageIncreaseValue * totalDCRPos)
@@ -521,7 +527,7 @@ export default class extends Controller {
     this.setAllValues(this.marketVolumeTargets, digitformat(totalObUnits, 2))
     this.setAllValues(this.dcrPriceIncreaseTargets, digitformat(increaseRate, 10))
     this.setAllValues(this.marketAvgDcrPriceTargets, digitformat(marketAvgDcrPrice * btcPrice - currentDcrPrice))
-    this.setAllValues(this.marketValueTargets, digitformat(TotalObCost * btcPrice, 2))
+    this.setAllValues(this.marketValueTargets, digitformat(totalObCost * btcPrice, 2))
     this.setAllValues(this.acquiredDcrCostTargets, digitformat(acquiredDcrCost, 2))
     this.setAllValues(this.acquiredDcrValueTargets, digitformat(totalDCRPos * projectedDcrPrice, 2))
 
