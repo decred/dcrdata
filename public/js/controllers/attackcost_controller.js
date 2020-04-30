@@ -115,7 +115,8 @@ export default class extends Controller {
     return [
       'actualHashRate', 'attackPercent', 'attackPeriod', 'blockHeight', 'countDevice', 'device',
       'deviceCost', 'deviceDesc', 'deviceName', 'external', 'internal', 'internalHash',
-      'kwhRate', 'kwhRateLabel', 'otherCosts', 'otherCostsValue', 'priceDCR', 'internalAttackText', 'targetHashRate', 'externalAttackText',
+      'kwhRate', 'kwhRateLabel', 'otherCosts', 'otherCostsValue', 'priceDCR', 'priceDCRWrapper',
+      'internalAttackText', 'targetHashRate', 'externalAttackText',
       'externalAttackPosText', 'additionalDcr', 'newTicketPoolValue', 'internalAttackPosText',
       'additionalHashRate', 'newHashRate', 'targetPos', 'targetPow',
       'ticketAttackSize', 'ticketPoolAttack', 'ticketPoolSize', 'ticketPoolSizeLabel',
@@ -173,6 +174,9 @@ export default class extends Controller {
     }
     if (this.settings.priceType !== 'current') {
       this.settings.priceType = 'predicted'
+      this.hideAll(this.priceDCRWrapperTargets)
+    } else {
+      this.showAll(this.priceDCRWrapperTargets)
     }
     switch (this.settings.attack_type) {
       case externalAttackType:
@@ -322,6 +326,11 @@ export default class extends Controller {
         this.priceTypeTarget.disabled = true
         break
     }
+    if (this.settings.priceType !== 'current') {
+      this.hideAll(this.priceDCRWrapperTargets)
+    } else {
+      this.showAll(this.priceDCRWrapperTargets)
+    }
     this.updateSliderData()
   }
 
@@ -414,6 +423,11 @@ export default class extends Controller {
 
   setPriceType (e) {
     this.settings.priceType = e.currentTarget.value
+    if (this.settings.priceType !== 'current') {
+      this.hideAll(this.priceDCRWrapperTargets)
+    } else {
+      this.showAll(this.priceDCRWrapperTargets)
+    }
     this.calculate()
   }
 
@@ -507,7 +521,6 @@ export default class extends Controller {
       ? DCRNeed - tpValue : ticketAttackSize * projectedTicketPrice
     var totalPos = totalDCRPos * dcrPrice
 
-    console.log(totalDCRPos > totalObUnits)
     if (totalDCRPos > totalObUnits) {
       this.showAll(this.lowOrderBookWarningTargets)
     } else {
