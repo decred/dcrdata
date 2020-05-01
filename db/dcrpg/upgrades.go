@@ -249,6 +249,7 @@ func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool
 	switch current.schema {
 	case 0: // legacyDatabaseVersion
 		// Remove table comments where the versions were stored.
+		log.Infof("Performing database upgrade 1.0.0 -> 1.1.0")
 		removeTableComments(u.db)
 
 		// Bump schema version.
@@ -399,6 +400,7 @@ func removeTableComments(db *sql.DB) {
 }
 
 func (u *Upgrader) upgrade170to180() error {
+	log.Infof("Performing database upgrade 1.7.0 -> 1.8.0")
 	// Index the transactions table on block height. This drastically
 	// accelerates several queries including those for the following charts
 	// updaters: fees, coin supply, privacy participation, and anonymity set.
@@ -406,6 +408,7 @@ func (u *Upgrader) upgrade170to180() error {
 }
 
 func (u *Upgrader) upgrade160to170() error {
+	log.Infof("Performing database upgrade 1.6.0 -> 1.7.0")
 	// Create the missing vouts.spend_tx_row_id index.
 	return IndexVoutTableOnSpendTxID(u.db)
 }
