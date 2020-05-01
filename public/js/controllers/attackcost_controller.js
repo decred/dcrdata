@@ -133,7 +133,7 @@ export default class extends Controller {
   async connect () {
     this.query = new TurboQuery()
     this.settings = TurboQuery.nullTemplate([
-      'attack_time', 'target_pow', 'kwh_rate', 'other_costs', 'target_pos', 'price', 'device', 'attack_type'
+      'attack_time', 'target_pow', 'kwh_rate', 'other_costs', 'target_pos', 'device', 'attack_type', 'price_type'
     ])
 
     // Get initial view settings from the url
@@ -154,9 +154,9 @@ export default class extends Controller {
       kwh_rate: 0.1,
       other_costs: 5,
       target_pos: 51,
-      price: dcrPrice,
       device: 0,
-      attack_type: externalAttackType
+      attack_type: externalAttackType,
+      price_type: 'predicted'
     }
 
     if (this.settings.attack_time) this.attackPeriodTarget.value = parseInt(this.settings.attack_time)
@@ -164,7 +164,6 @@ export default class extends Controller {
     if (this.settings.kwh_rate) this.kwhRateTarget.value = parseFloat(this.settings.kwh_rate)
     if (this.settings.other_costs) this.otherCostsTarget.value = parseFloat(this.settings.other_cost)
     if (this.settings.target_pos) this.setAllInputs(this.targetPosTargets, parseFloat(this.settings.target_pos))
-    if (this.settings.price) this.priceDCRTarget.textContent = parseFloat(this.settings.price)
     if (this.settings.device) this.setDevice(this.settings.device)
     if (this.settings.attack_type) this.attackTypeTarget.value = this.settings.attack_type
     if (this.settings.target_pos) this.attackPercentTarget.value = parseInt(this.targetPosTarget.value) / 100
@@ -172,8 +171,8 @@ export default class extends Controller {
     if (this.settings.attack_type !== internalAttackType) {
       this.settings.attack_type = externalAttackType
     }
-    if (this.settings.priceType !== 'current') {
-      this.settings.priceType = 'predicted'
+    if (this.settings.price_type !== 'current') {
+      this.settings.price_type = 'predicted'
       this.hideAll(this.priceDCRWrapperTargets)
     } else {
       this.showAll(this.priceDCRWrapperTargets)
@@ -183,7 +182,7 @@ export default class extends Controller {
         this.priceTypeTarget.disabled = false
         break
       default:
-        this.settings.priceType = 'current'
+        this.settings.price_type = 'current'
         this.priceTypeTarget.value = 'current'
         this.priceTypeTarget.disabled = true
         break
@@ -321,12 +320,12 @@ export default class extends Controller {
         this.priceTypeTarget.disabled = false
         break
       default:
-        this.settings.priceType = 'current'
+        this.settings.price_type = 'current'
         this.priceTypeTarget.value = 'current'
         this.priceTypeTarget.disabled = true
         break
     }
-    if (this.settings.priceType !== 'current') {
+    if (this.settings.price_type !== 'current') {
       this.hideAll(this.priceDCRWrapperTargets)
     } else {
       this.showAll(this.priceDCRWrapperTargets)
@@ -422,8 +421,8 @@ export default class extends Controller {
   }
 
   setPriceType (e) {
-    this.settings.priceType = e.currentTarget.value
-    if (this.settings.priceType !== 'current') {
+    this.settings.price_type = e.currentTarget.value
+    if (this.settings.price_type !== 'current') {
       this.hideAll(this.priceDCRWrapperTargets)
     } else {
       this.showAll(this.priceDCRWrapperTargets)
@@ -544,7 +543,7 @@ export default class extends Controller {
     this.setAllValues(this.acquiredDcrCostTargets, digitformat(acquiredDcrCost, 2))
     this.setAllValues(this.acquiredDcrValueTargets, digitformat(totalDCRPos * projectedDcrPrice, 2))
 
-    if (this.settings.priceType === 'predicted' && this.settings.attack_type === externalAttackType) {
+    if (this.settings.price_type === 'predicted' && this.settings.attack_type === externalAttackType) {
       dcrPrice = projectedDcrPrice
       totalPos = acquiredDcrCost
     } else {
