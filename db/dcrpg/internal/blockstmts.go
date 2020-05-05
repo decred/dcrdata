@@ -176,7 +176,7 @@ const (
 		JOIN block_chain ON this_hash=hash
 		WHERE hash = $1;`
 
-	SelectBlockStatuses = `SELECT is_valid, is_mainchain, height, hash
+	SelectBlockStatuses = `SELECT is_valid, is_mainchain, hash
 		FROM blocks
 		WHERE height = $1;`
 

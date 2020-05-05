@@ -55,16 +55,17 @@
 				<div class="fs13 text-secondary pb-1">Block Hash</div>
 				<div class="d-inline-block fs14 break-word rounded font-weight-bold">{{.Hash}}</div>
 			</div>
-			{{range $.AltBlocks}}
-			<div class="text-left lh1rem pt-2 pb-1">
+			{{if gt (len $.AltBlocks) 0}}
+			<div class="text-left lh1rem py-1">
 				<div class="fs13 text-secondary pb-1">
-					Alt. Block (on {{if .IsMainchain}}main chain{{else}}side chain{{end}})
+					Alternative Block{{if gt (len $.AltBlocks) 1}}s{{end}}
 				</div>
+				{{range $.AltBlocks}}
 				<div class="d-inline-block fs14 break-word rounded font-weight-bold">
-					<a href="/block/{{.Hash}}" title="Valid: {{.IsValid}}">
-						{{.Hash}}
-					</a>
+					<a href="/block/{{.Hash}}" title="Valid: {{.IsValid}}">{{.Hash}}</a>
+					<span> ({{if .IsMainchain}}main{{else}}side{{end}})</span>
 				</div>
+				{{end}}
 			</div>
 			{{end}}
 			<div class="row py-2">

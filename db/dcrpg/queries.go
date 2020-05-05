@@ -4133,11 +4133,11 @@ func RetrieveBlockStatuses(ctx context.Context, db *sql.DB, idx int64) (blocks [
 
 	for rows.Next() {
 		var bs dbtypes.BlockStatus
-		err = rows.Scan(&bs.IsValid, &bs.IsMainchain, &bs.Height, &bs.Hash)
+		err = rows.Scan(&bs.IsValid, &bs.IsMainchain, &bs.Hash)
 		if err != nil {
 			return
 		}
-
+		bs.Height = uint32(idx)
 		blocks = append(blocks, &bs)
 	}
 	err = rows.Err()
