@@ -57,7 +57,7 @@ for i in $(find . -name go.mod -type f -print); do
       --enable goimports \
       --enable misspell \
       --enable unparam \
-      --enable ascicheck \
+      --enable asciicheck \
   )
 done
 
