@@ -80,7 +80,7 @@ var (
 	defaultAddrCacheUXTOCap = 1 << 28
 
 	defaultExchangeIndex     = "USD"
-	defaultDisabledExchanges = "huobi,dragonex"
+	defaultDisabledExchanges = "dragonex,poloniex"
 	defaultRateCertFile      = filepath.Join(defaultHomeDir, "rpc.cert")
 
 	defaultMainnetLink  = "https://explorer.dcrdata.org/"
