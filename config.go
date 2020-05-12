@@ -74,10 +74,10 @@ var (
 	defaultPGUser           = "dcrdata"
 	defaultPGPass           = ""
 	defaultPGDBName         = "dcrdata"
-	defaultPGQueryTimeout   = time.Hour
-	defaultAddrCacheCap     = 1 << 28 // 256 MiB
-	defaultAddrCacheLimit   = 2048
-	defaultAddrCacheUXTOCap = 1 << 28
+	defaultPGQueryTimeout   = 20 * time.Minute
+	defaultAddrCacheCap     = 1 << 29 // 512 MiB
+	defaultAddrCacheLimit   = 4096
+	defaultAddrCacheUXTOCap = 1 << 29
 
 	defaultExchangeIndex     = "USD"
 	defaultDisabledExchanges = "dragonex,poloniex"
