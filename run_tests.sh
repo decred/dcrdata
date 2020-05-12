@@ -46,6 +46,7 @@ for i in $(find . -name go.mod -type f -print); do
   (cd ${module} && \
     go test $TESTTAGS ./... && \
     golangci-lint run --deadline=10m \
+      --out-format=github-actions \
       --disable-all \
       --enable govet \
       --enable staticcheck \
@@ -56,6 +57,7 @@ for i in $(find . -name go.mod -type f -print); do
       --enable goimports \
       --enable misspell \
       --enable unparam \
+      --enable asciicheck \
   )
 done
 
