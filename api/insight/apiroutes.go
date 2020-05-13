@@ -352,7 +352,7 @@ func (iapi *InsightApi) getAddressesTxnOutput(w http.ResponseWriter, r *http.Req
 			apiLog.Info("Relinquishing prioritized goroutine status.")
 		}
 		final := atomic.AddInt64(&iapi.inflightUTXOs, -inflightUTXOs)
-		apiLog.Debugf("Removing %d inflight UTXOs. New total = %d.", inflightUTXOs, final)
+		apiLog.Tracef("Removing %d inflight UTXOs. New total = %d.", inflightUTXOs, final)
 
 		apiLog.Debugf("getAddressesTxnOutput completed for %d addresses with %d UTXOs in %v.",
 			len(addresses), inflightUTXOs, time.Since(t0))
@@ -473,8 +473,8 @@ func (iapi *InsightApi) getAddressesTxnOutput(w http.ResponseWriter, r *http.Req
 		}
 
 		totalInflight = atomic.AddInt64(&iapi.inflightUTXOs, newInflightUTXOs)
-		apiLog.Tracef("Adding %d inflight (unconfirmed) UTXOs to the total.", newInflightUTXOs)
-		apiLog.Debugf("Total in-flight UTXOs: %v", totalInflight)
+		apiLog.Tracef("Adding %d inflight (unconfirmed) UTXOs for a total of %d.",
+			newInflightUTXOs, totalInflight)
 		inflightUTXOs += newInflightUTXOs
 
 		// On the first address, start with a slice of the correct size.
@@ -506,7 +506,7 @@ func (iapi *InsightApi) getAddressesTxnOutput(w http.ResponseWriter, r *http.Req
 			var garbage []int
 			for g, utxo := range txnOutputs {
 				if utxo.Vout == f.PreviousOutpoint.Index && utxo.TxnID == f.PreviousOutpoint.Hash.String() {
-					apiLog.Debug("Removing an unconfirmed spent UTXO.")
+					apiLog.Trace("Removing an unconfirmed spent UTXO.")
 					garbage = append(garbage, g)
 				}
 			}
