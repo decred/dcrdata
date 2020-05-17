@@ -218,6 +218,69 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+// Next reduction is the page handler for the "/nextreduction" path.
+func (exp *explorerUI) NextReduction(w http.ResponseWriter, r *http.Request) {
+	// Safely retrieve the current inventory pointer.
+	inv := exp.MempoolInventory()
+	// Lock the shared inventory struct from change (e.g. in MempoolMonitor).
+	inv.RLock()
+	exp.pageData.RLock()
+	// Get fiat conversions if available
+	homeInfo := exp.pageData.HomeInfo
+	var conversions *homeConversions
+	height, err := exp.dataSource.GetHeight()
+	if err != nil {
+		log.Errorf("GetHeight failed: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "",
+			ExpStatusError)
+		return
+	}
+	blocks := exp.dataSource.GetExplorerBlocks(int(height), int(height)-8)
+	var bestBlock *types.BlockBasic
+	if blocks == nil {
+		bestBlock = new(types.BlockBasic)
+	} else {
+		bestBlock = blocks[0]
+	}
+	xcBot := exp.xcBot
+	if xcBot != nil {
+		conversions = &homeConversions{
+			ExchangeRate:    xcBot.Conversion(1.0),
+			StakeDiff:       xcBot.Conversion(homeInfo.StakeDiff),
+			CoinSupply:      xcBot.Conversion(dcrutil.Amount(homeInfo.CoinSupply).ToCoin()),
+			PowSplit:        xcBot.Conversion(dcrutil.Amount(homeInfo.NBlockSubsidy.PoW).ToCoin()),
+			TreasurySplit:   xcBot.Conversion(dcrutil.Amount(homeInfo.NBlockSubsidy.Dev).ToCoin()),
+			TreasuryBalance: xcBot.Conversion(dcrutil.Amount(homeInfo.DevFund).ToCoin()),
+		}
+	}
+
+	str, err := exp.templates.exec("nextreduction", struct {
+		*CommonPageData
+		Info          *types.HomeInfo
+		Conversions   *homeConversions
+		PercentChange float64
+		BestBlock     *types.BlockBasic
+	}{
+		CommonPageData: exp.commonData(r),
+		Info:           homeInfo,
+		Conversions:    conversions,
+		PercentChange:  homeInfo.PoolInfo.PercentTarget - 100,
+		BestBlock:      bestBlock,
+	})
+
+	inv.RUnlock()
+	exp.pageData.RUnlock()
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
 // SideChains is the page handler for the "/side" path.
 func (exp *explorerUI) SideChains(w http.ResponseWriter, r *http.Request) {
 	sideBlocks, err := exp.dataSource.SideChainBlocks()

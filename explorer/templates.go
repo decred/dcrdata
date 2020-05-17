@@ -398,6 +398,7 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			return dcrutil.Amount(intAmount).ToCoin()
 		},
 		"threeSigFigs": threeSigFigs,
+
 		"remaining": func(idx int, max, t int64) string {
 			x := (max - int64(idx)) * t
 			if x == 0 {
@@ -600,5 +601,13 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			return intStr
 		},
 		"floor": math.Floor,
+		"getTotalFromRewardWindowRewardWindowSize": func(idx int, max, t int64) int {
+			x := (max - int64(idx)) * t
+			if x == 0 {
+				return 0
+			}
+			allsecs := int(time.Duration(x).Seconds())
+			return allsecs
+		},
 	}
 }
