@@ -526,12 +526,25 @@ export default class extends Controller {
       this.hideAll(this.lowOrderBookWarningTargets)
     }
 
-    // projected dcr price
+    // Since the nature of the markets order book is
+    // compounding, based on the available data, the cumulative annual growth
+    // rate(CAGR) model is used to measure the growth rate of the market.
+    // https://en.wikipedia.org/wiki/Compound_annual_growth_rate
+
+    // Although, CAGR is usually used in business and investment, it also has a
+    // reputation in prediction (forecasting future values). Here, CAGR is used
+    // in obtaining the slope between the current price and the attained market
+    // price after purchasing the whole of the order book. This obtained rate is
+    // used in calculating the price of DCR after purchasing the volume of DCr
+    // needed for the attack.
+    //
+    // increaseRate = (Ravg / Rspot)^(1/(Vask - 1)) - 1 Ravg = Volume-averaged
+    // rate of aggregated asks Rspot = Mid market rate, the currentDcrPrice Vask
+    // = Total volume of aggregated asks, the totalObUnits
     let increaseRate = Math.pow(((totalObCost / totalObUnits) * btcPrice) / currentDcrPrice, 1 / (totalObUnits - 1)) - 1
     const averageIncreaseValue = increaseRate * currentDcrPrice
     let projectedDcrPrice = currentDcrPrice + (averageIncreaseValue * totalDCRPos)
     const acquiredDcrCost = this.calcAcquiredDcrCost(currentDcrPrice, averageIncreaseValue, totalDCRPos)
-    // Tn = T0 + (avgIncVal * n)
 
     const increasePercentage = (projectedDcrPrice - currentDcrPrice) / currentDcrPrice
     this.projectedDcrPriceIncreaseTarget.innerHTML = digitformat(increasePercentage, 2)
