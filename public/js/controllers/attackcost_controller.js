@@ -156,7 +156,7 @@ export default class extends Controller {
       target_pos: 51,
       device: 0,
       attack_type: externalAttackType,
-      price_type: 'predicted'
+      price_type: 'current'
     }
 
     if (this.settings.attack_time) this.attackPeriodTarget.value = parseInt(this.settings.attack_time)
@@ -171,11 +171,14 @@ export default class extends Controller {
     if (this.settings.attack_type !== internalAttackType) {
       this.settings.attack_type = externalAttackType
     }
-    if (this.settings.price_type !== 'current') {
-      this.settings.price_type = 'predicted'
-      this.hideAll(this.priceDCRWrapperTargets)
-    } else {
-      this.showAll(this.priceDCRWrapperTargets)
+    switch (this.settings.price_type === null) {
+      case 'predicted':
+        this.hideAll(this.priceDCRWrapperTargets)
+        break
+      default:
+        this.showAll(this.priceDCRWrapperTargets)
+        this.settings.price_type = 'current'
+        break
     }
     switch (this.settings.attack_type) {
       case externalAttackType:
@@ -187,6 +190,7 @@ export default class extends Controller {
         this.priceTypeTarget.disabled = true
         break
     }
+    this.priceTypeTarget.value = this.settings.price_type
     await this.refreshMarketData()
     this.setDevicesDesc()
     this.updateSliderData()
@@ -197,7 +201,7 @@ export default class extends Controller {
 
     // dygraph does not provide a way to disable zoom on y-axis https://code.google.com/archive/p/dygraphs/issues/384
     // this is a hack as doZoomY_ is marked as private
-    Dygraph.prototype.doZoomY_ = function (lowY, highY) {}
+    Dygraph.prototype.doZoomY_ = function (lowY, highY) { }
 
     this.plotGraph()
     this.processNightMode = (params) => {
@@ -441,7 +445,7 @@ export default class extends Controller {
     let totalVolume = 0
     let totalCost = 0
     const orderCount = aggMarket.data.asks.length
-    for (let i = 0; i <= 0.99 * orderCount; i++) {
+    for (let i = 0; i <= 0.95 * orderCount; i++) {
       let ask = aggMarket.data.asks[i]
       if (ask === undefined) continue
       if (Array.isArray(ask.volumes)) {
@@ -518,7 +522,7 @@ export default class extends Controller {
 
     var totalDCRPos = this.settings.attack_type === externalAttackType
       ? DCRNeed - tpValue : ticketAttackSize * projectedTicketPrice
-    var totalPos = totalDCRPos * dcrPrice
+    var totalPos = totalDCRPos * currentDcrPrice
 
     if (totalDCRPos > totalObUnits) {
       this.showAll(this.lowOrderBookWarningTargets)
@@ -532,15 +536,15 @@ export default class extends Controller {
     // https://en.wikipedia.org/wiki/Compound_annual_growth_rate
 
     // Although, CAGR is usually used in business and investment, it also has a
-    // reputation in prediction (forecasting future values). Here, CAGR is used
-    // in obtaining the slope between the current price and the attained market
-    // price after purchasing the whole of the order book. This obtained rate is
-    // used in calculating the price of DCR after purchasing the volume of DCr
-    // needed for the attack.
+    // reputation in prediction (forecasting future values).
+    // Here, CAGR is used to get the slope between the current price and the
+    // cumulative market price after purchasing the entire order book (95% to remove outliers).
+    // The slope is then used to calculate the estimated cumulative price of the total DCR needed for the attack.
     //
-    // increaseRate = (Ravg / Rspot)^(1/(Vask - 1)) - 1 Ravg = Volume-averaged
-    // rate of aggregated asks Rspot = Mid market rate, the currentDcrPrice Vask
-    // = Total volume of aggregated asks, the totalObUnits
+    // increaseRate = (Ravg / Rspot)^(1/(Vask - 1)) - 1
+    // Ravg = Volume-averaged rate of aggregated asks
+    // Rspot = Mid market rate, the currentDcrPrice
+    // Vask = Total volume of aggregated asks, the totalObUnits
     let increaseRate = Math.pow(((totalObCost / totalObUnits) * btcPrice) / currentDcrPrice, 1 / (totalObUnits - 1)) - 1
     const averageIncreaseValue = increaseRate * currentDcrPrice
     let projectedDcrPrice = currentDcrPrice + (averageIncreaseValue * totalDCRPos)
