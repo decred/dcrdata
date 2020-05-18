@@ -1265,7 +1265,13 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 // TreasuryPage is the page handler for the "/treasury" path
 func (exp *explorerUI) TreasuryPage(w http.ResponseWriter, r *http.Request) {
 	ctx := context.WithValue(r.Context(), ctxAddress, exp.pageData.HomeInfo.DevAddress)
-	r.URL.Query().Set("txntype", "merged_debit")
+	rawURL := r.URL.RawQuery
+	if strings.Contains(rawURL, "?") {
+		rawURL += fmt.Sprintf("&%s=%s", "txntype", "merged_debit")
+	} else {
+		rawURL += fmt.Sprintf("?%s=%s", "txntype", "merged_debit")
+	}
+	r.URL.RawQuery = rawURL
 	exp.AddressPage(w, r.WithContext(ctx))
 }
 
