@@ -74,13 +74,13 @@ var (
 	defaultPGUser           = "dcrdata"
 	defaultPGPass           = ""
 	defaultPGDBName         = "dcrdata"
-	defaultPGQueryTimeout   = time.Hour
-	defaultAddrCacheCap     = 1 << 28 // 256 MiB
-	defaultAddrCacheLimit   = 2048
-	defaultAddrCacheUXTOCap = 1 << 28
+	defaultPGQueryTimeout   = 20 * time.Minute
+	defaultAddrCacheCap     = 1 << 29 // 512 MiB
+	defaultAddrCacheLimit   = 4096
+	defaultAddrCacheUXTOCap = 1 << 29
 
 	defaultExchangeIndex     = "USD"
-	defaultDisabledExchanges = "huobi,dragonex"
+	defaultDisabledExchanges = "dragonex,poloniex"
 	defaultRateCertFile      = filepath.Join(defaultHomeDir, "rpc.cert")
 
 	defaultMainnetLink  = "https://explorer.dcrdata.org/"
@@ -109,7 +109,7 @@ type config struct {
 	UseGops      bool   `short:"g" long:"gops" description:"Run with gops diagnostics agent listening. See github.com/google/gops for more information." env:"DCRDATA_USE_GOPS"`
 	ReloadHTML   bool   `long:"reload-html" description:"Reload HTML templates on every request" env:"DCRDATA_RELOAD_HTML"`
 
-	// API
+	// API/server
 	APIProto            string  `long:"apiproto" description:"Protocol for API (http or https)" env:"DCRDATA_ENABLE_HTTPS"`
 	APIListen           string  `long:"apilisten" description:"Listen address for API. default localhost:7777, :17778 testnet, :17779 simnet" env:"DCRDATA_LISTEN_URL"`
 	IndentJSON          string  `long:"indentjson" description:"String for JSON indentation (default is \"   \"), when indentation is requested via URL query."`
@@ -120,44 +120,38 @@ type config struct {
 	CompressAPI         bool    `long:"compress-api" description:"Use compression for a number of endpoints with commonly large responses."`
 	ServerHeader        string  `long:"server-http-header" description:"Set the HTTP response header Server key value. Valid values are \"off\", \"version\", or a custom string."`
 
-	// Data I/O
-	MempoolMinInterval int    `long:"mp-min-interval" description:"The minimum time in seconds between mempool reports, regardless of number of new tickets seen." env:"DCRDATA_MEMPOOL_MIN_INTERVAL"`
-	MempoolMaxInterval int    `long:"mp-max-interval" description:"The maximum time in seconds between mempool reports (within a couple seconds), regardless of number of new tickets seen." env:"DCRDATA_MEMPOOL_MAX_INTERVAL"`
-	MPTriggerTickets   int    `long:"mp-ticket-trigger" description:"The number minimum number of new tickets that must be seen to trigger a new mempool report." env:"DCRDATA_MP_TRIGGER_TICKETS"`
-	AgendasDBFileName  string `long:"agendadbfile" description:"Agendas DB file name (default is agendas.db)." env:"DCRDATA_AGENDAS_DB_FILE_NAME"`
-	ProposalsFileName  string `long:"proposalsdbfile" description:"Proposals DB file name (default is proposals.db)." env:"DCRDATA_PROPOSALS_DB_FILE_NAME"`
-	PoliteiaAPIURL     string `long:"politeiaurl" description:"Defines the root API politeia URL (defaults to https://proposals.decred.org)."`
-	ChartsCacheDump    string `long:"chartscache" description:"Defines the file name that holds the charts cache data on system exit."`
-	PiPropRepoOwner    string `long:"piproposalsowner" description:"Defines the owner to the github repo where Politeia's proposals are pushed."`
-	PiPropRepoName     string `long:"piproposalsrepo" description:"Defines the name of the github repo where Politeia's proposals are pushed."`
-	DisablePiParser    bool   `long:"disable-piparser" description:"Disables the piparser tool from running."`
+	// Mempool
+	MempoolMinInterval int `long:"mp-min-interval" description:"The minimum time in seconds between mempool reports, regardless of number of new tickets seen." env:"DCRDATA_MEMPOOL_MIN_INTERVAL"`
+	MempoolMaxInterval int `long:"mp-max-interval" description:"The maximum time in seconds between mempool reports (within a couple seconds), regardless of number of new tickets seen." env:"DCRDATA_MEMPOOL_MAX_INTERVAL"`
+	MPTriggerTickets   int `long:"mp-ticket-trigger" description:"The minimum number of new tickets that must be seen to trigger a new mempool report." env:"DCRDATA_MP_TRIGGER_TICKETS"`
 
-	PurgeNBestBlocks int `long:"purge-n-blocks" description:"Purge all data for the N best blocks, using the best block across all DBs if they are out of sync."`
+	// Politeia/proposals and consensus agendas
+	AgendasDBFileName string `long:"agendadbfile" description:"Agendas DB file name (default is agendas.db)." env:"DCRDATA_AGENDAS_DB_FILE_NAME"`
+	ProposalsFileName string `long:"proposalsdbfile" description:"Proposals DB file name (default is proposals.db)." env:"DCRDATA_PROPOSALS_DB_FILE_NAME"`
+	PoliteiaAPIURL    string `long:"politeiaurl" description:"Defines the root API politeia URL (defaults to https://proposals.decred.org)."`
+	PiPropRepoOwner   string `long:"piproposalsowner" description:"Defines the owner to the github repo where Politeia's proposals are pushed."`
+	PiPropRepoName    string `long:"piproposalsrepo" description:"Defines the name of the github repo where Politeia's proposals are pushed."`
+	DisablePiParser   bool   `long:"disable-piparser" description:"Disables the piparser tool from running."`
 
-	FullMode         bool          `long:"pg" description:"Run in \"Full Mode\" mode,  enables postgresql support" env:"DCRDATA_ENABLE_FULL_MODE"`
+	// Caching and optimization.
+	AddrCacheCap     int    `long:"addr-cache-cap" description:"Address cache capacity in bytes."`
+	AddrCacheLimit   int    `long:"addr-cache-address-limit" description:"Maximum number of addresses allowed in the address cache."`
+	AddrCacheUXTOCap int    `long:"addr-cache-utxo-cap" description:"UTXO cache capacity in bytes."`
+	NoDevPrefetch    bool   `long:"no-dev-prefetch" description:"Disable automatic dev fund balance query on new blocks. When true, the query will still be run on demand, but not automatically after new blocks are connected." env:"DCRDATA_DISABLE_DEV_PREFETCH"`
+	ChartsCacheDump  string `long:"chartscache" description:"Defines the file name that holds the charts cache data on system exit."`
+
+	// DB backend
 	PGDBName         string        `long:"pgdbname" description:"PostgreSQL DB name." env:"DCRDATA_PG_DB_NAME"`
 	PGUser           string        `long:"pguser" description:"PostgreSQL DB user." env:"DCRDATA_POSTGRES_USER"`
 	PGPass           string        `long:"pgpass" description:"PostgreSQL DB password." env:"DCRDATA_POSTGRES_PASS"`
 	PGHost           string        `long:"pghost" description:"PostgreSQL server host:port or UNIX socket (e.g. /run/postgresql)." env:"DCRDATA_POSTGRES_HOST_URL"`
 	PGQueryTimeout   time.Duration `short:"T" long:"pgtimeout" description:"Timeout (a time.Duration string) for most PostgreSQL queries used for user initiated queries."`
 	HidePGConfig     bool          `long:"hidepgconfig" description:"Blocks logging of the PostgreSQL db configuration on system start up."`
-	AddrCacheCap     int           `long:"addr-cache-cap" description:"Address cache capacity in bytes."`
-	AddrCacheLimit   int           `long:"addr-cache-address-limit" description:"Maximum number of addresses allowed in the address cache."`
-	AddrCacheUXTOCap int           `long:"addr-cache-utxo-cap" description:"UTXO cache capacity in bytes."`
 	DropIndexes      bool          `long:"drop-inds" short:"D" description:"Drop all table indexes and exit."`
-
-	NoDevPrefetch    bool `long:"no-dev-prefetch" description:"Disable automatic dev fund balance query on new blocks. When true, the query will still be run on demand, but not automatically after new blocks are connected." env:"DCRDATA_DISABLE_DEV_PREFETCH"`
-	SyncAndQuit      bool `long:"sync-and-quit" description:"Sync to the best block and exit. Do not start the explorer or API." env:"DCRDATA_ENABLE_SYNC_N_QUIT"`
-	ImportSideChains bool `long:"import-side-chains" description:"(experimental) Enable startup import of side chains retrieved from dcrd via getchaintips." env:"DCRDATA_IMPORT_SIDE_CHAINS"`
-
-	SyncStatusLimit int `long:"sync-status-limit" description:"Sets the number of blocks behind the current best height past which only the syncing status page can be served on the running web server. Value should be greater than 2 but less than 5000."`
-
-	// WatchAddresses []string `short:"w" long:"watchaddress" description:"Watched address (receiving). One per line."`
-	// SMTPUser     string `long:"smtpuser" description:"SMTP user name"`
-	// SMTPPass     string `long:"smtppass" description:"SMTP password"`
-	// SMTPServer   string `long:"smtpserver" description:"SMTP host name"`
-	// EmailAddr    string `long:"emailaddr" description:"Destination email address for alerts"`
-	// EmailSubject string `long:"emailsubj" description:"Email subject. (default \"dcrdataapi transaction notification\")"`
+	PurgeNBestBlocks int           `long:"purge-n-blocks" description:"Purge all data for the N best blocks, using the best block across all DBs if they are out of sync."`
+	SyncAndQuit      bool          `long:"sync-and-quit" description:"Sync to the best block and exit. Do not start the explorer or API." env:"DCRDATA_ENABLE_SYNC_N_QUIT"`
+	ImportSideChains bool          `long:"import-side-chains" description:"(experimental) Enable startup import of side chains retrieved from dcrd via getchaintips." env:"DCRDATA_IMPORT_SIDE_CHAINS"`
+	SyncStatusLimit  int           `long:"sync-status-limit" description:"Sets the number of blocks behind the current best height past which only the syncing status page can be served on the running web server. Value should be greater than 2 but less than 5000."`
 
 	// RPC client options
 	DcrdUser         string `long:"dcrduser" description:"Daemon RPC user name" env:"DCRDATA_DCRD_USER"`
@@ -578,10 +572,6 @@ func loadConfig() (*config, error) {
 
 	log.Infof("Log folder:  %s", cfg.LogDir)
 	log.Infof("Config file: %s", configFile)
-
-	if cfg.FullMode {
-		log.Warn("The --pg switch is deprecated since full-mode is now required.")
-	}
 
 	// Disable dev balance prefetch if network has invalid script.
 	_, err = dbtypes.DevSubsidyAddress(activeChain)

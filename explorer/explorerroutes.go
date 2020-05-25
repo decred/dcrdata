@@ -1373,7 +1373,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Debugf(`"address" template HTML size: %.2f kiB (%s, %v, %d)`,
+	log.Tracef(`"address" template HTML size: %.2f kiB (%s, %v, %d)`,
 		float64(len(str))/1024.0, address, txnType, addrData.NumTransactions)
 
 	w.Header().Set("Content-Type", "text/html")
@@ -1423,7 +1423,7 @@ func (exp *explorerUI) AddressTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Debugf(`"addresstable" template HTML size: %.2f kiB (%s, %v, %d)`,
+	log.Tracef(`"addresstable" template HTML size: %.2f kiB (%s, %v, %d)`,
 		float64(len(response.HTML))/1024.0, address, txnType, addrData.NumTransactions)
 
 	w.Header().Set("Content-Type", "application/json")

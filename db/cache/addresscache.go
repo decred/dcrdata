@@ -725,8 +725,8 @@ func (ac *AddressCache) Reporter() {
 		utxoHits, utxoMisses := ac.UtxoStats()
 		histHits, histMisses := ac.HistoryStats()
 		// Only report if a hit/miss count has changed.
-		if balHits != lastBH || balMisses != lastBM ||
-			rowHits != lastRH || rowMisses != lastRM ||
+		if rowHits != lastRH || rowMisses != lastRM ||
+			balHits != lastBH || balMisses != lastBM ||
 			utxoHits != lastUH || utxoMisses != lastUM ||
 			histHits != lastHH || histMisses != lastHM {
 			lastBH, lastBM = balHits, balMisses
@@ -737,11 +737,11 @@ func (ac *AddressCache) Reporter() {
 			log.Debugf("ADDRESS CACHE: addresses = %d, rows = %d, utxos = %d",
 				numAddrs, numRows, numUTXOs)
 			log.Debugf("ADDRESS CACHE:"+
-				"\n\t\t\t\t\t            HITS | MISSES"+
-				"\n\t\t\t\t\trows    %8d | %6d"+
-				"\n\t\t\t\t\tbalance %8d | %6d"+
-				"\n\t\t\t\t\tutxos   %8d | %6d"+
-				"\n\t\t\t\t\thist    %8d | %6d",
+				"\n\t\t\t\t              HITS |    MISSES"+
+				"\n\t\t\t\trows    %10d | %9d"+
+				"\n\t\t\t\tbalance %10d | %9d"+
+				"\n\t\t\t\tutxos   %10d | %9d"+
+				"\n\t\t\t\thist    %10d | %9d",
 				rowHits, rowMisses, balHits, balMisses,
 				utxoHits, utxoMisses, histHits, histMisses)
 		}
