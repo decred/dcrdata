@@ -83,8 +83,8 @@ var (
 	defaultDisabledExchanges = "dragonex,poloniex"
 	defaultRateCertFile      = filepath.Join(defaultHomeDir, "rpc.cert")
 
-	defaultMainnetLink  = "https://mainnet.decred.org/"
-	defaultTestnetLink  = "https://testnet.decred.org/"
+	defaultMainnetLink  = "https://explorer.dcrdata.org/"
+	defaultTestnetLink  = "https://testnet.dcrdata.org/"
 	defaultOnionAddress = ""
 
 	maxSyncStatusLimit = 5000
