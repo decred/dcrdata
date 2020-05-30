@@ -174,6 +174,7 @@ export default class extends Controller {
     switch (this.settings.price_type === null) {
       case 'predicted':
         this.hideAll(this.priceDCRWrapperTargets)
+        this.showAll(this.projectedDcrPriceDivTargets)
         break
       default:
         this.showAll(this.priceDCRWrapperTargets)
@@ -406,7 +407,9 @@ export default class extends Controller {
         this.setAllValues(this.newHashRateTargets, digitformat(this.targetHashRate + hashrate, 4))
         this.setAllValues(this.additionalHashRateTargets, digitformat(this.targetHashRate, 4))
         this.projectedPriceDivTarget.style.display = 'block'
-        this.projectedDcrPriceDivTarget.style.display = 'block'
+        if (this.settings.price_type === 'predicted') {
+          this.showAll(this.projectedDcrPriceDivTargets)
+        }
         this.internalAttackTextTarget.classList.add('d-none')
         this.internalAttackPosTextTarget.classList.add('d-none')
         this.externalAttackTextTarget.classList.remove('d-none')
@@ -415,7 +418,7 @@ export default class extends Controller {
       case internalAttackType:
       default:
         this.projectedPriceDivTarget.style.display = 'none'
-        this.projectedDcrPriceDivTarget.style.display = 'none'
+        this.hideAll(this.projectedDcrPriceDivTargets)
         this.externalAttackTextTarget.classList.add('d-none')
         this.externalAttackPosTextTarget.classList.add('d-none')
         this.internalAttackTextTarget.classList.remove('d-none')
@@ -426,15 +429,13 @@ export default class extends Controller {
 
   setPriceType (e) {
     this.settings.price_type = e.currentTarget.value
-    if (this.settings.price_type !== 'current') {
+    if (this.settings.price_type === 'predicted') {
       this.hideAll(this.priceDCRWrapperTargets)
+      this.showAll(this.projectedDcrPriceDivTargets)
     } else {
       this.showAll(this.priceDCRWrapperTargets)
+      this.hideAll(this.projectedDcrPriceDivTargets)
     }
-    this.calculate()
-  }
-
-  priceTypeChanged () {
     this.calculate()
   }
 

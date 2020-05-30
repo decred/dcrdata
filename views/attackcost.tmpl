@@ -64,12 +64,12 @@
       <div class="row mx-0 my-2 bg-white">
         {{- /* NETWORK PARAMETERS */ -}}
         <div class="col-24 col-sm-12 col-md-24 col-lg-13 px-3 position-relative pt-3 pb-3">
-          <div class="pl-1">
+          <div class="">
             <span class="h6 d-inline-block pl-2 font-weight-bold">Current Mainnet Parameters</span>
           </div>
-          <div class="row">
-            <div class="col-24 col-md-12 col-lg-24 col-xl-14 row pb-2 pb-sm-3 pt-2 pt-md-0 pt-lg-2 pt-xl-0">
-              <div class="col-11 text-center">
+          <div class="d-flex" style="flex-wrap: wrap;">
+            <div class="col-24 col-md-12 col-sm-24 col-lg-24 col-xl-14 row pb-2 pb-sm-3 pt-2 pt-md-0 pt-lg-2 pt-xl-0">
+              <div class="col-12 pl-7">
                 <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
                   <span class="text-secondary fs13">Best Block</span>
                   <br>
@@ -77,7 +77,7 @@
                 </div>
               </div>
 
-              <div class="col-13 text-center">
+              <div class="col-12">
                 <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
                   <span class="text-secondary fs13">Hash Rate</span>
                   <br>
@@ -86,8 +86,8 @@
               </div>
             </div>
 
-            <div class="col-24 col-md-12 col-lg-24 col-xl-11 row pb-3 pt-2 pt-md-0 pt-lg-2 pt-xl-0">
-              <div class="col-10 text-center">
+            <div class="col-24 col-md-12 col-lg-24 col-sm-24 col-xl-11 row pb-3 pt-2 pt-md-0 pt-lg-2 pt-xl-0">
+              <div class="col-12">
                 <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
                   <span class="text-secondary fs13">Ticket Pool size</span>
                   <br>
@@ -95,7 +95,7 @@
                 </div>
               </div>
 
-              <div class="col-12 text-center">
+              <div class="col-12">
                 <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
                   <span class="text-secondary fs13">Ticket Price</span>
                   <br>
@@ -114,8 +114,8 @@
           </div>
 
           <div class="row mt-1">
-              <div class="col-24 col-md-10 col-lg-24 col-xl-10 row pb-3">
-                <div class="col-12 text-center">
+            <div class="row pb-3">
+              <div class="col-6 text-center">
                 <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
                   <span class="text-secondary fs13">Attack Time</span>
                   <br>
@@ -134,7 +134,7 @@
                 </div>
               </div>
 
-              <div class="col-12 text-center">
+              <div class="col-6 text-center">
                 <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
                   <span class="text-secondary fs13">Electricity Cost</span>
                   <br>
@@ -152,9 +152,8 @@
                   <span class="text-secondary">USD/kWh</span>
                 </div>
               </div>
-            </div>
-            <div class="col-24 col-md-14 col-lg-24 col-xl-14 row pb-3">
-              <div class="col-12 text-center">
+
+              <div class="col-6 text-center">
                 <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
                   <span class="text-secondary fs13">USD-DCR Price</span>
                   <br>
@@ -170,7 +169,7 @@
                 </div>
               </div>
 
-              <div class="col-12 text-center">
+              <div class="col-6 text-center">
                 <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
                   <span class="text-secondary fs13">Attack Type</span>
                   <br>
@@ -192,12 +191,12 @@
       <div class="row mx-0 my-2 bg-white">
         {{- /* POW ATTACK */ -}}
         <div class="col-24 col-sm-12 col-md-24 col-lg-13 px-3 position-relative pt-3 pb-3">
-          <div class="pl-1">
+          <div class="">
               <span class="h6 d-inline-block pl-2 font-weight-bold">PoW Attack</span>
           </div>
-          <div class="ml-4">
+          <div class="">
               <div class="mt-1 ml-2">
-                <div class="row">
+                <div class="d-flex">
                   <span class="mr-1">Mining Device:</span>
                   <select
                     class="form-control chart-form-control mr-5"
@@ -281,10 +280,11 @@
         </div>
         {{- /* POS ATTACK */ -}}
         <div class="col-24 col-sm-12 col-md-24 col-lg-11 secondary-card pt-3 pb-3 px-3">
-          <div class="pl-1">
+          <div class="">
             <span class="h6 d-inline-block pl-2 font-weight-bold">PoS Attack</span>
           </div>
-          <div class="ml-4 d-none" data-target="attackcost.internalAttackPosText">
+
+          <div class="d-none" data-target="attackcost.internalAttackPosText">
             <div class="mt-1 ml-2">
               A <input
                 type="number"
@@ -330,7 +330,8 @@
               </span>)
             </div>
           </div>
-          <div class="ml-4 d-none" data-target="attackcost.externalAttackPosText">
+
+          <div class="d-none" data-target="attackcost.externalAttackPosText">
             <div class="mt-1 ml-2">
               Current total staked is <span  data-target="attackcost.ticketPoolValue" class="font-weight-bold">0</span> <span class="fs11">DCR</span>.
             </div>
@@ -372,7 +373,7 @@
               (A <span class="font-weight-bold" data-target="attackcost.projectedTicketPriceIncrease">0</span>% increase).
             </div>
 
-            <div class="mt-1 ml-2" data-target="attackcost.projectedDcrPriceDiv" style="display: block">
+            <div class="mt-1 ml-2 d-none" data-target="attackcost.projectedDcrPriceDiv">
               Offered DCR on all orderbooks is
               <span class="font-weight-bold" data-target="attackcost.marketVolume">0</span>
               <span class="fs11"> DCR</span>, valued at
@@ -383,7 +384,7 @@
               <span class="font-weight-bold" data-target="attackcost.dcrPriceIncrease">0</span>% per DCR.
               If buying
               <span class="font-weight-bold" data-target="attackcost.additionalDcr">0</span>
-              <span class="fs11"> DCR</span>, needed for the attack,
+              <span class="fs11"> DCR</span> needed for the attack,
               we estimate the market price would rise to
               <span class="position-relative font-weight-bold">
               $<span class="font-weight-bold" data-target="attackcost.projectedDcrPrice">0</span>
