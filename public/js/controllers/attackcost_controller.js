@@ -126,7 +126,7 @@ export default class extends Controller {
       'marketVolume', 'marketValue', 'marketAvgDcrPrice', 'priceType', 'projectedDcrPriceDiv', 'projectedDcrPrice',
       'projectedDcrPriceIncrease', 'dcrPriceIncrease', 'acquiredDcrCost', 'acquiredDcrValue', 'lowOrderBookWarning',
       'attackPosPercentAmountLabel', 'dcrPriceLabel', 'totalDCRPosLabel',
-      'projectedPriceDiv', 'attackNotPossibleWrapperDiv', 'coinSupply', 'totalAttackCostContainer'
+      'projectedPriceDiv', 'attackNotPossibleWrapperDiv', 'coinSupply', 'totalAttackCostContainer', 'predictedTooltip'
     ]
   }
 
@@ -175,9 +175,11 @@ export default class extends Controller {
       case 'predicted':
         this.hideAll(this.priceDCRWrapperTargets)
         this.showAll(this.projectedDcrPriceDivTargets)
+        this.showAll(this.predictedTooltipTargets)
         break
       default:
         this.showAll(this.priceDCRWrapperTargets)
+        this.hideAll(this.predictedTooltipTargets)
         this.settings.price_type = 'current'
         break
     }
@@ -409,6 +411,7 @@ export default class extends Controller {
         this.projectedPriceDivTarget.style.display = 'block'
         if (this.settings.price_type === 'predicted') {
           this.showAll(this.projectedDcrPriceDivTargets)
+          this.showAll(this.predictedTooltipTargets)
         }
         this.internalAttackTextTarget.classList.add('d-none')
         this.internalAttackPosTextTarget.classList.add('d-none')
@@ -419,6 +422,7 @@ export default class extends Controller {
       default:
         this.projectedPriceDivTarget.style.display = 'none'
         this.hideAll(this.projectedDcrPriceDivTargets)
+        this.hideAll(this.predictedTooltipTargets)
         this.externalAttackTextTarget.classList.add('d-none')
         this.externalAttackPosTextTarget.classList.add('d-none')
         this.internalAttackTextTarget.classList.remove('d-none')
@@ -432,9 +436,11 @@ export default class extends Controller {
     if (this.settings.price_type === 'predicted') {
       this.hideAll(this.priceDCRWrapperTargets)
       this.showAll(this.projectedDcrPriceDivTargets)
+      this.showAll(this.predictedTooltipTargets)
     } else {
       this.showAll(this.priceDCRWrapperTargets)
       this.hideAll(this.projectedDcrPriceDivTargets)
+      this.hideAll(this.predictedTooltipTargets)
     }
     this.calculate()
   }

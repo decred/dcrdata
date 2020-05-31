@@ -155,7 +155,14 @@
 
               <div class="col-6 text-center">
                 <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
-                  <span class="text-secondary fs13">USD-DCR Price</span>
+                  <span class="text-secondary fs13">USD-DCR Price 
+                    <span class="dcricon-info tooltip d-none" data-target="attackcost.predictedTooltip">
+                      <span class="tooltiptext">The predicted price is gotten by taking the 
+                        slope between the current price and the cumulative market price after 
+                        purchasing the entire order book (95% to remove outliers).
+                      </span>
+                    </span>
+                  </span>
                   <br>
                   
                   <select
