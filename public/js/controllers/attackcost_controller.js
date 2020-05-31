@@ -125,8 +125,8 @@ export default class extends Controller {
       'totalPos', 'totalPow', 'graph', 'labels', 'projectedTicketPrice', 'projectedTicketPriceIncrease', 'attackType',
       'marketVolume', 'marketValue', 'marketAvgDcrPrice', 'priceType', 'projectedDcrPriceDiv', 'projectedDcrPrice',
       'projectedDcrPriceIncrease', 'dcrPriceIncrease', 'acquiredDcrCost', 'acquiredDcrValue', 'lowOrderBookWarning',
-      'attackPosPercentAmountLabel', 'dcrPriceLabel', 'totalDCRPosLabel',
-      'projectedPriceDiv', 'attackNotPossibleWrapperDiv', 'coinSupply', 'totalAttackCostContainer', 'predictedTooltip'
+      'attackPosPercentAmountLabel', 'dcrPriceLabel', 'totalDCRPosLabel', 'projectedPriceDiv', 'attackNotPossibleWrapperDiv',
+      'coinSupply', 'totalAttackCostContainer', 'predictedTooltip', 'priceTypeCurrent'
     ]
   }
 
@@ -186,10 +186,14 @@ export default class extends Controller {
     switch (this.settings.attack_type) {
       case externalAttackType:
         this.priceTypeTarget.disabled = false
+        this.hideAll(this.priceTypeCurrentTargets)
+        this.showAll(this.priceTypeTargets)
         break
       default:
         this.settings.price_type = 'current'
         this.priceTypeTarget.value = 'current'
+        this.showAll(this.priceTypeCurrentTargets)
+        this.hideAll(this.priceTypeTargets)
         this.priceTypeTarget.disabled = true
         break
     }
@@ -325,10 +329,14 @@ export default class extends Controller {
     switch (this.settings.attack_type) {
       case externalAttackType:
         this.priceTypeTarget.disabled = false
+        this.hideAll(this.priceTypeCurrentTargets)
+        this.showAll(this.priceTypeTargets)
         break
       default:
         this.settings.price_type = 'current'
         this.priceTypeTarget.value = 'current'
+        this.showAll(this.priceTypeCurrentTargets)
+        this.hideAll(this.priceTypeTargets)
         this.priceTypeTarget.disabled = true
         break
     }
