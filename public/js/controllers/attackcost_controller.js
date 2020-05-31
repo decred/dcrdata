@@ -566,14 +566,14 @@ export default class extends Controller {
     const acquiredDcrCost = this.calcAcquiredDcrCost(currentDcrPrice, averageIncreaseValue, totalDCRPos)
 
     const increasePercentage = (projectedDcrPrice - currentDcrPrice) / currentDcrPrice
-    this.projectedDcrPriceIncreaseTarget.innerHTML = digitformat(increasePercentage, 2)
-    this.setAllValues(this.projectedDcrPriceTargets, digitformat(projectedDcrPrice, 2))
+    this.projectedDcrPriceIncreaseTarget.innerHTML = digitformat(increasePercentage, 0)
+    this.setAllValues(this.projectedDcrPriceTargets, digitformat(projectedDcrPrice, 0))
     this.setAllValues(this.marketVolumeTargets, digitformat(totalObUnits, 2))
     this.setAllValues(this.dcrPriceIncreaseTargets, digitformat(increaseRate, 10))
     this.setAllValues(this.marketAvgDcrPriceTargets, digitformat(marketAvgDcrPrice * btcPrice - currentDcrPrice))
-    this.setAllValues(this.marketValueTargets, digitformat(totalObCost * btcPrice, 2))
-    this.setAllValues(this.acquiredDcrCostTargets, digitformat(acquiredDcrCost, 2))
-    this.setAllValues(this.acquiredDcrValueTargets, digitformat(totalDCRPos * projectedDcrPrice, 2))
+    this.setAllValues(this.marketValueTargets, digitformat(totalObCost * btcPrice, 0))
+    this.setAllValues(this.acquiredDcrCostTargets, digitformat(acquiredDcrCost, 0))
+    this.setAllValues(this.acquiredDcrValueTargets, digitformat(totalDCRPos * projectedDcrPrice, 0))
 
     if (this.settings.price_type === 'predicted' && this.settings.attack_type === externalAttackType) {
       dcrPrice = projectedDcrPrice
