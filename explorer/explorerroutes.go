@@ -1266,17 +1266,10 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) TreasuryPage(w http.ResponseWriter, r *http.Request) {
 	ctx := context.WithValue(r.Context(), ctxAddress, exp.pageData.HomeInfo.DevAddress)
 	r = r.WithContext(ctx)
-	rawURL := r.URL.RawQuery
-	if strings.Contains(rawURL, "txntype") {
-		exp.AddressPage(w, r)
-		return
+	if queryVals := r.URL.Query(); queryVals.Get("txntype") == "" {
+		queryVals.Set("txntype", "merged_debit")
+		r.URL.RawQuery = queryVals.Encode()
 	}
-	if rawURL == "" {
-		rawURL = fmt.Sprintf("%s=%s", "txntype", "merged_debit")
-	} else {
-		rawURL += fmt.Sprintf("&%s=%s", "txntype", "merged_debit")
-	}
-	r.URL.RawQuery = rawURL
 	exp.AddressPage(w, r)
 }
 
