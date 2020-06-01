@@ -279,16 +279,16 @@
                   </td>
                   <td class="text-right medium-sans text-nowrap pr-2 py-2"><span class="d-none d-sm-inline">Spending</span><span class="d-sm-none">Sp.</span> Tx:</td>
                   <td class="text-left py-1 text-secondary" data-target="tx.spendingTx">
-                    {{$spendingTx := index .SpendingTxns 0}}
-                    {{if $spendingTx.Hash}}
-                      <a href="/tx/{{$spendingTx.Hash}}"
-                      >{{if eq .TicketInfo.PoolStatus "missed"}}revocation{{else}}vote{{end}}
+                    {{- $spendingTx := index .SpendingTxns 0 -}}
+                    {{- if $spendingTx.Hash -}}
+                      <a href="/tx/{{$spendingTx.Hash}}">
+                        {{- if or (eq .TicketInfo.PoolStatus "missed") (eq .TicketInfo.PoolStatus "expired") }}revocation{{ else }}vote{{ end -}}
                       </a>
-                    {{else if ne .TicketInfo.SpendStatus ""}}
-                      {{.TicketInfo.SpendStatus}}
-                    {{else}}
+                    {{- else if ne .TicketInfo.SpendStatus "" -}}
+                      {{ .TicketInfo.SpendStatus }}
+                    {{- else -}}
                       unspent
-                    {{end}}
+                    {{- end -}}
                   </td>
                 </tr>
               {{end}}
