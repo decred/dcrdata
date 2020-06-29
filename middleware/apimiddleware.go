@@ -264,7 +264,7 @@ func PostBroadcastTxCtx(next http.Handler) http.Handler {
 		// Successful extraction of Body JSON as long as the rawtx is not empty
 		// string we should return it.
 		if req.Rawtx == "" {
-			writeHTMLBadRequest(w, fmt.Sprintf("rawtx cannot be an empty string."))
+			writeHTMLBadRequest(w, "rawtx cannot be an empty string.")
 			return
 		}
 

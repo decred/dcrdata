@@ -1783,7 +1783,7 @@ func (c *appContext) getExchanges(w http.ResponseWriter, r *http.Request) {
 	}
 	// Don't provide any info if the bot is in the failed state.
 	if c.xcBot.IsFailed() {
-		http.Error(w, fmt.Sprintf("No exchange data available"), http.StatusNotFound)
+		http.Error(w, "No exchange data available", http.StatusNotFound)
 		return
 	}
 
@@ -1810,7 +1810,7 @@ func (c *appContext) getCurrencyCodes(w http.ResponseWriter, r *http.Request) {
 
 	codes := c.xcBot.AvailableIndices()
 	if len(codes) == 0 {
-		http.Error(w, fmt.Sprintf("No codes found."), http.StatusNotFound)
+		http.Error(w, "No codes found.", http.StatusNotFound)
 		return
 	}
 	writeJSON(w, codes, m.GetIndentCtx(r))

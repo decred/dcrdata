@@ -696,7 +696,7 @@ func (exp *explorerUI) simulateASR(StartingDCRBalance float64, IntegerTicketQty 
 	TicketPrice := ActualTicketPrice
 	DCRBalance := StartingDCRBalance
 
-	ReturnTable += fmt.Sprintf("\n\nBLOCKNUM        DCR  TICKETS TKT_PRICE TKT_REWRD  ACTION\n")
+	ReturnTable += "\n\nBLOCKNUM        DCR  TICKETS TKT_PRICE TKT_REWRD  ACTION\n"
 	ReturnTable += fmt.Sprintf("%8d  %9.2f %8.1f %9.2f %9.2f    INIT\n",
 		int64(simblock), DCRBalance, TicketsPurchased,
 		TicketPrice, StakeRewardAtBlock(simblock))
