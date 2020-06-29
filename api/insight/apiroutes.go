@@ -153,7 +153,7 @@ func (iapi *InsightApi) getTransaction(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		apiLog.Errorf("Error Processing Transactions")
-		writeInsightError(w, fmt.Sprintf("Error Processing Transactions"))
+		writeInsightError(w, "Error Processing Transactions")
 		return
 	}
 
@@ -287,7 +287,7 @@ func (iapi *InsightApi) getRawBlock(w http.ResponseWriter, r *http.Request) {
 	var blockHex bytes.Buffer
 	if err = blockMsg.Serialize(&blockHex); err != nil {
 		apiLog.Errorf("Failed to serialize block: %v", err)
-		writeInsightError(w, fmt.Sprintf("Failed to serialize block"))
+		writeInsightError(w, "Failed to serialize block")
 		return
 	}
 
