@@ -4,6 +4,7 @@ import { barChartPlotter } from '../helpers/chart_helper'
 import { getDefault } from '../helpers/module_helper'
 import axios from 'axios'
 import dompurify from 'dompurify'
+import TurboQuery from '../helpers/turbolinks_helper'
 
 let Dygraph // lazy loaded on connect
 
@@ -138,6 +139,7 @@ export default class extends Controller {
   }
 
   connect () {
+    this.query = new TurboQuery()
     ws.registerEvtHandler('newblock', () => {
       ws.send('getticketpooldata', this.bars)
     })
@@ -149,13 +151,33 @@ export default class extends Controller {
       var data = JSON.parse(evt)
       this.processData(data)
     })
-
+    this.defaultSettings = {
+      zoom: 'all',
+      bars: 'all'
+    }
+    this.settings = TurboQuery.nullTemplate(['zoom', 'bars'])
+    this.query.update(this.settings)
+    this.settings.zoom = this.settings.zoom || 'all'
+    this.settings.bars = this.settings.bars || 'all'
     this.fetchAll()
+  }
+
+  updateQueryString () {
+    const query = {}
+    for (const k in this.settings) {
+      if (!this.settings[k] || this.settings[k].toString() === this.defaultSettings[k].toString()) continue
+      query[k] = this.settings[k]
+    }
+    this.query.replace(query)
   }
 
   async fetchAll () {
     this.wrapperTarget.classList.add('loading')
-    let chartsResponse = await axios.get('/api/ticketpool/charts')
+    let url = '/api/ticketpool/charts'
+    if (this.settings.bars !== this.defaultSettings.bars) {
+      url = '/api/ticketpool/bydate/' + this.settings.bars
+    }
+    let chartsResponse = await axios.get(url)
     this.processData(chartsResponse.data)
     this.wrapperTarget.classList.remove('loading')
   }
@@ -171,8 +193,7 @@ export default class extends Controller {
       let mempool = this.tipHeight === data['height'] ? this.mempool : false
       this.graphData['time_chart'] = purchasesGraphData(data['time_chart'], mempool)
       if (this.purchasesGraph !== null) {
-        this.purchasesGraph.updateOptions({ 'file': this.graphData['time_chart'] })
-        this.purchasesGraph.resetZoom()
+        this.purchasesGraph.updateOptions({ 'file': this.graphData['time_chart'], dateWindow: getWindow(this.settings.zoom) })
       }
     }
     if (data['price_chart']) {
@@ -185,6 +206,8 @@ export default class extends Controller {
       while (this.outputsTarget.firstChild) this.outputsTarget.removeChild(this.outputsTarget.firstChild)
       this.outputsTarget.appendChild(populateOutputs(data['outputs_chart']))
     }
+    this.setZoomTargetActive(this.settings.zoom)
+    this.setBarsTargetActive(this.settings.bars)
   }
 
   disconnect () {
@@ -196,22 +219,28 @@ export default class extends Controller {
   }
 
   onZoom (e) {
-    var target = e.srcElement || e.target
-    this.zoomTargets.forEach((zoomTarget) => {
-      zoomTarget.classList.remove('btn-active')
-    })
-    target.classList.add('btn-active')
     this.zoom = e.target.name
+    this.setZoomTargetActive(this.zoom)
     this.purchasesGraph.updateOptions({ dateWindow: getWindow(this.zoom) })
+    this.settings.zoom = this.zoom
+    this.updateQueryString()
+  }
+
+  setZoomTargetActive (name) {
+    this.zoomTargets.forEach((zoomTarget) => {
+      if (zoomTarget.name !== name) {
+        zoomTarget.classList.remove('btn-active')
+      } else {
+        zoomTarget.classList.add('btn-active')
+      }
+    })
   }
 
   async onBarsChange (e) {
-    var target = e.srcElement || e.target
-    this.barsTargets.forEach((barsTarget) => {
-      barsTarget.classList.remove('btn-active')
-    })
     this.bars = e.target.name
-    target.classList.add('btn-active')
+    this.setBarsTargetActive(this.bars)
+    this.settings.bars = this.bars
+    this.updateQueryString()
     this.wrapperTarget.classList.add('loading')
     var url = '/api/ticketpool/bydate/' + this.bars
     let ticketPoolResponse = await axios.get(url)
@@ -219,6 +248,16 @@ export default class extends Controller {
       'file': purchasesGraphData(ticketPoolResponse.data['time_chart'])
     })
     this.wrapperTarget.classList.remove('loading')
+  }
+
+  setBarsTargetActive (name) {
+    this.barsTargets.forEach((barsTarget) => {
+      if (barsTarget.name !== name) {
+        barsTarget.classList.remove('btn-active')
+      } else {
+        barsTarget.classList.add('btn-active')
+      }
+    })
   }
 
   makePurchasesGraph () {

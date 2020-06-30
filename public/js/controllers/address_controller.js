@@ -175,7 +175,16 @@ export default class extends Controller {
     ctrl.bindElements()
     ctrl.bindEvents()
     ctrl.query = new TurboQuery()
-
+    ctrl.defaultSettings = {
+      chart: 'balance',
+      zoom: 'ijhhasg0-kbhgjkw0',
+      bin: 'month',
+      flow: '',
+      n: '',
+      start: '',
+      txntype: ''
+    }
+    // ?chart=balance&zoom=ijhhasg0-kbhgjkw0&bin=month
     // These two are templates for query parameter sets.
     // When url query parameters are set, these will also be updated.
     var settings = ctrl.settings = TurboQuery.nullTemplate(['chart', 'zoom', 'bin', 'flow',
@@ -187,18 +196,13 @@ export default class extends Controller {
     ctrl.query.update(settings)
     ctrl.setChartType()
     if (settings.flow) ctrl.setFlowChecks()
-    if (settings.zoom !== null) {
-      ctrl.zoomButtons.forEach((button) => {
-        button.classList.remove('btn-selected')
-      })
-    }
     if (settings.bin == null) {
       settings.bin = ctrl.getBin()
     }
     if (settings.chart == null || !ctrl.validChartType(settings.chart)) {
       settings.chart = ctrl.chartType
     }
-
+    ctrl.settings.zoom = ctrl.settings.zoom || ctrl.defaultSettings.zoom
     // Parse stimulus data
     var cdata = ctrl.data
     ctrl.dcrAddress = cdata.get('dcraddress')
@@ -223,6 +227,24 @@ export default class extends Controller {
     this.retrievedData = {}
   }
 
+  setActiveOptionBtn (opt, optTargets) {
+    optTargets.forEach(li => {
+      if (li.dataset.option === opt) {
+        li.classList.add('active')
+      } else {
+        li.classList.remove('active')
+      }
+    })
+  }
+
+  updateQueryString () {
+    const query = {}
+    for (const k in this.settings) {
+      if (!this.settings[k] || this.settings[k].toString() === this.defaultSettings[k].toString()) continue
+      query[k] = this.settings[k]
+    }
+    this.query.replace(query)
+  }
   // Request the initial chart data, grabbing the Dygraph script if necessary.
   initializeChart () {
     createOptions()
@@ -332,7 +354,7 @@ export default class extends Controller {
     settings.start = offset
     settings.txntype = txType
     ctrl.paginationParams.count = data.tx_count
-    ctrl.query.replace(settings)
+    ctrl.updateQueryString()
     ctrl.paginationParams.offset = offset
     ctrl.paginationParams.pagesize = count
     ctrl.paginationParams.txntype = txType
@@ -431,10 +453,7 @@ export default class extends Controller {
 
     if (settings.chart === ctrl.state.chart && settings.bin === ctrl.state.bin) {
       // Only the zoom has changed.
-      let zoom = Zoom.decode(settings.zoom)
-      if (zoom) {
-        ctrl.setZoom(zoom.start, zoom.end)
-      }
+      this.setZoom(settings.zoom)
       return
     }
 
@@ -533,6 +552,7 @@ export default class extends Controller {
     ctrl.chartLoaderTarget.classList.remove('loading')
     ctrl.xRange = ctrl.graph.xAxisExtremes()
     ctrl.validateZoom(binSize)
+    if (ctrl.settings.zoom) this.setZoom(ctrl.settings.zoom)
   }
 
   noDataAvailable () {
@@ -549,15 +569,14 @@ export default class extends Controller {
     var bin = interval || this.settings.bin || this.activeBin
     var b = false
     this.binputs.forEach((button) => {
-      if (button.name === bin) b = button
+      if (button.dataset.option === bin) b = button
     })
     return b
   }
 
   validateZoom (binSize) {
     ctrl.setButtonVisibility()
-    var zoom = Zoom.validate(ctrl.activeZoomKey || ctrl.settings.zoom, ctrl.xRange, binSize)
-    ctrl.setZoom(zoom.start, zoom.end)
+    this.setZoom(ctrl.settings.zoom)
     ctrl.graph.updateOptions({
       zoomCallback: ctrl.zoomCallback,
       drawCallback: ctrl.drawCallback
@@ -566,21 +585,17 @@ export default class extends Controller {
 
   changeGraph (e) {
     this.settings.chart = this.chartType
-    this.setGraphQuery()
+    ctrl.updateQueryString()
     this.drawGraph()
   }
 
   changeBin (e) {
     var target = e.srcElement || e.target
     if (target.nodeName !== 'BUTTON') return
-    ctrl.settings.bin = target.name
-    ctrl.setIntervalButton(target.name)
-    this.setGraphQuery()
+    ctrl.settings.bin = target.dataset.option
+    ctrl.setIntervalButton(target.dataset.option)
+    ctrl.updateQueryString()
     this.drawGraph()
-  }
-
-  setGraphQuery () {
-    this.query.replace(this.settings)
   }
 
   updateFlow () {
@@ -591,7 +606,7 @@ export default class extends Controller {
       return
     }
     ctrl.settings.flow = bitmap
-    ctrl.setGraphQuery()
+    ctrl.updateQueryString()
     // Set the graph dataset visibility based on the bitmap
     // Dygraph dataset indices: 0 received, 1 sent, 2 & 3 net
     var visibility = {}
@@ -610,31 +625,48 @@ export default class extends Controller {
     })
   }
 
-  onZoom (e) {
-    var target = e.srcElement || e.target
-    if (target.nodeName !== 'BUTTON') return
-    ctrl.zoomButtons.forEach((button) => {
-      button.classList.remove('btn-selected')
-    })
-    target.classList.add('btn-selected')
+  setZoom (e) {
     if (ctrl.graph === undefined) {
       return
     }
+    var target = e.srcElement || e.target
+    var option
+    if (!target) {
+      option = Zoom.mapKey(ctrl.settings.zoom, ctrl.graph.xAxisExtremes())
+      ctrl.setSelectedZoom(option)
+    } else {
+      option = target.dataset.option
+      if (target.nodeName !== 'BUTTON') return
+      ctrl.zoomButtons.forEach((button) => {
+        button.classList.remove('btn-selected')
+      })
+      target.classList.add('btn-selected')
+    }
     var duration = ctrl.activeZoomDuration
-
     var end = ctrl.xRange[1]
     var start = duration === 0 ? ctrl.xRange[0] : end - duration
-    ctrl.setZoom(start, end)
+    ctrl.updateZoom(start, end)
+    ctrl.updateQueryString()
   }
 
-  setZoom (start, end) {
+  setZoomTargetActive (name) {
+    ctrl.zoomButtons.forEach((target) => {
+      if (target.dataset.option !== name) {
+        target.classList.remove('btn-selected')
+      } else {
+        target.classList.add('btn-selected')
+      }
+    })
+  }
+
+  updateZoom (start, end) {
     ctrl.chartLoaderTarget.classList.add('loading')
     ctrl.graph.updateOptions({
       dateWindow: [start, end]
     })
     ctrl.settings.zoom = Zoom.encode(start, end)
     ctrl.lastEnd = end
-    ctrl.query.replace(ctrl.settings)
+    ctrl.updateQueryString()
     ctrl.chartLoaderTarget.classList.remove('loading')
   }
 
@@ -655,16 +687,6 @@ export default class extends Controller {
     button.classList.add('btn-selected')
   }
 
-  setViewButton (view) {
-    this.viewTargets.forEach((button) => {
-      if (button.name === view) {
-        button.classList.add('btn-active')
-      } else {
-        button.classList.remove('btn-active')
-      }
-    })
-  }
-
   setChartType () {
     var chart = this.settings.chart
     if (this.validChartType(chart)) {
@@ -674,7 +696,7 @@ export default class extends Controller {
 
   setSelectedZoom (zoomKey) {
     this.zoomButtons.forEach(function (button) {
-      if (button.name === zoomKey) {
+      if (button.dataset.option === zoomKey) {
         button.classList.add('btn-selected')
       } else {
         button.classList.remove('btn-selected')
@@ -690,7 +712,7 @@ export default class extends Controller {
     if (end === this.lastEnd) return // Only handle slide event.
     this.lastEnd = end
     ctrl.settings.zoom = Zoom.encode(start, end)
-    ctrl.query.replace(ctrl.settings)
+    ctrl.updateQueryString()
     ctrl.setSelectedZoom(Zoom.mapKey(ctrl.settings.zoom, ctrl.graph.xAxisExtremes()))
   }
 
@@ -699,7 +721,7 @@ export default class extends Controller {
       button.classList.remove('btn-selected')
     })
     ctrl.settings.zoom = Zoom.encode(start, end)
-    ctrl.query.replace(ctrl.settings)
+    ctrl.updateQueryString()
     ctrl.setSelectedZoom(Zoom.mapKey(ctrl.settings.zoom, ctrl.graph.xAxisExtremes()))
   }
 
@@ -709,7 +731,7 @@ export default class extends Controller {
     buttonSets.forEach((buttonSet) => {
       buttonSet.forEach((button) => {
         if (button.dataset.fixed) return
-        if (duration > Zoom.mapValue(button.name)) {
+        if (duration > Zoom.mapValue(button.dataset.option)) {
           button.classList.remove('d-hide')
         } else {
           button.classList.remove('btn-selected')
@@ -806,14 +828,6 @@ export default class extends Controller {
     return this.optionsTarget.value
   }
 
-  get activeView () {
-    var view = null
-    this.viewTargets.forEach((button) => {
-      if (button.classList.contains('btn-active')) view = button.name
-    })
-    return view
-  }
-
   get activeZoomDuration () {
     return this.activeZoomKey ? Zoom.mapValue(this.activeZoomKey) : false
   }
@@ -821,7 +835,7 @@ export default class extends Controller {
   get activeZoomKey () {
     var activeButtons = this.zoomTarget.getElementsByClassName('btn-selected')
     if (activeButtons.length === 0) return null
-    return activeButtons[0].name
+    return activeButtons[0].dataset.option
   }
 
   get chartDuration () {
@@ -829,7 +843,7 @@ export default class extends Controller {
   }
 
   get activeBin () {
-    return this.intervalTarget.getElementsByClassName('btn-selected')[0].name
+    return this.intervalTarget.getElementsByClassName('btn-selected')[0].dataset.option
   }
 
   get flow () {
