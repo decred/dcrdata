@@ -188,6 +188,17 @@
                             </li>
                             <li class="nav-item">
                                 <label class="customcheck mx-2 d-inline-flex"
+                                    data-target="charts.vSelectorItem" data-charts="coin-supply">Supply
+                                    <input
+                                        type="checkbox"
+                                        data-action="click->charts#setVisibility"
+                                        data-target="charts.supplySet"
+                                    >
+                                    <span class="checkmark tickets-price"></span>
+                                </label>
+                            </li>
+                            <li class="nav-item">
+                                <label class="customcheck mx-2 d-inline-flex"
                                     data-target="charts.vSelectorItem" data-charts="coin-supply">Mixed Coins
                                     <input
                                         type="checkbox"
@@ -195,6 +206,17 @@
                                         data-target="charts.anonymitySet"
                                     >
                                     <span class="checkmark total-mixed"></span>
+                                </label>
+                            </li>
+                            <li class="nav-item">
+                                <label class="customcheck mx-2 d-inline-flex"
+                                    data-target="charts.vSelectorItem" data-charts="coin-supply">Predicted
+                                    <input
+                                        type="checkbox"
+                                        data-action="click->charts#setVisibility"
+                                        data-target="charts.predictedSet"
+                                    >
+                                    <span class="checkmark tickets-price"></span>
                                 </label>
                             </li>
                         </ul>
