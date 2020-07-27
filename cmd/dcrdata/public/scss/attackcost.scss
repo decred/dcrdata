@@ -13,7 +13,6 @@ input[type=number]::-webkit-inner-spin-button {
 }
 
 .slider {
-  max-width: 500px;
   width: 100%;
   height: calc(1rem + 0.4rem);
   padding: 0;
@@ -145,6 +144,15 @@ input[type=number]::-webkit-inner-spin-button {
   background-color: #adb5bd;
 }
 
+.summary {
+  background-color: #f3f5f6;
+  bottom: 28px;
+}
+
 .b-radius {
   border-radius: 2px;
+}
+
+.min-w-0 {
+  min-width: 0;
 }
