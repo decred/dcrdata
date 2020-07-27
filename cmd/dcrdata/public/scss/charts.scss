@@ -347,9 +347,11 @@ body.darkBG .chartview .dygraph-y2label {
 }
 
 .chart-form-control {
+  width: -moz-fit-content;
   width: fit-content;
   font-size: 0.9rem !important;
   height: calc(1.5em + 0.5rem + 2px) !important;
+  line-height: 1;
 }
 
 .chart-control select,
@@ -363,14 +365,13 @@ body.darkBG .chartview .dygraph-y2label {
 
 .legend-wrapper {
   position: absolute;
-  top: -2rem;
+  top: -2.5rem;
   left: 100px;
   right: 20px;
 }
 
 .legend {
   background: #ececec;
-  z-index: 10000;
   padding: 5px 10px 5px 20px;
   font-size: 14px;
 }
