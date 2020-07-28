@@ -571,6 +571,31 @@ func (d *AddressCacheItem) SetBalance(block BlockID, balance *dbtypes.AddressBal
 	d.balance = balance
 }
 
+// OldestAddressTransaction returns data of the oldest address transaction
+func (d *AddressCacheItem) OldestAddressTransaction() (*dbtypes.AddressRowCompact, error) {
+
+	var oldestTxBlockTime int64
+	oldestTransaction := &dbtypes.AddressRowCompact{}
+
+	if d.rows == nil {
+		return nil, fmt.Errorf("Not transactions found")
+	}
+
+	for k, v := range d.rows {
+		if k == 0 {
+			oldestTxBlockTime = v.TxBlockTime
+			oldestTransaction = v
+			continue
+		}
+
+		if oldestTxBlockTime > v.TxBlockTime {
+			oldestTxBlockTime = v.TxBlockTime
+			oldestTransaction = v
+		}
+	}
+	return oldestTransaction, nil
+}
+
 // cacheCounts stores cache hits and misses.
 type cacheCounts struct {
 	sync.Mutex
@@ -1241,4 +1266,16 @@ func (ac *AddressCache) ClearRows(addr string) {
 	aci.mtx.Lock()
 	aci.rows = nil
 	aci.mtx.Unlock()
+}
+
+// OldestAddressTransaction attempts to retrieve data of the oldest address transaction
+func (ac *AddressCache) OldestAddressTransaction(address string) (*dbtypes.AddressRowCompact, error) {
+	aci := ac.addressCacheItem(address)
+	if aci == nil {
+		ac.cacheMetrics.rowMiss()
+		return nil, nil
+	}
+	ac.cacheMetrics.rowHit()
+
+	return aci.OldestAddressTransaction()
 }

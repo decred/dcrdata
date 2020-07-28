@@ -1271,6 +1271,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		CRLFDownload bool
 		FiatBalance  *exchanges.Conversion
 		Pages        []pageNumber
+		GroupBy      string
 	}
 
 	// Grab the URL query parameters
@@ -1358,6 +1359,32 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 
 	linkTemplate := fmt.Sprintf("/address/%s?start=%%d&n=%d&txntype=%v", addrData.Address, limitN, txnType)
 
+	var oldestTxnTime int64
+
+	oldestTxn, err := exp.dataSource.OldestTransaction(addrData.Address)
+
+	if err != nil || oldestTxn.TxBlockTime == 0 {
+		oldestTxnTime = time.Now().Unix()
+	} else {
+		oldestTxnTime = oldestTxn.TxBlockTime
+	}
+
+	var periodTag string
+	currentTime := time.Now()
+
+	switch {
+	case currentTime.AddDate(0, 0, -10).Unix() < oldestTxnTime:
+		periodTag = "all"
+	case currentTime.AddDate(0, 0, -70).Unix() < oldestTxnTime:
+		periodTag = "day"
+	case currentTime.AddDate(0, -12, 0).Unix() < oldestTxnTime:
+		periodTag = "week"
+	case currentTime.AddDate(-5, 0, 0).Unix() < oldestTxnTime:
+		periodTag = "month"
+	default:
+		periodTag = "year"
+	}
+
 	// Execute the HTML template.
 	pageData := AddressPageData{
 		CommonPageData: exp.commonData(r),
@@ -1365,6 +1392,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		CRLFDownload:   UseCRLF,
 		FiatBalance:    conversion,
 		Pages:          calcPages(int(addrData.TxnCount), int(limitN), int(offsetAddrOuts), linkTemplate),
+		GroupBy:        periodTag,
 	}
 	str, err := exp.templates.exec("address", pageData)
 	if err != nil {
