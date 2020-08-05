@@ -530,6 +530,15 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 		return
 	}
 
+	lastOffsetRows := uint64(maxOffset) % rows
+	var lastOffset uint64
+
+	if lastOffsetRows == 0 && uint64(maxOffset) > rows {
+		lastOffset = uint64(maxOffset) - rows
+	} else if lastOffsetRows > 0 && uint64(maxOffset) > rows {
+		lastOffset = uint64(maxOffset) - lastOffsetRows
+	}
+
 	// If the view is "years" and the top row is this year, modify the formatted
 	// time string to indicate its a partial result.
 	if val == "Years" && len(data) > 0 && data[0].EndTime.T.Year() == time.Now().Year() {
@@ -545,6 +554,7 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 		Offset       int64
 		Limit        int64
 		BestGrouping int64
+		LastOffset   int64
 		Pages        pageNumbers
 	}{
 		CommonPageData: exp.commonData(r),
@@ -553,6 +563,7 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 		Offset:         int64(offset),
 		Limit:          int64(rows),
 		BestGrouping:   maxOffset,
+		LastOffset:     int64(lastOffset),
 		Pages:          calcPages(int(maxOffset), int(rows), int(offset), linkTemplate),
 	})
 
@@ -2022,6 +2033,15 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	lastOffsetRows := uint64(count) % rowsCount
+	var lastOffset uint64
+
+	if lastOffsetRows == 0 && uint64(count) > rowsCount {
+		lastOffset = uint64(count) - rowsCount
+	} else if lastOffsetRows > 0 && uint64(count) > rowsCount {
+		lastOffset = uint64(count) - lastOffsetRows
+	}
+
 	str, err := exp.templates.exec("proposals", struct {
 		*CommonPageData
 		Proposals     []*pitypes.ProposalInfo
@@ -2030,6 +2050,7 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 		Offset        int64
 		Limit         int64
 		TotalCount    int64
+		LastOffset    int64
 		PoliteiaURL   string
 		LastVotesSync int64
 		LastPropSync  int64
@@ -2042,6 +2063,7 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 		Limit:          int64(rowsCount),
 		VStatusFilter:  int(filterBy),
 		TotalCount:     int64(count),
+		LastOffset:     int64(lastOffset),
 		PoliteiaURL:    exp.politeiaAPIURL,
 		LastVotesSync:  exp.dataSource.LastPiParserSync().UTC().Unix(),
 		LastPropSync:   exp.proposalsSource.LastProposalsSync(),
