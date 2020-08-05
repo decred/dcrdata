@@ -71,7 +71,7 @@
                           <li>
                               <a
                               class="text-secondary"
-                              href="/{{$lowerCaseVal}}?offset={{subtract $lastGrouping .Limit}}&rows={{.Limit}}"
+                              href="/{{$lowerCaseVal}}?offset={{.LastOffset}}&rows={{.Limit}}"
                               >Oldest</a>
                           </li>
                           {{end}}

@@ -31,7 +31,7 @@
                                 data-target="pagenavigation.votestatus"
                                 data-action="change->pagenavigation#setFilterbyVoteStatus"
                             >
-                                <option value="all">All</option>
+                                <option value="0">All</option>
                                 {{range $k, $v := .VotesStatus}}
                                     <option {{if eq $k $.VStatusFilter}}selected{{end}} value="{{$k}}">{{$v}}</option>
                                 {{end}}
@@ -101,7 +101,7 @@
                                 <li class="page-item {{if ge $oldest $.TotalCount}}disabled{{end}}">
                                     <a
                                         class="page-link"
-                                        href="?offset={{subtract $.TotalCount .Limit}}&rows={{.Limit}}&byvotestatus={{$.VStatusFilter}}"
+                                        href="?offset={{.LastOffset}}&rows={{.Limit}}&byvotestatus={{$.VStatusFilter}}"
                                         id="prev"
                                     >Oldest</a>
                                 </li>
