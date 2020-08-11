@@ -52,7 +52,7 @@ func TestAddressCacheItem_Transactions(t *testing.T) {
 	// rows cache misses
 
 	nonMergedViews := []dbtypes.AddrTxnViewType{dbtypes.AddrTxnAll,
-		dbtypes.AddrTxnCredit, dbtypes.AddrTxnDebit}
+		dbtypes.AddrTxnCredit, dbtypes.AddrTxnDebit, dbtypes.AddrUnspentTxn}
 
 	for _, v := range nonMergedViews {
 		rows, blockID, err := aci.Transactions(1, 0, v)

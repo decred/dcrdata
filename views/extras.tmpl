@@ -240,6 +240,8 @@
 		<th title="Count of address's inputs and outputs in the transaction." class="text-right"><span class="d-none d-sm-inline-block">I/O Count</span><span class="d-sm-none position-relative" data-tooltip="# of inputs and outputs">#</span></th>
 		<th class="text-right">Credit DCR</th>
 		<th class="text-right">Debit DCR</th>
+	{{- else if eq $txType "unspent" }}
+		<th class="text-right">Credit DCR</th>
 	{{- else}}
 		<th class="text-right">Credit DCR</th>
 		<th class="text-right">Debit DCR</th>
@@ -270,6 +272,8 @@
 			<td class="text-right">&mdash;</td>
 			<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</td>
 			{{- end}}
+		{{- else if eq $txType "unspent"}}
+			<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</td>
 		{{- else if or (eq $txType "credit") .IsFunding}}{{/* .IsFunding = true && txType = "all" is a credit */}}
 			<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</td>
 			{{- if ne .MatchedTx ""}}
