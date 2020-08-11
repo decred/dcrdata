@@ -79,6 +79,7 @@ type explorerDataSource interface {
 	SideChainBlocks() ([]*dbtypes.BlockStatus, error)
 	DisapprovedBlocks() ([]*dbtypes.BlockStatus, error)
 	BlockStatus(hash string) (dbtypes.BlockStatus, error)
+	BlockStatuses(height int64) ([]*dbtypes.BlockStatus, error)
 	BlockFlags(hash string) (bool, bool, error)
 	TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) (*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, int64, error)
 	TransactionBlocks(hash string) ([]*dbtypes.BlockStatus, []uint32, error)

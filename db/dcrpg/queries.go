@@ -4121,6 +4121,30 @@ func RetrieveBlockStatus(ctx context.Context, db *sql.DB, hash string) (bs dbtyp
 	return
 }
 
+// RetrieveBlockStatuses retrieves the block chain statuses of all blocks at
+// the given height.
+func RetrieveBlockStatuses(ctx context.Context, db *sql.DB, idx int64) (blocks []*dbtypes.BlockStatus, err error) {
+	var rows *sql.Rows
+	rows, err = db.QueryContext(ctx, internal.SelectBlockStatuses, idx)
+	if err != nil {
+		return
+	}
+	defer closeRows(rows)
+
+	for rows.Next() {
+		var bs dbtypes.BlockStatus
+		err = rows.Scan(&bs.IsValid, &bs.IsMainchain, &bs.Hash)
+		if err != nil {
+			return
+		}
+		bs.Height = uint32(idx)
+		blocks = append(blocks, &bs)
+	}
+	err = rows.Err()
+
+	return
+}
+
 // RetrieveBlockFlags retrieves the block's is_valid and is_mainchain flags.
 func RetrieveBlockFlags(ctx context.Context, db *sql.DB, hash string) (isValid bool, isMainchain bool, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectBlockFlags, hash).Scan(&isValid, &isMainchain)
