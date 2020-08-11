@@ -577,6 +577,8 @@ func (d *AddressCacheItem) OldestAddressTransaction() (*dbtypes.AddressRowCompac
 	var oldestTxBlockTime int64
 	oldestTransaction := &dbtypes.AddressRowCompact{}
 
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 	if d.rows == nil {
 		return nil, fmt.Errorf("Not transactions found")
 	}
