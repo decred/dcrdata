@@ -373,7 +373,7 @@
                     <div class="row mt-1">
                         {{if .DevFund}}
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
-                            <div class="fs13 text-secondary"><a href="/address/{{.DevAddress}}?n=20&start=0&txntype=merged_debit">Treasury</a></div>
+                            <div class="fs13 text-secondary"><a href="/treasury">Treasury</a></div>
                             <div class="mono lh1rem fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
                                 <span data-target="homepage.devFund">
                                     {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .DevFund) 0 true)}}

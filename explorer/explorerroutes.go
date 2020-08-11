@@ -5,6 +5,7 @@
 package explorer
 
 import (
+	"context"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
@@ -1267,6 +1268,17 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Turbolinks-Location", r.URL.RequestURI())
 	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, str)
+}
+
+// TreasuryPage is the page handler for the "/treasury" path
+func (exp *explorerUI) TreasuryPage(w http.ResponseWriter, r *http.Request) {
+	ctx := context.WithValue(r.Context(), ctxAddress, exp.pageData.HomeInfo.DevAddress)
+	r = r.WithContext(ctx)
+	if queryVals := r.URL.Query(); queryVals.Get("txntype") == "" {
+		queryVals.Set("txntype", "merged_debit")
+		r.URL.RawQuery = queryVals.Encode()
+	}
+	exp.AddressPage(w, r)
 }
 
 // AddressPage is the page handler for the "/address" path.
