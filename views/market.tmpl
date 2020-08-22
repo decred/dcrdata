@@ -180,8 +180,8 @@
                     data-action="click->market#setConversion"
                 >
                   <label>Index</label>
-                  <button class="btn-selected" name="BTC">BTC</button>
-                  <button name="fiat">{{$botState.BtcIndex}}</button>
+                  <button class="btn-selected" data-index="BTC">BTC</button>
+                  <button data-index="fiat">{{$botState.BtcIndex}}</button>
                 </div>
 
                 {{- /* AGGREGATE DEPTH STACKING */ -}}
@@ -190,8 +190,8 @@
                     data-target="market.aggStack"
                 >
                   <label>Stacking</label>
-                  <button class="btn-selected" data-action="click->market#setStacking" name="on">On</button>
-                  <button data-action="click->market#setStacking" name="off">Off</button>
+                  <button class="btn-selected" data-action="click->market#setStacking" data-stacking="on">On</button>
+                  <button data-action="click->market#setStacking" data-stacking="off">Off</button>
                 </div>
 
                 {{- /* ZOOM */ -}}
@@ -201,10 +201,10 @@
                     data-action="click->market#setZoom"
                 >
                   <label>Zoom +/-</label>
-                  <button class="btn-selected" name="10">10%</button>
-                  <button name="20">20%</button>
-                  <button name="40">40%</button>
-                  <button name="95">95%</button>
+                  <button class="btn-selected" data-percentage="10">10%</button>
+                  <button data-percentage="20">20%</button>
+                  <button data-percentage="40">40%</button>
+                  <button data-percentage="95">95%</button>
                 </div>
 
                 {{- /* OTHER CHART OPTIONS */ -}}

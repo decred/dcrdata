@@ -771,7 +771,8 @@ func _main(ctx context.Context) error {
 		r.Get("/charts", explore.Charts)
 		r.Get("/ticketpool", explore.Ticketpool)
 		r.Get("/stats", explore.StatsPage)
-		r.Get("/market", explore.MarketPage)
+		r.Get("/market", explore.MarketPageRedirect) // Moved to markets but still keeping for backward compatibility.
+		r.Get("/markets", explore.MarketPage)
 		r.Get("/statistics", func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/stats", http.StatusPermanentRedirect)
 		})

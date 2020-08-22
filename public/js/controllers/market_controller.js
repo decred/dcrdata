@@ -16,6 +16,7 @@ const history = 'history'
 const volume = 'volume'
 const aggregatedKey = 'aggregated'
 const anHour = '1h'
+const conversionBTC = 'BTC'
 const minuteMap = {
   '30m': 30,
   '1h': 60,
@@ -454,7 +455,7 @@ function depthLegendPlotter (e) {
 
   var deltaPctTxt = `${greekCapDelta} : ${humanize.threeSigFigs(stats.gap / stats.midGap * 100)}%`
   var fiatGapTxt = `${humanize.threeSigFigs(stats.gap * btcPrice)} ${fiatCode}`
-  var btcGapTxt = `${humanize.threeSigFigs(stats.gap)} BTC`
+  var btcGapTxt = `${humanize.threeSigFigs(stats.gap)} ${conversionBTC}`
   var boxW = 0
   var txts = [fiatGapTxt, btcGapTxt, deltaPctTxt]
   txts.forEach(txt => {
@@ -549,7 +550,7 @@ export default class extends Controller {
 
   async connect () {
     this.query = new TurboQuery()
-    settings = TurboQuery.nullTemplate(['chart', 'xc', 'bin'])
+    settings = TurboQuery.nullTemplate(['chart', 'xc', 'bin', 'conversion', 'stack', 'zoom'])
     this.query.update(settings)
     this.processors = {
       orders: this.processOrders,
@@ -563,10 +564,20 @@ export default class extends Controller {
     btcPrice = parseFloat(this.conversionTarget.dataset.factor)
     fiatCode = this.conversionTarget.dataset.code
     this.binButtons = this.binTarget.querySelectorAll('button')
+    this.stackButtons = this.aggStackTarget.querySelectorAll('button')
+    this.conversionButtons = this.conversionTarget.querySelectorAll('button')
     this.lastUrl = null
     this.zoomButtons = this.zoomTarget.querySelectorAll('button')
     this.zoomCallback = this._zoomCallback.bind(this)
-
+    this.zoomPercentages = [10, 20, 40, 95]
+    this.defaultSettings = {
+      chart: 'depth',
+      xc: 'aggregated',
+      bin: anHour,
+      conversion: conversionBTC,
+      stack: 'on',
+      zoom: this.zoomPercentages[1]
+    }
     availableCandlesticks = {}
     availableDepths = []
     this.exchangeOptions = []
@@ -593,8 +604,7 @@ export default class extends Controller {
       settings.xc = usesOrderbook(settings.chart) ? aggregatedKey : 'binance'
     }
     if (settings.stack) {
-      settings.stack = parseInt(settings.stack)
-      if (settings.stack === 0) aggStacking = false
+      if (settings.stack === 'off') aggStacking = false
     }
     this.setExchangeName()
     if (settings.bin == null) {
@@ -615,6 +625,7 @@ export default class extends Controller {
 
     this.setNameDisplay()
     this.fetchInitialData()
+    this.updateQueryString()
   }
 
   disconnect () {
@@ -623,6 +634,15 @@ export default class extends Controller {
     document.removeEventListener(visibilityChange, this.tabVis)
     globalEventBus.off('NIGHT_MODE', this.processNightMode)
     globalEventBus.off('EXCHANGE_UPDATE', this.processXcUpdate)
+  }
+
+  updateQueryString () {
+    const query = {}
+    for (const k in settings) {
+      if (!settings[k] || settings[k].toString() === this.defaultSettings[k].toString()) continue
+      query[k] = settings[k]
+    }
+    this.query.replace(query)
   }
 
   _resize () {
@@ -742,7 +762,7 @@ export default class extends Controller {
     }
     this.graph.updateOptions(chartResetOpts, true)
     this.graph.updateOptions(this.processors[chart](response.data))
-    this.query.replace(settings)
+    this.updateQueryString()
     if (isRefresh) this.graph.updateOptions({ dateWindow: oldZoom })
     else this.resetZoom()
     this.chartLoaderTarget.classList.remove('loading')
@@ -768,7 +788,7 @@ export default class extends Controller {
       file: data,
       labels: ['time', 'open', 'close', 'high', 'low'],
       xlabel: 'Time',
-      ylabel: `Price (BTC)`,
+      ylabel: `Price (${settings.conversion})`,
       plotter: candlestickPlotter,
       axes: {
         x: {
@@ -795,7 +815,7 @@ export default class extends Controller {
       }),
       labels: ['time', 'price'],
       xlabel: 'Time',
-      ylabel: `Price (BTC)`,
+      ylabel: `Price (${settings.conversion})`,
       colors: [chartStroke],
       plotter: Dygraph.Plotters.linePlotter,
       axes: {
@@ -847,7 +867,7 @@ export default class extends Controller {
       file: data.pts,
       fillGraph: true,
       colors: ['#ed6d47', '#41be53'],
-      xlabel: `Price (${this.converted ? fiatCode : 'BTC'})`,
+      xlabel: `Price (${this.converted ? fiatCode : settings.conversion})`,
       ylabel: 'Volume (DCR)',
       tokens: null,
       stats: data.stats,
@@ -885,7 +905,7 @@ export default class extends Controller {
       labels: keys,
       file: data.pts,
       colors: colors,
-      xlabel: `Price (${this.converted ? fiatCode : 'BTC'})`,
+      xlabel: `Price (${this.converted ? fiatCode : settings.conversion})`,
       ylabel: 'Volume (DCR)',
       plotter: depthPlotter,
       fillGraph: aggStacking,
@@ -912,7 +932,7 @@ export default class extends Controller {
       labels: ['price', 'sell', 'buy'],
       file: data.pts,
       colors: ['#f93f39cc', '#1acc84cc'],
-      xlabel: `Price (${this.converted ? fiatCode : 'BTC'})`,
+      xlabel: `Price (${this.converted ? fiatCode : settings.conversion})`,
       ylabel: 'Volume (DCR)',
       plotter: orderPlotter,
       axes: {
@@ -970,7 +990,7 @@ export default class extends Controller {
     })
     if (settings.xc === aggregatedKey && settings.chart === depth) {
       this.aggStackTarget.classList.remove('d-hide')
-      settings.stack = aggStacking ? 1 : 0
+      settings.stack = aggStacking ? 'on' : 'off'
     } else {
       this.aggStackTarget.classList.add('d-hide')
       settings.stack = null
@@ -1037,7 +1057,7 @@ export default class extends Controller {
       this.graph.updateOptions({ dateWindow: stickZoom })
     } else if (usesOrderbook(settings.chart)) {
       if (orderZoom) this.graph.updateOptions({ dateWindow: orderZoom })
-      else this.setZoomPct(defaultZoomPct)
+      else this.setZoomPct(settings.zoom || defaultZoomPct)
     } else {
       this.graph.resetZoom()
     }
@@ -1057,7 +1077,7 @@ export default class extends Controller {
     this.conversionTarget.querySelectorAll('button').forEach(b => b.classList.remove('btn-selected'))
     btn.classList.add('btn-selected')
     var cLabel = 'BTC'
-    if (e.target.name === 'BTC') {
+    if (e.target.dataset.index === 'BTC') {
       this.converted = false
       conversionFactor = 1
     } else {
@@ -1066,6 +1086,8 @@ export default class extends Controller {
       cLabel = fiatCode
     }
     this.graph.updateOptions({ xlabel: `Price (${cLabel})` })
+    settings.conversion = cLabel
+    this.updateQueryString()
   }
 
   setExchangeName () {
@@ -1126,34 +1148,44 @@ export default class extends Controller {
     if (btn.nodeName !== 'BUTTON' || !this.graph) return
     this.aggStackTarget.querySelectorAll('button').forEach(b => b.classList.remove('btn-selected'))
     btn.classList.add('btn-selected')
-    aggStacking = btn.name === 'on'
+    aggStacking = btn.dataset.stacking === 'on'
     this.graph.updateOptions({ stackedGraph: aggStacking, fillGraph: aggStacking })
+    settings.stack = btn.dataset.stacking
+    this.updateQueryString()
   }
 
   setZoom (e) {
     var btn = e.target || e.srcElement
     if (btn.nodeName !== 'BUTTON' || !this.graph) return
-    this.setZoomPct(parseInt(btn.name))
+    this.setZoomPct(parseInt(btn.dataset.percentage))
     var stats = this.graph.getOption('stats')
-    var spread = stats.midGap * parseFloat(btn.name) / 100
-    this.graph.updateOptions({ dateWindow: [stats.midGap - spread, stats.midGap + spread] })
+    if (stats) {
+      var spread = stats.midGap * parseFloat(btn.dataset.percentage) / 100
+      this.graph.updateOptions({ dateWindow: [stats.midGap - spread, stats.midGap + spread] })
+    }
+    settings.zoom = parseInt(btn.dataset.percentage)
+    this.updateQueryString()
   }
 
   setZoomPct (pct) {
     this.zoomButtons.forEach(b => {
-      if (parseInt(b.name) === pct) b.classList.add('btn-selected')
+      if (parseInt(b.dataset.percentage) === pct) b.classList.add('btn-selected')
       else b.classList.remove('btn-selected')
     })
-    var stats = this.graph.getOption('stats')
-    var spread = stats.midGap * pct / 100
-    var low = stats.midGap - spread
-    var high = stats.midGap + spread
-    var min, max
-    [min, max] = this.graph.xAxisExtremes()
-    if (low < min) low = min
-    if (high > max) high = max
-    orderZoom = [low, high]
-    this.graph.updateOptions({ dateWindow: orderZoom })
+    if (this.graph) {
+      var stats = this.graph.getOption('stats')
+      if (stats) {
+        var spread = stats.midGap * pct / 100
+        var low = stats.midGap - spread
+        var high = stats.midGap + spread
+        var min, max
+        [min, max] = this.graph.xAxisExtremes()
+        if (low < min) low = min
+        if (high > max) high = max
+        orderZoom = [low, high]
+        this.graph.updateOptions({ dateWindow: orderZoom })
+      }
+    }
   }
 
   _zoomCallback (start, end) {

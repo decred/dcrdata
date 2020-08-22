@@ -2184,7 +2184,12 @@ func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// MarketPage is the page handler for the "/agendas" path.
+// MarketPageRedirect is the page handler that redirects "/market" url permanently to "/markets".
+func (exp *explorerUI) MarketPageRedirect(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/markets", http.StatusMovedPermanently)
+}
+
+// MarketPage is the page handler for the "/markets" path.
 func (exp *explorerUI) MarketPage(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.exec("market", struct {
 		*CommonPageData
