@@ -10,10 +10,11 @@
 
 set -e
 
+HARNESS_ROOT=~/dcrdsimnet
+
 echo "Starting simnet nodes and wallets..."
 rm -rf ~/dcrdsimnet
-./parallel-nodes.tmux
-# tmux a -t dcrd-parallel-nodes
+./dcrdata-harness.tmux
 
 echo "Use stop-simnet.sh to stop nodes and wallets."
 
@@ -26,7 +27,8 @@ $PSQL < ./simnet.sql
 rm -rf ~/.dcrdata/data/simnet
 rm -rf datadir
 pushd .. > /dev/null
-./dcrdata -C ./dev/dcrdata-simnet.conf --datadir ./dev/datadir -g
+dcrdata -C ./dev/dcrdata-simnet.conf -g --dcrdserv=127.0.0.1:19201 \
+--dcrdcert=${HARNESS_ROOT}/beta/rpc.cert
 popd > /dev/null
 
 echo " ***
