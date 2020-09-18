@@ -1,0 +1,50 @@
+.reduction-block-warpper {
+  margin: 0 auto;
+  text-align: center;
+  max-width: 50rem;
+}
+
+.botom-links-warpper {
+  margin: 0 auto;
+  max-width: 50rem;
+}
+
+.reduction-block-warpper .reduction-block-inner {
+  margin: 0 auto;
+  text-align: center;
+}
+
+.mtb-0-lr-auto {
+  margin: 0 auto;
+}
+
+.reward-reduction-block {
+  margin: 0 auto;
+  text-align: center;
+}
+
+.reward-reduction-block-timer {
+  font-size: 5rem;
+  line-height: 4rem;
+}
+
+.vote-reward-wrapper .unit {
+  font-size: 13px;
+}
+
+.bottom-link-separation {
+  margin-right: 1rem;
+  font-size: 1rem;
+  color: #b3b0b0;
+}
+
+@media (max-width: 576px) {
+  .next-reduction-treasury-d-xm-none {
+    display: none;
+  }
+
+  .reward-reduction-block-timer {
+    font-size: 2rem;
+    line-height: 2rem;
+  }
+}

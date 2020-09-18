@@ -140,6 +140,11 @@ type homeConversions struct {
 	TreasurySplit   *exchanges.Conversion
 	TreasuryBalance *exchanges.Conversion
 }
+type nextReductionConversions struct {
+	PowSplit        *exchanges.Conversion
+	TreasurySplit   *exchanges.Conversion
+	TreasuryBalance *exchanges.Conversion
+}
 
 // Home is the page handler for the "/" path.
 func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
@@ -158,19 +163,64 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 	} else {
 		bestBlock = blocks[0]
 	}
+	// Get fiat conversions if available
+	homeInfo := exp.pageData.HomeInfo
+	var conversions *nextReductionConversions
+	xcBot := exp.xcBot
+	if xcBot != nil {
+		conversions = &nextReductionConversions{
+			PowSplit:        xcBot.Conversion(dcrutil.Amount(homeInfo.NBlockSubsidy.PoW).ToCoin()),
+			TreasurySplit:   xcBot.Conversion(dcrutil.Amount(homeInfo.NBlockSubsidy.Dev).ToCoin()),
+			TreasuryBalance: xcBot.Conversion(dcrutil.Amount(homeInfo.DevFund).ToCoin()),
+		}
+	}
 
+	str, err := exp.templates.exec("home", struct {
+		*CommonPageData
+		Info        *types.HomeInfo
+		BestBlock   *types.BlockBasic
+		Consensus   int
+		Blocks      []*types.BlockBasic
+		Conversions *nextReductionConversions
+	}{
+		CommonPageData: exp.commonData(r),
+		Info:           homeInfo,
+		BestBlock:      bestBlock,
+		Blocks:         blocks,
+		Conversions:    conversions,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+// Next reduction is the page handler for the "/nextreduction" path.
+func (exp *explorerUI) NextReduction(w http.ResponseWriter, r *http.Request) {
 	// Safely retrieve the current inventory pointer.
-	inv := exp.MempoolInventory()
-
-	// Lock the shared inventory struct from change (e.g. in MempoolMonitor).
-	inv.RLock()
 	exp.pageData.RLock()
-
-	tallys, consensus := inv.VotingInfo.BlockStatus(bestBlock.Hash)
-
 	// Get fiat conversions if available
 	homeInfo := exp.pageData.HomeInfo
 	var conversions *homeConversions
+	height, err := exp.dataSource.GetHeight()
+	if err != nil {
+		log.Errorf("GetHeight failed: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "",
+			ExpStatusError)
+		return
+	}
+	blocks := exp.dataSource.GetExplorerBlocks(int(height), int(height)-8)
+	var bestBlock *types.BlockBasic
+	if blocks == nil {
+		bestBlock = new(types.BlockBasic)
+	} else {
+		bestBlock = blocks[0]
+	}
 	xcBot := exp.xcBot
 	if xcBot != nil {
 		conversions = &homeConversions{
@@ -183,29 +233,18 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	str, err := exp.templates.exec("home", struct {
+	str, err := exp.templates.exec("nextreduction", struct {
 		*CommonPageData
-		Info          *types.HomeInfo
-		Mempool       *types.MempoolInfo
-		BestBlock     *types.BlockBasic
-		BlockTally    []int
-		Consensus     int
-		Blocks        []*types.BlockBasic
-		Conversions   *homeConversions
-		PercentChange float64
+		Info        *types.HomeInfo
+		Conversions *homeConversions
+		BestBlock   *types.BlockBasic
 	}{
 		CommonPageData: exp.commonData(r),
 		Info:           homeInfo,
-		Mempool:        inv,
-		BestBlock:      bestBlock,
-		BlockTally:     tallys,
-		Consensus:      consensus,
-		Blocks:         blocks,
 		Conversions:    conversions,
-		PercentChange:  homeInfo.PoolInfo.PercentTarget - 100,
+		BestBlock:      bestBlock,
 	})
 
-	inv.RUnlock()
 	exp.pageData.RUnlock()
 
 	if err != nil {
@@ -2366,6 +2405,7 @@ func (exp *explorerUI) AttackCost(w http.ResponseWriter, r *http.Request) {
 	ticketPoolSize := exp.pageData.HomeInfo.PoolInfo.Size
 	ticketPrice := exp.pageData.HomeInfo.StakeDiff
 	HashRate := exp.pageData.HomeInfo.HashRate
+	coinSupply := exp.pageData.HomeInfo.CoinSupply
 
 	exp.pageData.RUnlock()
 
@@ -2377,6 +2417,7 @@ func (exp *explorerUI) AttackCost(w http.ResponseWriter, r *http.Request) {
 		TicketPrice     float64
 		TicketPoolSize  int64
 		TicketPoolValue float64
+		CoinSupply      int64
 	}{
 		CommonPageData:  exp.commonData(r),
 		HashRate:        HashRate,
@@ -2385,6 +2426,7 @@ func (exp *explorerUI) AttackCost(w http.ResponseWriter, r *http.Request) {
 		TicketPrice:     ticketPrice,
 		TicketPoolSize:  int64(ticketPoolSize),
 		TicketPoolValue: ticketPoolValue,
+		CoinSupply:      coinSupply,
 	})
 
 	if err != nil {

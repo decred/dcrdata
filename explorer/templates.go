@@ -600,5 +600,15 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			return intStr
 		},
 		"floor": math.Floor,
+		"getCurrentRewardWindowRemainingTime": func(idx int, max, t int64) int {
+			// getRewardWindowRemainingTime returns the total time
+			// remaining till next reduction window occurs.
+
+			// Gets the difference between the reward window and reward window size.
+			x := (max - int64(idx)) * t
+
+			// Calculate the duration in seconds.
+			return int(time.Duration(x).Seconds())
+		},
 	}
 }
