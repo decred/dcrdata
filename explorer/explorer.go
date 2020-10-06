@@ -516,6 +516,8 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 	avgSSTxToSSGenMaturity := exp.MeanVotingBlocks +
 		int64(exp.ChainParams.TicketMaturity) +
 		int64(exp.ChainParams.CoinbaseMaturity)
+	p.HomeInfo.RewardPeriodInSecs = float64(avgSSTxToSSGenMaturity) * 
+		exp.ChainParams.TargetTimePerBlock.Seconds()
 	p.HomeInfo.RewardPeriod = fmt.Sprintf("%.2f days", float64(avgSSTxToSSGenMaturity)*
 		exp.ChainParams.TargetTimePerBlock.Hours()/24)
 

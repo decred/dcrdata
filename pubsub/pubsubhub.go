@@ -687,6 +687,8 @@ func (psh *PubSubHub) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBl
 	avgSSTxToSSGenMaturity := psh.state.GeneralInfo.Params.MeanVotingBlocks +
 		int64(psh.params.TicketMaturity) +
 		int64(psh.params.CoinbaseMaturity)
+	p.GeneralInfo.RewardPeriodInSecs = float64(avgSSTxToSSGenMaturity) *
+		psh.params.TargetTimePerBlock.Seconds()
 	p.GeneralInfo.RewardPeriod = fmt.Sprintf("%.2f days", float64(avgSSTxToSSGenMaturity)*
 		psh.params.TargetTimePerBlock.Hours()/24)
 	//p.GeneralInfo.ASR = ASR

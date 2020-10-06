@@ -1,0 +1,42 @@
+{{define "ticketpool"}}
+<!DOCTYPE html>
+<html lang="en">
+{{template "html-head" printf "Staking Reward Calculator"}}
+    {{template "navbar" . }}
+
+    <div class="container main" data-controller="stakingreward" data-reward="{{.TicketReward}}" data-period={{.RewardPeriod}}>
+      <div class="row">
+          <div class="col-md-6 col-md-offset-3">
+            <h2 style="text-align: center; margin-top: 0px">Staking Reward Calculator</h2>
+            <p style="text-align: center; margin-bottom: 5px">
+                This is an estimate of what you will earn for staking you DCR
+            </p>
+
+            <div class="form-row">
+                <div class="col">
+                  <input type="text" class="form-control" placeholder="Amount of DCR" data-target="stakingreward.amount">
+                </div>
+                <div class="col">
+                  <input type="date" class="form-control" placeholder="End Date" data-target="stakingreward.endDate">
+                </div>
+                <div class="col-3">
+                    <input type="checkbox" data-target="stakingreward.reinvestReward">
+                </div>
+                <div class="col-3">
+                  <button type="text" class="btn" placeholder="Zip" data-action="click->stakingreward#calculate">Calculate</button>
+                </div>
+            </div>
+
+            <div data-target="stakingreward.infoBox">
+                <p>Staking <span data-target="stakingreward.initialCapital"></span> DCR from now till
+                     <span data-target="stakingreward.dateInfo"></span> will yield <span data-target="stakingreward.profit"></span> DCR</p>
+            </div>
+
+          </div>
+        
+      </div>
+    </div>
+    {{ template "footer" . }}
+</body>
+</html>
+{{end}}

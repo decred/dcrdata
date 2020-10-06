@@ -2420,3 +2420,35 @@ func (exp *explorerUI) AttackCost(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, str)
 }
+
+func (exp *explorerUI) StakingReward(w http.ResponseWriter, r *http.Request) {
+	price := 24.42
+	if exp.xcBot != nil {
+		if rate := exp.xcBot.Conversion(1.0); rate != nil {
+			price = rate.Value
+		}
+	}
+
+	exp.Home()
+	str, err := exp.templates.execTemplateToString("stakingreward", struct {
+		*CommonPageData
+		RewardPeriod float64
+		TicketReward float64
+		DCRPrice     float64
+	}{
+		CommonPageData: exp.commonData(r),
+		DCRPrice:       price,
+		RewardPeriod:   exp.pageData.HomeInfo.RewardPeriodInSecs,
+		TicketReward:   exp.pageData.HomeInfo.TicketReward,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}

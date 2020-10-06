@@ -425,6 +425,7 @@ type HomeInfo struct {
 	DevAddress            string                `json:"dev_address"`
 	TicketReward          float64               `json:"reward"`
 	RewardPeriod          string                `json:"reward_period"`
+	RewardPeriodInSecs    float64               `json:"reward_period_in_secs"`
 	ASR                   float64               `json:"ASR"`
 	NBlockSubsidy         BlockSubsidy          `json:"subsidy"`
 	Params                ChainParams           `json:"params"`
