@@ -780,6 +780,7 @@ func _main(ctx context.Context) error {
 		// fallback.
 		r.With(explorer.MenuFormParser).Post("/set", explore.Home)
 		r.Get("/attack-cost", explore.AttackCost)
+		r.Get("/staking-reward", explore.StakingReward)
 	})
 
 	// Configure a page for the bare "/insight" path. This mounts the static

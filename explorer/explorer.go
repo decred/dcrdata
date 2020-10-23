@@ -200,7 +200,7 @@ type explorerUI struct {
 	proposalsSource  PoliteiaBackend
 	dbsSyncing       atomic.Value
 	devPrefetch      bool
-	templates        templates
+	templates        Templates
 	wsHub            *WebsocketHub
 	pageData         *pageData
 	ChainParams      *chaincfg.Params
@@ -349,13 +349,13 @@ func New(cfg *ExplorerConfig) *explorerUI {
 	log.Infof("Mean Voting Blocks calculated: %d", exp.pageData.HomeInfo.Params.MeanVotingBlocks)
 
 	commonTemplates := []string{"extras"}
-	exp.templates = newTemplates(cfg.Viewsfolder, cfg.ReloadHTML, commonTemplates, makeTemplateFuncMap(exp.ChainParams))
+	exp.templates = NewTemplates(cfg.Viewsfolder, cfg.ReloadHTML, commonTemplates, makeTemplateFuncMap(exp.ChainParams))
 
 	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
 		"rawtx", "status", "parameters", "agenda", "agendas", "charts",
 		"sidechains", "disapproved", "ticketpool", "visualblocks", "statistics",
 		"windows", "timelisting", "addresstable", "proposals", "proposal",
-		"market", "insight_root", "attackcost"}
+		"market", "insight_root", "attackcost", "stakingreward"}
 
 	for _, name := range tmpls {
 		if err := exp.templates.addTemplate(name); err != nil {

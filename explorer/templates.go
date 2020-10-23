@@ -27,7 +27,7 @@ type pageTemplate struct {
 	template *template.Template
 }
 
-type templates struct {
+type Templates struct {
 	templates map[string]pageTemplate
 	common    []string
 	folder    string
@@ -35,18 +35,18 @@ type templates struct {
 	exec      func(string, interface{}) (string, error)
 }
 
-func newTemplates(folder string, reload bool, common []string, helpers template.FuncMap) templates {
+func NewTemplates(folder string, reload bool, common []string, helpers template.FuncMap) Templates {
 	com := make([]string, 0, len(common))
 	for _, file := range common {
 		com = append(com, filepath.Join(folder, file+".tmpl"))
 	}
-	t := templates{
+	t := Templates{
 		templates: make(map[string]pageTemplate),
 		common:    com,
 		folder:    folder,
 		helpers:   helpers,
 	}
-	t.exec = t.execTemplateToString
+	t.exec = t.ExecTemplateToString
 	if reload {
 		t.exec = t.execWithReload
 	}
@@ -54,7 +54,7 @@ func newTemplates(folder string, reload bool, common []string, helpers template.
 	return t
 }
 
-func (t *templates) addTemplate(name string) error {
+func (t *Templates) addTemplate(name string) error {
 	fileName := filepath.Join(t.folder, name+".tmpl")
 	files := append(t.common, fileName)
 	temp, err := template.New(name).Funcs(t.helpers).ParseFiles(files...)
@@ -67,7 +67,7 @@ func (t *templates) addTemplate(name string) error {
 	return err
 }
 
-func (t *templates) reloadTemplates() error {
+func (t *Templates) reloadTemplates() error {
 	var errorStrings []string
 	for fileName := range t.templates {
 		err := t.addTemplate(fileName)
@@ -81,12 +81,12 @@ func (t *templates) reloadTemplates() error {
 	return fmt.Errorf(strings.Join(errorStrings, " | "))
 }
 
-// execTemplateToString executes the associated input template using the
+// ExecTemplateToString executes the associated input template using the
 // supplied data, and writes the result into a string. If the template fails to
 // execute or isn't found, a non-nil error will be returned. Check it before
 // writing to theclient, otherwise you might as well execute directly into
 // your response writer instead of the internal buffer of this function.
-func (t *templates) execTemplateToString(name string, data interface{}) (string, error) {
+func (t *Templates) ExecTemplateToString(name string, data interface{}) (string, error) {
 	temp, ok := t.templates[name]
 	if !ok {
 		return "", fmt.Errorf("Template %s not known", name)
@@ -98,13 +98,13 @@ func (t *templates) execTemplateToString(name string, data interface{}) (string,
 
 // execWithReload is the same as execTemplateToString, but will reload the
 // template first.
-func (t *templates) execWithReload(name string, data interface{}) (string, error) {
+func (t *Templates) execWithReload(name string, data interface{}) (string, error) {
 	err := t.addTemplate(name)
 	if err != nil {
 		return "", fmt.Errorf("execWithReload: %v", err)
 	}
 	log.Debugf("reloaded HTML template %q", name)
-	return t.execTemplateToString(name, data)
+	return t.ExecTemplateToString(name, data)
 }
 
 var toInt64 = func(v interface{}) int64 {

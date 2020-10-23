@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrutil/v2"
@@ -2226,6 +2227,37 @@ func (exp *explorerUI) MarketPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+func (exp *explorerUI) StakingReward(w http.ResponseWriter, r *http.Request) {
+	price := 24.42
+	if exp.xcBot != nil {
+		if rate := exp.xcBot.Conversion(1.0); rate != nil {
+			price = rate.Value
+		}
+	}
+
+	str, err := exp.templates.ExecTemplateToString("stakingreward", struct {
+		*CommonPageData
+		RewardPeriod float64
+		TicketReward float64
+		DCRPrice     float64
+	}{
+		CommonPageData: exp.commonData(r),
+		DCRPrice:       price,
+		RewardPeriod:   exp.pageData.HomeInfo.RewardPeriodInSecs,
+		TicketReward:   exp.pageData.HomeInfo.TicketReward,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
 // commonData grabs the common page data that is available to every page.
 // This is particularly useful for extras.tmpl, parts of which
 // are used on every page
@@ -2390,7 +2422,7 @@ func (exp *explorerUI) AttackCost(w http.ResponseWriter, r *http.Request) {
 
 	exp.pageData.RUnlock()
 
-	str, err := exp.templates.execTemplateToString("attackcost", struct {
+	str, err := exp.templates.ExecTemplateToString("attackcost", struct {
 		*CommonPageData
 		HashRate        float64
 		Height          int64
@@ -2408,38 +2440,6 @@ func (exp *explorerUI) AttackCost(w http.ResponseWriter, r *http.Request) {
 		TicketPoolSize:  int64(ticketPoolSize),
 		TicketPoolValue: ticketPoolValue,
 		CoinSupply:      coinSupply,
-	})
-
-	if err != nil {
-		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/html")
-	w.WriteHeader(http.StatusOK)
-	io.WriteString(w, str)
-}
-
-func (exp *explorerUI) StakingReward(w http.ResponseWriter, r *http.Request) {
-	price := 24.42
-	if exp.xcBot != nil {
-		if rate := exp.xcBot.Conversion(1.0); rate != nil {
-			price = rate.Value
-		}
-	}
-
-	exp.Home()
-	str, err := exp.templates.execTemplateToString("stakingreward", struct {
-		*CommonPageData
-		RewardPeriod float64
-		TicketReward float64
-		DCRPrice     float64
-	}{
-		CommonPageData: exp.commonData(r),
-		DCRPrice:       price,
-		RewardPeriod:   exp.pageData.HomeInfo.RewardPeriodInSecs,
-		TicketReward:   exp.pageData.HomeInfo.TicketReward,
 	})
 
 	if err != nil {

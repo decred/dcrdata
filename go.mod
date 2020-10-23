@@ -5,6 +5,7 @@ go 1.12
 require (
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb
+	github.com/davecgh/go-spew v1.1.1
 	github.com/decred/dcrd/blockchain/standalone v1.1.0
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.2
 	github.com/decred/dcrd/chaincfg/v2 v2.3.0
