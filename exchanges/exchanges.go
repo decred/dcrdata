@@ -4,6 +4,8 @@
 package exchanges
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -14,6 +16,8 @@ import (
 	"sync"
 	"time"
 
+	"decred.org/dcrdex/client/core"
+	"decred.org/dcrdex/dex/msgjson"
 	"github.com/carterjones/signalr"
 	"github.com/carterjones/signalr/hubs"
 	"github.com/decred/dcrdata/dcrrates"
@@ -21,13 +25,14 @@ import (
 
 // Tokens. Used to identify the exchange.
 const (
-	Coinbase = "coinbase"
-	Coindesk = "coindesk"
-	Binance  = "binance"
-	Bittrex  = "bittrex"
-	DragonEx = "dragonex"
-	Huobi    = "huobi"
-	Poloniex = "poloniex"
+	Coinbase     = "coinbase"
+	Coindesk     = "coindesk"
+	Binance      = "binance"
+	Bittrex      = "bittrex"
+	DragonEx     = "dragonex"
+	Huobi        = "huobi"
+	Poloniex     = "poloniex"
+	DexDotDecred = "dcrdex"
 )
 
 // A few candlestick bin sizes.
@@ -156,6 +161,12 @@ var DcrExchanges = map[string]func(*http.Client, *BotChannels) (Exchange, error)
 	DragonEx: NewDragonEx,
 	Huobi:    NewHuobi,
 	Poloniex: NewPoloniex,
+	DexDotDecred: NewDecredDEXConstructor(&DEXConfig{
+		Token:    DexDotDecred,
+		Host:     "dex.decred.org:7232",
+		Cert:     core.CertStore["dex.decred.org:7232"],
+		CertHost: "dex.decred.org",
+	}),
 }
 
 // IsBtcIndex checks whether the given token is a known Bitcoin index, as
@@ -219,6 +230,20 @@ type DepthData struct {
 func (depth *DepthData) IsFresh() bool {
 	return time.Duration(time.Now().Unix()-depth.Time)*
 		time.Second < depthDataExpiration
+}
+
+// MidGap returns the mid-gap price based on the best bid and ask. If the book
+// is empty, the value 1.0 is returned.
+func (depth *DepthData) MidGap() float64 {
+	if len(depth.Bids) == 0 {
+		if len(depth.Asks) == 0 {
+			return 1
+		}
+		return depth.Asks[0].Price
+	} else if len(depth.Asks) == 0 {
+		return depth.Bids[0].Price
+	}
+	return (depth.Bids[0].Price + depth.Asks[0].Price) / 2
 }
 
 // Candlestick is the record of price change over some bin width of time.
@@ -435,7 +460,7 @@ func (xc *CommonExchange) LastUpdate() time.Time {
 	return xc.lastUpdate
 }
 
-// Hurry can be used to subtract some amount of time from the lastUpate
+// Hurry can be used to subtract some amount of time from the lastUpdate
 // and lastFail, and can be used to de-sync the exchange updates.
 func (xc *CommonExchange) Hurry(d time.Duration) {
 	xc.mtx.Lock()
@@ -2850,4 +2875,292 @@ func (poloniex *PoloniexExchange) Refresh() {
 	} else {
 		poloniex.Update(update)
 	}
+}
+
+// DexSubscriptionID is the message ID we will use for the 'orderbook' request.
+const DexSubscriptionID = 1
+
+// decredDEXOrderBookSubscription is the DEX request for the order book feed.
+var decredDEXOrderBookSubscription, _ = msgjson.NewRequest(DexSubscriptionID, msgjson.OrderBookRoute, &msgjson.OrderBookSubscription{
+	Base:  42, // BIP44 coin ID for Decred
+	Quote: 0,  // Bitcoin
+})
+
+// DEXConfig is the configuration for the Decred DEX server.
+type DEXConfig struct {
+	Token    string
+	Host     string
+	Cert     []byte
+	CertHost string
+}
+
+// DecredDEX is a Decred DEX.
+type DecredDEX struct {
+	*CommonExchange
+	ords  map[string]*msgjson.BookOrderNote
+	seq   uint64
+	stamp int64
+	cfg   *DEXConfig
+}
+
+// NewDecredDEXConstructor creates a constructor for a DEX with the provided
+// configuration.
+func NewDecredDEXConstructor(cfg *DEXConfig) func(*http.Client, *BotChannels) (Exchange, error) {
+	return func(client *http.Client, channels *BotChannels) (Exchange, error) {
+		dcr := &DecredDEX{
+			CommonExchange: newCommonExchange(cfg.Token, client, requests{}, channels),
+			cfg:            cfg,
+		}
+		go func() {
+			<-channels.done
+			ws, _ := dcr.websocket()
+			if ws != nil {
+				ws.Close()
+			}
+		}()
+		return dcr, nil
+	}
+}
+
+// Refresh grabs a book snapshot and sends the exchange update.
+func (dcr *DecredDEX) Refresh() {
+	dcr.LogRequest()
+	// Check for a depth chart from the websocket orderbook.
+	tryHTTP, wsStarting, depth := dcr.wsDepthStatus(dcr.connectWs)
+	if tryHTTP {
+		log.Debugf("Failed to get WebSocket depth chart for %s", dcr.cfg.Host)
+		return
+	}
+	if wsStarting {
+		// Do nothing in this case. We'll update the bot when we get some data.
+		return
+	}
+
+	dcr.Update(&ExchangeState{
+		Price: depth.MidGap(),
+		// Change:       priceChange, // Need candlesticks
+		Stamp: dcr.lastStamp(),
+		// Candlesticks: candlesticks, // Not yet
+		Depth: depth,
+	})
+}
+
+// Create a websocket connection and send the orderbook subscription.
+func (dcr *DecredDEX) connectWs() {
+	// Configure TLS.
+	if len(dcr.cfg.Cert) == 0 {
+		dcr.setWsFail(fmt.Errorf("failed to find certificate for %s", dcr.cfg.CertHost))
+		return
+	}
+
+	pool := x509.NewCertPool()
+	if ok := pool.AppendCertsFromPEM(dcr.cfg.Cert); !ok {
+		dcr.setWsFail(fmt.Errorf("invalid certificate"))
+		return
+	}
+
+	err := dcr.connectWebsocket(dcr.processWsMessage, &socketConfig{
+		address: "wss://" + dcr.cfg.Host + "/ws",
+		tlsConfig: &tls.Config{
+			RootCAs:    pool,
+			ServerName: dcr.cfg.CertHost,
+		},
+	})
+	if err != nil {
+		dcr.setWsFail(fmt.Errorf("dcr.connectWs: %v", err))
+		return
+	}
+
+	dcr.wsSend(decredDEXOrderBookSubscription)
+}
+
+// processWsMessage is DecredDEX's WebsocketProcessor. Handles messages of type
+// *msgjson.Message.
+func (dcr *DecredDEX) processWsMessage(raw []byte) {
+	msg, err := msgjson.DecodeMessage(raw)
+	if err != nil {
+		dcr.setWsFail(fmt.Errorf("DecodeMessage error: %v", err))
+		return
+	}
+
+	dcr.orderMtx.Lock()
+	defer dcr.orderMtx.Unlock()
+	dcr.stamp = time.Now().Unix()
+	switch msg.Type {
+	case msgjson.Response:
+		// The only request we make is for the order book subscription. The
+		// response will include the full order book.
+		if msg.ID == DexSubscriptionID {
+			ob := new(msgjson.OrderBook)
+			err := msg.UnmarshalResult(ob)
+			if err != nil {
+				dcr.setWsFail(fmt.Errorf("error unmarshaling orderbook response: %v", err))
+				return
+			}
+			dcr.setOrderBook(ob)
+		}
+	case msgjson.Notification:
+		switch msg.Route {
+		case msgjson.BookOrderRoute:
+			bookOrder := new(msgjson.BookOrderNote)
+			err := msg.Unmarshal(bookOrder)
+			if err != nil {
+				dcr.setWsFail(fmt.Errorf("book_order Unmarshal error: %v", err))
+				return
+			}
+			if !dcr.checkSeq(bookOrder.Seq) {
+				return
+			}
+			dcr.bookOrder(bookOrder)
+		case msgjson.UnbookOrderRoute:
+			unbookOrder := new(msgjson.UnbookOrderNote)
+			err := msg.Unmarshal(unbookOrder)
+			if err != nil {
+				dcr.setWsFail(fmt.Errorf("unbook_order Unmarshal error: %v", err))
+				return
+			}
+			if !dcr.checkSeq(unbookOrder.Seq) {
+				return
+			}
+			dcr.unbookOrder(unbookOrder)
+		case msgjson.UpdateRemainingRoute:
+			update := new(msgjson.UpdateRemainingNote)
+			err := msg.Unmarshal(update)
+			if err != nil {
+				dcr.setWsFail(fmt.Errorf("update_remaining Unmarshal error: %v", err))
+				return
+			}
+			if !dcr.checkSeq(update.Seq) {
+				return
+			}
+			dcr.updateRemaining(update)
+		case msgjson.EpochOrderRoute:
+			// We don't actually track epoch orders, but we need to progress the
+			// sequence.
+			note := new(msgjson.EpochOrderNote)
+			err := msg.Unmarshal(note)
+			if err != nil {
+				dcr.setWsFail(fmt.Errorf("epoch_order Unmarshal error: %v", err))
+				return
+			}
+			dcr.checkSeq(note.Seq)
+		}
+	}
+}
+
+// checkSeq verifies that the seq is sequential, and increments the seq counter.
+func (dcr *DecredDEX) checkSeq(seq uint64) bool {
+	if seq != dcr.seq+1 {
+		dcr.setWsFail(fmt.Errorf("incorrect sequence. wanted %d, got %d", dcr.seq+1, seq))
+		return false
+	}
+	dcr.seq = seq
+	return true
+}
+
+// lastStamp is the unix timestamp of the received response or notifiction.
+func (dcr *DecredDEX) lastStamp() int64 {
+	dcr.orderMtx.RLock()
+	defer dcr.orderMtx.RUnlock()
+	return dcr.stamp
+}
+
+// setOrderBook processes the order book data from 'orderbook' request.
+func (dcr *DecredDEX) setOrderBook(ob *msgjson.OrderBook) {
+	dcr.buys = make(wsOrders)
+	dcr.asks = make(wsOrders)
+	dcr.ords = make(map[string]*msgjson.BookOrderNote)
+	dcr.seq = ob.Seq
+
+	addToSide := func(side wsOrders, ord *msgjson.BookOrderNote) {
+		bucket := rateBucket(side, int64(ord.Rate), float64(ord.Rate)/1e8)
+		bucket.volume += float64(ord.Quantity) / 1e8
+		dcr.ords[ord.OrderID.String()] = ord
+	}
+
+	for _, ord := range ob.Orders {
+		if ord.Side == msgjson.BuyOrderNum {
+			addToSide(dcr.buys, ord)
+		} else {
+			addToSide(dcr.asks, ord)
+		}
+	}
+	dcr.wsInitialized()
+
+	depth := dcr.wsDepthSnapshot()
+
+	dcr.Update(&ExchangeState{
+		Price: depth.MidGap(),
+		// Change:       priceChange, // With candlesticks
+		Stamp: dcr.stamp,
+		// Candlesticks: candlesticks, // Not yet
+		Depth: depth,
+	})
+}
+
+// bookOrder processes the 'book_order' notification.
+func (dcr *DecredDEX) bookOrder(ord *msgjson.BookOrderNote) {
+	side := dcr.asks
+	if ord.Side == msgjson.BuyOrderNum {
+		side = dcr.buys
+	}
+	bucket := rateBucket(side, int64(ord.Rate), float64(ord.Rate)/1e8)
+	bucket.volume += float64(ord.Quantity) / 1e8
+	dcr.ords[ord.OrderID.String()] = ord
+}
+
+// unbookOrder processes the 'unbook_order' notification.
+func (dcr *DecredDEX) unbookOrder(note *msgjson.UnbookOrderNote) {
+	oid := note.OrderID.String()
+	ord := dcr.ords[oid]
+	delete(dcr.ords, oid)
+	if ord == nil {
+		dcr.setWsFail(fmt.Errorf("no order found to unbook"))
+		return
+	}
+	side := dcr.asks
+	if ord.Side == msgjson.BuyOrderNum {
+		side = dcr.buys
+	}
+	rateKey := int64(ord.Rate)
+	bucket := rateBucket(side, rateKey, float64(ord.Rate)/1e8)
+	bucket.volume -= float64(ord.Quantity) / 1e8
+	if bucket.volume < 1e-8 {
+		delete(side, rateKey)
+	}
+}
+
+// updateRemaining processes the 'update_remaining' notification.
+func (dcr *DecredDEX) updateRemaining(update *msgjson.UpdateRemainingNote) {
+	oid := update.OrderID.String()
+	ord := dcr.ords[oid]
+	if ord == nil {
+		dcr.setWsFail(fmt.Errorf("order %s from dex.decred.org was not in our book", oid))
+		return
+	}
+
+	diff := ord.Quantity - update.Remaining
+	ord.Quantity = update.Remaining
+	side := dcr.asks
+	if ord.Side == msgjson.BuyOrderNum {
+		side = dcr.buys
+	}
+	rateKey := int64(ord.Rate)
+	bucket := rateBucket(side, rateKey, float64(ord.Rate)/1e8)
+	bucket.volume -= float64(diff) / 1e8
+	if bucket.volume < 1e-8 {
+		delete(side, rateKey)
+	}
+}
+
+// rateBucket fetches the rate bucket from the side, creating it first if
+// necessary.
+func rateBucket(side wsOrders, rateKey int64, rate float64) *wsOrder {
+	bucket, ok := side[rateKey]
+	if ok {
+		return bucket
+	}
+	bucket = &wsOrder{price: rate}
+	side[rateKey] = bucket
+	return bucket
 }

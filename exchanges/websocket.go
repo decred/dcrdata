@@ -4,6 +4,7 @@
 package exchanges
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -39,7 +40,8 @@ type websocketFeed interface {
 // just an address for now, but enables more customized settings as exchanges'
 // websocket protocols are eventually implemented.
 type socketConfig struct {
-	address string
+	address   string
+	tlsConfig *tls.Config
 }
 
 // A manager for a gorilla websocket connection.
@@ -63,11 +65,11 @@ func (client *socketClient) Read() (msg []byte, err error) {
 func (client *socketClient) Write(msg interface{}) error {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
-	bytes, err := json.Marshal(msg)
+	b, err := json.Marshal(msg)
 	if err != nil {
 		return err
 	}
-	return client.conn.WriteMessage(websocket.TextMessage, bytes)
+	return client.conn.WriteMessage(websocket.TextMessage, b)
 }
 
 // Done returns a channel that will be closed when the websocket connection is
@@ -93,6 +95,7 @@ func newSocketConnection(cfg *socketConfig) (websocketFeed, error) {
 	dialer := &websocket.Dialer{
 		Proxy:            http.ProxyFromEnvironment, // Same as DefaultDialer.
 		HandshakeTimeout: 10 * time.Second,          // DefaultDialer is 45 seconds.
+		TLSClientConfig:  cfg.tlsConfig,
 	}
 
 	conn, _, err := dialer.Dial(cfg.address, nil)

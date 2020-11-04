@@ -40,7 +40,7 @@
                     </tr>
                     {{range $botState.VolumeOrderedExchanges}}
                         <tr class="fs hover-row" data-target="market.xcRow" data-action="click->market#setExchange" data-token="{{.Token}}">
-                            <td class="py-2 fs18 font-weight-bold"><div class="exchange-logo {{.Token}} mr-2"></div> {{toTitleCase .Token}}</td>
+                            <td class="py-2 fs18 font-weight-bold"><div class="exchange-logo {{.Token}} mr-2"></div> {{xcDisplayName .Token}}</td>
                             <td class="pl-2 fs16 py-2 text-right" data-type="volume">
                                 {{threeSigFigs .State.Volume}}
                             </td>
@@ -126,7 +126,7 @@
                               {{if .State.HasDepth}}
                                   data-depth="1"
                               {{end}}
-                              >{{toTitleCase .Token}}
+                              >{{xcDisplayName .Token}}
                           </option>
                         {{end}}
                         <option
