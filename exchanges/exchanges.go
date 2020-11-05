@@ -3068,12 +3068,10 @@ func (dcr *DecredDEX) processWsMessage(raw []byte) {
 				dcr.setWsFail(fmt.Errorf("suspension Unmarshal error: %v", err))
 				return
 			}
-			if !dcr.checkSeq(note.Seq) {
+			if note.Persist {
 				return
 			}
-			if note.SuspendTime > 0 || note.Persist {
-				return
-			}
+			dcr.checkSeq(note.Seq)
 			dcr.clearOrderBook()
 		}
 	}
