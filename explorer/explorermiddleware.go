@@ -61,7 +61,7 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 				expectedTime := time.Duration(height-maxHeight) * exp.ChainParams.TargetTimePerBlock
 				message := fmt.Sprintf("This block is expected to arrive in approximately in %v. ", expectedTime)
 				exp.StatusPage(w, defaultErrorCode, message,
-					string(expectedTime), ExpStatusFutureBlock)
+					expectedTime.String(), ExpStatusFutureBlock)
 				return
 			}
 
@@ -71,7 +71,7 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 				if err != nil {
 					log.Errorf("(*ChainDB).BlockHash(%d) failed: %v", height, err)
 					exp.StatusPage(w, defaultErrorCode, "could not find that block",
-						string(height), ExpStatusNotFound)
+						fmt.Sprintf("height: %d", height), ExpStatusNotFound)
 					return
 				}
 			}
