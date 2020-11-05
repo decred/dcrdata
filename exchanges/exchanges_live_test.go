@@ -6,8 +6,10 @@ package exchanges
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/signal"
+	"os/user"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -290,4 +292,85 @@ func TestBittrexLiveWebsocket(t *testing.T) {
 		t.Fatalf("bittrex connection in failed state")
 	}
 	checkWsDepths(t, bittrex.wsDepths())
+}
+
+func TestDecredDEXLive(t *testing.T) {
+	enableTestLog()
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	chans := &BotChannels{
+		index:    make(chan *IndexUpdate),
+		exchange: make(chan *ExchangeUpdate),
+		done:     make(chan struct{}),
+	}
+
+	killSwitch := makeKillSwitch()
+
+	usr, _ := user.Current()
+	dextestCertPath := filepath.Join(usr.HomeDir, "dextest", "dcrdex", "rpc.cert")
+	cert, err := ioutil.ReadFile(dextestCertPath)
+	if err != nil {
+		log.Errorf("error reading file for simnet cert: %v", err)
+		return
+	}
+
+	constructor := NewDecredDEXConstructor(&DEXConfig{
+		Token:    DexDotDecred,
+		Host:     "127.0.0.1:17273",
+		Cert:     cert,
+		CertHost: "127.0.0.1",
+	})
+
+	xc, err := constructor(nil, chans)
+	if err != nil {
+		t.Fatalf("NewDecredDEX error: %v", err)
+	}
+	dcr := xc.(*DecredDEX)
+	defer func() { dcr.ws.Close() }()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		select {
+		case <-killSwitch:
+			cancel()
+		case <-ctx.Done():
+			return
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-chans.index:
+				log.Infof("Why are we receiving index updates?")
+			case u := <-chans.exchange:
+				log.Infof("Exchange update received: %s", mustEncode(t, u))
+			}
+		}
+	}()
+	ticker := time.NewTicker(time.Second * 5)
+	testTimeout := time.NewTimer(time.Second * 90)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-ticker.C:
+				dcr.Refresh()
+			case <-testTimeout.C:
+				cancel()
+				return
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	wg.Wait()
 }
