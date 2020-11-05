@@ -2982,7 +2982,10 @@ func (dcr *DecredDEX) connectWs() {
 		return
 	}
 
-	dcr.wsSend(decredDEXOrderBookSubscription)
+	err = dcr.wsSend(decredDEXOrderBookSubscription)
+	if err != nil {
+		dcr.setWsFail(fmt.Errorf("error sending order book subscription: %v", err))
+	}
 }
 
 // processWsMessage is DecredDEX's WebsocketProcessor. Handles messages of type
@@ -3001,15 +3004,17 @@ func (dcr *DecredDEX) processWsMessage(raw []byte) {
 	case msgjson.Response:
 		// The only request we make is for the order book subscription. The
 		// response will include the full order book.
-		if msg.ID == DexSubscriptionID {
-			ob := new(msgjson.OrderBook)
-			err := msg.UnmarshalResult(ob)
-			if err != nil {
-				dcr.setWsFail(fmt.Errorf("error unmarshaling orderbook response: %v", err))
-				return
-			}
-			dcr.setOrderBook(ob)
+		if msg.ID != DexSubscriptionID {
+			log.Errorf("received response from %s with unknown message ID: %s", dcr.cfg.Host, string(raw))
+			return
 		}
+		ob := new(msgjson.OrderBook)
+		err := msg.UnmarshalResult(ob)
+		if err != nil {
+			dcr.setWsFail(fmt.Errorf("error unmarshaling orderbook response: %v", err))
+			return
+		}
+		dcr.setOrderBook(ob)
 	case msgjson.Notification:
 		switch msg.Route {
 		case msgjson.BookOrderRoute:
@@ -3056,12 +3061,27 @@ func (dcr *DecredDEX) processWsMessage(raw []byte) {
 			}
 			dcr.checkSeq(note.Seq)
 			return // Skip wsUpdate. Nothing has changed.
+		case msgjson.SuspensionRoute:
+			note := new(msgjson.TradeSuspension)
+			err := msg.Unmarshal(note)
+			if err != nil {
+				dcr.setWsFail(fmt.Errorf("suspension Unmarshal error: %v", err))
+				return
+			}
+			if !dcr.checkSeq(note.Seq) {
+				return
+			}
+			if note.SuspendTime > 0 || note.Persist {
+				return
+			}
+			dcr.clearOrderBook()
 		}
 	}
 	dcr.wsUpdated()
 }
 
 // checkSeq verifies that the seq is sequential, and increments the seq counter.
+// checkSeq should only be called with the orderMtx write-locked.
 func (dcr *DecredDEX) checkSeq(seq uint64) bool {
 	if seq != dcr.seq+1 {
 		dcr.setWsFail(fmt.Errorf("incorrect sequence. wanted %d, got %d", dcr.seq+1, seq))
@@ -3069,6 +3089,14 @@ func (dcr *DecredDEX) checkSeq(seq uint64) bool {
 	}
 	dcr.seq = seq
 	return true
+}
+
+// clearOrderBook clears the order book. clearOrderBook should only be called
+// with the orderMtx write-locked.
+func (dcr *DecredDEX) clearOrderBook() {
+	dcr.buys = make(wsOrders)
+	dcr.asks = make(wsOrders)
+	dcr.ords = make(map[string]*msgjson.BookOrderNote)
 }
 
 // lastStamp is the unix timestamp of the received response or notification.
@@ -3081,11 +3109,8 @@ func (dcr *DecredDEX) lastStamp() int64 {
 // setOrderBook processes the order book data from 'orderbook' request.
 // setOrderBook should only be called with the orderMtx write-locked.
 func (dcr *DecredDEX) setOrderBook(ob *msgjson.OrderBook) {
-	dcr.buys = make(wsOrders)
-	dcr.asks = make(wsOrders)
-	dcr.ords = make(map[string]*msgjson.BookOrderNote)
+	dcr.clearOrderBook()
 	dcr.seq = ob.Seq
-
 	addToSide := func(side wsOrders, ord *msgjson.BookOrderNote) {
 		bucket := side.order(int64(ord.Rate), float64(ord.Rate)/1e8)
 		bucket.volume += float64(ord.Quantity) / 1e8
@@ -3093,6 +3118,10 @@ func (dcr *DecredDEX) setOrderBook(ob *msgjson.OrderBook) {
 	}
 
 	for _, ord := range ob.Orders {
+		if ord == nil {
+			dcr.setWsFail(fmt.Errorf("nil order encountered"))
+			return
+		}
 		if ord.Side == msgjson.BuyOrderNum {
 			addToSide(dcr.buys, ord)
 		} else {
@@ -3127,13 +3156,17 @@ func (dcr *DecredDEX) bookOrder(ord *msgjson.BookOrderNote) {
 // unbookOrder processes the 'unbook_order' notification.
 // unbookOrder should only be called with the orderMtx write-locked.
 func (dcr *DecredDEX) unbookOrder(note *msgjson.UnbookOrderNote) {
+	if len(note.OrderID) == 0 {
+		dcr.setWsFail(fmt.Errorf("received unbook_order notification without an order ID."))
+		return
+	}
 	oid := note.OrderID.String()
 	ord := dcr.ords[oid]
-	delete(dcr.ords, oid)
 	if ord == nil {
 		dcr.setWsFail(fmt.Errorf("no order found to unbook"))
 		return
 	}
+	delete(dcr.ords, oid)
 	side := dcr.asks
 	if ord.Side == msgjson.BuyOrderNum {
 		side = dcr.buys
@@ -3141,7 +3174,7 @@ func (dcr *DecredDEX) unbookOrder(note *msgjson.UnbookOrderNote) {
 	rateKey := int64(ord.Rate)
 	bucket := side.order(rateKey, float64(ord.Rate)/1e8)
 	bucket.volume -= float64(ord.Quantity) / 1e8
-	if bucket.volume < 1e-8 {
+	if bucket.volume < 1e-8 { // Account for floating point imprecision.
 		delete(side, rateKey)
 	}
 }
@@ -3149,6 +3182,10 @@ func (dcr *DecredDEX) unbookOrder(note *msgjson.UnbookOrderNote) {
 // updateRemaining processes the 'update_remaining' notification.
 // updateRemaining should only be called with the orderMtx write-locked.
 func (dcr *DecredDEX) updateRemaining(update *msgjson.UpdateRemainingNote) {
+	if len(update.OrderID) == 0 {
+		dcr.setWsFail(fmt.Errorf("received update_remaining notification without an order ID."))
+		return
+	}
 	oid := update.OrderID.String()
 	ord := dcr.ords[oid]
 	if ord == nil {

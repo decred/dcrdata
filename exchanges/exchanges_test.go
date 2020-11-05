@@ -561,6 +561,7 @@ func TestDecredDEX(t *testing.T) {
 	}
 
 	checkLengths := func(askLen, buyLen int) {
+		t.Helper()
 		time.Sleep(10 * time.Millisecond)
 		dcr.orderMtx.RLock()
 		defer dcr.orderMtx.RUnlock()
