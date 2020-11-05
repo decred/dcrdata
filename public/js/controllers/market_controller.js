@@ -37,6 +37,18 @@ const exchangeLinks = {
   huobi: 'https://www.hbg.com/en-us/exchange/?s=dcr_btc',
   dcrdex: 'https://dex.decred.org'
 }
+
+const printNames = {
+  dcrdex: 'dex.decred.org'
+  // default is capitalize
+}
+
+function printName (token) {
+  const name = printNames[token]
+  if (name) return name
+  return humanize.capitalize(token)
+}
+
 const defaultZoomPct = 20
 var hidden, visibilityChange
 if (typeof document.hidden !== 'undefined') { // Opera 12.10 and Firefox 18 and later support
@@ -1102,7 +1114,7 @@ export default class extends Controller {
 
   setExchangeName () {
     this.xcLogoTarget.className = `exchange-logo ${settings.xc}`
-    var prettyName = humanize.capitalize(settings.xc)
+    var prettyName = printName(settings.xc)
     this.xcNameTarget.textContent = prettyName
     var href = exchangeLinks[settings.xc]
     if (href) {
