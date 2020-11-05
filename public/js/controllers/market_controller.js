@@ -1206,7 +1206,9 @@ export default class extends Controller {
       row.volume.textContent = humanize.threeSigFigs(xc.volume)
       row.price.textContent = humanize.threeSigFigs(xc.price)
       row.fiat.textContent = (xc.price * update.btc_price).toFixed(2)
-      if (xc.change >= 0) {
+      if (xc.change === 0) {
+        row.arrow.className = ''
+      } else if (xc.change > 0) {
         row.arrow.className = 'dcricon-arrow-up text-green'
       } else {
         row.arrow.className = 'dcricon-arrow-down text-danger'

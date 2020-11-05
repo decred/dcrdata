@@ -723,6 +723,17 @@ type wsOrder struct {
 }
 type wsOrders map[int64]*wsOrder
 
+// Get the *wsOrder at the specified rateKey. Adds one first, if necessary.
+func (ords wsOrders) order(rateKey int64, rate float64) *wsOrder {
+	ord, ok := ords[rateKey]
+	if ok {
+		return ord
+	}
+	ord = &wsOrder{price: rate}
+	ords[rateKey] = ord
+	return ord
+}
+
 // Pull out the int64 bin keys from the map.
 func wsOrderBinKeys(book wsOrders) []int64 {
 	keys := make([]int64, 0, len(book))
@@ -3044,8 +3055,10 @@ func (dcr *DecredDEX) processWsMessage(raw []byte) {
 				return
 			}
 			dcr.checkSeq(note.Seq)
+			return // Skip wsUpdate. Nothing has changed.
 		}
 	}
+	dcr.wsUpdated()
 }
 
 // checkSeq verifies that the seq is sequential, and increments the seq counter.
@@ -3058,7 +3071,7 @@ func (dcr *DecredDEX) checkSeq(seq uint64) bool {
 	return true
 }
 
-// lastStamp is the unix timestamp of the received response or notifiction.
+// lastStamp is the unix timestamp of the received response or notification.
 func (dcr *DecredDEX) lastStamp() int64 {
 	dcr.orderMtx.RLock()
 	defer dcr.orderMtx.RUnlock()
@@ -3066,6 +3079,7 @@ func (dcr *DecredDEX) lastStamp() int64 {
 }
 
 // setOrderBook processes the order book data from 'orderbook' request.
+// setOrderBook should only be called with the orderMtx write-locked.
 func (dcr *DecredDEX) setOrderBook(ob *msgjson.OrderBook) {
 	dcr.buys = make(wsOrders)
 	dcr.asks = make(wsOrders)
@@ -3073,7 +3087,7 @@ func (dcr *DecredDEX) setOrderBook(ob *msgjson.OrderBook) {
 	dcr.seq = ob.Seq
 
 	addToSide := func(side wsOrders, ord *msgjson.BookOrderNote) {
-		bucket := rateBucket(side, int64(ord.Rate), float64(ord.Rate)/1e8)
+		bucket := side.order(int64(ord.Rate), float64(ord.Rate)/1e8)
 		bucket.volume += float64(ord.Quantity) / 1e8
 		dcr.ords[ord.OrderID.String()] = ord
 	}
@@ -3099,17 +3113,19 @@ func (dcr *DecredDEX) setOrderBook(ob *msgjson.OrderBook) {
 }
 
 // bookOrder processes the 'book_order' notification.
+// bookOrder should only be called with the orderMtx write-locked.
 func (dcr *DecredDEX) bookOrder(ord *msgjson.BookOrderNote) {
 	side := dcr.asks
 	if ord.Side == msgjson.BuyOrderNum {
 		side = dcr.buys
 	}
-	bucket := rateBucket(side, int64(ord.Rate), float64(ord.Rate)/1e8)
+	bucket := side.order(int64(ord.Rate), float64(ord.Rate)/1e8)
 	bucket.volume += float64(ord.Quantity) / 1e8
 	dcr.ords[ord.OrderID.String()] = ord
 }
 
 // unbookOrder processes the 'unbook_order' notification.
+// unbookOrder should only be called with the orderMtx write-locked.
 func (dcr *DecredDEX) unbookOrder(note *msgjson.UnbookOrderNote) {
 	oid := note.OrderID.String()
 	ord := dcr.ords[oid]
@@ -3123,7 +3139,7 @@ func (dcr *DecredDEX) unbookOrder(note *msgjson.UnbookOrderNote) {
 		side = dcr.buys
 	}
 	rateKey := int64(ord.Rate)
-	bucket := rateBucket(side, rateKey, float64(ord.Rate)/1e8)
+	bucket := side.order(rateKey, float64(ord.Rate)/1e8)
 	bucket.volume -= float64(ord.Quantity) / 1e8
 	if bucket.volume < 1e-8 {
 		delete(side, rateKey)
@@ -3131,6 +3147,7 @@ func (dcr *DecredDEX) unbookOrder(note *msgjson.UnbookOrderNote) {
 }
 
 // updateRemaining processes the 'update_remaining' notification.
+// updateRemaining should only be called with the orderMtx write-locked.
 func (dcr *DecredDEX) updateRemaining(update *msgjson.UpdateRemainingNote) {
 	oid := update.OrderID.String()
 	ord := dcr.ords[oid]
@@ -3146,21 +3163,9 @@ func (dcr *DecredDEX) updateRemaining(update *msgjson.UpdateRemainingNote) {
 		side = dcr.buys
 	}
 	rateKey := int64(ord.Rate)
-	bucket := rateBucket(side, rateKey, float64(ord.Rate)/1e8)
+	bucket := side.order(rateKey, float64(ord.Rate)/1e8)
 	bucket.volume -= float64(diff) / 1e8
 	if bucket.volume < 1e-8 {
 		delete(side, rateKey)
 	}
-}
-
-// rateBucket fetches the rate bucket from the side, creating it first if
-// necessary.
-func rateBucket(side wsOrders, rateKey int64, rate float64) *wsOrder {
-	bucket, ok := side[rateKey]
-	if ok {
-		return bucket
-	}
-	bucket = &wsOrder{price: rate}
-	side[rateKey] = bucket
-	return bucket
 }

@@ -48,7 +48,9 @@
                                 {{threeSigFigs .State.Price}}
                             </td>
                             <td class="fs16 px-2" data-type="arrow">
-                              {{if ge .State.Change 0.0}}
+                              {{if eq .State.Change 0.0}}
+                                  <span></span>
+                              {{else if gt .State.Change 0.0}}
                                   <span class="dcricon-arrow-up text-green"></span>
                               {{else}}
                                   <span class="dcricon-arrow-down text-danger"></span>
