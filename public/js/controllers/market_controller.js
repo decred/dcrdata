@@ -347,10 +347,17 @@ function processOrderbook (response, translator) {
   var buys = translator(bids, BUY, pt => pt.price < stats.lowCut)
   buys.pts.reverse()
   var sells = translator(asks, SELL, pt => pt.price > stats.highCut)
+
+  // Find points in overlapping region with duplicate rates, to deal with a
+  // Dygraphs bug.
+  var dupes
+  if (response.tokens) dupes = findAggregateDupes(buys.pts, sells.pts)
+
   return {
     pts: buys.pts.concat(sells.pts),
     outliers: buys.outliers.concat(sells.outliers),
-    stats: stats
+    stats: stats,
+    dupes: dupes
   }
 }
 
@@ -561,6 +568,7 @@ function depthPlotter (e) {
     } else {
       e.color = 'transparent'
     }
+    fixAggregateStacking(e)
   }
 
   Dygraph.Plotters.linePlotter(e)
@@ -912,7 +920,6 @@ export default class extends Controller {
     reorderAggregateData(response)
     const tokens = response.tokens
     var data = processOrderbook(response, translateAggregatedDepthSide)
-
     var xcCount = tokens.length
     var keys = sizedArray(xcCount * 2 + 1, null)
     keys[0] = 'price'
@@ -936,6 +943,7 @@ export default class extends Controller {
       stackedGraph: aggStacking,
       tokens: tokens,
       stats: data.stats,
+      dupes: data.dupes,
       zoomCallback: this.zoomCallback,
       axes: {
         x: {
@@ -1258,7 +1266,8 @@ function aggregateSums (side, sums, tokens, cutoff) {
   }
 }
 
-/* reorderAggregateData reorders the aggregated order book data so that the
+/*
+ * reorderAggregateData reorders the aggregated order book data so that the
  * deepest books are first.
  */
 function reorderAggregateData (response) {
@@ -1279,4 +1288,84 @@ function reorderAggregateData (response) {
   for (const pt of response.data.bids) { pt.volumes = pt.volumes.map((v, i) => pt.volumes[idxKey[tokens[i]]]) }
   for (const pt of response.data.asks) { pt.volumes = pt.volumes.map((v, i) => pt.volumes[idxKey[tokens[i]]]) }
   response.tokens = tokens = sums.map(v => v[0])
+}
+
+/*
+ * findAggregateDupes finds price bins in the aggregated depth chart data that
+ * have entries on both the buy and sell sides. Dygraphs doesn't handle the
+ * duplicates well during drawing, so we will try to clean up the Dygraphs data
+ * before passing it to the plotter.
+ */
+function findAggregateDupes (buys, sells) {
+  const dupes = []
+  if (sells.length) {
+    let sellIdx = 0
+    let sellPrice = sells[sellIdx][0]
+
+    for (const i in buys) {
+      const buyPrice = buys[i][0]
+      if (buyPrice < sellPrice) continue
+
+      while (buyPrice > sellPrice) {
+        sellIdx++
+        if (sellIdx >= sells.length) return dupes
+        sellPrice = sells[sellIdx][0]
+      }
+      if (Math.round(buyPrice * 1e8) === Math.round(sellPrice * 1e8)) {
+        // Found a duplicate.
+        dupes.push({
+          price: buyPrice,
+          i: buys.length + sellIdx,
+          buy: buys[i],
+          sell: sells[sellIdx]
+        })
+      }
+    }
+  }
+  return dupes
+}
+
+/*
+ * fixAggregateStacking attempts to correct a Dygraphs limitation where stacked
+ * plots don't display right when 1) the data isn't monotionically increasing in
+ * price, and 2) there is an exact match on price on the doubled back region.
+ */
+function fixAggregateStacking (e) {
+  if (e.setName.endsWith('buy')) return // only sell sides need fixing
+  const dupes = e.dygraph.getOption('dupes')
+  if (!dupes) return
+  var dupeIdx = 0
+  var dupe = dupes[dupeIdx]
+  // var dataIdx = e.seriesIndex + 1
+  // var accume = 0
+  // var accumeStacked = 0
+  const pts = e.points
+  for (let i = dupe.i; i < pts.length; i++) {
+    const pt = pts[i]
+    if (dupe && i === dupe.i) {
+      // Need to adjust this one. Find a way to find a mapping from value to
+      // ratio to canvas position.
+
+      // Figure out how much buy order is mistakenly added.
+      const misplacedVal = dupe.buy.reduce((acc, v) => { return i === 0 ? acc : acc + v }, 0)
+      const subRatio = misplacedVal / e.axis.maxyval
+      // Fixing these three values doesn't actually seem to affect the display,
+      // but fixing them anyway.
+      pt.y += subRatio
+      pt.y_stacked += subRatio
+      pt.yval_stacked -= misplacedVal
+      // This line is the ticket to remove the dark black outline on the spike.
+      pt.canvasy += subRatio * e.plotArea.h
+
+      // TODO: Figure out how to add in missed accumulation, since the Dygraph
+      // bug seems to ignore the actual sell value. Or just dump Dygraphs and
+      // use canvas directly.
+      // accumeStacked += dupe.sell.reduce((acc, v) => { return i === 0 ? acc : acc + v}, 0)
+      // accume += dupe.sell[dataIdx]
+
+      dupeIdx++
+      if (dupeIdx >= dupes.length) dupe = null
+      else dupe = dupes[dupeIdx]
+    }
+  }
 }
