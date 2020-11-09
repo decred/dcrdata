@@ -464,6 +464,13 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		},
 		"toLowerCase": strings.ToLower,
 		"toTitleCase": strings.Title,
+		"xcDisplayName": func(token string) string {
+			switch token {
+			case "dcrdex":
+				return "dex.decred.org"
+			}
+			return strings.Title(token)
+		},
 		"prefixPath": func(prefix, path string) string {
 			if path == "" {
 				if strings.HasSuffix(prefix, "/") {

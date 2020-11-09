@@ -279,9 +279,6 @@ func NewExchangeBot(config *ExchangeBotConfig) (*ExchangeBot, error) {
 	if config.BtcIndex == "" {
 		config.BtcIndex = DefaultCurrency
 	}
-	if config.Disabled == nil {
-		config.Disabled = []string{}
-	}
 
 	bot := &ExchangeBot{
 		DcrBtcExchanges: make(map[string]Exchange),
