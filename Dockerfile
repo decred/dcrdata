@@ -1,4 +1,4 @@
-FROM golang:1.13 as daemon
+FROM golang:1.15 as daemon
 
 COPY . /go/src
 WORKDIR /go/src
@@ -11,7 +11,7 @@ COPY . /root
 RUN npm install
 RUN npm run build
 
-FROM golang:1.13
+FROM golang:1.15
 WORKDIR /
 COPY --from=daemon /go/src/dcrdata /dcrdata
 COPY --from=daemon /go/src/views /views

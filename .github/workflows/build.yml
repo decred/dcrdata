@@ -6,8 +6,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [12.x, 14.x]
-        go: [1.13, 1.14]
+        node-version: [14.x, 15.x]
+        go: [1.14, 1.15]
     steps:
     - uses: actions/checkout@v2
 
@@ -31,7 +31,7 @@ jobs:
       run: npm run build
 
     - name: Install Linters
-      run: "curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.27.0"
+      run: "curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.32.0"
     - name: tests
       env:
         GO111MODULE: "on"
