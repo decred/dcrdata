@@ -1333,7 +1333,7 @@ function findAggregateDupes (buys, sells) {
 function fixAggregateStacking (e) {
   if (e.setName.endsWith('buy')) return // only sell sides need fixing
   const dupes = e.dygraph.getOption('dupes')
-  if (!dupes) return
+  if (!dupes || dupes.length == 0) return
   var dupeIdx = 0
   var dupe = dupes[dupeIdx]
   // var dataIdx = e.seriesIndex + 1
