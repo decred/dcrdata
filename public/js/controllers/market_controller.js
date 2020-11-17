@@ -1285,8 +1285,16 @@ function reorderAggregateData (response) {
   const idxKey = {}
   for (const i in sums) idxKey[sums[i][0]] = i
 
-  for (const pt of response.data.bids) { pt.volumes = pt.volumes.map((v, i) => pt.volumes[idxKey[tokens[i]]]) }
-  for (const pt of response.data.asks) { pt.volumes = pt.volumes.map((v, i) => pt.volumes[idxKey[tokens[i]]]) }
+  const reorder = side => {
+    for (const pt of side) {
+      const v = []
+      for (const i in pt.volumes) v[idxKey[tokens[i]]] = pt.volumes[i]
+      pt.volumes = v
+    }
+  }
+  reorder(response.data.bids)
+  reorder(response.data.asks)
+
   response.tokens = tokens = sums.map(v => v[0])
 }
 
