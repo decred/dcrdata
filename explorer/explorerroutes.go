@@ -924,7 +924,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			var addresses []string
 			pkScriptsStr, err := hex.DecodeString(prevPkScripts[iv])
 			if err != nil {
-				log.Errorf("Failed to decode pkgScript: %v", err)
+				log.Errorf("Failed to decode pkScript: %v", err)
 			}
 			_, scrAddrs, _, err := txscript.ExtractPkScriptAddrs(scriptVersions[iv],
 				pkScriptsStr, exp.ChainParams)

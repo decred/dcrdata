@@ -5128,7 +5128,7 @@ func (pgb *ChainDB) GetSummaryByHash(hash string, withTxTotals bool) *apitypes.B
 				return nil
 			}
 			// Do not compute fee for coinbase transaction.
-			if !data.RawTx[i].Vin[0].IsCoinBase() {
+			if txhelpers.IsCoinbaseVin(&data.RawTx[i].Vin[0]) {
 				fee, _ := txhelpers.TxFeeRate(msgTx)
 				totalFees += fee
 			}
@@ -5454,10 +5454,12 @@ func makeExplorerTxBasic(data chainjson.TxRawResult, ticketPrice int64, msgTx *w
 	tx.FormattedSize = humanize.Bytes(uint64(len(data.Hex) / 2))
 	tx.Total = txhelpers.TotalVout(data.Vout).ToCoin()
 	tx.Fee, tx.FeeRate = txhelpers.TxFeeRate(msgTx)
-	for _, i := range data.Vin {
-		if i.IsCoinBase() /* not IsStakeBase */ {
+	// standalone.IsCoinBaseTx(msgTx) is probably more appropriate.
+	for i := range data.Vin {
+		if txhelpers.IsCoinbaseVin(&data.Vin[i]) /* not IsStakeBase */ {
 			tx.Coinbase = true
 			tx.Fee, tx.FeeRate = 0, 0
+			break
 		}
 	}
 	if stake.IsSSGen(msgTx) {
@@ -5601,8 +5603,8 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 		}
 
 		exptx := trimmedTxInfoFromMsgTx(tx, ticketPrice, msgTx, pgb.chainParams)
-		for _, vin := range tx.Vin {
-			if vin.IsCoinBase() {
+		for i := range tx.Vin {
+			if txhelpers.IsCoinbaseVin(&tx.Vin[i]) {
 				exptx.Fee, exptx.FeeRate, exptx.Fees = 0.0, 0.0, 0.0
 			}
 		}
@@ -5765,7 +5767,8 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 	}
 
 	inputs := make([]exptypes.Vin, 0, len(txraw.Vin))
-	for i, vin := range txraw.Vin {
+	for i := range txraw.Vin {
+		vin := &txraw.Vin[i]
 		// The addresses are may only be obtained by decoding the previous
 		// output's pkscript.
 		var addresses []string
@@ -5774,7 +5777,7 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		valueIn, _ := dcrutil.NewAmount(vin.AmountIn)
 		// Do not attempt to look up prevout if it is a coinbase or stakebase
 		// input, which does not spend a previous output.
-		if !(vin.IsCoinBase() || (vin.IsStakeBase() && i == 0)) {
+		if !(txhelpers.IsCoinbaseVin(vin) || (vin.IsStakeBase() && i == 0)) {
 			// Store the vin amount for comparison.
 			valueIn0 := valueIn
 
@@ -5790,6 +5793,9 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 				log.Debugf("vin amount in: prevout RPC = %v, vin's amount = %v",
 					valueIn, valueIn0)
 			}
+		}
+		if txhelpers.IsCoinbaseVin(vin) && vin.Coinbase == "" {
+			vin.Coinbase = hex.EncodeToString(txhelpers.CoinbaseScript)
 		}
 
 		// For mempool transactions where the vin block height is not set
@@ -5828,7 +5834,7 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 	}
 	tx.Vin = inputs
 
-	if tx.Vin[0].IsCoinBase() {
+	if txhelpers.IsCoinbaseVin(tx.Vin[0].Vin) {
 		tx.Type = exptypes.CoinbaseTypeStr
 	}
 	if tx.Type == exptypes.CoinbaseTypeStr || tx.IsRevocation() {

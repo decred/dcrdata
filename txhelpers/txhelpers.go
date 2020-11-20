@@ -39,6 +39,12 @@ var (
 var CoinbaseFlags = "/dcrd/"
 var CoinbaseScript = append([]byte{0x00, 0x00}, []byte(CoinbaseFlags)...)
 
+// IsCoinBaseVin is a workaround for tspend changes not setting the coinbase for
+// old coinbase txn inputs. One can also use standalone.IsCoinBaseTx(msgTx).
+func IsCoinbaseVin(vin *chainjson.Vin) bool {
+	return vin.IsCoinBase() || (vin.Tree == wire.TxTreeRegular && IsZeroHashStr(vin.Txid))
+}
+
 // ReorgData contains details of a chain reorganization, including the full old
 // and new chains, and the common ancestor that should not be included in either
 // chain. Below is the description of the reorg data with the letter indicating

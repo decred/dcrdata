@@ -53,8 +53,11 @@ func (iapi *InsightApi) DcrToInsightTxns(txs []*chainjson.TxRawResult, noAsm, no
 			}
 
 			// Identify a vin corresponding to generated coins.
-			vinGenerated := vin.IsCoinBase() || vin.IsStakeBase()
-			txNew.IsCoinBase = txNew.IsCoinBase || vin.IsCoinBase() // exclude stakebase
+			coinbase := txhelpers.IsCoinbaseVin(&vin)
+			vinGenerated := coinbase || vin.IsStakeBase()
+			txNew.IsCoinBase = txNew.IsCoinBase || coinbase // exclude stakebase
+			// NOTE: coinbase transactions should only have one input, so the
+			// above is a bit weird.
 
 			// init ScriptPubKey
 			if !noScriptSig {
