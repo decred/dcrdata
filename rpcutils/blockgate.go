@@ -1,14 +1,15 @@
-// Copyright (c) 2017-2019, The dcrdata developers
+// Copyright (c) 2017-2020, The dcrdata developers
 // See LICENSE for details.
 
 package rpcutils
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrd/dcrutil/v3"
 )
 
 // BlockGetter is an interface for requesting blocks
@@ -106,7 +107,7 @@ func (g *BlockGate) SetFetchToHeight(height int64) {
 
 // NodeHeight gets the chain height from dcrd.
 func (g *BlockGate) NodeHeight() (int64, error) {
-	_, height, err := g.client.GetBestBlock()
+	_, height, err := g.client.GetBestBlock(context.TODO())
 	return height, err
 }
 
@@ -180,7 +181,7 @@ func (g *BlockGate) Block(hash chainhash.Hash) (*dcrutil.Block, error) {
 
 // UpdateToBestBlock gets the best block via RPC and updates the cache.
 func (g *BlockGate) UpdateToBestBlock() (*dcrutil.Block, error) {
-	_, height, err := g.client.GetBestBlock()
+	_, height, err := g.client.GetBestBlock(context.TODO())
 	if err != nil {
 		return nil, fmt.Errorf("GetBestBlockHash failed: %v", err)
 	}

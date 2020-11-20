@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2019 The Decred developers
+// Copyright (c) 2015-2020, The Decred developers
 // Copyright (c) 2013-2015 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
@@ -8,8 +8,8 @@ package txhelpers
 import (
 	"sync"
 
-	"github.com/decred/dcrd/blockchain/standalone"
-	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/blockchain/standalone/v2"
+	"github.com/decred/dcrd/chaincfg/v3"
 )
 
 // ultimateSubsidies stores ultimate subsidy values computed by UltimateSubsidy.
@@ -32,7 +32,7 @@ func UltimateSubsidy(params *chaincfg.Params) int64 {
 	subsidySum := func(height int64) int64 {
 		work := subsidyCache.CalcWorkSubsidy(height, votesPerBlock)
 		vote := subsidyCache.CalcStakeVoteSubsidy(height) * int64(votesPerBlock)
-		treasury := subsidyCache.CalcTreasurySubsidy(height, votesPerBlock)
+		treasury := subsidyCache.CalcTreasurySubsidy(height, votesPerBlock, false) // !!!!!!!! what
 		return work + vote + treasury
 	}
 
@@ -79,6 +79,6 @@ func RewardsAtBlock(blockIdx int64, votes uint16, p *chaincfg.Params) (work, sta
 	subsidyCache := standalone.NewSubsidyCache(p)
 	work = subsidyCache.CalcWorkSubsidy(blockIdx, votes)
 	stake = subsidyCache.CalcStakeVoteSubsidy(blockIdx)
-	tax = subsidyCache.CalcTreasurySubsidy(blockIdx, votes)
+	tax = subsidyCache.CalcTreasurySubsidy(blockIdx, votes, false) //!!!! what?
 	return
 }

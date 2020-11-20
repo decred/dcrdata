@@ -1,6 +1,7 @@
 package agendas
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -11,7 +12,7 @@ import (
 	"github.com/asdine/storm/v3"
 	"github.com/decred/dcrd/dcrjson/v3"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	"github.com/decred/dcrdata/db/dbtypes/v2"
+	"github.com/decred/dcrdata/v6/db/dbtypes"
 )
 
 var db *storm.DB
@@ -76,7 +77,7 @@ func TestMain(m *testing.M) {
 type testClient int
 
 // GetVoteInfo implementation showing a sample data format expected.
-func (*testClient) GetVoteInfo(version uint32) (*chainjson.GetVoteInfoResult, error) {
+func (*testClient) GetVoteInfo(_ context.Context, version uint32) (*chainjson.GetVoteInfoResult, error) {
 	if version != 5 {
 		msg := fmt.Sprintf("stake version %d does not exist", version)
 		return nil, dcrjson.NewRPCError(dcrjson.ErrRPCInvalidParameter, msg)

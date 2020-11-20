@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -11,7 +11,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/txhelpers/v4"
+	"github.com/decred/dcrdata/v6/txhelpers"
 )
 
 // ChainMonitor responds to block connection and chain reorganization.
@@ -93,7 +93,7 @@ func (p *ChainMonitor) switchToSideChain(reorgData *txhelpers.ReorgData) (int32,
 		if !found || msgBlock.BlockHash() != newChain[i] {
 			log.Debugf("block %v not found in stakedb cache, fetching from dcrd", newChain[i])
 			// Request MsgBlock from dcrd
-			msgBlock, err = p.db.Client.GetBlock(&newChain[i])
+			msgBlock, err = p.db.Client.GetBlock(context.TODO(), &newChain[i])
 			if err != nil {
 				return 0, nil,
 					fmt.Errorf("unable to get side chain block %v", newChain[i])

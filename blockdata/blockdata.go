@@ -1,24 +1,27 @@
+// Copyright (c) 2020, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
 package blockdata
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/chaincfg/v2"
-	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/dcrutil/v3"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	"github.com/decred/dcrd/rpcclient/v5"
+	"github.com/decred/dcrd/rpcclient/v6"
 	"github.com/decred/dcrd/wire"
-	apitypes "github.com/decred/dcrdata/api/types/v5"
-	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/stakedb/v3"
-	"github.com/decred/dcrdata/txhelpers/v4"
+
+	apitypes "github.com/decred/dcrdata/v6/api/types"
+	"github.com/decred/dcrdata/v6/db/dbtypes"
+	"github.com/decred/dcrdata/v6/stakedb"
+	"github.com/decred/dcrdata/v6/txhelpers"
 )
 
 // BlockData contains all the data collected by a Collector and stored
@@ -147,7 +150,7 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 	*chainjson.FeeInfoBlock, *chainjson.GetBlockHeaderVerboseResult,
 	*apitypes.BlockExplorerExtraInfo, *wire.MsgBlock, error) {
 	// Retrieve block from dcrd.
-	msgBlock, err := t.dcrdChainSvr.GetBlock(hash)
+	msgBlock, err := t.dcrdChainSvr.GetBlock(context.TODO(), hash)
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
@@ -157,17 +160,17 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 
 	// Coin supply and block subsidy. If either RPC fails, do not immediately
 	// return. Attempt acquisition of other data for this block.
-	coinSupply, err := t.dcrdChainSvr.GetCoinSupply()
+	coinSupply, err := t.dcrdChainSvr.GetCoinSupply(context.TODO())
 	if err != nil {
 		log.Error("GetCoinSupply failed: ", err)
 	}
-	nbSubsidy, err := t.dcrdChainSvr.GetBlockSubsidy(int64(msgBlock.Header.Height)+1, 5)
+	nbSubsidy, err := t.dcrdChainSvr.GetBlockSubsidy(context.TODO(), int64(msgBlock.Header.Height)+1, 5)
 	if err != nil {
 		log.Errorf("GetBlockSubsidy for %d failed: %v", msgBlock.Header.Height, err)
 	}
 
 	// Block header
-	blockHeaderResults, err := t.dcrdChainSvr.GetBlockHeaderVerbose(hash)
+	blockHeaderResults, err := t.dcrdChainSvr.GetBlockHeaderVerbose(context.TODO(), hash)
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
@@ -241,14 +244,14 @@ func (t *Collector) CollectHash(hash *chainhash.Hash) (*BlockData, *wire.MsgBloc
 	}
 
 	// Number of peer connection to chain server
-	numConn, err := t.dcrdChainSvr.GetConnectionCount()
+	numConn, err := t.dcrdChainSvr.GetConnectionCount(context.TODO())
 	if err != nil {
 		log.Warn("Unable to get connection count: ", err)
 	}
 
 	// Blockchain info (e.g. syncheight, verificationprogress, chainwork,
 	// bestblockhash, initialblockdownload, maxblocksize, deployments, etc.).
-	chainInfo, err := t.dcrdChainSvr.GetBlockChainInfo()
+	chainInfo, err := t.dcrdChainSvr.GetBlockChainInfo(context.TODO())
 	if err != nil {
 		log.Warn("Unable to get blockchain info: ", err)
 	}
@@ -299,7 +302,7 @@ func (t *Collector) Collect() (*BlockData, *wire.MsgBlock, error) {
 	// verificationprogress, chainwork, bestblockhash, initialblockdownload,
 	// maxblocksize, deployments, etc.).
 	go func() {
-		blockchainInfo, err := t.dcrdChainSvr.GetBlockChainInfo()
+		blockchainInfo, err := t.dcrdChainSvr.GetBlockChainInfo(context.TODO())
 		toch <- bciRes{err, blockchainInfo}
 	}()
 
@@ -322,13 +325,13 @@ func (t *Collector) Collect() (*BlockData, *wire.MsgBlock, error) {
 	}
 
 	// Stake difficulty
-	stakeDiff, err := t.dcrdChainSvr.GetStakeDifficulty()
+	stakeDiff, err := t.dcrdChainSvr.GetStakeDifficulty(context.TODO())
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// estimatestakediff
-	estStakeDiff, err := t.dcrdChainSvr.EstimateStakeDiff(nil)
+	estStakeDiff, err := t.dcrdChainSvr.EstimateStakeDiff(context.TODO(), nil)
 	if err != nil {
 		log.Warn("estimatestakediff is broken: ", err)
 		estStakeDiff = &chainjson.EstimateStakeDiffResult{}
@@ -342,7 +345,7 @@ func (t *Collector) Collect() (*BlockData, *wire.MsgBlock, error) {
 	}
 
 	// Number of peer connection to chain server
-	numConn, err := t.dcrdChainSvr.GetConnectionCount()
+	numConn, err := t.dcrdChainSvr.GetConnectionCount(context.TODO())
 	if err != nil {
 		log.Warn("Unable to get connection count: ", err)
 	}

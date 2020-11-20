@@ -1,10 +1,10 @@
 package txhelpers
 
 import (
-	"github.com/decred/dcrd/dcrutil/v2"
+	"decred.org/dcrwallet/wallet/txrules"
+	"decred.org/dcrwallet/wallet/txsizes"
+	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/wallet/v3/txrules"
-	"github.com/decred/dcrwallet/wallet/v3/txsizes"
 )
 
 // must be sorted large to small

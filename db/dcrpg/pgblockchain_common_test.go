@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/decred/dcrd/chaincfg/v2"
-	"github.com/decred/dcrdata/db/cache/v3"
-	"github.com/decred/dcrdata/testutil/dbconfig/v2"
+	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrdata/v6/db/cache"
+	"github.com/decred/dcrdata/v6/testutil/dbconfig"
 	"github.com/decred/slog"
 	pitypes "github.com/dmigwi/go-piparser/proposals/types"
 )

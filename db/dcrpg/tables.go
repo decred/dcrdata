@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -8,8 +8,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/db/dcrpg/v5/internal"
+	"github.com/decred/dcrdata/db/dcrpg/v6/internal"
+	"github.com/decred/dcrdata/v6/db/dbtypes"
 )
 
 var createTableStatements = [][2]string{

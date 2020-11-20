@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	exptypes "github.com/decred/dcrdata/explorer/types/v2"
-	pstypes "github.com/decred/dcrdata/pubsub/types/v3"
-	pubsub "github.com/decred/dcrdata/pubsub/v4"
-	"github.com/decred/dcrdata/semver"
+	exptypes "github.com/decred/dcrdata/v6/explorer/types"
+	pubsub "github.com/decred/dcrdata/v6/pubsub"
+	pstypes "github.com/decred/dcrdata/v6/pubsub/types"
+	"github.com/decred/dcrdata/v6/semver"
 	"golang.org/x/net/websocket"
 )
 

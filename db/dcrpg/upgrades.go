@@ -1,4 +1,4 @@
-// Copyright (c) 2019, The Decred developers
+// Copyright (c) 2019-2020, The Decred developers
 // See LICENSE for details.
 
 package dcrpg
@@ -10,12 +10,12 @@ import (
 	"io/ioutil"
 	"os"
 
+	"decred.org/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/db/dcrpg/v5/internal"
-	"github.com/decred/dcrdata/stakedb/v3"
-	"github.com/decred/dcrdata/txhelpers/v4"
-	"github.com/decred/dcrwallet/wallet/v3/txrules"
+	"github.com/decred/dcrdata/db/dcrpg/v6/internal"
+	"github.com/decred/dcrdata/v6/stakedb"
+	"github.com/decred/dcrdata/v6/txhelpers"
 	"github.com/lib/pq"
 )
 

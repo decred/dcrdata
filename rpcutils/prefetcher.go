@@ -1,15 +1,16 @@
-// Copyright (c) 2019, The Decred developers
+// Copyright (c) 2019-2020, The Decred developers
 // See LICENSE for details.
 
 package rpcutils
 
 import (
+	"context"
 	"strings"
 	"sync"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	"github.com/decred/dcrd/rpcclient/v5"
+	"github.com/decred/dcrd/rpcclient/v6"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -19,10 +20,10 @@ const (
 
 // BlockFetcher implements a few basic block data retrieval functions.
 type BlockFetcher interface {
-	GetBestBlock() (*chainhash.Hash, int64, error)
-	GetBlock(blockHash *chainhash.Hash) (*wire.MsgBlock, error)
-	GetBlockHash(blockHeight int64) (*chainhash.Hash, error)
-	GetBlockHeaderVerbose(hash *chainhash.Hash) (*chainjson.GetBlockHeaderVerboseResult, error)
+	GetBestBlock(ctx context.Context) (*chainhash.Hash, int64, error)
+	GetBlock(ctx context.Context, blockHash *chainhash.Hash) (*wire.MsgBlock, error)
+	GetBlockHash(ctx context.Context, blockHeight int64) (*chainhash.Hash, error)
+	GetBlockHeaderVerbose(ctx context.Context, hash *chainhash.Hash) (*chainjson.GetBlockHeaderVerboseResult, error)
 }
 
 // Ensure that rpcclient.Client is a BlockFetcher.
@@ -97,14 +98,14 @@ func (p *BlockPrefetchClient) Misses() uint64 {
 // GetBestBlock is a passthrough to the client. It does not retarget the
 // prefetch range since it does not request the actual block, just the hash and
 // height of the best block.
-func (p *BlockPrefetchClient) GetBestBlock() (*chainhash.Hash, int64, error) {
-	return p.f.GetBestBlock()
+func (p *BlockPrefetchClient) GetBestBlock(ctx context.Context) (*chainhash.Hash, int64, error) {
+	return p.f.GetBestBlock(ctx)
 }
 
 // GetBlockData attempts to get the specified block and retargets the prefetcher
 // with the next block's hash. If the block was not already fetched, it is
 // retrieved immediately and stored following retargeting.
-func (p *BlockPrefetchClient) GetBlockData(hash *chainhash.Hash) (*wire.MsgBlock, *chainjson.GetBlockHeaderVerboseResult, error) {
+func (p *BlockPrefetchClient) GetBlockData(ctx context.Context, hash *chainhash.Hash) (*wire.MsgBlock, *chainjson.GetBlockHeaderVerboseResult, error) {
 	p.Lock()
 
 	retargetAndUnlock := func(nextHash string) {
@@ -137,7 +138,7 @@ func (p *BlockPrefetchClient) GetBlockData(hash *chainhash.Hash) (*wire.MsgBlock
 
 	// Immediately retrieve msgBlock and header verbose result while fetcher is
 	// blocked by the Mutex.
-	msgBlock, headerResult, err := p.retrieveBlockAndHeaderResult(hash)
+	msgBlock, headerResult, err := p.retrieveBlockAndHeaderResult(ctx, hash)
 	if err != nil {
 		p.Unlock()
 		return nil, nil, err
@@ -153,16 +154,16 @@ func (p *BlockPrefetchClient) GetBlockData(hash *chainhash.Hash) (*wire.MsgBlock
 
 // GetBlock retrieves the wire.MsgBlock for the block with the specified hash.
 // See GetBlockData for details on how this interacts with the prefetcher.
-func (p *BlockPrefetchClient) GetBlock(hash *chainhash.Hash) (*wire.MsgBlock, error) {
-	msgBlock, _, err := p.GetBlockData(hash)
+func (p *BlockPrefetchClient) GetBlock(ctx context.Context, hash *chainhash.Hash) (*wire.MsgBlock, error) {
+	msgBlock, _, err := p.GetBlockData(ctx, hash)
 	return msgBlock, err
 }
 
 // GetBlockHeaderVerbose retrieves the chainjson.GetBlockHeaderVerboseResult for
 // the block with the specified hash. See GetBlockData for details on how this
 // interacts with the prefetcher
-func (p *BlockPrefetchClient) GetBlockHeaderVerbose(hash *chainhash.Hash) (*chainjson.GetBlockHeaderVerboseResult, error) {
-	_, headerResult, err := p.GetBlockData(hash)
+func (p *BlockPrefetchClient) GetBlockHeaderVerbose(ctx context.Context, hash *chainhash.Hash) (*chainjson.GetBlockHeaderVerboseResult, error) {
+	_, headerResult, err := p.GetBlockData(ctx, hash)
 	return headerResult, err
 }
 
@@ -183,8 +184,8 @@ func (p *BlockPrefetchClient) GetBlockHeaderVerbose(hash *chainhash.Hash) (*chai
 // }
 
 // GetBlockHash is a passthrough to the client.
-func (p *BlockPrefetchClient) GetBlockHash(blockHeight int64) (*chainhash.Hash, error) {
-	return p.f.GetBlockHash(blockHeight)
+func (p *BlockPrefetchClient) GetBlockHash(ctx context.Context, blockHeight int64) (*chainhash.Hash, error) {
+	return p.f.GetBlockHash(ctx, blockHeight)
 }
 
 // storeNext stores the input data as the new "next" block. The existing "next"
@@ -199,13 +200,13 @@ func (p *BlockPrefetchClient) storeNext(msgBlock *wire.MsgBlock, headerResult *c
 	}
 }
 
-func (p *BlockPrefetchClient) retrieveBlockAndHeaderResult(hash *chainhash.Hash) (*wire.MsgBlock, *chainjson.GetBlockHeaderVerboseResult, error) {
-	msgBlock, err := p.f.GetBlock(hash)
+func (p *BlockPrefetchClient) retrieveBlockAndHeaderResult(ctx context.Context, hash *chainhash.Hash) (*wire.MsgBlock, *chainjson.GetBlockHeaderVerboseResult, error) {
+	msgBlock, err := p.f.GetBlock(ctx, hash)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	headerResult, err := p.f.GetBlockHeaderVerbose(hash)
+	headerResult, err := p.f.GetBlockHeaderVerbose(ctx, hash)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -225,7 +226,7 @@ func (p *BlockPrefetchClient) RetrieveAndStoreNext(nextHash *chainhash.Hash) {
 		return
 	}
 
-	msgBlock, headerResult, err := p.retrieveBlockAndHeaderResult(nextHash)
+	msgBlock, headerResult, err := p.retrieveBlockAndHeaderResult(context.TODO(), nextHash)
 	if err != nil {
 		if strings.HasPrefix(err.Error(), outOfRangeErr) {
 			log.Errorf("retrieveBlockAndHeaderResult(%v): %v",

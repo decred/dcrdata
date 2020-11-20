@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/rpcutils/v3"
+	"github.com/decred/dcrdata/v6/db/dbtypes"
+	"github.com/decred/dcrdata/v6/rpcutils"
 )
 
 const (
@@ -547,7 +547,7 @@ func (pgb *ChainDB) supplementUnknownTicketError(err error) error {
 	if ticketHash == nil {
 		return err
 	}
-	txraw, err1 := pgb.Client.GetRawTransactionVerbose(ticketHash)
+	txraw, err1 := pgb.Client.GetRawTransactionVerbose(context.TODO(), ticketHash)
 	if err1 != nil {
 		return err
 	}

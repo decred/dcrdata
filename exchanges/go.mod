@@ -1,13 +1,12 @@
-module github.com/decred/dcrdata/exchanges/v2
+module github.com/decred/dcrdata/exchanges/v3
 
-go 1.12
+go 1.14
 
 require (
-	decred.org/dcrdex v0.1.1-beta1
+	decred.org/dcrdex v0.0.0-20210125195147-b1349c3f5646
 	github.com/carterjones/signalr v0.3.5
-	github.com/decred/dcrdata/dcrrates v1.2.0
 	github.com/decred/slog v1.1.0
-	github.com/gorilla/websocket v1.4.1
-	google.golang.org/genproto v0.0.0-20190415143225-d1146b9035b9 // indirect
-	google.golang.org/grpc v1.24.0
+	github.com/golang/protobuf v1.4.2
+	github.com/gorilla/websocket v1.4.2
+	google.golang.org/grpc v1.32.0
 )

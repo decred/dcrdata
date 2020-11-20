@@ -7,7 +7,7 @@ package internal
 import (
 	"fmt"
 
-	"github.com/decred/dcrd/blockchain/stake/v2"
+	"github.com/decred/dcrd/blockchain/stake/v3"
 )
 
 // These queries relate primarily to the "transactions" table.

@@ -129,9 +129,9 @@ var hashMap = map[int64]string{
 
 type hashGetterStub struct{}
 
-func (client hashGetterStub) GetBlockHash(idx int64) (*chainhash.Hash, error) {
+func (client hashGetterStub) GetBlockHash(_ context.Context, idx int64) (*chainhash.Hash, error) {
 	if idx > 5 || idx < 0 {
-		return nil, fmt.Errorf("hashGetterStub: index out of range.")
+		return nil, fmt.Errorf("hashGetterStub: index out of range")
 	}
 	return chainhash.NewHashFromStr(hashMap[idx])
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2019, The Decred developers
+// Copyright (c) 2019-2020, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -8,11 +8,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrd/dcrutil/v3"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	apitypes "github.com/decred/dcrdata/api/types/v5"
-	"github.com/decred/dcrdata/db/dbtypes/v2"
-	exptypes "github.com/decred/dcrdata/explorer/types/v2"
+
+	apitypes "github.com/decred/dcrdata/v6/api/types"
+	"github.com/decred/dcrdata/v6/db/dbtypes"
+	exptypes "github.com/decred/dcrdata/v6/explorer/types"
 )
 
 // MempoolDataCache models the basic data for the mempool cache.

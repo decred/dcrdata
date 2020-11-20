@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -8,7 +8,7 @@ import (
 	"errors"
 	"testing"
 
-	pstypes "github.com/decred/dcrdata/pubsub/types/v3"
+	pstypes "github.com/decred/dcrdata/v6/pubsub/types"
 )
 
 func Test_client_subscribe(t *testing.T) {

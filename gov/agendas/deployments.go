@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // See LICENSE for details.
 
 // Package agendas manages the various deployment agendas that are directly
@@ -6,6 +6,7 @@
 package agendas
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -14,8 +15,8 @@ import (
 	"github.com/asdine/storm/v3/q"
 	"github.com/decred/dcrd/dcrjson/v3"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/semver"
+	"github.com/decred/dcrdata/v6/db/dbtypes"
+	"github.com/decred/dcrdata/v6/semver"
 )
 
 // AgendaDB represents the data for the stored DB.
@@ -53,7 +54,7 @@ const dbInfo = "_agendas.db_"
 // in this package. It also allows usage of alternative implementations to
 // satisfy the interface.
 type DeploymentSource interface {
-	GetVoteInfo(version uint32) (*chainjson.GetVoteInfoResult, error)
+	GetVoteInfo(ctx context.Context, version uint32) (*chainjson.GetVoteInfoResult, error)
 }
 
 // NewAgendasDB opens an existing database or create a new one using with the
@@ -127,7 +128,7 @@ func listStakeVersions(client DeploymentSource) ([]uint32, error) {
 
 	var firstVer uint32
 	for {
-		voteInfo, err := client.GetVoteInfo(firstVer)
+		voteInfo, err := client.GetVoteInfo(context.TODO(), firstVer)
 		if err == nil {
 			// That's the first version.
 			log.Debugf("Stake version %d: %v", firstVer, agendaIDs(voteInfo.Agendas))
@@ -151,7 +152,7 @@ func listStakeVersions(client DeploymentSource) ([]uint32, error) {
 
 	versions := []uint32{firstVer}
 	for i := firstVer + 1; ; i++ {
-		voteInfo, err := client.GetVoteInfo(i)
+		voteInfo, err := client.GetVoteInfo(context.TODO(), i)
 		if err == nil {
 			log.Debugf("Stake version %d: %v", i, agendaIDs(voteInfo.Agendas))
 			versions = append(versions, i)
@@ -192,7 +193,7 @@ func (db *AgendaDB) loadAgenda(agendaID string) (*AgendaTagged, error) {
 
 // agendasForVoteVersion fetches the agendas using the vote versions provided.
 func agendasForVoteVersion(ver uint32, client DeploymentSource) ([]AgendaTagged, error) {
-	voteInfo, err := client.GetVoteInfo(ver)
+	voteInfo, err := client.GetVoteInfo(context.TODO(), ver)
 	if err != nil {
 		return nil, err
 	}

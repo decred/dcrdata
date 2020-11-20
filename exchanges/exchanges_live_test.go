@@ -14,8 +14,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/decred/dcrdata/dcrrates"
 )
 
 func makeKillSwitch() chan os.Signal {
@@ -48,7 +46,8 @@ func testExchanges(asSlave, quickTest bool, t *testing.T) {
 	config.Indent = true
 	if asSlave {
 		config.MasterBot = ":7778"
-		config.MasterCertFile = filepath.Join(dcrrates.DefaultAppDirectory, dcrrates.DefaultCertName)
+		appDirectory = dcrutil.AppDataDir("rateserver", false)
+		config.MasterCertFile = filepath.Join(appDirectory, "rpc.cert")
 	} else {
 		config.DataExpiry = "2m"
 		config.RequestExpiry = "4m"

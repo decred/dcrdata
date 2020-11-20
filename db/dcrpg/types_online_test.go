@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/decred/dcrdata/db/dbtypes/v2"
+	"github.com/decred/dcrdata/v6/db/dbtypes"
 )
 
 var (

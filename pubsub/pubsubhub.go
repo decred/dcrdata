@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -13,18 +13,19 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/chaincfg/v2"
-	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/dcrutil/v3"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	"github.com/decred/dcrd/txscript/v2"
+	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/blockdata/v5"
-	"github.com/decred/dcrdata/db/dbtypes/v2"
-	exptypes "github.com/decred/dcrdata/explorer/types/v2"
-	"github.com/decred/dcrdata/mempool/v5"
-	pstypes "github.com/decred/dcrdata/pubsub/types/v3"
-	"github.com/decred/dcrdata/semver"
-	"github.com/decred/dcrdata/txhelpers/v4"
+
+	"github.com/decred/dcrdata/v6/blockdata"
+	"github.com/decred/dcrdata/v6/db/dbtypes"
+	exptypes "github.com/decred/dcrdata/v6/explorer/types"
+	"github.com/decred/dcrdata/v6/mempool"
+	pstypes "github.com/decred/dcrdata/v6/pubsub/types"
+	"github.com/decred/dcrdata/v6/semver"
+	"github.com/decred/dcrdata/v6/txhelpers"
 	"golang.org/x/net/websocket"
 )
 
@@ -712,7 +713,7 @@ func (psh *PubSubHub) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBl
 	// Check each output's pkScript for subscribed addresses.
 	for _, out := range coinbaseTx.TxOut {
 		_, scriptAddrs, _, err := txscript.ExtractPkScriptAddrs(
-			out.Version, out.PkScript, psh.params)
+			out.Version, out.PkScript, psh.params, true)
 		if err != nil {
 			log.Warnf("failed to decode pkScript: %v", err)
 			continue
@@ -741,7 +742,7 @@ func (psh *PubSubHub) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBl
 	}
 
 	// The coinbase transaction is also sent in a new transaction signal to
-	// pubsub clients.
+	// pubsub clients. It's not really mempool.
 	newTxCoinbase := exptypes.MempoolTx{
 		TxID: coinbaseHash,
 		// Fees are 0

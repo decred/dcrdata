@@ -1,4 +1,4 @@
-// Copyright (c) 2019, The Decred developers
+// Copyright (c) 2019-2020, The Decred developers
 // See LICENSE for details.
 
 package cache
@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrdata/db/dbtypes/v2"
+	"github.com/decred/dcrdata/v6/db/dbtypes"
 )
 
 func TestCacheLock_TryLock(t *testing.T) {

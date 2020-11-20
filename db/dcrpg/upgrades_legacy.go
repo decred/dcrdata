@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // See LICENSE for details.
 
 package dcrpg
@@ -11,14 +11,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/decred/dcrd/blockchain/stake/v2"
+	"github.com/decred/dcrd/blockchain/stake/v3"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/db/dcrpg/v5/internal"
-	"github.com/decred/dcrdata/rpcutils/v3"
-	"github.com/decred/dcrdata/semver"
-	"github.com/decred/dcrdata/txhelpers/v4"
+
+	"github.com/decred/dcrdata/db/dcrpg/v6/internal"
+	"github.com/decred/dcrdata/v6/db/dbtypes"
+	"github.com/decred/dcrdata/v6/rpcutils"
+	"github.com/decred/dcrdata/v6/semver"
+	"github.com/decred/dcrdata/v6/txhelpers"
 )
 
 // The tables are versioned as follows. The major version is the same for all
@@ -660,7 +661,7 @@ func (pgb *ChainDB) UpgradeTables(dcrdClient BlockGetter, version, needVersion T
 		}
 
 		// chainInfo is needed for this upgrade.
-		rawChainInfo, err := dcrdClient.GetBlockChainInfo()
+		rawChainInfo, err := dcrdClient.GetBlockChainInfo(context.TODO())
 		if err != nil {
 			return false, err
 		}

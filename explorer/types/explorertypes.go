@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -7,17 +7,16 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/chaincfg/v2"
-	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/dcrutil/v3"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/exchanges/v2"
-	"github.com/decred/dcrdata/txhelpers/v4"
-	humanize "github.com/dustin/go-humanize"
+	"github.com/decred/dcrdata/v6/txhelpers"
 )
 
 // Types of votes
@@ -154,6 +153,7 @@ type TxBasic struct {
 	FeeRate       dcrutil.Amount
 	VoteInfo      *VoteInfo
 	Coinbase      bool
+	Treasurybase  bool
 	MixCount      uint32
 	MixDenom      int64
 }
@@ -193,6 +193,10 @@ const (
 	VoteTypeStr     = "Vote"
 	RevTypeStr      = "Revocation"
 	CoinbaseTypeStr = "Coinbase"
+	// TODO: use treasury types
+	TreasurybaseTypeStr  = "Treasurybase"
+	TreasuryAddTypeStr   = "Treasury Add"
+	TreasurySpendTypeStr = "Treasury Spend"
 )
 
 // IsTicket checks whether this transaction is a ticket.
@@ -389,6 +393,7 @@ type BlockInfo struct {
 	MerkleRoot            string
 	TxAvailable           bool
 	Tx                    []*TrimmedTxInfo
+	Treasury              []*TrimmedTxInfo
 	Tickets               []*TrimmedTxInfo
 	Revs                  []*TrimmedTxInfo
 	Votes                 []*TrimmedTxInfo
@@ -411,29 +416,35 @@ type BlockInfo struct {
 	Subsidy               *chainjson.GetBlockSubsidyResult
 }
 
+// Conversion is a representation of some amount of DCR in another index.
+type Conversion struct {
+	Value float64 `json:"value"`
+	Index string  `json:"index"`
+}
+
 // HomeInfo represents data used for the home page
 type HomeInfo struct {
-	CoinSupply            int64                 `json:"coin_supply"`
-	StakeDiff             float64               `json:"sdiff"`
-	NextExpectedStakeDiff float64               `json:"next_expected_sdiff"`
-	NextExpectedBoundsMin float64               `json:"next_expected_min"`
-	NextExpectedBoundsMax float64               `json:"next_expected_max"`
-	IdxBlockInWindow      int                   `json:"window_idx"`
-	IdxInRewardWindow     int                   `json:"reward_idx"`
-	Difficulty            float64               `json:"difficulty"`
-	DevFund               int64                 `json:"dev_fund"`
-	DevAddress            string                `json:"dev_address"`
-	TicketReward          float64               `json:"reward"`
-	RewardPeriod          string                `json:"reward_period"`
-	ASR                   float64               `json:"ASR"`
-	NBlockSubsidy         BlockSubsidy          `json:"subsidy"`
-	Params                ChainParams           `json:"params"`
-	PoolInfo              TicketPoolInfo        `json:"pool_info"`
-	TotalLockedDCR        float64               `json:"total_locked_dcr"`
-	HashRate              float64               `json:"hash_rate"`
-	HashRateChangeDay     float64               `json:"hash_rate_change_day"`
-	HashRateChangeMonth   float64               `json:"hash_rate_change_month"`
-	ExchangeRate          *exchanges.Conversion `json:"exchange_rate,omitempty"`
+	CoinSupply            int64          `json:"coin_supply"`
+	StakeDiff             float64        `json:"sdiff"`
+	NextExpectedStakeDiff float64        `json:"next_expected_sdiff"`
+	NextExpectedBoundsMin float64        `json:"next_expected_min"`
+	NextExpectedBoundsMax float64        `json:"next_expected_max"`
+	IdxBlockInWindow      int            `json:"window_idx"`
+	IdxInRewardWindow     int            `json:"reward_idx"`
+	Difficulty            float64        `json:"difficulty"`
+	DevFund               int64          `json:"dev_fund"`
+	DevAddress            string         `json:"dev_address"`
+	TicketReward          float64        `json:"reward"`
+	RewardPeriod          string         `json:"reward_period"`
+	ASR                   float64        `json:"ASR"`
+	NBlockSubsidy         BlockSubsidy   `json:"subsidy"`
+	Params                ChainParams    `json:"params"`
+	PoolInfo              TicketPoolInfo `json:"pool_info"`
+	TotalLockedDCR        float64        `json:"total_locked_dcr"`
+	HashRate              float64        `json:"hash_rate"`
+	HashRateChangeDay     float64        `json:"hash_rate_change_day"`
+	HashRateChangeMonth   float64        `json:"hash_rate_change_month"`
+	ExchangeRate          *Conversion    `json:"exchange_rate,omitempty"`
 }
 
 // BlockSubsidy is an implementation of chainjson.GetBlockSubsidyResult
@@ -575,6 +586,21 @@ func FilterRegularTx(txs []*TrimmedTxInfo) (transactions []*TrimmedTxInfo) {
 	return transactions
 }
 
+func BytesString(s uint64) string {
+	if s < 1000 {
+		return fmt.Sprintf("%d B", s)
+	}
+	e := math.Min(3, math.Floor(math.Log(float64(s))/math.Log(1000)))
+	suffix := []string{"B", "kB", "MB", "GB"}[int(e)]
+	val := math.Round(float64(s)/math.Pow(1000, e)*10) / 10
+	f := "%.0f %s"
+	if val < 10 {
+		f = "%.1f %s"
+	}
+
+	return fmt.Sprintf(f, val, suffix)
+}
+
 // TrimMempoolTx converts the input []MempoolTx to a []*TrimmedTxInfo.
 func TrimMempoolTx(txs []MempoolTx) (trimmedTxs []*TrimmedTxInfo) {
 	for _, tx := range txs {
@@ -585,12 +611,13 @@ func TrimMempoolTx(txs []MempoolTx) (trimmedTxs []*TrimmedTxInfo) {
 		}
 		txBasic := &TxBasic{
 			TxID:          tx.TxID,
-			FormattedSize: humanize.Bytes(uint64(tx.Size)),
+			FormattedSize: BytesString(uint64(tx.Size)),
 			Total:         tx.TotalOut,
 			Fee:           fee,
 			FeeRate:       feeRate,
 			VoteInfo:      tx.VoteInfo,
-			Coinbase:      tx.Coinbase,
+			Coinbase:      tx.Coinbase, // eh, in mempool???
+			// TODO: TreasuryBase in mempool?
 		}
 
 		var voteValid bool
@@ -670,7 +697,8 @@ type LikelyMineable struct {
 	TicketTotal   float64 `json:"ticket_total"`
 	VoteTotal     float64 `json:"vote_total"`
 	RevokeTotal   float64 `json:"revoke_total"`
-	Count         int     `json:"count"`
+	// TODO TSpend/TAdd total
+	Count int `json:"count"`
 }
 
 func (mps *MempoolShort) DeepCopy() *MempoolShort {
@@ -880,7 +908,7 @@ type MempoolTx struct {
 	VinCount  int            `json:"vin_count"`
 	VoutCount int            `json:"vout_count"`
 	Vin       []MempoolInput `json:"vin,omitempty"`
-	Coinbase  bool           `json:"coinbase"`
+	Coinbase  bool           `json:"coinbase"` // why?
 	Hash      string         `json:"hash"`
 	Time      int64          `json:"time"`
 	Size      int32          `json:"size"`

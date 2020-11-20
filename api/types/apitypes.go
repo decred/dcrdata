@@ -1,4 +1,4 @@
-// Copyright (c) 2019, The Decred developers
+// Copyright (c) 2019-2020, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -12,8 +12,8 @@ import (
 	"time"
 
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/txhelpers/v4"
+	"github.com/decred/dcrdata/v6/db/dbtypes"
+	"github.com/decred/dcrdata/v6/txhelpers"
 )
 
 // TimeAPI is a fall back dbtypes.TimeDef wrapper that allows API endpoints that

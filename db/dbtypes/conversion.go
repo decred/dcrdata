@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/txhelpers/v4"
+
+	"github.com/decred/dcrdata/v6/txhelpers"
 )
 
 // MsgBlockToDBBlock creates a dbtypes.Block from a wire.MsgBlock

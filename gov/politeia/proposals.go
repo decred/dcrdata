@@ -1,4 +1,4 @@
-// Copyright (c) 2019, The Decred developers
+// Copyright (c) 2019-2020, The Decred developers
 // See LICENSE for details.
 
 // Package politeia manages Politeia proposals and the voting that is
@@ -17,9 +17,9 @@ import (
 
 	"github.com/asdine/storm/v3"
 	"github.com/asdine/storm/v3/q"
-	"github.com/decred/dcrdata/gov/v3/politeia/piclient"
-	pitypes "github.com/decred/dcrdata/gov/v3/politeia/types"
-	"github.com/decred/dcrdata/semver"
+	"github.com/decred/dcrdata/gov/v4/politeia/piclient"
+	pitypes "github.com/decred/dcrdata/gov/v4/politeia/types"
+	"github.com/decred/dcrdata/v6/semver"
 	piapi "github.com/decred/politeia/politeiawww/api/www/v1"
 )
 

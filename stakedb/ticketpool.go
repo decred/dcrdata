@@ -9,12 +9,10 @@ import (
 	"encoding/binary"
 	"encoding/gob"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 
-	"github.com/asdine/storm/v3"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/slog"
 	"github.com/dgraph-io/badger"
@@ -113,6 +111,12 @@ func (l *badgerLogger) logf(defaultLevel logLevel, format string, v ...interface
 	}
 }
 
+// Debugf filters messages through logf with logLevelDebug before sending the
+// message to the slog.Logger.
+func (l *badgerLogger) Debugf(format string, v ...interface{}) {
+	l.logf(logLevelDebug, format, v...)
+}
+
 // Infof filters messages through logf with logLevelInfo before sending the
 // message to the slog.Logger.
 func (l *badgerLogger) Infof(format string, v ...interface{}) {
@@ -136,9 +140,7 @@ func (l *badgerLogger) Errorf(format string, v ...interface{}) {
 func NewTicketPool(dataDir, dbSubDir string) (tp *TicketPool, err error) {
 	// Open ticket pool diffs database
 	badgerDbPath := filepath.Join(dataDir, dbSubDir)
-	opts := badger.DefaultOptions
-	opts.Dir = badgerDbPath
-	opts.ValueDir = badgerDbPath
+	opts := badger.DefaultOptions(badgerDbPath)
 	opts.Logger = &badgerLogger{log}
 	db, err := badger.Open(opts)
 	if err == badger.ErrTruncateNeeded {
@@ -174,23 +176,6 @@ func NewTicketPool(dataDir, dbSubDir string) (tp *TicketPool, err error) {
 		log.Debugf("badger value log not rewritten (OK).")
 	}
 
-	// Attempt migration from storm to badger if badger was empty
-	TableInfo := db.Tables()
-	oldDBPath := filepath.Join(dataDir, DefaultTicketPoolDbName)
-	if len(TableInfo) == 0 {
-		migrated, err := MigrateFromStorm(oldDBPath, db)
-		if err != nil {
-			return nil, fmt.Errorf("migration from storm failed: %v", err)
-		}
-		if migrated {
-			log.Info("Successfully migrated ticket pool db from storm to badger DB.")
-		}
-	}
-
-	if _, err = os.Stat(oldDBPath); err == nil {
-		log.Infof("You may delete the old ticket pool DB file (%s).", oldDBPath)
-	}
-
 	// Load all diffs
 	log.Infof("Loading all ticket pool diffs...")
 	poolDiffs, err := LoadAllPoolDiffs(db)
@@ -206,67 +191,6 @@ func NewTicketPool(dataDir, dbSubDir string) (tp *TicketPool, err error) {
 		tip:    int64(len(poolDiffs)), // number of blocks connected over genesis
 		diffDB: db,
 	}, nil
-}
-
-// MigrateFromStorm attempts to load the storm DB specified by the given file
-// name, and migrate all ticket pool diffs to the badger db.
-func MigrateFromStorm(stormDBFile string, db *badger.DB) (bool, error) {
-	// Check for the storm DB file
-	finfo, err := os.Stat(stormDBFile)
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	if finfo.Size() == 0 {
-		return false, nil
-	}
-
-	// Open the storm DB file
-	dbOld, err := storm.Open(stormDBFile)
-	if err != nil {
-		return false, fmt.Errorf("failed storm.Open: %v", err)
-	}
-	defer dbOld.Close()
-
-	// Attempt to load the pool diffs for block 1
-	var blockOneDiffs PoolDiffDBItem
-	err = dbOld.One("Height", 1, &blockOneDiffs)
-	// If bucket or element with id 1 does not exist, not an error
-	if err == storm.ErrNotFound {
-		return false, nil
-	}
-	if err != nil {
-		return false, fmt.Errorf("failed to retrieve block one pool diff "+
-			"(delete storm db file and try again): %v", err)
-	}
-
-	log.Info("Found storm ticket pool DB. Attempting migration to badger.")
-
-	// Load all diffs from storm
-	log.Info("Loading all items from storm db...")
-	var poolDiffsItems []PoolDiffDBItem
-	err = dbOld.AllByIndex("Height", &poolDiffsItems)
-	if err != nil {
-		return false, fmt.Errorf("failed (*storm.DB).AllByIndex: %v", err)
-	}
-
-	poolDiffs := make([]*PoolDiff, 0, len(poolDiffsItems))
-	poolHeights := make([]int64, len(poolDiffsItems))
-	for i := range poolDiffsItems {
-		poolHeights[i] = poolDiffsItems[i].Height
-		poolDiffs = append(poolDiffs, &poolDiffsItems[i].PoolDiff)
-	}
-
-	// Store all diffs in badger
-	log.Info("Storing all items in badger db...")
-	err = storeDiffs(db, poolDiffs, poolHeights)
-	if err != nil {
-		return false, fmt.Errorf("failed to store diff in badger: %v", err)
-	}
-
-	return true, nil
 }
 
 // LoadAllPoolDiffs loads all found ticket pool diffs from badger DB.
@@ -451,7 +375,6 @@ func (tp *TicketPool) fetchDiff(height int64) (*PoolDiffDBItem, error) {
 		// Don't waste time with a copy since we are going to read the data in
 		// this transaction.
 		var hashReader bytes.Reader
-		//nolint:unparam
 		errTx = item.Value(func(v []byte) error {
 			hashReader.Reset(v)
 			return nil

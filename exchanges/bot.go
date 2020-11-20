@@ -1,4 +1,4 @@
-// Copyright (c) 2019, The Decred developers
+// Copyright (c) 2019-2020, The Decred developers
 // See LICENSE for details.
 
 package exchanges
@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrdata/dcrrates"
+	dcrrates "github.com/decred/dcrdata/exchanges/v3/ratesproto"
 	"google.golang.org/grpc"
 	credentials "google.golang.org/grpc/credentials"
 )

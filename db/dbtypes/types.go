@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // See LICENSE for details.
 
 package dbtypes
@@ -14,9 +14,10 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil/v2"
-	"github.com/decred/dcrdata/db/dbtypes/v2/internal"
-	"github.com/decred/dcrdata/txhelpers/v4"
+	"github.com/decred/dcrd/dcrutil/v3"
+
+	"github.com/decred/dcrdata/v6/db/dbtypes/internal"
+	"github.com/decred/dcrdata/v6/txhelpers"
 )
 
 var (

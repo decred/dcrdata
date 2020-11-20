@@ -1,4 +1,4 @@
-// Copyright (c) 2019, The Decred developers
+// Copyright (c) 2019-2020, The Decred developers
 // See LICENSE for details.
 
 package exchanges
@@ -20,7 +20,7 @@ import (
 	"decred.org/dcrdex/dex/msgjson"
 	"github.com/carterjones/signalr"
 	"github.com/carterjones/signalr/hubs"
-	"github.com/decred/dcrdata/dcrrates"
+	dcrrates "github.com/decred/dcrdata/exchanges/v3/ratesproto"
 )
 
 // Tokens. Used to identify the exchange.

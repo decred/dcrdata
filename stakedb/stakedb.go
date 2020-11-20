@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2018, The dcrdata developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
@@ -6,6 +6,7 @@
 package stakedb
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -13,16 +14,17 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/decred/dcrd/blockchain/stake/v2"
+	"github.com/decred/dcrd/blockchain/stake/v3"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/database/v2"
-	"github.com/decred/dcrd/dcrutil/v2"
-	"github.com/decred/dcrd/rpcclient/v5"
+	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/rpcclient/v6"
 	"github.com/decred/dcrd/wire"
-	apitypes "github.com/decred/dcrdata/api/types/v5"
-	"github.com/decred/dcrdata/rpcutils/v3"
-	"github.com/decred/dcrdata/txhelpers/v4"
+
+	apitypes "github.com/decred/dcrdata/v6/api/types"
+	"github.com/decred/dcrdata/v6/rpcutils"
+	"github.com/decred/dcrdata/v6/txhelpers"
 )
 
 // PoolInfoCache contains a map of block hashes to ticket pool info data at that
@@ -117,8 +119,6 @@ const (
 	DefaultStakeDbName = "stakenodes"
 	// DefaultTicketPoolDbFolder is the default name of the ticket pool database
 	DefaultTicketPoolDbFolder = "ticket_pool.bdgr"
-	// DefaultTicketPoolDbName is the default name of the old storm database
-	DefaultTicketPoolDbName = "ticket_pool.db"
 )
 
 // LoadAndRecover attempts to load the StakeDatabase and it's TicketPool,
@@ -339,13 +339,13 @@ func (db *StakeDatabase) PopulateLiveTicketCache() error {
 
 	// Send all the live ticket requests.
 	type promiseGetRawTransaction struct {
-		result rpcclient.FutureGetRawTransactionResult
+		result *rpcclient.FutureGetRawTransactionResult
 		ticket chainhash.Hash
 	}
 	promisesGetRawTransaction := make([]promiseGetRawTransaction, 0, len(liveTickets))
 	for i := range liveTickets {
 		promisesGetRawTransaction = append(promisesGetRawTransaction, promiseGetRawTransaction{
-			result: db.NodeClient.GetRawTransactionAsync(&liveTickets[i]),
+			result: db.NodeClient.GetRawTransactionAsync(context.TODO(), &liveTickets[i]),
 			ticket: liveTickets[i],
 		})
 	}
@@ -493,7 +493,7 @@ func (db *StakeDatabase) ForgetBlock(ind int64) {
 // ConnectBlockHash is a wrapper for ConnectBlock. For the input block hash, it
 // gets the block from the node RPC client and calls ConnectBlock.
 func (db *StakeDatabase) ConnectBlockHash(hash *chainhash.Hash) (*dcrutil.Block, error) {
-	msgBlock, err := db.NodeClient.GetBlock(hash)
+	msgBlock, err := db.NodeClient.GetBlock(context.TODO(), hash)
 	if err != nil {
 		return nil, err
 	}
@@ -618,7 +618,7 @@ func (db *StakeDatabase) applyDiff(poolDiff PoolDiff) {
 			continue
 		}
 
-		tx, err := db.NodeClient.GetRawTransaction(&hash)
+		tx, err := db.NodeClient.GetRawTransaction(context.TODO(), &hash)
 		if err != nil {
 			log.Errorf("Unable to get transaction %v: %v\n", hash, err)
 			continue
@@ -792,7 +792,7 @@ func (db *StakeDatabase) Open(dbName string) error {
 		stakeDBHeight := binary.LittleEndian.Uint32(v[offset : offset+4])
 
 		var errLocal error
-		msgBlock, errLocal := db.NodeClient.GetBlock(&stakeDBHash)
+		msgBlock, errLocal := db.NodeClient.GetBlock(context.TODO(), &stakeDBHash)
 		if errLocal != nil {
 			return fmt.Errorf("GetBlock failed (%s): %v", stakeDBHash, errLocal)
 		}
@@ -907,7 +907,7 @@ func (db *StakeDatabase) calcPoolInfo(liveTickets, winningTickets []chainhash.Ha
 	for _, hash := range liveTickets {
 		val, ok := db.liveTicketCache[hash]
 		if !ok {
-			tx, err := db.NodeClient.GetRawTransaction(&hash)
+			tx, err := db.NodeClient.GetRawTransaction(context.TODO(), &hash)
 			if err != nil {
 				log.Errorf("Unable to get transaction %v: %v\n", hash, err)
 				continue
@@ -962,7 +962,7 @@ func (db *StakeDatabase) PoolAtHeight(height int64) ([]chainhash.Hash, error) {
 
 // PoolAtHash gets the entire list of live tickets at the given block hash.
 func (db *StakeDatabase) PoolAtHash(hash chainhash.Hash) ([]chainhash.Hash, error) {
-	header, err := db.NodeClient.GetBlockHeader(&hash)
+	header, err := db.NodeClient.GetBlockHeader(context.TODO(), &hash)
 	if err != nil {
 		return nil, fmt.Errorf("GetBlockHeader failed: %v", err)
 	}
@@ -1004,7 +1004,7 @@ func (db *StakeDatabase) DBTipBlockHeader() (*wire.BlockHeader, error) {
 		return nil, err
 	}
 
-	return db.NodeClient.GetBlockHeader(hash)
+	return db.NodeClient.GetBlockHeader(context.TODO(), hash)
 }
 
 // DBPrevBlockHeader gets the block header for the previous best block in the
@@ -1016,12 +1016,12 @@ func (db *StakeDatabase) DBPrevBlockHeader() (*wire.BlockHeader, error) {
 		return nil, err
 	}
 
-	parentHeader, err := db.NodeClient.GetBlockHeader(hash)
+	parentHeader, err := db.NodeClient.GetBlockHeader(context.TODO(), hash)
 	if err != nil {
 		return nil, err
 	}
 
-	return db.NodeClient.GetBlockHeader(&parentHeader.PrevBlock)
+	return db.NodeClient.GetBlockHeader(context.TODO(), &parentHeader.PrevBlock)
 }
 
 // DBTipBlock gets the dcrutil.Block for the current best block in the stake
@@ -1045,7 +1045,7 @@ func (db *StakeDatabase) DBPrevBlock() (*dcrutil.Block, error) {
 		return nil, err
 	}
 
-	parentHeader, err := db.NodeClient.GetBlockHeader(hash)
+	parentHeader, err := db.NodeClient.GetBlockHeader(context.TODO(), hash)
 	if err != nil {
 		return nil, err
 	}
@@ -1060,7 +1060,7 @@ func (db *StakeDatabase) dbPrevBlock() (*dcrutil.Block, error) {
 		return nil, err
 	}
 
-	parentHeader, err := db.NodeClient.GetBlockHeader(hash)
+	parentHeader, err := db.NodeClient.GetBlockHeader(context.TODO(), hash)
 	if err != nil {
 		return nil, err
 	}
@@ -1069,7 +1069,7 @@ func (db *StakeDatabase) dbPrevBlock() (*dcrutil.Block, error) {
 }
 
 func (db *StakeDatabase) getBlock(hash *chainhash.Hash) (*dcrutil.Block, error) {
-	msgBlock, err := db.NodeClient.GetBlock(hash)
+	msgBlock, err := db.NodeClient.GetBlock(context.TODO(), hash)
 	if err == nil {
 		return dcrutil.NewBlock(msgBlock), nil
 	}

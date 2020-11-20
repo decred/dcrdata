@@ -1,3 +1,4 @@
+// Copyright (c) 2020, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 

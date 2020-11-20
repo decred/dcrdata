@@ -6,17 +6,20 @@
 package rpcutils
 
 import (
+	"context"
 	"os"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/rpcclient/v5"
+	"github.com/decred/dcrd/rpcclient/v6"
 	"github.com/decred/slog"
 )
 
-const (
+var (
+	noTLS    = false
+	certPath = "/home/dcrd/.dcrd/rpc.cert"
 	nodeUser = "jdcrd"
 	nodePass = "jdcrdx"
 )
@@ -49,8 +52,11 @@ func testCommonAncestorPositive(t *testing.T, client *rpcclient.Client, hashA, h
 	}
 }
 
+// TODO: update this for mainnet where blocks will always exist
+
+/*
 func TestCommonAncestorOnlineDifferentHeights(t *testing.T) {
-	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, "", true, false)
+	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, certPath, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +78,7 @@ func TestCommonAncestorOnlineDifferentHeights(t *testing.T) {
 }
 
 func TestCommonAncestorOnlineSameHeights(t *testing.T) {
-	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, "", true, false)
+	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, certPath, noTLS, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +96,7 @@ func TestCommonAncestorOnlineSameHeights(t *testing.T) {
 }
 
 func TestCommonAncestorOnlineSameHashes(t *testing.T) {
-	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, "", true, false)
+	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, certPath, noTLS, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +113,7 @@ func TestCommonAncestorOnlineSameHashes(t *testing.T) {
 }
 
 func TestCommonAncestorOnlineSharedBlock(t *testing.T) {
-	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, "", true, false)
+	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, certPath, noTLS, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +137,7 @@ func TestCommonAncestorOnlineSharedBlock(t *testing.T) {
 }
 
 func TestCommonAncestorOnlineGenesis(t *testing.T) {
-	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, "", true, false)
+	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, certPath, noTLS, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +176,7 @@ func TestCommonAncestorOnlineGenesis(t *testing.T) {
 }
 
 func TestCommonAncestorOnlineBadHash(t *testing.T) {
-	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, "", true, false)
+	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, certPath, noTLS, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +199,7 @@ func TestCommonAncestorOnlineBadHash(t *testing.T) {
 }
 
 func TestCommonAncestorOnlineTooLong(t *testing.T) {
-	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, "", true, false)
+	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, certPath, noTLS, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -214,9 +220,10 @@ func TestCommonAncestorOnlineTooLong(t *testing.T) {
 		t.Errorf("Invalid block hash should return nil chain slices.")
 	}
 }
+*/
 
 func TestSideChains(t *testing.T) {
-	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, "", true, false)
+	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, certPath, noTLS, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,8 +234,9 @@ func TestSideChains(t *testing.T) {
 	t.Logf("Tips: %v", tips)
 }
 
+/*
 func TestSideChainFull(t *testing.T) {
-	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, "", true, false)
+	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, certPath, noTLS, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -247,6 +255,7 @@ func TestSideChainFull(t *testing.T) {
 	}
 	t.Logf("Side chain: %v", sideChain)
 }
+*/
 
 func TestBlockPrefetchClient_GetBlockData(t *testing.T) {
 	backendLog := slog.NewBackend(os.Stdout)
@@ -254,26 +263,26 @@ func TestBlockPrefetchClient_GetBlockData(t *testing.T) {
 	//pfLogger.SetLevel(slog.LevelDebug)
 	UseLogger(pfLogger)
 
-	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, "", true)
+	client, _, err := ConnectNodeRPC("127.0.0.1:19109", nodeUser, nodePass, certPath, noTLS, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer client.Shutdown()
 
 	pf := NewBlockPrefetchClient(client)
-	bestHash, bestHeight, err := pf.GetBestBlock()
+	bestHash, bestHeight, err := pf.GetBestBlock(context.TODO())
 	if err != nil {
 		t.Fatalf("GetBestBlock: %v", err)
 	}
 	t.Logf("best block: hash=%v, height=%d", bestHash, bestHeight)
 
 	height := bestHeight - 1e3
-	bestHash, err = pf.GetBlockHash(height)
+	bestHash, err = pf.GetBlockHash(context.TODO(), height)
 	if err != nil {
 		t.Fatalf("GetBlockHash: %v", err)
 	}
 
-	msgBlock, headerResult, err := pf.GetBlockData(bestHash)
+	msgBlock, headerResult, err := pf.GetBlockData(context.TODO(), bestHash)
 	if err != nil {
 		t.Fatalf("GetBlockData: %v", err)
 	}
@@ -285,12 +294,12 @@ func TestBlockPrefetchClient_GetBlockData(t *testing.T) {
 
 	// another block
 	height++
-	bestHash, err = pf.GetBlockHash(height)
+	bestHash, err = pf.GetBlockHash(context.TODO(), height)
 	if err != nil {
 		t.Fatalf("GetBlockHash: %v", err)
 	}
 
-	msgBlock, headerResult, err = pf.GetBlockData(bestHash)
+	msgBlock, headerResult, err = pf.GetBlockData(context.TODO(), bestHash)
 	if err != nil {
 		t.Fatalf("GetBlockData: %v", err)
 	}
@@ -300,12 +309,12 @@ func TestBlockPrefetchClient_GetBlockData(t *testing.T) {
 
 	// another block
 	height++
-	bestHash, err = pf.GetBlockHash(height)
+	bestHash, err = pf.GetBlockHash(context.TODO(), height)
 	if err != nil {
 		t.Fatalf("GetBlockHash: %v", err)
 	}
 
-	msgBlock, headerResult, err = pf.GetBlockData(bestHash)
+	msgBlock, headerResult, err = pf.GetBlockData(context.TODO(), bestHash)
 	if err != nil {
 		t.Fatalf("GetBlockData: %v", err)
 	}
@@ -320,7 +329,7 @@ func TestBlockPrefetchClient_GetBlockData(t *testing.T) {
 		// hash (Hash) <- nextHash (string)
 		_ = chainhash.Decode(&hash, nextHash)
 
-		msgBlock, headerResult, err = pf.GetBlockData(&hash)
+		msgBlock, headerResult, err = pf.GetBlockData(context.TODO(), &hash)
 		if err != nil {
 			t.Logf("GetBestBlock: %v / %d", err, i)
 			break
