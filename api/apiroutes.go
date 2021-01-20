@@ -5,7 +5,6 @@
 package api
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/binary"
@@ -63,7 +62,7 @@ type DataSource interface {
 	TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) (
 		*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, int64, error)
 	AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error)
-	AddressTxIoCsv(address string) ([][]string, error)
+	AddressRowsCompact(address string) ([]*dbtypes.AddressRowCompact, error)
 	Height() int64
 	AllAgendas() (map[string]dbtypes.MileStone, error)
 	GetTicketInfo(txid string) (*apitypes.TicketInfo, error)
@@ -287,45 +286,6 @@ func writeJSONBytes(w http.ResponseWriter, data []byte) {
 	_, err := w.Write(data)
 	if err != nil {
 		apiLog.Warnf("ResponseWriter.Write error: %v", err)
-	}
-}
-
-// Measures length, sets common headers, formats, and sends CSV data.
-func writeCSV(w http.ResponseWriter, rows [][]string, filename string, useCRLF bool) {
-	w.Header().Set("Content-Disposition",
-		fmt.Sprintf("attachment;filename=%s", filename))
-	w.Header().Set("Content-Type", "text/csv")
-
-	// To set the Content-Length response header, it is necessary to write the
-	// CSV data into a buffer rather than streaming the response directly to the
-	// http.ResponseWriter.
-	buffer := new(bytes.Buffer)
-	writer := csv.NewWriter(buffer)
-	writer.UseCRLF = useCRLF
-	err := writer.WriteAll(rows)
-	if err != nil {
-		log.Errorf("Failed to write address rows to buffer: %v", err)
-		http.Error(w, http.StatusText(http.StatusInternalServerError),
-			http.StatusInternalServerError)
-		return
-	}
-
-	bytesToSend := int64(buffer.Len())
-	w.Header().Set("Content-Length", strconv.FormatInt(bytesToSend, 10))
-
-	bytesWritten, err := buffer.WriteTo(w)
-	if err != nil {
-		log.Errorf("Failed to transfer address rows from buffer. "+
-			"%d bytes written. %v", bytesWritten, err)
-		http.Error(w, http.StatusText(http.StatusInternalServerError),
-			http.StatusInternalServerError)
-		return
-	}
-
-	// Warn if the number of bytes sent differs from buffer length.
-	if bytesWritten != bytesToSend {
-		log.Warnf("Failed to send the entire file. Sent %d of %d bytes.",
-			bytesWritten, bytesToSend)
 	}
 }
 
@@ -1515,19 +1475,20 @@ func (c *appContext) addressExists(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, exists, m.GetIndentCtx(r))
 }
 
-// Handler for address activity CSV file download.
-// /download/address/io/{address}?cr=[true|false]
-func (c *appContext) addressIoCsv(w http.ResponseWriter, r *http.Request) {
-	// Check if ?cr=true was specified.
-	var useCRLF bool
-	if crlfParam := r.URL.Query().Get("cr"); crlfParam != "" {
-		b, err := strconv.ParseBool(crlfParam)
-		if err != nil {
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-			return
-		}
+func (c *appContext) addressIoCsvNoCR(w http.ResponseWriter, r *http.Request) {
+	c.addressIoCsv(false, w, r)
+}
+func (c *appContext) addressIoCsvCR(w http.ResponseWriter, r *http.Request) {
+	c.addressIoCsv(true, w, r)
+}
 
-		useCRLF = b
+// Handler for address activity CSV file download.
+// /download/address/io/{address}[/win]
+func (c *appContext) addressIoCsv(crlf bool, w http.ResponseWriter, r *http.Request) {
+	wf, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "unable to flush streamed data", http.StatusBadRequest)
+		return
 	}
 
 	addresses, err := m.GetAddressCtx(r, c.Params)
@@ -1544,7 +1505,11 @@ func (c *appContext) addressIoCsv(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := c.DataSource.AddressTxIoCsv(address)
+	// TODO: Improve the DB component also to avoid retrieving all row data
+	// and/or put a hard limit on the number of rows that can be retrieved.
+	// However it is a slice of pointers, and they are are also in the address
+	// cache and thus shared across calls to the same address.
+	rows, err := c.DataSource.AddressRowsCompact(address)
 	if err != nil {
 		log.Errorf("Failed to fetch AddressTxIoCsv: %v", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -1553,8 +1518,49 @@ func (c *appContext) addressIoCsv(w http.ResponseWriter, r *http.Request) {
 
 	filename := fmt.Sprintf("address-io-%s-%d-%s.csv", address,
 		c.Status.Height(), strconv.FormatInt(time.Now().Unix(), 10))
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment;filename=%s", filename))
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	writer := csv.NewWriter(w)
+	writer.UseCRLF = crlf
 
-	writeCSV(w, rows, filename, useCRLF)
+	err = writer.Write([]string{"tx_hash", "direction", "io_index",
+		"valid_mainchain", "value", "time_stamp", "tx_type", "matching_tx_hash"})
+	if err != nil {
+		return // too late to write an error code
+	}
+	writer.Flush()
+	wf.Flush()
+
+	var strValidMainchain, strDirection string
+	for _, r := range rows {
+		if r.ValidMainChain {
+			strValidMainchain = "1"
+		} else {
+			strValidMainchain = "0"
+		}
+		if r.IsFunding {
+			strDirection = "1"
+		} else {
+			strDirection = "-1"
+		}
+
+		err = writer.Write([]string{
+			r.TxHash.String(),
+			strDirection,
+			strconv.FormatUint(uint64(r.TxVinVoutIndex), 10),
+			strValidMainchain,
+			strconv.FormatFloat(dcrutil.Amount(r.Value).ToCoin(), 'f', -1, 64),
+			strconv.FormatInt(r.TxBlockTime, 10),
+			txhelpers.TxTypeToString(int(r.TxType)),
+			r.MatchingTxHash.String(),
+		})
+		if err != nil {
+			return // too late to write an error code
+		}
+		writer.Flush()
+		wf.Flush()
+	}
 }
 
 func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Request) {
