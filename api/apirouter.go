@@ -296,7 +296,10 @@ func NewFileRouter(app *appContext, useRealIP bool) fileMux {
 	mux.Route("/address", func(rd chi.Router) {
 		// Allow browser cache for 3 minutes.
 		rd.Use(m.CacheControl(180))
-		rd.With(m.AddressPathCtxN(1)).Get("/io/{address}", app.addressIoCsv)
+		// The carriage return option is handled on the path to facilitate more
+		// effective caching in downstream delivery.
+		rd.With(m.AddressPathCtxN(1)).Get("/io/{address}", app.addressIoCsvNoCR)
+		rd.With(m.AddressPathCtxN(1)).Get("/io/{address}/win", app.addressIoCsvCR)
 	})
 
 	return fileMux{mux}
