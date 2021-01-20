@@ -11,7 +11,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
-	"strconv"
 	"strings"
 	"time"
 
@@ -1859,7 +1858,8 @@ func RetrieveAllAddressTxns(ctx context.Context, db *sql.DB, address string) ([]
 }
 
 // RetrieveAllMainchainAddressTxns retrieves all non-merged and valid_mainchain
-// rows of the address table pertaining to the given address.
+// rows of the address table pertaining to the given address. For a limited
+// query, use RetrieveAddressTxns.
 func RetrieveAllMainchainAddressTxns(ctx context.Context, db *sql.DB, address string) ([]*dbtypes.AddressRow, error) {
 	rows, err := db.QueryContext(ctx, internal.SelectAddressAllMainchainByAddress, address)
 	if err != nil {
@@ -1872,7 +1872,8 @@ func RetrieveAllMainchainAddressTxns(ctx context.Context, db *sql.DB, address st
 
 // RetrieveAllAddressMergedTxns retrieves all merged rows of the address table
 // pertaining to the given address. Specify only valid_mainchain=true rows via
-// the onlyValidMainchain argument.
+// the onlyValidMainchain argument. For a limited query, use
+// RetrieveAddressMergedTxns.
 func RetrieveAllAddressMergedTxns(ctx context.Context, db *sql.DB, address string, onlyValidMainchain bool) ([]uint64, []*dbtypes.AddressRow, error) {
 	rows, err := db.QueryContext(ctx, internal.SelectAddressMergedViewAll, address)
 	if err != nil {
@@ -1937,57 +1938,6 @@ func retrieveAddressTxns(ctx context.Context, db *sql.DB, address string, N, off
 	default:
 		return scanAddressQueryRows(rows, queryType)
 	}
-}
-
-// retrieveAddressIoCsv grabs rows for an address and formats them as a 2-D
-// array of strings for CSV-formatting.
-func retrieveAddressIoCsv(ctx context.Context, db *sql.DB, address string) (csvRows [][]string, err error) {
-	dbRows, err := db.QueryContext(ctx, internal.SelectAddressCsvView, address)
-	if err != nil {
-		return nil, err
-	}
-	defer closeRows(dbRows)
-
-	var txHash, matchingTxHash, strValidMainchain, strDirection string
-	var validMainchain, isFunding bool
-	var value uint64
-	var ioIndex, txType int
-	var blockTime dbtypes.TimeDef
-
-	// header row
-	csvRows = append(csvRows, []string{"tx_hash", "direction", "io_index", "valid_mainchain", "value", "time_stamp", "tx_type", "matching_tx_hash"})
-
-	for dbRows.Next() {
-		err = dbRows.Scan(&txHash, &validMainchain, &matchingTxHash,
-			&value, &blockTime, &isFunding, &ioIndex, &txType)
-		if err != nil {
-			return nil, fmt.Errorf("retrieveAddressIoCsv Scan error: %v", err)
-		}
-
-		if validMainchain {
-			strValidMainchain = "1"
-		} else {
-			strValidMainchain = "0"
-		}
-
-		if isFunding {
-			strDirection = "1"
-		} else {
-			strDirection = "-1"
-		}
-
-		csvRows = append(csvRows, []string{
-			txHash,
-			strDirection,
-			strconv.Itoa(ioIndex),
-			strValidMainchain,
-			strconv.FormatFloat(dcrutil.Amount(value).ToCoin(), 'f', -1, 64),
-			strconv.FormatInt(blockTime.UNIX(), 10),
-			txhelpers.TxTypeToString(txType),
-			matchingTxHash,
-		})
-	}
-	return
 }
 
 func scanAddressMergedRows(rows *sql.Rows, addr string, queryType int, onlyValidMainchain bool) (addressRows []*dbtypes.AddressRow, err error) {
