@@ -251,7 +251,7 @@
         </div>
         <div class="d-flex align-items-center justify-content-between">
           {{- if gt $TxnCount 0}}
-          <a class="d-inline-block p-2 rounded download text-nowrap" href="/download/address/io/{{.Address}}{{if $.CRLFDownload}}?cr=true{{end}}" type="text/csv" download><span class="dcricon-download mx-1"></span> Download CSV</a>
+          <a class="d-inline-block p-2 rounded download text-nowrap" href="/download/address/io/{{.Address}}{{if $.CRLFDownload}}/win{{end}}" type="text/csv" download><span class="dcricon-download mx-1"></span> Download CSV</a>
           {{- end}}
           <span></span>{{/*This dummy span ensures left/right alignment of the buttons, even if one is hidden.*/}}
           <div class="d-flex flex-row">
