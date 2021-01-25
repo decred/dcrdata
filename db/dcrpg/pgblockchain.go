@@ -5474,7 +5474,7 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 			revocations = append(revocations, stx)
 
 		case stake.TxTypeTAdd, stake.TxTypeTSpend, stake.TxTypeTreasuryBase:
-			fmt.Printf("type %d: %v\n", ty, tx.Txid)
+			fmt.Printf("Treasury type %d: %v\n", ty, tx.Txid)
 			treasury = append(treasury, trimmedTxInfoFromMsgTx(tx, ticketPrice, msgTx, pgb.chainParams))
 		}
 	}
@@ -5654,8 +5654,7 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		Confirmations: txraw.Confirmations,
 		Time:          exptypes.NewTimeDefFromUNIX(txraw.Time),
 	}
-
-	fmt.Println(tx.Type)
+	// fmt.Println(tx.Type)
 
 	inputs := make([]exptypes.Vin, 0, len(txraw.Vin))
 	for i := range txraw.Vin {

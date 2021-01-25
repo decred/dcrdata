@@ -1007,7 +1007,10 @@ func MsgTxToHex(msgTx *wire.MsgTx) (string, error) {
 // DetermineTxTypeString returns a string representing the transaction type given
 // a wire.MsgTx struct
 func DetermineTxTypeString(msgTx *wire.MsgTx /* , treasuryActive bool */) string {
-	txType := stake.DetermineTxType(msgTx, true) // how do I know if treasury is active??
+	// We don't know treasure is active for this txn, but any MsgTx from dcrd is
+	// valid according to consensus at height of txn, so just detect new
+	// treasury types and new vote version with the extra output.
+	txType := stake.DetermineTxType(msgTx, true)
 	return TxTypeToString(int(txType))
 }
 
