@@ -1,6 +1,7 @@
 # Contributing
 
 ## Contents
+
 - [PR/Issues Naming Standard Format](#pr/issues-naming-standard-format)
 - [When to Search the Issue Tracker](#when-to-search-the-issue-tracker)
 - [When to Submit a New Issue](#when-to-submit-a-new-issue)
@@ -27,7 +28,6 @@ examples of valid PR/Issues naming formats:
 - views/home: data-type of size column needs to be "size" (PR)
 - db/dcrpg: Charts data updates could use incremental changes. (Issue)
 - doc/contributing.md: Updating the users contribution guidilines. (PR)
-
 
 ### When to Search the Issue Tracker
 
@@ -128,9 +128,7 @@ In the text editor, change the command from `pick` to `fixup` or `squash` for **
 commit message for everything, change the command from `pick` to `reword` on the top commit.
 It should look something like this before saving.
 
-
 ![alt text](https://i.imgur.com/fOtaYtb.png "Rebase commmit command guide")
-
 
 7. **If you have conflicts**, resolve them by iterating through the diffs one conflicting commit at a time.
 

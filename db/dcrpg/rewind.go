@@ -1,4 +1,4 @@
-// Copyright (c) 2019, The Decred developers
+// Copyright (c) 2019-2020, The Decred developers
 // See LICENSE for details.
 
 package dcrpg
@@ -43,8 +43,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/db/dcrpg/v5/internal"
+	"github.com/decred/dcrdata/db/dcrpg/v6/internal"
+	"github.com/decred/dcrdata/v6/db/dbtypes"
 )
 
 func deleteMissesForBlock(dbTx SqlExecutor, hash string) (rowsDeleted int64, err error) {

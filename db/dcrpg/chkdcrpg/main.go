@@ -1,4 +1,4 @@
-// Copyright (c) 2019, The Decred developers
+// Copyright (c) 2019-2020, The Decred developers
 // See LICENSE for details.
 
 package main
@@ -16,9 +16,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/decred/dcrdata/db/dcrpg/v5"
-	"github.com/decred/dcrdata/rpcutils/v3"
-	"github.com/decred/dcrdata/txhelpers/v4"
+	"github.com/decred/dcrdata/db/dcrpg/v6"
+	"github.com/decred/dcrdata/v6/rpcutils"
+	"github.com/decred/dcrdata/v6/txhelpers"
 )
 
 func mainCore(ctx context.Context) error {
@@ -75,7 +75,7 @@ func mainCore(ctx context.Context) error {
 		return fmt.Errorf("Unable to connect to RPC server: %v", err)
 	}
 
-	infoResult, err := client.GetInfo()
+	infoResult, err := client.GetInfo(ctx)
 	if err != nil {
 		return fmt.Errorf("GetInfo failed: %v", err)
 	}
@@ -113,7 +113,7 @@ func mainCore(ctx context.Context) error {
 	// log.Infof("Loaded StakeDatabase at height %d", stakeDBHeight)
 
 	if shutdownRequested(ctx) {
-		return fmt.Errorf("Shutdown requested.")
+		return fmt.Errorf("shutdown requested")
 	}
 
 	// Configure PostgreSQL ChainDB
@@ -124,12 +124,20 @@ func mainCore(ctx context.Context) error {
 		Pass:   cfg.DBPass,
 		DBName: cfg.DBName,
 	}
+	dbCfg := dcrpg.ChainDBCfg{
+		DBi:                  &dbi,
+		Params:               activeChain,
+		DevPrefetch:          false,
+		HidePGConfig:         cfg.HidePGConfig,
+		AddrCacheAddrCap:     1 << 10,
+		AddrCacheRowCap:      1 << 8,
+		AddrCacheUTXOByteCap: 1 << 8,
+	}
 
 	// Construct a ChainDB without a stakeDB to allow quick dropping of tables.
 	mpChecker := rpcutils.NewMempoolAddressChecker(client, activeChain)
 	var piParser dcrpg.ProposalsFetcher
-	db, err := dcrpg.NewChainDBWithCancel(ctx, &dbi, activeChain, nil, true, // nil => stakeDB
-		cfg.HidePGConfig, 0, mpChecker, piParser, client, func() {})
+	db, err := dcrpg.NewChainDBWithCancel(ctx, &dbCfg, nil, mpChecker, piParser, client, func() {})
 	if db != nil {
 		defer db.Close()
 	}
@@ -148,7 +156,7 @@ func mainCore(ctx context.Context) error {
 			for im, mi := range missingIndexes {
 				log.Warnf(` - Missing Index "%s": "%s"`, mi, descs[im])
 			}
-			return fmt.Errorf("Some table indexes not found!")
+			return fmt.Errorf("some table indexes not found")
 		}
 	}
 

@@ -1,10 +1,11 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -16,12 +17,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/rpcclient/v5"
-	"github.com/decred/dcrdata/db/dcrpg/v5"
-	"github.com/decred/dcrdata/rpcutils/v3"
-	"github.com/decred/dcrdata/stakedb/v3"
+	"github.com/decred/dcrd/rpcclient/v6"
 	"github.com/decred/slog"
 	"github.com/dmigwi/go-piparser/proposals"
+
+	"github.com/decred/dcrdata/db/dcrpg/v6"
+	"github.com/decred/dcrdata/v6/rpcutils"
+	"github.com/decred/dcrdata/v6/stakedb"
 )
 
 var (
@@ -98,7 +100,7 @@ func mainCore() error {
 		return err
 	}
 
-	infoResult, err := client.GetInfo()
+	infoResult, err := client.GetInfo(context.TODO())
 	if err != nil {
 		log.Errorf("GetInfo failed: %v", err)
 		return err
@@ -290,7 +292,7 @@ func mainCore() error {
 	defer speedReport()
 
 	// Get chain servers's best block
-	_, height, err := client.GetBestBlock()
+	_, height, err := client.GetBestBlock(context.TODO())
 	if err != nil {
 		return fmt.Errorf("GetBestBlock failed: %v", err)
 	}
@@ -372,7 +374,7 @@ func mainCore() error {
 		// totalSTxs += numSTx
 
 		// update height, the end condition for the loop
-		if _, height, err = client.GetBestBlock(); err != nil {
+		if _, height, err = client.GetBestBlock(context.TODO()); err != nil {
 			return fmt.Errorf("GetBestBlock failed: %v", err)
 		}
 	}

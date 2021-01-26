@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -7,8 +7,8 @@ package types
 import (
 	"encoding/json"
 
-	"github.com/decred/dcrd/dcrutil/v2"
-	"github.com/decred/dcrdata/db/dbtypes/v2"
+	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrdata/v6/db/dbtypes"
 )
 
 // SyncResponse contains sync status information.
@@ -122,21 +122,22 @@ type SpendByFundingHash struct {
 }
 
 type InsightTx struct {
-	Txid          string         `json:"txid,omitempty"`
-	Version       int32          `json:"version,omitempty"`
-	Locktime      uint32         `json:"locktime"`
-	IsCoinBase    bool           `json:"isCoinBase,omitempty"`
-	Vins          []*InsightVin  `json:"vin,omitempty"`
-	Vouts         []*InsightVout `json:"vout,omitempty"`
-	Blockhash     string         `json:"blockhash,omitempty"`
-	Blockheight   int64          `json:"blockheight"`
-	Confirmations int64          `json:"confirmations"`
-	Time          int64          `json:"time,omitempty"`
-	Blocktime     int64          `json:"blocktime,omitempty"`
-	ValueOut      float64        `json:"valueOut,omitempty"`
-	Size          uint32         `json:"size,omitempty"`
-	ValueIn       float64        `json:"valueIn,omitempty"`
-	Fees          float64        `json:"fees,omitempty"`
+	Txid           string         `json:"txid,omitempty"`
+	Version        int32          `json:"version,omitempty"`
+	Locktime       uint32         `json:"locktime"`
+	IsCoinBase     bool           `json:"isCoinBase,omitempty"`
+	IsTreasurybase bool           `json:"isTreasurybase,omitempty"`
+	Vins           []*InsightVin  `json:"vin,omitempty"`
+	Vouts          []*InsightVout `json:"vout,omitempty"`
+	Blockhash      string         `json:"blockhash,omitempty"`
+	Blockheight    int64          `json:"blockheight"`
+	Confirmations  int64          `json:"confirmations"`
+	Time           int64          `json:"time,omitempty"`
+	Blocktime      int64          `json:"blocktime,omitempty"`
+	ValueOut       float64        `json:"valueOut,omitempty"`
+	Size           uint32         `json:"size,omitempty"`
+	ValueIn        float64        `json:"valueIn,omitempty"`
+	Fees           float64        `json:"fees,omitempty"`
 }
 
 type InsightVin struct {

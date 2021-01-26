@@ -1,4 +1,4 @@
-// Copyright (c) 2019, The Decred developers
+// Copyright (c) 2019-2020, The Decred developers
 // See LICENSE for details.
 
 package dcrpg
@@ -7,7 +7,7 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/decred/dcrdata/db/dcrpg/v5/internal"
+	"github.com/decred/dcrdata/db/dcrpg/v6/internal"
 )
 
 // CheckUnmatchedSpending checks the addresses table for spending rows where the

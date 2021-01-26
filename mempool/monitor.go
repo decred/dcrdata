@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -11,15 +11,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/blockchain/stake/v2"
-	"github.com/decred/dcrd/blockchain/standalone"
+	"github.com/decred/dcrd/blockchain/stake/v3"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/chaincfg/v3"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	exptypes "github.com/decred/dcrdata/explorer/types/v2"
-	pstypes "github.com/decred/dcrdata/pubsub/types/v3"
-	"github.com/decred/dcrdata/txhelpers/v4"
-	humanize "github.com/dustin/go-humanize"
+
+	exptypes "github.com/decred/dcrdata/v6/explorer/types"
+	pstypes "github.com/decred/dcrdata/v6/pubsub/types"
+	"github.com/decred/dcrdata/v6/txhelpers"
 )
 
 // MempoolDataSaver is an interface for storing mempool data.
@@ -214,7 +213,7 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 
 	// If this is a vote, decode vote bits.
 	var voteInfo *exptypes.VoteInfo
-	if ok := stake.IsSSGen(msgTx); ok {
+	if ok := stake.IsSSGen(msgTx, true /* TODO treasuryEnabled */); ok {
 		validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, p.params)
 		if err != nil {
 			log.Debugf("Cannot get vote choices for %s", hash)
@@ -248,13 +247,13 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 		VinCount:  len(msgTx.TxIn),
 		VoutCount: len(msgTx.TxOut),
 		Vin:       exptypes.MsgTxMempoolInputs(msgTx),
-		Coinbase:  standalone.IsCoinBaseTx(msgTx),
-		Hash:      hash,
-		Time:      rawTx.Time,
-		Size:      int32(len(rawTx.Hex) / 2),
-		TotalOut:  txhelpers.TotalOutFromMsgTx(msgTx).ToCoin(),
-		Type:      txType,
-		VoteInfo:  voteInfo,
+		// Coinbase:  standalone.IsCoinBaseTx(msgTx, true), // we don't know the treasury agenda status, but coinbase isn't in mempool
+		Hash:     hash,
+		Time:     rawTx.Time,
+		Size:     int32(len(rawTx.Hex) / 2),
+		TotalOut: txhelpers.TotalOutFromMsgTx(msgTx).ToCoin(),
+		Type:     txType,
+		VoteInfo: voteInfo,
 	}
 
 	// Maintain a separate total that excludes votes for sidechain
@@ -264,7 +263,7 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 	// Add the tx to the appropriate tx slice in inventory and update
 	// the count for the transaction type.
 	switch tx.Type {
-	case "Ticket":
+	case "Ticket": // TODO: don't switch on string literals
 		p.inventory.InvStake[tx.Hash] = struct{}{}
 		p.inventory.Tickets = append([]exptypes.MempoolTx{tx}, p.inventory.Tickets...)
 		p.inventory.NumTickets++
@@ -309,6 +308,10 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 		p.inventory.Revocations = append([]exptypes.MempoolTx{tx}, p.inventory.Revocations...)
 		p.inventory.NumRevokes++
 		p.inventory.LikelyMineable.RevokeTotal += tx.TotalOut
+	case txhelpers.TxTypeToString(int(stake.TxTypeTSpend)), txhelpers.TxTypeToString(int(stake.TxTypeTAdd)),
+		txhelpers.TxTypeToString(int(stake.TxTypeTreasuryBase)):
+		p.inventory.InvStake[tx.Hash] = struct{}{}
+		// TODO TSpend and TAdd totals and txns
 	}
 
 	// Update latest transactions, popping the oldest transaction off
@@ -328,11 +331,11 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 	p.inventory.TotalSize += tx.Size
 	if likelyMineable {
 		p.inventory.LikelyMineable.Size += tx.Size
-		p.inventory.LikelyMineable.FormattedSize = humanize.Bytes(uint64(p.inventory.LikelyMineable.Size))
+		p.inventory.LikelyMineable.FormattedSize = exptypes.BytesString(uint64(p.inventory.LikelyMineable.Size))
 		p.inventory.LikelyMineable.Total += tx.TotalOut
 		p.inventory.LikelyMineable.Count++
 	}
-	p.inventory.FormattedTotalSize = humanize.Bytes(uint64(p.inventory.TotalSize))
+	p.inventory.FormattedTotalSize = exptypes.BytesString(uint64(p.inventory.TotalSize))
 	p.inventory.Unlock()
 	p.mtx.RUnlock()
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2019, The Decred developers
+// Copyright (c) 2019-2020, The Decred developers
 // See LICENSE for details.
 
 package mempool
@@ -8,7 +8,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	apitypes "github.com/decred/dcrdata/api/types/v5"
+	apitypes "github.com/decred/dcrdata/v6/api/types"
 )
 
 // MempoolInfo models basic data about the node's mempool

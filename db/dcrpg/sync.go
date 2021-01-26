@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/rpcutils/v3"
+	"github.com/decred/dcrdata/v6/db/dbtypes"
+	"github.com/decred/dcrdata/v6/rpcutils"
 )
 
 const (
@@ -185,7 +185,7 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		select {
 		case barLoad <- p:
 		default:
-			log.Debugf("(*ChainDB).SyncChainDB: barLoad chan closed or full. Halting sync progress updates.")
+			log.Debugf("(*ChainDB).SyncChainDB: barLoad chan full. Halting sync progress updates.")
 			barLoad = nil
 		}
 	}
@@ -199,7 +199,7 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		select {
 		case updateExplorer <- hash:
 		default:
-			log.Debugf("(*ChainDB).SyncChainDB: updateExplorer chan closed or full. Halting explorer updates.")
+			log.Debugf("(*ChainDB).SyncChainDB: updateExplorer chan full. Halting explorer updates.")
 			updateExplorer = nil
 		}
 	}
@@ -547,7 +547,7 @@ func (pgb *ChainDB) supplementUnknownTicketError(err error) error {
 	if ticketHash == nil {
 		return err
 	}
-	txraw, err1 := pgb.Client.GetRawTransactionVerbose(ticketHash)
+	txraw, err1 := pgb.Client.GetRawTransactionVerbose(context.TODO(), ticketHash)
 	if err1 != nil {
 		return err
 	}

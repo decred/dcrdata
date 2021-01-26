@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	pstypes "github.com/decred/dcrdata/pubsub/types/v3"
+	pstypes "github.com/decred/dcrdata/v6/pubsub/types"
 )
 
 var msgMempool5Latest = &pstypes.WebSocketMessage{

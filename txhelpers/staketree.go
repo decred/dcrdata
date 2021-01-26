@@ -1,16 +1,17 @@
 package txhelpers
 
 import (
+	"context"
 	"fmt"
 	"os"
 
-	"github.com/decred/dcrd/blockchain/stake/v2"
+	"github.com/decred/dcrd/blockchain/stake/v3"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/database/v2"
 	_ "github.com/decred/dcrd/database/v2/ffldb" // init the ffldb driver
-	"github.com/decred/dcrd/dcrutil/v2"
-	"github.com/decred/dcrd/rpcclient/v5"
+	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/rpcclient/v6"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -82,7 +83,7 @@ func BuildStakeTree(blocks map[int64]*dcrutil.Block, netParams *chaincfg.Params,
 				for _, hash := range liveTickets {
 					val, ok := liveTicketMap[hash]
 					if !ok {
-						tx, err := nodeClient.GetRawTransaction(&hash)
+						tx, err := nodeClient.GetRawTransaction(context.TODO(), &hash)
 						if err != nil {
 							fmt.Printf("Unable to get transaction %v: %v\n", hash, err)
 							continue
@@ -148,7 +149,7 @@ func TicketsInBlock(bl *dcrutil.Block) ([]chainhash.Hash, []*wire.MsgTx) {
 	tickets := make([]chainhash.Hash, 0)
 	ticketsMsgTx := make([]*wire.MsgTx, 0)
 	for _, stx := range bl.STransactions() {
-		if stake.DetermineTxType(stx.MsgTx()) == stake.TxTypeSStx {
+		if stake.IsSStx(stx.MsgTx()) {
 			h := stx.Hash()
 			tickets = append(tickets, *h)
 			ticketsMsgTx = append(ticketsMsgTx, stx.MsgTx())
@@ -163,7 +164,7 @@ func TicketTxnsInBlock(bl *dcrutil.Block) ([]chainhash.Hash, []*dcrutil.Tx) {
 	tickets := make([]chainhash.Hash, 0)
 	ticketTxns := make([]*dcrutil.Tx, 0)
 	for _, stx := range bl.STransactions() {
-		if stake.DetermineTxType(stx.MsgTx()) == stake.TxTypeSStx {
+		if stake.IsSStx(stx.MsgTx()) {
 			h := stx.Hash()
 			tickets = append(tickets, *h)
 			ticketTxns = append(ticketTxns, stx)
@@ -177,7 +178,7 @@ func TicketTxnsInBlock(bl *dcrutil.Block) ([]chainhash.Hash, []*dcrutil.Tx) {
 func TicketsSpentInBlock(bl *dcrutil.Block) []chainhash.Hash {
 	tickets := make([]chainhash.Hash, 0)
 	for _, stx := range bl.STransactions() {
-		if stake.DetermineTxType(stx.MsgTx()) == stake.TxTypeSSGen {
+		if stake.IsSSGen(stx.MsgTx(), true /* TODO treasuryEnabled */) {
 			// Hash of the original STtx
 			tickets = append(tickets, stx.MsgTx().TxIn[1].PreviousOutPoint.Hash)
 		}
@@ -190,7 +191,7 @@ func TicketsSpentInBlock(bl *dcrutil.Block) []chainhash.Hash {
 func VotesInBlock(bl *dcrutil.Block) []chainhash.Hash {
 	votes := make([]chainhash.Hash, 0)
 	for _, stx := range bl.STransactions() {
-		if stake.DetermineTxType(stx.MsgTx()) == stake.TxTypeSSGen {
+		if stake.IsSSGen(stx.MsgTx(), true /* TODO treasuryEnabled */) {
 			h := stx.Hash()
 			votes = append(votes, *h)
 		}
@@ -203,7 +204,7 @@ func VotesInBlock(bl *dcrutil.Block) []chainhash.Hash {
 func RevokedTicketsInBlock(bl *dcrutil.Block) []chainhash.Hash {
 	tickets := make([]chainhash.Hash, 0)
 	for _, stx := range bl.STransactions() {
-		if stake.DetermineTxType(stx.MsgTx()) == stake.TxTypeSSRtx {
+		if stake.IsSSRtx(stx.MsgTx()) {
 			tickets = append(tickets, stx.MsgTx().TxIn[0].PreviousOutPoint.Hash)
 		}
 	}

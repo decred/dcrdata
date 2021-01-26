@@ -14,17 +14,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/decred/dcrd/blockchain/stake/v2"
+	"github.com/decred/dcrd/blockchain/stake/v3"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/chaincfg/v2"
-	"github.com/decred/dcrd/dcrutil/v2"
-	"github.com/decred/dcrd/txscript/v2"
+	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
-	apitypes "github.com/decred/dcrdata/api/types/v5"
-	"github.com/decred/dcrdata/db/cache/v3"
-	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/db/dcrpg/v5/internal"
-	"github.com/decred/dcrdata/txhelpers/v4"
+
+	"github.com/decred/dcrdata/db/dcrpg/v6/internal"
+	apitypes "github.com/decred/dcrdata/v6/api/types"
+	"github.com/decred/dcrdata/v6/db/cache"
+	"github.com/decred/dcrdata/v6/db/dbtypes"
+	"github.com/decred/dcrdata/v6/txhelpers"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/lib/pq"
 )
@@ -547,10 +548,8 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked, 
 			if len(tx.Vouts[0].ScriptPubKeyData.Addresses) > 0 {
 				stakesubmissionAddress = tx.Vouts[0].ScriptPubKeyData.Addresses[0]
 			}
-			// scriptSubClass, _, _, _ := txscript.ExtractPkScriptAddrs(
-			// 	tx.Vouts[0].Version, tx.Vouts[0].ScriptPubKey[1:], chainParams)
-			scriptSubClass, _ := txscript.GetStakeOutSubclass(tx.Vouts[0].ScriptPubKey)
-			isMultisig = scriptSubClass == txscript.MultiSigTy
+			scriptSubClass, _ := txscript.GetStakeOutSubclass(tx.Vouts[0].ScriptPubKey, false) // only looking for multisig, so treasury types are irrelevant
+			isMultisig = scriptSubClass == txscript.MultiSigTy                                 // err return nonstandard, so false
 		}
 
 		price := dcrutil.Amount(tx.Vouts[0].Value).ToCoin()

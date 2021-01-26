@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/chaincfg/v2"
-	"github.com/decred/dcrdata/txhelpers/v4"
+	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrdata/v6/txhelpers"
 )
 
 var tempDir string

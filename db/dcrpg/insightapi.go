@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -9,13 +9,14 @@ import (
 	"sort"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrd/dcrutil/v3"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	apitypes "github.com/decred/dcrdata/api/types/v5"
-	"github.com/decred/dcrdata/db/cache/v3"
-	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/rpcutils/v3"
-	"github.com/decred/dcrdata/txhelpers/v4"
+
+	apitypes "github.com/decred/dcrdata/v6/api/types"
+	"github.com/decred/dcrdata/v6/db/cache"
+	"github.com/decred/dcrdata/v6/db/dbtypes"
+	"github.com/decred/dcrdata/v6/rpcutils"
+	"github.com/decred/dcrdata/v6/txhelpers"
 )
 
 // GetRawTransaction gets a chainjson.TxRawResult for the specified transaction
@@ -49,7 +50,7 @@ func (pgb *ChainDB) SendRawTransaction(txhex string) (string, error) {
 		log.Errorf("SendRawTransaction failed: could not decode hex")
 		return "", err
 	}
-	hash, err := pgb.Client.SendRawTransaction(msg, true)
+	hash, err := pgb.Client.SendRawTransaction(context.TODO(), msg, true)
 	if err != nil {
 		log.Errorf("SendRawTransaction failed: %v", err)
 		return "", err
@@ -138,7 +139,7 @@ func (pgb *ChainDB) InsightSearchRPCAddressTransactions(addr string, count,
 		return nil
 	}
 	prevVoutExtraData := true
-	txs, err := pgb.Client.SearchRawTransactionsVerbose(
+	txs, err := pgb.Client.SearchRawTransactionsVerbose(context.TODO(),
 		address, skip, count, prevVoutExtraData, true, nil)
 
 	if err != nil {

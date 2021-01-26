@@ -2,12 +2,8 @@ package types
 
 import (
 	"reflect"
-	"sync"
 	"testing"
 	"time"
-
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestTimeDefMarshal(t *testing.T) {
@@ -311,8 +307,66 @@ func TestDeepCopys(t *testing.T) {
 
 	mpi2 := mpi.DeepCopy()
 
-	copts := cmpopts.IgnoreTypes(sync.RWMutex{})
-	if !cmp.Equal(mpi, mpi2, copts) {
-		t.Errorf("MempoolInfo structs not equal: \n%s\n", cmp.Diff(mpi, mpi2, copts))
+	if !reflect.DeepEqual(mpi.MempoolShort, mpi2.MempoolShort) {
+		t.Errorf("MempoolShort structs not equal: %v\n\n%v\n", *mps, *mps2)
+	}
+	if !reflect.DeepEqual(mpi.Transactions, mpi2.Transactions) {
+		t.Errorf("Transactions slices not equal: %v\n\n%v\n", *mps, *mps2)
+	}
+	if !reflect.DeepEqual(mpi.Tickets, mpi2.Tickets) {
+		t.Errorf("Tickets slices not equal: %v\n\n%v\n", *mps, *mps2)
+	}
+	if !reflect.DeepEqual(mpi.Votes, mpi2.Votes) {
+		t.Errorf("Votes slices not equal: %v\n\n%v\n", *mps, *mps2)
+	}
+	if !reflect.DeepEqual(mpi.Revocations, mpi2.Revocations) {
+		t.Errorf("Revocations slices not equal: %v\n\n%v\n", *mps, *mps2)
+	}
+}
+
+func TestBytesString(t *testing.T) {
+	tests := []struct {
+		s    uint64
+		want string
+	}{
+		{
+			0,
+			"0 B",
+		},
+		{
+			1,
+			"1 B",
+		},
+		{
+			999,
+			"999 B",
+		},
+		{
+			1000,
+			"1.0 kB",
+		},
+		{
+			999_999,
+			"1000 kB",
+		},
+		{
+			1_000_000,
+			"1.0 MB",
+		},
+		{
+			1_200_000,
+			"1.2 MB",
+		},
+		{
+			1_000_000_000_000,
+			"1000 GB",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			if got := BytesString(tt.s); got != tt.want {
+				t.Errorf("bytesString() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

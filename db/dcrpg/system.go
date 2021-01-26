@@ -1,4 +1,4 @@
-// Copyright (c) 2019, The Decred developers
+// Copyright (c) 2019-2020, The Decred developers
 // See LICENSE for details.
 
 package dcrpg
@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/decred/dcrdata/db/dcrpg/v5/internal"
+	"github.com/decred/dcrdata/db/dcrpg/v6/internal"
 )
 
 // parseUnit is used to separate a "unit" from pg_settings such as "8kB" into a

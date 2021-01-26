@@ -7,8 +7,8 @@ import (
 	"database/sql"
 	"strings"
 
-	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/db/dcrpg/v5/internal"
+	"github.com/decred/dcrdata/db/dcrpg/v6/internal"
+	"github.com/decred/dcrdata/v6/db/dbtypes"
 )
 
 // indexingInfo defines a minimalistic structure used to append new indexes

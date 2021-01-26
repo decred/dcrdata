@@ -21,7 +21,7 @@
 #   utility is not used since 7za compression rates are slightly better even for
 #   the gz format.
 #
-# Copyright (c) 2018-2019, The Decred developers.
+# Copyright (c) 2018-2020, The Decred developers.
 # See LICENSE for details.
 
 REPO=`git rev-parse --show-toplevel 2> /dev/null`
@@ -38,13 +38,10 @@ fi
 
 set -e
 
-pushd $ROOT > /dev/null
-
-# Remove the old v3/v4 binaries to avoid confusion.
-rm -v -f v[[:digit:]]
+pushd $ROOT/cmd/dcrdata > /dev/null
 
 echo "Building the dcrdata binary..."
-GO111MODULE=on go build -v -o dcrdata
+GO111MODULE=on go build -v
 
 echo "Packaging static frontend assets..."
 npm clean-install

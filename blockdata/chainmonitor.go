@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -12,9 +12,10 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/txhelpers/v4"
+
+	"github.com/decred/dcrdata/v6/txhelpers"
 )
 
 // for getblock, ticketfeeinfo, estimatestakediff, etc.
@@ -40,7 +41,7 @@ func NewChainMonitor(ctx context.Context, collector *Collector, savers []BlockDa
 
 func (p *chainMonitor) collect(hash *chainhash.Hash) (*wire.MsgBlock, *BlockData, error) {
 	// getblock RPC
-	msgBlock, err := p.collector.dcrdChainSvr.GetBlock(hash)
+	msgBlock, err := p.collector.dcrdChainSvr.GetBlock(context.TODO(), hash)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get block %v: %v", hash, err)
 	}
@@ -50,7 +51,7 @@ func (p *chainMonitor) collect(hash *chainhash.Hash) (*wire.MsgBlock, *BlockData
 
 	// Get node's best block height to see if the block for which we are
 	// collecting data is the best block.
-	chainHeight, err := p.collector.dcrdChainSvr.GetBlockCount()
+	chainHeight, err := p.collector.dcrdChainSvr.GetBlockCount(context.TODO())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get chain height: %v", err)
 	}
@@ -114,7 +115,7 @@ func (p *chainMonitor) ConnectBlock(header *wire.BlockHeader) error {
 // *reorgDataSavers*.
 func (p *chainMonitor) ReorgHandler(reorg *txhelpers.ReorgData) error {
 	if reorg == nil {
-		return fmt.Errorf("nil reorg data received!")
+		return fmt.Errorf("nil reorg data received")
 	}
 
 	newHeight := reorg.NewChainHeight

@@ -3,8 +3,8 @@ package txhelpers
 import (
 	"testing"
 
+	"decred.org/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/wallet/v3/txrules"
 )
 
 func TestIsMixedSplitTx(t *testing.T) {

@@ -1,4 +1,4 @@
-// Copyright (c) 2019, The Decred developers
+// Copyright (c) 2019-2020, The Decred developers
 // See LICENSE for details.
 
 package exchanges
@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrdata/dcrrates"
+	dcrrates "github.com/decred/dcrdata/exchanges/v3/ratesproto"
 	"google.golang.org/grpc"
 	credentials "google.golang.org/grpc/credentials"
 )
@@ -865,7 +865,8 @@ func (bot *ExchangeBot) Conversion(dcrVal float64) *Conversion {
 			Index: xcState.BtcIndex,
 		}
 	}
-	return nil
+	// Haven't gotten data yet, but we're running.
+	return &Conversion{Value: 0, Index: DefaultCurrency}
 }
 
 // Fetch the pre-encoded JSON chart data from the cache, if it exists and is not

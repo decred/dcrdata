@@ -1,27 +1,27 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
 package mempool
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/blockchain/stake/v2"
-	"github.com/decred/dcrd/blockchain/standalone"
+	"github.com/decred/dcrd/blockchain/stake/v3"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/chaincfg/v2"
-	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/dcrutil/v3"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	"github.com/decred/dcrd/rpcclient/v5"
-	apitypes "github.com/decred/dcrdata/api/types/v5"
-	exptypes "github.com/decred/dcrdata/explorer/types/v2"
-	"github.com/decred/dcrdata/rpcutils/v3"
-	"github.com/decred/dcrdata/txhelpers/v4"
-	humanize "github.com/dustin/go-humanize"
+	"github.com/decred/dcrd/rpcclient/v6"
+
+	apitypes "github.com/decred/dcrdata/v6/api/types"
+	exptypes "github.com/decred/dcrdata/v6/explorer/types"
+	"github.com/decred/dcrdata/v6/rpcutils"
+	"github.com/decred/dcrdata/v6/txhelpers"
 )
 
 // MempoolDataCollector is used for retrieving and processing data from a chain
@@ -45,12 +45,12 @@ func NewMempoolDataCollector(dcrdChainSvr *rpcclient.Client, params *chaincfg.Pa
 // []exptypes.MempoolTx. See also ParseTxns, which may process this slice. A
 // fresh MempoolAddressStore and TxnsStore are also generated.
 func (t *MempoolDataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.MempoolAddressStore, txhelpers.TxnsStore, error) {
-	mempooltxs, err := t.dcrdChainSvr.GetRawMempoolVerbose(chainjson.GRMAll)
+	mempooltxs, err := t.dcrdChainSvr.GetRawMempoolVerbose(context.TODO(), chainjson.GRMAll)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("GetRawMempoolVerbose failed: %v", err)
 	}
 
-	blockHash, _, err := t.dcrdChainSvr.GetBestBlock()
+	blockHash, _, err := t.dcrdChainSvr.GetBestBlock(context.TODO())
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -102,7 +102,7 @@ func (t *MempoolDataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.Me
 		}
 
 		var voteInfo *exptypes.VoteInfo
-		if ok := stake.IsSSGen(msgTx); ok {
+		if ok := stake.IsSSGen(msgTx, true /* TODO treasuryEnabled */); ok {
 			validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, t.activeChain)
 			if err != nil {
 				log.Debugf("Cannot get vote choices for %s", hash)
@@ -136,13 +136,13 @@ func (t *MempoolDataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.Me
 			VinCount:  len(msgTx.TxIn),
 			VoutCount: len(msgTx.TxOut),
 			Vin:       exptypes.MsgTxMempoolInputs(msgTx),
-			Coinbase:  standalone.IsCoinBaseTx(msgTx),
-			Hash:      hashStr,
-			Time:      tx.Time,
-			Size:      tx.Size,
-			TotalOut:  totalOut,
-			Type:      txhelpers.DetermineTxTypeString(msgTx),
-			VoteInfo:  voteInfo,
+			// Coinbase:  standalone.IsCoinBaseTx(msgTx, true), // we don't know the treasury agenda status, but coinbase isn't in mempool
+			Hash:     hashStr,
+			Time:     tx.Time,
+			Size:     tx.Size,
+			TotalOut: totalOut,
+			Type:     txhelpers.DetermineTxTypeString(msgTx),
+			VoteInfo: voteInfo,
 		})
 	}
 
@@ -171,28 +171,28 @@ func (t *MempoolDataCollector) Collect() (*StakeData, []exptypes.MempoolTx, txhe
 
 	// Get a map of ticket hashes to getrawmempool results
 	// mempoolTickets[ticketHashes[0].String()].Fee
-	mempoolTickets, err := c.GetRawMempoolVerbose(chainjson.GRMTickets)
+	mempoolTickets, err := c.GetRawMempoolVerbose(context.TODO(), chainjson.GRMTickets)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
 
-	mempoolVotes, err := c.GetRawMempoolVerbose(chainjson.GRMVotes)
+	mempoolVotes, err := c.GetRawMempoolVerbose(context.TODO(), chainjson.GRMVotes)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
 	numVotes := len(mempoolVotes)
 
 	// Grab the current stake difficulty (ticket price).
-	stakeDiff, err := c.GetStakeDifficulty()
+	stakeDiff, err := c.GetStakeDifficulty(context.TODO())
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
 
-	hash, height, err := c.GetBestBlock()
+	hash, height, err := c.GetBestBlock(context.TODO())
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	header, err := c.GetBlockHeaderVerbose(hash)
+	header, err := c.GetBlockHeaderVerbose(context.TODO(), hash)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -200,7 +200,7 @@ func (t *MempoolDataCollector) Collect() (*StakeData, []exptypes.MempoolTx, txhe
 
 	// Fee info
 	var numFeeWindows, numFeeBlocks uint32 = 0, 0
-	feeInfo, err := c.TicketFeeInfo(&numFeeBlocks, &numFeeWindows)
+	feeInfo, err := c.TicketFeeInfo(context.TODO(), &numFeeBlocks, &numFeeWindows)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -340,10 +340,11 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 	votes := make([]exptypes.MempoolTx, 0)
 	revs := make([]exptypes.MempoolTx, 0)
 	regular := make([]exptypes.MempoolTx, 0)
+	// TODO treasury
 
 	// Transaction inventory.
 	invRegular := make(map[string]struct{})
-	invStake := make(map[string]struct{})
+	invStake := make(map[string]struct{}) // includes all treasure types, I believe
 
 	blockhash := lastBlock.Hash.String()
 	votingInfo := exptypes.NewVotingInfo(params.TicketsPerBlock)
@@ -363,7 +364,7 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 		likelyMineable = true
 		out, _ := dcrutil.NewAmount(tx.TotalOut) // 0 for invalid amounts
 		switch tx.Type {
-		case "Ticket":
+		case "Ticket": // TODO: don't switch on string literals
 			if _, found := invStake[tx.Hash]; found {
 				continue
 			}
@@ -403,6 +404,14 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 			revTotal += out
 			invStake[tx.Hash] = struct{}{}
 			revs = append(revs, tx)
+
+		case txhelpers.TxTypeToString(int(stake.TxTypeTSpend)), txhelpers.TxTypeToString(int(stake.TxTypeTAdd)),
+			txhelpers.TxTypeToString(int(stake.TxTypeTreasuryBase)):
+			if _, found := invStake[tx.Hash]; found {
+				continue
+			}
+			invStake[tx.Hash] = struct{}{}
+
 		default:
 			if _, found := invRegular[tx.Hash]; found {
 				continue
@@ -427,7 +436,7 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 	}
 
 	sort.Sort(exptypes.MPTxsByHeight(votes))
-	formattedSize := humanize.Bytes(uint64(totalSize))
+	formattedSize := exptypes.BytesString(uint64(totalSize))
 
 	// Store mempool data for template rendering
 	mpInfo := exptypes.MempoolInfo{
@@ -443,16 +452,18 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 			NumVotes:           len(votes),
 			NumRegular:         len(regular),
 			NumRevokes:         len(revs),
-			NumAll:             len(txs),
+			// TODO NumTreasury
+			NumAll: len(txs),
 			LikelyMineable: exptypes.LikelyMineable{
 				Total:         likelyTotal.ToCoin(),
 				Size:          likelySize,
-				FormattedSize: humanize.Bytes(uint64(likelySize)),
+				FormattedSize: exptypes.BytesString(uint64(likelySize)),
 				RegularTotal:  regularTotal.ToCoin(),
 				TicketTotal:   ticketTotal.ToCoin(),
 				VoteTotal:     voteTotal.ToCoin(),
 				RevokeTotal:   revTotal.ToCoin(),
-				Count:         numLikely,
+				// TODO TSpend/TAddTotal
+				Count: numLikely,
 			},
 			LatestTransactions: latest,
 			FormattedTotalSize: formattedSize,
@@ -465,6 +476,7 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 		Tickets:      tickets,
 		Votes:        votes,
 		Revocations:  revs,
+		// TODO TSpends/TAdds
 	}
 
 	return &mpInfo

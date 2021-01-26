@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -10,8 +10,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	exptypes "github.com/decred/dcrdata/explorer/types/v2"
-	pstypes "github.com/decred/dcrdata/pubsub/types/v3"
+	exptypes "github.com/decred/dcrdata/v6/explorer/types"
+	pstypes "github.com/decred/dcrdata/v6/pubsub/types"
 )
 
 type hubSpoke chan pstypes.HubMessage

@@ -1,4 +1,4 @@
-// Copyright (c) 2019, The Decred developers
+// Copyright (c) 2019-2020, The Decred developers
 // See LICENSE for details.
 
 package main
@@ -10,14 +10,15 @@ import (
 	"os"
 	"time"
 
-	"github.com/decred/dcrd/chaincfg/v2"
-	"github.com/decred/dcrd/dcrutil/v2"
-	exptypes "github.com/decred/dcrdata/explorer/types/v2"
-	pstypes "github.com/decred/dcrdata/pubsub/types/v3"
-	"github.com/decred/dcrdata/pubsub/v4/psclient"
-	"github.com/decred/dcrdata/semver"
+	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/slog"
 	survey "gopkg.in/AlecAivazis/survey.v1"
+
+	exptypes "github.com/decred/dcrdata/v6/explorer/types"
+	"github.com/decred/dcrdata/v6/pubsub/psclient"
+	pstypes "github.com/decred/dcrdata/v6/pubsub/types"
+	"github.com/decred/dcrdata/v6/semver"
 )
 
 var cfg *config

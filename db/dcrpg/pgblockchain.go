@@ -19,28 +19,29 @@ import (
 	"sync/atomic"
 	"time"
 
+	"decred.org/dcrwallet/wallet/txrules"
 	"github.com/chappjc/trylock"
-	"github.com/decred/dcrd/blockchain/stake/v2"
+	"github.com/decred/dcrd/blockchain/stake/v3"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/chaincfg/v2"
-	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/dcrutil/v3"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	"github.com/decred/dcrd/rpcclient/v5"
+	"github.com/decred/dcrd/rpcclient/v6"
 	"github.com/decred/dcrd/wire"
-	apitypes "github.com/decred/dcrdata/api/types/v5"
-	"github.com/decred/dcrdata/blockdata/v5"
-	"github.com/decred/dcrdata/db/cache/v3"
-	"github.com/decred/dcrdata/db/dbtypes/v2"
-	"github.com/decred/dcrdata/db/dcrpg/v5/internal"
-	exptypes "github.com/decred/dcrdata/explorer/types/v2"
-	"github.com/decred/dcrdata/mempool/v5"
-	"github.com/decred/dcrdata/rpcutils/v3"
-	"github.com/decred/dcrdata/stakedb/v3"
-	"github.com/decred/dcrdata/txhelpers/v4"
-	"github.com/decred/dcrwallet/wallet/v3/txrules"
 	pitypes "github.com/dmigwi/go-piparser/proposals/types"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/lib/pq"
+
+	"github.com/decred/dcrdata/db/dcrpg/v6/internal"
+	apitypes "github.com/decred/dcrdata/v6/api/types"
+	"github.com/decred/dcrdata/v6/blockdata"
+	"github.com/decred/dcrdata/v6/db/cache"
+	"github.com/decred/dcrdata/v6/db/dbtypes"
+	exptypes "github.com/decred/dcrdata/v6/explorer/types"
+	"github.com/decred/dcrdata/v6/mempool"
+	"github.com/decred/dcrdata/v6/rpcutils"
+	"github.com/decred/dcrdata/v6/stakedb"
+	"github.com/decred/dcrdata/v6/txhelpers"
 )
 
 var (
@@ -247,7 +248,7 @@ type BlockGetter interface {
 	rpcutils.BlockFetcher
 
 	// GetBlockChainInfo is required for a legacy upgrade involving agendas.
-	GetBlockChainInfo() (*chainjson.GetBlockChainInfoResult, error)
+	GetBlockChainInfo(ctx context.Context) (*chainjson.GetBlockChainInfoResult, error)
 }
 
 // ChainDB provides an interface for storing and manipulating extracted
@@ -4693,7 +4694,7 @@ func (pgb *ChainDB) GetPool(idx int64) ([]string, error) {
 // CurrentCoinSupply gets the current coin supply as an *apitypes.CoinSupply,
 // which additionally contains block info and max supply.
 func (pgb *ChainDB) CurrentCoinSupply() (supply *apitypes.CoinSupply) {
-	coinSupply, err := pgb.Client.GetCoinSupply()
+	coinSupply, err := pgb.Client.GetCoinSupply(context.TODO())
 	if err != nil {
 		log.Errorf("RPC failure (GetCoinSupply): %v", err)
 		return
@@ -4717,7 +4718,7 @@ func (pgb *ChainDB) GetBlockByHash(hash string) (*wire.MsgBlock, error) {
 		log.Errorf("Invalid block hash %s", hash)
 		return nil, err
 	}
-	return pgb.Client.GetBlock(blockHash)
+	return pgb.Client.GetBlock(context.TODO(), blockHash)
 }
 
 // GetHeader fetches the *chainjson.GetBlockHeaderVerboseResult for a given
@@ -4734,7 +4735,7 @@ func (pgb *ChainDB) GetBlockHeaderByHash(hash string) (*wire.BlockHeader, error)
 		log.Errorf("Invalid block hash %s", hash)
 		return nil, err
 	}
-	return pgb.Client.GetBlockHeader(blockHash)
+	return pgb.Client.GetBlockHeader(context.TODO(), blockHash)
 }
 
 // GetRawAPITransaction gets an *apitypes.Tx for a given transaction ID.
@@ -4774,7 +4775,7 @@ func (pgb *ChainDB) GetTrimmedTransaction(txid *chainhash.Hash) *apitypes.Trimme
 // the Choices field of VoteInfo may be a nil slice even if the votebits were
 // set for a previously-valid agenda.
 func (pgb *ChainDB) GetVoteInfo(txhash *chainhash.Hash) (*apitypes.VoteInfo, error) {
-	tx, err := pgb.Client.GetRawTransaction(txhash)
+	tx, err := pgb.Client.GetRawTransaction(context.TODO(), txhash)
 	if err != nil {
 		log.Errorf("GetRawTransaction failed for: %v", txhash)
 		return nil, nil
@@ -4799,14 +4800,14 @@ func (pgb *ChainDB) GetVoteInfo(txhash *chainhash.Hash) (*apitypes.VoteInfo, err
 
 // GetVoteVersionInfo requests stake version info from the dcrd RPC server
 func (pgb *ChainDB) GetVoteVersionInfo(ver uint32) (*chainjson.GetVoteInfoResult, error) {
-	return pgb.Client.GetVoteInfo(ver)
+	return pgb.Client.GetVoteInfo(context.TODO(), ver)
 }
 
 // GetStakeVersions requests the output of the getstakeversions RPC, which gets
 // stake version information and individual vote version information starting at the
 // given block and for count-1 blocks prior.
 func (pgb *ChainDB) GetStakeVersions(blockHash string, count int32) (*chainjson.GetStakeVersionsResult, error) {
-	return pgb.Client.GetStakeVersions(blockHash, count)
+	return pgb.Client.GetStakeVersions(context.TODO(), blockHash, count)
 }
 
 // GetStakeVersionsLatest requests the output of the getstakeversions RPC for
@@ -4824,7 +4825,7 @@ func (pgb *ChainDB) GetStakeVersionsLatest() (*chainjson.StakeVersions, error) {
 // GetAllTxIn gets all transaction inputs, as a slice of *apitypes.TxIn, for a
 // given transaction ID.
 func (pgb *ChainDB) GetAllTxIn(txid *chainhash.Hash) []*apitypes.TxIn {
-	tx, err := pgb.Client.GetRawTransaction(txid)
+	tx, err := pgb.Client.GetRawTransaction(context.TODO(), txid)
 	if err != nil {
 		log.Errorf("Unknown transaction %s", txid)
 		return nil
@@ -4854,7 +4855,7 @@ func (pgb *ChainDB) GetAllTxIn(txid *chainhash.Hash) []*apitypes.TxIn {
 // GetAllTxOut gets all transaction outputs, as a slice of *apitypes.TxOut, for
 // a given transaction ID.
 func (pgb *ChainDB) GetAllTxOut(txid *chainhash.Hash) []*apitypes.TxOut {
-	tx, err := pgb.Client.GetRawTransactionVerbose(txid)
+	tx, err := pgb.Client.GetRawTransactionVerbose(context.TODO(), txid)
 	if err != nil {
 		log.Warnf("Unknown transaction %s", txid)
 		return nil
@@ -4994,13 +4995,15 @@ func (pgb *ChainDB) GetSummaryByHash(hash string, withTxTotals bool) *apitypes.B
 
 		var totalFees, totalOut dcrutil.Amount
 		for i := range data.RawTx {
-			msgTx, err := txhelpers.MsgTxFromHex(data.RawTx[i].Hex)
+			rawTx := &data.RawTx[i]
+			msgTx, err := txhelpers.MsgTxFromHex(rawTx.Hex)
 			if err != nil {
 				log.Errorf("Unable to decode transaction: %v", err)
 				return nil
 			}
 			// Do not compute fee for coinbase transaction.
-			if !data.RawTx[i].Vin[0].IsCoinBase() {
+			prev := rawTx.Vin[0].Txid
+			if i == 0 && prev == "" || txhelpers.IsZeroHashStr(prev) {
 				fee, _ := txhelpers.TxFeeRate(msgTx)
 				totalFees += fee
 			}
@@ -5218,7 +5221,7 @@ func (pgb *ChainDB) GetAddressTransactionsRawWithSkip(addr string, count int, sk
 		log.Infof("Invalid address %s: %v", addr, err)
 		return nil
 	}
-	txs, err := pgb.Client.SearchRawTransactionsVerbose(address, skip, count, true, true, nil)
+	txs, err := pgb.Client.SearchRawTransactionsVerbose(context.TODO(), address, skip, count, true, true, nil)
 	if err != nil {
 		if strings.Contains(err.Error(), "No Txns available") {
 			return make([]*apitypes.AddressTxRaw, 0)
@@ -5326,13 +5329,20 @@ func makeExplorerTxBasic(data chainjson.TxRawResult, ticketPrice int64, msgTx *w
 	tx.FormattedSize = humanize.Bytes(uint64(len(data.Hex) / 2))
 	tx.Total = txhelpers.TotalVout(data.Vout).ToCoin()
 	tx.Fee, tx.FeeRate = txhelpers.TxFeeRate(msgTx)
-	for _, i := range data.Vin {
-		if i.IsCoinBase() /* not IsStakeBase */ {
-			tx.Coinbase = true
-			tx.Fee, tx.FeeRate = 0, 0
-		}
+
+	v0 := &data.Vin[0]
+	switch {
+	case v0.IsCoinBase():
+		tx.Fee, tx.FeeRate = 0, 0
+		tx.Coinbase = true
+	case v0.IsTreasurySpend():
+		fmt.Printf("treasury spend: %v\n", data.Txid)
+	case v0.Treasurybase:
+		tx.Treasurybase = true
 	}
-	if stake.IsSSGen(msgTx) {
+
+	switch stake.DetermineTxType(msgTx, true /* TODO treasuryEnabled */) {
+	case stake.TxTypeSSGen:
 		validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, params)
 		if err != nil {
 			log.Debugf("Cannot get vote choices for %s", tx.TxID)
@@ -5348,7 +5358,7 @@ func makeExplorerTxBasic(data chainjson.TxRawResult, ticketPrice int64, msgTx *w
 			Bits:    bits,
 			Choices: choices,
 		}
-	} else if !txhelpers.IsStakeTx(msgTx) {
+	case stake.TxTypeRegular:
 		_, mixDenom, mixCount := txhelpers.IsMixTx(msgTx)
 		if mixCount == 0 {
 			_, mixDenom, mixCount = txhelpers.IsMixedSplitTx(msgTx, int64(txrules.DefaultRelayFeePerKb), ticketPrice)
@@ -5356,6 +5366,7 @@ func makeExplorerTxBasic(data chainjson.TxRawResult, ticketPrice int64, msgTx *w
 		tx.MixCount = mixCount
 		tx.MixDenom = mixDenom
 	}
+
 	return tx
 }
 
@@ -5380,7 +5391,7 @@ func trimmedTxInfoFromMsgTx(txraw chainjson.TxRawResult, ticketPrice int64, msgT
 // BlockSubsidy gets the *chainjson.GetBlockSubsidyResult for the given height
 // and number of voters, which can be fewer than the network parameter allows.
 func (pgb *ChainDB) BlockSubsidy(height int64, voters uint16) *chainjson.GetBlockSubsidyResult {
-	blockSubsidy, err := pgb.Client.GetBlockSubsidy(height, voters)
+	blockSubsidy, err := pgb.Client.GetBlockSubsidy(context.TODO(), height, voters)
 	if err != nil {
 		return nil
 	}
@@ -5432,6 +5443,8 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 	votes := make([]*exptypes.TrimmedTxInfo, 0, block.Voters)
 	revocations := make([]*exptypes.TrimmedTxInfo, 0, block.Revocations)
 	tickets := make([]*exptypes.TrimmedTxInfo, 0, block.FreshStake)
+	// TODO: individual treasury types (tspend, tadd, treasurybase)
+	var treasury []*exptypes.TrimmedTxInfo
 
 	sbits, _ := dcrutil.NewAmount(block.SBits) // sbits==0 for err!=nil
 	ticketPrice := int64(sbits)
@@ -5442,7 +5455,7 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 			log.Errorf("Unknown transaction %s: %v", tx.Txid, err)
 			return nil
 		}
-		switch stake.DetermineTxType(msgTx) {
+		switch ty := stake.DetermineTxType(msgTx, true); ty { // TODO *actual* treasury active for this block, but we know this is the stake tree
 		case stake.TxTypeSSGen:
 			stx := trimmedTxInfoFromMsgTx(tx, ticketPrice, msgTx, pgb.chainParams)
 			// Fees for votes should be zero, but if the transaction was created
@@ -5459,6 +5472,10 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 		case stake.TxTypeSSRtx:
 			stx := trimmedTxInfoFromMsgTx(tx, ticketPrice, msgTx, pgb.chainParams)
 			revocations = append(revocations, stx)
+
+		case stake.TxTypeTAdd, stake.TxTypeTSpend, stake.TxTypeTreasuryBase:
+			fmt.Printf("Treasury type %d: %v\n", ty, tx.Txid)
+			treasury = append(treasury, trimmedTxInfoFromMsgTx(tx, ticketPrice, msgTx, pgb.chainParams))
 		}
 	}
 
@@ -5472,9 +5489,9 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 			return nil
 		}
 
-		exptx := trimmedTxInfoFromMsgTx(tx, ticketPrice, msgTx, pgb.chainParams)
-		for _, vin := range tx.Vin {
-			if vin.IsCoinBase() {
+		exptx := trimmedTxInfoFromMsgTx(tx, ticketPrice, msgTx, pgb.chainParams) // maybe pass tree
+		for i := range tx.Vin {
+			if tx.Vin[i].IsCoinBase() {
 				exptx.Fee, exptx.FeeRate, exptx.Fees = 0.0, 0.0, 0.0
 			}
 		}
@@ -5483,6 +5500,7 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 	}
 
 	block.Tx = txs
+	block.Treasury = treasury
 	block.Votes = votes
 	block.Revs = revocations
 	block.Tickets = tickets
@@ -5495,6 +5513,7 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 	}
 
 	sortTx(block.Tx)
+	sortTx(block.Treasury)
 	sortTx(block.Votes)
 	sortTx(block.Revs)
 	sortTx(block.Tickets)
@@ -5509,7 +5528,7 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 				continue
 			}
 			if tx.Fee < 0 {
-				log.Warnf("Negative fees should not happen! %v", tx.Fee)
+				log.Warnf("Negative fees should not happen! %v, %v", tx.TxID, tx.Fee)
 			}
 			total += tx.Fee
 		}
@@ -5525,9 +5544,9 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 		}
 		return
 	}
-	block.TotalSent = (getTotalSent(block.Tx) + getTotalSent(block.Revs) +
+	block.TotalSent = (getTotalSent(block.Tx) + getTotalSent(block.Treasury) + getTotalSent(block.Revs) +
 		getTotalSent(block.Tickets) + getTotalSent(block.Votes)).ToCoin()
-	block.MiningFee = (getTotalFee(block.Tx) + getTotalFee(block.Revs) +
+	block.MiningFee = (getTotalFee(block.Tx) + getTotalFee(block.Treasury) + getTotalFee(block.Revs) +
 		getTotalFee(block.Tickets) + getTotalFee(block.Votes)).ToCoin()
 
 	pgb.lastExplorerBlock.Lock()
@@ -5565,7 +5584,7 @@ func (pgb *ChainDB) txWithTicketPrice(txhash *chainhash.Hash) (*chainjson.TxRawR
 	// If the transaction is unconfirmed, the RPC client must provide the ticket
 	// price. Ensure the best block does not change between calls to
 	// getrawtransaction and getstakedifficulty.
-	blockHash, _, err := pgb.Client.GetBestBlock()
+	blockHash, _, err := pgb.Client.GetBestBlock(context.TODO())
 	if err != nil {
 		return nil, 0, fmt.Errorf("GetBestBlock failed: %v", err)
 	}
@@ -5573,7 +5592,7 @@ func (pgb *ChainDB) txWithTicketPrice(txhash *chainhash.Hash) (*chainjson.TxRawR
 	var txraw *chainjson.TxRawResult
 	var ticketPrice int64
 	for {
-		txraw, err = pgb.Client.GetRawTransactionVerbose(txhash)
+		txraw, err = pgb.Client.GetRawTransactionVerbose(context.TODO(), txhash)
 		if err != nil {
 			return nil, 0, fmt.Errorf("GetRawTransactionVerbose failed for %v: %v", txhash, err)
 		}
@@ -5582,12 +5601,12 @@ func (pgb *ChainDB) txWithTicketPrice(txhash *chainhash.Hash) (*chainjson.TxRawR
 			return txraw, pgb.GetSBitsByHash(txraw.BlockHash), nil
 		}
 
-		sdiffRes, err := pgb.Client.GetStakeDifficulty()
+		sdiffRes, err := pgb.Client.GetStakeDifficulty(context.TODO())
 		if err != nil {
 			return nil, 0, fmt.Errorf("GetStakeDifficulty failed: %v", err)
 		}
 
-		blockHash1, _, err := pgb.Client.GetBestBlock()
+		blockHash1, _, err := pgb.Client.GetBestBlock(context.TODO())
 		if err != nil {
 			return nil, 0, fmt.Errorf("GetBestBlock failed: %v", err)
 		}
@@ -5635,9 +5654,11 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		Confirmations: txraw.Confirmations,
 		Time:          exptypes.NewTimeDefFromUNIX(txraw.Time),
 	}
+	// fmt.Println(tx.Type)
 
 	inputs := make([]exptypes.Vin, 0, len(txraw.Vin))
-	for i, vin := range txraw.Vin {
+	for i := range txraw.Vin {
+		vin := &txraw.Vin[i]
 		// The addresses are may only be obtained by decoding the previous
 		// output's pkscript.
 		var addresses []string
@@ -5646,12 +5667,13 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		valueIn, _ := dcrutil.NewAmount(vin.AmountIn)
 		// Do not attempt to look up prevout if it is a coinbase or stakebase
 		// input, which does not spend a previous output.
-		if !(vin.IsCoinBase() || (vin.IsStakeBase() && i == 0)) {
+		prevOut := &msgTx.TxIn[i].PreviousOutPoint
+		if !txhelpers.IsZeroHash(prevOut.Hash) {
 			// Store the vin amount for comparison.
 			valueIn0 := valueIn
 
 			addresses, valueIn, err = txhelpers.OutPointAddresses(
-				&msgTx.TxIn[i].PreviousOutPoint, pgb.Client, pgb.chainParams)
+				prevOut, pgb.Client, pgb.chainParams)
 			if err != nil {
 				log.Warnf("Failed to get outpoint address from txid: %v", err)
 				continue
@@ -5668,12 +5690,12 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		// (height 0 for an input that is not a coinbase or stakebase),
 		// determine the height at which the input was generated via RPC.
 		if tx.BlockHeight == 0 && vin.BlockHeight == 0 &&
-			!txhelpers.IsZeroHashStr(vin.Txid) {
+			!txhelpers.IsZeroHashStr(vin.Txid) && vin.Txid != "" {
 			vinHash, err := chainhash.NewHashFromStr(vin.Txid)
 			if err != nil {
 				log.Errorf("Failed to translate hash from string: %s", vin.Txid)
 			} else {
-				prevTx, err := pgb.Client.GetRawTransactionVerbose(vinHash)
+				prevTx, err := pgb.Client.GetRawTransactionVerbose(context.TODO(), vinHash)
 				if err == nil {
 					vin.BlockHeight = uint32(prevTx.BlockHeight)
 				} else {
@@ -5686,9 +5708,10 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		coinIn := valueIn.ToCoin()
 		inputs = append(inputs, exptypes.Vin{
 			Vin: &chainjson.Vin{
-				Txid:        vin.Txid,
-				Coinbase:    vin.Coinbase,
-				Stakebase:   vin.Stakebase,
+				Txid:      vin.Txid,
+				Coinbase:  vin.Coinbase,
+				Stakebase: vin.Stakebase,
+				// TODO: Treasurybase bool
 				Vout:        vin.Vout,
 				AmountIn:    coinIn,
 				BlockHeight: vin.BlockHeight,
@@ -5700,9 +5723,7 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 	}
 	tx.Vin = inputs
 
-	if tx.Vin[0].IsCoinBase() {
-		tx.Type = exptypes.CoinbaseTypeStr
-	}
+	// TODO: treasury txn maturity
 	if tx.Type == exptypes.CoinbaseTypeStr || tx.IsRevocation() {
 		if tx.Confirmations < int64(pgb.chainParams.CoinbaseMaturity) {
 			tx.Mature = "False"
@@ -5735,7 +5756,7 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 
 	outputs := make([]exptypes.Vout, 0, len(txraw.Vout))
 	for i, vout := range txraw.Vout {
-		txout, err := pgb.Client.GetTxOut(txhash, uint32(i), true)
+		txout, err := pgb.Client.GetTxOut(context.TODO(), txhash, uint32(i), true)
 		if err != nil {
 			log.Warnf("Failed to determine if tx out is spent for output %d of tx %s", i, txid)
 		}
@@ -5829,7 +5850,7 @@ func (pgb *ChainDB) GetExplorerAddress(address string, count, offset int64) (*db
 		return nil, addrType, addrErr
 	}
 
-	txs, err := pgb.Client.SearchRawTransactionsVerbose(addr,
+	txs, err := pgb.Client.SearchRawTransactionsVerbose(context.TODO(), addr,
 		int(offset), int(MaxAddressRows), true, true, nil)
 	if err != nil {
 		if err.Error() == "-32603: No Txns available" {
@@ -5968,7 +5989,7 @@ func (pgb *ChainDB) DecodeRawTransaction(txhex string) (*chainjson.TxRawResult, 
 		log.Errorf("DecodeRawTransaction failed: %v", err)
 		return nil, err
 	}
-	tx, err := pgb.Client.DecodeRawTransaction(bytes)
+	tx, err := pgb.Client.DecodeRawTransaction(context.TODO(), bytes)
 	if err != nil {
 		log.Errorf("DecodeRawTransaction failed: %v", err)
 		return nil, err
@@ -5978,7 +5999,7 @@ func (pgb *ChainDB) DecodeRawTransaction(txhex string) (*chainjson.TxRawResult, 
 
 // TxHeight gives the block height of the transaction id specified
 func (pgb *ChainDB) TxHeight(txid *chainhash.Hash) (height int64) {
-	txraw, err := pgb.Client.GetRawTransactionVerbose(txid)
+	txraw, err := pgb.Client.GetRawTransactionVerbose(context.TODO(), txid)
 	if err != nil {
 		log.Errorf("GetRawTransactionVerbose failed for: %v", txid)
 		return 0
@@ -6007,7 +6028,7 @@ func (pgb *ChainDB) GetExplorerFullBlocks(start int, end int) []*exptypes.BlockI
 
 // CurrentDifficulty returns the current difficulty from dcrd.
 func (pgb *ChainDB) CurrentDifficulty() (float64, error) {
-	diff, err := pgb.Client.GetDifficulty()
+	diff, err := pgb.Client.GetDifficulty(context.TODO())
 	if err != nil {
 		log.Error("GetDifficulty failed")
 		return diff, err
@@ -6050,7 +6071,7 @@ func (pgb *ChainDB) getRawTransactionWithHex(txid *chainhash.Hash) (tx *apitypes
 // will be nil if the GetRawMempoolVerbose RPC fails. A zero-length non-nil
 // slice is returned if there are no transactions in mempool.
 func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
-	mempooltxs, err := pgb.Client.GetRawMempoolVerbose(chainjson.GRMAll)
+	mempooltxs, err := pgb.Client.GetRawMempoolVerbose(context.TODO(), chainjson.GRMAll)
 	if err != nil {
 		log.Errorf("GetRawMempoolVerbose failed: %v", err)
 		return nil
@@ -6077,7 +6098,7 @@ func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
 		}
 		var voteInfo *exptypes.VoteInfo
 
-		if ok := stake.IsSSGen(msgTx); ok {
+		if ok := stake.IsSSGen(msgTx, true /* TODO treasuryEnabled */); ok {
 			validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, pgb.chainParams)
 			if err != nil {
 				log.Debugf("Cannot get vote choices for %s", hash)
@@ -6117,7 +6138,7 @@ func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
 
 // BlockchainInfo retrieves the result of the getblockchaininfo node RPC.
 func (pgb *ChainDB) BlockchainInfo() (*chainjson.GetBlockChainInfoResult, error) {
-	return pgb.Client.GetBlockChainInfo()
+	return pgb.Client.GetBlockChainInfo(context.TODO())
 }
 
 // UpdateChan creates a channel that will receive height updates. All calls to

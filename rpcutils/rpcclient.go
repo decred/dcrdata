@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, The Decred developers
+// Copyright (c) 2018-2020, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -13,14 +13,15 @@ import (
 	"strconv"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/chaincfg/v2"
-	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/dcrutil/v3"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	"github.com/decred/dcrd/rpcclient/v5"
+	"github.com/decred/dcrd/rpcclient/v6"
 	"github.com/decred/dcrd/wire"
-	apitypes "github.com/decred/dcrdata/api/types/v5"
-	"github.com/decred/dcrdata/semver"
-	"github.com/decred/dcrdata/txhelpers/v4"
+
+	apitypes "github.com/decred/dcrdata/v6/api/types"
+	"github.com/decred/dcrdata/v6/semver"
+	"github.com/decred/dcrdata/v6/txhelpers"
 )
 
 // Any of the following dcrd RPC API versions are deemed compatible with
@@ -84,7 +85,7 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS, disableReconnect 
 	}
 
 	// Ensure the RPC server has a compatible API version.
-	ver, err := dcrdClient.Version()
+	ver, err := dcrdClient.Version(context.Background())
 	if err != nil {
 		log.Error("Unable to get RPC version: ", err)
 		return nil, nodeVer, fmt.Errorf("unable to get node RPC version")
@@ -150,13 +151,13 @@ func BuildBlockHeaderVerbose(header *wire.BlockHeader, params *chaincfg.Params,
 // GetBlockHeaderVerbose creates a *chainjson.GetBlockHeaderVerboseResult for the
 // block at height idx via an RPC connection to a chain server.
 func GetBlockHeaderVerbose(client BlockFetcher, idx int64) *chainjson.GetBlockHeaderVerboseResult {
-	blockhash, err := client.GetBlockHash(idx)
+	blockhash, err := client.GetBlockHash(context.TODO(), idx)
 	if err != nil {
 		log.Errorf("GetBlockHash(%d) failed: %v", idx, err)
 		return nil
 	}
 
-	blockHeaderVerbose, err := client.GetBlockHeaderVerbose(blockhash)
+	blockHeaderVerbose, err := client.GetBlockHeaderVerbose(context.TODO(), blockhash)
 	if err != nil {
 		log.Errorf("GetBlockHeaderVerbose(%v) failed: %v", blockhash, err)
 		return nil
@@ -174,7 +175,7 @@ func GetBlockHeaderVerboseByString(client BlockFetcher, hash string) *chainjson.
 		return nil
 	}
 
-	blockHeaderVerbose, err := client.GetBlockHeaderVerbose(blockhash)
+	blockHeaderVerbose, err := client.GetBlockHeaderVerbose(context.TODO(), blockhash)
 	if err != nil {
 		log.Errorf("GetBlockHeaderVerbose(%v) failed: %v", blockhash, err)
 		return nil
@@ -186,13 +187,13 @@ func GetBlockHeaderVerboseByString(client BlockFetcher, hash string) *chainjson.
 // GetBlockVerbose creates a *chainjson.GetBlockVerboseResult for the block index
 // specified by idx via an RPC connection to a chain server.
 func GetBlockVerbose(client *rpcclient.Client, idx int64, verboseTx bool) *chainjson.GetBlockVerboseResult {
-	blockhash, err := client.GetBlockHash(idx)
+	blockhash, err := client.GetBlockHash(context.TODO(), idx)
 	if err != nil {
 		log.Errorf("GetBlockHash(%d) failed: %v", idx, err)
 		return nil
 	}
 
-	blockVerbose, err := client.GetBlockVerbose(blockhash, verboseTx)
+	blockVerbose, err := client.GetBlockVerbose(context.TODO(), blockhash, verboseTx)
 	if err != nil {
 		log.Errorf("GetBlockVerbose(%v) failed: %v", blockhash, err)
 		return nil
@@ -210,7 +211,7 @@ func GetBlockVerboseByHash(client *rpcclient.Client, hash string, verboseTx bool
 		return nil
 	}
 
-	blockVerbose, err := client.GetBlockVerbose(blockhash, verboseTx)
+	blockVerbose, err := client.GetBlockVerbose(context.TODO(), blockhash, verboseTx)
 	if err != nil {
 		log.Errorf("GetBlockVerbose(%v) failed: %v", blockhash, err)
 		return nil
@@ -222,11 +223,11 @@ func GetBlockVerboseByHash(client *rpcclient.Client, hash string, verboseTx bool
 // GetStakeDiffEstimates combines the results of EstimateStakeDiff and
 // GetStakeDifficulty into a *apitypes.StakeDiff.
 func GetStakeDiffEstimates(client *rpcclient.Client) *apitypes.StakeDiff {
-	stakeDiff, err := client.GetStakeDifficulty()
+	stakeDiff, err := client.GetStakeDifficulty(context.TODO())
 	if err != nil {
 		return nil
 	}
-	estStakeDiff, err := client.EstimateStakeDiff(nil)
+	estStakeDiff, err := client.EstimateStakeDiff(context.TODO(), nil)
 	if err != nil {
 		return nil
 	}
@@ -242,12 +243,12 @@ func GetStakeDiffEstimates(client *rpcclient.Client) *apitypes.StakeDiff {
 
 // GetBlock gets a block at the given height from a chain server.
 func GetBlock(ind int64, client BlockFetcher) (*dcrutil.Block, *chainhash.Hash, error) {
-	blockhash, err := client.GetBlockHash(ind)
+	blockhash, err := client.GetBlockHash(context.TODO(), ind)
 	if err != nil {
 		return nil, nil, fmt.Errorf("GetBlockHash(%d) failed: %v", ind, err)
 	}
 
-	msgBlock, err := client.GetBlock(blockhash)
+	msgBlock, err := client.GetBlock(context.TODO(), blockhash)
 	if err != nil {
 		return nil, blockhash,
 			fmt.Errorf("GetBlock failed (%s): %v", blockhash, err)
@@ -259,7 +260,7 @@ func GetBlock(ind int64, client BlockFetcher) (*dcrutil.Block, *chainhash.Hash, 
 
 // GetBlockByHash gets the block with the given hash from a chain server.
 func GetBlockByHash(blockhash *chainhash.Hash, client BlockFetcher) (*dcrutil.Block, error) {
-	msgBlock, err := client.GetBlock(blockhash)
+	msgBlock, err := client.GetBlock(context.TODO(), blockhash)
 	if err != nil {
 		return nil, fmt.Errorf("GetBlock failed (%s): %v", blockhash, err)
 	}
@@ -272,7 +273,7 @@ func GetBlockByHash(blockhash *chainhash.Hash, client BlockFetcher) (*dcrutil.Bl
 // results of the getchaintips node RPC where the block tip "status" is either
 // "valid-headers" or "valid-fork".
 func SideChains(client *rpcclient.Client) ([]chainjson.GetChainTipsResult, error) {
-	tips, err := client.GetChainTips()
+	tips, err := client.GetChainTips(context.TODO())
 	if err != nil {
 		return nil, err
 	}
@@ -339,7 +340,7 @@ func reverseStringSlice(s []string) {
 
 // GetTransactionVerboseByID get a transaction by transaction id
 func GetTransactionVerboseByID(client txhelpers.VerboseTransactionGetter, txhash *chainhash.Hash) (*chainjson.TxRawResult, error) {
-	txraw, err := client.GetRawTransactionVerbose(txhash)
+	txraw, err := client.GetRawTransactionVerbose(context.TODO(), txhash)
 	if err != nil {
 		log.Errorf("GetRawTransactionVerbose failed for: %v", txhash)
 		return nil, err
@@ -356,7 +357,7 @@ func SearchRawTransaction(client *rpcclient.Client, params *chaincfg.Params, cou
 	}
 
 	//change the 1000 000 number demo for now
-	txs, err := client.SearchRawTransactionsVerbose(addr, 0, count,
+	txs, err := client.SearchRawTransactionsVerbose(context.TODO(), addr, 0, count,
 		true, true, nil)
 	if err != nil {
 		log.Warnf("SearchRawTransaction failed for address %s: %v", addr, err)
@@ -386,14 +387,14 @@ func CommonAncestor(client BlockFetcher, hashA, hashB chainhash.Hash) (*chainhas
 		}
 
 		// Chain A
-		blockA, err := client.GetBlock(&hashA)
+		blockA, err := client.GetBlock(context.TODO(), &hashA)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("Failed to get block %v: %v", hashA, err)
 		}
 		heightA := blockA.Header.Height
 
 		// Chain B
-		blockB, err := client.GetBlock(&hashB)
+		blockB, err := client.GetBlock(context.TODO(), &hashB)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("Failed to get block %v: %v", hashB, err)
 		}
@@ -447,7 +448,7 @@ func CommonAncestor(client BlockFetcher, hashA, hashB chainhash.Hash) (*chainhas
 // BlockHashGetter is an interface implementing GetBlockHash to retrieve a block
 // hash from a height.
 type BlockHashGetter interface {
-	GetBlockHash(int64) (*chainhash.Hash, error)
+	GetBlockHash(context.Context, int64) (*chainhash.Hash, error)
 }
 
 // OrphanedTipLength finds a common ancestor by iterating block heights
@@ -475,7 +476,7 @@ func OrphanedTipLength(ctx context.Context, client BlockHashGetter,
 		if err != nil {
 			return -1, fmt.Errorf("Unable to retrieve block at height %d: %v", commonHeight, err)
 		}
-		dcrdHash, err = client.GetBlockHash(commonHeight)
+		dcrdHash, err = client.GetBlockHash(ctx, commonHeight)
 		if err != nil {
 			return -1, fmt.Errorf("Unable to retrieve dcrd block at height %d: %v", commonHeight, err)
 		}
@@ -499,7 +500,7 @@ func OrphanedTipLength(ctx context.Context, client BlockHashGetter,
 // GetChainWork fetches the chainjson.BlockHeaderVerbose and returns only the
 // ChainWork field as a string.
 func GetChainWork(client BlockFetcher, hash *chainhash.Hash) (string, error) {
-	header, err := client.GetBlockHeaderVerbose(hash)
+	header, err := client.GetBlockHeaderVerbose(context.TODO(), hash)
 	if err != nil {
 		return "", err
 	}
@@ -533,7 +534,7 @@ func NewMempoolAddressChecker(client *rpcclient.Client, params *chaincfg.Params)
 func UnconfirmedTxnsForAddress(client *rpcclient.Client, address string, params *chaincfg.Params) (*txhelpers.AddressOutpoints, int64, error) {
 	// Mempool transactions
 	var numUnconfirmed int64
-	mempoolTxns, err := client.GetRawMempoolVerbose(chainjson.GRMAll)
+	mempoolTxns, err := client.GetRawMempoolVerbose(context.TODO(), chainjson.GRMAll)
 	if err != nil {
 		log.Warnf("GetRawMempool failed for address %s: %v", address, err)
 		return nil, numUnconfirmed, err
@@ -549,7 +550,7 @@ func UnconfirmedTxnsForAddress(client *rpcclient.Client, address string, params 
 			return addressOutpoints, 0, err1
 		}
 
-		Tx, err1 := client.GetRawTransaction(txhash)
+		Tx, err1 := client.GetRawTransaction(context.TODO(), txhash)
 		if err1 != nil {
 			log.Warnf("Unable to GetRawTransaction(%s): %v", hash, err1)
 			err = err1
