@@ -634,7 +634,7 @@ func _main(ctx context.Context) error {
 		}
 
 		// Signal to load this block's data into the explorer. Future signals
-		// will come from the sync methods of either baseDB or chainDB.
+		// will come from the sync methods of ChainDB.
 		latestBlockHash <- latestDBBlockHash
 	}
 
@@ -1074,7 +1074,7 @@ func _main(ctx context.Context) error {
 	// collection for the explorer.
 
 	// Blockchain monitor for the collector
-	// On reorg, only update web UI since dcrsqlite's own reorg handler will
+	// On reorg, only update web UI since the DB's own reorg handler will
 	// deal with patching up the block info database.
 	reorgBlockDataSavers := []blockdata.BlockDataSaver{explore}
 	wsChainMonitor := blockdata.NewChainMonitor(ctx, collector, blockDataSavers,

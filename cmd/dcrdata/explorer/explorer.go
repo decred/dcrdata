@@ -521,8 +521,13 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 
 	// If exchange monitoring is enabled, set the exchange rate.
 	if exp.xcBot != nil {
-		conversion := types.Conversion(*exp.xcBot.Conversion(1.0))
-		p.HomeInfo.ExchangeRate = &conversion
+		exchangeConversion := exp.xcBot.Conversion(1.0)
+		if exchangeConversion != nil {
+			conversion := types.Conversion(*exchangeConversion)
+			p.HomeInfo.ExchangeRate = &conversion
+		} else {
+			log.Errorf("No rate conversion available yet.")
+		}
 	}
 
 	p.Unlock()

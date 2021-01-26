@@ -185,7 +185,7 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		select {
 		case barLoad <- p:
 		default:
-			log.Debugf("(*ChainDB).SyncChainDB: barLoad chan closed or full. Halting sync progress updates.")
+			log.Debugf("(*ChainDB).SyncChainDB: barLoad chan full. Halting sync progress updates.")
 			barLoad = nil
 		}
 	}
@@ -199,7 +199,7 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		select {
 		case updateExplorer <- hash:
 		default:
-			log.Debugf("(*ChainDB).SyncChainDB: updateExplorer chan closed or full. Halting explorer updates.")
+			log.Debugf("(*ChainDB).SyncChainDB: updateExplorer chan full. Halting explorer updates.")
 			updateExplorer = nil
 		}
 	}

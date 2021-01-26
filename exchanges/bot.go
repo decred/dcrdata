@@ -865,7 +865,8 @@ func (bot *ExchangeBot) Conversion(dcrVal float64) *Conversion {
 			Index: xcState.BtcIndex,
 		}
 	}
-	return nil
+	// Haven't gotten data yet, but we're running.
+	return &Conversion{Value: 0, Index: DefaultCurrency}
 }
 
 // Fetch the pre-encoded JSON chart data from the cache, if it exists and is not
