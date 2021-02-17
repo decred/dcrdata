@@ -356,20 +356,33 @@ func (tracker *VoteTracker) update(voteInfo *chainjson.GetVoteInfoResult, blocks
 // Create a new VoteSummary from the currently saved info.
 func (tracker *VoteTracker) newVoteSummary() *VoteSummary {
 	summary := &VoteSummary{
-		Version:         tracker.version,
-		Height:          tracker.voteInfo.CurrentHeight,
-		Hash:            tracker.voteInfo.Hash,
-		VoteVersion:     tracker.version,
-		MinerThreshold:  tracker.minerThreshold,
-		VoterThreshold:  tracker.voterThreshold,
-		RCIBlocks:       tracker.rciBlocks,
-		SVIBlocks:       tracker.sviBlocks,
-		NextRCIHeight:   uint32(tracker.voteInfo.EndHeight + 1),
-		NetworkUpgraded: uint32(tracker.blockVersion) == tracker.version && tracker.stakeVersion == tracker.version,
-		RCIMined:        uint32(tracker.voteInfo.CurrentHeight - tracker.voteInfo.StartHeight + 1),
+		Version:        tracker.version,
+		Height:         tracker.voteInfo.CurrentHeight,
+		Hash:           tracker.voteInfo.Hash,
+		VoteVersion:    tracker.version,
+		MinerThreshold: tracker.minerThreshold,
+		VoterThreshold: tracker.voterThreshold,
+		RCIBlocks:      tracker.rciBlocks,
+		SVIBlocks:      tracker.sviBlocks,
+		NextRCIHeight:  uint32(tracker.voteInfo.EndHeight + 1),
+		RCIMined:       uint32(tracker.voteInfo.CurrentHeight - tracker.voteInfo.StartHeight + 1),
 	}
 	summary.Agendas = make([]AgendaSummary, len(tracker.voteInfo.Agendas))
 	summary.RCIProgress = float32(summary.RCIMined) / float32(summary.RCIBlocks)
+
+	// Count the miners in the rolling window.
+	currentBlockVersion := int32(tracker.version)
+	for _, blockVersion := range tracker.blockRing {
+		if blockVersion == currentBlockVersion {
+			summary.NewMiners++
+		} else {
+			summary.OldMiners++
+		}
+	}
+
+	summary.MinerCount = summary.NewMiners + summary.OldMiners
+	summary.MinerProgress = float32(summary.NewMiners) / float32(summary.MinerCount)
+	summary.NetworkUpgraded = summary.MinerProgress >= summary.MinerThreshold && tracker.stakeVersion == tracker.version
 
 	for idx := range tracker.voteInfo.Agendas {
 		agenda := &tracker.voteInfo.Agendas[idx]
@@ -451,19 +464,6 @@ func (tracker *VoteTracker) newVoteSummary() *VoteSummary {
 	}
 	summary.VoterCount = summary.OldVoters + summary.NewVoters
 	summary.VoterProgress = float32(summary.NewVoters) / float32(summary.VoterCount)
-
-	// Count the miners in the rolling window.
-	currentBlockVersion := int32(tracker.version)
-	for _, blockVersion := range tracker.blockRing {
-		if blockVersion == currentBlockVersion {
-			summary.NewMiners++
-		} else {
-			summary.OldMiners++
-		}
-	}
-
-	summary.MinerCount = summary.NewMiners + summary.OldMiners
-	summary.MinerProgress = float32(summary.NewMiners) / float32(summary.MinerCount)
 
 	summary.SVIMined = sviMined
 	summary.SVIProgress = float32(summary.SVIMined) / float32(summary.SVIBlocks)
