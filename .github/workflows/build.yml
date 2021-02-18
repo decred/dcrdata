@@ -7,7 +7,7 @@ jobs:
     strategy:
       matrix:
         node-version: [14.x, 15.x]
-        go: [1.14, 1.15]
+        go: [1.15, 1.16]
     steps:
     - uses: actions/checkout@v2
 
@@ -34,7 +34,7 @@ jobs:
       working-directory: ./cmd/dcrdata
 
     - name: Install Linters
-      run: "curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.32.0"
+      run: "curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.37.0"
     - name: tests
       env:
         GO111MODULE: "on"
