@@ -399,7 +399,7 @@ is necessary to perform a bulk import of blockchain data and generate table
 indexes. _This will be done automatically by `dcrdata`_ on a fresh startup.
 
 Note that dcrdata requires that
-[dcrd](https://docs.decred.org/getting-started/user-guides/dcrd-setup/) is
+[dcrd](https://docs.decred.org/wallets/cli/dcrd-setup/) is
 running with some optional indexes enabled. By default, these indexes are not
 turned on when dcrd is installed. To enable them, set the following in
 dcrd.conf:
@@ -535,7 +535,7 @@ File downloads are served from the `/download` path.
 The [Insight API](https://github.com/bitpay/insight-api) is accessible via HTTP
 via REST or WebSocket.
 
-See the [Insight API documentation](api/Insight_API_documentation.md) for
+See the [Insight API documentation](docs/Insight_API_documentation.md) for
 further details.
 
 ### dcrdata API
@@ -708,13 +708,6 @@ Decred blockchain data. This functionality is included in the startup of the
 dcrdata daemon, but may be called alone with rebuilddb2. See the
 [README.md](./cmd/rebuilddb2/README.md) for `rebuilddb2` for important usage
 information.
-
-### scanblocks
-
-scanblocks is a CLI app to scan the blockchain and save data into a JSON file.
-More details are in [its own README](./cmd/scanblocks/README.md). The repository
-also includes a shell script, jsonarray2csv.sh, to convert the result into a
-comma-separated value (CSV) file. This app is not actively maintained.
 
 ## Front End Development
 
