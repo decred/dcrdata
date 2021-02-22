@@ -709,13 +709,6 @@ dcrdata daemon, but may be called alone with rebuilddb2. See the
 [README.md](./cmd/rebuilddb2/README.md) for `rebuilddb2` for important usage
 information.
 
-### scanblocks
-
-scanblocks is a CLI app to scan the blockchain and save data into a JSON file.
-More details are in [its own README](./cmd/scanblocks/README.md). The repository
-also includes a shell script, jsonarray2csv.sh, to convert the result into a
-comma-separated value (CSV) file. This app is not actively maintained.
-
 ## Front End Development
 
 Make sure you have a recent version of [node and
