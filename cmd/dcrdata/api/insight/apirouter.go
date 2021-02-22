@@ -92,9 +92,9 @@ func NewInsightAPIRouter(app *InsightApi, useRealIP, compression bool, maxAddrs 
 		})
 		// POST methods
 		rd.With(middleware.AllowContentType("application/json"),
-			app.ValidatePostCtx, PostAddrsTxsCtx).Post("/txs", app.getAddressesTxn)
+			app.ValidatePostCtx, PostAddrsTxsCtxN(maxAddrs)).Post("/txs", app.getAddressesTxn)
 		rd.With(middleware.AllowContentType("application/json"),
-			app.ValidatePostCtx, PostAddrsUtxoCtx).Post("/utxo", app.getAddressesTxnOutput)
+			app.ValidatePostCtx, PostAddrsUtxoCtxN(maxAddrs)).Post("/utxo", app.getAddressesTxnOutput)
 	})
 
 	// Address endpoints

@@ -138,111 +138,173 @@ func (iapi *InsightApi) ValidatePostCtx(next http.Handler) http.Handler {
 	})
 }
 
-// PostAddrsTxsCtx middleware processes parameters given in the POST request
-// body for an addrs endpoint. While the addresses list, "addrs", must be in the
-// POST body JSON, the other parameters may be specified as URL queries. POST
-// body values take priority.
-func PostAddrsTxsCtx(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, err := ioutil.ReadAll(r.Body)
-		r.Body.Close()
-		if err != nil {
-			writeInsightError(w, fmt.Sprintf("error reading JSON message: %v", err))
-			return
-		}
+// func uniqueStrs(strs []string) []string {
+// 	uniq := make(map[string]struct{}, len(strs)) // overallocated if there are dups
+// 	for _, str := range strs {
+// 		uniq[str] = struct{}{}
+// 	}
+// 	uniqStrs := make([]string, 0, len(uniq))
+// 	for str := range uniq {
+// 		uniqStrs = append(uniqStrs, str)
+// 	}
+// 	return uniqStrs
+// }
 
-		// The request body must be JSON.
-		var req apitypes.InsightMultiAddrsTx
-		err = json.Unmarshal(body, &req)
-		if err != nil {
-			writeInsightError(w, fmt.Sprintf("Failed to parse request: %v", err))
-			return
-		}
+// PostAddrsTxsCtxN middleware processes parameters given in the POST request
+// body for an addrs endpoint, limiting to N addresses. While the addresses
+// list, "addrs", must be in the POST body JSON, the other parameters may be
+// specified as URL queries. POST body values take priority.
+func PostAddrsTxsCtxN(n int) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			body, err := ioutil.ReadAll(r.Body)
+			r.Body.Close()
+			if err != nil {
+				writeInsightError(w, fmt.Sprintf("error reading JSON message: %v", err))
+				return
+			}
 
-		// addrs must come from POST body.
-		addrs := strings.Split(req.Addresses, ",")
-		ctx := context.WithValue(r.Context(), m.CtxAddress, addrs)
+			// The request body must be JSON.
+			var req apitypes.InsightMultiAddrsTx
+			err = json.Unmarshal(body, &req)
+			if err != nil {
+				writeInsightError(w, fmt.Sprintf("Failed to parse request: %v", err))
+				return
+			}
 
-		// Other parameters may come from the POST body or URL query values.
+			// addrs must come from POST body.
+			addressStr := req.Addresses
 
-		// from
-		from, err := req.From.Int64()
-		if err == nil {
-			ctx = context.WithValue(ctx, ctxFrom, int(from))
-		} else {
-			fromStr := r.FormValue("from")
-			from, _ := strconv.Atoi(fromStr) // shadow
-			ctx = context.WithValue(ctx, ctxFrom, from)
-		}
+			// Initial sanity check without splitting string: It can't be longer
+			// than n addresses, plus n - 1 commas.
+			const minAddressLength = 35 // p2pk and p2sh
+			if len(addressStr) < minAddressLength {
+				http.Error(w, "invalid address", http.StatusBadRequest)
+				return
+			}
+			const maxAddressLength = 53 // p2pk
+			if len(addressStr) > n*(maxAddressLength+1)-1 {
+				apiLog.Warnf("PostAddrsTxsCtxN rejecting address parameter of length %d", len(addressStr))
+				http.Error(w, "too many address", http.StatusBadRequest)
+				return
+			}
+			addrs := strings.Split(addressStr, ",")
+			if len(addrs) > n {
+				apiLog.Warnf("AddressPathCtxN parsed %d > %d strings", len(addrs), n)
+				http.Error(w, "address parse error", http.StatusBadRequest)
+				return
+			}
 
-		// to
-		to, err := req.To.Int64()
-		if err == nil {
-			ctx = context.WithValue(ctx, ctxTo, int(to))
-		} else {
-			toStr := r.FormValue("to")
-			to, _ := strconv.Atoi(toStr)
-			ctx = context.WithValue(ctx, ctxTo, to)
-		}
+			// Dups are removed in GetAddressCtx.
+			// addrs = uniqueStrs(addrs)
+			ctx := context.WithValue(r.Context(), m.CtxAddress, addrs)
 
-		// noAsm
-		noAsm, err := req.NoAsm.Int64()
-		if err == nil {
-			ctx = context.WithValue(ctx, ctxNoAsm, noAsm != 0)
-		} else {
-			noAsmStr := r.FormValue("noAsm")
-			noAsm, _ := strconv.ParseBool(noAsmStr)
-			ctx = context.WithValue(ctx, ctxNoAsm, noAsm)
-		}
+			// Other parameters may come from the POST body or URL query values.
 
-		// noScriptSig
-		noScriptSig, err := req.NoScriptSig.Int64()
-		if err == nil {
-			ctx = context.WithValue(ctx, ctxNoScriptSig, noScriptSig != 0)
-		} else {
-			noScriptSigStr := r.FormValue("noScriptSig")
-			noScriptSig, _ := strconv.ParseBool(noScriptSigStr)
-			ctx = context.WithValue(ctx, ctxNoScriptSig, noScriptSig)
-		}
+			// from
+			from, err := req.From.Int64()
+			if err == nil {
+				ctx = context.WithValue(ctx, ctxFrom, int(from))
+			} else {
+				fromStr := r.FormValue("from")
+				from, _ := strconv.Atoi(fromStr) // shadow
+				ctx = context.WithValue(ctx, ctxFrom, from)
+			}
 
-		// noSpent
-		noSpent, err := req.NoSpent.Int64()
-		if err == nil {
-			ctx = context.WithValue(ctx, ctxNoSpent, noSpent != 0)
-		} else {
-			noSpentStr := r.FormValue("noSpent")
-			noSpent, _ := strconv.ParseBool(noSpentStr)
-			ctx = context.WithValue(ctx, ctxNoSpent, noSpent)
-		}
+			// to
+			to, err := req.To.Int64()
+			if err == nil {
+				ctx = context.WithValue(ctx, ctxTo, int(to))
+			} else {
+				toStr := r.FormValue("to")
+				to, _ := strconv.Atoi(toStr)
+				ctx = context.WithValue(ctx, ctxTo, to)
+			}
 
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
+			// noAsm
+			noAsm, err := req.NoAsm.Int64()
+			if err == nil {
+				ctx = context.WithValue(ctx, ctxNoAsm, noAsm != 0)
+			} else {
+				noAsmStr := r.FormValue("noAsm")
+				noAsm, _ := strconv.ParseBool(noAsmStr)
+				ctx = context.WithValue(ctx, ctxNoAsm, noAsm)
+			}
+
+			// noScriptSig
+			noScriptSig, err := req.NoScriptSig.Int64()
+			if err == nil {
+				ctx = context.WithValue(ctx, ctxNoScriptSig, noScriptSig != 0)
+			} else {
+				noScriptSigStr := r.FormValue("noScriptSig")
+				noScriptSig, _ := strconv.ParseBool(noScriptSigStr)
+				ctx = context.WithValue(ctx, ctxNoScriptSig, noScriptSig)
+			}
+
+			// noSpent
+			noSpent, err := req.NoSpent.Int64()
+			if err == nil {
+				ctx = context.WithValue(ctx, ctxNoSpent, noSpent != 0)
+			} else {
+				noSpentStr := r.FormValue("noSpent")
+				noSpent, _ := strconv.ParseBool(noSpentStr)
+				ctx = context.WithValue(ctx, ctxNoSpent, noSpent)
+			}
+
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
 }
 
-// PostAddrsUtxoCtx middleware processes parameters given in the POST request
-// body for an addrs utxo endpoint.
-func PostAddrsUtxoCtx(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		req := apitypes.InsightAddr{}
-		body, err := ioutil.ReadAll(r.Body)
-		r.Body.Close()
-		if err != nil {
-			writeInsightError(w, fmt.Sprintf("error reading JSON message: %v", err))
-			return
-		}
+// PostAddrsUtxoCtxN middleware processes parameters given in the POST request
+// body for an addrs utxo endpoint, limiting to N addresses.
+func PostAddrsUtxoCtxN(n int) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			req := apitypes.InsightAddr{}
+			body, err := ioutil.ReadAll(r.Body)
+			r.Body.Close()
+			if err != nil {
+				writeInsightError(w, fmt.Sprintf("error reading JSON message: %v", err))
+				return
+			}
 
-		err = json.Unmarshal(body, &req)
-		if err != nil {
-			writeInsightError(w, fmt.Sprintf("Failed to parse request: %v", err))
-			return
-		}
+			err = json.Unmarshal(body, &req)
+			if err != nil {
+				writeInsightError(w, fmt.Sprintf("Failed to parse request: %v", err))
+				return
+			}
 
-		// Successful extraction of Body JSON
-		addrs := strings.Split(req.Addrs, ",")
-		ctx := context.WithValue(r.Context(), m.CtxAddress, addrs)
+			// addrs must come from POST body.
+			addressStr := req.Addrs
 
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
+			// Initial sanity check without splitting string: It can't be longer
+			// than n addresses, plus n - 1 commas.
+			const minAddressLength = 35 // p2pk and p2sh
+			if len(addressStr) < minAddressLength {
+				http.Error(w, "invalid address", http.StatusBadRequest)
+				return
+			}
+			const maxAddressLength = 53 // p2pk
+			if len(addressStr) > n*(maxAddressLength+1)-1 {
+				apiLog.Warnf("PostAddrsTxsCtxN rejecting address parameter of length %d", len(addressStr))
+				http.Error(w, "too many address", http.StatusBadRequest)
+				return
+			}
+			addrs := strings.Split(addressStr, ",")
+			if len(addrs) > n {
+				apiLog.Warnf("AddressPathCtxN parsed %d > %d strings", len(addrs), n)
+				http.Error(w, "address parse error", http.StatusBadRequest)
+				return
+			}
+
+			// Dups are removed in GetAddressCtx.
+			// addrs = uniqueStrs(addrs)
+			ctx := context.WithValue(r.Context(), m.CtxAddress, addrs)
+
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
 }
 
 // AddressCommandCtx returns a http.HandlerFunc that embeds the value at the url

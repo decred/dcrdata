@@ -744,7 +744,8 @@ func TransactionIOIndexCtx(next http.Handler) http.Handler {
 }
 
 const (
-	addressLength = 35
+	minAddressLength = 35 // p2pkh and p2sh
+	maxAddressLength = 53 // p2pk
 )
 
 // AddressPathCtxN constructs a middleware that returns a http.HandlerFunc which
@@ -754,12 +755,12 @@ func AddressPathCtxN(n int) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			addressStr := chi.URLParam(r, "address")
-			if len(addressStr) < addressLength {
+			if len(addressStr) < minAddressLength {
 				http.Error(w, "invalid address", http.StatusUnprocessableEntity)
 				return
 			}
 			// string can't be longer than n addresses, plus n - 1 commas.
-			if len(addressStr) > n*(addressLength+1)-1 {
+			if len(addressStr) > n*(maxAddressLength+1)-1 {
 				apiLog.Warnf("AddressPathCtxN rejecting address parameter of length %d", len(addressStr))
 				http.Error(w, "too many address", http.StatusUnprocessableEntity)
 				return
