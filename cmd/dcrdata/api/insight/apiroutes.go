@@ -334,7 +334,7 @@ func (iapi *InsightApi) broadcastTransactionRaw(w http.ResponseWriter, r *http.R
 }
 
 func (iapi *InsightApi) getAddressesTxnOutput(w http.ResponseWriter, r *http.Request) {
-	addresses, err := m.GetAddressCtx(r, iapi.params) // Required
+	addresses, err := m.GetAddressCtx(r, iapi.params) // Required, also validates the addresses
 	if err != nil {
 		writeInsightError(w, err.Error())
 		return
@@ -551,7 +551,7 @@ func removeSliceElements(txOuts []*apitypes.AddressTxnOutput, inds []int) []*api
 func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) {
 	pageNum := m.GetPageNumCtx(r)
 	hash, blockerr := m.GetBlockHashCtx(r)
-	addresses, addrerr := m.GetAddressCtx(r, iapi.params)
+	addresses, addrerr := m.GetAddressCtx(r, iapi.params) // validates the addresses
 
 	if blockerr != nil && addrerr != nil {
 		msg := fmt.Sprintf(`Required query parameters (address or block) not present. `+
@@ -621,13 +621,6 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 
 	if addrerr == nil {
 		address := addresses[0]
-		// Validate Address
-		_, err := dcrutil.DecodeAddress(address, iapi.params)
-		if err != nil {
-			writeInsightError(w, fmt.Sprintf("Address is invalid (%s)", address))
-			return
-		}
-
 		hashes, recentTxs, err :=
 			iapi.BlockData.InsightAddressTransactions([]string{address},
 				int64(iapi.status.Height()-2))
@@ -759,7 +752,7 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 }
 
 func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) {
-	addresses, err := m.GetAddressCtx(r, iapi.params) // Required
+	addresses, err := m.GetAddressCtx(r, iapi.params) // Required, also validates the addresses
 	if err != nil {
 		writeInsightError(w, err.Error())
 		return
@@ -809,15 +802,9 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Confirm all addresses are valid, and pull unconfirmed transactions for
-	// all addresses.
+	// Pull unconfirmed transactions for all addresses.
 	for _, addr := range addresses {
-		address, err := dcrutil.DecodeAddress(addr, iapi.params)
-		if err != nil {
-			writeInsightError(w, fmt.Sprintf("Address is invalid (%s)", addr))
-			return
-		}
-		addressOuts, _, err := iapi.mp.UnconfirmedTxnsForAddress(address.String())
+		addressOuts, _, err := iapi.mp.UnconfirmedTxnsForAddress(addr)
 		if err != nil {
 			writeInsightError(w, fmt.Sprintf("Error gathering mempool transactions (%v)", err))
 			return
@@ -1156,11 +1143,6 @@ func (iapi *InsightApi) getAddressInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	address := addresses[0]
-	_, err = dcrutil.DecodeAddress(address, iapi.params)
-	if err != nil {
-		writeInsightError(w, "Invalid Address")
-		return
-	}
 
 	// Get confirmed balance.
 	balance, _, err := iapi.BlockData.AddressBalance(address)
