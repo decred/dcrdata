@@ -22,7 +22,7 @@
             {{if eq $botState.BtcIndex "USD"}}
                 <span class="fs18 fw-bold d-inline-block pt-1" style="vertical-align:top;">$</span>
             {{end}}
-            <span class="fs28" data-target="market.price">{{printf "%.2f" $botState.Price}}</span> <span class="fs16 text-secondary">{{$botState.BtcIndex}}</span>
+            <span class="fs28" data-market-target="price">{{printf "%.2f" $botState.Price}}</span> <span class="fs16 text-secondary">{{$botState.BtcIndex}}</span>
         </div>
 
 
@@ -39,7 +39,7 @@
                       <td class="text-end fw-bold">{{$botState.BtcIndex}}</td>
                     </tr>
                     {{range $botState.VolumeOrderedExchanges}}
-                        <tr class="fs hover-row" data-target="market.xcRow" data-action="click->market#setExchange" data-token="{{.Token}}">
+                        <tr class="fs hover-row" data-market-target="xcRow" data-action="click->market#setExchange" data-token="{{.Token}}">
                             <td class="py-2 fs18 fw-bold"><div class="exchange-logo {{.Token}} me-2"></div> {{xcDisplayName .Token}}</td>
                             <td class="ps-2 fs16 py-2 text-end" data-type="volume">
                                 {{threeSigFigs .State.Volume}}
@@ -61,7 +61,7 @@
                             </td>
                         </tr>
                     {{end}}
-                    <tr class="fs sum-row hover-row" data-target="market.xcRow" data-action="click->market#setExchange" data-token="aggregated">
+                    <tr class="fs sum-row hover-row" data-market-target="xcRow" data-action="click->market#setExchange" data-token="aggregated">
                         <td class="py-2 fs18 fw-bold"><div class="exchange-logo aggregated me-2"></div> Aggregate</td>
                         <td class="ps-2 fs16 py-2 text-end" data-type="volume">
                             {{threeSigFigs $botState.Volume}}
@@ -89,7 +89,7 @@
                       {{if eq $botState.BtcIndex "USD"}}
                           <span class="fs16 fw-bold d-inline-block pt-1 valign-top">$</span>
                       {{end}}
-                      <span class="fs24" data-price="{{$state.Price}}" data-token="{{$token}}" data-target="market.xcIndex">{{printf "%.2f" $state.Price}}</span> <span class="fs16 text-secondary">{{$botState.BtcIndex}}</span><br>
+                      <span class="fs24" data-price="{{$state.Price}}" data-token="{{$token}}" data-market-target="xcIndex">{{printf "%.2f" $state.Price}}</span> <span class="fs16 text-secondary">{{$botState.BtcIndex}}</span><br>
                       {{if eq $token "coindesk"}}
                         <a class="fs12" href="https://www.coindesk.com/price/bitcoin">Powered by CoinDesk</a>
                       {{end}}
@@ -103,7 +103,7 @@
     {{- /* RIGHT COLUMN */ -}}
     <div class="row flex-grow-0 flex-lg-grow-1 col-24 col-lg mx-0 p-0">
         <div class="col ms-4 ms-lg-3 me-2 me-lg-3 mb-4 mt-1 mt-lg-4 flex-grow-1 d-flex flex-column bg-white px-2 px-lg-5 py-2 py-lg-3 position-relative">
-        <div class="loader-v2 loading" data-target="market.chartLoader"></div>
+        <div class="loader-v2 loading" data-market-target="chartLoader"></div>
 
 
             {{- /* CHART ONTROLS */ -}}
@@ -115,7 +115,7 @@
                     <label>Exchange</label>
                     <select
                         class="chart-box d-inline-flex"
-                        data-target="market.exchanges"
+                        data-market-target="exchanges"
                         data-action="change->market#changeExchange"
                     >
                         {{range $botState.VolumeOrderedExchanges}}
@@ -132,7 +132,7 @@
                           </option>
                         {{end}}
                         <option
-                            data-target="market.aggOption"
+                            data-market-target="aggOption"
                             value="aggregated"
                             data-depth="1"
                             >Aggregated
@@ -146,14 +146,14 @@
                     <label>Chart</label>
                     <select
                         class="chart-box d-inline-flex"
-                        data-target="market.chartSelect"
+                        data-market-target="chartSelect"
                         data-action="change->market#changeGraph"
                     >
-                        <option value="depth" data-target="market.depthOnly" selected>Depth Chart</option>
-                        <option value="orders" data-target="market.depthOnly">Order Book</option>
-                        <option value="candlestick" data-target="market.sticksOnly">Candlesticks</option>
-                        <option value="history" data-target="market.sticksOnly">Market History</option>
-                        <option value="volume" data-target="market.sticksOnly">Volume</option>
+                        <option value="depth" data-market-target="depthOnly" selected>Depth Chart</option>
+                        <option value="orders" data-market-target="depthOnly">Order Book</option>
+                        <option value="candlestick" data-market-target="sticksOnly">Candlesticks</option>
+                        <option value="history" data-market-target="sticksOnly">Market History</option>
+                        <option value="volume" data-market-target="sticksOnly">Volume</option>
 
                     </select>
                 </div>
@@ -162,7 +162,7 @@
                 {{- /* BIN SIZE SELECTIONS */ -}}
                 <div
                     class="btn-set bg-white d-inline-flex flex-nowrap mx-2 mx-lg-4"
-                    data-target="market.bin"
+                    data-market-target="bin"
                     data-action="click->market#changeBin"
                 >
                   <label class="text-nowrap">Bin Size</label>
@@ -177,7 +177,7 @@
                 {{- /* DISPLAY CURRENCY */ -}}
                 <div
                     class="btn-set bg-white d-inline-flex flex-nowrap mx-2 mx-lg-4"
-                    data-target="market.conversion"
+                    data-market-target="conversion"
                     data-factor="{{$botState.BtcPrice}}"
                     data-code="{{$botState.BtcIndex}}"
                     data-action="click->market#setConversion"
@@ -190,7 +190,7 @@
                 {{- /* AGGREGATE DEPTH STACKING */ -}}
                 <div
                     class="btn-set bg-white d-inline-flex flex-nowrap mx-2 mx-lg-4"
-                    data-target="market.aggStack"
+                    data-market-target="aggStack"
                 >
                   <label>Stacking</label>
                   <button class="btn-selected" data-action="click->market#setStacking" name="on">On</button>
@@ -200,7 +200,7 @@
                 {{- /* ZOOM */ -}}
                 <div
                     class="btn-set bg-white d-inline-flex flex-nowrap mx-2 mx-lg-4"
-                    data-target="market.zoom"
+                    data-market-target="zoom"
                     data-action="click->market#setZoom"
                 >
                   <label>Zoom +/-</label>
@@ -213,10 +213,10 @@
                 {{- /* OTHER CHART OPTIONS */ -}}
                 <div
                     class="btn-set bg-white d-inline-flex flex-nowrap mx-2 mx-lg-4"
-                    data-target="market.actions"
+                    data-market-target="actions"
                 >
                   <label>Actions</label>
-                  <button><a data-target="market.link" href="" target="_blank" rel="noopener noreferrer"></a></button>
+                  <button><a data-market-target="link" href="" target="_blank" rel="noopener noreferrer"></a></button>
                 </div>
             </div>
 
@@ -225,14 +225,17 @@
             <div class="flex-grow-1 ps-3 pe-4 mb-2 market-chart-box d-flex">
               <div class="d-flex w-100 position-relative market-chart">
                 <div class="market-chart-title d-flex align-items-center d-none">
-                    <div data-target="market.xcLogo"></div>
-                    <div data-target="market.xcName"></div>
+                    <div data-market-target="xcLogo"></div>
+                    <div data-market-target="xcName"></div>
                 </div>
-                <div class="market-chart-legend" data-target="market.legend"></div>
-                <div class="position-absolute w-100 h-100" data-target="market.chart"></div>
+                <div class="market-chart-legend" data-market-target="legend"></div>
+                <div class="position-absolute w-100 h-100" data-market-target="chart"></div>
               </div>
             </div>
-            <div class="text-center py-2 py-lg-0 text-lg-end px-4 fs13 d-hide" data-target="market.age">updated <span data-controller="time" data-target="time.age market.ageSpan" data-age="0"></span> ago</div>
+
+            {{- /* TODO: Test this data controller (time & market) */ -}}
+            <div class="text-center py-2 py-lg-0 text-lg-end px-4 fs13 d-hide" data-market-target="age">updated <span data-controller="time" data-time-target="age market.ageSpan" data-age="0"></span> ago</div>
+        
         </div>
     </div>
 </div>

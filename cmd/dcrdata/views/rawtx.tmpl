@@ -10,29 +10,29 @@
                     autofocus
                     rows="6"
                     class="w-100 px7-5"
-                    data-target="rawtx.rawTransaction"
+                    data-rawtx-target="rawTransaction"
                     data-action="keypress->rawtx#send"
                     data-event-id="decodetx"
                     placeholder="Enter the full transaction (hexadecimal encoded) here"
                 ></textarea>
                 <button
                     type="button"
-                    data-target="rawtx.decode"
+                    data-rawtx-target="decode"
                     data-action="click->rawtx#send"
                     data-event-id="decodetx"
                     class="button btn btn-primary me-1"
                 >Decode</button>
                 <button
                     type="button"
-                    data-target="rawtx.broadcast"
+                    data-rawtx-target="broadcast"
                     data-action="click->rawtx#send"
                     data-event-id="sendtx"
                     class="button btn btn-success color-inherit"
                 >Broadcast</button>
             </form>
-            <h4 class="my-2" data-target="rawtx.decodeHeader">Decoded transaction</h4>
+            <h4 class="my-2" data-rawtx-target="decodeHeader">Decoded transaction</h4>
             <pre
-                data-target="rawtx.decodedTransaction"
+                data-rawtx-target="decodedTransaction"
                 class="json-block mono pt-3 pe-3 pb-3 ps-3"
             >
             </pre>

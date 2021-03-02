@@ -6,7 +6,7 @@
         {{with .Mempool}}
         <div class="container main"
         data-controller="mempool time"
-        data-target="mempool.mempool"
+        data-mempool-target="mempool"
         {{template "mempoolDump" .}}
         >
             <div class="pb-2 h4">Mempool</div>
@@ -25,30 +25,30 @@
                                 <div class="d-inline-block text-center text-md-start text-lg-center text-xl-start">
                                     <span class="text-secondary fs13">Total Sent</span>
                                     <br>
-                                    <span class="h4" data-target="mempool.likelyTotal">{{threeSigFigs .LikelyMineable.Total}}</span> <span class="text-secondary">DCR</span>
+                                    <span class="h4" data-mempool-target="likelyTotal">{{threeSigFigs .LikelyMineable.Total}}</span> <span class="text-secondary">DCR</span>
                                 </div>
                             </div>
                             <div class="col-12 text-center">
                                 <div class="d-inline-block text-center text-md-start text-lg-center text-xl-start">
                                     <span class="text-secondary fs13">Last Block</span>
                                     <br>
-                                    <span class="h4"><a href="/block/{{.LastBlockHeight}}" data-target="mempool.bestBlock" data-hash="{{.LastBlockHash}}" data-keynav-priority>{{.LastBlockHeight}}</a></span>
+                                    <span class="h4"><a href="/block/{{.LastBlockHeight}}" data-mempool-target="bestBlock" data-hash="{{.LastBlockHash}}" data-keynav-priority>{{.LastBlockHeight}}</a></span>
                                 </div>
                             </div>
                         </div>
                         <div class="col-24 col-md-12 col-lg-24 col-xl-12 row pb-3 pt-2 pt-md-0 pt-lg-2 pt-xl-0">
                             <div class="col-12 text-center">
                                 <div class="d-inline-block text-center text-md-start text-lg-center text-xl-start">
-                                    <span class="text-secondary fs13" data-target="time.header" data-jstitle="Since Last Block">Last Block</span>
+                                    <span class="text-secondary fs13" data-time-target="header" data-jstitle="Since Last Block">Last Block</span>
                                     <br>
-                                    <span class="h4" data-target="mempool.bestBlockTime time.age" data-age="{{.LastBlockTime}}"><span class="fs13">{{.FormattedBlockTime}}</span></span>
+                                    <span class="h4" data-mempool-target="bestBlockTime time.age" data-age="{{.LastBlockTime}}"><span class="fs13">{{.FormattedBlockTime}}</span></span>
                                 </div>
                             </div>
                             <div class="col-12 text-center">
                                 <div class="d-inline-block text-center text-md-start text-lg-center text-xl-start">
                                     <span class="text-secondary fs13">Size</span>
                                     <br>
-                                    <span class="h4" data-target="mempool.mempoolSize">{{.LikelyMineable.FormattedSize}}</span>
+                                    <span class="h4" data-mempool-target="mempoolSize">{{.LikelyMineable.FormattedSize}}</span>
                                 </div>
                             </div>
                         </div>
@@ -64,28 +64,28 @@
                         <div class="col-24 col-md-12 col-lg-24 col-xl-12 row pb-3">
                             <div class="col-12">
                                 <div class="text-center text-secondary fs13">Regular</div>
-                                <div class="text-center h4 mb-0" data-target="mempool.regCount">{{.NumRegular}}</div>
+                                <div class="text-center h4 mb-0" data-mempool-target="regCount">{{.NumRegular}}</div>
                                 <div class="text-center fs13">
-                                    <span data-target="mempool.regTotal">{{threeSigFigs .LikelyMineable.RegularTotal}}</span> DCR
+                                    <span data-mempool-target="regTotal">{{threeSigFigs .LikelyMineable.RegularTotal}}</span> DCR
                                 </div>
                             </div><!-- add treasury count here -->
                             <div class="col-12">
                                 <div class="text-center text-secondary fs13">Tickets</div>
-                                <div class="text-center h4 mb-0" data-target="mempool.ticketCount">{{.NumTickets}}</div>
+                                <div class="text-center h4 mb-0" data-mempool-target="ticketCount">{{.NumTickets}}</div>
                                 <div class="text-center fs13">
-                                    <span data-target="mempool.ticketTotal">{{threeSigFigs .LikelyMineable.TicketTotal}}</span> DCR
+                                    <span data-mempool-target="ticketTotal">{{threeSigFigs .LikelyMineable.TicketTotal}}</span> DCR
                                 </div>
                             </div>
                         </div>
                         <div class="col-24 col-md-12 col-lg-24 col-xl-12 row pb-3">
                             <div class="col-12">
                                 <div class="text-center text-secondary fs13">Votes</div>
-                                <div class="text-center h4 mb-0" data-target="mempool.voteCount">
+                                <div class="text-center h4 mb-0" data-mempool-target="voteCount">
                                     {{$afterFirst := false}}
                                     {{range $hash, $tally := .VotingInfo.VoteTallys}}
                                         {{if $afterFirst}} + {{end}}
                                         <span class="text-center position-relative d-inline-block"
-                                        data-target="mempool.voteTally"
+                                        data-mempool-target="voteTally"
                                         data-hash="{{$hash}}"
                                         data-affirmed="{{$tally.Affirmations}}"
                                         data-count="{{$tally.VoteCount}}"
@@ -95,14 +95,14 @@
                                     {{end}}
                                 </div>
                                 <div class="text-center fs13">
-                                    <span data-target="mempool.voteTotal">{{threeSigFigs .LikelyMineable.VoteTotal}}</span> DCR
+                                    <span data-mempool-target="voteTotal">{{threeSigFigs .LikelyMineable.VoteTotal}}</span> DCR
                                 </div>
                             </div>
                             <div class="col-12">
                                 <div class="text-center text-secondary fs13">Revocations</div>
-                                <div class="text-center h4 mb-0" data-target="mempool.revCount">{{.NumRevokes}}</div>
+                                <div class="text-center h4 mb-0" data-mempool-target="revCount">{{.NumRevokes}}</div>
                                 <div class="text-center fs13">
-                                    <span data-target="mempool.revTotal">{{threeSigFigs .LikelyMineable.RevokeTotal}}</span> DCR
+                                    <span data-mempool-target="revTotal">{{threeSigFigs .LikelyMineable.RevokeTotal}}</span> DCR
                                 </div>
                             </div>
                         </div>
@@ -122,7 +122,7 @@
                               <th class="text-end">Time in Mempool</th>
                             </tr>
                           </thead>
-                          <tbody data-target="mempool.revocationTransactions">
+                          <tbody data-mempool-target="revocationTransactions">
                               {{if gt .NumTSpends 0}}
                               {{range .TSpends}}
                               <tr>
@@ -133,7 +133,7 @@
                                   <td class="mono fs15 text-end">
                                     {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
                                   </td>
-                                  <td class="mono fs15 text-end" data-target="time.age" data-age="{{.Time}}"></td>
+                                  <td class="mono fs15 text-end" data-time-target="age" data-age="{{.Time}}"></td>
                               </tr>
                               {{end}}
                               {{else}}
@@ -157,7 +157,7 @@
                               <th class="text-end">Time in Mempool</th>
                             </tr>
                           </thead>
-                          <tbody data-target="mempool.revocationTransactions">
+                          <tbody data-mempool-target="revocationTransactions">
                               {{range .TAdds}}
                               <tr>
                                   <td class="break-word clipboard">
@@ -167,7 +167,7 @@
                                   <td class="mono fs15 text-end">
                                     {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
                                   </td>
-                                  <td class="mono fs15 text-end" data-target="time.age" data-age="{{.Time}}"></td>
+                                  <td class="mono fs15 text-end" data-time-target="age" data-age="{{.Time}}"></td>
                               </tr>
                               {{end}}
                           </tbody>
@@ -191,7 +191,7 @@
                               <th class="text-end d-none d-sm-table-cell jsonly">Time in Mempool</th>
                             </tr>
                           </thead>
-                          <tbody data-target="mempool.voteTransactions">
+                          <tbody data-mempool-target="voteTransactions">
                               {{if gt .NumVotes 0}}
                               {{range .Votes}}
                               <tr {{if not .VoteInfo.ForLastBlock}}class="disabled-row"{{end}}
@@ -211,7 +211,7 @@
                                       {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
                                   </td>
                                   <td class="mono fs15 text-end">{{.Size}} B</td>
-                                  <td class="mono fs15 text-end d-none d-sm-table-cell jsonly" data-target="time.age" data-age="{{.Time}}"></td>
+                                  <td class="mono fs15 text-end d-none d-sm-table-cell jsonly" data-time-target="age" data-age="{{.Time}}"></td>
                               </tr>
                               {{end}}
                               {{else}}
@@ -236,7 +236,7 @@
                               <th class="text-end">Time in Mempool</th>
                             </tr>
                           </thead>
-                          <tbody data-target="mempool.ticketTransactions">
+                          <tbody data-mempool-target="ticketTransactions">
                               {{if gt .NumTickets 0}}
                               {{range .Tickets}}
                               <tr>
@@ -249,7 +249,7 @@
                                   </td>
                                   <td class="mono fs15 text-end">{{.Size}} B</td>
                                   <td class="mono fs15 text-end">{{printf "%.8f" (.FeeRate)}} DCR/kB</td>
-                                  <td class="mono fs15 text-end" data-target="time.age" data-age="{{.Time}}"></td>
+                                  <td class="mono fs15 text-end" data-time-target="age" data-age="{{.Time}}"></td>
                               </tr>
                               {{end}}
                               {{else}}
@@ -274,7 +274,7 @@
                               <th class="text-end">Time in Mempool</th>
                             </tr>
                           </thead>
-                          <tbody data-target="mempool.revocationTransactions">
+                          <tbody data-mempool-target="revocationTransactions">
                               {{if gt .NumRevokes 0}}
                               {{range .Revocations}}
                               <tr>
@@ -286,7 +286,7 @@
                                     {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
                                   </td>
                                   <td class="mono fs15 text-end">{{.Size}} B</td>
-                                  <td class="mono fs15 text-end" data-target="time.age" data-age="{{.Time}}"></td>
+                                  <td class="mono fs15 text-end" data-time-target="age" data-age="{{.Time}}"></td>
                               </tr>
                               {{end}}
                               {{else}}
@@ -312,7 +312,7 @@
                               <th class="text-end">Time in Mempool</th>
                             </tr>
                           </thead>
-                          <tbody data-target="mempool.regularTransactions">
+                          <tbody data-mempool-target="regularTransactions">
                               {{if gt .NumRegular 0}}
                               {{range .Transactions}}
                               <tr>
@@ -325,7 +325,7 @@
                                   </td>
                                   <td class="mono fs15 text-end">{{.Size}} B</td>
                                   <td class="mono fs15 text-end">{{printf "%.8f" (.FeeRate)}} DCR/kB</td>
-                                  <td class="mono fs15 text-end" data-target="time.age" data-age="{{.Time}}"></td>
+                                  <td class="mono fs15 text-end" data-time-target="age" data-age="{{.Time}}"></td>
                               </tr>
                               {{end}}
                               {{else}}

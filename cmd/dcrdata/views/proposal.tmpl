@@ -70,7 +70,7 @@
                     <!-- <div class="text-secondary text-center fs13">Approval</div> -->
                     <div
                       class="meter text-center js-only lil arch"
-                      data-target="proposal.approvalMeter"
+                      data-proposal-target="approvalMeter"
                       data-value="{{$metadata.Approval}}"
                       data-threshold="{{$metadata.PassPercent}}"
                       >
@@ -174,21 +174,21 @@
         {{- /* CHARTS */ -}}
         {{if gt (len .VoteResults) 1}}
             <div
-                data-target="proposal.token"
+                data-proposal-target="token"
                 data-hash="{{$.Data.Token}}"
                 class="pt-2 proposal-charts"
                 >
                 <div class="d-flex position-relative">
-                    <div data-target="proposal.approval" class="proposal-chart-align w-100"></div>
-                    <div data-target="proposal.approvalLegend" class="text-nowrap proposal-chart-legend"></div>
+                    <div data-proposal-target="approval" class="proposal-chart-align w-100"></div>
+                    <div data-proposal-target="approvalLegend" class="text-nowrap proposal-chart-legend"></div>
                 </div>
                 <div class="d-flex position-relative">
-                    <div data-target="proposal.cumulative" class="proposal-chart-align w-100 pt-1"></div>
-                    <div data-target="proposal.cumulativeLegend" class="text-nowrap proposal-chart-legend"></div>
+                    <div data-proposal-target="cumulative" class="proposal-chart-align w-100 pt-1"></div>
+                    <div data-proposal-target="cumulativeLegend" class="text-nowrap proposal-chart-legend"></div>
                 </div>
                 <div class="d-flex position-relative">
-                    <div data-target="proposal.log" class="proposal-chart-align w-100 pt-1"></div>
-                    <div data-target="proposal.logLegend" class="text-nowrap proposal-chart-legend"></div>
+                    <div data-proposal-target="log" class="proposal-chart-align w-100 pt-1"></div>
+                    <div data-proposal-target="logLegend" class="text-nowrap proposal-chart-legend"></div>
                 </div>
             </div>
         {{else}}

@@ -18,7 +18,7 @@
 						{{- if gt .Confirmations 0}}
 						<div class="d-inline-block confirmations-box confirmed mx-2 fs14"
 							data-controller="newblock"
-							data-target="newblock.confirmations"
+							data-newblock-target="confirmations"
 							data-confirmations="{{.Confirmations}}"
 							data-yes="# confirmation@"
 							data-no="best block"
@@ -28,7 +28,7 @@
 						{{- else if .MainChain}}
 						<div class="d-inline-block confirmations-box mx-2 fs14"
 							data-controller="newblock"
-							data-target="newblock.confirmations"
+							data-newblock-target="confirmations"
 							data-confirmations="{{.Confirmations}}"
 							data-yes="# confirmation@"
 							data-no="best block"
@@ -98,7 +98,7 @@
 					<br>
 					<span class="fs18 fw-bold lh1rem d-inline-block pt-1">{{.BlockTime.PrettyMDY}}</span>
 					<br>
-					<span class="fs14 text-secondary">{{.BlockTime.HMSTZ}} <span class="jsonly">(<span data-target="time.age" data-age="{{.BlockTime.UNIX}}"></span> ago)</span></span>
+					<span class="fs14 text-secondary">{{.BlockTime.HMSTZ}} <span class="jsonly">(<span data-time-target="age" data-age="{{.BlockTime.UNIX}}"></span> ago)</span></span>
 				</div>
 			</div>
 			<div class="d-flex justify-content-around fs15 text-center text-secondary my-2">

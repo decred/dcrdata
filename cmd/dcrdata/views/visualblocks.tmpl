@@ -12,21 +12,21 @@
         <div
             class="blocks-section"
             data-controller="visualBlocks"
-            data-target="visualBlocks.root"
+            data-visualBlocks-target="root"
         >
             <a
                 class="no-underline title fw-bold"
                 href="/blocks"
-                data-target="visualBlocks.title"
+                data-visualBlocks-target="title"
                 href="/blocks"
             >Latest Blocks</a>
             <div
                 class="blocks-holder"
-                data-target="visualBlocks.box"
+                data-visualBlocks-target="box"
             >
                 <!-- add mempool element -->
                 {{with .Mempool}}
-                <div class="block visible" data-target="visualBlocks.block">
+                <div class="block visible" data-visualBlocks-target="block">
                     <div class="block-info">
                         <a class="color-code" href="/mempool">Mempool</a>
                         <div class="mono amount" style="line-height: 1;">
@@ -34,35 +34,35 @@
                             <span class="unit"> DCR</span>
                         </div>
                         <span class="timespan">
-                            <span data-target="time.age" data-age="{{.Time}}"></span>&nbsp;ago
+                            <span data-time-target="age" data-age="{{.Time}}"></span>&nbsp;ago
                         </span>
                     </div>
                     <div class="block-rows">
                         <div class="block-rewards" style="flex-grow: 1">
                             <span class="pow" style="flex-grow: {{toFloat64Amount .Subsidy.PoW}}"
                                 title='{"object": "PoW Reward", "total": "{{toFloat64Amount .Subsidy.PoW}}"}'
-                                data-target="visualBlocks.tooltip">
+                                data-visualBlocks-target="tooltip">
                                 <a class="block-element-link" href="#">
                                     <span class="paint" style="width: {{intMultiply (len .Votes) 20}}%"></span>
                                 </a>
                             </span>
                             <span class="pos" style="flex-grow: {{toFloat64Amount .Subsidy.PoS}}"
                                 title='{"object": "PoS Reward", "total": "{{toFloat64Amount .Subsidy.PoS}}"}'
-                                data-target="visualBlocks.tooltip">
+                                data-visualBlocks-target="tooltip">
                                 <a class="block-element-link" href="#">
                                     <span class="paint" style="width: {{intMultiply (len .Votes) 20}}%"></span>
                                 </a>
                             </span>
                             <span class="fund" style="flex-grow: {{toFloat64Amount .Subsidy.Dev}}"
                                 title='{"object": "Project Fund", "total": "{{toFloat64Amount .Subsidy.Dev}}"}'
-                                data-target="visualBlocks.tooltip">
+                                data-visualBlocks-target="tooltip">
                                 <a class="block-element-link" href="#">
                                     <span class="paint" style="width: {{intMultiply (len .Votes) 20}}%"></span>
                                 </a>
                             </span>
                             <span class="fees" style="flex-grow: {{.Fees}}"
                                 title='{"object": "Tx Fees", "total": "{{.Fees}}"}'
-                                data-target="visualBlocks.tooltip">
+                                data-visualBlocks-target="tooltip">
                                 <a class="block-element-link" href="#"></a>
                             </span>
                         </div>
@@ -133,7 +133,7 @@
                 {{end}}
 
                 {{range $index, $block := .Blocks}}
-                <div class="{{if lt $index 10}}block visible{{else}}block{{end}}" data-target="visualBlocks.block">
+                <div class="{{if lt $index 10}}block visible{{else}}block{{end}}" data-visualBlocks-target="block">
                 {{with $block}}
                     <div class="block-info">
                         <a class="color-code" href="/block/{{.Height}}">{{.Height}}</a>
@@ -142,35 +142,35 @@
                             <span class="unit"> DCR</span>
                         </div>
                         <span class="timespan">
-                            <span data-target="time.age" data-age="{{.Time.UNIX}}"></span>&nbsp;ago
+                            <span data-time-target="age" data-age="{{.Time.UNIX}}"></span>&nbsp;ago
                         </span>
                     </div>
                     <div class="block-rows">
                         <div class="block-rewards" style="flex-grow: 1">
                             <span class="pow" style="flex-grow: {{toFloat64Amount .Subsidy.PoW}}"
                                 title='{"object": "PoW Reward", "total": "{{toFloat64Amount .Subsidy.PoW}}"}'
-                                data-target="visualBlocks.tooltip">
+                                data-visualBlocks-target="tooltip">
                                 <a class="block-element-link" href="#">
                                     <span class="paint" style="width: {{intMultiply (len .Votes) 20}}%"></span>
                                 </a>
                             </span>
                             <span class="pos" style="flex-grow: {{toFloat64Amount .Subsidy.PoS}}"
                                 title='{"object": "PoS Reward", "total": "{{toFloat64Amount .Subsidy.PoS}}"}'
-                                data-target="visualBlocks.tooltip">
+                                data-visualBlocks-target="tooltip">
                                 <a class="block-element-link" href="#">
                                     <span class="paint" style="width: {{intMultiply (len .Votes) 20}}%"></span>
                                 </a>
                             </span>
                             <span class="fund" style="flex-grow: {{toFloat64Amount .Subsidy.Developer}}"
                                 title='{"object": "Project Fund", "total": "{{toFloat64Amount .Subsidy.Developer}}"}'
-                                data-target="visualBlocks.tooltip">
+                                data-visualBlocks-target="tooltip">
                                 <a class="block-element-link" href="#">
                                     <span class="paint" style="width: {{intMultiply (len .Votes) 20}}%"></span>
                                 </a>
                             </span>
                             <span class="fees" style="flex-grow: {{.Fees}}"
                                 title='{"object": "Tx Fees", "total": "{{.Fees}}"}'
-                                data-target="visualBlocks.tooltip">
+                                data-visualBlocks-target="tooltip">
                                 <a class="block-element-link" href="#"></a>
                             </span>
                         </div>
@@ -219,7 +219,7 @@
                         {{end}}
                         </div>
 
-                        <div class="block-transactions" data-target="visualBlocks.txs" style="flex-grow: 1">
+                        <div class="block-transactions" data-visualBlocks-target="txs" style="flex-grow: 1">
                         {{$txs := .Transactions}}
                         {{$txCount := len .Transactions}}
                         {{if gt $txCount 50}} {{$txs = clipSlice .Transactions 30}} {{end}}
@@ -241,7 +241,7 @@
                 </div>
                 {{end}}
             </div>
-            <a class="no-underline d-block mt-4" data-target="visualBlocks.showmore" href="/blocks"><div class="showmore"><p>View BlockChain History</p></div></a>
+            <a class="no-underline d-block mt-4" data-visualBlocks-target="showmore" href="/blocks"><div class="showmore"><p>View BlockChain History</p></div></a>
         </div>
     </div>
 

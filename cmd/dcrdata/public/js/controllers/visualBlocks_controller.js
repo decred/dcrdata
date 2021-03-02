@@ -23,7 +23,7 @@ function makeMempoolBlock (block) {
                     <a class="color-code" href="/mempool">Mempool</a>
                     <div class="mono" style="line-height: 1;">${Math.floor(block.Total)} DCR</div>
                     <span class="timespan">
-                        <span data-target="time.age" data-age="${block.Time}"></span>
+                        <span data-time-target="age" data-age="${block.Time}"></span>
                     </span>
                 </div>
                 <div class="block-rows">
@@ -62,7 +62,7 @@ function makeBlockSummary (blockHeight, totalSent, time) {
                 <a class="color-code" href="/block/${blockHeight}">${blockHeight}</a>
                 <div class="mono" style="line-height: 1;">${Math.floor(totalSent)} DCR</div>
                 <span class="timespan">
-                    <span data-target="time.age" data-age="${time}"></span>&nbsp;ago
+                    <span data-time-target="age" data-age="${time}"></span>&nbsp;ago
                 </span>
             </div>`
 }

@@ -18,24 +18,24 @@
                         {{with .BestBlock}}
                         <div class="col-12 col-sm-6 text-center">
                             <span class="h6 mb-0 position-relative text-secondary" data-tooltip="stakeholders are validating this block now.">proposed</span><br>
-                            <a class="d-inline-block h3 position-relative" href="/block/{{.Hash}}" data-target="homepage.blockHeight">{{.Height}}</a>
+                            <a class="d-inline-block h3 position-relative" href="/block/{{.Hash}}" data-homepage-target="blockHeight">{{.Height}}</a>
                         </div>
                         <div class="col-12 col-sm-6 text-center">
                             <span class="h6 position-relative text-secondary" data-tooltip="total DCR sent in this block">value</span><br>
-                            <span class="h4" data-target="homepage.blockTotal">{{threeSigFigs .Total}}</span><span class="h6"> DCR</span>
+                            <span class="h4" data-homepage-target="blockTotal">{{threeSigFigs .Total}}</span><span class="h6"> DCR</span>
                         </div>
                         <div class="col-12 col-sm-6 text-center">
                             <div class="d-flex align-items-baseline justify-content-center p-0 m-0">
                                 <span class="h6 me-2 text-secondary" data-tooltip="stakeholder's votes for the proposed block.">votes</span>
                                 {{if eq $.Consensus -1}}
-                                <span data-target="homepage.consensusMsg" class="small text-danger">rejected</span>
+                                <span data-homepage-target="consensusMsg" class="small text-danger">rejected</span>
                                 {{else if eq $.Consensus 0}}
-                                <span data-target="homepage.consensusMsg" class="small"></span>
+                                <span data-homepage-target="consensusMsg" class="small"></span>
                                 {{else}}
-                                <span data-target="homepage.consensusMsg" class="small text-green">approved</span>
+                                <span data-homepage-target="consensusMsg" class="small text-green">approved</span>
                                 {{end}}
                             </div>
-                            <div class="d-inline-block p1 h5" data-target="homepage.blockVotes" data-hash="{{.Hash}}">
+                            <div class="d-inline-block p1 h5" data-homepage-target="blockVotes" data-hash="{{.Hash}}">
                                 {{range $index, $vote := $.BlockTally}}
                                 <div
                                 class="d-inline-block position-relative"
@@ -48,7 +48,7 @@
                         </div>
                         <div class="col-12 col-sm-6 text-center">
                             <span class="h6 text-secondary">size</span><br>
-                            <span class="h4" data-target="homepage.blockSize">{{.FormattedBytes}}</span>
+                            <span class="h4" data-homepage-target="blockSize">{{.FormattedBytes}}</span>
                         </div>
                         {{end}}
                     </div>
@@ -72,10 +72,10 @@
                                           ><span class="d-none d-sm-inline">Revokes</span></th>
                                         <th class="text-end" data-tooltip="total DCR sent">DCR</th>
                                         <th class="d-none d-sm-table-cell d-md-none d-lg-table-cell text-end">Size</th>
-                                        <th class="text-end pe-2" data-target="time.header" data-jstitle="Age">Time (UTC)</th>
+                                        <th class="text-end pe-2" data-time-target="header" data-jstitle="Age">Time (UTC)</th>
                                     </tr>
                                 </thead>
-                                <tbody data-target="blocklist.table">
+                                <tbody data-blocklist-target="table">
                                     {{range .Blocks}}
                                     <tr data-height="{{.Height}}" data-link-class="fs18">
                                         <td class="text-start ps-1" data-type="height"><a href="/block/{{.Height}}" class="fs18">{{.Height}}</a></td>
@@ -85,7 +85,7 @@
                                         <td class="text-center" data-type="revocations">{{.Revocations}}</td>
                                         <td class="text-end" data-type="value">{{threeSigFigs .Total}}</td>
                                         <td class="text-end d-none d-sm-table-cell d-md-none d-lg-table-cell text-nowrap" data-type="size">{{.FormattedBytes}}</td>
-                                        <td class="text-end pe-1 text-nowrap" data-type="age" data-target="time.age" data-age="{{.BlockTime.UNIX}}">{{.BlockTime.DatetimeWithoutTZ}}</td>
+                                        <td class="text-end pe-1 text-nowrap" data-type="age" data-time-target="age" data-age="{{.BlockTime.UNIX}}">{{.BlockTime.DatetimeWithoutTZ}}</td>
                                     </tr>
                                     {{end}}
                                 </tbody>
@@ -104,7 +104,7 @@
                         <div class="align-right me-3">
                             <span
                                 class="h2 position-relative"
-                                data-target="homepage.mempool"
+                                data-homepage-target="mempool"
                                 {{template "mempoolDump" .Mempool}}
                                 data-tooltip="transactions ready for the next block"
                             >{{threeSigFigs .Mempool.LikelyMineable.Total}}</span>
@@ -116,48 +116,48 @@
                         <div class="col-md-9 mb-3">
                             <div class="d-flex justify-content-between align-items-center px-2 mx-auto mt-1 mt-lg-4 pt-1">
                                 <div class="text-start ps-3 ps-sm-3 ps-md-3 ps-lg-3 tx-bar tx-regular d-inline-block">
-                                    <span data-target="homepage.mpRegCount" class="h4">{{.Mempool.NumRegular}}</span>
+                                    <span data-homepage-target="mpRegCount" class="h4">{{.Mempool.NumRegular}}</span>
                                     <span class="h6"> regular</span>
                                     <br>
-                                    <span class="h4" data-target="homepage.mpRegTotal">{{threeSigFigs .Mempool.LikelyMineable.RegularTotal}}</span>
+                                    <span class="h4" data-homepage-target="mpRegTotal">{{threeSigFigs .Mempool.LikelyMineable.RegularTotal}}</span>
                                     <span class="h6">DCR</span>
                                 </div>
                                 {{/* TODO: pe-SM, pe-MD, ETC CAN GO */}}
                                 <div class="text-end pe-3 pe-sm-3 pe-md-3 pe-lg-3 tx-bar tx-ticket d-inline-block">
-                                    <span data-target="homepage.mpTicketCount" class="h4">{{.Mempool.NumTickets}}</span>
+                                    <span data-homepage-target="mpTicketCount" class="h4">{{.Mempool.NumTickets}}</span>
                                     <span class="h6"> tickets</span>
                                     <br>
-                                    <span class="h4" data-target="homepage.mpTicketTotal"
+                                    <span class="h4" data-homepage-target="mpTicketTotal"
                                     >{{threeSigFigs .Mempool.LikelyMineable.TicketTotal}}</span>
                                     <span class="h6">DCR</span>
                                 </div>
                             </div>
 
                             <div class="mx-2 jsonly text-nowrap d-flex my-3">
-                                <div class="tx-gauge tx-regular rounded-start" data-target="homepage.mpRegBar"></div>
-                                <div class="tx-gauge tx-ticket" data-target="homepage.mpTicketBar"></div>
-                                <div class="tx-gauge tx-rev" data-target="homepage.mpRevBar"></div>
-                                <div class="tx-gauge tx-vote rounded-end" data-target="homepage.mpVoteBar"></div>
+                                <div class="tx-gauge tx-regular rounded-start" data-homepage-target="mpRegBar"></div>
+                                <div class="tx-gauge tx-ticket" data-homepage-target="mpTicketBar"></div>
+                                <div class="tx-gauge tx-rev" data-homepage-target="mpRevBar"></div>
+                                <div class="tx-gauge tx-vote rounded-end" data-homepage-target="mpVoteBar"></div>
                             </div>
 
                             <div class="d-flex justify-content-between align-items-center mx-auto px-2">
                                 <div class="text-start ps-3 pe-sm-3 pe-md-3 pe-lg-3 tx-bar tx-rev d-inline-block">
-                                    <span data-target="homepage.mpRevCount" class="h4 lh1rem">{{.Mempool.NumRevokes}}</span>
+                                    <span data-homepage-target="mpRevCount" class="h4 lh1rem">{{.Mempool.NumRevokes}}</span>
                                     <span class="h6"> revokes</span>
                                     <br>
-                                    <span class="h4" data-target="homepage.mpRevTotal"
+                                    <span class="h4" data-homepage-target="mpRevTotal"
                                     >{{threeSigFigs .Mempool.LikelyMineable.RevokeTotal}}</span>
                                     <span class="h6">DCR</span>
                                 </div>
                                 <div class="text-end pe-3 ps-sm-3 ps-md-3 ps-lg-3 tx-bar tx-bar tx-vote d-inline-block">
-                                    <span data-target="homepage.mpVoteCount"
+                                    <span data-homepage-target="mpVoteCount"
                                     class="h4 lh1rem"
                                     data-tickets-per-block="{{.Mempool.VotingInfo.MaxVotesPerBlock}}">
                                     {{$afterFirst := false}}
                                     {{range $hash, $tally := .Mempool.VotingInfo.VoteTallys}}
                                         {{if $afterFirst}} + {{end}}
                                         <span class="position-relative d-inline-block"
-                                        data-target="homepage.voteTally"
+                                        data-homepage-target="voteTally"
                                         data-hash="{{$hash}}"
                                         data-affirmed="{{$tally.Affirmations}}"
                                         data-count="{{$tally.VoteCount}}"
@@ -168,7 +168,7 @@
                                     </span>
                                     <span class="h6"> votes</span>
                                     <br>
-                                    <span class="h4" data-target="homepage.mpVoteTotal">{{threeSigFigs .Mempool.LikelyMineable.VoteTotal}}</span>
+                                    <span class="h4" data-homepage-target="mpVoteTotal">{{threeSigFigs .Mempool.LikelyMineable.VoteTotal}}</span>
                                     <span class="h6">DCR</span><br>
                                 </div>
                             </div>
@@ -185,14 +185,14 @@
                                     <th class="text-end pe-2 jsonly">Age</th>
                                 </tr>
                                 </thead>
-                                <tbody class="homepage-mempool" data-target="homepage.transactions">
+                                <tbody class="homepage-mempool" data-homepage-target="transactions">
                                 {{range .Mempool.LatestTransactions}}
                                 <tr>
                                     <td class="text-start ps-1 clipboard">{{template "hashElide" (hashlink .Hash (print "/tx/" .Hash))}}</td>
                                     <td class="text-start">{{.Type}}</td>
                                     <td class="text-end">{{threeSigFigs .TotalOut}}</td>
                                     <td class="text-nowrap text-end">{{.Size}} B</td>
-                                    <td class="text-end pe-1 jsonly text-nowrap" data-target="time.age" data-age="{{.Time}}"></td>
+                                    <td class="text-end pe-1 jsonly text-nowrap" data-time-target="age" data-age="{{.Time}}"></td>
                                 </tr>
                                 {{end}}
                                 </tbody>
@@ -216,37 +216,37 @@
                                 <a class="no-underline" href="/charts?chart=ticket-price&zoom=month">Current Ticket Price</a>
                             </div>
                             <div class="mono lh1rem fs14-decimal fs24 pt-1 pb-1 d-flex align-items-baseline">
-                                <span data-target="homepage.blocksdiff">{{template "decimalParts" (float64AsDecimalParts .StakeDiff 8 false 2)}}</span>
+                                <span data-homepage-target="blocksdiff">{{template "decimalParts" (float64AsDecimalParts .StakeDiff 8 false 2)}}</span>
                                 <span class="ps-1 unit lh15rem">DCR</span>
                             </div>
                             {{if $conv}}
                             <div class="fs12 lh1rem text-black-50">
-                                <span data-target="homepage.convertedStake">{{$conv.StakeDiff.TwoDecimals}} {{$conv.StakeDiff.Index}}</span>
+                                <span data-homepage-target="convertedStake">{{$conv.StakeDiff.TwoDecimals}} {{$conv.StakeDiff.Index}}</span>
                             </div>
                             {{end}}
                         </div>
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                             <div class="fs13 text-secondary">Next Ticket Price</div>
                             <div class="mono d-flex align-items-baseline lh1rem pt-1 pb-1">
-                                <span class="fs22">~</span><span class="fs24 d-flex" data-target="homepage.nextExpectedSdiff">{{template "decimalParts" (float64AsDecimalParts .NextExpectedStakeDiff 2 false)}}</span>
+                                <span class="fs22">~</span><span class="fs24 d-flex" data-homepage-target="nextExpectedSdiff">{{template "decimalParts" (float64AsDecimalParts .NextExpectedStakeDiff 2 false)}}</span>
                                 <span class="ps-1 unit lh15rem">DCR</span>
                             </div>
                             <div class="d-flex lh1rem fs12 text-black-50">
                                 <span>min:&nbsp;</span>
-                                <span class="d-flex" data-target="homepage.nextExpectedMin">{{template "decimalParts" (float64AsDecimalParts .NextExpectedBoundsMin 2 false)}}</span>
+                                <span class="d-flex" data-homepage-target="nextExpectedMin">{{template "decimalParts" (float64AsDecimalParts .NextExpectedBoundsMin 2 false)}}</span>
                                 <span>&nbsp;&mdash;&nbsp;max:&nbsp;</span>
-                                <span class="d-flex" data-target="homepage.nextExpectedMax">{{template "decimalParts" (float64AsDecimalParts .NextExpectedBoundsMax 2 false)}}</span>
+                                <span class="d-flex" data-homepage-target="nextExpectedMax">{{template "decimalParts" (float64AsDecimalParts .NextExpectedBoundsMax 2 false)}}</span>
                             </div>
                         </div>
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                             <div class="d-block fs13 text-secondary"><a href="/charts?chart=ticket-pool-size">Ticket Pool Size</a></div>
                             <div class="mono lh1rem fs14-decimal fs24 pt-1 pb-1 d-flex align-items-baseline">
-                                <span data-target="homepage.poolSize">
+                                <span data-homepage-target="poolSize">
                                     {{intComma .PoolInfo.Size}}
                                 </span>
                             </div>
                             <div class="fs12 lh1rem text-black-50">
-                                <span data-target="homepage.targetPct">{{printf "%.2f" (toAbsValue $.PercentChange)}}</span>%
+                                <span data-homepage-target="targetPct">{{printf "%.2f" (toAbsValue $.PercentChange)}}</span>%
                                 {{if lt $.PercentChange 0.0}} under {{else}} over {{end}}
                                 target
                             </div>
@@ -256,14 +256,14 @@
                             <div class="progress mt-1 mb-1">
                                 <div
                                     class="progress-bar rounded"
-                                    data-target="homepage.posBar"
+                                    data-homepage-target="posBar"
                                     role="progressbar"
                                     style="width: {{ticketWindowProgress .IdxBlockInWindow}}%;"
                                     aria-valuenow="{{.IdxBlockInWindow}}"
                                     aria-valuemin="0"
                                     aria-valuemax="{{.Params.WindowSize}}"
                                 >
-                                    <span class="nowrap ps-1">block <span data-target="homepage.windowIndex" >{{.IdxBlockInWindow}}</span> of {{.Params.WindowSize}}</span>
+                                    <span class="nowrap ps-1">block <span data-homepage-target="windowIndex">{{.IdxBlockInWindow}}</span> of {{.Params.WindowSize}}</span>
                                 </div>
                             </div>
                             <div class="fs12 lh1rem">
@@ -275,26 +275,26 @@
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                             <div class="fs13 text-secondary">Vote Reward</div>
                             <div class="mono lh1rem fs14-decimal fs24 pt-1 pb-1 d-flex align-items-baseline">
-                                <span data-target="homepage.bsubsidyPos">
+                                <span data-homepage-target="bsubsidyPos">
                                     {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount (divide .NBlockSubsidy.PoS 5)) 8 true 2)}}
                                 </span>
                                 <span class="ps-1 unit lh15rem" style="font-size:13px;">DCR/vote</span>
                             </div>
                             <div class="fs12 lh1rem text-black-50">
-                                <span data-target="homepage.ticketReward">{{printf "%.2f" .TicketReward}}%</span> per ~{{.RewardPeriod}}
+                                <span data-homepage-target="ticketReward">{{printf "%.2f" .TicketReward}}%</span> per ~{{.RewardPeriod}}
                             </div>
                             <div class="fs12 lh1rem text-black-50" title="Annual Stake Rewards">{{printf "%.2f" .ASR}}% per year</div>
                         </div>
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                             <div class="fs13 text-secondary"><a href="/charts?chart=stake-participation">Total Staked DCR</a></div>
                             <div class="mono lh1rem fs14-decimal fs24 pt-1 pb-1 d-flex align-items-baseline">
-                                <span data-target="homepage.poolValue">
+                                <span data-homepage-target="poolValue">
                                     {{template "decimalParts" (float64AsDecimalParts .PoolInfo.Value 0 true)}}
                                 </span>
                                 <span class="ps-1 unit lh15rem">DCR</span>
                             </div>
                             <div class="fs12 lh1rem text-black-50">
-                                <span data-target="homepage.poolSizePct">{{printf "%.2f" .PoolInfo.Percentage}}</span> % of circulating supply
+                                <span data-homepage-target="poolSizePct">{{printf "%.2f" .PoolInfo.Percentage}}</span> % of circulating supply
                             </div>
                         </div>
                     </div>
@@ -311,29 +311,29 @@
                                 <a class="no-underline" href="/charts?chart=pow-difficulty">Difficulty</a>
                             </div>
                             <div class="mono lh1rem p03rem0 fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
-                                <span data-target="homepage.difficulty">{{template "decimalParts" (float64AsDecimalParts (divideFloat .Difficulty 1000000.0) 0 true)}}</span>
+                                <span data-homepage-target="difficulty">{{template "decimalParts" (float64AsDecimalParts (divideFloat .Difficulty 1000000.0) 0 true)}}</span>
                                 <span class="ps-1 unit lh15rem">Mil</span>
                             </div>
                         </div>
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                             <div class="fs13 text-secondary"><a href="/charts?chart=hashrate">Hashrate</a></div>
                             <div class="mono lh1rem pt-1 pb-1 fs14-decimal fs24 d-flex align-items-baseline">
-                                <span data-target="homepage.hashrate">{{template "decimalParts" (float64AsDecimalParts .HashRate 8 true 2)}}</span>
+                                <span data-homepage-target="hashrate">{{template "decimalParts" (float64AsDecimalParts .HashRate 8 true 2)}}</span>
                                 <span class="ps-1 unit lh15rem">Ph/s</span>
                             </div>
                             <div class="fs12 text-black-50 lh1rem text-black-50">
-                                <span data-target="homepage.hashrateDelta">{{template "fmtPercentage" .HashRateChangeMonth}}</span> in past 30 days
+                                <span data-homepage-target="hashrateDelta">{{template "fmtPercentage" .HashRateChangeMonth}}</span> in past 30 days
                             </div>
                         </div>
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                             <div class="fs13 text-secondary">PoW Reward</div>
                             <div class="mono lh1rem p03rem0 fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
-                                <span data-target="homepage.bsubsidyPow">{{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.PoW) 8 true 2)}}</span>
+                                <span data-homepage-target="bsubsidyPow">{{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.PoW) 8 true 2)}}</span>
                                 <span class="ps-1 unit lh15rem">DCR</span>
                             </div>
                             {{if $conv}}
                             <div class="fs12 lh1rem text-black-50">
-                                <span data-target="homepage.powConverted">{{$conv.PowSplit.TwoDecimals}} {{$conv.PowSplit.Index}}</span>
+                                <span data-homepage-target="powConverted">{{$conv.PowSplit.TwoDecimals}} {{$conv.PowSplit.Index}}</span>
                             </div>
                             {{end}}
                         </div>
@@ -342,7 +342,7 @@
                             <div class="progress mt-1 mb-1">
                                 <div
                                     class="progress-bar rounded"
-                                    data-target="homepage.powBar"
+                                    data-homepage-target="powBar"
                                     role="progressbar"
                                     style="width: {{rewardAdjustmentProgress .IdxInRewardWindow}}%;"
                                     aria-valuenow="{{.IdxInRewardWindow}}"
@@ -353,7 +353,7 @@
                                         id="powreward"
                                         class="nowrap ps-1"
                                     >
-                                        block <span data-target="homepage.rewardIdx" >{{.IdxInRewardWindow}}</span> of {{.Params.RewardWindowSize}}
+                                        block <span data-homepage-target="rewardIdx" >{{.IdxInRewardWindow}}</span> of {{.Params.RewardWindowSize}}
                                     </span>
                                 </div>
                             </div>
@@ -376,14 +376,14 @@
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                             <div class="fs13 text-secondary"><a href="/treasury">Treasury</a></div>
                             <div class="mono lh1rem fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
-                                <span data-target="homepage.devFund">
+                                <span data-homepage-target="devFund">
                                     {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount (add .DevFund .TreasuryBalance.Balance)) 0 true)}}
                                 </span>
                                 <span class="ps-1 unit lh15rem">DCR</span>
                             </div>
                             {{if $conv}}
                             <div class="fs12 lh1rem text-black-50">
-                                <span data-target="homepage.convertedDev">{{threeSigFigs $conv.TreasuryBalance.Value}} {{$conv.TreasuryBalance.Index}}</span>
+                                <span data-homepage-target="convertedDev">{{threeSigFigs $conv.TreasuryBalance.Value}} {{$conv.TreasuryBalance.Index}}</span>
                             </div>
                             {{end}}
                         </div>
@@ -391,29 +391,29 @@
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                             <div class="d-block fs13 text-secondary lh1rem"><a href="/charts?chart=coin-supply">Total Coin Supply</a> <span class="nowrap">(of 21 mil)</span></div>
                             <div class="mono lh1rem fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
-                                <span data-target="homepage.coinSupply">
+                                <span data-homepage-target="coinSupply">
                                     {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .CoinSupply) 0 true)}}
                                 </span>
                                 <span class="ps-1 unit lh15rem">DCR</span>
                             </div>
                             <div class="fs12 lh1rem text-black-50">
                                 {{if $conv}}
-                                <span data-target="homepage.convertedSupply">{{threeSigFigs $conv.CoinSupply.Value}} {{$conv.CoinSupply.Index}}</span>,
+                                <span data-homepage-target="convertedSupply">{{threeSigFigs $conv.CoinSupply.Value}} {{$conv.CoinSupply.Index}}</span>,
                                 {{end}}
-                                <span data-target="homepage.mixedPct">{{printf "%.0f" .MixedPercent}}</span>% mixed
+                                <span data-homepage-target="mixedPct">{{printf "%.0f" .MixedPercent}}</span>% mixed
                             </div>
                         </div>
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                             <div class="fs13 text-secondary">Treasury Block Reward</div>
                             <div class="mono lh1rem fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
-                                <span data-target="homepage.bsubsidyDev">
+                                <span data-homepage-target="bsubsidyDev">
                                     {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.Dev) 8 true 2)}}
                                 </span>
                                 <span class="ps-1 unit lh15rem">DCR</span>
                             </div>
                             {{if $conv}}
                             <div class="fs12 lh1rem text-black-50">
-                                <span data-target="homepage.convertedDevSub">{{$conv.TreasurySplit.TwoDecimals}} {{$conv.TreasurySplit.Index}}</span>
+                                <span data-homepage-target="convertedDevSub">{{$conv.TreasurySplit.TwoDecimals}} {{$conv.TreasurySplit.Index}}</span>
                             </div>
                             {{end}}
                         </div>
@@ -423,7 +423,7 @@
                                 <a class="no-underline" href="/market">Exchange Rate</a>
                             </div>
                             <div class="mono lh1rem fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
-                                <span class="d-inline-block" data-target="homepage.exchangeRate">{{$conv.ExchangeRate.TwoDecimals}}</span>
+                                <span class="d-inline-block" data-homepage-target="exchangeRate">{{$conv.ExchangeRate.TwoDecimals}}</span>
                                 <span class="ps-1 unit lh15rem">{{$conv.ExchangeRate.Index}}</span>
                             </div>
                         </div>
