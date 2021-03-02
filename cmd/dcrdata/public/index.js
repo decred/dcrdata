@@ -1,3 +1,4 @@
+// import 'core-js/stable';
 import 'regenerator-runtime/runtime'
 /* global require */
 import ws from './js/services/messagesocket_service'
@@ -8,6 +9,7 @@ import { darkEnabled } from './js/services/theme_service'
 import globalEventBus from './js/services/event_bus_service'
 
 require('./scss/application.scss')
+// import './scss/application.scss'
 
 window.darkEnabled = darkEnabled
 
@@ -22,7 +24,7 @@ document.addEventListener('turbolinks:load', function (e) {
 })
 
 function getSocketURI (loc) {
-  var protocol = (loc.protocol === 'https:') ? 'wss' : 'ws'
+  const protocol = (loc.protocol === 'https:') ? 'wss' : 'ws'
   return protocol + '://' + loc.host + '/ws'
 }
 
@@ -32,12 +34,12 @@ function sleep (ms) {
 
 async function createWebSocket (loc) {
   // wait a bit to prevent websocket churn from drive by page loads
-  var uri = getSocketURI(loc)
+  const uri = getSocketURI(loc)
   await sleep(1000)
   ws.connect(uri)
 
-  var updateBlockData = function (event) {
-    var newBlock = JSON.parse(event)
+  const updateBlockData = function (event) {
+    const newBlock = JSON.parse(event)
     if (window.loggingDebug) {
       console.log('Block received')
       console.log(newBlock)

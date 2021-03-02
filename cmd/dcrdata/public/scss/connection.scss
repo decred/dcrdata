@@ -1,7 +1,7 @@
 /* socket connection */
 
 /* Notice: Portions of the connection indicator style come from html5rocks.com */
-@-webkit-keyframes glowGreen {
+@-webkit-keyframes glowgreen {
   from {
     -webkit-box-shadow: rgba(0, 255, 0, 0) 0 0 0;
   }
@@ -15,7 +15,7 @@
   }
 }
 
-@-webkit-keyframes glowRed {
+@-webkit-keyframes glowred {
   from {
     -webkit-box-shadow: rgba(255, 0, 0, 0) 0 0 0;
   }
@@ -52,11 +52,11 @@
 #connection.connected div {
   background-image: url("/images/connected.svg");
   -webkit-box-shadow: rgba(0, 255, 0, 0.5) 0 0 5px;
-  -webkit-animation-name: glowGreen;
+  -webkit-animation-name: glowgreen;
 }
 
 #connection.disconnected div {
   background-image: url("/images/disconnected.svg");
   -webkit-box-shadow: rgba(255, 0, 0, 0.5) 0 0 5px;
-  -webkit-animation-name: glowRed;
+  -webkit-animation-name: glowred;
 }
