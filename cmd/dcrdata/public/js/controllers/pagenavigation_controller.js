@@ -8,30 +8,30 @@ export default class extends Controller {
   }
 
   setPageSize () {
-    var url = Url(window.location.href)
-    var q = Url.qs.parse(url.query)
+    const url = Url(window.location.href)
+    const q = Url.qs.parse(url.query)
     delete q.offset
     delete q.height
     q[this.pagesizeTarget.dataset.offsetkey] = this.pagesizeTarget.dataset.offset
-    q['rows'] = this.pagesizeTarget.selectedOptions[0].value
+    q.rows = this.pagesizeTarget.selectedOptions[0].value
     if (this.hasVotestatusTarget) {
-      q['byvotestatus'] = this.votestatusTarget.selectedOptions[0].value
+      q.byvotestatus = this.votestatusTarget.selectedOptions[0].value
     }
     url.set('query', q)
     Turbolinks.visit(url.toString())
   }
 
   setFilterbyVoteStatus () {
-    var url = Url(window.location.href)
-    var q = {}
-    q['byvotestatus'] = this.votestatusTarget.selectedOptions[0].value
+    const url = Url(window.location.href)
+    const q = {}
+    q.byvotestatus = this.votestatusTarget.selectedOptions[0].value
     url.set('query', q)
     Turbolinks.visit(url.toString())
   }
 
   setListView () {
-    var url = Url(window.location.href, true)
-    var newPeriod = this.listviewTarget.selectedOptions[0].value
+    const url = Url(window.location.href, true)
+    const newPeriod = this.listviewTarget.selectedOptions[0].value
     if (url.pathname !== newPeriod) {
       url.set('query', {})
     }

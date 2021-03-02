@@ -19,12 +19,12 @@ export default class extends Controller {
 
   _processBlock (blockData) {
     if (!this.hasTableTarget) return
-    var block = blockData.block
+    const block = blockData.block
     // Grab a copy of the first row.
-    var rows = this.tableTarget.querySelectorAll('tr')
+    const rows = this.tableTarget.querySelectorAll('tr')
     if (rows.length === 0) return
-    var tr = rows[0]
-    var lastHeight = parseInt(tr.dataset.height)
+    const tr = rows[0]
+    const lastHeight = parseInt(tr.dataset.height)
     // Make sure this block belongs on the top of this table.
     if (block.height === lastHeight) {
       this.tableTarget.removeChild(tr)
@@ -32,14 +32,14 @@ export default class extends Controller {
       this.tableTarget.removeChild(rows[rows.length - 1])
     } else return
     // Set the td contents based on the order of the existing row.
-    var newRow = document.createElement('tr')
+    const newRow = document.createElement('tr')
     newRow.dataset.height = block.height
     newRow.dataset.linkClass = tr.dataset.linkClass
-    var tds = tr.querySelectorAll('td')
+    const tds = tr.querySelectorAll('td')
     tds.forEach((td) => {
-      let newTd = document.createElement('td')
+      const newTd = document.createElement('td')
       newTd.className = td.className
-      let dataType = td.dataset.type
+      const dataType = td.dataset.type
       newTd.dataset.type = dataType
       switch (dataType) {
         case 'age':
@@ -47,13 +47,14 @@ export default class extends Controller {
           newTd.dataset.target = 'time.age'
           newTd.textContent = humanize.timeSince(block.unixStamp)
           break
-        case 'height':
-          let link = document.createElement('a')
+        case 'height': {
+          const link = document.createElement('a')
           link.href = `/block/${block.height}`
           link.textContent = block.height
           link.classList.add(tr.dataset.linkClass)
           newTd.appendChild(link)
           break
+        }
         case 'size':
           newTd.textContent = humanize.bytes(block.size)
           break

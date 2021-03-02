@@ -37,5 +37,5 @@ class EventBus {
   }
 }
 
-let eventBusInstance = new EventBus()
+const eventBusInstance = new EventBus()
 export default eventBusInstance

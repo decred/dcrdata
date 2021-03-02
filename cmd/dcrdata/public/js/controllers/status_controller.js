@@ -6,14 +6,14 @@ import Notify from 'notifyjs'
 import globalEventBus from '../services/event_bus_service'
 
 function buildProgressBar (data) {
-  var clean = dompurify.sanitize
-  var progressVal = data.percentage_complete
-  var timeRemaining = humanizeTime(data.seconds_to_complete)
-  var htmlString = data.bar_msg.length > 0 ? clean(`<p style="font-size:14px;">${data.bar_msg}</p>`, { FORBID_TAGS: ['svg', 'math'] }) : ''
-  var subtitle = data.subtitle.trim()
-  var notifStr = subtitle.length > 0 ? clean(`<span style="font-size:11px;">notification : <i>${subtitle}</i></span>`, { FORBID_TAGS: ['svg', 'math'] }) : ''
+  const clean = dompurify.sanitize
+  const progressVal = data.percentage_complete
+  const timeRemaining = humanizeTime(data.seconds_to_complete)
+  const htmlString = data.bar_msg.length > 0 ? clean(`<p style="font-size:14px;">${data.bar_msg}</p>`, { FORBID_TAGS: ['svg', 'math'] }) : ''
+  const subtitle = data.subtitle.trim()
+  let notifStr = subtitle.length > 0 ? clean(`<span style="font-size:11px;">notification : <i>${subtitle}</i></span>`, { FORBID_TAGS: ['svg', 'math'] }) : ''
 
-  var remainingStr = 'pending'
+  let remainingStr = 'pending'
   if (progressVal > 0) {
     remainingStr = data.seconds_to_complete > 0 ? 'remaining approx.  ' + timeRemaining : '0sec'
   }
@@ -34,14 +34,14 @@ function buildProgressBar (data) {
 }
 
 function humanizeTime (secs) {
-  var years = Math.floor(secs / 31536000) % 10
-  var months = Math.floor(secs / 2628000) % 12
-  var weeks = Math.floor(secs / 604800) % 4
-  var days = Math.floor(secs / 86400) % 7
-  var hours = Math.floor(secs / 3600) % 24
-  var minutes = Math.floor(secs / 60) % 60
-  var seconds = secs % 60
-  var timeUnit = ['yr', 'mo', 'wk', 'd', 'hr', 'min', 'sec']
+  const years = Math.floor(secs / 31536000) % 10
+  const months = Math.floor(secs / 2628000) % 12
+  const weeks = Math.floor(secs / 604800) % 4
+  const days = Math.floor(secs / 86400) % 7
+  const hours = Math.floor(secs / 3600) % 24
+  const minutes = Math.floor(secs / 60) % 60
+  const seconds = secs % 60
+  const timeUnit = ['yr', 'mo', 'wk', 'd', 'hr', 'min', 'sec']
 
   return [years, months, weeks, days, hours, minutes, seconds]
     .map((v, i) => v !== 0 ? v + '' + timeUnit[i] : '')
@@ -49,7 +49,7 @@ function humanizeTime (secs) {
 }
 
 function doNotification () {
-  var newBlockNtfn = new Notify('Blockchain Sync Complete', {
+  const newBlockNtfn = new Notify('Blockchain Sync Complete', {
     body: 'Redirecting to home in 20 secs.',
     tag: 'blockheight',
     image: '/images/dcrdata144x128.png',
@@ -76,13 +76,13 @@ export default class extends Controller {
       'addresses-sync': this.addressTarget
     }
     ws.registerEvtHandler('blockchainSync', (evt) => {
-      var d = JSON.parse(evt)
-      var i
+      const d = JSON.parse(evt)
+      let i
 
       for (i = 0; i < d.length; i++) {
-        var v = d[i]
+        const v = d[i]
 
-        var bar = this.progressBars[v.progress_bar_id]
+        const bar = this.progressBars[v.progress_bar_id]
         while (bar.firstChild) bar.removeChild(bar.firstChild)
         bar.innerHTML = buildProgressBar(v)
 

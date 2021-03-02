@@ -22,21 +22,21 @@ export default class extends Controller {
   }
 
   _processBlock (blockData) {
-    var block = blockData.block
-    var extra = blockData.extra
+    const block = blockData.block
+    const extra = blockData.extra
     // If this is a transaction in mempool, it will have an unconfirmedTarget.
     if (this.hasUnconfirmedTarget) {
-      let txid = this.unconfirmedTarget.dataset.txid
+      const txid = this.unconfirmedTarget.dataset.txid
       if (txInBlock(txid, block)) {
         this.confirmationsTarget.textContent = this.confirmationsTarget.dataset.yes.replace('#', '1').replace('@', '')
         this.confirmationsTarget.classList.add('confirmed')
         // Set the block link
-        let link = this.unconfirmedTarget.querySelector('.mp-unconfirmed-link')
+        const link = this.unconfirmedTarget.querySelector('.mp-unconfirmed-link')
         link.href = '/block/' + block.hash
         link.textContent = block.height
         this.unconfirmedTarget.querySelector('.mp-unconfirmed-msg').classList.add('d-none')
         // Reset the age and time to be based off of the block time.
-        let age = this.unconfirmedTarget.querySelector('.mp-unconfirmed-time')
+        const age = this.unconfirmedTarget.querySelector('.mp-unconfirmed-time')
         age.dataset.age = block.time
         age.textContent = humanize.timeSince(block.unixStamp)
         this.formattedAgeTarget.textContent = humanize.date(block.time, true)
@@ -54,9 +54,9 @@ export default class extends Controller {
     // Look for any unconfirmed matching tx hashes in the table.
     if (this.hasMempoolTdTarget) {
       this.mempoolTdTargets.forEach((td) => {
-        let txid = td.dataset.txid
+        const txid = td.dataset.txid
         if (txInBlock(txid, block)) {
-          let link = document.createElement('a')
+          const link = document.createElement('a')
           link.textContent = block.height
           link.href = `/block/${block.height}`
           while (td.firstChild) td.removeChild(td.firstChild)
@@ -70,25 +70,25 @@ export default class extends Controller {
     if (!this.hasProgressBarTarget) {
       return
     }
-    var bar = this.progressBarTarget
-    var txBlockHeight = parseInt(bar.dataset.confirmHeight)
+    const bar = this.progressBarTarget
+    let txBlockHeight = parseInt(bar.dataset.confirmHeight)
     if (txBlockHeight === 0) {
       return
     }
-    var confirmations = block.height - txBlockHeight + 1
-    var txType = bar.dataset.txType
-    var complete = parseInt(bar.getAttribute('aria-valuemax'))
+    let confirmations = block.height - txBlockHeight + 1
+    let txType = bar.dataset.txType
+    let complete = parseInt(bar.getAttribute('aria-valuemax'))
 
     if (txType === 'LiveTicket') {
       // Check for a spending vote
-      let votes = block.Votes || []
-      for (let idx in votes) {
-        let vote = votes[idx]
+      const votes = block.Votes || []
+      for (const idx in votes) {
+        const vote = votes[idx]
         if (this.txid === vote.VoteInfo.ticket_spent) {
-          let link = document.createElement('a')
+          const link = document.createElement('a')
           link.href = `/tx/${vote.TxID}`
           link.textContent = 'vote'
-          let msg = this.spendingTxTarget
+          const msg = this.spendingTxTarget
           while (msg.firstChild) msg.removeChild(msg.firstChild)
           msg.appendChild(link)
           this.ticketStageTarget.innerHTML = 'Voted'
@@ -101,7 +101,7 @@ export default class extends Controller {
       // Hide bars after completion, or change ticket to live ticket
       if (txType === 'Ticket') {
         txType = bar.dataset.txType = 'LiveTicket'
-        let expiry = parseInt(bar.dataset.expiry)
+        const expiry = parseInt(bar.dataset.expiry)
         bar.setAttribute('aria-valuemax', expiry)
         txBlockHeight = bar.dataset.confirmHeight = block.height
         this.ticketMsgTarget.classList.add('d-none')
@@ -114,7 +114,7 @@ export default class extends Controller {
       }
     }
 
-    var barMsg = bar.querySelector('span')
+    const barMsg = bar.querySelector('span')
     if (confirmations === complete) {
       // Special case: progress reaching max
       switch (txType) {
@@ -135,15 +135,16 @@ export default class extends Controller {
     }
 
     // Otherwise, set the bar appropriately
-    let blocksLeft = complete + 1 - confirmations
-    let remainingTime = blocksLeft * this.targetBlockTime
+    const blocksLeft = complete + 1 - confirmations
+    const remainingTime = blocksLeft * this.targetBlockTime
     switch (txType) {
-      case 'LiveTicket':
+      case 'LiveTicket': {
         barMsg.textContent = `block ${confirmations} of ${complete} (${(remainingTime / 86400.0).toFixed(1)} days remaining)`
         // Chance of expiring is (1-P)^N where P := single-block probability of being picked, N := blocks remaining.
-        let pctChance = Math.pow(1 - parseFloat(bar.dataset.ticketsPerBlock) / extra.pool_info.size, blocksLeft) * 100
+        const pctChance = Math.pow(1 - parseFloat(bar.dataset.ticketsPerBlock) / extra.pool_info.size, blocksLeft) * 100
         this.expiryChanceTarget.textContent = `${pctChance.toFixed(2)}%`
         break
+      }
       case 'Ticket':
         barMsg.textContent = `Immature, eligible to vote in ${blocksLeft} blocks (${(remainingTime / 3600.0).toFixed(1)} hours remaining)`
         break
@@ -155,8 +156,8 @@ export default class extends Controller {
   }
 
   toggleScriptData (e) {
-    var target = e.srcElement || e.target
-    var scriptData = target.querySelector('div.script-data')
+    const target = e.srcElement || e.target
+    const scriptData = target.querySelector('div.script-data')
     if (!scriptData) return
     scriptData.classList.toggle('d-hide')
   }

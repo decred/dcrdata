@@ -6,7 +6,7 @@ import ws from '../services/messagesocket_service'
 const conversionRate = 100000000
 
 function makeNode (html) {
-  var div = document.createElement('div')
+  const div = document.createElement('div')
   div.innerHTML = dompurify.sanitize(html, { FORBID_TAGS: ['svg', 'math'] })
   return div.firstChild
 }
@@ -122,7 +122,7 @@ function makeVoteElements (votes) {
   })
 
   // append empty squares to votes
-  for (var i = voteElements.length; i < 5; i++) {
+  for (let i = voteElements.length; i < 5; i++) {
     voteElements.push('<span title="Empty vote slot"></span>')
   }
 
@@ -155,7 +155,7 @@ function makeTicketAndRevocationElements (tickets, revocations, blockHref) {
   const ticketsAndRevocationElements = ticketElements.concat(revocationElements)
 
   // append empty squares to tickets+revs
-  for (var i = ticketsAndRevocationElements.length; i < 20; i++) {
+  for (let i = ticketsAndRevocationElements.length; i < 20; i++) {
     ticketsAndRevocationElements.push('<span title="Empty ticket slot"></span>')
   }
 
@@ -235,7 +235,7 @@ export default class extends Controller {
   }
 
   _handleVisualBlocksUpdate (newBlock) {
-    let block = newBlock.block
+    const block = newBlock.block
     // show only regular tx in block.Transactions, exclude coinbase (reward) transactions
     const transactions = block.Tx.filter(tx => !tx.Coinbase)
     // trim unwanted data in this block
@@ -251,10 +251,10 @@ export default class extends Controller {
       Transactions: transactions
     }
 
-    var box = this.boxTarget
+    const box = this.boxTarget
     box.insertBefore(newBlockHtmlElement(trimmedBlockInfo), box.firstChild.nextSibling)
     // hide last visible block as 1 more block is now visible
-    var vis = this.visibleBlocks()
+    const vis = this.visibleBlocks()
     vis[vis.length - 1].classList.remove('visible')
     // remove last block from dom to maintain max of 30 blocks (hidden or visible) in dom at any time
     box.removeChild(box.lastChild)
@@ -295,10 +295,10 @@ export default class extends Controller {
 
     // make blocks section fill available window height
     const extraSpace = window.innerHeight - document.getElementById('mainContainer').offsetHeight
-    let blocksSectionHeight = blocksSection.height + extraSpace
+    const blocksSectionHeight = blocksSection.height + extraSpace
 
     const totalAvailableWidth = blocksSection.width
-    let totalAvailableHeight = blocksSectionHeight - blocksSectionFirstChildHeight - blocksSectionLastChildHeight
+    const totalAvailableHeight = blocksSectionHeight - blocksSectionFirstChildHeight - blocksSectionLastChildHeight
 
     const rect = blockElement.getBoundingClientRect()
     const blockWidth = rect.width
@@ -328,8 +328,8 @@ export default class extends Controller {
     this.tooltipTargets.forEach((tooltipElement) => {
       try {
         // parse the content
-        var data = JSON.parse(tooltipElement.title)
-        var newContent
+        const data = JSON.parse(tooltipElement.title)
+        let newContent
         if (data.object === 'Vote') {
           newContent = `<b>${data.object} (${data.voteValid ? 'Yes' : 'No'})</b>`
         } else {
@@ -345,7 +345,7 @@ export default class extends Controller {
     })
 
     import(/* webpackChunkName: "tippy" */ '../vendor/tippy.all').then(module => {
-      var tippy = module.default
+      const tippy = module.default
       tippy('.block-rows [title]', {
         allowTitleHTML: true,
         animation: 'shift-away',

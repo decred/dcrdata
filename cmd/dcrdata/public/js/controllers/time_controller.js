@@ -33,7 +33,7 @@ export default class extends Controller {
   }
 
   _processBlock (blockData) {
-    var block = blockData.block
+    const block = blockData.block
     this.blocktimeTarget.dataset.stamp = block.unixStamp
     this.blocktimeTarget.classList.remove('text-danger')
     this.blocktimeTarget.textContent = humanize.timeSince(block.unixStamp)
@@ -56,7 +56,7 @@ export default class extends Controller {
 
   setAges () {
     if (this.hasBlocktimeTarget) {
-      var lbt = this.blocktimeTarget.dataset.stamp
+      const lbt = this.blocktimeTarget.dataset.stamp
       this.blocktimeTarget.textContent = humanize.timeSince(lbt)
       if ((new Date()).getTime() / 1000 - lbt > 8 * this.targetBlockTime) { // 8*blocktime = 40minutes = 12000 seconds
         this.element.classList.add('text-danger')

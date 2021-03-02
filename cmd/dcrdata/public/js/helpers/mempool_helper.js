@@ -12,7 +12,7 @@ function txLists (mempool) {
 }
 
 function txList (mempool) {
-  var l = []
+  const l = []
   txLists(mempool).forEach(txs => {
     if (!txs) return
     txs.forEach(tx => {
@@ -33,7 +33,7 @@ function makeTx (txid, txType, total, voteInfo, size) {
 }
 
 function ticketSpent (vote) {
-  var vi = vote.voteInfo || vote.vote_info
+  const vi = vote.voteInfo || vote.vote_info
   return vi.ticket_spent
 }
 
@@ -46,7 +46,7 @@ export default class Mempool {
     this.mempool = []
     // Create dummy transactions. Since we're only looking at totals, this is
     // okay for now and prevents an initial websocket call for the entire mempool.
-    var avgSize = parseFloat(d.size) / parseInt(d.count)
+    const avgSize = parseFloat(d.size) / parseInt(d.count)
     this.initType('Regular', parseFloat(d.regTotal), parseInt(d.regCount), avgSize)
     this.initType('Ticket', parseFloat(d.ticketTotal), parseInt(d.ticketCount), avgSize)
     this.initType('Revocation', parseFloat(d.revTotal), parseInt(d.revCount), avgSize)
@@ -54,17 +54,17 @@ export default class Mempool {
   }
 
   initType (txType, total, count, avgSize) {
-    var fauxVal = count === 0 ? 0 : total / count
-    for (var i = 0; i < count; i++) {
+    const fauxVal = count === 0 ? 0 : total / count
+    for (let i = 0; i < count; i++) {
       this.mempool.push(makeTx('', txType, fauxVal, null, avgSize))
     }
   }
 
   initVotes (tallyTargets, total, count, avgSize) {
-    var fauxVal = count === 0 ? 0 : total / count
+    const fauxVal = count === 0 ? 0 : total / count
     tallyTargets.forEach((span) => {
-      let affirmed = parseInt(span.dataset.affirmed)
-      for (var i = 0; i < parseInt(span.dataset.count); i++) {
+      const affirmed = parseInt(span.dataset.affirmed)
+      for (let i = 0; i < parseInt(span.dataset.count); i++) {
         this.mempool.push(makeTx('', 'Vote', fauxVal, {
           block_validation: {
             hash: span.dataset.hash,
@@ -103,7 +103,7 @@ export default class Mempool {
   // Checks whether the transaction is new and likely to be included in a block.
   wantsTx (newTx) {
     if (this.isQuestionableVote(newTx)) return false
-    for (var i = 0; i < this.mempool.length; i++) {
+    for (let i = 0; i < this.mempool.length; i++) {
       if (this.mempool[i].txid === newTx.txid) return false
     }
     return true
@@ -113,8 +113,8 @@ export default class Mempool {
   isQuestionableVote (tx) {
     if (tx.Type !== 'Vote') return false
     if (!tx.vote_info.last_block) return true
-    for (var i = 0; i < this.mempool.length; i++) {
-      let v = this.mempool[i]
+    for (let i = 0; i < this.mempool.length; i++) {
+      const v = this.mempool[i]
       if (v.type === 'Vote' && ticketSpent(v) === ticketSpent(tx)) return true
     }
   }
@@ -122,7 +122,7 @@ export default class Mempool {
   blockVoteTally (hash) {
     return this.mempool.reduce((votes, tx) => {
       if (tx.type !== 'Vote') return votes
-      let validation = tx.voteInfo.block_validation
+      const validation = tx.voteInfo.block_validation
       if (validation.hash !== hash) return votes
       if (validation.validity) {
         votes.affirm++
@@ -140,7 +140,7 @@ export default class Mempool {
     return this.mempool.reduce((d, tx) => {
       d.total += 1
       if (tx.type === 'Vote') {
-        let validation = tx.voteInfo.block_validation
+        const validation = tx.voteInfo.block_validation
         if (!d.vote[validation.hash]) {
           d.vote[validation.hash] = this.blockVoteTally(validation.hash)
         }
@@ -161,12 +161,12 @@ export default class Mempool {
   }
 
   voteSpans (tallys) {
-    var spans = []
-    var joiner
-    for (let hash in tallys) {
+    const spans = []
+    let joiner
+    for (const hash in tallys) {
       if (joiner) spans.push(joiner)
-      let count = tallys[hash]
-      let span = document.createElement('span')
+      const count = tallys[hash]
+      const span = document.createElement('span')
       span.dataset.tooltip = `For block ${hash}`
       span.className = 'position-relative d-inline-block'
       span.textContent = count.affirm + count.reject

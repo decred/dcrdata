@@ -1,7 +1,7 @@
 import { Controller } from 'stimulus'
 
-export var copyIcon = () => {
-  var copyIcon = document.createElement('span')
+export const copyIcon = () => {
+  const copyIcon = document.createElement('span')
   copyIcon.classList.add('dcricon-copy')
   copyIcon.classList.add('clickable')
   copyIcon.dataset.controller = 'clipboard'
@@ -9,8 +9,8 @@ export var copyIcon = () => {
   return copyIcon.outerHTML
 }
 
-export var alertArea = () => {
-  var alertArea = document.createElement('span')
+export const alertArea = () => {
+  const alertArea = document.createElement('span')
   alertArea.classList.add('alert')
   alertArea.classList.add('alert-success')
   alertArea.classList.add('alert-copy')
@@ -19,25 +19,25 @@ export var alertArea = () => {
 
 export default class extends Controller {
   connect () {
-    var copySupported = document.queryCommandSupported('copy')
+    const copySupported = document.queryCommandSupported('copy')
     if (copySupported === false) {
       for (const classname of ['dcricon-copy', 'alert-copy']) {
-        var icons = document.getElementsByClassName(classname)
+        const icons = document.getElementsByClassName(classname)
         while (icons.length > 0) icons[0].remove()
       }
     }
   }
 
   copyTextToClipboard (clickEvent) {
-    var parentNode = clickEvent.srcElement.parentNode
-    var textContent = parentNode.textContent.trim().split(' ')[0]
-    var copyTextArea = document.createElement('textarea')
+    const parentNode = clickEvent.srcElement.parentNode
+    const textContent = parentNode.textContent.trim().split(' ')[0]
+    const copyTextArea = document.createElement('textarea')
     copyTextArea.value = textContent
     document.body.appendChild(copyTextArea)
     copyTextArea.select()
     try {
       document.execCommand('copy')
-      var alertCopy = parentNode.getElementsByClassName('alert-copy')[0]
+      const alertCopy = parentNode.getElementsByClassName('alert-copy')[0]
       alertCopy.textContent = 'Copied!'
       alertCopy.style.display = 'inline-table'
       setTimeout(function () {

@@ -58,7 +58,7 @@ class Meter {
     }
     this.offsetMiddle = addOffset(this.middle, this.offset)
     this.startAngle = Math.PI / 2
-    var meterSpace = 0.5 // radians
+    let meterSpace = 0.5 // radians
     if (parent.classList.contains('large-gap')) meterSpace = Math.PI / 1.5
     if (parent.classList.contains('arch')) meterSpace = Math.PI
     this.meterSpecs = {
@@ -97,8 +97,8 @@ class Meter {
 
   normedPolarToCartesian (normed, normedTheta) {
     // maps radius: [0,1] to [0,width], and angle: [0,1] to [0,2PI]
-    var r = this.denorm(normed)
-    var theta = this.denormTheta(normedTheta)
+    const r = this.denorm(normed)
+    const theta = this.denormTheta(normedTheta)
     return {
       y: this.middle.x - r * Math.cos(theta + this.startAngle),
       x: this.middle.y + r * Math.sin(theta + this.startAngle)
@@ -128,7 +128,7 @@ class Meter {
 
   dot (pt, color, radius) {
     pt = addOffset(pt, this.offset)
-    var ctx = this.ctx
+    const ctx = this.ctx
     ctx.fillStyle = color
     ctx.beginPath()
     ctx.arc(pt.x, pt.y, radius, 0, PIPI)
@@ -137,9 +137,9 @@ class Meter {
 
   segment (start, end, color) {
     // A segment of the strip, where 0 <= start < end <= 1.
-    var ctx = this.ctx
+    const ctx = this.ctx
     ctx.strokeStyle = color
-    let range = this.denormThetaRange(start, end)
+    const range = this.denormThetaRange(start, end)
     ctx.beginPath()
     ctx.arc(this.offsetMiddle.x, this.offsetMiddle.y, this.denorm(this.radius), range.start, range.end)
     ctx.stroke()
@@ -149,7 +149,7 @@ class Meter {
     // set ctx.lineWidth and ctx.strokeStyle before drawing.
     start = addOffset(start, this.offset)
     end = addOffset(end, this.offset)
-    var ctx = this.ctx
+    const ctx = this.ctx
     ctx.beginPath()
     ctx.moveTo(start.x, start.y)
     ctx.lineTo(end.x, end.y)
@@ -163,12 +163,12 @@ class Meter {
   }
 
   drawIndicator (value, color) {
-    var ctx = this.ctx
-    var opts = this.options
-    var theme = this.activeTheme
-    var halfLen = this.norm(opts.meterWidth) * 0.5
-    var start = this.normedPolarToCartesian(this.radius - halfLen, value)
-    var end = this.normedPolarToCartesian(this.radius + halfLen, value)
+    const ctx = this.ctx
+    const opts = this.options
+    const theme = this.activeTheme
+    const halfLen = this.norm(opts.meterWidth) * 0.5
+    const start = this.normedPolarToCartesian(this.radius - halfLen, value)
+    const end = this.normedPolarToCartesian(this.radius + halfLen, value)
     ctx.lineWidth = 1.5
     ctx.strokeStyle = color
     this.dot(start, color, opts.dotSize)
@@ -179,18 +179,18 @@ class Meter {
 
   async animate (key, target) {
     // key is a string referencing any property of Meter.data.
-    var opts = this.options
+    const opts = this.options
     this.animationEnd[key] = new Date().getTime() + opts.animationLength
     this.animationTarget[key] = target
     if (this.animationRunning[key]) return
     this.animationRunning[key] = true
-    var frameDuration = 1000 / opts.fps
-    var now = new Date().getTime()
+    const frameDuration = 1000 / opts.fps
+    let now = new Date().getTime()
     while (now < this.animationEnd[key]) {
-      let remainingTime = this.animationEnd[key] - now
-      let progress = this.data[key]
-      let toGo = this.animationTarget[key] - progress
-      let step = toGo * frameDuration / remainingTime
+      const remainingTime = this.animationEnd[key] - now
+      const progress = this.data[key]
+      const toGo = this.animationTarget[key] - progress
+      const step = toGo * frameDuration / remainingTime
       await sleep(frameDuration)
       this.data[key] = progress + step
       this.draw()
@@ -211,7 +211,7 @@ export class VoteMeter extends Meter {
     this.writeCentralPercent = wcp.bind(this)
     this.buttCap()
     opts = this.options
-    var d = parent.dataset
+    const d = parent.dataset
     this.data = {
       approval: parseFloat(d.approval)
     }
@@ -238,7 +238,7 @@ export class VoteMeter extends Meter {
     this.activeTheme = opts.darkMode ? this.darkTheme : this.lightTheme
 
     // Set up a starting animation
-    var progress = this.data.approval
+    const progress = this.data.approval
     this.data.approval = 0.5
     this.draw()
     super.animate('approval', progress)
@@ -246,14 +246,14 @@ export class VoteMeter extends Meter {
 
   draw () {
     super.clear()
-    var ctx = this.ctx
-    var opts = this.options
-    var indicatorColor
-    var strokeColor = this.activeTheme.text
-    var trayColor = this.activeTheme.tray
+    const ctx = this.ctx
+    const opts = this.options
+    let indicatorColor
+    const strokeColor = this.activeTheme.text
+    const trayColor = this.activeTheme.tray
 
     // Draw the three-color tray with border
-    var borderWidth = opts.meterWidth * 1.3
+    const borderWidth = opts.meterWidth * 1.3
     ctx.lineWidth = borderWidth
     this.segment(0, 1, trayColor)
     ctx.lineWidth = opts.meterWidth
@@ -284,9 +284,9 @@ export class VoteMeter extends Meter {
     }
 
     // The mark
-    var halfLen = this.norm(opts.meterWidth * 0.5)
-    var start = super.normedPolarToCartesian(this.radius - halfLen * 1.2, this.data.approval)
-    var end = super.normedPolarToCartesian(this.radius + halfLen * 1.6, this.data.approval)
+    const halfLen = this.norm(opts.meterWidth * 0.5)
+    const start = super.normedPolarToCartesian(this.radius - halfLen * 1.2, this.data.approval)
+    const end = super.normedPolarToCartesian(this.radius + halfLen * 1.6, this.data.approval)
     ctx.lineWidth = 2.5
     ctx.strokeStyle = strokeColor
     super.line(start, end)
@@ -328,7 +328,7 @@ export class ProgressMeter extends Meter {
     }
     this.activeTheme = opts.darkMode ? this.darkTheme : this.lightTheme
 
-    var progress = this.data.progress
+    const progress = this.data.progress
     this.data.progress = 0
     this.draw()
     this.animate('progress', progress)
@@ -336,12 +336,12 @@ export class ProgressMeter extends Meter {
 
   draw () {
     super.clear()
-    var ctx = this.ctx
-    var opts = this.options
-    var theme = this.activeTheme
+    const ctx = this.ctx
+    const opts = this.options
+    const theme = this.activeTheme
 
     ctx.lineWidth = opts.meterWidth * 0.95 // Prevents rough looking edge
-    var c = this.data.progress >= this.threshold ? opts.successColor : theme.tray
+    const c = this.data.progress >= this.threshold ? opts.successColor : theme.tray
     super.segment(0, 1, c)
 
     super.drawIndicator(this.threshold, c)
@@ -362,20 +362,20 @@ export class ProgressMeter extends Meter {
 
 // wcp is the writeCentralPercent method used by VoteMeter and ProgressMeter.
 function wcp (v) {
-  var [ctx, opts] = [this.ctx, this.options]
+  const [ctx, opts] = [this.ctx, this.options]
   ctx.save()
-  var [whole, fraction] = (v * 100).toFixed(2).split('.')
+  const [whole, fraction] = (v * 100).toFixed(2).split('.')
   // Shift the text up a little if the indicator is showing. Also shift it
   // to the left slightly for aesthetics.
-  var offset = opts.showIndicator ? this.denorm(0.02) : -this.denorm(0.02)
+  const offset = opts.showIndicator ? this.denorm(0.02) : -this.denorm(0.02)
   ctx.fillStyle = this.activeTheme.text
   // special handling for 100%
   if (whole === '100') {
-    let center = makePt(this.middle.x, this.middle.y + offset)
+    const center = makePt(this.middle.x, this.middle.y + offset)
     ctx.font = `${opts.centralFontSize}px 'source-sans-pro-semibold', sans-serif`
     this.write('100%', center, this.denorm(0.5))
   } else {
-    let center = makePt(this.middle.x - this.denorm(0.05), this.middle.y + offset)
+    const center = makePt(this.middle.x - this.denorm(0.05), this.middle.y + offset)
     ctx.textAlign = 'right'
     ctx.font = `${opts.centralFontSize}px 'source-sans-pro-semibold', sans-serif`
     this.write(whole, center, this.denorm(0.5))
@@ -409,22 +409,22 @@ export class MiniMeter extends Meter {
 
   draw () {
     super.clear()
-    var ctx = this.ctx
-    var opts = this.options
+    const ctx = this.ctx
+    const opts = this.options
     ctx.lineWidth = opts.meterWidth
-    var textColor = this.activeTheme.text
+    const textColor = this.activeTheme.text
 
     // Draw the segments.
-    var start = 0
+    let start = 0
     opts.segments.forEach(segment => {
       super.segment(start, segment.end, segment.color)
       start = segment.end
     })
 
     // Draw the needle
-    var tipLen = this.norm(opts.meterWidth) * 0.75
-    var center = super.normedPolarToCartesian(0, 0)
-    var end = super.normedPolarToCartesian(this.radius + tipLen, this.value)
+    const tipLen = this.norm(opts.meterWidth) * 0.75
+    const center = super.normedPolarToCartesian(0, 0)
+    const end = super.normedPolarToCartesian(this.radius + tipLen, this.value)
     super.dot(center, textColor, 7)
     ctx.strokeStyle = textColor
     ctx.lineWidth = 5

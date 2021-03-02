@@ -4,7 +4,7 @@ import { getDefault } from '../helpers/module_helper'
 import humanize from '../helpers/humanize_helper'
 import axios from 'axios'
 
-var chartLayout = {
+const chartLayout = {
   showRangeSelector: true,
   legend: 'follow',
   fillGraph: true,
@@ -18,17 +18,17 @@ var chartLayout = {
 
 function agendasLegendFormatter (data) {
   if (data.x == null) return ''
-  var html
+  let html
   if (this.getLabels()[0] === 'Date') {
     html = this.getLabels()[0] + ': ' + humanize.date(data.x)
   } else {
     html = this.getLabels()[0] + ': ' + data.xHTML
   }
-  var total = data.series.reduce((total, n) => {
+  const total = data.series.reduce((total, n) => {
     return total + n.y
   }, 0)
   data.series.forEach((series) => {
-    let percentage = total !== 0 ? ((series.y * 100) / total).toFixed(2) : 0
+    const percentage = total !== 0 ? ((series.y * 100) / total).toFixed(2) : 0
     html = '<span style="color:#2d2d2d;">' + html + '</span>'
     html += `<br>${series.dashHTML}<span style="color: ${series.color};">${series.labelHTML}: ${series.yHTML} (${percentage}%)</span>`
   })
@@ -80,7 +80,7 @@ export default class extends Controller {
       import(/* webpackChunkName: "dygraphs" */ '../vendor/dygraphs.min.js')
     )
     this.drawCharts()
-    let agendaResponse = await axios.get('/api/agenda/' + this.agendaId)
+    const agendaResponse = await axios.get('/api/agenda/' + this.agendaId)
     this.cumulativeVoteChoicesChart.updateOptions({
       file: cumulativeVoteChoicesData(agendaResponse.data.by_time)
     })

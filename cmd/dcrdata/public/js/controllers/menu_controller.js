@@ -28,7 +28,7 @@ export default class extends Controller {
   }
 
   _clickout (e) {
-    var target = e.target || e.srcElement
+    const target = e.target || e.srcElement
     if (!closest(target, 'hamburger-menu')) {
       document.removeEventListener('click', this.clickout)
       closeMenu()

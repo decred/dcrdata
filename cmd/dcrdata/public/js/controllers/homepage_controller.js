@@ -16,8 +16,8 @@ function incrementValue (element) {
 }
 
 function mempoolTableRow (tx) {
-  var tbody = document.createElement('tbody')
-  var link = `/tx/${tx.hash}`
+  const tbody = document.createElement('tbody')
+  const link = `/tx/${tx.hash}`
   tbody.innerHTML = `<tr>
     <td class="text-left pl-1 clipboard">
       ${humanize.hashElide(tx.hash, link)}
@@ -51,19 +51,19 @@ export default class extends Controller {
 
   connect () {
     this.ticketsPerBlock = parseInt(this.mpVoteCountTarget.dataset.ticketsPerBlock)
-    var mempoolData = this.mempoolTarget.dataset
+    const mempoolData = this.mempoolTarget.dataset
     ws.send('getmempooltxs', mempoolData.id)
     this.mempool = new Mempool(mempoolData, this.voteTallyTargets)
     this.setBars(this.mempool.totals())
     ws.registerEvtHandler('newtxs', (evt) => {
-      var txs = JSON.parse(evt)
+      const txs = JSON.parse(evt)
       this.mempool.mergeTxs(txs)
       this.setMempoolFigures()
       this.renderLatestTransactions(txs, true)
       keyNav(evt, false, true)
     })
     ws.registerEvtHandler('mempool', (evt) => {
-      var m = JSON.parse(evt)
+      const m = JSON.parse(evt)
       this.renderLatestTransactions(m.latest, false)
       this.mempool.replace(m)
       this.setMempoolFigures()
@@ -71,7 +71,7 @@ export default class extends Controller {
       ws.send('getmempooltxs', '')
     })
     ws.registerEvtHandler('getmempooltxsResp', (evt) => {
-      var m = JSON.parse(evt)
+      const m = JSON.parse(evt)
       this.mempool.replace(m)
       this.setMempoolFigures()
       this.renderLatestTransactions(m.latest, true)
@@ -89,8 +89,8 @@ export default class extends Controller {
   }
 
   setMempoolFigures () {
-    var totals = this.mempool.totals()
-    var counts = this.mempool.counts()
+    const totals = this.mempool.totals()
+    const counts = this.mempool.counts()
     this.mpRegTotalTarget.textContent = humanize.threeSigFigs(totals.regular)
     this.mpRegCountTarget.textContent = counts.regular
 
@@ -99,7 +99,7 @@ export default class extends Controller {
 
     this.mpVoteTotalTarget.textContent = humanize.threeSigFigs(totals.vote)
 
-    var ct = this.mpVoteCountTarget
+    const ct = this.mpVoteCountTarget
     while (ct.firstChild) ct.removeChild(ct.firstChild)
     this.mempool.voteSpans(counts.vote).forEach((span) => { ct.appendChild(span) })
 
@@ -119,10 +119,10 @@ export default class extends Controller {
   }
 
   setVotes () {
-    var hash = this.blockVotesTarget.dataset.hash
-    var votes = this.mempool.blockVoteTally(hash)
+    const hash = this.blockVotesTarget.dataset.hash
+    const votes = this.mempool.blockVoteTally(hash)
     this.blockVotesTarget.querySelectorAll('div').forEach((div, i) => {
-      let span = div.firstChild
+      const span = div.firstChild
       if (i < votes.affirm) {
         span.className = 'd-inline-block dcricon-affirm'
         div.dataset.tooltip = 'the stakeholder has voted to accept this block'
@@ -134,7 +134,7 @@ export default class extends Controller {
         div.dataset.tooltip = 'this vote has not been received yet'
       }
     })
-    var threshold = this.ticketsPerBlock / 2
+    const threshold = this.ticketsPerBlock / 2
     if (votes.affirm > threshold) {
       this.consensusMsgTarget.textContent = 'approved'
       this.consensusMsgTarget.className = 'small text-green'
@@ -149,15 +149,15 @@ export default class extends Controller {
   renderLatestTransactions (txs, incremental) {
     each(txs, (tx) => {
       if (incremental) {
-        let targetKey = `num${tx.Type}Target`
+        const targetKey = `num${tx.Type}Target`
         incrementValue(this[targetKey])
       }
-      let rows = this.transactionsTarget.querySelectorAll('tr')
+      const rows = this.transactionsTarget.querySelectorAll('tr')
       if (rows.length) {
-        let lastRow = rows[rows.length - 1]
+        const lastRow = rows[rows.length - 1]
         this.transactionsTarget.removeChild(lastRow)
       }
-      let row = mempoolTableRow(tx)
+      const row = mempoolTableRow(tx)
       row.style.opacity = 0.05
       this.transactionsTarget.insertBefore(row, this.transactionsTarget.firstChild)
       fadeIn(row)
@@ -165,7 +165,7 @@ export default class extends Controller {
   }
 
   _processBlock (blockData) {
-    var ex = blockData.extra
+    const ex = blockData.extra
     this.difficultyTarget.innerHTML = humanize.decimalParts(ex.difficulty / 1000000, true, 0)
     this.bsubsidyPowTarget.innerHTML = humanize.decimalParts(ex.subsidy.pow / 100000000, false, 8, 2)
     this.bsubsidyPosTarget.innerHTML = humanize.decimalParts((ex.subsidy.pos / 500000000), false, 8, 2) // 5 votes per block (usually)
@@ -189,15 +189,15 @@ export default class extends Controller {
     this.hashrateDeltaTarget.innerHTML = humanize.fmtPercentage(ex.hash_rate_change_month)
     this.blockVotesTarget.dataset.hash = blockData.block.hash
     this.setVotes()
-    let block = blockData.block
+    const block = blockData.block
     this.blockHeightTarget.textContent = block.height
     this.blockHeightTarget.href = `/block/${block.hash}`
     this.blockSizeTarget.textContent = humanize.bytes(block.size)
     this.blockTotalTarget.textContent = humanize.threeSigFigs(block.total)
 
     if (ex.exchange_rate) {
-      let xcRate = ex.exchange_rate.value
-      let btcIndex = ex.exchange_rate.index
+      const xcRate = ex.exchange_rate.value
+      const btcIndex = ex.exchange_rate.index
       if (this.hasPowConvertedTarget) {
         this.powConvertedTarget.textContent = `${humanize.twoDecimals(ex.subsidy.pow / 1e8 * xcRate)} ${btcIndex}`
       }

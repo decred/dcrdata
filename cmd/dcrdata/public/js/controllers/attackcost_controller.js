@@ -10,7 +10,7 @@ function digitformat (amount, decimalPlaces, noComma) {
   if (noComma) return amount.toFixed(decimalPlaces)
 
   decimalPlaces = decimalPlaces || 0
-  let result = parseFloat(amount).toLocaleString(undefined, { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces }).replace(/\.0*$/, '')
+  const result = parseFloat(amount).toLocaleString(undefined, { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces }).replace(/\.0*$/, '')
   if (result.indexOf('.') > -1 && result.endsWith('0')) {
     return removeTrailingZeros(result)
   }
@@ -39,11 +39,11 @@ function removeTrailingZeros (value) {
 }
 
 let Dygraph // lazy loaded on connect
-var height, dcrPrice, hashrate, tpSize, tpValue, tpPrice, graphData, currentPoint, coinSupply
+let height, dcrPrice, hashrate, tpSize, tpValue, tpPrice, graphData, currentPoint, coinSupply
 
 function rateCalculation (y) {
   y = y || 0.99 // 0.99 TODO confirm why 0.99 is used as default instead of 1
-  let x = 1 - y
+  const x = 1 - y
 
   // equation to determine hashpower requirement based on percentage of live stake
   // https://medium.com/decred/decreds-hybrid-protocol-a-superior-deterrent-to-majority-attacks-9421bf486292
@@ -53,7 +53,7 @@ function rateCalculation (y) {
 }
 
 const deviceList = {
-  '0': {
+  0: {
     hashrate: 34, // Th/s
     units: 'Th/s',
     power: 1610, // W
@@ -61,7 +61,7 @@ const deviceList = {
     name: 'DCR5',
     link: 'https://www.cryptocompare.com/mining/bitmain/antminer-dr5-blake256r14-34ths/'
   },
-  '1': {
+  1: {
     hashrate: 44, // Th/s
     units: 'Th/s',
     power: 2200, // W
@@ -75,16 +75,16 @@ const externalAttackType = 'external'
 const internalAttackType = 'internal'
 
 function legendFormatter (data) {
-  var html = ''
+  let html = ''
   if (data.x == null) {
-    let dashLabels = data.series.reduce((nodes, series) => {
+    const dashLabels = data.series.reduce((nodes, series) => {
       return `${nodes} <span>${series.labelHTML}</span>`
     }, '')
     html = `<span>${this.getLabels()[0]}: N/A</span>${dashLabels}`
   } else {
-    let yVals = data.series.reduce((nodes, series) => {
+    const yVals = data.series.reduce((nodes, series) => {
       if (!series.isVisible) return nodes
-      let precession = series.y >= 1 ? 2 : 6
+      const precession = series.y >= 1 ? 2 : 6
       return `${nodes} <span class="ml-3">${series.labelHTML}:</span> &nbsp;${digitformat(series.y, precession)}x`
     }, '<br>')
 
@@ -206,7 +206,7 @@ export default class extends Controller {
       graphData.push([y * tpSize, x])
     }
 
-    let options = {
+    const options = {
       ...nightModeOptions(false),
       labels: ['Attackers Tickets', 'Hash Power Multiplier'],
       ylabel: 'Hash Power Multiplier',
@@ -226,7 +226,7 @@ export default class extends Controller {
       legend: 'always',
       logscale: true,
       interactionModel: {
-        'click': function (e) {
+        click: function (e) {
           that.attackPercentTarget.value = currentPoint.x
           that.updateSliderData()
         }
@@ -262,8 +262,8 @@ export default class extends Controller {
 
   updateTargetPow (e) {
     this.preserveTargetPow = true
-    var targetPercentage = parseFloat(e.currentTarget.value) / 100
-    var target = this.ratioTable.get(targetPercentage)
+    const targetPercentage = parseFloat(e.currentTarget.value) / 100
+    let target = this.ratioTable.get(targetPercentage)
     if (target === undefined) {
       let previousKey = 0
       let previousValue = 0
@@ -334,7 +334,7 @@ export default class extends Controller {
 
   setDevicesDesc () {
     this.deviceDescTargets.map((n) => {
-      let info = deviceList[n.value]
+      const info = deviceList[n.value]
       if (!info) return
       n.innerHTML = `${info.name}, ${info.hashrate} ${info.units}, ${info.power}w, $${digitformat(info.cost)} per unit`
     })
@@ -349,14 +349,14 @@ export default class extends Controller {
   setActivePoint () {
     // Shows point whose details appear on the legend.
     if (this.chartsView !== undefined) {
-      let val = Math.min(parseFloat(this.attackPercentTarget.value) || 0, 0.99)
-      let row = this.chartsView.getRowForX(val * tpSize)
+      const val = Math.min(parseFloat(this.attackPercentTarget.value) || 0, 0.99)
+      const row = this.chartsView.getRowForX(val * tpSize)
       this.chartsView.setSelection(row)
     }
   }
 
   updateTargetHashRate () {
-    let ticketPercentage = parseFloat(this.targetPosTarget.value)
+    const ticketPercentage = parseFloat(this.targetPosTarget.value)
     this.targetHashRate = hashrate * rateCalculation(ticketPercentage / 100)
     const powPercentage = 100 * this.targetHashRate / hashrate
     if (!this.preserveTargetPow) {
@@ -387,7 +387,7 @@ export default class extends Controller {
   }
 
   updateSliderData () {
-    var val = Math.min(parseFloat(this.attackPercentTarget.value) || 0, 0.99)
+    const val = Math.min(parseFloat(this.attackPercentTarget.value) || 0, 0.99)
     // Makes PoS to be affected by the slider
     // Target PoS value increases when slider moves to the right
     if (!this.preserveTargetPoS) {
@@ -418,14 +418,14 @@ export default class extends Controller {
     if (!disableHashRateUpdate) this.updateTargetHashRate()
 
     this.updateQueryString()
-    var deviceInfo = deviceList[this.selectedDevice()]
-    var deviceCount = Math.ceil((this.targetHashRate * 1000) / deviceInfo.hashrate)
-    var totalDeviceCost = deviceCount * deviceInfo.cost
-    var totalKwh = deviceCount * deviceInfo.power * parseFloat(this.attackPeriodTarget.value) / 1000
-    var totalElectricity = totalKwh * parseFloat(this.kwhRateTarget.value)
-    var extraCost = parseFloat(this.otherCostsTarget.value) / 100 * (totalDeviceCost + totalElectricity)
-    var totalPow = extraCost + totalDeviceCost + totalElectricity
-    var ticketAttackSize, DCRNeed
+    const deviceInfo = deviceList[this.selectedDevice()]
+    const deviceCount = Math.ceil((this.targetHashRate * 1000) / deviceInfo.hashrate)
+    const totalDeviceCost = deviceCount * deviceInfo.cost
+    const totalKwh = deviceCount * deviceInfo.power * parseFloat(this.attackPeriodTarget.value) / 1000
+    const totalElectricity = totalKwh * parseFloat(this.kwhRateTarget.value)
+    const extraCost = parseFloat(this.otherCostsTarget.value) / 100 * (totalDeviceCost + totalElectricity)
+    const totalPow = extraCost + totalDeviceCost + totalElectricity
+    let ticketAttackSize, DCRNeed
     if (this.settings.attack_type === externalAttackType) {
       DCRNeed = tpValue / (1 - parseFloat(this.targetPosTarget.value) / 100)
       this.setAllValues(this.newTicketPoolValueTargets, digitformat(DCRNeed, 2))
@@ -435,13 +435,13 @@ export default class extends Controller {
       DCRNeed = tpValue * (parseFloat(this.targetPosTarget.value) / 100)
       this.setAllValues(this.ticketPoolAttackTargets, digitformat(DCRNeed))
     }
-    var projectedTicketPrice = DCRNeed / tpSize
+    const projectedTicketPrice = DCRNeed / tpSize
     this.projectedTicketPriceIncreaseTarget.innerHTML = digitformat(100 * (projectedTicketPrice - tpPrice) / tpPrice, 2)
     this.ticketPoolValueTarget.innerHTML = digitformat(hashrate, 3)
 
-    var totalDCRPos = this.settings.attack_type === externalAttackType ? DCRNeed - tpValue : ticketAttackSize * projectedTicketPrice
-    var totalPos = totalDCRPos * dcrPrice
-    var timeStr = this.attackPeriodTarget.value
+    const totalDCRPos = this.settings.attack_type === externalAttackType ? DCRNeed - tpValue : ticketAttackSize * projectedTicketPrice
+    const totalPos = totalDCRPos * dcrPrice
+    let timeStr = this.attackPeriodTarget.value
     timeStr = this.attackPeriodTarget.value > 1 ? timeStr + ' hours' : timeStr + ' hour'
     this.ticketPoolSizeLabelTarget.innerHTML = digitformat(tpSize, 2)
     this.setAllValues(this.actualHashRateTargets, digitformat(hashrate, 4))
@@ -490,7 +490,7 @@ export default class extends Controller {
   }
 
   showPosCostWarning (DCRNeed) {
-    var totalDCRInCirculation = coinSupply / 100000000
+    const totalDCRInCirculation = coinSupply / 100000000
     if (DCRNeed > totalDCRInCirculation) {
       this.coinSupplyTarget.textContent = digitformat(totalDCRInCirculation, 2)
       this.totalAttackCostContainerTarget.style.cssText = 'color: #f12222 !important'

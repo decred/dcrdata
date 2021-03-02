@@ -3,7 +3,7 @@ import Url from 'url-parse'
 
 export default class TurboQuery {
   constructor (turbolinks) {
-    var tq = this
+    const tq = this
     tq.replaceTimer = 0
     tq.appendTimer = 0
     tq.turbolinks = turbolinks || Turbolinks || false
@@ -57,9 +57,9 @@ export default class TurboQuery {
   }
 
   filteredQuery (query) {
-    var filtered = {}
+    const filtered = {}
     Object.keys(query).forEach(function (key) {
-      var v = query[key]
+      const v = query[key]
       if (typeof v === 'undefined' || v === null) return
       filtered[key] = v
     })
@@ -77,7 +77,7 @@ export default class TurboQuery {
 
   // Not an ES5 getter.
   get (key) {
-    if (this.url.query.hasOwnProperty(key)) {
+    if (Object.prototype.hasOwnProperty.call(this.url.query, key)) {
       return TurboQuery.parseValue(this.url.query[key])
     }
     return null
@@ -109,11 +109,11 @@ export default class TurboQuery {
   static project (target, source) {
     // project fills in the properties of the given template, if they exist in
     // the source. Extraneous source properties are not added to the template.
-    var keys = Object.keys(target)
-    var idx
+    const keys = Object.keys(target)
+    let idx
     for (idx in keys) {
-      var k = keys[idx]
-      if (source.hasOwnProperty(k)) {
+      const k = keys[idx]
+      if (Object.prototype.hasOwnProperty.call(source, k)) {
         target[k] = this.parseValue(source[k])
       }
     }
@@ -121,7 +121,7 @@ export default class TurboQuery {
   }
 
   static nullTemplate (keys) {
-    var d = {}
+    const d = {}
     keys.forEach((key) => {
       d[key] = null
     })
