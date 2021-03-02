@@ -1,7 +1,7 @@
 // Utilities for working with chart zoom windows.
 
 // The keys in zoomMap can be passed directly to Zoom.validate.
-var zoomMap = {
+const zoomMap = {
   all: 0,
   year: 3.154e+10,
   month: 2.628e+9,
@@ -19,12 +19,12 @@ function zoomObject (start, end) {
 // Attempts to decode a string of format start-end where start and end are
 // base 36 encoded unix timestamps in seconds.
 function decodeZoomString (encoded) {
-  var range = encoded.split('-')
+  const range = encoded.split('-')
   if (range.length !== 2) {
     return false
   }
-  var start = parseInt(range[0], 36)
-  var end = parseInt(range[1], 36)
+  const start = parseInt(range[0], 36)
+  const end = parseInt(range[1], 36)
   if (isNaN(start) || isNaN(end) || end - start <= 0) {
     return false
   }
@@ -58,7 +58,7 @@ export default class Zoom {
     // Can supply a single argument of zoomObject type, or two
     // millisecond timestamps.
     if (!end) {
-      let range = tryDecode(start)
+      const range = tryDecode(start)
       end = range.end
       start = range.start
     }
@@ -69,10 +69,10 @@ export default class Zoom {
     // decodes zoomString, such as from this.encode. zoomObjects pass through.
     // If limits are provided, encoded can be a zoomMap key.
     scale = scale || 1
-    let decoded = tryDecode(encoded)
-    let lims = tryDecode(limits)
-    if (lims && zoomMap.hasOwnProperty(decoded)) {
-      let duration = zoomMap[decoded] / scale
+    const decoded = tryDecode(encoded)
+    const lims = tryDecode(limits)
+    if (lims && Object.prototype.hasOwnProperty.call(zoomMap, decoded)) {
+      const duration = zoomMap[decoded] / scale
       if (duration === 0) return lims
       return zoomObject(lims.end - duration, lims.end)
     }
@@ -85,9 +85,9 @@ export default class Zoom {
     // proposed: encoded zoom string || zoomMap key || zoomObject
     // limits: zoomObject || array
     scale = scale || 1
-    let lims = tryDecode(limits)
-    let proposed = tryDecode(proposal)
-    var zoom = lims
+    const lims = tryDecode(limits)
+    const proposed = tryDecode(proposal)
+    let zoom = lims
     if (typeof proposed === 'string') {
       zoom = this.decode(proposed, lims, scale)
       if (!zoom) return false
@@ -99,11 +99,11 @@ export default class Zoom {
       zoom.end = zoom.start + minSize
     }
     if (zoom.end > lims.end) {
-      let shift = zoom.end - lims.end
+      const shift = zoom.end - lims.end
       zoom.end -= shift
       zoom.start = Math.max(zoom.start - shift, lims.start)
     } else if (zoom.start < lims.start) {
-      let shift = lims.start - zoom.start
+      const shift = lims.start - zoom.start
       zoom.start += shift
       zoom.end = Math.min(zoom.end + shift, lims.end)
     }
@@ -114,12 +114,12 @@ export default class Zoom {
   // range and position within the limits, else null.
   static mapKey (zoom, limits, scale) {
     scale = scale || 1
-    let lims = tryDecode(limits)
-    let decoded = this.decode(zoom, lims)
-    let range = decoded.end - decoded.start
+    const lims = tryDecode(limits)
+    const decoded = this.decode(zoom, lims)
+    const range = decoded.end - decoded.start
     if (decoded.start === lims.start && range === lims.end - lims.start) return 'all'
-    for (let k in zoomMap) {
-      let v = zoomMap[k]
+    for (const k in zoomMap) {
+      const v = zoomMap[k]
       if (v === 0) continue
       // support an error of ±0.99 due to precision loss while dividing.
       if (Math.abs(v / scale - range) < 0.99) return k
@@ -129,14 +129,14 @@ export default class Zoom {
 
   // project proportionally translates the zoom from oldWindow to newWindow.
   static project (zoom, oldWindow, newWindow) {
-    let decoded = tryDecode(zoom)
+    const decoded = tryDecode(zoom)
     if (!decoded) return
-    let ow = tryDecode(oldWindow)
-    let nw = tryDecode(newWindow)
-    let oldRange = ow.end - ow.start
-    let newRange = nw.end - nw.start
-    let pStart = (decoded.start - ow.start) / oldRange
-    let pEnd = (decoded.end - ow.start) / oldRange
+    const ow = tryDecode(oldWindow)
+    const nw = tryDecode(newWindow)
+    const oldRange = ow.end - ow.start
+    const newRange = nw.end - nw.start
+    const pStart = (decoded.start - ow.start) / oldRange
+    const pEnd = (decoded.end - ow.start) / oldRange
     return zoomObject(nw.start + pStart * newRange, nw.start + pEnd * newRange)
   }
 }

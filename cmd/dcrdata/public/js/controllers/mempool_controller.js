@@ -13,7 +13,7 @@ function incrementValue (el) {
 }
 
 function rowNode (rowText) {
-  var tbody = document.createElement('tbody')
+  const tbody = document.createElement('tbody')
   tbody.innerHTML = rowText
   dompurify.sanitize(tbody, { IN_PLACE: true, FORBID_TAGS: ['svg', 'math'] })
   return tbody.firstChild
@@ -94,23 +94,23 @@ export default class extends Controller {
 
   connect () {
     // from txhelpers.DetermineTxTypeString
-    var mempoolData = this.mempoolTarget.dataset
+    const mempoolData = this.mempoolTarget.dataset
     ws.send('getmempooltxs', mempoolData.id)
     this.mempool = new Mempool(mempoolData, this.voteTallyTargets)
     this.txTargetMap = {
-      'Vote': this.voteTransactionsTarget,
-      'Ticket': this.ticketTransactionsTarget,
-      'Revocation': this.revocationTransactionsTarget,
-      'Regular': this.regularTransactionsTarget
+      Vote: this.voteTransactionsTarget,
+      Ticket: this.ticketTransactionsTarget,
+      Revocation: this.revocationTransactionsTarget,
+      Regular: this.regularTransactionsTarget
     }
     this.countTargetMap = {
-      'Vote': this.numVoteTarget,
-      'Ticket': this.numTicketTarget,
-      'Revocation': this.numRevocationTarget,
-      'Regular': this.numRegularTarget
+      Vote: this.numVoteTarget,
+      Ticket: this.numTicketTarget,
+      Revocation: this.numRevocationTarget,
+      Regular: this.numRegularTarget
     }
     ws.registerEvtHandler('newtxs', (evt) => {
-      let txs = JSON.parse(evt)
+      const txs = JSON.parse(evt)
       this.mempool.mergeTxs(txs)
       this.renderNewTxns(txs)
       this.setMempoolFigures()
@@ -119,14 +119,14 @@ export default class extends Controller {
       keyNav(evt, false, true)
     })
     ws.registerEvtHandler('mempool', (evt) => {
-      var m = JSON.parse(evt)
+      const m = JSON.parse(evt)
       this.mempool.replace(m)
       this.setMempoolFigures()
       this.updateBlock(m)
       ws.send('getmempooltxs', '')
     })
     ws.registerEvtHandler('getmempooltxsResp', (evt) => {
-      var m = JSON.parse(evt)
+      const m = JSON.parse(evt)
       this.mempool.replace(m)
       this.handleTxsResp(m)
       this.setMempoolFigures()
@@ -150,8 +150,8 @@ export default class extends Controller {
   }
 
   setMempoolFigures () {
-    var totals = this.mempool.totals()
-    var counts = this.mempool.counts()
+    const totals = this.mempool.totals()
+    const counts = this.mempool.counts()
     this.regTotalTarget.textContent = humanize.threeSigFigs(totals.regular)
     this.regCountTarget.textContent = counts.regular
 
@@ -160,7 +160,7 @@ export default class extends Controller {
 
     this.voteTotalTarget.textContent = humanize.threeSigFigs(totals.vote)
 
-    var ct = this.voteCountTarget
+    const ct = this.voteCountTarget
     while (ct.firstChild) ct.removeChild(ct.firstChild)
     this.mempool.voteSpans(counts.vote).forEach((span) => { ct.appendChild(span) })
 
@@ -184,18 +184,18 @@ export default class extends Controller {
   renderNewTxns (txs) {
     each(txs, (tx) => {
       incrementValue(this.countTargetMap[tx.Type])
-      var rowFn = tx.Type === 'Vote' ? voteTxTableRow : txTableRow
+      const rowFn = tx.Type === 'Vote' ? voteTxTableRow : txTableRow
       addTxRow(tx, this.txTargetMap[tx.Type], rowFn)
     })
   }
 
   labelVotes () {
-    var bestBlockHash = this.bestBlockTarget.dataset.hash
-    var bestBlockHeight = parseInt(this.bestBlockTarget.textContent)
+    const bestBlockHash = this.bestBlockTarget.dataset.hash
+    const bestBlockHeight = parseInt(this.bestBlockTarget.textContent)
     this.voteTransactionsTarget.querySelectorAll('tr').forEach((tr) => {
-      var voteValidationHash = tr.dataset.blockhash
-      var voteBlockHeight = tr.dataset.height
-      var best = tr.querySelector('.small')
+      const voteValidationHash = tr.dataset.blockhash
+      const voteBlockHeight = tr.dataset.height
+      const best = tr.querySelector('.small')
       best.textContent = ''
       if (voteBlockHeight > bestBlockHeight) {
         tr.classList.add('blue-row')
@@ -215,11 +215,11 @@ export default class extends Controller {
   }
 
   sortVotesTable () {
-    var rows = Array.from(this.voteTransactionsTarget.querySelectorAll('tr'))
+    const rows = Array.from(this.voteTransactionsTarget.querySelectorAll('tr'))
     rows.sort(function (a, b) {
       if (a.dataset.height === b.dataset.height) {
-        var indexA = parseInt(a.dataset.ticketIndex)
-        var indexB = parseInt(b.dataset.ticketIndex)
+        const indexA = parseInt(a.dataset.ticketIndex)
+        const indexB = parseInt(b.dataset.ticketIndex)
         return (indexA - indexB)
       } else {
         return (b.dataset.height - a.dataset.height)

@@ -7,12 +7,12 @@ import { addPauseToMousetrap } from '../vendor/mousetrap-pause'
 addPauseToMousetrap(Mousetrap)
 
 // Keyboard Navigation
-var targets
-var targetsLength
-var currentIndex = 0
-var jumpToIndexOnLoad
+let targets
+let targetsLength
+let currentIndex = 0
+let jumpToIndexOnLoad
 const keyNavCookieName = 'dcrdataKeyNav'
-var searchBar, keyNavToggle, menuToggle
+let searchBar, keyNavToggle, menuToggle
 
 function bindElements () {
   searchBar = document.getElementById('search')
@@ -75,14 +75,14 @@ export function keyNav (event, pulsate, preserveIndex) {
       currentIndex = jumpToIndexOnLoad
       jumpToIndexOnLoad = undefined
     } else if (!preserveIndex) {
-      var priorityLink = document.querySelectorAll('[data-keynav-priority]')[0]
-      var i = targets.indexOf(priorityLink)
+      const priorityLink = document.querySelectorAll('[data-keynav-priority]')[0]
+      const i = targets.indexOf(priorityLink)
       currentIndex = i > 0 ? i : 0
     }
   }
   targetsLength = targets.length
   clearTargets()
-  var currentTarget = targets[currentIndex]
+  const currentTarget = targets[currentIndex]
   currentTarget.classList.add('keynav-target')
   currentTarget.focus()
   currentTarget.blur()
@@ -113,7 +113,7 @@ Mousetrap.bind('enter', function (e) {
   if (targets.length < currentIndex) {
     return
   }
-  var currentTarget = targets[currentIndex]
+  const currentTarget = targets[currentIndex]
   if (currentTarget.nodeName === 'INPUT') {
     currentTarget.focus()
     e.stopPropagation()
@@ -124,7 +124,7 @@ Mousetrap.bind('enter', function (e) {
     toggleKeyNav()
     return
   }
-  var location = currentTarget.href
+  const location = currentTarget.href
   if (location !== undefined) {
     if (currentTarget.dataset.preserveKeynavIndex) {
       jumpToIndexOnLoad = currentIndex
@@ -136,7 +136,7 @@ Mousetrap.bind('enter', function (e) {
 
 Mousetrap.bind('\\', function (e) {
   e.preventDefault()
-  var topSearch = searchBar
+  const topSearch = searchBar
   if (topSearch.classList.contains('keynav-target')) {
     topSearch.blur()
     clearTargets()

@@ -11,7 +11,7 @@ import { isEqual } from '../helpers/chart_helper'
 import dompurify from 'dompurify'
 import humanize from '../helpers/humanize_helper'
 
-var selectedChart
+let selectedChart
 let Dygraph // lazy loaded on connect
 
 const aDay = 86400 * 1000 // in milliseconds
@@ -24,12 +24,12 @@ const modeScales = ['ticket-price']
 const multiYAxisChart = ['ticket-price', 'coin-supply', 'privacy-participation']
 // index 0 represents y1 and 1 represents y2 axes.
 const yValueRanges = { 'ticket-price': [1] }
-var chainworkUnits = ['exahash', 'zettahash', 'yottahash']
-var hashrateUnits = ['Th/s', 'Ph/s', 'Eh/s']
-var ticketPoolSizeTarget, premine, stakeValHeight, stakeShare
-var baseSubsidy, subsidyInterval, subsidyExponent, windowSize, avgBlockTime
-var rawCoinSupply, rawPoolValue
-var yFormatter, legendEntry, legendMarker, legendElement
+const chainworkUnits = ['exahash', 'zettahash', 'yottahash']
+const hashrateUnits = ['Th/s', 'Ph/s', 'Eh/s']
+let ticketPoolSizeTarget, premine, stakeValHeight, stakeShare
+let baseSubsidy, subsidyInterval, subsidyExponent, windowSize, avgBlockTime
+let rawCoinSupply, rawPoolValue
+let yFormatter, legendEntry, legendMarker, legendElement
 
 function usesWindowUnits (chart) {
   return windowScales.indexOf(chart) > -1
@@ -57,13 +57,13 @@ function intComma (amount) {
 }
 
 function axesToRestoreYRange (chartName, origYRange, newYRange) {
-  let axesIndexes = yValueRanges[chartName]
+  const axesIndexes = yValueRanges[chartName]
   if (!Array.isArray(origYRange) || !Array.isArray(newYRange) ||
     origYRange.length !== newYRange.length || !axesIndexes) return
 
-  var axes
-  for (var i = 0; i < axesIndexes.length; i++) {
-    let index = axesIndexes[i]
+  let axes
+  for (let i = 0; i < axesIndexes.length; i++) {
+    const index = axesIndexes[i]
     if (newYRange.length <= index) continue
     if (!isEqual(origYRange[index], newYRange[index])) {
       if (!axes) axes = {}
@@ -78,7 +78,7 @@ function axesToRestoreYRange (chartName, origYRange, newYRange) {
 }
 
 function withBigUnits (v, units) {
-  var i = v === 0 ? 0 : Math.floor(Math.log10(v) / 3)
+  const i = v === 0 ? 0 : Math.floor(Math.log10(v) / 3)
   return (v / Math.pow(1000, i)).toFixed(3) + ' ' + units[i]
 }
 
@@ -108,8 +108,8 @@ function customYFormatter (fmt) {
 function legendFormatter (data) {
   if (data.x == null) return legendElement.classList.add('d-hide')
   legendElement.classList.remove('d-hide')
-  var div = document.createElement('div')
-  var xHTML = data.xHTML
+  const div = document.createElement('div')
+  let xHTML = data.xHTML
   if (data.dygraph.getLabels()[0] === 'Date') {
     xHTML = humanize.date(data.x, false, selectedChart !== 'ticket-price')
   }
@@ -238,7 +238,7 @@ function ticketPriceFunc (data) {
 }
 
 function poolSizeFunc (data) {
-  var out = []
+  let out = []
   if (data.axis === 'height') {
     if (data.bin === 'block') out = zipIvY(data.count)
     else out = zipHvY(data.h, data.count)
@@ -256,7 +256,7 @@ function poolSizeFunc (data) {
 function percentStakedFunc (data) {
   rawCoinSupply = data.circulation.map(v => v * atomsToDCR)
   rawPoolValue = data.poolval.map(v => v * atomsToDCR)
-  var ys = rawPoolValue.map((v, i) => [v / rawCoinSupply[i] * 100])
+  const ys = rawPoolValue.map((v, i) => [v / rawCoinSupply[i] * 100])
   if (data.axis === 'height') {
     if (data.bin === 'block') return zipIvY(ys)
     return zipHvY(data.h, ys)
@@ -270,20 +270,20 @@ function powDiffFunc (data) {
 }
 
 function circulationFunc (chartData) {
-  var yMax = 0
-  var h = -1
-  var addDough = (newHeight) => {
+  let yMax = 0
+  let h = -1
+  const addDough = (newHeight) => {
     while (h < newHeight) {
       h++
       yMax += blockReward(h) * atomsToDCR
     }
   }
-  var heights = chartData.h
-  var times = chartData.t
-  var supplies = chartData.supply
-  var anonymitySet = chartData.anonymitySet
-  var isHeightAxis = chartData.axis === 'height'
-  var xFunc, hFunc
+  const heights = chartData.h
+  const times = chartData.t
+  const supplies = chartData.supply
+  const anonymitySet = chartData.anonymitySet
+  const isHeightAxis = chartData.axis === 'height'
+  let xFunc, hFunc
   if (chartData.bin === 'day') {
     xFunc = isHeightAxis ? i => heights[i] : i => new Date(times[i] * 1000)
     hFunc = i => heights[i]
@@ -292,25 +292,25 @@ function circulationFunc (chartData) {
     hFunc = i => i
   }
 
-  var inflation = []
-  var data = map(supplies, (n, i) => {
-    let height = hFunc(i)
+  const inflation = []
+  const data = map(supplies, (n, i) => {
+    const height = hFunc(i)
     addDough(height)
     inflation.push(yMax)
     return [xFunc(i), supplies[i] * atomsToDCR, null, anonymitySet[i] * atomsToDCR]
   })
 
-  var dailyBlocks = aDay / avgBlockTime
-  var lastPt = data[data.length - 1]
-  var x = lastPt[0]
+  const dailyBlocks = aDay / avgBlockTime
+  const lastPt = data[data.length - 1]
+  let x = lastPt[0]
   // Set yMax to the start at last actual supply for the prediction line.
   yMax = lastPt[1]
   if (!isHeightAxis) x = x.getTime()
   xFunc = isHeightAxis ? xx => xx : xx => { return new Date(xx) }
-  var xIncrement = isHeightAxis ? dailyBlocks : aDay
-  var projection = 6 * aMonth
+  const xIncrement = isHeightAxis ? dailyBlocks : aDay
+  const projection = 6 * aMonth
   data.push([xFunc(x), null, yMax, null])
-  for (var i = 1; i <= projection; i++) {
+  for (let i = 1; i <= projection; i++) {
     addDough(h + dailyBlocks)
     x += xIncrement
     data.push([xFunc(x), null, yMax, null])
@@ -328,7 +328,7 @@ function missedVotesFunc (data) {
 
 function mapDygraphOptions (data, labelsVal, isDrawPoint, yLabel, labelsMG, labelsMG2) {
   return merge({
-    'file': data,
+    file: data,
     labels: labelsVal,
     drawPoints: isDrawPoint,
     ylabel: yLabel,
@@ -378,19 +378,19 @@ export default class extends Controller {
     legendElement = this.labelsTarget
 
     // Prepare the legend element generators.
-    var lm = this.legendMarkerTarget
+    const lm = this.legendMarkerTarget
     lm.remove()
     lm.removeAttribute('data-target')
     legendMarker = () => {
-      let node = document.createElement('div')
+      const node = document.createElement('div')
       node.appendChild(lm.cloneNode())
       return node.innerHTML
     }
-    var le = this.legendEntryTarget
+    const le = this.legendEntryTarget
     le.remove()
     le.removeAttribute('data-target')
     legendEntry = s => {
-      let node = le.cloneNode()
+      const node = le.cloneNode()
       node.innerHTML = s
       return node
     }
@@ -429,7 +429,7 @@ export default class extends Controller {
   }
 
   drawInitialGraph () {
-    var options = {
+    const options = {
       axes: { y: { axisLabelWidth: 70 }, y2: { axisLabelWidth: 70 } },
       labels: ['Date', 'Ticket Price', 'Tickets Bought'],
       digitsAfterDecimal: 8,
@@ -462,7 +462,7 @@ export default class extends Controller {
     this.setBin(this.settings.bin ? this.settings.bin : 'day')
     this.setMode(this.settings.mode ? this.settings.mode : 'smooth')
 
-    var ogLegendGenerator = Dygraph.Plugins.Legend.generateLegendHTML
+    const ogLegendGenerator = Dygraph.Plugins.Legend.generateLegendHTML
     Dygraph.Plugins.Legend.generateLegendHTML = (g, x, pts, w, row) => {
       g.updateOptions({ legendIndex: row }, true)
       return ogLegendGenerator(g, x, pts, w, row)
@@ -471,8 +471,8 @@ export default class extends Controller {
   }
 
   plotGraph (chartName, data) {
-    var d = []
-    var gOptions = {
+    let d = []
+    const gOptions = {
       zoomCallback: null,
       drawCallback: null,
       logscale: this.settings.scale === 'log',
@@ -487,7 +487,7 @@ export default class extends Controller {
     rawPoolValue = []
     rawCoinSupply = []
     yFormatter = defaultYFormatter
-    var xlabel = data.t ? 'Date' : 'Block Height'
+    const xlabel = data.t ? 'Date' : 'Block Height'
 
     switch (chartName) {
       case 'ticket-price': // price graph
@@ -582,7 +582,7 @@ export default class extends Controller {
         gOptions.inflation = d.inflation
         yFormatter = (div, data, i) => {
           addLegendEntryFmt(div, data.series[0], y => intComma(y) + ' DCR')
-          var change = 0
+          let change = 0
           if (i < d.inflation.length) {
             const supply = data.series[0].y
             if (this.anonymitySetTarget.checked) {
@@ -590,8 +590,8 @@ export default class extends Controller {
               const mixedPercentage = ((mixed / supply) * 100).toFixed(2)
               div.appendChild(legendEntry(`${legendMarker()} Mixed: ${intComma(mixed)} DCR (${mixedPercentage}%)`))
             }
-            let predicted = d.inflation[i]
-            let unminted = predicted - data.series[0].y
+            const predicted = d.inflation[i]
+            const unminted = predicted - data.series[0].y
             change = ((unminted / predicted) * 100).toFixed(2)
             div.appendChild(legendEntry(`${legendMarker()} Unminted: ${intComma(unminted)} DCR (${change}%)`))
           }
@@ -603,7 +603,7 @@ export default class extends Controller {
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Total Fee'], false, 'Total Fee (DCR)', true, false))
         break
 
-      case 'privacy-participation': // anonymity set graph
+      case 'privacy-participation': { // anonymity set graph
         d = anonymitySetFunc(data)
         this.customLimits = d.limits
         const label = 'Mix Rate'
@@ -613,7 +613,7 @@ export default class extends Controller {
           addLegendEntryFmt(div, data.series[0], y => y > 0 ? intComma(y) : '0' + ' DCR')
         }
         break
-
+      }
       case 'duration-btw-blocks': // Duration between blocks graph
         d = zip2D(data, data.duration, 1, 1)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Duration Between Blocks'], false,
@@ -651,7 +651,7 @@ export default class extends Controller {
   }
 
   async selectChart () {
-    var selection = this.settings.chart = this.chartSelectTarget.value
+    const selection = this.settings.chart = this.chartSelectTarget.value
     this.customLimits = null
     this.chartWrapperTarget.classList.add('loading')
     if (isScaleDisabled(selection)) {
@@ -699,7 +699,7 @@ export default class extends Controller {
       if (!this.settings.axis) this.settings.axis = 'time' // Set the default.
       url += `&axis=${this.settings.axis}`
       this.setActiveOptionBtn(this.settings.axis, this.axisOptionTargets)
-      let chartResponse = await axios.get(url)
+      const chartResponse = await axios.get(url)
       console.log('got api data', chartResponse, this, selection)
       selectedChart = selection
       this.plotGraph(selection, chartResponse.data)
@@ -714,7 +714,7 @@ export default class extends Controller {
     await animationFrame()
     let oldLimits = this.limits || this.chartsView.xAxisExtremes()
     this.limits = this.chartsView.xAxisExtremes()
-    var selected = this.selectedZoom()
+    const selected = this.selectedZoom()
     if (selected && !(selectedChart === 'privacy-participation' && selected === 'all')) {
       this.lastZoom = Zoom.validate(selected, this.limits,
         this.isTimeAxis() ? avgBlockTime : 1, this.isTimeAxis() ? 1 : avgBlockTime)
@@ -746,10 +746,10 @@ export default class extends Controller {
     this.lastZoom = Zoom.object(start, end)
     this.settings.zoom = Zoom.encode(this.lastZoom)
     this.query.replace(this.settings)
-    let ex = this.chartsView.xAxisExtremes()
-    let option = Zoom.mapKey(this.settings.zoom, ex, this.isTimeAxis() ? 1 : avgBlockTime)
+    const ex = this.chartsView.xAxisExtremes()
+    const option = Zoom.mapKey(this.settings.zoom, ex, this.isTimeAxis() ? 1 : avgBlockTime)
     this.setActiveOptionBtn(option, this.zoomOptionTargets)
-    var axesData = axesToRestoreYRange(this.settings.chart,
+    const axesData = axesToRestoreYRange(this.settings.chart,
       this.supportedYRange, this.chartsView.yAxisRanges())
     if (axesData) this.chartsView.updateOptions({ axes: axesData })
   }
@@ -760,18 +760,17 @@ export default class extends Controller {
 
   _drawCallback (graph, first) {
     if (first) return
-    var start, end
-    [start, end] = this.chartsView.xAxisRange()
+    const [start, end] = this.chartsView.xAxisRange()
     if (start === end) return
     if (this.lastZoom.start === start) return // only handle slide event.
     this._zoomCallback(start, end)
   }
 
   setZoom (e) {
-    var target = e.srcElement || e.target
-    var option
+    const target = e.srcElement || e.target
+    let option
     if (!target) {
-      let ex = this.chartsView.xAxisExtremes()
+      const ex = this.chartsView.xAxisExtremes()
       option = Zoom.mapKey(e, ex, this.isTimeAxis() ? 1 : avgBlockTime)
     } else {
       option = target.dataset.option
@@ -782,8 +781,8 @@ export default class extends Controller {
   }
 
   setBin (e) {
-    var target = e.srcElement || e.target
-    var option = target ? target.dataset.option : e
+    const target = e.srcElement || e.target
+    const option = target ? target.dataset.option : e
     if (!option) return
     this.setActiveOptionBtn(option, this.binSizeTargets)
     // hide vSelector
@@ -794,8 +793,8 @@ export default class extends Controller {
   }
 
   setScale (e) {
-    var target = e.srcElement || e.target
-    var option = target ? target.dataset.option : e
+    const target = e.srcElement || e.target
+    const option = target ? target.dataset.option : e
     if (!option) return
     this.setActiveOptionBtn(option, this.scaleTypeTargets)
     if (!target) return // Exit if running for the first time.
@@ -807,8 +806,8 @@ export default class extends Controller {
   }
 
   setMode (e) {
-    var target = e.srcElement || e.target
-    var option = target ? target.dataset.option : e
+    const target = e.srcElement || e.target
+    const option = target ? target.dataset.option : e
     if (!option) return
     this.setActiveOptionBtn(option, this.modeOptionTargets)
     if (!target) return // Exit if running for the first time.
@@ -820,8 +819,8 @@ export default class extends Controller {
   }
 
   setAxis (e) {
-    var target = e.srcElement || e.target
-    var option = target ? target.dataset.option : e
+    const target = e.srcElement || e.target
+    const option = target ? target.dataset.option : e
     if (!option) return
     this.setActiveOptionBtn(option, this.axisOptionTargets)
     if (!target) return // Exit if running for the first time.
@@ -922,7 +921,7 @@ export default class extends Controller {
   selectedAxis () { return this.selectedOption(this.axisOptionTargets) }
 
   selectedOption (optTargets) {
-    var key = false
+    let key = false
     optTargets.forEach((el) => {
       if (el.classList.contains('active')) key = el.dataset.option
     })

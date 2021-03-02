@@ -1,8 +1,8 @@
 import { setCookie } from './cookie_service'
 import globalEventBus from './event_bus_service'
 
-var sunIcon = document.getElementById('sun-icon')
-var darkBGCookieName = 'dcrdataDarkBG'
+const sunIcon = document.getElementById('sun-icon')
+const darkBGCookieName = 'dcrdataDarkBG'
 
 export function darkEnabled () {
   return document.cookie.includes(darkBGCookieName)
@@ -48,13 +48,13 @@ document.addEventListener('turbolinks:before-render', function (event) {
 })
 
 export function toggleMenu () {
-  var checkbox = menuToggle()
+  const checkbox = menuToggle()
   checkbox.checked = !checkbox.checked
   checkbox.dispatchEvent(new window.Event('change'))
 }
 
 export function closeMenu () {
-  var checkbox = menuToggle()
+  const checkbox = menuToggle()
   if (!checkbox.checked) return
   checkbox.checked = false
   checkbox.dispatchEvent(new window.Event('change'))

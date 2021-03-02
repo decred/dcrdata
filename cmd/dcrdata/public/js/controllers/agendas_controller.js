@@ -13,7 +13,7 @@ export default class extends Controller {
   connect () {
     this.minerMeter = this.voterMeter = null
     this.meters = []
-    var opts = {
+    const opts = {
       darkMode: darkEnabled()
     }
     if (this.hasMinerMeterTarget) {

@@ -16,8 +16,8 @@ function onErrorNotification () {
 
 function notifyNewBlock (newBlock) {
   if (Notify.needsPermission) return
-  let block = newBlock.block
-  var newBlockNtfn = new Notify('New Decred Block Mined', {
+  const block = newBlock.block
+  const newBlockNtfn = new Notify('New Decred Block Mined', {
     body: 'Block mined at height ' + block.height,
     tag: 'blockheight',
     image: '/images/dcrdata144x128.png',

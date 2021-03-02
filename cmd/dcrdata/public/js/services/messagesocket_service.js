@@ -19,7 +19,7 @@
 function forward (event, message, handlers) {
   if (typeof handlers[event] === 'undefined') return
   // call each handler
-  for (var i = 0; i < handlers[event].length; i++) {
+  for (let i = 0; i < handlers[event].length; i++) {
     handlers[event][i](message)
   }
 }
@@ -49,7 +49,7 @@ class MessageSocket {
       this.queue.push([eventID, message])
       return
     }
-    var payload = JSON.stringify({
+    const payload = JSON.stringify({
       event: eventID,
       message: message
     })
@@ -71,7 +71,7 @@ class MessageSocket {
 
     // unmarshal message, and forward the message to registered handlers
     this.connection.onmessage = (evt) => {
-      var json = JSON.parse(evt.data)
+      const json = JSON.parse(evt.data)
       forward(json.event, json.message, this.handlers)
     }
 
@@ -82,8 +82,7 @@ class MessageSocket {
     this.connection.onopen = () => {
       forward('open', null, this.handlers)
       while (this.queue.length) {
-        let eventID, message
-        [eventID, message] = this.queue.shift()
+        const [eventID, message] = this.queue.shift()
         this.send(eventID, message)
       }
     }
@@ -92,11 +91,11 @@ class MessageSocket {
     }
 
     // Start ping pong
-    var pinger = setInterval(() => {
+    const pinger = setInterval(() => {
       this.send('ping', 'sup')
     }, 7000)
   }
 }
 
-let ws = new MessageSocket()
+const ws = new MessageSocket()
 export default ws
