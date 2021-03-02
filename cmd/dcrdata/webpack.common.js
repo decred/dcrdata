@@ -11,10 +11,12 @@ module.exports = {
     turbolinks: 'Turbolinks'
   },
   optimization: {
+    chunkIds: 'deterministic',
     splitChunks: {
       chunks: 'all'
     }
   },
+  target: "web",
   module: {
     rules: [
       {
@@ -30,6 +32,7 @@ module.exports = {
           {
             loader: 'sass-loader',
             options: {
+              implementation: require("sass"), // dart-sass
               sourceMap: true
             }
           }
