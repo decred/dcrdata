@@ -6,10 +6,10 @@ import { padPoints, sizedBarPlotter } from '../helpers/chart_helper'
 import Zoom from '../helpers/zoom_helper'
 import globalEventBus from '../services/event_bus_service'
 import TurboQuery from '../helpers/turbolinks_helper'
-import axios from 'axios'
 import humanize from '../helpers/humanize_helper'
 import txInBlock from '../helpers/block_helper'
 import { fadeIn, animationFrame } from '../helpers/animation_helper'
+import { requestJSON } from '../helpers/http'
 
 const blockDuration = 5 * 60000
 const maxAddrRows = 160
@@ -325,14 +325,13 @@ export default class extends Controller {
   async fetchTable (txType, count, offset) {
     ctrl.listLoaderTarget.classList.add('loading')
     const requestCount = count > 20 ? count : 20
-    const tableResponse = await axios.get(ctrl.makeTableUrl(txType, requestCount, offset))
-    const data = tableResponse.data
-    ctrl.tableTarget.innerHTML = dompurify.sanitize(data.html)
+    const tableResponse = await requestJSON(ctrl.makeTableUrl(txType, requestCount, offset))
+    ctrl.tableTarget.innerHTML = dompurify.sanitize(tableResponse.html)
     const settings = ctrl.settings
     settings.n = count
     settings.start = offset
     settings.txntype = txType
-    ctrl.paginationParams.count = data.tx_count
+    ctrl.paginationParams.count = tableResponse.tx_count
     ctrl.query.replace(settings)
     ctrl.paginationParams.offset = offset
     ctrl.paginationParams.pagesize = count
@@ -345,7 +344,7 @@ export default class extends Controller {
         this.mergedMsgTarget.classList.remove('d-hide')
       }
     }
-    ctrl.tablePaginationParams = data.pages
+    ctrl.tablePaginationParams = tableResponse.pages
     ctrl.setTablePaginationLinks()
     ctrl.listLoaderTarget.classList.remove('loading')
   }
@@ -477,8 +476,8 @@ export default class extends Controller {
       url = '/api/address/' + ctrl.dcrAddress + '/' + chartKey + '/' + bin
     }
 
-    const graphDataResponse = await axios.get(url)
-    ctrl.processData(chart, bin, graphDataResponse.data)
+    const graphDataResponse = await requestJSON(url)
+    ctrl.processData(chart, bin, graphDataResponse)
     ctrl.ajaxing = false
     ctrl.chartLoaderTarget.classList.remove('loading')
   }

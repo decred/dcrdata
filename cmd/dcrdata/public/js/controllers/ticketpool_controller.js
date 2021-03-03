@@ -2,8 +2,8 @@ import { Controller } from 'stimulus'
 import ws from '../services/messagesocket_service'
 import { barChartPlotter } from '../helpers/chart_helper'
 import { getDefault } from '../helpers/module_helper'
-import axios from 'axios'
 import dompurify from 'dompurify'
+import { requestJSON } from '../helpers/http'
 
 let Dygraph // lazy loaded on connect
 
@@ -155,8 +155,8 @@ export default class extends Controller {
 
   async fetchAll () {
     this.wrapperTarget.classList.add('loading')
-    const chartsResponse = await axios.get('/api/ticketpool/charts')
-    this.processData(chartsResponse.data)
+    const chartsResponse = await requestJSON('/api/ticketpool/charts')
+    this.processData(chartsResponse)
     this.wrapperTarget.classList.remove('loading')
   }
 
@@ -214,9 +214,9 @@ export default class extends Controller {
     target.classList.add('btn-active')
     this.wrapperTarget.classList.add('loading')
     const url = '/api/ticketpool/bydate/' + this.bars
-    const ticketPoolResponse = await axios.get(url)
+    const ticketPoolResponse = await requestJSON(url)
     this.purchasesGraph.updateOptions({
-      file: purchasesGraphData(ticketPoolResponse.data.time_chart)
+      file: purchasesGraphData(ticketPoolResponse.time_chart)
     })
     this.wrapperTarget.classList.remove('loading')
   }
