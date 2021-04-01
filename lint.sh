@@ -26,9 +26,7 @@ go version
 
 pushd $ROOT > /dev/null
 
-ROOTPATH=$(go list -m -f {{.Dir}} 2>/dev/null)
-ROOTPATHPATTERN=$(echo $ROOTPATH | sed 's/\\/\\\\/g' | sed 's/\//\\\//g')
-MODPATHS=$(go list -m -f {{.Dir}} all 2>/dev/null | grep "^$ROOTPATHPATTERN")
+MODPATHS=$(find . -name go.mod -type f -print)
 
 alias superlint='golangci-lint run --deadline=10m \
     --disable-all \
@@ -40,14 +38,17 @@ alias superlint='golangci-lint run --deadline=10m \
     --enable structcheck \
     --enable goimports \
     --enable misspell \
-    --enable unparam'
+    --enable unparam \
+    --enable asciicheck \
+    --enable makezero'
 
 # run lint on all listed modules
 set +e
 ERROR=0
 trap 'ERROR=$?' ERR
 for MODPATH in $MODPATHS; do
-    pushd $MODPATH > /dev/null
+    module=$(dirname ${MODPATH})
+    pushd $module > /dev/null
     MOD=$(go list -m)
     echo "Linting:" $MOD
     superlint

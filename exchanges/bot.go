@@ -535,7 +535,7 @@ func (bot *ExchangeBot) connectMasterBot(ctx context.Context, delay time.Duratio
 
 // A list of exchanges which the ExchangeBot is monitoring.
 func (bot *ExchangeBot) subscribedExchanges() []string {
-	xcList := make([]string, len(bot.Exchanges))
+	xcList := make([]string, 0, len(bot.Exchanges))
 	for token := range bot.Exchanges {
 		xcList = append(xcList, token)
 	}

@@ -4092,7 +4092,7 @@ txns:
 					_, justMissed := unspentMisses[emHash] // should be redundant
 					_, justRevoked := revokes[emHash]      // exclude if revoked
 					if !justMissed && !justRevoked {
-						unspentEnM = append(unspentEnM, emHash)
+						unspentEnM = append(unspentEnM, emHash) //nolint:makezero
 						missStatuses = append(missStatuses, dbtypes.PoolStatusExpired)
 					}
 				}

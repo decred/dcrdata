@@ -23,7 +23,7 @@ jobs:
       working-directory: ./cmd/dcrdata
 
     - name: Use nodejs ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
+      uses: actions/setup-node@v2
       with:
         node-version: ${{ matrix.node-version }}
     - name: npm install
@@ -34,7 +34,7 @@ jobs:
       working-directory: ./cmd/dcrdata
 
     - name: Install Linters
-      run: "curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.37.0"
+      run: "curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.39.0"
     - name: tests
       env:
         GO111MODULE: "on"
