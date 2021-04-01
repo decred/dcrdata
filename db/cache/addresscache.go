@@ -380,7 +380,7 @@ func AllCreditAddressRows(rows []*dbtypes.AddressRow) []*dbtypes.AddressRow {
 // given AddressRow slice.
 func AllDebitAddressRows(rows []*dbtypes.AddressRow) []*dbtypes.AddressRow {
 	_, numDebitRows := CountCreditDebitRows(rows)
-	out := make([]*dbtypes.AddressRow, numDebitRows)
+	out := make([]*dbtypes.AddressRow, 0, numDebitRows)
 	if numDebitRows == 0 {
 		return out
 	}
