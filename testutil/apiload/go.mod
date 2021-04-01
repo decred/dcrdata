@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/testutil/apiload
 
-go 1.14
+go 1.15
 
 require (
 	github.com/jessevdk/go-flags v1.4.1-0.20200711081900-c17162fe8fd7

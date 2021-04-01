@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020, The Decred developers
+// Copyright (c) 2019-2021, The Decred developers
 // See LICENSE for details.
 
 package exchanges
@@ -6,7 +6,6 @@ package exchanges
 import (
 	"crypto/tls"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -16,10 +15,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const (
-	wsWriteTimeout = 5 * time.Second
-	fauxBrowserUA  = "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36"
-)
+const fauxBrowserUA = "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36"
 
 // An interface wraps the websocket to enable testing.
 type websocketFeed interface {
@@ -109,6 +105,13 @@ func newSocketConnection(cfg *socketConfig) (websocketFeed, error) {
 	}, nil
 }
 
+/*
+// Quickly encode the thing to a JSON-encoded string.
+func jsonify(thing interface{}) string {
+	s, _ := json.MarshalIndent(thing, "", "    ")
+	return string(s)
+}
+
 // Dump the signalr.Message to something readable.
 func dumpSignalrMsg(msg signalr.Message) {
 	fmt.Println("=================================")
@@ -133,6 +136,7 @@ func dumpSignalrMsg(msg signalr.Message) {
 	}
 	fmt.Println("=================================")
 }
+*/
 
 // The interface for a signalr connection.
 type signalrClient interface {

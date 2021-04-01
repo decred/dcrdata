@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/cmd/rebuilddb2
 
-go 1.14
+go 1.15
 
 replace (
 	github.com/decred/dcrdata/db/dcrpg/v6 => ../../db/dcrpg/

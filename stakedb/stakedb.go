@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2020, The Decred developers
+// Copyright (c) 2018-2021, The Decred developers
 // Copyright (c) 2018, The dcrdata developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
@@ -835,6 +835,7 @@ func (db *StakeDatabase) Close() error {
 	return fmt.Errorf("%v + %v", err1, err2)
 }
 
+/*
 func (db *StakeDatabase) expires() ([]chainhash.Hash, []bool) {
 	// revoked includes expired ticket and missed votes that were revoked
 	revoked := db.BestNode.RevokedTickets()
@@ -857,6 +858,7 @@ func (db *StakeDatabase) expires() ([]chainhash.Hash, []bool) {
 	}
 	return expires, spent
 }
+*/
 
 // PoolInfoBest computes ticket pool value using the database and, if needed, the
 // node RPC client to fetch ticket values that are not cached. Returned are a
@@ -900,6 +902,7 @@ func (db *StakeDatabase) makePoolInfo(poolValue, poolSize int64,
 	}
 }
 
+/*
 func (db *StakeDatabase) calcPoolInfo(liveTickets, winningTickets []chainhash.Hash, height uint32) *apitypes.TicketPoolInfo {
 	poolSize := len(liveTickets)
 	db.liveTicketMtx.Lock()
@@ -940,6 +943,7 @@ func (db *StakeDatabase) calcPoolInfo(liveTickets, winningTickets []chainhash.Ha
 		Winners: winners,
 	}
 }
+*/
 
 // PoolInfo attempts to fetch the ticket pool info for the specified block hash
 // from an internal pool info cache. If it is not found, you should attempt to

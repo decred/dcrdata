@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2020, The Decred developers
+// Copyright (c) 2018-2021, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -45,7 +45,7 @@ import (
 	notify "github.com/decred/dcrdata/cmd/dcrdata/notification"
 
 	"github.com/dmigwi/go-piparser/proposals"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"github.com/google/gops/agent"
 )
 

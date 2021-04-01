@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2020, The Decred developers
+// Copyright (c) 2018-2021, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -23,9 +23,9 @@ import (
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/v6/api/types"
-	"github.com/didip/tollbooth/v5"
-	"github.com/didip/tollbooth/v5/limiter"
-	"github.com/go-chi/chi"
+	"github.com/didip/tollbooth/v6"
+	"github.com/didip/tollbooth/v6/limiter"
+	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/docgen"
 )
 
