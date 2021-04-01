@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020, The Decred developers
+// Copyright (c) 2019-2021, The Decred developers
 // See LICENSE for details.
 
 package middleware
@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 )
 
 func TestGetAddressCtx(t *testing.T) {

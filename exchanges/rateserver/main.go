@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020, The Decred developers
+// Copyright (c) 2019-2021, The Decred developers
 // See LICENSE for details.
 
 package main
@@ -84,10 +84,10 @@ func main() {
 	xcSignals := xcBot.UpdateChannels()
 
 	ctx, shutdown := context.WithCancel(context.Background())
-	wg := new(sync.WaitGroup)
 
+	var wg sync.WaitGroup
 	wg.Add(1)
-	go xcBot.Start(ctx, wg)
+	go xcBot.Start(ctx, &wg)
 
 	rateServer := NewRateServer(cfg.ExchangeCurrency, xcBot)
 
@@ -145,6 +145,10 @@ func main() {
 		grpcServer.Stop()
 	}()
 
-	grpcServer.Serve(listener)
+	if err = grpcServer.Serve(listener); err != nil {
+		log.Errorf("Failed to start gRPC server listening: %v", err)
+		shutdown()
+	}
+
 	wg.Wait()
 }

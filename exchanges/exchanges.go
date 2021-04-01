@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020, The Decred developers
+// Copyright (c) 2019-2021, The Decred developers
 // See LICENSE for details.
 
 package exchanges
@@ -195,12 +195,6 @@ func Tokens() []string {
 	return tokens
 }
 
-// Quickly encode the thing to a JSON-encoded string.
-func jsonify(thing interface{}) string {
-	s, _ := json.MarshalIndent(thing, "", "    ")
-	return string(s)
-}
-
 // Most exchanges bin price values on a float precision of 8 decimal points.
 // eightPtKey reliably converts the float to an int64 that is unique for a price
 // bin.
@@ -289,6 +283,7 @@ type ExchangeState struct {
 	Candlesticks map[candlestickKey]Candlesticks `json:"candlesticks,omitempty"`
 }
 
+/*
 func (state *ExchangeState) copy() *ExchangeState {
 	newState := &ExchangeState{
 		Price:      state.Price,
@@ -306,6 +301,7 @@ func (state *ExchangeState) copy() *ExchangeState {
 	}
 	return newState
 }
+*/
 
 // Grab any candlesticks from the top that are not in the receiver. Candlesticks
 // are historical data, so never need to be discarded.
@@ -1639,13 +1635,19 @@ func (bittrex *BittrexExchange) connectWs() {
 	bittrex.obRequested = false
 	// Subscribe to the feed. The full orderbook will be requested once the first
 	// delta is received.
-	bittrex.sr.Send(bittrexWsOrderUpdateRequest)
+	err = bittrex.sr.Send(bittrexWsOrderUpdateRequest)
+	if err != nil {
+		log.Errorf("Failed to send order update request to bittrex: %v", err)
+	}
 }
 
 // Request the full orderbook.
 func (bittrex *BittrexExchange) requestOrderbook() {
 	bittrex.obRequested = true
-	bittrex.sr.Send(bittrexWsOrdersRequest)
+	err := bittrex.sr.Send(bittrexWsOrdersRequest)
+	if err != nil {
+		log.Errorf("Failed to send orders request to bittrex: %v", err)
+	}
 }
 
 // Refresh retrieves and parses API data from Bittrex.
@@ -2633,6 +2635,7 @@ func processPoloniexOrderbookUpdate(updateParams []interface{}) (*wsOrder, int, 
 // are of the "o" type, an orderbook update. The docs are unclear about whether a trade updates the
 // order book, but testing seems to indicate that a "t" message is for trades
 // that occur off of the orderbook.
+/*
 func (poloniex *PoloniexExchange) processTrade(tradeParams []interface{}) (*wsOrder, int, error) {
 	if len(tradeParams) != 6 {
 		return nil, -1, fmt.Errorf("Not enough parameters in poloniex trade notification. given: %d", len(tradeParams))
@@ -2664,6 +2667,7 @@ func (poloniex *PoloniexExchange) processTrade(tradeParams []interface{}) (*wsOr
 	}
 	return trade, direction, nil
 }
+*/
 
 // Poloniex's WebsocketProcessor. Handles messages of type "i", "o", and "t".
 func (poloniex *PoloniexExchange) processWsMessage(raw []byte) {
@@ -2790,7 +2794,10 @@ func (poloniex *PoloniexExchange) connectWs() {
 		log.Errorf("connectWs: %v", err)
 		return
 	}
-	poloniex.wsSend(poloniexOrderbookSubscription)
+	err = poloniex.wsSend(poloniexOrderbookSubscription)
+	if err != nil {
+		log.Errorf("Failed to send order book sub to polo: %v", err)
+	}
 }
 
 // Refresh retrieves and parses API data from Poloniex.
@@ -3155,7 +3162,7 @@ func (dcr *DecredDEX) bookOrder(ord *msgjson.BookOrderNote) {
 // unbookOrder should only be called with the orderMtx write-locked.
 func (dcr *DecredDEX) unbookOrder(note *msgjson.UnbookOrderNote) {
 	if len(note.OrderID) == 0 {
-		dcr.setWsFail(fmt.Errorf("received unbook_order notification without an order ID."))
+		dcr.setWsFail(fmt.Errorf("received unbook_order notification without an order ID"))
 		return
 	}
 	oid := note.OrderID.String()
@@ -3181,7 +3188,7 @@ func (dcr *DecredDEX) unbookOrder(note *msgjson.UnbookOrderNote) {
 // updateRemaining should only be called with the orderMtx write-locked.
 func (dcr *DecredDEX) updateRemaining(update *msgjson.UpdateRemainingNote) {
 	if len(update.OrderID) == 0 {
-		dcr.setWsFail(fmt.Errorf("received update_remaining notification without an order ID."))
+		dcr.setWsFail(fmt.Errorf("received update_remaining notification without an order ID"))
 		return
 	}
 	oid := update.OrderID.String()

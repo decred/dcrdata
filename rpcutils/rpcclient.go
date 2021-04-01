@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2020, The Decred developers
+// Copyright (c) 2018-2021, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -31,8 +31,8 @@ var compatibleChainServerAPIs = []semver.Semver{
 }
 
 var (
-	zeroHash            = chainhash.Hash{}
-	zeroHashStringBytes = []byte(chainhash.Hash{}.String())
+	zeroHash = chainhash.Hash{}
+	// zeroHashStringBytes = []byte(chainhash.Hash{}.String())
 
 	maxAncestorChainLength = 8192
 

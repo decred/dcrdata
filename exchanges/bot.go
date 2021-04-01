@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020, The Decred developers
+// Copyright (c) 2019-2021, The Decred developers
 // See LICENSE for details.
 
 package exchanges
@@ -34,8 +34,6 @@ const (
 	aggregatedOrderbookKey = "aggregated"
 	orderbookKey           = "depth"
 )
-
-var grpcClient dcrrates.DCRRatesClient
 
 // ExchangeBotConfig is the configuration options for ExchangeBot.
 // DataExpiry must be less than RequestExpiry.

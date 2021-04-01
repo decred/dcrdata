@@ -38,6 +38,9 @@ fi
 
 set -e
 
+# Delete the old dcrdata binary that is now under cmd/dcrdata.
+rm -f ${ROOT}/dcrdata
+
 pushd $ROOT/cmd/dcrdata > /dev/null
 
 echo "Building the dcrdata binary..."

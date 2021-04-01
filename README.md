@@ -100,6 +100,7 @@ Always run the Current release or on the Current stable branch. Do not use `mast
 │   |                       data to multiple clients like dcrdata.
 |   └── ratesproto        Package dcrrates implementing a gRPC protobuf service for
 |                           communicating exchange rate data with a rateserver.
+├── explorer/types        Types used primarily by the explorer pages.
 ├── gov                   MODULE for the on- and off-chain governance packages.
 │   ├── agendas           Package agendas defines a consensus deployment/agenda DB.
 │   └── politeia          Package politeia defines a Politeia proposal DB.

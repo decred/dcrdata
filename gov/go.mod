@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/gov/v4
 
-go 1.14
+go 1.15
 
 replace github.com/decred/dcrdata/v6 => ../
 

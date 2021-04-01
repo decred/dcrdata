@@ -1,9 +1,9 @@
 module github.com/decred/dcrdata/v6
 
-go 1.14
+go 1.15
 
 require (
-	decred.org/dcrwallet v1.6.0
+	decred.org/dcrwallet v1.7.0
 	github.com/decred/base58 v1.0.3
 	github.com/decred/dcrd/blockchain/stake/v3 v3.0.0
 	github.com/decred/dcrd/blockchain/standalone/v2 v2.0.0

@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020, The Decred developers
+// Copyright (c) 2019-2021, The Decred developers
 // See LICENSE for details.
 
 package cache
@@ -1311,7 +1311,7 @@ func dailyHashrate(time, chainwork ChartUints) (ChartUints, ChartUints) {
 		tDiff := int64(t - time[i])
 		if tDiff <= 0 {
 			tDiff = aDay
-			dupes += 1
+			dupes++
 		}
 		workDiff := chainwork[i+1] - chainwork[i]
 		rates = append(rates, (workDiff)*1e6/uint64(tDiff))

@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020, The Decred developers
+// Copyright (c) 2019-2021, The Decred developers
 // See LICENSE for details.
 
 package agendas
@@ -20,7 +20,7 @@ const (
 	statusFailed  = "failed"
 	choiceYes     = "yes"
 	choiceNo      = "no"
-	choiceAbstain = "abstain"
+	// choiceAbstain = "abstain"
 )
 
 // VoteDataSource is satisfied by rpcclient.Client.
@@ -482,6 +482,7 @@ func (tracker *VoteTracker) Summary() *VoteSummary {
 	return tracker.summary
 }
 
+/*
 // for testing
 func spoof(summary *VoteSummary) {
 	log.Infof("Spoofing vote data for testing. Don't forget to remove this call.")
@@ -513,3 +514,4 @@ func spoof(summary *VoteSummary) {
 	agenda.IsActive = false
 	agenda.IsFailed = false
 }
+*/

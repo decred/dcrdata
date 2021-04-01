@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2021, The Decred developers
 // Copyright (c) 2018, The dcrdata developers
 // See LICENSE for details.
 
@@ -316,6 +316,7 @@ func storeDiff(db *badger.DB, diff *PoolDiff, height int64) error {
 	})
 }
 
+/*
 // storeDiffs stores the input diffs for the specified heights in the on-disk DB.
 func storeDiffs(db *badger.DB, diffs []*PoolDiff, heights []int64) error {
 	heightToBytes := func(height int64) (heightBytes [8]byte) {
@@ -354,11 +355,13 @@ func storeDiffs(db *badger.DB, diffs []*PoolDiff, heights []int64) error {
 	}
 	return txn.Commit()
 }
+*/
 
 func (tp *TicketPool) storeDiff(diff *PoolDiff, height int64) error {
 	return storeDiff(tp.diffDB, diff, height)
 }
 
+/*
 // fetchDiff retrieves the diff at the specified height from the on-disk DB.
 func (tp *TicketPool) fetchDiff(height int64) (*PoolDiffDBItem, error) {
 	var heightBytes [8]byte
@@ -398,6 +401,7 @@ func (tp *TicketPool) fetchDiff(height int64) (*PoolDiffDBItem, error) {
 
 	return diff, err
 }
+*/
 
 // Append grows the diffs slice with the specified diff, and stores it in the
 // on-disk DB. The height of the diff is used to check that it builds on the
