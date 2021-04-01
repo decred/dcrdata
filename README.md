@@ -1,5 +1,4 @@
-dcrdata
-=======
+# dcrdata
 
 [![Build Status](https://github.com/decred/dcrdata/workflows/Build%20and%20Test/badge.svg)](https://github.com/decred/dcrdata/actions)
 [![Latest tag](https://img.shields.io/github/tag/decred/dcrdata.svg)](https://github.com/decred/dcrdata/tags)
@@ -68,84 +67,77 @@ Always run the Current release or on the Current stable branch. Do not use `mast
 
 |             | Series  | Branch        | Latest release tag | `dcrd` RPC server version required |
 | ----------- | ------- | ------------- | ------------------ | ---------------------------------- |
-| Current     | 5.3     | `5.3-stable`  | `v5.3.0`           | same as dcrdata 5.3                |
-| Legacy      | 5.2     | `5.2-stable`  | `v5.2.2`           | ^6.1.1 (dcrd v1.6.0-pre@[`7b060207`](https://github.com/decred/dcrd/commit/7b060207b19595ef8cc7ae4ee120c66af623239a) to `HEAD`) |
-| Development | 6.0     | `master`      | N/A                | same as dcrdata 5.3                |
+| Development | 6.0     | `master`      | N/A                | ^6.2.0 (dcrd v1.6 release)         |
+| Current     | 5.3     | `5.3-stable`  | `v5.3.0`           | same as dcrdata 5.2                |
+| Legacy      | 5.2     | `5.2-stable`  | `v5.2.2`           | ^6.1.1 (dcrd v1.6 release)         |
 
 ## Repository Overview
 
 ```none
-../dcrdata              The dcrdata daemon.
-├── api                 Package blockdata implements dcrdata's own HTTP API.
-│   ├── insight         Package insight implements the Insight API.
-│   └── types           Package types includes the exported structures used by
-|                         the dcrdata and Insight APIs.
-├── blockdata           Package blockdata is the primary data collection and
-|                         storage hub, and chain monitor.
+../dcrdata                The main Go MODULE. See cmd/dcrdata for the explorer executable.
+├── api/types             The exported structures used by the dcrdata and Insight APIs.
+├── blockdata             Package blockdata is the primary data collection and
+|                           storage hub, and chain monitor.
 ├── cmd
-│   ├── rebuilddb2      rebuilddb2 utility, for PostgreSQL backend. Not required.
-│   └── scanblocks      scanblocks utility. Not required.
+│   ├── dcrdata           MODULE for the dcrdata explorer executable.
+│   │   ├── api           dcrdata's own HTTP API
+│   │   │   └── insight   The Insight API
+│   │   ├── explorer      Powers the block explorer pages.
+│   │   ├── middleware    HTTP router middleware used by the explorer
+│   │   ├── notification  Manages dcrd notifications synchronous data collection.
+│   │   ├── public        Public resources for block explorer (css, js, etc.)
+│   │   └── views         HTML templates for block explorer
+│   └── rebuilddb2        rebuilddb2 utility, for PostgreSQL backend. Not required.
 ├── db
-│   ├── agendadb        Package agendadb is a basic PoS voting agenda database.
-│   ├── cache           Package cache provides a caching layer that is used by dcrpg.
-│   ├── dbtypes         Package dbtypes with common data types.
-│   └── dcrpg           Package dcrpg providing PostgreSQL backend.
-├── dcrrates            Package dcrrates defines a gRPC protobuf service for
-│   │                     communicating exchange rate data with rateserver.
-│   └── rateserver      rateserver app, which runs an exchange bot for collecting
-│                         exchange rate data, and a gRPC server for providing this
-│                         data to multiple clients like dcrdata.
-├── dev                 Shell scripts for maintenance and deployment.
-├── docs                Extra documentation.
-├── exchanges           Package exchanges implements a bot for gathering data
-|                       from public exchange APIs.
-├── explorer            Package explorer, powering the block explorer.
-├── gov
-│   ├── agendas         Package agendas defines a consensus deployment/agenda DB.
-│   └── politeia        Package politeia defines a Politeia proposal DB.
-│       ├── piclient    Package piclient provides functions for retrieving data
-|       |                 from the Politeia web API.
-│       └── types       Package types provides several JSON-tagged structs for
-|                         dealing with Politeia data exchange.
-├── mempool             Package mempool for monitoring mempool for transactions,
-|                         data collection, distribution, and storage.
-├── middleware          Package middleware provides HTTP router middleware.
-├── netparams           Package netparams defines the TCP port numbers for the
-|                         various networks (mainnet, testnet, simnet).
-├── notification        Package notification manages dcrd notifications, and
-|                         synchronous data collection by a queue of collectors.
-├── public              Public resources for block explorer (css, js, etc.).
-├── pubsub              Package pubsub implements a websocket-based pub-sub server
-|   |                     for blockchain data.
-│   ├── democlient      democlient app provides an example for using psclient to
-|   |                     register for and receive messages from a pubsub server.
-│   ├── psclient        Package psclient is a basic client for a pubsub server.
-│   └── types           Package types defines types used by the pubsub client
-|                         and server.
-├── rpcutils            Package rpcutils contains helper types and functions for
-|                         interacting with a chain server via RPC.
-├── semver              Package semver.
-├── stakedb             Package stakedb, for tracking tickets.
+│   ├── cache             Package cache provides a caching layer that is used by dcrpg.
+│   ├── dbtypes           Package dbtypes with common data types.
+│   └── dcrpg             MODULE and package dcrpg providing PostgreSQL backend.
+├── dev                   Shell scripts for maintenance and deployment.
+├── docs                  Extra documentation.
+├── exchanges             MODULE and package for gathering data from public exchange APIs
+│   ├── rateserver        rateserver app, which runs an exchange bot for collecting
+│   |                       exchange rate data, and a gRPC server for providing this
+│   |                       data to multiple clients like dcrdata.
+|   └── ratesproto        Package dcrrates implementing a gRPC protobuf service for
+|                           communicating exchange rate data with a rateserver.
+├── gov                   MODULE for the on- and off-chain governance packages.
+│   ├── agendas           Package agendas defines a consensus deployment/agenda DB.
+│   └── politeia          Package politeia defines a Politeia proposal DB.
+│       ├── piclient      Package piclient provides functions for retrieving data
+|       |                   from the Politeia web API.
+│       └── types         Package types provides several JSON-tagged structs for
+|                           dealing with Politeia data exchange.
+├── mempool               Package mempool for monitoring mempool for transactions,
+|                           data collection, distribution, and storage.
+├── netparams             Package netparams defines the TCP port numbers for the
+|                           various networks (mainnet, testnet, simnet).
+├── pubsub                Package pubsub implements a websocket-based pub-sub server
+|   |                       for blockchain data.
+│   ├── democlient        democlient app provides an example for using psclient to
+|   |                       register for and receive messages from a pubsub server.
+│   ├── psclient          Package psclient is a basic client for the pubsub server.
+│   └── types             Package types defines types used by the pubsub client
+|                           and server.
+├── rpcutils              Package rpcutils contains helper types and functions for
+|                           interacting with a chain server via RPC.
+├── semver                Defines the semantic version types.
+├── stakedb               Package stakedb, for tracking tickets
 ├── testutil
-│   └── apiload         apiload is an HTTP API load testing application.
-├── txhelpers           Package txhelpers provides many functions and types for
-|                         processing blocks, transactions, voting, etc.
-├── version             Package version describes the dcrdata version.
-└── views               HTML templates for block explorer.
+│   ├── apiload           An HTTP API load testing application
+|   └── dbload            A DB load testing application
+└── txhelpers             Package txhelpers provides many functions and types for
+                            processing blocks, transactions, voting, etc.
 ```
 
 ## Requirements
 
-- [Go](https://golang.org) 1.12.12+ or 1.13.3+.
-- [Node.js](https://nodejs.org/en/download/) 12.x or 13.x. Node.js is only used
+- [Go](https://golang.org) 1.15 or 1.16
+- [Node.js](https://nodejs.org/en/download/) 14.x or 15.x. Node.js is only used
   as a build tool, and is **not used at runtime**.
 - Running `dcrd` running with `--txindex --addrindex`, and synchronized to the
   current best block on the network. On startup, dcrdata will verify that the
   dcrd version is compatible.
-- PostgreSQL 10.5+. Versions 11.x and 12.x are supported and recommended for
-  improved performance with a number of tasks. Support for CockroachDB is an
-  experimental feature. See [CockroachDB Support
-  (experimental)](#cockroachdb-support-experimental) for details.
+- PostgreSQL 11+
 
 ## Docker Support
 
@@ -170,12 +162,14 @@ NOTE: The following instructions assume a Unix-like shell (e.g. bash).
 
 - Verify Go installation:
 
-      go env GOROOT GOPATH
+  ```sh
+  go env GOROOT GOPATH
+  ```
 
 - Ensure `$GOPATH/bin` is on your `$PATH`.
 
 - Clone the dcrdata repository. It is conventional to put it under `GOPATH`, but
-  this is no longer necessary with go module. For example:
+  this is no longer necessary (or recommend) with Go modules. For example:
 
   ```sh
   git clone https://github.com/decred/dcrdata $HOME/go-work/github/decred/dcrdata
@@ -189,14 +183,15 @@ Note that none of the above is required at runtime.
 ### Package the Static Web Assets
 
 [Webpack](https://webpack.js.org/), a JavaScript module bundler, is used to
-compile and package the static assets in the `public` folder. Node.js' `npm`
-tool is used to install the required Node.js dependencies and build the bundled
-JavaScript distribution for deployment.
+compile and package the static assets in the `cmd/dcrdata/public` folder.
+Node.js' `npm` tool is used to install the required Node.js dependencies and
+build the bundled JavaScript distribution for deployment.
 
 First, install the build dependencies:
 
 ```sh
-npm install # creates node_modules folder
+cd cmd/dcrdata
+npm clean-install # creates node_modules folder fresh
 ```
 
 Then, for production, build the webpack bundle:
@@ -216,23 +211,19 @@ See [Front End Development](#front-end-development) for more information.
 
 ### Building dcrdata with Go
 
-Go 1.11 introduced [modules](https://github.com/golang/go/wiki/Modules), a new
-dependency management approach, that obviates the need for third party tooling
-such as `dep`.
-
-If building in a folder under `GOPATH`, it is necessary to explicitly build with
-modules enabled:
+Change to the `cmd/dcrdata` folder and build:
 
 ```sh
-GO111MODULE=on go build
+cd cmd/dcrdata
+go build -v
 ```
-
-If building outside of `GOPATH`, modules are automatically enabled, and `go
-build` is sufficient.
 
 The go tool will process the source code and automatically download
 dependencies. If the dependencies are configured correctly, there will be no
 modifications to the `go.mod` and `go.sum` files.
+
+Note that performing the above commands with older versions of Go within
+`$GOPATH` may require setting `GO111MODULE=on`.
 
 As a reward for reading this far, you may use the [build.sh](dev/build.sh)
 script to mostly automate the build steps.
@@ -246,12 +237,11 @@ desirable to set the "pre" and "dev" values to different strings, such as
 `-ldflags` switch as follows:
 
 ```sh
-GO111MODULE=on go build -o dcrdata -v -ldflags \
-    "-X github.com/decred/dcrdata/v5/version.appPreRelease=beta \
-     -X github.com/decred/dcrdata/v5/version.appBuild=`git rev-parse --short HEAD`"
+go build -v -ldflags \
+  "-X main.appPreRelease=beta -X main.appBuild=`git rev-parse --short HEAD`"
 ```
 
-This produces a string like `dcrdata version 5.0.0-beta+25777e23 (Go version go1.12.1)`.
+This produces a string like `dcrdata version 6.0.0-beta+750fd6c2 (Go version go1.16.2)`.
 
 ### Runtime Resources
 
@@ -280,13 +270,14 @@ necessary.
 Next, build `dcrdata` and bundle the web assets:
 
 ```sh
-go build
-npm install
+cd cmd/dcrdata
+go build -v
+npm clean-install
 npm run build # or npm run watch
 ```
 
-Note that performing the above commands within `$GOPATH` may require setting
-`GO111MODULE=on`.
+Note that performing the above commands with versions of Go prior to 1.16
+within `$GOPATH` may require setting `GO111MODULE=on`.
 
 ## Upgrading Instructions
 
@@ -339,14 +330,21 @@ postgresql.conf*, reviewing all the settings to ensure the same configuration
 parameters are not set in two different places in the file (postgres will not
 complain).
 
+If you tune PostgreSQL to fully utilize remaining RAM, you are limiting
+the RAM available to the dcrdata process, which will increase as request
+volume increases and its cache becomes fully utilized. Allocate sufficient
+memory to dcrdata for your application, and use a reverse proxy such as nginx
+with cache locking features to prevent simultaneous requests to the same
+resource.
+
 On Linux, you may wish to use a unix domain socket instead of a TCP connection.
 The path to the socket depends on the system, but it is commonly
 `/var/run/postgresql`. Just set this path in `pghost`.
 
-### CockroachDB Support (experimental)
+### CockroachDB (deprecated)
 
-While dcrdata now provides [support for CockroachDB](https://github.com/decred/dcrdata/issues/1291),
-this is an experimental feature with caveats:
+While dcrdata has some special handling for [CockroachDB](https://github.com/decred/dcrdata/issues/1291),
+it is not recommended or supported for several reasons:
 
 - Compared to a well-configure PostgreSQL backend, CoackroachDB performance is
   suboptimal. See the [CockroachDB issue](https://github.com/decred/dcrdata/issues/1291)
@@ -372,31 +370,13 @@ cp sample-dcrdata.conf ~/.dcrdata/dcrdata.conf
 Then edit dcrdata.conf with your dcrd RPC settings. See the output of `dcrdata
 --help` for a list of all options and their default values.
 
-### Using Environment Variables for Configuration
-
-Almost all configuration items are available to set via environment variables.
-See the config.go file and the `config struct` for a complete list of which
-settings may be set via environment variables. Each setting uses the `env`
-struct field tag to specify the name of the environment variable (i.e.
-`env:"DCRDATA_USE_TESTNET"`).
-
-Setting precedence:
-
-1. Command line flags
-2. Config file settings
-3. Environment variables
-4. Defaults defined in config.go
-
-In general, boolean-typed variables will contain `USE`, `ENABLE`, or `DISABLE`
-in the name.
-
-For a list of the recognized environment variables, run `dcrdata --help`.
-
 ### Indexing the Blockchain
 
 If dcrdata has not previously been run with the PostgreSQL database backend, it
 is necessary to perform a bulk import of blockchain data and generate table
 indexes. _This will be done automatically by `dcrdata`_ on a fresh startup.
+**Do NO interrupt the initial sync or use the browser interface until it is
+completed.**
 
 Note that dcrdata requires that
 [dcrd](https://docs.decred.org/wallets/cli/dcrd-setup/) is
@@ -429,42 +409,25 @@ On subsequent launches, only blocks new to dcrdata are processed.
 ./dcrdata    # don't forget to configure dcrdata.conf in the appdata folder!
 ```
 
+**Do NO interrupt the initial sync or use the browser interface until it is
+completed.** Follow the messages carefully, and if you are uncertain of the
+current sync status, check system resource utilization. Interrupting the
+initial sync can leave dcrdata and it's databases in an unrecoverable or
+suboptimal state. The main steps of the initial sync process are:
+
+1. Initial block data import
+2. Indexing
+3. Spending transaction relationship updates
+4. Final DB analysis and indexing
+5. Catch-up to network in normal sync mode
+6. Populate charts historical data
+7. Update Pi repo and parse proposal records (git will be running)
+8. Final catch-up and UTXO cache pre-warming
+9. Update project fund data and then idle
+
 Unlike dcrdata.conf, which must be placed in the `appdata` folder or explicitly
 set with `-C`, the "public" and "views" folders _must_ be in the same folder as
 the `dcrdata` executable.
-
-### Hiding the PostgreSQL Settings Table
-
-By default, postgres settings are displayed in a table on start up of dcrdata.
-To block display of this table, use the `--hidepgconfig` switch..
-
-### Running the Web Interface During Synchronization
-
-By default, on dcrdata startup, a syncing status page is the only page available
-until sync is completed.
-
-However, most of the explorer pages can be made available via the
-`sync-status-limit` setting, which indicates a threshold on the number of blocks
-yet to sync, below which the entire explorer will be made available. When set
-with a value on the range `[2,5000]`, all dcrdata pages will be active on
-startup if the number of remaining blocks to process are less than the specified
-value.
-
-For example, if `sync-status-limit` is set to 1000, all dcrdata pages will be
-active when fewer than 1000 blocks remain to be processed, otherwise only the
-sync status page will be accessible until synchronization is complete.
-
-If `sync-status-limit` is not set (the default), only the sync status page will
-be available (recommended).
-
-```ini
-sync-status-limit=1000
-```
-
-_It is recommended that you avoid setting `sync-status-limit` as a value larger
-than 1000 especially if your machine struggles handling dcrdata normal load.
-Setting a larger value might worsen your situation especially when you try to
-load processor intensive pages like `/ticketpool`._
 
 ## System Hardware Requirements
 
@@ -479,7 +442,7 @@ Minimum:
 
 - 1 CPU core
 - 2 GB RAM
-- HDD with 4GB free space
+- HDD with 8GB free space
 
 ### dcrdata and PostgreSQL on same host
 
@@ -489,17 +452,17 @@ Minimum:
 
 - 2 CPU core
 - 6 GB RAM
-- HDD with 60GB free space
+- HDD with 120GB free space
 
 Recommend:
 
 - 2+ CPU cores
 - 8+ GB RAM
-- SSD (NVMe preferred) with 60 GB free space
+- SSD (NVMe preferred) with 120 GB free space
 
 ## dcrdata Daemon
 
-The root of the repository is the `main` package for the `dcrdata` app, which
+The `cmd/dcrdata` folder contains the `main` package for the `dcrdata` app, which
 has several components including:
 
 1. Block explorer (web interface).
@@ -545,20 +508,20 @@ the `/api` path prefix.
 
 #### Endpoint List
 
-| Best block           | Path                                | Type                                  |
-| -------------------- | ----------------------------------- | ------------------------------------- |
-| Summary              | `/block/best?txtotals=[true|false]` | `types.BlockDataBasic`                |
-| Stake info           | `/block/best/pos`                   | `types.StakeInfoExtended`             |
-| Header               | `/block/best/header`                | `dcrjson.GetBlockHeaderVerboseResult` |
-| Raw Header (hex)     | `/block/best/header/raw`            | `string`                              |
-| Hash                 | `/block/best/hash`                  | `string`                              |
-| Height               | `/block/best/height`                | `int`                                 |
-| Raw Block (hex)      | `/block/best/raw`                   | `string`                              |
-| Size                 | `/block/best/size`                  | `int32`                               |
-| Subsidy              | `/block/best/subsidy`               | `types.BlockSubsidies`                |
-| Transactions         | `/block/best/tx`                    | `types.BlockTransactions`             |
-| Transactions Count   | `/block/best/tx/count`              | `types.BlockTransactionCounts`        |
-| Verbose block result | `/block/best/verbose`               | `dcrjson.GetBlockVerboseResult`       |
+| Best block           | Path                                 | Type                                  |
+| -------------------- | ------------------------------------ | ------------------------------------- |
+| Summary              | `/block/best?txtotals=[true\|false]` | `types.BlockDataBasic`                |
+| Stake info           | `/block/best/pos`                    | `types.StakeInfoExtended`             |
+| Header               | `/block/best/header`                 | `dcrjson.GetBlockHeaderVerboseResult` |
+| Raw Header (hex)     | `/block/best/header/raw`             | `string`                              |
+| Hash                 | `/block/best/hash`                   | `string`                              |
+| Height               | `/block/best/height`                 | `int`                                 |
+| Raw Block (hex)      | `/block/best/raw`                    | `string`                              |
+| Size                 | `/block/best/size`                   | `int32`                               |
+| Subsidy              | `/block/best/subsidy`                | `types.BlockSubsidies`                |
+| Transactions         | `/block/best/tx`                     | `types.BlockTransactions`             |
+| Transactions Count   | `/block/best/tx/count`               | `types.BlockTransactionCounts`        |
+| Verbose block result | `/block/best/verbose`                | `dcrjson.GetBlockVerboseResult`       |
 
 | Block X (block index) | Path                  | Type                                  |
 | --------------------- | --------------------- | ------------------------------------- |
@@ -640,7 +603,7 @@ the `/api` path prefix.
 | Full ticket pool at block height _or_ hash `H`                                                 | `/stake/pool/b/H/full`                                | `[]string`                  |
 | Pool info for block range `[X,Y] (X <= Y)`                                                     | `/stake/pool/r/X/Y?arrays=[true\|false]`<sup>\*</sup> | `[]apitypes.TicketPoolInfo` |
 
-The full ticket pool endpoints accept the URL query `?sort=[true\|false]` for
+The full ticket pool endpoints accept the URL query `?sort=[true|false]` for
 requesting the tickets array in lexicographical order. If a sorted list or list
 with deterministic order is _not_ required, using `sort=false` will reduce
 server load and latency. However, be aware that the ticket order will be random,
@@ -665,11 +628,10 @@ This may make parsing more efficient for the client.
 | Detailed ticket list (fee, hash, size, age, etc.) | `/mempool/sstx/details`   | `apitypes.MempoolTicketDetails` |
 | Detailed ticket list (N highest fee rates)        | `/mempool/sstx/details/N` | `apitypes.MempoolTicketDetails` |
 
-
 | Exchanges                         | Path                | Type                         |
 | ----------------------------------| --------------------| ---------------------------- |
 | Exchange data summary             | `/exchanges`        | `exchanges.ExchangeBotState` |
-| List of available currency codes  | `/exchanges/codes`  | []string                     |
+| List of available currency codes  | `/exchanges/codes`  | `[]string`                   |
 
 Exchange monitoring is off by default. Server must be started with
 `--exchange-monitor` to enable exchange data.
@@ -698,33 +660,20 @@ shutdown dcrd. So, if you have recently (e.g. after the start of the current
 ticket price window) started dcrd, your mempool _will_ be missing transactions
 that other nodes have.
 
-## Command Line Utilities
-
-### rebuilddb2
-
-`rebuilddb2` is a CLI app used for maintenance of dcrdata's `dcrpg` database
-(a.k.a. DB v2) that uses PostgreSQL to store a nearly complete record of the
-Decred blockchain data. This functionality is included in the startup of the
-dcrdata daemon, but may be called alone with rebuilddb2. See the
-[README.md](./cmd/rebuilddb2/README.md) for `rebuilddb2` for important usage
-information.
-
 ## Front End Development
 
-Make sure you have a recent version of [node and
-npm](https://nodejs.org/en/download/) installed. You may want to use the [node
-version manager (nvm)](https://github.com/creationix/nvm) for managing your node
-download and installation.
+Make sure you have a recent version of [node and npm](https://nodejs.org/en/download/)
+installed.
 
-From the dcrdata root directory, run the following command to install the node
+From the cmd/dcrdata directory, run the following command to install the node
 modules.
 
-`npm install`
+`npm clean-install`
 
 This will create and install into a directory named `node_modules`.
 
-You'll also want to run `npm install` after merging changes from upstream. It is
-run for you when you use the build script (`./dev/build.sh`).
+You'll also want to run `npm clean-install` after merging changes from upstream.
+It is run for you when you use the build script (`./dev/build.sh`).
 
 For development, there's a webpack script that watches for file changes and
 automatically bundles. To use it, run the following command in a separate
@@ -737,10 +686,8 @@ For production, bundle assets via:
 
 `npm run build`
 
-Both the `watch` and `build` scripts create a single output file at
-`/public/js/dist/app.bundle.js`. You will need to at least `build` if changes
-have been made. `watch` essentially runs `build` after file changes, but also
-performs some additional checks.
+You will need to at least `build` if changes have been made. `watch` essentially
+runs `build` after file changes, but also performs some additional checks.
 
 ### CSS Guidelines
 
@@ -765,7 +712,7 @@ work well with javascript disabled. For users with javascript enabled,
 single page application that handles all HTML rendering.
 
 .tmpl files are cached by the backend, and can be reloaded via running
-`killall -USR1 v4` from the command line.
+`killall -USR1 dcrdata` from the command line.
 
 ### Javascript
 
