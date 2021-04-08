@@ -248,6 +248,10 @@ func NewAPIRouter(app *appContext, JSONIndent string, useRealIP, compressLarge b
 		r.With(m.ProposalTokenCtx).Get("/{token}", app.getProposalChartData)
 	})
 
+	mux.Route("/exchangerate", func(r chi.Router) {
+		r.Get("/", app.getExchangeRates)
+	})
+
 	mux.Route("/exchanges", func(r chi.Router) {
 		r.Get("/", app.getExchanges)
 		r.Get("/codes", app.getCurrencyCodes)

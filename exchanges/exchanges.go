@@ -272,17 +272,23 @@ func (sticks Candlesticks) needsUpdate(bin candlestickKey) bool {
 	return time.Now().After(lastStick.Start.Add(bin.duration() * 2))
 }
 
+// BaseState are the non-iterable fields of the ExchangeState, which embeds
+// BaseState.
+type BaseState struct {
+	Price float64 `json:"price"`
+	// BaseVolume is poorly named. This is the volume in terms of (usually) BTC,
+	// not the base asset of any particular market.
+	BaseVolume float64 `json:"base_volume,omitempty"`
+	Volume     float64 `json:"volume,omitempty"`
+	Change     float64 `json:"change,omitempty"`
+	Stamp      int64   `json:"timestamp,omitempty"`
+}
+
 // ExchangeState is the simple template for a price. The only member that is
 // guaranteed is a price. For Decred exchanges, the volumes will also be
 // populated.
 type ExchangeState struct {
-	Price float64 `json:"price"`
-	// BaseVolume is poorly named. This is the volume in terms of BTC, not the
-	// base asset of any particular market.
-	BaseVolume   float64                         `json:"base_volume,omitempty"`
-	Volume       float64                         `json:"volume,omitempty"`
-	Change       float64                         `json:"change,omitempty"`
-	Stamp        int64                           `json:"timestamp,omitempty"`
+	BaseState
 	Depth        *DepthData                      `json:"depth,omitempty"`
 	Candlesticks map[candlestickKey]Candlesticks `json:"candlesticks,omitempty"`
 }
@@ -327,11 +333,13 @@ func (state *ExchangeState) stealSticks(top *ExchangeState) {
 // Parse an ExchangeState from a protocol buffer message.
 func exchangeStateFromProto(proto *dcrrates.ExchangeRateUpdate) *ExchangeState {
 	state := &ExchangeState{
-		Price:      proto.GetPrice(),
-		BaseVolume: proto.GetBaseVolume(),
-		Volume:     proto.GetVolume(),
-		Change:     proto.GetChange(),
-		Stamp:      proto.GetStamp(),
+		BaseState: BaseState{
+			Price:      proto.GetPrice(),
+			BaseVolume: proto.GetBaseVolume(),
+			Volume:     proto.GetVolume(),
+			Change:     proto.GetChange(),
+			Stamp:      proto.GetStamp(),
+		},
 	}
 
 	updateDepth := proto.GetDepth()
@@ -1212,11 +1220,13 @@ func (binance *BinanceExchange) Refresh() {
 	}
 
 	binance.Update(&ExchangeState{
-		Price:        price,
-		BaseVolume:   baseVolume,
-		Volume:       dcrVolume,
-		Change:       priceChange,
-		Stamp:        priceResponse.CloseTime / 1000,
+		BaseState: BaseState{
+			Price:      price,
+			BaseVolume: baseVolume,
+			Volume:     dcrVolume,
+			Change:     priceChange,
+			Stamp:      priceResponse.CloseTime / 1000,
+		},
 		Candlesticks: candlesticks,
 		Depth:        depth,
 	})
@@ -1474,10 +1484,12 @@ func (bittrex *BittrexExchange) processFullOrderbook(book *BittrexDepthResponse)
 	state := bittrex.state()
 	if state != nil { // Only send update if price has been fetched
 		bittrex.Update(&ExchangeState{
-			Price:        state.Price,
-			BaseVolume:   state.BaseVolume,
-			Volume:       state.Volume,
-			Change:       state.Change,
+			BaseState: BaseState{
+				Price:      state.Price,
+				BaseVolume: state.BaseVolume,
+				Volume:     state.Volume,
+				Change:     state.Change,
+			},
 			Depth:        bittrex.wsDepthSnapshot(),
 			Candlesticks: state.Candlesticks,
 		})
@@ -1731,10 +1743,12 @@ func (bittrex *BittrexExchange) Refresh() {
 	dayChange := priceResponse.LastTradeRate - oldPrice
 
 	update := &ExchangeState{
-		Price:        float64(priceResponse.LastTradeRate),
-		BaseVolume:   float64(dayStats.QuoteVolume),
-		Volume:       float64(dayStats.Volume),
-		Change:       float64(dayChange),
+		BaseState: BaseState{
+			Price:      float64(priceResponse.LastTradeRate),
+			BaseVolume: float64(dayStats.QuoteVolume),
+			Volume:     float64(dayStats.Volume),
+			Change:     float64(dayChange),
+		},
 		Depth:        depth,
 		Candlesticks: candlesticks,
 	}
@@ -2095,11 +2109,13 @@ func (dragonex *DragonExchange) Refresh() {
 	}
 
 	dragonex.Update(&ExchangeState{
-		Price:        price,
-		BaseVolume:   btcVolume,
-		Volume:       volume,
-		Change:       priceChange,
-		Stamp:        data.Timestamp,
+		BaseState: BaseState{
+			Price:      price,
+			BaseVolume: btcVolume,
+			Volume:     volume,
+			Change:     priceChange,
+			Stamp:      data.Timestamp,
+		},
 		Depth:        depth,
 		Candlesticks: candlesticks,
 	})
@@ -2292,11 +2308,13 @@ func (huobi *HuobiExchange) Refresh() {
 	}
 
 	huobi.Update(&ExchangeState{
-		Price:        priceResponse.Tick.Close,
-		BaseVolume:   baseVolume,
-		Volume:       baseVolume / priceResponse.Tick.Close,
-		Change:       priceResponse.Tick.Close - priceResponse.Tick.Open,
-		Stamp:        priceResponse.Ts / 1000,
+		BaseState: BaseState{
+			Price:      priceResponse.Tick.Close,
+			BaseVolume: baseVolume,
+			Volume:     baseVolume / priceResponse.Tick.Close,
+			Change:     priceResponse.Tick.Close - priceResponse.Tick.Open,
+			Stamp:      priceResponse.Ts / 1000,
+		},
 		Depth:        depth,
 		Candlesticks: candlesticks,
 	})
@@ -2728,10 +2746,12 @@ func (poloniex *PoloniexExchange) processWsMessage(raw []byte) {
 			if state != nil { // Only send update if price has been fetched
 				depth := poloniex.wsDepths()
 				poloniex.Update(&ExchangeState{
-					Price:        state.Price,
-					BaseVolume:   state.BaseVolume,
-					Volume:       state.Volume,
-					Change:       state.Change,
+					BaseState: BaseState{
+						Price:      state.Price,
+						BaseVolume: state.BaseVolume,
+						Volume:     state.Volume,
+						Change:     state.Change,
+					},
 					Depth:        depth,
 					Candlesticks: state.Candlesticks,
 				})
@@ -2892,10 +2912,12 @@ func (poloniex *PoloniexExchange) Refresh() {
 	}
 
 	update := &ExchangeState{
-		Price:        price,
-		BaseVolume:   baseVolume,
-		Volume:       volume,
-		Change:       price - oldPrice,
+		BaseState: BaseState{
+			Price:      price,
+			BaseVolume: baseVolume,
+			Volume:     volume,
+			Change:     price - oldPrice,
+		},
 		Depth:        depth,
 		Candlesticks: candlesticks,
 	}
@@ -2966,9 +2988,11 @@ func (dcr *DecredDEX) Refresh() {
 	}
 
 	dcr.Update(&ExchangeState{
-		Price: depth.MidGap(),
-		// Change:       priceChange, // Need candlesticks
-		Stamp: dcr.lastStamp(),
+		BaseState: BaseState{
+			Price: depth.MidGap(),
+			// Change:       priceChange, // Need candlesticks
+			Stamp: dcr.lastStamp(),
+		},
 		// Candlesticks: candlesticks, // Not yet
 		Depth: depth,
 	})
@@ -3149,9 +3173,11 @@ func (dcr *DecredDEX) setOrderBook(ob *msgjson.OrderBook) {
 	depth := dcr.wsDepthSnapshot()
 
 	dcr.Update(&ExchangeState{
-		Price: depth.MidGap(),
-		// Change:       priceChange, // With candlesticks
-		Stamp: dcr.stamp,
+		BaseState: BaseState{
+			Price: depth.MidGap(),
+			// Change:       priceChange, // With candlesticks
+			Stamp: dcr.stamp,
+		},
 		// Candlesticks: candlesticks, // Not yet
 		Depth: depth,
 	})

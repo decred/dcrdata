@@ -1925,6 +1925,33 @@ func (c *appContext) getExchanges(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, state, m.GetIndentCtx(r))
 }
 
+func (c *appContext) getExchangeRates(w http.ResponseWriter, r *http.Request) {
+	if c.xcBot == nil {
+		http.Error(w, "Exchange rate monitoring disabled.", http.StatusServiceUnavailable)
+		return
+	}
+	// Don't provide any info if the bot is in the failed state.
+	if c.xcBot.IsFailed() {
+		http.Error(w, "No exchange rate data available", http.StatusNotFound)
+		return
+	}
+
+	code := r.URL.Query().Get("code")
+	var rates *exchanges.ExchangeRates
+	if code != "" && code != c.xcBot.BtcIndex {
+		var err error
+		rates, err = c.xcBot.ConvertedRates(code)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("No exchange rate data for code %s", code), http.StatusNotFound)
+			return
+		}
+	} else {
+		rates = c.xcBot.Rates()
+	}
+
+	writeJSON(w, rates, m.GetIndentCtx(r))
+}
+
 func (c *appContext) getCurrencyCodes(w http.ResponseWriter, r *http.Request) {
 	if c.xcBot == nil {
 		http.Error(w, "Exchange monitoring disabled.", http.StatusServiceUnavailable)

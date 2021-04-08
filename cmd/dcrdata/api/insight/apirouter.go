@@ -48,6 +48,7 @@ func NewInsightAPIRouter(app *InsightApi, useRealIP, compression bool, maxAddrs 
 	// may now access the configured indentation string if indent was specified
 	// and parsed as a boolean, otherwise the empty string, from
 	// m.GetIndentCtx(*http.Request).
+
 	mux.Use(m.Indent(app.JSONIndent))
 
 	mux.Use(middleware.Logger)

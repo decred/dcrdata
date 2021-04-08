@@ -96,11 +96,13 @@ type ExchangeBot struct {
 // ExchangeBotState is the current known state of all exchanges, in a certain
 // base currency, and a volume-averaged price and total volume in DCR.
 type ExchangeBotState struct {
-	BtcIndex    string                    `json:"btc_index"`
-	BtcPrice    float64                   `json:"btc_fiat_price"`
-	Price       float64                   `json:"price"`
-	Volume      float64                   `json:"volume"`
-	DcrBtc      map[string]*ExchangeState `json:"dcr_btc_exchanges"`
+	BtcIndex string                    `json:"btc_index"`
+	BtcPrice float64                   `json:"btc_fiat_price"`
+	Price    float64                   `json:"price"`
+	Volume   float64                   `json:"volume"`
+	DcrBtc   map[string]*ExchangeState `json:"dcr_btc_exchanges"`
+	// FiatIndices:
+	// TODO: We only really need the BaseState for the fiat indices.
 	FiatIndices map[string]*ExchangeState `json:"btc_indices"`
 }
 
@@ -595,7 +597,7 @@ func (bot *ExchangeBot) ConvertedState(code string) (*ExchangeBotState, error) {
 	for token, indices := range bot.indexMap {
 		for symbol, price := range indices {
 			if symbol == code {
-				fiatIndices[token] = &ExchangeState{Price: price}
+				fiatIndices[token] = &ExchangeState{BaseState: BaseState{Price: price}}
 			}
 		}
 	}
@@ -611,11 +613,67 @@ func (bot *ExchangeBot) ConvertedState(code string) (*ExchangeBotState, error) {
 		BtcIndex:    code,
 		Volume:      volume * btcPrice,
 		Price:       dcrPrice * btcPrice,
+		BtcPrice:    btcPrice,
 		DcrBtc:      bot.currentState.DcrBtc,
 		FiatIndices: fiatIndices,
 	}
 
 	return state.copy(), nil
+}
+
+// ExchangeRates is the dcr and btc prices converted to fiat.
+type ExchangeRates struct {
+	BtcIndex  string               `json:"btcIndex"`
+	DcrPrice  float64              `json:"dcrPrice"`
+	BtcPrice  float64              `json:"btcPrice"`
+	Exchanges map[string]BaseState `json:"exchanges"`
+}
+
+// Rates is the current exchange rates for dcr and btc.
+func (bot *ExchangeBot) Rates() *ExchangeRates {
+	bot.mtx.RLock()
+	defer bot.mtx.RUnlock()
+	s := bot.stateCopy
+
+	xcs := make(map[string]BaseState, len(s.DcrBtc))
+	for token, xcState := range s.DcrBtc {
+		xcs[token] = xcState.BaseState
+	}
+
+	return &ExchangeRates{
+		BtcIndex:  s.BtcIndex,
+		DcrPrice:  s.Price,
+		BtcPrice:  s.BtcPrice,
+		Exchanges: xcs,
+	}
+}
+
+// ConvertedRates returns an ExchangeRates with a base of the provided currency
+// code, if available.
+func (bot *ExchangeBot) ConvertedRates(code string) (*ExchangeRates, error) {
+	bot.mtx.RLock()
+	defer bot.mtx.RUnlock()
+	fiatIndices := make(map[string]*ExchangeState)
+	for token, indices := range bot.indexMap {
+		for symbol, price := range indices {
+			if symbol == code {
+				fiatIndices[token] = &ExchangeState{BaseState: BaseState{Price: price}}
+			}
+		}
+	}
+
+	dcrPrice, _ := bot.processState(bot.currentState.DcrBtc, true)
+	btcPrice, _ := bot.processState(fiatIndices, false)
+	if dcrPrice == 0 || btcPrice == 0 {
+		bot.failed = true
+		return nil, fmt.Errorf("Unable to process price for currency %s", code)
+	}
+
+	return &ExchangeRates{
+		BtcIndex: code,
+		DcrPrice: dcrPrice * btcPrice,
+		BtcPrice: btcPrice,
+	}, nil
 }
 
 // StateBytes is a JSON-encoded byte array of the currentState.
@@ -747,8 +805,10 @@ func (bot *ExchangeBot) updateIndices(update *IndexUpdate) error {
 	price, hasCode := update.Indices[bot.config.BtcIndex]
 	if hasCode {
 		bot.currentState.FiatIndices[update.Token] = &ExchangeState{
-			Price: price,
-			Stamp: time.Now().Unix(),
+			BaseState: BaseState{
+				Price: price,
+				Stamp: time.Now().Unix(),
+			},
 		}
 		return bot.updateState()
 	}
