@@ -1895,8 +1895,8 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 		totalVotes += agendaInfo.Choices[index].Count
 	}
 
-	ruleChangeI := exp.ChainParams.RuleChangeActivationInterval
-	qVotes := uint32(float64(ruleChangeI) * agendaInfo.QuorumProgress)
+	ruleChangeQ := exp.ChainParams.RuleChangeActivationQuorum
+	qVotes := uint32(float64(ruleChangeQ) * agendaInfo.QuorumProgress)
 
 	var timeLeft string
 	blocksLeft := summary.LockedIn - exp.Height()
@@ -1917,7 +1917,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 		*CommonPageData
 		Ai            *agendas.AgendaTagged
 		QuorumVotes   uint32
-		RuleChangeI   uint32
+		RuleChangeQ   uint32
 		VotingStarted int64
 		LockedIn      int64
 		BlocksLeft    int64
@@ -1927,7 +1927,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 		CommonPageData: exp.commonData(r),
 		Ai:             agendaInfo,
 		QuorumVotes:    qVotes,
-		RuleChangeI:    ruleChangeI,
+		RuleChangeQ:    ruleChangeQ,
 		VotingStarted:  summary.VotingStarted,
 		LockedIn:       summary.LockedIn,
 		BlocksLeft:     blocksLeft,
