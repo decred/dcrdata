@@ -95,9 +95,9 @@ type config struct {
 	ConfigFile   string `short:"C" long:"configfile" description:"Path to configuration file" env:"DCRDATA_CONFIG_FILE"`
 	DataDir      string `short:"b" long:"datadir" description:"Directory to store data" env:"DCRDATA_DATA_DIR"`
 	LogDir       string `long:"logdir" description:"Directory to log output." env:"DCRDATA_LOG_DIR"`
-	MaxLogZips   int    `long:"max-log-zips" description:"The number of zipped log files created by the log rotator to be retained. Setting to 0 will keep all."`
+	MaxLogZips   int    `long:"max-log-zips" description:"The number of zipped log files created by the log rotator to be retained. Setting to 0 will keep all." env:"DCRDATA_MAX_LOG_ZIPS"`
 	OutFolder    string `short:"f" long:"outfolder" description:"Folder for file outputs" env:"DCRDATA_OUT_FOLDER"`
-	ShowVersion  bool   `short:"V" long:"version" description:"Display version information and exit"`
+	ShowVersion  bool   `short:"V" long:"version" description:"Display version information and exit" env:"DCRDATA_SHOW_VERSION"`
 	TestNet      bool   `long:"testnet" description:"Use the test network (default mainnet)" env:"DCRDATA_USE_TESTNET"`
 	SimNet       bool   `long:"simnet" description:"Use the simulation test network (default mainnet)" env:"DCRDATA_USE_SIMNET"`
 	DebugLevel   string `short:"d" long:"debuglevel" description:"Logging level {trace, debug, info, warn, error, critical}" env:"DCRDATA_LOG_LEVEL"`
@@ -111,13 +111,13 @@ type config struct {
 	// API/server
 	APIProto            string  `long:"apiproto" description:"Protocol for API (http or https)" env:"DCRDATA_ENABLE_HTTPS"`
 	APIListen           string  `long:"apilisten" description:"Listen address for API. default localhost:7777, :17778 testnet, :17779 simnet" env:"DCRDATA_LISTEN_URL"`
-	IndentJSON          string  `long:"indentjson" description:"String for JSON indentation (default is \"   \"), when indentation is requested via URL query."`
+	IndentJSON          string  `long:"indentjson" description:"String for JSON indentation (default is \"   \"), when indentation is requested via URL query." env:"DCRDATA_INDENT_JSON"`
 	UseRealIP           bool    `long:"userealip" description:"Use the RealIP middleware from the pressly/chi/middleware package to get the client's real IP from the X-Forwarded-For or X-Real-IP headers, in that order." env:"DCRDATA_USE_REAL_IP"`
 	CacheControlMaxAge  int     `long:"cachecontrol-maxage" description:"Set CacheControl in the HTTP response header to a value in seconds for clients to cache the response. This applies only to FileServer routes." env:"DCRDATA_MAX_CACHE_AGE"`
 	InsightReqRateLimit float64 `long:"insight-limit-rps" description:"Requests/second per client IP for the Insight API's rate limiter." env:"DCRDATA_INSIGHT_RATE_LIMIT"`
-	MaxCSVAddrs         int     `long:"max-api-addrs" description:"Maximum allowed comma-separated addresses for endpoints that accept multiple addresses."`
-	CompressAPI         bool    `long:"compress-api" description:"Use compression for a number of endpoints with commonly large responses."`
-	ServerHeader        string  `long:"server-http-header" description:"Set the HTTP response header Server key value. Valid values are \"off\", \"version\", or a custom string."`
+	MaxCSVAddrs         int     `long:"max-api-addrs" description:"Maximum allowed comma-separated addresses for endpoints that accept multiple addresses." env:"DCRDATA_MAX_CSV_ADDRS"`
+	CompressAPI         bool    `long:"compress-api" description:"Use compression for a number of endpoints with commonly large responses." env:"DCRDATA_COMPRESS_API"`
+	ServerHeader        string  `long:"server-http-header" description:"Set the HTTP response header Server key value. Valid values are \"off\", \"version\", or a custom string." env:"DCRDATA_SERVER_HEADER"`
 
 	// Mempool
 	MempoolMinInterval int `long:"mp-min-interval" description:"The minimum time in seconds between mempool reports, regardless of number of new tickets seen." env:"DCRDATA_MEMPOOL_MIN_INTERVAL"`
@@ -127,30 +127,30 @@ type config struct {
 	// Politeia/proposals and consensus agendas
 	AgendasDBFileName string `long:"agendadbfile" description:"Agendas DB file name (default is agendas.db)." env:"DCRDATA_AGENDAS_DB_FILE_NAME"`
 	ProposalsFileName string `long:"proposalsdbfile" description:"Proposals DB file name (default is proposals.db)." env:"DCRDATA_PROPOSALS_DB_FILE_NAME"`
-	PoliteiaAPIURL    string `long:"politeiaurl" description:"Defines the root API politeia URL (defaults to https://proposals.decred.org)."`
-	PiPropRepoOwner   string `long:"piproposalsowner" description:"Defines the owner to the github repo where Politeia's proposals are pushed."`
-	PiPropRepoName    string `long:"piproposalsrepo" description:"Defines the name of the github repo where Politeia's proposals are pushed."`
-	DisablePiParser   bool   `long:"disable-piparser" description:"Disables the piparser tool from running."`
+	PoliteiaAPIURL    string `long:"politeiaurl" description:"Defines the root API politeia URL (defaults to https://proposals.decred.org)." env:"DCRDATA_POLITEIA_URL"`
+	PiPropRepoOwner   string `long:"piproposalsowner" description:"Defines the owner to the github repo where Politeia's proposals are pushed." env:"DCRDATA_PI_REPO_OWNER"`
+	PiPropRepoName    string `long:"piproposalsrepo" description:"Defines the name of the github repo where Politeia's proposals are pushed." env:"DCRDATA_PROPS_REPO"`
+	DisablePiParser   bool   `long:"disable-piparser" description:"Disables the piparser tool from running." env:"DCRDATA_DISABLE_PIPARSER"`
 
 	// Caching and optimization.
-	AddrCacheCap     int    `long:"addr-cache-cap" description:"Address cache capacity in bytes."`
-	AddrCacheLimit   int    `long:"addr-cache-address-limit" description:"Maximum number of addresses allowed in the address cache."`
-	AddrCacheUXTOCap int    `long:"addr-cache-utxo-cap" description:"UTXO cache capacity in bytes."`
+	AddrCacheCap     int    `long:"addr-cache-cap" description:"Address cache capacity in bytes." env:"DCRDATA_ADDR_CACHE_CAP"`
+	AddrCacheLimit   int    `long:"addr-cache-address-limit" description:"Maximum number of addresses allowed in the address cache." env:"DCRDATA_ADDR_CACHE_LIMIT"`
+	AddrCacheUXTOCap int    `long:"addr-cache-utxo-cap" description:"UTXO cache capacity in bytes." env:"DCRDATA_ADDR_CASH_UTXO_CAP"`
 	NoDevPrefetch    bool   `long:"no-dev-prefetch" description:"Disable automatic dev fund balance query on new blocks. When true, the query will still be run on demand, but not automatically after new blocks are connected." env:"DCRDATA_DISABLE_DEV_PREFETCH"`
-	ChartsCacheDump  string `long:"chartscache" description:"Defines the file name that holds the charts cache data on system exit."`
+	ChartsCacheDump  string `long:"chartscache" description:"Defines the file name that holds the charts cache data on system exit." env:"DCRDATA_CHARTS_CACHE"`
 
 	// DB backend
 	PGDBName         string        `long:"pgdbname" description:"PostgreSQL DB name." env:"DCRDATA_PG_DB_NAME"`
 	PGUser           string        `long:"pguser" description:"PostgreSQL DB user." env:"DCRDATA_POSTGRES_USER"`
 	PGPass           string        `long:"pgpass" description:"PostgreSQL DB password." env:"DCRDATA_POSTGRES_PASS"`
 	PGHost           string        `long:"pghost" description:"PostgreSQL server host:port or UNIX socket (e.g. /run/postgresql)." env:"DCRDATA_POSTGRES_HOST_URL"`
-	PGQueryTimeout   time.Duration `short:"T" long:"pgtimeout" description:"Timeout (a time.Duration string) for most PostgreSQL queries used for user initiated queries."`
-	HidePGConfig     bool          `long:"hidepgconfig" description:"Blocks logging of the PostgreSQL db configuration on system start up."`
-	DropIndexes      bool          `long:"drop-inds" short:"D" description:"Drop all table indexes and exit."`
-	PurgeNBestBlocks int           `long:"purge-n-blocks" description:"Purge all data for the N best blocks, using the best block across all DBs if they are out of sync."`
+	PGQueryTimeout   time.Duration `short:"T" long:"pgtimeout" description:"Timeout (a time.Duration string) for most PostgreSQL queries used for user initiated queries." env:"DCRDATA_PG_QUERY_TIMEOUT"`
+	HidePGConfig     bool          `long:"hidepgconfig" description:"Blocks logging of the PostgreSQL db configuration on system start up." env:"DCRDATA_PG_HIDE_CONFIG"`
+	DropIndexes      bool          `long:"drop-inds" short:"D" description:"Drop all table indexes and exit." env:"DCRDATA_PG_DROP_INDEXES"`
+	PurgeNBestBlocks int           `long:"purge-n-blocks" description:"Purge all data for the N best blocks, using the best block across all DBs if they are out of sync." env:"DCRDATA_PURGE_N_BLOCKS"`
 	SyncAndQuit      bool          `long:"sync-and-quit" description:"Sync to the best block and exit. Do not start the explorer or API." env:"DCRDATA_ENABLE_SYNC_N_QUIT"`
 	ImportSideChains bool          `long:"import-side-chains" description:"(experimental) Enable startup import of side chains retrieved from dcrd via getchaintips." env:"DCRDATA_IMPORT_SIDE_CHAINS"`
-	SyncStatusLimit  int           `long:"sync-status-limit" description:"Sets the number of blocks behind the current best height past which only the syncing status page can be served on the running web server. Value should be greater than 2 but less than 5000."`
+	SyncStatusLimit  int           `long:"sync-status-limit" description:"Sets the number of blocks behind the current best height past which only the syncing status page can be served on the running web server. Value should be greater than 2 but less than 5000." env:"DCRDATA_SYNC_STATUS_LIMIT"`
 
 	// RPC client options
 	DcrdUser         string `long:"dcrduser" description:"Daemon RPC user name" env:"DCRDATA_DCRD_USER"`
@@ -158,7 +158,7 @@ type config struct {
 	DcrdServ         string `long:"dcrdserv" description:"Hostname/IP and port of dcrd RPC server to connect to (default localhost:9109, testnet: localhost:19109, simnet: localhost:19556)" env:"DCRDATA_DCRD_URL"`
 	DcrdCert         string `long:"dcrdcert" description:"File containing the dcrd certificate file" env:"DCRDATA_DCRD_CERT"`
 	DisableDaemonTLS bool   `long:"nodaemontls" description:"Disable TLS for the daemon RPC client -- NOTE: This is only allowed if the RPC client is connecting to localhost" env:"DCRDATA_DCRD_DISABLE_TLS"`
-	NoBlockPrefetch  bool   `long:"no-dcrd-block-prefetch" description:"Disable block pre-fetch from dcrd during startup sync."`
+	NoBlockPrefetch  bool   `long:"no-dcrd-block-prefetch" description:"Disable block pre-fetch from dcrd during startup sync." env:"DCRDATA_NO_BLOCK_PREFETCH"`
 
 	// ExchangeBot settings
 	EnableExchangeBot bool   `long:"exchange-monitor" description:"Enable the exchange monitor" env:"DCRDATA_MONITOR_EXCHANGES"`
