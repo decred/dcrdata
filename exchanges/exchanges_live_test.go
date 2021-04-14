@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/signal"
 	"os/user"
@@ -14,6 +15,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/decred/dcrd/dcrutil/v3"
 )
 
 func makeKillSwitch() chan os.Signal {
@@ -46,7 +49,7 @@ func testExchanges(asSlave, quickTest bool, t *testing.T) {
 	config.Indent = true
 	if asSlave {
 		config.MasterBot = ":7778"
-		appDirectory = dcrutil.AppDataDir("rateserver", false)
+		appDirectory := dcrutil.AppDataDir("rateserver", false)
 		config.MasterCertFile = filepath.Join(appDirectory, "rpc.cert")
 	} else {
 		config.DataExpiry = "2m"
@@ -232,65 +235,58 @@ func TestPoloniexLiveWebsocket(t *testing.T) {
 	checkWsDepths(t, poloniex.wsDepths())
 	poloniex.ws.Close()
 }
-
 func TestBittrexLiveWebsocket(t *testing.T) {
 	enableTestLog()
-
 	// Skip this test during automated testing.
 	if os.Getenv("GORACE") != "" {
 		t.Skip("Skipping Bittrex websocket test")
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	killSwitch := makeKillSwitch()
+	go func() {
+		select {
+		case <-killSwitch:
+			cancel()
+			return
+		case <-ctx.Done():
+			return
+		}
+	}()
 
-	bittrex := newTestBittrexExchange()
+	// bittrex := newTestBittrexExchange()
+	chans := &BotChannels{
+		index:    make(chan *IndexUpdate),
+		exchange: make(chan *ExchangeUpdate, 1),
+		done:     make(chan struct{}),
+	}
 
-	bittrex.connectWs()
-	sr := bittrex.signalr()
-	if sr == nil {
-		t.Errorf("failed to initialize signalr client")
+	xc, err := NewBittrex(new(http.Client), chans)
+	if err != nil {
+		t.Fatalf("NewBittrex error: %v", err)
 	}
-	defer sr.Close()
 
-	testDuration := 180
-	log.Infof("listening for %d seconds total", testDuration*2)
-	select {
-	case <-time.NewTimer(time.Second * time.Duration(testDuration)).C:
-	case <-killSwitch:
-		t.Errorf("ctrl+c detected")
-		return
+	bittrex := xc.(*BittrexExchange)
+
+	ticker := time.NewTicker(time.Second * 10)
+	testTimeout := time.NewTimer(time.Minute * 2)
+	bittrex.Refresh()
+	for {
+		select {
+		case <-ticker.C:
+			bittrex.Refresh()
+		case <-testTimeout.C:
+			cancel()
+			return
+		case xcUpdate := <-chans.exchange:
+			fmt.Printf("Bittrex emitted an exchange update: %d bids, %d asks, %d candlestick sets \n",
+				len(xcUpdate.State.Depth.Bids), len(xcUpdate.State.Depth.Asks), len(xcUpdate.State.Candlesticks))
+		case <-ctx.Done():
+			return
+		}
 	}
-	// Test reconnection by forcing a fail, then checking the wsDepthStatus.
-	bittrex.setWsFail(fmt.Errorf("test failure. ignore"))
-	// Subsequent calls to Close should be inconsequential.
-	bittrex.sr.Close()
-	bittrex.sr.Close()
-	// wsDepthStatus should recognize the closed connection and create a real
-	// websocket connection, signalling to use the HTTP fallback in the meantime.
-	tryHttp, initializing, depth := bittrex.wsDepthStatus(bittrex.connectWs)
-	if !tryHttp {
-		t.Errorf("tryHttp not set as expected")
-		return
-	}
-	if initializing {
-		// initializing is only true the first time the socket is started.
-		t.Errorf("websocket unexpectedly in initializing status")
-		return
-	}
-	if depth != nil {
-		t.Errorf("unexpected non-nil depth after forced websocket error")
-		return
-	}
-	select {
-	case <-time.NewTimer(time.Second * time.Duration(testDuration)).C:
-	case <-killSwitch:
-		t.Errorf("ctrl+c detected")
-		return
-	}
-	if bittrex.wsFailed() {
-		t.Fatalf("bittrex connection in failed state")
-	}
-	checkWsDepths(t, bittrex.wsDepths())
 }
 
 func TestDecredDEXLive(t *testing.T) {
