@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2020, The Decred developers
+// Copyright (c) 2018-2021, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -16,10 +16,8 @@ import (
 
 // ChainMonitor responds to block connection and chain reorganization.
 type ChainMonitor struct {
-	ctx            context.Context
-	db             *ChainDB
-	ConnectingLock chan struct{}
-	DoneConnecting chan struct{}
+	ctx context.Context
+	db  *ChainDB
 }
 
 // NewChainMonitor creates a new ChainMonitor.
@@ -28,10 +26,8 @@ func (pgb *ChainDB) NewChainMonitor(ctx context.Context) *ChainMonitor {
 		return nil
 	}
 	return &ChainMonitor{
-		ctx:            ctx,
-		db:             pgb,
-		ConnectingLock: make(chan struct{}, 1),
-		DoneConnecting: make(chan struct{}),
+		ctx: ctx, // usage is TODO
+		db:  pgb,
 	}
 }
 
@@ -45,7 +41,7 @@ func (p *ChainMonitor) switchToSideChain(reorgData *txhelpers.ReorgData) (int32,
 
 	// Time this process.
 	defer func(start time.Time) {
-		log.Infof("dcrpg: switchToSideChain completed in %v", time.Since(start))
+		log.Infof("switchToSideChain completed in %v", time.Since(start))
 	}(time.Now())
 
 	newChain := reorgData.NewChain

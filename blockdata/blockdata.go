@@ -1,4 +1,4 @@
-// Copyright (c) 2020, The Decred developers
+// Copyright (c) 2020-2021, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -6,7 +6,6 @@ package blockdata
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -149,8 +148,12 @@ func (t *Collector) CollectAPITypes(hash *chainhash.Hash) (*apitypes.BlockDataBa
 func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataBasic,
 	*chainjson.FeeInfoBlock, *chainjson.GetBlockHeaderVerboseResult,
 	*apitypes.BlockExplorerExtraInfo, *wire.MsgBlock, error) {
+	// 10 seconds for all the RPCs.
+	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
+	defer cancel()
+
 	// Retrieve block from dcrd.
-	msgBlock, err := t.dcrdChainSvr.GetBlock(context.TODO(), hash)
+	msgBlock, err := t.dcrdChainSvr.GetBlock(ctx, hash)
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
@@ -160,17 +163,17 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 
 	// Coin supply and block subsidy. If either RPC fails, do not immediately
 	// return. Attempt acquisition of other data for this block.
-	coinSupply, err := t.dcrdChainSvr.GetCoinSupply(context.TODO())
+	coinSupply, err := t.dcrdChainSvr.GetCoinSupply(ctx)
 	if err != nil {
 		log.Error("GetCoinSupply failed: ", err)
 	}
-	nbSubsidy, err := t.dcrdChainSvr.GetBlockSubsidy(context.TODO(), int64(msgBlock.Header.Height)+1, 5)
+	nbSubsidy, err := t.dcrdChainSvr.GetBlockSubsidy(ctx, int64(msgBlock.Header.Height)+1, 5)
 	if err != nil {
 		log.Errorf("GetBlockSubsidy for %d failed: %v", msgBlock.Header.Height, err)
 	}
 
 	// Block header
-	blockHeaderResults, err := t.dcrdChainSvr.GetBlockHeaderVerbose(context.TODO(), hash)
+	blockHeaderResults, err := t.dcrdChainSvr.GetBlockHeaderVerbose(ctx, hash)
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
@@ -236,6 +239,10 @@ func (t *Collector) CollectHash(hash *chainhash.Hash) (*BlockData, *wire.MsgBloc
 		log.Debugf("Collector.CollectHash() completed in %v", time.Since(start))
 	}(time.Now())
 
+	// 10 seconds for all the RPCs.
+	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
+	defer cancel()
+
 	// Info specific to the block hash
 	blockDataBasic, feeInfoBlock, blockHeaderVerbose, extra, msgBlock, err :=
 		t.CollectBlockInfo(hash)
@@ -244,14 +251,14 @@ func (t *Collector) CollectHash(hash *chainhash.Hash) (*BlockData, *wire.MsgBloc
 	}
 
 	// Number of peer connection to chain server
-	numConn, err := t.dcrdChainSvr.GetConnectionCount(context.TODO())
+	numConn, err := t.dcrdChainSvr.GetConnectionCount(ctx)
 	if err != nil {
 		log.Warn("Unable to get connection count: ", err)
 	}
 
 	// Blockchain info (e.g. syncheight, verificationprogress, chainwork,
 	// bestblockhash, initialblockdownload, maxblocksize, deployments, etc.).
-	chainInfo, err := t.dcrdChainSvr.GetBlockChainInfo(context.TODO())
+	chainInfo, err := t.dcrdChainSvr.GetBlockChainInfo(ctx)
 	if err != nil {
 		log.Warn("Unable to get blockchain info: ", err)
 	}
@@ -286,52 +293,37 @@ func (t *Collector) Collect() (*BlockData, *wire.MsgBlock, error) {
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
 
-	// Time this function
+	// Time this function.
 	defer func(start time.Time) {
 		log.Debugf("Collector.Collect() completed in %v", time.Since(start))
 	}(time.Now())
 
-	// Run first client call with a timeout.
-	type bciRes struct {
-		err            error
-		blockchainInfo *chainjson.GetBlockChainInfoResult
-	}
-	toch := make(chan bciRes)
+	// 10 seconds for all the RPCs.
+	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
+	defer cancel()
 
 	// Pull and store relevant data about the blockchain (e.g. syncheight,
 	// verificationprogress, chainwork, bestblockhash, initialblockdownload,
 	// maxblocksize, deployments, etc.).
-	go func() {
-		blockchainInfo, err := t.dcrdChainSvr.GetBlockChainInfo(context.TODO())
-		toch <- bciRes{err, blockchainInfo}
-	}()
-
-	var bci bciRes
-	select {
-	case bci = <-toch:
-	case <-time.After(time.Second * 10):
-		log.Errorf("Timeout waiting for dcrd.")
-		return nil, nil, errors.New("Timeout")
+	blockchainInfo, err := t.dcrdChainSvr.GetBlockChainInfo(ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to get blockchain info: %v", err)
 	}
 
-	if bci.err != nil {
-		return nil, nil, fmt.Errorf("unable to get blockchain info: %v", bci.err)
-	}
-
-	hash, err := chainhash.NewHashFromStr(bci.blockchainInfo.BestBlockHash)
+	hash, err := chainhash.NewHashFromStr(blockchainInfo.BestBlockHash)
 	if err != nil {
 		return nil, nil,
 			fmt.Errorf("invalid best block hash from getblockchaininfo: %v", err)
 	}
 
 	// Stake difficulty
-	stakeDiff, err := t.dcrdChainSvr.GetStakeDifficulty(context.TODO())
+	stakeDiff, err := t.dcrdChainSvr.GetStakeDifficulty(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// estimatestakediff
-	estStakeDiff, err := t.dcrdChainSvr.EstimateStakeDiff(context.TODO(), nil)
+	estStakeDiff, err := t.dcrdChainSvr.EstimateStakeDiff(ctx, nil)
 	if err != nil {
 		log.Warn("estimatestakediff is broken: ", err)
 		estStakeDiff = &chainjson.EstimateStakeDiffResult{}
@@ -345,7 +337,7 @@ func (t *Collector) Collect() (*BlockData, *wire.MsgBlock, error) {
 	}
 
 	// Number of peer connection to chain server
-	numConn, err := t.dcrdChainSvr.GetConnectionCount(context.TODO())
+	numConn, err := t.dcrdChainSvr.GetConnectionCount(ctx)
 	if err != nil {
 		log.Warn("Unable to get connection count: ", err)
 	}
@@ -360,7 +352,7 @@ func (t *Collector) Collect() (*BlockData, *wire.MsgBlock, error) {
 		CurrentStakeDiff: *stakeDiff,
 		EstStakeDiff:     *estStakeDiff,
 		ExtraInfo:        *extra,
-		BlockchainInfo:   bci.blockchainInfo,
+		BlockchainInfo:   blockchainInfo,
 		PoolInfo:         blockDataBasic.PoolInfo,
 		PriceWindowNum:   int(height / winSize),
 		IdxBlockInWindow: int(height%winSize) + 1,

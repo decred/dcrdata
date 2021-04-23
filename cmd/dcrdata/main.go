@@ -213,13 +213,13 @@ func _main(ctx context.Context) error {
 	}
 
 	mpChecker := rpcutils.NewMempoolAddressChecker(dcrdClient, activeChain)
-	chainDB, err := dcrpg.NewChainDBWithCancel(ctx, &dbCfg,
+	chainDB, err := dcrpg.NewChainDB(ctx, &dbCfg,
 		stakeDB, mpChecker, piParser, dcrdClient, requestShutdown)
 	if chainDB != nil {
 		defer chainDB.Close()
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to connect to PostgreSQL: %w", err)
 	}
 
 	if cfg.DropIndexes {
@@ -1185,7 +1185,9 @@ func listenAndServeProto(ctx context.Context, wg *sync.WaitGroup, listen, proto 
 
 		// We received an interrupt signal, shut down.
 		log.Infof("Gracefully shutting down web server...")
-		if err := server.Shutdown(context.Background()); err != nil {
+		ctxShut, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := server.Shutdown(ctxShut); err != nil {
 			// Error from closing listeners.
 			log.Infof("HTTP server Shutdown: %v", err)
 		}

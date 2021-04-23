@@ -137,9 +137,11 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 		log.Errorf("Failed to decode transaction: %v", err)
 		return err
 	}
+	nextHeight := p.LastBlockHeight() + 1
+	treasuryActive := txhelpers.IsTreasuryActive(p.params.Net, nextHeight)
 
 	hash := msgTx.TxHash().String()
-	txType := txhelpers.DetermineTxTypeString(msgTx)
+	txType := txhelpers.DetermineTxTypeString(msgTx, treasuryActive)
 
 	// Maintain the list of unique stake and regular txns encountered.
 	p.mtx.RLock()      // do not allow p.inventory to be reset
@@ -164,7 +166,8 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 		p.addrMap.store = make(txhelpers.MempoolAddressStore)
 	}
 	txAddresses := make(map[string]struct{})
-	newOuts, addressesOut := txhelpers.TxOutpointsByAddr(p.addrMap.store, msgTx, p.params)
+	newOuts, addressesOut := txhelpers.TxOutpointsByAddr(p.addrMap.store, msgTx,
+		p.params, treasuryActive)
 	var newOutAddrs int
 	for addr, isNew := range addressesOut {
 		txAddresses[addr] = struct{}{}
@@ -178,7 +181,7 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 		p.txnsStore = make(txhelpers.TxnsStore)
 	}
 	newPrevOuts, addressesIn, valsIn := txhelpers.TxPrevOutsByAddr(
-		p.addrMap.store, p.txnsStore, msgTx, p.client, p.params)
+		p.addrMap.store, p.txnsStore, msgTx, p.client, p.params, treasuryActive)
 	var newInAddrs int
 	for addr, isNew := range addressesIn {
 		txAddresses[addr] = struct{}{}
@@ -247,7 +250,7 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 		VinCount:  len(msgTx.TxIn),
 		VoutCount: len(msgTx.TxOut),
 		Vin:       exptypes.MsgTxMempoolInputs(msgTx),
-		// Coinbase:  standalone.IsCoinBaseTx(msgTx, true), // we don't know the treasury agenda status, but coinbase isn't in mempool
+		// Coinbase:  txhelpers.IsCoinBaseTx(msgTx), // commented because coinbase is not in mempool
 		Hash:     hash,
 		Time:     rawTx.Time,
 		Size:     int32(len(rawTx.Hex) / 2),

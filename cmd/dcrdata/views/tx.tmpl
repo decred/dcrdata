@@ -322,13 +322,17 @@
                                 {{range .Addresses}}
                                   {{template "hashElide" (hashlink . (print "/address/" .))}}
                                 {{end}}
+                            {{else if .TreasurySpend}}
+                                (Treasury)<!-- TODO: link to new decentralized treasury page -->
                             {{else}}
                                 N/A
                             {{end}}
                         </td>
                         <td class="shrink-to-fit"{{if $isMempool}} data-target="tx.mempoolTd" data-txid="{{.Txid}}"{{end}}>
-                        {{if or .Coinbase .Stakebase}}
+                        {{if or .Treasurybase (or .Coinbase .Stakebase)}}
                             created
+                        {{else if .TreasurySpend}}
+                            N/A
                         {{else if eq .BlockHeight 0}}
                             pending
                         {{else}}
@@ -383,6 +387,10 @@
                                     <span class="break-word">{{.OP_RETURN}}</span>
                                 </div>
                                 {{end}}
+                            {{else if .OP_TADD}}
+                              <div>
+                                <span class="break-word">(Treasury)</span><!-- TODO: link to new decentralized treasury page -->
+                              </div>
                             {{end}}
                         </td>
                         <td class="fs13 break-word shrink-to-fit">

@@ -255,6 +255,63 @@
                             </tr>
                         </tbody>
                     </table>
+                    <h4><span>Treasury parameters</span></h4>
+                    <table class="table table-mono-cells table-sm f15">
+                        <thead>
+                          <tr>
+                            <th width="20%">Parameter</th>
+                            <th>Value</th>
+                            <th width="60%">Description</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="mono text-left pr-2 nowrap p03rem0">TreasuryVoteInterval</td>
+                                <td class="mono">{{.ChainParams.TreasuryVoteInterval}}</td>
+                                <td>How frequently a TSpend transaction is allowed in a block (see standalone.IsTreasuryVoteInterval)</td>
+                            </tr>
+                            <tr>
+                                <td class="mono text-left pr-2 nowrap p03rem0">TreasuryVoteIntervalMultiplier</td>
+                                <td class="mono">{{.ChainParams.TreasuryVoteIntervalMultiplier}}</td>
+                                <td>Multiplier to TreasuryVoteInterval to calculate Expiry (see standalone.CalcTSpendWindow)</td>
+                            </tr>
+                            <tr>
+                                <td class="mono text-left pr-2 nowrap p03rem0">TreasuryVoteQuorumMultiplier</td>
+                                <td class="mono">{{.ChainParams.TreasuryVoteQuorumMultiplier}}</td>
+                                <td>Numerator of the TSpend vote quorum percentage (see CheckTSpendHasVotes)</td>
+                            </tr>
+                            <tr>
+                                <td class="mono text-left pr-2 nowrap p03rem0">TreasuryVoteQuorumDivisor</td>
+                                <td class="mono">{{.ChainParams.TreasuryVoteQuorumDivisor}}</td>
+                                <td>Divisor of the TSpend vote quorum percentage (see CheckTSpendHasVotes)</td>
+                            </tr>
+                            <tr>
+                                <td class="mono text-left pr-2 nowrap p03rem0">TreasuryVoteRequiredMultiplier</td>
+                                <td class="mono">{{.ChainParams.TreasuryVoteRequiredMultiplier}}</td>
+                                <td>Numerator of the required votes percentage (see CheckTSpendHasVotes)</td>
+                            </tr>
+                            <tr>
+                                <td class="mono text-left pr-2 nowrap p03rem0">TreasuryVoteRequiredDivisor</td>
+                                <td class="mono">{{.ChainParams.TreasuryVoteRequiredDivisor}}</td>
+                                <td>Divisor of the required votes vote quorum percentage (see CheckTSpendHasVotes)</td>
+                            </tr>
+                            <tr>
+                                <td class="mono text-left pr-2 nowrap p03rem0">TreasuryExpenditureWindow</td>
+                                <td class="mono">{{.ChainParams.TreasuryExpenditureWindow}}</td>
+                                <td>The number of TreasuryVoteInterval*TreasuryVoteIntervalMultiplier windows that define a single expenditure window (see maxTreasuryExpenditure)</td>
+                            </tr>
+                            <tr>
+                                <td class="mono text-left pr-2 nowrap p03rem0">TreasuryExpenditurePolicy</td>
+                                <td class="mono">{{.ChainParams.TreasuryExpenditurePolicy}}</td>
+                                <td>The number of previous TreasuryExpenditureWindows that defines how far back to calculate the average expenditure of the treasury for an expenditure policy check (see maxTreasuryExpenditure)</td>
+                            </tr>
+                            <tr>
+                                <td class="mono text-left pr-2 nowrap p03rem0">TreasuryExpenditureBootstrap</td>
+                                <td class="mono">{{.ChainParams.TreasuryExpenditureBootstrap}}</td>
+                                <td>Default previous average expenditure when there are no treasury spends inside the entire window defined by TreasuryExpenditurePolicy</td>
+                            </tr>
+                        </tbody>
+                    </table>
                     <h4><span>Rule change parameters</span></h4>
                     <table class="table table-mono-cells table-sm f15">
                         <thead>

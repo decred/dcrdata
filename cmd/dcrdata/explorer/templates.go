@@ -397,6 +397,9 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"toFloat64Amount": func(intAmount int64) float64 {
 			return dcrutil.Amount(intAmount).ToCoin()
 		},
+		"dcrPerKbToAtomsPerByte": func(amt dcrutil.Amount) int64 {
+			return int64(math.Round(float64(amt) / 1e3))
+		},
 		"threeSigFigs": threeSigFigs,
 		"remaining": func(idx int, max, t int64) string {
 			x := (max - int64(idx)) * t

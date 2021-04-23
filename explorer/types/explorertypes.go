@@ -147,6 +147,7 @@ type WebBasicBlock struct {
 // TxBasic models data for transactions on the block page
 type TxBasic struct {
 	TxID          string
+	Type          string
 	FormattedSize string
 	Total         float64
 	Fee           dcrutil.Amount
@@ -171,7 +172,6 @@ type TrimmedTxInfo struct {
 type TxInfo struct {
 	*TxBasic
 	SpendingTxns     []TxInID
-	Type             string
 	Vin              []Vin
 	Vout             []Vout
 	BlockHeight      int64
@@ -193,7 +193,11 @@ const (
 	VoteTypeStr     = "Vote"
 	RevTypeStr      = "Revocation"
 	CoinbaseTypeStr = "Coinbase"
-	// TODO: use treasury types
+	// What actually happens is treasuryadd burns coins and credits the treasury
+	// account. treasuryspend creates coins and debits the treasury account.
+	// treasurybase is analogous to a coinbase in that it credits the treasury
+	// without spending/burning any coins (aka creates them out of thin air,
+	// just like coinbases do).
 	TreasurybaseTypeStr  = "Treasurybase"
 	TreasuryAddTypeStr   = "Treasury Add"
 	TreasurySpendTypeStr = "Treasury Spend"
@@ -207,6 +211,21 @@ func (t *TxInfo) IsTicket() bool {
 // IsVote checks whether this transaction is a vote.
 func (t *TxInfo) IsVote() bool {
 	return t.Type == VoteTypeStr
+}
+
+// IsTreasurySpend checks whether this transaction is a tspend.
+func (t *TxInfo) IsTreasurySpend() bool {
+	return t.Type == TreasurySpendTypeStr
+}
+
+// IsTreasurybase checks whether this transaction is a treasurybase.
+func (t *TxInfo) IsTreasurybase() bool {
+	return t.Type == TreasurybaseTypeStr
+}
+
+// IsTreasuryAdd checks whether this transaction is a tadd.
+func (t *TxInfo) IsTreasuryAdd() bool {
+	return t.Type == TreasuryAddTypeStr
 }
 
 // IsRevocation checks whether this transaction is a revocation.
@@ -369,6 +388,7 @@ type Vout struct {
 	Type            string
 	Spent           bool
 	OP_RETURN       string
+	OP_TADD         bool
 	Index           uint32
 }
 

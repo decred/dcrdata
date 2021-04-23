@@ -17,30 +17,20 @@ import (
 // DevSubsidyAddress returns the development subsidy address for the specified
 // network.
 func DevSubsidyAddress(params *chaincfg.Params) (string, error) {
-	var devSubsidyAddress string
-	var err error
-	switch params.Name {
-	case "testnet2":
-		// TestNet2 uses an invalid organization PkScript
-		devSubsidyAddress = "TccTkqj8wFqrUemmHMRSx8SYEueQYLmuuFk"
-		err = fmt.Errorf("testnet2 has invalid project fund script")
-	default:
-		_, devSubsidyAddresses, _, err0 := txscript.ExtractPkScriptAddrs(
-			params.OrganizationPkScriptVersion, params.OrganizationPkScript, params, true)
-		if err0 != nil || len(devSubsidyAddresses) != 1 {
-			err = fmt.Errorf("failed to decode dev subsidy address: %v", err0)
-		} else {
-			devSubsidyAddress = devSubsidyAddresses[0].String()
-		}
+	_, devSubsidyAddresses, _, err := txscript.ExtractPkScriptAddrs(
+		params.OrganizationPkScriptVersion, params.OrganizationPkScript, params, false) // legacy org pkScript is not a treasury script
+	if err != nil || len(devSubsidyAddresses) != 1 {
+		return "", fmt.Errorf("failed to decode dev subsidy address: %w", err)
 	}
-	return devSubsidyAddress, err
+
+	return devSubsidyAddresses[0].String(), nil
 }
 
 // ExtractBlockTransactions extracts transaction information from a
 // wire.MsgBlock and returns the processed information in slices of the dbtypes
 // Tx, Vout, and VinTxPropertyARRAY.
 func ExtractBlockTransactions(msgBlock *wire.MsgBlock, txTree int8,
-	chainParams *chaincfg.Params, isValid, isMainchain /* TODO treasuryActive */ bool) ([]*Tx, [][]*Vout, []VinTxPropertyARRAY) {
+	chainParams *chaincfg.Params, isValid, isMainchain bool) ([]*Tx, [][]*Vout, []VinTxPropertyARRAY) {
 	dbTxs, dbTxVouts, dbTxVins := processTransactions(msgBlock, txTree,
 		chainParams, isValid, isMainchain)
 	if txTree != wire.TxTreeRegular && txTree != wire.TxTreeStake {
@@ -68,6 +58,8 @@ func processTransactions(msgBlock *wire.MsgBlock, tree int8, chainParams *chainc
 	blockHash := msgBlock.BlockHash()
 	blockTime := NewTimeDef(msgBlock.Header.Timestamp)
 
+	treasuryActive := stakeTree && txhelpers.IsTreasuryActive(chainParams.Net, int64(blockHeight)) // treasury txns are stake
+
 	dbTransactions := make([]*Tx, 0, len(txs))
 	dbTxVouts := make([][]*Vout, len(txs))
 	dbTxVins := make([]VinTxPropertyARRAY, len(txs))
@@ -75,12 +67,10 @@ func processTransactions(msgBlock *wire.MsgBlock, tree int8, chainParams *chainc
 	ticketPrice := msgBlock.Header.SBits
 
 	for txIndex, tx := range txs {
-		// Treasury txns are stake, but still, we don't know if treasury is
-		// active at this block (TODO).
-		txType := stake.DetermineTxType(tx, stakeTree)
+		txType := stake.DetermineTxType(tx, treasuryActive)
 		isStake := txType != stake.TxTypeRegular
 		if isStake && !stakeTree {
-			fmt.Printf(" ***************** txn %v, type = %v", tx.TxHash(), txType)
+			fmt.Printf(" ***************** INCONSISTENT TREE: txn %v, type = %v", tx.TxHash(), txType)
 			continue
 			// You are doing it wrong
 			// return nil, nil, nil
@@ -163,12 +153,12 @@ func processTransactions(msgBlock *wire.MsgBlock, tree int8, chainParams *chainc
 				Value:        uint64(txout.Value),
 				Version:      txout.Version,
 				ScriptPubKey: txout.PkScript,
-				Mixed:        mixDenom == txout.Value, // later, check ticket and vote outputs against the spent outputs' mixed status
+				Mixed:        mixDenom > 0 && mixDenom == txout.Value, // later, check ticket and vote outputs against the spent outputs' mixed status
 			}
 			scriptClass, scriptAddrs, reqSigs, err := txscript.ExtractPkScriptAddrs(
-				vout.Version, vout.ScriptPubKey, chainParams, true)
+				vout.Version, vout.ScriptPubKey, chainParams, treasuryActive)
 			if err != nil && !bytes.Equal(vout.ScriptPubKey, chainParams.OrganizationPkScript) {
-				fmt.Println(len(vout.ScriptPubKey), err, hex.EncodeToString(vout.ScriptPubKey))
+				fmt.Println(dbTx.TxID, len(vout.ScriptPubKey), err, hex.EncodeToString(vout.ScriptPubKey))
 			}
 			addys := make([]string, 0, len(scriptAddrs))
 			for ia := range scriptAddrs {

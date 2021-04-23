@@ -1,3 +1,4 @@
+// Copyright (c) 2021, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -18,17 +19,15 @@ import (
 func Connect(host, port, user, pass, dbname string) (*sql.DB, error) {
 	var psqlInfo string
 	if pass == "" {
-		psqlInfo = fmt.Sprintf("host=%s user=%s "+
-			"dbname=%s sslmode=disable",
+		psqlInfo = fmt.Sprintf("host=%s user=%s dbname=%s sslmode=disable",
 			host, user, dbname)
 	} else {
-		psqlInfo = fmt.Sprintf("host=%s user=%s "+
-			"password=%s dbname=%s sslmode=disable",
+		psqlInfo = fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
 			host, user, pass, dbname)
 	}
 
-	// Only add port arg fot TCP connection since UNIX domain sockets (specified
-	// by a "/" prefix) do not have a port.
+	// Only add port arg for TCP connections since UNIX domain sockets
+	// (specified by a "/" prefix) do not have a port.
 	if !strings.HasPrefix(host, "/") {
 		psqlInfo += fmt.Sprintf(" port=%s", port)
 	}
@@ -38,6 +37,5 @@ func Connect(host, port, user, pass, dbname string) (*sql.DB, error) {
 		return nil, err
 	}
 
-	err = db.Ping()
-	return db, err
+	return db, db.Ping()
 }

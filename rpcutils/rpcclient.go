@@ -27,7 +27,7 @@ import (
 // Any of the following dcrd RPC API versions are deemed compatible with
 // dcrdata.
 var compatibleChainServerAPIs = []semver.Semver{
-	semver.NewSemver(6, 1, 1),
+	semver.NewSemver(6, 2, 0),
 }
 
 var (
@@ -358,7 +358,7 @@ func GetTransactionVerboseByID(client txhelpers.VerboseTransactionGetter, txhash
 }
 
 // SearchRawTransaction fetch transactions pertaining to an address.
-func SearchRawTransaction(client *rpcclient.Client, params *chaincfg.Params, count int, address string) ([]*chainjson.SearchRawTransactionsResult, error) {
+func SearchRawTransaction(ctx context.Context, client *rpcclient.Client, params *chaincfg.Params, count int, address string) ([]*chainjson.SearchRawTransactionsResult, error) {
 	addr, err := dcrutil.DecodeAddress(address, params)
 	if err != nil {
 		log.Infof("Invalid address %s: %v", address, err)
@@ -366,7 +366,7 @@ func SearchRawTransaction(client *rpcclient.Client, params *chaincfg.Params, cou
 	}
 
 	//change the 1000 000 number demo for now
-	txs, err := client.SearchRawTransactionsVerbose(context.TODO(), addr, 0, count,
+	txs, err := client.SearchRawTransactionsVerbose(ctx, addr, 0, count,
 		true, true, nil)
 	if err != nil {
 		log.Warnf("SearchRawTransaction failed for address %s: %v", addr, err)
@@ -540,16 +540,23 @@ func NewMempoolAddressChecker(client *rpcclient.Client, params *chaincfg.Params)
 // UnconfirmedTxnsForAddress returns the chainhash.Hash of all transactions in
 // mempool that (1) pay to the given address, or (2) spend a previous outpoint
 // that paid to the address.
-func UnconfirmedTxnsForAddress(client *rpcclient.Client, address string, params *chaincfg.Params) (*txhelpers.AddressOutpoints, int64, error) {
+func UnconfirmedTxnsForAddress(client *rpcclient.Client, address string,
+	params *chaincfg.Params) (*txhelpers.AddressOutpoints, int64, error) {
 	// Mempool transactions
-	var numUnconfirmed int64
 	mempoolTxns, err := client.GetRawMempoolVerbose(context.TODO(), chainjson.GRMAll)
 	if err != nil {
 		log.Warnf("GetRawMempool failed for address %s: %v", address, err)
-		return nil, numUnconfirmed, err
+		return nil, 0, err
 	}
 
+	_, height, err := client.GetBestBlock(context.TODO())
+	if err != nil {
+		return nil, 0, fmt.Errorf("GetBestBlock failure: %w", err)
+	}
+	treasuryActive := txhelpers.IsTreasuryActive(params.Net, height+1)
+
 	// Check each transaction for involvement with provided address.
+	var numUnconfirmed int64
 	addressOutpoints := txhelpers.NewAddressOutpoints(address)
 	for hash, tx := range mempoolTxns {
 		// Transaction details from dcrd
@@ -567,7 +574,7 @@ func UnconfirmedTxnsForAddress(client *rpcclient.Client, address string, params 
 		}
 		// Scan transaction for inputs/outputs involving the address of interest
 		outpoints, prevouts, prevTxns := txhelpers.TxInvolvesAddress(Tx.MsgTx(),
-			address, client, params)
+			address, client, params, treasuryActive)
 		if len(outpoints) == 0 && len(prevouts) == 0 {
 			continue
 		}

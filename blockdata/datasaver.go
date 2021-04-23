@@ -30,13 +30,13 @@ type BlockDataSaver interface {
 // /////////////////////////////////////////////////////////////////////////////
 
 // BlockDataToJSONStdOut implements BlockDataSaver interface for JSON output to
-// stdout
+// stdout.
 type BlockDataToJSONStdOut struct {
 	mtx *sync.Mutex
 }
 
 // BlockDataToSummaryStdOut implements BlockDataSaver interface for plain text
-// summary to stdout
+// summary to stdout.
 type BlockDataToSummaryStdOut struct {
 	mtx          *sync.Mutex
 	sdiffWinSize int64
@@ -50,19 +50,13 @@ type fileSaver struct {
 }
 
 // BlockDataToJSONFiles implements BlockDataSaver interface for JSON output to
-// the file system
+// the file system.
 type BlockDataToJSONFiles struct {
 	fileSaver
 }
 
-// BlockDataToMySQL implements BlockDataSaver interface for output to a
-// MySQL database
-// type BlockDataToMySQL struct {
-// 	mtx *sync.Mutex
-// }
-
 // NewBlockDataToJSONStdOut creates a new BlockDataToJSONStdOut with optional
-// existing mutex
+// existing mutex.
 func NewBlockDataToJSONStdOut(m ...*sync.Mutex) *BlockDataToJSONStdOut {
 	if len(m) > 1 {
 		panic("Too many inputs.")
@@ -87,8 +81,7 @@ func NewBlockDataToSummaryStdOut(sdiffWinSize int64, m ...*sync.Mutex) *BlockDat
 
 // NewBlockDataToJSONFiles creates a new BlockDataToJSONFiles with optional
 // existing mutex
-func NewBlockDataToJSONFiles(folder string, fileBase string,
-	m ...*sync.Mutex) *BlockDataToJSONFiles {
+func NewBlockDataToJSONFiles(folder string, fileBase string, m ...*sync.Mutex) *BlockDataToJSONFiles {
 	if len(m) > 1 {
 		panic("Too many inputs.")
 	}

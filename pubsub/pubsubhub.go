@@ -610,6 +610,8 @@ func (psh *PubSubHub) StoreMPData(_ *mempool.StakeData, _ []exptypes.MempoolTx, 
 // Store processes and stores new block data, then signals to the WebSocketHub
 // that the new data is available.
 func (psh *PubSubHub) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
+	treasuryActive := txhelpers.IsTreasuryActive(psh.params.Net, int64(msgBlock.Header.Height))
+
 	// Retrieve block data for the passed block hash.
 	newBlockData := psh.sourceBase.GetExplorerBlock(msgBlock.BlockHash().String())
 
@@ -754,7 +756,7 @@ func (psh *PubSubHub) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBl
 		Time:      blockData.Header.Time,
 		Size:      int32(coinbaseTx.SerializeSize()),
 		TotalOut:  txhelpers.TotalOutFromMsgTx(coinbaseTx).ToCoin(),
-		Type:      txhelpers.DetermineTxTypeString(coinbaseTx),
+		Type:      txhelpers.DetermineTxTypeString(coinbaseTx, treasuryActive),
 	}
 
 	go func() {

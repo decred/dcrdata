@@ -22,5 +22,5 @@ require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/jessevdk/go-flags v1.4.1-0.20200711081900-c17162fe8fd7
 	github.com/jrick/logrotate v1.0.0
-	github.com/lib/pq v1.10.0
+	github.com/lib/pq v1.10.1
 )
