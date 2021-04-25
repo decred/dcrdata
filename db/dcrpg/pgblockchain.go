@@ -3659,6 +3659,10 @@ func (pgb *ChainDB) UpdateLastBlock(msgBlock *wire.MsgBlock, isMainchain bool) e
 		}
 
 		// Update addresses table for last block's regular transactions.
+		// So slow without indexes:
+		//  Update on addresses  (cost=0.00..1012201.53 rows=1 width=181)
+		// 		->  Seq Scan on addresses  (cost=0.00..1012201.53 rows=1 width=181)
+		// 		Filter: ((NOT is_funding) AND (tx_vin_vout_row_id = 13241234))
 		err = UpdateLastAddressesValid(pgb.db, lastBlockHash.String(), lastIsValid)
 		if err != nil {
 			return fmt.Errorf("UpdateLastAddressesValid: %v", err)

@@ -67,6 +67,8 @@ const (
 		` ON addresses(matching_tx_hash);`
 	DeindexAddressTableOnMatchingTxHash = `DROP INDEX IF EXISTS ` + IndexOfAddressTableOnMatchingTx + ` CASCADE;`
 
+	// TODO: figure out why this index exists since it's covered by the unique
+	// on tx_vin_vout_row_id too.
 	IndexAddressTableOnAddress = `CREATE INDEX IF NOT EXISTS ` + IndexOfAddressTableOnAddress +
 		` ON addresses(address);`
 	DeindexAddressTableOnAddress = `DROP INDEX IF EXISTS ` + IndexOfAddressTableOnAddress + ` CASCADE;`

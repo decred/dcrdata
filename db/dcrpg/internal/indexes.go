@@ -88,7 +88,7 @@ var IndexDescriptions = map[string]string{
 	IndexOfVinsTableOnPrevOut:              "vins on previous outpoint",
 	IndexOfVoutsTableOnTxHashInd:           "vouts on transaction hash and index",
 	IndexOfVoutsTableOnSpendTxID:           "vouts on spend_tx_row_id",
-	IndexOfAddressTableOnAddress:           "addresses table on address",
+	IndexOfAddressTableOnAddress:           "addresses table on address", // TODO: remove if it is redundant with IndexOfAddressTableOnVoutID
 	IndexOfAddressTableOnVoutID:            "addresses table on vout row id, address, and is_funding",
 	IndexOfAddressTableOnBlockTime:         "addresses table on block time",
 	IndexOfAddressTableOnTx:                "addresses table on transaction hash",
