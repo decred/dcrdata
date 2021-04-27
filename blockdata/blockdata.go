@@ -148,8 +148,8 @@ func (t *Collector) CollectAPITypes(hash *chainhash.Hash) (*apitypes.BlockDataBa
 func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataBasic,
 	*chainjson.FeeInfoBlock, *chainjson.GetBlockHeaderVerboseResult,
 	*apitypes.BlockExplorerExtraInfo, *wire.MsgBlock, error) {
-	// 10 seconds for all the RPCs.
-	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
+	// 2 minutes for all the RPCs.
+	ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Minute)
 	defer cancel()
 
 	// Retrieve block from dcrd.
@@ -239,8 +239,8 @@ func (t *Collector) CollectHash(hash *chainhash.Hash) (*BlockData, *wire.MsgBloc
 		log.Debugf("Collector.CollectHash() completed in %v", time.Since(start))
 	}(time.Now())
 
-	// 10 seconds for all the RPCs.
-	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
+	// 2 minutes for all the RPCs.
+	ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Minute)
 	defer cancel()
 
 	// Info specific to the block hash
@@ -298,8 +298,8 @@ func (t *Collector) Collect() (*BlockData, *wire.MsgBlock, error) {
 		log.Debugf("Collector.Collect() completed in %v", time.Since(start))
 	}(time.Now())
 
-	// 10 seconds for all the RPCs.
-	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
+	// 2 minutes for all the RPCs.
+	ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Minute)
 	defer cancel()
 
 	// Pull and store relevant data about the blockchain (e.g. syncheight,

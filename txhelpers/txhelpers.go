@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2020, The Decred developers
+// Copyright (c) 2018-2021, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -52,7 +52,7 @@ func IsTreasuryActive(net wire.CurrencyNet, height int64) bool {
 	case wire.TestNet3:
 		return height >= TreasuryHeightTestnet3
 	case wire.SimNet:
-		return true
+		return height >= 2
 	default:
 		fmt.Printf("unrecognized network %v\n", net)
 		return false
@@ -889,7 +889,7 @@ func VoteVersion(pkScript []byte) uint32 {
 // there are no consensus deployments for the transaction's vote version. The
 // error value may be non-nil if the tx is not a valid ssgen.
 func SSGenVoteChoices(tx *wire.MsgTx, params *chaincfg.Params) (BlockValidation, uint32, uint16, []*VoteChoice, error) {
-	validBlock, voteBits, err := SSGenVoteBlockValid(tx)
+	validBlock, voteBits, err := SSGenVoteBlockValid(tx /*, TODO treasuryEnabled */)
 	if err != nil {
 		return validBlock, 0, 0, nil, err
 	}

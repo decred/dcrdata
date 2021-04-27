@@ -141,20 +141,21 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 	treasuryActive := txhelpers.IsTreasuryActive(p.params.Net, nextHeight)
 
 	hash := msgTx.TxHash().String()
-	txType := txhelpers.DetermineTxTypeString(msgTx, treasuryActive)
+	txType := stake.DetermineTxType(msgTx, treasuryActive)
+	txTypeStr := txhelpers.TxTypeToString(int(txType))
 
 	// Maintain the list of unique stake and regular txns encountered.
 	p.mtx.RLock()      // do not allow p.inventory to be reset
 	p.inventory.Lock() // do not allow *p.inventory to be accessed
 	var txExists bool
-	if txType == "Regular" {
+	if txType == stake.TxTypeRegular {
 		_, txExists = p.inventory.InvRegular[hash]
 	} else {
 		_, txExists = p.inventory.InvStake[hash]
 	}
 
 	if txExists {
-		log.Tracef("Not broadcasting duplicate %s notification: %s", txType, hash)
+		log.Tracef("Not broadcasting duplicate %s notification: %s", txTypeStr, hash)
 		p.inventory.Unlock()
 		p.mtx.RUnlock()
 		return nil // back to waiting for new tx signal
@@ -208,7 +209,7 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 
 	log.Tracef("New transaction (%s: %s) added %d new and %d previous outpoints, "+
 		"%d out addrs (%d new), %d prev out addrs (%d new).",
-		txType, hash, newOuts, newPrevOuts,
+		txTypeStr, hash, newOuts, newPrevOuts,
 		len(addressesOut), newOutAddrs, len(addressesIn), newInAddrs)
 
 	// Iterate the state id.
@@ -216,7 +217,7 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 
 	// If this is a vote, decode vote bits.
 	var voteInfo *exptypes.VoteInfo
-	if ok := stake.IsSSGen(msgTx, true /* TODO treasuryEnabled */); ok {
+	if txType == stake.TxTypeSSGen /* stake.IsSSGen(msgTx, treasuryActive) */ {
 		validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, p.params)
 		if err != nil {
 			log.Debugf("Cannot get vote choices for %s", hash)
@@ -255,7 +256,7 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 		Time:     rawTx.Time,
 		Size:     int32(len(rawTx.Hex) / 2),
 		TotalOut: txhelpers.TotalOutFromMsgTx(msgTx).ToCoin(),
-		Type:     txType,
+		Type:     txTypeStr,
 		VoteInfo: voteInfo,
 	}
 
@@ -265,13 +266,18 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 
 	// Add the tx to the appropriate tx slice in inventory and update
 	// the count for the transaction type.
-	switch tx.Type {
-	case "Ticket": // TODO: don't switch on string literals
+	switch txType {
+	case stake.TxTypeRegular:
+		p.inventory.InvRegular[tx.Hash] = struct{}{}
+		p.inventory.Transactions = append([]exptypes.MempoolTx{tx}, p.inventory.Transactions...)
+		p.inventory.NumRegular++
+		p.inventory.LikelyMineable.RegularTotal += tx.TotalOut
+	case stake.TxTypeSStx:
 		p.inventory.InvStake[tx.Hash] = struct{}{}
 		p.inventory.Tickets = append([]exptypes.MempoolTx{tx}, p.inventory.Tickets...)
 		p.inventory.NumTickets++
 		p.inventory.LikelyMineable.TicketTotal += tx.TotalOut
-	case "Vote":
+	case stake.TxTypeSSGen:
 		// Votes on the next block may be received just prior to dcrdata
 		// actually processing the new block. Do not broadcast these
 		// ahead of the full update with the new block signal as the
@@ -301,20 +307,14 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 		} else {
 			likelyMineable = false
 		}
-	case "Regular":
-		p.inventory.InvRegular[tx.Hash] = struct{}{}
-		p.inventory.Transactions = append([]exptypes.MempoolTx{tx}, p.inventory.Transactions...)
-		p.inventory.NumRegular++
-		p.inventory.LikelyMineable.RegularTotal += tx.TotalOut
-	case "Revocation":
+	case stake.TxTypeSSRtx:
 		p.inventory.InvStake[tx.Hash] = struct{}{}
 		p.inventory.Revocations = append([]exptypes.MempoolTx{tx}, p.inventory.Revocations...)
 		p.inventory.NumRevokes++
 		p.inventory.LikelyMineable.RevokeTotal += tx.TotalOut
-	case txhelpers.TxTypeToString(int(stake.TxTypeTSpend)), txhelpers.TxTypeToString(int(stake.TxTypeTAdd)),
-		txhelpers.TxTypeToString(int(stake.TxTypeTreasuryBase)):
+	case stake.TxTypeTSpend, stake.TxTypeTAdd, stake.TxTypeTreasuryBase:
 		p.inventory.InvStake[tx.Hash] = struct{}{}
-		// TODO TSpend and TAdd totals and txns
+		// TODO treasury: TSpend and TAdd totals and txns
 	}
 
 	// Update latest transactions, popping the oldest transaction off

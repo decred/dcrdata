@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2020, The Decred developers
+// Copyright (c) 2018-2021, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -41,7 +41,7 @@ func NewChainMonitor(ctx context.Context, collector *Collector, savers []BlockDa
 
 func (p *chainMonitor) collect(hash *chainhash.Hash) (*wire.MsgBlock, *BlockData, error) {
 	// getblock RPC
-	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Minute)
 	defer cancel()
 	msgBlock, err := p.collector.dcrdChainSvr.GetBlock(ctx, hash)
 	if err != nil {
@@ -53,8 +53,6 @@ func (p *chainMonitor) collect(hash *chainhash.Hash) (*wire.MsgBlock, *BlockData
 
 	// Get node's best block height to see if the block for which we are
 	// collecting data is the best block.
-	ctx, cancel = context.WithTimeout(context.TODO(), time.Second*10)
-	defer cancel()
 	chainHeight, err := p.collector.dcrdChainSvr.GetBlockCount(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get chain height: %v", err)

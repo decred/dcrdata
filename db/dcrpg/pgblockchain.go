@@ -6061,10 +6061,12 @@ func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
 		if err != nil {
 			continue
 		}
-		var voteInfo *exptypes.VoteInfo
 
-		if ok := stake.IsSSGen(msgTx, true /* TODO treasuryEnabled */); ok {
-			validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, pgb.chainParams)
+		txType := stake.DetermineTxType(msgTx, treasuryActive)
+
+		var voteInfo *exptypes.VoteInfo
+		if txType == stake.TxTypeSSGen /* stake.IsSSGen(msgTx, treasuryActive) */ {
+			validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, pgb.chainParams) // todo: hint treasury active
 			if err != nil {
 				log.Debugf("Cannot get vote choices for %s", hash)
 			} else {
@@ -6092,7 +6094,7 @@ func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
 			Time:     tx.Time,
 			Size:     tx.Size,
 			TotalOut: total,
-			Type:     txhelpers.DetermineTxTypeString(msgTx, treasuryActive),
+			Type:     txhelpers.TxTypeToString(int(txType)),
 			VoteInfo: voteInfo,
 			Vin:      exptypes.MsgTxMempoolInputs(msgTx),
 		})

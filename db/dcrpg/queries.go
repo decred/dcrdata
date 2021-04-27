@@ -628,6 +628,9 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 		return nil, nil, nil, nil, nil, nil
 	}
 
+	// Carefully test this:
+	// treasuryActive := txhelpers.IsTreasuryActive(params.Net, int64(msgBlock.Header.Height))
+
 	// Start DB transaction.
 	dbtx, err := db.Begin()
 	if err != nil {
@@ -725,7 +728,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 	for i, tx := range voteTxs {
 		msgTx := voteMsgTxs[i]
 		voteVersion := stake.SSGenVersion(msgTx)
-		validBlock, voteBits, err := txhelpers.SSGenVoteBlockValid(msgTx)
+		validBlock, voteBits, err := txhelpers.SSGenVoteBlockValid(msgTx /*, TODO treasuryEnabled */)
 		if err != nil {
 			bail()
 			return nil, nil, nil, nil, nil, err
