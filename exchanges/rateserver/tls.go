@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2020, The Decred developers
+// Copyright (c) 2015-2021, The Decred developers
 // See LICENSE for details.
 
 package main
