@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020, The Decred developers
+// Copyright (c) 2019-2021, The Decred developers
 // See LICENSE for details.
 
 // Package politeia manages Politeia proposals and the voting that is
@@ -12,7 +12,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/asdine/storm/v3"
@@ -37,10 +37,9 @@ const dbinfo = "_proposals.db_"
 
 // ProposalDB defines the common data needed to query the proposals db.
 type ProposalDB struct {
-	mtx        sync.RWMutex
+	lastSync   int64 // atomic
 	dbP        *storm.DB
 	client     *http.Client
-	lastSync   int64
 	APIURLpath string
 }
 
@@ -196,7 +195,7 @@ func (db *ProposalDB) fetchAPIData(URLParams string) (pitypes.Proposals, error) 
 func (db *ProposalDB) saveProposals(publicProposals pitypes.Proposals) (int, error) {
 	var proposalsSaved int
 	// Attempt to save a given a given item for a max of 5 times.
-	var maxLoop = 5
+	const maxLoop = 5
 
 	// Save all the proposals
 	for i, val := range publicProposals.Data {
@@ -278,14 +277,13 @@ func (db *ProposalDB) AllProposals(offset, rowsCount int,
 		return nil, 0, errDef
 	}
 
-	db.mtx.RLock()
-	defer db.mtx.RUnlock()
-
-	query := db.dbP.Select()
+	var query storm.Query
 	if len(filterByVoteStatus) > 0 {
 		// Filter by the votes status
 		query = db.dbP.Select(q.Eq("VoteStatus",
 			pitypes.VoteStatusType(filterByVoteStatus[0])))
+	} else {
+		query = db.dbP.Select()
 	}
 
 	// Count the proposals based on the query created above.
@@ -312,9 +310,6 @@ func (db *ProposalDB) ProposalByToken(proposalToken string) (*pitypes.ProposalIn
 		return nil, errDef
 	}
 
-	db.mtx.RLock()
-	defer db.mtx.RUnlock()
-
 	return db.proposal("TokenVal", proposalToken)
 }
 
@@ -325,9 +320,6 @@ func (db *ProposalDB) ProposalByRefID(RefID string) (*pitypes.ProposalInfo, erro
 	if db == nil || db.dbP == nil {
 		return nil, errDef
 	}
-
-	db.mtx.RLock()
-	defer db.mtx.RUnlock()
 
 	return db.proposal("RefID", RefID)
 }
@@ -348,10 +340,7 @@ func (db *ProposalDB) proposal(searchBy, searchTerm string) (*pitypes.ProposalIn
 // LastProposalsSync returns the last time a sync to update the proposals was run
 // but not necessarily the last time updates were synced in proposals.db.
 func (db *ProposalDB) LastProposalsSync() int64 {
-	db.mtx.Lock()
-	defer db.mtx.Unlock()
-
-	return db.lastSync
+	return atomic.LoadInt64(&db.lastSync)
 }
 
 // CheckProposalsUpdates updates the proposal changes if they exist and updates
@@ -361,13 +350,7 @@ func (db *ProposalDB) CheckProposalsUpdates() error {
 		return errDef
 	}
 
-	db.mtx.Lock()
-	defer func() {
-		// Update the lastSync before the function exits.
-
-		db.lastSync = time.Now().UTC().Unix()
-		db.mtx.Unlock()
-	}()
+	defer atomic.StoreInt64(&db.lastSync, time.Now().UTC().Unix())
 
 	// Retrieve and update all current proposals whose vote statuses is either
 	// NotAuthorized, Authorized and Started
@@ -387,7 +370,6 @@ func (db *ProposalDB) CheckProposalsUpdates() error {
 	if len(lastProposal) > 0 && lastProposal[0].TokenVal != "" {
 		queryParam = fmt.Sprintf("?before=%s", lastProposal[0].TokenVal)
 	}
-
 	publicProposals, err := db.fetchAPIData(queryParam)
 	if err != nil {
 		return err

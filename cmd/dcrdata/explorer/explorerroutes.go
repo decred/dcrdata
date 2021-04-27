@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2020, The Decred developers
+// Copyright (c) 2018-2021, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -643,7 +643,7 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 
 	oldestHeight := bestBlockHeight % rows
 
-	str, err := exp.templates.exec("explorer", struct {
+	str, err := exp.templates.exec("blocks", struct {
 		*CommonPageData
 		Data         []*types.BlockBasic
 		BestBlock    int64
@@ -832,19 +832,21 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		// all occurrences of the transaction.
 		dbTx0 := dbTxs[0]
 		fees := dcrutil.Amount(dbTx0.Fees)
+		txType := int(dbTx0.TxType)
+		txTypeStr := txhelpers.TxTypeToString(txType)
 		tx = &types.TxInfo{
 			TxBasic: &types.TxBasic{
 				TxID:          hash,
+				Type:          txTypeStr,
 				FormattedSize: humanize.Bytes(uint64(dbTx0.Size)),
 				Total:         dcrutil.Amount(dbTx0.Sent).ToCoin(),
 				Fee:           fees,
 				FeeRate:       dcrutil.Amount((1000 * int64(fees)) / int64(dbTx0.Size)),
 				// VoteInfo TODO - check votes table
 				Coinbase:     dbTx0.BlockIndex == 0 && dbTx0.Tree == wire.TxTreeRegular,
-				Treasurybase: stake.TxType(dbTx0.TxType) == stake.TxTypeTreasuryBase,
+				Treasurybase: stake.TxType(txType) == stake.TxTypeTreasuryBase,
 			},
 			SpendingTxns: make([]types.TxInID, len(dbTx0.VoutDbIds)), // SpendingTxns filled below
-			Type:         txhelpers.TxTypeToString(int(dbTx0.TxType)),
 			// Vins - looked-up in vins table
 			// Vouts - looked-up in vouts table
 			BlockHeight:   dbTx0.BlockHeight,
@@ -873,11 +875,15 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 
 		// Convert to explorer.Vout, getting spending information from DB.
 		for iv := range vouts {
-			// Check pkScript for OP_RETURN
+			// Check pkScript for OP_RETURN and OP_TADD.
+			pkScript := vouts[iv].ScriptPubKey
+			opTAdd := len(pkScript) > 0 && pkScript[0] == txscript.OP_TADD
 			var opReturn string
-			asm, _ := txscript.DisasmString(vouts[iv].ScriptPubKey)
-			if strings.Contains(asm, "OP_RETURN") {
-				opReturn = asm
+			if !opTAdd {
+				asm, _ := txscript.DisasmString(pkScript)
+				if strings.HasPrefix(asm, "OP_RETURN") {
+					opReturn = asm
+				}
 			}
 			// Determine if the outpoint is spent
 			spendingTx, _, _, err := exp.dataSource.SpendingTransaction(hash, vouts[iv].TxIndex)
@@ -893,9 +899,10 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				Addresses:       vouts[iv].ScriptPubKeyData.Addresses,
 				Amount:          amount,
 				FormattedAmount: humanize.Commaf(amount),
-				Type:            txhelpers.TxTypeToString(int(vouts[iv].TxType)),
+				Type:            txTypeStr, // wrong, needs to be output script type
 				Spent:           spendingTx != "",
 				OP_RETURN:       opReturn,
+				OP_TADD:         opTAdd,
 				Index:           vouts[iv].TxIndex,
 			})
 		}
@@ -935,25 +942,32 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 
 			txIndex := vins[iv].TxIndex
 			amount := dcrutil.Amount(vins[iv].ValueIn).ToCoin()
-			var coinbase, stakebase string
+			var coinbase, stakebase, tspend string
+			var treasuryBase bool
 			if txIndex == 0 {
 				if tx.Coinbase {
 					coinbase = hex.EncodeToString(txhelpers.CoinbaseScript)
 				} else if tx.IsVote() {
 					stakebase = hex.EncodeToString(txhelpers.CoinbaseScript)
+				} else if stake.TxType(dbTx0.TxType) == stake.TxTypeTreasuryBase {
+					treasuryBase = true
+				} else if stake.TxType(dbTx0.TxType) == stake.TxTypeTSpend {
+					tspend = "<unknown>" // todo: maybe store the tspend sigscript in db so we can retrieve it without dcrd, maybe not
 				}
 			}
 			tx.Vin = append(tx.Vin, types.Vin{
 				Vin: &chainjson.Vin{
-					Coinbase:    coinbase,
-					Stakebase:   stakebase,
-					Txid:        hash,
-					Vout:        vins[iv].PrevTxIndex,
-					Tree:        dbTx0.Tree,
-					Sequence:    vins[iv].Sequence,
-					AmountIn:    amount,
-					BlockHeight: uint32(tx.BlockHeight),
-					BlockIndex:  tx.BlockIndex,
+					Coinbase:      coinbase,
+					Stakebase:     stakebase,
+					Treasurybase:  treasuryBase,
+					TreasurySpend: tspend,
+					Txid:          hash,
+					Vout:          vins[iv].PrevTxIndex,
+					Tree:          dbTx0.Tree,
+					Sequence:      vins[iv].Sequence,
+					AmountIn:      amount,
+					BlockHeight:   uint32(tx.BlockHeight),
+					BlockIndex:    tx.BlockIndex,
 					ScriptSig: &chainjson.ScriptSig{
 						Asm: asm,
 						Hex: hex.EncodeToString(vins[iv].ScriptHex),
@@ -1218,6 +1232,10 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			vin.DisplayText = types.CoinbaseTypeStr
 		} else if vin.Stakebase != "" {
 			vin.DisplayText = "Stakebase"
+		} else if vin.Treasurybase {
+			vin.DisplayText = "TreasuryBase"
+		} else if vin.TreasurySpend != "" {
+			vin.DisplayText = "TreasurySpend"
 		} else {
 			voutStr := strconv.Itoa(int(vin.Vout))
 			vin.TextIsHash = true

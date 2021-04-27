@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2020, The Decred developers
+// Copyright (c) 2018-2021, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -475,32 +475,10 @@ type ChainDBCfg struct {
 	AddrCacheUTXOByteCap              int
 }
 
-// NewChainDB constructs a ChainDB for the given connection and Decred network
-// parameters. By default, duplicate row checks on insertion are enabled. See
-// NewChainDBWithCancel to enable context cancellation of running queries.
-// proposalsUpdateChan is used to manage politeia update notifications trigger
-// between the notifier and the handler method. A non-nil BlockGetter is only
-// needed if database upgrades are required.
-func NewChainDB(cfg *ChainDBCfg, stakeDB *stakedb.StakeDatabase,
-	mp rpcutils.MempoolAddressChecker, parser ProposalsFetcher, client *rpcclient.Client,
-	shutdown func()) (*ChainDB, error) {
-	ctx := context.Background()
-	chainDB, err := NewChainDBWithCancel(ctx, cfg, stakeDB, mp, parser, client, shutdown)
-	if err != nil {
-		return nil, err
-	}
-
-	return chainDB, nil
-}
-
-// NewChainDBWithCancel constructs a cancellation-capable ChainDB for the given
-// connection and Decred network parameters. By default, duplicate row checks on
-// insertion are enabled. See EnableDuplicateCheckOnInsert to change this
-// behavior. NewChainDB creates context that cannot be cancelled
-// (context.Background()) except by the pg timeouts. If it is necessary to
-// cancel queries with CTRL+C, for example, use NewChainDBWithCancel. A non-nil
-// BlockGetter is only needed if database upgrades are required.
-func NewChainDBWithCancel(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb.StakeDatabase,
+// NewChainDB constructs a cancellation-capable ChainDB for the given connection
+// and Decred network parameters. By default, duplicate row checks on insertion
+// are enabled. See EnableDuplicateCheckOnInsert to change this behavior.
+func NewChainDB(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb.StakeDatabase,
 	mp rpcutils.MempoolAddressChecker, parser ProposalsFetcher, client *rpcclient.Client,
 	shutdown func()) (*ChainDB, error) {
 	// Connect to the PostgreSQL daemon and return the *sql.DB.
@@ -592,7 +570,6 @@ func NewChainDBWithCancel(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb
 	params := cfg.Params
 
 	// Perform any necessary database schema upgrades.
-	var doLegacyUpgrade bool
 	dbVer, compatAction, err := versionCheck(db)
 	switch err {
 	case nil:
@@ -632,15 +609,7 @@ func NewChainDBWithCancel(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb
 			return nil, fmt.Errorf("insertMetaData failed: %v", err)
 		}
 	case metaNotFoundErr:
-		log.Infof("Legacy DB versioning found.")
-		doLegacyUpgrade = true
-		if client == nil {
-			return nil, fmt.Errorf("a rpcclient.Client is required for database upgrades")
-		}
-		// Create any missing tables with version comments for legacy upgrades.
-		if err = CreateTablesLegacy(db); err != nil {
-			return nil, fmt.Errorf("failed to create tables with legacy versioning: %v", err)
-		}
+		log.Errorf("Legacy DB versioning found. No upgrade supported. Wipe all data and start fresh.")
 	default:
 		return nil, err
 	}
@@ -653,81 +622,79 @@ func NewChainDBWithCancel(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb
 	// NOTE: Once legacy versioned tables are no longer in use, use the height
 	// and hash from DBBestBlock instead.
 
-	// Unless legacy table versioning is still in use, verify that the best
+	// Verify that the best
 	// block in the meta table is the same as in the blocks table. If the blocks
 	// table is ahead of the meta table, it is likely that the data for the best
 	// block was not fully inserted into all tables. Purge data back to the meta
 	// table's best block height. Also purge if the hashes do not match.
-	if !doLegacyUpgrade {
-		dbHash, dbHeightInit, err := DBBestBlock(ctx, db)
+	dbHash, dbHeightInit, err := DBBestBlock(ctx, db)
+	if err != nil {
+		return nil, fmt.Errorf("DBBestBlock: %v", err)
+	}
+
+	// Best block height in the transactions table (written to even before
+	// the blocks table).
+	bestTxsBlockHeight, bestTxsBlockHash, err :=
+		RetrieveTxsBestBlockMainchain(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+
+	if bestTxsBlockHeight > bestHeight {
+		bestHeight = bestTxsBlockHeight
+		bestHash = bestTxsBlockHash
+	}
+
+	// The meta table's best block height should never end up larger than
+	// the blocks table's best block height, but purge a block anyway since
+	// something went awry. This will update the best block in the meta
+	// table to match the blocks table, allowing dcrdata to start.
+	if dbHeightInit > bestHeight {
+		log.Warnf("Best block height in meta table (%d) "+
+			"greater than best height in blocks table (%d)!",
+			dbHeightInit, bestHeight)
+		_, bestHeight, bestHash, err = DeleteBestBlock(ctx, db)
+		if err != nil {
+			return nil, fmt.Errorf("DeleteBestBlock: %v", err)
+		}
+		dbHash, dbHeightInit, err = DBBestBlock(ctx, db)
 		if err != nil {
 			return nil, fmt.Errorf("DBBestBlock: %v", err)
 		}
+	}
 
-		// Best block height in the transactions table (written to even before
-		// the blocks table).
-		bestTxsBlockHeight, bestTxsBlockHash, err :=
-			RetrieveTxsBestBlockMainchain(ctx, db)
+	// Purge blocks if the best block hashes do not match, and until the
+	// best block height in the data tables is less than or equal to the
+	// starting height in the meta table.
+	log.Debugf("meta height %d / blocks height %d", dbHeightInit, bestHeight)
+	for dbHash != bestHash || dbHeightInit < bestHeight {
+		log.Warnf("Purging best block %s (%d).", bestHash, bestHeight)
+
+		// Delete the best block across all tables, updating the best block
+		// in the meta table.
+		_, bestHeight, bestHash, err = DeleteBestBlock(ctx, db)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("DeleteBestBlock: %v", err)
+		}
+		if bestHeight == -1 {
+			break
 		}
 
-		if bestTxsBlockHeight > bestHeight {
-			bestHeight = bestTxsBlockHeight
-			bestHash = bestTxsBlockHash
+		// Now dbHash must equal bestHash. If not, DeleteBestBlock failed to
+		// update the meta table.
+		dbHash, _, err = DBBestBlock(ctx, db)
+		if err != nil {
+			return nil, fmt.Errorf("DBBestBlock: %v", err)
 		}
-
-		// The meta table's best block height should never end up larger than
-		// the blocks table's best block height, but purge a block anyway since
-		// something went awry. This will update the best block in the meta
-		// table to match the blocks table, allowing dcrdata to start.
-		if dbHeightInit > bestHeight {
-			log.Warnf("Best block height in meta table (%d) "+
-				"greater than best height in blocks table (%d)!",
-				dbHeightInit, bestHeight)
-			_, bestHeight, bestHash, err = DeleteBestBlock(ctx, db)
-			if err != nil {
-				return nil, fmt.Errorf("DeleteBestBlock: %v", err)
-			}
-			dbHash, dbHeightInit, err = DBBestBlock(ctx, db)
-			if err != nil {
-				return nil, fmt.Errorf("DBBestBlock: %v", err)
-			}
-		}
-
-		// Purge blocks if the best block hashes do not match, and until the
-		// best block height in the data tables is less than or equal to the
-		// starting height in the meta table.
-		log.Debugf("meta height %d / blocks height %d", dbHeightInit, bestHeight)
-		for dbHash != bestHash || dbHeightInit < bestHeight {
-			log.Warnf("Purging best block %s (%d).", bestHash, bestHeight)
-
-			// Delete the best block across all tables, updating the best block
-			// in the meta table.
-			_, bestHeight, bestHash, err = DeleteBestBlock(ctx, db)
-			if err != nil {
-				return nil, fmt.Errorf("DeleteBestBlock: %v", err)
-			}
-			if bestHeight == -1 {
-				break
-			}
-
-			// Now dbHash must equal bestHash. If not, DeleteBestBlock failed to
-			// update the meta table.
-			dbHash, _, err = DBBestBlock(ctx, db)
-			if err != nil {
-				return nil, fmt.Errorf("DBBestBlock: %v", err)
-			}
-			if dbHash != bestHash {
-				return nil, fmt.Errorf("best block hash in meta and blocks tables do not match: "+
-					"%s != %s", dbHash, bestHash)
-			}
+		if dbHash != bestHash {
+			return nil, fmt.Errorf("best block hash in meta and blocks tables do not match: "+
+				"%s != %s", dbHash, bestHash)
 		}
 	}
 
 	// Project fund address of the current network
-	var projectFundAddress string
-	if projectFundAddress, err = dbtypes.DevSubsidyAddress(params); err != nil {
+	projectFundAddress, err := dbtypes.DevSubsidyAddress(params)
+	if err != nil {
 		log.Warnf("ChainDB.NewChainDB: %v", err)
 	}
 
@@ -804,41 +771,6 @@ func NewChainDBWithCancel(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb
 			return nil, fmt.Errorf("failed to fetch the latest blockchain info")
 		}
 		chainDB.UpdateChainState(bci)
-	}
-
-	// If loading a DB with the legacy versioning system, fully upgrade prior to
-	// migrating to meta table versioning.
-	if doLegacyUpgrade {
-		log.Infof("Performing legacy DB version check and upgrade.")
-		if err = chainDB.VersionCheck(client); err != nil {
-			return chainDB, fmt.Errorf("legacy DB version check/upgrade failed: %v", err)
-		}
-
-		log.Infof("Migrating DB versioning scheme to meta table versioning...")
-		if err = CreateTable(db, "meta"); err != nil {
-			return chainDB, fmt.Errorf(`failed to create "meta" table: %v`, err)
-		}
-		err = insertMetaData(db, &metaData{
-			netName:         params.Name,
-			currencyNet:     uint32(params.Net),
-			bestBlockHeight: bestBlock.height,
-			bestBlockHash:   bestBlock.hash,
-			dbVer:           *legacyDatabaseVersion,
-			ibdComplete:     true, // We don't know this, but assume it is done.
-		})
-		if err != nil {
-			return chainDB, fmt.Errorf("insertMetaData failed: %v", err)
-		}
-
-		// Now run any upgrades from legacyDatabaseVersion to
-		// targetDatabaseVersion.
-		upgrader := NewUpgrader(ctx, db, client, stakeDB)
-		success, err := upgrader.UpgradeDatabase()
-		if err != nil {
-			return chainDB, fmt.Errorf("failed to upgrade legacy database: %v", err)
-		} else if !success {
-			return chainDB, fmt.Errorf("failed to upgrade legacy database (upgrade not supported?)")
-		}
 	}
 
 	return chainDB, nil
@@ -1833,7 +1765,6 @@ func (pgb *ChainDB) GetTicketInfo(txid string) (*apitypes.TicketInfo, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 	spendStatus, poolStatus, purchaseBlock, lotteryBlock, spendTxid, err := RetrieveTicketInfoByHash(ctx, pgb.db, txid)
-
 	if err != nil {
 		return nil, pgb.replaceCancelError(err)
 	}
@@ -2418,7 +2349,7 @@ FUNDING_TX_DUPLICATE_CHECK:
 		if txnType == dbtypes.AddrTxnAll || txnType == dbtypes.AddrTxnCredit || txnType == dbtypes.AddrUnspentTxn {
 			addrTx := &dbtypes.AddressTx{
 				TxID:          fundingTx.Hash().String(),
-				TxType:        txhelpers.DetermineTxTypeString(fundingTx.Tx),
+				TxType:        txhelpers.DetermineTxTypeString(fundingTx.Tx, true), // unconfirmed, just assume treasury could be active
 				InOutID:       f.Index,
 				Time:          dbtypes.NewTimeDefFromUNIX(fundingTx.MemPoolTime),
 				FormattedSize: humanize.Bytes(uint64(fundingTx.Tx.SerializeSize())),
@@ -2479,7 +2410,7 @@ SPENDING_TX_DUPLICATE_CHECK:
 		if txnType == dbtypes.AddrTxnAll || txnType == dbtypes.AddrTxnDebit {
 			addrTx := &dbtypes.AddressTx{
 				TxID:           spendingTx.Hash().String(),
-				TxType:         txhelpers.DetermineTxTypeString(spendingTx.Tx),
+				TxType:         txhelpers.DetermineTxTypeString(spendingTx.Tx, true), // unconfirmed tx, so assume treasury could be active
 				InOutID:        uint32(f.InputIndex),
 				Time:           dbtypes.NewTimeDefFromUNIX(spendingTx.MemPoolTime),
 				FormattedSize:  humanize.Bytes(uint64(spendingTx.Tx.SerializeSize())),
@@ -2828,8 +2759,7 @@ func (pgb *ChainDB) PurgeBestBlocks(N int64) (*dbtypes.DeletionSummary, int64, e
 	summary := dbtypes.DeletionSummarySlice(res).Reduce()
 
 	// Rewind stake database to this height.
-	var stakeDBHeight int64
-	stakeDBHeight, err = pgb.RewindStakeDB(pgb.ctx, height, true)
+	stakeDBHeight, err := pgb.RewindStakeDB(pgb.ctx, height, true)
 	if err != nil {
 		return nil, height, pgb.replaceCancelError(err)
 	}
@@ -3634,7 +3564,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, isValid, isMainchain,
 	return
 }
 
-// SetDBBestBlock stores ChainDB's BestBlock data in the meta table.
+// SetDBBestBlock stores ChainDB's BestBlock data in the meta table. UNUSED
 func (pgb *ChainDB) SetDBBestBlock() error {
 	pgb.bestBlock.mtx.RLock()
 	bbHash, bbHeight := pgb.bestBlock.hash, pgb.bestBlock.height
@@ -3729,6 +3659,10 @@ func (pgb *ChainDB) UpdateLastBlock(msgBlock *wire.MsgBlock, isMainchain bool) e
 		}
 
 		// Update addresses table for last block's regular transactions.
+		// So slow without indexes:
+		//  Update on addresses  (cost=0.00..1012201.53 rows=1 width=181)
+		// 		->  Seq Scan on addresses  (cost=0.00..1012201.53 rows=1 width=181)
+		// 		Filter: ((NOT is_funding) AND (tx_vin_vout_row_id = 13241234))
 		err = UpdateLastAddressesValid(pgb.db, lastBlockHash.String(), lastIsValid)
 		if err != nil {
 			return fmt.Errorf("UpdateLastAddressesValid: %v", err)
@@ -3765,7 +3699,7 @@ type MsgBlockPG struct {
 	Validators     []string
 }
 
-// storeTxns inserts all vins, vouts, and transactions.  The VoutDbIds and
+// storeTxns inserts all vins, vouts, and transactions. The VoutDbIds and
 // VinDbIds fields of each Tx in the input txns slice are set upon insertion of
 // vouts and vins, respectively. The Vouts fields are also set to the
 // corresponding Vout slice from the vouts input argument. For each transaction,
@@ -3778,7 +3712,7 @@ func (pgb *ChainDB) storeTxns(txns []*dbtypes.Tx, vouts [][]*dbtypes.Vout, vins 
 	var dbTx *sql.Tx
 	dbTx, err = pgb.db.Begin()
 	if err != nil {
-		err = fmt.Errorf("failed to begin database transaction: %v", err)
+		err = fmt.Errorf("failed to begin database transaction: %w", err)
 		return
 	}
 
@@ -3788,7 +3722,7 @@ func (pgb *ChainDB) storeTxns(txns []*dbtypes.Tx, vouts [][]*dbtypes.Vout, vins 
 	voutStmt, err = dbTx.Prepare(internal.MakeVoutInsertStatement(checked, doUpsert))
 	if err != nil {
 		_ = dbTx.Rollback()
-		err = fmt.Errorf("failed to prepare vout insert statement: %v", err)
+		err = fmt.Errorf("failed to prepare vout insert statement: %w", err)
 		return
 	}
 	defer voutStmt.Close()
@@ -3797,7 +3731,7 @@ func (pgb *ChainDB) storeTxns(txns []*dbtypes.Tx, vouts [][]*dbtypes.Vout, vins 
 	vinStmt, err = dbTx.Prepare(internal.MakeVinInsertStatement(checked, doUpsert))
 	if err != nil {
 		_ = dbTx.Rollback()
-		err = fmt.Errorf("failed to prepare vin insert statement: %v", err)
+		err = fmt.Errorf("failed to prepare vin insert statement: %w", err)
 		return
 	}
 	defer vinStmt.Close()
@@ -3812,7 +3746,7 @@ func (pgb *ChainDB) storeTxns(txns []*dbtypes.Tx, vouts [][]*dbtypes.Vout, vins 
 		Tx.VoutDbIds, dbAddressRows[it], err = InsertVoutsStmt(voutStmt,
 			vouts[it], pgb.dupChecks, updateExistingRecords)
 		if err != nil && err != sql.ErrNoRows {
-			err = fmt.Errorf("failure in InsertVoutsStmt: %v", err)
+			err = fmt.Errorf("failure in InsertVoutsStmt: %w", err)
 			_ = dbTx.Rollback()
 			return
 		}
@@ -3826,7 +3760,7 @@ func (pgb *ChainDB) storeTxns(txns []*dbtypes.Tx, vouts [][]*dbtypes.Vout, vins 
 		Tx.VinDbIds, err = InsertVinsStmt(vinStmt, vins[it], pgb.dupChecks,
 			updateExistingRecords)
 		if err != nil && err != sql.ErrNoRows {
-			err = fmt.Errorf("failure in InsertVinsStmt: %v", err)
+			err = fmt.Errorf("failure in InsertVinsStmt: %w", err)
 			_ = dbTx.Rollback()
 			return
 		}
@@ -3839,12 +3773,12 @@ func (pgb *ChainDB) storeTxns(txns []*dbtypes.Tx, vouts [][]*dbtypes.Vout, vins 
 	// Get the tx PK IDs for storage in the blocks, tickets, and votes table.
 	txDbIDs, err = InsertTxnsDbTxn(dbTx, txns, pgb.dupChecks, updateExistingRecords)
 	if err != nil && err != sql.ErrNoRows {
-		err = fmt.Errorf("failure in InsertTxnsDbTxn: %v", err)
+		err = fmt.Errorf("failure in InsertTxnsDbTxn: %w", err)
 		return
 	}
 
 	if err = dbTx.Commit(); err != nil {
-		err = fmt.Errorf("failed to commit transaction: %v", err)
+		err = fmt.Errorf("failed to commit transaction: %w", err)
 	}
 	return
 }
@@ -3852,12 +3786,14 @@ func (pgb *ChainDB) storeTxns(txns []*dbtypes.Tx, vouts [][]*dbtypes.Vout, vins 
 // storeBlockTxnTree stores the transactions of a given block.
 func (pgb *ChainDB) storeBlockTxnTree(msgBlock *MsgBlockPG, txTree int8,
 	chainParams *chaincfg.Params, isValid, isMainchain bool,
-	updateExistingRecords, updateAddressesSpendingInfo,
-	updateTicketsSpendingInfo bool) storeTxnsResult {
+	updateExistingRecords, updateAddressesSpendingInfo, updateTicketsSpendingInfo bool) storeTxnsResult {
 	// For the given block and transaction tree, extract the transactions, vins,
 	// and vouts. Note that each txn in dbTransactions has IsValid set according
 	// to the isValid flag for the block and the tree of the transaction itself,
 	// where TxTreeStake transactions are never invalidated.
+	height := int64(msgBlock.Header.Height)
+	isStake := txTree == wire.TxTreeStake
+	// treasuryActive := isStake && txhelpers.IsTreasuryActive(chainParams.Net, height)
 	dbTransactions, dbTxVouts, dbTxVins := dbtypes.ExtractBlockTransactions(
 		msgBlock.MsgBlock, txTree, chainParams, isValid, isMainchain)
 
@@ -3967,7 +3903,7 @@ txns:
 	// If processing stake transactions, insert tickets, votes, and misses. Also
 	// update pool status and spending information in tickets table pertaining
 	// to the new votes, revokes, misses, and expires.
-	if txTree == wire.TxTreeStake {
+	if isStake {
 		// Tickets: Insert new (unspent) tickets
 		newTicketDbIDs, newTicketTx, err := InsertTickets(pgb.db, dbTransactions, txDbIDs,
 			pgb.dupChecks, updateExistingRecords)
@@ -4003,6 +3939,8 @@ txns:
 			return txRes
 		}
 
+		// TODO: treasury txns in special table
+
 		if updateTicketsSpendingInfo {
 			// Get information for transactions spending tickets (votes and
 			// revokes), and the ticket DB row IDs themselves. Also return
@@ -4028,7 +3966,7 @@ txns:
 			blockHeights := make([]int64, len(spentTicketHashes))
 			poolStatuses := make([]dbtypes.TicketPoolStatus, len(spentTicketHashes))
 			for iv := range spentTicketHashes {
-				blockHeights[iv] = int64(msgBlock.Header.Height) /* voteDbTxns[iv].BlockHeight */
+				blockHeights[iv] = height
 
 				// Vote or revoke
 				switch spendTypes[iv] {
@@ -4123,7 +4061,7 @@ txns:
 				log.Tracef("Noted %d unrevoked newly-missed tickets.", numUnrevokedMisses)
 			}
 		} // updateTicketsSpendingInfo
-	} // txTree == wire.TxTreeStake
+	} // isStake
 
 	wg.Wait()
 
@@ -5221,7 +5159,9 @@ func (pgb *ChainDB) GetAddressTransactionsRawWithSkip(addr string, count int, sk
 		log.Infof("Invalid address %s: %v", addr, err)
 		return nil
 	}
-	txs, err := pgb.Client.SearchRawTransactionsVerbose(context.TODO(), address, skip, count, true, true, nil)
+	ctx, cancel := context.WithTimeout(pgb.ctx, 10*time.Second)
+	defer cancel()
+	txs, err := pgb.Client.SearchRawTransactionsVerbose(ctx, address, skip, count, true, true, nil)
 	if err != nil {
 		if strings.Contains(err.Error(), "No Txns available") {
 			return make([]*apitypes.AddressTxRaw, 0)
@@ -5323,11 +5263,19 @@ func makeExplorerBlockBasic(data *chainjson.GetBlockVerboseResult, params *chain
 	return block
 }
 
-func makeExplorerTxBasic(data chainjson.TxRawResult, ticketPrice int64, msgTx *wire.MsgTx, params *chaincfg.Params) *exptypes.TxBasic {
-	tx := new(exptypes.TxBasic)
-	tx.TxID = data.Txid
-	tx.FormattedSize = humanize.Bytes(uint64(len(data.Hex) / 2))
-	tx.Total = txhelpers.TotalVout(data.Vout).ToCoin()
+func makeExplorerTxBasic(data *chainjson.TxRawResult, ticketPrice int64, msgTx *wire.MsgTx, params *chaincfg.Params) (*exptypes.TxBasic, stake.TxType) {
+	treasuryActive := true
+	if data.BlockHeight > 0 {
+		treasuryActive = txhelpers.IsTreasuryActive(params.Net, data.BlockHeight)
+	}
+	txType := stake.DetermineTxType(msgTx, treasuryActive)
+
+	tx := &exptypes.TxBasic{
+		TxID:          data.Txid,
+		Type:          txhelpers.TxTypeToString(int(txType)),
+		FormattedSize: humanize.Bytes(uint64(len(data.Hex) / 2)),
+		Total:         txhelpers.TotalVout(data.Vout).ToCoin(),
+	}
 	tx.Fee, tx.FeeRate = txhelpers.TxFeeRate(msgTx)
 
 	v0 := &data.Vin[0]
@@ -5336,17 +5284,20 @@ func makeExplorerTxBasic(data chainjson.TxRawResult, ticketPrice int64, msgTx *w
 		tx.Fee, tx.FeeRate = 0, 0
 		tx.Coinbase = true
 	case v0.IsTreasurySpend():
-		fmt.Printf("treasury spend: %v\n", data.Txid)
+		// fmt.Printf("treasury spend: %v\n", data.Txid)
+	case v0.Treasurybase:
+		// fmt.Printf("treasurybase: %v\n", data.Txid)
 	case v0.Treasurybase:
 		tx.Treasurybase = true
 	}
 
-	switch stake.DetermineTxType(msgTx, true /* TODO treasuryEnabled */) {
+	// Votes need VoteInfo set. Regular txns need to be screened for mixes.
+	switch txType {
 	case stake.TxTypeSSGen:
 		validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, params)
 		if err != nil {
 			log.Debugf("Cannot get vote choices for %s", tx.TxID)
-			return tx
+			return tx, txType
 		}
 		tx.VoteInfo = &exptypes.VoteInfo{
 			Validation: exptypes.BlockValidation{
@@ -5367,11 +5318,11 @@ func makeExplorerTxBasic(data chainjson.TxRawResult, ticketPrice int64, msgTx *w
 		tx.MixDenom = mixDenom
 	}
 
-	return tx
+	return tx, txType
 }
 
-func trimmedTxInfoFromMsgTx(txraw chainjson.TxRawResult, ticketPrice int64, msgTx *wire.MsgTx, params *chaincfg.Params) *exptypes.TrimmedTxInfo {
-	txBasic := makeExplorerTxBasic(txraw, ticketPrice, msgTx, params)
+func trimmedTxInfoFromMsgTx(txraw *chainjson.TxRawResult, ticketPrice int64, msgTx *wire.MsgTx, params *chaincfg.Params) (*exptypes.TrimmedTxInfo, stake.TxType) {
+	txBasic, txType := makeExplorerTxBasic(txraw, ticketPrice, msgTx, params)
 
 	var voteValid bool
 	if txBasic.VoteInfo != nil {
@@ -5385,7 +5336,7 @@ func trimmedTxInfoFromMsgTx(txraw chainjson.TxRawResult, ticketPrice int64, msgT
 		VoutCount: len(txraw.Vout),
 		VoteValid: voteValid,
 	}
-	return tx
+	return tx, txType
 }
 
 // BlockSubsidy gets the *chainjson.GetBlockSubsidyResult for the given height
@@ -5443,21 +5394,23 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 	votes := make([]*exptypes.TrimmedTxInfo, 0, block.Voters)
 	revocations := make([]*exptypes.TrimmedTxInfo, 0, block.Revocations)
 	tickets := make([]*exptypes.TrimmedTxInfo, 0, block.FreshStake)
-	// TODO: individual treasury types (tspend, tadd, treasurybase)
+
 	var treasury []*exptypes.TrimmedTxInfo
+	// treasuryActive := txhelpers.IsTreasuryActive(pgb.chainParams.Net, b.Height)
 
 	sbits, _ := dcrutil.NewAmount(block.SBits) // sbits==0 for err!=nil
 	ticketPrice := int64(sbits)
 
-	for _, tx := range data.RawSTx {
+	for i := range data.RawSTx {
+		tx := &data.RawSTx[i]
 		msgTx, err := txhelpers.MsgTxFromHex(tx.Hex)
 		if err != nil {
 			log.Errorf("Unknown transaction %s: %v", tx.Txid, err)
 			return nil
 		}
-		switch ty := stake.DetermineTxType(msgTx, true); ty { // TODO *actual* treasury active for this block, but we know this is the stake tree
+		stx, txType := trimmedTxInfoFromMsgTx(tx, ticketPrice, msgTx, pgb.chainParams)
+		switch txType {
 		case stake.TxTypeSSGen:
-			stx := trimmedTxInfoFromMsgTx(tx, ticketPrice, msgTx, pgb.chainParams)
 			// Fees for votes should be zero, but if the transaction was created
 			// with unmatched inputs/outputs then the remainder becomes a fee.
 			// Account for this possibility by calculating the fee for votes as
@@ -5467,29 +5420,26 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 			}
 			votes = append(votes, stx)
 		case stake.TxTypeSStx:
-			stx := trimmedTxInfoFromMsgTx(tx, ticketPrice, msgTx, pgb.chainParams)
 			tickets = append(tickets, stx)
 		case stake.TxTypeSSRtx:
-			stx := trimmedTxInfoFromMsgTx(tx, ticketPrice, msgTx, pgb.chainParams)
 			revocations = append(revocations, stx)
-
 		case stake.TxTypeTAdd, stake.TxTypeTSpend, stake.TxTypeTreasuryBase:
-			fmt.Printf("Treasury type %d: %v\n", ty, tx.Txid)
-			treasury = append(treasury, trimmedTxInfoFromMsgTx(tx, ticketPrice, msgTx, pgb.chainParams))
+			treasury = append(treasury, stx)
 		}
 	}
 
 	var totalMixed int64
 
 	txs := make([]*exptypes.TrimmedTxInfo, 0, block.Transactions)
-	for _, tx := range data.RawTx {
+	for i := range data.RawTx {
+		tx := &data.RawTx[i]
 		msgTx, err := txhelpers.MsgTxFromHex(tx.Hex)
 		if err != nil {
 			log.Errorf("Unknown transaction %s: %v", tx.Txid, err)
 			return nil
 		}
 
-		exptx := trimmedTxInfoFromMsgTx(tx, ticketPrice, msgTx, pgb.chainParams) // maybe pass tree
+		exptx, _ := trimmedTxInfoFromMsgTx(tx, ticketPrice, msgTx, pgb.chainParams) // maybe pass tree
 		for i := range tx.Vin {
 			if tx.Vin[i].IsCoinBase() {
 				exptx.Fee, exptx.FeeRate, exptx.Fees = 0.0, 0.0, 0.0
@@ -5644,17 +5594,20 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		return nil
 	}
 
-	txBasic := makeExplorerTxBasic(*txraw, ticketPrice, msgTx, pgb.chainParams)
+	treasuryActive := true
+	if txraw.BlockHeight > 0 {
+		treasuryActive = txhelpers.IsTreasuryActive(pgb.chainParams.Net, txraw.BlockHeight)
+	}
+
+	txBasic, _ := makeExplorerTxBasic(txraw, ticketPrice, msgTx, pgb.chainParams)
 	tx := &exptypes.TxInfo{
 		TxBasic:       txBasic,
-		Type:          txhelpers.DetermineTxTypeString(msgTx),
 		BlockHeight:   txraw.BlockHeight,
 		BlockIndex:    txraw.BlockIndex,
 		BlockHash:     txraw.BlockHash,
 		Confirmations: txraw.Confirmations,
 		Time:          exptypes.NewTimeDefFromUNIX(txraw.Time),
 	}
-	// fmt.Println(tx.Type)
 
 	inputs := make([]exptypes.Vin, 0, len(txraw.Vin))
 	for i := range txraw.Vin {
@@ -5673,7 +5626,7 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 			valueIn0 := valueIn
 
 			addresses, valueIn, err = txhelpers.OutPointAddresses(
-				prevOut, pgb.Client, pgb.chainParams)
+				prevOut, pgb.Client, pgb.chainParams, treasuryActive) // treasury could be not active even if this tx is active
 			if err != nil {
 				log.Warnf("Failed to get outpoint address from txid: %v", err)
 				continue
@@ -5707,15 +5660,7 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		// Assemble and append this vin.
 		coinIn := valueIn.ToCoin()
 		inputs = append(inputs, exptypes.Vin{
-			Vin: &chainjson.Vin{
-				Txid:      vin.Txid,
-				Coinbase:  vin.Coinbase,
-				Stakebase: vin.Stakebase,
-				// TODO: Treasurybase bool
-				Vout:        vin.Vout,
-				AmountIn:    coinIn,
-				BlockHeight: vin.BlockHeight,
-			},
+			Vin:             vin,
 			Addresses:       addresses,
 			FormattedAmount: humanize.Commaf(coinIn),
 			Index:           uint32(i),
@@ -5761,14 +5706,18 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 			log.Warnf("Failed to determine if tx out is spent for output %d of tx %s", i, txid)
 		}
 		var opReturn string
-		if strings.Contains(vout.ScriptPubKey.Asm, "OP_RETURN") {
+		var opTAdd bool
+		if strings.HasPrefix(vout.ScriptPubKey.Asm, "OP_RETURN") {
 			opReturn = vout.ScriptPubKey.Asm
+		} else {
+			opTAdd = strings.HasPrefix(vout.ScriptPubKey.Asm, "OP_TADD")
 		}
 		outputs = append(outputs, exptypes.Vout{
 			Addresses:       vout.ScriptPubKey.Addresses,
 			Amount:          vout.Value,
 			FormattedAmount: humanize.Commaf(vout.Value),
 			OP_RETURN:       opReturn,
+			OP_TADD:         opTAdd,
 			Type:            vout.ScriptPubKey.Type,
 			Spent:           txout == nil,
 			Index:           vout.N,
@@ -5782,32 +5731,35 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 	return tx
 }
 
-func makeExplorerAddressTx(data *chainjson.SearchRawTransactionsResult, address string) *dbtypes.AddressTx {
-	tx := new(dbtypes.AddressTx)
-	tx.TxID = data.Txid
-	tx.FormattedSize = humanize.Bytes(uint64(len(data.Hex) / 2))
-	tx.Total = txhelpers.TotalVout(data.Vout).ToCoin()
-	tx.Time = dbtypes.NewTimeDefFromUNIX(data.Time)
-	tx.Confirmations = data.Confirmations
+func makeExplorerAddressTx(data *chainjson.SearchRawTransactionsResult, address string, treasuryActive bool) *dbtypes.AddressTx {
+	tx := &dbtypes.AddressTx{
+		TxID:          data.Txid,
+		FormattedSize: humanize.Bytes(uint64(len(data.Hex) / 2)),
+		Total:         txhelpers.TotalVout(data.Vout).ToCoin(),
+		Time:          dbtypes.NewTimeDefFromUNIX(data.Time),
+		Confirmations: data.Confirmations,
+	}
 
 	msgTx, err := txhelpers.MsgTxFromHex(data.Hex)
 	if err == nil {
-		tx.TxType = txhelpers.DetermineTxTypeString(msgTx)
+		tx.TxType = txhelpers.DetermineTxTypeString(msgTx, treasuryActive)
 	} else {
 		log.Warn("makeExplorerAddressTx cannot get tx type", err)
 	}
 
 	for i := range data.Vin {
-		if data.Vin[i].PrevOut != nil && len(data.Vin[i].PrevOut.Addresses) > 0 {
-			if data.Vin[i].PrevOut.Addresses[0] == address {
-				tx.SentTotal += *data.Vin[i].AmountIn
+		vin := &data.Vin[i]
+		if vin.PrevOut != nil && len(vin.PrevOut.Addresses) > 0 {
+			if vin.PrevOut.Addresses[0] == address {
+				tx.SentTotal += *vin.AmountIn
 			}
 		}
 	}
 	for i := range data.Vout {
-		if len(data.Vout[i].ScriptPubKey.Addresses) != 0 {
-			if data.Vout[i].ScriptPubKey.Addresses[0] == address {
-				tx.ReceivedTotal += data.Vout[i].Value
+		vout := &data.Vout[i]
+		if len(vout.ScriptPubKey.Addresses) != 0 {
+			if vout.ScriptPubKey.Addresses[0] == address {
+				tx.ReceivedTotal += vout.Value
 			}
 		}
 	}
@@ -5850,7 +5802,9 @@ func (pgb *ChainDB) GetExplorerAddress(address string, count, offset int64) (*db
 		return nil, addrType, addrErr
 	}
 
-	txs, err := pgb.Client.SearchRawTransactionsVerbose(context.TODO(), addr,
+	ctx, cancel := context.WithTimeout(pgb.ctx, 10*time.Second)
+	defer cancel()
+	txs, err := pgb.Client.SearchRawTransactionsVerbose(ctx, addr,
 		int(offset), int(MaxAddressRows), true, true, nil)
 	if err != nil {
 		if err.Error() == "-32603: No Txns available" {
@@ -5872,7 +5826,11 @@ func (pgb *ChainDB) GetExplorerAddress(address string, count, offset int64) (*db
 		if int64(i) == count { // count >= len(txs)
 			break
 		}
-		addressTxs = append(addressTxs, makeExplorerAddressTx(tx, address))
+		treasuryActive := true
+		if tx.BlockHeight >= 0 {
+			treasuryActive = txhelpers.IsTreasuryActive(pgb.chainParams.Net, tx.BlockHeight)
+		}
+		addressTxs = append(addressTxs, makeExplorerAddressTx(tx, address, treasuryActive))
 	}
 
 	var numUnconfirmed, numReceiving, numSpending int64
@@ -6071,11 +6029,18 @@ func (pgb *ChainDB) getRawTransactionWithHex(txid *chainhash.Hash) (tx *apitypes
 // will be nil if the GetRawMempoolVerbose RPC fails. A zero-length non-nil
 // slice is returned if there are no transactions in mempool.
 func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
-	mempooltxs, err := pgb.Client.GetRawMempoolVerbose(context.TODO(), chainjson.GRMAll)
+	mempooltxs, err := pgb.Client.GetRawMempoolVerbose(pgb.ctx, chainjson.GRMAll)
 	if err != nil {
 		log.Errorf("GetRawMempoolVerbose failed: %v", err)
 		return nil
 	}
+
+	_, height, err := pgb.Client.GetBestBlock(pgb.ctx)
+	if err != nil {
+		log.Errorf("GetBestBlock failed: %v", err)
+		return nil
+	}
+	treasuryActive := txhelpers.IsTreasuryActive(pgb.chainParams.Net, height+1)
 
 	txs := make([]exptypes.MempoolTx, 0, len(mempooltxs))
 
@@ -6096,10 +6061,12 @@ func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
 		if err != nil {
 			continue
 		}
-		var voteInfo *exptypes.VoteInfo
 
-		if ok := stake.IsSSGen(msgTx, true /* TODO treasuryEnabled */); ok {
-			validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, pgb.chainParams)
+		txType := stake.DetermineTxType(msgTx, treasuryActive)
+
+		var voteInfo *exptypes.VoteInfo
+		if txType == stake.TxTypeSSGen /* stake.IsSSGen(msgTx, treasuryActive) */ {
+			validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, pgb.chainParams) // todo: hint treasury active
 			if err != nil {
 				log.Debugf("Cannot get vote choices for %s", hash)
 			} else {
@@ -6127,7 +6094,7 @@ func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
 			Time:     tx.Time,
 			Size:     tx.Size,
 			TotalOut: total,
-			Type:     txhelpers.DetermineTxTypeString(msgTx),
+			Type:     txhelpers.TxTypeToString(int(txType)),
 			VoteInfo: voteInfo,
 			Vin:      exptypes.MsgTxMempoolInputs(msgTx),
 		})

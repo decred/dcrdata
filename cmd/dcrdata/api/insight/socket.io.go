@@ -254,8 +254,10 @@ func (soc *SocketServer) sendNewTx(msgTx *wire.MsgTx, vouts []chainjson.Vout) er
 			continue
 		} else {
 			var err error
+			// Assume dcrd validated the tx and treasury could be true, and this
+			// could be a treasury txn if this is the stake tree.
 			addrs, amt, err = txhelpers.OutPointAddressesFromString(
-				txid, idx, tree, soc.txGetter, soc.params)
+				txid, idx, tree, soc.txGetter, soc.params, tree == wire.TxTreeStake)
 			if err != nil {
 				apiLog.Warnf("failed to get outpoint address from txid: %v", err)
 				// Still must append this vin to maintain valid implicit

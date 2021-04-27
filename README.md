@@ -79,15 +79,14 @@ Always run the Current release or on the Current stable branch. Do not use `mast
 ├── blockdata             Package blockdata is the primary data collection and
 |                           storage hub, and chain monitor.
 ├── cmd
-│   ├── dcrdata           MODULE for the dcrdata explorer executable.
-│   │   ├── api           dcrdata's own HTTP API
-│   │   │   └── insight   The Insight API
-│   │   ├── explorer      Powers the block explorer pages.
-│   │   ├── middleware    HTTP router middleware used by the explorer
-│   │   ├── notification  Manages dcrd notifications synchronous data collection.
-│   │   ├── public        Public resources for block explorer (css, js, etc.)
-│   │   └── views         HTML templates for block explorer
-│   └── rebuilddb2        rebuilddb2 utility, for PostgreSQL backend. Not required.
+│   └── dcrdata           MODULE for the dcrdata explorer executable.
+│       ├── api           dcrdata's own HTTP API
+│       │   └── insight   The Insight API
+│       ├── explorer      Powers the block explorer pages.
+│       ├── middleware    HTTP router middleware used by the explorer
+│       ├── notification  Manages dcrd notifications synchronous data collection.
+│       ├── public        Public resources for block explorer (css, js, etc.)
+│       └── views         HTML templates for block explorer
 ├── db
 │   ├── cache             Package cache provides a caching layer that is used by dcrpg.
 │   ├── dbtypes           Package dbtypes with common data types.

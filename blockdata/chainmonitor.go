@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2020, The Decred developers
+// Copyright (c) 2018-2021, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -41,7 +41,9 @@ func NewChainMonitor(ctx context.Context, collector *Collector, savers []BlockDa
 
 func (p *chainMonitor) collect(hash *chainhash.Hash) (*wire.MsgBlock, *BlockData, error) {
 	// getblock RPC
-	msgBlock, err := p.collector.dcrdChainSvr.GetBlock(context.TODO(), hash)
+	ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Minute)
+	defer cancel()
+	msgBlock, err := p.collector.dcrdChainSvr.GetBlock(ctx, hash)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get block %v: %v", hash, err)
 	}
@@ -51,7 +53,7 @@ func (p *chainMonitor) collect(hash *chainhash.Hash) (*wire.MsgBlock, *BlockData
 
 	// Get node's best block height to see if the block for which we are
 	// collecting data is the best block.
-	chainHeight, err := p.collector.dcrdChainSvr.GetBlockCount(context.TODO())
+	chainHeight, err := p.collector.dcrdChainSvr.GetBlockCount(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get chain height: %v", err)
 	}
@@ -79,9 +81,8 @@ func (p *chainMonitor) collect(hash *chainhash.Hash) (*wire.MsgBlock, *BlockData
 }
 
 // ConnectBlock is a synchronous version of BlockConnectedHandler that collects
-// and stores data for a block specified by the given hash. ConnectBlock
-// satisfies notification.BlockHandler, and is registered as a handler in
-// main.go.
+// and stores data for a block. ConnectBlock satisfies
+// notification.BlockHandler, and is registered as a handler in main.go.
 func (p *chainMonitor) ConnectBlock(header *wire.BlockHeader) error {
 	// Do not handle reorg and block connects simultaneously.
 	hash := header.BlockHash()

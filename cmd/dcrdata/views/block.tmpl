@@ -3,7 +3,6 @@
 <html lang="en">
 {{template "html-head" printf "Decred Block %d" .Data.Height}}
 {{ template "navbar" . }}
-
 <div class="container main" data-controller="time">
 {{- with .Data -}}
 {{$Invalidated := and (gt .Confirmations 1) (not .Valid) }}
@@ -201,6 +200,36 @@
 		{{- end -}}
 		{{- end}}
 
+		{{if .Treasury -}}
+		<span class="d-inline-block pt-4 pb-1 h4">Treasury</span>
+		<table class="table">
+			<thead>
+				<tr>
+					<th>Transaction ID</th>
+					<th class="text-right">Type</th>
+					<th class="text-right">Total DCR</th>
+					<th class="text-right">Fee</th>
+					<th class="text-right">Size</th>
+				</tr>
+			</thead>
+			<tbody>
+			{{range .Treasury -}}
+				<tr>
+					<td class="break-word">
+						<span><a class="hash" href="/tx/{{.TxID}}">{{.TxID}}</a></span>
+					</td>
+					<td class="text-right">{{.Type}}</td>
+					<td class="mono fs15 text-right">
+						{{template "decimalParts" (float64AsDecimalParts .Total 8 false)}}
+					</td>
+					<td class="mono fs15 text-right">{{.Fee}}</td>
+					<td class="mono fs15 text-right">{{.FormattedSize}}</td>
+				</tr>
+			{{- end}}
+			</tbody>
+		</table>
+		{{- end -}}
+
 		<span class="d-inline-block pt-4 pb-1 h4">Votes</span>
 		{{if not .Votes -}}
 		<table class="table">
@@ -216,7 +245,7 @@
 		<table class="table">
 			<thead>
 				<tr>
-					<th>Transactions ID</th>
+					<th>Transaction ID</th>
 					<th class="text-right">Vote Version</th>
 					<th class="text-right">Last Block</th>
 					<th class="text-right">Total DCR</th>
@@ -340,6 +369,7 @@
 					<th class="text-right">Total DCR</th>
 					<th class="text-right">Mixed</th>
 					<th class="text-right">Fee</th>
+					<th class="text-right">Fee Rate</th>
 					<th class="text-right">Size</th>
 				</tr>
 			</thead>
@@ -361,6 +391,7 @@
 						{{- end}}
 					</td>
 					<td class="mono fs15 text-right">{{.Fee}}</td>
+					<td class="mono fs15 text-right">{{dcrPerKbToAtomsPerByte .FeeRate}} atoms/B</td>
 					<td class="mono fs15 text-right">{{.FormattedSize}}</td>
 				</tr>
 			{{- end}}

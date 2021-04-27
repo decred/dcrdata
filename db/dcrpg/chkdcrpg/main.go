@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020, The Decred developers
+// Copyright (c) 2019-2021, The Decred developers
 // See LICENSE for details.
 
 package main
@@ -137,7 +137,7 @@ func mainCore(ctx context.Context) error {
 	// Construct a ChainDB without a stakeDB to allow quick dropping of tables.
 	mpChecker := rpcutils.NewMempoolAddressChecker(client, activeChain)
 	var piParser dcrpg.ProposalsFetcher
-	db, err := dcrpg.NewChainDBWithCancel(ctx, &dbCfg, nil, mpChecker, piParser, client, func() {})
+	db, err := dcrpg.NewChainDB(ctx, &dbCfg, nil, mpChecker, piParser, client, func() {})
 	if db != nil {
 		defer db.Close()
 	}

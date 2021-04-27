@@ -556,7 +556,7 @@ func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 		// IndexAddressTable to create them all.
 		{Msg: "addresses table on tx hash", IndexFunc: IndexAddressTableOnTxHash},
 		{Msg: "addresses table on block time", IndexFunc: IndexBlockTimeOnTableAddress},
-		{Msg: "addresses table on address", IndexFunc: IndexAddressTableOnAddress},
+		{Msg: "addresses table on address", IndexFunc: IndexAddressTableOnAddress}, // TODO: remove or redefine this or IndexAddressTableOnVoutID since that includes address too
 		{Msg: "addresses table on vout DB ID", IndexFunc: IndexAddressTableOnVoutID},
 		//{Msg: "addresses table on matching tx hash", IndexFunc: IndexAddressTableOnMatchingTxHash},
 

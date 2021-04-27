@@ -3,6 +3,7 @@
 package dcrpg
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -78,7 +79,7 @@ func openDB() (func() error, error) {
 		true, false, 24, 1024, 1 << 16,
 	}
 	var err error
-	db, err = NewChainDB(cfg, nil, nil, new(dummyParser), nil, func() {})
+	db, err = NewChainDB(context.Background(), cfg, nil, nil, new(dummyParser), nil, func() {})
 	cleanUp := func() error { return nil }
 	if db != nil {
 		cleanUp = db.Close

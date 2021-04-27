@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2020, The Decred developers
+// Copyright (c) 2018-2021, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -138,6 +138,16 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		log.Info("Large bulk load: Removing indexes and disabling duplicate checks.")
 		err = pgb.DeindexAll()
 		if err != nil && !strings.Contains(err.Error(), "does not exist") {
+			return lastBlock, err
+		}
+
+		// Create the temporary index on addresses(tx_vin_vout_row_id) that
+		// prevents the stake disapproval updates to a block to cause massive
+		// slowdown during initial sync without an index on tx_vin_vout_row_id.
+		log.Infof("Creating temporary index on addresses(tx_vin_vout_row_id).")
+		_, err = pgb.db.Exec(`CREATE INDEX IF NOT EXISTS idx_addresses_vinvout_id_tmp ` +
+			`ON addresses(tx_vin_vout_row_id)`)
+		if err != nil {
 			return lastBlock, err
 		}
 
@@ -377,6 +387,13 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 	// Index and analyze tables.
 	var analyzed bool
 	if reindexing {
+		// drop the temporary index on addresses(tx_vin_vout_row_id).
+		log.Infof("Dropping temporary index on addresses(tx_vin_vout_row_id).")
+		_, err = pgb.db.Exec(`DROP INDEX IF EXISTS idx_addresses_vinvout_id_tmp;`)
+		if err != nil {
+			return nodeHeight, err
+		}
+
 		// To build indexes, there must NOT be duplicate rows in terms of the
 		// constraints defined by the unique indexes. Duplicate transactions,
 		// vins, and vouts can end up in the tables when identical transactions
@@ -388,7 +405,8 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 			return 0, err
 		}
 
-		// Create all indexes except addresses and tickets indexes.
+		// Create all indexes except those on addresses.matching_tx_hash,
+		// vouts.spend_tx_row_id, and all tickets indexes.
 		if err = pgb.IndexAll(barLoad); err != nil {
 			return nodeHeight, fmt.Errorf("IndexAll failed: %v", err)
 		}

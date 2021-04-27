@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2020, The Decred developers
+// Copyright (c) 2018-2021, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -50,11 +50,12 @@ func (t *MempoolDataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.Me
 		return nil, nil, nil, fmt.Errorf("GetRawMempoolVerbose failed: %v", err)
 	}
 
-	blockHash, _, err := t.dcrdChainSvr.GetBestBlock(context.TODO())
+	blockHash, height, err := t.dcrdChainSvr.GetBestBlock(context.TODO())
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	blockhash := blockHash.String()
+	treasuryActive := txhelpers.IsTreasuryActive(t.activeChain.Net, height+1)
 
 	txs := make([]exptypes.MempoolTx, 0, len(mempooltxs))
 	addrMap := make(txhelpers.MempoolAddressStore)
@@ -84,10 +85,10 @@ func (t *MempoolDataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.Me
 		}
 
 		// Set Outpoints in the addrMap.
-		txhelpers.TxOutpointsByAddr(addrMap, msgTx, t.activeChain)
+		txhelpers.TxOutpointsByAddr(addrMap, msgTx, t.activeChain, treasuryActive)
 
 		// Set PrevOuts in the addrMap, and related txns data in txnsStore.
-		txhelpers.TxPrevOutsByAddr(addrMap, txnsStore, msgTx, t.dcrdChainSvr, t.activeChain)
+		txhelpers.TxPrevOutsByAddr(addrMap, txnsStore, msgTx, t.dcrdChainSvr, t.activeChain, treasuryActive)
 
 		// Store the current mempool transaction with MemPoolTime from GRM, and
 		// block info zeroed.
@@ -101,8 +102,10 @@ func (t *MempoolDataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.Me
 			totalOut += v.Value
 		}
 
+		txType := stake.DetermineTxType(msgTx, treasuryActive)
+
 		var voteInfo *exptypes.VoteInfo
-		if ok := stake.IsSSGen(msgTx, true /* TODO treasuryEnabled */); ok {
+		if txType == stake.TxTypeSSGen /* stake.IsSSGen(msgTx, treasuryActive)*/ {
 			validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, t.activeChain)
 			if err != nil {
 				log.Debugf("Cannot get vote choices for %s", hash)
@@ -136,12 +139,12 @@ func (t *MempoolDataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.Me
 			VinCount:  len(msgTx.TxIn),
 			VoutCount: len(msgTx.TxOut),
 			Vin:       exptypes.MsgTxMempoolInputs(msgTx),
-			// Coinbase:  standalone.IsCoinBaseTx(msgTx, true), // we don't know the treasury agenda status, but coinbase isn't in mempool
+			// Coinbase:  txhelpers.IsCoinBaseTx(msgTx), // commented because coinbase is not in mempool
 			Hash:     hashStr,
 			Time:     tx.Time,
 			Size:     tx.Size,
 			TotalOut: totalOut,
-			Type:     txhelpers.DetermineTxTypeString(msgTx),
+			Type:     txhelpers.TxTypeToString(int(txType)),
 			VoteInfo: voteInfo,
 		})
 	}

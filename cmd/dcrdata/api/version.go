@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2020, The dcrdata developers
+// Copyright (c) 2017-2021, The dcrdata developers
 // See LICENSE for details.
 
 package api

@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2020, The Decred developers
+// Copyright (c) 2018-2021, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -7,6 +7,7 @@ package dcrpg
 import (
 	"context"
 	"sort"
+	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v3"
@@ -61,7 +62,9 @@ func (pgb *ChainDB) SendRawTransaction(txhex string) (string, error) {
 		log.Errorf("SendRawTransaction failed: could not decode hex")
 		return "", err
 	}
-	hash, err := pgb.Client.SendRawTransaction(context.TODO(), msg, true)
+	ctx, cancel := context.WithTimeout(pgb.ctx, 5*time.Second)
+	defer cancel()
+	hash, err := pgb.Client.SendRawTransaction(ctx, msg, true)
 	if err != nil {
 		log.Errorf("SendRawTransaction failed: %v", err)
 		return "", err
@@ -150,9 +153,10 @@ func (pgb *ChainDB) InsightSearchRPCAddressTransactions(addr string, count,
 		return nil
 	}
 	prevVoutExtraData := true
-	txs, err := pgb.Client.SearchRawTransactionsVerbose(context.TODO(),
+	ctx, cancel := context.WithTimeout(pgb.ctx, 10*time.Second)
+	defer cancel()
+	txs, err := pgb.Client.SearchRawTransactionsVerbose(ctx,
 		address, skip, count, prevVoutExtraData, true, nil)
-
 	if err != nil {
 		log.Warnf("GetAddressTransactions failed for address %s: %v", addr, err)
 		return nil
