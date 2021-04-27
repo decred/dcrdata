@@ -1445,7 +1445,6 @@ func (bittrex *BittrexExchange) processOrderbookUpdate(update *BittrexOrderbookU
 		return
 	}
 	if update.Sequence != bittrex.orderSeq+1 {
-		bittrex.setWsFail(fmt.Errorf("bittrex sequence error"))
 		nextSeq := bittrex.queueOrderbookUpdate(update)
 		if nextSeq <= bittrex.orderSeq+1 {
 			bittrex.processQueue()
