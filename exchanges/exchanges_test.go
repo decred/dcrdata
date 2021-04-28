@@ -4,8 +4,12 @@
 package exchanges
 
 import (
+	"bytes"
+	"compress/flate"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"sync"
@@ -227,14 +231,9 @@ func TestPoloniexWebsocket(t *testing.T) {
 	}
 }
 
-var (
-	bittrexSignalrTemplate = signalr.Message{}
-	bittrexMsgTemplate     = hubs.ClientMsg{}
-	bittrexTestUpdateChan  = make(chan *BittrexOrderbookUpdate)
-)
-
 type testBittrexConnection struct {
-	xc *BittrexExchange
+	xc           *BittrexExchange
+	subscription hubs.ClientMsg
 }
 
 func (conn testBittrexConnection) Close() {}
@@ -245,61 +244,7 @@ func (conn testBittrexConnection) On() bool {
 }
 
 func (conn testBittrexConnection) Send(subscription hubs.ClientMsg) error {
-	if subscription.M == "SubscribeToExchangeDeltas" {
-		go func() {
-			for update := range bittrexTestUpdateChan {
-				if update == nil {
-					return
-				}
-				conn.xc.msgHandler(signalr.Message{
-					M: []hubs.ClientMsg{
-						{
-							M: updateMsgKey,
-							A: []interface{}{update},
-						},
-					},
-				})
-			}
-		}()
-	}
-	if subscription.M == "QueryExchangeState" {
-		go func() {
-			book := BittrexOrderbookUpdate{
-				Nonce:      2,
-				MarketName: "BTC-DCR",
-				Buys: []*BittrexWsOrder{
-					{
-						Quantity: 5.,
-						Rate:     5.,
-						Type:     BittrexOrderAdd,
-					},
-					{
-						Quantity: 5.,
-						Rate:     6.,
-						Type:     BittrexOrderAdd,
-					},
-				},
-				Sells: []*BittrexWsOrder{
-					{
-						Quantity: 5.,
-						Rate:     105.,
-						Type:     BittrexOrderAdd,
-					},
-					{
-						Quantity: 5.,
-						Rate:     106.,
-						Type:     BittrexOrderAdd,
-					},
-				},
-				Fills: []*BittrexWsFill{},
-			}
-			msgBytes, _ := json.Marshal(book)
-			conn.xc.msgHandler(signalr.Message{
-				I: "1",
-				R: json.RawMessage(msgBytes),
-			})
-		}()
-	}
+	conn.subscription = subscription
 	return nil
 }
 
@@ -323,97 +268,96 @@ func newTestBittrexExchange() *BittrexExchange {
 }
 
 func TestBittrexWebsocket(t *testing.T) {
-	defer close(bittrexTestUpdateChan)
+	var seq uint64
+
+	// helper function to prepare a websocket orderbook update.
+	obUpdate := func(bids []*BittrexOrderbookDelta, asks []*BittrexOrderbookDelta) signalr.Message {
+		t.Helper()
+		u := BittrexOrderbookUpdate{
+			MarketSymbol: "DCR-BTC",
+			Depth:        123,
+			Sequence:     atomic.AddUint64(&seq, 1),
+			BidDeltas:    bids,
+			AskDeltas:    asks,
+		}
+
+		b, err := json.Marshal(u)
+		if err != nil {
+			t.Fatalf("json.Marshal error: %v", err)
+		}
+
+		var buf bytes.Buffer
+		fw, err := flate.NewWriter(&buf, flate.DefaultCompression)
+		if err != nil {
+			t.Fatalf("flate NewWriter error: %v", err)
+		}
+		if _, err := io.Copy(fw, bytes.NewReader(b)); err != nil {
+			t.Fatal(err)
+		}
+		if err := fw.Close(); err != nil {
+			t.Fatalf("flate Close error: %v", err)
+		}
+
+		b64 := base64.StdEncoding.EncodeToString(buf.Bytes())
+
+		return signalr.Message{
+			M: []hubs.ClientMsg{
+				{
+					M: BittrexMsgBookUpdate,
+					A: []interface{}{b64},
+				},
+			},
+		}
+	}
 
 	bittrex := newTestBittrexExchange()
 
-	template := func() BittrexOrderbookUpdate {
-		return BittrexOrderbookUpdate{
-			Buys:  []*BittrexWsOrder{},
-			Sells: []*BittrexWsOrder{},
-			Fills: []*BittrexWsFill{},
-		}
-	}
-
-	bittrex.sr.Send(bittrexWsOrderUpdateRequest)
-	checkUpdate := func(test string, update *BittrexOrderbookUpdate, askLen, buyLen int) {
-		bittrexTestUpdateChan <- update
-		// That should trigger the order book to be requested
-		<-time.NewTimer(time.Millisecond * 100).C
-		// Check that the initial orderbook was processed.
-		bittrex.orderMtx.RLock()
-		defer bittrex.orderMtx.RUnlock()
-		if len(bittrex.asks) != askLen {
-			t.Fatalf("bittrex asks slice has unexpected length %d for test ''%s'", len(bittrex.asks), test)
-		}
-		if len(bittrex.buys) != buyLen {
-			t.Fatalf("bittrex buys slice has unexpected length %d for test ''%s'", len(bittrex.buys), test)
-		}
-	}
-
-	// Set up a buy order that should be ignored because the nonce is lower than
-	// the initial nonce is too low. This update should be queued and eventually
-	// discarded.
-	update := template()
-	update.Buys = []*BittrexWsOrder{
-		{
-			Quantity: 5.,
-			Rate:     4.,
-			Type:     BittrexOrderAdd,
+	ob := &BittrexDepthResponse{
+		Seq: atomic.AddUint64(&seq, 1),
+		Bid: []*BittrexRateQty{
+			{
+				Rate: 123456,
+				Qty:  654321,
+			},
 		},
-	}
-	update.Nonce = 2
-	checkUpdate("add early nonce", &update, 2, 2)
-
-	// Remove a buy order
-	update = template()
-	update.Nonce = 3
-	update.Buys = []*BittrexWsOrder{
-		{
-			Quantity: 0.,
-			Rate:     5.,
-			Type:     BittrexOrderRemove,
-		},
-	}
-	checkUpdate("remove buy", &update, 2, 1)
-
-	// Add a sell order
-	update = template()
-	update.Nonce = 4
-	update.Sells = []*BittrexWsOrder{
-		{
-			Quantity: 0.,
-			Rate:     107.,
-			Type:     BittrexOrderAdd,
-		},
-	}
-	checkUpdate("add sell", &update, 3, 1)
-
-	// Update a sell order
-	update = template()
-	update.Nonce = 5
-	update.Sells = []*BittrexWsOrder{
-		{
-			Quantity: 0.,
-			Rate:     107.,
-			Type:     BittrexOrderUpdate,
-		},
-	}
-	checkUpdate("update sell", &update, 3, 1)
-
-	if bittrex.wsFailed() {
-		t.Fatalf("bittrex websocket unexpectedly failed")
+		Ask: []*BittrexRateQty{},
 	}
 
-	// Add too many out of order updates. Should trigger a failed state.
-	for i := 0; i < maxBittrexQueueSize+1; i++ {
-		update := template()
-		update.Nonce = 1000
-		bittrexTestUpdateChan <- &update
+	// Add an update that comes before the book.
+	asks := []*BittrexOrderbookDelta{{
+		Qty:  456789,
+		Rate: 987654,
+	}}
+	bittrex.msgHandler(obUpdate(nil, asks))
+
+	bittrex.processFullOrderbook(ob)
+
+	// Should have one update in the exchange channel.
+	var u *ExchangeUpdate
+	select {
+	case u = <-bittrex.channels.exchange:
+	case <-time.After(time.Second):
+		t.Fatalf("no exchange update received")
 	}
-	<-time.NewTimer(time.Millisecond * 100).C
-	if !bittrex.wsFailed() {
-		t.Fatalf("bittrex not in failed state as expected")
+
+	depth := u.State.Depth
+	if len(depth.Asks) != 1 {
+		t.Fatalf("pre-update ask not added")
+	}
+	if len(depth.Bids) != 1 {
+		t.Fatalf("orderbook bid not added")
+	}
+
+	// Now remove a bin by sending through a zero-quantity update.
+	asks = []*BittrexOrderbookDelta{{
+		Qty:  0,
+		Rate: 987654,
+	}}
+	bittrex.msgHandler(obUpdate(nil, asks))
+
+	depths := bittrex.wsDepths()
+	if len(depths.Asks) != 0 {
+		t.Fatalf("failed to remove order bin")
 	}
 }
 
