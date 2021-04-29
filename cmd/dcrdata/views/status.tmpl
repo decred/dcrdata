@@ -35,6 +35,9 @@
                 <h5>{{.Message}}</h5>
             {{end}}
         </div>
+        {{if .StatusType.IsNotFound}}
+            <img src="/images/404.svg" type="image/svg+xml" style="margin: 0px auto;display: block;"/>
+        {{end}}
         <div data-target="status.init" class="sync-progress">
         {{if .StatusType.IsSyncing}}
             <img src="/images/loader.gif" style="margin: 0px auto;display: block;"/>
