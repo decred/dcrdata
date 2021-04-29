@@ -13,7 +13,7 @@ module.exports = {
   optimization: {
     chunkIds: 'deterministic',
     splitChunks: {
-      chunks: 'all'
+      chunks: 'all',
     }
   },
   target: "web",
