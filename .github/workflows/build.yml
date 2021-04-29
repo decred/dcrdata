@@ -26,8 +26,8 @@ jobs:
       uses: actions/setup-node@v2
       with:
         node-version: ${{ matrix.node-version }}
-    - name: npm install
-      run: npm install
+    - name: npm clean-install
+      run: npm clean-install
       working-directory: ./cmd/dcrdata
     - name: npm run build
       run: npm run build
