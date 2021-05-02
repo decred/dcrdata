@@ -507,7 +507,56 @@ func DeleteDuplicateAgendaVotes(db *sql.DB) (int64, error) {
 	return sqlExec(db, internal.DeleteAgendaVotesDuplicateRows, execErrPrefix)
 }
 
-// --- stake (votes, tickets, misses) tables ---
+// --- stake (votes, tickets, misses, treasury) tables ---
+
+func InsertTreasuryTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked, updateExistingRecords bool) error {
+	dbtx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("unable to begin database transaction: %w", err)
+	}
+
+	// Prepare treasury insert statement, optionally updating a row if it
+	// conflicts with the unique index on (tx_hash, block_hash).
+	stmt, err := dbtx.Prepare(internal.MakeTreasuryInsertStatement(checked, updateExistingRecords))
+	if err != nil {
+		log.Errorf("Ticket INSERT prepare: %v", err)
+		_ = dbtx.Rollback() // try, but we want the Prepare error back
+		return err
+	}
+
+	// Insert each treasury txn.
+	for _, tx := range dbTxns {
+		var value int64
+		switch tx.TxType {
+		case int16(stake.TxTypeTreasuryBase):
+			value = tx.Sent // == tx.Spent because fees are 0
+		case int16(stake.TxTypeTSpend):
+			value = -tx.Spent
+		case int16(stake.TxTypeTAdd):
+			value = int64(tx.Vouts[0].Value)
+		default:
+			continue // not a treasury tx
+		}
+
+		_, err = stmt.Exec(tx.TxID, tx.TxType, value, tx.BlockHash, tx.BlockHeight,
+			tx.BlockTime, tx.IsMainchainBlock)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				continue
+			}
+			_ = stmt.Close() // try, but we want the QueryRow error back
+			if errRoll := dbtx.Rollback(); errRoll != nil {
+				log.Errorf("Rollback failed: %v", errRoll)
+			}
+			return err
+		}
+	}
+
+	// Close prepared statement. Ignore errors as we'll Commit regardless.
+	_ = stmt.Close()
+
+	return dbtx.Commit()
+}
 
 // InsertTickets takes a slice of *dbtypes.Tx and corresponding DB row IDs for
 // transactions, extracts the tickets, and inserts the tickets into the
@@ -4240,6 +4289,17 @@ func UpdateVotesMainchain(db SqlExecutor, blockHash string, isMainchain bool) (i
 func UpdateTicketsMainchain(db SqlExecutor, blockHash string, isMainchain bool) (int64, error) {
 	numRows, err := sqlExec(db, internal.UpdateTicketsMainchainByBlock,
 		"failed to update tickets is_mainchain: ", isMainchain, blockHash)
+	if err != nil {
+		return 0, err
+	}
+	return numRows, nil
+}
+
+// UpdateTreasuryMainchain sets the is_mainchain column for the entires in the
+// specified block.
+func UpdateTreasuryMainchain(db SqlExecutor, blockHash string, isMainchain bool) (int64, error) {
+	numRows, err := sqlExec(db, internal.UpdateTreasuryMainchainByBlock,
+		"failed to update treasury txns is_mainchain: ", isMainchain, blockHash)
 	if err != nil {
 		return 0, err
 	}

@@ -3279,7 +3279,7 @@ func (pgb *ChainDB) VoutsForTx(dbTx *dbtypes.Tx) ([]dbtypes.Vout, error) {
 
 func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 	tipHash := pgb.BestBlockHashStr()
-	var blocksMoved, txnsUpdated, vinsUpdated, votesUpdated, ticketsUpdated, addrsUpdated int64
+	var blocksMoved, txnsUpdated, vinsUpdated, votesUpdated, ticketsUpdated, treasuryTxnsUpdates, addrsUpdated int64
 	for tipHash != mainRoot {
 		// 1. Block. Set is_mainchain=false on the tip block, return hash of
 		// previous block.
@@ -3355,6 +3355,16 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 		ticketsUpdated += rowsUpdated
 		log.Debugf("UpdateTicketsMainchain: %v", time.Since(now))
 
+		// 8. Treasury. Sets is_mainchain=false on all entries in the tip block.
+		now = time.Now()
+		rowsUpdated, err = UpdateTreasuryMainchain(pgb.db, tipHash, false)
+		if err != nil {
+			log.Errorf("Failed to set tickets in block %s as sidechain: %v",
+				tipHash, err)
+		}
+		treasuryTxnsUpdates += rowsUpdated
+		log.Debugf("UpdateTreasuryMainchain: %v", time.Since(now))
+
 		// move on to next block
 		tipHash = previousHash
 
@@ -3367,8 +3377,8 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 		pgb.bestBlock.mtx.Unlock()
 	}
 
-	log.Debugf("Reorg orphaned: %d blocks, %d txns, %d vins, %d addresses, %d votes, %d tickets",
-		blocksMoved, txnsUpdated, vinsUpdated, addrsUpdated, votesUpdated, ticketsUpdated)
+	log.Debugf("Reorg orphaned: %d blocks, %d txns, %d vins, %d addresses, %d votes, %d tickets, %d treasury txns",
+		blocksMoved, txnsUpdated, vinsUpdated, addrsUpdated, votesUpdated, ticketsUpdated, treasuryTxnsUpdates)
 
 	return tipHash, blocksMoved, nil
 }
@@ -3668,7 +3678,7 @@ func (pgb *ChainDB) UpdateLastBlock(msgBlock *wire.MsgBlock, isMainchain bool) e
 			return fmt.Errorf("UpdateLastAddressesValid: %v", err)
 		}
 
-		// NOTE: Updating the tickets, votes, and misses tables is not
+		// NOTE: Updating the tickets, votes, misses, and treasury tables is not
 		// necessary since the stake tree is not subject to stakeholder
 		// approval.
 	}
@@ -3939,7 +3949,13 @@ txns:
 			return txRes
 		}
 
-		// TODO: treasury txns in special table
+		// Treasury txns.
+		err = InsertTreasuryTxns(pgb.db, dbTransactions, pgb.dupChecks, updateExistingRecords)
+		if err != nil && err != sql.ErrNoRows {
+			log.Error("InsertTreasuryTxns:", err)
+			txRes.err = err
+			return txRes
+		}
 
 		if updateTicketsSpendingInfo {
 			// Get information for transactions spending tickets (votes and
