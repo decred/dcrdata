@@ -1805,6 +1805,41 @@ func (pgb *ChainDB) GetTicketInfo(txid string) (*apitypes.TicketInfo, error) {
 	}, nil
 }
 
+func (pgb *ChainDB) TreasuryBalance(maturityHeight int64) (balance, spent, txCount int64, err error) {
+	var bal, spend, matureCount sql.NullInt64
+	err = pgb.db.QueryRowContext(pgb.ctx, internal.SelectTreasuryBalance, maturityHeight).Scan(&matureCount, &bal, &spend)
+	if err != nil {
+		return
+	}
+	var immatureCount sql.NullInt64
+	err = pgb.db.QueryRowContext(pgb.ctx, internal.SelectTreasuryImmatureCount, maturityHeight).Scan(&immatureCount)
+	return bal.Int64, spend.Int64, matureCount.Int64 + immatureCount.Int64, err
+}
+
+func (pgb *ChainDB) TreasuryTxns(n, offset int64) ([]*dbtypes.TreasuryTx, error) {
+	rows, err := pgb.db.QueryContext(pgb.ctx, internal.SelectTreasuryTxns, n, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var txns []*dbtypes.TreasuryTx
+	for rows.Next() {
+		var tx dbtypes.TreasuryTx
+		var mainchain bool
+		err = rows.Scan(&tx.TxID, &tx.Type, &tx.Amount, &tx.BlockHash, &tx.BlockHeight, &tx.BlockTime, &mainchain)
+		if err != nil {
+			return nil, err
+		}
+		txns = append(txns, &tx)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return txns, nil
+}
+
 func (pgb *ChainDB) updateProjectFundCache() error {
 	_, _, err := pgb.AddressHistoryAll(pgb.devAddress, 1, 0)
 	return err
@@ -3279,7 +3314,7 @@ func (pgb *ChainDB) VoutsForTx(dbTx *dbtypes.Tx) ([]dbtypes.Vout, error) {
 
 func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 	tipHash := pgb.BestBlockHashStr()
-	var blocksMoved, txnsUpdated, vinsUpdated, votesUpdated, ticketsUpdated, addrsUpdated int64
+	var blocksMoved, txnsUpdated, vinsUpdated, votesUpdated, ticketsUpdated, treasuryTxnsUpdates, addrsUpdated int64
 	for tipHash != mainRoot {
 		// 1. Block. Set is_mainchain=false on the tip block, return hash of
 		// previous block.
@@ -3355,6 +3390,16 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 		ticketsUpdated += rowsUpdated
 		log.Debugf("UpdateTicketsMainchain: %v", time.Since(now))
 
+		// 8. Treasury. Sets is_mainchain=false on all entries in the tip block.
+		now = time.Now()
+		rowsUpdated, err = UpdateTreasuryMainchain(pgb.db, tipHash, false)
+		if err != nil {
+			log.Errorf("Failed to set tickets in block %s as sidechain: %v",
+				tipHash, err)
+		}
+		treasuryTxnsUpdates += rowsUpdated
+		log.Debugf("UpdateTreasuryMainchain: %v", time.Since(now))
+
 		// move on to next block
 		tipHash = previousHash
 
@@ -3367,8 +3412,8 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 		pgb.bestBlock.mtx.Unlock()
 	}
 
-	log.Debugf("Reorg orphaned: %d blocks, %d txns, %d vins, %d addresses, %d votes, %d tickets",
-		blocksMoved, txnsUpdated, vinsUpdated, addrsUpdated, votesUpdated, ticketsUpdated)
+	log.Debugf("Reorg orphaned: %d blocks, %d txns, %d vins, %d addresses, %d votes, %d tickets, %d treasury txns",
+		blocksMoved, txnsUpdated, vinsUpdated, addrsUpdated, votesUpdated, ticketsUpdated, treasuryTxnsUpdates)
 
 	return tipHash, blocksMoved, nil
 }
@@ -3668,7 +3713,7 @@ func (pgb *ChainDB) UpdateLastBlock(msgBlock *wire.MsgBlock, isMainchain bool) e
 			return fmt.Errorf("UpdateLastAddressesValid: %v", err)
 		}
 
-		// NOTE: Updating the tickets, votes, and misses tables is not
+		// NOTE: Updating the tickets, votes, misses, and treasury tables is not
 		// necessary since the stake tree is not subject to stakeholder
 		// approval.
 	}
@@ -3939,7 +3984,13 @@ txns:
 			return txRes
 		}
 
-		// TODO: treasury txns in special table
+		// Treasury txns.
+		err = InsertTreasuryTxns(pgb.db, dbTransactions, pgb.dupChecks, updateExistingRecords)
+		if err != nil && err != sql.ErrNoRows {
+			log.Error("InsertTreasuryTxns:", err)
+			txRes.err = err
+			return txRes
+		}
 
 		if updateTicketsSpendingInfo {
 			// Get information for transactions spending tickets (votes and
@@ -4145,13 +4196,22 @@ txns:
 		// block or if the transaction is stake-invalidated. Spending
 		// information for extended side chain transaction outputs must still be
 		// done via addresses.matching_tx_hash.
-		if updateAddressesSpendingInfo && tx.IsValid && isMainchain {
+		if updateAddressesSpendingInfo && tx.IsValid && isMainchain && len(voutDbIDs) > 0 {
 			// Set spend_tx_row_id for each prevout consumed by this txn.
-			err = setSpendingForVouts(dbTx, voutDbIDs, txDbID)
-			if err != nil {
-				txRes.err = fmt.Errorf(`setSpendingForVouts: %v + %v (rollback)`,
-					err, dbTx.Rollback())
-				return txRes
+			if len(voutDbIDs) == 1 {
+				err = setSpendingForVout(dbTx, voutDbIDs[0], txDbID)
+				if err != nil {
+					txRes.err = fmt.Errorf(`setSpendingForVouts: %v + %v (rollback)`,
+						err, dbTx.Rollback())
+					return txRes
+				}
+			} else {
+				err = setSpendingForVouts(dbTx, voutDbIDs, txDbID)
+				if err != nil {
+					txRes.err = fmt.Errorf(`setSpendingForVouts: %v + %v (rollback)`,
+						err, dbTx.Rollback())
+					return txRes
+				}
 			}
 		}
 	}
@@ -4719,7 +4779,7 @@ func (pgb *ChainDB) GetVoteInfo(txhash *chainhash.Hash) (*apitypes.VoteInfo, err
 		return nil, nil
 	}
 
-	validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(tx.MsgTx(), pgb.chainParams)
+	validation, version, bits, choices, tspendVotes, err := txhelpers.SSGenVoteChoices(tx.MsgTx(), pgb.chainParams)
 	if err != nil {
 		return nil, err
 	}
@@ -4732,6 +4792,7 @@ func (pgb *ChainDB) GetVoteInfo(txhash *chainhash.Hash) (*apitypes.VoteInfo, err
 		Version: version,
 		Bits:    bits,
 		Choices: choices,
+		TSpends: apitypes.ConvertTSpendVotes(tspendVotes),
 	}
 	return vinfo, nil
 }
@@ -5294,7 +5355,7 @@ func makeExplorerTxBasic(data *chainjson.TxRawResult, ticketPrice int64, msgTx *
 	// Votes need VoteInfo set. Regular txns need to be screened for mixes.
 	switch txType {
 	case stake.TxTypeSSGen:
-		validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, params)
+		validation, version, bits, choices, tspendVotes, err := txhelpers.SSGenVoteChoices(msgTx, params)
 		if err != nil {
 			log.Debugf("Cannot get vote choices for %s", tx.TxID)
 			return tx, txType
@@ -5308,6 +5369,7 @@ func makeExplorerTxBasic(data *chainjson.TxRawResult, ticketPrice int64, msgTx *
 			Version: version,
 			Bits:    bits,
 			Choices: choices,
+			TSpends: exptypes.ConvertTSpendVotes(tspendVotes),
 		}
 	case stake.TxTypeRegular:
 		_, mixDenom, mixCount := txhelpers.IsMixTx(msgTx)
@@ -6066,7 +6128,7 @@ func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
 
 		var voteInfo *exptypes.VoteInfo
 		if txType == stake.TxTypeSSGen /* stake.IsSSGen(msgTx, treasuryActive) */ {
-			validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, pgb.chainParams) // todo: hint treasury active
+			validation, version, bits, choices, tspendVotes, err := txhelpers.SSGenVoteChoices(msgTx, pgb.chainParams) // todo: hint treasury active
 			if err != nil {
 				log.Debugf("Cannot get vote choices for %s", hash)
 			} else {
@@ -6080,6 +6142,7 @@ func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
 					Bits:        bits,
 					Choices:     choices,
 					TicketSpent: msgTx.TxIn[1].PreviousOutPoint.Hash.String(),
+					TSpends:     exptypes.ConvertTSpendVotes(tspendVotes),
 				}
 			}
 		}

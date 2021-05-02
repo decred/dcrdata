@@ -382,3 +382,36 @@
   <span class="alert alert-success alert-copy">
   </span>
 {{end}}
+
+{{define "treasuryTable"}}
+<table class="table table-mono-cells table-responsive-sm">
+	<thead>
+		<tr>
+		<th class="d-none d-sm-table-cell">Tx Type</th>
+		<th class="text-left">Transaction</th>
+		<th class="text-right">Amount</th>
+		<th class="text-right">Block</th>
+		<th class="d-none d-sm-table-cell text-right">Time (UTC)</th>
+		<!-- <th class="text-right"><span class="d-sm-none position-relative" data-tooltip="Confirmations">Cons</span><span class="d-none d-sm-inline">Confirms</span></th> -->
+		</tr>
+	</thead>
+	<tbody>
+	{{- range .Transactions}}
+		<tr> {{/* {{if eq .Confirmations 0}}data-target="address.pending" data-txid="{{.TxID}}"{{end}} */}}
+			<td class="d-none d-sm-table-cell">{{txtypeStr .Type}}</td>
+			<td class="clipboard">{{template "hashElide" (hashlink .TxID (printf "/tx/%s" .TxID))}}</td>
+			<td class="text-right fs15">{{template "decimalParts" (amountAsDecimalParts .Amount false)}}</td>
+			<td class="text-right fs15">{{.BlockHeight}}</td>
+			<td class="addr-tx-time d-none d-sm-table-cell text-right">{{.BlockTime.DatetimeWithoutTZ}}</td>
+			{{/*  <td class="addr-tx-confirms text-right"
+				data-target="newblock.confirmations"
+				data-confirmations="{{.Confirmations}}"
+				data-confirmation-block-height="{{if eq .Confirmations 0}}-1{{else}}{{.BlockHeight}}{{end}}"
+				data-yes="#"
+				data-no="(unconfirmed)"
+			>{{.Confirmations}}</td> */}}
+		</tr>
+	{{- end}}
+	</tbody>
+</table>
+{{- end}}

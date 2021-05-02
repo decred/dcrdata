@@ -1,5 +1,4 @@
-// Package dbconfig defines the parameters and methods needed for the PostgreSQL
-// and SQLite tests.
+// Package dbconfig defines the parameters and methods for the PostgreSQL tests.
 package dbconfig
 
 import (

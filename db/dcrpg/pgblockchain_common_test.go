@@ -71,7 +71,7 @@ func openDB() (func() error, error) {
 		Port:   dbconfig.PGTestsPort,
 		User:   dbconfig.PGTestsUser,
 		Pass:   dbconfig.PGTestsPass,
-		DBName: dbconfig.PGTestsDBName,
+		DBName: dbconfig.PGTestsDBName, // dcrdata_testnet3 for treasury testing
 	}
 	cfg := &ChainDBCfg{
 		dbi,

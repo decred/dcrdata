@@ -21,7 +21,7 @@ const (
 	quickStatsTarget         = 250
 	deepStatsTarget          = 600
 	rescanLogBlockChunk      = 500
-	initialLoadSyncStatusMsg = "Syncing stake, base and auxiliary DBs..."
+	initialLoadSyncStatusMsg = "Syncing stake and chain DBs..."
 	voutsSyncStatusMsg       = "Syncing vouts table with spending info..."
 	addressesSyncStatusMsg   = "Syncing addresses table with spending info..."
 )
@@ -133,6 +133,22 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		}
 	}
 
+	if pgb.utxoCache.Size() == 0 { // entries at any height implies it's warmed by previous sync
+		log.Infof("Collecting all UTXO data prior to height %d...", lastBlock+1)
+		utxoFunc := RetrieveUTXOs
+		if updateAllAddresses {
+			utxoFunc = RetrieveUTXOsByVinsJoin
+		}
+		utxos, err := utxoFunc(ctx, pgb.db)
+		if err != nil {
+			return -1, fmt.Errorf("RetrieveUTXOs: %v", err)
+		}
+
+		log.Infof("Pre-warming UTXO cache with %d UTXOs...", len(utxos))
+		pgb.InitUtxoCache(utxos)
+		log.Infof("UTXO cache is ready.")
+	}
+
 	if reindexing {
 		// Remove any existing indexes.
 		log.Info("Large bulk load: Removing indexes and disabling duplicate checks.")
@@ -159,20 +175,6 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		// with the tables' constraints.
 		pgb.EnableDuplicateCheckOnInsert(true)
 	}
-
-	log.Infof("Collecting all UTXO data prior to height %d...", lastBlock+1)
-	utxoFunc := RetrieveUTXOs
-	if updateAllAddresses {
-		utxoFunc = RetrieveUTXOsByVinsJoin
-	}
-	utxos, err := utxoFunc(ctx, pgb.db)
-	if err != nil {
-		return -1, fmt.Errorf("RetrieveUTXOs: %v", err)
-	}
-
-	log.Infof("Pre-warming UTXO cache with %d UTXOs...", len(utxos))
-	pgb.InitUtxoCache(utxos)
-	log.Infof("UTXO cache is ready.")
 
 	// When reindexing or adding a large amount of data, ANALYZE tables.
 	requireAnalyze := reindexing || nodeHeight-lastBlock > 10000
@@ -269,7 +271,7 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		// Progress logging
 		if (ib-1)%rescanLogBlockChunk == 0 || ib == startHeight {
 			if ib == 0 {
-				log.Infof("Scanning genesis block into auxiliary chain db.")
+				log.Infof("Scanning genesis block into chain db.")
 			} else {
 				endRangeBlock := rescanLogBlockChunk * (1 + (ib-1)/rescanLogBlockChunk)
 				if endRangeBlock > nodeHeight {
@@ -468,6 +470,8 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 			BarID: dbtypes.AddressesTableSync,
 		})
 
+		log.Debug("Dropping index on vouts.spend_tx_row_id during update...")
+		_ = DeindexVoutTableOnSpendTxID(pgb.db) // ignore error is the index is absent
 		N, err := updateSpendTxInfoInAllVouts(pgb.db)
 		if err != nil {
 			return nodeHeight, fmt.Errorf("UPDATE vouts.spend_tx_row_id error: %v", err)
