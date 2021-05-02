@@ -1341,16 +1341,105 @@ func (exp *explorerUI) TreasuryPage(w http.ResponseWriter, r *http.Request) {
 	ctx := context.WithValue(r.Context(), ctxAddress, exp.pageData.HomeInfo.DevAddress)
 	r = r.WithContext(ctx)
 	if queryVals := r.URL.Query(); queryVals.Get("txntype") == "" {
-		queryVals.Set("txntype", "merged_debit")
+		queryVals.Set("txntype", "tspend")
 		r.URL.RawQuery = queryVals.Encode()
 	}
-	exp.AddressPage(w, r)
+
+	limitN := defaultAddressRows
+	if nParam := r.URL.Query().Get("n"); nParam != "" {
+		val, err := strconv.ParseUint(nParam, 10, 64)
+		if err != nil {
+			exp.StatusPage(w, defaultErrorCode, "invalid n value", "", ExpStatusError)
+			return
+		}
+		if int64(val) > MaxAddressRows {
+			log.Warnf("TreasuryPage: requested up to %d address rows, "+
+				"limiting to %d", limitN, MaxAddressRows)
+			limitN = MaxAddressRows
+		} else {
+			limitN = int64(val)
+		}
+	}
+
+	// Number of txns to skip (OFFSET in database query). For UX reasons, the
+	// "start" URL query parameter is used.
+	var offset int64
+	if startParam := r.URL.Query().Get("start"); startParam != "" {
+		val, err := strconv.ParseUint(startParam, 10, 64)
+		if err != nil {
+			exp.StatusPage(w, defaultErrorCode, "invalid start value", "", ExpStatusError)
+			return
+		}
+		offset = int64(val)
+	}
+
+	// Transaction types to show.
+	txnTypeStr := r.URL.Query().Get("txntype")
+	if txnTypeStr == "" {
+		txnTypeStr = "all"
+	}
+	txTypes := int(-1)
+	switch strings.ToLower(txnTypeStr) {
+	case "all":
+	case "tspend":
+		txTypes = int(stake.TxTypeTSpend)
+	case "tadd":
+		txTypes = int(stake.TxTypeTAdd)
+	case "treasurybase":
+		txTypes = int(stake.TxTypeTreasuryBase)
+	}
+
+	// Retrieve data here...
+
+	var treasuryData *dbtypes.TreasuryInfo
+
+	// Set page parameters.
+	treasuryData.Path = r.URL.Path
+
+	// If exchange monitoring is active, prepare a fiat balance conversion
+	conversion := exp.xcBot.Conversion(dcrutil.Amount(treasuryData.Balance).ToCoin())
+
+	// For Windows clients only, link to downloads with CRLF (\r\n) line
+	// endings.
+	UseCRLF := strings.Contains(r.UserAgent(), "Windows")
+
+	if limitN == 0 {
+		limitN = 20
+	}
+
+	linkTemplate := fmt.Sprintf("/treasury?start=%%d&n=%d&txntype=%v", limitN, txTypes)
+
+	// Execute the HTML template.
+	type treasuryPageData struct {
+		*CommonPageData
+		Data         *dbtypes.TreasuryInfo
+		CRLFDownload bool
+		FiatBalance  *exchanges.Conversion
+		Pages        []pageNumber
+	}
+	pageData := treasuryPageData{
+		CommonPageData: exp.commonData(r),
+		Data:           treasuryData,
+		CRLFDownload:   UseCRLF,
+		FiatBalance:    conversion,
+		Pages:          calcPages(int(treasuryData.TxnCount), int(limitN), int(offset), linkTemplate),
+	}
+	str, err := exp.templates.exec("treasury", pageData)
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.Header().Set("Turbolinks-Location", r.URL.RequestURI())
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
 }
 
 // AddressPage is the page handler for the "/address" path.
 func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	// AddressPageData is the data structure passed to the HTML template
-
 	type AddressPageData struct {
 		*CommonPageData
 		Data         *dbtypes.AddressInfo

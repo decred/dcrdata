@@ -1,0 +1,258 @@
+{{define "treasury"}}
+<!DOCTYPE html>
+<html lang="en">
+{{template "html-head" "Decred Decentralized Treasury"}}
+  {{template "navbar" . }}
+  {{- with .Data}}
+  {{- $TxnCount := .TxnCount}}
+  <div class="container main"
+    data-controller="address"
+    data-address-offset="{{.Offset}}"
+    data-address-txn-count="{{$.TxnCount}}"
+    data-address-balance="{{toFloat64Amount .Balance.TotalUnspent}}"
+  >
+    <div class="fullscreen d-none" data-target="address.fullscreen" data-action="click->address#exitFullscreen">
+      <div class="secondary-card d-inline-block w-100 h-100 p-4" data-target="address.bigchart"></div>
+    </div>
+    <div class="row pb-4 px-2">
+      <div class="col-24 col-xl-10 bg-white px-3 py-3 position-relative">
+        <div class="fs22 pb-3">Decred Treasury</div>
+        <div class="position-relative d-flex justify-content-between align-items-center flex-wrap">
+          <div class="d-inline-block text-left pr-2 pb-3">
+            <span class="text-secondary fs13">Balance</span>
+            <br>
+            <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal font-weight-bold">
+            {{- if .Balance}}
+              {{template "decimalParts" (amountAsDecimalParts .Balance.TotalUnspent true)}} <span class="text-secondary fs14">DCR</span>
+            {{- else}}
+              <span class="fs18">0</span> <span class="text-secondary fs14">DCR</span>
+            {{- end}}
+            </span>
+            <br>
+            {{- if $.FiatBalance}}
+              <span class="text-secondary fs16 lh1rem">{{threeSigFigs $.FiatBalance.Value}} <span class="fs14">{{$.FiatBalance.Index}}</span></span>
+            {{- end}}
+          </div>
+          <div class="d-inline-block text-left pr-2 pb-3">
+            <span class="text-secondary fs13">Received</span>
+            <br>
+            <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal font-weight-bold">
+            {{- if .Balance}}
+              {{- $received := add .Balance.TotalSpent .Balance.TotalUnspent}}
+              {{- template "decimalParts" (amountAsDecimalParts $received true)}} <span class="text-secondary fs14">DCR</span>
+            {{- else}}
+              <span class="fs18">0</span> <span class="text-secondary fs14">DCR</span>
+            {{- end}}
+            </span>
+            <br>
+            <span class="text-secondary fs16 lh1rem">{{intComma (add .Balance.NumSpent .Balance.NumUnspent)}} outputs</span>
+          </div>
+          <div class="d-inline-block text-left pr-2 pb-3">
+            <span class="text-secondary fs13">Spent</span>
+            <br>
+            <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal font-weight-bold">
+            {{- if .Balance}}
+              {{- template "decimalParts" (amountAsDecimalParts .Balance.TotalSpent true)}} <span class="text-secondary fs14">DCR</span>
+            {{- else}}
+              <span class="fs18">0</span> <span class="text-secondary fs14">DCR</span>
+            {{- end}}
+            </span>
+            <br>
+            <span class="text-secondary fs16 lh1rem">{{intComma .Balance.NumSpent}} inputs</span>
+          </div>
+          <span></span>
+        </div>
+        <div class="row pb-2">
+          {{- if ne .NumUnconfirmed 0}}
+          <div class="col-12 pb-2 fs14 text-secondary text-left" data-target="address.numUnconfirmed">
+            <span class="font-weight-bold">Unconfirmed</span>: <span class="addr-unconfirmed-count">{{.NumUnconfirmed}}</span>
+          </div>
+          {{- end}}
+        </div>
+      </div>
+      <div class="col-24 col-xl-14 secondary-card p-2">
+        <noscript>
+          <div class="text-center pt-5 fs15">Enable Javascript to see charts</div>
+        </noscript>
+        <div class="jsonly h-100" data-target="address.littlechart">
+          <div class="d-flex flex-column h-100" data-target="address.chartbox">
+            <div class="d-flex flex-wrap justify-content-around align-items-start">
+              <div class="loader-v2 loading" data-target="address.chartLoader"></div>
+              <div class="btn-set secondary-card d-inline-flex flex-nowrap mx-2">
+                <label>Chart</label>
+                <select
+                  class="chart-box d-inline-flex"
+                  data-target="address.options"
+                  data-action="change->address#changeGraph"
+                >
+                  <option name="balance" value="balance">Balance</option>
+                  <option name="types" value="types">Tx Type</option>
+                  <option name="amountflow" value="amountflow">Sent/Received</option>
+                </select>
+              </div>
+              <div
+                class="btn-set secondary-card d-inline-flex flex-nowrap mx-2"
+                data-toggle="buttons"
+                data-target="address.zoom"
+                data-action="click->address#onZoom"
+              >
+                <label>Zoom</label>
+                <button class="btn-selected" name="all" data-fixed="1">All</button>
+                <button name="year">Year</button>
+                <button name="month">Month</button>
+                <button name="week">Week</button>
+                <button name="day">Day</button>
+              </div>
+              <div
+                class="btn-set secondary-card d-inline-flex flex-nowrap mx-2"
+                data-toggle="buttons"
+                data-txcount="{{$TxnCount}}"
+                data-target="address.interval"
+                data-action="click->address#changeBin"
+              >
+                <label class="d-inline-flex pr-1">Group By </label>
+                <button name="year">Year</button>
+                <button class="btn-selected" name="month">Month</button>
+                <button name="week">Week</button>
+                <button name="day" data-fixed="1">Day</button>
+                <button name="all" data-fixed="1">Block</button>
+              </div>
+              <div class="row flex-nowrap d-inline-flex d-hide mx-2 mb-2" data-target="address.flow"
+                data-action="change->address#updateFlow">
+                <label class="customcheck ml-2 d-inline-flex">Sent
+                  <input type="checkbox" value="2">
+                  <span class="checkmark sent"></span>
+                </label>
+                <label class="customcheck ml-2 d-inline-flex">Received
+                  <input type="checkbox" checked="checked" value="1">
+                  <span class="checkmark received"></span>
+                </label>
+                <label class="customcheck mx-2 d-inline-flex">Net
+                  <input type="checkbox" value="4">
+                  <span class="checkmark net"></span>
+                </label>
+              </div>
+            </div>
+            <div class="p-3 address_chart_wrap">
+              <div class="expando dcricon-expand" data-target="address.expando" data-action="click->address#toggleExpand"></div>
+              <div class="py-5 fs16 d-none" data-target="address.noconfirms"></div>
+              <div data-target="address.chart" class="address_chart"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="position-relative" data-target="address.listbox">
+      <div class="row align-items-center">
+        <div class="mr-auto mb-0 h4 col-24 col-sm-6">Transactions</div>
+        <div class="d-flex flex-wrap-reverse align-items-center justify-content-end py-1 col-24 col-sm-18">
+          <span class="fs12 nowrap text-right" data-target="address.range">
+            showing {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumTransactions)}} of
+            <span data-target="address.txnCount" data-txn-count="{{$TxnCount}}">{{intComma $TxnCount}}</span> transactions
+          </span>
+          <nav aria-label="address transactions navigation"
+            data-limit="{{.Limit}}"
+            class="my-1 ml-2{{if ge .NumTransactions $TxnCount}} d-hide{{end}}"
+            data-target="address.pagebuttons"
+          >
+            <ul class="pagination mb-0 pagination-sm">
+              <li class="page-item {{if eq .Offset 0}}disabled{{end}}"
+                  data-target="address.pageminus">
+                <a class="page-link"
+                   href="{{.Path}}?n={{.Limit}}&start={{if gt (subtract .Offset .Limit) 0}}{{subtract .Offset .Limit}}{{else}}0{{end}}&txntype={{$txType}}"
+                   data-turbolinks="false"
+                   data-target="address.paginator"
+                   data-action="address#prevPage"
+                >Previous</a>
+              </li>
+              <li class="page-item {{if lt (subtract $TxnCount .Offset) (add .Limit 1)}}disabled{{end}}"
+                  data-target="address.pageplus">
+                <a class="page-link"
+                   href="{{.Path}}?n={{.Limit}}&start={{add .Offset .Limit}}&txntype={{$txType}}"
+                   data-turbolinks="false"
+                   data-target="address.paginator"
+                   data-action="address#nextPage"
+                >Next</a>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      </div>
+      <div class="position-relative">
+        <div class="loader-v2" data-target="address.listLoader"></div>
+        <div class="position-relative" data-target="address.table">
+          {{template "treasuryTable" .}}
+        </div>
+      </div>
+      <span class="fs13 py-1 d-block{{if not .IsMerged}} d-hide{{end}}" data-target="address.mergedMsg">
+          *No unconfirmed transactions shown in merged views.
+      </span>
+      <div class="text-right pr-3" data-target="address.tablePagination">
+        {{if ne .Offset 0}}
+        <a class="d-inline-block dcricon-arrow-left m-1 fz20"
+           data-action="click->address#pageNumberLink"
+           href="/treasury?start={{subtract .Offset .Limit}}&n={{.Limit}}&txntype={{$txType}}"></a>
+        {{end}}
+        {{range $.Pages}}
+          {{if eq .Link ""}}
+          <span>{{.Str}}</span>
+          {{else}}
+          <a class="fs18 pager px-1{{if .Active}} active{{end}}"
+              data-action="click->address#pageNumberLink"
+              href="{{.Link}}">{{.Str}}</a>
+          {{end}}
+        {{end}}
+        {{if gt (subtract $TxnCount .Offset) .Limit}}
+        <a class="d-inline-block dcricon-arrow-right m-1 fs20"
+            data-action="click->address#pageNumberLink"
+            href="/treasury?start={{add .Offset .Limit}}&n={{.Limit}}&txntype={{$txType}}"></a>
+        {{end}}
+      </div>
+      <div class="d-flex align-items-center justify-content-between">
+        <span></span>{{/*This dummy span ensures left/right alignment of the buttons, even if one is hidden.*/}}
+        <div class="d-flex flex-row">
+          <div class="d-inline-block text-right">
+            <label class="mb-0 mr-1" for="txntype">Type</label>
+            <select
+              name="txntype"
+              data-target="address.txntype"
+              data-action="change->address#changeTxType"
+              class="form-control-sm mb-2 mr-sm-2 mb-sm-0"
+            >
+              <option {{if eq $txType "all"}}selected{{end}} value="all">All</option>
+              <option {{if eq $txType "tspend"}}selected{{end}} value="tspend">Spend</option>
+              <option {{if eq $txType "tadd"}}selected{{end}} value="tadd">Add</option>
+              <option {{if eq $txType "treasurybase"}}selected{{end}} value="treasurybase">Treasurybase</option>
+            </select>
+          </div>
+          <div class="d-inline-block text-right">
+            <label class="mb-0 mr-1" for="pagesize">Page size</label>
+            <select
+              name="pagesize"
+              id="pagesize"
+              data-target="address.pagesize"
+              data-action="change->address#changePageSize"
+              class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $TxnCount 20}}disabled{{end}}"
+              {{- if lt $TxnCount 20}} disabled{{end}}
+            >
+            {{- $Txlen := len .Transactions}}
+              <option {{if eq $Txlen 20}}selected {{end}}value="20"{{if lt $TxnCount 20}} disabled{{end}}>20</option>
+              <option {{if eq $Txlen 40}}selected {{end}}value="40"{{if lt $TxnCount 40}} disabled{{end}}>40</option>
+              <option {{if eq $Txlen 80}}selected {{end}}value="80"{{if lt $TxnCount 80}} disabled{{end}}>80</option>
+            {{- if lt $TxnCount 160}}
+              <option {{if eq $Txlen $TxnCount}}selected {{end}}value="{{$TxnCount}}"{{if le $TxnCount 160}} disabled{{end}}>{{$TxnCount}}</option>
+            {{- else}}
+              <option {{if ge $Txlen 160}}selected {{end}}value="160">160</option>
+            {{- end}}
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>{{/*address.listbox*/}}
+  </div>{{/* container main */}}
+  {{- end}}{{/* with .Data */}}
+  {{template "footer" . }}
+</body>
+</html>
+{{- end}}
