@@ -70,6 +70,11 @@ const (
 	// stats table
 
 	IndexOfHeightOnStatsTable = "uix_stats_height"
+
+	// treasury table
+
+	IndexOfTreasuryTableOnTxHash = "uix_treasury_tx_hash"
+	IndexOfTreasuryTableOnHeight = "idx_treasury_height"
 )
 
 // AddressesIndexNames are the names of the indexes on the addresses table.
@@ -108,4 +113,6 @@ var IndexDescriptions = map[string]string{
 	IndexOfProposalsTableOnToken:           "proposals on token and time",
 	IndexOfProposalVotesTableOnProposalsID: "proposal_votes on proposals row ID",
 	IndexOfHeightOnStatsTable:              "stats table on height",
+	IndexOfTreasuryTableOnTxHash:           "treasury table on tx hash",
+	IndexOfTreasuryTableOnHeight:           "treasury table on block height",
 }

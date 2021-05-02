@@ -788,9 +788,20 @@ func SSTXInBlock(block *dcrutil.Block) []*dcrutil.Tx {
 // block, and returns the votebits in case the caller wants to check agenda
 // votes. The error return may be ignored if the input transaction is known to
 // be a valid ssgen (vote), otherwise it should be checked.
-func SSGenVoteBlockValid(msgTx *wire.MsgTx) (BlockValidation, uint16, error) {
-	if !stake.IsSSGen(msgTx, true /* TODO treasuryEnabled */) {
-		return BlockValidation{}, 0, fmt.Errorf("not a vote transaction")
+func SSGenVoteBlockValid(msgTx *wire.MsgTx) (BlockValidation, []*TSpendVote, uint16, error) {
+	treasuryVotes, err := stake.CheckSSGenVotes(msgTx, true)
+	if err != nil {
+		return BlockValidation{}, nil, 0, fmt.Errorf("not a vote transaction")
+	}
+	var tspendVotes []*TSpendVote
+	if len(treasuryVotes) > 0 {
+		tspendVotes = make([]*TSpendVote, len(treasuryVotes))
+		for i := range treasuryVotes {
+			tspendVotes[i] = &TSpendVote{
+				TSpend: treasuryVotes[i].Hash,
+				Choice: uint8(treasuryVotes[i].Vote),
+			}
+		}
 	}
 
 	ssGenVoteBits := stake.SSGenVoteBits(msgTx)
@@ -800,7 +811,7 @@ func SSGenVoteBlockValid(msgTx *wire.MsgTx) (BlockValidation, uint16, error) {
 		Height:   int64(blockHeight),
 		Validity: dcrutil.IsFlagSet16(ssGenVoteBits, dcrutil.BlockValid),
 	}
-	return blockValid, ssGenVoteBits, nil
+	return blockValid, tspendVotes, ssGenVoteBits, nil
 }
 
 // VoteBitsInBlock returns a list of vote bits for the votes in a block
@@ -883,15 +894,21 @@ func VoteVersion(pkScript []byte) uint32 {
 	return binary.LittleEndian.Uint32(pkScript[4:8])
 }
 
+// TSpendVote describes how a SSGen transaction decided on a tspend.
+type TSpendVote struct {
+	TSpend chainhash.Hash
+	Choice uint8
+}
+
 // SSGenVoteChoices gets a ssgen's vote choices (block validity and any
 // agendas). The vote's stake version, to which the vote choices correspond, and
 // vote bits are also returned. Note that []*VoteChoice may be an empty slice if
 // there are no consensus deployments for the transaction's vote version. The
 // error value may be non-nil if the tx is not a valid ssgen.
-func SSGenVoteChoices(tx *wire.MsgTx, params *chaincfg.Params) (BlockValidation, uint32, uint16, []*VoteChoice, error) {
-	validBlock, voteBits, err := SSGenVoteBlockValid(tx /*, TODO treasuryEnabled */)
+func SSGenVoteChoices(tx *wire.MsgTx, params *chaincfg.Params) (BlockValidation, uint32, uint16, []*VoteChoice, []*TSpendVote, error) {
+	validBlock, tspendVotes, voteBits, err := SSGenVoteBlockValid(tx /*, TODO treasuryEnabled */)
 	if err != nil {
-		return validBlock, 0, 0, nil, err
+		return validBlock, 0, 0, nil, nil, err
 	}
 
 	// Determine the ssgen's vote version and get the relevant consensus
@@ -907,6 +924,9 @@ func SSGenVoteChoices(tx *wire.MsgTx, params *chaincfg.Params) (BlockValidation,
 	for d := range deployments {
 		voteAgenda := &deployments[d].Vote
 		choiceIndex := voteAgenda.VoteIndex(voteBits)
+		if choiceIndex < 0 || choiceIndex >= len(voteAgenda.Choices) {
+			continue // should not happen with a vote from dcrd, but we don't want to panic below
+		}
 		voteChoice := VoteChoice{
 			ID:          voteAgenda.Id,
 			Description: voteAgenda.Description,
@@ -919,7 +939,7 @@ func SSGenVoteChoices(tx *wire.MsgTx, params *chaincfg.Params) (BlockValidation,
 		choices = append(choices, &voteChoice)
 	}
 
-	return validBlock, voteVersion, voteBits, choices, nil
+	return validBlock, voteVersion, voteBits, choices, tspendVotes, nil
 }
 
 // FeeInfoBlock computes ticket fee statistics for the tickets included in the

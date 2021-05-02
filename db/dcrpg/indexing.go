@@ -354,6 +354,34 @@ func DeindexProposalVotesTableOnProposalsID(db *sql.DB) (err error) {
 	return
 }
 
+// IndexTreasuryTableOnTxHash creates the index for the treasury table over
+// tx_hash.
+func IndexTreasuryTableOnTxHash(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexTreasuryOnTxHash)
+	return
+}
+
+// DeindexTreasuryTableOnTxHash drops the index for the treasury table over tx
+// hash.
+func DeindexTreasuryTableOnTxHash(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexTreasuryOnTxHash)
+	return
+}
+
+// IndexTreasuryTableOnHeight creates the index for the treasury table over
+// block height.
+func IndexTreasuryTableOnHeight(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexTreasuryOnBlockHeight)
+	return
+}
+
+// DeindexTreasuryTableOnHeight drops the index for the treasury table over
+// block height.
+func DeindexTreasuryTableOnHeight(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexTreasuryOnBlockHeight)
+	return
+}
+
 // Delete duplicates
 
 func (pgb *ChainDB) DeleteDuplicateVins() (int64, error) {
@@ -493,6 +521,10 @@ func (pgb *ChainDB) DeindexAll() error {
 
 		// stats table
 		{DeindexStatsTableOnHeight},
+
+		// treasury table
+		{DeindexTreasuryTableOnTxHash},
+		{DeindexTreasuryTableOnHeight},
 	}
 
 	var err error
@@ -511,8 +543,8 @@ func (pgb *ChainDB) DeindexAll() error {
 
 // IndexAll creates most indexes in the tables. Exceptions: (1) addresses on
 // matching_tx_hash (use IndexAddressTable or do it individually), (2) all
-// tickets table indexes (use IndexTicketsTable), and (3) vouts on tx hash and
-// index.
+// tickets table indexes (use IndexTicketsTable), and (3) vouts on
+// spend_tx_row_id (use IndexVoutTableOnSpendTxID).
 func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 	allIndexes := []indexingInfo{
 		// blocks table
@@ -568,6 +600,10 @@ func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 
 		// stats table
 		{Msg: "stats table on height", IndexFunc: IndexStatsTableOnHeight},
+
+		// treasury table
+		{Msg: "treasury on tx hash", IndexFunc: IndexTreasuryTableOnTxHash},
+		{Msg: "treasury on block height", IndexFunc: IndexTreasuryTableOnHeight},
 	}
 
 	for _, val := range allIndexes {

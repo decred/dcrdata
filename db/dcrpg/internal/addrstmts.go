@@ -74,7 +74,7 @@ const (
 	DeindexAddressTableOnAddress = `DROP INDEX IF EXISTS ` + IndexOfAddressTableOnAddress + ` CASCADE;`
 
 	IndexAddressTableOnTxHash = `CREATE INDEX IF NOT EXISTS ` + IndexOfAddressTableOnTx +
-		` ON addresses(tx_hash);`
+		` ON addresses(tx_hash, tx_vin_vout_index, is_funding);` // INCLUDE (valid_mainchain)? it's mutable tho
 	DeindexAddressTableOnTxHash = `DROP INDEX IF EXISTS ` + IndexOfAddressTableOnTx + ` CASCADE;`
 
 	// SelectSpendingTxsByPrevTx = `SELECT id, tx_hash, tx_index, prev_tx_index FROM vins WHERE prev_tx_hash=$1;`
@@ -115,19 +115,19 @@ const (
 	selectAddressTimeGroupingCount = `SELECT COUNT(DISTINCT %s) FROM addresses WHERE address=$1;`
 
 	SelectAddressUnspentCountANDValue = `SELECT COUNT(*), SUM(value) FROM addresses
-	    WHERE address = $1 AND is_funding = TRUE AND matching_tx_hash = '' AND valid_mainchain = TRUE;`
+	    WHERE address = $1 AND is_funding = TRUE AND matching_tx_hash = '' AND valid_mainchain;`
 
 	SelectAddressSpentCountANDValue = `SELECT COUNT(*), SUM(value) FROM addresses
-		WHERE address = $1 AND is_funding = FALSE AND matching_tx_hash != '' AND valid_mainchain = TRUE;`
+		WHERE address = $1 AND is_funding = FALSE AND matching_tx_hash != '' AND valid_mainchain;`
 
 	SelectAddressesMergedSpentCount = `SELECT COUNT( DISTINCT tx_hash ) FROM addresses
-		WHERE address = $1 AND is_funding = FALSE AND valid_mainchain = TRUE;`
+		WHERE address = $1 AND is_funding = FALSE AND valid_mainchain;`
 
 	SelectAddressesMergedFundingCount = `SELECT COUNT( DISTINCT tx_hash ) FROM addresses
-		WHERE address = $1 AND is_funding = TRUE AND valid_mainchain = TRUE;`
+		WHERE address = $1 AND is_funding = TRUE AND valid_mainchain;`
 
 	SelectAddressesMergedCount = `SELECT COUNT( DISTINCT tx_hash ) FROM addresses
-		WHERE address = $1 AND valid_mainchain = TRUE;`
+		WHERE address = $1 AND valid_mainchain;`
 
 	// SelectAddressSpentUnspentCountAndValue gets the number and combined spent
 	// and unspent outpoints for the given address. The key is the "GROUP BY
@@ -151,14 +151,14 @@ const (
 	// Since part of the grouping is on "matching_tx_hash = ''", what is
 	// logically "any" empty matching is actually no_empty_matching.
 	SelectAddressSpentUnspentCountAndValue = `SELECT
-			BOOL_AND(tx_type = 0) AS is_regular,
+			(tx_type = 0) AS is_regular,
 			COUNT(*),
 			SUM(value),
 			is_funding,
-			BOOL_AND(matching_tx_hash = '') AS all_empty_matching
+			(matching_tx_hash = '') AS all_empty_matching
 			-- NOT BOOL_AND(matching_tx_hash = '') AS no_empty_matching
 		FROM addresses
-		WHERE address = $1 AND valid_mainchain = TRUE
+		WHERE address = $1 AND valid_mainchain
 		GROUP BY tx_type=0, is_funding, 
 			matching_tx_hash=''  -- separate spent and unspent
 		ORDER BY count, is_funding;`
@@ -181,7 +181,7 @@ const (
 	// is_funding=true, there is no need to join vouts on tx_hash and tx_index.
 
 	SelectAddressLimitNByAddress = `SELECT ` + addrsColumnNames + ` FROM addresses
-		WHERE address=$1 AND valid_mainchain = TRUE
+		WHERE address=$1 AND valid_mainchain
 		ORDER BY block_time DESC, tx_hash ASC
 		LIMIT $2 OFFSET $3;`
 
@@ -230,9 +230,6 @@ const (
 		FROM addresses
 		WHERE tx_hash=$1 AND tx_vin_vout_index=$2 AND is_funding
 		ORDER BY block_time DESC;`
-
-	SelectAddressIDByVoutIDAddress = `SELECT id FROM addresses WHERE address=$1 AND
-	    tx_vin_vout_row_id=$2 AND is_funding;`
 
 	SelectAddressOldestTxBlockTime = `SELECT block_time FROM addresses WHERE
 		address=$1 ORDER BY block_time LIMIT 1;`
@@ -313,9 +310,6 @@ const (
 
 	SetAddressMainchainForVinIDs = `UPDATE addresses SET valid_mainchain=$1
 		WHERE is_funding = FALSE AND tx_vin_vout_row_id=$2;`
-
-	SetTxTypeOnAddressesByVinAndVoutIDs = `UPDATE addresses SET tx_type=$1 WHERE
-		tx_vin_vout_row_id=$2 AND is_funding=$3;`
 
 	// Patches/upgrades
 

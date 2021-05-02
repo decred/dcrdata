@@ -19,6 +19,15 @@ import (
 	"github.com/decred/dcrdata/v6/db/dbtypes"
 )
 
+// func TestTreasuryTxns(t *testing.T) {
+// 	txns, err := db.TreasuryTxns(12, 32)
+// 	t.Log(err)
+// 	spew.Dump(txns)
+
+// 	bal, spent, txCount, err := db.TreasuryBalance(675538)
+// 	t.Log(bal, spent, txCount, err)
+// }
+
 func TestChainDB_AddressTransactionsAll(t *testing.T) {
 	// address with no transactions.
 	address := "DsUBCQWJsW8raht1i4gXTv7xPu3ySpUxxxx"

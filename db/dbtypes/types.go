@@ -1809,6 +1809,15 @@ func (a *AddressTx) Link() string {
 	return fmt.Sprintf("/tx/%s", a.TxID)
 }
 
+type TreasuryTx struct {
+	TxID        string
+	Type        int
+	Amount      int64
+	BlockHash   string
+	BlockHeight int64
+	BlockTime   TimeDef
+}
+
 // AddressTransactions collects the transactions for an address as AddressTx
 // slices.
 type AddressTransactions struct {

@@ -182,7 +182,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 			CoinSupply:      xcBot.Conversion(dcrutil.Amount(homeInfo.CoinSupply).ToCoin()),
 			PowSplit:        xcBot.Conversion(dcrutil.Amount(homeInfo.NBlockSubsidy.PoW).ToCoin()),
 			TreasurySplit:   xcBot.Conversion(dcrutil.Amount(homeInfo.NBlockSubsidy.Dev).ToCoin()),
-			TreasuryBalance: xcBot.Conversion(dcrutil.Amount(homeInfo.DevFund).ToCoin()),
+			TreasuryBalance: xcBot.Conversion(dcrutil.Amount(homeInfo.DevFund + homeInfo.TreasuryBalance).ToCoin()),
 		}
 	}
 
@@ -1336,21 +1336,143 @@ func (exp *explorerUI) txAtomicSwapsInfo(tx *types.TxInfo) (*txhelpers.TxAtomicS
 	return txhelpers.TxAtomicSwapsInfo(rawtx, outputSpenders, exp.ChainParams)
 }
 
+type TreasuryInfo struct {
+	Net string
+
+	// Page parameters
+	MaxTxLimit    int64
+	Path          string
+	Limit, Offset int64  // ?n=Limit&start=Offset
+	TxnType       string // ?txntype=TxnType
+	TxnCount      int64
+
+	// TODO: tadd and tspend can be unconfirmed. tspend for a very long time.
+	// NumUnconfirmed is the number of unconfirmed txns
+	// NumUnconfirmed  int64
+	// UnconfirmedTxns []*dbtypes.TreasuryTx
+
+	// Transactions on the current page
+	Transactions    []*dbtypes.TreasuryTx
+	NumTransactions int64 // len(Transactions) but int64 for dumb template
+
+	Balance    int64
+	TotalSpent int64
+}
+
 // TreasuryPage is the page handler for the "/treasury" path
 func (exp *explorerUI) TreasuryPage(w http.ResponseWriter, r *http.Request) {
 	ctx := context.WithValue(r.Context(), ctxAddress, exp.pageData.HomeInfo.DevAddress)
 	r = r.WithContext(ctx)
 	if queryVals := r.URL.Query(); queryVals.Get("txntype") == "" {
-		queryVals.Set("txntype", "merged_debit")
+		queryVals.Set("txntype", "tspend")
 		r.URL.RawQuery = queryVals.Encode()
 	}
-	exp.AddressPage(w, r)
+
+	limitN := defaultAddressRows
+	if nParam := r.URL.Query().Get("n"); nParam != "" {
+		val, err := strconv.ParseUint(nParam, 10, 64)
+		if err != nil {
+			exp.StatusPage(w, defaultErrorCode, "invalid n value", "", ExpStatusError)
+			return
+		}
+		if int64(val) > MaxTreasuryRows {
+			log.Warnf("TreasuryPage: requested up to %d address rows, "+
+				"limiting to %d", limitN, MaxTreasuryRows)
+			limitN = MaxTreasuryRows
+		} else {
+			limitN = int64(val)
+		}
+	}
+
+	// Number of txns to skip (OFFSET in database query). For UX reasons, the
+	// "start" URL query parameter is used.
+	var offset int64
+	if startParam := r.URL.Query().Get("start"); startParam != "" {
+		val, err := strconv.ParseUint(startParam, 10, 64)
+		if err != nil {
+			exp.StatusPage(w, defaultErrorCode, "invalid start value", "", ExpStatusError)
+			return
+		}
+		offset = int64(val)
+	}
+
+	// Transaction types to show.
+	txnTypeStr := r.URL.Query().Get("txntype")
+	if txnTypeStr == "" {
+		txnTypeStr = "all"
+	}
+	txTypes := int(-1)
+	switch strings.ToLower(txnTypeStr) {
+	case "all":
+	case "tspend":
+		txTypes = int(stake.TxTypeTSpend)
+	case "tadd":
+		txTypes = int(stake.TxTypeTAdd)
+	case "treasurybase":
+		txTypes = int(stake.TxTypeTreasuryBase)
+	}
+
+	txns, err := exp.dataSource.TreasuryTxns(limitN, offset)
+	if exp.timeoutErrorPage(w, err, "TreasuryTxns") {
+		return
+	} else if err != nil {
+		exp.StatusPage(w, defaultErrorCode, err.Error(), "", ExpStatusError)
+		return
+	}
+
+	height := exp.pageData.BlockInfo.Height
+	maturityHeight := height - int64(exp.ChainParams.CoinbaseMaturity)
+	balance, spent, txCount, err := exp.dataSource.TreasuryBalance(maturityHeight)
+	if exp.timeoutErrorPage(w, err, "TreasuryBalance") {
+		return
+	} else if err != nil {
+		exp.StatusPage(w, defaultErrorCode, err.Error(), "", ExpStatusError)
+		return
+	}
+
+	treasuryData := &TreasuryInfo{
+		Net:             exp.ChainParams.Net.String(),
+		MaxTxLimit:      MaxTreasuryRows,
+		Path:            r.URL.Path,
+		Limit:           limitN,
+		Offset:          offset,
+		TxnType:         txnTypeStr,
+		TxnCount:        txCount,
+		NumTransactions: int64(len(txns)),
+		Transactions:    txns,
+		Balance:         balance,
+		TotalSpent:      spent,
+	}
+
+	// Execute the HTML template.
+	linkTemplate := fmt.Sprintf("/treasury?start=%%d&n=%d&txntype=%v", limitN, txTypes)
+	pageData := struct {
+		*CommonPageData
+		Data        *TreasuryInfo
+		FiatBalance *exchanges.Conversion
+		Pages       []pageNumber
+	}{
+		CommonPageData: exp.commonData(r),
+		Data:           treasuryData,
+		FiatBalance:    exp.xcBot.Conversion(dcrutil.Amount(treasuryData.Balance).ToCoin()),
+		Pages:          calcPages(int(treasuryData.TxnCount), int(limitN), int(offset), linkTemplate),
+	}
+	str, err := exp.templates.exec("treasury", pageData)
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.Header().Set("Turbolinks-Location", r.URL.RequestURI())
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
 }
 
 // AddressPage is the page handler for the "/address" path.
 func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	// AddressPageData is the data structure passed to the HTML template
-
 	type AddressPageData struct {
 		*CommonPageData
 		Data         *dbtypes.AddressInfo

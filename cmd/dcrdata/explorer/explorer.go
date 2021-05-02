@@ -57,6 +57,8 @@ const (
 	// on the address page table.
 	MaxAddressRows int64 = 160
 
+	MaxTreasuryRows int64 = 200
+
 	testnetNetName = "Testnet"
 )
 
@@ -70,6 +72,8 @@ type explorerDataSource interface {
 	SpendingTransaction(fundingTx string, vout uint32) (string, uint32, int8, error)
 	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
 	PoolStatusForTicket(txid string) (dbtypes.TicketSpendType, dbtypes.TicketPoolStatus, error)
+	TreasuryBalance(maturityHeight int64) (bal, spent, txCount int64, err error)
+	TreasuryTxns(n, offset int64) ([]*dbtypes.TreasuryTx, error)
 	AddressHistory(address string, N, offset int64, txnType dbtypes.AddrTxnViewType) ([]*dbtypes.AddressRow, *dbtypes.AddressBalance, error)
 	AddressData(address string, N, offset int64, txnType dbtypes.AddrTxnViewType) (*dbtypes.AddressInfo, error)
 	DevBalance() (*dbtypes.AddressBalance, error)
@@ -356,7 +360,7 @@ func New(cfg *ExplorerConfig) *explorerUI {
 		"rawtx", "status", "parameters", "agenda", "agendas", "charts",
 		"sidechains", "disapproved", "ticketpool", "visualblocks", "statistics",
 		"windows", "timelisting", "addresstable", "proposals", "proposal",
-		"market", "insight_root", "attackcost"}
+		"market", "insight_root", "attackcost", "treasury", "treasurytable"}
 
 	for _, name := range tmpls {
 		if err := exp.templates.addTemplate(name); err != nil {
@@ -466,6 +470,12 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 		stakePerc = blockData.PoolInfo.Value / dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin()
 	}
 
+	maturityHeight := newBlockData.Height - int64(exp.ChainParams.CoinbaseMaturity)
+	treasuryBalance, _, _, err := exp.dataSource.TreasuryBalance(maturityHeight)
+	if err != nil {
+		log.Errorf("Store: TreasuryBalance failed: %v", err)
+	}
+
 	// Update pageData with block data and chain (home) info.
 	p := exp.pageData
 	p.Lock()
@@ -486,6 +496,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 	p.HomeInfo.IdxBlockInWindow = blockData.IdxBlockInWindow
 	p.HomeInfo.IdxInRewardWindow = int(newBlockData.Height%exp.ChainParams.SubsidyReductionInterval) + 1
 	p.HomeInfo.Difficulty = difficulty
+	p.HomeInfo.TreasuryBalance = treasuryBalance
 	p.HomeInfo.NBlockSubsidy.Dev = blockData.ExtraInfo.NextBlockSubsidy.Developer
 	p.HomeInfo.NBlockSubsidy.PoS = blockData.ExtraInfo.NextBlockSubsidy.PoS
 	p.HomeInfo.NBlockSubsidy.PoW = blockData.ExtraInfo.NextBlockSubsidy.PoW

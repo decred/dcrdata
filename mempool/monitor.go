@@ -218,7 +218,7 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 	// If this is a vote, decode vote bits.
 	var voteInfo *exptypes.VoteInfo
 	if txType == stake.TxTypeSSGen /* stake.IsSSGen(msgTx, treasuryActive) */ {
-		validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, p.params)
+		validation, version, bits, choices, tspendVotes, err := txhelpers.SSGenVoteChoices(msgTx, p.params)
 		if err != nil {
 			log.Debugf("Cannot get vote choices for %s", hash)
 		} else {
@@ -232,6 +232,7 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 				Bits:        bits,
 				Choices:     choices,
 				TicketSpent: msgTx.TxIn[1].PreviousOutPoint.Hash.String(),
+				TSpends:     exptypes.ConvertTSpendVotes(tspendVotes),
 			}
 			voteInfo.ForLastBlock = voteInfo.VotesOnBlock(p.lastBlock.Hash.String())
 		}

@@ -11,6 +11,7 @@ import (
 	"os"
 
 	"decred.org/dcrwallet/wallet/txrules"
+	"github.com/decred/dcrd/blockchain/stake/v3"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/db/dcrpg/v6/internal"
@@ -32,7 +33,7 @@ const (
 	// This includes changes such as creating tables, adding/deleting columns,
 	// adding/deleting indexes or any other operations that create, delete, or
 	// modify the definition of any database relation.
-	schemaVersion = 8
+	schemaVersion = 9
 
 	// maintVersion indicates when certain maintenance operations should be
 	// performed for the same compatVersion and schemaVersion. Such operations
@@ -48,8 +49,6 @@ var (
 		schema: schemaVersion,
 		maint:  maintVersion,
 	}
-
-	legacyDatabaseVersion = &DatabaseVersion{compatVersion, 0, 0}
 )
 
 // DatabaseVersion models a database version.
@@ -262,7 +261,7 @@ func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool
 		fallthrough
 	case 1:
 		// Upgrade to schema v2.
-		err = u.upgrade110to120()
+		err = u.upgradeSchema1to2()
 		if err != nil {
 			return false, fmt.Errorf("failed to upgrade 1.1.0 to 1.2.0: %v", err)
 		}
@@ -273,7 +272,7 @@ func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool
 		fallthrough
 	case 2:
 		// Upgrade to schema v3.
-		err = u.upgrade120to130()
+		err = u.upgradeSchema2to3()
 		if err != nil {
 			return false, fmt.Errorf("failed to upgrade 1.2.0 to 1.3.0: %v", err)
 		}
@@ -285,7 +284,7 @@ func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool
 
 	case 3:
 		// Upgrade to schema v4.
-		err = u.upgrade130to140()
+		err = u.upgradeSchema3to4()
 		if err != nil {
 			return false, fmt.Errorf("failed to upgrade 1.3.0 to 1.4.0: %v", err)
 		}
@@ -297,7 +296,7 @@ func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool
 
 	case 4:
 		// Upgrade to schema v5.
-		err = u.upgrade140to150()
+		err = u.upgradeSchema4to5()
 		if err != nil {
 			return false, fmt.Errorf("failed to upgrade 1.4.0 to 1.5.0: %v", err)
 		}
@@ -332,52 +331,59 @@ func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool
 		}
 
 		// Upgrade to schema v6.
-		err = u.upgrade151to160()
+		err = u.upgradeSchema5to6()
 		if err != nil {
 			return false, fmt.Errorf("failed to upgrade 1.5.1 to 1.6.0: %v", err)
 		}
 		current.schema++
-		if err = updateSchemaVersion(u.db, current.schema); err != nil {
-			return false, fmt.Errorf("failed to update schema version: %v", err)
-		}
 		current.maint = 0
-		if err = updateMaintVersion(u.db, current.maint); err != nil {
-			return false, fmt.Errorf("failed to update maintenance version: %v", err)
+		if storeVers(u.db, &current); err != nil {
+			return false, err
 		}
+
 		fallthrough
 
 	case 6:
-		err = u.upgrade160to170()
+		err = u.upgradeSchema6to7()
 		if err != nil {
 			return false, fmt.Errorf("failed to upgrade 1.6.0 to 1.7.0: %v", err)
 		}
 		current.schema++
-		if err = updateSchemaVersion(u.db, current.schema); err != nil {
-			return false, fmt.Errorf("failed to update schema version: %v", err)
-		}
 		current.maint = 0
-		if err = updateMaintVersion(u.db, current.maint); err != nil {
-			return false, fmt.Errorf("failed to update maintenance version: %v", err)
+		if storeVers(u.db, &current); err != nil {
+			return false, err
 		}
+
 		fallthrough
 
 	case 7:
-		err = u.upgrade170to180()
+		err = u.upgradeSchema7to8()
 		if err != nil {
 			return false, fmt.Errorf("failed to upgrade 1.7.0 to 1.8.0: %v", err)
 		}
 		current.schema++
-		if err = updateSchemaVersion(u.db, current.schema); err != nil {
-			return false, fmt.Errorf("failed to update schema version: %v", err)
-		}
 		current.maint = 0
-		if err = updateMaintVersion(u.db, current.maint); err != nil {
-			return false, fmt.Errorf("failed to update maintenance version: %v", err)
+		if storeVers(u.db, &current); err != nil {
+			return false, err
 		}
+
 		fallthrough
 
 	case 8:
-		// Perform schema v8 maintenance.
+		err = u.upgradeSchema8to9()
+		if err != nil {
+			return false, fmt.Errorf("failed to upgrade 1.8.0 to 1.9.0: %v", err)
+		}
+		current.schema++
+		current.maint = 0
+		if storeVers(u.db, &current); err != nil {
+			return false, err
+		}
+
+		fallthrough
+
+	case 9:
+		// Perform schema v9 maintenance.
 
 		// No further upgrades.
 		return upgradeCheck()
@@ -387,6 +393,15 @@ func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool
 	default:
 		return false, fmt.Errorf("unsupported schema version %d", current.schema)
 	}
+}
+
+func storeVers(db *sql.DB, dbVer *DatabaseVersion) error {
+	err := updateSchemaVersion(db, dbVer.schema)
+	if err != nil {
+		return fmt.Errorf("failed to update schema version: %w", err)
+	}
+	err = updateMaintVersion(db, dbVer.maint)
+	return fmt.Errorf("failed to update maintenance version: %w", err)
 }
 
 func removeTableComments(db *sql.DB) {
@@ -399,7 +414,52 @@ func removeTableComments(db *sql.DB) {
 	}
 }
 
-func (u *Upgrader) upgrade170to180() error {
+func (u *Upgrader) upgradeSchema8to9() error {
+	log.Infof("Performing database upgrade 1.8.0 -> 1.9.0")
+
+	// Create and index the treasury table.
+	_, err := u.db.Exec(
+		`CREATE TABLE treasury AS
+			SELECT tx_hash, tx_type, spent AS value, block_hash, block_height, block_time, is_mainchain
+			FROM transactions
+			WHERE tx_type = ANY($1);`,
+		pq.Int32Array([]int32{int32(stake.TxTypeTAdd), int32(stake.TxTypeTSpend), int32(stake.TxTypeTreasuryBase)}),
+	)
+	if err != nil {
+		return fmt.Errorf("CreateTreasuryTable: %w", err)
+	}
+
+	// Make TSPEND value negative.
+	_, err = u.db.Exec(`UPDATE treasury SET value = -value WHERE tx_type=$1;`,
+		int(stake.TxTypeTSpend))
+	if err != nil {
+		return fmt.Errorf("updating tspend values failed: %v", err)
+	}
+
+	// Set TADD value properly from vout 0 value.
+	_, err = u.db.Exec(`UPDATE treasury SET value = vouts.value FROM vouts
+		WHERE tx_type=$1 AND treasury.tx_hash=vouts.tx_hash AND vouts.tx_index=0;`,
+		int(stake.TxTypeTAdd))
+	if err != nil {
+		return fmt.Errorf("updating tadd values failed: %w", err)
+	}
+
+	_, err = u.db.Exec(internal.IndexTreasuryOnTxHash)
+	if err != nil {
+		return fmt.Errorf("IndexTreasuryOnTxHash: %w", err)
+	}
+
+	_, err = u.db.Exec(internal.IndexTreasuryOnBlockHeight)
+	if err != nil {
+		return fmt.Errorf("IndexTreasuryOnBlockHeight: %w", err)
+	}
+
+	// Import treasury txns from the transactions table.
+
+	return nil
+}
+
+func (u *Upgrader) upgradeSchema7to8() error {
 	log.Infof("Performing database upgrade 1.7.0 -> 1.8.0")
 	// Index the transactions table on block height. This drastically
 	// accelerates several queries including those for the following charts
@@ -407,13 +467,13 @@ func (u *Upgrader) upgrade170to180() error {
 	return IndexTransactionTableOnBlockHeight(u.db)
 }
 
-func (u *Upgrader) upgrade160to170() error {
+func (u *Upgrader) upgradeSchema6to7() error {
 	log.Infof("Performing database upgrade 1.6.0 -> 1.7.0")
 	// Create the missing vouts.spend_tx_row_id index.
 	return IndexVoutTableOnSpendTxID(u.db)
 }
 
-func (u *Upgrader) upgrade151to160() error {
+func (u *Upgrader) upgradeSchema5to6() error {
 	// Add the mixed column to vouts table.
 	log.Infof("Performing database upgrade 1.5.1 -> 1.6.0")
 	_, err := u.db.Exec(`ALTER TABLE vouts
@@ -520,7 +580,7 @@ func (u *Upgrader) upgrade151to160() error {
 	return nil
 }
 
-func (u *Upgrader) upgrade140to150() error {
+func (u *Upgrader) upgradeSchema4to5() error {
 	// Add the mix_count and mix_denom columns to the transactions table.
 	log.Infof("Performing database upgrade 1.4.0 -> 1.5.0")
 	_, err := u.db.Exec(`ALTER TABLE transactions
@@ -607,7 +667,7 @@ func (u *Upgrader) setTxMixData() error {
 }
 
 // This changes the data type of votes.version from INT2 to INT4.
-func (u *Upgrader) upgrade130to140() error {
+func (u *Upgrader) upgradeSchema3to4() error {
 	// Change the data type of votes.version.
 	log.Infof("Performing database upgrade 1.3.0 -> 1.4.0")
 	_, err := u.db.Exec(`ALTER TABLE votes ALTER COLUMN version TYPE INT4`)
@@ -615,7 +675,7 @@ func (u *Upgrader) upgrade130to140() error {
 }
 
 // This indexes the blocks table on the "time" column.
-func (u *Upgrader) upgrade120to130() error {
+func (u *Upgrader) upgradeSchema2to3() error {
 	// Create the stats table and height index.
 	log.Infof("Performing database upgrade 1.2.0 -> 1.3.0")
 
@@ -635,7 +695,7 @@ func (u *Upgrader) upgrade120to130() error {
 // necessary to replace information from the sqlite database, which is being
 // dropped. As part of the upgrade, the entire blockchain must be requested and
 // the ticket pool evolved appropriately.
-func (u *Upgrader) upgrade110to120() error {
+func (u *Upgrader) upgradeSchema1to2() error {
 	// Create the stats table and height index.
 	log.Infof("Performing database upgrade 1.1.0 -> 1.2.0")
 	exists, err := TableExists(u.db, "stats")

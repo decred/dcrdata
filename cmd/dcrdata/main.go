@@ -174,7 +174,7 @@ func _main(ctx context.Context) error {
 		}
 	}
 
-	// Auxiliary DB (PostgreSQL)
+	// Main chain DB
 	var newPGIndexes, updateAllAddresses bool
 	pgHost, pgPort := cfg.PGHost, ""
 	if !strings.HasPrefix(pgHost, "/") {
@@ -309,13 +309,12 @@ func _main(ctx context.Context) error {
 		// The final best block after purge.
 		purgeToBlock := maxHeight - int64(blocksToPurge)
 
-		// Purge NAux blocks from auxiliary DB.
-		NAux := chainDBHeight - purgeToBlock
-		log.Infof("Purging PostgreSQL data for the %d best blocks...", NAux)
-		s, heightDB, err := chainDB.PurgeBestBlocks(NAux)
+		// Purge NPurge blocks from DB.
+		NPurge := chainDBHeight - purgeToBlock
+		log.Infof("Purging PostgreSQL data for the %d best blocks...", NPurge)
+		s, heightDB, err := chainDB.PurgeBestBlocks(NPurge)
 		if err != nil {
-			return fmt.Errorf("Failed to purge %d blocks from PostgreSQL: %v",
-				NAux, err)
+			return fmt.Errorf("failed to purge %d blocks from PostgreSQL: %w", NPurge, err)
 		}
 		if s != nil {
 			log.Infof("Successfully purged data for %d blocks from PostgreSQL "+
@@ -803,9 +802,6 @@ func _main(ctx context.Context) error {
 	explore.SetDBsSyncing(true)
 	psHub.SetReady(false)
 
-	// Coordinate the sync of both sqlite and auxiliary DBs with the network.
-	// This closure captures the RPC client and the quit channel.
-	// sqlite has been dropped, and this can probably be simplified.
 	getSyncd := func(updateAddys, newPGInds bool) (int64, error) {
 		// Simultaneously synchronize the ChainDB (PostgreSQL) and the
 		// stake info DB. Results are returned over channels:
@@ -890,8 +886,8 @@ func _main(ctx context.Context) error {
 
 	log.Info("Mainchain sync complete.")
 
-	// Ensure all side chains known by dcrd are also present in the auxiliary DB
-	// and import them if they are not already there.
+	// Ensure all side chains known by dcrd are also present in the DB and
+	// import them if they are not already there.
 	if cfg.ImportSideChains {
 		// First identify the side chain blocks that are missing from the DB.
 		log.Info("Aux DB -> Retrieving side chain blocks from dcrd...")

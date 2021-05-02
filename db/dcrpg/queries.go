@@ -507,7 +507,56 @@ func DeleteDuplicateAgendaVotes(db *sql.DB) (int64, error) {
 	return sqlExec(db, internal.DeleteAgendaVotesDuplicateRows, execErrPrefix)
 }
 
-// --- stake (votes, tickets, misses) tables ---
+// --- stake (votes, tickets, misses, treasury) tables ---
+
+func InsertTreasuryTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked, updateExistingRecords bool) error {
+	dbtx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("unable to begin database transaction: %w", err)
+	}
+
+	// Prepare treasury insert statement, optionally updating a row if it
+	// conflicts with the unique index on (tx_hash, block_hash).
+	stmt, err := dbtx.Prepare(internal.MakeTreasuryInsertStatement(checked, updateExistingRecords))
+	if err != nil {
+		log.Errorf("Ticket INSERT prepare: %v", err)
+		_ = dbtx.Rollback() // try, but we want the Prepare error back
+		return err
+	}
+
+	// Insert each treasury txn.
+	for _, tx := range dbTxns {
+		var value int64
+		switch tx.TxType {
+		case int16(stake.TxTypeTreasuryBase):
+			value = tx.Sent // == tx.Spent because fees are 0
+		case int16(stake.TxTypeTSpend):
+			value = -tx.Spent
+		case int16(stake.TxTypeTAdd):
+			value = int64(tx.Vouts[0].Value)
+		default:
+			continue // not a treasury tx
+		}
+
+		_, err = stmt.Exec(tx.TxID, tx.TxType, value, tx.BlockHash, tx.BlockHeight,
+			tx.BlockTime, tx.IsMainchainBlock)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				continue
+			}
+			_ = stmt.Close() // try, but we want the QueryRow error back
+			if errRoll := dbtx.Rollback(); errRoll != nil {
+				log.Errorf("Rollback failed: %v", errRoll)
+			}
+			return err
+		}
+	}
+
+	// Close prepared statement. Ignore errors as we'll Commit regardless.
+	_ = stmt.Close()
+
+	return dbtx.Commit()
+}
 
 // InsertTickets takes a slice of *dbtypes.Tx and corresponding DB row IDs for
 // transactions, extracts the tickets, and inserts the tickets into the
@@ -728,7 +777,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 	for i, tx := range voteTxs {
 		msgTx := voteMsgTxs[i]
 		voteVersion := stake.SSGenVersion(msgTx)
-		validBlock, voteBits, err := txhelpers.SSGenVoteBlockValid(msgTx /*, TODO treasuryEnabled */)
+		validBlock, _ /* TODO treasuryVotes */, voteBits, err := txhelpers.SSGenVoteBlockValid(msgTx /*, TODO treasuryEnabled */)
 		if err != nil {
 			bail()
 			return nil, nil, nil, nil, nil, err
@@ -780,7 +829,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 			continue // rest of loop deals with agendas table
 		}
 
-		_, _, _, choices, err := txhelpers.SSGenVoteChoices(msgTx, params)
+		_, _, _, choices, _ /* tspendChoices */, err := txhelpers.SSGenVoteChoices(msgTx, params)
 		if err != nil {
 			bail()
 			return nil, nil, nil, nil, nil, err
@@ -2696,7 +2745,7 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 		// Set the spending tx info (addresses table) for the funding transaction
 		// rows indicated by the vin DB ID.
 		addressRowsUpdated[iv], err = SetSpendingForFundingOP(dbtx,
-			prevOutHash, prevOutVoutInd, txHash, txVinInd, true)
+			prevOutHash, prevOutVoutInd, txHash, true)
 		if err != nil {
 			return addressRowsUpdated, 0, fmt.Errorf(`insertSpendingTxByPrptStmt: `+
 				`%v + %v (rollback)`, err, bail())
@@ -2739,7 +2788,7 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 	// Set the spending tx info (addresses table) for the funding transaction
 	// rows indicated by the vin DB ID.
 	N, err := SetSpendingForFundingOP(dbtx, prevOutHash, prevOutVoutInd,
-		txHash, txVinInd, true)
+		txHash, true)
 	if err != nil {
 		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
 			err, dbtx.Rollback())
@@ -2755,7 +2804,7 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 // consensus-validated transactions cannot spend outputs from stake-invalidated
 // transactions so the funding tx must not be invalid.
 func SetSpendingForFundingOP(db SqlExecutor, fundingTxHash string, fundingTxVoutIndex uint32,
-	spendingTxHash string, _ /*spendingTxVinIndex*/ uint32, forMainchain bool) (int64, error) {
+	spendingTxHash string, forMainchain bool) (int64, error) {
 	// Update the matchingTxHash for the funding tx output. matchingTxHash here
 	// is the hash of the funding tx.
 	res, err := db.Exec(internal.SetAddressMatchingTxHashForOutpoint,
@@ -2767,7 +2816,7 @@ func SetSpendingForFundingOP(db SqlExecutor, fundingTxHash string, fundingTxVout
 	return res.RowsAffected()
 }
 
-func setSpendingForVout(tx *sql.Tx, fundVoutRowID, spendTxRowID uint64) error {
+func setSpendingForVout(tx *sql.Tx, fundVoutRowID int64, spendTxRowID uint64) error {
 	res, err := tx.Exec(internal.UpdateVoutSpendTxRowID, spendTxRowID, fundVoutRowID)
 	if err != nil || res == nil {
 		return err
@@ -2923,7 +2972,7 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 		// update it. (Similarly for mainchain, but a mainchain block always has
 		// a parent on the main chain).
 		N, err := SetSpendingForFundingOP(tx, fundingTxHash, fundingTxVoutIndex,
-			spendingTxHash, spendingTxVinIndex, mainchain)
+			spendingTxHash, mainchain)
 		return N, voutDbID, mixed, err
 	}
 	return 0, voutDbID, mixed, nil
@@ -4240,6 +4289,17 @@ func UpdateVotesMainchain(db SqlExecutor, blockHash string, isMainchain bool) (i
 func UpdateTicketsMainchain(db SqlExecutor, blockHash string, isMainchain bool) (int64, error) {
 	numRows, err := sqlExec(db, internal.UpdateTicketsMainchainByBlock,
 		"failed to update tickets is_mainchain: ", isMainchain, blockHash)
+	if err != nil {
+		return 0, err
+	}
+	return numRows, nil
+}
+
+// UpdateTreasuryMainchain sets the is_mainchain column for the entires in the
+// specified block.
+func UpdateTreasuryMainchain(db SqlExecutor, blockHash string, isMainchain bool) (int64, error) {
+	numRows, err := sqlExec(db, internal.UpdateTreasuryMainchainByBlock,
+		"failed to update treasury txns is_mainchain: ", isMainchain, blockHash)
 	if err != nil {
 		return 0, err
 	}
