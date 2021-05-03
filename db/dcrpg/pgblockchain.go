@@ -1805,6 +1805,41 @@ func (pgb *ChainDB) GetTicketInfo(txid string) (*apitypes.TicketInfo, error) {
 	}, nil
 }
 
+func (pgb *ChainDB) TreasuryBalance(maturityHeight int64) (balance, spent, txCount int64, err error) {
+	var bal, spend, matureCount sql.NullInt64
+	err = pgb.db.QueryRowContext(pgb.ctx, internal.SelectTreasuryBalance, maturityHeight).Scan(&matureCount, &bal, &spend)
+	if err != nil {
+		return
+	}
+	var immatureCount sql.NullInt64
+	err = pgb.db.QueryRowContext(pgb.ctx, internal.SelectTreasuryImmatureCount, maturityHeight).Scan(&immatureCount)
+	return bal.Int64, spend.Int64, matureCount.Int64 + immatureCount.Int64, err
+}
+
+func (pgb *ChainDB) TreasuryTxns(n, offset int64) ([]*dbtypes.TreasuryTx, error) {
+	rows, err := pgb.db.QueryContext(pgb.ctx, internal.SelectTreasuryTxns, n, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var txns []*dbtypes.TreasuryTx
+	for rows.Next() {
+		var tx dbtypes.TreasuryTx
+		var mainchain bool
+		err = rows.Scan(&tx.TxID, &tx.Type, &tx.Amount, &tx.BlockHash, &tx.BlockHeight, &tx.BlockTime, &mainchain)
+		if err != nil {
+			return nil, err
+		}
+		txns = append(txns, &tx)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return txns, nil
+}
+
 func (pgb *ChainDB) updateProjectFundCache() error {
 	_, _, err := pgb.AddressHistoryAll(pgb.devAddress, 1, 0)
 	return err

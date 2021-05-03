@@ -43,6 +43,13 @@ const (
 	InsertTreasuryRowOnConflictDoNothing = InsertTreasuryRow + `ON CONFLICT (tx_hash, block_hash)
 		DO NOTHING;`
 
+	SelectTreasuryTxns = `SELECT * FROM treasury WHERE is_mainchain ORDER BY block_height DESC
+		LIMIT $1 OFFSET $2;`
+
+	SelectTreasuryBalance = `SELECT COUNT(1), SUM(value) AS balance, SUM(CASE WHEN value<0 THEN -value ELSE 0 END) AS spent
+		FROM treasury WHERE is_mainchain AND block_height <= $1;`
+	SelectTreasuryImmatureCount = `SELECT COUNT(1) FROM treasury WHERE is_mainchain AND block_height > $1;`
+
 	// TODO: CreateTreasuryVotesTable
 )
 

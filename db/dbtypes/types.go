@@ -1810,31 +1810,12 @@ func (a *AddressTx) Link() string {
 }
 
 type TreasuryTx struct {
-	TxId        string
-	Type        string
+	TxID        string
+	Type        int
 	Amount      int64
+	BlockHash   string
 	BlockHeight int64
-}
-
-type TreasuryInfo struct {
-	Net string
-
-	// Page parameters
-	MaxTxLimit    int64
-	Path          string
-	Limit, Offset int64  // ?n=Limit&start=Offset
-	TxnType       string // ?txntype=TxnType
-	TxnCount      int64
-
-	// NumUnconfirmed is the number of unconfirmed txns
-	NumUnconfirmed  int64
-	UnconfirmedTxns []*AddressTx
-
-	// Transactions on the current page
-	Transactions []*AddressTx
-
-	Balance    int64
-	TotalSpent int64
+	BlockTime   TimeDef
 }
 
 // AddressTransactions collects the transactions for an address as AddressTx

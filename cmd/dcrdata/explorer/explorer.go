@@ -57,6 +57,8 @@ const (
 	// on the address page table.
 	MaxAddressRows int64 = 160
 
+	MaxTreasuryRows int64 = 200
+
 	testnetNetName = "Testnet"
 )
 
@@ -70,6 +72,8 @@ type explorerDataSource interface {
 	SpendingTransaction(fundingTx string, vout uint32) (string, uint32, int8, error)
 	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
 	PoolStatusForTicket(txid string) (dbtypes.TicketSpendType, dbtypes.TicketPoolStatus, error)
+	TreasuryBalance(maturityHeight int64) (bal, spent, txCount int64, err error)
+	TreasuryTxns(n, offset int64) ([]*dbtypes.TreasuryTx, error)
 	AddressHistory(address string, N, offset int64, txnType dbtypes.AddrTxnViewType) ([]*dbtypes.AddressRow, *dbtypes.AddressBalance, error)
 	AddressData(address string, N, offset int64, txnType dbtypes.AddrTxnViewType) (*dbtypes.AddressInfo, error)
 	DevBalance() (*dbtypes.AddressBalance, error)

@@ -5,11 +5,12 @@
   {{template "navbar" . }}
   {{- with .Data}}
   {{- $TxnCount := .TxnCount}}
+  {{- $txType := .TxnType -}}
   <div class="container main"
     data-controller="address"
     data-address-offset="{{.Offset}}"
-    data-address-txn-count="{{$.TxnCount}}"
-    data-address-balance="{{toFloat64Amount .Balance.TotalUnspent}}"
+    data-address-txn-count="{{$TxnCount}}"
+    data-address-balance="{{toFloat64Amount .Balance}}"
   >
     <div class="fullscreen d-none" data-target="address.fullscreen" data-action="click->address#exitFullscreen">
       <div class="secondary-card d-inline-block w-100 h-100 p-4" data-target="address.bigchart"></div>
@@ -23,7 +24,7 @@
             <br>
             <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal font-weight-bold">
             {{- if .Balance}}
-              {{template "decimalParts" (amountAsDecimalParts .Balance.TotalUnspent true)}} <span class="text-secondary fs14">DCR</span>
+              {{template "decimalParts" (amountAsDecimalParts .Balance true)}} <span class="text-secondary fs14">DCR</span>
             {{- else}}
               <span class="fs18">0</span> <span class="text-secondary fs14">DCR</span>
             {{- end}}
@@ -38,27 +39,27 @@
             <br>
             <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal font-weight-bold">
             {{- if .Balance}}
-              {{- $received := add .Balance.TotalSpent .Balance.TotalUnspent}}
+              {{- $received := add .TotalSpent .Balance}}
               {{- template "decimalParts" (amountAsDecimalParts $received true)}} <span class="text-secondary fs14">DCR</span>
             {{- else}}
               <span class="fs18">0</span> <span class="text-secondary fs14">DCR</span>
             {{- end}}
             </span>
             <br>
-            <span class="text-secondary fs16 lh1rem">{{intComma (add .Balance.NumSpent .Balance.NumUnspent)}} outputs</span>
+            {{/* <span class="text-secondary fs16 lh1rem">{{intComma (add .Balance.NumSpent .Balance.NumUnspent)}} outputs</span> */}}
           </div>
           <div class="d-inline-block text-left pr-2 pb-3">
             <span class="text-secondary fs13">Spent</span>
             <br>
             <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal font-weight-bold">
             {{- if .Balance}}
-              {{- template "decimalParts" (amountAsDecimalParts .Balance.TotalSpent true)}} <span class="text-secondary fs14">DCR</span>
+              {{- template "decimalParts" (amountAsDecimalParts .TotalSpent true)}} <span class="text-secondary fs14">DCR</span>
             {{- else}}
               <span class="fs18">0</span> <span class="text-secondary fs14">DCR</span>
             {{- end}}
             </span>
             <br>
-            <span class="text-secondary fs16 lh1rem">{{intComma .Balance.NumSpent}} inputs</span>
+            {{/*  <span class="text-secondary fs16 lh1rem">{{intComma .Balance.NumSpent}} inputs</span> */}}
           </div>
           <span></span>
         </div>
@@ -180,14 +181,12 @@
         </div>
       </div>
       <div class="position-relative">
+      <!-- TODO: unconfirmed tadd and tspend txns -->
         <div class="loader-v2" data-target="address.listLoader"></div>
         <div class="position-relative" data-target="address.table">
           {{template "treasuryTable" .}}
         </div>
       </div>
-      <span class="fs13 py-1 d-block{{if not .IsMerged}} d-hide{{end}}" data-target="address.mergedMsg">
-          *No unconfirmed transactions shown in merged views.
-      </span>
       <div class="text-right pr-3" data-target="address.tablePagination">
         {{if ne .Offset 0}}
         <a class="d-inline-block dcricon-arrow-left m-1 fz20"

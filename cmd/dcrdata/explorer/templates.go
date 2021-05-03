@@ -19,6 +19,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrdata/v6/db/dbtypes"
 	"github.com/decred/dcrdata/v6/explorer/types"
+	"github.com/decred/dcrdata/v6/txhelpers"
 	humanize "github.com/dustin/go-humanize"
 )
 
@@ -329,6 +330,9 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 	netTheme := "theme-" + strings.ToLower(netName(params))
 
 	return template.FuncMap{
+		"txtypeStr": func(txtype int) string {
+			return txhelpers.TxTypeToString(txtype)
+		},
 		"add": func(args ...int64) int64 {
 			var sum int64
 			for _, a := range args {

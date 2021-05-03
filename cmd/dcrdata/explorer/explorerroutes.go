@@ -1336,6 +1336,29 @@ func (exp *explorerUI) txAtomicSwapsInfo(tx *types.TxInfo) (*txhelpers.TxAtomicS
 	return txhelpers.TxAtomicSwapsInfo(rawtx, outputSpenders, exp.ChainParams)
 }
 
+type TreasuryInfo struct {
+	Net string
+
+	// Page parameters
+	MaxTxLimit    int64
+	Path          string
+	Limit, Offset int64  // ?n=Limit&start=Offset
+	TxnType       string // ?txntype=TxnType
+	TxnCount      int64
+
+	// TODO: tadd and tspend can be unconfirmed. tspend for a very long time.
+	// NumUnconfirmed is the number of unconfirmed txns
+	// NumUnconfirmed  int64
+	// UnconfirmedTxns []*dbtypes.TreasuryTx
+
+	// Transactions on the current page
+	Transactions    []*dbtypes.TreasuryTx
+	NumTransactions int64 // len(Transactions) but int64 for dumb template
+
+	Balance    int64
+	TotalSpent int64
+}
+
 // TreasuryPage is the page handler for the "/treasury" path
 func (exp *explorerUI) TreasuryPage(w http.ResponseWriter, r *http.Request) {
 	ctx := context.WithValue(r.Context(), ctxAddress, exp.pageData.HomeInfo.DevAddress)
@@ -1352,10 +1375,10 @@ func (exp *explorerUI) TreasuryPage(w http.ResponseWriter, r *http.Request) {
 			exp.StatusPage(w, defaultErrorCode, "invalid n value", "", ExpStatusError)
 			return
 		}
-		if int64(val) > MaxAddressRows {
+		if int64(val) > MaxTreasuryRows {
 			log.Warnf("TreasuryPage: requested up to %d address rows, "+
-				"limiting to %d", limitN, MaxAddressRows)
-			limitN = MaxAddressRows
+				"limiting to %d", limitN, MaxTreasuryRows)
+			limitN = MaxTreasuryRows
 		} else {
 			limitN = int64(val)
 		}
@@ -1389,39 +1412,49 @@ func (exp *explorerUI) TreasuryPage(w http.ResponseWriter, r *http.Request) {
 		txTypes = int(stake.TxTypeTreasuryBase)
 	}
 
-	// Retrieve data here...
-
-	var treasuryData *dbtypes.TreasuryInfo
-
-	// Set page parameters.
-	treasuryData.Path = r.URL.Path
-
-	// If exchange monitoring is active, prepare a fiat balance conversion
-	conversion := exp.xcBot.Conversion(dcrutil.Amount(treasuryData.Balance).ToCoin())
-
-	// For Windows clients only, link to downloads with CRLF (\r\n) line
-	// endings.
-	UseCRLF := strings.Contains(r.UserAgent(), "Windows")
-
-	if limitN == 0 {
-		limitN = 20
+	txns, err := exp.dataSource.TreasuryTxns(limitN, offset)
+	if exp.timeoutErrorPage(w, err, "TreasuryTxns") {
+		return
+	} else if err != nil {
+		exp.StatusPage(w, defaultErrorCode, err.Error(), "", ExpStatusError)
+		return
 	}
 
-	linkTemplate := fmt.Sprintf("/treasury?start=%%d&n=%d&txntype=%v", limitN, txTypes)
+	height := exp.pageData.BlockInfo.Height
+	maturityHeight := height - int64(exp.ChainParams.CoinbaseMaturity)
+	balance, spent, txCount, err := exp.dataSource.TreasuryBalance(maturityHeight)
+	if exp.timeoutErrorPage(w, err, "TreasuryBalance") {
+		return
+	} else if err != nil {
+		exp.StatusPage(w, defaultErrorCode, err.Error(), "", ExpStatusError)
+		return
+	}
+
+	treasuryData := &TreasuryInfo{
+		Net:             exp.ChainParams.Net.String(),
+		MaxTxLimit:      MaxTreasuryRows,
+		Path:            r.URL.Path,
+		Limit:           limitN,
+		Offset:          offset,
+		TxnType:         txnTypeStr,
+		TxnCount:        txCount,
+		NumTransactions: int64(len(txns)),
+		Transactions:    txns,
+		Balance:         balance,
+		TotalSpent:      spent,
+	}
 
 	// Execute the HTML template.
-	type treasuryPageData struct {
+	linkTemplate := fmt.Sprintf("/treasury?start=%%d&n=%d&txntype=%v", limitN, txTypes)
+	pageData := struct {
 		*CommonPageData
-		Data         *dbtypes.TreasuryInfo
-		CRLFDownload bool
-		FiatBalance  *exchanges.Conversion
-		Pages        []pageNumber
-	}
-	pageData := treasuryPageData{
+		Data        *TreasuryInfo
+		FiatBalance *exchanges.Conversion
+		Pages       []pageNumber
+	}{
 		CommonPageData: exp.commonData(r),
 		Data:           treasuryData,
-		CRLFDownload:   UseCRLF,
-		FiatBalance:    conversion,
+		FiatBalance:    exp.xcBot.Conversion(dcrutil.Amount(treasuryData.Balance).ToCoin()),
 		Pages:          calcPages(int(treasuryData.TxnCount), int(limitN), int(offset), linkTemplate),
 	}
 	str, err := exp.templates.exec("treasury", pageData)
