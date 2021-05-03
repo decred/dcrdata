@@ -452,8 +452,9 @@ type HomeInfo struct {
 	IdxBlockInWindow      int            `json:"window_idx"`
 	IdxInRewardWindow     int            `json:"reward_idx"`
 	Difficulty            float64        `json:"difficulty"`
-	DevFund               int64          `json:"dev_fund"`
+	DevFund               int64          `json:"dev_fund"` // legacy treasury address
 	DevAddress            string         `json:"dev_address"`
+	TreasuryBalance       int64          `json:"treasury_bal"` // new decentralized treasury account
 	TicketReward          float64        `json:"reward"`
 	RewardPeriod          string         `json:"reward_period"`
 	ASR                   float64        `json:"ASR"`

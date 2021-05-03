@@ -470,6 +470,12 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 		stakePerc = blockData.PoolInfo.Value / dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin()
 	}
 
+	maturityHeight := newBlockData.Height - int64(exp.ChainParams.CoinbaseMaturity)
+	treasuryBalance, _, _, err := exp.dataSource.TreasuryBalance(maturityHeight)
+	if err != nil {
+		log.Errorf("Store: TreasuryBalance failed: %v", err)
+	}
+
 	// Update pageData with block data and chain (home) info.
 	p := exp.pageData
 	p.Lock()
@@ -490,6 +496,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 	p.HomeInfo.IdxBlockInWindow = blockData.IdxBlockInWindow
 	p.HomeInfo.IdxInRewardWindow = int(newBlockData.Height%exp.ChainParams.SubsidyReductionInterval) + 1
 	p.HomeInfo.Difficulty = difficulty
+	p.HomeInfo.TreasuryBalance = treasuryBalance
 	p.HomeInfo.NBlockSubsidy.Dev = blockData.ExtraInfo.NextBlockSubsidy.Developer
 	p.HomeInfo.NBlockSubsidy.PoS = blockData.ExtraInfo.NextBlockSubsidy.PoS
 	p.HomeInfo.NBlockSubsidy.PoW = blockData.ExtraInfo.NextBlockSubsidy.PoW
