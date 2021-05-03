@@ -7,7 +7,7 @@ package internal
 const (
 	CreateTreasuryTable = `CREATE TABLE IF NOT EXISTS treasury (
 		tx_hash TEXT,
-		tx_type INT4
+		tx_type INT4,
 		value INT8,
 		block_hash TEXT,
 		block_height INT8,
