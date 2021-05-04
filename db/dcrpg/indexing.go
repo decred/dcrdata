@@ -543,8 +543,8 @@ func (pgb *ChainDB) DeindexAll() error {
 
 // IndexAll creates most indexes in the tables. Exceptions: (1) addresses on
 // matching_tx_hash (use IndexAddressTable or do it individually), (2) all
-// tickets table indexes (use IndexTicketsTable), and (3) vouts on tx hash and
-// index.
+// tickets table indexes (use IndexTicketsTable), and (3) vouts on
+// spend_tx_row_id (use IndexVoutTableOnSpendTxID).
 func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 	allIndexes := []indexingInfo{
 		// blocks table

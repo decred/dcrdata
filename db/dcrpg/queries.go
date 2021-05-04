@@ -2745,7 +2745,7 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 		// Set the spending tx info (addresses table) for the funding transaction
 		// rows indicated by the vin DB ID.
 		addressRowsUpdated[iv], err = SetSpendingForFundingOP(dbtx,
-			prevOutHash, prevOutVoutInd, txHash, txVinInd, true)
+			prevOutHash, prevOutVoutInd, txHash, true)
 		if err != nil {
 			return addressRowsUpdated, 0, fmt.Errorf(`insertSpendingTxByPrptStmt: `+
 				`%v + %v (rollback)`, err, bail())
@@ -2788,7 +2788,7 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 	// Set the spending tx info (addresses table) for the funding transaction
 	// rows indicated by the vin DB ID.
 	N, err := SetSpendingForFundingOP(dbtx, prevOutHash, prevOutVoutInd,
-		txHash, txVinInd, true)
+		txHash, true)
 	if err != nil {
 		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
 			err, dbtx.Rollback())
@@ -2804,7 +2804,7 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 // consensus-validated transactions cannot spend outputs from stake-invalidated
 // transactions so the funding tx must not be invalid.
 func SetSpendingForFundingOP(db SqlExecutor, fundingTxHash string, fundingTxVoutIndex uint32,
-	spendingTxHash string, _ /*spendingTxVinIndex*/ uint32, forMainchain bool) (int64, error) {
+	spendingTxHash string, forMainchain bool) (int64, error) {
 	// Update the matchingTxHash for the funding tx output. matchingTxHash here
 	// is the hash of the funding tx.
 	res, err := db.Exec(internal.SetAddressMatchingTxHashForOutpoint,
@@ -2816,7 +2816,7 @@ func SetSpendingForFundingOP(db SqlExecutor, fundingTxHash string, fundingTxVout
 	return res.RowsAffected()
 }
 
-func setSpendingForVout(tx *sql.Tx, fundVoutRowID, spendTxRowID uint64) error {
+func setSpendingForVout(tx *sql.Tx, fundVoutRowID int64, spendTxRowID uint64) error {
 	res, err := tx.Exec(internal.UpdateVoutSpendTxRowID, spendTxRowID, fundVoutRowID)
 	if err != nil || res == nil {
 		return err
@@ -2972,7 +2972,7 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 		// update it. (Similarly for mainchain, but a mainchain block always has
 		// a parent on the main chain).
 		N, err := SetSpendingForFundingOP(tx, fundingTxHash, fundingTxVoutIndex,
-			spendingTxHash, spendingTxVinIndex, mainchain)
+			spendingTxHash, mainchain)
 		return N, voutDbID, mixed, err
 	}
 	return 0, voutDbID, mixed, nil

@@ -134,8 +134,8 @@ type AppContextConfig struct {
 	AppVer             string
 }
 
-// NewContext constructs a new appContext from the RPC client, primary and
-// auxiliary data sources, and JSON indentation string.
+// NewContext constructs a new appContext from the RPC client and database, and
+// JSON indentation string.
 func NewContext(cfg *AppContextConfig) *appContext {
 	conns, _ := cfg.Client.GetConnectionCount(context.TODO())
 	nodeHeight, _ := cfg.Client.GetBlockCount(context.TODO())

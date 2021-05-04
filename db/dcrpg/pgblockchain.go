@@ -4196,13 +4196,22 @@ txns:
 		// block or if the transaction is stake-invalidated. Spending
 		// information for extended side chain transaction outputs must still be
 		// done via addresses.matching_tx_hash.
-		if updateAddressesSpendingInfo && tx.IsValid && isMainchain {
+		if updateAddressesSpendingInfo && tx.IsValid && isMainchain && len(voutDbIDs) > 0 {
 			// Set spend_tx_row_id for each prevout consumed by this txn.
-			err = setSpendingForVouts(dbTx, voutDbIDs, txDbID)
-			if err != nil {
-				txRes.err = fmt.Errorf(`setSpendingForVouts: %v + %v (rollback)`,
-					err, dbTx.Rollback())
-				return txRes
+			if len(voutDbIDs) == 1 {
+				err = setSpendingForVout(dbTx, voutDbIDs[0], txDbID)
+				if err != nil {
+					txRes.err = fmt.Errorf(`setSpendingForVouts: %v + %v (rollback)`,
+						err, dbTx.Rollback())
+					return txRes
+				}
+			} else {
+				err = setSpendingForVouts(dbTx, voutDbIDs, txDbID)
+				if err != nil {
+					txRes.err = fmt.Errorf(`setSpendingForVouts: %v + %v (rollback)`,
+						err, dbTx.Rollback())
+					return txRes
+				}
 			}
 		}
 	}
