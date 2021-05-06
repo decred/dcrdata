@@ -4779,7 +4779,7 @@ func (pgb *ChainDB) GetVoteInfo(txhash *chainhash.Hash) (*apitypes.VoteInfo, err
 		return nil, nil
 	}
 
-	validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(tx.MsgTx(), pgb.chainParams)
+	validation, version, bits, choices, tspendVotes, err := txhelpers.SSGenVoteChoices(tx.MsgTx(), pgb.chainParams)
 	if err != nil {
 		return nil, err
 	}
@@ -4792,6 +4792,7 @@ func (pgb *ChainDB) GetVoteInfo(txhash *chainhash.Hash) (*apitypes.VoteInfo, err
 		Version: version,
 		Bits:    bits,
 		Choices: choices,
+		TSpends: apitypes.ConvertTSpendVotes(tspendVotes),
 	}
 	return vinfo, nil
 }
@@ -5354,7 +5355,7 @@ func makeExplorerTxBasic(data *chainjson.TxRawResult, ticketPrice int64, msgTx *
 	// Votes need VoteInfo set. Regular txns need to be screened for mixes.
 	switch txType {
 	case stake.TxTypeSSGen:
-		validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, params)
+		validation, version, bits, choices, tspendVotes, err := txhelpers.SSGenVoteChoices(msgTx, params)
 		if err != nil {
 			log.Debugf("Cannot get vote choices for %s", tx.TxID)
 			return tx, txType
@@ -5368,6 +5369,7 @@ func makeExplorerTxBasic(data *chainjson.TxRawResult, ticketPrice int64, msgTx *
 			Version: version,
 			Bits:    bits,
 			Choices: choices,
+			TSpends: exptypes.ConvertTSpendVotes(tspendVotes),
 		}
 	case stake.TxTypeRegular:
 		_, mixDenom, mixCount := txhelpers.IsMixTx(msgTx)
@@ -6126,7 +6128,7 @@ func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
 
 		var voteInfo *exptypes.VoteInfo
 		if txType == stake.TxTypeSSGen /* stake.IsSSGen(msgTx, treasuryActive) */ {
-			validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, pgb.chainParams) // todo: hint treasury active
+			validation, version, bits, choices, tspendVotes, err := txhelpers.SSGenVoteChoices(msgTx, pgb.chainParams) // todo: hint treasury active
 			if err != nil {
 				log.Debugf("Cannot get vote choices for %s", hash)
 			} else {
@@ -6140,6 +6142,7 @@ func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
 					Bits:        bits,
 					Choices:     choices,
 					TicketSpent: msgTx.TxIn[1].PreviousOutPoint.Hash.String(),
+					TSpends:     exptypes.ConvertTSpendVotes(tspendVotes),
 				}
 			}
 		}

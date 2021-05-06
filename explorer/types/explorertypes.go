@@ -303,6 +303,12 @@ type TxInID struct {
 	Index uint32
 }
 
+// TSpendVote describes how a SSGen transaction decided on a tspend.
+type TSpendVote struct {
+	TSpend string `json:"tspend"`
+	Choice uint8  `json:"choice"`
+}
+
 // VoteInfo models data about a SSGen transaction (vote)
 type VoteInfo struct {
 	Validation         BlockValidation         `json:"block_validation"`
@@ -312,6 +318,7 @@ type VoteInfo struct {
 	TicketSpent        string                  `json:"ticket_spent"`
 	MempoolTicketIndex int                     `json:"mempool_ticket_index"`
 	ForLastBlock       bool                    `json:"last_block"`
+	TSpends            []*TSpendVote           `json:"tspend_votes,omitempty"`
 }
 
 func (vi *VoteInfo) DeepCopy() *VoteInfo {
@@ -322,6 +329,18 @@ func (vi *VoteInfo) DeepCopy() *VoteInfo {
 	out.Choices = make([]*txhelpers.VoteChoice, len(vi.Choices))
 	copy(out.Choices, vi.Choices)
 	return &out
+}
+
+// ConvertTSpendVotes converts into the api's TSpendVote format.
+func ConvertTSpendVotes(tspendChoices []*txhelpers.TSpendVote) []*TSpendVote {
+	tspendVotes := make([]*TSpendVote, len(tspendChoices))
+	for i := range tspendChoices {
+		tspendVotes[i] = &TSpendVote{
+			TSpend: tspendChoices[i].TSpend.String(),
+			Choice: tspendChoices[i].Choice,
+		}
+	}
+	return tspendVotes
 }
 
 // BlockValidation models data about a vote's decision on a block

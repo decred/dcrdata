@@ -777,7 +777,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 	for i, tx := range voteTxs {
 		msgTx := voteMsgTxs[i]
 		voteVersion := stake.SSGenVersion(msgTx)
-		validBlock, voteBits, err := txhelpers.SSGenVoteBlockValid(msgTx /*, TODO treasuryEnabled */)
+		validBlock, _ /* TODO treasuryVotes */, voteBits, err := txhelpers.SSGenVoteBlockValid(msgTx /*, TODO treasuryEnabled */)
 		if err != nil {
 			bail()
 			return nil, nil, nil, nil, nil, err
@@ -829,7 +829,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 			continue // rest of loop deals with agendas table
 		}
 
-		_, _, _, choices, err := txhelpers.SSGenVoteChoices(msgTx, params)
+		_, _, _, choices, _ /* tspendChoices */, err := txhelpers.SSGenVoteChoices(msgTx, params)
 		if err != nil {
 			bail()
 			return nil, nil, nil, nil, nil, err

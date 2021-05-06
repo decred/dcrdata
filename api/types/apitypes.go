@@ -130,12 +130,31 @@ type Txns struct {
 	Transactions []string `json:"transactions"`
 }
 
+// TSpendVote describes how a SSGen transaction decided on a tspend.
+type TSpendVote struct {
+	TSpend string `json:"tspend"`
+	Choice uint8  `json:"choice"`
+}
+
 // VoteInfo models data about a SSGen transaction (vote)
 type VoteInfo struct {
 	Validation BlockValidation         `json:"block_validation"`
 	Version    uint32                  `json:"vote_version"`
 	Bits       uint16                  `json:"vote_bits"`
 	Choices    []*txhelpers.VoteChoice `json:"vote_choices"`
+	TSpends    []*TSpendVote           `json:"tspend_votes,omitempty"`
+}
+
+// ConvertTSpendVotes converts into the api's TSpendVote format.
+func ConvertTSpendVotes(tspendChoices []*txhelpers.TSpendVote) []*TSpendVote {
+	tspendVotes := make([]*TSpendVote, len(tspendChoices))
+	for i := range tspendChoices {
+		tspendVotes[i] = &TSpendVote{
+			TSpend: tspendChoices[i].TSpend.String(),
+			Choice: tspendChoices[i].Choice,
+		}
+	}
+	return tspendVotes
 }
 
 // BlockValidation models data about a vote's decision on a block
