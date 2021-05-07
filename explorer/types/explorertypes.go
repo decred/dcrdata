@@ -16,6 +16,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v3"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrdata/v6/db/dbtypes"
 	"github.com/decred/dcrdata/v6/txhelpers"
 )
 
@@ -463,28 +464,28 @@ type Conversion struct {
 
 // HomeInfo represents data used for the home page
 type HomeInfo struct {
-	CoinSupply            int64          `json:"coin_supply"`
-	StakeDiff             float64        `json:"sdiff"`
-	NextExpectedStakeDiff float64        `json:"next_expected_sdiff"`
-	NextExpectedBoundsMin float64        `json:"next_expected_min"`
-	NextExpectedBoundsMax float64        `json:"next_expected_max"`
-	IdxBlockInWindow      int            `json:"window_idx"`
-	IdxInRewardWindow     int            `json:"reward_idx"`
-	Difficulty            float64        `json:"difficulty"`
-	DevFund               int64          `json:"dev_fund"` // legacy treasury address
-	DevAddress            string         `json:"dev_address"`
-	TreasuryBalance       int64          `json:"treasury_bal"` // new decentralized treasury account
-	TicketReward          float64        `json:"reward"`
-	RewardPeriod          string         `json:"reward_period"`
-	ASR                   float64        `json:"ASR"`
-	NBlockSubsidy         BlockSubsidy   `json:"subsidy"`
-	Params                ChainParams    `json:"params"`
-	PoolInfo              TicketPoolInfo `json:"pool_info"`
-	TotalLockedDCR        float64        `json:"total_locked_dcr"`
-	HashRate              float64        `json:"hash_rate"`
-	HashRateChangeDay     float64        `json:"hash_rate_change_day"`
-	HashRateChangeMonth   float64        `json:"hash_rate_change_month"`
-	ExchangeRate          *Conversion    `json:"exchange_rate,omitempty"`
+	CoinSupply            int64                    `json:"coin_supply"`
+	StakeDiff             float64                  `json:"sdiff"`
+	NextExpectedStakeDiff float64                  `json:"next_expected_sdiff"`
+	NextExpectedBoundsMin float64                  `json:"next_expected_min"`
+	NextExpectedBoundsMax float64                  `json:"next_expected_max"`
+	IdxBlockInWindow      int                      `json:"window_idx"`
+	IdxInRewardWindow     int                      `json:"reward_idx"`
+	Difficulty            float64                  `json:"difficulty"`
+	DevFund               int64                    `json:"dev_fund"` // legacy treasury address
+	DevAddress            string                   `json:"dev_address"`
+	TreasuryBalance       *dbtypes.TreasuryBalance `json:"treasury_bal"` // new decentralized treasury account
+	TicketReward          float64                  `json:"reward"`
+	RewardPeriod          string                   `json:"reward_period"`
+	ASR                   float64                  `json:"ASR"`
+	NBlockSubsidy         BlockSubsidy             `json:"subsidy"`
+	Params                ChainParams              `json:"params"`
+	PoolInfo              TicketPoolInfo           `json:"pool_info"`
+	TotalLockedDCR        float64                  `json:"total_locked_dcr"`
+	HashRate              float64                  `json:"hash_rate"`
+	HashRateChangeDay     float64                  `json:"hash_rate_change_day"`
+	HashRateChangeMonth   float64                  `json:"hash_rate_change_month"`
+	ExchangeRate          *Conversion              `json:"exchange_rate,omitempty"`
 }
 
 // BlockSubsidy is an implementation of chainjson.GetBlockSubsidyResult

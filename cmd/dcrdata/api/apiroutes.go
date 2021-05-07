@@ -61,6 +61,7 @@ type DataSource interface {
 	VotesInBlock(hash string) (int16, error)
 	TxHistoryData(address string, addrChart dbtypes.HistoryChart,
 		chartGroupings dbtypes.TimeBasedGrouping) (*dbtypes.ChartsData, error)
+	BinnedTreasuryIO(chartGroupings dbtypes.TimeBasedGrouping) (*dbtypes.ChartsData, error)
 	TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) (
 		*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, int64, error)
 	AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error)
@@ -1710,6 +1711,28 @@ func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.R
 	}
 	if err != nil {
 		log.Warnf("failed to get address (%s) history by amount flow: %v", address, err)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	writeJSON(w, data, m.GetIndentCtx(r))
+}
+
+func (c *appContext) getTreasuryIO(w http.ResponseWriter, r *http.Request) {
+	chartGrouping := m.GetChartGroupingCtx(r)
+	if chartGrouping == "" {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	data, err := c.DataSource.BinnedTreasuryIO(dbtypes.TimeGroupingFromStr(chartGrouping))
+	if dbtypes.IsTimeoutErr(err) {
+		apiLog.Errorf("BinnedTreasuryIO: %v", err)
+		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
+		return
+	}
+	if err != nil {
+		log.Warnf("failed to get treasury i/o: %v", err)
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}

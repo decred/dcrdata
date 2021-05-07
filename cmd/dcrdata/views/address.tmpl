@@ -102,9 +102,15 @@
                 </div>
               {{- end}}
           </div>
+          {{- if eq .Address $.DevAddress}}
+          <div class="row pb-3 fs16">
+            <span class="col-24"><a href="/treasury">Go to the new treasury page</a></span>
+          </div>
+          {{else}}
           <div class="row pb-3 fs16">
             <span class="col-24"><a href="{{$.Links.DownloadLink}}" title="Decred downloads" target="_blank" rel="noopener noreferrer">Get Decrediton</a>, the official desktop wallet.</span>
           </div>
+          {{end}}
           <div class="pb-1 fs14">
             {{if .IsDummyAddress}}
               *This a is dummy address, typically used for unspendable ticket change outputs.

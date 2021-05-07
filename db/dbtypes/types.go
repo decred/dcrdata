@@ -1818,6 +1818,22 @@ type TreasuryTx struct {
 	BlockTime   TimeDef
 }
 
+// TreasuryBalance is the current balance, spent amount, and tx count for the
+// treasury.
+type TreasuryBalance struct {
+	Balance int64 `json:"balance"`
+	// TxCount should probably be called OutputCount.
+	TxCount       int64 `json:"tx_count"`
+	AddCount      int64 `json:"add_count"`
+	Added         int64 `json:"added"`
+	SpendCount    int64 `json:"spend_count"`
+	Spent         int64 `json:"spent"`
+	TGenCount     int64 `json:"tgen_count"`
+	TGen          int64 `json:"tbase"`
+	ImmatureCount int64 `json:"immature_count"`
+	Immature      int64 `json:"immature"`
+}
+
 // AddressTransactions collects the transactions for an address as AddressTx
 // slices.
 type AddressTransactions struct {

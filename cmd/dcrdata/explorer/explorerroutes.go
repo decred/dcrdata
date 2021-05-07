@@ -182,7 +182,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 			CoinSupply:      xcBot.Conversion(dcrutil.Amount(homeInfo.CoinSupply).ToCoin()),
 			PowSplit:        xcBot.Conversion(dcrutil.Amount(homeInfo.NBlockSubsidy.PoW).ToCoin()),
 			TreasurySplit:   xcBot.Conversion(dcrutil.Amount(homeInfo.NBlockSubsidy.Dev).ToCoin()),
-			TreasuryBalance: xcBot.Conversion(dcrutil.Amount(homeInfo.DevFund + homeInfo.TreasuryBalance).ToCoin()),
+			TreasuryBalance: xcBot.Conversion(dcrutil.Amount(homeInfo.DevFund + homeInfo.TreasuryBalance.Balance).ToCoin()),
 		}
 	}
 
@@ -1344,7 +1344,6 @@ type TreasuryInfo struct {
 	Path          string
 	Limit, Offset int64  // ?n=Limit&start=Offset
 	TxnType       string // ?txntype=TxnType
-	TxnCount      int64
 
 	// TODO: tadd and tspend can be unconfirmed. tspend for a very long time.
 	// NumUnconfirmed is the number of unconfirmed txns
@@ -1355,8 +1354,9 @@ type TreasuryInfo struct {
 	Transactions    []*dbtypes.TreasuryTx
 	NumTransactions int64 // len(Transactions) but int64 for dumb template
 
-	Balance    int64
-	TotalSpent int64
+	Balance          *dbtypes.TreasuryBalance
+	ConvertedBalance *exchanges.Conversion
+	TypeCount        int64
 }
 
 // TreasuryPage is the page handler for the "/treasury" path
@@ -1364,7 +1364,8 @@ func (exp *explorerUI) TreasuryPage(w http.ResponseWriter, r *http.Request) {
 	ctx := context.WithValue(r.Context(), ctxAddress, exp.pageData.HomeInfo.DevAddress)
 	r = r.WithContext(ctx)
 	if queryVals := r.URL.Query(); queryVals.Get("txntype") == "" {
-		queryVals.Set("txntype", "tspend")
+		// TODO: Change default to "tspend" once there are some tspends.
+		queryVals.Set("txntype", "all")
 		r.URL.RawQuery = queryVals.Encode()
 	}
 
@@ -1397,22 +1398,10 @@ func (exp *explorerUI) TreasuryPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Transaction types to show.
-	txnTypeStr := r.URL.Query().Get("txntype")
-	if txnTypeStr == "" {
-		txnTypeStr = "all"
-	}
-	txTypes := int(-1)
-	switch strings.ToLower(txnTypeStr) {
-	case "all":
-	case "tspend":
-		txTypes = int(stake.TxTypeTSpend)
-	case "tadd":
-		txTypes = int(stake.TxTypeTAdd)
-	case "treasurybase":
-		txTypes = int(stake.TxTypeTreasuryBase)
-	}
+	txTypeStr := r.URL.Query().Get("txntype")
+	txType := parseTreasuryTransactionType(txTypeStr)
 
-	txns, err := exp.dataSource.TreasuryTxns(limitN, offset)
+	txns, err := exp.dataSource.TreasuryTxns(limitN, offset, txType)
 	if exp.timeoutErrorPage(w, err, "TreasuryTxns") {
 		return
 	} else if err != nil {
@@ -1420,15 +1409,11 @@ func (exp *explorerUI) TreasuryPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	height := exp.pageData.BlockInfo.Height
-	maturityHeight := height - int64(exp.ChainParams.CoinbaseMaturity)
-	balance, spent, txCount, err := exp.dataSource.TreasuryBalance(maturityHeight)
-	if exp.timeoutErrorPage(w, err, "TreasuryBalance") {
-		return
-	} else if err != nil {
-		exp.StatusPage(w, defaultErrorCode, err.Error(), "", ExpStatusError)
-		return
-	}
+	exp.pageData.RLock()
+	treasuryBalance := exp.pageData.HomeInfo.TreasuryBalance
+	exp.pageData.RUnlock()
+
+	typeCount := treasuryTypeCount(treasuryBalance, txType)
 
 	treasuryData := &TreasuryInfo{
 		Net:             exp.ChainParams.Net.String(),
@@ -1436,16 +1421,20 @@ func (exp *explorerUI) TreasuryPage(w http.ResponseWriter, r *http.Request) {
 		Path:            r.URL.Path,
 		Limit:           limitN,
 		Offset:          offset,
-		TxnType:         txnTypeStr,
-		TxnCount:        txCount,
+		TxnType:         txTypeStr,
 		NumTransactions: int64(len(txns)),
 		Transactions:    txns,
-		Balance:         balance,
-		TotalSpent:      spent,
+		Balance:         treasuryBalance,
+		TypeCount:       typeCount,
+	}
+
+	xcBot := exp.xcBot
+	if xcBot != nil {
+		treasuryData.ConvertedBalance = xcBot.Conversion(math.Round(float64(treasuryBalance.Balance) / 1e8))
 	}
 
 	// Execute the HTML template.
-	linkTemplate := fmt.Sprintf("/treasury?start=%%d&n=%d&txntype=%v", limitN, txTypes)
+	linkTemplate := fmt.Sprintf("/treasury?start=%%d&n=%d&txntype=%v", limitN, txType)
 	pageData := struct {
 		*CommonPageData
 		Data        *TreasuryInfo
@@ -1454,8 +1443,8 @@ func (exp *explorerUI) TreasuryPage(w http.ResponseWriter, r *http.Request) {
 	}{
 		CommonPageData: exp.commonData(r),
 		Data:           treasuryData,
-		FiatBalance:    exp.xcBot.Conversion(dcrutil.Amount(treasuryData.Balance).ToCoin()),
-		Pages:          calcPages(int(treasuryData.TxnCount), int(limitN), int(offset), linkTemplate),
+		FiatBalance:    exp.xcBot.Conversion(dcrutil.Amount(treasuryBalance.Balance).ToCoin()),
+		Pages:          calcPages(int(typeCount), int(limitN), int(offset), linkTemplate),
 	}
 	str, err := exp.templates.exec("treasury", pageData)
 	if err != nil {
@@ -1643,7 +1632,71 @@ func (exp *explorerUI) AddressTable(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// parseAddressParams is used by both /address and /addresstable.
+// TreasuryTable is the handler for the "/treasurytable" path.
+func (exp *explorerUI) TreasuryTable(w http.ResponseWriter, r *http.Request) {
+	// Grab the URL query parameters
+	txType, limitN, offset, err := parseTreasuryParams(r)
+	if err != nil {
+		log.Errorf("TreasuryTable request error: %v", err)
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	txns, err := exp.dataSource.TreasuryTxns(limitN, offset, txType)
+	if exp.timeoutErrorPage(w, err, "TreasuryTxns") {
+		return
+	} else if err != nil {
+		exp.StatusPage(w, defaultErrorCode, err.Error(), "", ExpStatusError)
+		return
+	}
+
+	exp.pageData.RLock()
+	bal := exp.pageData.HomeInfo.TreasuryBalance
+	exp.pageData.RUnlock()
+
+	linkTemplate := "/treasury" + "?start=%d&n=" + strconv.FormatInt(limitN, 10) + "&txntype=" + fmt.Sprintf("%v", txType)
+
+	response := struct {
+		TxnCount int64        `json:"tx_count"`
+		HTML     string       `json:"html"`
+		Pages    []pageNumber `json:"pages"`
+	}{
+		TxnCount: bal.TxCount, // + addrData.ImmatureCount,
+		Pages:    calcPages(int(treasuryTypeCount(bal, txType)), int(limitN), int(offset), linkTemplate),
+	}
+
+	type txData struct {
+		Transactions []*dbtypes.TreasuryTx
+	}
+
+	response.HTML, err = exp.templates.exec("treasurytable", struct {
+		Data txData
+	}{
+		Data: txData{
+			Transactions: txns,
+		},
+	})
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError),
+			http.StatusInternalServerError)
+		return
+	}
+
+	log.Tracef(`"treasurytable" template HTML size: %.2f kiB (%v, %d)`,
+		float64(len(response.HTML))/1024.0, txType, len(txns))
+
+	w.Header().Set("Content-Type", "application/json")
+	enc := json.NewEncoder(w)
+	//enc.SetEscapeHTML(false)
+	err = enc.Encode(response)
+	if err != nil {
+		log.Debug(err)
+	}
+}
+
+// parseAddressParams parses tx filter parameters. Used by both /address and
+// /addresstable.
 func parseAddressParams(r *http.Request) (address string, txnType dbtypes.AddrTxnViewType, limitN, offsetAddrOuts int64, err error) {
 	// Get the address URL parameter, which should be set in the request context
 	// by the addressPathCtx middleware.
@@ -1654,6 +1707,55 @@ func parseAddressParams(r *http.Request) (address string, txnType dbtypes.AddrTx
 		return
 	}
 
+	tType, limitN, offsetAddrOuts, err := parsePaginationParams(r)
+	txnType = dbtypes.AddrTxnViewTypeFromStr(tType)
+	if txnType == dbtypes.AddrTxnUnknown {
+		err = fmt.Errorf("unknown txntype query value")
+	}
+	return
+}
+
+// treasuryTypeCount returns the tx count for the type treasury tx type. The
+// special value txType = -1 specifies all types combined.
+func treasuryTypeCount(treasuryBalance *dbtypes.TreasuryBalance, txType stake.TxType) int64 {
+	typedCount := treasuryBalance.TxCount
+	switch txType {
+	case stake.TxTypeTSpend:
+		typedCount = treasuryBalance.SpendCount
+	case stake.TxTypeTAdd:
+		typedCount = treasuryBalance.AddCount
+	case stake.TxTypeTreasuryBase:
+		typedCount = treasuryBalance.TGenCount
+	}
+	return typedCount
+}
+
+// parseTreasuryTransactionType parses a treasury transaction type from a
+// string. If the provided string is not recognized as a treasury type, the
+// special value -1, representing "all", will be returned.
+func parseTreasuryTransactionType(txnTypeStr string) (txType stake.TxType) {
+	switch strings.ToLower(txnTypeStr) {
+	case "tspend":
+		return stake.TxTypeTSpend
+	case "tadd":
+		return stake.TxTypeTAdd
+	case "treasurybase":
+		return stake.TxTypeTreasuryBase
+	}
+	return stake.TxType(-1)
+}
+
+// parseTreasuryParams parses the tx filters for the treasury page. Used by both
+// TreasuryPage and TreasuryTable.
+func parseTreasuryParams(r *http.Request) (txType stake.TxType, limitN, offsetAddrOuts int64, err error) {
+	tType, limitN, offsetAddrOuts, err := parsePaginationParams(r)
+	txType = parseTreasuryTransactionType(tType)
+	return
+}
+
+// parsePaginationParams parses the pagination parameters from the query. The
+// txnType string is returned as-is. The caller must decipher the string.
+func parsePaginationParams(r *http.Request) (txnType string, limitN, offset int64, err error) {
 	// Number of outputs for the address to query the database for. The URL
 	// query parameter "n" is used to specify the limit (e.g. "?n=20").
 	limitN = defaultAddressRows
@@ -1684,27 +1786,23 @@ func parseAddressParams(r *http.Request) (address string, txnType dbtypes.AddrTx
 			err = fmt.Errorf("invalid start value")
 			return
 		}
-		offsetAddrOuts = int64(val)
+		offset = int64(val)
 	}
 
 	// Transaction types to show.
-	txntype := r.URL.Query().Get("txntype")
-	if txntype == "" {
-		txntype = "all"
+	txnType = r.URL.Query().Get("txntype")
+	if txnType == "" {
+		txnType = "all"
 	}
-	txnType = dbtypes.AddrTxnViewTypeFromStr(txntype)
-	if txnType == dbtypes.AddrTxnUnknown {
-		err = fmt.Errorf("unknown txntype query value")
-	}
-
-	// log.Debugf("Showing transaction types: %s (%d)", txntype, txnType)
 
 	return
 }
 
 // AddressListData grabs a size-limited and type-filtered set of inputs/outputs
 // for a given address.
-func (exp *explorerUI) AddressListData(address string, txnType dbtypes.AddrTxnViewType, limitN, offsetAddrOuts int64) (addrData *dbtypes.AddressInfo, err error) {
+func (exp *explorerUI) AddressListData(address string, txnType dbtypes.AddrTxnViewType, limitN,
+	offsetAddrOuts int64) (addrData *dbtypes.AddressInfo, err error) {
+
 	// Get addresses table rows for the address.
 	addrData, err = exp.dataSource.AddressData(address, limitN,
 		offsetAddrOuts, txnType)
@@ -2517,6 +2615,9 @@ func calcPagesDesc(rows, pageSize, offset int, link string) pageNumbers {
 // That looks like 1 2 3 4 5 6 7 8 ... 20. The pageNumber includes a link with
 // the offset inserted using Sprintf.
 func calcPages(rows, pageSize, offset int, link string) pageNumbers {
+	if pageSize == 0 {
+		return pageNumbers{}
+	}
 	nums := make(pageNumbers, 0, 11)
 	endIdx := rows / pageSize
 	if endIdx == 0 {

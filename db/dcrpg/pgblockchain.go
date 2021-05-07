@@ -1805,19 +1805,70 @@ func (pgb *ChainDB) GetTicketInfo(txid string) (*apitypes.TicketInfo, error) {
 	}, nil
 }
 
-func (pgb *ChainDB) TreasuryBalance(maturityHeight int64) (balance, spent, txCount int64, err error) {
-	var bal, spend, matureCount sql.NullInt64
-	err = pgb.db.QueryRowContext(pgb.ctx, internal.SelectTreasuryBalance, maturityHeight).Scan(&matureCount, &bal, &spend)
+// TreasuryBalance calculates the *dbtypes.TreasuryBalance.
+func (pgb *ChainDB) TreasuryBalance() (_ *dbtypes.TreasuryBalance, err error) {
+	var addCount, added, immatureCount, immature, spendCount, spent, genCount, gen int64
+
+	_, tipHeight := pgb.BestBlock()
+	maturityHeight := tipHeight - int64(pgb.chainParams.CoinbaseMaturity)
+
+	rows, err := pgb.db.QueryContext(pgb.ctx, internal.SelectTreasuryBalance, maturityHeight)
 	if err != nil {
 		return
 	}
-	var immatureCount sql.NullInt64
-	err = pgb.db.QueryRowContext(pgb.ctx, internal.SelectTreasuryImmatureCount, maturityHeight).Scan(&immatureCount)
-	return bal.Int64, spend.Int64, matureCount.Int64 + immatureCount.Int64, err
+	defer rows.Close()
+
+	for rows.Next() {
+		var txType, matureCount, allCount, matureValue, allValue sql.NullInt64
+		if err = rows.Scan(&txType, &matureCount, &allCount, &matureValue, &allValue); err != nil {
+			return
+		}
+
+		imCount := allCount.Int64 - matureCount.Int64
+		imValue := allValue.Int64 - matureValue.Int64
+
+		switch stake.TxType(txType.Int64) {
+		case stake.TxTypeTSpend:
+			spendCount = allCount.Int64
+			spent = -allCount.Int64
+		case stake.TxTypeTAdd:
+			immatureCount += imCount
+			immature += imValue
+			addCount = allCount.Int64
+			added = matureValue.Int64
+		case stake.TxTypeTreasuryBase:
+			immatureCount += imCount
+			immature += imValue
+			genCount = allCount.Int64
+			gen = matureValue.Int64
+		}
+	}
+
+	return &dbtypes.TreasuryBalance{
+		Balance:       added + gen - spent,
+		TxCount:       addCount + spendCount + genCount,
+		AddCount:      addCount,
+		Added:         added,
+		SpendCount:    spendCount,
+		Spent:         spent,
+		TGenCount:     genCount,
+		TGen:          gen,
+		ImmatureCount: immatureCount,
+		Immature:      immature,
+	}, nil
 }
 
-func (pgb *ChainDB) TreasuryTxns(n, offset int64) ([]*dbtypes.TreasuryTx, error) {
-	rows, err := pgb.db.QueryContext(pgb.ctx, internal.SelectTreasuryTxns, n, offset)
+// TreasuryTxns fetches filtered treasury transactions.
+func (pgb *ChainDB) TreasuryTxns(n, offset int64, txType stake.TxType) ([]*dbtypes.TreasuryTx, error) {
+	var rows *sql.Rows
+	var err error
+	switch txType {
+	case -1:
+		rows, err = pgb.db.QueryContext(pgb.ctx, internal.SelectTreasuryTxns, n, offset)
+	default:
+		rows, err = pgb.db.QueryContext(pgb.ctx, internal.SelectTypedTreasuryTxns, txType, n, offset)
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -2921,6 +2972,13 @@ func (pgb *ChainDB) TxHistoryData(address string, addrChart dbtypes.HistoryChart
 	_ = pgb.AddressCache.StoreHistoryChart(address, addrChart, chartGroupings,
 		cd, cache.NewBlockID(bestHash, height))
 	return
+}
+
+func (pgb *ChainDB) BinnedTreasuryIO(chartGroupings dbtypes.TimeBasedGrouping) (*dbtypes.ChartsData, error) {
+	timeInterval := chartGroupings.String()
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	defer cancel()
+	return binnedTreasuryIO(ctx, pgb.db, timeInterval)
 }
 
 // TicketsByPrice returns chart data for tickets grouped by price. maturityBlock

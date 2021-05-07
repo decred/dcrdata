@@ -2159,36 +2159,11 @@ func retrieveTxHistoryByType(ctx context.Context, db *sql.DB, addr, timeInterval
 // month, year, day and all. For all time interval, transactions are grouped by
 // the unique timestamps (blocks) available.
 func retrieveTxHistoryByAmountFlow(ctx context.Context, db *sql.DB, addr, timeInterval string) (*dbtypes.ChartsData, error) {
-	var items = new(dbtypes.ChartsData)
-
 	rows, err := db.QueryContext(ctx, internal.MakeSelectAddressAmountFlowByAddress(timeInterval), addr)
 	if err != nil {
 		return nil, err
 	}
-	defer closeRows(rows)
-
-	for rows.Next() {
-		var blockTime time.Time
-		var received, sent uint64
-		err = rows.Scan(&blockTime, &received, &sent)
-		if err != nil {
-			return nil, err
-		}
-
-		items.Time = append(items.Time, dbtypes.NewTimeDef(blockTime))
-		items.Received = append(items.Received, dcrutil.Amount(received).ToCoin())
-		items.Sent = append(items.Sent, dcrutil.Amount(sent).ToCoin())
-		// Net represents the difference between the received and sent amount for a
-		// given block. If the difference is positive then the value is unspent amount
-		// otherwise if the value is zero then all amount is spent and if the net amount
-		// is negative then for the given block more amount was sent than received.
-		items.Net = append(items.Net, dcrutil.Amount(received-sent).ToCoin())
-	}
-	if err = rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return items, nil
+	return parseRowsSentReceived(rows)
 }
 
 // --- vins and vouts tables ---
@@ -4304,6 +4279,41 @@ func UpdateTreasuryMainchain(db SqlExecutor, blockHash string, isMainchain bool)
 		return 0, err
 	}
 	return numRows, nil
+}
+
+func binnedTreasuryIO(ctx context.Context, db *sql.DB, timeInterval string) (*dbtypes.ChartsData, error) {
+	rows, err := db.QueryContext(ctx, internal.MakeSelectTreasuryIOStatement(timeInterval))
+	if err != nil {
+		return nil, err
+	}
+	return parseRowsSentReceived(rows)
+}
+
+func parseRowsSentReceived(rows *sql.Rows) (*dbtypes.ChartsData, error) {
+	defer closeRows(rows)
+	var items = new(dbtypes.ChartsData)
+	for rows.Next() {
+		var blockTime time.Time
+		var received, sent uint64
+		err := rows.Scan(&blockTime, &received, &sent)
+		if err != nil {
+			return nil, err
+		}
+
+		items.Time = append(items.Time, dbtypes.NewTimeDef(blockTime))
+		items.Received = append(items.Received, dcrutil.Amount(received).ToCoin())
+		items.Sent = append(items.Sent, dcrutil.Amount(sent).ToCoin())
+		// Net represents the difference between the received and sent amount for a
+		// given block. If the difference is positive then the value is unspent amount
+		// otherwise if the value is zero then all amount is spent and if the net amount
+		// is negative then for the given block more amount was sent than received.
+		items.Net = append(items.Net, dcrutil.Amount(received-sent).ToCoin())
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return items, nil
 }
 
 // UpdateAddressesMainchainByIDs sets the valid_mainchain column for the
