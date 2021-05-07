@@ -11,7 +11,7 @@ module.exports = {
     turbolinks: 'Turbolinks'
   },
   optimization: {
-    chunkIds: 'deterministic',
+    chunkIds: 'natural',
     splitChunks: {
       chunks: 'all',
     }

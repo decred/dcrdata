@@ -18,6 +18,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/decred/dcrd/blockchain/stake/v3"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v3"
@@ -72,8 +73,8 @@ type explorerDataSource interface {
 	SpendingTransaction(fundingTx string, vout uint32) (string, uint32, int8, error)
 	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
 	PoolStatusForTicket(txid string) (dbtypes.TicketSpendType, dbtypes.TicketPoolStatus, error)
-	TreasuryBalance(maturityHeight int64) (bal, spent, txCount int64, err error)
-	TreasuryTxns(n, offset int64) ([]*dbtypes.TreasuryTx, error)
+	TreasuryBalance() (*dbtypes.TreasuryBalance, error)
+	TreasuryTxns(n, offset int64, txType stake.TxType) ([]*dbtypes.TreasuryTx, error)
 	AddressHistory(address string, N, offset int64, txnType dbtypes.AddrTxnViewType) ([]*dbtypes.AddressRow, *dbtypes.AddressBalance, error)
 	AddressData(address string, N, offset int64, txnType dbtypes.AddrTxnViewType) (*dbtypes.AddressInfo, error)
 	DevBalance() (*dbtypes.AddressBalance, error)
@@ -470,8 +471,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 		stakePerc = blockData.PoolInfo.Value / dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin()
 	}
 
-	maturityHeight := newBlockData.Height - int64(exp.ChainParams.CoinbaseMaturity)
-	treasuryBalance, _, _, err := exp.dataSource.TreasuryBalance(maturityHeight)
+	treasuryBalance, err := exp.dataSource.TreasuryBalance()
 	if err != nil {
 		log.Errorf("Store: TreasuryBalance failed: %v", err)
 	}

@@ -183,6 +183,15 @@ export default class extends Controller {
 
     ctrl.state = Object.assign({}, settings)
 
+    // Parse stimulus data
+    const cdata = ctrl.data
+    ctrl.dcrAddress = cdata.get('dcraddress')
+    ctrl.paginationParams = {
+      offset: parseInt(cdata.get('offset')),
+      count: parseInt(cdata.get('txnCount'))
+    }
+    ctrl.balance = cdata.get('balance')
+
     // Get initial view settings from the url
     ctrl.query.update(settings)
     ctrl.setChartType()
@@ -199,18 +208,10 @@ export default class extends Controller {
       settings.chart = ctrl.chartType
     }
 
-    // Parse stimulus data
-    const cdata = ctrl.data
-    ctrl.dcrAddress = cdata.get('dcraddress')
-    ctrl.paginationParams = {
-      offset: parseInt(cdata.get('offset')),
-      count: parseInt(cdata.get('txnCount'))
-    }
-    ctrl.balance = cdata.get('balance')
-
     Dygraph = await getDefault(
       import(/* webpackChunkName: "dygraphs" */ '../vendor/dygraphs.min.js')
     )
+
     ctrl.initializeChart()
     ctrl.drawGraph()
   }
@@ -281,8 +282,8 @@ export default class extends Controller {
   }
 
   makeTableUrl (txType, count, offset) {
-    return '/addresstable/' + this.dcrAddress + '?txntype=' +
-    txType + '&n=' + count + '&start=' + offset
+    const root = this.dcrAddress === 'treasury' ? 'treasurytable' : `addresstable/${this.dcrAddress}`
+    return `/${root}?txntype=${txType}&n=${count}&start=${offset}`
   }
 
   changePageSize () {
@@ -337,10 +338,12 @@ export default class extends Controller {
     ctrl.paginationParams.pagesize = count
     ctrl.paginationParams.txntype = txType
     ctrl.setPageability()
-    if (txType.indexOf('merged') === -1) {
-      this.mergedMsgTarget.classList.add('d-hide')
-    } else {
-      this.mergedMsgTarget.classList.remove('d-hide')
+    if (ctrl.dcrAddress !== 'treasury') {
+      if (txType.indexOf('merged') === -1) {
+        this.mergedMsgTarget.classList.add('d-hide')
+      } else {
+        this.mergedMsgTarget.classList.remove('d-hide')
+      }
     }
     ctrl.tablePaginationParams = data.pages
     ctrl.setTablePaginationLinks()
@@ -396,14 +399,18 @@ export default class extends Controller {
 
   setTablePaginationLinks () {
     const tablePagesLink = ctrl.tablePaginationParams
+    if (tablePagesLink.length === 0) return ctrl.tablePaginationTarget.classList.add('d-hide')
+    ctrl.tablePaginationTarget.classList.remove('d-hide')
     const txCount = parseInt(ctrl.paginationParams.count)
     const offset = parseInt(ctrl.paginationParams.offset)
     const pageSize = parseInt(ctrl.paginationParams.pagesize)
     const txnType = ctrl.paginationParams.txntype
     let links = ''
 
+    const root = this.dcrAddress === 'treasury' ? 'treasury' : `address/${this.dcrAddress}`
+
     if (typeof offset !== 'undefined' && offset > 0) {
-      links = `<a href="/address/${this.dcrAddress}?start=${offset - pageSize}&n=${pageSize}&txntype=${txnType}" ` +
+      links = `<a href="/${root}?start=${offset - pageSize}&n=${pageSize}&txntype=${txnType}" ` +
       'class="d-inline-block dcricon-arrow-left m-1 fz20" data-action="click->address#pageNumberLink"></a>' + '\n'
     }
 
@@ -413,7 +420,7 @@ export default class extends Controller {
     }).join('\n')
 
     if ((txCount - offset) > pageSize) {
-      links += '\n' + `<a href="/address/${this.dcrAddress}?start=${(offset + pageSize)}&n=${pageSize}&txntype=${txnType}" ` +
+      links += '\n' + `<a href="/${root}?start=${(offset + pageSize)}&n=${pageSize}&txntype=${txnType}" ` +
       'class="d-inline-block dcricon-arrow-right m-1 fs20" data-action="click->address#pageNumberLink"></a>'
     }
 
@@ -464,8 +471,12 @@ export default class extends Controller {
       return
     }
 
-    const chartKey = chart === 'balance' ? 'amountflow' : chart
-    const url = '/api/address/' + ctrl.dcrAddress + '/' + chartKey + '/' + bin
+    let url = `/api/treasury/io/${bin}`
+    if (this.dcrAddress !== 'treasury') {
+      const chartKey = chart === 'balance' ? 'amountflow' : chart
+      url = '/api/address/' + ctrl.dcrAddress + '/' + chartKey + '/' + bin
+    }
+
     const graphDataResponse = await axios.get(url)
     ctrl.processData(chart, bin, graphDataResponse.data)
     ctrl.ajaxing = false

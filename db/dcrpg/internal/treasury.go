@@ -43,12 +43,33 @@ const (
 	InsertTreasuryRowOnConflictDoNothing = InsertTreasuryRow + `ON CONFLICT (tx_hash, block_hash)
 		DO NOTHING;`
 
-	SelectTreasuryTxns = `SELECT * FROM treasury WHERE is_mainchain ORDER BY block_height DESC
+	SelectTreasuryTxns = `SELECT * FROM treasury 
+		WHERE is_mainchain
+		ORDER BY block_height DESC
 		LIMIT $1 OFFSET $2;`
 
-	SelectTreasuryBalance = `SELECT COUNT(1), SUM(value) AS balance, SUM(CASE WHEN value<0 THEN -value ELSE 0 END) AS spent
-		FROM treasury WHERE is_mainchain AND block_height <= $1;`
-	SelectTreasuryImmatureCount = `SELECT COUNT(1) FROM treasury WHERE is_mainchain AND block_height > $1;`
+	SelectTypedTreasuryTxns = `SELECT * FROM treasury 
+		WHERE is_mainchain
+			AND tx_type = $1
+		ORDER BY block_height DESC
+		LIMIT $2 OFFSET $3;`
+
+	SelectTreasuryBalance = `SELECT
+		tx_type,
+		COUNT(CASE WHEN block_height <= $1 THEN 1 END),
+		COUNT(1),
+		SUM(CASE WHEN block_height <= $1 THEN value ELSE 0 END),
+		SUM(value)
+		FROM treasury
+		WHERE is_mainchain
+		GROUP BY tx_type;`
+
+	selectBinnedIO = `SELECT %s as timestamp,
+		SUM(CASE WHEN (tx_type=4 OR tx_type=6) THEN value ELSE 0 END) as received,
+		SUM(CASE WHEN tx_type=5 THEN -value ELSE 0 END) as sent
+		FROM treasury
+		GROUP BY timestamp
+		ORDER BY timestamp;`
 
 	// TODO: CreateTreasuryVotesTable
 )
@@ -70,4 +91,8 @@ func MakeTreasuryInsertStatement(checked, updateOnConflict bool) string {
 		return UpsertTreasuryRow
 	}
 	return InsertTreasuryRowOnConflictDoNothing
+}
+
+func MakeSelectTreasuryIOStatement(group string) string {
+	return formatGroupingQuery(selectBinnedIO, group, "block_time")
 }

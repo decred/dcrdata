@@ -4,13 +4,15 @@
 {{template "html-head" "Decred Decentralized Treasury"}}
   {{template "navbar" . }}
   {{- with .Data}}
-  {{- $TxnCount := .TxnCount}}
+  {{- $bal := .Balance -}}
+  {{- $TxnCount := $bal.TxCount}}
   {{- $txType := .TxnType -}}
   <div class="container main"
     data-controller="address"
+    data-address-dcraddress="treasury"
     data-address-offset="{{.Offset}}"
-    data-address-txn-count="{{$TxnCount}}"
-    data-address-balance="{{toFloat64Amount .Balance}}"
+    data-address-txn-count="{{ $bal.TxCount}}"
+    data-address-balance="{{toFloat64Amount $bal.Balance}}"
   >
     <div class="fullscreen d-none" data-target="address.fullscreen" data-action="click->address#exitFullscreen">
       <div class="secondary-card d-inline-block w-100 h-100 p-4" data-target="address.bigchart"></div>
@@ -18,63 +20,57 @@
     <div class="row pb-4 px-2">
       <div class="col-24 col-xl-10 bg-white px-3 py-3 position-relative">
         <div class="fs22 pb-3">Decred Treasury</div>
-        <div class="position-relative d-flex justify-content-between align-items-center flex-wrap">
+        <div class="position-relative d-flex justify-content-between align-items-start flex-wrap">
           <div class="d-inline-block text-left pr-2 pb-3">
             <span class="text-secondary fs13">Balance</span>
             <br>
             <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal font-weight-bold">
-            {{- if .Balance}}
-              {{template "decimalParts" (amountAsDecimalParts .Balance true)}} <span class="text-secondary fs14">DCR</span>
+            {{- if $bal.Balance}}
+              {{template "decimalParts" (amountAsDecimalParts $bal.Balance true)}} <span class="text-secondary fs14">DCR</span><br>
             {{- else}}
               <span class="fs18">0</span> <span class="text-secondary fs14">DCR</span>
             {{- end}}
             </span>
+            {{if .ConvertedBalance}}
+              <br>
+              <span class="fs15 medium-sans lh1rem">{{threeSigFigs .ConvertedBalance.Value}}</span>
+              <span class="text-secondary fs13 lh1rem">{{.ConvertedBalance.Index}}</span>
+            {{end}}
             <br>
-            {{- if $.FiatBalance}}
-              <span class="text-secondary fs16 lh1rem">{{threeSigFigs $.FiatBalance.Value}} <span class="fs14">{{$.FiatBalance.Index}}</span></span>
-            {{- end}}
+            <span class="text-secondary fs14 lh1rem">{{template "decimalParts" (amountAsDecimalParts $bal.Immature true)}} immature</span>
           </div>
           <div class="d-inline-block text-left pr-2 pb-3">
             <span class="text-secondary fs13">Received</span>
             <br>
             <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal font-weight-bold">
-            {{- if .Balance}}
-              {{- $received := add .TotalSpent .Balance}}
+            {{- if or $bal.Added $bal.TGen}}
+              {{- $received := add $bal.Added $bal.TGen}}
               {{- template "decimalParts" (amountAsDecimalParts $received true)}} <span class="text-secondary fs14">DCR</span>
             {{- else}}
               <span class="fs18">0</span> <span class="text-secondary fs14">DCR</span>
             {{- end}}
             </span>
             <br>
-            {{/* <span class="text-secondary fs16 lh1rem">{{intComma (add .Balance.NumSpent .Balance.NumUnspent)}} outputs</span> */}}
+            <span class="text-secondary fs14 lh1rem">{{intComma $bal.TGenCount}} gens, {{intComma $bal.AddCount}} adds</span>
           </div>
           <div class="d-inline-block text-left pr-2 pb-3">
             <span class="text-secondary fs13">Spent</span>
             <br>
             <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal font-weight-bold">
-            {{- if .Balance}}
-              {{- template "decimalParts" (amountAsDecimalParts .TotalSpent true)}} <span class="text-secondary fs14">DCR</span>
+            {{- if $bal.Spent}}
+              {{- template "decimalParts" (amountAsDecimalParts $bal.Spent true)}} <span class="text-secondary fs14">DCR</span>
             {{- else}}
               <span class="fs18">0</span> <span class="text-secondary fs14">DCR</span>
             {{- end}}
             </span>
             <br>
-            {{/*  <span class="text-secondary fs16 lh1rem">{{intComma .Balance.NumSpent}} inputs</span> */}}
+            <span class="text-secondary fs14 lh1rem">{{intComma $bal.SpendCount}} spends</span>
           </div>
           <span></span>
         </div>
         <div class="position-relative d-flex justify-content-between align-items-start flex-wrap">
           <span>See also the <a href="/address/{{$.DevAddress}}">legacy treasury</a> during the transition to this decentralized treasury account.</span>
         </div>
-        {{/*
-        <div class="row pb-2">
-          {{- if ne .NumUnconfirmed 0}}
-          <div class="col-12 pb-2 fs14 text-secondary text-left" data-target="address.numUnconfirmed">
-            <span class="font-weight-bold">Unconfirmed</span>: <span class="addr-unconfirmed-count">{{.NumUnconfirmed}}</span>
-          </div>
-          {{- end}}
-        </div>
-        */}}
       </div>
       <div class="col-24 col-xl-14 secondary-card p-2">
         <noscript>
@@ -92,7 +88,7 @@
                   data-action="change->address#changeGraph"
                 >
                   <option name="balance" value="balance">Balance</option>
-                  <option name="types" value="types">Tx Type</option>
+                  <!-- <option name="types" value="types">Tx Type</option> -->
                   <option name="amountflow" value="amountflow">Sent/Received</option>
                 </select>
               </div>
@@ -155,7 +151,7 @@
         <div class="d-flex flex-wrap-reverse align-items-center justify-content-end py-1 col-24 col-sm-18">
           <span class="fs12 nowrap text-right" data-target="address.range">
             showing {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumTransactions)}} of
-            <span data-target="address.txnCount" data-txn-count="{{$TxnCount}}">{{intComma $TxnCount}}</span> transactions
+            <span data-target="address.txnCount" data-txn-count="{{$bal.TxCount}}">{{intComma .TypeCount}}</span> transactions
           </span>
           <nav aria-label="address transactions navigation"
             data-limit="{{.Limit}}"
@@ -207,7 +203,7 @@
               href="{{.Link}}">{{.Str}}</a>
           {{end}}
         {{end}}
-        {{if gt (subtract $TxnCount .Offset) .Limit}}
+        {{if gt (subtract .TypeCount .Offset) .Limit}}
         <a class="d-inline-block dcricon-arrow-right m-1 fs20"
             data-action="click->address#pageNumberLink"
             href="/treasury?start={{add .Offset .Limit}}&n={{.Limit}}&txntype={{$txType}}"></a>
