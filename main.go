@@ -597,7 +597,7 @@ func _main(ctx context.Context) error {
 	} else {
 		// Start a goroutine to update the explorer pages when the DB sync
 		// functions send a new block hash on the following channel.
-		latestBlockHash = make(chan *chainhash.Hash, 2)
+		latestBlockHash = make(chan *chainhash.Hash, 32)
 
 		// The BlockConnected handler should not be started until after sync.
 		go func() {
@@ -605,6 +605,7 @@ func _main(ctx context.Context) error {
 			// pointer received.
 			for hash := range latestBlockHash {
 				if hash == nil {
+					log.Debugf("main is now done updating explorer pages with latest block hash.")
 					return
 				}
 				// Fetch the blockdata by block hash.
@@ -1013,12 +1014,6 @@ func _main(ctx context.Context) error {
 		}
 	}
 
-	// Set that newly sync'd blocks should no longer be stored in the explorer.
-	// Monitors that fetch the latest updates from dcrd will be launched next.
-	if latestBlockHash != nil {
-		close(latestBlockHash)
-	}
-
 	// The proposals and agenda db updates are run after the db indexing.
 	// Retrieve blockchain deployment updates and add them to the agendas db.
 	if err = agendaDB.UpdateAgendas(); err != nil {
@@ -1129,6 +1124,12 @@ func _main(ctx context.Context) error {
 	notifier.RegisterReorgHandlerGroup(wsChainMonitor.ReorgHandler, chainDBChainMonitor.ReorgHandler)
 	notifier.RegisterReorgHandlerGroup(charts.ReorgHandler) // snip charts data
 	notifier.RegisterTxHandlerGroup(mpm.TxHandler, insightSocketServer.SendNewTx)
+
+	// Set that newly sync'd blocks should no longer be stored in the explorer.
+	// Monitors that fetch the latest updates from dcrd will be launched next.
+	if latestBlockHash != nil {
+		latestBlockHash <- nil
+	}
 
 	// Register for notifications from dcrd. This also sets the daemon RPC
 	// client used by other functions in the notify/notification package (i.e.
