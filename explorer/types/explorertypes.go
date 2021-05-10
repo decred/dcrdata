@@ -482,6 +482,7 @@ type Conversion struct {
 // HomeInfo represents data used for the home page
 type HomeInfo struct {
 	CoinSupply            int64                    `json:"coin_supply"`
+	MixedPercent          float64                  `json:"mixed_percent"`
 	StakeDiff             float64                  `json:"sdiff"`
 	NextExpectedStakeDiff float64                  `json:"next_expected_sdiff"`
 	NextExpectedBoundsMin float64                  `json:"next_expected_min"`

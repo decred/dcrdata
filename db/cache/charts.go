@@ -804,6 +804,17 @@ func (charts *ChartData) AnonymitySetTip() int32 {
 	return int32(len(charts.Blocks.AnonymitySet)) - 1
 }
 
+// AnonymitySet is the last known anonymity set size.
+func (charts *ChartData) AnonymitySet() uint64 {
+	charts.mtx.RLock()
+	defer charts.mtx.RUnlock()
+	count := len(charts.Blocks.AnonymitySet)
+	if count == 0 {
+		return 0
+	}
+	return charts.Blocks.AnonymitySet[count-1]
+}
+
 // NewAtomsTip is the height of the NewAtoms data.
 func (charts *ChartData) NewAtomsTip() int32 {
 	charts.mtx.RLock()
