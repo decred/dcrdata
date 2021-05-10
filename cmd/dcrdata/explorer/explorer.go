@@ -131,6 +131,11 @@ type agendaBackend interface {
 	UpdateAgendas() error
 }
 
+// ChartDataSource provides data from the charts cache.
+type ChartDataSource interface {
+	AnonymitySet() uint64
+}
+
 // links to be passed with common page data.
 type links struct {
 	CoinbaseComment string
@@ -201,6 +206,7 @@ type pageData struct {
 type explorerUI struct {
 	Mux              *chi.Mux
 	dataSource       explorerDataSource
+	chartSource      ChartDataSource
 	agendasSource    agendaBackend
 	voteTracker      *agendas.VoteTracker
 	proposalsSource  PoliteiaBackend
@@ -274,6 +280,7 @@ func (exp *explorerUI) StopWebsocketHub() {
 // ExplorerConfig is the configuration settings for explorerUI.
 type ExplorerConfig struct {
 	DataSource      explorerDataSource
+	ChartSource     ChartDataSource
 	UseRealIP       bool
 	AppVersion      string
 	DevPrefetch     bool
@@ -294,6 +301,7 @@ func New(cfg *ExplorerConfig) *explorerUI {
 	exp := new(explorerUI)
 	exp.Mux = chi.NewRouter()
 	exp.dataSource = cfg.DataSource
+	exp.chartSource = cfg.ChartSource
 	// Allocate Mempool fields.
 	exp.invs = new(types.MempoolInfo)
 	exp.Version = cfg.AppVersion
@@ -608,6 +616,16 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 	}
 
 	return nil
+}
+
+// ChartsUpdated should be called when a chart update completes.
+func (exp *explorerUI) ChartsUpdated() {
+	anonSet := exp.chartSource.AnonymitySet()
+	exp.pageData.Lock()
+	if exp.pageData.HomeInfo.CoinSupply > 0 {
+		exp.pageData.HomeInfo.MixedPercent = float64(anonSet) / float64(exp.pageData.HomeInfo.CoinSupply) * 100
+	}
+	exp.pageData.Unlock()
 }
 
 func (exp *explorerUI) updateDevFundBalance() {

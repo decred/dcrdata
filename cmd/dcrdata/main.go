@@ -492,8 +492,10 @@ func _main(ctx context.Context) error {
 	}
 
 	// Create the explorer system.
+
 	explore := explorer.New(&explorer.ExplorerConfig{
 		DataSource:      chainDB,
+		ChartSource:     charts,
 		UseRealIP:       cfg.UseRealIP,
 		AppVersion:      Version(),
 		DevPrefetch:     !cfg.NoDevPrefetch,
@@ -990,13 +992,21 @@ func _main(ctx context.Context) error {
 	dumpPath := filepath.Join(cfg.DataDir, cfg.ChartsCacheDump)
 	if err = charts.Load(dumpPath); err != nil {
 		log.Warnf("Failed to load charts data cache: %v", err)
+	} else {
+		explore.ChartsUpdated()
 	}
 
 	// Add charts saver method after explorer and database stores. This may run
 	// asynchronously.
 	blockDataSavers = append(blockDataSavers, blockdata.BlockTrigger{
 		Async: true,
-		Saver: charts.TriggerUpdate,
+		Saver: func(hash string, height uint32) error {
+			if err := charts.TriggerUpdate(hash, height); err != nil {
+				return err
+			}
+			explore.ChartsUpdated()
+			return nil
+		},
 	})
 
 	// This dumps the cache charts data into a file for future use on system

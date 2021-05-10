@@ -395,11 +395,12 @@
                                 </span>
                                 <span class="pl-1 unit lh15rem">DCR</span>
                             </div>
-                            {{if $conv}}
                             <div class="fs12 lh1rem text-black-50">
-                                <span data-target="homepage.convertedSupply">{{threeSigFigs $conv.CoinSupply.Value}} {{$conv.CoinSupply.Index}}</span>
+                                {{if $conv}}
+                                <span data-target="homepage.convertedSupply">{{threeSigFigs $conv.CoinSupply.Value}} {{$conv.CoinSupply.Index}}</span>,
+                                {{end}}
+                                <span data-target="homepage.mixedPct">{{printf "%.0f" .MixedPercent}}</span>% mixed
                             </div>
-                            {{end}}
                         </div>
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                             <div class="fs13 text-secondary">Treasury Block Reward</div>
