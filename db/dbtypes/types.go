@@ -567,6 +567,16 @@ type AgendaSummary struct {
 	LockedIn      int64
 }
 
+// TreasurySpendVotes summarizes the vote tally for a tspend.
+type TreasurySpendVotes struct {
+	Hash      string `json:"hash"`
+	Expiry    int64  `json:"expiry"`
+	VoteStart int64  `json:"votestart"`
+	VoteEnd   int64  `json:"voteend"`
+	YesVotes  int64  `json:"yesvotes"`
+	NoVotes   int64  `json:"novotes"`
+}
+
 // BlockChainData defines data holding the latest block chain state from the
 // getblockchaininfo rpc endpoint.
 type BlockChainData struct {

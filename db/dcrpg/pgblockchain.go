@@ -1805,6 +1805,20 @@ func (pgb *ChainDB) GetTicketInfo(txid string) (*apitypes.TicketInfo, error) {
 	}, nil
 }
 
+func (pgb *ChainDB) TSpendVotes(tspendID *chainhash.Hash) (*dbtypes.TreasurySpendVotes, error) {
+	tspendVotesResult, err := pgb.Client.GetTreasurySpendVotes(pgb.ctx, nil, []*chainhash.Hash{tspendID})
+	if err != nil {
+		return nil, err
+	}
+	if len(tspendVotesResult.Votes) != 1 {
+		return nil, fmt.Errorf("expected 1 tally, got %d", len(tspendVotesResult.Votes))
+	}
+
+	tsv := dbtypes.TreasurySpendVotes(tspendVotesResult.Votes[0])
+
+	return &tsv, nil
+}
+
 // TreasuryBalance calculates the *dbtypes.TreasuryBalance.
 func (pgb *ChainDB) TreasuryBalance() (_ *dbtypes.TreasuryBalance, err error) {
 	var addCount, added, immatureCount, immature, spendCount, spent, genCount, gen int64
@@ -5402,12 +5416,10 @@ func makeExplorerTxBasic(data *chainjson.TxRawResult, ticketPrice int64, msgTx *
 	case v0.IsCoinBase():
 		tx.Fee, tx.FeeRate = 0, 0
 		tx.Coinbase = true
-	case v0.IsTreasurySpend():
-		// fmt.Printf("treasury spend: %v\n", data.Txid)
-	case v0.Treasurybase:
-		// fmt.Printf("treasurybase: %v\n", data.Txid)
 	case v0.Treasurybase:
 		tx.Treasurybase = true
+	case v0.IsTreasurySpend():
+		// fmt.Printf("treasury spend: %v\n", data.Txid)
 	}
 
 	// Votes need VoteInfo set. Regular txns need to be screened for mixes.
@@ -5788,16 +5800,7 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 	}
 	tx.Vin = inputs
 
-	// TODO: treasury txn maturity
-	if tx.Type == exptypes.CoinbaseTypeStr || tx.IsRevocation() {
-		if tx.Confirmations < int64(pgb.chainParams.CoinbaseMaturity) {
-			tx.Mature = "False"
-		} else {
-			tx.Mature = "True"
-		}
-		tx.Maturity = int64(pgb.chainParams.CoinbaseMaturity)
-	}
-	if tx.IsVote() || tx.IsTicket() {
+	if isVote := tx.IsVote(); isVote || tx.IsTicket() {
 		if tx.Confirmations > 0 && pgb.Height() >=
 			(int64(pgb.chainParams.TicketMaturity)+tx.BlockHeight) {
 			tx.Mature = "True"
@@ -5805,14 +5808,30 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 			tx.Mature = "False"
 			tx.TicketInfo.TicketMaturity = int64(pgb.chainParams.TicketMaturity)
 		}
-	}
-	if tx.IsVote() {
-		if tx.Confirmations < int64(pgb.chainParams.CoinbaseMaturity) {
-			tx.VoteFundsLocked = "True"
-		} else {
-			tx.VoteFundsLocked = "False"
+
+		if isVote {
+			if tx.Confirmations < int64(pgb.chainParams.CoinbaseMaturity) {
+				tx.VoteFundsLocked = "True"
+			} else {
+				tx.VoteFundsLocked = "False"
+			}
+			tx.Maturity = int64(pgb.chainParams.CoinbaseMaturity) + 1 // Add one to reflect < instead of <=
 		}
-		tx.Maturity = int64(pgb.chainParams.CoinbaseMaturity) + 1 // Add one to reflect < instead of <=
+	} else if tx.Type == exptypes.CoinbaseTypeStr || tx.IsTreasurybase() || tx.IsRevocation() ||
+		tx.IsTreasuryAdd() || tx.IsTreasurySpend() {
+		if tx.Confirmations < int64(pgb.chainParams.CoinbaseMaturity) {
+			tx.Mature = "False"
+		} else {
+			tx.Mature = "True"
+		}
+		tx.Maturity = int64(pgb.chainParams.CoinbaseMaturity)
+
+		if tx.IsTreasurySpend() {
+			tx.TSpendTally, err = pgb.TSpendVotes(txhash)
+			if err != nil {
+				log.Errorf("Failed to retrieve vote tally for tspend %v: %v", txid, err)
+			}
+		}
 	}
 
 	CoinbaseMaturityInHours := (pgb.chainParams.TargetTimePerBlock.Hours() * float64(pgb.chainParams.CoinbaseMaturity))
@@ -6216,6 +6235,7 @@ func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
 			Size:     tx.Size,
 			TotalOut: total,
 			Type:     txhelpers.TxTypeToString(int(txType)),
+			TypeID:   int(txType),
 			VoteInfo: voteInfo,
 			Vin:      exptypes.MsgTxMempoolInputs(msgTx),
 		})
