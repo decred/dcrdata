@@ -797,6 +797,13 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Weed out bad hashes before we try any queries or RPCs.
+	_, err := chainhash.NewHashFromStr(hash)
+	if err != nil {
+		exp.StatusPage(w, defaultErrorCode, "Invalid transaction ID", "", ExpStatusError)
+		return
+	}
+
 	inout, _ := r.Context().Value(ctxTxInOut).(string)
 	if inout != "in" && inout != "out" && inout != "" {
 		exp.StatusPage(w, defaultErrorCode, "there was no transaction requested",
@@ -810,6 +817,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	// If dcrd has no information about the transaction, pull the transaction
 	// details from the auxiliary DB database.
 	if tx == nil {
+		log.Warnf("No transaction information for %v. Trying tables in case this is an orphaned txn.", hash)
 		// Search for occurrences of the transaction in the database.
 		dbTxs, err := exp.dataSource.Transaction(hash)
 		if exp.timeoutErrorPage(w, err, "Transaction") {
@@ -860,6 +868,8 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		if tx.Coinbase {
 			tx.Type = types.CoinbaseTypeStr
 		}
+
+		// TODO: tx.TSpendTally
 
 		// Retrieve vouts from DB.
 		vouts, err := exp.dataSource.VoutsForTx(dbTx0)
@@ -979,8 +989,9 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 
-		// For coinbase and stakebase, get maturity status.
-		if tx.Coinbase || tx.IsVote() || tx.IsRevocation() {
+		// For coinbase, stakebase, and treasury txns, get maturity status.
+		if tx.Coinbase || tx.IsVote() || tx.IsRevocation() || tx.IsTreasuryAdd() ||
+			tx.IsTreasurySpend() || tx.IsTreasurybase() {
 			tx.Maturity = int64(exp.ChainParams.CoinbaseMaturity)
 			if tx.IsVote() {
 				tx.Maturity++ // TODO why as elsewhere for votes?
@@ -1038,24 +1049,6 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-	}
-
-	// Set ticket-related parameters.
-	if tx.IsTicket() {
-		blocksLive := tx.Confirmations - int64(exp.ChainParams.TicketMaturity)
-		tx.TicketInfo.TicketPoolSize = int64(exp.ChainParams.TicketPoolSize) *
-			int64(exp.ChainParams.TicketsPerBlock)
-		tx.TicketInfo.TicketExpiry = int64(exp.ChainParams.TicketExpiry)
-		expirationInDays := (exp.ChainParams.TargetTimePerBlock.Hours() *
-			float64(exp.ChainParams.TicketExpiry)) / 24
-		maturityInHours := (exp.ChainParams.TargetTimePerBlock.Hours() *
-			float64(tx.TicketInfo.TicketMaturity))
-		tx.TicketInfo.TimeTillMaturity = ((float64(exp.ChainParams.TicketMaturity) -
-			float64(tx.Confirmations)) / float64(exp.ChainParams.TicketMaturity)) *
-			maturityInHours
-		ticketExpiryBlocksLeft := int64(exp.ChainParams.TicketExpiry) - blocksLive
-		tx.TicketInfo.TicketExpiryDaysLeft = (float64(ticketExpiryBlocksLeft) /
-			float64(exp.ChainParams.TicketExpiry)) * expirationInDays
 	}
 
 	// For any coinbase transactions look up the total block fees to include
@@ -1119,6 +1112,21 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if tx.IsTicket() {
+		blocksLive := tx.Confirmations - int64(exp.ChainParams.TicketMaturity)
+		tx.TicketInfo.TicketPoolSize = int64(exp.ChainParams.TicketPoolSize) *
+			int64(exp.ChainParams.TicketsPerBlock)
+		tx.TicketInfo.TicketExpiry = int64(exp.ChainParams.TicketExpiry)
+		expirationInDays := (exp.ChainParams.TargetTimePerBlock.Hours() *
+			float64(exp.ChainParams.TicketExpiry)) / 24
+		maturityInHours := (exp.ChainParams.TargetTimePerBlock.Hours() *
+			float64(tx.TicketInfo.TicketMaturity))
+		tx.TicketInfo.TimeTillMaturity = ((float64(exp.ChainParams.TicketMaturity) -
+			float64(tx.Confirmations)) / float64(exp.ChainParams.TicketMaturity)) *
+			maturityInHours
+		ticketExpiryBlocksLeft := int64(exp.ChainParams.TicketExpiry) - blocksLive
+		tx.TicketInfo.TicketExpiryDaysLeft = (float64(ticketExpiryBlocksLeft) /
+			float64(exp.ChainParams.TicketExpiry)) * expirationInDays
+
 		spendStatus, poolStatus, err := exp.dataSource.PoolStatusForTicket(hash)
 		if exp.timeoutErrorPage(w, err, "PoolStatusForTicket") {
 			return

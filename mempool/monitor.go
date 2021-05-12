@@ -217,7 +217,7 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 
 	// If this is a vote, decode vote bits.
 	var voteInfo *exptypes.VoteInfo
-	if txType == stake.TxTypeSSGen /* stake.IsSSGen(msgTx, treasuryActive) */ {
+	if txType == stake.TxTypeSSGen {
 		validation, version, bits, choices, tspendVotes, err := txhelpers.SSGenVoteChoices(msgTx, p.params)
 		if err != nil {
 			log.Debugf("Cannot get vote choices for %s", hash)
@@ -252,12 +252,13 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 		VinCount:  len(msgTx.TxIn),
 		VoutCount: len(msgTx.TxOut),
 		Vin:       exptypes.MsgTxMempoolInputs(msgTx),
-		// Coinbase:  txhelpers.IsCoinBaseTx(msgTx), // commented because coinbase is not in mempool
+		// Coinbase is not in mempool
 		Hash:     hash,
 		Time:     rawTx.Time,
 		Size:     int32(len(rawTx.Hex) / 2),
 		TotalOut: txhelpers.TotalOutFromMsgTx(msgTx).ToCoin(),
 		Type:     txTypeStr,
+		TypeID:   int(txType),
 		VoteInfo: voteInfo,
 	}
 
@@ -273,11 +274,13 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 		p.inventory.Transactions = append([]exptypes.MempoolTx{tx}, p.inventory.Transactions...)
 		p.inventory.NumRegular++
 		p.inventory.LikelyMineable.RegularTotal += tx.TotalOut
+
 	case stake.TxTypeSStx:
 		p.inventory.InvStake[tx.Hash] = struct{}{}
 		p.inventory.Tickets = append([]exptypes.MempoolTx{tx}, p.inventory.Tickets...)
 		p.inventory.NumTickets++
 		p.inventory.LikelyMineable.TicketTotal += tx.TotalOut
+
 	case stake.TxTypeSSGen:
 		// Votes on the next block may be received just prior to dcrdata
 		// actually processing the new block. Do not broadcast these
@@ -308,14 +311,27 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 		} else {
 			likelyMineable = false
 		}
+
 	case stake.TxTypeSSRtx:
 		p.inventory.InvStake[tx.Hash] = struct{}{}
 		p.inventory.Revocations = append([]exptypes.MempoolTx{tx}, p.inventory.Revocations...)
 		p.inventory.NumRevokes++
 		p.inventory.LikelyMineable.RevokeTotal += tx.TotalOut
-	case stake.TxTypeTSpend, stake.TxTypeTAdd, stake.TxTypeTreasuryBase:
+
+	case stake.TxTypeTSpend:
 		p.inventory.InvStake[tx.Hash] = struct{}{}
-		// TODO treasury: TSpend and TAdd totals and txns
+		p.inventory.TSpends = append([]exptypes.MempoolTx{tx}, p.inventory.TSpends...)
+		likelyMineable = false // really depends on vote choices and TreasuryVoteInterval
+		// p.inventory.LikelyMineable.TSpendTotal += tx.TotalOut
+
+	case stake.TxTypeTAdd:
+		p.inventory.InvStake[tx.Hash] = struct{}{}
+		p.inventory.TAdds = append([]exptypes.MempoolTx{tx}, p.inventory.TAdds...)
+		p.inventory.LikelyMineable.TAddTotal += tx.TotalOut
+
+	case stake.TxTypeTreasuryBase:
+		// treasurybase should never be in mempool so let's warn
+		log.Warnf("Treasury base in mempool! %v", tx.TxID)
 	}
 
 	// Update latest transactions, popping the oldest transaction off

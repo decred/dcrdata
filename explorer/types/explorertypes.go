@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/decred/dcrd/blockchain/stake/v3"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v3"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
@@ -185,6 +186,7 @@ type TxInfo struct {
 	VoteFundsLocked  string
 	Maturity         int64   // Total number of blocks before mature
 	MaturityTimeTill float64 // Time in hours until mature
+	TSpendTally      *dbtypes.TreasurySpendVotes
 	TicketInfo
 }
 
@@ -269,6 +271,11 @@ func (t *TxInfo) IsImmatureRevocation() bool {
 	return t.Type == RevTypeStr && t.Mature == "False"
 }
 
+// IsImmature indicates if the transaction is immature
+func (t *TxInfo) IsImmature() bool {
+	return t.Mature == "False"
+}
+
 // BlocksToTicketMaturity will return 0 if this isn't an immature ticket.
 func (t *TxInfo) BlocksToTicketMaturity() (blocks int64) {
 	if t.Type != TicketTypeStr {
@@ -307,7 +314,7 @@ type TxInID struct {
 // TSpendVote describes how a SSGen transaction decided on a tspend.
 type TSpendVote struct {
 	TSpend string `json:"tspend"`
-	Choice uint8  `json:"choice"`
+	Choice string `json:"choice"`
 }
 
 // VoteInfo models data about a SSGen transaction (vote)
@@ -334,11 +341,21 @@ func (vi *VoteInfo) DeepCopy() *VoteInfo {
 
 // ConvertTSpendVotes converts into the api's TSpendVote format.
 func ConvertTSpendVotes(tspendChoices []*txhelpers.TSpendVote) []*TSpendVote {
+	choiceStr := func(choice uint8) string {
+		switch stake.TreasuryVoteT(choice) {
+		case stake.TreasuryVoteYes:
+			return "yes"
+		case stake.TreasuryVoteNo:
+			return "no"
+		default:
+			return "invalid"
+		}
+	}
 	tspendVotes := make([]*TSpendVote, len(tspendChoices))
 	for i := range tspendChoices {
 		tspendVotes[i] = &TSpendVote{
 			TSpend: tspendChoices[i].TSpend.String(),
-			Choice: tspendChoices[i].Choice,
+			Choice: choiceStr(tspendChoices[i].Choice),
 		}
 	}
 	return tspendVotes
@@ -496,19 +513,21 @@ type BlockSubsidy struct {
 	Dev   int64 `json:"dev"`
 }
 
-// TrimmedMempoolInfo models data needed to display mempool info on the new home page
+// TrimmedMempoolInfo is mempool data for the home page.
 type TrimmedMempoolInfo struct {
 	Transactions []*TrimmedTxInfo
 	Tickets      []*TrimmedTxInfo
 	Votes        []*TrimmedTxInfo
 	Revocations  []*TrimmedTxInfo
+	TSpends      []*TrimmedTxInfo
+	TAdds        []*TrimmedTxInfo
 	Subsidy      BlockSubsidy
 	Total        float64
 	Time         int64
 	Fees         float64
 }
 
-// MempoolInfo models data to update mempool info on the home page
+// MempoolInfo models data to update mempool info on the home page.
 type MempoolInfo struct {
 	sync.RWMutex
 	MempoolShort
@@ -516,6 +535,8 @@ type MempoolInfo struct {
 	Tickets      []MempoolTx `json:"tickets"`
 	Votes        []MempoolTx `json:"votes"`
 	Revocations  []MempoolTx `json:"revs"`
+	TSpends      []MempoolTx `json:"tspends"`
+	TAdds        []MempoolTx `json:"tadds"`
 	Ident        uint64      `json:"id"`
 }
 
@@ -534,6 +555,8 @@ func (mpi *MempoolInfo) DeepCopy() *MempoolInfo {
 	out.Tickets = CopyMempoolTxSlice(mpi.Tickets)
 	out.Votes = CopyMempoolTxSlice(mpi.Votes)
 	out.Revocations = CopyMempoolTxSlice(mpi.Revocations)
+	out.TSpends = CopyMempoolTxSlice(mpi.TSpends)
+	out.TAdds = CopyMempoolTxSlice(mpi.TAdds)
 
 	mps := mpi.MempoolShort.DeepCopy()
 	out.MempoolShort = *mps
@@ -545,14 +568,16 @@ func (mpi *MempoolInfo) DeepCopy() *MempoolInfo {
 func (mpi *MempoolInfo) Trim() *TrimmedMempoolInfo {
 	mpi.RLock()
 
-	mempoolRegularTxs := TrimMempoolTx(mpi.Transactions)
-	mempoolVotes := TrimMempoolTx(mpi.Votes)
+	mempoolRegularTxs := TrimMempoolTxs(mpi.Transactions)
+	mempoolVotes := TrimMempoolTxs(mpi.Votes)
 
 	data := &TrimmedMempoolInfo{
 		Transactions: FilterRegularTx(mempoolRegularTxs),
-		Tickets:      TrimMempoolTx(mpi.Tickets),
+		Tickets:      TrimMempoolTxs(mpi.Tickets),
 		Votes:        FilterUniqueLastBlockVotes(mempoolVotes),
-		Revocations:  TrimMempoolTx(mpi.Revocations),
+		Revocations:  TrimMempoolTxs(mpi.Revocations),
+		TSpends:      TrimMempoolTxs(mpi.TSpends),
+		TAdds:        TrimMempoolTxs(mpi.TAdds),
 		Total:        mpi.TotalOut,
 		Time:         mpi.LastBlockTime,
 	}
@@ -604,6 +629,14 @@ func (mpi *MempoolInfo) Tx(txid string) (MempoolTx, bool) {
 		if found {
 			return tx, true
 		}
+		tx, found = getTxFromList(txid, mpi.TAdds)
+		if found {
+			return tx, true
+		}
+		tx, found = getTxFromList(txid, mpi.TSpends)
+		if found {
+			return tx, true
+		}
 		return getTxFromList(txid, mpi.Revocations)
 	}
 	return MempoolTx{}, false
@@ -642,42 +675,45 @@ func BytesString(s uint64) string {
 	return fmt.Sprintf(f, val, suffix)
 }
 
-// TrimMempoolTx converts the input []MempoolTx to a []*TrimmedTxInfo.
-func TrimMempoolTx(txs []MempoolTx) (trimmedTxs []*TrimmedTxInfo) {
+// TrimMempoolTxs converts the input []MempoolTx to a []*TrimmedTxInfo.
+func TrimMempoolTxs(txs []MempoolTx) []*TrimmedTxInfo {
+	trimmedTxs := make([]*TrimmedTxInfo, 0, len(txs))
 	for _, tx := range txs {
-		fee, _ := dcrutil.NewAmount(tx.Fees) // non-nil error returns 0 fee
-		var feeRate dcrutil.Amount
-		if tx.Size > 0 {
-			feeRate = fee / dcrutil.Amount(int64(tx.Size))
-		}
-		txBasic := &TxBasic{
-			TxID:          tx.TxID,
-			FormattedSize: BytesString(uint64(tx.Size)),
-			Total:         tx.TotalOut,
-			Fee:           fee,
-			FeeRate:       feeRate,
-			VoteInfo:      tx.VoteInfo,
-			Coinbase:      tx.Coinbase, // eh, in mempool???
-			// TODO: TreasuryBase in mempool?
-		}
+		trimmedTxs = append(trimmedTxs, TrimMempoolTx(&tx))
+	}
+	return trimmedTxs
+}
 
-		var voteValid bool
-		if tx.VoteInfo != nil {
-			voteValid = tx.VoteInfo.Validation.Validity
-		}
-
-		trimmedTx := &TrimmedTxInfo{
-			TxBasic:   txBasic,
-			Fees:      tx.Fees,
-			VoteValid: voteValid,
-			VinCount:  tx.VinCount,
-			VoutCount: tx.VoutCount,
-		}
-
-		trimmedTxs = append(trimmedTxs, trimmedTx)
+// TrimMempoolTx converts the input []MempoolTx to a []*TrimmedTxInfo.
+func TrimMempoolTx(tx *MempoolTx) (trimmedTx *TrimmedTxInfo) {
+	fee, _ := dcrutil.NewAmount(tx.Fees) // non-nil error returns 0 fee
+	var feeRate dcrutil.Amount
+	if tx.Size > 0 {
+		feeRate = fee / dcrutil.Amount(int64(tx.Size))
+	}
+	txBasic := &TxBasic{
+		TxID:          tx.TxID,
+		FormattedSize: BytesString(uint64(tx.Size)),
+		Total:         tx.TotalOut,
+		Fee:           fee,
+		FeeRate:       feeRate,
+		VoteInfo:      tx.VoteInfo,
+		Coinbase:      tx.Coinbase, // eh, in mempool???
+		// TreasuryBase not in mempool (either)
 	}
 
-	return trimmedTxs
+	var voteValid bool
+	if tx.VoteInfo != nil {
+		voteValid = tx.VoteInfo.Validation.Validity
+	}
+
+	return &TrimmedTxInfo{
+		TxBasic:   txBasic,
+		Fees:      tx.Fees,
+		VoteValid: voteValid,
+		VinCount:  tx.VinCount,
+		VoutCount: tx.VoutCount,
+	}
 }
 
 // FilterUniqueLastBlockVotes returns a slice of all the vote transactions from
@@ -718,6 +754,8 @@ type MempoolShort struct {
 	NumVotes           int                 `json:"num_votes"`
 	NumRegular         int                 `json:"num_regular"`
 	NumRevokes         int                 `json:"num_revokes"`
+	NumTSpends         int                 `json:"num_tspends"`
+	NumTAdds           int                 `json:"num_tadds"`
 	NumAll             int                 `json:"num_all"`
 	LikelyMineable     LikelyMineable      `json:"likely_mineable"`
 	LatestTransactions []MempoolTx         `json:"latest"`
@@ -738,8 +776,9 @@ type LikelyMineable struct {
 	TicketTotal   float64 `json:"ticket_total"`
 	VoteTotal     float64 `json:"vote_total"`
 	RevokeTotal   float64 `json:"revoke_total"`
-	// TODO TSpend/TAdd total
-	Count int `json:"count"`
+	TSpendTotal   float64 `json:"tspend_total"`
+	TAddTotal     float64 `json:"tadd_total"`
+	Count         int     `json:"count"`
 }
 
 func (mps *MempoolShort) DeepCopy() *MempoolShort {
@@ -759,6 +798,8 @@ func (mps *MempoolShort) DeepCopy() *MempoolShort {
 		NumVotes:           mps.NumVotes,
 		NumRegular:         mps.NumRegular,
 		NumRevokes:         mps.NumRevokes,
+		NumTSpends:         mps.NumTSpends,
+		NumTAdds:           mps.NumTAdds,
 		NumAll:             mps.NumAll,
 		LikelyMineable:     mps.LikelyMineable,
 		FormattedTotalSize: mps.FormattedTotalSize,
@@ -955,8 +996,9 @@ type MempoolTx struct {
 	Size      int32          `json:"size"`
 	TotalOut  float64        `json:"total"`
 	// Consider atom representation:
-	//TotalOutAmt float64        `json:"total_amount"`
+	//TotalOutAmt int64        `json:"total_amount"`
 	Type     string    `json:"Type"`
+	TypeID   int       `json:"typeID"` // stake package types
 	VoteInfo *VoteInfo `json:"vote_info,omitempty"`
 }
 

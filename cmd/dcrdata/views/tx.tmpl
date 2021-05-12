@@ -155,7 +155,7 @@
                       </div>
                   </div>
               </div>
-          {{else if (or .IsImmatureVote .IsImmatureCoinbase .IsImmatureRevocation)}}
+          {{else if .IsImmature}}
             <div class="my-2 w-75" data-target="tx.ticketStage">
                 <div class="fs13 text-secondary pb-1">Maturity</div>
                 <div class="progress">
@@ -323,7 +323,7 @@
                                   {{template "hashElide" (hashlink . (print "/address/" .))}}
                                 {{end}}
                             {{else if .TreasurySpend}}
-                                (Treasury)<!-- TODO: link to new decentralized treasury page -->
+                                <a href="/treasury">Treasury</a>
                             {{else}}
                                 N/A
                             {{end}}
@@ -389,7 +389,7 @@
                                 {{end}}
                             {{else if .OP_TADD}}
                               <div>
-                                <span class="break-word">(Treasury)</span><!-- TODO: link to new decentralized treasury page -->
+                                <span class="break-word"><a href="/treasury">Treasury</a></span><!-- TODO: link to new decentralized treasury page -->
                               </div>
                             {{end}}
                         </td>
@@ -417,15 +417,37 @@
             </table>
         </div>
     </div>
+    {{if .TSpendTally}}
+    {{with .TSpendTally}}
+    <h4>Treasury Spend Approval</h4>
+    <div class="col mb-3">
+        <div class="row-lg-8">
+            <span class="text-secondary fs13">Current Vote interval</span>
+            <br>
+            <span class="medium-sans lh1rem d-inline-block pt-1">{{.VoteStart}} to {{.VoteEnd}}</span>
+        </div>
+        <div class="row-lg-8">
+            <span class="text-secondary fs13">Yes Votes</span>
+            <br>
+            <div class="medium-sans text-green lh1rem d-inline-block">{{.YesVotes}}</div>
+        </div>
+        <div class="row-lg-8">
+            <span class="text-secondary fs13">No Votes</span>
+            <br>
+            <div class="medium-sans text-red lh1rem d-inline-block">{{.NoVotes}}</div>
+        </div>
+    </div>
+    {{end}}
+    {{end}}
     {{if .VoteInfo}}
     {{with .VoteInfo}}
     <div class="row mb-3">
         <div class="col-lg-24">
             <h4>Vote Info</h4>
             <p>Last Block Valid: <span class="mono"><strong>{{.Validation.Validity}}</strong></span><br>
-            Version: <span class="mono">{{.Version}}</span> | Bits: <span class="mono">{{printf "%#04x" .Bits}}</span>
+            Version: <span class="mono">{{.Version}}</span> | Bits: <span class="mono">{{printf "%#04x" .Bits}}</span></p>
+            <h5>Agenda Choices</h5>
             {{if .Choices}}
-            </p>
             <table class="table">
                 <thead>
                   <tr>
@@ -450,7 +472,28 @@
                 </tbody>
             </table>
             {{else}}
-            <br>No recognized agenda votes in this transaction.</p>
+            <br>No recognized agenda votes in this transaction.
+            {{end}}
+            <h5>Treasury Spend Choices</h5>
+            {{if gt (len .TSpends) 0}}
+            <table class="table">
+                <thead>
+                  <tr>
+                    <th>Treasury Spend Transaction</th>
+                    <th>Choice</th>
+                  </tr>
+                </thead>
+                <tbody>
+                    {{range .TSpends}}
+                    <tr>
+                        <td><a href="/tx/{{.TSpend}}">{{.TSpend}}</a></td>
+                        <td>{{.Choice}}</td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+            {{else}}
+            No treasury spend choices in this transaction.
             {{end}}
         </div>
     </div>

@@ -146,6 +146,7 @@ func (t *MempoolDataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.Me
 			Size:     tx.Size,
 			TotalOut: totalOut,
 			Type:     txhelpers.TxTypeToString(int(txType)),
+			TypeID:   int(txType),
 			VoteInfo: voteInfo,
 		})
 	}
@@ -344,7 +345,8 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 	votes := make([]exptypes.MempoolTx, 0)
 	revs := make([]exptypes.MempoolTx, 0)
 	regular := make([]exptypes.MempoolTx, 0)
-	// TODO treasury
+	tadds := make([]exptypes.MempoolTx, 0)
+	tspends := make([]exptypes.MempoolTx, 0)
 
 	// Transaction inventory.
 	invRegular := make(map[string]struct{})
@@ -355,7 +357,7 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 
 	// Reduction variables.
 	var latestTime int64
-	var totalOut, regularTotal, ticketTotal, voteTotal, revTotal dcrutil.Amount
+	var totalOut, regularTotal, ticketTotal, voteTotal, revTotal, taddTotal, tspendTotal dcrutil.Amount
 	var likelyMineable bool
 	var likelyTotal dcrutil.Amount
 	var totalSize, likelySize int32
@@ -367,15 +369,16 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 	for _, tx := range txs {
 		likelyMineable = true
 		out, _ := dcrutil.NewAmount(tx.TotalOut) // 0 for invalid amounts
-		switch tx.Type {
-		case "Ticket": // TODO: don't switch on string literals
+		switch stake.TxType(tx.TypeID) {
+		case stake.TxTypeSStx:
 			if _, found := invStake[tx.Hash]; found {
 				continue
 			}
 			ticketTotal += out
 			invStake[tx.Hash] = struct{}{}
 			tickets = append(tickets, tx)
-		case "Vote":
+
+		case stake.TxTypeSSGen:
 			if _, found := invStake[tx.Hash]; found {
 				continue
 			}
@@ -401,7 +404,8 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 			} else {
 				likelyMineable = false
 			}
-		case "Revocation":
+
+		case stake.TxTypeSSRtx:
 			if _, found := invStake[tx.Hash]; found {
 				continue
 			}
@@ -409,12 +413,31 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 			invStake[tx.Hash] = struct{}{}
 			revs = append(revs, tx)
 
-		case txhelpers.TxTypeToString(int(stake.TxTypeTSpend)), txhelpers.TxTypeToString(int(stake.TxTypeTAdd)),
-			txhelpers.TxTypeToString(int(stake.TxTypeTreasuryBase)):
+		case stake.TxTypeTSpend:
 			if _, found := invStake[tx.Hash]; found {
 				continue
 			}
 			invStake[tx.Hash] = struct{}{}
+			tspendTotal += out
+			tspends = append(tspends, tx)
+			// mineable depends on vote choices and TreasuryVoteInterval
+
+		case stake.TxTypeTAdd:
+			if _, found := invStake[tx.Hash]; found {
+				continue
+			}
+			invStake[tx.Hash] = struct{}{}
+			taddTotal += out
+			tadds = append(tadds, tx)
+
+		case stake.TxTypeTreasuryBase:
+			// treasurybase won't be in mempool, but it certainly should not
+			// default to the regular tree txn map.
+			if _, found := invStake[tx.Hash]; found {
+				continue
+			}
+			invStake[tx.Hash] = struct{}{}
+			log.Warnf("Processed a treasurybase in mempool, which should not happen! %v", tx.TxID)
 
 		default:
 			if _, found := invRegular[tx.Hash]; found {
@@ -456,8 +479,9 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 			NumVotes:           len(votes),
 			NumRegular:         len(regular),
 			NumRevokes:         len(revs),
-			// TODO NumTreasury
-			NumAll: len(txs),
+			NumTSpends:         len(tspends),
+			NumTAdds:           len(tadds),
+			NumAll:             len(txs),
 			LikelyMineable: exptypes.LikelyMineable{
 				Total:         likelyTotal.ToCoin(),
 				Size:          likelySize,
@@ -466,7 +490,8 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 				TicketTotal:   ticketTotal.ToCoin(),
 				VoteTotal:     voteTotal.ToCoin(),
 				RevokeTotal:   revTotal.ToCoin(),
-				// TODO TSpend/TAddTotal
+				TAddTotal:     taddTotal.ToCoin(),
+				// TSpend mineability is complex, based on vote choices
 				Count: numLikely,
 			},
 			LatestTransactions: latest,
@@ -480,7 +505,8 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 		Tickets:      tickets,
 		Votes:        votes,
 		Revocations:  revs,
-		// TODO TSpends/TAdds
+		TSpends:      tspends,
+		TAdds:        tadds,
 	}
 
 	return &mpInfo

@@ -68,7 +68,7 @@
                                 <div class="text-center fs13">
                                     <span data-target="mempool.regTotal">{{threeSigFigs .LikelyMineable.RegularTotal}}</span> DCR
                                 </div>
-                            </div>
+                            </div><!-- add treasury count here -->
                             <div class="col-12">
                                 <div class="text-center text-secondary fs13">Tickets</div>
                                 <div class="text-center h4 mb-0" data-target="mempool.ticketCount">{{.NumTickets}}</div>
@@ -111,6 +111,70 @@
                 </div>
             </div>
             <div>
+              <div class="row">
+                  <div class="col-sm-24">
+                  <h4 class="pt-5 pb-2"><span>Treasury Spends</span></h4>
+                      <table class="table">
+                          <thead>
+                            <tr>
+                              <th>Transaction ID</th>
+                              <th class="text-right">Total DCR</th>
+                              <th class="text-right">Time in Mempool</th>
+                            </tr>
+                          </thead>
+                          <tbody data-target="mempool.revocationTransactions">
+                              {{if gt .NumTSpends 0}}
+                              {{range .TSpends}}
+                              <tr>
+                                  <td class="break-word clipboard">
+                                    <a class="hash lh1rem" href="/tx/{{.Hash}}">{{.Hash}}</a>
+                                    {{template "copyTextIcon"}}
+                                  </td>
+                                  <td class="mono fs15 text-right">
+                                    {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
+                                  </td>
+                                  <td class="mono fs15 text-right" data-target="time.age" data-age="{{.Time}}"></td>
+                              </tr>
+                              {{end}}
+                              {{else}}
+                                  <tr class="no-tx-tr">
+                                      <td colspan="4">No treasury spends in mempool.</td>
+                                  </tr>
+                              {{end}}
+                          </tbody>
+                      </table>
+                  </div>
+              </div>
+              {{if gt .NumTAdds 0}}{{/* this will be rare, so only show the section header and table if needed */}}
+              <div class="row">
+                  <div class="col-sm-24">
+                  <h4 class="pt-5 pb-2"><span>Treasury Adds</span></h4>
+                      <table class="table">
+                          <thead>
+                            <tr>
+                              <th>Transaction ID</th>
+                              <th class="text-right">Total DCR</th>
+                              <th class="text-right">Time in Mempool</th>
+                            </tr>
+                          </thead>
+                          <tbody data-target="mempool.revocationTransactions">
+                              {{range .TAdds}}
+                              <tr>
+                                  <td class="break-word clipboard">
+                                    <a class="hash lh1rem" href="/tx/{{.Hash}}">{{.Hash}}</a>
+                                    {{template "copyTextIcon"}}
+                                  </td>
+                                  <td class="mono fs15 text-right">
+                                    {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
+                                  </td>
+                                  <td class="mono fs15 text-right" data-target="time.age" data-age="{{.Time}}"></td>
+                              </tr>
+                              {{end}}
+                          </tbody>
+                      </table>
+                  </div>
+              </div>
+              {{end}}
               <div class="row">
                   <div class="col-sm-24">
                   <h4 class="pt-3 pb-2"><span>Votes</span></h4>
