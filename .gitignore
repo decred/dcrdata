@@ -47,6 +47,12 @@ cmd/dcrdata/public/dist/
 public/js/dist/
 cmd/dcrdata/public/js/dist/
 public/**/*.gz
+cmd/swapscan/swapscan*.csv
+cmd/swapscan/swapscan*.txt
+cmd/swapscan/swapscan
+cmd/swapscan-btc/swapscan*.csv
+cmd/swapscan-btc/swapscan*.txt
+cmd/swapscan-btc/swapscan-btc
 cmd/dcrdata/public/**/*.gz
 testutil/apiload/results/
 testutil/apiload/apiload.conf

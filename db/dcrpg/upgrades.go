@@ -13,6 +13,7 @@ import (
 	"decred.org/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrd/blockchain/stake/v3"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/db/dcrpg/v6/internal"
 	"github.com/decred/dcrdata/v6/stakedb"
@@ -33,7 +34,7 @@ const (
 	// This includes changes such as creating tables, adding/deleting columns,
 	// adding/deleting indexes or any other operations that create, delete, or
 	// modify the definition of any database relation.
-	schemaVersion = 9
+	schemaVersion = 10
 
 	// maintVersion indicates when certain maintenance operations should be
 	// performed for the same compatVersion and schemaVersion. Such operations
@@ -168,15 +169,17 @@ func updateMaintVersion(db *sql.DB, maint uint32) error {
 // upgrade.
 type Upgrader struct {
 	db      *sql.DB
+	params  *chaincfg.Params
 	bg      BlockGetter
 	stakeDB *stakedb.StakeDatabase
 	ctx     context.Context
 }
 
 // NewUpgrader is a contructor for an Upgrader.
-func NewUpgrader(ctx context.Context, db *sql.DB, bg BlockGetter, stakeDB *stakedb.StakeDatabase) *Upgrader {
+func NewUpgrader(ctx context.Context, params *chaincfg.Params, db *sql.DB, bg BlockGetter, stakeDB *stakedb.StakeDatabase) *Upgrader {
 	return &Upgrader{
 		db:      db,
+		params:  params,
 		bg:      bg,
 		stakeDB: stakeDB,
 		ctx:     ctx,
@@ -383,7 +386,20 @@ func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool
 		fallthrough
 
 	case 9:
-		// Perform schema v9 maintenance.
+		err = u.upgradeSchema9to10()
+		if err != nil {
+			return false, fmt.Errorf("failed to upgrade 1.9.0 to 1.10.0: %v", err)
+		}
+		current.schema++
+		current.maint = 0
+		if storeVers(u.db, &current); err != nil {
+			return false, err
+		}
+
+		fallthrough
+
+	case 10:
+		// Perform schema v10 maintenance.
 
 		// No further upgrades.
 		return upgradeCheck()
@@ -412,6 +428,129 @@ func removeTableComments(db *sql.DB) {
 			log.Errorf(`Failed to remove comment on table %s.`, tableName)
 		}
 	}
+}
+
+func (u *Upgrader) upgradeSchema9to10() (err error) {
+	log.Infof("Performing database upgrade 1.9.0 -> 1.10.0")
+
+	exists, err := TableExists(u.db, "swaps")
+	if err != nil {
+		return err
+	}
+	if !exists {
+		// NOTE: cannot create table in a DB transaction and use it.
+		_, err = u.db.Exec(internal.CreateAtomicSwapTableV0)
+		if err != nil {
+			return fmt.Errorf("CreateStatsTable: %w", err)
+		}
+
+		_, err = u.db.Exec(internal.IndexSwapsOnHeightV0)
+		if err != nil {
+			return fmt.Errorf("IndexSwapsOnHeight: %v", err)
+		}
+	}
+
+	dbTx, err := u.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to create db transaction: %w", err)
+	}
+	defer func() {
+		if err == nil {
+			err = dbTx.Commit()
+			return
+		}
+		if errRoll := dbTx.Rollback(); errRoll != nil {
+			log.Errorf("Rollback failed: %v", errRoll)
+			// but keep err
+		}
+	}()
+
+	makeErr := func(s string, args ...interface{}) error {
+		err = fmt.Errorf(s, args...)
+		return err
+	}
+
+	// Start with a height-ordered list of block data.
+	blockRows, err := u.db.Query(`
+		SELECT hash, height
+		FROM blocks
+		WHERE is_mainchain
+		ORDER BY height ASC
+	;`)
+	if err != nil {
+		return makeErr("block hash query error: %w", err)
+	}
+	defer blockRows.Close()
+
+	var redeems, refunds int
+
+	var checkHeight int64
+	for blockRows.Next() {
+		if u.ctx.Err() != nil {
+			return makeErr("context cancelled. rolling back update")
+		}
+
+		var height int64
+		var hashStr string
+		err = blockRows.Scan(&hashStr, &height)
+		if err != nil {
+			return makeErr("blockRows.Scan: %w", err)
+		}
+		hash, err := chainhash.NewHashFromStr(hashStr)
+		if err != nil {
+			return makeErr("NewHashFromStr: %w", err)
+		}
+		// If the height is not the expected height, the database must be corrupted.
+		if height != checkHeight {
+			return makeErr("height mismatch %d != %d. database corrupted!", height, checkHeight)
+		}
+		checkHeight++
+		// A periodic update message.
+		if height%10000 == 0 {
+			log.Infof("Processing atomic swaps in blocks [%d,%d)", height, height+10000)
+		}
+
+		msgBlock, err := u.bg.GetBlock(u.ctx, hash)
+		if err != nil {
+			return makeErr("GetBlock(%v): %w", hash, err)
+		}
+
+		for _, tx := range msgBlock.Transactions[1:] { // skip the coinbase
+			// This will only identify the redeem and refund txns, unlike
+			// the use of TxAtomicSwapsInfo in API and explorer calls.
+			swapTxns, err := txhelpers.MsgTxAtomicSwapsInfo(tx, nil, u.params, false)
+			if err != nil {
+				log.Warnf("MsgTxAtomicSwapsInfo: %v", err)
+				continue
+			}
+			if swapTxns == nil || swapTxns.Found == "" {
+				continue
+			}
+			for _, red := range swapTxns.Redemptions {
+				err = InsertSwap(u.db, height, red)
+				if err != nil {
+					return makeErr("InsertSwap: %w", err)
+				}
+				redeems++
+			}
+			for _, ref := range swapTxns.Refunds {
+				err = InsertSwap(u.db, height, ref)
+				if err != nil {
+					return makeErr("InsertSwap: %w", err)
+				}
+				refunds++
+			}
+		}
+
+	}
+
+	if err = blockRows.Err(); err != nil {
+		return makeErr("blockRows.Err: %w", err)
+	}
+
+	log.Infof("Inserted %d contract redeems, %d contract refunds.", redeems, refunds)
+
+	return nil
 }
 
 func (u *Upgrader) upgradeSchema8to9() error {

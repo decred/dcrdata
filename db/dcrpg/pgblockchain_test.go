@@ -17,6 +17,7 @@ import (
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
 	"github.com/decred/dcrdata/v6/db/cache"
 	"github.com/decred/dcrdata/v6/db/dbtypes"
+	"github.com/decred/dcrdata/v6/txhelpers"
 )
 
 // func TestTreasuryTxns(t *testing.T) {
@@ -27,6 +28,44 @@ import (
 // 	bal, spent, txCount, err := db.TreasuryBalance(675538)
 // 	t.Log(bal, spent, txCount, err)
 // }
+
+func TestInsertSwap(t *testing.T) {
+	contractHash := chainhash.Hash{1, 2}
+	spendHash := chainhash.Hash{3, 4}
+
+	_, err := db.db.Exec(`TRUNCATE swaps;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	asd := &txhelpers.AtomicSwapData{
+		ContractTx:       &contractHash,
+		ContractVout:     2,
+		SpendTx:          &spendHash,
+		SpendVin:         1,
+		Value:            22_0000_0000,
+		ContractAddress:  "Dcasdfasdfasdf",
+		RecipientAddress: "Ds1324", // not stored
+		RefundAddress:    "Ds9876", // not stored
+		Locktime:         1621787740,
+		SecretHash:       [32]byte{3, 2, 1},
+		Secret:           []byte{'a', 'b', 'c'},
+		Contract:         []byte{1, 2, 3, 4, 5, 6, 7, 8}, // not stored
+		IsRefund:         true,
+	}
+	err = InsertSwap(db.db, 1234, asd)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	asd.SpendTx = &chainhash.Hash{5, 6}
+	asd.SpendVin = 2
+	asd.Secret = nil
+	err = InsertSwap(db.db, 1234, asd)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestChainDB_AddressTransactionsAll(t *testing.T) {
 	// address with no transactions.
