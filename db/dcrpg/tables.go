@@ -30,6 +30,7 @@ var createTableStatements = [][2]string{
 	{"proposal_votes", internal.CreateProposalVotesTable},
 	{"stats", internal.CreateStatsTable},
 	{"treasury", internal.CreateTreasuryTable},
+	{"swaps", internal.CreateAtomicSwapTable},
 }
 
 func createTableMap() map[string]string {

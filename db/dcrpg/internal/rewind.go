@@ -221,6 +221,12 @@ const (
 		WHERE block_hash=$1
 		RETURNING id;`
 
+	DeleteTreasuryTxns = `DELETE FROM treasury
+		WHERE block_hash=$1;`
+
+	DeleteSwaps = `DELETE FROM swaps
+		WHERE spend_height=$1;`
+
 	DeleteBlock = `DELETE FROM blocks
 		WHERE hash=$1;`
 

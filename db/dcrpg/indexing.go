@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2021, The Decred developers
 // See LICENSE for details.
 
 package dcrpg
@@ -382,6 +382,20 @@ func DeindexTreasuryTableOnHeight(db *sql.DB) (err error) {
 	return
 }
 
+// IndexSwapsTableOnHeight creates the index for the swaps table over spend
+// block height.
+func IndexSwapsTableOnHeight(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexSwapsOnHeight)
+	return
+}
+
+// DeindexSwapsTableOnHeight drops the index for the swaps table over spend
+// block height.
+func DeindexSwapsTableOnHeight(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexSwapsOnHeight)
+	return
+}
+
 // Delete duplicates
 
 func (pgb *ChainDB) DeleteDuplicateVins() (int64, error) {
@@ -525,6 +539,9 @@ func (pgb *ChainDB) DeindexAll() error {
 		// treasury table
 		{DeindexTreasuryTableOnTxHash},
 		{DeindexTreasuryTableOnHeight},
+
+		// swaps table
+		{DeindexSwapsTableOnHeight},
 	}
 
 	var err error
@@ -604,6 +621,9 @@ func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 		// treasury table
 		{Msg: "treasury on tx hash", IndexFunc: IndexTreasuryTableOnTxHash},
 		{Msg: "treasury on block height", IndexFunc: IndexTreasuryTableOnHeight},
+
+		// swaps table
+		{Msg: "swaps on spend height", IndexFunc: IndexSwapsTableOnHeight},
 	}
 
 	for _, val := range allIndexes {

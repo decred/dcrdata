@@ -649,6 +649,7 @@ func (p *VinTxPropertyARRAY) Scan(src interface{}) error {
 // block is removed.
 type DeletionSummary struct {
 	Blocks, Vins, Vouts, Addresses, Transactions, Tickets, Votes, Misses int64
+	Treasury, Swaps                                                      int64
 	Timings                                                              *DeletionSummary
 }
 
@@ -661,7 +662,9 @@ func (s DeletionSummary) String() string {
 	summary += fmt.Sprintf("%9d Transactions purged\n", s.Transactions)
 	summary += fmt.Sprintf("%9d Tickets purged\n", s.Tickets)
 	summary += fmt.Sprintf("%9d Votes purged\n", s.Votes)
-	summary += fmt.Sprintf("%9d Misses purged", s.Misses)
+	summary += fmt.Sprintf("%9d Misses purged\n", s.Misses)
+	summary += fmt.Sprintf("%9d Treasury transactions purged\n", s.Treasury)
+	summary += fmt.Sprintf("%9d Swaps purged", s.Swaps)
 	return summary
 }
 
@@ -680,6 +683,8 @@ func (ds DeletionSummarySlice) Reduce() DeletionSummary {
 		s.Tickets += ds[i].Tickets
 		s.Votes += ds[i].Votes
 		s.Misses += ds[i].Misses
+		s.Treasury += ds[i].Treasury
+		s.Swaps += ds[i].Swaps
 	}
 	return s
 }

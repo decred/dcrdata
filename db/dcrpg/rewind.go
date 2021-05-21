@@ -59,6 +59,14 @@ func deleteTicketsForBlock(dbTx SqlExecutor, hash string) (rowsDeleted int64, er
 	return sqlExec(dbTx, internal.DeleteTicketsSimple, "failed to delete tickets", hash)
 }
 
+func deleteTreasuryTxnsForBlock(dbTx SqlExecutor, hash string) (rowsDeleted int64, err error) {
+	return sqlExec(dbTx, internal.DeleteTreasuryTxns, "failed to delete treasury txns", hash)
+}
+
+func deleteSwapsForBlockHeight(dbTx SqlExecutor, height int64) (rowsDeleted int64, err error) {
+	return sqlExec(dbTx, internal.DeleteSwaps, "failed to delete swaps", height)
+}
+
 func deleteTransactionsForBlock(dbTx *sql.Tx, hash string) (txRowIds []int64, err error) {
 	var rows *sql.Rows
 	rows, err = dbTx.Query(internal.DeleteTransactionsSimple, hash)
@@ -167,7 +175,7 @@ func RetrieveTxsBestBlockMainchain(ctx context.Context, db *sql.DB) (height int6
 // Data are removed from tables in the following order: vins, vouts, addresses,
 // transactions, tickets, votes, misses, blocks, block_chain.
 // WARNING: When no indexes are present, these queries are VERY SLOW.
-func DeleteBlockData(ctx context.Context, db *sql.DB, hash string) (res dbtypes.DeletionSummary, err error) {
+func DeleteBlockData(ctx context.Context, db *sql.DB, hash string, height int64) (res dbtypes.DeletionSummary, err error) {
 	// The data purge is an all or nothing operation (no partial removal of
 	// data), so use a common sql.Tx for all deletions, and Commit in this
 	// function rather after each deletion.
@@ -254,6 +262,22 @@ func DeleteBlockData(ctx context.Context, db *sql.DB, hash string) (res dbtypes.
 	res.Timings.Misses = time.Since(start).Nanoseconds()
 
 	start = time.Now()
+	if res.Treasury, err = deleteTreasuryTxnsForBlock(dbTx, hash); err != nil {
+		err = fmt.Errorf(`deleteTreasuryTxnsForBlock failed with "%v". Rollback: %v`,
+			err, dbTx.Rollback())
+		return
+	}
+	res.Timings.Treasury = time.Since(start).Nanoseconds()
+
+	start = time.Now()
+	if res.Swaps, err = deleteSwapsForBlockHeight(dbTx, height); err != nil {
+		err = fmt.Errorf(`deleteSwapsForBlockHeight failed with "%v". Rollback: %v`,
+			err, dbTx.Rollback())
+		return
+	}
+	res.Timings.Swaps = time.Since(start).Nanoseconds()
+
+	start = time.Now()
 	if res.Blocks, err = deleteBlock(dbTx, hash); err != nil {
 		err = fmt.Errorf(`deleteBlock failed with "%v". Rollback: %v`,
 			err, dbTx.Rollback())
@@ -301,7 +325,7 @@ func DeleteBestBlock(ctx context.Context, db *sql.DB) (res dbtypes.DeletionSumma
 		return
 	}
 
-	res, err = DeleteBlockData(ctx, db, hash)
+	res, err = DeleteBlockData(ctx, db, hash, height)
 	if err != nil {
 		return
 	}

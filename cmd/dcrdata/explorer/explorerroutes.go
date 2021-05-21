@@ -1228,9 +1228,9 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 
 	// Find atomic swaps related to this tx.
 	swapsInfo, err := exp.txAtomicSwapsInfo(tx)
-	if err != nil {
+	if err != nil || swapsInfo == nil {
 		log.Errorf("Unable to get atomic swap info for transaction %v: %v", tx.TxID, err)
-		swapsInfo = new(txhelpers.TxAtomicSwaps)
+		swapsInfo = new(txhelpers.TxSwapResults)
 	}
 
 	// Prepare the string to display for previous outpoint.
@@ -1311,10 +1311,10 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-func (exp *explorerUI) txAtomicSwapsInfo(tx *types.TxInfo) (*txhelpers.TxAtomicSwaps, error) {
+func (exp *explorerUI) txAtomicSwapsInfo(tx *types.TxInfo) (*txhelpers.TxSwapResults, error) {
 	// Check if tx is a stake tree tx or coinbase tx and return empty swap info.
 	if tx.Type != txhelpers.TxTypeRegular || tx.Coinbase {
-		return new(txhelpers.TxAtomicSwaps), nil
+		return new(txhelpers.TxSwapResults), nil
 	}
 
 	rawtx, err := exp.dataSource.GetRawTransactionByHash(tx.TxID)
@@ -1322,9 +1322,14 @@ func (exp *explorerUI) txAtomicSwapsInfo(tx *types.TxInfo) (*txhelpers.TxAtomicS
 		return nil, fmt.Errorf("GetRawTransaction failed for %s: %v", tx.TxID, err)
 	}
 
+	msgTx, err := txhelpers.MsgTxFromHex(rawtx.Hex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode tx %s: %v", tx.TxID, err)
+	}
+
 	// Spending information for P2SH outputs are required to determine
 	// contract outputs in this tx.
-	outputSpenders := make(map[uint32]*txhelpers.OutputSpender)
+	outputSpenders := make(map[uint32]*txhelpers.OutputSpenderTxOut)
 	for _, vout := range tx.Vout {
 		if !vout.Spent || rawtx.Vout[vout.Index].ScriptPubKey.Type != txscript.ScriptHashTy.String() {
 			// only retrieve spending tx for spent p2sh outputs
@@ -1335,13 +1340,17 @@ func (exp *explorerUI) txAtomicSwapsInfo(tx *types.TxInfo) (*txhelpers.TxAtomicS
 		if err != nil {
 			return nil, fmt.Errorf("GetRawTransaction failed for %s: %v", spender.Hash, err)
 		}
-		outputSpenders[vout.Index] = &txhelpers.OutputSpender{
-			Tx:         spendingTx,
-			InputIndex: spender.Index,
+		spendingMsgTx, err := txhelpers.MsgTxFromHex(spendingTx.Hex)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode spending tx %s: %v", spender.Hash, err)
+		}
+		outputSpenders[vout.Index] = &txhelpers.OutputSpenderTxOut{
+			Tx:  spendingMsgTx,
+			Vin: spender.Index,
 		}
 	}
 
-	return txhelpers.TxAtomicSwapsInfo(rawtx, outputSpenders, exp.ChainParams)
+	return txhelpers.MsgTxAtomicSwapsInfo(msgTx, outputSpenders, exp.ChainParams, false)
 }
 
 type TreasuryInfo struct {
