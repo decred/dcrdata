@@ -1503,7 +1503,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		code := defaultErrorCode
 		switch addrErr {
 		case txhelpers.AddressErrorDecodeFailed, txhelpers.AddressErrorUnknown:
-			status = ExpStatusError
+			status = ExpStatusBadRequest
 			message = "Unexpected issue validating this address."
 		case txhelpers.AddressErrorWrongNet:
 			status = ExpStatusWrongNetwork
