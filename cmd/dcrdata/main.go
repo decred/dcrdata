@@ -319,7 +319,7 @@ func _main(ctx context.Context) error {
 		if s != nil {
 			log.Infof("Successfully purged data for %d blocks from PostgreSQL "+
 				"(new height = %d):\n%v", s.Blocks, heightDB, s)
-		} // otherwise likely sql.ErrNoRows (heightDB was already -1)
+		} // otherwise likely dbtypes.ErrNoResult (heightDB was already -1)
 	}
 
 	// Get the last block added to the aux DB.

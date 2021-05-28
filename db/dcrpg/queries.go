@@ -119,7 +119,7 @@ type SqlExecutor interface {
 func sqlExec(db SqlExecutor, stmt, execErrPrefix string, args ...interface{}) (int64, error) {
 	res, err := db.Exec(stmt, args...)
 	if err != nil {
-		return 0, fmt.Errorf(execErrPrefix + " " + err.Error())
+		return 0, fmt.Errorf("%v: %w", execErrPrefix, err)
 	}
 	if res == nil {
 		return 0, nil
@@ -128,7 +128,7 @@ func sqlExec(db SqlExecutor, stmt, execErrPrefix string, args ...interface{}) (i
 	var N int64
 	N, err = res.RowsAffected()
 	if err != nil {
-		return 0, fmt.Errorf(`error in RowsAffected: %v`, err)
+		return 0, fmt.Errorf("error in RowsAffected: %w", err)
 	}
 	return N, err
 }
@@ -138,7 +138,7 @@ func sqlExec(db SqlExecutor, stmt, execErrPrefix string, args ...interface{}) (i
 func sqlExecStmt(stmt *sql.Stmt, execErrPrefix string, args ...interface{}) (int64, error) {
 	res, err := stmt.Exec(args...)
 	if err != nil {
-		return 0, fmt.Errorf("%v %v", execErrPrefix, err)
+		return 0, fmt.Errorf("%v: %w", execErrPrefix, err)
 	}
 	if res == nil {
 		return 0, nil
@@ -147,7 +147,7 @@ func sqlExecStmt(stmt *sql.Stmt, execErrPrefix string, args ...interface{}) (int
 	var N int64
 	N, err = res.RowsAffected()
 	if err != nil {
-		return 0, fmt.Errorf(`error in RowsAffected: %v`, err)
+		return 0, fmt.Errorf("error in RowsAffected: %w", err)
 	}
 	return N, err
 }
@@ -199,7 +199,7 @@ func deleteDupVinsBrute(db *sql.DB) (int64, error) {
 	var createStmt string
 	err := db.QueryRow(internal.ShowCreateVinsTable).Scan(&createStmt)
 	if err != nil {
-		err = fmt.Errorf("%s%v", execErrPrefix, err)
+		err = fmt.Errorf("%s%w", execErrPrefix, err)
 		return 0, err
 	}
 	createStmt = strings.Replace(createStmt, "CREATE TABLE vins",
@@ -243,7 +243,7 @@ func deleteDupVinsAlt(db *sql.DB) (int64, error) {
 
 	rows, err := db.Query(internal.SelectVinDupIDs)
 	if err != nil {
-		err = fmt.Errorf("%s%v", execErrPrefix, err)
+		err = fmt.Errorf("%s%w", execErrPrefix, err)
 		return 0, err
 	}
 
@@ -251,7 +251,7 @@ func deleteDupVinsAlt(db *sql.DB) (int64, error) {
 	for rows.Next() {
 		var dupIDs []int64
 		if err = rows.Scan(&dupIDs); err != nil {
-			err = fmt.Errorf("%s%v", execErrPrefix, err)
+			err = fmt.Errorf("%s%w", execErrPrefix, err)
 			return 0, err
 		}
 
@@ -327,7 +327,7 @@ func deleteDupVoutsBrute(db *sql.DB) (int64, error) {
 	var createStmt string
 	err := db.QueryRow(internal.ShowCreateVoutsTable).Scan(&createStmt)
 	if err != nil {
-		err = fmt.Errorf("%s%v", execErrPrefix, err)
+		err = fmt.Errorf("%s%w", execErrPrefix, err)
 		return 0, err
 	}
 	createStmt = strings.Replace(createStmt, "CREATE TABLE vouts",
@@ -371,7 +371,7 @@ func deleteDupVoutsAlt(db *sql.DB) (int64, error) {
 
 	rows, err := db.Query(internal.SelectVoutDupIDs)
 	if err != nil {
-		err = fmt.Errorf("%s%v", execErrPrefix, err)
+		err = fmt.Errorf("%s%w", execErrPrefix, err)
 		return 0, err
 	}
 
@@ -379,7 +379,7 @@ func deleteDupVoutsAlt(db *sql.DB) (int64, error) {
 	for rows.Next() {
 		var dupIDs []int64
 		if err = rows.Scan(&dupIDs); err != nil {
-			err = fmt.Errorf("%s%v", execErrPrefix, err)
+			err = fmt.Errorf("%s%w", execErrPrefix, err)
 			return 0, err
 		}
 
@@ -565,7 +565,7 @@ func InsertTreasuryTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked, updateExistin
 func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked, updateExistingRecords bool) ([]uint64, []*dbtypes.Tx, error) {
 	dbtx, err := db.Begin()
 	if err != nil {
-		return nil, nil, fmt.Errorf("unable to begin database transaction: %v", err)
+		return nil, nil, fmt.Errorf("unable to begin database transaction: %w", err)
 	}
 
 	// Prepare ticket insert statement, optionally updating a row if it conflicts
@@ -683,7 +683,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 	// Start DB transaction.
 	dbtx, err := db.Begin()
 	if err != nil {
-		return nil, nil, nil, nil, nil, fmt.Errorf("unable to begin database transaction: %v", err)
+		return nil, nil, nil, nil, nil, fmt.Errorf("unable to begin database transaction: %w", err)
 	}
 
 	// Prepare vote insert statement, optionally updating a row if it conflicts
@@ -738,7 +738,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 		if err != nil {
 			bail()
 			return nil, nil, nil, nil, nil,
-				fmt.Errorf("retrieveAllAgendas failed: : %v", err)
+				fmt.Errorf("retrieveAllAgendas failed: %w", err)
 		}
 
 		for name, d := range votesMilestones.AgendaMileStones {
@@ -752,7 +752,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 				if err != nil {
 					bail()
 					return nil, nil, nil, nil, nil,
-						fmt.Errorf("agenda INSERT failed: : %v", err)
+						fmt.Errorf("agenda INSERT failed: %w", err)
 				}
 
 				storedAgendas[name] = dbtypes.MileStone{
@@ -849,7 +849,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 					int32(p.Activated), int32(p.HardForked)).Scan(&s.ID)
 				if err != nil {
 					bail()
-					return nil, nil, nil, nil, nil, fmt.Errorf("agenda INSERT failed: : %v", err)
+					return nil, nil, nil, nil, nil, fmt.Errorf("agenda INSERT failed: %w", err)
 				}
 
 				s.Status = p.Status
@@ -873,7 +873,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 			err = agendaVotesStmt.QueryRow(votesRowID, s.ID, index).Scan(&rowID)
 			if err != nil {
 				bail()
-				return nil, nil, nil, nil, nil, fmt.Errorf("agenda_votes INSERT failed: : %v", err)
+				return nil, nil, nil, nil, nil, fmt.Errorf("agenda_votes INSERT failed: %w", err)
 			}
 		}
 	}
@@ -1090,7 +1090,7 @@ func retrieveWindowBlocks(ctx context.Context, db *sql.DB, windowSize, currentHe
 	endHeight := (endWindow+1)*windowSize - 1
 	rows, err := db.QueryContext(ctx, internal.SelectWindowsByLimit, windowSize, startHeight, endHeight)
 	if err != nil {
-		return nil, fmt.Errorf("retrieveWindowBlocks failed: error: %v", err)
+		return nil, fmt.Errorf("retrieveWindowBlocks failed: error: %w", err)
 	}
 	defer closeRows(rows)
 
@@ -1141,7 +1141,7 @@ func retrieveTimeBasedBlockListing(ctx context.Context, db *sql.DB, timeInterval
 	rows, err := db.QueryContext(ctx, internal.SelectBlocksTimeListingByLimit, timeInterval,
 		limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("retrieveTimeBasedBlockListing failed: error: %v", err)
+		return nil, fmt.Errorf("retrieveTimeBasedBlockListing failed: error: %w", err)
 	}
 	defer closeRows(rows)
 
@@ -1277,7 +1277,7 @@ func RetrieveTicketIDsByHashes(ctx context.Context, db *sql.DB, ticketHashes []s
 		ReadOnly:  true,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("unable to begin database transaction: %v", err)
+		return nil, fmt.Errorf("unable to begin database transaction: %w", err)
 	}
 
 	stmt, err := dbtx.Prepare(internal.SelectTicketIDByHash)
@@ -1296,7 +1296,7 @@ func RetrieveTicketIDsByHashes(ctx context.Context, db *sql.DB, ticketHashes []s
 			if errRoll := dbtx.Rollback(); errRoll != nil {
 				log.Errorf("Rollback failed: %v", errRoll)
 			}
-			return ids, fmt.Errorf("Tickets SELECT exec failed: %v", err)
+			return ids, fmt.Errorf("Tickets SELECT exec failed: %w", err)
 		}
 		ids = append(ids, id)
 	}
@@ -1325,7 +1325,7 @@ func retrieveTicketsByDate(ctx context.Context, db *sql.DB, maturityBlock int64,
 		var price, total float64
 		err = rows.Scan(&timestamp, &price, &immature, &live)
 		if err != nil {
-			return nil, fmt.Errorf("retrieveTicketsByDate %v", err)
+			return nil, fmt.Errorf("retrieveTicketsByDate: %w", err)
 		}
 
 		tickets.Time = append(tickets.Time, dbtypes.NewTimeDef(timestamp))
@@ -1362,7 +1362,7 @@ func retrieveTicketByPrice(ctx context.Context, db *sql.DB, maturityBlock int64)
 		var price float64
 		err = rows.Scan(&price, &immature, &live)
 		if err != nil {
-			return nil, fmt.Errorf("retrieveTicketByPrice %v", err)
+			return nil, fmt.Errorf("retrieveTicketByPrice: %w", err)
 		}
 
 		tickets.Immature = append(tickets.Immature, immature)
@@ -1392,7 +1392,7 @@ func retrieveTicketsGroupedByType(ctx context.Context, db *sql.DB) (*dbtypes.Poo
 		var output, count uint64
 
 		if err = rows.Scan(&output, &count); err != nil {
-			return nil, fmt.Errorf("retrieveTicketsGroupedByType %v", err)
+			return nil, fmt.Errorf("retrieveTicketsGroupedByType: %w", err)
 		}
 
 		tickets.Count = append(tickets.Count, count)
@@ -1416,7 +1416,7 @@ func SetPoolStatusForTickets(db *sql.DB, ticketDbIDs []uint64, poolStatuses []db
 	}
 	dbtx, err := db.Begin()
 	if err != nil {
-		return 0, fmt.Errorf(`unable to begin database transaction: %v`, err)
+		return 0, fmt.Errorf("unable to begin database transaction: %w", err)
 	}
 
 	var stmt *sql.Stmt
@@ -1424,7 +1424,7 @@ func SetPoolStatusForTickets(db *sql.DB, ticketDbIDs []uint64, poolStatuses []db
 	if err != nil {
 		// Already up a creek. Just return error from Prepare.
 		_ = dbtx.Rollback()
-		return 0, fmt.Errorf("tickets SELECT prepare failed: %v", err)
+		return 0, fmt.Errorf("tickets SELECT prepare failed: %w", err)
 	}
 
 	var totalTicketsUpdated int64
@@ -1457,7 +1457,7 @@ func SetPoolStatusForTicketsByHash(db *sql.DB, tickets []string,
 	}
 	dbtx, err := db.Begin()
 	if err != nil {
-		return 0, fmt.Errorf(`unable to begin database transaction: %v`, err)
+		return 0, fmt.Errorf("unable to begin database transaction: %w", err)
 	}
 
 	var stmt *sql.Stmt
@@ -1465,7 +1465,7 @@ func SetPoolStatusForTicketsByHash(db *sql.DB, tickets []string,
 	if err != nil {
 		// Already up a creek. Just return error from Prepare.
 		_ = dbtx.Rollback()
-		return 0, fmt.Errorf("tickets SELECT prepare failed: %v", err)
+		return 0, fmt.Errorf("tickets SELECT prepare failed: %w", err)
 	}
 
 	var totalTicketsUpdated int64
@@ -1498,7 +1498,7 @@ func SetSpendingForTickets(db *sql.DB, ticketDbIDs, spendDbIDs []uint64,
 	poolStatuses []dbtypes.TicketPoolStatus) (int64, error) {
 	dbtx, err := db.Begin()
 	if err != nil {
-		return 0, fmt.Errorf(`unable to begin database transaction: %v`, err)
+		return 0, fmt.Errorf("unable to begin database transaction: %w", err)
 	}
 
 	var stmt *sql.Stmt
@@ -1506,7 +1506,7 @@ func SetSpendingForTickets(db *sql.DB, ticketDbIDs, spendDbIDs []uint64,
 	if err != nil {
 		// Already up a creek. Just return error from Prepare.
 		_ = dbtx.Rollback()
-		return 0, fmt.Errorf("tickets SELECT prepare failed: %v", err)
+		return 0, fmt.Errorf("tickets SELECT prepare failed: %w", err)
 	}
 
 	var totalTicketsUpdated int64
@@ -1537,7 +1537,7 @@ func setSpendingForTickets(dbtx *sql.Tx, ticketDbIDs, spendDbIDs []uint64,
 	poolStatuses []dbtypes.TicketPoolStatus) error {
 	stmt, err := dbtx.Prepare(internal.SetTicketSpendingInfoForTicketDbID)
 	if err != nil {
-		return fmt.Errorf("tickets SELECT prepare failed: %v", err)
+		return fmt.Errorf("tickets SELECT prepare failed: %w", err)
 	}
 
 	rowsAffected := make([]int64, len(ticketDbIDs))
@@ -1610,7 +1610,7 @@ func InsertAddressRows(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck, updateE
 	// Begin a new transaction.
 	dbtx, err := db.Begin()
 	if err != nil {
-		return nil, fmt.Errorf("unable to begin database transaction: %v", err)
+		return nil, fmt.Errorf("unable to begin database transaction: %w", err)
 	}
 
 	ids, err := InsertAddressRowsDbTx(dbtx, dbAs, dupCheck, updateExistingRecords)
@@ -1656,7 +1656,7 @@ func RetrieveAddressBalance(ctx context.Context, db *sql.DB, address string) (ba
 		ReadOnly:  true,
 	})
 	if err != nil {
-		err = fmt.Errorf("unable to begin database transaction: %v", err)
+		err = fmt.Errorf("unable to begin database transaction: %w", err)
 		return
 	}
 
@@ -1671,7 +1671,7 @@ func RetrieveAddressBalance(ctx context.Context, db *sql.DB, address string) (ba
 		if errRoll := dbtx.Rollback(); errRoll != nil {
 			log.Errorf("Rollback failed: %v", errRoll)
 		}
-		err = fmt.Errorf("failed to query spent and unspent amounts: %v", err)
+		err = fmt.Errorf("failed to query spent and unspent amounts: %w", err)
 		return
 	}
 
@@ -1742,7 +1742,7 @@ func countMerged(ctx context.Context, db *sql.DB, address, query string) (count 
 		ReadOnly:  true,
 	})
 	if err != nil {
-		err = fmt.Errorf("unable to begin database transaction: %v", err)
+		err = fmt.Errorf("unable to begin database transaction: %w", err)
 		return
 	}
 
@@ -1753,7 +1753,7 @@ func countMerged(ctx context.Context, db *sql.DB, address, query string) (count 
 		if errRoll := dbtx.Rollback(); errRoll != nil {
 			log.Errorf("Rollback failed: %v", errRoll)
 		}
-		err = fmt.Errorf("failed to query merged spent count: %v", err)
+		err = fmt.Errorf("failed to query merged spent count: %w", err)
 		return
 	}
 
@@ -2200,7 +2200,7 @@ func InsertVinsStmt(stmt *sql.Stmt, dbVins dbtypes.VinTxPropertyARRAY, checked b
 			vin.PrevTxHash, vin.PrevTxIndex, vin.PrevTxTree,
 			vin.ValueIn, vin.IsValid, vin.IsMainchain, vin.Time, vin.TxType).Scan(&id)
 		if err != nil {
-			return ids, fmt.Errorf("InsertVins INSERT exec failed: %v", err)
+			return ids, fmt.Errorf("InsertVins INSERT exec failed: %w", err)
 		}
 		ids = append(ids, id)
 	}
@@ -2234,7 +2234,7 @@ func InsertVinsDbTxn(dbTx *sql.Tx, dbVins dbtypes.VinTxPropertyARRAY, checked bo
 func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY, checked bool, updateOnConflict ...bool) ([]uint64, error) {
 	dbtx, err := db.Begin()
 	if err != nil {
-		return nil, fmt.Errorf("unable to begin database transaction: %v", err)
+		return nil, fmt.Errorf("unable to begin database transaction: %w", err)
 	}
 
 	doUpsert := true
@@ -2339,7 +2339,7 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool, updateOnConf
 	// All inserts in atomic DB transaction
 	dbTx, err := db.Begin()
 	if err != nil {
-		return nil, nil, fmt.Errorf("unable to begin database transaction: %v", err)
+		return nil, nil, fmt.Errorf("unable to begin database transaction: %w", err)
 	}
 
 	doUpsert := true
@@ -2681,7 +2681,7 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 	// Get funding details for vin and set them in the address table.
 	dbtx, err := db.Begin()
 	if err != nil {
-		return nil, 0, fmt.Errorf(`unable to begin database transaction: %v`, err)
+		return nil, 0, fmt.Errorf("unable to begin database transaction: %w", err)
 	}
 
 	var vinGetStmt *sql.Stmt
@@ -2710,7 +2710,7 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 			&txHash, &txVinInd, &prevOutHash, &prevOutVoutInd)
 		if err != nil {
 			return addressRowsUpdated, 0, fmt.Errorf(`SelectVinVoutPairByID: `+
-				`%v + %v (rollback)`, err, bail())
+				`%w + %v (rollback)`, err, bail())
 		}
 
 		// Skip coinbase inputs.
@@ -2724,7 +2724,7 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 			prevOutHash, prevOutVoutInd, txHash, true)
 		if err != nil {
 			return addressRowsUpdated, 0, fmt.Errorf(`insertSpendingTxByPrptStmt: `+
-				`%v + %v (rollback)`, err, bail())
+				`%w + %v (rollback)`, err, bail())
 		}
 
 		totalUpdated += addressRowsUpdated[iv]
@@ -2743,7 +2743,7 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 	// Get funding details for the vin and set them in the address table.
 	dbtx, err := db.Begin()
 	if err != nil {
-		return 0, fmt.Errorf(`unable to begin database transaction: %v`, err)
+		return 0, fmt.Errorf("unable to begin database transaction: %w", err)
 	}
 
 	// Get the funding tx outpoint from the vins table.
@@ -2752,7 +2752,7 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 	err = dbtx.QueryRow(internal.SelectVinVoutPairByID, vinDbID).
 		Scan(&txHash, &txVinInd, &prevOutHash, &prevOutVoutInd)
 	if err != nil {
-		return 0, fmt.Errorf(`SetSpendingByVinID: %v + %v `+
+		return 0, fmt.Errorf(`SetSpendingByVinID: %w + %v `+
 			`(rollback)`, err, dbtx.Rollback())
 	}
 
@@ -2766,7 +2766,7 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 	N, err := SetSpendingForFundingOP(dbtx, prevOutHash, prevOutVoutInd,
 		txHash, true)
 	if err != nil {
-		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
+		return 0, fmt.Errorf(`RowsAffected: %w + %v (rollback)`,
 			err, dbtx.Rollback())
 	}
 
@@ -2786,7 +2786,7 @@ func SetSpendingForFundingOP(db SqlExecutor, fundingTxHash string, fundingTxVout
 	res, err := db.Exec(internal.SetAddressMatchingTxHashForOutpoint,
 		spendingTxHash, fundingTxHash, fundingTxVoutIndex, forMainchain)
 	if err != nil || res == nil {
-		return 0, fmt.Errorf("SetAddressMatchingTxHashForOutpoint: %v", err)
+		return 0, fmt.Errorf("SetAddressMatchingTxHashForOutpoint: %w", err)
 	}
 
 	return res.RowsAffected()
@@ -2850,14 +2850,14 @@ func InsertSpendingAddressRow(db *sql.DB, fundingTxHash string, fundingTxVoutInd
 	// Only allow atomic transactions to happen.
 	dbtx, err := db.Begin()
 	if err != nil {
-		return 0, 0, false, fmt.Errorf(`unable to begin database transaction: %v`, err)
+		return 0, 0, false, fmt.Errorf("unable to begin database transaction: %w", err)
 	}
 
 	c, voutDbID, mixedOut, err := insertSpendingAddressRow(dbtx, fundingTxHash, fundingTxVoutIndex,
 		fundingTxTree, spendingTxHash, spendingTxVinIndex, vinDbID, utxoData, checked,
 		updateExisting, mainchain, valid, txType, updateFundingRow, spendingTXBlockTime)
 	if err != nil {
-		return 0, 0, false, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
+		return 0, 0, false, fmt.Errorf(`RowsAffected: %w + %v (rollback)`,
 			err, dbtx.Rollback())
 	}
 
@@ -2876,7 +2876,7 @@ func updateSpendTxInfoInAllVouts(db SqlExecutor) (int64, error) {
 				AND transactions.tx_hash=vins.tx_hash
 				AND transactions.is_valid;`) // transactions.tree=1 implies transactions.is_valid=true
 	if err != nil {
-		return 0, fmt.Errorf("UPDATE vouts.spend_tx_row_id error: %v", err)
+		return 0, fmt.Errorf("UPDATE vouts.spend_tx_row_id error: %w", err)
 	}
 	return res.RowsAffected()
 }
@@ -2907,7 +2907,7 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 		case sql.ErrNoRows, nil:
 			// If no row found or error is nil, continue
 		default:
-			return 0, 0, mixed, fmt.Errorf("SelectAddressByTxHash: %v", err)
+			return 0, 0, mixed, fmt.Errorf("SelectAddressByTxHash: %w", err)
 		}
 
 		// Get address list.
@@ -2929,7 +2929,7 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 		// Fetch the block time from the tx table.
 		err := tx.QueryRow(internal.SelectTxBlockTimeByHash, spendingTxHash).Scan(&blockTime)
 		if err != nil {
-			return 0, 0, mixed, fmt.Errorf("SelectTxBlockTimeByHash: %v", err)
+			return 0, 0, mixed, fmt.Errorf("SelectTxBlockTimeByHash: %w", err)
 		}
 	}
 
@@ -2942,7 +2942,7 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 			spendingTxVinIndex, vinDbID, value, blockTime, isFunding,
 			mainchain && valid, txType).Scan(&rowID)
 		if err != nil {
-			return 0, 0, mixed, fmt.Errorf("InsertAddressRow: %v", err)
+			return 0, 0, mixed, fmt.Errorf("InsertAddressRow: %w", err)
 		}
 	}
 
@@ -3113,12 +3113,12 @@ func InsertTxnsDbTxn(dbTx *sql.Tx, dbTxns []*dbtypes.Tx, checked, updateExisting
 func InsertTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked, updateExistingRecords bool) ([]uint64, error) {
 	dbtx, err := db.Begin()
 	if err != nil {
-		return nil, fmt.Errorf("unable to begin database transaction: %v", err)
+		return nil, fmt.Errorf("unable to begin database transaction: %w", err)
 	}
 
 	stmt, err := dbtx.Prepare(internal.MakeTxInsertStatement(checked, updateExistingRecords))
 	if err != nil {
-		log.Errorf("Transaction INSERT prepare: %v", err)
+		log.Errorf("Transaction INSERT prepare: %w", err)
 		_ = dbtx.Rollback() // try, but we want the Prepare error back
 		return nil, err
 	}
@@ -3430,7 +3430,7 @@ func appendChartBlocks(charts *cache.ChartData, rows *sql.Rows) error {
 		blocks.BlockSize = append(blocks.BlockSize, size)
 	}
 	if err := rows.Err(); err != nil {
-		return fmt.Errorf("appendChartBlocks: iteration error: %v", err)
+		return fmt.Errorf("appendChartBlocks: iteration error: %w", err)
 	}
 	if badRows > 0 {
 		log.Errorf("%d rows have invalid chainwork values.", badRows)
@@ -4220,7 +4220,7 @@ func SetMainchainByBlockHash(db *sql.DB, hash string, isMainchain bool) (previou
 func UpdateTransactionsMainchain(db *sql.DB, blockHash string, isMainchain bool) (int64, []uint64, error) {
 	rows, err := db.Query(internal.UpdateTxnsMainchainByBlock, isMainchain, blockHash)
 	if err != nil {
-		return 0, nil, fmt.Errorf("failed to update transactions is_mainchain: %v", err)
+		return 0, nil, fmt.Errorf("failed to update transactions is_mainchain: %w", err)
 	}
 	defer closeRows(rows)
 
@@ -4246,7 +4246,7 @@ func UpdateTransactionsMainchain(db *sql.DB, blockHash string, isMainchain bool)
 func UpdateTransactionsValid(db *sql.DB, blockHash string, isValid bool) (int64, []uint64, error) {
 	rows, err := db.Query(internal.UpdateRegularTxnsValidByBlock, isValid, blockHash)
 	if err != nil {
-		return 0, nil, fmt.Errorf("failed to update regular transactions is_valid: %v", err)
+		return 0, nil, fmt.Errorf("failed to update regular transactions is_valid: %w", err)
 	}
 	defer closeRows(rows)
 
@@ -4435,7 +4435,7 @@ func UpdateLastVins(db *sql.DB, blockHash string, isValid, isMainchain bool) err
 		}
 
 		if n < 1 {
-			return fmt.Errorf(" failed to update at least 1 row")
+			return fmt.Errorf("failed to update at least 1 row")
 		}
 	}
 
@@ -4454,14 +4454,14 @@ func UpdateLastAddressesValid(db *sql.DB, blockHash string, isValid bool) error 
 	onlyRegularTxns := true
 	vinDbIDsBlk, voutDbIDsBlk, _, err := RetrieveTxnsVinsVoutsByBlock(ctx, db, blockHash, onlyRegularTxns)
 	if err != nil {
-		return fmt.Errorf("unable to retrieve vin data for block %s: %v", blockHash, err)
+		return fmt.Errorf("unable to retrieve vin data for block %s: %w", blockHash, err)
 	}
 	// Using vins and vouts row ids, update the valid_mainchain column of the
 	// rows of the address table referring to these vins and vouts.
 	numAddrSpending, numAddrFunding, err := UpdateAddressesMainchainByIDs(db,
 		vinDbIDsBlk, voutDbIDsBlk, isValid)
 	if err != nil {
-		log.Errorf("Failed to set addresses rows in block %s as sidechain: %v", blockHash, err)
+		log.Errorf("Failed to set addresses rows in block %s as sidechain: %w", blockHash, err)
 	}
 	addrsUpdated := numAddrSpending + numAddrFunding
 	log.Debugf("Rows of addresses table updated: %d", addrsUpdated)
@@ -4803,7 +4803,7 @@ func RetrieveBlockSize(ctx context.Context, db *sql.DB, ind int64) (int32, error
 	var blockSize int32
 	err := db.QueryRowContext(ctx, internal.SelectBlockSizeByHeight, ind).Scan(&blockSize)
 	if err != nil {
-		return -1, fmt.Errorf("unable to scan for block size: %v", err)
+		return -1, fmt.Errorf("unable to scan for block size: %w", err)
 	}
 
 	return blockSize, nil

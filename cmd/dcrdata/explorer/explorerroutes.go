@@ -6,9 +6,9 @@ package explorer
 
 import (
 	"context"
-	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -631,7 +631,7 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 		if exp.timeoutErrorPage(w, err, "BlockStatus") {
 			return
 		}
-		if err != nil && err != sql.ErrNoRows {
+		if err != nil && !errors.Is(err, dbtypes.ErrNoResult) {
 			log.Warnf("Unable to retrieve chain status for block %s: %v",
 				s.Hash, err)
 		}
@@ -696,7 +696,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 	if exp.timeoutErrorPage(w, err, "BlockMissedVotes") {
 		return
 	}
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, dbtypes.ErrNoResult) {
 		log.Warnf("Unable to retrieve missed votes for block %s: %v", hash, err)
 	}
 
@@ -705,7 +705,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 	if exp.timeoutErrorPage(w, err, "BlockStatuses") {
 		return
 	}
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, dbtypes.ErrNoResult) {
 		log.Warnf("Unable to retrieve chain status for block %s: %v", hash, err)
 	}
 	for i, block := range altBlocks {
@@ -900,7 +900,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			if exp.timeoutErrorPage(w, err, "SpendingTransaction") {
 				return
 			}
-			if err != nil && err != sql.ErrNoRows {
+			if err != nil && !errors.Is(err, dbtypes.ErrNoResult) {
 				log.Warnf("SpendingTransaction failed for outpoint %s:%d: %v",
 					hash, vouts[iv].TxIndex, err)
 			}
@@ -1131,15 +1131,15 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		if exp.timeoutErrorPage(w, err, "PoolStatusForTicket") {
 			return
 		}
-		if err != nil && err != sql.ErrNoRows {
+		if errors.Is(err, dbtypes.ErrNoResult) {
+			if tx.Confirmations != 0 {
+				log.Warnf("Spend and pool status not found for ticket %s: %v", hash, err)
+			}
+		} else if err != nil {
 			log.Errorf("Unable to retrieve ticket spend and pool status for %s: %v",
 				hash, err)
 			exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 			return
-		} else if err == sql.ErrNoRows {
-			if tx.Confirmations != 0 {
-				log.Warnf("Spend and pool status not found for ticket %s: %v", hash, err)
-			}
 		} else {
 			if tx.Mature == "False" {
 				tx.TicketInfo.PoolStatus = "immature"
@@ -1151,14 +1151,13 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			// For missed tickets, get the block in which it should have voted.
 			if poolStatus == dbtypes.PoolStatusMissed {
 				tx.TicketInfo.LotteryBlock, _, err = exp.dataSource.TicketMiss(hash)
-				if err != nil && err != sql.ErrNoRows {
+				if errors.Is(err, dbtypes.ErrNoResult) {
+					log.Warnf("No mainchain miss data for ticket %s: %v", hash, err)
+				} else if err != nil {
 					log.Errorf("Unable to retrieve miss information for ticket %s: %v",
 						hash, err)
 					exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 					return
-				} else if err == sql.ErrNoRows {
-					log.Warnf("No mainchain miss data for ticket %s: %v",
-						hash, err)
 				}
 			}
 
@@ -1999,7 +1998,7 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 
 	// Also check the aux DB as it may have transactions from orphaned blocks.
 	dbTxs, err := exp.dataSource.Transaction(searchStrSplit[0])
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, dbtypes.ErrNoResult) {
 		log.Errorf("Searching for transaction failed: %v", err)
 	}
 	if dbTxs != nil {
