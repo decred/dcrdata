@@ -323,10 +323,15 @@ func (pgb *ChainDB) timeoutError() string {
 
 // replaceCancelError will replace the generic error strings that can occur when
 // a PG query is canceled (dbtypes.PGCancelError) or a context deadline is
-// exceeded (dbtypes.CtxDeadlineExceeded from context.DeadlineExceeded).
+// exceeded (dbtypes.CtxDeadlineExceeded from context.DeadlineExceeded). It also
+// replaces a sql.ErrNoRows with a dbtypes.ErrNoResult.
 func (pgb *ChainDB) replaceCancelError(err error) error {
 	if err == nil {
 		return err
+	}
+
+	if errors.Is(err, sql.ErrNoRows) {
+		return dbtypes.ErrNoResult
 	}
 
 	patched := err.Error()
@@ -350,7 +355,7 @@ func (pgb *ChainDB) MissingSideChainBlocks() ([]dbtypes.SideChain, int, error) {
 	// First get the side chain tips (head blocks).
 	tips, err := rpcutils.SideChains(pgb.Client)
 	if err != nil {
-		return nil, 0, fmt.Errorf("unable to get chain tips from node: %v", err)
+		return nil, 0, fmt.Errorf("unable to get chain tips from node: %w", err)
 	}
 	nSideChains := len(tips)
 
@@ -364,7 +369,7 @@ func (pgb *ChainDB) MissingSideChainBlocks() ([]dbtypes.SideChain, int, error) {
 
 		sideChain, err := rpcutils.SideChainFull(pgb.Client, tips[it].Hash)
 		if err != nil {
-			return nil, 0, fmt.Errorf("unable to get side chain blocks for chain tip %s: %v",
+			return nil, 0, fmt.Errorf("unable to get side chain blocks for chain tip %s: %w",
 				tips[it].Hash, err)
 		}
 		// Starting height is the lowest block in the side chain.
@@ -374,7 +379,7 @@ func (pgb *ChainDB) MissingSideChainBlocks() ([]dbtypes.SideChain, int, error) {
 		for is := range sideChain {
 			// Check for the block hash in the DB.
 			sideHeightDB, err := pgb.BlockHeight(sideChain[is])
-			if err == sql.ErrNoRows {
+			if errors.Is(err, dbtypes.ErrNoResult) {
 				// This block is NOT already in the DB.
 				blocksToStore[it].Hashes = append(blocksToStore[it].Hashes, sideChain[is])
 				blocksToStore[it].Heights = append(blocksToStore[it].Heights, sideHeight)
@@ -497,7 +502,7 @@ func NewChainDB(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb.StakeData
 	if initTZ != "UTC" {
 		log.Infof("Switching PostgreSQL time zone to UTC for this session.")
 		if _, err = db.Exec(`SET TIME ZONE UTC`); err != nil {
-			return nil, fmt.Errorf("Failed to set time zone to UTC: %v", err)
+			return nil, fmt.Errorf("Failed to set time zone to UTC: %w", err)
 		}
 	}
 
@@ -535,7 +540,7 @@ func NewChainDB(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb.StakeData
 				`Changing it to "off".`, syncCommit)
 			// Turn off synchronous_commit.
 			if err = SetSynchronousCommit(db, "off"); err != nil {
-				return nil, fmt.Errorf("failed to set synchronous_commit: %v", err)
+				return nil, fmt.Errorf("failed to set synchronous_commit: %w", err)
 			}
 			// Verify that the setting was changed.
 			if syncCommit, err = RetrieveSysSettingSyncCommit(db); err != nil {
@@ -550,7 +555,7 @@ func NewChainDB(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb.StakeData
 		// SERIAL column.
 		_, err = db.Exec("SET experimental_serial_normalization = sql_sequence;")
 		if err != nil {
-			return nil, fmt.Errorf("failed to set experimental_serial_normalization: %v", err)
+			return nil, fmt.Errorf("failed to set experimental_serial_normalization: %w", err)
 		}
 
 		// Prevent too many versions of nextval() during bulk inserts using
@@ -562,7 +567,7 @@ func NewChainDB(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb.StakeData
 		if err != nil {
 			// In secure mode, the user may need permissions to modify zones. e.g.
 			// GRANT UPDATE ON TABLE dcrdata_mainnet.crdb_internal.zones TO dcrdata_user;
-			return nil, fmt.Errorf(`failed to set gc.ttlseconds=%d for database "%s": %v`,
+			return nil, fmt.Errorf("failed to set gc.ttlseconds=%d for database %q: %w",
 				crdbGCInterval, dbi.DBName, err)
 		}
 	}
@@ -588,7 +593,7 @@ func NewChainDB(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb.StakeData
 		upgrader := NewUpgrader(ctx, params, db, client, stakeDB)
 		success, err := upgrader.UpgradeDatabase()
 		if err != nil {
-			return nil, fmt.Errorf("failed to upgrade database: %v", err)
+			return nil, fmt.Errorf("failed to upgrade database: %w", err)
 		}
 		if !success {
 			return nil, fmt.Errorf("failed to upgrade database (upgrade not supported?)")
@@ -597,7 +602,7 @@ func NewChainDB(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb.StakeData
 		// Empty database (no blocks table). Proceed to setupTables.
 		log.Infof(`Empty database "%s". Creating tables...`, dbi.DBName)
 		if err = CreateTables(db); err != nil {
-			return nil, fmt.Errorf("failed to create tables: %v", err)
+			return nil, fmt.Errorf("failed to create tables: %w", err)
 		}
 		err = insertMetaData(db, &metaData{
 			netName:         params.Name,
@@ -606,7 +611,7 @@ func NewChainDB(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb.StakeData
 			dbVer:           *targetDatabaseVersion,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("insertMetaData failed: %v", err)
+			return nil, fmt.Errorf("insertMetaData failed: %w", err)
 		}
 	case metaNotFoundErr:
 		log.Errorf("Legacy DB versioning found. No upgrade supported. Wipe all data and start fresh.")
@@ -617,7 +622,7 @@ func NewChainDB(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb.StakeData
 	// Get the best block height from the blocks table.
 	bestHeight, bestHash, err := RetrieveBestBlock(ctx, db)
 	if err != nil {
-		return nil, fmt.Errorf("RetrieveBestBlock: %v", err)
+		return nil, fmt.Errorf("RetrieveBestBlock: %w", err)
 	}
 	// NOTE: Once legacy versioned tables are no longer in use, use the height
 	// and hash from DBBestBlock instead.
@@ -629,7 +634,7 @@ func NewChainDB(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb.StakeData
 	// table's best block height. Also purge if the hashes do not match.
 	dbHash, dbHeightInit, err := DBBestBlock(ctx, db)
 	if err != nil {
-		return nil, fmt.Errorf("DBBestBlock: %v", err)
+		return nil, fmt.Errorf("DBBestBlock: %w", err)
 	}
 
 	// Best block height in the transactions table (written to even before
@@ -655,11 +660,11 @@ func NewChainDB(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb.StakeData
 			dbHeightInit, bestHeight)
 		_, bestHeight, bestHash, err = DeleteBestBlock(ctx, db)
 		if err != nil {
-			return nil, fmt.Errorf("DeleteBestBlock: %v", err)
+			return nil, fmt.Errorf("DeleteBestBlock: %w", err)
 		}
 		dbHash, dbHeightInit, err = DBBestBlock(ctx, db)
 		if err != nil {
-			return nil, fmt.Errorf("DBBestBlock: %v", err)
+			return nil, fmt.Errorf("DBBestBlock: %w", err)
 		}
 	}
 
@@ -674,7 +679,7 @@ func NewChainDB(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb.StakeData
 		// in the meta table.
 		_, bestHeight, bestHash, err = DeleteBestBlock(ctx, db)
 		if err != nil {
-			return nil, fmt.Errorf("DeleteBestBlock: %v", err)
+			return nil, fmt.Errorf("DeleteBestBlock: %w", err)
 		}
 		if bestHeight == -1 {
 			break
@@ -684,7 +689,7 @@ func NewChainDB(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb.StakeData
 		// update the meta table.
 		dbHash, _, err = DBBestBlock(ctx, db)
 		if err != nil {
-			return nil, fmt.Errorf("DBBestBlock: %v", err)
+			return nil, fmt.Errorf("DBBestBlock: %w", err)
 		}
 		if dbHash != bestHash {
 			return nil, fmt.Errorf("best block hash in meta and blocks tables do not match: "+
@@ -701,7 +706,7 @@ func NewChainDB(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb.StakeData
 	log.Infof("Pre-loading unspent ticket info for InsertVote optimization.")
 	unspentTicketCache := NewTicketTxnIDGetter(db)
 	unspentTicketDbIDs, unspentTicketHashes, err := RetrieveUnspentTickets(ctx, db)
-	if err != nil && err != sql.ErrNoRows && !strings.HasSuffix(err.Error(), "does not exist") {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) && !strings.HasSuffix(err.Error(), "does not exist") {
 		return nil, err
 	}
 	if len(unspentTicketDbIDs) != 0 {
@@ -868,7 +873,7 @@ func versionCheck(db *sql.DB) (*DatabaseVersion, CompatAction, error) {
 	// Retrieve the database version from the meta table.
 	dbVer, err := DBVersion(db)
 	if err != nil {
-		return nil, Unknown, fmt.Errorf("DBVersion failure: %v", err)
+		return nil, Unknown, fmt.Errorf("DBVersion failure: %w", err)
 	}
 
 	// Return the version, and an upgrade plan to reach targetDatabaseVersion.
@@ -1069,7 +1074,7 @@ func (pgb *ChainDB) HeightDBLegacy() (int64, error) {
 	defer cancel()
 	bestHeight, _, _, err := RetrieveBestBlockHeight(ctx, pgb.db)
 	height := int64(bestHeight)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		height = -1
 	}
 	return height, pgb.replaceCancelError(err)
@@ -1252,12 +1257,12 @@ func (pgb *ChainDB) PiProposalsHistory() (int64, error) {
 
 	lastUpdate, err := retrieveLastCommitTime(pgb.db)
 	switch {
-	case err == sql.ErrNoRows:
+	case errors.Is(err, sql.ErrNoRows):
 		// No records exists yet fetch all the history.
 		proposalsData, err = pgb.piparser.ProposalsHistory()
 
 	case err != nil:
-		return -1, fmt.Errorf("retrieveLastCommitTime failed :%v", err)
+		return -1, fmt.Errorf("retrieveLastCommitTime failed: %w", err)
 
 	default:
 		// Fetch the updates since the last insert only.
@@ -1266,7 +1271,7 @@ func (pgb *ChainDB) PiProposalsHistory() (int64, error) {
 	}
 
 	if err != nil {
-		return -1, fmt.Errorf("politeia proposals fetch failed: %v", err)
+		return -1, fmt.Errorf("politeia proposals fetch failed: %w", err)
 	}
 
 	var commitsCount int64
@@ -1287,14 +1292,14 @@ func (pgb *ChainDB) PiProposalsHistory() (int64, error) {
 			id, err := InsertProposal(pgb.db, val.Token, entry.Author,
 				entry.CommitSHA, entry.Date, isChecked)
 			if err != nil {
-				return -1, fmt.Errorf("InsertProposal failed: %v", err)
+				return -1, fmt.Errorf("InsertProposal failed: %w", err)
 			}
 
 			for _, vote := range val.VotesInfo {
 				_, err = InsertProposalVote(pgb.db, id, vote.Ticket,
 					string(vote.VoteBit), isChecked)
 				if err != nil {
-					return -1, fmt.Errorf("InsertProposalVote failed: %v", err)
+					return -1, fmt.Errorf("InsertProposalVote failed: %w", err)
 				}
 			}
 		}
@@ -1364,7 +1369,7 @@ func (pgb *ChainDB) BlockMissedVotes(blockHash string) ([]string, error) {
 // TicketMisses retrieves all blocks in which the specified ticket was called to
 // vote but failed to do so (miss). There may be multiple since this consideres
 // side chain blocks. See TicketMiss for a mainchain-only version. If the ticket
-// never missed a vote, the returned error will be sql.ErrNoRows.
+// never missed a vote, the returned error will be dbtypes.ErrNoResult.
 func (pgb *ChainDB) TicketMisses(ticketHash string) ([]string, []int64, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
@@ -1374,7 +1379,7 @@ func (pgb *ChainDB) TicketMisses(ticketHash string) ([]string, []int64, error) {
 
 // TicketMiss retrieves the mainchain block in which the specified ticket was
 // called to vote but failed to do so (miss). If the ticket never missed a vote,
-// the returned error will be sql.ErrNoRows.
+// the returned error will be dbtypes.ErrNoResult.
 func (pgb *ChainDB) TicketMiss(ticketHash string) (string, int64, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
@@ -1510,7 +1515,7 @@ func (pgb *ChainDB) AddressMetrics(addr string) (*dbtypes.AddressMetrics, error)
 	for _, s := range dbtypes.TimeIntervals {
 		numIntervals, err := pgb.NumAddressIntervals(addr, s)
 		if err != nil {
-			return nil, fmt.Errorf("retrieveAddressAllTxsCount failed: error: %v", err)
+			return nil, fmt.Errorf("NumAddressIntervals failed: error: %w", err)
 		}
 
 		switch s {
@@ -1531,7 +1536,7 @@ func (pgb *ChainDB) AddressMetrics(addr string) (*dbtypes.AddressMetrics, error)
 	defer cancel()
 	blockTime, err := retrieveOldestTxBlockTime(ctx, pgb.db, addr)
 	if err != nil {
-		return nil, fmt.Errorf("retrieveOldestTxBlockTime failed: error: %v", err)
+		return nil, fmt.Errorf("retrieveOldestTxBlockTime failed: error: %w", err)
 	}
 	metrics.OldestBlockTime = blockTime
 
@@ -1940,7 +1945,7 @@ func (pgb *ChainDB) FreshenAddressCaches(lazyProjectFund bool, expireAddresses [
 		err := pgb.updateProjectFundCache()
 		if err != nil && !IsRetryError(err) {
 			err = pgb.replaceCancelError(err)
-			return fmt.Errorf("Failed to update project fund data: %v", err)
+			return fmt.Errorf("Failed to update project fund data: %w", err)
 		}
 		return nil
 	}
@@ -2056,7 +2061,7 @@ func (pgb *ChainDB) updateAddressRows(address string) (rows []*dbtypes.AddressRo
 
 	// Retrieve all non-merged address transaction rows.
 	rows, err = pgb.AddressTransactionsAll(address)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, dbtypes.ErrNoResult) {
 		return
 	}
 
@@ -2231,7 +2236,7 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 		// Update or wait for an update to the cached AddressRows, returning ALL
 		// NON-MERGED address transaction rows.
 		addressRows, err = pgb.updateAddressRows(address)
-		if err != nil && err != sql.ErrNoRows {
+		if err != nil && !errors.Is(err, dbtypes.ErrNoResult) && !errors.Is(err, sql.ErrNoRows) {
 			// See if another caller ran the update, in which case we were just
 			// waiting to avoid a simultaneous query. With luck the cache will
 			// be updated with this data, although it may not be. Try again.
@@ -2239,13 +2244,13 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 				// Try again, starting with cache.
 				return pgb.AddressHistory(address, N, offset, txnView)
 			}
-			return nil, nil, fmt.Errorf("failed to updateAddressRows: %v", err)
+			return nil, nil, fmt.Errorf("failed to updateAddressRows: %w", err)
 		}
 
 		// Select the correct type and range of address rows, merging if needed.
 		addressRows, err = dbtypes.SliceAddressRows(addressRows, int(N), int(offset), txnView)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to SliceAddressRows: %v", err)
+			return nil, nil, fmt.Errorf("failed to SliceAddressRows: %w", err)
 		}
 	}
 	log.Debugf("Address rows (view=%s) cache HIT for %s.",
@@ -2296,7 +2301,7 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 		// Count spent/unspent amounts and transactions.
 		log.Debugf("Obtaining balance via DB query.")
 		balance, _, err = pgb.AddressBalance(address)
-		if err != nil && err != sql.ErrNoRows {
+		if err != nil && !errors.Is(err, dbtypes.ErrNoResult) && !errors.Is(err, sql.ErrNoRows) {
 			return nil, nil, err
 		}
 	}
@@ -2330,7 +2335,7 @@ func (pgb *ChainDB) AddressData(address string, limitN, offsetAddrOuts int64,
 		addrData.Address = address
 	}
 
-	if err == sql.ErrNoRows || (err == nil && len(addrHist) == 0) {
+	if errors.Is(err, dbtypes.ErrNoResult) || errors.Is(err, sql.ErrNoRows) || (err == nil && len(addrHist) == 0) {
 		// We do not have any confirmed transactions. Prep to display ONLY
 		// unconfirmed transactions (or none at all).
 		addrData = new(dbtypes.AddressInfo)
@@ -2340,7 +2345,7 @@ func (pgb *ChainDB) AddressData(address string, limitN, offsetAddrOuts int64,
 	} else if err != nil {
 		// Unexpected error
 		log.Errorf("AddressHistory: %v", err)
-		return nil, fmt.Errorf("AddressHistory: %v", err)
+		return nil, fmt.Errorf("AddressHistory: %w", err)
 	} else /*err == nil*/ {
 		// Generate AddressInfo skeleton from the address table rows.
 		addrData, _, _ = dbtypes.ReduceAddressHistory(addrHist)
@@ -2403,14 +2408,14 @@ func (pgb *ChainDB) AddressData(address string, limitN, offsetAddrOuts int64,
 			return nil, err
 		}
 		if err != nil {
-			return nil, fmt.Errorf("Unable to fill address %s transactions: %v", address, err)
+			return nil, fmt.Errorf("Unable to fill address %s transactions: %w", address, err)
 		}
 	}
 
 	// Check for unconfirmed transactions.
 	addressUTXOs, numUnconfirmed, err := pgb.mp.UnconfirmedTxnsForAddress(address)
 	if err != nil || addressUTXOs == nil {
-		return nil, fmt.Errorf("UnconfirmedTxnsForAddress failed for address %s: %v", address, err)
+		return nil, fmt.Errorf("UnconfirmedTxnsForAddress failed for address %s: %w", address, err)
 	}
 	addrData.NumUnconfirmed = numUnconfirmed
 	addrData.NumTransactions += numUnconfirmed
@@ -2691,7 +2696,7 @@ func (pgb *ChainDB) addressInfo(addr string, count, skip int64, txnType dbtypes.
 	// Query database for transaction details
 	err = pgb.FillAddressTransactions(addrData)
 	if err != nil {
-		return nil, balance, fmt.Errorf("Unable to fill address %s transactions: %v", address, err)
+		return nil, balance, fmt.Errorf("Unable to fill address %s transactions: %w", address, err)
 	}
 
 	return addrData, balance, nil
@@ -3021,7 +3026,7 @@ func (pgb *ChainDB) windowStats(charts *cache.ChartData) (*sql.Rows, func(), err
 
 	rows, err := retrieveWindowStats(ctx, pgb.db, charts)
 	if err != nil {
-		return nil, cancel, fmt.Errorf("windowStats: %v", pgb.replaceCancelError(err))
+		return nil, cancel, fmt.Errorf("windowStats: %w", pgb.replaceCancelError(err))
 	}
 
 	return rows, cancel, nil
@@ -3035,7 +3040,7 @@ func (pgb *ChainDB) missedVotesStats(charts *cache.ChartData) (*sql.Rows, func()
 
 	rows, err := retrieveMissedVotes(ctx, pgb.db, charts)
 	if err != nil {
-		return nil, cancel, fmt.Errorf("missedVotesStats: %v", pgb.replaceCancelError(err))
+		return nil, cancel, fmt.Errorf("missedVotesStats: %w", pgb.replaceCancelError(err))
 	}
 
 	return rows, cancel, nil
@@ -3049,7 +3054,7 @@ func (pgb *ChainDB) chartBlocks(charts *cache.ChartData) (*sql.Rows, func(), err
 
 	rows, err := retrieveChartBlocks(ctx, pgb.db, charts)
 	if err != nil {
-		return nil, cancel, fmt.Errorf("chartBlocks: %v", pgb.replaceCancelError(err))
+		return nil, cancel, fmt.Errorf("chartBlocks: %w", pgb.replaceCancelError(err))
 	}
 	return rows, cancel, nil
 }
@@ -3062,7 +3067,7 @@ func (pgb *ChainDB) coinSupply(charts *cache.ChartData) (*sql.Rows, func(), erro
 
 	rows, err := retrieveCoinSupply(ctx, pgb.db, charts)
 	if err != nil {
-		return nil, cancel, fmt.Errorf("coinSupply: %v", pgb.replaceCancelError(err))
+		return nil, cancel, fmt.Errorf("coinSupply: %w", pgb.replaceCancelError(err))
 	}
 
 	return rows, cancel, nil
@@ -3077,7 +3082,7 @@ func (pgb *ChainDB) txPerDay(timeArr []dbtypes.TimeDef, txCountArr []uint64) (
 	var err error
 	timeArr, txCountArr, err = retrieveTxPerDay(ctx, pgb.db, timeArr, txCountArr)
 	if err != nil {
-		err = fmt.Errorf("txPerDay: %v", pgb.replaceCancelError(err))
+		err = fmt.Errorf("txPerDay: %w", pgb.replaceCancelError(err))
 	}
 
 	return timeArr, txCountArr, err
@@ -3091,7 +3096,7 @@ func (pgb *ChainDB) blockFees(charts *cache.ChartData) (*sql.Rows, func(), error
 
 	rows, err := retrieveBlockFees(ctx, pgb.db, charts)
 	if err != nil {
-		return nil, cancel, fmt.Errorf("chartBlocks: %v", pgb.replaceCancelError(err))
+		return nil, cancel, fmt.Errorf("chartBlocks: %w", pgb.replaceCancelError(err))
 	}
 	return rows, cancel, nil
 }
@@ -3104,7 +3109,7 @@ func (pgb *ChainDB) privacyParticipation(charts *cache.ChartData) (*sql.Rows, fu
 
 	rows, err := retrievePrivacyParticipation(ctx, pgb.db, charts)
 	if err != nil {
-		return nil, cancel, fmt.Errorf("privacyParticipation: %v", pgb.replaceCancelError(err))
+		return nil, cancel, fmt.Errorf("privacyParticipation: %w", pgb.replaceCancelError(err))
 	}
 	return rows, cancel, nil
 }
@@ -3142,7 +3147,7 @@ func (pgb *ChainDB) retrieveAnonymitySet(bestHeight int32) (*sql.Rows, func(), e
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	rows, err := pgb.db.QueryContext(ctx, internal.SelectMixedVouts, bestHeight)
 	if err != nil {
-		return nil, cancel, fmt.Errorf("chartBlocks: %v", pgb.replaceCancelError(err))
+		return nil, cancel, fmt.Errorf("chartBlocks: %w", pgb.replaceCancelError(err))
 	}
 	return rows, cancel, nil
 }
@@ -3205,7 +3210,7 @@ func (pgb *ChainDB) poolStats(charts *cache.ChartData) (*sql.Rows, func(), error
 
 	rows, err := retrievePoolStats(ctx, pgb.db, charts)
 	if err != nil {
-		return nil, cancel, fmt.Errorf("chartBlocks: %v", pgb.replaceCancelError(err))
+		return nil, cancel, fmt.Errorf("chartBlocks: %w", pgb.replaceCancelError(err))
 	}
 	return rows, cancel, nil
 }
@@ -3231,7 +3236,7 @@ func (pgb *ChainDB) ticketsByBlocks(heightArr, soloArr, pooledArr []uint64) ([]u
 	heightArr, soloArr, pooledArr, err = retrieveTicketByOutputCount(ctx,
 		pgb.db, 1, outputCountByAllBlocks, heightArr, soloArr, pooledArr)
 	if err != nil {
-		err = fmt.Errorf("ticketsByBlocks: %v", pgb.replaceCancelError(err))
+		err = fmt.Errorf("ticketsByBlocks: %w", pgb.replaceCancelError(err))
 	}
 
 	return heightArr, soloArr, pooledArr, err
@@ -3251,7 +3256,7 @@ func (pgb *ChainDB) ticketsByTPWindows(heightArr, soloArr, pooledArr []uint64) (
 		pgb.chainParams.StakeDiffWindowSize, outputCountByTicketPoolWindow,
 		heightArr, soloArr, pooledArr)
 	if err != nil {
-		err = fmt.Errorf("ticketsByTPWindows: %v", pgb.replaceCancelError(err))
+		err = fmt.Errorf("ticketsByTPWindows: %w", pgb.replaceCancelError(err))
 	}
 
 	return heightArr, soloArr, pooledArr, err
@@ -3284,7 +3289,7 @@ func (pgb *ChainDB) SetVinsMainchainByBlock(blockHash string) (int64, []dbtypes.
 	vinDbIDsBlk, voutDbIDsBlk, areMainchain, err :=
 		RetrieveTxnsVinsVoutsByBlock(ctx, pgb.db, blockHash, onlyRegularTxns)
 	if err != nil {
-		return 0, nil, nil, fmt.Errorf("unable to retrieve vin data for block %s: %v", blockHash, err)
+		return 0, nil, nil, fmt.Errorf("unable to retrieve vin data for block %s: %w", blockHash, err)
 	}
 
 	// Set the is_mainchain flag for each vin.
@@ -3315,7 +3320,7 @@ func (pgb *ChainDB) setVinsMainchainOneTxn(vinDbIDs dbtypes.UInt64Array,
 		result, err := pgb.db.Exec(internal.SetIsMainchainByVinID,
 			vinDbID, isMainchain)
 		if err != nil {
-			return rowsUpdated, fmt.Errorf("db ID %d not found: %v", vinDbID, err)
+			return rowsUpdated, fmt.Errorf("db ID %d not found: %w", vinDbID, err)
 		}
 
 		c, err := result.RowsAffected()
@@ -3359,7 +3364,7 @@ func (pgb *ChainDB) VinsForTx(dbTx *dbtypes.Tx) ([]dbtypes.VinTxProperty, []stri
 	for _, id := range dbTx.VinDbIds {
 		pkScript, ver, err := pgb.PkScriptByVinID(id)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("PkScriptByVinID: %v", err)
+			return nil, nil, nil, fmt.Errorf("PkScriptByVinID: %w", err)
 		}
 		prevPkScripts = append(prevPkScripts, hex.EncodeToString(pkScript))
 		versions = append(versions, ver)
@@ -3370,7 +3375,7 @@ func (pgb *ChainDB) VinsForTx(dbTx *dbtypes.Tx) ([]dbtypes.VinTxProperty, []stri
 	defer cancel()
 	vins, err := RetrieveVinsByIDs(ctx, pgb.db, dbTx.VinDbIds)
 	if err != nil {
-		err = fmt.Errorf("RetrieveVinsByIDs: %v", err)
+		err = fmt.Errorf("RetrieveVinsByIDs: %w", err)
 	}
 	return vins, prevPkScripts, versions, pgb.replaceCancelError(err)
 }
@@ -3630,7 +3635,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, isValid, isMainchain,
 	// new block extends this chain.
 	err = InsertBlockPrevNext(pgb.db, blockDbID, dbBlock.Hash,
 		dbBlock.PreviousHash, "")
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		log.Error("InsertBlockPrevNext:", err)
 		return
 	}
@@ -3641,8 +3646,8 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, isValid, isMainchain,
 	// columns for the previous block's entries in the following tables: blocks,
 	// vins, addresses, and transactions.
 	err = pgb.UpdateLastBlock(msgBlock, isMainchain)
-	if err != nil && err != sql.ErrNoRows {
-		err = fmt.Errorf("UpdateLastBlock: %v", err)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) && !errors.Is(err, dbtypes.ErrNoResult) {
+		err = fmt.Errorf("UpdateLastBlock: %w", err)
 		return
 	}
 
@@ -3657,7 +3662,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, isValid, isMainchain,
 		if tpi != nil {
 			err = InsertBlockStats(pgb.db, blockDbID, tpi)
 			if err != nil {
-				err = fmt.Errorf("InsertBlockStats: %v", err)
+				err = fmt.Errorf("InsertBlockStats: %w", err)
 				return
 			}
 		}
@@ -3665,7 +3670,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, isValid, isMainchain,
 		// Update the best block in the meta table.
 		err = SetDBBestBlock(pgb.db, dbBlock.Hash, int64(dbBlock.Height))
 		if err != nil {
-			err = fmt.Errorf("SetDBBestBlock: %v", err)
+			err = fmt.Errorf("SetDBBestBlock: %w", err)
 			return
 		}
 	}
@@ -3731,7 +3736,7 @@ func (pgb *ChainDB) UpdateLastBlock(msgBlock *wire.MsgBlock, isMainchain bool) e
 		var err error
 		lastBlockDbID, err = pgb.BlockChainDbIDNoCancel(lastBlockHash.String())
 		if err != nil {
-			return fmt.Errorf("unable to locate block %s in block_chain table: %v",
+			return fmt.Errorf("unable to locate block %s in block_chain table: %w",
 				lastBlockHash, err)
 		}
 	}
@@ -3739,7 +3744,7 @@ func (pgb *ChainDB) UpdateLastBlock(msgBlock *wire.MsgBlock, isMainchain bool) e
 	// Update the previous block's next block hash in the block_chain table.
 	err := UpdateBlockNext(pgb.db, lastBlockDbID, msgBlock.BlockHash().String())
 	if err != nil {
-		return fmt.Errorf("UpdateBlockNext: %v", err)
+		return fmt.Errorf("UpdateBlockNext: %w", err)
 	}
 
 	// If the previous block is invalidated by this one: (1) update it's
@@ -3753,26 +3758,26 @@ func (pgb *ChainDB) UpdateLastBlock(msgBlock *wire.MsgBlock, isMainchain bool) e
 		log.Infof("Setting last block %s as INVALID", lastBlockHash)
 		err := UpdateLastBlockValid(pgb.db, lastBlockDbID, lastIsValid)
 		if err != nil {
-			return fmt.Errorf("UpdateLastBlockValid: %v", err)
+			return fmt.Errorf("UpdateLastBlockValid: %w", err)
 		}
 
 		// For the transactions invalidated by this block, locate any vouts that
 		// reference them in vouts.spend_tx_row_id, and unset spend_tx_row_id.
 		err = clearVoutRegularSpendTxRowIDs(pgb.db, lastBlockHash.String())
 		if err != nil {
-			return fmt.Errorf("clearVoutRegularSpendTxRowIDs: %v", err)
+			return fmt.Errorf("clearVoutRegularSpendTxRowIDs: %w", err)
 		}
 
 		// Update the is_valid flag for the last block's vins.
 		err = UpdateLastVins(pgb.db, lastBlockHash.String(), lastIsValid, isMainchain)
 		if err != nil {
-			return fmt.Errorf("UpdateLastVins: %v", err)
+			return fmt.Errorf("UpdateLastVins: %w", err)
 		}
 
 		// Update the is_valid flag for the last block's regular transactions.
 		_, _, err = UpdateTransactionsValid(pgb.db, lastBlockHash.String(), lastIsValid)
 		if err != nil {
-			return fmt.Errorf("UpdateTransactionsValid: %v", err)
+			return fmt.Errorf("UpdateTransactionsValid: %w", err)
 		}
 
 		// Update addresses table for last block's regular transactions.
@@ -3782,7 +3787,7 @@ func (pgb *ChainDB) UpdateLastBlock(msgBlock *wire.MsgBlock, isMainchain bool) e
 		// 		Filter: ((NOT is_funding) AND (tx_vin_vout_row_id = 13241234))
 		err = UpdateLastAddressesValid(pgb.db, lastBlockHash.String(), lastIsValid)
 		if err != nil {
-			return fmt.Errorf("UpdateLastAddressesValid: %v", err)
+			return fmt.Errorf("UpdateLastAddressesValid: %w", err)
 		}
 
 		// NOTE: Updating the tickets, votes, misses, and treasury tables is not
@@ -3862,21 +3867,21 @@ func (pgb *ChainDB) storeTxns(txns []*dbtypes.Tx, vouts [][]*dbtypes.Vout, vins 
 		// each output.
 		Tx.VoutDbIds, dbAddressRows[it], err = InsertVoutsStmt(voutStmt,
 			vouts[it], pgb.dupChecks, updateExistingRecords)
-		if err != nil && err != sql.ErrNoRows {
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			err = fmt.Errorf("failure in InsertVoutsStmt: %w", err)
 			_ = dbTx.Rollback()
 			return
 		}
 		totalAddressRows += len(dbAddressRows[it])
 		numOuts += len(Tx.VoutDbIds)
-		if err == sql.ErrNoRows || len(vouts[it]) != len(Tx.VoutDbIds) {
+		if errors.Is(err, sql.ErrNoRows) || len(vouts[it]) != len(Tx.VoutDbIds) {
 			log.Warnf("Incomplete Vout insert.")
 		}
 
 		// Insert vins
 		Tx.VinDbIds, err = InsertVinsStmt(vinStmt, vins[it], pgb.dupChecks,
 			updateExistingRecords)
-		if err != nil && err != sql.ErrNoRows {
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			err = fmt.Errorf("failure in InsertVinsStmt: %w", err)
 			_ = dbTx.Rollback()
 			return
@@ -3889,7 +3894,7 @@ func (pgb *ChainDB) storeTxns(txns []*dbtypes.Tx, vouts [][]*dbtypes.Vout, vins 
 
 	// Get the tx PK IDs for storage in the blocks, tickets, and votes table.
 	txDbIDs, err = InsertTxnsDbTxn(dbTx, txns, pgb.dupChecks, updateExistingRecords)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		err = fmt.Errorf("failure in InsertTxnsDbTxn: %w", err)
 		return
 	}
@@ -4024,7 +4029,7 @@ txns:
 		// Tickets: Insert new (unspent) tickets
 		newTicketDbIDs, newTicketTx, err := InsertTickets(pgb.db, dbTransactions, txDbIDs,
 			pgb.dupChecks, updateExistingRecords)
-		if err != nil && err != sql.ErrNoRows {
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			log.Error("InsertTickets:", err)
 			txRes.err = err
 			return txRes
@@ -4050,7 +4055,7 @@ txns:
 		_, _, _, _, missesHashIDs, err = InsertVotes(pgb.db, dbTransactions, txDbIDs,
 			unspentTicketCache, msgBlock, pgb.dupChecks, updateExistingRecords,
 			pgb.chainParams, pgb.ChainInfo())
-		if err != nil && err != sql.ErrNoRows {
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			log.Error("InsertVotes:", err)
 			txRes.err = err
 			return txRes
@@ -4058,7 +4063,7 @@ txns:
 
 		// Treasury txns.
 		err = InsertTreasuryTxns(pgb.db, dbTransactions, pgb.dupChecks, updateExistingRecords)
-		if err != nil && err != sql.ErrNoRows {
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			log.Error("InsertTreasuryTxns:", err)
 			txRes.err = err
 			return txRes
@@ -4168,7 +4173,7 @@ txns:
 			for iu := range unspentEnM {
 				t, err0 := unspentTicketCache.TxnDbID(unspentEnM[iu], false)
 				if err0 != nil {
-					txRes.err = fmt.Errorf("failed to retrieve ticket %s DB ID: %v",
+					txRes.err = fmt.Errorf("failed to retrieve ticket %s DB ID: %w",
 						unspentEnM[iu], err0)
 					return txRes
 				}
@@ -4193,7 +4198,7 @@ txns:
 	// funding rows and spend_tx_row_id in vouts.
 	dbTx, err := pgb.db.Begin()
 	if err != nil {
-		txRes.err = fmt.Errorf(`unable to begin database transaction: %v`, err)
+		txRes.err = fmt.Errorf("unable to begin database transaction: %w", err)
 		return txRes
 	}
 
@@ -4250,7 +4255,7 @@ txns:
 				updateExistingRecords, tx.IsMainchainBlock, tx.IsValid,
 				vin.TxType, updateAddressesSpendingInfo, tx.BlockTime)
 			if err != nil {
-				txRes.err = fmt.Errorf(`insertSpendingAddressRow: %v + %v (rollback)`,
+				txRes.err = fmt.Errorf(`insertSpendingAddressRow: %w + %v (rollback)`,
 					err, dbTx.Rollback())
 				return txRes
 			}
@@ -4303,7 +4308,7 @@ txns:
 			// Set spend_tx_row_id for each prevout consumed by this txn.
 			err = setSpendingForVouts(dbTx, voutDbIDs, txDbID)
 			if err != nil {
-				txRes.err = fmt.Errorf(`setSpendingForVouts: %v + %v (rollback)`,
+				txRes.err = fmt.Errorf(`setSpendingForVouts: %w + %v (rollback)`,
 					err, dbTx.Rollback())
 				return txRes
 			}
@@ -4453,7 +4458,7 @@ func (pgb *ChainDB) CollectTicketSpendDBInfo(dbTxns []*dbtypes.Tx, txDbIDs []uin
 		expireEntries := isMainchain // expire all cache entries for main chain blocks
 		t, err0 := pgb.unspentTicketCache.TxnDbID(ticketHash, expireEntries)
 		if err0 != nil {
-			err = fmt.Errorf("failed to retrieve ticket %s DB ID: %v", ticketHash, err0)
+			err = fmt.Errorf("failed to retrieve ticket %s DB ID: %w", ticketHash, err0)
 			return
 		}
 		ticketDbIDs = append(ticketDbIDs, t)
@@ -4472,7 +4477,7 @@ func (pgb *ChainDB) CollectTicketSpendDBInfo(dbTxns []*dbtypes.Tx, txDbIDs []uin
 func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses(barLoad chan *dbtypes.ProgressBarLoad) (int64, error) {
 	heightDB, err := pgb.HeightDB()
 	if err != nil {
-		return 0, fmt.Errorf("DBBestBlock: %v", err)
+		return 0, fmt.Errorf("DBBestBlock: %w", err)
 	}
 
 	tStart := time.Now()
@@ -5035,7 +5040,8 @@ func (pgb *ChainDB) BlockSummary(ind int64) (*apitypes.BlockDataBasic, error) {
 	return bd, nil
 }
 
-// GetSummary returns the *apitypes.BlockDataBasic for a range of block heights.
+// GetSummaryRange returns the *apitypes.BlockDataBasic for a range of block
+// heights.
 func (pgb *ChainDB) GetSummaryRange(idx0, idx1 int) []*apitypes.BlockDataBasic {
 	summaries, err := pgb.BlockSummaryRange(int64(idx0), int64(idx1))
 	if err != nil {
@@ -5051,8 +5057,8 @@ func (pgb *ChainDB) BlockSummaryRange(idx0, idx1 int64) ([]*apitypes.BlockDataBa
 	return RetrieveBlockSummaryRange(pgb.ctx, pgb.db, idx0, idx1)
 }
 
-// GetSummaryStepped returns the []*apitypes.BlockDataBasic for a given block
-// height.
+// GetSummaryRangeStepped returns the []*apitypes.BlockDataBasic for a given
+// block height.
 func (pgb *ChainDB) GetSummaryRangeStepped(idx0, idx1, step int) []*apitypes.BlockDataBasic {
 	summaries, err := pgb.BlockSummaryRangeStepped(int64(idx0), int64(idx1), int64(step))
 	if err != nil {
@@ -5688,31 +5694,33 @@ func (pgb *ChainDB) txWithTicketPrice(txhash *chainhash.Hash) (*chainjson.TxRawR
 	// If the transaction is unconfirmed, the RPC client must provide the ticket
 	// price. Ensure the best block does not change between calls to
 	// getrawtransaction and getstakedifficulty.
-	blockHash, _, err := pgb.Client.GetBestBlock(context.TODO())
+	ctx, cancel := context.WithTimeout(pgb.ctx, 10*time.Second)
+	defer cancel()
+	blockHash, _, err := pgb.Client.GetBestBlock(ctx)
 	if err != nil {
-		return nil, 0, fmt.Errorf("GetBestBlock failed: %v", err)
+		return nil, 0, fmt.Errorf("GetBestBlock failed: %w", err)
 	}
 
 	var txraw *chainjson.TxRawResult
 	var ticketPrice int64
 	for {
-		txraw, err = pgb.Client.GetRawTransactionVerbose(context.TODO(), txhash)
+		txraw, err = pgb.Client.GetRawTransactionVerbose(ctx, txhash)
 		if err != nil {
-			return nil, 0, fmt.Errorf("GetRawTransactionVerbose failed for %v: %v", txhash, err)
+			return nil, 0, fmt.Errorf("GetRawTransactionVerbose failed for %v: %w", txhash, err)
 		}
 
 		if txraw.Confirmations > 0 {
 			return txraw, pgb.GetSBitsByHash(txraw.BlockHash), nil
 		}
 
-		sdiffRes, err := pgb.Client.GetStakeDifficulty(context.TODO())
+		sdiffRes, err := pgb.Client.GetStakeDifficulty(ctx)
 		if err != nil {
-			return nil, 0, fmt.Errorf("GetStakeDifficulty failed: %v", err)
+			return nil, 0, fmt.Errorf("GetStakeDifficulty failed: %w", err)
 		}
 
-		blockHash1, _, err := pgb.Client.GetBestBlock(context.TODO())
+		blockHash1, _, err := pgb.Client.GetBestBlock(ctx)
 		if err != nil {
-			return nil, 0, fmt.Errorf("GetBestBlock failed: %v", err)
+			return nil, 0, fmt.Errorf("GetBestBlock failed: %w", err)
 		}
 
 		sdiff, _ := dcrutil.NewAmount(sdiffRes.CurrentStakeDifficulty) // sdiff==0 for err !=nil

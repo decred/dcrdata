@@ -6,13 +6,14 @@ package explorer
 
 import (
 	"context"
-	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
 
+	"github.com/decred/dcrdata/v6/db/dbtypes"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -47,7 +48,7 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 				return
 			}
 			if err != nil {
-				if err != sql.ErrNoRows {
+				if !errors.Is(err, dbtypes.ErrNoResult) {
 					log.Warnf("BlockHeight(%s) failed: %v", hash, err)
 				}
 				exp.StatusPage(w, defaultErrorCode, "could not find that block", hash, ExpStatusNotFound)

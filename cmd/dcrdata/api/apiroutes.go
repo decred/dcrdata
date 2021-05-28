@@ -6,11 +6,11 @@ package api
 
 import (
 	"context"
-	"database/sql"
 	"encoding/binary"
 	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -586,7 +586,7 @@ func (c *appContext) setOutputSpends(txid string, vouts []apitypes.Vout) error {
 	if dbtypes.IsTimeoutErr(err) {
 		return fmt.Errorf("SpendingTransactions: %v", err)
 	}
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, dbtypes.ErrNoResult) {
 		return fmt.Errorf("unable to get spending transaction info for outputs of %s", txid)
 	}
 	if len(voutInds) > len(vouts) {
@@ -890,8 +890,11 @@ func (c *appContext) getTxTicketInfo(w http.ResponseWriter, r *http.Request) {
 	}
 	tinfo, err := c.DataSource.GetTicketInfo(txid.String())
 	if err != nil {
-		err = fmt.Errorf("unable to get ticket info for tx %v: %v",
-			txid, err)
+		if errors.Is(err, dbtypes.ErrNoResult) {
+			http.Error(w, "ticket not found", http.StatusNotFound)
+			return
+		}
+		err = fmt.Errorf("unable to get ticket info for tx %v: %w", txid, err)
 		apiLog.Error(err)
 		http.Error(w, err.Error(), 422)
 		return
