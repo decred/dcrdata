@@ -12,9 +12,6 @@
                             &nbsp;(<span class="mr-2">Proposals Sync:&nbsp;
                                 <span data-controller="time" data-target="time.age" data-age="{{$.LastPropSync}}"></span>&nbsp;ago
                             </span>
-                            <span>Votes Sync:&nbsp;
-                                <span data-controller="time" data-target="time.age" data-age="{{$.LastVotesSync}}"></span>&nbsp;ago
-                            </span>)
                         </span>
                     </h4>
                 </div>
@@ -137,15 +134,15 @@
                 {{range $i, $v := .Proposals}}
                 {{with $v}}
                     <tr>
-                        {{$votesTotalPercent :=  percentage $v.TotalVotes $v.NumOfEligibleVotes}}
+                        {{$votesTotalPercent :=  percentage (int64 $v.TotalVotes) (int64 $v.EligibleTickets)}}
                         <td class="text-left">
-                            <a href="/proposal/{{.RefID}}">{{.Name}}</a>
+                            <a href="/proposal/{{.Token}}">{{.Name}}</a>
                             <span class="d-none d-sm-inline">&nbsp;({{.Username}})</span>
                         </td>
                         <td class="text-left">
                             {{if .VoteStatus}}
-                                {{if eq .VoteStatus.ShortDesc "Not Authorized"}}
-                                    {{if .AbandonedDate}}
+                                {{if eq (index $.VotesStatus .VoteStatus) "Unauthorized"}}
+                                    {{if .AbandonedAt}}
                                         <span class="text-abandoned position-relative" data-tooltip="Proposal abandoned">
                                             Abandoned
                                         </span>
@@ -160,9 +157,9 @@
                                     </span>
                                 {{else}}
                                     {{range $i, $vr := .VoteResults}}
-                                        {{if eq $vr.Option.OptionID "yes"}}
-                                            {{$votesPercent :=  percentage $vr.VotesReceived $v.TotalVotes}}
-                                            {{$blocksRemaining := subtract (int64 (toInt $v.Endheight)) (int64 $.Tip.Height)}}
+                                        {{if eq $vr.ID "yes"}}
+                                            {{$votesPercent :=  percentage (int64 $vr.Votes) (int64 $v.TotalVotes)}}
+                                            {{$blocksRemaining := subtract (int64 $v.EndBlockHeight) (int64 $.Tip.Height)}}
                                             {{if gt $blocksRemaining 0}}
                                                 <span class="text-progress position-relative" data-tooltip="Voting in progress">
                                                     In Progress
@@ -207,11 +204,11 @@
                             {{end}}
                         </td>
                         <td class="text-right">
-                            {{if and .VoteStatus (ne .VoteStatus.ShortDesc "Not Authorized")}}
+                            {{if and .VoteStatus (ne (index $.VotesStatus .VoteStatus) "Unauthorized")}}
                                 {{.TotalVotes}}
                                 <span class="fs12 text-black-50">
                                     (
-                                    {{- if eq $v.NumOfEligibleVotes 0 -}}
+                                    {{- if eq $v.EligibleTickets 0 -}}
                                         0%
                                     {{else -}}
                                         {{printf "%.0f" $votesTotalPercent}}%
@@ -222,7 +219,7 @@
                                &mdash;
                             {{end}}
                         </td>
-                        <td class="text-right" data-target="time.age" data-age="{{.Timestamp}}"></td>
+                        <td class="text-right" data-target="time.age" data-age="{{(int64 .Timestamp)}}"></td>
                     </tr>
                 {{end}}
                 {{end}}

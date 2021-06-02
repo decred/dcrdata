@@ -3876,61 +3876,6 @@ func retrieveTicketByOutputCount(ctx context.Context, db *sql.DB, interval int64
 	return heightArr, soloArr, pooledArr, err
 }
 
-// --- Proposals and Proposal_votes tables ---
-
-// InsertProposal adds the proposal details per commit to the proposal table.
-func InsertProposal(db *sql.DB, tokenHash, author, commit string,
-	timestamp time.Time, checked bool) (uint64, error) {
-	insertStatement := internal.MakeProposalsInsertStatement(checked)
-	var id uint64
-	err := db.QueryRow(insertStatement, tokenHash, author, commit, timestamp).Scan(&id)
-	return id, err
-}
-
-// InsertProposalVote add the proposal votes entries to the proposal_votes table.
-func InsertProposalVote(db *sql.DB, proposalRowID uint64, ticket, choice string,
-	checked bool) (uint64, error) {
-	var id uint64
-	err := db.QueryRow(internal.InsertProposalVotesRow, proposalRowID, ticket, choice).Scan(&id)
-	return id, err
-}
-
-// retrieveLastCommitTime returns the last commit timestamp whole proposal votes
-// data was fetched and updated in both proposals and proposal_votes table.
-func retrieveLastCommitTime(db *sql.DB) (timestamp time.Time, err error) {
-	err = db.QueryRow(internal.SelectProposalsLastCommitTime).Scan(&timestamp)
-	return
-}
-
-// retrieveProposalVotesData returns the vote data associated with the provided
-// proposal token.
-func retrieveProposalVotesData(ctx context.Context, db *sql.DB,
-	proposalToken string) (*dbtypes.ProposalChartsData, error) {
-	rows, err := db.QueryContext(ctx, internal.SelectProposalVotesChartData, proposalToken)
-	if err != nil {
-		return nil, err
-	}
-
-	defer closeRows(rows)
-
-	data := new(dbtypes.ProposalChartsData)
-	for rows.Next() {
-		var yes, no uint64
-		var timestamp time.Time
-
-		if err = rows.Scan(&timestamp, &no, &yes); err != nil {
-			return nil, err
-		}
-
-		data.No = append(data.No, no)
-		data.Yes = append(data.Yes, yes)
-		data.Time = append(data.Time, dbtypes.NewTimeDef(timestamp))
-	}
-	err = rows.Err()
-
-	return data, err
-}
-
 // --- blocks and block_chain tables ---
 
 // InsertBlock inserts the specified dbtypes.Block as with the given

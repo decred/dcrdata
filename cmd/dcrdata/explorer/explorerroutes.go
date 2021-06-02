@@ -32,6 +32,7 @@ import (
 	"github.com/decred/dcrdata/v6/db/dbtypes"
 	"github.com/decred/dcrdata/v6/explorer/types"
 	"github.com/decred/dcrdata/v6/txhelpers"
+	ticketvotev1 "github.com/decred/politeia/politeiawww/api/ticketvote/v1"
 
 	humanize "github.com/dustin/go-humanize"
 )
@@ -1930,6 +1931,7 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/address/"+searchStr, http.StatusPermanentRedirect)
 		return
 	}
+
 	/*
 		switch _, _, addrErr := txhelpers.AddressValidation(searchStr, exp.ChainParams); addrErr {
 		case txhelpers.AddressErrorNoError, txhelpers.AddressErrorZeroAddress: // valid
@@ -1967,13 +1969,9 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 
 	tryProp := func() bool {
 		// Try proposal token.
-		proposalInfo, err := exp.proposalsSource.ProposalByToken(searchStr)
-		if err != nil || proposalInfo.RefID == "" {
-			// Try proposal RefID.
-			proposalInfo, err = exp.proposalsSource.ProposalByRefID(searchStr)
-		}
-		if err == nil && proposalInfo.RefID != "" {
-			http.Redirect(w, r, "/proposal/"+proposalInfo.RefID, http.StatusPermanentRedirect)
+		proposalInfo, err := exp.proposals.ProposalByToken(searchStr)
+		if err == nil {
+			http.Redirect(w, r, "/proposal/"+proposalInfo.Token, http.StatusPermanentRedirect)
 			return true
 		}
 		return false
@@ -2263,28 +2261,19 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 
 // ProposalPage is the page handler for the "/proposal" path.
 func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
-	if exp.proposalsSource == nil {
-		errMsg := "Remove the disable-piparser flag to activate it."
-		log.Errorf("proposal page is disabled. %s", errMsg)
-		exp.StatusPage(w, errMsg, fmt.Sprintf(pageDisabledCode, "/proposals"), "", ExpStatusPageDisabled)
+	if exp.proposals == nil {
+		log.Errorf("Proposal DB instance is not available")
+		exp.StatusPage(w, defaultErrorCode, "the proposals DB was not instantiated correctly",
+			"", ExpStatusNotFound)
 		return
 	}
 
-	// Attempts to retrieve a proposal refID from the URL path.
-	param := getProposalTokenCtx(r)
-	proposalInfo, err := exp.proposalsSource.ProposalByRefID(param)
-	if err != nil {
-		// Check if the URL parameter passed is a proposal token and attempt to
-		// fetch its data.
-		proposalInfo, newErr := exp.proposalsSource.ProposalByToken(param)
-		if newErr == nil && proposalInfo != nil && proposalInfo.RefID != "" {
-			// redirect to a human readable url (replace the token with the RefID)
-			http.Redirect(w, r, "/proposal/"+proposalInfo.RefID, http.StatusPermanentRedirect)
-			return
-		}
+	token := getProposalTokenCtx(r)
 
+	prop, err := exp.proposals.ProposalByToken(token)
+	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, "the proposal token or RefID does not exist",
+		exp.StatusPage(w, defaultErrorCode, "the proposal token does not exist",
 			"", ExpStatusNotFound)
 		return
 	}
@@ -2292,14 +2281,16 @@ func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
 	commonData := exp.commonData(r)
 	str, err := exp.templates.exec("proposal", struct {
 		*CommonPageData
-		Data        *pitypes.ProposalInfo
+		Data        *pitypes.ProposalRecord
 		PoliteiaURL string
+		ShortToken  string
 		Metadata    *pitypes.ProposalMetadata
 	}{
 		CommonPageData: commonData,
-		Data:           proposalInfo,
-		PoliteiaURL:    exp.politeiaAPIURL,
-		Metadata:       proposalInfo.Metadata(int64(commonData.Tip.Height), int64(exp.ChainParams.TargetTimePerBlock/time.Second)),
+		Data:           prop,
+		PoliteiaURL:    exp.politeiaURL,
+		ShortToken:     prop.Token[0:7],
+		Metadata:       prop.Metadata(int64(commonData.Tip.Height), int64(exp.ChainParams.TargetTimePerBlock/time.Second)),
 	})
 
 	if err != nil {
@@ -2315,9 +2306,9 @@ func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
 
 // ProposalsPage is the page handler for the "/proposals" path.
 func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
-	if exp.proposalsSource == nil {
-		errMsg := "Remove the disable-piparser flag to activate it."
-		log.Errorf("proposals page is disabled. %s", errMsg)
+	if exp.proposals == nil {
+		errMsg := "Proposal DB instance is not available"
+		log.Errorf("proposals page error: %s", errMsg)
 		exp.StatusPage(w, errMsg, fmt.Sprintf(pageDisabledCode, "/proposals"), "", ExpStatusPageDisabled)
 		return
 	}
@@ -2354,14 +2345,14 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	var count int
-	var proposals []*pitypes.ProposalInfo
+	var proposals []*pitypes.ProposalRecord
 
 	// Check if filter by votes status query parameter was passed.
 	if filterBy > 0 {
-		proposals, count, err = exp.proposalsSource.AllProposals(int(offset),
+		proposals, count, err = exp.proposals.ProposalsAll(int(offset),
 			int(rowsCount), int(filterBy))
 	} else {
-		proposals, count, err = exp.proposalsSource.AllProposals(int(offset),
+		proposals, count, err = exp.proposals.ProposalsAll(int(offset),
 			int(rowsCount))
 	}
 
@@ -2380,31 +2371,40 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 		lastOffset = uint64(count) - lastOffsetRows
 	}
 
+	// Parse vote statuses map with only used status by the UI. Also
+	// capitalizes first letter of the string status format.
+	votesStatus := map[ticketvotev1.VoteStatusT]string{
+		ticketvotev1.VoteStatusUnauthorized: "Unauthorized",
+		ticketvotev1.VoteStatusAuthorized:   "Authorized",
+		ticketvotev1.VoteStatusStarted:      "Started",
+		ticketvotev1.VoteStatusFinished:     "Finished",
+		ticketvotev1.VoteStatusApproved:     "Approved",
+		ticketvotev1.VoteStatusRejected:     "Rejected",
+		ticketvotev1.VoteStatusIneligible:   "Ineligible",
+	}
+
 	str, err := exp.templates.exec("proposals", struct {
 		*CommonPageData
-		Proposals     []*pitypes.ProposalInfo
-		VotesStatus   map[pitypes.VoteStatusType]string
+		Proposals     []*pitypes.ProposalRecord
+		VotesStatus   map[ticketvotev1.VoteStatusT]string
 		VStatusFilter int
 		Offset        int64
 		Limit         int64
 		TotalCount    int64
 		LastOffset    int64
 		PoliteiaURL   string
-		LastVotesSync int64
 		LastPropSync  int64
 		TimePerBlock  int64
 	}{
 		CommonPageData: exp.commonData(r),
 		Proposals:      proposals,
-		VotesStatus:    pitypes.VotesStatuses(),
+		VotesStatus:    votesStatus,
 		Offset:         int64(offset),
 		Limit:          int64(rowsCount),
 		VStatusFilter:  int(filterBy),
 		TotalCount:     int64(count),
-		LastOffset:     int64(lastOffset),
-		PoliteiaURL:    exp.politeiaAPIURL,
-		LastVotesSync:  exp.dataSource.LastPiParserSync().UTC().Unix(),
-		LastPropSync:   exp.proposalsSource.LastProposalsSync(),
+		PoliteiaURL:    exp.politeiaURL,
+		LastPropSync:   exp.proposals.ProposalsLastSync(),
 		TimePerBlock:   int64(exp.ChainParams.TargetTimePerBlock.Seconds()),
 	})
 

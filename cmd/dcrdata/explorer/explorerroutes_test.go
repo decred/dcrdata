@@ -57,18 +57,18 @@ func TestStatusPageResponseCodes(t *testing.T) {
 	var chainDBStub ChainDBStub
 
 	exp := New(&ExplorerConfig{
-		DataSource:      &chainDBStub,
-		UseRealIP:       false,
-		AppVersion:      "test",
-		DevPrefetch:     false,
-		Viewsfolder:     viewsPath,
-		XcBot:           nil,
-		Tracker:         nil,
-		AgendasSource:   nil,
-		ProposalsSource: nil,
-		PoliteiaURL:     "",
-		MainnetLink:     "/",
-		TestnetLink:     "/",
+		DataSource:    &chainDBStub,
+		UseRealIP:     false,
+		AppVersion:    "test",
+		DevPrefetch:   false,
+		Viewsfolder:   viewsPath,
+		XcBot:         nil,
+		Tracker:       nil,
+		AgendasSource: nil,
+		Proposals:     nil,
+		PoliteiaURL:   "",
+		MainnetLink:   "/",
+		TestnetLink:   "/",
 	})
 
 	// handler := http.HandlerFunc()

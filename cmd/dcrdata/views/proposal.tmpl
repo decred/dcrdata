@@ -8,35 +8,35 @@
         <div class="container pb-4" data-controller="proposal">
           <div class="row pt-2 px-2">
             <div class="col-24 col-xl-11 bg-white px-2 px-xl-5 py-3 position-relative d-flex flex-column justify-content-between align-items-start">
-              {{$status := .VoteStatus.ShortDesc}}
+              {{$status := $metadata.VoteStatusDesc}}
 
               {{- /* INVALID AND NON-EXISTENT */ -}}
-              {{if or (eq $status "Invalid") (eq $status "Doesn't Exist")}}
-                {{if .AbandonedDate}}
+              {{if eq $status "invalid"}}
+                {{if .AbandonedAt}}
                   {{block "abandoned" .}}
                     <div class="fs22">{{.Name}}</div>
                     <div class="fs18 font-weight-bold py-2">Proposal abandoned</div>
-                    <div class="pb-2">This proposal was designated abandoned {{TimeConversion .AbandonedDate}}.</div>
+                    <div class="pb-2">This proposal was designated abandoned {{TimeConversion .AbandonedAt}}.</div>
                   {{end}}
                 {{else}}
                   Invalid proposal: {{.Name}}
                 {{end}}
               {{- /* NOT AUTHORIZED */ -}}
-              {{else if eq $status "Not Authorized"}}
-                {{if .AbandonedDate}}
+              {{else if eq $status "unauthorized"}}
+                {{if .AbandonedAt}}
                   {{template "abandoned" .}}
                 {{else}}
                   <div class="fs22">{{.Name}}</div>
                   <span class="fs18 font-weight-bold lh1rem">Proposal in discussion</span>
                   <div class="py-2">
                     {{.Username}} has not initiated voting yet. There is
-                    <a href="{{$.PoliteiaURL}}/proposals/{{.TokenVal}}">an ongoing discussion</a>
+                    <a href="{{$.PoliteiaURL}}/record/{{$.ShortToken}}">an ongoing discussion</a>
                     of this proposal happening on Politeia.
                   </div>
                 {{end}}
 
               {{- /* AUTHORIZED */ -}}
-              {{else if eq $status "Authorized"}}
+              {{else if eq $status "authorized"}}
                 <div class="fs22">{{.Name}}</div>
                 <span class="fs18 font-weight-bold lh1rem">Vote scheduled</span>
                 <div class="py-2">
@@ -45,9 +45,9 @@
                 </div>
 
               {{- /* LIVE OR FINISHED */ -}}
-              {{else if or (eq $status "Started") (eq $status "Finished")}}
+              {{else if or (eq $status "started") (eq $status "finished") (eq $status "approved") (eq $status "rejected")}}
                 <div class="fs22">{{.Name}}</div>
-                {{if eq $status "Started"}}
+                {{if eq $status "started"}}
                   <div>
                     <span class="fs18 lh1rem">Voting now</span>
                     <div class="float-right fs16">
@@ -80,13 +80,13 @@
                   <div class="col-auto d-flex flex-column justify-content-between pl-3">
                     <span class="fs17 lh1em">
                       <span class="fs22 medium-sans">{{printf "%.1f" (f32x100 $metadata.Approval)}}%</span>
-                      approval of {{intComma $metadata.VoteCount}} votes ({{printf "%.0f" (percentage $metadata.VoteCount .NumOfEligibleVotes)}}% turnout)
+                      approval of {{intComma $metadata.VoteCount}} votes ({{printf "%.0f" (percentage $metadata.VoteCount (int64 .EligibleTickets))}}% turnout)
                     </span>
                     {{if $metadata.QuorumAchieved}}
                       <div class="d-flex align-items-center"><span class="fs20 dcricon-affirm mr-2"></span>
                       <span class="lh1em pb-1">Quorum achieved</span></div>
                     {{else}}
-                      {{if eq $status "Started"}}
+                      {{if eq $status "started"}}
                         <span class="text-secondary fs13">Quorum</span>
                         <div class="d-flex align-items-center"><span class="fs20 dcricon-missing mr-2"></span>
                           <span class="pb-1">{{$metadata.VoteCount}} of {{$metadata.QuorumCount}} needed votes</span>
@@ -100,7 +100,7 @@
                 </div>
               {{end}}{{/* END LIVE OR FINISHED */ -}}
               <div class="d-flex justify-content-between w-100 pb-1 fs-17">
-                <a class="d-block" href="{{$.PoliteiaURL}}/proposals/{{.TokenVal}}">
+                <a class="d-block" href="{{$.PoliteiaURL}}/record/{{$.ShortToken}}">
                   <span class="dcricon-discussion mr-2 pt-1"></span>
                   Discussion
                 </a>
@@ -119,33 +119,39 @@
                     <td class="text-right medium-sans text-nowrap pr-2 py-2" >Author:</td>
                     <td class="text-left py-1 text-secondary">{{.Username}}</td>
                     <td class="text-right medium-sans text-nowrap pr-2 py-2">Status:</td>
-                    <td class="text-left py-1 text-secondary">{{.State.String}} / {{.Status.String}}</td>
+                    <td class="text-left py-1 text-secondary">
+                      {{$metadata.ProposalStateDesc}} / {{$metadata.ProposalStatusDesc}}
+                    </td>
                   </tr>
                   {{if $metadata.VoteCount}}
                     <tr>
                       <td class="text-right medium-sans text-nowrap pr-2 py-2" >Yes:</td>
-                      <td class="text-left py-1 text-secondary">{{$metadata.Yes}} votes ({{printf "%.1f" (f32x100 $metadata.Approval)}}%)</td>
+                      <td class="text-left py-1 text-secondary">
+                        {{$metadata.Yes}} votes ({{printf "%.1f" (f32x100 $metadata.Approval)}}%)
+                      </td>
                       <td class="text-right medium-sans text-nowrap pr-2 py-2">No:</td>
-                      <td class="text-left py-1 text-secondary">{{$metadata.No}} votes ({{printf "%.1f" (f32x100 $metadata.Rejection)}}%)</td>
+                      <td class="text-left py-1 text-secondary">
+                        {{$metadata.No}} votes ({{printf "%.1f" (f32x100 $metadata.Rejection)}}%)
+                      </td>
                     </tr>
                     <tr>
                       <td class="text-right medium-sans text-nowrap pr-2 py-2" >Eligible:</td>
-                      <td class="text-left py-1 text-secondary">{{.NumOfEligibleVotes}} tickets</td>
+                      <td class="text-left py-1 text-secondary">{{.EligibleTickets}} tickets</td>
                       <td class="text-right medium-sans text-nowrap pr-2 py-2">Voting Period:</td>
                       <td class="text-left py-1 text-secondary"
-                        ><a href="/block/{{$metadata.StartHeight}}">{{$metadata.StartHeight}}</a>
+                        ><a href="/block/{{.StartBlockHeight}}">{{.StartBlockHeight}}</a>
                         &ndash;
-                        {{if eq $status "Finished"}}
-                          <a href="/block/{{.Endheight}}">{{.Endheight}}</a>
+                        {{if eq $status "finished"}}
+                          <a href="/block/{{.EndBlockHeight}}">{{.EndBlockHeight}}</a>
                         {{else}}
-                          {{.Endheight}}
+                          {{.EndBlockHeight}}
                         {{end}}
                       </td>
                     </tr>
                   {{end}}
                   <tr>
                     <td class="text-right medium-sans text-nowrap pr-2 py-2">Discussion:</td>
-                    <td class="text-left py-1 text-secondary">{{.NumComments}} comments</td>
+                    <td class="text-left py-1 text-secondary">{{.CommentsCount}} comments</td>
                     <td class="text-right medium-sans text-nowrap pr-2 py-2" >Updated:</td>
                     <td class="text-left py-1 text-secondary">{{TimeConversion .Timestamp}}</td>
                   </tr>
@@ -153,11 +159,11 @@
                     <td class="text-right medium-sans text-nowrap pr-2 py-2">Version:</td>
                     <td class="text-left py-1 text-secondary">v{{.Version}}</td>
                     <td class="text-right medium-sans text-nowrap pr-2 py-2">Published:</td>
-                    <td class="text-left py-1 text-secondary">{{TimeConversion .PublishedDate}}</td>
+                    <td class="text-left py-1 text-secondary">{{TimeConversion .PublishedAt}}</td>
                   </tr>
                   <tr>
                     <td class="text-right medium-sans text-nowrap pr-2 py-2">Token:</td>
-                    <td colspan="3" class="text-left py-1 text-secondary break-word lh1rem">{{.TokenVal}}</td>
+                    <td colspan="3" class="text-left py-1 text-secondary break-word lh1rem">{{.Token}}</td>
                   </tr>
                 </tbody>
               </table>
@@ -169,7 +175,7 @@
         {{if gt (len .VoteResults) 1}}
             <div
                 data-target="proposal.token"
-                data-hash="{{$.Data.TokenVal}}"
+                data-hash="{{$.Data.Token}}"
                 class="pt-2 proposal-charts"
                 >
                 <div class="d-flex position-relative">

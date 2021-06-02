@@ -18,7 +18,6 @@ require (
 	github.com/decred/dcrd/wire v1.4.0
 	github.com/decred/dcrdata/v6 v6.0.0
 	github.com/decred/slog v1.1.0
-	github.com/dmigwi/go-piparser/proposals v0.0.0-20191219171828-ae8cbf4067e1
 	github.com/dustin/go-humanize v1.0.0
 	github.com/jessevdk/go-flags v1.4.1-0.20200711081900-c17162fe8fd7
 	github.com/jrick/logrotate v1.0.0
