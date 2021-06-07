@@ -78,8 +78,12 @@ func mainCore() int {
 
 	params := chaincfg.MainNetParams()
 
-	csvwriter.Write([]string{"height", "type", "spend_tx", "spend_vin", "DCR",
-		"contract_tx", "contract_vout", "secret_hash", "secret"})
+	err = csvwriter.Write([]string{"height", "type", "spend_tx", "spend_vin", "DCR",
+		"contract_tx", "contract_vout", "secret"})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "csvwriter.Write: %s\n", err)
+		return 6
+	}
 
 	var found bool
 	for i := int64(*start); i <= height; i++ {
