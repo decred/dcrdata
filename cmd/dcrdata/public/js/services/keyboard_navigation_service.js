@@ -1,8 +1,8 @@
-/* global Turbolinks */
 import { toggleMenu, toggleSun, closeMenu } from '../services/theme_service'
 import { setCookie } from './cookie_service'
 import Mousetrap from 'mousetrap'
 import { addPauseToMousetrap } from '../vendor/mousetrap-pause'
+import * as Turbo from '@hotwired/turbo'
 
 addPauseToMousetrap(Mousetrap)
 
@@ -130,7 +130,7 @@ Mousetrap.bind('enter', function (e) {
       jumpToIndexOnLoad = currentIndex
     }
     currentTarget.classList.add('activated')
-    Turbolinks.visit(location)
+    Turbo.visit(location)
   }
 })
 
@@ -169,7 +169,7 @@ if (keyNavEnabled()) {
 
 keyNavToggle.querySelector('.text').textContent = keyNavEnabled() ? 'Disable Hot Keys' : 'Enable Hot Keys'
 
-document.addEventListener('turbolinks:load', function (e) {
+document.addEventListener('turbo:load', function (e) {
   closeMenu(e)
   if (keyNavEnabled()) {
     keyNav(e, true)

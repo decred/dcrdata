@@ -1,9 +1,9 @@
-/* global Turbolinks */
 import { Controller } from 'stimulus'
 import dompurify from 'dompurify'
 import ws from '../services/messagesocket_service'
 import Notify from 'notifyjs'
 import globalEventBus from '../services/event_bus_service'
+import * as Turbo from '@hotwired/turbo'
 
 function buildProgressBar (data) {
   const clean = dompurify.sanitize
@@ -91,7 +91,7 @@ export default class extends Controller {
           if (!Notify.needsPermission) doNotification()
 
           this.messageTarget.querySelector('h5').textContent = 'Blockchain sync is complete. Redirecting to home in 20 secs.'
-          setTimeout(() => Turbolinks.visit('/'), 20000)
+          setTimeout(() => Turbo.visit('/'), 20000)
           return
         }
       }
@@ -107,7 +107,7 @@ export default class extends Controller {
 
   _processBlock (blockData) {
     if (this.hasFutureBlockTarget) {
-      Turbolinks.visit(window.location, { action: 'replace' })
+      Turbo.visit(window.location, { action: 'replace' })
     }
   }
 }

@@ -1,14 +1,14 @@
-/* global Turbolinks */
 import Url from 'url-parse'
+import * as Turbo from '@hotwired/turbo'
 
 export default class TurboQuery {
-  constructor (turbolinks) {
+  constructor (turbo) {
     const tq = this
     tq.replaceTimer = 0
     tq.appendTimer = 0
-    tq.turbolinks = turbolinks || Turbolinks || false
-    if (!tq.turbolinks || !tq.turbolinks.supported) {
-      console.error('No passed or global Turbolinks instance detected. TurboQuery requires Turbolinks.')
+    tq.turbo = turbo || Turbo || false
+    if (!tq.turbo) {
+      console.error('No passed or global Turbo instance detected. TurboQuery requires Turbo.')
       return
     }
     // These are timer callbacks. Bind them to the TurboQuery instance.
@@ -33,8 +33,8 @@ export default class TurboQuery {
 
   _replaceHistory () {
     // see https://github.com/turbolinks/turbolinks/issues/219. This also works:
-    // window.history.replaceState(window.history.state, this.addr, this.url.href)
-    this.turbolinks.controller.replaceHistoryWithLocationAndRestorationIdentifier(this.turbolinks.Location.wrap(this.url.href), this.turbolinks.uuid())
+    window.history.replaceState(window.history.state, this.addr, this.url.href)
+    // this.turbo.controller.replaceHistoryWithLocationAndRestorationIdentifier(this.turbo.Location.wrap(this.url.href), this.turbo.uuid())
     this.replaceTimer = 0
   }
 
@@ -42,7 +42,8 @@ export default class TurboQuery {
     // same as replaceHref, but creates a new entry in history for navigating
     // with the browsers forward and back buttons. May still not work because of
     // TurboLinks caching behavior, I think.
-    this.turbolinks.controller.pushHistoryWithLocationAndRestorationIdentifier(this.turbolinks.Location.wrap(this.url.href), this.turbolinks.uuid())
+    window.history.pushState(window.history.state, this.addr, this.url.href)
+    // this.turbo.controller.pushHistoryWithLocationAndRestorationIdentifier(this.turbo.Location.wrap(this.url.href), this.turbo.uuid())
     this.appendTimer = 0
   }
 
