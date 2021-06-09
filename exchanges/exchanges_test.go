@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strconv"
 	"sync"
@@ -231,6 +232,31 @@ func TestPoloniexWebsocket(t *testing.T) {
 	}
 }
 
+type tDoer struct {
+	responses []*http.Response
+}
+
+func (d *tDoer) Do(*http.Request) (*http.Response, error) {
+	if len(d.responses) == 0 {
+		return nil, fmt.Errorf("no test response queued")
+	}
+	resp := d.responses[0]
+	d.responses = d.responses[1:]
+	return resp, nil
+}
+
+func (d *tDoer) queue(body interface{}) *http.Response {
+	b, err := json.Marshal(body)
+	if err != nil {
+		panic("tDoer.queue error:" + err.Error())
+	}
+	resp := &http.Response{
+		Body: io.NopCloser(bytes.NewReader(b)),
+	}
+	d.responses = append(d.responses, resp)
+	return resp
+}
+
 type testBittrexConnection struct {
 	xc           *BittrexExchange
 	subscription hubs.ClientMsg
@@ -248,7 +274,8 @@ func (conn testBittrexConnection) Send(subscription hubs.ClientMsg) error {
 	return nil
 }
 
-func newTestBittrexExchange() *BittrexExchange {
+func newTestBittrexExchange() (*BittrexExchange, *tDoer) {
+	doer := &tDoer{}
 	bittrex := &BittrexExchange{
 		CommonExchange: &CommonExchange{
 			token: Bittrex,
@@ -258,13 +285,14 @@ func newTestBittrexExchange() *BittrexExchange {
 			channels: &BotChannels{
 				exchange: make(chan *ExchangeUpdate, 2),
 			},
-			asks: make(wsOrders),
-			buys: make(wsOrders),
+			asks:   make(wsOrders),
+			buys:   make(wsOrders),
+			client: doer,
 		},
 		queue: make([]*BittrexOrderbookUpdate, 0),
 	}
 	bittrex.sr = testBittrexConnection{xc: bittrex}
-	return bittrex
+	return bittrex, doer
 }
 
 func TestBittrexWebsocket(t *testing.T) {
@@ -310,8 +338,10 @@ func TestBittrexWebsocket(t *testing.T) {
 		}
 	}
 
-	bittrex := newTestBittrexExchange()
+	bittrex, doer := newTestBittrexExchange()
 
+	// Create the book, but don't send it yet. Test the sequencing logic by
+	// sending an update before the book.
 	ob := &BittrexDepthResponse{
 		Seq: atomic.AddUint64(&seq, 1),
 		Bid: []*BittrexRateQty{
@@ -323,7 +353,8 @@ func TestBittrexWebsocket(t *testing.T) {
 		Ask: []*BittrexRateQty{},
 	}
 
-	// Add an update that comes before the book.
+	// Send an update that comes before the book. This update should be cached
+	// and re-processed after the book is received.
 	asks := []*BittrexOrderbookDelta{{
 		Qty:  456789,
 		Rate: 987654,
@@ -358,6 +389,68 @@ func TestBittrexWebsocket(t *testing.T) {
 	depths := bittrex.wsDepths()
 	if len(depths.Asks) != 0 {
 		t.Fatalf("failed to remove order bin")
+	}
+
+	// Test some Refresh paths.
+	queueRefresh := func(initializing, failed bool) {
+		doer.queue(&BittrexPriceResponse{})
+		doer.queue(&BittrexMarketSummary{})
+		// xc.wsSync.init.After(xc.wsSync.fail) => wsListening() == true
+		// xc.wsSync.fail.After(xc.wsSync.init) => wsFailed() == true
+		// 1. if wsListening() == true, wsDepthStatus will return the *DepthData.
+		// 2. if xc.wsSync.init == xc.wsSync.fail, wsDepthStatus will return false
+		// for tryHttp, and false for initializing.
+		// 3. if wsFailed() == , wsDepthStatus will return true for tryHttp,
+		// simulating an error state.
+		var initTime int64 = 2
+		if failed {
+			if initializing {
+				t.Fatal("don't set initializing and failed both true")
+			}
+			initTime = 0
+			resp := doer.queue(&BittrexDepthResponse{})
+			resp.Header = http.Header{"Sequence": []string{"1"}}
+		} else if initializing {
+			initTime = 1
+		}
+		bittrex.wsSync.fail = time.Unix(1, 0)
+		bittrex.wsSync.init = time.Unix(initTime, 0)
+	}
+
+	// This is the initializing run. This should just be a silent update.
+	queueRefresh(true, false)
+	bittrex.Refresh()
+	select {
+	case <-bittrex.channels.exchange:
+		t.Fatalf("emmited an update when we shouldn't have")
+	default:
+	}
+
+	// This would be a typical no-error Refresh. A full update is expected.
+	queueRefresh(false, false)
+	bittrex.Refresh()
+	select {
+	case <-bittrex.channels.exchange:
+	default:
+		t.Fatalf("no update emitted for no-error Refresh")
+	}
+
+	// Now simulate an error. Should still get an update, after http depth.
+	queueRefresh(false, true)
+	bittrex.Refresh()
+	select {
+	case <-bittrex.channels.exchange:
+	default:
+		t.Fatalf("no update emitted for no-error Refresh")
+	}
+
+	// Presumably, the next Refresh should work along normal paths.
+	queueRefresh(false, false)
+	bittrex.Refresh()
+	select {
+	case <-bittrex.channels.exchange:
+	default:
+		t.Fatalf("no update emitted for post-error Refresh")
 	}
 }
 

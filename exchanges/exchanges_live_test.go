@@ -256,7 +256,6 @@ func TestBittrexLiveWebsocket(t *testing.T) {
 		}
 	}()
 
-	// bittrex := newTestBittrexExchange()
 	chans := &BotChannels{
 		index:    make(chan *IndexUpdate),
 		exchange: make(chan *ExchangeUpdate, 1),
