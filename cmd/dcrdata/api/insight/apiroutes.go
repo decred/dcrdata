@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"sort"
@@ -115,7 +116,8 @@ func writeJSON(w http.ResponseWriter, thing interface{}, indent string) {
 }
 
 // Insight API error response for a BAD REQUEST.  This means the request was
-// malformed in some way or the request HASH, ADDRESS, BLOCK was not valid.
+// malformed in some way or the request HASH, ADDRESS, BLOCK was not valid. The
+// string must be escaped html.
 func writeInsightError(w http.ResponseWriter, str string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusBadRequest)
@@ -125,7 +127,7 @@ func writeInsightError(w http.ResponseWriter, str string) {
 // Insight API response for an item NOT FOUND.  This means the request was valid
 // but no records were found for the item in question.  For some endpoints
 // responding with an empty array [] is expected such as a transaction query for
-// addresses with no transactions.
+// addresses with no transactions. The string must be escaped html.
 func writeInsightNotFound(w http.ResponseWriter, str string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusNotFound)
@@ -135,7 +137,8 @@ func writeInsightNotFound(w http.ResponseWriter, str string) {
 func (iapi *InsightApi) getTransaction(w http.ResponseWriter, r *http.Request) {
 	txid, err := m.GetTxIDCtx(r)
 	if err != nil {
-		writeInsightError(w, err.Error())
+		errStr := html.EscapeString(err.Error())
+		writeInsightError(w, errStr)
 		return
 	}
 
@@ -164,7 +167,8 @@ func (iapi *InsightApi) getTransaction(w http.ResponseWriter, r *http.Request) {
 func (iapi *InsightApi) getTransactionHex(w http.ResponseWriter, r *http.Request) {
 	txid, err := m.GetTxIDCtx(r)
 	if err != nil {
-		writeInsightError(w, err.Error())
+		errStr := html.EscapeString(err.Error())
+		writeInsightError(w, errStr)
 		return
 	}
 
@@ -274,14 +278,16 @@ func (iapi *InsightApi) getRawBlock(w http.ResponseWriter, r *http.Request) {
 
 	chainHash, err := chainhash.NewHashFromStr(hash)
 	if err != nil {
-		writeInsightError(w, fmt.Sprintf("Failed to parse block hash: %v", err))
+		errStr := html.EscapeString(err.Error())
+		writeInsightError(w, fmt.Sprintf("Failed to parse block hash: %q", errStr))
 		return
 	}
 
 	blockMsg, err := iapi.nodeClient.GetBlock(r.Context(), chainHash)
 	if err != nil {
-		writeInsightNotFound(w, fmt.Sprintf("Failed to retrieve block %s: %v",
-			chainHash.String(), err))
+		errStr := html.EscapeString(err.Error())
+		writeInsightNotFound(w, fmt.Sprintf("Failed to retrieve block %s: %q",
+			chainHash.String(), errStr))
 		return
 	}
 
@@ -305,7 +311,8 @@ func (iapi *InsightApi) broadcastTransactionRaw(w http.ResponseWriter, r *http.R
 	rawHexTx, err := m.GetRawHexTx(r)
 	if err != nil {
 		// JSON extraction failed or rawtx blank.
-		writeInsightError(w, err.Error())
+		errStr := html.EscapeString(err.Error())
+		writeInsightError(w, errStr)
 		return
 	}
 
@@ -320,7 +327,8 @@ func (iapi *InsightApi) broadcastTransactionRaw(w http.ResponseWriter, r *http.R
 	txid, err := iapi.BlockData.SendRawTransaction(rawHexTx)
 	if err != nil {
 		apiLog.Errorf("Unable to send transaction %s", rawHexTx)
-		writeInsightError(w, fmt.Sprintf("SendRawTransaction failed: %v", err))
+		errStr := html.EscapeString(err.Error())
+		writeInsightError(w, fmt.Sprintf("SendRawTransaction failed: %q", errStr))
 		return
 	}
 
@@ -336,7 +344,8 @@ func (iapi *InsightApi) broadcastTransactionRaw(w http.ResponseWriter, r *http.R
 func (iapi *InsightApi) getAddressesTxnOutput(w http.ResponseWriter, r *http.Request) {
 	addresses, err := m.GetAddressCtx(r, iapi.params) // Required, also validates the addresses
 	if err != nil {
-		writeInsightError(w, err.Error())
+		errStr := html.EscapeString(err.Error())
+		writeInsightError(w, errStr)
 		return
 	}
 
@@ -556,7 +565,7 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 	if blockerr != nil && addrerr != nil {
 		msg := fmt.Sprintf(`Required query parameters (address or block) not present. `+
 			`address error: "%v" / block error: "%v"`, addrerr, blockerr)
-		writeInsightError(w, msg)
+		writeInsightError(w, html.EscapeString(msg))
 		return
 	}
 	if addrerr == nil && len(addresses) > 1 {
@@ -570,7 +579,7 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 		blkTrans := iapi.BlockData.GetBlockVerboseByHash(hash, true)
 		if blkTrans == nil {
 			apiLog.Errorf("Unable to get block %s transactions", hash)
-			writeInsightError(w, fmt.Sprintf("Unable to get block %s transactions", hash))
+			writeInsightError(w, fmt.Sprintf("Unable to get block %q transactions", hash))
 			return
 		}
 
@@ -630,20 +639,22 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 		if err != nil {
+			errStr := html.EscapeString(err.Error())
 			writeInsightError(w,
-				fmt.Sprintf("Error retrieving transactions for address %s (%v)",
-					address, err))
+				fmt.Sprintf("Error retrieving transactions for address %s (%q)",
+					address, errStr))
 			return
 		}
 
 		addressOuts, _, err := iapi.mp.UnconfirmedTxnsForAddress(address)
-		var UnconfirmedTxs []chainhash.Hash
-		var UnconfirmedTxTimes []int64
-
 		if err != nil {
-			writeInsightError(w, fmt.Sprintf("Error gathering mempool transactions (%v)", err))
+			errStr := html.EscapeString(err.Error())
+			writeInsightError(w, fmt.Sprintf("Error gathering mempool transactions (%q)", errStr))
 			return
 		}
+
+		var UnconfirmedTxs []chainhash.Hash
+		var UnconfirmedTxTimes []int64
 
 	FUNDING_TX_DUPLICATE_CHECK:
 		for _, f := range addressOuts.Outpoints {
@@ -724,7 +735,8 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 			txOld, err := iapi.BlockData.GetRawTransaction(&hashes[i])
 			if err != nil {
 				apiLog.Errorf("Unable to get transaction %s", hashes[i])
-				writeInsightError(w, fmt.Sprintf("Error gathering transaction details (%s)", err))
+				errStr := html.EscapeString(err.Error())
+				writeInsightError(w, fmt.Sprintf("Error gathering transaction details (%q)", errStr))
 				return
 			}
 
@@ -754,7 +766,8 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) {
 	addresses, err := m.GetAddressCtx(r, iapi.params) // Required, also validates the addresses
 	if err != nil {
-		writeInsightError(w, err.Error())
+		errStr := html.EscapeString(err.Error())
+		writeInsightError(w, errStr)
 		return
 	}
 
@@ -796,9 +809,10 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if err != nil {
+		errStr := html.EscapeString(err.Error())
 		writeInsightError(w,
-			fmt.Sprintf("Error retrieving transactions for addresses %s (%v)",
-				addresses, err))
+			fmt.Sprintf("Error retrieving transactions for addresses %s (%q)",
+				addresses, errStr))
 		return
 	}
 
@@ -806,7 +820,8 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 	for _, addr := range addresses {
 		addressOuts, _, err := iapi.mp.UnconfirmedTxnsForAddress(addr)
 		if err != nil {
-			writeInsightError(w, fmt.Sprintf("Error gathering mempool transactions (%v)", err))
+			errStr := html.EscapeString(err.Error())
+			writeInsightError(w, fmt.Sprintf("Error gathering mempool transactions (%q)", errStr))
 			return
 		}
 
@@ -895,7 +910,8 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 		txOld, err := iapi.BlockData.GetRawTransaction(&rawTx)
 		if err != nil {
 			apiLog.Errorf("Unable to get transaction %s", rawTx)
-			writeInsightError(w, fmt.Sprintf("Error gathering transaction details (%v)", err))
+			errStr := html.EscapeString(err.Error())
+			writeInsightError(w, fmt.Sprintf("Error gathering transaction details (%q)", errStr))
 			return
 		}
 
@@ -909,7 +925,8 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 	txsNew, err := iapi.DcrToInsightTxns(txsOld, noAsm, noScriptSig, noSpent)
 	if err != nil {
 		apiLog.Error("Unable to process transactions")
-		writeInsightError(w, fmt.Sprintf("Unable to convert transactions (%v)", err))
+		errStr := html.EscapeString(err.Error())
+		writeInsightError(w, fmt.Sprintf("Unable to convert transactions (%q)", errStr))
 		return
 	}
 	addressOutput.Items = append(addressOutput.Items, txsNew...)
@@ -972,7 +989,8 @@ func (iapi *InsightApi) getStatusInfo(w http.ResponseWriter, r *http.Request) {
 	infoResult, err := iapi.nodeClient.GetInfo(ctx)
 	if err != nil {
 		apiLog.Error("Error getting status")
-		writeInsightError(w, fmt.Sprintf("Error getting status (%s)", err))
+		errStr := html.EscapeString(err.Error())
+		writeInsightError(w, fmt.Sprintf("Error getting status (%q)", errStr))
 		return
 	}
 
@@ -988,7 +1006,8 @@ func (iapi *InsightApi) getStatusInfo(w http.ResponseWriter, r *http.Request) {
 		blockhash, err := iapi.nodeClient.GetBlockHash(ctx, infoResult.Blocks)
 		if err != nil {
 			apiLog.Errorf("Error getting block hash %d (%s)", infoResult.Blocks, err)
-			writeInsightError(w, fmt.Sprintf("Error getting block hash %d (%s)", infoResult.Blocks, err))
+			errStr := html.EscapeString(err.Error())
+			writeInsightError(w, fmt.Sprintf("Error getting block hash %d (%q)", infoResult.Blocks, errStr))
 			return
 		}
 
@@ -1002,13 +1021,15 @@ func (iapi *InsightApi) getStatusInfo(w http.ResponseWriter, r *http.Request) {
 		blockhashtip, err := iapi.nodeClient.GetBlockHash(ctx, infoResult.Blocks)
 		if err != nil {
 			apiLog.Errorf("Error getting block hash %d (%s)", infoResult.Blocks, err)
-			writeInsightError(w, fmt.Sprintf("Error getting block hash %d (%s)", infoResult.Blocks, err))
+			errStr := html.EscapeString(err.Error())
+			writeInsightError(w, fmt.Sprintf("Error getting block hash %d (%q)", infoResult.Blocks, errStr))
 			return
 		}
 		lastblockhash, err := iapi.nodeClient.GetBlockHash(ctx, int64(iapi.status.Height()))
 		if err != nil {
 			apiLog.Errorf("Error getting block hash %d (%s)", iapi.status.Height(), err)
-			writeInsightError(w, fmt.Sprintf("Error getting block hash %d (%s)", iapi.status.Height(), err))
+			errStr := html.EscapeString(err.Error())
+			writeInsightError(w, fmt.Sprintf("Error getting block hash %d (%q)", iapi.status.Height(), errStr))
 			return
 		}
 
@@ -1077,8 +1098,8 @@ func (iapi *InsightApi) getBlockSummaryByTime(w http.ResponseWriter, r *http.Req
 	blockDate, isToday, err := dateFromStr(ymdFormat, blockDateStr)
 	if err != nil {
 		writeInsightError(w,
-			fmt.Sprintf("Unable to retrieve block summary using time %s: %v",
-				blockDateStr, err))
+			html.EscapeString(fmt.Sprintf("Unable to retrieve block summary using time %s: %v",
+				blockDateStr, err)))
 		return
 	}
 
@@ -1100,7 +1121,8 @@ func (iapi *InsightApi) getBlockSummaryByTime(w http.ResponseWriter, r *http.Req
 		return
 	}
 	if err != nil {
-		writeInsightError(w, fmt.Sprintf("Unable to retrieve block summaries: %v", err))
+		errStr := html.EscapeString(err.Error())
+		writeInsightError(w, fmt.Sprintf("Unable to retrieve block summaries: %q", errStr))
 		return
 	}
 
@@ -1135,7 +1157,8 @@ func (iapi *InsightApi) getBlockSummaryByTime(w http.ResponseWriter, r *http.Req
 func (iapi *InsightApi) getAddressInfo(w http.ResponseWriter, r *http.Request) {
 	addresses, err := m.GetAddressCtx(r, iapi.params)
 	if err != nil {
-		writeInsightError(w, err.Error())
+		errStr := html.EscapeString(err.Error())
+		writeInsightError(w, errStr)
 		return
 	}
 	if len(addresses) != 1 {
@@ -1268,7 +1291,8 @@ func (iapi *InsightApi) getAddressInfo(w http.ResponseWriter, r *http.Request) {
 		// [from, to] --(limits)--> [start,end)
 		start, end, err := fromToForSlice(from, to, txCount, txLimit)
 		if err != nil {
-			writeInsightError(w, err.Error())
+			errStr := html.EscapeString(err.Error())
+			writeInsightError(w, errStr)
 			return
 		}
 
@@ -1346,7 +1370,8 @@ func (iapi *InsightApi) getEstimateFee(w http.ResponseWriter, r *http.Request) {
 	infoResult, err := iapi.nodeClient.GetInfo(r.Context())
 	if err != nil {
 		apiLog.Error("Error getting status")
-		writeInsightError(w, fmt.Sprintf("Error getting status (%s)", err))
+		errStr := html.EscapeString(err.Error())
+		writeInsightError(w, fmt.Sprintf("Error getting status (%s)", errStr))
 		return
 	}
 

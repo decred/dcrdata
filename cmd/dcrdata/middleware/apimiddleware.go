@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -76,7 +77,7 @@ type StakeVersionsLatest func() (*chainjson.StakeVersions, error)
 func writeHTMLBadRequest(w http.ResponseWriter, str string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusBadRequest)
-	io.WriteString(w, str)
+	io.WriteString(w, html.EscapeString(str))
 }
 
 // Limiter wraps the tollbooth limiter. Use NewLimiter to create a new Limiter.
@@ -203,7 +204,7 @@ func GetRawHexTx(r *http.Request) (string, error) {
 	msgtx := wire.NewMsgTx()
 	err := msgtx.Deserialize(hex.NewDecoder(strings.NewReader(rawHexTx)))
 	if err != nil {
-		return "", fmt.Errorf("failed to deserialize tx: %v", err)
+		return "", fmt.Errorf("failed to deserialize tx: %w", err)
 	}
 	return rawHexTx, nil
 }
@@ -288,8 +289,7 @@ func GetTxIDCtx(r *http.Request) (*chainhash.Hash, error) {
 	hash, err := chainhash.NewHashFromStr(hashStr)
 	if err != nil {
 		apiLog.Trace("invalid hash '%s': %v", hashStr, err)
-		return nil, fmt.Errorf("invalid hash '%s': %v",
-			hashStr, err)
+		return nil, fmt.Errorf("invalid hash: %w", err)
 	}
 	return hash, nil
 }
@@ -307,12 +307,12 @@ func GetTxnsCtx(r *http.Request) ([]*chainhash.Hash, error) {
 	for _, hashStr := range hashStrs {
 		if len(hashStr) != chainhash.MaxHashStringSize {
 			apiLog.Tracef("invalid hash: %v", hashStr)
-			return nil, fmt.Errorf("invalid hash '%s'", hashStr)
+			return nil, fmt.Errorf("invalid hash")
 		}
 		hash, err := chainhash.NewHashFromStr(hashStr)
 		if err != nil {
 			apiLog.Trace("invalid hash '%s': %v", hashStr, err)
-			return nil, fmt.Errorf("invalid hash '%s': %v", hashStr, err)
+			return nil, fmt.Errorf("invalid hash: %w", err)
 		}
 		hashes = append(hashes, hash)
 	}
@@ -384,7 +384,7 @@ func GetBlockHashCtx(r *http.Request) (string, error) {
 	}
 	if _, err := chainhash.NewHashFromStr(hashStr); err != nil {
 		apiLog.Trace("invalid hash '%s': %v", hashStr, err)
-		return "", fmt.Errorf("invalid hash '%s': %v", hashStr, err)
+		return "", fmt.Errorf("invalid hash: %w", err)
 	}
 
 	return hashStr, nil
@@ -420,7 +420,7 @@ func GetAddressCtx(r *http.Request, activeNetParams *chaincfg.Params) ([]string,
 	for _, addrStr := range addressStrs {
 		_, err := dcrutil.DecodeAddress(addrStr, activeNetParams)
 		if err != nil {
-			return nil, fmt.Errorf("invalid address '%v' for this network: %v",
+			return nil, fmt.Errorf("invalid address %q for this network: %w",
 				addrStr, err)
 		}
 	}
@@ -438,7 +438,7 @@ func GetAddressRawCtx(r *http.Request, activeNetParams *chaincfg.Params) ([]dcru
 	for _, addrStr := range addressStrs {
 		addr, err := dcrutil.DecodeAddress(addrStr, activeNetParams)
 		if err != nil {
-			return nil, fmt.Errorf("invalid address '%v' for this network: %v",
+			return nil, fmt.Errorf("invalid address %q for this network: %w",
 				addrStr, err)
 		}
 		addresses = append(addresses, addr)
