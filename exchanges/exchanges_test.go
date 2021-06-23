@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
@@ -251,15 +252,14 @@ func (d *tDoer) queue(body interface{}) *http.Response {
 		panic("tDoer.queue error:" + err.Error())
 	}
 	resp := &http.Response{
-		Body: io.NopCloser(bytes.NewReader(b)),
+		Body: ioutil.NopCloser(bytes.NewReader(b)),
 	}
 	d.responses = append(d.responses, resp)
 	return resp
 }
 
 type testBittrexConnection struct {
-	xc           *BittrexExchange
-	subscription hubs.ClientMsg
+	xc *BittrexExchange
 }
 
 func (conn testBittrexConnection) Close() {}
@@ -270,7 +270,6 @@ func (conn testBittrexConnection) On() bool {
 }
 
 func (conn testBittrexConnection) Send(subscription hubs.ClientMsg) error {
-	conn.subscription = subscription
 	return nil
 }
 
@@ -422,7 +421,7 @@ func TestBittrexWebsocket(t *testing.T) {
 	bittrex.Refresh()
 	select {
 	case <-bittrex.channels.exchange:
-		t.Fatalf("emmited an update when we shouldn't have")
+		t.Fatalf("emitted an update when we shouldn't have")
 	default:
 	}
 
