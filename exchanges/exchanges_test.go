@@ -269,7 +269,7 @@ func (conn testBittrexConnection) On() bool {
 	return false
 }
 
-func (conn testBittrexConnection) Send(subscription hubs.ClientMsg) error {
+func (conn testBittrexConnection) Send(hubs.ClientMsg) error {
 	return nil
 }
 

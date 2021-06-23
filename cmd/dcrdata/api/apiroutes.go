@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"reflect"
@@ -373,7 +374,8 @@ func (c *appContext) currentHeight(w http.ResponseWriter, _ *http.Request) {
 func (c *appContext) getBlockHeight(w http.ResponseWriter, r *http.Request) {
 	idx, err := c.getBlockHeightCtx(r)
 	if err != nil {
-		apiLog.Infof("getBlockHeight: getBlockHeightCtx failed: %v", err)
+		apiLog.Debugf("getBlockHeight: getBlockHeightCtx failed: %v", err)
+		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
@@ -387,6 +389,7 @@ func (c *appContext) getBlockHash(w http.ResponseWriter, r *http.Request) {
 	hash, err := c.getBlockHashCtx(r)
 	if err != nil {
 		apiLog.Debugf("getBlockHash: %v", err)
+		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -452,6 +455,8 @@ func (c *appContext) getBlockTransactionsCount(w http.ResponseWriter, r *http.Re
 	blockTransactions := c.DataSource.GetTransactionsForBlockByHash(hash)
 	if blockTransactions == nil {
 		apiLog.Errorf("Unable to get block %s transactions", hash)
+		http.Error(w, http.StatusText(http.StatusInternalServerError),
+			http.StatusInternalServerError)
 		return
 	}
 
@@ -563,13 +568,13 @@ func (c *appContext) getVoteInfo(w http.ResponseWriter, r *http.Request) {
 	ver, verStr, err := getVoteVersionQuery(r)
 	if err != nil || ver < 0 {
 		apiLog.Errorf("Unable to get vote info for stake version %s", verStr)
-		http.Error(w, "Unable to get vote info for stake version "+verStr, 422)
+		http.Error(w, "Unable to get vote info for stake version "+html.EscapeString(verStr), 422)
 		return
 	}
 	voteVersionInfo, err := c.DataSource.GetVoteVersionInfo(uint32(ver))
 	if err != nil || voteVersionInfo == nil {
 		apiLog.Errorf("Unable to get vote version %d info: %v", ver, err)
-		http.Error(w, "Unable to get vote info for stake version "+verStr, 422)
+		http.Error(w, "Unable to get vote info for stake version "+html.EscapeString(verStr), 422)
 		return
 	}
 	writeJSON(w, voteVersionInfo, m.GetIndentCtx(r))
@@ -646,7 +651,8 @@ func (c *appContext) getTransaction(w http.ResponseWriter, r *http.Request) {
 
 	if withSpends {
 		if err := c.setTxSpends(tx); err != nil {
-			apiLog.Errorf("Unable to get spending transaction info for outputs of %s: %v", txid, err)
+			errStr := html.EscapeString(err.Error())
+			apiLog.Errorf("Unable to get spending transaction info for outputs of %s: %q", txid, errStr)
 			http.Error(w, http.StatusText(http.StatusInternalServerError),
 				http.StatusInternalServerError)
 			return
@@ -875,7 +881,8 @@ func (c *appContext) getTxVoteInfo(w http.ResponseWriter, r *http.Request) {
 		err = fmt.Errorf("unable to get vote info for tx %v: %v",
 			txid, err)
 		apiLog.Error(err)
-		http.Error(w, err.Error(), 422)
+		errStr := html.EscapeString(err.Error())
+		http.Error(w, errStr, 422)
 		return
 	}
 	writeJSON(w, vinfo, m.GetIndentCtx(r))
@@ -896,7 +903,8 @@ func (c *appContext) getTxTicketInfo(w http.ResponseWriter, r *http.Request) {
 		}
 		err = fmt.Errorf("unable to get ticket info for tx %v: %w", txid, err)
 		apiLog.Error(err)
-		http.Error(w, err.Error(), 422)
+		errStr := html.EscapeString(err.Error())
+		http.Error(w, errStr, 422)
 		return
 	}
 	writeJSON(w, tinfo, m.GetIndentCtx(r))
@@ -1754,7 +1762,7 @@ func (c *appContext) ChartTypeData(w http.ResponseWriter, r *http.Request) {
 	chartData, err := c.charts.Chart(chartType, bin, axis)
 	if err != nil {
 		http.NotFound(w, r)
-		log.Warnf(`Error fetching chart %s at bin level '%s': %v`, chartType, bin, err)
+		log.Warnf(`Error fetching chart %q at bin level '%s': %v`, chartType, bin, err)
 		return
 	}
 	writeJSONBytes(w, chartData)
@@ -1919,7 +1927,7 @@ func (c *appContext) getExchanges(w http.ResponseWriter, r *http.Request) {
 		var err error
 		state, err = c.xcBot.ConvertedState(code)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("No exchange data for code %s", code), http.StatusNotFound)
+			http.Error(w, fmt.Sprintf("No exchange data for code %q", html.EscapeString(code)), http.StatusNotFound)
 			return
 		}
 	} else {
@@ -1945,7 +1953,7 @@ func (c *appContext) getExchangeRates(w http.ResponseWriter, r *http.Request) {
 		var err error
 		rates, err = c.xcBot.ConvertedRates(code)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("No exchange rate data for code %s", code), http.StatusNotFound)
+			http.Error(w, fmt.Sprintf("No exchange rate data for code %q", html.EscapeString(code)), http.StatusNotFound)
 			return
 		}
 	} else {

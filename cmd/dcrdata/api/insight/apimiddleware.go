@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -160,7 +161,8 @@ func PostAddrsTxsCtxN(n int) func(next http.Handler) http.Handler {
 			body, err := ioutil.ReadAll(r.Body)
 			r.Body.Close()
 			if err != nil {
-				writeInsightError(w, fmt.Sprintf("error reading JSON message: %v", err))
+				errStr := html.EscapeString(err.Error())
+				writeInsightError(w, fmt.Sprintf("error reading JSON message: %q", errStr))
 				return
 			}
 
@@ -168,7 +170,8 @@ func PostAddrsTxsCtxN(n int) func(next http.Handler) http.Handler {
 			var req apitypes.InsightMultiAddrsTx
 			err = json.Unmarshal(body, &req)
 			if err != nil {
-				writeInsightError(w, fmt.Sprintf("Failed to parse request: %v", err))
+				errStr := html.EscapeString(err.Error())
+				writeInsightError(w, fmt.Sprintf("Failed to parse request: %q", errStr))
 				return
 			}
 
@@ -265,13 +268,15 @@ func PostAddrsUtxoCtxN(n int) func(next http.Handler) http.Handler {
 			body, err := ioutil.ReadAll(r.Body)
 			r.Body.Close()
 			if err != nil {
-				writeInsightError(w, fmt.Sprintf("error reading JSON message: %v", err))
+				errStr := html.EscapeString(err.Error())
+				writeInsightError(w, fmt.Sprintf("error reading JSON message: %q", errStr))
 				return
 			}
 
 			err = json.Unmarshal(body, &req)
 			if err != nil {
-				writeInsightError(w, fmt.Sprintf("Failed to parse request: %v", err))
+				errStr := html.EscapeString(err.Error())
+				writeInsightError(w, fmt.Sprintf("Failed to parse request: %q", errStr))
 				return
 			}
 

@@ -84,14 +84,13 @@ func TestGetAddressCtx(t *testing.T) {
 			args:     args{2, []string{"DcxxxxcGjmENx4DhNqDctW5wJCVyT3Qeqkx"}},
 			want:     nil,
 			wantErr:  true,
-			errMsg:   "invalid address 'DcxxxxcGjmENx4DhNqDctW5wJCVyT3Qeqkx' for this network: checksum mismatch",
-		},
+			errMsg:   `invalid address "DcxxxxcGjmENx4DhNqDctW5wJCVyT3Qeqkx" for this network: checksum mismatch`},
 		{
 			testName: "wrong_net",
 			args:     args{2, []string{"TsWmwignm9Q6iBQMSHw9WhBeR5wgUPpD14Q"}},
 			want:     nil,
 			wantErr:  true,
-			errMsg:   `invalid address 'TsWmwignm9Q6iBQMSHw9WhBeR5wgUPpD14Q' for this network: unknown address type`,
+			errMsg:   `invalid address "TsWmwignm9Q6iBQMSHw9WhBeR5wgUPpD14Q" for this network: unknown address type`,
 		},
 	}
 	for _, tt := range tests {
