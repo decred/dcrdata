@@ -426,6 +426,11 @@ type Exchange interface {
 	UpdateIndices(FiatIndices)
 }
 
+// Doer is an interface for a *http.Client to allow testing of Refresh paths.
+type Doer interface {
+	Do(*http.Request) (*http.Response, error)
+}
+
 // CommonExchange is embedded in all of the exchange types and handles some
 // state tracking and token handling for ExchangeBot communications. The
 // http.Request must be created individually for each exchange.
@@ -434,7 +439,7 @@ type CommonExchange struct {
 	token        string
 	URL          string
 	currentState *ExchangeState
-	client       *http.Client
+	client       Doer
 	lastUpdate   time.Time
 	lastFail     time.Time
 	lastRequest  time.Time
@@ -650,15 +655,23 @@ func (xc *CommonExchange) wsListening() bool {
 
 // Log the error and time, and increment the error counter.
 func (xc *CommonExchange) setWsFail(err error) {
+	log.Errorf("%s websocket error: %v", xc.token, err)
 	xc.wsMtx.Lock()
 	defer xc.wsMtx.Unlock()
 	if xc.ws != nil {
 		xc.ws.Close()
+		// Clear the field to prevent double Close'ing.
+		xc.ws = nil
 	}
 	if xc.sr != nil {
-		xc.sr.Close()
+		// The carterjones/signalr can hang on Close. The goroutine is a stopgap while
+		// we migrate to a new signalr client.
+		// https://github.com/decred/dcrdata/issues/1818
+		go xc.sr.Close()
+		// Clear the field to prevent double Close'ing. signalr will hang on
+		// second call.
+		xc.sr = nil
 	}
-	log.Errorf("%s websocket error: %v", xc.token, err)
 	xc.wsSync.err = err
 	xc.wsSync.errCount++
 	xc.wsSync.fail = time.Now()
@@ -712,7 +725,12 @@ func (xc *CommonExchange) wsErrorCount() int {
 // used instead of connectWebsocket.
 func (xc *CommonExchange) connectSignalr(cfg *signalrConfig) (err error) {
 	if cfg.errHandler == nil {
-		cfg.errHandler = xc.setWsFail
+		cfg.errHandler = func(err error) {
+			xc.wsMtx.Lock()
+			xc.sr = nil
+			xc.wsMtx.Unlock()
+			xc.setWsFail(err)
+		}
 	}
 	xc.wsMtx.Lock()
 	defer xc.wsMtx.Unlock()
@@ -1704,7 +1722,7 @@ func (bittrex *BittrexExchange) Refresh() {
 	// Check for a depth chart from the websocket orderbook.
 	tryHttp, wsStarting, depth := bittrex.wsDepthStatus(bittrex.connectWs)
 
-	// // If not expecting depth data from the websocket, grab it from HTTP
+	// If not expecting depth data from the websocket, grab it from HTTP
 	if tryHttp {
 		depthResponse, err := bittrex.orderbook()
 		if err != nil {
