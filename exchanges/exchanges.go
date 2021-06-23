@@ -664,7 +664,10 @@ func (xc *CommonExchange) setWsFail(err error) {
 		xc.ws = nil
 	}
 	if xc.sr != nil {
-		xc.sr.Close()
+		// The carterjones/signalr can hang on Close. The goroutine is a stopgap while
+		// we migrate to a new signalr client.
+		// https://github.com/decred/dcrdata/issues/1818
+		go xc.sr.Close()
 		// Clear the field to prevent double Close'ing. signalr will hang on
 		// second call.
 		xc.sr = nil
@@ -722,7 +725,12 @@ func (xc *CommonExchange) wsErrorCount() int {
 // used instead of connectWebsocket.
 func (xc *CommonExchange) connectSignalr(cfg *signalrConfig) (err error) {
 	if cfg.errHandler == nil {
-		cfg.errHandler = xc.setWsFail
+		cfg.errHandler = func(err error) {
+			xc.wsMtx.Lock()
+			xc.sr = nil
+			xc.wsMtx.Unlock()
+			xc.setWsFail(err)
+		}
 	}
 	xc.wsMtx.Lock()
 	defer xc.wsMtx.Unlock()
