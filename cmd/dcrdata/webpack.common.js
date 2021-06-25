@@ -7,9 +7,6 @@ module.exports = {
   entry: {
     app: './public/index.js'
   },
-  externals: {
-    turbolinks: 'Turbolinks'
-  },
   optimization: {
     chunkIds: 'natural',
     splitChunks: {

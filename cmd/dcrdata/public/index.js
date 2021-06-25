@@ -17,7 +17,7 @@ const application = Application.start()
 const context = require.context('./js/controllers', true, /\.js$/)
 application.load(definitionsFromContext(context))
 
-document.addEventListener('turbolinks:load', function (e) {
+document.addEventListener('turbo:load', function (e) {
   document.querySelectorAll('.jsonly').forEach((el) => {
     el.classList.remove('jsonly')
   })

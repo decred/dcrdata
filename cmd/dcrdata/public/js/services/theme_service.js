@@ -39,7 +39,7 @@ export function toggleSun () {
   }
 }
 
-document.addEventListener('turbolinks:before-render', function (event) {
+document.addEventListener('turbo:before-render', function (event) {
   if (darkEnabled()) {
     toggleToDarkClasses(event.data.newBody)
   } else {

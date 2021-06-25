@@ -1,5 +1,5 @@
 import { Controller } from 'stimulus'
-import TurboQuery from '../helpers/turbolinks_helper'
+import TurboQuery from '../helpers/turbodrive_helper'
 import { getDefault } from '../helpers/module_helper'
 import humanize from '../helpers/humanize_helper'
 import { darkEnabled } from '../services/theme_service'
