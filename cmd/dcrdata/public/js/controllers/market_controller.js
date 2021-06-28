@@ -1,10 +1,10 @@
 import { Controller } from 'stimulus'
 import TurboQuery from '../helpers/turbolinks_helper'
 import { getDefault } from '../helpers/module_helper'
+import { requestJSON } from '../helpers/http'
 import humanize from '../helpers/humanize_helper'
 import { darkEnabled } from '../services/theme_service'
 import globalEventBus from '../services/event_bus_service'
-import axios from 'axios'
 
 let Dygraph
 const SELL = 1
@@ -91,7 +91,7 @@ let responseCache = {}
 
 function hasCache (k) {
   if (!responseCache[k]) return false
-  const expiration = new Date(responseCache[k].data.expiration)
+  const expiration = new Date(responseCache[k].expiration)
   return expiration > new Date()
 }
 
@@ -769,7 +769,8 @@ export default class extends Controller {
     if (hasCache(url)) {
       response = responseCache[url]
     } else {
-      response = await axios.get(url)
+      // response = await axios.get(url)
+      response = await requestJSON(url)
       responseCache[url] = response
       if (thisRequest !== requestCounter) {
         // new request was issued while waiting.
@@ -780,15 +781,15 @@ export default class extends Controller {
     // Fiat conversion only available for order books for now.
     if (usesOrderbook(chart)) {
       this.conversionTarget.classList.remove('d-hide')
-      this.ageSpanTarget.dataset.age = response.data.data.time
-      this.ageSpanTarget.textContent = humanize.timeSince(response.data.data.time)
+      this.ageSpanTarget.dataset.age = response.data.time
+      this.ageSpanTarget.textContent = humanize.timeSince(response.data.time)
       this.ageTarget.classList.remove('d-hide')
     } else {
       this.conversionTarget.classList.add('d-hide')
       this.ageTarget.classList.add('d-hide')
     }
     this.graph.updateOptions(chartResetOpts, true)
-    this.graph.updateOptions(this.processors[chart](response.data))
+    this.graph.updateOptions(this.processors[chart](response))
     this.query.replace(settings)
     if (isRefresh) this.graph.updateOptions({ dateWindow: oldZoom })
     else this.resetZoom()
@@ -1243,7 +1244,7 @@ export default class extends Controller {
     if (settings.xc !== aggregatedKey && settings.xc !== xc.token) return
     if (settings.xc === aggregatedKey &&
         hasCache(this.lastUrl) &&
-        responseCache[this.lastUrl].data.tokens.indexOf(update.updater) === -1) return
+        responseCache[this.lastUrl].tokens.indexOf(update.updater) === -1) return
     if (usesOrderbook(settings.chart)) {
       clearCache(this.lastUrl)
       this.refreshChart()

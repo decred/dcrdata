@@ -5,8 +5,8 @@ import globalEventBus from '../services/event_bus_service'
 import { getDefault } from '../helpers/module_helper'
 import { multiColumnBarPlotter, synchronize } from '../helpers/chart_helper'
 import dompurify from 'dompurify'
-import axios from 'axios'
 import humanize from '../helpers/humanize_helper'
+import { requestJSON } from '../helpers/http.js'
 
 const common = {
   labelsKMB: true,
@@ -130,8 +130,7 @@ export default class extends Controller {
       this.approvalMeter = new MiniMeter(this.approvalMeterTarget, opts)
     }
 
-    const response = await axios.get('/api/proposal/' + this.tokenTarget.dataset.hash)
-    chartData = response.data
+    chartData = await requestJSON('/api/proposal/' + this.tokenTarget.dataset.hash)
 
     Dygraph = await getDefault(
       import(/* webpackChunkName: "dygraphs" */ '../vendor/dygraphs.min.js')

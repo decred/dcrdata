@@ -2,7 +2,7 @@ import { Controller } from 'stimulus'
 import { barChartPlotter } from '../helpers/chart_helper'
 import { getDefault } from '../helpers/module_helper'
 import humanize from '../helpers/humanize_helper'
-import axios from 'axios'
+import { requestJSON } from '../helpers/http'
 
 const chartLayout = {
   showRangeSelector: true,
@@ -80,12 +80,12 @@ export default class extends Controller {
       import(/* webpackChunkName: "dygraphs" */ '../vendor/dygraphs.min.js')
     )
     this.drawCharts()
-    const agendaResponse = await axios.get('/api/agenda/' + this.agendaId)
+    const agendaResponse = await requestJSON('/api/agenda/' + this.agendaId)
     this.cumulativeVoteChoicesChart.updateOptions({
-      file: cumulativeVoteChoicesData(agendaResponse.data.by_time)
+      file: cumulativeVoteChoicesData(agendaResponse.by_time)
     })
     this.voteChoicesByBlockChart.updateOptions({
-      file: voteChoicesByBlockData(agendaResponse.data.by_height)
+      file: voteChoicesByBlockData(agendaResponse.by_height)
     })
 
     this.element.classList.remove('loading')
