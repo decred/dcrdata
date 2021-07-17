@@ -2846,22 +2846,22 @@ func resetSpendingForVoutsByTxRowID(tx *sql.Tx, spendingTxRowIDs []int64) (int64
 func InsertSpendingAddressRow(db *sql.DB, fundingTxHash string, fundingTxVoutIndex uint32, fundingTxTree int8,
 	spendingTxHash string, spendingTxVinIndex uint32, vinDbID uint64, utxoData *dbtypes.UTXOData,
 	checked, updateExisting, mainchain, valid bool, txType int16, updateFundingRow bool,
-	spendingTXBlockTime dbtypes.TimeDef) (int64, int64, bool, error) {
+	spendingTXBlockTime dbtypes.TimeDef) ([]string, int64, int64, bool, error) {
 	// Only allow atomic transactions to happen.
 	dbtx, err := db.Begin()
 	if err != nil {
-		return 0, 0, false, fmt.Errorf("unable to begin database transaction: %w", err)
+		return nil, 0, 0, false, fmt.Errorf("unable to begin database transaction: %w", err)
 	}
 
-	c, voutDbID, mixedOut, err := insertSpendingAddressRow(dbtx, fundingTxHash, fundingTxVoutIndex,
+	fromAddrs, c, voutDbID, mixedOut, err := insertSpendingAddressRow(dbtx, fundingTxHash, fundingTxVoutIndex,
 		fundingTxTree, spendingTxHash, spendingTxVinIndex, vinDbID, utxoData, checked,
 		updateExisting, mainchain, valid, txType, updateFundingRow, spendingTXBlockTime)
 	if err != nil {
-		return 0, 0, false, fmt.Errorf(`RowsAffected: %w + %v (rollback)`,
+		return nil, 0, 0, false, fmt.Errorf(`RowsAffected: %w + %v (rollback)`,
 			err, dbtx.Rollback())
 	}
 
-	return c, voutDbID, mixedOut, dbtx.Commit()
+	return fromAddrs, c, voutDbID, mixedOut, dbtx.Commit()
 }
 
 func updateSpendTxInfoInAllVouts(db SqlExecutor) (int64, error) {
@@ -2887,7 +2887,7 @@ func updateSpendTxInfoInAllVouts(db SqlExecutor) (int64, error) {
 func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutIndex uint32,
 	fundingTxTree int8, spendingTxHash string, spendingTxVinIndex uint32, vinDbID uint64,
 	spentUtxoData *dbtypes.UTXOData, checked, updateExisting, mainchain, valid bool, txType int16,
-	updateFundingRow bool, blockT ...dbtypes.TimeDef) (int64, int64, bool, error) {
+	updateFundingRow bool, blockT ...dbtypes.TimeDef) ([]string, int64, int64, bool, error) {
 
 	// Select addresses and value from the matching funding tx output. A maximum
 	// of one row and a minimum of none are expected.
@@ -2907,7 +2907,7 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 		case sql.ErrNoRows, nil:
 			// If no row found or error is nil, continue
 		default:
-			return 0, 0, mixed, fmt.Errorf("SelectVoutAddressesByTxOut: %w", err)
+			return nil, 0, 0, mixed, fmt.Errorf("SelectVoutAddressesByTxOut: %w", err)
 		}
 
 		// Get address list.
@@ -2929,7 +2929,7 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 		// Fetch the block time from the tx table.
 		err := tx.QueryRow(internal.SelectTxBlockTimeByHash, spendingTxHash).Scan(&blockTime)
 		if err != nil {
-			return 0, 0, mixed, fmt.Errorf("SelectTxBlockTimeByHash: %w", err)
+			return nil, 0, 0, mixed, fmt.Errorf("SelectTxBlockTimeByHash: %w", err)
 		}
 	}
 
@@ -2942,7 +2942,7 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 			spendingTxVinIndex, vinDbID, value, blockTime, isFunding,
 			mainchain && valid, txType).Scan(&rowID)
 		if err != nil {
-			return 0, 0, mixed, fmt.Errorf("InsertAddressRow: %w", err)
+			return nil, 0, 0, mixed, fmt.Errorf("InsertAddressRow: %w", err)
 		}
 	}
 
@@ -2953,9 +2953,9 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 		// a parent on the main chain).
 		N, err := SetSpendingForFundingOP(tx, fundingTxHash, fundingTxVoutIndex,
 			spendingTxHash, mainchain)
-		return N, voutDbID, mixed, err
+		return addrs, N, voutDbID, mixed, err
 	}
-	return 0, voutDbID, mixed, nil
+	return addrs, 0, voutDbID, mixed, nil
 }
 
 // --- agendas table ---
