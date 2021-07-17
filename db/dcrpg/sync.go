@@ -45,8 +45,6 @@ func (pgb *ChainDB) SyncChainDBAsync(ctx context.Context, res chan dbtypes.SyncR
 		updateExplorer, barLoad)
 	if err != nil {
 		log.Errorf("SyncChainDB quit at height %d, err: %v", height, err)
-	} else {
-		log.Debugf("SyncChainDB completed at height %d.", height)
 	}
 
 	res <- dbtypes.SyncResult{
@@ -188,6 +186,16 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		}
 	}
 
+	stages := 1 // without indexing and spend updates, just block import
+	if reindexing {
+		stages += 3 // duplicate data removal, indexing, deep analyze
+	} else if requireAnalyze {
+		stages++ // not reindexing, just quick analyzing because far behind
+	}
+	if updateAllAddresses {
+		stages += 2 // vouts and addresses table spending info update
+	}
+
 	// Safely send sync status updates on barLoad channel, and set the channel
 	// to nil if the buffer is full.
 	sendProgressUpdate := func(p *dbtypes.ProgressBarLoad) {
@@ -250,13 +258,17 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 			return
 		}
 		log.Infof("Avg. speed: %d tx/s, %d vout/s", totalTxPerSec, totalVoutPerSec)
-		syncedBlocks := float64(nodeHeight - startHeight + 1)
-		log.Infof("Total sync: %.2f minutes (%.2f blocks/s)", timeElapsed.Minutes(), syncedBlocks/timeElapsed.Seconds())
+		syncedBlocks := nodeHeight - startHeight + 1
+		log.Infof("Block import elapsed: %.2f minutes, %d blocks (%.2f blocks/s)",
+			timeElapsed.Minutes(), syncedBlocks, float64(syncedBlocks)/timeElapsed.Seconds())
 	}
 	speedReport := func() { o.Do(speedReporter) }
 	defer speedReport()
 
 	lastProgressUpdateTime := startTime
+
+	stage := 1
+	log.Infof("Beginning SYNC STAGE %d of %d (block data import).", stage, stages)
 
 	// Start syncing blocks.
 	for ib := startHeight; ib <= nodeHeight; ib++ {
@@ -346,7 +358,7 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		// SyncChainDB is processing main chain blocks.
 		updateExisting := true
 		numVins, numVouts, numAddresses, err := pgb.StoreBlock(block.MsgBlock(),
-			isValid, isMainchain, updateExisting, !updateAllAddresses, true, chainWork)
+			isValid, isMainchain, updateExisting, !updateAllAddresses, chainWork)
 		if err != nil {
 			return ib - 1, fmt.Errorf("StoreBlock failed: %v", err)
 		}
@@ -389,6 +401,9 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 	// Index and analyze tables.
 	var analyzed bool
 	if reindexing {
+		stage++
+		log.Infof("Beginning SYNC STAGE %d of %d (duplicate row removal).", stage, stages)
+
 		// drop the temporary index on addresses(tx_vin_vout_row_id).
 		log.Infof("Dropping temporary index on addresses(tx_vin_vout_row_id).")
 		_, err = pgb.db.Exec(`DROP INDEX IF EXISTS idx_addresses_vinvout_id_tmp;`)
@@ -406,6 +421,9 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		if err = pgb.DeleteDuplicates(barLoad); err != nil {
 			return 0, err
 		}
+
+		stage++
+		log.Infof("Beginning SYNC STAGE %d of %d (table indexing and analyzing).", stage, stages)
 
 		// Create all indexes except those on addresses.matching_tx_hash,
 		// vouts.spend_tx_row_id, and all tickets indexes.
@@ -430,23 +448,18 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		}
 
 		// Deep ANALYZE all tables.
-		log.Infof("Performing an ANALYZE(%d) on all tables...", deepStatsTarget)
+		stage++
+		log.Infof("Beginning SYNC STAGE %d of %d (deep database ANALYZE).", stage, stages)
 		if err = AnalyzeAllTables(pgb.db, deepStatsTarget); err != nil {
 			return nodeHeight, fmt.Errorf("failed to ANALYZE tables: %v", err)
 		}
 		analyzed = true
 	}
 
-	// After the last call to StoreBlock, synchronously update the project fund
-	// and clear the general address balance cache.
-	log.Infof("Updating project fund balance...")
-	if err = pgb.FreshenAddressCaches(false, nil); err != nil {
-		log.Warnf("FreshenAddressCaches: %v", err)
-		err = nil // not an error with sync
-	}
-
 	// Batch update addresses table with spending info.
 	if updateAllAddresses {
+		stage++
+		log.Infof("Beginning SYNC STAGE %d of %d (setting spending info in vouts table).", stage, stages)
 		// Analyze vouts and transactions tables first.
 		if !analyzed {
 			log.Infof("Performing an ANALYZE(%d) on vins table...", deepStatsTarget)
@@ -487,6 +500,9 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 			return nodeHeight, fmt.Errorf("failed to ANALYZE vouts table: %v", err)
 		}
 
+		stage++
+		log.Infof("Beginning SYNC STAGE %d of %d (setting spending info in addresses table).", stage, stages)
+
 		log.Debug("Dropping index on addresses.matching_tx_hash during update...")
 		_ = DeindexAddressTableOnMatchingTxHash(pgb.db) // ignore error is the index is absent
 		log.Info("Populating spending tx info in addresses table...")
@@ -511,12 +527,15 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 
 	// Quickly ANALYZE all tables if not already done after indexing.
 	if !analyzed && requireAnalyze {
-		// Analyze all tables.
-		log.Infof("Performing an ANALYZE(%d) on all tables...", quickStatsTarget)
+		stage++
+		log.Infof("Beginning SYNC STAGE %d of %d (quick database ANALYZE).", stage, stages)
 		if err = AnalyzeAllTables(pgb.db, quickStatsTarget); err != nil {
 			return nodeHeight, fmt.Errorf("failed to ANALYZE tables: %v", err)
 		}
 	}
+
+	// Update the treasury balance and clear the general address balance cache.
+	_ = pgb.FreshenAddressCaches(true, nil) // async
 
 	// After sync and indexing, must use upsert statement, which checks for
 	// duplicate entries and updates instead of throwing and error and panicing.
@@ -538,7 +557,7 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		})
 	}
 
-	log.Infof("Sync finished at height %d. Delta: %d blocks, %d transactions, %d ins, %d outs, %d addresses",
+	log.Infof("SYNC COMPLETED at height %d. Delta:\n\t\t\t% 10d blocks\n\t\t\t% 10d transactions\n\t\t\t% 10d ins\n\t\t\t% 10d outs\n\t\t\t% 10d addresses",
 		nodeHeight, nodeHeight-startHeight+1, totalTxs, totalVins, totalVouts, totalAddresses)
 
 	return nodeHeight, err

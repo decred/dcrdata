@@ -106,9 +106,10 @@ func (p *ChainMonitor) switchToSideChain(reorgData *txhelpers.ReorgData) (int32,
 		// New blocks stored this way are considered part of mainchain. They are
 		// also considered valid unless invalidated by the next block
 		// (invalidation of previous handled inside StoreBlock).
-		isValid, isMainChain, updateExisting := true, true, true
+		isValid, isMainChain := true, true
+		updateExistingRecords, updateAddressesSpendingInfo := true, true
 		_, _, _, err = p.db.StoreBlock(msgBlock, isValid, isMainChain,
-			updateExisting, true, true, chainWork)
+			updateExistingRecords, updateAddressesSpendingInfo, chainWork)
 		if err != nil {
 			return int32(p.db.bestBlock.Height()), p.db.bestBlock.Hash(),
 				fmt.Errorf("error connecting block %v", newChain[i])
