@@ -880,23 +880,14 @@ func _main(ctx context.Context) error {
 		return err
 	}
 
-	// Exits immediately after the sync completes if SyncAndQuit is to true
-	// because all we needed then was the blockchain sync be completed successfully.
-	if cfg.SyncAndQuit {
-		log.Infof("All ready, at height %d. Quitting.", chainDBHeight)
-		return nil
-	}
-
-	log.Info("Mainchain sync complete.")
-
 	// Ensure all side chains known by dcrd are also present in the DB and
 	// import them if they are not already there.
 	if cfg.ImportSideChains {
 		// First identify the side chain blocks that are missing from the DB.
-		log.Info("Aux DB -> Retrieving side chain blocks from dcrd...")
+		log.Info("Retrieving side chain blocks from dcrd...")
 		sideChainBlocksToStore, nSideChainBlocks, err := chainDB.MissingSideChainBlocks()
 		if err != nil {
-			return fmt.Errorf("Aux DB -> Unable to determine missing side chain blocks: %v", err)
+			return fmt.Errorf("Unable to determine missing side chain blocks: %v", err)
 		}
 		nSideChains := len(sideChainBlocksToStore)
 
@@ -905,7 +896,7 @@ func _main(ctx context.Context) error {
 		// side chain blocks to get ticket pool info.
 
 		// Collect and store data for each side chain.
-		log.Infof("Aux DB -> Importing %d new block(s) from %d known side chains...",
+		log.Infof("Importing %d new block(s) from %d known side chains...",
 			nSideChainBlocks, nSideChains)
 		// Disable recomputing project fund balance, and clearing address
 		// balance and counts cache.
@@ -924,7 +915,7 @@ func _main(ctx context.Context) error {
 				// Validate the block hash.
 				blockHash, err := chainhash.NewHashFromStr(hash)
 				if err != nil {
-					log.Errorf("Aux DB -> Invalid block hash %s: %v.", hash, err)
+					log.Errorf("Invalid block hash %s: %v.", hash, err)
 					continue
 				}
 
@@ -932,7 +923,7 @@ func _main(ctx context.Context) error {
 				_, msgBlock, err := collector.CollectHash(blockHash)
 				if err != nil {
 					// Do not quit if unable to collect side chain block data.
-					log.Errorf("Aux DB -> Unable to collect data for side chain block %s: %v.",
+					log.Errorf("Unable to collect data for side chain block %s: %v.",
 						hash, err)
 					continue
 				}
@@ -945,7 +936,7 @@ func _main(ctx context.Context) error {
 				}
 
 				// PostgreSQL / aux DB
-				log.Debugf("Aux DB -> Importing block %s (height %d) into aux DB.",
+				log.Debugf("Importing block %s (height %d) into aux DB.",
 					blockHash, msgBlock.Header.Height)
 
 				// Stake invalidation is always handled by subsequent block, so
@@ -960,11 +951,11 @@ func _main(ctx context.Context) error {
 
 				// Store data in the aux (dcrpg) DB.
 				_, _, _, err = chainDB.StoreBlock(msgBlock, isValid, isMainchain,
-					updateExistingRecords, true, true, chainWork)
+					updateExistingRecords, true, chainWork)
 				if err != nil {
 					// If data collection succeeded, but storage fails, bail out
 					// to diagnose the DB trouble.
-					return fmt.Errorf("Aux DB -> ChainDB.StoreBlock failed: %v", err)
+					return fmt.Errorf("ChainDB.StoreBlock failed: %v", err)
 				}
 
 				sideChainBlocksStored++
@@ -973,28 +964,28 @@ func _main(ctx context.Context) error {
 		chainDB.InBatchSync = false
 		log.Infof("Successfully added %d blocks from %d side chains into dcrpg DB.",
 			sideChainBlocksStored, sideChainsStored)
-
-		// That may have taken a while, check again for new blocks from network.
-		if err = ensureSync(); err != nil {
-			return err
-		}
 	}
 
-	log.Infof("All ready, at height %d.", chainDBHeight)
-	explore.SetDBsSyncing(false)
-	psHub.SetReady(true)
+	// Exits immediately after the sync completes if SyncAndQuit is to true
+	// because all we needed then was the blockchain sync be completed successfully.
+	if cfg.SyncAndQuit {
+		log.Infof("All ready, at height %d. Quitting.", chainDBHeight)
+		return nil
+	}
 
-	// Pre-populate charts data using the dumped cache data in the .gob file path
-	// provided instead of querying the data from the dbs.
-	// Should be invoked before explore.Store to avoid double charts data
-	// cache population. This charts pre-population is faster than db querying
-	// and can be done before the monitors are fully set up.
+	// Pre-populate charts data using the dumped cache data in the .gob file
+	// path provided instead of querying the data from the dbs. Should be
+	// invoked before explore.Store to avoid double charts data cache
+	// population. This charts pre-population is faster than db querying and can
+	// be done before the monitors are fully set up.
 	dumpPath := filepath.Join(cfg.DataDir, cfg.ChartsCacheDump)
 	if err = charts.Load(dumpPath); err != nil {
 		log.Warnf("Failed to load charts data cache: %v", err)
 	} else {
 		explore.ChartsUpdated()
 	}
+	// Dump the cache charts data into a file for future use on system exit.
+	defer charts.Dump(dumpPath)
 
 	// Add charts saver method after explorer and database stores. This may run
 	// asynchronously.
@@ -1008,10 +999,6 @@ func _main(ctx context.Context) error {
 			return nil
 		},
 	})
-
-	// This dumps the cache charts data into a file for future use on system
-	// exit.
-	defer charts.Dump(dumpPath)
 
 	// Block further usage of the barLoad by sending a nil value
 	if barLoad != nil {
@@ -1045,22 +1032,19 @@ func _main(ctx context.Context) error {
 			if err := proposalsInstance.CheckProposalsUpdates(); err != nil {
 				log.Errorf("updating proposals db failed: %v", err)
 			}
+
+			log.Info("Updating Politeia proposals...")
+
+			// Fetch updates for Politiea's Proposal history(votes) data via the
+			// parser. An error in fetching the updates should not stop the
+			// system since it could be a git issue.
+			commitsCount, err := chainDB.PiProposalsHistory()
+			if err != nil {
+				log.Errorf("chainDB.PiProposalsHistory failed : %v", err)
+			} else {
+				log.Infof("%d Politeia git commits were processed", commitsCount)
+			}
 		}()
-
-		// It initiates the updates fetch process for the proposal votes data after
-		// sync for the other tables is complete. It is only run if the system is on
-		// full mode. An error in fetching the updates should not stop the system
-		// functionality since it could be attributed to the external systems used.
-		log.Info("Running updates retrieval for Politeia's Proposals. Please wait...")
-
-		// Fetch updates for Politiea's Proposal history(votes) data via the parser.
-		commitsCount, err := chainDB.PiProposalsHistory()
-		if err != nil {
-			log.Errorf("chainDB.PiProposalsHistory failed : %v", err)
-		} else {
-			log.Infof("%d politeia's proposal (auxiliary db) commits were processed",
-				commitsCount)
-		}
 	}
 
 	// Monitors for new blocks, transactions, and reorgs should not run before
@@ -1090,10 +1074,10 @@ func _main(ctx context.Context) error {
 	// Blockchain monitor for the stake DB
 	sdbChainMonitor := stakeDB.NewChainMonitor(ctx)
 
-	// Blockchain monitor for the aux (PG) DB
+	// Blockchain monitor for the main DB
 	chainDBChainMonitor := chainDB.NewChainMonitor(ctx)
 	if chainDBChainMonitor == nil {
-		return fmt.Errorf("Failed to enable dcrpg ChainMonitor. *ChainDB is nil.")
+		return fmt.Errorf("failed to enable dcrpg ChainMonitor")
 	}
 
 	// Initial data summary for web ui. stakedb must be at the same height, so
@@ -1120,6 +1104,10 @@ func _main(ctx context.Context) error {
 	if err = ensureSync(); err != nil {
 		return err
 	}
+
+	log.Infof("All ready, at height %d.", chainDBHeight)
+	explore.SetDBsSyncing(false)
+	psHub.SetReady(true)
 
 	// Set the current best block in the collection queue so that it can verify
 	// that subsequent blocks are in the correct sequence.
@@ -1155,7 +1143,6 @@ func waitForSync(ctx context.Context, aux chan dbtypes.SyncResult) (int64, error
 	// Wait for the postgresql sync result.
 	auxRes := <-aux
 	chainDBHeight := auxRes.Height
-	log.Infof("PostgreSQL sync ended at height %d", chainDBHeight)
 
 	// See if shutdown was requested.
 	if shutdownRequested(ctx) {

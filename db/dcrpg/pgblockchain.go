@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -1246,10 +1245,7 @@ func (pgb *ChainDB) PiProposalsHistory() (int64, error) {
 	}
 
 	pgb.proposalsSync.mtx.Lock()
-
-	// set the sync time
 	pgb.proposalsSync.syncTime = time.Now().UTC()
-
 	pgb.proposalsSync.mtx.Unlock()
 
 	var isChecked bool
@@ -1258,6 +1254,7 @@ func (pgb *ChainDB) PiProposalsHistory() (int64, error) {
 	lastUpdate, err := retrieveLastCommitTime(pgb.db)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
+		log.Infof("Retrieving entire proposal history...")
 		// No records exists yet fetch all the history.
 		proposalsData, err = pgb.piparser.ProposalsHistory()
 
@@ -1265,6 +1262,7 @@ func (pgb *ChainDB) PiProposalsHistory() (int64, error) {
 		return -1, fmt.Errorf("retrieveLastCommitTime failed: %w", err)
 
 	default:
+		log.Infof("Retrieving proposal history since %v...", lastUpdate)
 		// Fetch the updates since the last insert only.
 		proposalsData, err = pgb.piparser.ProposalsHistorySince(lastUpdate)
 		isChecked = true
@@ -1276,6 +1274,7 @@ func (pgb *ChainDB) PiProposalsHistory() (int64, error) {
 
 	var commitsCount int64
 
+	log.Infof("Storing %d new proposal data records...", len(proposalsData))
 	for _, entry := range proposalsData {
 		if entry.CommitSHA == "" {
 			// If missing commit sha ignore the entry.
@@ -1952,7 +1951,6 @@ func (pgb *ChainDB) FreshenAddressCaches(lazyProjectFund bool, expireAddresses [
 
 	if lazyProjectFund {
 		go func() {
-			runtime.Gosched()
 			if err := updateFundData(); err != nil {
 				log.Error(err)
 			}
@@ -2840,13 +2838,13 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 	// isMainchain, and updateExistingRecords, and nil winningTickets.
 	isValid, isMainChain, updateExistingRecords := true, true, true
 
-	// Since Store should not be used in batch block processing, addresses and
-	// tickets spending information is updated.
-	updateAddressesSpendingInfo, updateTicketsSpendingInfo := true, true
+	// Since Store should not be used in batch block processing, address'
+	// spending information is updated.
+	updateAddressesSpendingInfo := true
 
 	_, _, _, err := pgb.StoreBlock(msgBlock, isValid, isMainChain,
 		updateExistingRecords, updateAddressesSpendingInfo,
-		updateTicketsSpendingInfo, blockData.Header.ChainWork)
+		blockData.Header.ChainWork)
 
 	// Signal updates to any subscribed heightClients.
 	pgb.SignalHeight(msgBlock.Header.Height)
@@ -3498,7 +3496,7 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 // StoreBlock processes the input wire.MsgBlock, and saves to the data tables.
 // The number of vins and vouts stored are returned.
 func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, isValid, isMainchain,
-	updateExistingRecords, updateAddressesSpendingInfo, updateTicketsSpendingInfo bool,
+	updateExistingRecords, updateAddressesSpendingInfo bool,
 	chainWork string) (numVins int64, numVouts int64, numAddresses int64, err error) {
 
 	// winningTickets is only set during initial chain sync.
@@ -3563,7 +3561,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, isValid, isMainchain,
 	go func() {
 		resChanReg <- pgb.storeBlockTxnTree(MsgBlockPG, wire.TxTreeRegular,
 			pgb.chainParams, isValid, isMainchain, updateExistingRecords,
-			updateAddressesSpendingInfo, updateTicketsSpendingInfo)
+			updateAddressesSpendingInfo)
 	}()
 
 	// stake transactions
@@ -3571,7 +3569,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, isValid, isMainchain,
 	go func() {
 		resChanStake <- pgb.storeBlockTxnTree(MsgBlockPG, wire.TxTreeStake,
 			pgb.chainParams, isValid, isMainchain, updateExistingRecords,
-			updateAddressesSpendingInfo, updateTicketsSpendingInfo)
+			updateAddressesSpendingInfo)
 	}()
 
 	if dbBlock.Height%5000 == 0 {
@@ -3755,7 +3753,7 @@ func (pgb *ChainDB) UpdateLastBlock(msgBlock *wire.MsgBlock, isMainchain bool) e
 	lastIsValid := msgBlock.Header.VoteBits&1 != 0
 	if !lastIsValid {
 		// Update the is_valid flag in the blocks table.
-		log.Infof("Setting last block %s as INVALID", lastBlockHash)
+		log.Infof("Previous block %s was DISAPPROVED by stakeholders.", lastBlockHash)
 		err := UpdateLastBlockValid(pgb.db, lastBlockDbID, lastIsValid)
 		if err != nil {
 			return fmt.Errorf("UpdateLastBlockValid: %w", err)
@@ -3908,7 +3906,7 @@ func (pgb *ChainDB) storeTxns(txns []*dbtypes.Tx, vouts [][]*dbtypes.Vout, vins 
 // storeBlockTxnTree stores the transactions of a given block.
 func (pgb *ChainDB) storeBlockTxnTree(msgBlock *MsgBlockPG, txTree int8,
 	chainParams *chaincfg.Params, isValid, isMainchain bool,
-	updateExistingRecords, updateAddressesSpendingInfo, updateTicketsSpendingInfo bool) storeTxnsResult {
+	updateExistingRecords, updateAddressesSpendingInfo bool) storeTxnsResult {
 	// For the given block and transaction tree, extract the transactions, vins,
 	// and vouts. Note that each txn in dbTransactions has IsValid set according
 	// to the isValid flag for the block and the tree of the transaction itself,
@@ -4037,12 +4035,8 @@ txns:
 
 		// Cache the unspent ticket DB row IDs and and their hashes. Needed do
 		// efficiently update their spend status later.
-		var unspentTicketCache *TicketTxnIDGetter
-		if updateTicketsSpendingInfo {
-			for it, tdbid := range newTicketDbIDs {
-				pgb.unspentTicketCache.Set(newTicketTx[it].TxID, tdbid)
-			}
-			unspentTicketCache = pgb.unspentTicketCache
+		for it, tdbid := range newTicketDbIDs {
+			pgb.unspentTicketCache.Set(newTicketTx[it].TxID, tdbid)
 		}
 
 		// Votes: insert votes and misses (tickets that did not vote when
@@ -4053,7 +4047,7 @@ txns:
 		// voteDbIDs, voteTxns, spentTicketHashes, ticketDbIDs, missDbIDs, err := ...
 		var missesHashIDs map[string]uint64
 		_, _, _, _, missesHashIDs, err = InsertVotes(pgb.db, dbTransactions, txDbIDs,
-			unspentTicketCache, msgBlock, pgb.dupChecks, updateExistingRecords,
+			pgb.unspentTicketCache, msgBlock, pgb.dupChecks, updateExistingRecords,
 			pgb.chainParams, pgb.ChainInfo())
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			log.Error("InsertVotes:", err)
@@ -4069,126 +4063,124 @@ txns:
 			return txRes
 		}
 
-		if updateTicketsSpendingInfo {
-			// Get information for transactions spending tickets (votes and
-			// revokes), and the ticket DB row IDs themselves. Also return
-			// tickets table row IDs for newly spent tickets, if we are updating
-			// them as we go (SetSpendingForTickets). CollectTicketSpendDBInfo
-			// uses ChainDB's ticket DB row ID cache (unspentTicketCache), and
-			// immediately expires any found entries for a main chain block.
-			spendingTxDbIDs, spendTypes, spentTicketHashes, ticketDbIDs, err :=
-				pgb.CollectTicketSpendDBInfo(dbTransactions, txDbIDs,
-					msgBlock.MsgBlock, isMainchain)
-			if err != nil {
-				log.Error("CollectTicketSpendDBInfo:", err)
-				txRes.err = err
+		// Get information for transactions spending tickets (votes and
+		// revokes), and the ticket DB row IDs themselves. Also return tickets
+		// table row IDs for newly spent tickets, if we are updating them as we
+		// go (SetSpendingForTickets). CollectTicketSpendDBInfo uses ChainDB's
+		// ticket DB row ID cache (unspentTicketCache), and immediately expires
+		// any found entries for a main chain block.
+		spendingTxDbIDs, spendTypes, spentTicketHashes, ticketDbIDs, err :=
+			pgb.CollectTicketSpendDBInfo(dbTransactions, txDbIDs,
+				msgBlock.MsgBlock, isMainchain)
+		if err != nil {
+			log.Error("CollectTicketSpendDBInfo:", err)
+			txRes.err = err
+			return txRes
+		}
+
+		// Get a consistent view of the stake node at its present height.
+		pgb.stakeDB.LockStakeNode()
+
+		// Classify and record the height of each ticket spend (vote or revoke).
+		// For revokes, further distinguish miss or expire.
+		revokes := make(map[string]uint64)
+		blockHeights := make([]int64, len(spentTicketHashes))
+		poolStatuses := make([]dbtypes.TicketPoolStatus, len(spentTicketHashes))
+		for iv := range spentTicketHashes {
+			blockHeights[iv] = height
+
+			// Vote or revoke
+			switch spendTypes[iv] {
+			case dbtypes.TicketVoted:
+				poolStatuses[iv] = dbtypes.PoolStatusVoted
+			case dbtypes.TicketRevoked:
+				revokes[spentTicketHashes[iv]] = ticketDbIDs[iv]
+				// Revoke reason
+				h, err0 := chainhash.NewHashFromStr(spentTicketHashes[iv])
+				if err0 != nil {
+					log.Errorf("Invalid hash %v", spentTicketHashes[iv])
+					continue // no info about spent ticket!
+				}
+				expired := pgb.stakeDB.BestNode.ExistsExpiredTicket(*h)
+				if !expired {
+					poolStatuses[iv] = dbtypes.PoolStatusMissed
+				} else {
+					poolStatuses[iv] = dbtypes.PoolStatusExpired
+				}
+			}
+		}
+
+		// Update tickets table with spending info.
+		_, err = SetSpendingForTickets(pgb.db, ticketDbIDs, spendingTxDbIDs,
+			blockHeights, spendTypes, poolStatuses)
+		if err != nil {
+			log.Error("SetSpendingForTickets:", err)
+		}
+
+		// Unspent not-live tickets are also either expired or missed.
+
+		// Missed but not revoked
+		var unspentMissedTicketHashes []string
+		var missStatuses []dbtypes.TicketPoolStatus
+		unspentMisses := make(map[string]struct{})
+		// missesHashIDs refers to lottery winners that did not vote.
+		for miss := range missesHashIDs {
+			if _, ok := revokes[miss]; !ok {
+				// unrevoked miss
+				unspentMissedTicketHashes = append(unspentMissedTicketHashes, miss)
+				unspentMisses[miss] = struct{}{}
+				missStatuses = append(missStatuses, dbtypes.PoolStatusMissed)
+			}
+		}
+
+		// Expired but not revoked
+		unspentEnM := make([]string, len(unspentMissedTicketHashes))
+		// Start with the unspent misses and append unspent expires to get
+		// "unspent expired and missed".
+		copy(unspentEnM, unspentMissedTicketHashes)
+		unspentExpiresAndMisses := pgb.stakeDB.BestNode.MissedByBlock()
+		for _, missHash := range unspentExpiresAndMisses {
+			// MissedByBlock includes tickets that missed votes or expired (and
+			// which may be revoked in this block); we just want the expires,
+			// and not the revoked ones. Screen each ticket from MissedByBlock
+			// for the actual unspent expires.
+			if pgb.stakeDB.BestNode.ExistsExpiredTicket(missHash) {
+				emHash := missHash.String()
+				// Next check should not be unnecessary. Make sure not in
+				// unspent misses from above, and not just revoked.
+				_, justMissed := unspentMisses[emHash] // should be redundant
+				_, justRevoked := revokes[emHash]      // exclude if revoked
+				if !justMissed && !justRevoked {
+					unspentEnM = append(unspentEnM, emHash) //nolint:makezero
+					missStatuses = append(missStatuses, dbtypes.PoolStatusExpired)
+				}
+			}
+		}
+
+		// Release the stake node.
+		pgb.stakeDB.UnlockStakeNode()
+
+		// Locate the row IDs of the unspent expired and missed tickets. Do not
+		// expire the cache entry.
+		unspentEnMRowIDs := make([]uint64, len(unspentEnM))
+		for iu := range unspentEnM {
+			t, err0 := pgb.unspentTicketCache.TxnDbID(unspentEnM[iu], false)
+			if err0 != nil {
+				txRes.err = fmt.Errorf("failed to retrieve ticket %s DB ID: %w",
+					unspentEnM[iu], err0)
 				return txRes
 			}
+			unspentEnMRowIDs[iu] = t
+		}
 
-			// Get a consistent view of the stake node at its present height.
-			pgb.stakeDB.LockStakeNode()
-
-			// Classify and record the height of each ticket spend (vote or
-			// revoke). For revokes, further distinguish miss or expire.
-			revokes := make(map[string]uint64)
-			blockHeights := make([]int64, len(spentTicketHashes))
-			poolStatuses := make([]dbtypes.TicketPoolStatus, len(spentTicketHashes))
-			for iv := range spentTicketHashes {
-				blockHeights[iv] = height
-
-				// Vote or revoke
-				switch spendTypes[iv] {
-				case dbtypes.TicketVoted:
-					poolStatuses[iv] = dbtypes.PoolStatusVoted
-				case dbtypes.TicketRevoked:
-					revokes[spentTicketHashes[iv]] = ticketDbIDs[iv]
-					// Revoke reason
-					h, err0 := chainhash.NewHashFromStr(spentTicketHashes[iv])
-					if err0 != nil {
-						log.Errorf("Invalid hash %v", spentTicketHashes[iv])
-						continue // no info about spent ticket!
-					}
-					expired := pgb.stakeDB.BestNode.ExistsExpiredTicket(*h)
-					if !expired {
-						poolStatuses[iv] = dbtypes.PoolStatusMissed
-					} else {
-						poolStatuses[iv] = dbtypes.PoolStatusExpired
-					}
-				}
-			}
-
-			// Update tickets table with spending info.
-			_, err = SetSpendingForTickets(pgb.db, ticketDbIDs, spendingTxDbIDs,
-				blockHeights, spendTypes, poolStatuses)
-			if err != nil {
-				log.Error("SetSpendingForTickets:", err)
-			}
-
-			// Unspent not-live tickets are also either expired or missed.
-
-			// Missed but not revoked
-			var unspentMissedTicketHashes []string
-			var missStatuses []dbtypes.TicketPoolStatus
-			unspentMisses := make(map[string]struct{})
-			// missesHashIDs refers to lottery winners that did not vote.
-			for miss := range missesHashIDs {
-				if _, ok := revokes[miss]; !ok {
-					// unrevoked miss
-					unspentMissedTicketHashes = append(unspentMissedTicketHashes, miss)
-					unspentMisses[miss] = struct{}{}
-					missStatuses = append(missStatuses, dbtypes.PoolStatusMissed)
-				}
-			}
-
-			// Expired but not revoked
-			unspentEnM := make([]string, len(unspentMissedTicketHashes))
-			// Start with the unspent misses and append unspent expires to get
-			// "unspent expired and missed".
-			copy(unspentEnM, unspentMissedTicketHashes)
-			unspentExpiresAndMisses := pgb.stakeDB.BestNode.MissedByBlock()
-			for _, missHash := range unspentExpiresAndMisses {
-				// MissedByBlock includes tickets that missed votes or expired
-				// (and which may be revoked in this block); we just want the
-				// expires, and not the revoked ones. Screen each ticket from
-				// MissedByBlock for the actual unspent expires.
-				if pgb.stakeDB.BestNode.ExistsExpiredTicket(missHash) {
-					emHash := missHash.String()
-					// Next check should not be unnecessary. Make sure not in
-					// unspent misses from above, and not just revoked.
-					_, justMissed := unspentMisses[emHash] // should be redundant
-					_, justRevoked := revokes[emHash]      // exclude if revoked
-					if !justMissed && !justRevoked {
-						unspentEnM = append(unspentEnM, emHash) //nolint:makezero
-						missStatuses = append(missStatuses, dbtypes.PoolStatusExpired)
-					}
-				}
-			}
-
-			// Release the stake node.
-			pgb.stakeDB.UnlockStakeNode()
-
-			// Locate the row IDs of the unspent expired and missed tickets. Do
-			// not expire the cache entry.
-			unspentEnMRowIDs := make([]uint64, len(unspentEnM))
-			for iu := range unspentEnM {
-				t, err0 := unspentTicketCache.TxnDbID(unspentEnM[iu], false)
-				if err0 != nil {
-					txRes.err = fmt.Errorf("failed to retrieve ticket %s DB ID: %w",
-						unspentEnM[iu], err0)
-					return txRes
-				}
-				unspentEnMRowIDs[iu] = t
-			}
-
-			// Update status of the unspent expired and missed tickets.
-			numUnrevokedMisses, err := SetPoolStatusForTickets(pgb.db,
-				unspentEnMRowIDs, missStatuses)
-			if err != nil {
-				log.Errorf("SetPoolStatusForTicketsByHash: %v", err)
-			} else if numUnrevokedMisses > 0 {
-				log.Tracef("Noted %d unrevoked newly-missed tickets.", numUnrevokedMisses)
-			}
-		} // updateTicketsSpendingInfo
+		// Update status of the unspent expired and missed tickets.
+		numUnrevokedMisses, err := SetPoolStatusForTickets(pgb.db,
+			unspentEnMRowIDs, missStatuses)
+		if err != nil {
+			log.Errorf("SetPoolStatusForTicketsByHash: %v", err)
+		} else if numUnrevokedMisses > 0 {
+			log.Tracef("Noted %d unrevoked newly-missed tickets.", numUnrevokedMisses)
+		}
 	} // isStake
 
 	wg.Wait()
