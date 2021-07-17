@@ -4,6 +4,38 @@ import (
 	"testing"
 )
 
+func TestBlockVoteBitsStr(t *testing.T) {
+	funcs := makeTemplateFuncMap(nil)
+
+	blockVoteBitsStr, ok := funcs["blockVoteBitsStr"]
+	if !ok {
+		t.Fatalf(`Template function map does not contain "blockVoteBitsStr".`)
+	}
+
+	blockVoteBitsStrFn, ok := blockVoteBitsStr.(func(voteBits uint16) string)
+	if !ok {
+		t.Fatalf(`Template function "blockVoteBitsStr" is not of type "func(voteBits uint16) string".`)
+	}
+
+	testData := []struct {
+		bits uint16
+		want string
+	}{
+		{0, "disapprove"},
+		{1, "approve"},
+		{2, "disapprove"},
+		{3, "approve"},
+		{10, "disapprove"},
+		{11, "approve"},
+	}
+
+	for i := range testData {
+		if got := blockVoteBitsStrFn(testData[i].bits); got != testData[i].want {
+			t.Errorf("wanted %q, got %q", testData[i].want, got)
+		}
+	}
+}
+
 func TestPrefixPath(t *testing.T) {
 	funcs := makeTemplateFuncMap(nil)
 
