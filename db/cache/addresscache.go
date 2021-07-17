@@ -418,8 +418,10 @@ type AddressCacheItem struct {
 	rows    []*dbtypes.AddressRowCompact // creditDebitQuery
 	utxos   []*dbtypes.AddressTxnOutput
 	history TxHistory
-	height  int64
-	hash    chainhash.Hash
+	// Block height and hash are intended to keep balance and rows consistent.
+	// The utxos and charts data may be stored at a later block.
+	height int64
+	hash   chainhash.Hash
 }
 
 // BlockID provides basic identifying information about a block.
@@ -828,6 +830,9 @@ func (ac *AddressCache) Clear(addrs []string) (numCleared int) {
 	ac.mtx.Lock()
 	defer ac.mtx.Unlock()
 	for i := range addrs {
+		if _, found := ac.a[addrs[i]]; !found {
+			continue
+		}
 		delete(ac.a, addrs[i])
 		numCleared++
 	}
@@ -934,7 +939,7 @@ func (ac *AddressCache) Transactions(addr string, N, offset int64, txnType dbtyp
 
 // TransactionsMerged is like Transactions, but it must be used with a merged
 // AddrTxnViewType, and it returns a []dbtypes.AddressRowMerged. A cache miss is
-// indicated by (*BlockID)==nil. The retured rows may be nil or an empty slice
+// indicated by (*BlockID)==nil. The returned rows may be nil or an empty slice
 // for a cache hit if the address has no history.
 func (ac *AddressCache) TransactionsMerged(addr string, N, offset int64, txnType dbtypes.AddrTxnViewType) ([]*dbtypes.AddressRowMerged, *BlockID, error) {
 	aci := ac.addressCacheItem(addr)
@@ -953,15 +958,15 @@ func (ac *AddressCache) TransactionsMerged(addr string, N, offset int64, txnType
 	case []*dbtypes.AddressRowMerged:
 		return r, blockID, err
 	default:
-		return nil, nil, fmt.Errorf(`TransactionsMerged(%s, N=%d, offset=%d, view="%s") failed to return []dbtypes.AddressRowMerged.`,
+		return nil, nil, fmt.Errorf(`TransactionsMerged(%s, N=%d, offset=%d, view="%s") failed to return []dbtypes.AddressRowMerged`,
 			addr, N, offset, txnType.String())
 	}
 }
 
 // TransactionsCompact is like Transactions, but it must be used with a
 // non-merged AddrTxnViewType, and it returns a []dbtypes.AddressRowCompact. A
-// cache miss is indicated by (*BlockID)==nil. The retured rows may be nil or an
-// empty slice for a cache hit if the address has no history.
+// cache miss is indicated by (*BlockID)==nil. The returned rows may be nil or
+// an empty slice for a cache hit if the address has no history.
 func (ac *AddressCache) TransactionsCompact(addr string, N, offset int64, txnType dbtypes.AddrTxnViewType) ([]*dbtypes.AddressRowCompact, *BlockID, error) {
 	aci := ac.addressCacheItem(addr)
 	if aci == nil {
@@ -979,7 +984,7 @@ func (ac *AddressCache) TransactionsCompact(addr string, N, offset int64, txnTyp
 	case []*dbtypes.AddressRowCompact:
 		return r, blockID, err
 	default:
-		return nil, nil, fmt.Errorf(`TransactionsCompact(%s, N=%d, offset=%d, view="%s") failed to return []dbtypes.AddressRowCompact.`,
+		return nil, nil, fmt.Errorf(`TransactionsCompact(%s, N=%d, offset=%d, view="%s") failed to return []dbtypes.AddressRowCompact`,
 			addr, N, offset, txnType.String())
 	}
 }
@@ -1085,6 +1090,7 @@ func (ac *AddressCache) setCacheItemRows(addr string, rows []*dbtypes.AddressRow
 	}
 
 	aci := ac.a[addr]
+	// Keep rows consistent with height/hash.
 	if aci == nil || aci.BlockHash() != block.Hash {
 		return ac.addCacheItem(addr, &AddressCacheItem{
 			rows:   rows,
@@ -1152,7 +1158,8 @@ func (ac *AddressCache) StoreHistoryChart(addr string, addrChart dbtypes.History
 	defer ac.mtx.Unlock()
 	aci := ac.a[addr]
 
-	if aci == nil || aci.BlockHash() != block.Hash {
+	// Don't evict existing balance/rows cache on account of block mismatch.
+	if aci == nil /* || aci.BlockHash() != block.Hash */ {
 		aci = &AddressCacheItem{
 			height: block.Height,
 			hash:   block.Hash,
@@ -1215,6 +1222,7 @@ func (ac *AddressCache) StoreBalance(addr string, balance *dbtypes.AddressBalanc
 		bal = *balance
 	}
 
+	// Keep balance consistent with height/hash.
 	if aci == nil || aci.BlockHash() != block.Hash {
 		return ac.addCacheItem(addr, &AddressCacheItem{
 			balance: &bal,
@@ -1250,7 +1258,8 @@ func (ac *AddressCache) StoreUTXOs(addr string, utxos []*dbtypes.AddressTxnOutpu
 		utxos = []*dbtypes.AddressTxnOutput{}
 	}
 
-	if aci == nil || aci.BlockHash() != block.Hash {
+	// Don't evict existing balance/rows cache on account of block mismatch.
+	if aci == nil /* || aci.BlockHash() != block.Hash */ {
 		return ac.addCacheItem(addr, &AddressCacheItem{
 			utxos:  utxos,
 			height: block.Height,

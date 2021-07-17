@@ -228,10 +228,15 @@ func (pgb *ChainDB) BlockSummaryTimeRange(min, max int64, limit int) ([]dbtypes.
 // AddressUTXO returns the unspent transaction outputs (UTXOs) paying to the
 // specified address in a []*dbtypes.AddressTxnOutput.
 func (pgb *ChainDB) AddressUTXO(address string) ([]*dbtypes.AddressTxnOutput, bool, error) {
+	_, err := dcrutil.DecodeAddress(address, pgb.chainParams)
+	if err != nil {
+		return nil, false, err
+	}
+
 	// Check the cache first.
 	bestHash, height := pgb.BestBlock()
 	utxos, validHeight := pgb.AddressCache.UTXOs(address)
-	if utxos != nil && *bestHash == validHeight.Hash {
+	if utxos != nil && validHeight != nil /* validHeight.Hash == *bestHash */ {
 		return utxos, false, nil
 	}
 

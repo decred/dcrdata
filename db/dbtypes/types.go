@@ -1550,6 +1550,9 @@ func CompactRows(rows []*AddressRow) []*AddressRowCompact {
 // []*AddressRow. VinVoutDbID is unknown and set to zero. Do not use
 // VinVoutDbID, or insert the AddressRow.
 func UncompactRows(compact []*AddressRowCompact) []*AddressRow {
+	if compact == nil {
+		return nil
+	}
 	rows := make([]*AddressRow, 0, len(compact))
 	for _, r := range compact {
 		// An unset matching hash is represented by the zero-value array.
@@ -1577,6 +1580,9 @@ func UncompactRows(compact []*AddressRowCompact) []*AddressRow {
 // to a []*AddressRow. VinVoutDbID is unknown and set to zero. Do not use
 // VinVoutDbID, or insert the AddressRow.
 func UncompactMergedRows(merged []*AddressRowMerged) []*AddressRow {
+	if merged == nil {
+		return nil
+	}
 	rows := make([]*AddressRow, 0, len(merged))
 	for _, r := range merged {
 		rows = append(rows, &AddressRow{
