@@ -433,12 +433,14 @@ the `dcrdata` executable.
 
 The time required to sync varies greatly with system hardware and software
 configuration. The most important factor is the storage medium on the database
-machine. An SSD (preferably NVMe, not SATA) is strongly recommended if you value
-your time and system performance.
+machine. An SSD (preferably NVMe, not SATA) is REQUIRED. The PostgreSQL
+operations are extremely disk intensive, especially during the initial
+synchronization process. Both high throughput and low latencies for fast
+random accesses are essential.
 
 ### dcrdata only (PostgreSQL on other host)
 
-Minimum:
+Without PostgreSQL, the dcrdata process can get by with:
 
 - 1 CPU core
 - 2 GB RAM
@@ -452,13 +454,13 @@ Minimum:
 
 - 2 CPU core
 - 6 GB RAM
-- HDD with 120GB free space
+- SSD with 120GB free space (no spinning hard drive for the DB!)
 
 Recommend:
 
-- 2+ CPU cores
-- 8+ GB RAM
-- SSD (NVMe preferred) with 120 GB free space
+- 3+ CPU cores
+- 12+ GB RAM
+- NVMe SSD with 120 GB free space
 
 ## dcrdata Daemon
 
