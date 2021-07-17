@@ -330,6 +330,12 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 	netTheme := "theme-" + strings.ToLower(netName(params))
 
 	return template.FuncMap{
+		"blockVoteBitsStr": func(voteBits uint16) string {
+			if voteBits&1 == 0 {
+				return "disapprove"
+			}
+			return "approve"
+		},
 		"txtypeStr": func(txtype int) string {
 			return txhelpers.TxTypeToString(txtype)
 		},
