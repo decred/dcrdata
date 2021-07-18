@@ -2846,7 +2846,7 @@ func resetSpendingForVoutsByTxRowID(tx *sql.Tx, spendingTxRowIDs []int64) (int64
 func InsertSpendingAddressRow(db *sql.DB, fundingTxHash string, fundingTxVoutIndex uint32, fundingTxTree int8,
 	spendingTxHash string, spendingTxVinIndex uint32, vinDbID uint64, utxoData *dbtypes.UTXOData,
 	checked, updateExisting, mainchain, valid bool, txType int16, updateFundingRow bool,
-	spendingTXBlockTime dbtypes.TimeDef) (int64, uint64, bool, error) {
+	spendingTXBlockTime dbtypes.TimeDef) (int64, int64, bool, error) {
 	// Only allow atomic transactions to happen.
 	dbtx, err := db.Begin()
 	if err != nil {
@@ -2887,12 +2887,12 @@ func updateSpendTxInfoInAllVouts(db SqlExecutor) (int64, error) {
 func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutIndex uint32,
 	fundingTxTree int8, spendingTxHash string, spendingTxVinIndex uint32, vinDbID uint64,
 	spentUtxoData *dbtypes.UTXOData, checked, updateExisting, mainchain, valid bool, txType int16,
-	updateFundingRow bool, blockT ...dbtypes.TimeDef) (int64, uint64, bool, error) {
+	updateFundingRow bool, blockT ...dbtypes.TimeDef) (int64, int64, bool, error) {
 
 	// Select addresses and value from the matching funding tx output. A maximum
 	// of one row and a minimum of none are expected.
 	var addrs []string
-	var value, voutDbID uint64
+	var value, voutDbID int64
 	var mixed bool
 
 	// When no previous output information is provided, query the vouts table
@@ -2901,13 +2901,13 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 		// The addresses column of the vouts table contains an array of
 		// addresses that the pkScript pays to (i.e. >1 for multisig).
 		var addrArray string
-		err := tx.QueryRow(internal.SelectAddressByTxHash,
+		err := tx.QueryRow(internal.SelectVoutAddressesByTxOut,
 			fundingTxHash, fundingTxVoutIndex, fundingTxTree).Scan(&voutDbID, &addrArray, &value, &mixed)
 		switch err {
 		case sql.ErrNoRows, nil:
 			// If no row found or error is nil, continue
 		default:
-			return 0, 0, mixed, fmt.Errorf("SelectAddressByTxHash: %w", err)
+			return 0, 0, mixed, fmt.Errorf("SelectVoutAddressesByTxOut: %w", err)
 		}
 
 		// Get address list.
@@ -2916,9 +2916,9 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 		addrs = strings.Split(addrArray, ",")
 	} else {
 		addrs = spentUtxoData.Addresses
-		value = uint64(spentUtxoData.Value)
+		value = spentUtxoData.Value
 		mixed = spentUtxoData.Mixed
-		voutDbID = uint64(spentUtxoData.VoutDbID)
+		voutDbID = spentUtxoData.VoutDbID
 	}
 
 	// Check if the block time was provided.

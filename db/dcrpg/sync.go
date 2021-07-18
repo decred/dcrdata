@@ -22,7 +22,6 @@ const (
 	deepStatsTarget          = 600
 	rescanLogBlockChunk      = 500
 	initialLoadSyncStatusMsg = "Syncing stake and chain DBs..."
-	voutsSyncStatusMsg       = "Syncing vouts table with spending info..."
 	addressesSyncStatusMsg   = "Syncing addresses table with spending info..."
 )
 
@@ -127,17 +126,13 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		}
 		if !updateAllAddresses {
 			updateAllAddresses = true
-			log.Warnf("Forcing full update of spending information in addresses and vouts tables.")
+			log.Warnf("Forcing full update of spending information in addresses table.")
 		}
 	}
 
 	if pgb.utxoCache.Size() == 0 { // entries at any height implies it's warmed by previous sync
 		log.Infof("Collecting all UTXO data prior to height %d...", lastBlock+1)
-		utxoFunc := RetrieveUTXOs
-		if updateAllAddresses {
-			utxoFunc = RetrieveUTXOsByVinsJoin
-		}
-		utxos, err := utxoFunc(ctx, pgb.db)
+		utxos, err := RetrieveUTXOs(ctx, pgb.db)
 		if err != nil {
 			return -1, fmt.Errorf("RetrieveUTXOs: %v", err)
 		}
@@ -193,7 +188,7 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		stages++ // not reindexing, just quick analyzing because far behind
 	}
 	if updateAllAddresses {
-		stages += 2 // vouts and addresses table spending info update
+		stages++ // addresses table spending info update
 	}
 
 	// Safely send sync status updates on barLoad channel, and set the channel
@@ -292,8 +287,8 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 				log.Infof("Processing blocks %d to %d...", ib, endRangeBlock)
 
 				if barLoad != nil {
-					timeTakenPerBlock := (time.Since(lastProgressUpdateTime).Seconds() /
-						float64(endRangeBlock-ib))
+					timeTakenPerBlock := time.Since(lastProgressUpdateTime).Seconds() /
+						float64(endRangeBlock-ib)
 					sendProgressUpdate(&dbtypes.ProgressBarLoad{
 						From:      ib,
 						To:        nodeHeight,
@@ -371,11 +366,9 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 
 		// Update explorer pages at intervals of 20 blocks if the update channel
 		// is active (non-nil and not closed).
-		if ib%20 == 0 && !updateAllAddresses {
-			if updateExplorer != nil {
-				log.Infof("Updating the explorer with information for block %v", ib)
-				sendPageData(blockHash)
-			}
+		if !updateAllAddresses && ib%20 == 0 {
+			log.Infof("Updating the explorer with information for block %v", ib)
+			sendPageData(blockHash)
 		}
 
 		// Update node height, the end condition for the loop.
@@ -404,7 +397,7 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		stage++
 		log.Infof("Beginning SYNC STAGE %d of %d (duplicate row removal).", stage, stages)
 
-		// drop the temporary index on addresses(tx_vin_vout_row_id).
+		// Drop the temporary index on addresses(tx_vin_vout_row_id).
 		log.Infof("Dropping temporary index on addresses(tx_vin_vout_row_id).")
 		_, err = pgb.db.Exec(`DROP INDEX IF EXISTS idx_addresses_vinvout_id_tmp;`)
 		if err != nil {
@@ -425,8 +418,8 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		stage++
 		log.Infof("Beginning SYNC STAGE %d of %d (table indexing and analyzing).", stage, stages)
 
-		// Create all indexes except those on addresses.matching_tx_hash,
-		// vouts.spend_tx_row_id, and all tickets indexes.
+		// Create all indexes except those on addresses.matching_tx_hash and all
+		// tickets indexes.
 		if err = pgb.IndexAll(barLoad); err != nil {
 			return nodeHeight, fmt.Errorf("IndexAll failed: %v", err)
 		}
@@ -436,13 +429,11 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 			if err = IndexAddressTableOnMatchingTxHash(pgb.db); err != nil {
 				return nodeHeight, fmt.Errorf("IndexAddressTableOnMatchingTxHash failed: %v", err)
 			}
-			// The vouts.spend_tx_row_id index is not included in IndexAll.
-			if err := IndexVoutTableOnSpendTxID(pgb.db); err != nil {
-				return nodeHeight, fmt.Errorf("IndexVoutTableOnSpendTxID: %v", err)
-			}
 		}
 
-		// Tickets table indexes are not included in IndexAll.
+		// Tickets table indexes are not included in IndexAll. (move it into
+		// IndexAll since tickets are always updated on the fly and not part of
+		// updateAllAddresses?)
 		if err = pgb.IndexTicketsTable(barLoad); err != nil {
 			return nodeHeight, fmt.Errorf("IndexTicketsTable failed: %v", err)
 		}
@@ -459,13 +450,11 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 	// Batch update addresses table with spending info.
 	if updateAllAddresses {
 		stage++
-		log.Infof("Beginning SYNC STAGE %d of %d (setting spending info in vouts table).", stage, stages)
+		log.Infof("Beginning SYNC STAGE %d of %d (setting spending info in addresses table). "+
+			"This will take a while.", stage, stages)
+
 		// Analyze vouts and transactions tables first.
 		if !analyzed {
-			log.Infof("Performing an ANALYZE(%d) on vins table...", deepStatsTarget)
-			if err = AnalyzeTable(pgb.db, "vins", deepStatsTarget); err != nil {
-				return nodeHeight, fmt.Errorf("failed to ANALYZE vins table: %v", err)
-			}
 			log.Infof("Performing an ANALYZE(%d) on vouts table...", deepStatsTarget)
 			if err = AnalyzeTable(pgb.db, "vouts", deepStatsTarget); err != nil {
 				return nodeHeight, fmt.Errorf("failed to ANALYZE vouts table: %v", err)
@@ -476,41 +465,13 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 			}
 		}
 
-		// Set spend_tx_row_id in each vouts row.
-		log.Info("Setting spend_tx_row_id for all spent vouts...")
-		sendProgressUpdate(&dbtypes.ProgressBarLoad{
-			Msg:   voutsSyncStatusMsg,
-			BarID: dbtypes.AddressesTableSync,
-		})
+		// Drop the index on addresses.matching_tx_hash if it exists.
+		_ = DeindexAddressTableOnMatchingTxHash(pgb.db) // ignore error if the index is absent
 
-		log.Debug("Dropping index on vouts.spend_tx_row_id during update...")
-		_ = DeindexVoutTableOnSpendTxID(pgb.db) // ignore error is the index is absent
-		N, err := updateSpendTxInfoInAllVouts(pgb.db)
-		if err != nil {
-			return nodeHeight, fmt.Errorf("UPDATE vouts.spend_tx_row_id error: %v", err)
-		}
-		log.Debugf("Updated %d rows of vouts table.", N)
-		log.Debug("Indexing vouts table on spend_tx_row_id...")
-		if err := IndexVoutTableOnSpendTxID(pgb.db); err != nil {
-			return nodeHeight, fmt.Errorf("IndexVoutTableOnSpendTxID: %v", err)
-		}
-
-		log.Infof("Performing an ANALYZE(%d) on vouts table...", deepStatsTarget)
-		if err = AnalyzeTable(pgb.db, "vouts", deepStatsTarget); err != nil {
-			return nodeHeight, fmt.Errorf("failed to ANALYZE vouts table: %v", err)
-		}
-
-		stage++
-		log.Infof("Beginning SYNC STAGE %d of %d (setting spending info in addresses table).", stage, stages)
-
-		log.Debug("Dropping index on addresses.matching_tx_hash during update...")
-		_ = DeindexAddressTableOnMatchingTxHash(pgb.db) // ignore error is the index is absent
-		log.Info("Populating spending tx info in addresses table...")
 		numAddresses, err := pgb.UpdateSpendingInfoInAllAddresses(barLoad)
 		if err != nil {
 			return nodeHeight, fmt.Errorf("UpdateSpendingInfoInAllAddresses FAILED: %v", err)
 		}
-		// Index addresses table on matching_tx_hash.
 		log.Infof("Updated %d rows of addresses table.", numAddresses)
 
 		log.Info("Indexing addresses table on matching_tx_hash...")
