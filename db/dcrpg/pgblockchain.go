@@ -4174,12 +4174,10 @@ txns:
 		}
 
 		// Update status of the unspent expired and missed tickets.
-		numUnrevokedMisses, err := SetPoolStatusForTickets(pgb.db,
+		_, err = SetPoolStatusForTickets(pgb.db,
 			unspentEnMRowIDs, missStatuses)
 		if err != nil {
 			log.Errorf("SetPoolStatusForTicketsByHash: %v", err)
-		} else if numUnrevokedMisses > 0 {
-			log.Tracef("Noted %d unrevoked newly-missed tickets.", numUnrevokedMisses)
 		}
 	} // isStake
 
@@ -4187,7 +4185,7 @@ txns:
 
 	// Begin a database transaction to insert spending address rows, and (if
 	// updateAddressesSpendingInfo) update matching_tx_hash in corresponding
-	// funding rows and spend_tx_row_id in vouts.
+	// funding rows.
 	dbTx, err := pgb.db.Begin()
 	if err != nil {
 		txRes.err = fmt.Errorf("unable to begin database transaction: %w", err)
@@ -4213,10 +4211,7 @@ txns:
 		// vins array for this transaction
 		txVins := dbTxVins[it]
 		txDbID := txDbIDs[it] // for the newly-spent TXOs in the vouts table
-		var voutDbIDs []int64
-		if updateAddressesSpendingInfo {
-			voutDbIDs = make([]int64, 0, len(txVins))
-		}
+		voutDbIDs := make([]int64, 0, len(txVins))
 
 		for iv := range txVins {
 			// Transaction that spends an outpoint paying to >=0 addresses
@@ -4239,7 +4234,8 @@ txns:
 			// successful get will delete the entry from the cache.
 			utxoData, ok := pgb.utxoCache.Get(vin.PrevTxHash, vin.PrevTxIndex)
 			if !ok {
-				log.Tracef("Data for that utxo (%s:%d) wasn't cached!", vin.PrevTxHash, vin.PrevTxIndex)
+				log.Debugf("Data for that utxo (%s:%d) wasn't cached! Vouts table will be queried.",
+					vin.PrevTxHash, vin.PrevTxIndex)
 			}
 			numAddressRowsSet, voutDbID, mixedVout, err := insertSpendingAddressRow(dbTx,
 				vin.PrevTxHash, vin.PrevTxIndex, int8(vin.PrevTxTree),
@@ -4247,14 +4243,12 @@ txns:
 				updateExistingRecords, tx.IsMainchainBlock, tx.IsValid,
 				vin.TxType, updateAddressesSpendingInfo, tx.BlockTime)
 			if err != nil {
-				txRes.err = fmt.Errorf(`insertSpendingAddressRow: %w + %v (rollback)`,
+				txRes.err = fmt.Errorf("insertSpendingAddressRow: %w + %v (rollback)",
 					err, dbTx.Rollback())
 				return txRes
 			}
 			txRes.numAddresses += numAddressRowsSet
-			if updateAddressesSpendingInfo {
-				voutDbIDs = append(voutDbIDs, int64(voutDbID))
-			}
+			voutDbIDs = append(voutDbIDs, voutDbID)
 
 			if mixedVout && tx.IsValid && isMainchain {
 				mixDiff -= vin.ValueIn
@@ -4296,7 +4290,7 @@ txns:
 		// block or if the transaction is stake-invalidated. Spending
 		// information for extended side chain transaction outputs must still be
 		// done via addresses.matching_tx_hash.
-		if updateAddressesSpendingInfo && tx.IsValid && isMainchain && len(voutDbIDs) > 0 {
+		if tx.IsValid && isMainchain && len(voutDbIDs) > 0 {
 			// Set spend_tx_row_id for each prevout consumed by this txn.
 			err = setSpendingForVouts(dbTx, voutDbIDs, txDbID)
 			if err != nil {

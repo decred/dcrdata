@@ -256,7 +256,7 @@ const (
 		` ON vouts(spend_tx_row_id);`
 	DeindexVoutTableOnSpendTxID = `DROP INDEX IF EXISTS ` + IndexOfVoutsTableOnSpendTxID + ` CASCADE;`
 
-	SelectAddressByTxHash = `SELECT id, script_addresses, value, mixed FROM vouts
+	SelectVoutAddressesByTxOut = `SELECT id, script_addresses, value, mixed FROM vouts
 		WHERE tx_hash = $1 AND tx_index = $2 AND tx_tree = $3;`
 
 	SelectPkScriptByID       = `SELECT version, pkscript FROM vouts WHERE id=$1;`
