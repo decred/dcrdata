@@ -198,7 +198,12 @@ const (
 
 	UpdateVoutSpendTxRowID  = `UPDATE vouts SET spend_tx_row_id = $1 WHERE id = $2;`
 	UpdateVoutsSpendTxRowID = `UPDATE vouts SET spend_tx_row_id = $1 WHERE id = ANY($2);`
-	ResetVoutSpendTxRowIDs  = `UPDATE vouts SET spend_tx_row_id = NULL WHERE id = ANY($1);`
+
+	// ResetVoutSpendTxRowIDs resets spend_tx_row_id for vouts given transaction
+	// row ids. e.g. For rolled-back/purged transactions that no longer spend
+	// the targeted vouts (previous outputs).
+	ResetVoutSpendTxRowIDs = `UPDATE vouts SET spend_tx_row_id = NULL
+		WHERE spend_tx_row_id = ANY($1);`
 
 	// InsertVoutRowOnConflictDoNothing allows an INSERT with a DO NOTHING on
 	// conflict with vouts' unique tx index, while returning the row id of

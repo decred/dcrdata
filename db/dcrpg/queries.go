@@ -2847,11 +2847,7 @@ func resetSpendingForVoutsByTxRowID(tx *sql.Tx, spendingTxRowIDs []int64) (int64
 		return 0, err
 	}
 
-	N, err := res.RowsAffected()
-	if err != nil {
-		return 0, err
-	}
-	return N, nil
+	return res.RowsAffected()
 }
 
 // InsertSpendingAddressRow inserts a new spending tx row, and updates any
@@ -4413,35 +4409,23 @@ func UpdateLastBlockValid(db SqlExecutor, blockDbID uint64, isValid bool) error 
 	return nil
 }
 
-func clearVoutRegularSpendTxRowIDs(db *sql.DB, invalidatedBlockHash string) error {
-	n, err := sqlExec(db, `UPDATE vouts SET spend_tx_row_id = NULL
+func clearVoutRegularSpendTxRowIDs(db SqlExecutor, invalidatedBlockHash string) (int64, error) {
+	return sqlExec(db, `UPDATE vouts SET spend_tx_row_id = NULL
 		FROM transactions
 		WHERE transactions.tree=0 
 			AND transactions.block_hash=$1
 			AND transactions.id=spend_tx_row_id;`,
 		"failed to update vouts.spend_tx_row_id for vouts spent by invalidate block",
 		invalidatedBlockHash)
-	if err != nil {
-		return err
-	}
-	log.Debugf("Unset spend_tx_row_id for %d vouts previously spent by "+
-		"regular transactions in invalidated block %s", n, invalidatedBlockHash)
-	return nil
 }
 
-func clearVoutAllSpendTxRowIDs(db *sql.DB, transactionsBlockHash string) error {
-	n, err := sqlExec(db, `UPDATE vouts SET spend_tx_row_id = NULL
+func clearVoutAllSpendTxRowIDs(db SqlExecutor, transactionsBlockHash string) (int64, error) {
+	return sqlExec(db, `UPDATE vouts SET spend_tx_row_id = NULL
 		FROM transactions
 		WHERE transactions.block_hash=$1
 			AND transactions.id=spend_tx_row_id;`,
 		"failed to update vouts.spend_tx_row_id for vouts spent by invalidate block",
 		transactionsBlockHash)
-	if err != nil {
-		return err
-	}
-	log.Debugf("Unset spend_tx_row_id for %d vouts previously spent by "+
-		"transactions in block %s", n, transactionsBlockHash)
-	return nil
 }
 
 // UpdateLastVins updates the is_valid and is_mainchain columns in the vins
