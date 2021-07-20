@@ -1923,51 +1923,30 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Execute search for proposals by both RefID and proposal token before
-	// the address search because most search strings with alphanumeric
-	// characters are interprated as addresses.
-	if exp.proposalsSource != nil {
-		// Check if the search term references a proposal token exists.
-		proposalInfo, err := exp.proposalsSource.ProposalByToken(searchStr)
-
-		if err != nil || proposalInfo.RefID == "" {
-			// Check if the search term references a proposal RefID exists.
-			proposalInfo, err = exp.proposalsSource.ProposalByRefID(searchStr)
-		}
-		if err == nil && proposalInfo.RefID != "" {
-			http.Redirect(w, r, "/proposal/"+proposalInfo.RefID, http.StatusPermanentRedirect)
+	_, err = dcrutil.DecodeAddress(searchStr, exp.ChainParams)
+	if err == nil {
+		http.Redirect(w, r, "/address/"+searchStr, http.StatusPermanentRedirect)
+		return
+	}
+	/*
+		switch _, _, addrErr := txhelpers.AddressValidation(searchStr, exp.ChainParams); addrErr {
+		case txhelpers.AddressErrorNoError, txhelpers.AddressErrorZeroAddress: // valid
+			http.Redirect(w, r, "/address/"+searchStr, http.StatusPermanentRedirect)
+			return
+		case txhelpers.AddressErrorWrongNet: // decodes, but wrong network
+			// Status page will provide a link, but the address page can too.
+			message := fmt.Sprintf("The address %v is not valid on %s",
+				searchStr, exp.NetName)
+			exp.StatusPage(w, wrongNetwork, message, searchStr, ExpStatusWrongNetwork)
 			return
 		}
-	}
-
-	// Call GetExplorerAddress to see if the value is an address hash and
-	// then redirect to the address page if it is.
-	address, _, addrErr := exp.dataSource.GetExplorerAddress(searchStr, 1, 0)
-	switch addrErr {
-	case txhelpers.AddressErrorNoError, txhelpers.AddressErrorZeroAddress:
-		http.Redirect(w, r, "/address/"+searchStr, http.StatusPermanentRedirect)
-		return
-	case txhelpers.AddressErrorWrongNet:
-		// Status page will provide a link, but the address page can too.
-		message := fmt.Sprintf("The address %v is valid on %s, not %s",
-			searchStr, address.Net, exp.NetName)
-		exp.StatusPage(w, wrongNetwork, message, searchStr, ExpStatusWrongNetwork)
-		return
-	}
-
-	// This is be unnecessarily duplicative and possible very slow for a very
-	// active addresses.
-	addrHist, _, _ := exp.dataSource.AddressHistory(searchStr,
-		1, 0, dbtypes.AddrTxnAll)
-	if len(addrHist) > 0 {
-		http.Redirect(w, r, "/address/"+searchStr, http.StatusPermanentRedirect)
-		return
-	}
+	*/
 
 	// Split searchStr to the first part corresponding to a transaction hash and
 	// to the second part corresponding to a transaction output index.
 	searchStrSplit := strings.Split(searchStr, ":")
 	searchStrRewritten := searchStrSplit[0]
+	var utxoLike bool
 	switch {
 	case len(searchStrSplit) > 2:
 		exp.StatusPage(w, "search failed", "Transaction outpoint does not have a valid format: "+searchStr,
@@ -1976,6 +1955,7 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	case len(searchStrSplit) > 1:
 		if _, err := strconv.ParseUint(searchStrSplit[1], 10, 32); err == nil {
 			searchStrRewritten = searchStrRewritten + "/out/" + searchStrSplit[1]
+			utxoLike = true
 		} else {
 			exp.StatusPage(w, "search failed", "Transaction output index is not a valid non-negative integer: "+searchStrSplit[1],
 				"", ExpStatusNotFound)
@@ -1983,38 +1963,72 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Remaining possibilities are hashes, so verify the string is a hash.
+	tryProp := func() bool {
+		// Try proposal token.
+		proposalInfo, err := exp.proposalsSource.ProposalByToken(searchStr)
+		if err != nil || proposalInfo.RefID == "" {
+			// Try proposal RefID.
+			proposalInfo, err = exp.proposalsSource.ProposalByRefID(searchStr)
+		}
+		if err == nil && proposalInfo.RefID != "" {
+			http.Redirect(w, r, "/proposal/"+proposalInfo.RefID, http.StatusPermanentRedirect)
+			return true
+		}
+		return false
+	}
+
+	// If it is not a valid hash, try proposals and give up.
 	if _, err = chainhash.NewHashFromStr(searchStrSplit[0]); err != nil {
+		if tryProp() {
+			return
+		}
 		exp.StatusPage(w, "search failed",
-			"Search string is not a valid hash or address: "+searchStr,
+			"Search string is not a valid block, tx hash, address, or proposal: "+searchStr,
 			"", ExpStatusNotFound)
 		return
 	}
 
-	// Attempt to get a block index by calling GetBlockHeight to see if the
-	// value is a block hash and then redirect to the block page if it is.
-	_, err = exp.dataSource.GetBlockHeight(searchStrSplit[0])
-	if err == nil {
-		http.Redirect(w, r, "/block/"+searchStrSplit[0], http.StatusPermanentRedirect)
-		return
+	// A valid hash could be block, txid, or prop. First try blocks, then tx via
+	// getrawtransaction, then props, then tx via DB query.
+
+	if !utxoLike {
+		// Attempt to get a block index by calling GetBlockHeight to see if the
+		// value is a block hash and then redirect to the block page if it is.
+		_, err = exp.dataSource.GetBlockHeight(searchStrSplit[0])
+		if err == nil {
+			http.Redirect(w, r, "/block/"+searchStrSplit[0], http.StatusPermanentRedirect)
+			return
+		}
 	}
+
+	// It's unlikely to be a tx id with many leading/trailing zeros.
+	trimmedZeros := 2*chainhash.HashSize - len(strings.Trim(searchStrSplit[0], "0"))
 
 	// Call GetExplorerTx to see if the value is a transaction hash and then
 	// redirect to the tx page if it is.
-	tx := exp.dataSource.GetExplorerTx(searchStrSplit[0])
-	if tx != nil {
-		http.Redirect(w, r, "/tx/"+searchStrRewritten, http.StatusPermanentRedirect)
+	if trimmedZeros < 10 {
+		tx := exp.dataSource.GetExplorerTx(searchStrSplit[0])
+		if tx != nil {
+			http.Redirect(w, r, "/tx/"+searchStrRewritten, http.StatusPermanentRedirect)
+			return
+		}
+	}
+
+	// Before checking the DB for txns in orphaned blocks, try props.
+	if tryProp() {
 		return
 	}
 
-	// Also check the aux DB as it may have transactions from orphaned blocks.
-	dbTxs, err := exp.dataSource.Transaction(searchStrSplit[0])
-	if err != nil && !errors.Is(err, dbtypes.ErrNoResult) {
-		log.Errorf("Searching for transaction failed: %v", err)
-	}
-	if dbTxs != nil {
-		http.Redirect(w, r, "/tx/"+searchStrRewritten, http.StatusPermanentRedirect)
-		return
+	// Also check the DB as it may have transactions from orphaned blocks.
+	if trimmedZeros < 10 {
+		dbTxs, err := exp.dataSource.Transaction(searchStrSplit[0])
+		if err != nil && !errors.Is(err, dbtypes.ErrNoResult) {
+			log.Errorf("Searching for transaction failed: %v", err)
+		}
+		if dbTxs != nil {
+			http.Redirect(w, r, "/tx/"+searchStrRewritten, http.StatusPermanentRedirect)
+			return
+		}
 	}
 
 	message := "The search did not find any matching address, block, transaction or proposal token: " + searchStr

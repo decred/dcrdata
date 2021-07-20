@@ -42,18 +42,6 @@ func (pgb *ChainDB) GetRawTransaction(txid *chainhash.Hash) (*chainjson.TxRawRes
 	return txraw, nil
 }
 
-// GetBlockHeight returns the height of the block with the specified hash.
-func (pgb *ChainDB) GetBlockHeight(hash string) (int64, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
-	defer cancel()
-	height, err := RetrieveBlockHeight(ctx, pgb.db, hash)
-	if err != nil {
-		log.Errorf("Unable to get block height for hash %s: %v", hash, err)
-		return -1, pgb.replaceCancelError(err)
-	}
-	return height, nil
-}
-
 // SendRawTransaction attempts to decode the input serialized transaction,
 // passed as hex encoded string, and broadcast it, returning the tx hash.
 func (pgb *ChainDB) SendRawTransaction(txhex string) (string, error) {

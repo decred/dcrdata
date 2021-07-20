@@ -6,6 +6,7 @@
 package politeia
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -330,7 +331,9 @@ func (db *ProposalDB) proposal(searchBy, searchTerm string) (*pitypes.ProposalIn
 	var pInfo pitypes.ProposalInfo
 	err := db.dbP.Select(q.Eq(searchBy, searchTerm)).Limit(1).First(&pInfo)
 	if err != nil {
-		log.Errorf("Failed to fetch data from Proposals DB: %v", err)
+		if !errors.Is(err, storm.ErrNotFound) {
+			log.Errorf("Failed to fetch data from Proposals DB: %v", err)
+		}
 		return nil, err
 	}
 

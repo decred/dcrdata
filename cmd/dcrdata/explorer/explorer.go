@@ -102,7 +102,6 @@ type explorerDataSource interface {
 	GetBlockHeight(hash string) (int64, error)
 	GetBlockHash(idx int64) (string, error)
 	GetExplorerTx(txid string) *types.TxInfo
-	GetExplorerAddress(address string, count, offset int64) (*dbtypes.AddressInfo, txhelpers.AddressType, txhelpers.AddressError)
 	GetTip() (*types.WebBasicBlock, error)
 	DecodeRawTransaction(txhex string) (*chainjson.TxRawResult, error)
 	SendRawTransaction(txhex string) (string, error)
