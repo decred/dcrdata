@@ -4894,6 +4894,24 @@ func (pgb *ChainDB) GetBlockHeaderByHash(hash string) (*wire.BlockHeader, error)
 	return pgb.Client.GetBlockHeader(context.TODO(), blockHash)
 }
 
+// GetBlockHeight returns the height of the block with the specified hash.
+func (pgb *ChainDB) GetBlockHeight(hash string) (int64, error) {
+	// _, err := chainhash.NewHashFromStr(hash)
+	// if err != nil {
+	// 	return -1, err
+	// }
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	defer cancel()
+	height, err := RetrieveBlockHeight(ctx, pgb.db, hash)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			log.Errorf("Unexpected error retrieving block height for hash %s: %v", hash, err)
+		}
+		return -1, pgb.replaceCancelError(err)
+	}
+	return height, nil
+}
+
 // GetRawAPITransaction gets an *apitypes.Tx for a given transaction ID.
 func (pgb *ChainDB) GetRawAPITransaction(txid *chainhash.Hash) *apitypes.Tx {
 	tx, _ := pgb.getRawAPITransaction(txid)
@@ -5931,7 +5949,7 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 	for i, vout := range txraw.Vout {
 		txout, err := pgb.Client.GetTxOut(context.TODO(), txhash, uint32(i), true)
 		if err != nil {
-			log.Warnf("Failed to determine if tx out is spent for output %d of tx %s", i, txid)
+			log.Warnf("Failed to determine if tx out is spent for output %d of tx %s: %v", i, txid, err)
 		}
 		var opReturn string
 		var opTAdd bool

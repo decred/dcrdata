@@ -1275,20 +1275,20 @@ const (
 
 // AddressValidation performs several validation checks on the given address
 // string. Initially, decoding as a Decred address is attempted. If it fails to
-// decode, AddressErrorDecodeFailed is returned with AddressTypeUnknown.
-// If the address decoded successfully as a Decred address, it is checked
-// against the specified network. If it is the wrong network,
-// AddressErrorWrongNet is returned with AddressTypeUnknown. If the address is
-// the correct network, the address type is obtained. A final check is performed
-// to determine if the address is the zero pubkey hash address, in which case
-// AddressErrorZeroAddress is returned with the determined address type. If it
-// is another address, AddressErrorNoError is returned with the determined
-// address type.
+// decode, AddressErrorDecodeFailed is returned with AddressTypeUnknown. If the
+// address decoded successfully as a Decred address, it is checked against the
+// specified network. A final check is performed to determine if the address is
+// the zero pubkey hash address, in which case AddressErrorZeroAddress is
+// returned with the determined address type. If it is another address,
+// AddressErrorNoError (nil) is returned with the determined address type.
 func AddressValidation(address string, params *chaincfg.Params) (dcrutil.Address, AddressType, AddressError) {
 	// Decode and validate the address.
 	addr, err := dcrutil.DecodeAddress(address, params)
 	if err != nil {
-		return nil, AddressTypeUnknown, AddressErrorDecodeFailed // AddressErrorWrongNet?
+		// if errors.Is(err, dcrutil.ErrUnknownAddressType) {
+		// 	return nil, AddressTypeUnknown, AddressErrorWrongNet // possible? ErrUnknownAddressType means many things
+		// }
+		return nil, AddressTypeUnknown, AddressErrorDecodeFailed
 	}
 
 	// Determine address type for this valid Decred address. Ignore the error
