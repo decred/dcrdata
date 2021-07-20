@@ -34,7 +34,7 @@ const (
 	// This includes changes such as creating tables, adding/deleting columns,
 	// adding/deleting indexes or any other operations that create, delete, or
 	// modify the definition of any database relation.
-	schemaVersion = 10
+	schemaVersion = 11
 
 	// maintVersion indicates when certain maintenance operations should be
 	// performed for the same compatVersion and schemaVersion. Such operations
@@ -399,7 +399,20 @@ func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool
 		fallthrough
 
 	case 10:
-		// Perform schema v10 maintenance.
+		err = u.upgradeSchema10to11()
+		if err != nil {
+			return false, fmt.Errorf("failed to upgrade 1.10.0 to 1.11.0: %v", err)
+		}
+		current.schema++
+		current.maint = 0
+		if storeVers(u.db, &current); err != nil {
+			return false, err
+		}
+
+		fallthrough
+
+	case 11:
+		// Perform schema v11 maintenance.
 
 		// No further upgrades.
 		return upgradeCheck()
@@ -428,6 +441,14 @@ func removeTableComments(db *sql.DB) {
 			log.Errorf(`Failed to remove comment on table %s.`, tableName)
 		}
 	}
+}
+
+func (u *Upgrader) upgradeSchema10to11() error {
+	log.Infof("Performing database upgrade 1.10.0 -> 1.11.0")
+	// The status table already had an index created automatically because of
+	// the UNIQUE constraint declaration for the heights column. Remove the
+	// redundant index uix_stats_height on stats(height).
+	return DeindexStatsTableOnHeight(u.db)
 }
 
 func (u *Upgrader) upgradeSchema9to10() (err error) {

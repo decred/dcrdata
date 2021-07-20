@@ -15,8 +15,8 @@ const (
 		pool_val INT8
 	);`
 
-	IndexStatsOnHeight   = `CREATE UNIQUE INDEX ` + IndexOfHeightOnStatsTable + ` ON stats(height);`
-	DeindexStatsOnHeight = `DROP INDEX ` + IndexOfHeightOnStatsTable + ` CASCADE;`
+	IndexStatsOnHeight   = `CREATE UNIQUE INDEX ` + IndexOfHeightOnStatsTable + ` ON stats(height);` // DO NOT USE
+	DeindexStatsOnHeight = `DROP INDEX IF EXISTS ` + IndexOfHeightOnStatsTable + ` CASCADE;`
 
 	UpsertStats = `
 		INSERT INTO stats (blocks_id, height, pool_size, pool_val)
