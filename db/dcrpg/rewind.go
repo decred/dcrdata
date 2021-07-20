@@ -128,6 +128,7 @@ func deleteBlockFromChain(dbTx *sql.Tx, hash string) (err error) {
 		// attempt to locate a row with next_hash set to the hash of this block,
 		// and set it to the empty string.
 		if err == sql.ErrNoRows {
+			log.Warnf("Block %v not found in block_chain.this_hash column.", hash)
 			err = UpdateBlockNextByNextHash(dbTx, hash, "")
 		}
 		return

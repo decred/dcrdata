@@ -579,7 +579,7 @@ func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 		//{Msg: "addresses table on matching tx hash", IndexFunc: IndexAddressTableOnMatchingTxHash},
 
 		// stats table
-		{Msg: "stats table on height", IndexFunc: IndexStatsTableOnHeight},
+		// {Msg: "stats table on height", IndexFunc: IndexStatsTableOnHeight}, // redundant with UNIQUE constraint in table def
 
 		// treasury table
 		{Msg: "treasury on tx hash", IndexFunc: IndexTreasuryTableOnTxHash},
@@ -722,12 +722,6 @@ func (pgb *ChainDB) DeindexAddressTable() error {
 		}
 	}
 	return err
-}
-
-// IndexStatsTableOnHeight creates the index for the stats table over height.
-func IndexStatsTableOnHeight(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexStatsOnHeight)
-	return
 }
 
 // DeindexStatsTableOnHeight drops the index for the stats table over height.
