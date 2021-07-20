@@ -250,8 +250,7 @@ func _main(ctx context.Context) error {
 		}
 	}
 
-	// Heights gets the current height of each DB, the minimum of the DB heights
-	// (dbHeight), and the chain server height.
+	// Heights gets the current height of the DB and the chain server.
 	Heights := func() (nodeHeight, chainDBHeight int64, err error) {
 		_, nodeHeight, err = dcrdClient.GetBestBlock(ctx)
 		if err != nil {
@@ -261,7 +260,7 @@ func _main(ctx context.Context) error {
 
 		chainDBHeight, err = chainDB.HeightDB()
 		if err != nil {
-			log.Errorf("chainDB.HeightDB failed: %v", err)
+			err = fmt.Errorf("chainDB.HeightDB failed: %w", err)
 			return
 		}
 		if chainDBHeight == -1 {
@@ -275,19 +274,19 @@ func _main(ctx context.Context) error {
 	// Check for database tip blocks that have been orphaned. If any are found,
 	// purge blocks to get to a common ancestor. Only message when purging more
 	// than requested in the configuration settings.
-	blocksToPurge := cfg.PurgeNBestBlocks
-	_, auxHeight, err := Heights()
+	blocksToPurge := int64(cfg.PurgeNBestBlocks)
+	_, chainDBHeight, err := Heights()
 	if err != nil {
 		return fmt.Errorf("Failed to get Heights for tip check: %w", err)
 	}
 
-	if auxHeight > -1 {
-		orphaned, err := rpcutils.OrphanedTipLength(ctx, dcrdClient, auxHeight, chainDB.BlockHash)
+	if chainDBHeight > -1 {
+		orphaned, err := rpcutils.OrphanedTipLength(ctx, dcrdClient, chainDBHeight, chainDB.BlockHash)
 		if err != nil {
 			return fmt.Errorf("Failed to compare tip blocks for the DB: %w", err)
 		}
-		if int(orphaned) > blocksToPurge {
-			blocksToPurge = int(orphaned)
+		if orphaned > blocksToPurge {
+			blocksToPurge = orphaned
 			log.Infof("Orphaned tip detected in DB. Purging %d blocks", blocksToPurge)
 		}
 	}
@@ -298,23 +297,11 @@ func _main(ctx context.Context) error {
 	}
 
 	if blocksToPurge > 0 {
-		// The number of blocks to purge for each DB is computed so that the DBs
-		// will end on the same height.
-		_, chainDBHeight, err := Heights()
+		purgeToBlock := chainDBHeight - blocksToPurge
+		log.Infof("Purging PostgreSQL data for the %d best blocks back to %d...", blocksToPurge, purgeToBlock)
+		s, heightDB, err := chainDB.PurgeBestBlocks(blocksToPurge)
 		if err != nil {
-			return fmt.Errorf("Heights failed: %v", err)
-		}
-		// Determine the largest DB height.
-		maxHeight := chainDBHeight
-		// The final best block after purge.
-		purgeToBlock := maxHeight - int64(blocksToPurge)
-
-		// Purge NPurge blocks from DB.
-		NPurge := chainDBHeight - purgeToBlock
-		log.Infof("Purging PostgreSQL data for the %d best blocks...", NPurge)
-		s, heightDB, err := chainDB.PurgeBestBlocks(NPurge)
-		if err != nil {
-			return fmt.Errorf("failed to purge %d blocks from PostgreSQL: %w", NPurge, err)
+			return fmt.Errorf("failed to purge %d blocks from PostgreSQL: %w", blocksToPurge, err)
 		}
 		if s != nil {
 			log.Infof("Successfully purged data for %d blocks from PostgreSQL "+
@@ -577,8 +564,7 @@ func _main(ctx context.Context) error {
 	// the node's best block height are more than the set limit. The sync status
 	// page should also be displayed when updateAllAddresses and newPGIndexes
 	// are true, indicating maintenance or an initial sync.
-	nodeHeight, chainDBHeight, err := Heights()
-
+	nodeHeight, chainDBHeight, err = Heights()
 	if err != nil {
 		return fmt.Errorf("Heights failed: %v", err)
 	}

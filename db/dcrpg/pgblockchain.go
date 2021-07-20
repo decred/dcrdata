@@ -3457,10 +3457,12 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (tipHash string, blocksMoved
 
 		// 3. Vouts. For all transactions in this block, locate any vouts that
 		// reference them in vouts.spend_tx_row_id, and unset spend_tx_row_id.
-		err = clearVoutAllSpendTxRowIDs(pgb.db, tipHash)
+		voutsUnset, err := clearVoutAllSpendTxRowIDs(pgb.db, tipHash)
 		if err != nil {
 			log.Errorf("clearVoutAllSpendTxRowIDs for block %s: %v", tipHash, err)
 		}
+		log.Debugf("Unset spend_tx_row_id for %d vouts previously spent by "+
+			"transactions in orphaned block %s", voutsUnset, tipHash)
 
 		// 4. Vins. Set is_mainchain=false on all vins, returning the number of
 		// vins updated, the vins table row IDs, and the vouts table row IDs.
@@ -3820,10 +3822,12 @@ func (pgb *ChainDB) UpdateLastBlock(msgBlock *wire.MsgBlock, isMainchain bool) e
 
 		// For the transactions invalidated by this block, locate any vouts that
 		// reference them in vouts.spend_tx_row_id, and unset spend_tx_row_id.
-		err = clearVoutRegularSpendTxRowIDs(pgb.db, lastBlockHash.String())
+		voutsUnset, err := clearVoutRegularSpendTxRowIDs(pgb.db, lastBlockHash.String())
 		if err != nil {
 			return fmt.Errorf("clearVoutRegularSpendTxRowIDs: %w", err)
 		}
+		log.Debugf("Unset spend_tx_row_id for %d vouts previously spent by "+
+			"regular transactions in invalidated block %s", voutsUnset, lastBlockHash)
 
 		// Update the is_valid flag for the last block's vins.
 		err = UpdateLastVins(pgb.db, lastBlockHash.String(), lastIsValid, isMainchain)

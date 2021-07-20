@@ -687,23 +687,41 @@ func (p *VinTxPropertyARRAY) Scan(src interface{}) error {
 // DeletionSummary provides the number of rows removed from the tables when a
 // block is removed.
 type DeletionSummary struct {
-	Blocks, Vins, Vouts, Addresses, Transactions, Tickets, Votes, Misses int64
-	Treasury, Swaps                                                      int64
-	Timings                                                              *DeletionSummary
+	Blocks, Vins, Vouts, Addresses, Transactions int64
+	VoutSpendTxIDs                               int64
+	Tickets, Votes, Misses                       int64
+	Treasury, Swaps                              int64
+	Timings                                      *DeletionSummary // durations
 }
 
 // String makes a pretty summary of the totals.
 func (s DeletionSummary) String() string {
-	summary := fmt.Sprintf("%9d Blocks purged\n", s.Blocks)
-	summary += fmt.Sprintf("%9d Vins purged\n", s.Vins)
-	summary += fmt.Sprintf("%9d Vouts purged\n", s.Vouts)
-	summary += fmt.Sprintf("%9d Addresses purged\n", s.Addresses)
-	summary += fmt.Sprintf("%9d Transactions purged\n", s.Transactions)
-	summary += fmt.Sprintf("%9d Tickets purged\n", s.Tickets)
-	summary += fmt.Sprintf("%9d Votes purged\n", s.Votes)
-	summary += fmt.Sprintf("%9d Misses purged\n", s.Misses)
-	summary += fmt.Sprintf("%9d Treasury transactions purged\n", s.Treasury)
-	summary += fmt.Sprintf("%9d Swaps purged", s.Swaps)
+	if s.Timings == nil {
+		summary := fmt.Sprintf("%9d Blocks purged\n", s.Blocks)
+		summary += fmt.Sprintf("%9d Vins purged\n", s.Vins)
+		summary += fmt.Sprintf("%9d Vouts purged\n", s.Vouts)
+		summary += fmt.Sprintf("%9d Addresses purged\n", s.Addresses)
+		summary += fmt.Sprintf("%9d Transactions purged\n", s.Transactions)
+		summary += fmt.Sprintf("%9d Vout spend txids reset\n", s.VoutSpendTxIDs)
+		summary += fmt.Sprintf("%9d Tickets purged\n", s.Tickets)
+		summary += fmt.Sprintf("%9d Votes purged\n", s.Votes)
+		summary += fmt.Sprintf("%9d Misses purged\n", s.Misses)
+		summary += fmt.Sprintf("%9d Treasury transactions purged\n", s.Treasury)
+		summary += fmt.Sprintf("%9d Swaps purged", s.Swaps)
+		return summary
+	}
+
+	summary := fmt.Sprintf("%9d Blocks purged in %v\n", s.Blocks, time.Duration(s.Timings.Blocks))
+	summary += fmt.Sprintf("%9d Vins purged in %v\n", s.Vins, time.Duration(s.Timings.Vins))
+	summary += fmt.Sprintf("%9d Vouts purged in %v\n", s.Vouts, time.Duration(s.Timings.Vouts))
+	summary += fmt.Sprintf("%9d Addresses purged in %v\n", s.Addresses, time.Duration(s.Timings.Addresses))
+	summary += fmt.Sprintf("%9d Transactions purged in %v\n", s.Transactions, time.Duration(s.Timings.Transactions))
+	summary += fmt.Sprintf("%9d Vout spending tx row ids reset in %v\n", s.VoutSpendTxIDs, time.Duration(s.Timings.VoutSpendTxIDs))
+	summary += fmt.Sprintf("%9d Tickets purged in %v\n", s.Tickets, time.Duration(s.Timings.Tickets))
+	summary += fmt.Sprintf("%9d Votes purged in %v\n", s.Votes, time.Duration(s.Timings.Votes))
+	summary += fmt.Sprintf("%9d Misses purged in %v\n", s.Misses, time.Duration(s.Timings.Misses))
+	summary += fmt.Sprintf("%9d Treasury transactions purged in %v\n", s.Treasury, time.Duration(s.Timings.Treasury))
+	summary += fmt.Sprintf("%9d Swaps purged in %v", s.Swaps, time.Duration(s.Timings.Swaps))
 	return summary
 }
 
@@ -712,6 +730,7 @@ type DeletionSummarySlice []DeletionSummary
 
 // Reduce returns a single DeletionSummary with the corresponding fields summed.
 func (ds DeletionSummarySlice) Reduce() DeletionSummary {
+	var timings DeletionSummarySlice
 	var s DeletionSummary
 	for i := range ds {
 		s.Blocks += ds[i].Blocks
@@ -719,11 +738,19 @@ func (ds DeletionSummarySlice) Reduce() DeletionSummary {
 		s.Vouts += ds[i].Vouts
 		s.Addresses += ds[i].Addresses
 		s.Transactions += ds[i].Transactions
+		s.VoutSpendTxIDs += ds[i].VoutSpendTxIDs
 		s.Tickets += ds[i].Tickets
 		s.Votes += ds[i].Votes
 		s.Misses += ds[i].Misses
 		s.Treasury += ds[i].Treasury
 		s.Swaps += ds[i].Swaps
+		if ds[i].Timings != nil {
+			timings = append(timings, *ds[i].Timings)
+		}
+	}
+	if timings != nil {
+		timingsReduced := timings.Reduce()
+		s.Timings = &timingsReduced
 	}
 	return s
 }

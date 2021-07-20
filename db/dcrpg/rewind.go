@@ -194,7 +194,7 @@ func DeleteBlockData(ctx context.Context, db *sql.DB, hash string, height int64)
 			err, dbTx.Rollback())
 		return
 	}
-	res.Timings.Vins = time.Since(start).Nanoseconds()
+	res.Timings.Vins = int64(time.Since(start))
 
 	start = time.Now()
 	if res.Vouts, err = deleteVoutsForBlockSubQry(dbTx, hash); err != nil {
@@ -202,7 +202,7 @@ func DeleteBlockData(ctx context.Context, db *sql.DB, hash string, height int64)
 			err, dbTx.Rollback())
 		return
 	}
-	res.Timings.Vouts = time.Since(start).Nanoseconds()
+	res.Timings.Vouts = int64(time.Since(start))
 
 	start = time.Now()
 	if res.Addresses, err = deleteAddressesForBlockSubQry(dbTx, hash); err != nil {
@@ -210,7 +210,7 @@ func DeleteBlockData(ctx context.Context, db *sql.DB, hash string, height int64)
 			err, dbTx.Rollback())
 		return
 	}
-	res.Timings.Addresses = time.Since(start).Nanoseconds()
+	res.Timings.Addresses = int64(time.Since(start))
 
 	// Deleting transactions rows follow deletion of vins, vouts, and addresses
 	// rows since the transactions table is used to identify the vin and vout DB
@@ -222,20 +222,21 @@ func DeleteBlockData(ctx context.Context, db *sql.DB, hash string, height int64)
 			err, dbTx.Rollback())
 		return
 	}
+	res.Transactions = int64(len(txIDsRemoved))
+	res.Timings.Transactions = int64(time.Since(start))
+
+	// vouts.spend_tx_row_id reset
+	start = time.Now()
 	var voutsReset int64
+	// voutsReset, err = clearVoutAllSpendTxRowIDs(dbTx, hash) // would need to come *before* removing the transactions rows
 	voutsReset, err = resetSpendingForVoutsByTxRowID(dbTx, txIDsRemoved)
 	if err != nil {
 		err = fmt.Errorf(`resetSpendingForVoutsByTxRowID failed with "%v". Rollback: %v`,
 			err, dbTx.Rollback())
 		return
 	}
-	if voutsReset != int64(len(txIDsRemoved)) {
-		log.Warnf(`resetSpendingForVoutsByTxRowID reset %d rows, expected %d`,
-			voutsReset, len(txIDsRemoved))
-	}
-	log.Tracef("Reset spend_tx_row_id for %d vouts.", voutsReset)
-	res.Transactions = int64(len(txIDsRemoved))
-	res.Timings.Transactions = time.Since(start).Nanoseconds()
+	res.VoutSpendTxIDs = voutsReset
+	res.Timings.VoutSpendTxIDs = int64(time.Since(start))
 
 	start = time.Now()
 	if res.Tickets, err = deleteTicketsForBlock(dbTx, hash); err != nil {
@@ -243,7 +244,7 @@ func DeleteBlockData(ctx context.Context, db *sql.DB, hash string, height int64)
 			err, dbTx.Rollback())
 		return
 	}
-	res.Timings.Tickets = time.Since(start).Nanoseconds()
+	res.Timings.Tickets = int64(time.Since(start))
 
 	start = time.Now()
 	if res.Votes, err = deleteVotesForBlock(dbTx, hash); err != nil {
@@ -251,7 +252,7 @@ func DeleteBlockData(ctx context.Context, db *sql.DB, hash string, height int64)
 			err, dbTx.Rollback())
 		return
 	}
-	res.Timings.Votes = time.Since(start).Nanoseconds()
+	res.Timings.Votes = int64(time.Since(start))
 
 	start = time.Now()
 	if res.Misses, err = deleteMissesForBlock(dbTx, hash); err != nil {
@@ -259,7 +260,7 @@ func DeleteBlockData(ctx context.Context, db *sql.DB, hash string, height int64)
 			err, dbTx.Rollback())
 		return
 	}
-	res.Timings.Misses = time.Since(start).Nanoseconds()
+	res.Timings.Misses = int64(time.Since(start))
 
 	start = time.Now()
 	if res.Treasury, err = deleteTreasuryTxnsForBlock(dbTx, hash); err != nil {
@@ -267,7 +268,7 @@ func DeleteBlockData(ctx context.Context, db *sql.DB, hash string, height int64)
 			err, dbTx.Rollback())
 		return
 	}
-	res.Timings.Treasury = time.Since(start).Nanoseconds()
+	res.Timings.Treasury = int64(time.Since(start))
 
 	start = time.Now()
 	if res.Swaps, err = deleteSwapsForBlockHeight(dbTx, height); err != nil {
@@ -275,7 +276,7 @@ func DeleteBlockData(ctx context.Context, db *sql.DB, hash string, height int64)
 			err, dbTx.Rollback())
 		return
 	}
-	res.Timings.Swaps = time.Since(start).Nanoseconds()
+	res.Timings.Swaps = int64(time.Since(start))
 
 	start = time.Now()
 	if res.Blocks, err = deleteBlock(dbTx, hash); err != nil {
@@ -283,13 +284,13 @@ func DeleteBlockData(ctx context.Context, db *sql.DB, hash string, height int64)
 			err, dbTx.Rollback())
 		return
 	}
-	res.Timings.Blocks = time.Since(start).Nanoseconds()
 	if res.Blocks != 1 {
 		log.Errorf("Expected to delete 1 row of blocks table; actually removed %d.",
 			res.Blocks)
 	}
 
 	err = deleteBlockFromChain(dbTx, hash)
+	res.Timings.Blocks = int64(time.Since(start))
 	switch err {
 	case sql.ErrNoRows:
 		// Just warn but do not return the error.
