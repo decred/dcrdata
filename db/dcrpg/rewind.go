@@ -56,7 +56,7 @@ func deleteVotesForBlock(dbTx SqlExecutor, hash string) (rowsDeleted int64, err 
 }
 
 func deleteTicketsForBlock(dbTx SqlExecutor, hash string) (rowsDeleted int64, err error) {
-	return sqlExec(dbTx, internal.DeleteTicketsSimple, "failed to delete tickets", hash)
+	return sqlExec(dbTx, internal.DeleteTickets, "failed to delete tickets", hash)
 }
 
 func deleteTreasuryTxnsForBlock(dbTx SqlExecutor, hash string) (rowsDeleted int64, err error) {

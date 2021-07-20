@@ -210,6 +210,9 @@ const (
 		USING blocks
 		WHERE purchase_tx_db_id = ANY(blocks.stxdbids)
 			AND blocks.hash=$1;`
+	// DeleteTicketsSimple is simple, but slower because block_hash is second in
+	// a multi-column index, whereas both tickets.purchase_tx_db_id and
+	// blocks.hash are their own unique indexes.
 	DeleteTicketsSimple = `DELETE FROM tickets
 		WHERE block_hash=$1;`
 
