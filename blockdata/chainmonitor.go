@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/wire"
 
 	"github.com/decred/dcrdata/v6/txhelpers"
@@ -47,8 +46,7 @@ func (p *chainMonitor) collect(hash *chainhash.Hash) (*wire.MsgBlock, *BlockData
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get block %v: %v", hash, err)
 	}
-	block := dcrutil.NewBlock(msgBlock)
-	height := block.Height()
+	height := int64(msgBlock.Header.Height)
 	log.Infof("Block height %v connected. Collecting data...", height)
 
 	// Get node's best block height to see if the block for which we are

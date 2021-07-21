@@ -92,12 +92,12 @@ func (t *MempoolDataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.Me
 
 		// Store the current mempool transaction with MemPoolTime from GRM, and
 		// block info zeroed.
-		txnsStore[msgTx.TxHash()] = &txhelpers.TxWithBlockData{
+		txnsStore[*hash] = &txhelpers.TxWithBlockData{
 			Tx:          msgTx,
 			MemPoolTime: tx.Time,
 		}
 
-		totalOut := 0.0
+		var totalOut float64
 		for _, v := range rawtx.Vout {
 			totalOut += v.Value
 		}
@@ -134,14 +134,14 @@ func (t *MempoolDataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.Me
 		_, feeRate := txhelpers.TxFeeRate(msgTx)
 
 		txs = append(txs, exptypes.MempoolTx{
-			TxID:      msgTx.TxHash().String(),
+			TxID:      hashStr,
 			Fees:      tx.Fee,
 			FeeRate:   feeRate.ToCoin(),
 			VinCount:  len(msgTx.TxIn),
 			VoutCount: len(msgTx.TxOut),
 			Vin:       exptypes.MsgTxMempoolInputs(msgTx),
 			// Coinbase:  txhelpers.IsCoinBaseTx(msgTx), // commented because coinbase is not in mempool
-			Hash:     hashStr,
+			Hash:     hashStr, // dup of TxID!
 			Time:     tx.Time,
 			Size:     tx.Size,
 			TotalOut: totalOut,

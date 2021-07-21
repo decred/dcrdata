@@ -16,16 +16,14 @@ func MsgBlockToDBBlock(msgBlock *wire.MsgBlock, chainParams *chaincfg.Params, ch
 	blockHeader := msgBlock.Header
 
 	// convert each transaction hash to a hex string
-	txHashes := msgBlock.TxHashes()
-	txHashStrs := make([]string, 0, len(txHashes))
-	for i := range txHashes {
-		txHashStrs = append(txHashStrs, txHashes[i].String())
+	txHashStrs := make([]string, 0, len(msgBlock.Transactions))
+	for _, tx := range msgBlock.Transactions {
+		txHashStrs = append(txHashStrs, tx.CachedTxHash().String())
 	}
 
-	stxHashes := msgBlock.STxHashes()
-	stxHashStrs := make([]string, 0, len(stxHashes))
-	for i := range stxHashes {
-		stxHashStrs = append(stxHashStrs, stxHashes[i].String())
+	stxHashStrs := make([]string, 0, len(msgBlock.STransactions))
+	for _, tx := range msgBlock.STransactions {
+		stxHashStrs = append(stxHashStrs, tx.CachedTxHash().String())
 	}
 
 	// Assemble the block

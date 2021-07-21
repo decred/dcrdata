@@ -3555,15 +3555,17 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, isValid, isMainchain,
 	updateExistingRecords, updateAddressesSpendingInfo bool,
 	chainWork string) (numVins int64, numVouts int64, numAddresses int64, err error) {
 
+	blockHash := msgBlock.BlockHash()
+
 	// winningTickets is only set during initial chain sync.
 	// Retrieve it from the stakeDB.
 	var tpi *apitypes.TicketPoolInfo
 	var winningTickets []string
 	if isMainchain {
 		var found bool
-		tpi, found = pgb.stakeDB.PoolInfo(msgBlock.BlockHash())
+		tpi, found = pgb.stakeDB.PoolInfo(blockHash)
 		if !found {
-			err = fmt.Errorf("TicketPoolInfo not found for block %s", msgBlock.BlockHash().String())
+			err = fmt.Errorf("TicketPoolInfo not found for block %s", blockHash.String())
 			return
 		}
 		if tpi.Height != msgBlock.Header.Height {
@@ -3592,7 +3594,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, isValid, isMainchain,
 	if isMainchain && !bytes.Equal(zeroHash[:], prevBlockHash[:]) {
 		lastTpi, found := pgb.stakeDB.PoolInfo(prevBlockHash)
 		if !found {
-			err = fmt.Errorf("stakedb.PoolInfo failed for block %s", msgBlock.BlockHash())
+			err = fmt.Errorf("stakedb.PoolInfo failed for block %s", blockHash)
 			return
 		}
 		winners = lastTpi.Winners
@@ -3687,7 +3689,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, isValid, isMainchain,
 		log.Error("InsertBlock:", err)
 		return
 	}
-	pgb.lastBlock[msgBlock.BlockHash()] = blockDbID
+	pgb.lastBlock[blockHash] = blockDbID
 
 	// Insert the block in the block_chain table with the previous block hash
 	// and an empty string for the next block hash, which may be updated when a
@@ -4145,7 +4147,7 @@ txns:
 		// any found entries for a main chain block.
 		spendingTxDbIDs, spendTypes, spentTicketHashes, ticketDbIDs, err :=
 			pgb.CollectTicketSpendDBInfo(dbTransactions, txDbIDs,
-				msgBlock.MsgBlock, isMainchain)
+				msgBlock.MsgBlock.STransactions, isMainchain)
 		if err != nil {
 			log.Error("CollectTicketSpendDBInfo:", err)
 			txRes.err = err
@@ -4479,11 +4481,11 @@ func (pgb *ChainDB) flattenAddressRows(dbAddressRows [][]dbtypes.AddressRow, txn
 // correspond to the transaction data in dbTxns, and extracts data for votes and
 // revokes, including the spent ticket hash and DB row ID.
 func (pgb *ChainDB) CollectTicketSpendDBInfo(dbTxns []*dbtypes.Tx, txDbIDs []uint64,
-	msgBlock *wire.MsgBlock, isMainchain bool) (spendingTxDbIDs []uint64, spendTypes []dbtypes.TicketSpendType,
+	msgTxns []*wire.MsgTx, isMainchain bool) (spendingTxDbIDs []uint64, spendTypes []dbtypes.TicketSpendType,
 	ticketHashes []string, ticketDbIDs []uint64, err error) {
 	// This only makes sense for stake transactions. Check that the number of
 	// dbTxns equals the number of STransactions in msgBlock.
-	msgTxns := msgBlock.STransactions
+	// msgTxns := msgBlock.STransactions
 	if len(msgTxns) != len(dbTxns) {
 		err = fmt.Errorf("number of stake transactions (%d) not as expected (%d)",
 			len(msgTxns), len(dbTxns))
@@ -4506,10 +4508,10 @@ func (pgb *ChainDB) CollectTicketSpendDBInfo(dbTxns []*dbtypes.Tx, txDbIDs []uin
 
 		// Ensure the transactions in dbTxns and msgBlock.STransactions correspond.
 		msgTx := msgTxns[i]
-		if tx.TxID != msgTx.TxHash().String() {
+		if tx.TxID != msgTx.CachedTxHash().String() {
 			err = fmt.Errorf("txid of dbtypes.Tx does not match that of msgTx")
 			return
-		}
+		} // comment this check
 
 		if stakeSubmissionVinInd >= len(msgTx.TxIn) {
 			log.Warnf("Invalid vote or ticket with %d inputs", len(msgTx.TxIn))
@@ -6308,15 +6310,16 @@ func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
 			continue
 		}
 		rawtx, hex := pgb.getRawTransactionWithHex(hash)
-		total := 0.0
 		if rawtx == nil {
 			continue
 		}
+		var total float64
 		for _, v := range rawtx.Vout {
 			total += v.Value
 		}
 		msgTx, err := txhelpers.MsgTxFromHex(hex)
 		if err != nil {
+			log.Warnf("Unable to decode mempool transaction %v: %v", hashStr, err)
 			continue
 		}
 
@@ -6346,10 +6349,10 @@ func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
 		fee, feeRate := txhelpers.TxFeeRate(msgTx)
 
 		txs = append(txs, exptypes.MempoolTx{
-			TxID:     msgTx.TxHash().String(),
+			TxID:     hashStr,
 			Fees:     fee.ToCoin(),
 			FeeRate:  feeRate.ToCoin(),
-			Hash:     hashStr,
+			Hash:     hashStr, // dup of TxID!
 			Time:     tx.Time,
 			Size:     tx.Size,
 			TotalOut: total,

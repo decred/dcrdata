@@ -100,7 +100,7 @@ func processTransactions(msgBlock *wire.MsgBlock, tree int8, chainParams *chainc
 			TxType:           int16(txType),
 			Version:          tx.Version,
 			Tree:             tree,
-			TxID:             tx.TxHash().String(),
+			TxID:             tx.CachedTxHash().String(),
 			BlockIndex:       uint32(txIndex),
 			Locktime:         tx.LockTime,
 			Expiry:           tx.Expiry,

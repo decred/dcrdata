@@ -992,7 +992,7 @@ type MempoolTx struct {
 	VoutCount int            `json:"vout_count"`
 	Vin       []MempoolInput `json:"vin,omitempty"`
 	Coinbase  bool           `json:"coinbase"` // why?
-	Hash      string         `json:"hash"`
+	Hash      string         `json:"hash"`     // dup of TxID?
 	Time      int64          `json:"time"`
 	Size      int32          `json:"size"`
 	TotalOut  float64        `json:"total"`

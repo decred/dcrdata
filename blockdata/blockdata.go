@@ -157,9 +157,9 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
-	height := msgBlock.Header.Height
-	block := dcrutil.NewBlock(msgBlock)
-	txLen := len(block.Transactions())
+	header := msgBlock.Header
+	height := header.Height
+	txLen := len(msgBlock.Transactions) + len(msgBlock.STransactions)
 
 	// Coin supply and block subsidy. If either RPC fails, do not immediately
 	// return. Attempt acquisition of other data for this block.
@@ -167,9 +167,9 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 	if err != nil {
 		log.Error("GetCoinSupply failed: ", err)
 	}
-	nbSubsidy, err := t.dcrdChainSvr.GetBlockSubsidy(ctx, int64(msgBlock.Header.Height)+1, 5)
+	nbSubsidy, err := t.dcrdChainSvr.GetBlockSubsidy(ctx, int64(height)+1, 5)
 	if err != nil {
-		log.Errorf("GetBlockSubsidy for %d failed: %v", msgBlock.Header.Height, err)
+		log.Errorf("GetBlockSubsidy for %d failed: %v", height, err)
 	}
 
 	// Block header
@@ -199,20 +199,20 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 	}
 
 	// Fee info
+	block := dcrutil.NewBlock(msgBlock)
 	feeInfoBlock := txhelpers.FeeRateInfoBlock(block)
 	if feeInfoBlock == nil {
 		log.Error("FeeInfoBlock failed")
 	}
 
 	// Work/Stake difficulty
-	header := msgBlock.Header
 	diff := txhelpers.GetDifficultyRatio(header.Bits, t.netParams)
 	sdiff := dcrutil.Amount(header.SBits).ToCoin()
 
 	// Output
 	blockdata := &apitypes.BlockDataBasic{
 		Height:     height,
-		Size:       uint32(block.MsgBlock().SerializeSize()),
+		Size:       uint32(msgBlock.SerializeSize()),
 		Hash:       hash.String(),
 		Difficulty: diff,
 		StakeDiff:  sdiff,
