@@ -1921,7 +1921,12 @@ func (pgb *ChainDB) TreasuryTxns(n, offset int64, txType stake.TxType) ([]*dbtyp
 
 func (pgb *ChainDB) updateProjectFundCache() error {
 	_, _, err := pgb.AddressHistoryAll(pgb.devAddress, 1, 0)
-	return err
+	if err != nil && !IsRetryError(err) {
+		err = pgb.replaceCancelError(err)
+		return fmt.Errorf("failed to update project fund data: %w", err)
+	}
+	log.Infof("Project fund data is up-to-date.")
+	return nil
 	// Similar to individually updating balance and rows, but more efficient:
 	// pgb.AddressBalance(pgb.devAddress)
 	// pgb.AddressRowsCompact(pgb.devAddress)
@@ -1936,7 +1941,7 @@ func (pgb *ChainDB) FreshenAddressCaches(lazyProjectFund bool, expireAddresses [
 	numCleared := pgb.AddressCache.Clear(expireAddresses)
 	if expireAddresses == nil {
 		log.Debugf("Cleared cache of all %d cached addresses.", numCleared)
-	} else {
+	} else if len(expireAddresses) > 0 {
 		log.Debugf("Cleared cache of %d of %d addresses with activity.", numCleared, len(expireAddresses))
 	}
 
@@ -1947,26 +1952,16 @@ func (pgb *ChainDB) FreshenAddressCaches(lazyProjectFund bool, expireAddresses [
 	}
 
 	// Update project fund data.
-	updateFundData := func() error {
-		log.Infof("Pre-fetching project fund data at height %d...", pgb.Height())
-		err := pgb.updateProjectFundCache()
-		if err != nil && !IsRetryError(err) {
-			err = pgb.replaceCancelError(err)
-			return fmt.Errorf("Failed to update project fund data: %w", err)
-		}
-		log.Infof("Project fund data updated.")
-		return nil
-	}
-
+	log.Infof("Pre-fetching project fund data at height %d...", pgb.Height())
 	if lazyProjectFund {
 		go func() {
-			if err := updateFundData(); err != nil {
+			if err := pgb.updateProjectFundCache(); err != nil {
 				log.Error(err)
 			}
 		}()
 		return nil
 	}
-	return updateFundData()
+	return pgb.updateProjectFundCache()
 }
 
 // DevBalance returns the current development/project fund balance, updating the
@@ -3433,9 +3428,10 @@ func (pgb *ChainDB) VoutsForTx(dbTx *dbtypes.Tx) ([]dbtypes.Vout, error) {
 	return vouts, pgb.replaceCancelError(err)
 }
 
-func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
-	tipHash := pgb.BestBlockHashStr()
-	var blocksMoved, txnsUpdated, vinsUpdated, votesUpdated, ticketsUpdated, treasuryTxnsUpdates, addrsUpdated int64
+func (pgb *ChainDB) TipToSideChain(mainRoot string) (tipHash string, blocksMoved int64) {
+	tipHash = pgb.BestBlockHashStr()
+	addresses := make(map[string]struct{})
+	var txnsUpdated, vinsUpdated, votesUpdated, ticketsUpdated, treasuryTxnsUpdates, addrsUpdated int64
 	for tipHash != mainRoot {
 		// 1. Block. Set is_mainchain=false on the tip block, return hash of
 		// previous block.
@@ -3482,7 +3478,7 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 		// row IDs, and the funding transactions specified by the vouts DB row
 		// IDs. The IDs come for free via RetrieveTxnsVinsVoutsByBlock.
 		now = time.Now()
-		numAddrSpending, numAddrFunding, err := UpdateAddressesMainchainByIDs(pgb.db,
+		addrs, numAddrSpending, numAddrFunding, err := UpdateAddressesMainchainByIDs(pgb.db,
 			vinDbIDsBlk, voutDbIDsBlk, false)
 		if err != nil {
 			log.Errorf("Failed to set addresses rows in block %s as sidechain: %v",
@@ -3490,6 +3486,9 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 		}
 		addrsUpdated += numAddrSpending + numAddrFunding
 		log.Debugf("UpdateAddressesMainchainByIDs: %v", time.Since(now))
+		for _, addr := range addrs {
+			addresses[addr] = struct{}{}
+		}
 
 		// 6. Votes. Sets is_mainchain=false on all votes in the tip block.
 		now = time.Now()
@@ -3533,10 +3532,19 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 		pgb.bestBlock.mtx.Unlock()
 	}
 
+	if len(addresses) > 0 {
+		addrs := make([]string, 0, len(addresses))
+		for addr := range addresses {
+			addrs = append(addrs, addr)
+		}
+		numCleared := pgb.AddressCache.Clear(addrs)
+		log.Debugf("Cleared cache of %d of %d addresses in orphaned transactions.", numCleared, len(addrs))
+	}
+
 	log.Debugf("Reorg orphaned: %d blocks, %d txns, %d vins, %d addresses, %d votes, %d tickets, %d treasury txns",
 		blocksMoved, txnsUpdated, vinsUpdated, addrsUpdated, votesUpdated, ticketsUpdated, treasuryTxnsUpdates)
 
-	return tipHash, blocksMoved, nil
+	return
 }
 
 // StoreBlock processes the input wire.MsgBlock, and saves to the data tables.
@@ -3834,9 +3842,13 @@ func (pgb *ChainDB) UpdateLastBlock(msgBlock *wire.MsgBlock, isMainchain bool) e
 		//  Update on addresses  (cost=0.00..1012201.53 rows=1 width=181)
 		// 		->  Seq Scan on addresses  (cost=0.00..1012201.53 rows=1 width=181)
 		// 		Filter: ((NOT is_funding) AND (tx_vin_vout_row_id = 13241234))
-		err = UpdateLastAddressesValid(pgb.db, lastBlockHash.String(), lastIsValid)
+		addrs, err := UpdateLastAddressesValid(pgb.db, lastBlockHash.String(), lastIsValid)
 		if err != nil {
 			return fmt.Errorf("UpdateLastAddressesValid: %w", err)
+		}
+		if len(addrs) > 0 {
+			numCleared := pgb.AddressCache.Clear(addrs)
+			log.Debugf("Cleared cache of %d of %d addresses in disapproved transactions.", numCleared, len(addrs))
 		}
 
 		// NOTE: Updating the tickets, votes, misses, and treasury tables is not

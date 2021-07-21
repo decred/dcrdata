@@ -59,8 +59,8 @@ func (p *ChainMonitor) switchToSideChain(reorgData *txhelpers.ReorgData) (int32,
 	startTime := time.Now()
 	mainRoot := reorgData.CommonAncestor.String()
 	log.Infof("Moving %d blocks to side chain...", mainTip-commonAncestorHeight)
-	newMainRoot, numBlocksmoved, err := p.db.TipToSideChain(mainRoot)
-	if err != nil || mainRoot != newMainRoot {
+	newMainRoot, numBlocksmoved := p.db.TipToSideChain(mainRoot)
+	if mainRoot != newMainRoot {
 		return 0, nil, fmt.Errorf("failed to flag blocks as side chain")
 	}
 	log.Infof("Moved %d blocks from the main chain to a side chain in %v.",
@@ -74,7 +74,7 @@ func (p *ChainMonitor) switchToSideChain(reorgData *txhelpers.ReorgData) (int32,
 	}
 
 	// Connect blocks in side chain onto main chain
-	log.Debugf("Connecting %d blocks", len(newChain))
+	log.Debugf("Connecting %d new main chain blocks", len(newChain))
 	currentHeight := commonAncestorHeight + 1
 	var endHash chainhash.Hash
 	var endHeight int32
@@ -89,6 +89,7 @@ func (p *ChainMonitor) switchToSideChain(reorgData *txhelpers.ReorgData) (int32,
 		if !found || msgBlock.BlockHash() != newChain[i] {
 			log.Debugf("block %v not found in stakedb cache, fetching from dcrd", newChain[i])
 			// Request MsgBlock from dcrd
+			var err error
 			msgBlock, err = p.db.Client.GetBlock(context.TODO(), &newChain[i])
 			if err != nil {
 				return 0, nil,
@@ -138,7 +139,7 @@ func (p *ChainMonitor) switchToSideChain(reorgData *txhelpers.ReorgData) (int32,
 // ReorgHandler processes a blockchain reorganization and initiates a
 // corresponding reorganization of the ChainDB. ReorgHandler satisfies
 // notification.ReorgHandler, and is registered as a handler in main.go.
-func (p *ChainMonitor) ReorgHandler(reorg *txhelpers.ReorgData) (err error) {
+func (p *ChainMonitor) ReorgHandler(reorg *txhelpers.ReorgData) error {
 	p.db.InReorg = true // to avoid project fund balance computation
 	newHeight, oldHeight := reorg.NewChainHeight, reorg.OldChainHeight
 	newHash, oldHash := reorg.NewChainHead, reorg.OldChainHead
@@ -148,30 +149,27 @@ func (p *ChainMonitor) ReorgHandler(reorg *txhelpers.ReorgData) (err error) {
 	log.Infof("Reorganize started. OLD head block %v at height %d.",
 		oldHash, oldHeight)
 
-	appendError := func(e error) error {
-		if err == nil {
-			return e
-		}
-		return fmt.Errorf("%s. %s", err.Error(), e.Error())
-	}
-
 	// Switch to the side chain.
 	stakeDBTipHeight, stakeDBTipHash, err := p.switchToSideChain(reorg)
 	if err != nil {
-		appendError(fmt.Errorf("switchToSideChain failed: %v", err))
+		return fmt.Errorf("switchToSideChain failed: %w", err)
 	}
 	if stakeDBTipHeight != newHeight {
-		appendError(fmt.Errorf("stakeDBTipHeight is %d, expected %d",
-			stakeDBTipHeight, newHeight))
+		return fmt.Errorf("stakeDBTipHeight is %d, expected %d", stakeDBTipHeight, newHeight)
 	}
 	if *stakeDBTipHash != newHash {
-		appendError(fmt.Errorf("stakeDBTipHash is %d, expected %d", stakeDBTipHash,
-			newHash))
+		return fmt.Errorf("stakeDBTipHash is %d, expected %d", stakeDBTipHash, newHash)
 	}
 
 	p.db.InReorg = false
-	// Freshen project fund balance and clear ALL address cache data.
-	_ = p.db.FreshenAddressCaches(true, nil) // async update
+
+	// Update project fund in cache, but clear NO address cache data since
+	// switchToSideChain maintains the cache via TipToSideChain and StoreBlock.
+	go func() {
+		if err := p.db.updateProjectFundCache(); err != nil {
+			log.Errorf("Failed to update project fund data in cache: %v", err)
+		}
+	}()
 
 	return err
 }

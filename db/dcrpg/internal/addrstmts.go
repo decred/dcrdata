@@ -306,10 +306,12 @@ const (
 	AssignMatchingTxHashForOutpoint = SetAddressMatchingTxHashForOutpoint + ` AND matching_tx_hash='';`
 
 	SetAddressMainchainForVoutIDs = `UPDATE addresses SET valid_mainchain=$1
-		WHERE is_funding = TRUE AND tx_vin_vout_row_id=$2;`
+		WHERE is_funding = TRUE AND tx_vin_vout_row_id=$2
+		RETURNING address;`
 
 	SetAddressMainchainForVinIDs = `UPDATE addresses SET valid_mainchain=$1
-		WHERE is_funding = FALSE AND tx_vin_vout_row_id=$2;`
+		WHERE is_funding = FALSE AND tx_vin_vout_row_id=$2
+		RETURNING address;`
 
 	// Patches/upgrades
 
