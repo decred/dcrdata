@@ -140,7 +140,7 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 	nextHeight := p.LastBlockHeight() + 1
 	treasuryActive := txhelpers.IsTreasuryActive(p.params.Net, nextHeight)
 
-	hash := msgTx.TxHash().String()
+	hash := msgTx.CachedTxHash().String()
 	txType := stake.DetermineTxType(msgTx, treasuryActive)
 	txTypeStr := txhelpers.TxTypeToString(int(txType))
 
@@ -202,7 +202,7 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 	}
 
 	// Store the current mempool transaction, block info zeroed.
-	p.txnsStore[msgTx.TxHash()] = &txhelpers.TxWithBlockData{
+	p.txnsStore[*msgTx.CachedTxHash()] = &txhelpers.TxWithBlockData{
 		Tx:          msgTx,
 		MemPoolTime: rawTx.Time,
 	}

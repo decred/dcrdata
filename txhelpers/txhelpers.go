@@ -299,7 +299,7 @@ func TxOutpointsByAddr(txAddrOuts MempoolAddressStore, msgTx *wire.MsgTx, params
 	// Check the addresses associated with the PkScript of each TxOut.
 	txTree := TxTree(msgTx, treasuryActive)
 	isStake := txTree == wire.TxTreeRegular
-	hash := msgTx.TxHash()
+	hash := msgTx.CachedTxHash()
 	addrs = make(map[string]bool)
 	for outIndex, txOut := range msgTx.TxOut {
 		_, txOutAddrs, _, err := txscript.ExtractPkScriptAddrs(txOut.Version,
@@ -317,7 +317,7 @@ func TxOutpointsByAddr(txAddrOuts MempoolAddressStore, msgTx *wire.MsgTx, params
 		for _, txAddr := range txOutAddrs {
 			addr := txAddr.Address()
 
-			op := wire.NewOutPoint(&hash, uint32(outIndex), txTree)
+			op := wire.NewOutPoint(hash, uint32(outIndex), txTree)
 
 			addrOuts := txAddrOuts[addr]
 			if addrOuts == nil {
@@ -436,7 +436,7 @@ func TxPrevOutsByAddr(txAddrOuts MempoolAddressStore, txnsStore TxnsStore, msgTx
 		tree := TxTree(prevTx, treasuryActive)
 		outpoint := wire.NewOutPoint(&hash, prevOut.Index, tree)
 		prevOutExtended := PrevOut{
-			TxSpending:       msgTx.TxHash(),
+			TxSpending:       *msgTx.CachedTxHash(),
 			InputIndex:       inIdx,
 			PreviousOutpoint: outpoint,
 		}

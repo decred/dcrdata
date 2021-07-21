@@ -680,9 +680,9 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 			voteTxs = append(voteTxs, tx)
 			voteMsgTxs = append(voteMsgTxs, msgTxs[i])
 			//voteTxDbIDs = append(voteTxDbIDs, txDbIDs[i])
-			if tx.TxID != msgTxs[i].TxHash().String() {
-				return nil, nil, nil, nil, nil, fmt.Errorf("txid of dbtypes.Tx does not match that of msgTx")
-			}
+			// if tx.TxID != msgTxs[i].CachedTxHash().String() {
+			// 	return nil, nil, nil, nil, nil, fmt.Errorf("txid of dbtypes.Tx does not match that of msgTx")
+			// } // comment this check
 		}
 	}
 
