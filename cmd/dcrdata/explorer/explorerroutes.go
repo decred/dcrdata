@@ -1238,8 +1238,10 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 
 	// Find atomic swaps related to this tx.
 	swapsInfo, err := exp.txAtomicSwapsInfo(tx)
-	if err != nil || swapsInfo == nil {
+	if err != nil {
 		log.Errorf("Unable to get atomic swap info for transaction %v: %v", tx.TxID, err)
+	}
+	if swapsInfo == nil {
 		swapsInfo = new(txhelpers.TxSwapResults)
 	}
 
