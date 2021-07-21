@@ -110,7 +110,7 @@ func mainCore() int {
 				fmt.Fprintf(os.Stderr, "ERROR: %v", err)
 				return 5
 			}
-			if swapRes.Found == "" {
+			if swapRes == nil || swapRes.Found == "" {
 				continue
 			}
 			if !found {

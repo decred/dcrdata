@@ -797,7 +797,11 @@ func (c *appContext) getTxSwapsInfo(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
-
+	if swapsInfo == nil { // TxAtomicSwapsInfo shouldn't do this like MsgTxAtomicSwapsInfo, but check anyway
+		swapsInfo = &txhelpers.TxAtomicSwaps{
+			TxID: rawtx.Txid,
+		}
+	}
 	if swapsInfo.Found == "" {
 		swapsInfo.Found = "No created or redeemed swaps in tx"
 	}
