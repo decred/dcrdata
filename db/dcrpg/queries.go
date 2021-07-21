@@ -2890,6 +2890,23 @@ func updateSpendTxInfoInAllVouts(db SqlExecutor) (int64, error) {
 	return res.RowsAffected()
 }
 
+func retrieveTxOutData(tx SqlQueryer, txid string, idx uint32, tree int8) (*dbtypes.UTXOData, error) {
+	var data dbtypes.UTXOData
+	var addrArray string
+	err := tx.QueryRow(internal.SelectVoutAddressesByTxOut, txid, idx, tree).
+		Scan(&data.VoutDbID, &addrArray, &data.Value, &data.Mixed)
+	if err != nil {
+		return nil, fmt.Errorf("SelectVoutAddressesByTxOut: %w", err)
+	}
+
+	// The addresses column of the vouts table contains an array of addresses
+	// that the pkScript pays to (i.e. >1 for multisig). Get address list.
+	replacer := strings.NewReplacer("{", "", "}", "")
+	addrArray = replacer.Replace(addrArray)
+	data.Addresses = strings.Split(addrArray, ",")
+	return &data, nil
+}
+
 // insertSpendingAddressRow inserts a new row in the addresses table for a new
 // transaction input, and updates the spending information for the addresses
 // table row and vouts table row corresponding to the previous outpoint.
@@ -2907,28 +2924,22 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 	// When no previous output information is provided, query the vouts table
 	// for the addresses, value, and mixed status.
 	if spentUtxoData == nil {
-		// The addresses column of the vouts table contains an array of
-		// addresses that the pkScript pays to (i.e. >1 for multisig).
-		var addrArray string
-		err := tx.QueryRow(internal.SelectVoutAddressesByTxOut,
-			fundingTxHash, fundingTxVoutIndex, fundingTxTree).Scan(&voutDbID, &addrArray, &value, &mixed)
-		switch err {
-		case sql.ErrNoRows, nil:
-			// If no row found or error is nil, continue
-		default:
-			return nil, 0, 0, mixed, fmt.Errorf("SelectVoutAddressesByTxOut: %w", err)
+		var err error
+		spentUtxoData, err = retrieveTxOutData(tx, fundingTxHash, fundingTxVoutIndex, fundingTxTree)
+		if err != nil {
+			if !errors.Is(err, sql.ErrNoRows) {
+				return nil, 0, 0, false, err
+			}
+			// This should be a hard error, but it was never that way before
+			// so just warn about it for now and insert zero values.
+			log.Warnf("Could not locate previous output %v:%d (tree %d) in vouts table!")
+			spentUtxoData = &dbtypes.UTXOData{}
 		}
-
-		// Get address list.
-		replacer := strings.NewReplacer("{", "", "}", "")
-		addrArray = replacer.Replace(addrArray)
-		addrs = strings.Split(addrArray, ",")
-	} else {
-		addrs = spentUtxoData.Addresses
-		value = spentUtxoData.Value
-		mixed = spentUtxoData.Mixed
-		voutDbID = spentUtxoData.VoutDbID
 	}
+	addrs = spentUtxoData.Addresses
+	value = spentUtxoData.Value
+	mixed = spentUtxoData.Mixed
+	voutDbID = spentUtxoData.VoutDbID
 
 	// Check if the block time was provided.
 	var blockTime dbtypes.TimeDef
