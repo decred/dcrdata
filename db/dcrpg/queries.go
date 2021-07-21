@@ -9,6 +9,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -112,6 +113,18 @@ func closeRows(rows *sql.Rows) {
 // SqlExecutor is implemented by both sql.DB and sql.Tx.
 type SqlExecutor interface {
 	Exec(query string, args ...interface{}) (sql.Result, error)
+}
+
+// SqlQueryer is implemented by both sql.DB and sql.Tx.
+type SqlQueryer interface {
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+	QueryRow(query string, args ...interface{}) *sql.Row
+}
+
+// SqlExecQueryer is implemented by both sql.DB and sql.Tx.
+type SqlExecQueryer interface {
+	SqlExecutor
+	SqlQueryer
 }
 
 // sqlExec executes the SQL statement string with any optional arguments, and
@@ -4337,18 +4350,24 @@ func parseRowsSentReceived(rows *sql.Rows) (*dbtypes.ChartsData, error) {
 
 // UpdateAddressesMainchainByIDs sets the valid_mainchain column for the
 // addresses specified by their vin (spending) or vout (funding) row IDs.
-func UpdateAddressesMainchainByIDs(db SqlExecutor, vinsBlk, voutsBlk []dbtypes.UInt64Array, isValidMainchain bool) (numSpendingRows, numFundingRows int64, err error) {
+func UpdateAddressesMainchainByIDs(db SqlExecQueryer, vinsBlk, voutsBlk []dbtypes.UInt64Array,
+	isValidMainchain bool) (addresses []string, numSpendingRows, numFundingRows int64, err error) {
+	addrs := make(map[string]struct{}, len(vinsBlk)+len(voutsBlk)) // may be over-alloc
 	// Spending/vins: Set valid_mainchain for the is_funding=false addresses
 	// table rows using the vins row ids.
-	var numUpdated int64
 	for iTxn := range vinsBlk {
 		for _, vin := range vinsBlk[iTxn] {
-			numUpdated, err = sqlExec(db, internal.SetAddressMainchainForVinIDs,
-				"failed to update spending addresses is_mainchain: ", isValidMainchain, vin)
+			var address string
+			err = db.QueryRow(internal.SetAddressMainchainForVinIDs, isValidMainchain, vin).Scan(&address)
 			if err != nil {
+				if errors.Is(err, sql.ErrNoRows) {
+					err = nil
+					continue // many vins lack an address row, such as generated coins
+				}
 				return
 			}
-			numSpendingRows += numUpdated
+			addrs[address] = struct{}{}
+			numSpendingRows++
 		}
 	}
 
@@ -4356,14 +4375,26 @@ func UpdateAddressesMainchainByIDs(db SqlExecutor, vinsBlk, voutsBlk []dbtypes.U
 	// table rows using the vouts row ids.
 	for iTxn := range voutsBlk {
 		for _, vout := range voutsBlk[iTxn] {
-			numUpdated, err = sqlExec(db, internal.SetAddressMainchainForVoutIDs,
-				"failed to update funding addresses is_mainchain: ", isValidMainchain, vout)
+			var address string
+			err = db.QueryRow(internal.SetAddressMainchainForVoutIDs, isValidMainchain, vout).Scan(&address)
 			if err != nil {
+				if errors.Is(err, sql.ErrNoRows) {
+					err = nil
+					continue // many vouts lack an address row, such as zero-value and nulldata outputs
+				}
 				return
 			}
-			numFundingRows += numUpdated
+			addrs[address] = struct{}{}
+			numFundingRows++
 		}
 	}
+
+	// map -> slice
+	addresses = make([]string, 0, len(addrs))
+	for addr := range addrs {
+		addresses = append(addresses, addr)
+	}
+
 	return
 }
 
@@ -4445,7 +4476,7 @@ func UpdateLastVins(db *sql.DB, blockHash string, isValid, isMainchain bool) err
 // UpdateLastAddressesValid sets valid_mainchain as specified by isValid for
 // addresses table rows pertaining to regular (non-stake) transactions found in
 // the given block.
-func UpdateLastAddressesValid(db *sql.DB, blockHash string, isValid bool) error {
+func UpdateLastAddressesValid(db *sql.DB, blockHash string, isValid bool) ([]string, error) {
 	// The queries in this function should not timeout or (probably) canceled,
 	// so use a background context.
 	ctx := context.Background()
@@ -4454,18 +4485,18 @@ func UpdateLastAddressesValid(db *sql.DB, blockHash string, isValid bool) error 
 	onlyRegularTxns := true
 	vinDbIDsBlk, voutDbIDsBlk, _, err := RetrieveTxnsVinsVoutsByBlock(ctx, db, blockHash, onlyRegularTxns)
 	if err != nil {
-		return fmt.Errorf("unable to retrieve vin data for block %s: %w", blockHash, err)
+		return nil, fmt.Errorf("unable to retrieve vin data for block %s: %w", blockHash, err)
 	}
 	// Using vins and vouts row ids, update the valid_mainchain column of the
 	// rows of the address table referring to these vins and vouts.
-	numAddrSpending, numAddrFunding, err := UpdateAddressesMainchainByIDs(db,
+	addresses, numAddrSpending, numAddrFunding, err := UpdateAddressesMainchainByIDs(db,
 		vinDbIDsBlk, voutDbIDsBlk, isValid)
 	if err != nil {
 		log.Errorf("Failed to set addresses rows in block %s as sidechain: %w", blockHash, err)
 	}
 	addrsUpdated := numAddrSpending + numAddrFunding
 	log.Debugf("Rows of addresses table updated: %d", addrsUpdated)
-	return err
+	return addresses, err
 }
 
 // UpdateBlockNext sets the next block's hash for the specified row of the
