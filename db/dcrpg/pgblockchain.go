@@ -4009,9 +4009,17 @@ txns:
 			}
 			utxo := pgb.utxoCache.Peek(vin.PrevTxHash, vin.PrevTxIndex)
 			if utxo == nil {
-				log.Warnf("Unable to find cached UTXO data for %s:%d",
-					vin.PrevTxHash, vin.PrevTxIndex)
-				continue txns
+				log.Tracef("Uncached UTXO %s:%d. Looking it up in the DB.", vin.PrevTxHash, vin.PrevTxIndex)
+				var err error
+				utxo, err = retrieveTxOutData(pgb.db, vin.PrevTxHash, vin.PrevTxIndex, int8(vin.PrevTxTree))
+				if utxo == nil || err != nil {
+					log.Warnf("Unable to find load UTXO data for %s:%d. Error: %v",
+						vin.PrevTxHash, vin.PrevTxIndex, err)
+					continue txns // fallback to an RPC?
+				}
+				// Remember this for insertSpendingAddressRow.
+				pgb.utxoCache.Set(vin.PrevTxHash, vin.PrevTxIndex,
+					utxo.VoutDbID, utxo.Addresses, utxo.Value, utxo.Mixed)
 			}
 			if !utxo.Mixed {
 				continue txns
@@ -4305,7 +4313,7 @@ txns:
 			// successful get will delete the entry from the cache.
 			utxoData, ok := pgb.utxoCache.Get(vin.PrevTxHash, vin.PrevTxIndex)
 			if !ok {
-				log.Debugf("Data for that utxo (%s:%d) wasn't cached! Vouts table will be queried.",
+				log.Tracef("Data for that utxo (%s:%d) wasn't cached! Vouts table will be queried.",
 					vin.PrevTxHash, vin.PrevTxIndex)
 			}
 			fromAddrs, _, voutDbID, mixedVout, err := insertSpendingAddressRow(dbTx,
