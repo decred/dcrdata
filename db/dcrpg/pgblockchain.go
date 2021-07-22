@@ -4293,6 +4293,7 @@ txns:
 		txVins := dbTxVins[it]
 		txDbID := txDbIDs[it] // for the newly-spent TXOs in the vouts table
 		voutDbIDs := make([]int64, 0, len(txVins))
+		var spendLegacyTreasury bool
 
 		for iv := range txVins {
 			// Transaction that spends an outpoint paying to >=0 addresses
@@ -4308,8 +4309,8 @@ txns:
 			// status for the previous outpoints' rows in the same table and in
 			// the vouts table.
 			vinDbID := tx.VinDbIds[iv]
-			spendingTxHash := vin.TxID
-			spendingTxIndex := vin.TxIndex
+			spendingTxHash := vin.TxID     // == tx.TxID
+			spendingTxIndex := vin.TxIndex // == iv ?
 
 			// Attempt to retrieve cached data for this now-spent TXO. A
 			// successful get will delete the entry from the cache.
@@ -4330,8 +4331,8 @@ txns:
 			}
 			txRes.numAddresses += int64(len(fromAddrs))
 			for i := range fromAddrs {
-				if treasuryActive && fromAddrs[i] == pgb.devAddress {
-					log.Debugf("Transaction spending from legacy treasury: %v", spendingTxHash)
+				if treasuryActive && !spendLegacyTreasury && fromAddrs[i] == pgb.devAddress {
+					spendLegacyTreasury = true
 				}
 				txRes.addresses[fromAddrs[i]] = struct{}{}
 			}
@@ -4342,35 +4343,8 @@ txns:
 			}
 		}
 
-		// Scan for swap transactions. Only scan regular txn tree, and if we are
-		// currently processing the regular tree.
-		var txnsSwapScan []*wire.MsgTx
-		if !isStake {
-			txnsSwapScan = msgBlock.Transactions[1:] // skip the coinbase
-		}
-		for _, tx := range txnsSwapScan {
-			// This will only identify the redeem and refund txns, unlike the
-			// use of TxAtomicSwapsInfo in API and explorer calls.
-			swapTxns, err := txhelpers.MsgTxAtomicSwapsInfo(tx, nil, pgb.chainParams, false)
-			if err != nil {
-				log.Warnf("MsgTxAtomicSwapsInfo: %v", err)
-				continue
-			}
-			if swapTxns == nil || swapTxns.Found == "" {
-				continue
-			}
-			for _, red := range swapTxns.Redemptions {
-				err = InsertSwap(pgb.db, height, red)
-				if err != nil {
-					log.Errorf("InsertSwap: %v", err)
-				}
-			}
-			for _, ref := range swapTxns.Refunds {
-				err = InsertSwap(pgb.db, height, ref)
-				if err != nil {
-					log.Errorf("InsertSwap: %v", err)
-				}
-			}
+		if spendLegacyTreasury {
+			log.Debugf("Transaction spending from legacy treasury: %v", tx.TxID)
 		}
 
 		// NOTE: vouts.spend_tx_row_id is not updated if this is a side chain
@@ -4384,6 +4358,37 @@ txns:
 				txRes.err = fmt.Errorf(`setSpendingForVouts: %w + %v (rollback)`,
 					err, dbTx.Rollback())
 				return txRes
+			}
+		}
+	}
+
+	// Scan for swap transactions. Only scan regular txn tree, and if we are
+	// currently processing the regular tree.
+	var txnsSwapScan []*wire.MsgTx
+	if !isStake {
+		txnsSwapScan = msgBlock.Transactions[1:] // skip the coinbase
+	}
+	for _, tx := range txnsSwapScan {
+		// This will only identify the redeem and refund txns, unlike the use of
+		// TxAtomicSwapsInfo in API and explorer calls.
+		swapTxns, err := txhelpers.MsgTxAtomicSwapsInfo(tx, nil, pgb.chainParams, false)
+		if err != nil {
+			log.Warnf("MsgTxAtomicSwapsInfo: %v", err)
+			continue
+		}
+		if swapTxns == nil || swapTxns.Found == "" {
+			continue
+		}
+		for _, red := range swapTxns.Redemptions {
+			err = InsertSwap(pgb.db, height, red)
+			if err != nil {
+				log.Errorf("InsertSwap: %v", err)
+			}
+		}
+		for _, ref := range swapTxns.Refunds {
+			err = InsertSwap(pgb.db, height, ref)
+			if err != nil {
+				log.Errorf("InsertSwap: %v", err)
 			}
 		}
 	}
