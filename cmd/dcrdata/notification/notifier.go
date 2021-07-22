@@ -96,7 +96,6 @@ type DCRDNode interface {
 	rpcutils.BlockFetcher
 	NotifyBlocks(context.Context) error
 	NotifyNewTransactions(context.Context, bool) error
-	NotifyWinningTickets(context.Context) error
 }
 
 // Listen must be called once, but only after all handlers are registered.
@@ -115,11 +114,6 @@ func (notifier *Notifier) Listen(ctx context.Context, dcrdClient DCRDNode) *Cont
 		return newContextualError("new transaction verbose notification registration failed", err)
 	}
 
-	if err = dcrdClient.NotifyWinningTickets(ctx); err != nil {
-		return newContextualError("winning ticket "+
-			"notification registration failed", err)
-	}
-
 	go notifier.superQueue(ctx)
 	return nil
 }
@@ -131,9 +125,6 @@ func (notifier *Notifier) DcrdHandlers() *rpcclient.NotificationHandlers {
 		OnBlockConnected:    notifier.onBlockConnected,
 		OnBlockDisconnected: notifier.onBlockDisconnected,
 		OnReorganization:    notifier.onReorganization,
-		OnWinningTickets:    notifier.onWinningTickets,
-		OnNewTickets:        notifier.onNewTickets,
-		// OnRelevantTxAccepted: notifier.onRelevantTxAccepted,
 		// OnTxAcceptedVerbose is invoked same as OnTxAccepted but is used here
 		// for the mempool monitors to avoid an extra call to dcrd for
 		// the tx details
@@ -205,6 +196,7 @@ func (notifier *Notifier) onBlockDisconnected(blockHeaderSerialized []byte) {
 	hash := blockHeader.BlockHash()
 
 	log.Debugf("OnBlockDisconnected: %d / %v", height, hash)
+	// this just logs
 }
 
 // rpcclient.NotificationHandlers.OnReorganization
@@ -219,22 +211,6 @@ func (notifier *Notifier) onReorganization(oldHash *chainhash.Hash, oldHeight in
 		OldChainHeight: oldHeight,
 		NewChainHead:   *newHash,
 		NewChainHeight: newHeight,
-	}
-}
-
-// rpcclient.NotificationHandlers.OnWinningTickets
-func (notifier *Notifier) onWinningTickets(_ *chainhash.Hash, _ int64, tickets []*chainhash.Hash) {
-	txstr := make([]string, 0, len(tickets))
-	for _, t := range tickets {
-		txstr = append(txstr, t.String())
-	}
-	log.Tracef("Winning tickets: %+v", txstr)
-}
-
-// rpcclient.NotificationHandlers.OnNewTickets
-func (notifier *Notifier) onNewTickets(_ *chainhash.Hash, _ int64, _ int64, tickets []*chainhash.Hash) {
-	for _, tick := range tickets {
-		log.Tracef("Mined new ticket: %v", tick.String())
 	}
 }
 

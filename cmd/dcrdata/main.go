@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -518,6 +519,10 @@ func _main(ctx context.Context) error {
 	blockDataSavers = append(blockDataSavers, explore)
 	mempoolSavers = append(mempoolSavers, explore)
 
+	// Block certain updates in explorer and pubsubhub during sync.
+	explore.SetDBsSyncing(true)
+	psHub.SetReady(false)
+
 	// Create the mempool data collector.
 	mpoolCollector := mempool.NewMempoolDataCollector(dcrdClient, activeChain)
 	if mpoolCollector == nil {
@@ -570,7 +575,7 @@ func _main(ctx context.Context) error {
 	}
 	blocksBehind = nodeHeight - chainDBHeight
 	log.Debugf("dbHeight: %d / blocksBehind: %d", chainDBHeight, blocksBehind)
-	displaySyncStatusPage := blocksBehind > int64(cfg.SyncStatusLimit) || // over limit
+	displaySyncStatusPage := blocksBehind >= int64(cfg.SyncStatusLimit) || // over limit
 		updateAllAddresses || newPGIndexes // maintenance or initial sync
 
 	// Initiate the sync status monitor and the coordinating goroutines if the
@@ -788,15 +793,9 @@ func _main(ctx context.Context) error {
 	}
 
 	log.Infof("Starting blockchain sync...")
-	explore.SetDBsSyncing(true)
-	psHub.SetReady(false)
 
-	getSyncd := func() (int64, error) {
-		// Simultaneously synchronize the ChainDB (PostgreSQL) and the
-		// stake info DB. Results are returned over channels:
-		pgSyncRes := make(chan dbtypes.SyncResult)
-
-		// Use either the plain rpcclient.Client or a rpcutils.BlockPrefetchClient.
+	syncChainDB := func() (int64, error) {
+		// Use the plain rpcclient.Client or a rpcutils.BlockPrefetchClient.
 		var bf rpcutils.BlockFetcher
 		if cfg.NoBlockPrefetch {
 			bf = dcrdClient
@@ -810,65 +809,34 @@ func _main(ctx context.Context) error {
 			bf = pfc
 		}
 
-		// Synchronization between DBs via rpcutils.BlockGate
-		smartClient := rpcutils.NewBlockGate(bf, 4)
-
 		// Now that stakedb is either catching up or waiting for a block, start
 		// the chainDB sync, which is the master block getter, retrieving and
 		// making available blocks to the baseDB. In return, baseDB maintains a
 		// StakeDatabase at the best block's height. For a detailed description
 		// on how the DBs' synchronization is coordinated, see the documents in
 		// db/dcrpg/sync.go.
-		go chainDB.SyncChainDBAsync(ctx, pgSyncRes, smartClient, updateAllAddresses,
+		height, err := chainDB.SyncChainDB(ctx, bf, updateAllAddresses,
 			newPGIndexes, latestBlockHash, barLoad)
-
-		// Wait for the results from both of these DBs.
-		return waitForSync(ctx, pgSyncRes)
+		if err != nil {
+			if !errors.Is(err, context.Canceled) {
+				requestShutdown()
+			}
+			log.Errorf("dcrpg.SyncChainDB failed at height %d.", height)
+			return height, err
+		}
+		app.Status.SetHeight(uint32(height))
+		return height, nil
 	}
 
-	chainDBHeight, err = getSyncd()
+	chainDBHeight, err = syncChainDB()
 	if err != nil {
-		requestShutdown()
 		return err
 	}
-	if newPGIndexes {
-		log.Infof("Initial chain DB sync complete. Now catching up with network...")
-		newPGIndexes = false // only the first time
-	}
-	updateAllAddresses = false
 
 	// After sync and indexing, must use upsert statement, which checks for
 	// duplicate entries and updates instead of erroring. SyncChainDB should
 	// set this on successful sync, but do it again anyway.
 	chainDB.EnableDuplicateCheckOnInsert(true)
-
-	// The sync routines may have lengthy tasks, such as table indexing, that
-	// follow main sync loop. Before enabling the chain monitors, again ensure
-	// the DBs are at the node's best block.
-	ensureSync := func() error {
-		_, height, err := dcrdClient.GetBestBlock(ctx)
-		if err != nil {
-			return fmt.Errorf("unable to get block from node: %v", err)
-		}
-
-		for chainDBHeight < height {
-			chainDBHeight, err = getSyncd()
-			if err != nil {
-				requestShutdown()
-				return err
-			}
-			_, height, err = dcrdClient.GetBestBlock(ctx)
-			if err != nil {
-				return fmt.Errorf("unable to get block from node: %v", err)
-			}
-		}
-		app.Status.SetHeight(uint32(height))
-
-		return nil
-	}
-	if err = ensureSync(); err != nil {
-		return err
-	}
 
 	// Ensure all side chains known by dcrd are also present in the DB and
 	// import them if they are not already there.
@@ -1058,7 +1026,7 @@ func _main(ctx context.Context) error {
 	// On reorg, only update web UI since the DB's own reorg handler will
 	// deal with patching up the block info database.
 	reorgBlockDataSavers := []blockdata.BlockDataSaver{explore}
-	wsChainMonitor := blockdata.NewChainMonitor(ctx, collector, blockDataSavers,
+	bdChainMonitor := blockdata.NewChainMonitor(ctx, collector, blockDataSavers,
 		reorgBlockDataSavers)
 
 	// Blockchain monitor for the stake DB
@@ -1070,51 +1038,38 @@ func _main(ctx context.Context) error {
 		return fmt.Errorf("failed to enable dcrpg ChainMonitor")
 	}
 
-	// Initial data summary for web ui. stakedb must be at the same height, so
-	// we do this before starting the monitors.
-	blockData, msgBlock, err := collector.Collect()
-	if err != nil {
-		return fmt.Errorf("Block data collection for initial summary failed: %v",
-			err.Error())
-	}
-
-	// Update the current chain state in the ChainDB.
-	chainDB.UpdateChainState(blockData.BlockchainInfo)
-
-	if err = explore.Store(blockData, msgBlock); err != nil {
-		return fmt.Errorf("Failed to store initial block data for explorer pages: %v", err.Error())
-	}
-
-	if err = psHub.Store(blockData, msgBlock); err != nil {
-		return fmt.Errorf("Failed to store initial block data with the PubSubHub: %v", err.Error())
-	}
-
-	// After this final node sync check, the monitors will handle new blocks.
-	// TODO: make this not racy at all by having sync stop at specified block.
-	if err = ensureSync(); err != nil {
-		return err
-	}
-
-	log.Infof("All ready, at height %d.", chainDBHeight)
-	explore.SetDBsSyncing(false)
-	psHub.SetReady(true)
-
-	// Set the current best block in the collection queue so that it can verify
-	// that subsequent blocks are in the correct sequence.
-	bestHash, bestHeight := chainDB.BestBlock()
-	notifier.SetPreviousBlock(*bestHash, uint32(bestHeight))
-
 	// Notifications are sequenced by adding groups of notification handlers.
 	// The groups are run sequentially, but the handlers within a group are run
 	// concurrently. For example, register(A); register(B, C) will result in A
 	// running alone and completing, then B and C running concurrently.
 	notifier.RegisterBlockHandlerGroup(sdbChainMonitor.ConnectBlock)
-	notifier.RegisterBlockHandlerGroup(wsChainMonitor.ConnectBlock)
+	notifier.RegisterBlockHandlerGroup(bdChainMonitor.ConnectBlock)
 	notifier.RegisterBlockHandlerLiteGroup(app.UpdateNodeHeight, mpm.BlockHandler)
 	notifier.RegisterReorgHandlerGroup(sdbChainMonitor.ReorgHandler)
-	notifier.RegisterReorgHandlerGroup(wsChainMonitor.ReorgHandler, chainDBChainMonitor.ReorgHandler)
+	notifier.RegisterReorgHandlerGroup(bdChainMonitor.ReorgHandler, chainDBChainMonitor.ReorgHandler)
 	notifier.RegisterReorgHandlerGroup(charts.ReorgHandler) // snip charts data
 	notifier.RegisterTxHandlerGroup(mpm.TxHandler, insightSocketServer.SendNewTx)
+
+	// After this final node sync check, the monitors will handle new blocks.
+	// TODO: make this not racy at all by having notifiers register first, but
+	// enable operation on signal of sync complete.
+	nodeHeight, chainDBHeight, err = Heights()
+	if err != nil {
+		return fmt.Errorf("Heights failed: %w", err)
+	}
+	if nodeHeight != chainDBHeight {
+		log.Infof("Initial chain DB sync complete. Now catching up with network...")
+		newPGIndexes, updateAllAddresses = false, false
+		chainDBHeight, err = syncChainDB()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Set the current best block in the collection queue so that it can verify
+	// that subsequent blocks are in the correct sequence.
+	bestHash, bestHeight := chainDB.BestBlock()
+	notifier.SetPreviousBlock(*bestHash, uint32(bestHeight))
 
 	// Register for notifications from dcrd. This also sets the daemon RPC
 	// client used by other functions in the notify/notification package (i.e.
@@ -1124,27 +1079,37 @@ func _main(ctx context.Context) error {
 		return fmt.Errorf("RPC client error: %v (%v)", cerr.Error(), cerr.Cause())
 	}
 
+	// Update the treasury balance, and clear any cached address data in case
+	// the sync status page not intercepting requests (see SyncStatusLimit).
+	_ = chainDB.FreshenAddressCaches(true, nil) // async treasury queries, no error
+
+	log.Infof("All ready, at height %d.", chainDBHeight)
+	explore.SetDBsSyncing(false) // let explorer.Store do final updates
+	psHub.SetReady(true)         // make the psHub's WebsocketHub ready to send
+
+	// Initial data summary for web ui and pubsubhub. Normally the notification
+	// handlers will do Collect followed by Store.
+	{
+		blockData, msgBlock, err := collector.Collect()
+		if err != nil {
+			return fmt.Errorf("Block data collection for initial summary failed: %w", err)
+		}
+
+		// Update the current chain state in the ChainDB.
+		chainDB.UpdateChainState(blockData.BlockchainInfo)
+
+		if err = explore.Store(blockData, msgBlock); err != nil {
+			return fmt.Errorf("Failed to store initial block data for explorer pages: %w", err)
+		}
+
+		if err = psHub.Store(blockData, msgBlock); err != nil {
+			return fmt.Errorf("Failed to store initial block data with the PubSubHub: %w", err)
+		}
+	}
+
 	wg.Wait()
 
 	return nil
-}
-
-func waitForSync(ctx context.Context, aux chan dbtypes.SyncResult) (int64, error) {
-	// Wait for the postgresql sync result.
-	auxRes := <-aux
-	chainDBHeight := auxRes.Height
-
-	// See if shutdown was requested.
-	if shutdownRequested(ctx) {
-		return chainDBHeight, fmt.Errorf("quit signal received during DB sync")
-	}
-
-	// Check for pg sync errors and combine the messages if necessary.
-	if auxRes.Error != nil {
-		log.Errorf("dcrpg.SyncChainDBAsync failed at height %d.", chainDBHeight)
-		return chainDBHeight, auxRes.Error
-	}
-	return chainDBHeight, nil
 }
 
 func connectNodeRPC(cfg *config, ntfnHandlers *rpcclient.NotificationHandlers) (*rpcclient.Client, semver.Semver, error) {
