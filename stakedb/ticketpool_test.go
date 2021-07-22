@@ -2,10 +2,12 @@ package stakedb
 
 import (
 	"crypto/rand"
+	"fmt"
 	"os"
 	"testing"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/slog"
 )
 
 func randomHash() chainhash.Hash {
@@ -24,13 +26,27 @@ func randomHashSlice(N int) []chainhash.Hash {
 	return s
 }
 
+func TestMain(m *testing.M) {
+	UseLogger(slog.NewBackend(os.Stdout).Logger("EXE"))
+	log.SetLevel(slog.LevelTrace)
+	returnVal := m.Run()
+
+	if err := os.RemoveAll(dbFolder); err != nil && !os.IsNotExist(err) {
+		fmt.Printf("Failed to delete db file: %v\n", err)
+	}
+
+	os.Exit(returnVal)
+}
+
 var (
-	dbFolder           = "pooldiffs.bdgr"
-	dbFolderRef        = "pooldiffs0.bdgr"
-	dbFolderFull       = "test_ticket_pool.bdgr"
-	fullHeight   int64 = 239191
-	fullPoolSize       = 40763
-	poolSpots          = []int64{32215, 43268, 85508, 66322, 178346, 11013, 98265, 1081,
+	dbFolder             = "pooldiffs.bdgr"
+	dbFolderRefV0        = "pooldiffs0.bdgr"
+	dbFolderRefV1        = "pooldiffs1.bdgr"
+	dbFolderFullV0       = "test_ticket_pool.bdgr"
+	dbFolderFullV1       = "test_ticket_pool_v1.bdgr"
+	fullHeight     int64 = 239191
+	fullPoolSize         = 40763
+	poolSpots            = []int64{32215, 43268, 85508, 66322, 178346, 11013, 98265, 1081,
 		40170, 105957, 187824, 148370, 14478, 153239, 109536, 169157, 92064,
 		200277, 27558, 116203, 2338, 28323, 51459, 145753, 137377, 108501,
 		138521, 33203, 39979, 56765, 175322, 87124, 192306, 157350, 13823,
@@ -56,13 +72,24 @@ var (
 
 // TestTicketPoolTraverseFull tests AdvanceToTip and Pool for random access.
 // After each Pool call, it checks the pool size against the expected size.
-func TestTicketPoolTraverseFull(t *testing.T) {
-	if _, err := os.Stat(dbFolderFull); err != nil {
-		t.Skipf("%s not found, skipping TestTicketPoolTraverseFull", dbFolderFull)
+// testTicketPoolTraverseFull tests AdvanceToTip and Pool for random access.
+// After each Pool call, it checks the pool size against the expected size.
+func TestTicketPoolTraverseFullV0(t *testing.T) {
+	testTicketPoolTraverseFull(t, dbFolderFullV0) // modifies dbFolderFullV0
+}
+
+func TestTicketPoolTraverseFullV1(t *testing.T) {
+	testTicketPoolTraverseFull(t, dbFolderFullV1)
+}
+
+func testTicketPoolTraverseFull(t *testing.T, dir string) {
+	t.Helper()
+	if _, err := os.Stat(dir); err != nil {
+		t.Skipf("%s not found, skipping TestTicketPoolTraverseFull", dir)
 	}
 
-	t.Logf("Loading entire ticket pool diffs from %s...", dbFolderFull)
-	p, err := NewTicketPool(".", dbFolderFull)
+	t.Logf("Loading entire ticket pool diffs from %s...", dir)
+	p, err := NewTicketPool(".", dir)
 	if err != nil {
 		t.Fatalf("NewTicketPool failed: %v", err)
 	}
@@ -355,42 +382,62 @@ func TestTicketPoolHeight(t *testing.T) {
 	}
 }
 
-// TestTicketPoolPersistent tests the persistent DB by loading a referece db,
+// TestTicketPoolPersistent tests the persistent DB by loading a reference db,
 // and verifies its state is as expected, and Pool works on it.
 func TestTicketPoolPersistent(t *testing.T) {
-	p, err := NewTicketPool(".", dbFolderRef)
+	tmpDir := t.TempDir()
+	err := copyDir(dbFolderRefV0, tmpDir)
 	if err != nil {
-		t.Fatalf("NewTicketPool failed: %v", err)
-	}
-	defer p.Close()
-
-	tip := p.Tip()
-	if tip != 2 {
-		t.Fatalf("tip incorrect. expected 2, got %d", tip)
-	}
-	cursor := p.Cursor()
-	if cursor != 0 {
-		t.Errorf("cursor incorrect. expected 0, got %d", cursor)
+		t.Fatal(err)
 	}
 
-	initPoolSize := p.CurrentPoolSize()
-	if initPoolSize != 0 {
-		t.Fatalf("initial pool size incorrect. expected 0, got %d", initPoolSize)
+	testDBDir := func(dir string) {
+		p, err := NewTicketPool("", dir)
+		if err != nil {
+			t.Fatalf("NewTicketPool failed: %v", err)
+		}
+		defer p.Close()
+
+		tip := p.Tip()
+		if tip != 2 {
+			t.Fatalf("tip incorrect. expected 2, got %d", tip)
+		}
+		cursor := p.Cursor()
+		if cursor != 0 {
+			t.Errorf("cursor incorrect. expected 0, got %d", cursor)
+		}
+
+		initPoolSize := p.CurrentPoolSize()
+		if initPoolSize != 0 {
+			t.Fatalf("initial pool size incorrect. expected 0, got %d", initPoolSize)
+		}
+
+		// Debug ticket pool contents
+		// for i := int64(0); i <= tip; i++ {
+		// 	t.Log(p.Pool(i))
+		// }
+
+		tipPool, err := p.Pool(tip)
+		if err != nil {
+			t.Fatalf("Pool(tip) failed: %v", err)
+		}
+		t.Logf("tip pool size: %d", len(tipPool))
+
+		tipPoolSize := p.CurrentPoolSize()
+		if tipPoolSize != 6 {
+			t.Fatalf("initial pool size incorrect. expected 4, got %d", tipPoolSize)
+		}
 	}
 
-	// Debug ticket pool contents
-	// for i := int64(0); i <= tip; i++ {
-	// 	t.Log(p.Pool(i))
-	// }
+	// Test the upgrade of the v0 folder in the temp copy.
+	t.Logf("Testing upgrade of v0 DB at %v", tmpDir)
+	testDBDir(tmpDir)
 
-	tipPool, err := p.Pool(tip)
-	if err != nil {
-		t.Fatalf("Pool(tip) failed: %v", err)
-	}
-	t.Logf("tip pool size: %d", len(tipPool))
+	// Now test the upgraded DB folder.
+	t.Logf("Testing newly upgraded v1 DB at %v", tmpDir)
+	testDBDir(tmpDir)
 
-	tipPoolSize := p.CurrentPoolSize()
-	if tipPoolSize != 6 {
-		t.Fatalf("initial pool size incorrect. expected 4, got %d", tipPoolSize)
-	}
+	// Now the reference v1 folder (should not modify it).
+	t.Logf("Testing reference v1 DB at %v", dbFolderRefV1)
+	testDBDir(dbFolderRefV1)
 }
