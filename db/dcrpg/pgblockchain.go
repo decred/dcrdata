@@ -276,6 +276,7 @@ type ChainDB struct {
 	deployments        *ChainDeployments
 	piparser           ProposalsFetcher
 	proposalsSync      lastSync
+	piUpdateRunning    uint32
 	cockroach          bool
 	MPC                *mempool.MempoolDataCache
 	// BlockCache stores apitypes.BlockDataBasic and apitypes.StakeInfoExtended
@@ -1221,7 +1222,7 @@ func (pgb *ChainDB) proposalsUpdateHandler() {
 		for range pgb.piparser.UpdateSignal() {
 			count, err := pgb.PiProposalsHistory()
 			if err != nil {
-				log.Error("pgb.PiProposalsHistory failed : %v", err)
+				log.Errorf("pgb.PiProposalsHistory failed: %v", err)
 			} else {
 				log.Infof("%d politeia's proposal commits were processed", count)
 			}
@@ -1243,6 +1244,10 @@ func (pgb *ChainDB) PiProposalsHistory() (int64, error) {
 	if pgb.piparser == nil {
 		return -1, fmt.Errorf("invalid piparser instance was found")
 	}
+	if !atomic.CompareAndSwapUint32(&pgb.piUpdateRunning, 0, 1) {
+		return -1, fmt.Errorf("Pi repo parser updates already processing")
+	}
+	defer atomic.StoreUint32(&pgb.piUpdateRunning, 0)
 
 	pgb.proposalsSync.mtx.Lock()
 	pgb.proposalsSync.syncTime = time.Now().UTC()

@@ -25,38 +25,11 @@ const (
 	addressesSyncStatusMsg   = "Syncing addresses table with spending info..."
 )
 
-// SyncChainDBAsync is like SyncChainDB except it also takes a result channel on
-// which the caller should wait to receive the result. As such, this method
-// should be called as a goroutine or it will hang on send if the channel is
-// unbuffered.
-func (pgb *ChainDB) SyncChainDBAsync(ctx context.Context, res chan dbtypes.SyncResult,
-	client rpcutils.MasterBlockGetter, updateAllAddresses, newIndexes bool,
-	updateExplorer chan *chainhash.Hash, barLoad chan *dbtypes.ProgressBarLoad) {
-	if pgb == nil {
-		res <- dbtypes.SyncResult{
-			Height: -1,
-			Error:  fmt.Errorf("ChainDB (psql) disabled"),
-		}
-		return
-	}
-
-	height, err := pgb.SyncChainDB(ctx, client, updateAllAddresses, newIndexes,
-		updateExplorer, barLoad)
-	if err != nil {
-		log.Errorf("SyncChainDB quit at height %d, err: %v", height, err)
-	}
-
-	res <- dbtypes.SyncResult{
-		Height: height,
-		Error:  err,
-	}
-}
-
 // SyncChainDB stores in the DB all blocks on the main chain available from the
 // RPC client. The table indexes may be force-dropped and recreated by setting
 // newIndexes to true. The quit channel is used to break the sync loop. For
 // example, closing the channel on SIGINT.
-func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockGetter,
+func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.BlockFetcher,
 	updateAllAddresses, newIndexes bool, updateExplorer chan *chainhash.Hash,
 	barLoad chan *dbtypes.ProgressBarLoad) (int64, error) {
 	// Note that we are doing a batch blockchain sync.
@@ -64,15 +37,15 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 	defer func() { pgb.InBatchSync = false }()
 
 	// Get the chain servers's best block.
-	nodeHeight, err := client.NodeHeight()
+	_, nodeHeight, err := client.GetBestBlock(ctx)
 	if err != nil {
-		return -1, fmt.Errorf("GetBestBlock failed: %v", err)
+		return -1, fmt.Errorf("GetBestBlock failed: %w", err)
 	}
 
 	// Retrieve the best block in the database from the meta table.
 	lastBlock, err := pgb.HeightDB()
 	if err != nil {
-		return -1, fmt.Errorf("RetrieveBestBlockHeight: %v", err)
+		return -1, fmt.Errorf("RetrieveBestBlockHeight: %w", err)
 	}
 	if lastBlock == -1 {
 		log.Info("Tables are empty, starting fresh.")
@@ -86,7 +59,7 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 	// See if initial sync (initial block download) was previously completed.
 	ibdComplete, err := IBDComplete(pgb.db)
 	if err != nil {
-		return lastBlock, fmt.Errorf("IBDComplete failed: %v", err)
+		return lastBlock, fmt.Errorf("IBDComplete failed: %w", err)
 	}
 
 	// Check and report heights of the DBs. dbHeight is the lowest of the
@@ -110,7 +83,7 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		// Rewind best node in ticket DB to larger of lowest DB height or zero.
 		stakeDBHeight, err = pgb.RewindStakeDB(ctx, lastBlock)
 		if err != nil {
-			return lastBlock, fmt.Errorf("RewindStakeDB failed: %v", err)
+			return lastBlock, fmt.Errorf("RewindStakeDB failed: %w", err)
 		}
 	}
 
@@ -134,7 +107,7 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		log.Infof("Collecting all UTXO data prior to height %d...", lastBlock+1)
 		utxos, err := RetrieveUTXOs(ctx, pgb.db)
 		if err != nil {
-			return -1, fmt.Errorf("RetrieveUTXOs: %v", err)
+			return -1, fmt.Errorf("RetrieveUTXOs: %w", err)
 		}
 
 		log.Infof("Pre-warming UTXO cache with %d UTXOs...", len(utxos))
@@ -177,7 +150,7 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 	if ibdComplete && (reindexing || updateAllAddresses) {
 		// Set meta.ibd_complete = FALSE.
 		if err = SetIBDComplete(pgb.db, false); err != nil {
-			return nodeHeight, fmt.Errorf("failed to set meta.ibd_complete: %v", err)
+			return nodeHeight, fmt.Errorf("failed to set meta.ibd_complete: %w", err)
 		}
 	}
 
@@ -265,117 +238,130 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 	stage := 1
 	log.Infof("Beginning SYNC STAGE %d of %d (block data import).", stage, stages)
 
-	// Start syncing blocks.
-	for ib := startHeight; ib <= nodeHeight; ib++ {
-		// Check for quit signal.
-		select {
-		case <-ctx.Done():
-			log.Infof("Rescan cancelled at height %d.", ib)
-			return ib - 1, nil
-		default:
-		}
+	importBlocks := func(start int64) (int64, error) {
+		for ib := start; ib <= nodeHeight; ib++ {
+			// Check for quit signal.
+			select {
+			case <-ctx.Done():
+				return ib - 1, fmt.Errorf("sync cancelled at height %d", ib)
+			default:
+			}
 
-		// Progress logging
-		if (ib-1)%rescanLogBlockChunk == 0 || ib == startHeight {
-			if ib == 0 {
-				log.Infof("Scanning genesis block into chain db.")
-			} else {
-				endRangeBlock := rescanLogBlockChunk * (1 + (ib-1)/rescanLogBlockChunk)
-				if endRangeBlock > nodeHeight {
-					endRangeBlock = nodeHeight
+			// Progress logging
+			if (ib-1)%rescanLogBlockChunk == 0 || ib == startHeight {
+				if ib == 0 {
+					log.Infof("Scanning genesis block into chain db.")
+				} else {
+					_, nodeHeight, err = client.GetBestBlock(ctx)
+					if err != nil {
+						return ib, fmt.Errorf("GetBestBlock failed: %w", err)
+					}
+					endRangeBlock := rescanLogBlockChunk * (1 + (ib-1)/rescanLogBlockChunk)
+					if endRangeBlock > nodeHeight {
+						endRangeBlock = nodeHeight
+					}
+					log.Infof("Processing blocks %d to %d...", ib, endRangeBlock)
+
+					if barLoad != nil {
+						timeTakenPerBlock := time.Since(lastProgressUpdateTime).Seconds() /
+							float64(endRangeBlock-ib)
+						sendProgressUpdate(&dbtypes.ProgressBarLoad{
+							From:      ib,
+							To:        nodeHeight,
+							Timestamp: int64(timeTakenPerBlock * float64(nodeHeight-endRangeBlock)),
+							Msg:       initialLoadSyncStatusMsg,
+							BarID:     dbtypes.InitialDBLoad,
+						})
+						lastProgressUpdateTime = time.Now()
+					}
 				}
-				log.Infof("Processing blocks %d to %d...", ib, endRangeBlock)
+			}
 
-				if barLoad != nil {
-					timeTakenPerBlock := time.Since(lastProgressUpdateTime).Seconds() /
-						float64(endRangeBlock-ib)
-					sendProgressUpdate(&dbtypes.ProgressBarLoad{
-						From:      ib,
-						To:        nodeHeight,
-						Timestamp: int64(timeTakenPerBlock * float64(nodeHeight-endRangeBlock)),
-						Msg:       initialLoadSyncStatusMsg,
-						BarID:     dbtypes.InitialDBLoad,
-					})
-					lastProgressUpdateTime = time.Now()
+			// Speed report
+			select {
+			case <-ticker.C:
+				blocksPerSec := float64(ib-lastBlock) / tickTime.Seconds()
+				txPerSec := float64(totalTxs-lastTxs) / tickTime.Seconds()
+				vinsPerSec := float64(totalVins-lastVins) / tickTime.Seconds()
+				voutPerSec := float64(totalVouts-lastVouts) / tickTime.Seconds()
+				log.Infof("(%3d blk/s,%5d tx/s,%5d vin/sec,%5d vout/s)", int64(blocksPerSec),
+					int64(txPerSec), int64(vinsPerSec), int64(voutPerSec))
+				lastBlock, lastTxs = ib, totalTxs
+				lastVins, lastVouts = totalVins, totalVouts
+			default:
+			}
+
+			// Get the block, making it available to stakedb, which will signal on
+			// the above channel when it is done connecting it.
+			block, blockHash, err := rpcutils.GetBlock(ib, client)
+			if err != nil {
+				log.Errorf("UpdateToBlock (%d) failed: %v", ib, err)
+				return ib - 1, fmt.Errorf("UpdateToBlock (%d) failed: %w", ib, err)
+			}
+
+			// Advance stakedb height, which should always be less than or equal to
+			// PSQL height. stakedb always has genesis, as enforced by the rewinding
+			// code in this function.
+			if ib > stakeDBHeight {
+				behind := ib - stakeDBHeight
+				if behind != 1 {
+					panic(fmt.Sprintf("About to connect the wrong block: %d, %d\n"+
+						"The stake database is corrupted. "+
+						"Restart with --purge-n-blocks=%d to recover.",
+						ib, stakeDBHeight, 2*behind))
+				}
+				if err = pgb.stakeDB.ConnectBlock(block); err != nil {
+					return ib - 1, pgb.supplementUnknownTicketError(err)
+				}
+			}
+			stakeDBHeight = int64(pgb.stakeDB.Height()) // i
+
+			// Get the chainwork
+			chainWork, err := rpcutils.GetChainWork(client, blockHash)
+			if err != nil {
+				return ib - 1, fmt.Errorf("GetChainWork failed (%s): %w", blockHash, err)
+			}
+
+			// Store data from this block in the database.
+			isValid, isMainchain := true, true
+			// updateExisting is ignored if dupCheck=false, but set it to true since
+			// SyncChainDB is processing main chain blocks.
+			updateExisting := true
+			numVins, numVouts, numAddresses, err := pgb.StoreBlock(block.MsgBlock(),
+				isValid, isMainchain, updateExisting, !updateAllAddresses, chainWork)
+			if err != nil {
+				return ib - 1, fmt.Errorf("StoreBlock failed: %w", err)
+			}
+			totalVins += numVins
+			totalVouts += numVouts
+			totalAddresses += numAddresses
+
+			// Total transactions is the sum of regular and stake transactions.
+			totalTxs += int64(len(block.STransactions()) + len(block.Transactions()))
+
+			// Update explorer pages at intervals of 20 blocks if the update channel
+			// is active (non-nil and not closed).
+			if !updateAllAddresses && ib%20 == 0 {
+				log.Infof("Updating the explorer with information for block %v", ib)
+				sendPageData(blockHash)
+			}
+
+			// Update node height, the end condition for the loop.
+			if ib == nodeHeight {
+				_, nodeHeight, err = client.GetBestBlock(ctx)
+				if err != nil {
+					return ib, fmt.Errorf("GetBestBlock failed: %w", err)
 				}
 			}
 		}
-
-		// Speed report
-		select {
-		case <-ticker.C:
-			blocksPerSec := float64(ib-lastBlock) / tickTime.Seconds()
-			txPerSec := float64(totalTxs-lastTxs) / tickTime.Seconds()
-			vinsPerSec := float64(totalVins-lastVins) / tickTime.Seconds()
-			voutPerSec := float64(totalVouts-lastVouts) / tickTime.Seconds()
-			log.Infof("(%3d blk/s,%5d tx/s,%5d vin/sec,%5d vout/s)", int64(blocksPerSec),
-				int64(txPerSec), int64(vinsPerSec), int64(voutPerSec))
-			lastBlock, lastTxs = ib, totalTxs
-			lastVins, lastVouts = totalVins, totalVouts
-		default:
-		}
-
-		// Get the block, making it available to stakedb, which will signal on
-		// the above channel when it is done connecting it.
-		block, err := client.UpdateToBlock(ib)
-		if err != nil {
-			log.Errorf("UpdateToBlock (%d) failed: %v", ib, err)
-			return ib - 1, fmt.Errorf("UpdateToBlock (%d) failed: %v", ib, err)
-		}
-
-		// Advance stakedb height, which should always be less than or equal to
-		// PSQL height. stakedb always has genesis, as enforced by the rewinding
-		// code in this function.
-		if ib > stakeDBHeight {
-			behind := ib - stakeDBHeight
-			if behind != 1 {
-				panic(fmt.Sprintf("About to connect the wrong block: %d, %d\n"+
-					"The stake database is corrupted. "+
-					"Restart with --purge-n-blocks=%d to recover.",
-					ib, stakeDBHeight, 2*behind))
-			}
-			if err = pgb.stakeDB.ConnectBlock(block); err != nil {
-				return ib - 1, pgb.supplementUnknownTicketError(err)
-			}
-		}
-		stakeDBHeight = int64(pgb.stakeDB.Height()) // i
-		blockHash := block.Hash()
-
-		// Get the chainwork
-		chainWork, err := client.GetChainWork(blockHash)
-		if err != nil {
-			return ib - 1, fmt.Errorf("GetChainWork failed (%s): %v", blockHash, err)
-		}
-
-		// Store data from this block in the database.
-		isValid, isMainchain := true, true
-		// updateExisting is ignored if dupCheck=false, but set it to true since
-		// SyncChainDB is processing main chain blocks.
-		updateExisting := true
-		numVins, numVouts, numAddresses, err := pgb.StoreBlock(block.MsgBlock(),
-			isValid, isMainchain, updateExisting, !updateAllAddresses, chainWork)
-		if err != nil {
-			return ib - 1, fmt.Errorf("StoreBlock failed: %v", err)
-		}
-		totalVins += numVins
-		totalVouts += numVouts
-		totalAddresses += numAddresses
-
-		// Total transactions is the sum of regular and stake transactions.
-		totalTxs += int64(len(block.STransactions()) + len(block.Transactions()))
-
-		// Update explorer pages at intervals of 20 blocks if the update channel
-		// is active (non-nil and not closed).
-		if !updateAllAddresses && ib%20 == 0 {
-			log.Infof("Updating the explorer with information for block %v", ib)
-			sendPageData(blockHash)
-		}
-
-		// Update node height, the end condition for the loop.
-		if nodeHeight, err = client.NodeHeight(); err != nil {
-			return ib, fmt.Errorf("GetBestBlock failed: %v", err)
-		}
+		return nodeHeight, nil
 	}
+
+	// Start syncing blocks.
+	endHeight, err := importBlocks(startHeight)
+	if err != nil {
+		return endHeight, err
+	} // else endHeight == nodeHeight
 
 	// Final speed report
 	speedReport()
@@ -421,13 +407,13 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		// Create all indexes except those on addresses.matching_tx_hash and all
 		// tickets indexes.
 		if err = pgb.IndexAll(barLoad); err != nil {
-			return nodeHeight, fmt.Errorf("IndexAll failed: %v", err)
+			return nodeHeight, fmt.Errorf("IndexAll failed: %w", err)
 		}
 
 		if !updateAllAddresses {
 			// The addresses.matching_tx_hash index is not included in IndexAll.
 			if err = IndexAddressTableOnMatchingTxHash(pgb.db); err != nil {
-				return nodeHeight, fmt.Errorf("IndexAddressTableOnMatchingTxHash failed: %v", err)
+				return nodeHeight, fmt.Errorf("IndexAddressTableOnMatchingTxHash failed: %w", err)
 			}
 		}
 
@@ -435,16 +421,22 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		// IndexAll since tickets are always updated on the fly and not part of
 		// updateAllAddresses?)
 		if err = pgb.IndexTicketsTable(barLoad); err != nil {
-			return nodeHeight, fmt.Errorf("IndexTicketsTable failed: %v", err)
+			return nodeHeight, fmt.Errorf("IndexTicketsTable failed: %w", err)
 		}
 
 		// Deep ANALYZE all tables.
 		stage++
 		log.Infof("Beginning SYNC STAGE %d of %d (deep database ANALYZE).", stage, stages)
 		if err = AnalyzeAllTables(pgb.db, deepStatsTarget); err != nil {
-			return nodeHeight, fmt.Errorf("failed to ANALYZE tables: %v", err)
+			return nodeHeight, fmt.Errorf("failed to ANALYZE tables: %w", err)
 		}
 		analyzed = true
+	}
+
+	select {
+	case <-ctx.Done():
+		return nodeHeight, fmt.Errorf("sync cancelled")
+	default:
 	}
 
 	// Batch update addresses table with spending info.
@@ -457,11 +449,11 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		if !analyzed {
 			log.Infof("Performing an ANALYZE(%d) on vouts table...", deepStatsTarget)
 			if err = AnalyzeTable(pgb.db, "vouts", deepStatsTarget); err != nil {
-				return nodeHeight, fmt.Errorf("failed to ANALYZE vouts table: %v", err)
+				return nodeHeight, fmt.Errorf("failed to ANALYZE vouts table: %w", err)
 			}
 			log.Infof("Performing an ANALYZE(%d) on transactions table...", deepStatsTarget)
 			if err = AnalyzeTable(pgb.db, "transactions", deepStatsTarget); err != nil {
-				return nodeHeight, fmt.Errorf("failed to ANALYZE transactions table: %v", err)
+				return nodeHeight, fmt.Errorf("failed to ANALYZE transactions table: %w", err)
 			}
 		}
 
@@ -470,20 +462,26 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 
 		numAddresses, err := pgb.UpdateSpendingInfoInAllAddresses(barLoad)
 		if err != nil {
-			return nodeHeight, fmt.Errorf("UpdateSpendingInfoInAllAddresses FAILED: %v", err)
+			return nodeHeight, fmt.Errorf("UpdateSpendingInfoInAllAddresses FAILED: %w", err)
 		}
 		log.Infof("Updated %d rows of addresses table.", numAddresses)
 
 		log.Info("Indexing addresses table on matching_tx_hash...")
 		if err = IndexAddressTableOnMatchingTxHash(pgb.db); err != nil {
-			return nodeHeight, fmt.Errorf("IndexAddressTableOnMatchingTxHash failed: %v", err)
+			return nodeHeight, fmt.Errorf("IndexAddressTableOnMatchingTxHash failed: %w", err)
 		}
 
 		// Deep ANALYZE the newly indexed addresses table.
 		log.Infof("Performing an ANALYZE(%d) on addresses table...", deepStatsTarget)
 		if err = AnalyzeTable(pgb.db, "addresses", deepStatsTarget); err != nil {
-			return nodeHeight, fmt.Errorf("failed to ANALYZE addresses table: %v", err)
+			return nodeHeight, fmt.Errorf("failed to ANALYZE addresses table: %w", err)
 		}
+	}
+
+	select {
+	case <-ctx.Done():
+		return nodeHeight, fmt.Errorf("sync cancelled")
+	default:
 	}
 
 	// Quickly ANALYZE all tables if not already done after indexing.
@@ -491,21 +489,38 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlock
 		stage++
 		log.Infof("Beginning SYNC STAGE %d of %d (quick database ANALYZE).", stage, stages)
 		if err = AnalyzeAllTables(pgb.db, quickStatsTarget); err != nil {
-			return nodeHeight, fmt.Errorf("failed to ANALYZE tables: %v", err)
+			return nodeHeight, fmt.Errorf("failed to ANALYZE tables: %w", err)
 		}
 	}
 
-	// Update the treasury balance and clear the general address balance cache.
-	_ = pgb.FreshenAddressCaches(true, nil) // async
+	// Set meta.ibd_complete = TRUE.
+	if err = SetIBDComplete(pgb.db, true); err != nil {
+		return nodeHeight, fmt.Errorf("failed to set meta.ibd_complete: %w", err)
+	}
+
+	select {
+	case <-ctx.Done():
+		return nodeHeight, fmt.Errorf("sync cancelled")
+	default:
+	}
 
 	// After sync and indexing, must use upsert statement, which checks for
 	// duplicate entries and updates instead of throwing and error and panicing.
 	pgb.EnableDuplicateCheckOnInsert(true)
 
-	// Set meta.ibd_complete = TRUE.
-	if err = SetIBDComplete(pgb.db, true); err != nil {
-		return nodeHeight, fmt.Errorf("failed to set meta.ibd_complete: %v", err)
+	// Catch up after indexing and other updates.
+	_, nodeHeight, err = client.GetBestBlock(ctx)
+	if err != nil {
+		return nodeHeight, fmt.Errorf("GetBestBlock failed: %w", err)
 	}
+	if nodeHeight > endHeight {
+		log.Infof("Catching up with network at block height %d from %d...", nodeHeight, endHeight)
+		if endHeight, err = importBlocks(endHeight); err != nil {
+			return endHeight, err
+		}
+	}
+
+	// Caller should pre-fetch treasury balance when ready.
 
 	if barLoad != nil {
 		barID := dbtypes.InitialDBLoad
