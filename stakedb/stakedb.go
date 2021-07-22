@@ -511,12 +511,18 @@ func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 	maturingHeight := height - int64(db.params.TicketMaturity)
 
 	var maturingTickets []chainhash.Hash
+	var vals []int64
 	if maturingHeight >= 0 {
 		maturingBlock, wasCached := db.block(maturingHeight)
 		if wasCached {
 			db.ForgetBlock(maturingHeight)
 		}
-		maturingTickets, _ = txhelpers.TicketsInBlock(maturingBlock)
+		var msgTxs []*wire.MsgTx
+		maturingTickets, msgTxs = txhelpers.TicketsInBlock(maturingBlock)
+		vals = make([]int64, len(msgTxs))
+		for i, msgTx := range msgTxs {
+			vals[i] = msgTx.TxOut[0].Value
+		}
 	}
 
 	db.blkMtx.Lock()
@@ -557,7 +563,7 @@ func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 	defer func() { go db.signalWaiters(height, block.Hash()) }()
 
 	// update liveTicketCache and poolValue
-	db.applyDiff(*poolDiff)
+	db.applyDiff(*poolDiff, vals)
 
 	// Some sanity checks
 	// db.liveTicketMtx.RLock()
@@ -609,23 +615,27 @@ func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Ha
 }
 
 // applyDiff updates liveTicketCache and poolValue for the given PoolDiff.
-func (db *StakeDatabase) applyDiff(poolDiff PoolDiff) {
+func (db *StakeDatabase) applyDiff(poolDiff PoolDiff, inVals []int64) {
 	db.liveTicketMtx.Lock()
-	for _, hash := range poolDiff.In {
+	for i, hash := range poolDiff.In {
 		_, ok := db.liveTicketCache[hash]
 		if ok {
 			log.Warnf("Just tried to add a ticket (%v) to the pool, but it was already there!", hash)
 			continue
 		}
 
-		tx, err := db.NodeClient.GetRawTransaction(context.TODO(), &hash)
-		if err != nil {
-			log.Errorf("Unable to get transaction %v: %v\n", hash, err)
-			continue
+		var val int64
+		if inVals == nil {
+			tx, err := db.NodeClient.GetRawTransaction(context.TODO(), &hash)
+			if err != nil {
+				log.Errorf("Unable to get transaction %v: %v\n", hash, err)
+				continue
+			}
+			val = tx.MsgTx().TxOut[0].Value
+		} else {
+			val = inVals[i]
 		}
-		// This isn't quite right for pool tickets where the small
-		// pool fees are included in vout[0], but it's close.
-		val := tx.MsgTx().TxOut[0].Value
+
 		db.liveTicketCache[hash] = val
 		db.poolValue += val
 	}
@@ -648,7 +658,7 @@ func (db *StakeDatabase) undoDiff(poolDiff PoolDiff) {
 	db.applyDiff(PoolDiff{
 		In:  poolDiff.Out,
 		Out: poolDiff.In,
-	})
+	}, nil)
 }
 
 // SetPoolInfo stores the ticket pool info for the given hash in the pool info
