@@ -38,6 +38,7 @@ if [[ $TESTTAGS =~ "pgonline" || $TESTTAGS =~ "chartdata" ]]; then
 fi
 
 tar xvf $TMPDIR/test-data-repo/stakedb/test_ticket_pool.bdgr.tar.xz -C ./stakedb
+tar xvf $TMPDIR/test-data-repo/stakedb/test_ticket_pool_v1.bdgr.tar.xz -C ./stakedb
 
 # run tests on all modules
 for i in $(find . -name go.mod -type f -print); do
@@ -72,4 +73,4 @@ echo "Tests completed successfully!"
 
 # Remove all the tests data
 rm -rf $TMPDIR $TMPFILE
-rm -rf ./stakedb/pooldiffs.bdgr ./stakedb/test_ticket_pool.bdgr ./testutil/dbconfig/test.data
+rm -rf ./stakedb/pooldiffs.bdgr ./stakedb/test_ticket_pool.bdgr ./stakedb/test_ticket_pool_v1.bdgr ./testutil/dbconfig/test.data

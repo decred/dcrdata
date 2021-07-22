@@ -8,7 +8,11 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/gob"
+	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -39,13 +43,6 @@ type PoolDiff struct {
 	Out []chainhash.Hash
 }
 
-// PoolDiffDBItem is the type in the live ticket DB. The primary key (id) is
-// Height.
-type PoolDiffDBItem struct {
-	Height   int64 `storm:"id"`
-	PoolDiff `storm:"inline"`
-}
-
 type badgerLogger struct {
 	slog.Logger
 }
@@ -66,6 +63,10 @@ var logLevelOverrides = map[string]logLevel{
 	"Replay took:":                      logLevelTrace,
 	"Storing value log head:":           logLevelTrace,
 	"Force compaction on level":         logLevelTrace,
+	"Value log discard stats":           logLevelTrace,
+	"Got compaction priority":           logLevelDebug,
+	"Compaction for level":              logLevelDebug,
+	"Running for level":                 logLevelTrace,
 	"While forcing compaction on level": logLevelDebug,
 }
 
@@ -135,6 +136,90 @@ func (l *badgerLogger) Errorf(format string, v ...interface{}) {
 	l.logf(logLevelError, format, v...)
 }
 
+var versionKey = []byte("version")
+
+const currentVersion uint32 = 1
+
+func setVersion(db *badger.DB) error {
+	var verB [4]byte
+	binary.BigEndian.PutUint32(verB[:], currentVersion)
+	return db.Update(func(txn *badger.Txn) error {
+		return txn.SetEntry(badger.NewEntry(versionKey, verB[:]).WithMeta(1))
+	})
+}
+
+func dbVersion(db *badger.DB) (uint32, error) {
+	var ver uint32
+	err := db.View(func(txn *badger.Txn) error {
+		verItem, err := txn.Get(versionKey)
+		if err != nil {
+			if errors.Is(err, badger.ErrKeyNotFound) {
+				log.Debug("Detected v0 pool db with no version key.")
+				return nil // ver = 0
+			}
+			return err
+		}
+
+		if sz := verItem.ValueSize(); sz != 4 {
+			return fmt.Errorf("invalid version value size %d", sz)
+		}
+
+		return verItem.Value(func(v []byte) error {
+			ver = binary.BigEndian.Uint32(v) // should not be 0
+			return nil
+		})
+	})
+	return ver, err
+}
+
+func copyFile(src, dst string) error {
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	_, err = io.Copy(out, in)
+	return err
+}
+
+func copyDir(src, dst string) error {
+	entries, err := ioutil.ReadDir(src)
+	if err != nil {
+		return err
+	}
+	fi, err := os.Stat(dst)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		err = os.MkdirAll(dst, 0700)
+		if err != nil {
+			return err
+		}
+	} else if !fi.IsDir() {
+		return fmt.Errorf("%q is not a directory", dst)
+	}
+
+	for _, fd := range entries {
+		fName := fd.Name()
+		srcFile := filepath.Join(src, fName)
+		dstFile := filepath.Join(dst, fName)
+		log.Debugf("Copying %v to %v", srcFile, dstFile)
+		err := copyFile(srcFile, dstFile)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // NewTicketPool constructs a TicketPool by opening the persistent diff db,
 // loading all known diffs, initializing the TicketPool values.
 func NewTicketPool(dataDir, dbSubDir string) (tp *TicketPool, err error) {
@@ -163,6 +248,44 @@ func NewTicketPool(dataDir, dbSubDir string) (tp *TicketPool, err error) {
 		}
 	}()
 
+	// Detect a new DB by looking at the tables count.
+	newDB := len(db.Tables(false)) == 0
+	if newDB {
+		log.Debugf("Creating new pool DB version %d", currentVersion)
+		if err = setVersion(db); err != nil {
+			return nil, err
+		}
+	}
+
+	// Check the DB version, 0 if not set.
+	ver, err := dbVersion(db)
+	if err != nil {
+		return nil, err
+	}
+	if ver > currentVersion {
+		return nil, fmt.Errorf("unsupported db version %d", ver)
+	}
+	if ver < currentVersion {
+		// Backup: close, copy, reopen
+		if err = db.Close(); err != nil {
+			return nil, err
+		}
+		// Split joined DB path because input args can be anything.
+		root, base := filepath.Split(badgerDbPath)
+		backupPath := filepath.Join(root, base+"-bak")
+		log.Infof("Backing up current database to %v before upgrading...", backupPath)
+		err = copyDir(badgerDbPath, backupPath)
+		if err != nil {
+			return nil, err
+		}
+		log.Infof("Backup created. Reopening original DB...")
+		db, err = badger.Open(opts)
+		if err != nil {
+			return nil, fmt.Errorf("failed badger.Open: %v", err)
+		}
+		// Assume ver hasn't changed.
+	}
+
 	// Attempt garbage collection of badger value log. If greater than
 	// rewriteThreshold of the space was discarded, rewrite the entire value
 	// log. However, there should be few discards as chain reorgs that cause
@@ -177,12 +300,21 @@ func NewTicketPool(dataDir, dbSubDir string) (tp *TicketPool, err error) {
 	}
 
 	// Load all diffs
-	log.Infof("Loading all ticket pool diffs...")
-	poolDiffs, err := LoadAllPoolDiffs(db)
+	log.Infof("Loading all ticket pool diffs from DB version %d...", ver)
+	poolDiffs, heights, err := LoadAllPoolDiffs(db, ver)
 	if err != nil {
 		return nil, fmt.Errorf("failed LoadAllPoolDiffs: %v", err)
 	}
 	log.Infof("Successfully loaded %d ticket pool diffs", len(poolDiffs))
+
+	// Perform an upgrade by rewriting all the diffs.
+	if ver != currentVersion {
+		err = rewriteDB(db, poolDiffs, heights)
+		if err != nil {
+			return nil, fmt.Errorf("storeDiffs: %w", err)
+		}
+		log.Infof("Successfully rewrote DB at version %d", currentVersion)
+	}
 
 	// Construct TicketPool with loaded diffs and diff DB
 	return &TicketPool{
@@ -194,8 +326,20 @@ func NewTicketPool(dataDir, dbSubDir string) (tp *TicketPool, err error) {
 }
 
 // LoadAllPoolDiffs loads all found ticket pool diffs from badger DB.
-func LoadAllPoolDiffs(db *badger.DB) ([]PoolDiff, error) {
+func LoadAllPoolDiffs(db *badger.DB, ver uint32) ([]PoolDiff, []uint64, error) {
+	switch ver {
+	case 0:
+		return loadAllPoolDiffsV0(db)
+	case 1:
+		return loadAllPoolDiffsV1(db)
+	default:
+		return nil, nil, fmt.Errorf("unrecognized pool DB version %d", ver)
+	}
+}
+
+func loadAllPoolDiffsV0(db *badger.DB) ([]PoolDiff, []uint64, error) {
 	var poolDiffs []PoolDiff
+	var heights []uint64
 	err := db.View(func(txn *badger.Txn) error {
 		// Create the badger iterator
 		opts := badger.IteratorOptions{
@@ -215,14 +359,13 @@ func LoadAllPoolDiffs(db *badger.DB) ([]PoolDiff, error) {
 			// Don't waste time with a copy since we are going to read the data in
 			// this transaction.
 			var hashReader bytes.Reader
-			//nolint:unparam
 			errTx := item.Value(func(v []byte) error {
 				hashReader.Reset(v)
 				return nil
 			})
 			if errTx != nil {
-				return fmt.Errorf("key [%x]. Error while fetching value [%v]",
-					item.Key(), errTx)
+				return fmt.Errorf("key [%x / %d]. Error while fetching value [%v]",
+					item.Key(), height, errTx)
 			}
 
 			var poolDiff PoolDiff
@@ -236,6 +379,7 @@ func LoadAllPoolDiffs(db *badger.DB) ([]PoolDiff, error) {
 				panic(fmt.Sprintf("height: %d, lastheight: %d", height, lastheight))
 			}
 			lastheight = height
+			heights = append(heights, height)
 		}
 		// extra sanity check
 		poolDiffLen := uint64(len(poolDiffs))
@@ -247,7 +391,117 @@ func LoadAllPoolDiffs(db *badger.DB) ([]PoolDiff, error) {
 
 		return nil
 	})
-	return poolDiffs, err
+	return poolDiffs, heights, err
+}
+
+func loadAllPoolDiffsV1(db *badger.DB) ([]PoolDiff, []uint64, error) {
+	var poolDiffs []PoolDiff
+	var heights []uint64
+	err := db.View(func(txn *badger.Txn) error {
+		// Create the badger iterator
+		opts := badger.IteratorOptions{
+			PrefetchValues: true,
+			PrefetchSize:   1000,
+			Reverse:        false,
+			AllVersions:    false,
+		}
+		it := txn.NewIterator(opts)
+		defer it.Close()
+
+		var lastheight uint64
+		for it.Rewind(); it.Valid(); it.Next() {
+			item := it.Item()
+			if item.UserMeta() == 1 {
+				continue
+			}
+			key := item.Key()
+			height := binary.BigEndian.Uint64(key)
+
+			var hashReader bytes.Reader
+			errTx := item.Value(func(v []byte) error {
+				hashReader.Reset(v)
+				return nil
+			})
+			if errTx != nil {
+				return fmt.Errorf("key [%x / %d]. Error while fetching value [%v]",
+					key, height, errTx)
+			}
+
+			// Number of hashes in.
+			var inLenBytes [8]byte
+			n, err := hashReader.Read(inLenBytes[:])
+			if err != nil {
+				return fmt.Errorf("failed to ready In length: %w", err)
+			}
+			if n != 8 {
+				return fmt.Errorf("failed to ready 8-bytes of In length, got %d", n)
+			}
+			inLen := binary.BigEndian.Uint64(inLenBytes[:])
+
+			// Number of hashes out, skipping over the input hashes themselves.
+			var outLenBytes [8]byte
+			n, err = hashReader.ReadAt(outLenBytes[:], 8+int64(inLen)*chainhash.HashSize)
+			if err != nil {
+				return fmt.Errorf("failed to ready Out length: %w", err)
+			}
+			if n != 8 {
+				return fmt.Errorf("failed to ready 8-bytes of Out length, got %d", n)
+			}
+			outLen := binary.BigEndian.Uint64(outLenBytes[:])
+
+			poolDiff := PoolDiff{
+				In:  make([]chainhash.Hash, inLen),
+				Out: make([]chainhash.Hash, outLen),
+			}
+
+			for i := range poolDiff.In {
+				n, err = hashReader.Read(poolDiff.In[i][:])
+				if err != nil {
+					return fmt.Errorf("failed to ready In[%d] Hash: %w", i, err)
+				}
+				if n != chainhash.HashSize {
+					return fmt.Errorf("failed to ready %-bytes of In Hash, got %d", chainhash.HashSize, n)
+				}
+			}
+
+			// hashReader.Read(outLenBytes[:]) // read and discard outLen again
+			_, err = hashReader.Seek(8, io.SeekCurrent) // skip over outLenBytes
+			if err != nil {
+				return err
+			}
+			for i := range poolDiff.Out {
+				n, err = hashReader.Read(poolDiff.Out[i][:])
+				if err != nil {
+					return fmt.Errorf("failed to ready Out[%d] Hash: %w", i, err)
+				}
+				if n != chainhash.HashSize {
+					return fmt.Errorf("failed to ready %-bytes of Out Hash, got %d", chainhash.HashSize, n)
+				}
+			}
+
+			remaining := hashReader.Len()
+			if remaining != 0 {
+				return fmt.Errorf("not at the end of the value; %d left", remaining)
+			}
+
+			poolDiffs = append(poolDiffs, poolDiff)
+			if lastheight+1 != height {
+				panic(fmt.Sprintf("height: %d, lastheight: %d", height, lastheight))
+			}
+			lastheight = height
+			heights = append(heights, height)
+		}
+		// extra sanity check
+		poolDiffLen := uint64(len(poolDiffs))
+		if poolDiffLen > 0 {
+			if poolDiffLen != lastheight {
+				panic(fmt.Sprintf("last poolDiff Height (%d) != %d", lastheight, poolDiffLen))
+			}
+		}
+
+		return nil
+	})
+	return poolDiffs, heights, err
 }
 
 // Close closes the persistent diff DB.
@@ -301,49 +555,79 @@ func (tp *TicketPool) Trim() (int64, PoolDiff) {
 	return tp.trim()
 }
 
-// storeDiff stores the input diff for the specified height in the on-disk DB.
-func storeDiff(db *badger.DB, diff *PoolDiff, height int64) error {
-	var heightBytes [8]byte
-	binary.BigEndian.PutUint64(heightBytes[:], uint64(height))
+func uint64Bytes(v uint64) []byte {
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, v)
+	return b
+}
 
-	var poolDiffBuffer bytes.Buffer
-	if err := gob.NewEncoder(&poolDiffBuffer).Encode(diff); err != nil {
-		return err
+// encodeDiff serializes a PoolDiff.
+func encodeDiff(diff *PoolDiff) []byte {
+	numIn, numOut := len(diff.In), len(diff.Out)
+	dataLen := 16 + chainhash.HashSize*(numIn+numOut)
+
+	dataBuff := bytes.NewBuffer(make([]byte, 0, dataLen))
+	dataBuff.Write(uint64Bytes(uint64(numIn))) // +8
+	for i := range diff.In {
+		dataBuff.Write(diff.In[i][:]) // +HashSize
+	}
+	dataBuff.Write(uint64Bytes(uint64(numOut)))
+	for i := range diff.Out {
+		dataBuff.Write(diff.Out[i][:])
 	}
 
+	if dataBuff.Len() != dataLen {
+		panic(fmt.Sprintf("wrong data length encoded, got %v, wanted %v", dataBuff.Len(), dataLen))
+	}
+
+	return dataBuff.Bytes()
+}
+
+// storeDiffTx stores the input diff for the specified height in the on-disk DB.
+func storeDiffTx(txn *badger.Txn, diff *PoolDiff, height uint64) error {
+	heightBytes := uint64Bytes(height)
+	diffData := encodeDiff(diff)
+	return txn.Set(heightBytes, diffData)
+}
+
+// storeDiff stores the input diff for the specified height in the on-disk DB.
+func storeDiff(db *badger.DB, diff *PoolDiff, height uint64) error {
+	heightBytes := uint64Bytes(height)
+	diffData := encodeDiff(diff)
 	return db.Update(func(txn *badger.Txn) error {
-		return txn.Set(heightBytes[:], poolDiffBuffer.Bytes())
+		return txn.Set(heightBytes, diffData)
 	})
 }
 
-/*
-// storeDiffs stores the input diffs for the specified heights in the on-disk DB.
-func storeDiffs(db *badger.DB, diffs []*PoolDiff, heights []int64) error {
-	heightToBytes := func(height int64) (heightBytes [8]byte) {
-		binary.BigEndian.PutUint64(heightBytes[:], uint64(height))
-		return
+// rewriteDB drops all entries, sets the current DB version, and stores the
+// input diffs for the specified heights in the on-disk DB.
+func rewriteDB(db *badger.DB, diffs []PoolDiff, heights []uint64) error {
+	err := db.DropAll()
+	if err != nil {
+		return err
 	}
 
-	poolDiffBuffer := new(bytes.Buffer)
 	txn := db.NewTransaction(true)
+
+	var verB [4]byte
+	binary.BigEndian.PutUint32(verB[:], currentVersion)
+	err = txn.SetEntry(badger.NewEntry(versionKey, verB[:]).WithMeta(1))
+	if err != nil {
+		txn.Discard()
+		return err
+	}
+
 	for i, h := range heights {
-		heightBytes := heightToBytes(h)
-		poolDiffBuffer.Reset()
-		gobEnc := gob.NewEncoder(poolDiffBuffer)
-		err := gobEnc.Encode(diffs[i])
-		if err != nil {
-			txn.Discard()
-			return err
-		}
-		err = txn.Set(heightBytes[:], poolDiffBuffer.Bytes())
-		// If this transaction got too big, commit and make a new one
-		if err == badger.ErrTxnTooBig {
+		err := storeDiffTx(txn, &diffs[i], h)
+		// If this transaction got too big, commit and make a new one.
+		if errors.Is(err, badger.ErrTxnTooBig) {
 			if err = txn.Commit(); err != nil {
 				txn.Discard()
 				return err
 			}
+			log.Infof("Starting new transaction for pool diff %d", i)
 			txn = db.NewTransaction(true)
-			if err = txn.Set(heightBytes[:], poolDiffBuffer.Bytes()); err != nil {
+			if err = storeDiffTx(txn, &diffs[i], h); err != nil {
 				txn.Discard()
 				return err
 			}
@@ -353,55 +637,13 @@ func storeDiffs(db *badger.DB, diffs []*PoolDiff, heights []int64) error {
 			return err
 		}
 	}
+
 	return txn.Commit()
 }
-*/
 
 func (tp *TicketPool) storeDiff(diff *PoolDiff, height int64) error {
-	return storeDiff(tp.diffDB, diff, height)
+	return storeDiff(tp.diffDB, diff, uint64(height))
 }
-
-/*
-// fetchDiff retrieves the diff at the specified height from the on-disk DB.
-func (tp *TicketPool) fetchDiff(height int64) (*PoolDiffDBItem, error) {
-	var heightBytes [8]byte
-	binary.BigEndian.PutUint64(heightBytes[:], uint64(height))
-
-	var diff *PoolDiffDBItem
-	err := tp.diffDB.View(func(txn *badger.Txn) error {
-		item, errTx := txn.Get(heightBytes[:])
-		if errTx != nil {
-			return fmt.Errorf("failed to find height %d in TicketPool: %v",
-				height, errTx)
-		}
-
-		// Don't waste time with a copy since we are going to read the data in
-		// this transaction.
-		var hashReader bytes.Reader
-		errTx = item.Value(func(v []byte) error {
-			hashReader.Reset(v)
-			return nil
-		})
-		if errTx != nil {
-			return fmt.Errorf("key [%x]. Error while fetching value [%v]",
-				item.Key(), errTx)
-		}
-
-		var poolDiff PoolDiff
-		if errTx = gob.NewDecoder(&hashReader).Decode(&poolDiff); errTx != nil {
-			return fmt.Errorf("failed to decode PoolDiff: %v", errTx)
-		}
-
-		diff = &PoolDiffDBItem{
-			Height:   height,
-			PoolDiff: poolDiff,
-		}
-		return nil
-	})
-
-	return diff, err
-}
-*/
 
 // Append grows the diffs slice with the specified diff, and stores it in the
 // on-disk DB. The height of the diff is used to check that it builds on the
