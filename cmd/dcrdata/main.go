@@ -26,8 +26,8 @@ import (
 
 	"github.com/decred/dcrdata/db/dcrpg/v6"
 	"github.com/decred/dcrdata/exchanges/v3"
-	"github.com/decred/dcrdata/gov/v4/agendas"
-	politeia "github.com/decred/dcrdata/gov/v4/politeia"
+	"github.com/decred/dcrdata/gov/v5/agendas"
+	politeia "github.com/decred/dcrdata/gov/v5/politeia"
 
 	"github.com/decred/dcrdata/v6/blockdata"
 	"github.com/decred/dcrdata/v6/db/cache"

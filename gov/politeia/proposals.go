@@ -15,7 +15,7 @@ import (
 
 	"github.com/asdine/storm/v3"
 	"github.com/asdine/storm/v3/q"
-	pitypes "github.com/decred/dcrdata/gov/v4/politeia/types"
+	pitypes "github.com/decred/dcrdata/gov/v5/politeia/types"
 	"github.com/decred/dcrdata/v6/semver"
 	commentsv1 "github.com/decred/politeia/politeiawww/api/comments/v1"
 	recordsv1 "github.com/decred/politeia/politeiawww/api/records/v1"

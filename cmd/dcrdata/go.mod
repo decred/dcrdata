@@ -5,7 +5,7 @@ go 1.15
 replace (
 	github.com/decred/dcrdata/db/dcrpg/v6 => ../../db/dcrpg/
 	github.com/decred/dcrdata/exchanges/v3 => ../../exchanges/
-	github.com/decred/dcrdata/gov/v4 => ../../gov/
+	github.com/decred/dcrdata/gov/v5 => ../../gov/
 	github.com/decred/dcrdata/v6 => ../../
 )
 
@@ -23,7 +23,7 @@ require (
 	github.com/decred/dcrd/wire v1.4.0
 	github.com/decred/dcrdata/db/dcrpg/v6 v6.0.0
 	github.com/decred/dcrdata/exchanges/v3 v3.0.0
-	github.com/decred/dcrdata/gov/v4 v4.0.0
+	github.com/decred/dcrdata/gov/v5 v5.0.0
 	github.com/decred/dcrdata/v6 v6.0.0
 	github.com/decred/politeia v1.0.1
 	github.com/decred/slog v1.1.0
