@@ -44,13 +44,16 @@ type ProposalsDB struct {
 	APIPath  string
 }
 
+// NewProposalsDB opens an existing database or creates a new a storm DB
+// instance with the provided path. It also sets up a new politeia http
+// client and returns them on a proposals DB instance.
 func NewProposalsDB(politeiaURL, dbPath string) (*ProposalsDB, error) {
 	// Validate arguments
 	if politeiaURL == "" {
-		return nil, fmt.Errorf("missing Politeia URL")
+		return nil, errors.New("missing Politeia URL")
 	}
 	if dbPath == "" {
-		return nil, fmt.Errorf("missing db path")
+		return nil, errors.New("missing db path")
 	}
 
 	// Check path and open storm DB
@@ -75,7 +78,7 @@ func NewProposalsDB(politeiaURL, dbPath string) (*ProposalsDB, error) {
 		if err = db.Drop(&pitypes.ProposalRecord{}); err != nil {
 			// If error due bucket not found was returned, ignore it.
 			if !strings.Contains(err.Error(), "not found") {
-				return nil, fmt.Errorf("delete bucket struct failed: %v", err)
+				return nil, fmt.Errorf("delete bucket struct failed: %w", err)
 			}
 		}
 
@@ -186,7 +189,7 @@ func (db *ProposalsDB) ProposalsAll(offset, rowsCount int,
 	err = query.Skip(offset).Limit(rowsCount).Reverse().OrderBy("Timestamp").
 		Find(&proposals)
 	if err != nil && !errors.Is(err, storm.ErrNotFound) {
-		log.Errorf("Failed to fetch data from Proposals DB: %v", err)
+		log.Errorf("Failed to fetch data from Proposals DB: %w", err)
 	}
 
 	return proposals, totalCount, nil
@@ -203,113 +206,73 @@ func (db *ProposalsDB) ProposalByToken(token string) (*pitypes.ProposalRecord, e
 	return db.proposal("Token", token)
 }
 
-// fetchVettedTokens fetches all vetted tokens ordered by the timestamp of
-// their last status change.
-func (db *ProposalsDB) fetchVettedTokensInventory() ([]string, error) {
-	page := 0
-	vettedTokens := []string{}
-	for {
-		inventoryReq := recordsv1.InventoryOrdered{
-			State: recordsv1.RecordStateVetted,
-			Page:  uint32(page + 1),
-		}
-		reply, err := db.client.RecordInventoryOrdered(inventoryReq)
-		if err != nil {
-			return nil, fmt.Errorf("Pi client RecordInventoryOrdered err: %v",
-				err)
-		}
-
-		vettedTokens = append(vettedTokens, reply.Tokens...)
-
-		// Break loop if we fetch last page
-		if len(reply.Tokens) < int(recordsv1.InventoryPageSize) {
-			break
-		}
-	}
-	return vettedTokens, nil
-}
-
-// fetchRecordDetails fetches the record details of the given proposal tokens.
-func (db *ProposalsDB) fetchRecordDetails(tokens []string) (map[string]recordsv1.Record, error) {
-	records := make(map[string]recordsv1.Record, len(tokens))
-	for _, token := range tokens {
-		detailsReq := recordsv1.Details{
-			Token: token,
-		}
-		dr, err := db.client.RecordDetails(detailsReq)
-		if err != nil {
-			return nil, fmt.Errorf("Pi client RecordDetails err: %v", err)
-		}
-		records[token] = *dr
-	}
-
-	return records, nil
-}
-
 // fetchProposalsData returns the parsed vetted proposals from politeia
 // API's. It cooks up the data needed to save the proposals in stormdb. It
 // first fetches the proposal details, then comments and then vote summary.
 // This data is needed for the information provided in the dcrdata UI. The
 // data returned does not include ticket vote data.
 func (db *ProposalsDB) fetchProposalsData(tokens []string) ([]*pitypes.ProposalRecord, error) {
-	// Fetch record details for each token from the inventory
+	// Fetch record details for each token from the inventory.
 	recordDetails, err := db.fetchRecordDetails(tokens)
 	if err != nil {
 		return nil, err
 	}
 
-	// Fetch comments count for each token from the inventory
-	cr, err := db.client.CommentCount(commentsv1.Count{
-		Tokens: tokens,
-	})
+	// Fetch comments count for each token from the inventory.
+	commentsCounts, err := db.fetchCommentsCounts(tokens)
 	if err != nil {
-		return nil, fmt.Errorf("Pi client CommentCount err: %v", err)
+		return nil, err
 	}
-	commentsCounts := cr.Counts
 
-	// Fetch vote summary for each token from the inventory
-	sr, err := db.client.TicketVoteSummaries(ticketvotev1.Summaries{
-		Tokens: tokens,
-	})
+	// Fetch vote summary for each token from the inventory.
+	voteSummaries, err := db.fetchTicketVoteSummaries(tokens)
 	if err != nil {
-		return nil, fmt.Errorf("Pi client TicketVoteSummaries err: %v", err)
+		return nil, err
 	}
-	voteSummaries := sr.Summaries
-
-	var proposals []*pitypes.ProposalRecord
 
 	// Iterate through every record and feed data used by dcrdata
+	proposals := make([]*pitypes.ProposalRecord, 0, len(recordDetails))
 	for _, record := range recordDetails {
-		proposal := pitypes.ProposalRecord{}
-
 		// Record data
-		proposal.State = record.State
-		proposal.Status = record.Status
-		proposal.Version = record.Version
-		proposal.Timestamp = uint64(record.Timestamp)
-		proposal.Username = record.Username
-		proposal.Token = record.CensorshipRecord.Token
+		proposal := &pitypes.ProposalRecord{
+			State:     record.State,
+			Status:    record.Status,
+			Version:   record.Version,
+			Timestamp: uint64(record.Timestamp),
+			Username:  record.Username,
+			Token:     record.CensorshipRecord.Token,
+		}
 
 		// Proposal metadata
 		pm, err := proposalMetadataDecode(record.Files)
 		if err != nil {
-			return nil, fmt.Errorf("proposalMetadataDecode err: %v", err)
+			return nil, fmt.Errorf("proposalMetadataDecode err: %w", err)
 		}
 		proposal.Name = pm.Name
 
 		// User metadata
 		um, err := userMetadataDecode(record.Metadata)
 		if err != nil {
-			return nil, fmt.Errorf("userMetadataDecode err: %v", err)
+			return nil, fmt.Errorf("userMetadataDecode err: %w", err)
 		}
 		proposal.UserID = um.UserID
 
 		// Comments count
-		proposal.CommentsCount =
-			int32(commentsCounts[record.CensorshipRecord.Token])
+		commentsCount, ok := commentsCounts[proposal.Token]
+		if !ok {
+			log.Errorf("Comments count for proposal %v not returned by API",
+				proposal.Token)
+			continue
+		}
+		proposal.CommentsCount = int32(commentsCount)
 
 		// Vote summary data
-		summary := voteSummaries[proposal.Token]
+		summary, ok := voteSummaries[proposal.Token]
+		if !ok {
+			log.Errorf("Vote summary for proposal %v not returned by API",
+				proposal.Token)
+			continue
+		}
 		proposal.VoteStatus = summary.Status
 		proposal.VoteResults = summary.Results
 		proposal.EligibleTickets = summary.EligibleTickets
@@ -325,29 +288,129 @@ func (db *ProposalsDB) fetchProposalsData(tokens []string) ([]*pitypes.ProposalR
 		proposal.TotalVotes = totalVotes
 
 		// Status change metadata
-		ts, changeMsg, err := statusChangeMetadataDecode(record.Metadata)
+		statusTimestamps, changeMsg, err :=
+			statusChangeMetadataDecode(record.Metadata)
 		if err != nil {
-			return nil, fmt.Errorf("statusChangeMetadataDecode err: %v", err)
+			return nil, fmt.Errorf("statusChangeMetadataDecode err: %w", err)
 		}
-		proposal.PublishedAt = ts[0]
-		proposal.CensoredAt = ts[1]
-		proposal.AbandonedAt = ts[2]
+		proposal.PublishedAt = uint64(statusTimestamps.published)
+		proposal.CensoredAt = uint64(statusTimestamps.censored)
+		proposal.AbandonedAt = uint64(statusTimestamps.abandoned)
 		proposal.StatusChangeMsg = changeMsg
 
 		// Append proposal after inserting the relevant data
-		proposals = append(proposals, &proposal)
+		proposals = append(proposals, proposal)
 	}
 
 	return proposals, nil
 }
 
+// fetchVettedTokens fetches all vetted tokens ordered by the timestamp of
+// their last status change.
+func (db *ProposalsDB) fetchVettedTokensInventory() ([]string, error) {
+	page := 1
+	var vettedTokens []string
+	for {
+		inventoryReq := recordsv1.InventoryOrdered{
+			State: recordsv1.RecordStateVetted,
+			Page:  uint32(page),
+		}
+		reply, err := db.client.RecordInventoryOrdered(inventoryReq)
+		if err != nil {
+			return nil, fmt.Errorf("Pi client RecordInventoryOrdered err: %w",
+				err)
+		}
+
+		vettedTokens = append(vettedTokens, reply.Tokens...)
+
+		if len(reply.Tokens) < int(recordsv1.InventoryPageSize) {
+			// Break loop if we fetch last page.
+			break
+		}
+
+		page++
+	}
+
+	return vettedTokens, nil
+}
+
+// fetchRecordDetails fetches the record details of the given proposal tokens.
+func (db *ProposalsDB) fetchRecordDetails(tokens []string) (map[string]*recordsv1.Record, error) {
+	records := make(map[string]*recordsv1.Record, len(tokens))
+	for _, token := range tokens {
+		detailsReq := recordsv1.Details{
+			Token: token,
+		}
+		dr, err := db.client.RecordDetails(detailsReq)
+		if err != nil {
+			return nil, fmt.Errorf("Pi client RecordDetails err: %w", err)
+		}
+		records[token] = dr
+	}
+
+	return records, nil
+}
+
+// fetchCommentsCounts fetches the comments counts for the given proposal tokens.
+func (db *ProposalsDB) fetchCommentsCounts(tokens []string) (map[string]uint32, error) {
+	commentsCounts := make(map[string]uint32, len(tokens))
+	paginatedTokens := paginateTokens(tokens, commentsv1.CountPageSize)
+	for i := 0; i < len(paginatedTokens); i++ {
+		cr, err := db.client.CommentCount(commentsv1.Count{
+			Tokens: paginatedTokens[i],
+		})
+		if err != nil {
+			return nil, fmt.Errorf("Pi client CommentCount err: %w", err)
+		}
+		for token, count := range cr.Counts {
+			commentsCounts[token] = count
+		}
+	}
+	return commentsCounts, nil
+}
+
+// fetchTicketVoteSummaries fetches the vote summaries for the given proposal tokens.
+func (db *ProposalsDB) fetchTicketVoteSummaries(tokens []string) (map[string]ticketvotev1.Summary, error) {
+	voteSummaries := make(map[string]ticketvotev1.Summary, len(tokens))
+	paginatedTokens := paginateTokens(tokens, ticketvotev1.SummariesPageSize)
+	for i := 0; i < len(paginatedTokens); i++ {
+		sr, err := db.client.TicketVoteSummaries(ticketvotev1.Summaries{
+			Tokens: paginatedTokens[i],
+		})
+		if err != nil {
+			return nil, fmt.Errorf("Pi client TicketVoteSummaries err: %w", err)
+		}
+		for token := range sr.Summaries {
+			voteSummaries[token] = sr.Summaries[token]
+		}
+	}
+	return voteSummaries, nil
+}
+
+// paginateTokens paginates tokens in a matrix according to the provided
+// page size.
+func paginateTokens(tokens []string, pageSize uint32) [][]string {
+	n := len(tokens)/int(pageSize) + 1 // number of pages needed
+	ts := make([][]string, n)
+	page := 0
+	for i := 0; i < len(tokens); i++ {
+		if len(ts[page]) >= int(pageSize) {
+			page++
+		}
+		ts[page] = append(ts[page], tokens[i])
+	}
+	return ts
+}
+
+// fetchTicketVoteResults fetches the vote data for the given proposal token,
+// then builds and returns its parsed chart data.
 func (db *ProposalsDB) fetchTicketVoteResults(token string) (*pitypes.ProposalChartData, error) {
 	// Fetch ticket votes details to acquire vote bits options info.
 	details, err := db.client.TicketVoteDetails(ticketvotev1.Details{
 		Token: token,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Pi client TicketVoteDetails err: %v", err)
+		return nil, fmt.Errorf("Pi client TicketVoteDetails err: %w", err)
 	}
 
 	// Maps the vote bits option to their respective string ID.
@@ -360,55 +423,77 @@ func (db *ProposalsDB) fetchTicketVoteResults(token string) (*pitypes.ProposalCh
 		Token: token,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Pi client TicketVoteResults err: %v", err)
+		return nil, fmt.Errorf("Pi client TicketVoteResults err: %w", err)
 	}
 
-	// Parse reply to proposal chart data
-	var chart pitypes.ProposalChartData
-	var timestamps []int64
-	for _, v := range tvr.Votes {
-		bit, err := strconv.ParseUint(v.VoteBit, 16, 64)
+	// Parse proposal chart data from the ticket vote results reply and
+	// sort it afterwords.
+	type voteData struct {
+		yes, no   uint64
+		timestamp int64
+	}
+	votes := make([]*voteData, 0, len(tvr.Votes))
+	for iv := range tvr.Votes {
+		// Vote bit comes as a hexadecimal number in the format of a string.
+		// Convert it to uint64.
+		bit, err := strconv.ParseUint(tvr.Votes[iv].VoteBit, 16, 64)
 		if err != nil {
 			return nil, err
 		}
+
+		// Verify vote bit is valid.
+		err = voteBitVerify(details.Vote.Params.Options,
+			details.Vote.Params.Mask, bit)
+		if err != nil {
+			return nil, err
+		}
+
+		// Parse relevant data.
+		var vd voteData
 		switch voteOptsMap[bit] {
 		case "yes":
-			chart.Yes = append(chart.Yes, 1)
-			chart.No = append(chart.No, 0)
+			vd.yes = 1
+			vd.no = 0
 		case "no":
-			chart.No = append(chart.No, 1)
-			chart.Yes = append(chart.Yes, 0)
+			vd.no = 1
+			vd.yes = 0
 		}
-		timestamps = append(timestamps, v.Timestamp)
+		vd.timestamp = tvr.Votes[iv].Timestamp
+		votes = append(votes, &vd)
 	}
-	sort.Slice(timestamps, func(i, j int) bool {
-		return timestamps[i] < timestamps[j]
+	sort.Slice(votes, func(i, j int) bool {
+		return votes[i].timestamp < votes[j].timestamp
 	})
-	chart.Time = timestamps
 
-	return &chart, nil
+	// Build data for the returned proposal chart data object.
+	var (
+		yes   = make([]uint64, 0, len(votes))
+		no    = make([]uint64, 0, len(votes))
+		times = make([]int64, 0, len(votes))
+	)
+	for _, vote := range votes {
+		yes = append(yes, vote.yes)
+		no = append(no, vote.no)
+		times = append(times, vote.timestamp)
+	}
+
+	return &pitypes.ProposalChartData{
+		Yes:  yes,
+		No:   no,
+		Time: times,
+	}, nil
 }
 
-// proposalsSave saves the proposals data to the db.
+// proposalsSave saves the batch proposals data to the db. This is ran when the
+// proposals sync function finds new proposals that don't exist on our db yet.
+// Before saving a proposal to the db, set the synced property to false to
+// indicate that the proposal is not fully synced with politeia yet.
 func (db *ProposalsDB) proposalsSave(proposals []*pitypes.ProposalRecord) error {
 	for _, proposal := range proposals {
 		proposal.Synced = false
 		err := db.dbP.Save(proposal)
-		if errors.Is(err, storm.ErrAlreadyExists) {
-			// Proposal exists, update instead of inserting new
-			data, err := db.ProposalByToken(proposal.Token)
-			if err != nil {
-				return fmt.Errorf("ProposalsDB ProposalByToken err: %v", err)
-			}
-			updateData := *proposal
-			updateData.ID = data.ID
-			err = db.dbP.Update(&updateData)
-			if err != nil {
-				return fmt.Errorf("stormdb update err: %v", err)
-			}
-		}
 		if err != nil {
-			return fmt.Errorf("stormdb save err: %v", err)
+			return fmt.Errorf("stormdb save err: %w", err)
 		}
 	}
 
@@ -421,7 +506,7 @@ func (db *ProposalsDB) proposal(searchBy, searchTerm string) (*pitypes.ProposalR
 	var proposal pitypes.ProposalRecord
 	err := db.dbP.Select(q.Eq(searchBy, searchTerm)).Limit(1).First(&proposal)
 	if err != nil {
-		log.Errorf("Failed to fetch data from Proposals DB: %v", err)
+		log.Errorf("Failed to fetch data from Proposals DB: %w", err)
 		return nil, err
 	}
 
@@ -434,48 +519,48 @@ func (db *ProposalsDB) proposalsNewUpdate() error {
 	var proposals []*pitypes.ProposalRecord
 	err := db.dbP.All(&proposals)
 	if err != nil {
-		return fmt.Errorf("stormdb All err: %v", err)
+		return fmt.Errorf("stormdb All err: %w", err)
 	}
 
 	var tokens []string
 	if len(proposals) == 0 {
-		// Empty db so first time fetching proposals, fetch all vetted tokens
+		// Empty db so first time fetching proposals, fetch all vetted tokens.
 		vettedTokens, err := db.fetchVettedTokensInventory()
 		if err != nil {
 			return err
 		}
 		tokens = vettedTokens
 	} else {
-		// Fetch inventory to search for new proposals
+		// Fetch inventory to search for new proposals.
 		inventoryReq := recordsv1.InventoryOrdered{
 			State: recordsv1.RecordStateVetted,
 			Page:  1,
 		}
 		reply, err := db.client.RecordInventoryOrdered(inventoryReq)
 		if err != nil {
-			return fmt.Errorf("Pi client RecordInventoryOrdered err: %v",
+			return fmt.Errorf("Pi client RecordInventoryOrdered err: %w",
 				err)
 		}
 
-		// Create proposals map from local stormdb proposals
+		// Create proposals map from local stormdb proposals.
 		proposalsMap := make(map[string]*pitypes.ProposalRecord, len(proposals))
 		for _, prop := range proposals {
 			proposalsMap[prop.Token] = prop
 		}
 
-		// Filter new proposals to be fetched
+		// Filter new proposals to be fetched.
 		var tokensProposalsNew []string
 		for _, token := range reply.Tokens {
 			if _, ok := proposalsMap[token]; ok {
 				continue
 			}
-			// New proposal found
+			// New proposal found.
 			tokensProposalsNew = append(tokensProposalsNew, token)
 		}
 		tokens = tokensProposalsNew
 	}
 
-	// Fetch data for found tokens
+	// Fetch data for found tokens.
 	var prs []*pitypes.ProposalRecord
 	if len(tokens) > 0 {
 		prs, err = db.fetchProposalsData(tokens)
@@ -484,7 +569,7 @@ func (db *ProposalsDB) proposalsNewUpdate() error {
 		}
 	}
 
-	// Save proposals data on stormdb
+	// Save proposals data on the db.
 	if len(prs) > 0 {
 		err = db.proposalsSave(prs)
 		if err != nil {
@@ -512,9 +597,10 @@ func (db *ProposalsDB) proposalsInProgressUpdate() error {
 	}
 
 	for _, prop := range propsInProgress {
+		// Fetch fresh data for the proposal.
 		proposals, err := db.fetchProposalsData([]string{prop.Token})
 		if err != nil {
-			return fmt.Errorf("fetchProposalsData failed with err: %s", err)
+			return fmt.Errorf("fetchProposalsData failed with err: %w", err)
 		}
 		proposal := proposals[0]
 
@@ -527,7 +613,7 @@ func (db *ProposalsDB) proposalsInProgressUpdate() error {
 			(prop.TotalVotes != proposal.TotalVotes || prop.ChartData == nil) {
 			voteResults, err := db.fetchTicketVoteResults(prop.Token)
 			if err != nil {
-				return fmt.Errorf("fetchTicketVoteResults failed with err: %s", err)
+				return fmt.Errorf("fetchTicketVoteResults failed with err: %w", err)
 			}
 			proposal.ChartData = voteResults
 		}
@@ -542,7 +628,7 @@ func (db *ProposalsDB) proposalsInProgressUpdate() error {
 
 		err = db.dbP.Update(proposal)
 		if err != nil {
-			return fmt.Errorf("storm db Update failed with err: %s", err)
+			return fmt.Errorf("storm db Update failed with err: %w", err)
 		}
 	}
 
@@ -565,7 +651,8 @@ func (db *ProposalsDB) proposalsVoteResultsUpdate() error {
 			q.And(
 				q.Eq("VoteStatus", ticketvotev1.VoteStatusApproved),
 				q.Eq("Synced", false),
-			), q.And(
+			),
+			q.And(
 				q.Eq("VoteStatus", ticketvotev1.VoteStatusRejected),
 				q.Eq("Synced", false),
 			),
@@ -580,14 +667,15 @@ func (db *ProposalsDB) proposalsVoteResultsUpdate() error {
 	for _, prop := range propsVotingComplete {
 		voteResults, err := db.fetchTicketVoteResults(prop.Token)
 		if err != nil {
-			return fmt.Errorf("fetchTicketVoteResults failed with err: %s", err)
+			return fmt.Errorf("fetchTicketVoteResults failed with err: %w",
+				err)
 		}
 		prop.ChartData = voteResults
 		prop.Synced = true
 
 		err = db.dbP.Update(prop)
 		if err != nil {
-			return fmt.Errorf("storm db Update failed with err: %s", err)
+			return fmt.Errorf("storm db Update failed with err: %w", err)
 		}
 	}
 

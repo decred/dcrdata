@@ -1,4 +1,4 @@
-module github.com/decred/dcrdata/gov/v4
+module github.com/decred/dcrdata/gov/v5
 
 go 1.15
 

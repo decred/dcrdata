@@ -2403,6 +2403,7 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 		Limit:          int64(rowsCount),
 		VStatusFilter:  int(filterBy),
 		TotalCount:     int64(count),
+		LastOffset:     int64(lastOffset),
 		PoliteiaURL:    exp.politeiaURL,
 		LastPropSync:   exp.proposals.ProposalsLastSync(),
 		TimePerBlock:   int64(exp.ChainParams.TargetTimePerBlock.Seconds()),
