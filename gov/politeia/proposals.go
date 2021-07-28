@@ -492,6 +492,19 @@ func (db *ProposalsDB) proposalsSave(proposals []*pitypes.ProposalRecord) error 
 	for _, proposal := range proposals {
 		proposal.Synced = false
 		err := db.dbP.Save(proposal)
+		if errors.Is(err, storm.ErrAlreadyExists) {
+			// Proposal exists, update instead of inserting new.
+			data, err := db.ProposalByToken(proposal.Token)
+			if err != nil {
+				return fmt.Errorf("ProposalsDB ProposalByToken err: %v", err)
+			}
+			updateData := *proposal
+			updateData.ID = data.ID
+			err = db.dbP.Update(&updateData)
+			if err != nil {
+				return fmt.Errorf("stormdb update err: %v", err)
+			}
+		}
 		if err != nil {
 			return fmt.Errorf("stormdb save err: %w", err)
 		}
