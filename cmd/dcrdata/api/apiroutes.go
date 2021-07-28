@@ -32,8 +32,8 @@ import (
 
 	m "github.com/decred/dcrdata/cmd/dcrdata/middleware"
 	"github.com/decred/dcrdata/exchanges/v3"
-	"github.com/decred/dcrdata/gov/v5/agendas"
-	"github.com/decred/dcrdata/gov/v5/politeia"
+	"github.com/decred/dcrdata/gov/v4/agendas"
+	"github.com/decred/dcrdata/gov/v4/politeia"
 	apitypes "github.com/decred/dcrdata/v6/api/types"
 	"github.com/decred/dcrdata/v6/db/cache"
 	"github.com/decred/dcrdata/v6/db/dbtypes"

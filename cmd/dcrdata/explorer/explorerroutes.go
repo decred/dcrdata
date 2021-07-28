@@ -27,8 +27,8 @@ import (
 	"github.com/decred/dcrd/wire"
 
 	"github.com/decred/dcrdata/exchanges/v3"
-	"github.com/decred/dcrdata/gov/v5/agendas"
-	pitypes "github.com/decred/dcrdata/gov/v5/politeia/types"
+	"github.com/decred/dcrdata/gov/v4/agendas"
+	pitypes "github.com/decred/dcrdata/gov/v4/politeia/types"
 	"github.com/decred/dcrdata/v6/db/dbtypes"
 	"github.com/decred/dcrdata/v6/explorer/types"
 	"github.com/decred/dcrdata/v6/txhelpers"
