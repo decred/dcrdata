@@ -189,7 +189,7 @@ func (db *ProposalsDB) ProposalsAll(offset, rowsCount int,
 	err = query.Skip(offset).Limit(rowsCount).Reverse().OrderBy("Timestamp").
 		Find(&proposals)
 	if err != nil && !errors.Is(err, storm.ErrNotFound) {
-		log.Errorf("Failed to fetch data from Proposals DB: %w", err)
+		return nil, 0, err
 	}
 
 	return proposals, totalCount, nil
@@ -260,8 +260,7 @@ func (db *ProposalsDB) fetchProposalsData(tokens []string) ([]*pitypes.ProposalR
 		// Comments count
 		commentsCount, ok := commentsCounts[proposal.Token]
 		if !ok {
-			log.Errorf("Comments count for proposal %v not returned by API",
-				proposal.Token)
+			log.Errorf("Comments count for proposal %v not returned by API", proposal.Token)
 			continue
 		}
 		proposal.CommentsCount = int32(commentsCount)
@@ -269,8 +268,7 @@ func (db *ProposalsDB) fetchProposalsData(tokens []string) ([]*pitypes.ProposalR
 		// Vote summary data
 		summary, ok := voteSummaries[proposal.Token]
 		if !ok {
-			log.Errorf("Vote summary for proposal %v not returned by API",
-				proposal.Token)
+			log.Errorf("Vote summary for proposal %v not returned by API", proposal.Token)
 			continue
 		}
 		proposal.VoteStatus = summary.Status
@@ -288,8 +286,7 @@ func (db *ProposalsDB) fetchProposalsData(tokens []string) ([]*pitypes.ProposalR
 		proposal.TotalVotes = totalVotes
 
 		// Status change metadata
-		statusTimestamps, changeMsg, err :=
-			statusChangeMetadataDecode(record.Metadata)
+		statusTimestamps, changeMsg, err := statusChangeMetadataDecode(record.Metadata)
 		if err != nil {
 			return nil, fmt.Errorf("statusChangeMetadataDecode err: %w", err)
 		}
@@ -308,23 +305,26 @@ func (db *ProposalsDB) fetchProposalsData(tokens []string) ([]*pitypes.ProposalR
 // fetchVettedTokens fetches all vetted tokens ordered by the timestamp of
 // their last status change.
 func (db *ProposalsDB) fetchVettedTokensInventory() ([]string, error) {
-	page := 1
+	page := uint32(1)
 	var vettedTokens []string
 	for {
 		inventoryReq := recordsv1.InventoryOrdered{
 			State: recordsv1.RecordStateVetted,
-			Page:  uint32(page),
+			Page:  page,
 		}
 		reply, err := db.client.RecordInventoryOrdered(inventoryReq)
 		if err != nil {
-			return nil, fmt.Errorf("Pi client RecordInventoryOrdered err: %w",
-				err)
+			return nil, fmt.Errorf("pi client RecordInventoryOrdered err: %w", err)
 		}
 
 		vettedTokens = append(vettedTokens, reply.Tokens...)
 
 		if len(reply.Tokens) < int(recordsv1.InventoryPageSize) {
-			// Break loop if we fetch last page.
+			// Break loop if we fetch last page. An empty token slice is
+			// returned if we request an non-existent/empty page, so in the
+			// case of the last page size being equal to the limit page size,
+			// we'll fetch an empty page afterwords and know the last page was
+			// fetched.
 			break
 		}
 
@@ -343,7 +343,7 @@ func (db *ProposalsDB) fetchRecordDetails(tokens []string) (map[string]*recordsv
 		}
 		dr, err := db.client.RecordDetails(detailsReq)
 		if err != nil {
-			return nil, fmt.Errorf("Pi client RecordDetails err: %w", err)
+			return nil, fmt.Errorf("pi client RecordDetails err: %w", err)
 		}
 		records[token] = dr
 	}
@@ -355,12 +355,12 @@ func (db *ProposalsDB) fetchRecordDetails(tokens []string) (map[string]*recordsv
 func (db *ProposalsDB) fetchCommentsCounts(tokens []string) (map[string]uint32, error) {
 	commentsCounts := make(map[string]uint32, len(tokens))
 	paginatedTokens := paginateTokens(tokens, commentsv1.CountPageSize)
-	for i := 0; i < len(paginatedTokens); i++ {
+	for i := range paginatedTokens {
 		cr, err := db.client.CommentCount(commentsv1.Count{
 			Tokens: paginatedTokens[i],
 		})
 		if err != nil {
-			return nil, fmt.Errorf("Pi client CommentCount err: %w", err)
+			return nil, fmt.Errorf("pi client CommentCount err: %w", err)
 		}
 		for token, count := range cr.Counts {
 			commentsCounts[token] = count
@@ -373,12 +373,12 @@ func (db *ProposalsDB) fetchCommentsCounts(tokens []string) (map[string]uint32, 
 func (db *ProposalsDB) fetchTicketVoteSummaries(tokens []string) (map[string]ticketvotev1.Summary, error) {
 	voteSummaries := make(map[string]ticketvotev1.Summary, len(tokens))
 	paginatedTokens := paginateTokens(tokens, ticketvotev1.SummariesPageSize)
-	for i := 0; i < len(paginatedTokens); i++ {
+	for i := range paginatedTokens {
 		sr, err := db.client.TicketVoteSummaries(ticketvotev1.Summaries{
 			Tokens: paginatedTokens[i],
 		})
 		if err != nil {
-			return nil, fmt.Errorf("Pi client TicketVoteSummaries err: %w", err)
+			return nil, fmt.Errorf("pi client TicketVoteSummaries err: %w", err)
 		}
 		for token := range sr.Summaries {
 			voteSummaries[token] = sr.Summaries[token]
@@ -390,7 +390,10 @@ func (db *ProposalsDB) fetchTicketVoteSummaries(tokens []string) (map[string]tic
 // paginateTokens paginates tokens in a matrix according to the provided
 // page size.
 func paginateTokens(tokens []string, pageSize uint32) [][]string {
-	n := len(tokens)/int(pageSize) + 1 // number of pages needed
+	n := len(tokens) / int(pageSize) // number of pages needed
+	if len(tokens)%int(pageSize) != 0 {
+		n++
+	}
 	ts := make([][]string, n)
 	page := 0
 	for i := 0; i < len(tokens); i++ {
@@ -410,7 +413,7 @@ func (db *ProposalsDB) fetchTicketVoteResults(token string) (*pitypes.ProposalCh
 		Token: token,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Pi client TicketVoteDetails err: %w", err)
+		return nil, fmt.Errorf("pi client TicketVoteDetails err: %w", err)
 	}
 
 	// Maps the vote bits option to their respective string ID.
@@ -423,7 +426,7 @@ func (db *ProposalsDB) fetchTicketVoteResults(token string) (*pitypes.ProposalCh
 		Token: token,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Pi client TicketVoteResults err: %w", err)
+		return nil, fmt.Errorf("pi client TicketVoteResults err: %w", err)
 	}
 
 	// Parse proposal chart data from the ticket vote results reply and
@@ -451,12 +454,15 @@ func (db *ProposalsDB) fetchTicketVoteResults(token string) (*pitypes.ProposalCh
 		// Parse relevant data.
 		var vd voteData
 		switch voteOptsMap[bit] {
-		case "yes":
+		case ticketvotev1.VoteOptionIDApprove:
 			vd.yes = 1
 			vd.no = 0
-		case "no":
+		case ticketvotev1.VoteOptionIDReject:
 			vd.no = 1
 			vd.yes = 0
+		default:
+			log.Warnf("Unknown vote option ID %v", voteOptsMap[bit])
+			continue
 		}
 		vd.timestamp = tvr.Votes[iv].Timestamp
 		votes = append(votes, &vd)
@@ -496,7 +502,7 @@ func (db *ProposalsDB) proposalsSave(proposals []*pitypes.ProposalRecord) error 
 			// Proposal exists, update instead of inserting new.
 			data, err := db.ProposalByToken(proposal.Token)
 			if err != nil {
-				return fmt.Errorf("ProposalsDB ProposalByToken err: %v", err)
+				return fmt.Errorf("ProposalsDB ProposalByToken err: %w", err)
 			}
 			updateData := *proposal
 			updateData.ID = data.ID
@@ -519,7 +525,7 @@ func (db *ProposalsDB) proposal(searchBy, searchTerm string) (*pitypes.ProposalR
 	var proposal pitypes.ProposalRecord
 	err := db.dbP.Select(q.Eq(searchBy, searchTerm)).Limit(1).First(&proposal)
 	if err != nil {
-		log.Errorf("Failed to fetch data from Proposals DB: %w", err)
+		log.Errorf("Failed to fetch data from Proposals DB: %v", err)
 		return nil, err
 	}
 
@@ -551,8 +557,7 @@ func (db *ProposalsDB) proposalsNewUpdate() error {
 		}
 		reply, err := db.client.RecordInventoryOrdered(inventoryReq)
 		if err != nil {
-			return fmt.Errorf("Pi client RecordInventoryOrdered err: %w",
-				err)
+			return fmt.Errorf("pi client RecordInventoryOrdered err: %w", err)
 		}
 
 		// Create proposals map from local stormdb proposals.

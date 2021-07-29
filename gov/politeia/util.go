@@ -17,11 +17,9 @@ import (
 // userMetadataDecode returns the parsed data for the usermd plugin metadata
 // stream.
 func userMetadataDecode(ms []recordsv1.MetadataStream) (*usermd.UserMetadata, error) {
-	var userMD *usermd.UserMetadata
 	for _, m := range ms {
-		if m.PluginID != usermd.PluginID ||
-			m.StreamID != usermd.StreamIDUserMetadata {
-			// This is not user metadata
+		if m.PluginID != usermd.PluginID || m.StreamID != usermd.StreamIDUserMetadata {
+			// This is not user metadata.
 			continue
 		}
 		var um usermd.UserMetadata
@@ -29,16 +27,14 @@ func userMetadataDecode(ms []recordsv1.MetadataStream) (*usermd.UserMetadata, er
 		if err != nil {
 			return nil, err
 		}
-		userMD = &um
-		break
+		return &um, nil
 	}
-	return userMD, nil
+	return nil, fmt.Errorf("user metadata not found")
 }
 
 // proposalMetadataDecode returns the parsed data for the pi plugin proposal
 // metadata stream.
 func proposalMetadataDecode(fs []recordsv1.File) (*piv1.ProposalMetadata, error) {
-	var pmp *piv1.ProposalMetadata
 	for _, f := range fs {
 		if f.Name != piv1.FileNameProposalMetadata {
 			continue
@@ -52,13 +48,9 @@ func proposalMetadataDecode(fs []recordsv1.File) (*piv1.ProposalMetadata, error)
 		if err != nil {
 			return nil, err
 		}
-		pmp = &pm
-		break
+		return &pm, nil
 	}
-	if pmp == nil {
-		return nil, fmt.Errorf("proposal metadata not found")
-	}
-	return pmp, nil
+	return nil, fmt.Errorf("proposal metadata not found")
 }
 
 // statusTimestamps contains the published, censored and abandoned timestamps
@@ -73,36 +65,33 @@ type statusTimestamps struct {
 // dates from status change metadata streams in the statusTimestamps struct.
 // It also returns the status change message for the latest metadata stream.
 func statusChangeMetadataDecode(md []recordsv1.MetadataStream) (*statusTimestamps, string, error) {
-	statuses := make([]usermd.StatusChangeMetadata, 0, 16)
+	var statuses []usermd.StatusChangeMetadata
 	for _, v := range md {
-		if v.PluginID != usermd.PluginID {
+		if v.PluginID != usermd.PluginID || v.StreamID != usermd.StreamIDStatusChanges {
+			// This is not status change metadata.
 			continue
 		}
 
-		// Search for status change metadata.
-		if v.StreamID == usermd.StreamIDStatusChanges {
-			// The metadata payload is a stream of encoded json objects.
-			// Decode the payload accordingly.
-			d := json.NewDecoder(strings.NewReader(v.Payload))
-			for {
-				var sc usermd.StatusChangeMetadata
-				err := d.Decode(&sc)
-				if errors.Is(err, io.EOF) {
-					break
-				} else if err != nil {
-					return nil, "", err
-				}
-				statuses = append(statuses, sc)
+		// The metadata payload is a stream of encoded json objects.
+		// Decode the payload accordingly.
+		d := json.NewDecoder(strings.NewReader(v.Payload))
+		for {
+			var sc usermd.StatusChangeMetadata
+			err := d.Decode(&sc)
+			if errors.Is(err, io.EOF) {
+				break
+			} else if err != nil {
+				return nil, "", err
 			}
+			statuses = append(statuses, sc)
 		}
 	}
 
-	// Status change metadata represents the data associated with each
-	// status change a proposal undergoes. A proposal can only ever be
-	// on one status once. Therefore, walk the statuses metadatas and
-	// parse the data we need from the public, censored and abandoned
-	// status, as well as the status change message from the latest
-	// one.
+	// Status change metadata represents the data associated with each status
+	// change a proposal undergoes. A proposal can only ever be on one status
+	// once. Therefore, walk the statuses metadatas and parse the data we need
+	// from the public, censored and abandoned status, as well as the status
+	// change message from the latest one.
 	var (
 		timestamps         statusTimestamps
 		changeMsg          string
@@ -127,19 +116,19 @@ func statusChangeMetadataDecode(md []recordsv1.MetadataStream) (*statusTimestamp
 }
 
 // voteBitVerify verifies that the vote bit corresponds to a valid vote option.
-// This verification matches the one used on politeia's code base to verify vote
-// bits.
+// This verification matches the one used on politeia's code base to verify
+// vote bits.
 func voteBitVerify(options []ticketvotev1.VoteOption, mask, bit uint64) error {
 	if len(options) == 0 {
 		return fmt.Errorf("no vote options found")
 	}
 	if bit == 0 {
-		return fmt.Errorf("invalid bit 0x%x", bit)
+		return fmt.Errorf("invalid bit %#x", bit)
 	}
 
 	// Verify bit is included in mask
 	if mask&bit != bit {
-		return fmt.Errorf("invalid mask 0x%x bit 0x%x", mask, bit)
+		return fmt.Errorf("invalid mask 0x%x bit %#x", mask, bit)
 	}
 
 	// Verify bit is included in vote options
@@ -150,5 +139,5 @@ func voteBitVerify(options []ticketvotev1.VoteOption, mask, bit uint64) error {
 		}
 	}
 
-	return fmt.Errorf("bit 0x%x not found in vote options", bit)
+	return fmt.Errorf("bit %#x not found in vote options", bit)
 }
