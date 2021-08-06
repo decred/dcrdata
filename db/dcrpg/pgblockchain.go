@@ -15,7 +15,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"decred.org/dcrwallet/wallet/txrules"
@@ -27,7 +26,6 @@ import (
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
 	"github.com/decred/dcrd/rpcclient/v6"
 	"github.com/decred/dcrd/wire"
-	pitypes "github.com/dmigwi/go-piparser/proposals/types"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/lib/pq"
 
@@ -69,13 +67,6 @@ func IsRetryError(err error) bool {
 // agenda_votes table.
 var storedAgendas map[string]dbtypes.MileStone
 
-// isPiparserRunning is the flag set when a Piparser instance is running.
-const isPiparserRunning = uint32(1)
-
-// piParserCounter is a counter that helps guarantee that only one instance
-// of proposalsUpdateHandler can ever be running at any one given moment.
-var piParserCounter uint32
-
 // ticketPoolDataCache stores the most recent ticketpool graphs information
 // fetched to minimize the possibility of making multiple queries to the db
 // fetching the same information.
@@ -86,13 +77,6 @@ type ticketPoolDataCache struct {
 	PriceGraphCache map[dbtypes.TimeBasedGrouping]*dbtypes.PoolTicketsData
 	// DonutGraphCache persist data for the Number of tickets outputs pie chart.
 	DonutGraphCache map[dbtypes.TimeBasedGrouping]*dbtypes.PoolTicketsData
-}
-
-// ProposalsFetcher defines the interface of the proposals plug-n-play data source.
-type ProposalsFetcher interface {
-	UpdateSignal() <-chan struct{}
-	ProposalsHistory() ([]*pitypes.History, error)
-	ProposalsHistorySince(since time.Time) ([]*pitypes.History, error)
 }
 
 // ticketPoolGraphsCache persists the latest ticketpool data queried from the db.
@@ -274,9 +258,6 @@ type ChainDB struct {
 	mixSetDiffsMtx     sync.Mutex
 	mixSetDiffs        map[uint32]int64 // height to value diff
 	deployments        *ChainDeployments
-	piparser           ProposalsFetcher
-	proposalsSync      lastSync
-	piUpdateRunning    uint32
 	cockroach          bool
 	MPC                *mempool.MempoolDataCache
 	// BlockCache stores apitypes.BlockDataBasic and apitypes.StakeInfoExtended
@@ -309,12 +290,6 @@ type BestBlock struct {
 	mtx    sync.RWMutex
 	height int64
 	hash   string
-}
-
-// lastSync defines the latest sync time for the proposal votes sync.
-type lastSync struct {
-	mtx      sync.RWMutex
-	syncTime time.Time
 }
 
 func (pgb *ChainDB) timeoutError() string {
@@ -484,8 +459,7 @@ type ChainDBCfg struct {
 // and Decred network parameters. By default, duplicate row checks on insertion
 // are enabled. See EnableDuplicateCheckOnInsert to change this behavior.
 func NewChainDB(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb.StakeDatabase,
-	mp rpcutils.MempoolAddressChecker, parser ProposalsFetcher, client *rpcclient.Client,
-	shutdown func()) (*ChainDB, error) {
+	mp rpcutils.MempoolAddressChecker, client *rpcclient.Client, shutdown func()) (*ChainDB, error) {
 	// Connect to the PostgreSQL daemon and return the *sql.DB.
 	dbi := cfg.DBi
 	db, err := Connect(dbi.Host, dbi.Port, dbi.User, dbi.Pass, dbi.DBName)
@@ -759,7 +733,6 @@ func NewChainDB(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb.StakeData
 		utxoCache:          newUtxoStore(5e4),
 		mixSetDiffs:        make(map[uint32]int64),
 		deployments:        new(ChainDeployments),
-		piparser:           parser,
 		cockroach:          cockroach,
 		MPC:                new(mempool.MempoolDataCache),
 		BlockCache:         apitypes.NewAPICache(1e4),
@@ -779,19 +752,6 @@ func NewChainDB(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb.StakeData
 	}
 
 	return chainDB, nil
-}
-
-// StartPiparserHandler controls how piparser update handler will be initiated.
-// This handler should to be run once only when the first sync after startup completes.
-func (pgb *ChainDB) StartPiparserHandler() {
-	if atomic.CompareAndSwapUint32(&piParserCounter, 0, isPiparserRunning) {
-		// Start the proposal updates handler async method.
-		pgb.proposalsUpdateHandler()
-
-		log.Info("Piparser instance to handle updates is now active")
-	} else {
-		log.Error("piparser instance is already running, another one cannot be activated")
-	}
 }
 
 // Close closes the underlying sql.DB connection to the database.
@@ -850,7 +810,7 @@ var (
 // that the legacy table versioning system is in use.
 func versionCheck(db *sql.DB) (*DatabaseVersion, CompatAction, error) {
 	// Detect an empty database, only checking for the "blocks" table since some
-	// of the tables are created by schema upgrades (e.g. proposal_votes).
+	// of the tables are created by schema upgrades.
 	exists, err := TableExists(db, "blocks")
 	if err != nil {
 		return nil, Unknown, err
@@ -1198,128 +1158,14 @@ func (pgb *ChainDB) VotesInBlock(hash string) (int16, error) {
 	return voters, nil
 }
 
-// proposalsUpdateHandler runs in the background asynchronous to retrieve the
-// politeia proposal updates that the piparser tool signaled.
-func (pgb *ChainDB) proposalsUpdateHandler() {
-	// Do not initiate the async update if invalid or disabled piparser instance was found.
-	if pgb.piparser == nil {
-		log.Error("invalid or disabled piparser instance found: proposals async update stopped")
-		return
-	}
-
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Errorf("recovered from piparser panic in proposalsUpdateHandler: %v", r)
-				select {
-				case <-time.NewTimer(time.Minute).C:
-					log.Infof("attempting to restart proposalsUpdateHandler")
-					pgb.proposalsUpdateHandler()
-				case <-pgb.ctx.Done():
-				}
-			}
-		}()
-		for range pgb.piparser.UpdateSignal() {
-			count, err := pgb.PiProposalsHistory()
-			if err != nil {
-				log.Errorf("pgb.PiProposalsHistory failed: %v", err)
-			} else {
-				log.Infof("%d politeia's proposal commits were processed", count)
-			}
-		}
-	}()
-}
-
-// LastPiParserSync returns last time value when the piparser run sync on proposals
-// and proposal_votes table.
-func (pgb *ChainDB) LastPiParserSync() time.Time {
-	pgb.proposalsSync.mtx.RLock()
-	defer pgb.proposalsSync.mtx.RUnlock()
-	return pgb.proposalsSync.syncTime
-}
-
-// PiProposalsHistory queries the politeia's proposal updates via the parser tool
-// and pushes them to the proposals and proposal_votes tables.
-func (pgb *ChainDB) PiProposalsHistory() (int64, error) {
-	if pgb.piparser == nil {
-		return -1, fmt.Errorf("invalid piparser instance was found")
-	}
-	if !atomic.CompareAndSwapUint32(&pgb.piUpdateRunning, 0, 1) {
-		return -1, fmt.Errorf("Pi repo parser updates already processing")
-	}
-	defer atomic.StoreUint32(&pgb.piUpdateRunning, 0)
-
-	pgb.proposalsSync.mtx.Lock()
-	pgb.proposalsSync.syncTime = time.Now().UTC()
-	pgb.proposalsSync.mtx.Unlock()
-
-	var isChecked bool
-	var proposalsData []*pitypes.History
-
-	lastUpdate, err := retrieveLastCommitTime(pgb.db)
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		log.Infof("Retrieving entire proposal history...")
-		// No records exists yet fetch all the history.
-		proposalsData, err = pgb.piparser.ProposalsHistory()
-
-	case err != nil:
-		return -1, fmt.Errorf("retrieveLastCommitTime failed: %w", err)
-
-	default:
-		log.Infof("Retrieving proposal history since %v...", lastUpdate)
-		// Fetch the updates since the last insert only.
-		proposalsData, err = pgb.piparser.ProposalsHistorySince(lastUpdate)
-		isChecked = true
-	}
-
-	if err != nil {
-		return -1, fmt.Errorf("politeia proposals fetch failed: %w", err)
-	}
-
-	var commitsCount int64
-
-	log.Infof("Storing %d new proposal data records...", len(proposalsData))
-	for _, entry := range proposalsData {
-		if entry.CommitSHA == "" {
-			// If missing commit sha ignore the entry.
-			continue
-		}
-
-		// Multiple tokens votes data can be packed in a single Politeia's commit.
-		for _, val := range entry.Patch {
-			if val.Token == "" {
-				// If missing token ignore it.
-				continue
-			}
-
-			id, err := InsertProposal(pgb.db, val.Token, entry.Author,
-				entry.CommitSHA, entry.Date, isChecked)
-			if err != nil {
-				return -1, fmt.Errorf("InsertProposal failed: %w", err)
-			}
-
-			for _, vote := range val.VotesInfo {
-				_, err = InsertProposalVote(pgb.db, id, vote.Ticket,
-					string(vote.VoteBit), isChecked)
-				if err != nil {
-					return -1, fmt.Errorf("InsertProposalVote failed: %w", err)
-				}
-			}
-		}
-		commitsCount++
-	}
-
-	return commitsCount, err
-}
-
 // ProposalVotes retrieves all the votes data associated with the provided token.
-func (pgb *ChainDB) ProposalVotes(proposalToken string) (*dbtypes.ProposalChartsData, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
-	defer cancel()
-	chartsData, err := retrieveProposalVotesData(ctx, pgb.db, proposalToken)
-	return chartsData, pgb.replaceCancelError(err)
-}
+// TODO: Rewriting this func. may not be in chaindb struct, and in appContext instead
+// func (pgb *ChainDB) ProposalVotes(proposalToken string) (*dbtypes.ProposalChartsData, error) {
+// 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+// 	defer cancel()
+// 	chartsData, err := retrieveProposalVotesData(ctx, pgb.db, proposalToken)
+// 	return chartsData, pgb.replaceCancelError(err)
+// }
 
 // SpendingTransactions retrieves all transactions spending outpoints from the
 // specified funding transaction. The spending transaction hashes, the spending

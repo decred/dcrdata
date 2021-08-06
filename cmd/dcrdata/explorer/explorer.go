@@ -95,7 +95,6 @@ type explorerDataSource interface {
 	TimeBasedIntervals(timeGrouping dbtypes.TimeBasedGrouping, limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error)
 	AgendasVotesSummary(agendaID string) (summary *dbtypes.AgendaSummary, err error)
 	BlockTimeByHeight(height int64) (int64, error)
-	LastPiParserSync() time.Time
 	GetChainParams() *chaincfg.Params
 	GetExplorerBlock(hash string) *types.BlockInfo
 	GetExplorerBlocks(start int, end int) []*types.BlockBasic
@@ -114,13 +113,11 @@ type explorerDataSource interface {
 	Difficulty(timestamp int64) float64
 }
 
-// PoliteiaBackend implements methods that manage proposals db data.
 type PoliteiaBackend interface {
-	LastProposalsSync() int64
-	CheckProposalsUpdates() error
-	AllProposals(offset, rowsCount int, filterByVoteStatus ...int) (proposals []*pitypes.ProposalInfo, totalCount int, err error)
-	ProposalByToken(proposalToken string) (*pitypes.ProposalInfo, error)
-	ProposalByRefID(RefID string) (*pitypes.ProposalInfo, error)
+	ProposalsLastSync() int64
+	ProposalsSync() error
+	ProposalsAll(offset, rowsCount int, filterByVoteStatus ...int) ([]*pitypes.ProposalRecord, int, error)
+	ProposalByToken(token string) (*pitypes.ProposalRecord, error)
 }
 
 // agendaBackend implements methods that manage agendas db data.
@@ -208,7 +205,7 @@ type explorerUI struct {
 	chartSource      ChartDataSource
 	agendasSource    agendaBackend
 	voteTracker      *agendas.VoteTracker
-	proposalsSource  PoliteiaBackend
+	proposals        PoliteiaBackend
 	dbsSyncing       atomic.Value
 	devPrefetch      bool
 	templates        templates
@@ -223,7 +220,7 @@ type explorerUI struct {
 	// displaySyncStatusPage indicates if the sync status page is the only web
 	// page that should be accessible during DB synchronization.
 	displaySyncStatusPage atomic.Value
-	politeiaAPIURL        string
+	politeiaURL           string
 
 	invsMtx sync.RWMutex
 	invs    *types.MempoolInfo
@@ -278,21 +275,21 @@ func (exp *explorerUI) StopWebsocketHub() {
 
 // ExplorerConfig is the configuration settings for explorerUI.
 type ExplorerConfig struct {
-	DataSource      explorerDataSource
-	ChartSource     ChartDataSource
-	UseRealIP       bool
-	AppVersion      string
-	DevPrefetch     bool
-	Viewsfolder     string
-	XcBot           *exchanges.ExchangeBot
-	AgendasSource   agendaBackend
-	Tracker         *agendas.VoteTracker
-	ProposalsSource PoliteiaBackend
-	PoliteiaURL     string
-	MainnetLink     string
-	TestnetLink     string
-	OnionAddress    string
-	ReloadHTML      bool
+	DataSource    explorerDataSource
+	ChartSource   ChartDataSource
+	UseRealIP     bool
+	AppVersion    string
+	DevPrefetch   bool
+	Viewsfolder   string
+	XcBot         *exchanges.ExchangeBot
+	AgendasSource agendaBackend
+	Tracker       *agendas.VoteTracker
+	Proposals     PoliteiaBackend
+	PoliteiaURL   string
+	MainnetLink   string
+	TestnetLink   string
+	OnionAddress  string
+	ReloadHTML    bool
 }
 
 // New returns an initialized instance of explorerUI
@@ -309,8 +306,8 @@ func New(cfg *ExplorerConfig) *explorerUI {
 	exp.xcDone = make(chan struct{})
 	exp.agendasSource = cfg.AgendasSource
 	exp.voteTracker = cfg.Tracker
-	exp.proposalsSource = cfg.ProposalsSource
-	exp.politeiaAPIURL = cfg.PoliteiaURL
+	exp.proposals = cfg.Proposals
+	exp.politeiaURL = cfg.PoliteiaURL
 	explorerLinks.Mainnet = cfg.MainnetLink
 	explorerLinks.Testnet = cfg.TestnetLink
 	explorerLinks.MainnetSearch = cfg.MainnetLink + "search?search="
@@ -589,17 +586,15 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 		go exp.voteTracker.Refresh()
 	}
 
-	// Politeia updates happen hourly. Thus, if blocks take 5 minutes on average
-	// to mine, then 12 blocks take approximately 1hr.
-	// https://docs.decred.org/advanced/navigating-politeia-data/#voting-and-comment-data
-	if newBlockData.Height%12 == 0 && exp.proposalsSource != nil {
+	// Update proposals data every 5 blocks
+	if (newBlockData.Height%5 == 0) && exp.proposals != nil {
 		// Update the proposal DB. This is run asynchronously since it involves
 		// a query to Politeia (a remote system) and we do not want to block
 		// execution.
 		go func() {
-			err := exp.proposalsSource.CheckProposalsUpdates()
+			err := exp.proposals.ProposalsSync()
 			if err != nil {
-				log.Errorf("(PoliteiaBackend).CheckProposalsUpdates: %v", err)
+				log.Errorf("(PoliteiaBackend).ProposalsSync: %v", err)
 			}
 		}()
 	}

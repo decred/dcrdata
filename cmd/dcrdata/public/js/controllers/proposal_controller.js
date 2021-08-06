@@ -6,7 +6,7 @@ import { getDefault } from '../helpers/module_helper'
 import { multiColumnBarPlotter, synchronize } from '../helpers/chart_helper'
 import dompurify from 'dompurify'
 import humanize from '../helpers/humanize_helper'
-import { requestJSON } from '../helpers/http.js'
+import { requestJSON } from '../helpers/http'
 
 const common = {
   labelsKMB: true,
@@ -150,28 +150,43 @@ export default class extends Controller {
   setChartsData () {
     let total = 0
     let yes = 0
+    let hourlyYes = 0
+    let hourlyNo = 0
+    let currentDate = new Date(chartData?.time[0] * 1000)
+    let currentHour = currentDate.getHours()
 
     percentData = []
     cumulativeData = []
     hourlyVotesData = []
 
     chartData.time.map((n, i) => {
-      const formatedDate = new Date(n)
+      const formatedDate = new Date(n * 1000)
       yes += chartData.yes[i]
       total += (chartData.no[i] + chartData.yes[i])
 
       const percent = ((yes * 100) / total).toFixed(2)
 
-      percentData.push([formatedDate, parseFloat(percent)])
-      cumulativeData.push([formatedDate, total])
-      hourlyVotesData.push([formatedDate, chartData.yes[i], chartData.no[i] * -1])
+      // accumulate hourly vote data. currentDate keeps track
+      // of the hour of such date we are parsing data for
+      hourlyYes += chartData.yes[i]
+      hourlyNo += chartData.no[i]
+      if (formatedDate.getHours() !== currentHour) {
+        currentDate.setMinutes(0)
+        percentData.push([currentDate, parseFloat(percent)])
+        cumulativeData.push([currentDate, total])
+        hourlyVotesData.push([currentDate, hourlyYes, hourlyNo * -1])
+        currentDate = formatedDate
+        currentHour = formatedDate.getHours()
+        hourlyYes = 0
+        hourlyNo = 0
+      }
     })
 
     // add empty data at the beginning and end of hourlyVotesData
     // to pad the bar chart data on both ends
-    const firstDate = new Date(chartData.time[0])
+    const firstDate = new Date(chartData.time[0] * 1000)
     firstDate.setHours(firstDate.getHours() - 1)
-    const lastDate = new Date(chartData.time[chartData.time.length - 1])
+    const lastDate = new Date(chartData.time[chartData.time.length - 1] * 1000)
     lastDate.setHours(lastDate.getHours() + 1)
     hourlyVotesData.unshift([firstDate, 0, 0])
     hourlyVotesData.push([lastDate, 0, 0])

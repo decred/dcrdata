@@ -9,13 +9,11 @@ import (
 	"os"
 	"runtime"
 	"testing"
-	"time"
 
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrdata/v6/db/cache"
 	"github.com/decred/dcrdata/v6/testutil/dbconfig"
 	"github.com/decred/slog"
-	pitypes "github.com/dmigwi/go-piparser/proposals/types"
 )
 
 type MemStats runtime.MemStats
@@ -55,14 +53,6 @@ type dummyParser struct{}
 
 func (p *dummyParser) UpdateSignal() <-chan struct{} {
 	return make(chan struct{})
-}
-
-func (p *dummyParser) ProposalsHistory() ([]*pitypes.History, error) {
-	return []*pitypes.History{}, nil
-}
-
-func (p *dummyParser) ProposalsHistorySince(since time.Time) ([]*pitypes.History, error) {
-	return []*pitypes.History{}, nil
 }
 
 func openDB() (func() error, error) {

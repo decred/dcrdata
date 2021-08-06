@@ -27,7 +27,7 @@ import (
 	"github.com/decred/dcrdata/db/dcrpg/v6"
 	"github.com/decred/dcrdata/exchanges/v3"
 	"github.com/decred/dcrdata/gov/v4/agendas"
-	"github.com/decred/dcrdata/gov/v4/politeia"
+	politeia "github.com/decred/dcrdata/gov/v4/politeia"
 
 	"github.com/decred/dcrdata/v6/blockdata"
 	"github.com/decred/dcrdata/v6/db/cache"
@@ -45,7 +45,6 @@ import (
 	mw "github.com/decred/dcrdata/cmd/dcrdata/middleware"
 	notify "github.com/decred/dcrdata/cmd/dcrdata/notification"
 
-	"github.com/dmigwi/go-piparser/proposals"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/gops/agent"
 )
@@ -159,22 +158,6 @@ func _main(ctx context.Context) error {
 
 	log.Infof("Loaded StakeDatabase at height %d", stakeDBHeight)
 
-	var piParser dcrpg.ProposalsFetcher
-	if !cfg.DisablePiParser {
-		log.Infof("Setting up the Politeia's proposals clone repository. Please wait...")
-		// If repoName and repoOwner are set to empty strings the defaults are used.
-		parser, err := proposals.NewParser(cfg.PiPropRepoOwner, cfg.PiPropRepoName, cfg.DataDir)
-		if err != nil {
-			// since this piparser isn't a requirement to run the explorer, its
-			// failure should not block the system from running.
-			log.Error(err)
-		}
-
-		if parser != nil {
-			piParser = parser
-		}
-	}
-
 	// Main chain DB
 	var newPGIndexes, updateAllAddresses bool
 	pgHost, pgPort := cfg.PGHost, ""
@@ -215,7 +198,7 @@ func _main(ctx context.Context) error {
 
 	mpChecker := rpcutils.NewMempoolAddressChecker(dcrdClient, activeChain)
 	chainDB, err := dcrpg.NewChainDB(ctx, &dbCfg,
-		stakeDB, mpChecker, piParser, dcrdClient, requestShutdown)
+		stakeDB, mpChecker, dcrdClient, requestShutdown)
 	if chainDB != nil {
 		defer chainDB.Close()
 	}
@@ -450,21 +433,12 @@ func _main(ctx context.Context) error {
 		return fmt.Errorf("failed to create new agendas db instance: %v", err)
 	}
 
-	// Creates a new or loads an existing proposals db instance that helps to
-	// store and retrieve proposals data. Proposals votes is Off-Chain
-	// data stored in github repositories away from the decred blockchain. It also
-	// creates a new http client needed to query Politeia API endpoints.
-	// When piparser is disabled, disable the API calls too.
-	var proposalsInstance explorer.PoliteiaBackend
-
-	if !cfg.DisablePiParser {
-		proposalsInstance, err = politeia.NewProposalsDB(cfg.PoliteiaAPIURL,
-			filepath.Join(cfg.DataDir, cfg.ProposalsFileName))
-		if err != nil {
-			return fmt.Errorf("failed to create new proposals db instance: %v", err)
-		}
-	} else {
-		log.Info("Piparser is disabled. Proposals API has been disabled too")
+	// Creates a new or loads an existing proposals db instance that stores and
+	// retrieves data from politeia and is used by dcrdata.
+	proposalsDB, err := politeia.NewProposalsDB(cfg.PoliteiaURL,
+		filepath.Join(cfg.DataDir, cfg.ProposalsFileName))
+	if err != nil {
+		return fmt.Errorf("failed to create new proposals db instance: %v", err)
 	}
 
 	// A vote tracker tracks current block and stake versions and votes. Only
@@ -480,23 +454,22 @@ func _main(ctx context.Context) error {
 	}
 
 	// Create the explorer system.
-
 	explore := explorer.New(&explorer.ExplorerConfig{
-		DataSource:      chainDB,
-		ChartSource:     charts,
-		UseRealIP:       cfg.UseRealIP,
-		AppVersion:      Version(),
-		DevPrefetch:     !cfg.NoDevPrefetch,
-		Viewsfolder:     "views",
-		XcBot:           xcBot,
-		AgendasSource:   agendaDB,
-		Tracker:         tracker,
-		ProposalsSource: proposalsInstance,
-		PoliteiaURL:     cfg.PoliteiaAPIURL,
-		MainnetLink:     cfg.MainnetLink,
-		TestnetLink:     cfg.TestnetLink,
-		ReloadHTML:      cfg.ReloadHTML,
-		OnionAddress:    cfg.OnionAddress,
+		DataSource:    chainDB,
+		ChartSource:   charts,
+		UseRealIP:     cfg.UseRealIP,
+		AppVersion:    Version(),
+		DevPrefetch:   !cfg.NoDevPrefetch,
+		Viewsfolder:   "views",
+		XcBot:         xcBot,
+		AgendasSource: agendaDB,
+		Tracker:       tracker,
+		Proposals:     proposalsDB,
+		PoliteiaURL:   cfg.PoliteiaURL,
+		MainnetLink:   cfg.MainnetLink,
+		TestnetLink:   cfg.TestnetLink,
+		ReloadHTML:    cfg.ReloadHTML,
+		OnionAddress:  cfg.OnionAddress,
 	})
 	// TODO: allow views config
 	if explore == nil {
@@ -643,14 +616,14 @@ func _main(ctx context.Context) error {
 
 	// Start dcrdata's JSON web API.
 	app := api.NewContext(&api.AppContextConfig{
-		Client:             dcrdClient,
-		Params:             activeChain,
-		DataSource:         chainDB,
-		XcBot:              xcBot,
-		AgendasDBInstance:  agendaDB,
-		MaxAddrs:           cfg.MaxCSVAddrs,
-		Charts:             charts,
-		IsPiparserDisabled: cfg.DisablePiParser,
+		Client:            dcrdClient,
+		Params:            activeChain,
+		DataSource:        chainDB,
+		XcBot:             xcBot,
+		AgendasDBInstance: agendaDB,
+		ProposalsDB:       proposalsDB,
+		MaxAddrs:          cfg.MaxCSVAddrs,
+		Charts:            charts,
 	})
 	// Start the notification hander for keeping /status up-to-date.
 	wg.Add(1)
@@ -759,7 +732,7 @@ func _main(ctx context.Context) error {
 		r.Get("/agendas", explore.AgendasPage)
 		r.With(explorer.AgendaPathCtx).Get("/agenda/{agendaid}", explore.AgendaPage)
 		r.Get("/proposals", explore.ProposalsPage)
-		r.With(explorer.ProposalPathCtx).Get("/proposal/{proposalrefid}", explore.ProposalPage)
+		r.With(explorer.ProposalPathCtx).Get("/proposal/{proposaltoken}", explore.ProposalPage)
 		r.Get("/decodetx", explore.DecodeTxPage)
 		r.Get("/search", explore.Search)
 		r.Get("/charts", explore.Charts)
@@ -978,32 +951,15 @@ func _main(ctx context.Context) error {
 		return fmt.Errorf("updating agendas db failed: %v", err)
 	}
 
-	// Piparser should run updates only after the initial sync
-	if !cfg.DisablePiParser {
-		// Initiate the piparser handler here.
-		chainDB.StartPiparserHandler()
-
-		// Retrieve newly added proposals and add them to the proposals db(storm).
-		// Proposal db update is made asynchronously to ensure that the system works
-		// even when the Politeia API endpoint set is down.
-		go func() {
-			if err := proposalsInstance.CheckProposalsUpdates(); err != nil {
-				log.Errorf("updating proposals db failed: %v", err)
-			}
-
-			log.Info("Updating Politeia proposals...")
-
-			// Fetch updates for Politiea's Proposal history(votes) data via the
-			// parser. An error in fetching the updates should not stop the
-			// system since it could be a git issue.
-			commitsCount, err := chainDB.PiProposalsHistory()
-			if err != nil {
-				log.Errorf("chainDB.PiProposalsHistory failed : %v", err)
-			} else {
-				log.Infof("%d Politeia git commits were processed", commitsCount)
-			}
-		}()
-	}
+	// Retrieve updates and newly added proposals from Politeia and store them
+	// on our stormdb. This call is made asynchronously to not block execution
+	// while the proposals db is syncing.
+	log.Info("Syncing proposals data with Politeia...")
+	go func() {
+		if err := proposalsDB.ProposalsSync(); err != nil {
+			log.Errorf("updating proposals db failed: %v", err)
+		}
+	}()
 
 	// Monitors for new blocks, transactions, and reorgs should not run before
 	// blockchain syncing and DB indexing completes. If started before then, the

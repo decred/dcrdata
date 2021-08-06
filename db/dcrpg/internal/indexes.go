@@ -59,14 +59,6 @@ const (
 
 	IndexOfAgendaVotesTableOnRowIDs = "uix_agenda_votes"
 
-	// proposals table
-
-	IndexOfProposalsTableOnToken = "uix_proposals"
-
-	// proposal votes table
-
-	IndexOfProposalVotesTableOnProposalsID = "uix_proposal_votes"
-
 	// stats table
 
 	IndexOfHeightOnStatsTable = "uix_stats_height"
@@ -84,35 +76,33 @@ var AddressesIndexNames = []string{IndexOfAddressTableOnAddress,
 
 // IndexDescriptions relate table index names to descriptions of the indexes.
 var IndexDescriptions = map[string]string{
-	IndexOfBlocksTableOnHash:               "blocks on hash",
-	IndexOfBlocksTableOnHeight:             "blocks on height",
-	IndexOfTransactionsTableOnHashes:       "transactions on block hash and transaction hash",
-	IndexOfTransactionsTableOnBlockInd:     "transactions on block hash, block index, and tx tree",
-	IndexOfTransactionsTableOnBlockHeight:  "transactions on block height",
-	IndexOfVinsTableOnVin:                  "vins on transaction hash and index",
-	IndexOfVinsTableOnPrevOut:              "vins on previous outpoint",
-	IndexOfVoutsTableOnTxHashInd:           "vouts on transaction hash and index",
-	IndexOfVoutsTableOnSpendTxID:           "vouts on spend_tx_row_id",
-	IndexOfAddressTableOnAddress:           "addresses table on address", // TODO: remove if it is redundant with IndexOfAddressTableOnVoutID
-	IndexOfAddressTableOnVoutID:            "addresses table on vout row id, address, and is_funding",
-	IndexOfAddressTableOnBlockTime:         "addresses table on block time",
-	IndexOfAddressTableOnTx:                "addresses table on transaction hash",
-	IndexOfAddressTableOnMatchingTx:        "addresses table on matching tx hash",
-	IndexOfTicketsTableOnHashes:            "tickets table on block hash and transaction hash",
-	IndexOfTicketsTableOnTxRowID:           "tickets table on transactions table row ID",
-	IndexOfTicketsTableOnPoolStatus:        "tickets table on pool status",
-	IndexOfVotesTableOnHashes:              "votes table on block hash and transaction hash",
-	IndexOfVotesTableOnBlockHash:           "votes table on block hash",
-	IndexOfVotesTableOnCandBlock:           "votes table on candidate block",
-	IndexOfVotesTableOnVersion:             "votes table on vote version",
-	IndexOfVotesTableOnHeight:              "votes table on height",
-	IndexOfVotesTableOnBlockTime:           "votes table on block time",
-	IndexOfMissesTableOnHashes:             "misses on ticket hash and block hash",
-	IndexOfAgendasTableOnName:              "agendas on agenda name",
-	IndexOfAgendaVotesTableOnRowIDs:        "agenda_votes on votes table row ID and agendas table row ID",
-	IndexOfProposalsTableOnToken:           "proposals on token and time",
-	IndexOfProposalVotesTableOnProposalsID: "proposal_votes on proposals row ID",
-	IndexOfHeightOnStatsTable:              "stats table on height",
-	IndexOfTreasuryTableOnTxHash:           "treasury table on tx hash",
-	IndexOfTreasuryTableOnHeight:           "treasury table on block height",
+	IndexOfBlocksTableOnHash:              "blocks on hash",
+	IndexOfBlocksTableOnHeight:            "blocks on height",
+	IndexOfTransactionsTableOnHashes:      "transactions on block hash and transaction hash",
+	IndexOfTransactionsTableOnBlockInd:    "transactions on block hash, block index, and tx tree",
+	IndexOfTransactionsTableOnBlockHeight: "transactions on block height",
+	IndexOfVinsTableOnVin:                 "vins on transaction hash and index",
+	IndexOfVinsTableOnPrevOut:             "vins on previous outpoint",
+	IndexOfVoutsTableOnTxHashInd:          "vouts on transaction hash and index",
+	IndexOfVoutsTableOnSpendTxID:          "vouts on spend_tx_row_id",
+	IndexOfAddressTableOnAddress:          "addresses table on address", // TODO: remove if it is redundant with IndexOfAddressTableOnVoutID
+	IndexOfAddressTableOnVoutID:           "addresses table on vout row id, address, and is_funding",
+	IndexOfAddressTableOnBlockTime:        "addresses table on block time",
+	IndexOfAddressTableOnTx:               "addresses table on transaction hash",
+	IndexOfAddressTableOnMatchingTx:       "addresses table on matching tx hash",
+	IndexOfTicketsTableOnHashes:           "tickets table on block hash and transaction hash",
+	IndexOfTicketsTableOnTxRowID:          "tickets table on transactions table row ID",
+	IndexOfTicketsTableOnPoolStatus:       "tickets table on pool status",
+	IndexOfVotesTableOnHashes:             "votes table on block hash and transaction hash",
+	IndexOfVotesTableOnBlockHash:          "votes table on block hash",
+	IndexOfVotesTableOnCandBlock:          "votes table on candidate block",
+	IndexOfVotesTableOnVersion:            "votes table on vote version",
+	IndexOfVotesTableOnHeight:             "votes table on height",
+	IndexOfVotesTableOnBlockTime:          "votes table on block time",
+	IndexOfMissesTableOnHashes:            "misses on ticket hash and block hash",
+	IndexOfAgendasTableOnName:             "agendas on agenda name",
+	IndexOfAgendaVotesTableOnRowIDs:       "agenda_votes on votes table row ID and agendas table row ID",
+	IndexOfHeightOnStatsTable:             "stats table on height",
+	IndexOfTreasuryTableOnTxHash:          "treasury table on tx hash",
+	IndexOfTreasuryTableOnHeight:          "treasury table on block height",
 }

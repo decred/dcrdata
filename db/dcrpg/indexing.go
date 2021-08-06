@@ -330,30 +330,6 @@ func DeindexAgendaVotesTableOnAgendaID(db *sql.DB) (err error) {
 	return
 }
 
-// proposals table indexes
-
-func IndexProposalsTableOnToken(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexProposalsTableOnToken)
-	return
-}
-
-func DeindexProposalsTableOnToken(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexProposalsTableOnToken)
-	return
-}
-
-// proposal votes table indexes
-
-func IndexProposalVotesTableOnProposalsID(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexProposalVotesTableOnProposalsID)
-	return
-}
-
-func DeindexProposalVotesTableOnProposalsID(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexProposalVotesTableOnProposalsID)
-	return
-}
-
 // IndexTreasuryTableOnTxHash creates the index for the treasury table over
 // tx_hash.
 func IndexTreasuryTableOnTxHash(db *sql.DB) (err error) {
@@ -527,12 +503,6 @@ func (pgb *ChainDB) DeindexAll() error {
 		// agenda votes table
 		{DeindexAgendaVotesTableOnAgendaID},
 
-		// proposals table
-		{DeindexProposalsTableOnToken},
-
-		// proposal votes table
-		{DeindexProposalVotesTableOnProposalsID},
-
 		// stats table
 		{DeindexStatsTableOnHeight},
 
@@ -607,12 +577,6 @@ func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 		{Msg: "addresses table on address", IndexFunc: IndexAddressTableOnAddress}, // TODO: remove or redefine this or IndexAddressTableOnVoutID since that includes address too
 		{Msg: "addresses table on vout DB ID", IndexFunc: IndexAddressTableOnVoutID},
 		//{Msg: "addresses table on matching tx hash", IndexFunc: IndexAddressTableOnMatchingTxHash},
-
-		// proposals table
-		{Msg: "proposals table on Token+Time", IndexFunc: IndexProposalsTableOnToken},
-
-		// Proposals votes table
-		{Msg: "Proposals votes table on Proposals ID", IndexFunc: IndexProposalVotesTableOnProposalsID},
 
 		// stats table
 		{Msg: "stats table on height", IndexFunc: IndexStatsTableOnHeight},

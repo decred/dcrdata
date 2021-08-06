@@ -136,8 +136,7 @@ func mainCore(ctx context.Context) error {
 
 	// Construct a ChainDB without a stakeDB to allow quick dropping of tables.
 	mpChecker := rpcutils.NewMempoolAddressChecker(client, activeChain)
-	var piParser dcrpg.ProposalsFetcher
-	db, err := dcrpg.NewChainDB(ctx, &dbCfg, nil, mpChecker, piParser, client, func() {})
+	db, err := dcrpg.NewChainDB(ctx, &dbCfg, nil, mpChecker, client, func() {})
 	if db != nil {
 		defer db.Close()
 	}

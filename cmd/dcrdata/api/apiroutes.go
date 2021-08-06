@@ -33,6 +33,7 @@ import (
 	m "github.com/decred/dcrdata/cmd/dcrdata/middleware"
 	"github.com/decred/dcrdata/exchanges/v3"
 	"github.com/decred/dcrdata/gov/v4/agendas"
+	"github.com/decred/dcrdata/gov/v4/politeia"
 	apitypes "github.com/decred/dcrdata/v6/api/types"
 	"github.com/decred/dcrdata/v6/db/cache"
 	"github.com/decred/dcrdata/v6/db/dbtypes"
@@ -70,7 +71,6 @@ type DataSource interface {
 	Height() int64
 	AllAgendas() (map[string]dbtypes.MileStone, error)
 	GetTicketInfo(txid string) (*apitypes.TicketInfo, error)
-	ProposalVotes(proposalToken string) (*dbtypes.ProposalChartsData, error)
 	PowerlessTickets() (*apitypes.PowerlessTickets, error)
 	GetStakeInfoExtendedByHash(hash string) *apitypes.StakeInfoExtended
 	GetStakeInfoExtendedByHeight(idx int) *apitypes.StakeInfoExtended
@@ -111,29 +111,29 @@ type DataSource interface {
 
 // dcrdata application context used by all route handlers
 type appContext struct {
-	nodeClient   *rpcclient.Client
-	Params       *chaincfg.Params
-	DataSource   DataSource
-	Status       *apitypes.Status
-	xcBot        *exchanges.ExchangeBot
-	AgendaDB     *agendas.AgendaDB
-	maxCSVAddrs  int
-	charts       *cache.ChartData
-	isPiDisabled bool // is piparser disabled
+	nodeClient  *rpcclient.Client
+	Params      *chaincfg.Params
+	DataSource  DataSource
+	Status      *apitypes.Status
+	xcBot       *exchanges.ExchangeBot
+	AgendaDB    *agendas.AgendaDB
+	ProposalsDB *politeia.ProposalsDB
+	maxCSVAddrs int
+	charts      *cache.ChartData
 }
 
 // AppContextConfig is the configuration for the appContext and the only
 // argument to its constructor.
 type AppContextConfig struct {
-	Client             *rpcclient.Client
-	Params             *chaincfg.Params
-	DataSource         DataSource
-	XcBot              *exchanges.ExchangeBot
-	AgendasDBInstance  *agendas.AgendaDB
-	MaxAddrs           int
-	Charts             *cache.ChartData
-	IsPiparserDisabled bool
-	AppVer             string
+	Client            *rpcclient.Client
+	Params            *chaincfg.Params
+	DataSource        DataSource
+	XcBot             *exchanges.ExchangeBot
+	AgendasDBInstance *agendas.AgendaDB
+	ProposalsDB       *politeia.ProposalsDB
+	MaxAddrs          int
+	Charts            *cache.ChartData
+	AppVer            string
 }
 
 // NewContext constructs a new appContext from the RPC client and database, and
@@ -149,15 +149,15 @@ func NewContext(cfg *AppContextConfig) *appContext {
 	}
 
 	return &appContext{
-		nodeClient:   cfg.Client,
-		Params:       cfg.Params,
-		DataSource:   cfg.DataSource,
-		xcBot:        cfg.XcBot,
-		AgendaDB:     cfg.AgendasDBInstance,
-		Status:       apitypes.NewStatus(uint32(nodeHeight), conns, APIVersion, cfg.AppVer, cfg.Params.Name),
-		maxCSVAddrs:  cfg.MaxAddrs,
-		charts:       cfg.Charts,
-		isPiDisabled: cfg.IsPiparserDisabled,
+		nodeClient:  cfg.Client,
+		Params:      cfg.Params,
+		DataSource:  cfg.DataSource,
+		xcBot:       cfg.XcBot,
+		AgendaDB:    cfg.AgendasDBInstance,
+		ProposalsDB: cfg.ProposalsDB,
+		Status:      apitypes.NewStatus(uint32(nodeHeight), conns, APIVersion, cfg.AppVer, cfg.Params.Name),
+		maxCSVAddrs: cfg.MaxAddrs,
+		charts:      cfg.Charts,
 	}
 }
 
@@ -1200,28 +1200,22 @@ func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request)
 }
 
 func (c *appContext) getProposalChartData(w http.ResponseWriter, r *http.Request) {
-	if c.isPiDisabled {
-		errMsg := "piparser is disabled."
-		apiLog.Errorf("%s. Remove the disable-piparser flag to activate it.", errMsg)
-		http.Error(w, errMsg, http.StatusServiceUnavailable)
-		return
-	}
-
 	token := m.GetProposalTokenCtx(r)
-	votesData, err := c.DataSource.ProposalVotes(token)
+
+	proposal, err := c.ProposalsDB.ProposalByToken(token)
 	if dbtypes.IsTimeoutErr(err) {
-		apiLog.Errorf("ProposalVotes: %v", err)
+		apiLog.Errorf("ProposalByToken: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
 		return
 	}
 	if err != nil {
-		apiLog.Errorf("Unable to get proposals votes for token %s : %v", token, err)
+		apiLog.Errorf("Unable to get proposal chart data for token %s : %v", token, err)
 		http.Error(w, http.StatusText(http.StatusUnprocessableEntity),
 			http.StatusUnprocessableEntity)
 		return
 	}
 
-	writeJSON(w, votesData, m.GetIndentCtx(r))
+	writeJSON(w, proposal.ChartData, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getBlockSize(w http.ResponseWriter, r *http.Request) {
