@@ -130,8 +130,7 @@ export default class extends Controller {
       this.approvalMeter = new MiniMeter(this.approvalMeterTarget, opts)
     }
 
-    const response = await requestJSON('/api/proposal/' + this.tokenTarget.dataset.hash)
-    chartData = response.data
+    chartData = await requestJSON('/api/proposal/' + this.tokenTarget.dataset.hash)
 
     Dygraph = await getDefault(
       import(/* webpackChunkName: "dygraphs" */ '../vendor/dygraphs.min.js')
