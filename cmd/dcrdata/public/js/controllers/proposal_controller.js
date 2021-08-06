@@ -118,20 +118,20 @@ export default class extends Controller {
   }
 
   async connect () {
-    if (this.hasApprovalMeterTarget) {
-      const d = this.approvalMeterTarget.dataset
-      const opts = {
-        darkMode: darkEnabled(),
-        segments: [
-          { end: d.threshold, color: '#ed6d47' },
-          { end: 1, color: '#2dd8a3' }
-        ]
-      }
-      this.approvalMeter = new MiniMeter(this.approvalMeterTarget, opts)
+    if (!this.hasApprovalMeterTarget) return // there will be no meter or charts
+
+    const d = this.approvalMeterTarget.dataset
+    const opts = {
+      darkMode: darkEnabled(),
+      segments: [
+        { end: d.threshold, color: '#ed6d47' },
+        { end: 1, color: '#2dd8a3' }
+      ]
     }
+    this.approvalMeter = new MiniMeter(this.approvalMeterTarget, opts)
 
     chartData = await requestJSON('/api/proposal/' + this.tokenTarget.dataset.hash)
-
+    if (!chartData) return
     Dygraph = await getDefault(
       import(/* webpackChunkName: "dygraphs" */ '../vendor/dygraphs.min.js')
     )
