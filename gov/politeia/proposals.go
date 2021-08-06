@@ -543,55 +543,41 @@ func (db *ProposalsDB) proposalsNewUpdate() error {
 	}
 	log.Infof("Loaded %d proposal records from DB...", len(proposals))
 
-	var tokens []string
-	if len(proposals) == 0 {
-		// Empty db so first time fetching proposals, fetch all vetted tokens.
-		log.Infof("Fetching all proposal tokens...")
-		tokens, err = db.fetchVettedTokensInventory()
-		if err != nil {
-			return err
-		}
-	} else {
-		// Fetch inventory to search for new proposals.
-		log.Infof("Fetching new(?) proposal tokens...")
-		inventoryReq := recordsv1.InventoryOrdered{
-			State: recordsv1.RecordStateVetted,
-			Page:  1, // other pages?
-		}
-		reply, err := db.client.RecordInventoryOrdered(inventoryReq) // not fetchVettedTokensInventory?
-		if err != nil {
-			return fmt.Errorf("pi client RecordInventoryOrdered err: %w", err)
-		}
-
-		// Create proposals map from local stormdb proposals.
-		proposalsMap := make(map[string]*pitypes.ProposalRecord, len(proposals))
-		for _, prop := range proposals {
-			proposalsMap[prop.Token] = prop
-		}
-
-		// Filter new proposals to be fetched.
-		for _, token := range reply.Tokens {
-			if _, ok := proposalsMap[token]; ok {
-				continue
-			}
-			// New proposal found.
-			tokens = append(tokens, token)
-		}
+	// Create proposals map from local stormdb proposals.
+	proposalsMap := make(map[string]struct{}, len(proposals))
+	for _, prop := range proposals {
+		proposalsMap[prop.Token] = struct{}{}
 	}
 
-	// Fetch data for found tokens.
-	var prs []*pitypes.ProposalRecord
-	if len(tokens) > 0 {
-		log.Infof("Fetching data for %d new proposals...", len(tokens))
-		prs, err = db.fetchProposalsData(tokens)
-		if err != nil {
-			return err
+	// Empty db so first time fetching proposals, fetch all vetted tokens.
+	log.Infof("Fetching all proposal tokens...")
+	tokens, err := db.fetchVettedTokensInventory()
+	if err != nil {
+		return err
+	}
+
+	// Filter new proposals to be fetched.
+	var newTokens []string
+	for _, token := range tokens {
+		if _, ok := proposalsMap[token]; ok {
+			continue
 		}
-		log.Infof("Obtained data for %d new proposals.", len(prs)) // always equal length?
-	} else {
+		// New proposal found.
+		newTokens = append(newTokens, token)
+	}
+
+	if len(newTokens) == 0 {
 		log.Infof("No new proposals found.")
 		return nil
 	}
+
+	// Fetch data for found tokens.
+	log.Infof("Fetching data for %d new proposals...", len(newTokens))
+	prs, err := db.fetchProposalsData(newTokens)
+	if err != nil {
+		return err
+	}
+	log.Infof("Obtained data for %d new proposals.", len(prs)) // always equal length?
 
 	// Save proposals data in the db.
 	return db.proposalsSave(prs)
