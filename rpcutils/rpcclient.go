@@ -79,7 +79,7 @@ func NewAsyncTxClient(c *rpcclient.Client) *AsyncTxClient {
 // Any of the following dcrd RPC API versions are deemed compatible with
 // dcrdata.
 var compatibleChainServerAPIs = []semver.Semver{
-	semver.NewSemver(6, 2, 0),
+	semver.NewSemver(7, 0, 0),
 }
 
 var (
