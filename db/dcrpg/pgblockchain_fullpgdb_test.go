@@ -1,3 +1,4 @@
+//go:build pgonline && fullpgdb
 // +build pgonline,fullpgdb
 
 package dcrpg

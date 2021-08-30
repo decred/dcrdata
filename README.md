@@ -65,11 +65,10 @@ modern javascript features, as well as SCSS for styling.
 
 Always run the Current release or on the Current stable branch. Do not use `master` in production.
 
-|             | Series  | Branch        | Latest release tag | `dcrd` RPC server version required |
-| ----------- | ------- | ------------- | ------------------ | ---------------------------------- |
-| Development | 6.0     | `master`      | N/A                | ^6.2.0 (dcrd v1.6 release)         |
-| Current     | 5.3     | `5.3-stable`  | `v5.3.0`           | same as dcrdata 5.2                |
-| Legacy      | 5.2     | `5.2-stable`  | `v5.2.2`           | ^6.1.1 (dcrd v1.6 release)         |
+|             | Series  | Branch         | Latest release tag | `dcrd` RPC server version required |
+| ----------- | ------- | -------------- | ------------------ | ---------------------------------- |
+| Development | 6.1     | `master`       | N/A                | ^7.0.0 (dcrd v1.7 release)         |
+| Current     | 6.0     | `release-v6.0` | `v6.0.0`           | ^6.2.0 (dcrd v1.6 release)         |
 
 ## Repository Overview
 
@@ -131,8 +130,8 @@ Always run the Current release or on the Current stable branch. Do not use `mast
 
 ## Requirements
 
-- [Go](https://golang.org) 1.15 or 1.16
-- [Node.js](https://nodejs.org/en/download/) 14.x or 15.x. Node.js is only used
+- [Go](https://golang.org) 1.16 or 1.17
+- [Node.js](https://nodejs.org/en/download/) 14.x or 16.x. Node.js is only used
   as a build tool, and is **not used at runtime**.
 - Running `dcrd` running with `--txindex --addrindex`, and synchronized to the
   current best block on the network. On startup, dcrdata will verify that the

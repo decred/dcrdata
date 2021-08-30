@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/exchanges/v3
 
-go 1.15
+go 1.16
 
 require (
 	decred.org/dcrdex v0.0.0-20210401142326-529cb0d17154

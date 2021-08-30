@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/db/dcrpg/v6
 
-go 1.15
+go 1.16
 
 replace github.com/decred/dcrdata/v6 => ../../
 
