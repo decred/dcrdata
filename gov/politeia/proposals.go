@@ -508,7 +508,7 @@ func (db *ProposalsDB) proposalsSave(proposals []*pitypes.ProposalRecord) error 
 			updateData.ID = data.ID
 			err = db.dbP.Update(&updateData)
 			if err != nil {
-				return fmt.Errorf("stormdb update err: %v", err)
+				return fmt.Errorf("stormdb update err: %w", err)
 			}
 		}
 		if err != nil {
@@ -535,67 +535,52 @@ func (db *ProposalsDB) proposal(searchBy, searchTerm string) (*pitypes.ProposalR
 // proposalsNewUpdate verifies if there is any new proposals on the politeia
 // server that are not yet synced with our stormdb.
 func (db *ProposalsDB) proposalsNewUpdate() error {
+	log.Infof("Loading all proposal records from DB...")
 	var proposals []*pitypes.ProposalRecord
 	err := db.dbP.All(&proposals)
 	if err != nil {
 		return fmt.Errorf("stormdb All err: %w", err)
 	}
+	log.Infof("Loaded %d proposal records from DB...", len(proposals))
 
-	var tokens []string
-	if len(proposals) == 0 {
-		// Empty db so first time fetching proposals, fetch all vetted tokens.
-		vettedTokens, err := db.fetchVettedTokensInventory()
-		if err != nil {
-			return err
-		}
-		tokens = vettedTokens
-	} else {
-		// Fetch inventory to search for new proposals.
-		inventoryReq := recordsv1.InventoryOrdered{
-			State: recordsv1.RecordStateVetted,
-			Page:  1,
-		}
-		reply, err := db.client.RecordInventoryOrdered(inventoryReq)
-		if err != nil {
-			return fmt.Errorf("pi client RecordInventoryOrdered err: %w", err)
-		}
+	// Create proposals map from local stormdb proposals.
+	proposalsMap := make(map[string]struct{}, len(proposals))
+	for _, prop := range proposals {
+		proposalsMap[prop.Token] = struct{}{}
+	}
 
-		// Create proposals map from local stormdb proposals.
-		proposalsMap := make(map[string]*pitypes.ProposalRecord, len(proposals))
-		for _, prop := range proposals {
-			proposalsMap[prop.Token] = prop
-		}
+	// Empty db so first time fetching proposals, fetch all vetted tokens.
+	log.Infof("Fetching all proposal tokens...")
+	tokens, err := db.fetchVettedTokensInventory()
+	if err != nil {
+		return err
+	}
 
-		// Filter new proposals to be fetched.
-		var tokensProposalsNew []string
-		for _, token := range reply.Tokens {
-			if _, ok := proposalsMap[token]; ok {
-				continue
-			}
-			// New proposal found.
-			tokensProposalsNew = append(tokensProposalsNew, token)
+	// Filter new proposals to be fetched.
+	var newTokens []string
+	for _, token := range tokens {
+		if _, ok := proposalsMap[token]; ok {
+			continue
 		}
-		tokens = tokensProposalsNew
+		// New proposal found.
+		newTokens = append(newTokens, token)
+	}
+
+	if len(newTokens) == 0 {
+		log.Infof("No new proposals found.")
+		return nil
 	}
 
 	// Fetch data for found tokens.
-	var prs []*pitypes.ProposalRecord
-	if len(tokens) > 0 {
-		prs, err = db.fetchProposalsData(tokens)
-		if err != nil {
-			return err
-		}
+	log.Infof("Fetching data for %d new proposals...", len(newTokens))
+	prs, err := db.fetchProposalsData(newTokens)
+	if err != nil {
+		return err
 	}
+	log.Infof("Obtained data for %d new proposals.", len(prs)) // always equal length?
 
-	// Save proposals data on the db.
-	if len(prs) > 0 {
-		err = db.proposalsSave(prs)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	// Save proposals data in the db.
+	return db.proposalsSave(prs)
 }
 
 // proposalsInProgressUpdate retrieves proposals with the vote status equal to
@@ -614,6 +599,7 @@ func (db *ProposalsDB) proposalsInProgressUpdate() error {
 		return err
 	}
 
+	log.Infof("Fetching data for %d in-progress proposals...", len(propsInProgress))
 	for _, prop := range propsInProgress {
 		// Fetch fresh data for the proposal.
 		proposals, err := db.fetchProposalsData([]string{prop.Token})
@@ -629,11 +615,14 @@ func (db *ProposalsDB) proposalsInProgressUpdate() error {
 		// which means first time fetching ticket vote data.
 		if prop.VoteStatus == ticketvotev1.VoteStatusStarted &&
 			(prop.TotalVotes != proposal.TotalVotes || prop.ChartData == nil) {
+			t0 := time.Now()
+			log.Infof("Fetching vote results for proposal %v (status %v)...", prop.Token, recordsv1.RecordStatuses[prop.Status])
 			voteResults, err := db.fetchTicketVoteResults(prop.Token)
 			if err != nil {
 				return fmt.Errorf("fetchTicketVoteResults failed with err: %w", err)
 			}
 			proposal.ChartData = voteResults
+			log.Infof("Retrieved vote results for proposal %v in %v.", prop.Token, time.Since(t0))
 		}
 
 		if prop.IsEqual(*proposal) {
@@ -683,10 +672,11 @@ func (db *ProposalsDB) proposalsVoteResultsUpdate() error {
 	// Update finished proposals that are not yet synced with the
 	// latest vote results.
 	for _, prop := range propsVotingComplete {
+		t0 := time.Now()
+		log.Infof("Fetching vote results for proposal %v (status %v)...", prop.Token, recordsv1.RecordStatuses[prop.Status])
 		voteResults, err := db.fetchTicketVoteResults(prop.Token)
 		if err != nil {
-			return fmt.Errorf("fetchTicketVoteResults failed with err: %w",
-				err)
+			return fmt.Errorf("fetchTicketVoteResults failed with err: %w", err)
 		}
 		prop.ChartData = voteResults
 		prop.Synced = true
@@ -695,6 +685,7 @@ func (db *ProposalsDB) proposalsVoteResultsUpdate() error {
 		if err != nil {
 			return fmt.Errorf("storm db Update failed with err: %w", err)
 		}
+		log.Infof("Retrieved vote results for proposal %v in %v.", prop.Token, time.Since(t0))
 	}
 
 	return nil
