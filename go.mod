@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/v6
 
-go 1.15
+go 1.16
 
 require (
 	decred.org/dcrwallet v1.7.0

@@ -1,3 +1,4 @@
+//go:build fullpgdb
 // +build fullpgdb
 
 package dbconfig
