@@ -1,9 +1,9 @@
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 decred.org/cspp v0.3.0/go.mod h1:UygjYilC94dER3BEU65Zzyoqy9ngJfWCD2rdJqvUs2A=
-decred.org/dcrdex v0.0.0-20210401142326-529cb0d17154 h1:mJ9duXGQ1IA1jtZnezrRS4ZJUjSj363m5eB+wSRF/qM=
-decred.org/dcrdex v0.0.0-20210401142326-529cb0d17154/go.mod h1:7dhGujv+4YSK2ULxUKXhYskj3HsDJC8B1AIlfQrqR7Q=
-decred.org/dcrwallet v1.6.3-0.20210324151833-873c564976fd h1:tAaRGZmA8aj0F88oeFGhNXjtoV29E/jbuTYjVEVYU14=
-decred.org/dcrwallet v1.6.3-0.20210324151833-873c564976fd/go.mod h1:hNOGyvH53gWdgFB601/ubGRzCPfPtWnEVAi9Grs90y4=
+decred.org/dcrdex v0.2.2 h1:voBshfoaOgLGO4Wb+iIQnxJVjOJzImHLKYSWtue+ENU=
+decred.org/dcrdex v0.2.2/go.mod h1:XH8z2N7B0fXOkVhbk4LewzQTJIv1xZ8riHGT7I1/pIE=
+decred.org/dcrwallet v1.7.0 h1:U/ew00YBdUlx3rJAynt2OdKDgGzBKK4O89FijBq8iVg=
+decred.org/dcrwallet v1.7.0/go.mod h1:hNOGyvH53gWdgFB601/ubGRzCPfPtWnEVAi9Grs90y4=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/OpenBazaar/jsonpb v0.0.0-20171123000858-37d32ddf4eef/go.mod h1:55mCznBcN9WQgrtgaAkv+p2LxeW/tQRdidyyE9D0I5k=
 github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=
@@ -106,6 +106,7 @@ github.com/gcash/bchutil v0.0.0-20190625002603-800e62fe9aff/go.mod h1:zXSP0Fg2L5
 github.com/gcash/bchutil v0.0.0-20191012211144-98e73ec336ba/go.mod h1:nUIrcbbtEQdCsRwcp+j/CndDKMQE9Fi8p2F8cIZmIqI=
 github.com/gcash/bchutil v0.0.0-20200506001747-c2894cd54b33/go.mod h1:wB++2ZcHUvGLN1OgO9swBmJK1vmyshJLW9SNS+apXwc=
 github.com/gcash/bchutil v0.0.0-20210113190856-6ea28dff4000/go.mod h1:H2USFGwtiu6CNMxiVQPqZkDzsoVSt9BLNqTfBBqGXRo=
+github.com/go-chi/chi/v5 v5.0.1 h1:ALxjCrTf1aflOlkhMnCUP86MubbWFrzB3gkRPReLpTo=
 github.com/go-chi/chi/v5 v5.0.1/go.mod h1:DslCQbL2OYiznFReuXYUmQ2hGd1aDpCnlMNITLSKoi8=
 github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b/go.mod h1:SBH7ygxi8pfUlaOkMMuAQtPIUF8ecWP5IEl/CR7VP2Q=
 github.com/golang/mock v1.1.1/go.mod h1:oTYuIxOrZwtPieC+H1uAHpcLFnEyAGVDL/k47Jfbm0A=
@@ -161,6 +162,7 @@ github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORN
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0 h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
+github.com/lib/pq v1.2.0 h1:LXpIM/LZ5xGFhOpXAQUIMM1HdyqzVYM13zNdjCEEcA0=
 github.com/lib/pq v1.2.0/go.mod h1:5WUZQaWbwv1U+lTReE5YruASi9Al49XbQIvNi/34Woo=
 github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
 github.com/nxadm/tail v1.4.4 h1:DQuhQpB1tVlglWS2hLQ5OV6B5r8aGxSrPc5Qo6uTN78=
@@ -263,6 +265,7 @@ golang.org/x/text v0.3.2/go.mod h1:bEr9sfX3Q8Zfm5fL9x+3itogRgK3+ptLWKqgva+5dAk=
 golang.org/x/text v0.3.3/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
 golang.org/x/text v0.3.4 h1:0YWbFKbhXG/wIiuHDSKpS0Iy7FSA+u45VtBMfQcFTTc=
 golang.org/x/text v0.3.4/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
+golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e h1:EHBhcS0mlXEAVwNyO2dLfjToGsyY4j24pTs2ScHnX7s=
 golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e/go.mod h1:tRJNPiyCQ0inRvYxbN9jk5I+vvW/OXSQhTDSoE431IQ=
 golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
 golang.org/x/tools v0.0.0-20190114222345-bf090417da8b/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=

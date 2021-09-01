@@ -459,6 +459,7 @@ type dexWS struct {
 	readDone chan struct{}
 	done     chan struct{}
 	closed   uint32
+	candleID chan uint64
 }
 
 func newDexWS() *dexWS {
@@ -466,6 +467,7 @@ func newDexWS() *dexWS {
 		r:        make(chan []byte),
 		readDone: make(chan struct{}),
 		done:     make(chan struct{}),
+		candleID: make(chan uint64, 1),
 	}
 }
 
@@ -481,7 +483,15 @@ func (ws *dexWS) Read() ([]byte, error) {
 	return b, nil
 }
 
-func (ws *dexWS) Write(interface{}) error {
+func (ws *dexWS) Write(thing interface{}) error {
+	msg, ok := thing.(*msgjson.Message)
+	if !ok {
+		panic("sent a non message")
+	}
+	switch msg.Route {
+	case msgjson.CandlesRoute:
+		ws.candleID <- msg.ID
+	}
 	return nil
 }
 
@@ -515,7 +525,9 @@ func newTestDex() *DecredDEX {
 			asks: make(wsOrders),
 			buys: make(wsOrders),
 		},
-		ords: make(map[string]*msgjson.BookOrderNote),
+		ords:         make(map[string]*msgjson.BookOrderNote),
+		candleCaches: make(map[uint64]*candleCache),
+		reqs:         make(map[uint64]func(*msgjson.Message)),
 	}
 }
 
@@ -554,9 +566,11 @@ func TestDecredDEX(t *testing.T) {
 		}
 	}
 
+	subID, _ := dcr.request(msgjson.OrderBookRoute, nil, dcr.handleSubResponse)
+
 	seq := nextSeq()
 
-	initialOrderBook, _ := msgjson.NewResponse(DexSubscriptionID, &msgjson.OrderBook{
+	initialOrderBook, _ := msgjson.NewResponse(subID, &msgjson.OrderBook{
 		MarketID: mktID,
 		Seq:      nextSeq(),
 		Orders: []*msgjson.BookOrderNote{
@@ -612,17 +626,18 @@ func TestDecredDEX(t *testing.T) {
 	dcr.asks = make(wsOrders)
 	dcr.currentState = &ExchangeState{BaseState: BaseState{Price: 1}}
 	dcr.startWebsocket()
+	defer dcr.ws.Close()
 
-	ws.r <- mustEncode(t, initialOrderBook)
+	ws.r <- mustEncode(initialOrderBook)
 	checkLengths(3, 3)
 
-	ws.r <- mustEncode(t, newBookOrderMsg(msgjson.BuyOrderNum, 1, 10))
+	ws.r <- mustEncode(newBookOrderMsg(msgjson.BuyOrderNum, 1, 10))
 	checkLengths(3, 4)
 
-	ws.r <- mustEncode(t, newUnbookOrderMsg([]byte(strconv.Itoa(oidCounter))))
+	ws.r <- mustEncode(newUnbookOrderMsg([]byte(strconv.Itoa(oidCounter))))
 	checkLengths(3, 3)
 
-	ws.r <- mustEncode(t, newUpdateRemainingMsg([]byte("3"), 1))
+	ws.r <- mustEncode(newUpdateRemainingMsg([]byte("3"), 1))
 	checkLengths(3, 3)
 	depths := dcr.wsDepths()
 	bestBuy := depths.Bids[0]
@@ -633,13 +648,52 @@ func TestDecredDEX(t *testing.T) {
 		t.Fatalf("mid-gap wrong. wanted 0.00000014, got %.8f", depths.MidGap())
 	}
 
-	dcr.ws.Close()
+	// Send through a config response to trigger the candles request.
+	msg, _ := msgjson.NewResponse(2, &msgjson.ConfigResult{BinSizes: []string{"24h"}}, nil)
+	dcr.handleConfigResponse(msg)
+
+	// Get the ID of the request, and prepare a response.
+	var candleID uint64
+	select {
+	case candleID = <-ws.candleID:
+	case <-time.After(time.Second):
+		t.Fatalf("no candles request received")
+	}
+
+	msg, _ = msgjson.NewResponse(candleID, &msgjson.WireCandles{
+		StartStamps:  []uint64{1000},
+		EndStamps:    []uint64{87400000},
+		MatchVolumes: []uint64{1},
+		QuoteVolumes: []uint64{2},
+		HighRates:    []uint64{3},
+		LowRates:     []uint64{4},
+		StartRates:   []uint64{5},
+		EndRates:     []uint64{6},
+	}, nil)
+
+	ws.r <- mustEncode(msg)
+
+	// Just make sure that a cache was created and stored.
+	tStart := time.Now()
+	var numCaches int
+	for {
+		if time.Since(tStart) > 100*time.Millisecond {
+			t.Fatalf("candles never received")
+		}
+		dcr.cacheMtx.RLock()
+		numCaches = len(dcr.candleCaches)
+		dcr.cacheMtx.RUnlock()
+		if numCaches > 0 {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
 }
 
-func mustEncode(t *testing.T, thing interface{}) []byte {
+func mustEncode(thing interface{}) []byte {
 	b, err := json.Marshal(thing)
 	if err != nil {
-		t.Fatalf("Marshal error encoding thing of type %T: %v", thing, err)
+		panic(fmt.Sprintf("Marshal error encoding thing of type %T: %v", thing, err))
 	}
 	return b
 }

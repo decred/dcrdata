@@ -216,15 +216,6 @@ type UpdateChannels struct {
 	Quit     chan struct{}
 }
 
-// NewUpdateChannels creates a new initialized set of UpdateChannels.
-func NewUpdateChannels() *UpdateChannels {
-	return &UpdateChannels{
-		Exchange: make(chan *ExchangeUpdate, 16),
-		Index:    make(chan *IndexUpdate, 16),
-		Quit:     make(chan struct{}),
-	}
-}
-
 // The chart data structures that are encoded and cached are the
 // candlestickResponse and the depthResponse.
 type candlestickResponse struct {
@@ -562,6 +553,8 @@ func (bot *ExchangeBot) UpdateChannels() *UpdateChannels {
 
 // Send an update to any channels requested with bot.UpdateChannels().
 func (bot *ExchangeBot) signalExchangeUpdate(update *ExchangeUpdate) {
+	bot.mtx.RLock()
+	defer bot.mtx.RUnlock()
 	for _, ch := range bot.updateChans {
 		select {
 		case ch <- update:
@@ -572,6 +565,8 @@ func (bot *ExchangeBot) signalExchangeUpdate(update *ExchangeUpdate) {
 }
 
 func (bot *ExchangeBot) signalIndexUpdate(update *IndexUpdate) {
+	bot.mtx.RLock()
+	defer bot.mtx.RUnlock()
 	for _, ch := range bot.indexChans {
 		select {
 		case ch <- update:
