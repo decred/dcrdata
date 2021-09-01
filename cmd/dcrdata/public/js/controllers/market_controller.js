@@ -17,6 +17,7 @@ const volume = 'volume'
 const aggregatedKey = 'aggregated'
 const anHour = '1h'
 const minuteMap = {
+  '5m': 5,
   '30m': 30,
   '1h': 60,
   '1d': 1440,
@@ -24,6 +25,7 @@ const minuteMap = {
 }
 const PIPI = 2 * Math.PI
 const prettyDurations = {
+  '5m': '5 min',
   '30m': '30 min',
   '1h': 'hour',
   '1d': 'day',
