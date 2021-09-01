@@ -216,15 +216,6 @@ type UpdateChannels struct {
 	Quit     chan struct{}
 }
 
-// NewUpdateChannels creates a new initialized set of UpdateChannels.
-func NewUpdateChannels() *UpdateChannels {
-	return &UpdateChannels{
-		Exchange: make(chan *ExchangeUpdate, 16),
-		Index:    make(chan *IndexUpdate, 16),
-		Quit:     make(chan struct{}),
-	}
-}
-
 // The chart data structures that are encoded and cached are the
 // candlestickResponse and the depthResponse.
 type candlestickResponse struct {
