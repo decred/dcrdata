@@ -562,6 +562,8 @@ func (bot *ExchangeBot) UpdateChannels() *UpdateChannels {
 
 // Send an update to any channels requested with bot.UpdateChannels().
 func (bot *ExchangeBot) signalExchangeUpdate(update *ExchangeUpdate) {
+	bot.mtx.RLock()
+	defer bot.mtx.RUnlock()
 	for _, ch := range bot.updateChans {
 		select {
 		case ch <- update:
@@ -572,6 +574,8 @@ func (bot *ExchangeBot) signalExchangeUpdate(update *ExchangeUpdate) {
 }
 
 func (bot *ExchangeBot) signalIndexUpdate(update *IndexUpdate) {
+	bot.mtx.RLock()
+	defer bot.mtx.RUnlock()
 	for _, ch := range bot.indexChans {
 		select {
 		case ch <- update:

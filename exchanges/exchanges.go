@@ -46,13 +46,15 @@ const (
 type candlestickKey string
 
 const (
-	halfHourKey candlestickKey = "30m" // Poloniex doesn't have hourly, but does have half-hourly
+	fiveMinKey  candlestickKey = "5m"
+	halfHourKey candlestickKey = "30m"
 	hourKey     candlestickKey = "1h"
 	dayKey      candlestickKey = "1d"
 	monthKey    candlestickKey = "1mo"
 )
 
 var candlestickDurations = map[candlestickKey]time.Duration{
+	fiveMinKey:  time.Minute * 5,
 	halfHourKey: time.Minute * 30,
 	hourKey:     time.Hour,
 	dayKey:      time.Hour * 24,
@@ -2979,6 +2981,7 @@ type candleCache struct {
 type DecredDEX struct {
 	*CommonExchange
 	ords         map[string]*msgjson.BookOrderNote
+	reqMtx       sync.Mutex
 	reqs         map[uint64]func(*msgjson.Message)
 	cacheMtx     sync.RWMutex
 	candleCaches map[uint64]*candleCache
@@ -3088,10 +3091,26 @@ func (dcr *DecredDEX) setCandleCache(binSize uint64, cache *candleCache) {
 	dcr.candleCaches[binSize] = cache
 }
 
+// logRequest stores the response handler for the request ID.
+func (dcr *DecredDEX) logRequest(id uint64, handler func(*msgjson.Message)) {
+	dcr.reqMtx.Lock()
+	defer dcr.reqMtx.Unlock()
+	dcr.reqs[id] = handler
+}
+
+// responseHandler retrieves and deletes the response handler from the reqs map.
+func (dcr *DecredDEX) responseHandler(id uint64) func(*msgjson.Message) {
+	dcr.reqMtx.Lock()
+	defer dcr.reqMtx.Unlock()
+	f := dcr.reqs[id]
+	delete(dcr.reqs, id)
+	return f
+}
+
 // request sends a request, and records the handler for the response.
 func (dcr *DecredDEX) request(route string, payload interface{}, handler func(*msgjson.Message)) (uint64, error) {
 	msg, _ := msgjson.NewRequest(atomic.AddUint64(&dexDotDecredMsgID, 1), route, payload)
-	dcr.reqs[msg.ID] = handler
+	dcr.logRequest(msg.ID, handler)
 
 	err := dcr.wsSend(msg)
 	if err != nil {
@@ -3154,13 +3173,11 @@ func (dcr *DecredDEX) processWsMessage(raw []byte) {
 	dcr.stamp = time.Now().Unix()
 	switch msg.Type {
 	case msgjson.Response:
-		handler := dcr.reqs[msg.ID]
+		handler := dcr.responseHandler(msg.ID)
 		if handler != nil {
 			handler(msg)
-			delete(dcr.reqs, msg.ID)
 		} else {
-			b, _ := json.Marshal(msg)
-			log.Warnf("Received response from %q with no request handler registered: %s", dcr.cfg.Host, string(b))
+			log.Warnf("Received response from %q with no request handler registered: %s", dcr.cfg.Host, string(raw))
 		}
 
 	case msgjson.Notification:
@@ -3229,27 +3246,34 @@ func (dcr *DecredDEX) processWsMessage(raw []byte) {
 				return
 			}
 			// EpochReportNote.Candle is a value, not a pointer.
-			if note.Candle.EndStamp > 0 {
-				candle := convertDEXCandle(&note.Candle)
-				for binSize, cache := range dcr.candles() {
-					cache.mtx.Lock()
-					if cache.lastStamp == note.StartStamp {
-						cache.Add(candle)
-						cache.lastStamp = candle.EndStamp
-						cache.mtx.Unlock()
-					} else {
-						// Our candles are out of sync. Get a fresh set.
-						cacheKey := cache.key
-						cache.mtx.Unlock()
-						dcr.clearCandleCache(binSize)
-						dcr.request(msgjson.CandlesRoute, &msgjson.CandlesRequest{
-							BaseID:     42,
-							QuoteID:    0,
-							BinSize:    (time.Duration(binSize) * time.Millisecond).String(),
-							NumCandles: dexapi.CacheSize,
-						}, func(msg *msgjson.Message) {
-							dcr.handleCandles(cacheKey, msg)
-						})
+			if note.Candle.EndStamp == 0 {
+				return
+			}
+			candle := convertDEXCandle(&note.Candle)
+			for binSize, cache := range dcr.candles() {
+				cache.mtx.Lock()
+				if cache.lastStamp == note.StartStamp {
+					cache.Add(candle)
+					cache.lastStamp = candle.EndStamp
+					cache.mtx.Unlock()
+				} else {
+					// Our candles are out of sync. Get a fresh set.
+					log.Infof("Epoch report out of sync (last stamp %d, note start stamp %d). Requesting new candles.",
+						cache.lastStamp, note.StartStamp)
+					cacheKey := cache.key
+					cache.mtx.Unlock()
+					dcr.clearCandleCache(binSize)
+					_, err := dcr.request(msgjson.CandlesRoute, &msgjson.CandlesRequest{
+						BaseID:     42,
+						QuoteID:    0,
+						BinSize:    (time.Duration(binSize) * time.Millisecond).String(),
+						NumCandles: dexapi.CacheSize,
+					}, func(msg *msgjson.Message) {
+						dcr.handleCandles(cacheKey, msg)
+					})
+					if err != nil {
+						dcr.setWsFail(fmt.Errorf("error requesting candles for bin size %d: %w", binSize, err))
+						break
 					}
 				}
 			}
@@ -3260,16 +3284,8 @@ func (dcr *DecredDEX) processWsMessage(raw []byte) {
 
 // convertDEXCandle converts the *msgjson.Candle to a dexdb.Candle.
 func convertDEXCandle(c *msgjson.Candle) *dexdb.Candle {
-	return &dexdb.Candle{
-		StartStamp:  c.StartStamp,
-		EndStamp:    c.EndStamp,
-		MatchVolume: c.MatchVolume,
-		QuoteVolume: c.QuoteVolume,
-		HighRate:    c.HighRate,
-		LowRate:     c.LowRate,
-		StartRate:   c.StartRate,
-		EndRate:     c.EndRate,
-	}
+	dexDBCandle := dexdb.Candle(*c)
+	return &dexDBCandle
 }
 
 // handleSubResponse handles the response to the order book subscription.
@@ -3278,6 +3294,7 @@ func (dcr *DecredDEX) handleSubResponse(msg *msgjson.Message) {
 	err := msg.UnmarshalResult(ob)
 	if err != nil {
 		dcr.setWsFail(fmt.Errorf("error unmarshaling orderbook response: %v", err))
+		return
 	}
 	dcr.setOrderBook(ob)
 }
@@ -3287,7 +3304,7 @@ func (dcr *DecredDEX) handleCandles(key candlestickKey, msg *msgjson.Message) {
 	wireCandles := new(msgjson.WireCandles)
 	err := msg.UnmarshalResult(wireCandles)
 	if err != nil {
-		log.Errorf("Error unmarshaling candlestick response from DEX at %s: %v", dcr.cfg.Host, err)
+		log.Errorf("error encountered in candlestick response from DEX at %s: %v", dcr.cfg.Host, err)
 		return
 	}
 
@@ -3315,15 +3332,15 @@ func (dcr *DecredDEX) handleConfigResponse(msg *msgjson.Message) {
 	err := msg.UnmarshalResult(cfg)
 	if err != nil {
 		dcr.setWsFail(fmt.Errorf("error unmarshaling config response: %v", err))
+		return
 	}
 	// If the server is not of sufficient version to support the data API,
 	// BinSizes will be nil and we won't create any candle caches.
-	var smallestBin uint64
 	for _, durStr := range cfg.BinSizes {
 		dur, err := time.ParseDuration(durStr)
 		if err != nil {
 			dcr.setWsFail(fmt.Errorf("unparseable bin size in dcrdex config response: %q: %v", durStr, err))
-			break
+			return
 		}
 
 		var key candlestickKey
@@ -3338,12 +3355,7 @@ func (dcr *DecredDEX) handleConfigResponse(msg *msgjson.Message) {
 			continue
 		}
 
-		binSize := uint64(dur.Milliseconds())
-		if smallestBin == 0 || binSize < smallestBin {
-			smallestBin = binSize
-		}
-
-		dcr.request(msgjson.CandlesRoute, &msgjson.CandlesRequest{
+		_, err = dcr.request(msgjson.CandlesRoute, &msgjson.CandlesRequest{
 			BaseID:     42,
 			QuoteID:    0,
 			BinSize:    durStr,
@@ -3351,6 +3363,10 @@ func (dcr *DecredDEX) handleConfigResponse(msg *msgjson.Message) {
 		}, func(msg *msgjson.Message) {
 			dcr.handleCandles(key, msg)
 		})
+		if err != nil {
+			dcr.setWsFail(fmt.Errorf("error requesting candles for bin size %s: %w", durStr, err))
+			return
+		}
 	}
 }
 
