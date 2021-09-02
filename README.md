@@ -65,10 +65,10 @@ modern javascript features, as well as SCSS for styling.
 
 Always run the Current release or on the Current stable branch. Do not use `master` in production.
 
-|             | Series  | Branch         | Latest release tag | `dcrd` RPC server version required |
-| ----------- | ------- | -------------- | ------------------ | ---------------------------------- |
-| Development | 6.1     | `master`       | N/A                | ^7.0.0 (dcrd v1.7 release)         |
-| Current     | 6.0     | `release-v6.0` | `v6.0.0`           | ^6.2.0 (dcrd v1.6 release)         |
+|             | Series  | Branch       | Latest release tag | `dcrd` RPC server version required |
+| ----------- | ------- | ------------ | ------------------ | ---------------------------------- |
+| Development | 6.1     | `master`     | N/A                | ^7.0.0 (dcrd v1.7 release)         |
+| Current     | 6.0     | `6.0-stable` | `v6.0.0`           | ^6.2.0 (dcrd v1.6 release)         |
 
 ## Repository Overview
 
