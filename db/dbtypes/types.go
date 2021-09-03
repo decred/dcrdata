@@ -14,10 +14,10 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/dcrutil/v4"
 
-	"github.com/decred/dcrdata/v6/db/dbtypes/internal"
-	"github.com/decred/dcrdata/v6/txhelpers"
+	"github.com/decred/dcrdata/v7/db/dbtypes/internal"
+	"github.com/decred/dcrdata/v7/txhelpers"
 )
 
 // ErrorKind identifies a kind of error that can be used to define new errors
@@ -1685,6 +1685,7 @@ type ScriptPubKeyData struct {
 	ReqSigs   uint32   `json:"reqSigs"`
 	Type      string   `json:"type"`
 	Addresses []string `json:"addresses"`
+	// TODO: script version here instead?
 }
 
 // VinTxProperty models a transaction input with previous outpoint information.

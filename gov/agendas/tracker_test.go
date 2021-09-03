@@ -8,7 +8,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrjson/v3"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
 )
 
 type dataSourceStub struct{}

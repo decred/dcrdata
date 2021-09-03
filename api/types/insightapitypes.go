@@ -7,8 +7,7 @@ package types
 import (
 	"encoding/json"
 
-	"github.com/decred/dcrd/dcrutil/v3"
-	"github.com/decred/dcrdata/v6/db/dbtypes"
+	"github.com/decred/dcrdata/v7/db/dbtypes"
 )
 
 // SyncResponse contains sync status information.
@@ -106,7 +105,7 @@ func TxOutFromDB(dbTxOut *dbtypes.AddressTxnOutput, currentHeight int32) *Addres
 		ScriptPubKey: dbTxOut.PkScript,
 		Height:       int64(dbTxOut.Height),
 		//BlockHash:    dbTxOut.BlockHash.String(),
-		Amount: dcrutil.Amount(dbTxOut.Atoms).ToCoin(),
+		Amount: float64(dbTxOut.Atoms) / 1e8, // dcrutil.Amount(dbTxOut.Atoms).ToCoin()
 		//Atoms: dbTxOut.Atoms,
 		Satoshis:      dbTxOut.Atoms,
 		Confirmations: int64(currentHeight - dbTxOut.Height + 1),

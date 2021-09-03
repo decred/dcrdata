@@ -11,14 +11,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/blockchain/stake/v3"
+	"github.com/decred/dcrd/blockchain/stake/v4"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
 
-	exptypes "github.com/decred/dcrdata/v6/explorer/types"
-	pstypes "github.com/decred/dcrdata/v6/pubsub/types"
-	"github.com/decred/dcrdata/v6/txhelpers"
+	exptypes "github.com/decred/dcrdata/v7/explorer/types"
+	pstypes "github.com/decred/dcrdata/v7/pubsub/types"
+	"github.com/decred/dcrdata/v7/txhelpers"
 )
 
 // MempoolDataSaver is an interface for storing mempool data.
@@ -37,7 +37,7 @@ type MempoolAddressStore struct {
 // inventory of transactions in the current mempool is maintained to prevent
 // repetitive data processing and signaling. Periodically, such as after a new
 // block is mined, the mempool info and the transaction inventory are rebuilt
-// fresh via the CollectAndStore method. A MempoolDataCollector is required to
+// fresh via the CollectAndStore method. A DataCollector is required to
 // perform the collection and parsing, and an optional []MempoolDataSaver is
 // used to to forward the data to arbitrary destinations. The last block's
 // height, hash, and time are kept in memory in order to properly process votes
@@ -51,7 +51,7 @@ type MempoolMonitor struct {
 	txnsStore  txhelpers.TxnsStore
 	lastBlock  BlockID
 	params     *chaincfg.Params
-	collector  *MempoolDataCollector
+	collector  *DataCollector
 	dataSavers []MempoolDataSaver
 
 	// Outgoing message
@@ -63,7 +63,7 @@ type MempoolMonitor struct {
 // same channel using a nil transaction message. Once TxHandler is started, the
 // MempoolMonitor will process incoming transactions, and forward new ones on
 // via the newTxOutChan following an appropriate signal on hubRelay.
-func NewMempoolMonitor(ctx context.Context, collector *MempoolDataCollector,
+func NewMempoolMonitor(ctx context.Context, collector *DataCollector,
 	savers []MempoolDataSaver, params *chaincfg.Params,
 	signalOuts []chan<- pstypes.HubMessage, initialStore bool) (*MempoolMonitor, error) {
 

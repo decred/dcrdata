@@ -5,13 +5,13 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"decred.org/dcrwallet/wallet/txrules"
-	"github.com/decred/dcrd/blockchain/stake/v3"
+	"decred.org/dcrwallet/v2/wallet/txrules"
+	"github.com/decred/dcrd/blockchain/stake/v4"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/txscript/v3"
+	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/wire"
 
-	"github.com/decred/dcrdata/v6/txhelpers"
+	"github.com/decred/dcrdata/v7/txhelpers"
 )
 
 // DevSubsidyAddress returns the development subsidy address for the specified

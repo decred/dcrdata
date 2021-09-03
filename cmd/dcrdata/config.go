@@ -20,12 +20,12 @@ import (
 
 	"github.com/caarlos0/env/v6"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/slog"
 	flags "github.com/jessevdk/go-flags"
 
-	"github.com/decred/dcrdata/v6/db/dbtypes"
-	"github.com/decred/dcrdata/v6/netparams"
+	"github.com/decred/dcrdata/v7/db/dbtypes"
+	"github.com/decred/dcrdata/v7/netparams"
 )
 
 const (

@@ -11,18 +11,17 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/dcrec"
-	"github.com/decred/dcrd/dcrutil/v3"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	"github.com/decred/dcrd/txscript/v3"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
+	"github.com/decred/dcrd/txscript/v4"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 )
 
 // AtomicSwapContractPushes models the data pushes of an atomic swap contract.
 type AtomicSwapContractPushes struct {
-	ContractAddress   dcrutil.Address `json:"contract_address"`
-	RecipientAddress  dcrutil.Address `json:"recipient_address"`
-	RefundAddress     dcrutil.Address `json:"refund_address"`
+	ContractAddress   stdaddr.Address `json:"contract_address"`
+	RecipientAddress  stdaddr.Address `json:"recipient_address"`
+	RefundAddress     stdaddr.Address `json:"refund_address"`
 	Locktime          int64           `json:"locktime"`
 	SecretHash        [32]byte        `json:"secret_hash"`
 	FormattedLocktime string          `json:"formatted_locktime"`
@@ -74,7 +73,8 @@ func ExtractSwapDataFromInputScript(inputScript []byte, params *chaincfg.Params)
 	var contract, secret []byte
 	var refund bool
 
-	const scriptVersion = 0
+	const scriptVersion uint16 = 0 // TODO: input
+
 	tokenizer := txscript.MakeScriptTokenizer(scriptVersion, inputScript)
 	var tokenIndex = 0
 	for tokenizer.Next() {
@@ -134,7 +134,7 @@ func ExtractSwapDataFromInputScript(inputScript []byte, params *chaincfg.Params)
 	}
 
 	// validate the contract script by attempting to parse it for contract info.
-	contractData, err := ParseAtomicSwapContract(contract, params)
+	contractData, err := ParseAtomicSwapContract(scriptVersion, contract, params)
 	if err != nil {
 		return nil, nil, nil, false, err
 	}
@@ -147,26 +147,26 @@ func ExtractSwapDataFromInputScript(inputScript []byte, params *chaincfg.Params)
 
 // ParseAtomicSwapContract checks if the provided script is an atomic swap
 // contact and returns the data pushes of the contract.
-func ParseAtomicSwapContract(script []byte, params *chaincfg.Params) (*AtomicSwapContractPushes, error) {
+func ParseAtomicSwapContract(scriptVersion uint16, script []byte, params *chaincfg.Params) (*AtomicSwapContractPushes, error) {
 	// validate the contract by calling txscript.ExtractAtomicSwapDataPushes
-	contractDataPushes, _ := txscript.ExtractAtomicSwapDataPushes(0, script)
+	contractDataPushes, _ := txscript.ExtractAtomicSwapDataPushes(scriptVersion, script)
 	if contractDataPushes == nil {
 		return nil, nil
 	}
 
-	contractP2SH, err := dcrutil.NewAddressScriptHash(script, params)
+	contractP2SH, err := stdaddr.NewAddressScriptHash(scriptVersion, script, params)
 	if err != nil {
 		return nil, fmt.Errorf("contract script to p2sh address error: %v", err)
 	}
 
-	recipientAddr, err := dcrutil.NewAddressPubKeyHash(contractDataPushes.RecipientHash160[:],
-		params, dcrec.STEcdsaSecp256k1)
+	recipientAddr, err := stdaddr.NewAddressPubKeyHashEcdsaSecp256k1(scriptVersion,
+		contractDataPushes.RecipientHash160[:], params)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing swap recipient address: %v", err)
 	}
 
-	refundAddr, err := dcrutil.NewAddressPubKeyHash(contractDataPushes.RefundHash160[:],
-		params, dcrec.STEcdsaSecp256k1)
+	refundAddr, err := stdaddr.NewAddressPubKeyHashEcdsaSecp256k1(scriptVersion,
+		contractDataPushes.RefundHash160[:], params)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing swap refund address: %v", err)
 	}

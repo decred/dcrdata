@@ -11,8 +11,8 @@ import (
 
 	"github.com/asdine/storm/v3"
 	"github.com/decred/dcrd/dcrjson/v3"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	"github.com/decred/dcrdata/v6/db/dbtypes"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
+	"github.com/decred/dcrdata/v7/db/dbtypes"
 )
 
 var db *storm.DB

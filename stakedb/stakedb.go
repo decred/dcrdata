@@ -14,15 +14,15 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/decred/dcrd/blockchain/stake/v3"
+	"github.com/decred/dcrd/blockchain/stake/v4"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/database/v2"
-	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/database/v3"
+	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/wire"
 
-	apitypes "github.com/decred/dcrdata/v6/api/types"
-	"github.com/decred/dcrdata/v6/txhelpers"
+	apitypes "github.com/decred/dcrdata/v7/api/types"
+	"github.com/decred/dcrdata/v7/txhelpers"
 )
 
 // PoolInfoCache contains a map of block hashes to ticket pool info data at that
@@ -477,23 +477,31 @@ func (db *StakeDatabase) BlockCached(ind int64) (*dcrutil.Block, bool) {
 	return block, found
 }
 
+func getBlockByHeight(client NodeClient, height int64) (*dcrutil.Block, error) {
+	blockhash, err := client.GetBlockHash(context.TODO(), height)
+	if err != nil {
+		return nil, fmt.Errorf("GetBlockHash(%d) failed: %w", height, err)
+	}
+
+	msgBlock, err := client.GetBlock(context.TODO(), blockhash)
+	if err != nil {
+		return nil, fmt.Errorf("GetBlock failed (%s): %w", blockhash, err)
+	}
+	return dcrutil.NewBlock(msgBlock), nil
+}
+
 // block first tries to find the block at the input height in cache, and if that
 // fails it will request it from the node RPC client. Don't use this casually
 // since reorganization may redefine a block at a given height.
 func (db *StakeDatabase) block(ind int64) (*dcrutil.Block, bool) {
 	block, ok := db.BlockCached(ind)
 	if !ok {
-		blockhash, err := db.NodeClient.GetBlockHash(context.TODO(), ind)
+		var err error
+		block, err = getBlockByHeight(db.NodeClient, ind) // rpcutils.GetBlock(ind, db.NodeClient)
 		if err != nil {
 			log.Error(err)
 			return nil, false
 		}
-		msgBlock, err := db.NodeClient.GetBlock(context.TODO(), blockhash)
-		if err != nil {
-			log.Error(err)
-			return nil, false
-		}
-		block = dcrutil.NewBlock(msgBlock)
 	}
 	return block, ok
 }
@@ -684,8 +692,8 @@ func (db *StakeDatabase) SetPoolInfo(blockHash chainhash.Hash, tpi *apitypes.Tic
 
 // SetPoolCacheCapacity sets the pool info cache capacity to the specified
 // number of elements.
-func (db *StakeDatabase) SetPoolCacheCapacity(cap int) error {
-	return db.poolInfo.SetCapacity(cap)
+func (db *StakeDatabase) SetPoolCacheCapacity(c int) error {
+	return db.poolInfo.SetCapacity(c)
 }
 
 // DisconnectBlock attempts to disconnect the current best block from the stake

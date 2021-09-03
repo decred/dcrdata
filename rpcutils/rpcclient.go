@@ -14,14 +14,15 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/dcrutil/v3"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	"github.com/decred/dcrd/rpcclient/v6"
+	"github.com/decred/dcrd/dcrutil/v4"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
+	"github.com/decred/dcrd/rpcclient/v7"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 
-	apitypes "github.com/decred/dcrdata/v6/api/types"
-	"github.com/decred/dcrdata/v6/semver"
-	"github.com/decred/dcrdata/v6/txhelpers"
+	apitypes "github.com/decred/dcrdata/v7/api/types"
+	"github.com/decred/dcrdata/v7/semver"
+	"github.com/decred/dcrdata/v7/txhelpers"
 )
 
 type MempoolGetter interface {
@@ -146,8 +147,8 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS, disableReconnect 
 	nodeVer = semver.NewSemver(dcrdVer.Major, dcrdVer.Minor, dcrdVer.Patch)
 
 	// Check if the dcrd RPC API version is compatible with dcrdata.
-	isApiCompat := semver.AnyCompatible(compatibleChainServerAPIs, nodeVer)
-	if !isApiCompat {
+	isAPICompat := semver.AnyCompatible(compatibleChainServerAPIs, nodeVer)
+	if !isAPICompat {
 		return nil, nodeVer, fmt.Errorf("Node JSON-RPC server does not have "+
 			"a compatible API version. Advertises %v but requires one of: %v",
 			nodeVer, compatibleChainServerAPIs)
@@ -410,7 +411,7 @@ func GetTransactionVerboseByID(client txhelpers.VerboseTransactionGetter, txhash
 
 // SearchRawTransaction fetch transactions pertaining to an address.
 func SearchRawTransaction(ctx context.Context, client *rpcclient.Client, params *chaincfg.Params, count int, address string) ([]*chainjson.SearchRawTransactionsResult, error) {
-	addr, err := dcrutil.DecodeAddress(address, params)
+	addr, err := stdaddr.DecodeAddress(address, params)
 	if err != nil {
 		log.Infof("Invalid address %s: %v", address, err)
 		return nil, err

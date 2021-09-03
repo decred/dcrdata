@@ -7,7 +7,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/wire"
 
-	"github.com/decred/dcrdata/v6/txhelpers"
+	"github.com/decred/dcrdata/v7/txhelpers"
 )
 
 // MsgBlockToDBBlock creates a dbtypes.Block from a wire.MsgBlock

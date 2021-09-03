@@ -22,22 +22,22 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/rpcclient/v6"
+	"github.com/decred/dcrd/rpcclient/v7"
 
-	"github.com/decred/dcrdata/db/dcrpg/v6"
+	"github.com/decred/dcrdata/db/dcrpg/v7"
 	"github.com/decred/dcrdata/exchanges/v3"
-	"github.com/decred/dcrdata/gov/v4/agendas"
-	politeia "github.com/decred/dcrdata/gov/v4/politeia"
+	"github.com/decred/dcrdata/gov/v5/agendas"
+	politeia "github.com/decred/dcrdata/gov/v5/politeia"
 
-	"github.com/decred/dcrdata/v6/blockdata"
-	"github.com/decred/dcrdata/v6/db/cache"
-	"github.com/decred/dcrdata/v6/db/dbtypes"
-	"github.com/decred/dcrdata/v6/mempool"
-	"github.com/decred/dcrdata/v6/pubsub"
-	pstypes "github.com/decred/dcrdata/v6/pubsub/types"
-	"github.com/decred/dcrdata/v6/rpcutils"
-	"github.com/decred/dcrdata/v6/semver"
-	"github.com/decred/dcrdata/v6/stakedb"
+	"github.com/decred/dcrdata/v7/blockdata"
+	"github.com/decred/dcrdata/v7/db/cache"
+	"github.com/decred/dcrdata/v7/db/dbtypes"
+	"github.com/decred/dcrdata/v7/mempool"
+	"github.com/decred/dcrdata/v7/pubsub"
+	pstypes "github.com/decred/dcrdata/v7/pubsub/types"
+	"github.com/decred/dcrdata/v7/rpcutils"
+	"github.com/decred/dcrdata/v7/semver"
+	"github.com/decred/dcrdata/v7/stakedb"
 
 	"github.com/decred/dcrdata/cmd/dcrdata/api"
 	"github.com/decred/dcrdata/cmd/dcrdata/api/insight"
@@ -398,7 +398,7 @@ func _main(ctx context.Context) error {
 	// Build a slice of each required saver type for each data source.
 	blockDataSavers := []blockdata.BlockDataSaver{chainDB}
 
-	mempoolSavers := []mempool.MempoolDataSaver{chainDB.MPC} // mempool.MempoolDataCache
+	mempoolSavers := []mempool.MempoolDataSaver{chainDB.MPC} // mempool.DataCache
 
 	// Allow Ctrl-C to halt startup here.
 	if shutdownRequested(ctx) {
@@ -513,7 +513,7 @@ func _main(ctx context.Context) error {
 	psHub.SetReady(false)
 
 	// Create the mempool data collector.
-	mpoolCollector := mempool.NewMempoolDataCollector(promiseClient, activeChain)
+	mpoolCollector := mempool.NewDataCollector(promiseClient, activeChain)
 	if mpoolCollector == nil {
 		// Shutdown goroutines.
 		requestShutdown()

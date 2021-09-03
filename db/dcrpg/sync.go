@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrdata/v6/db/dbtypes"
-	"github.com/decred/dcrdata/v6/rpcutils"
+	"github.com/decred/dcrdata/v7/db/dbtypes"
+	"github.com/decred/dcrdata/v7/rpcutils"
 )
 
 const (
@@ -342,7 +342,7 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.BlockFetche
 			// Update explorer pages at intervals of 20 blocks if the update channel
 			// is active (non-nil and not closed).
 			if !updateAllAddresses && ib%20 == 0 {
-				log.Infof("Updating the explorer with information for block %v", ib)
+				log.Tracef("Updating the explorer with information for block %v", ib)
 				sendPageData(blockHash)
 			}
 

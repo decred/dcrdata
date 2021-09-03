@@ -14,7 +14,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrdata/v6/txhelpers"
+	"github.com/decred/dcrdata/v7/txhelpers"
 )
 
 var tempDir string

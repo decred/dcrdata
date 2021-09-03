@@ -11,7 +11,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/v6/txhelpers"
+	"github.com/decred/dcrdata/v7/txhelpers"
 )
 
 // ChainMonitor responds to block connection and chain reorganization.

@@ -3,7 +3,7 @@ package txhelpers
 import (
 	"testing"
 
-	"decred.org/dcrwallet/wallet/txrules"
+	"decred.org/dcrwallet/v2/wallet/txrules"
 	"github.com/decred/dcrd/wire"
 )
 

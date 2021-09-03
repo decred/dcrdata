@@ -8,7 +8,7 @@ import (
 	"errors"
 	"testing"
 
-	pstypes "github.com/decred/dcrdata/v6/pubsub/types"
+	pstypes "github.com/decred/dcrdata/v7/pubsub/types"
 )
 
 func Test_client_subscribe(t *testing.T) {

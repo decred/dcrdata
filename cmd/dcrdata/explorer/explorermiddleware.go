@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/decred/dcrdata/v6/db/dbtypes"
+	"github.com/decred/dcrdata/v7/db/dbtypes"
 	"github.com/go-chi/chi/v5"
 )
 

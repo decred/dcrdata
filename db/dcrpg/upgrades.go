@@ -10,14 +10,14 @@ import (
 	"io/ioutil"
 	"os"
 
-	"decred.org/dcrwallet/wallet/txrules"
-	"github.com/decred/dcrd/blockchain/stake/v3"
+	"decred.org/dcrwallet/v2/wallet/txrules"
+	"github.com/decred/dcrd/blockchain/stake/v4"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/db/dcrpg/v6/internal"
-	"github.com/decred/dcrdata/v6/stakedb"
-	"github.com/decred/dcrdata/v6/txhelpers"
+	"github.com/decred/dcrdata/db/dcrpg/v7/internal"
+	"github.com/decred/dcrdata/v7/stakedb"
+	"github.com/decred/dcrdata/v7/txhelpers"
 	"github.com/lib/pq"
 )
 

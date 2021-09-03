@@ -11,15 +11,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/blockchain/stake/v3"
+	"github.com/decred/dcrd/blockchain/stake/v4"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/dcrutil/v3"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
+	"github.com/decred/dcrd/dcrutil/v4"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
 
-	apitypes "github.com/decred/dcrdata/v6/api/types"
-	exptypes "github.com/decred/dcrdata/v6/explorer/types"
-	"github.com/decred/dcrdata/v6/txhelpers"
+	apitypes "github.com/decred/dcrdata/v7/api/types"
+	exptypes "github.com/decred/dcrdata/v7/explorer/types"
+	"github.com/decred/dcrdata/v7/txhelpers"
 )
 
 // NodeClient is similar to a rpcclient.Client, except for the addition of
@@ -36,20 +36,20 @@ type NodeClient interface {
 	TicketFeeInfo(ctx context.Context, blocks *uint32, windows *uint32) (*chainjson.TicketFeeInfoResult, error)
 }
 
-// MempoolDataCollector is used for retrieving and processing data from a chain
+// DataCollector is used for retrieving and processing data from a chain
 // server's mempool.
-type MempoolDataCollector struct {
+type DataCollector struct {
 	// Mutex is used to prevent multiple concurrent calls to Collect.
 	mtx          sync.Mutex
 	dcrdChainSvr NodeClient
 	activeChain  *chaincfg.Params
 }
 
-// NewMempoolDataCollector creates a new MempoolDataCollector. Use a
-// rpcutils.AsyncTxClient to create a NodeClient from an rpcclient.Client or
-// implement a wrapper that provides txhelpers.VerboseTransactionPromiseGetter.
-func NewMempoolDataCollector(dcrdChainSvr NodeClient, params *chaincfg.Params) *MempoolDataCollector {
-	return &MempoolDataCollector{
+// NewDataCollector creates a new DataCollector. Use a rpcutils.AsyncTxClient to
+// create a NodeClient from an rpcclient.Client or implement a wrapper that
+// provides txhelpers.VerboseTransactionPromiseGetter.
+func NewDataCollector(dcrdChainSvr NodeClient, params *chaincfg.Params) *DataCollector {
+	return &DataCollector{
 		dcrdChainSvr: dcrdChainSvr,
 		activeChain:  params,
 	}
@@ -58,7 +58,7 @@ func NewMempoolDataCollector(dcrdChainSvr NodeClient, params *chaincfg.Params) *
 // mempoolTxns retrieves all transactions and returns them as a
 // []exptypes.MempoolTx. See also ParseTxns, which may process this slice. A
 // fresh MempoolAddressStore and TxnsStore are also generated.
-func (t *MempoolDataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.MempoolAddressStore, txhelpers.TxnsStore, error) {
+func (t *DataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.MempoolAddressStore, txhelpers.TxnsStore, error) {
 	mempooltxs, err := t.dcrdChainSvr.GetRawMempoolVerbose(context.TODO(), chainjson.GRMAll)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("GetRawMempoolVerbose failed: %v", err)
@@ -173,7 +173,7 @@ func (t *MempoolDataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.Me
 // and fee info. Transactions of all types in mempool are returned as a
 // []exptypes.MempoolTx, corresponding to the same data provided by the
 // unexported mempoolTxns method.
-func (t *MempoolDataCollector) Collect() (*StakeData, []exptypes.MempoolTx, txhelpers.MempoolAddressStore, txhelpers.TxnsStore, error) {
+func (t *DataCollector) Collect() (*StakeData, []exptypes.MempoolTx, txhelpers.MempoolAddressStore, txhelpers.TxnsStore, error) {
 	// In case of a very fast block, make sure previous call to collect is not
 	// still running, or dcrd may be mad.
 	t.mtx.Lock()
@@ -181,7 +181,7 @@ func (t *MempoolDataCollector) Collect() (*StakeData, []exptypes.MempoolTx, txhe
 
 	// Time this function
 	defer func(start time.Time) {
-		log.Debugf("MempoolDataCollector.Collect() completed in %v",
+		log.Debugf("DataCollector.Collect() completed in %v",
 			time.Since(start))
 	}(time.Now())
 

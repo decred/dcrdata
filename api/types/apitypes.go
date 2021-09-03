@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	"github.com/decred/dcrdata/v6/db/dbtypes"
-	"github.com/decred/dcrdata/v6/txhelpers"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
+	"github.com/decred/dcrdata/v7/db/dbtypes"
+	"github.com/decred/dcrdata/v7/txhelpers"
 )
 
 // TimeAPI is a fall back dbtypes.TimeDef wrapper that allows API endpoints that

@@ -24,20 +24,20 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/dcrutil/v3"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	"github.com/decred/dcrd/rpcclient/v6"
-	"github.com/decred/dcrd/txscript/v3"
+	"github.com/decred/dcrd/dcrutil/v4"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
+	"github.com/decred/dcrd/rpcclient/v7"
+	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/wire"
 
 	m "github.com/decred/dcrdata/cmd/dcrdata/middleware"
 	"github.com/decred/dcrdata/exchanges/v3"
-	"github.com/decred/dcrdata/gov/v4/agendas"
-	"github.com/decred/dcrdata/gov/v4/politeia"
-	apitypes "github.com/decred/dcrdata/v6/api/types"
-	"github.com/decred/dcrdata/v6/db/cache"
-	"github.com/decred/dcrdata/v6/db/dbtypes"
-	"github.com/decred/dcrdata/v6/txhelpers"
+	"github.com/decred/dcrdata/gov/v5/agendas"
+	"github.com/decred/dcrdata/gov/v5/politeia"
+	apitypes "github.com/decred/dcrdata/v7/api/types"
+	"github.com/decred/dcrdata/v7/db/cache"
+	"github.com/decred/dcrdata/v7/db/dbtypes"
+	"github.com/decred/dcrdata/v7/txhelpers"
 )
 
 // maxBlockRangeCount is the maximum number of blocks that can be requested at
@@ -751,7 +751,7 @@ func (c *appContext) getTxSwapsInfo(w http.ResponseWriter, r *http.Request) {
 	// to know for sure.
 	var maybeHasContracts bool
 	for _, vout := range rawtx.Vout {
-		if vout.ScriptPubKey.Type == txscript.ScriptHashTy.String() {
+		if vout.ScriptPubKey.Type == txscript.ScriptHashTy.String() { // "scripthash"
 			maybeHasContracts = true
 			break
 		}

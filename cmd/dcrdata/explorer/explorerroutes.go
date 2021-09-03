@@ -18,20 +18,21 @@ import (
 	"strings"
 	"time"
 
-	"github.com/decred/dcrd/blockchain/stake/v3"
+	"github.com/decred/dcrd/blockchain/stake/v4"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/dcrutil/v3"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	"github.com/decred/dcrd/txscript/v3"
+	"github.com/decred/dcrd/dcrutil/v4"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
+	"github.com/decred/dcrd/txscript/v4"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 
 	"github.com/decred/dcrdata/exchanges/v3"
-	"github.com/decred/dcrdata/gov/v4/agendas"
-	pitypes "github.com/decred/dcrdata/gov/v4/politeia/types"
-	"github.com/decred/dcrdata/v6/db/dbtypes"
-	"github.com/decred/dcrdata/v6/explorer/types"
-	"github.com/decred/dcrdata/v6/txhelpers"
+	"github.com/decred/dcrdata/gov/v5/agendas"
+	pitypes "github.com/decred/dcrdata/gov/v5/politeia/types"
+	"github.com/decred/dcrdata/v7/db/dbtypes"
+	"github.com/decred/dcrdata/v7/explorer/types"
+	"github.com/decred/dcrdata/v7/txhelpers"
 	ticketvotev1 "github.com/decred/politeia/politeiawww/api/ticketvote/v1"
 
 	humanize "github.com/dustin/go-humanize"
@@ -955,7 +956,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				log.Errorf("Failed to decode pkScript: %v", err)
 			} else {
 				for ia := range scrAddrs {
-					addresses = append(addresses, scrAddrs[ia].Address())
+					addresses = append(addresses, scrAddrs[ia].String())
 				}
 			}
 
@@ -1926,7 +1927,7 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = dcrutil.DecodeAddress(searchStr, exp.ChainParams)
+	_, err = stdaddr.DecodeAddress(searchStr, exp.ChainParams)
 	if err == nil {
 		http.Redirect(w, r, "/address/"+searchStr, http.StatusPermanentRedirect)
 		return

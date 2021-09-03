@@ -17,28 +17,29 @@ import (
 	"sync"
 	"time"
 
-	"decred.org/dcrwallet/wallet/txrules"
+	"decred.org/dcrwallet/v2/wallet/txrules"
 	"github.com/chappjc/trylock"
-	"github.com/decred/dcrd/blockchain/stake/v3"
+	"github.com/decred/dcrd/blockchain/stake/v4"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/dcrutil/v3"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	"github.com/decred/dcrd/rpcclient/v6"
+	"github.com/decred/dcrd/dcrutil/v4"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
+	"github.com/decred/dcrd/rpcclient/v7"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/lib/pq"
 
-	"github.com/decred/dcrdata/db/dcrpg/v6/internal"
-	apitypes "github.com/decred/dcrdata/v6/api/types"
-	"github.com/decred/dcrdata/v6/blockdata"
-	"github.com/decred/dcrdata/v6/db/cache"
-	"github.com/decred/dcrdata/v6/db/dbtypes"
-	exptypes "github.com/decred/dcrdata/v6/explorer/types"
-	"github.com/decred/dcrdata/v6/mempool"
-	"github.com/decred/dcrdata/v6/rpcutils"
-	"github.com/decred/dcrdata/v6/stakedb"
-	"github.com/decred/dcrdata/v6/txhelpers"
+	"github.com/decred/dcrdata/db/dcrpg/v7/internal"
+	apitypes "github.com/decred/dcrdata/v7/api/types"
+	"github.com/decred/dcrdata/v7/blockdata"
+	"github.com/decred/dcrdata/v7/db/cache"
+	"github.com/decred/dcrdata/v7/db/dbtypes"
+	exptypes "github.com/decred/dcrdata/v7/explorer/types"
+	"github.com/decred/dcrdata/v7/mempool"
+	"github.com/decred/dcrdata/v7/rpcutils"
+	"github.com/decred/dcrdata/v7/stakedb"
+	"github.com/decred/dcrdata/v7/txhelpers"
 )
 
 var (
@@ -259,7 +260,7 @@ type ChainDB struct {
 	mixSetDiffs        map[uint32]int64 // height to value diff
 	deployments        *ChainDeployments
 	cockroach          bool
-	MPC                *mempool.MempoolDataCache
+	MPC                *mempool.DataCache
 	// BlockCache stores apitypes.BlockDataBasic and apitypes.StakeInfoExtended
 	// in StoreBlock for quick retrieval without a DB query.
 	BlockCache        *apitypes.APICache
@@ -734,7 +735,7 @@ func NewChainDB(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb.StakeData
 		mixSetDiffs:        make(map[uint32]int64),
 		deployments:        new(ChainDeployments),
 		cockroach:          cockroach,
-		MPC:                new(mempool.MempoolDataCache),
+		MPC:                new(mempool.DataCache),
 		BlockCache:         apitypes.NewAPICache(1e4),
 		heightClients:      make([]chan uint32, 0),
 		shutdownDcrdata:    shutdown,
@@ -1359,7 +1360,7 @@ func (pgb *ChainDB) NumAddressIntervals(addr string, grouping dbtypes.TimeBasedG
 // by years, months, weeks and days time grouping in seconds.
 // This helps plot more meaningful address history graphs to the user.
 func (pgb *ChainDB) AddressMetrics(addr string) (*dbtypes.AddressMetrics, error) {
-	_, err := dcrutil.DecodeAddress(addr, pgb.chainParams)
+	_, err := stdaddr.DecodeAddress(addr, pgb.chainParams)
 	if err != nil {
 		return nil, err
 	}
@@ -1404,7 +1405,7 @@ func (pgb *ChainDB) AddressMetrics(addr string) (*dbtypes.AddressMetrics, error)
 // txnType transactions.
 func (pgb *ChainDB) AddressTransactions(address string, N, offset int64,
 	txnType dbtypes.AddrTxnViewType) (addressRows []*dbtypes.AddressRow, err error) {
-	_, err = dcrutil.DecodeAddress(address, pgb.chainParams)
+	_, err = stdaddr.DecodeAddress(address, pgb.chainParams)
 	if err != nil {
 		return
 	}
@@ -1845,7 +1846,7 @@ func (pgb *ChainDB) DevBalance() (*dbtypes.AddressBalance, error) {
 // address from cache, and if cache is stale or missing data for the address, a
 // DB query is used. A successful DB query will freshen the cache.
 func (pgb *ChainDB) AddressBalance(address string) (bal *dbtypes.AddressBalance, cacheUpdated bool, err error) {
-	_, err = dcrutil.DecodeAddress(address, pgb.chainParams)
+	_, err = stdaddr.DecodeAddress(address, pgb.chainParams)
 	if err != nil {
 		return
 	}
@@ -1933,7 +1934,7 @@ func (pgb *ChainDB) updateAddressRows(address string) (rows []*dbtypes.AddressRo
 // AddressRowsMerged gets the merged address rows either from cache or via DB
 // query.
 func (pgb *ChainDB) AddressRowsMerged(address string) ([]*dbtypes.AddressRowMerged, error) {
-	_, err := dcrutil.DecodeAddress(address, pgb.chainParams)
+	_, err := stdaddr.DecodeAddress(address, pgb.chainParams)
 	if err != nil {
 		return nil, err
 	}
@@ -1974,7 +1975,7 @@ func (pgb *ChainDB) AddressRowsMerged(address string) ([]*dbtypes.AddressRowMerg
 // AddressRowsCompact gets non-merged address rows either from cache or via DB
 // query.
 func (pgb *ChainDB) AddressRowsCompact(address string) ([]*dbtypes.AddressRowCompact, error) {
-	_, err := dcrutil.DecodeAddress(address, pgb.chainParams)
+	_, err := stdaddr.DecodeAddress(address, pgb.chainParams)
 	if err != nil {
 		return nil, err
 	}
@@ -2069,7 +2070,7 @@ func (pgb *ChainDB) nonMergedTxnCount(addr string, txnView dbtypes.AddrTxnViewTy
 // CountTransactions gets the total row count for the given address and address
 // transaction view.
 func (pgb *ChainDB) CountTransactions(addr string, txnView dbtypes.AddrTxnViewType) (int, error) {
-	_, err := dcrutil.DecodeAddress(addr, pgb.chainParams)
+	_, err := stdaddr.DecodeAddress(addr, pgb.chainParams)
 	if err != nil {
 		return 0, err
 	}
@@ -2096,7 +2097,7 @@ func (pgb *ChainDB) CountTransactions(addr string, txnView dbtypes.AddrTxnViewTy
 // for the given address.
 func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 	txnView dbtypes.AddrTxnViewType) ([]*dbtypes.AddressRow, *dbtypes.AddressBalance, error) {
-	_, err := dcrutil.DecodeAddress(address, pgb.chainParams)
+	_, err := stdaddr.DecodeAddress(address, pgb.chainParams)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -2198,7 +2199,7 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 // AddressData returns comprehensive, paginated information for an address.
 func (pgb *ChainDB) AddressData(address string, limitN, offsetAddrOuts int64,
 	txnType dbtypes.AddrTxnViewType) (addrData *dbtypes.AddressInfo, err error) {
-	_, err = dcrutil.DecodeAddress(address, pgb.chainParams)
+	_, err = stdaddr.DecodeAddress(address, pgb.chainParams)
 	if err != nil {
 		return nil, err
 	}
@@ -2541,7 +2542,7 @@ func (pgb *ChainDB) AddressTotals(address string) (*apitypes.AddressTotals, erro
 }
 
 func (pgb *ChainDB) addressInfo(addr string, count, skip int64, txnType dbtypes.AddrTxnViewType) (*dbtypes.AddressInfo, *dbtypes.AddressBalance, error) {
-	address, err := dcrutil.DecodeAddress(addr, pgb.chainParams)
+	address, err := stdaddr.DecodeAddress(addr, pgb.chainParams)
 	if err != nil {
 		log.Infof("Invalid address %s: %v", addr, err)
 		return nil, nil, err
@@ -2818,7 +2819,7 @@ func (pgb *ChainDB) RewindStakeDB(ctx context.Context, toHeight int64, quiet ...
 // type and time grouping.
 func (pgb *ChainDB) TxHistoryData(address string, addrChart dbtypes.HistoryChart,
 	chartGroupings dbtypes.TimeBasedGrouping) (cd *dbtypes.ChartsData, err error) {
-	_, err = dcrutil.DecodeAddress(address, pgb.chainParams)
+	_, err = stdaddr.DecodeAddress(address, pgb.chainParams)
 	if err != nil {
 		return nil, err
 	}
@@ -5262,7 +5263,7 @@ func (pgb *ChainDB) GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails 
 // GetAddressTransactionsRawWithSkip returns an array of apitypes.AddressTxRaw objects
 // representing the raw result of SearchRawTransactionsverbose
 func (pgb *ChainDB) GetAddressTransactionsRawWithSkip(addr string, count int, skip int) []*apitypes.AddressTxRaw {
-	address, err := dcrutil.DecodeAddress(addr, pgb.chainParams)
+	address, err := stdaddr.DecodeAddress(addr, pgb.chainParams)
 	if err != nil {
 		log.Infof("Invalid address %s: %v", addr, err)
 		return nil
@@ -5708,7 +5709,7 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		treasuryActive = txhelpers.IsTreasuryActive(pgb.chainParams.Net, txraw.BlockHeight)
 	}
 
-	txBasic, _ := makeExplorerTxBasic(txraw, ticketPrice, msgTx, pgb.chainParams)
+	txBasic, txType := makeExplorerTxBasic(txraw, ticketPrice, msgTx, pgb.chainParams)
 	tx := &exptypes.TxInfo{
 		TxBasic:       txBasic,
 		BlockHeight:   txraw.BlockHeight,
@@ -5717,6 +5718,8 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		Confirmations: txraw.Confirmations,
 		Time:          exptypes.NewTimeDefFromUNIX(txraw.Time),
 	}
+
+	// tree := txType stake.TxTypeRegular
 
 	inputs := make([]exptypes.Vin, 0, len(txraw.Vin))
 	for i := range txraw.Vin {
@@ -5811,13 +5814,18 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		}
 	}
 
+	tree := wire.TxTreeStake
+	if txType == stake.TxTypeRegular {
+		tree = wire.TxTreeRegular
+	}
+
 	CoinbaseMaturityInHours := (pgb.chainParams.TargetTimePerBlock.Hours() * float64(pgb.chainParams.CoinbaseMaturity))
 	tx.MaturityTimeTill = ((float64(pgb.chainParams.CoinbaseMaturity) -
 		float64(tx.Confirmations)) / float64(pgb.chainParams.CoinbaseMaturity)) * CoinbaseMaturityInHours
 
 	outputs := make([]exptypes.Vout, 0, len(txraw.Vout))
 	for i, vout := range txraw.Vout {
-		txout, err := pgb.Client.GetTxOut(context.TODO(), txhash, uint32(i), true)
+		txout, err := pgb.Client.GetTxOut(context.TODO(), txhash, uint32(i), tree, true)
 		if err != nil {
 			log.Warnf("Failed to determine if tx out is spent for output %d of tx %s: %v", i, txid, err)
 		}
