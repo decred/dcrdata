@@ -2,8 +2,6 @@ module github.com/decred/dcrdata/db/dcrpg/v6
 
 go 1.16
 
-replace github.com/decred/dcrdata/v6 => ../../
-
 require (
 	decred.org/dcrwallet v1.7.0
 	github.com/chappjc/trylock v1.0.0
