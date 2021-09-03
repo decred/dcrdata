@@ -53,7 +53,6 @@ type MempoolMonitor struct {
 	params     *chaincfg.Params
 	collector  *MempoolDataCollector
 	dataSavers []MempoolDataSaver
-	client     txhelpers.VerboseTransactionGetter
 
 	// Outgoing message
 	signalOuts []chan<- pstypes.HubMessage
@@ -65,7 +64,7 @@ type MempoolMonitor struct {
 // MempoolMonitor will process incoming transactions, and forward new ones on
 // via the newTxOutChan following an appropriate signal on hubRelay.
 func NewMempoolMonitor(ctx context.Context, collector *MempoolDataCollector,
-	savers []MempoolDataSaver, params *chaincfg.Params, client txhelpers.VerboseTransactionGetter,
+	savers []MempoolDataSaver, params *chaincfg.Params,
 	signalOuts []chan<- pstypes.HubMessage, initialStore bool) (*MempoolMonitor, error) {
 
 	// Make the skeleton MempoolMonitor.
@@ -74,7 +73,6 @@ func NewMempoolMonitor(ctx context.Context, collector *MempoolDataCollector,
 		params:     params,
 		collector:  collector,
 		dataSavers: savers,
-		client:     client,
 		signalOuts: signalOuts,
 	}
 
@@ -182,7 +180,7 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 		p.txnsStore = make(txhelpers.TxnsStore)
 	}
 	newPrevOuts, addressesIn, valsIn := txhelpers.TxPrevOutsByAddr(
-		p.addrMap.store, p.txnsStore, msgTx, p.client, p.params, treasuryActive)
+		p.addrMap.store, p.txnsStore, msgTx, p.collector.dcrdChainSvr, p.params, treasuryActive)
 	var newInAddrs int
 	for addr, isNew := range addressesIn {
 		txAddresses[addr] = struct{}{}

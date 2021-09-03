@@ -14,7 +14,6 @@ import (
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v3"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	"github.com/decred/dcrd/rpcclient/v6"
 	"github.com/decred/dcrd/wire"
 
 	apitypes "github.com/decred/dcrdata/v6/api/types"
@@ -101,16 +100,29 @@ func (b *BlockData) ToBlockExplorerSummary() apitypes.BlockExplorerBasic {
 	}
 }
 
+// NodeClient is the RPC client functionality required by Collector.
+type NodeClient interface {
+	GetBlockCount(ctx context.Context) (int64, error)
+	GetBlock(ctx context.Context, blockHash *chainhash.Hash) (*wire.MsgBlock, error)
+	GetBlockHeaderVerbose(ctx context.Context, hash *chainhash.Hash) (*chainjson.GetBlockHeaderVerboseResult, error)
+	GetCoinSupply(ctx context.Context) (dcrutil.Amount, error)
+	GetBlockSubsidy(ctx context.Context, height int64, voters uint16) (*chainjson.GetBlockSubsidyResult, error)
+	GetBlockChainInfo(ctx context.Context) (*chainjson.GetBlockChainInfoResult, error)
+	GetConnectionCount(ctx context.Context) (int64, error)
+	EstimateStakeDiff(ctx context.Context, tickets *uint32) (*chainjson.EstimateStakeDiffResult, error)
+	GetStakeDifficulty(ctx context.Context) (*chainjson.GetStakeDifficultyResult, error)
+}
+
 // Collector models a structure for the source of the blockdata
 type Collector struct {
 	mtx          sync.Mutex
-	dcrdChainSvr *rpcclient.Client
+	dcrdChainSvr NodeClient
 	netParams    *chaincfg.Params
 	stakeDB      *stakedb.StakeDatabase
 }
 
 // NewCollector creates a new Collector.
-func NewCollector(dcrdChainSvr *rpcclient.Client, params *chaincfg.Params,
+func NewCollector(dcrdChainSvr NodeClient, params *chaincfg.Params,
 	stakeDB *stakedb.StakeDatabase) *Collector {
 	return &Collector{
 		dcrdChainSvr: dcrdChainSvr,

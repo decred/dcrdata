@@ -19,11 +19,9 @@ import (
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/database/v2"
 	"github.com/decred/dcrd/dcrutil/v3"
-	"github.com/decred/dcrd/rpcclient/v6"
 	"github.com/decred/dcrd/wire"
 
 	apitypes "github.com/decred/dcrdata/v6/api/types"
-	"github.com/decred/dcrdata/v6/rpcutils"
 	"github.com/decred/dcrdata/v6/txhelpers"
 )
 
@@ -91,10 +89,22 @@ func (c *PoolInfoCache) SetCapacity(size int) error {
 	return nil
 }
 
+// NodeClient is similar to a rpcclient.Client, except for the addition of
+// GetRawTransactionVerbosePromise. Use rpcutils.NewAsyncTxClient to create one
+// from an rpcclient.Client or just implement a wrapper that provides
+// txhelpers.VerboseTransactionPromiseGetter.
+type NodeClient interface {
+	txhelpers.RawTransactionGetter
+	txhelpers.TransactionPromiseGetter
+	GetBlockHash(ctx context.Context, blockHeight int64) (*chainhash.Hash, error)
+	GetBlock(ctx context.Context, blockHash *chainhash.Hash) (*wire.MsgBlock, error)
+	GetBlockHeader(ctx context.Context, hash *chainhash.Hash) (*wire.BlockHeader, error)
+}
+
 // StakeDatabase models data for the stake database
 type StakeDatabase struct {
 	params          *chaincfg.Params
-	NodeClient      *rpcclient.Client
+	NodeClient      NodeClient
 	nodeMtx         sync.RWMutex
 	StakeDB         database.DB
 	BestNode        *stake.Node
@@ -126,7 +136,7 @@ const (
 // height, and then further rewinding both to the specified height. Finally, it
 // advances the TicketPool to tip, and if there is an error it rewinds both back
 // to that height - 1.  Normally use NewStakeDatabase.
-func LoadAndRecover(client *rpcclient.Client, params *chaincfg.Params,
+func LoadAndRecover(client NodeClient, params *chaincfg.Params,
 	dataDir string, toHeight int64) (*StakeDatabase, error) {
 	if toHeight < 0 {
 		toHeight = 0
@@ -241,7 +251,7 @@ func LoadAndRecover(client *rpcclient.Client, params *chaincfg.Params,
 // smaller height of the StakeDatabase and TicketPool is also returned to aid in
 // recovery (they should be the same height). The live ticket cache is only
 // populated if there are no errors.
-func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
+func NewStakeDatabase(client NodeClient, params *chaincfg.Params,
 	dataDir string) (*StakeDatabase, int64, error) {
 	height := int64(-1)
 	// Create DB folder
@@ -339,13 +349,13 @@ func (db *StakeDatabase) PopulateLiveTicketCache() error {
 
 	// Send all the live ticket requests.
 	type promiseGetRawTransaction struct {
-		result *rpcclient.FutureGetRawTransactionResult
+		result txhelpers.TxReceiver
 		ticket chainhash.Hash
 	}
 	promisesGetRawTransaction := make([]promiseGetRawTransaction, 0, len(liveTickets))
 	for i := range liveTickets {
 		promisesGetRawTransaction = append(promisesGetRawTransaction, promiseGetRawTransaction{
-			result: db.NodeClient.GetRawTransactionAsync(context.TODO(), &liveTickets[i]),
+			result: db.NodeClient.GetRawTransactionPromise(context.TODO(), &liveTickets[i]),
 			ticket: liveTickets[i],
 		})
 	}
@@ -473,12 +483,17 @@ func (db *StakeDatabase) BlockCached(ind int64) (*dcrutil.Block, bool) {
 func (db *StakeDatabase) block(ind int64) (*dcrutil.Block, bool) {
 	block, ok := db.BlockCached(ind)
 	if !ok {
-		var err error
-		block, _, err = rpcutils.GetBlock(ind, db.NodeClient)
+		blockhash, err := db.NodeClient.GetBlockHash(context.TODO(), ind)
 		if err != nil {
 			log.Error(err)
 			return nil, false
 		}
+		msgBlock, err := db.NodeClient.GetBlock(context.TODO(), blockhash)
+		if err != nil {
+			log.Error(err)
+			return nil, false
+		}
+		block = dcrutil.NewBlock(msgBlock)
 	}
 	return block, ok
 }

@@ -24,6 +24,57 @@ import (
 	"github.com/decred/dcrdata/v6/txhelpers"
 )
 
+type MempoolGetter interface {
+	GetRawMempoolVerbose(ctx context.Context, txType chainjson.GetRawMempoolTxTypeCmd) (map[string]chainjson.GetRawMempoolVerboseResult, error)
+}
+
+type BlockGetter interface {
+	GetBestBlock(ctx context.Context) (*chainhash.Hash, int64, error)
+	GetBlockHash(ctx context.Context, blockHeight int64) (*chainhash.Hash, error)
+	GetBlock(ctx context.Context, blockHash *chainhash.Hash) (*wire.MsgBlock, error)
+}
+
+type VerboseBlockGetter interface {
+	GetBlockHash(ctx context.Context, blockHeight int64) (*chainhash.Hash, error)
+	GetBlockVerbose(ctx context.Context, blockHash *chainhash.Hash, verboseTx bool) (*chainjson.GetBlockVerboseResult, error)
+	GetBlockHeaderVerbose(ctx context.Context, hash *chainhash.Hash) (*chainjson.GetBlockHeaderVerboseResult, error)
+}
+
+type StakeDiffer interface {
+	EstimateStakeDiff(ctx context.Context, tickets *uint32) (*chainjson.EstimateStakeDiffResult, error)
+	GetStakeDifficulty(ctx context.Context) (*chainjson.GetStakeDifficultyResult, error)
+}
+
+type ChainTipsGetter interface {
+	GetChainTips(ctx context.Context) ([]chainjson.GetChainTipsResult, error)
+}
+
+// AsyncTxClient is a blueprint for creating a type that satisfies both
+// txhelpers.VerboseTransactionPromiseGetter and
+// txhelpers.TransactionPromiseGetter from an rpcclient.Client.
+type AsyncTxClient struct {
+	*rpcclient.Client
+}
+
+// GetRawTransactionVerbosePromise gives txhelpers.VerboseTransactionPromiseGetter.
+func (cl *AsyncTxClient) GetRawTransactionVerbosePromise(ctx context.Context, txHash *chainhash.Hash) txhelpers.VerboseTxReceiver {
+	return cl.Client.GetRawTransactionVerboseAsync(ctx, txHash)
+}
+
+var _ txhelpers.VerboseTransactionPromiseGetter = (*AsyncTxClient)(nil)
+
+// GetRawTransactionPromise gives txhelpers.TransactionPromiseGetter.
+func (cl *AsyncTxClient) GetRawTransactionPromise(ctx context.Context, txHash *chainhash.Hash) txhelpers.TxReceiver {
+	return cl.Client.GetRawTransactionAsync(ctx, txHash)
+}
+
+var _ txhelpers.TransactionPromiseGetter = (*AsyncTxClient)(nil)
+
+// NewAsyncTxClient creates an AsyncTxClient from a rpcclient.Client.
+func NewAsyncTxClient(c *rpcclient.Client) *AsyncTxClient {
+	return &AsyncTxClient{c}
+}
+
 // Any of the following dcrd RPC API versions are deemed compatible with
 // dcrdata.
 var compatibleChainServerAPIs = []semver.Semver{
@@ -186,7 +237,7 @@ func GetBlockHeaderVerboseByString(client BlockFetcher, hash string) *chainjson.
 
 // GetBlockVerbose creates a *chainjson.GetBlockVerboseResult for the block index
 // specified by idx via an RPC connection to a chain server.
-func GetBlockVerbose(client *rpcclient.Client, idx int64, verboseTx bool) *chainjson.GetBlockVerboseResult {
+func GetBlockVerbose(client VerboseBlockGetter, idx int64, verboseTx bool) *chainjson.GetBlockVerboseResult {
 	blockhash, err := client.GetBlockHash(context.TODO(), idx)
 	if err != nil {
 		log.Errorf("GetBlockHash(%d) failed: %v", idx, err)
@@ -204,7 +255,7 @@ func GetBlockVerbose(client *rpcclient.Client, idx int64, verboseTx bool) *chain
 
 // GetBlockVerboseByHash creates a *chainjson.GetBlockVerboseResult for the
 // specified block hash via an RPC connection to a chain server.
-func GetBlockVerboseByHash(client *rpcclient.Client, hash string, verboseTx bool) *chainjson.GetBlockVerboseResult {
+func GetBlockVerboseByHash(client VerboseBlockGetter, hash string, verboseTx bool) *chainjson.GetBlockVerboseResult {
 	blockhash, err := chainhash.NewHashFromStr(hash)
 	if err != nil {
 		log.Errorf("Invalid block hash %s", hash)
@@ -222,7 +273,7 @@ func GetBlockVerboseByHash(client *rpcclient.Client, hash string, verboseTx bool
 
 // GetStakeDiffEstimates combines the results of EstimateStakeDiff and
 // GetStakeDifficulty into a *apitypes.StakeDiff.
-func GetStakeDiffEstimates(client *rpcclient.Client) *apitypes.StakeDiff {
+func GetStakeDiffEstimates(client StakeDiffer) *apitypes.StakeDiff {
 	stakeDiff, err := client.GetStakeDifficulty(context.TODO())
 	if err != nil {
 		return nil
@@ -272,7 +323,7 @@ func GetBlockByHash(blockhash *chainhash.Hash, client BlockFetcher) (*dcrutil.Bl
 // SideChains gets a slice of known side chain tips. This corresponds to the
 // results of the getchaintips node RPC where the block tip "status" is either
 // "valid-headers" or "valid-fork".
-func SideChains(client *rpcclient.Client) ([]chainjson.GetChainTipsResult, error) {
+func SideChains(client ChainTipsGetter) ([]chainjson.GetChainTipsResult, error) {
 	tips, err := client.GetChainTips(context.TODO())
 	if err != nil {
 		return nil, err
@@ -516,13 +567,15 @@ func GetChainWork(client BlockFetcher, hash *chainhash.Hash) (string, error) {
 	return header.ChainWork, nil
 }
 
-// MempoolAddressChecker is an interface implementing UnconfirmedTxnsForAddress
+// MempoolAddressChecker is an interface implementing UnconfirmedTxnsForAddress.
+// NewMempoolAddressChecker may be used to create a MempoolAddressChecker from
+// an rpcclient.Client.
 type MempoolAddressChecker interface {
 	UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error)
 }
 
 type mempoolAddressChecker struct {
-	client *rpcclient.Client
+	client *AsyncTxClient
 	params *chaincfg.Params
 }
 
@@ -534,13 +587,21 @@ func (m *mempoolAddressChecker) UnconfirmedTxnsForAddress(address string) (*txhe
 // NewMempoolAddressChecker creates a new MempoolAddressChecker from an RPC
 // client for the given network.
 func NewMempoolAddressChecker(client *rpcclient.Client, params *chaincfg.Params) MempoolAddressChecker {
-	return &mempoolAddressChecker{client, params}
+	return &mempoolAddressChecker{&AsyncTxClient{client}, params}
+}
+
+// MempoolTxGetter must be satisfied for UnconfirmedTxnsForAddress.
+type MempoolTxGetter interface {
+	MempoolGetter
+	txhelpers.RawTransactionGetter
+	txhelpers.VerboseTransactionPromiseGetter
+	GetBestBlock(ctx context.Context) (*chainhash.Hash, int64, error)
 }
 
 // UnconfirmedTxnsForAddress returns the chainhash.Hash of all transactions in
 // mempool that (1) pay to the given address, or (2) spend a previous outpoint
 // that paid to the address.
-func UnconfirmedTxnsForAddress(client *rpcclient.Client, address string,
+func UnconfirmedTxnsForAddress(client MempoolTxGetter, address string,
 	params *chaincfg.Params) (*txhelpers.AddressOutpoints, int64, error) {
 	// Mempool transactions
 	mempoolTxns, err := client.GetRawMempoolVerbose(context.TODO(), chainjson.GRMAll)
@@ -600,7 +661,7 @@ func UnconfirmedTxnsForAddress(client *rpcclient.Client, address string,
 // APITransaction uses the RPC client to retrieve the specified transaction, and
 // convert the data into a *apitypes.Tx.
 func APITransaction(client txhelpers.VerboseTransactionGetter, txid *chainhash.Hash) (tx *apitypes.Tx, hex string, err error) {
-	txraw, err := GetTransactionVerboseByID(client, txid)
+	txraw, err := client.GetRawTransactionVerbose(context.TODO(), txid)
 	if err != nil {
 		err = fmt.Errorf("APITransaction failed for %v: %v", txid, err)
 		return

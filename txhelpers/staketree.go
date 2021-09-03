@@ -11,7 +11,6 @@ import (
 	"github.com/decred/dcrd/database/v2"
 	_ "github.com/decred/dcrd/database/v2/ffldb" // init the ffldb driver
 	"github.com/decred/dcrd/dcrutil/v3"
-	"github.com/decred/dcrd/rpcclient/v6"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -27,7 +26,7 @@ const (
 
 // BuildStakeTree returns a database with a stake tree
 func BuildStakeTree(blocks map[int64]*dcrutil.Block, netParams *chaincfg.Params,
-	nodeClient *rpcclient.Client, poolRequiredHeight int64, DBName ...string) (database.DB, []int64, error) {
+	nodeClient RawTransactionGetter, poolRequiredHeight int64, DBName ...string) (database.DB, []int64, error) {
 
 	if blocks[0] == nil || blocks[0].Height() != 0 {
 		return nil, nil, fmt.Errorf("Must start at height 0")

@@ -41,13 +41,12 @@ const (
 	wsReadTimeout  = 7 * time.Second
 )
 
-// wsDataSource defines the interface for collecting required data.
-type wsDataSource interface {
+// DataSource defines the interface for collecting required data.
+type DataSource interface {
 	GetExplorerBlock(hash string) *exptypes.BlockInfo
 	DecodeRawTransaction(txhex string) (*chainjson.TxRawResult, error)
 	SendRawTransaction(txhex string) (string, error)
 	GetChainParams() *chaincfg.Params
-	// UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error)
 	GetMempool() []exptypes.MempoolTx
 	BlockSubsidy(height int64, voters uint16) *chainjson.GetBlockSubsidyResult
 	Difficulty(timestamp int64) float64
@@ -82,7 +81,7 @@ type connection struct {
 // PubSubHub manages the collection and distribution of block chain and mempool
 // data to WebSocket clients.
 type PubSubHub struct {
-	sourceBase wsDataSource
+	sourceBase DataSource
 	wsHub      *WebsocketHub
 	state      *State
 	params     *chaincfg.Params
@@ -93,7 +92,7 @@ type PubSubHub struct {
 
 // NewPubSubHub constructs a PubSubHub given a data source. The WebSocketHub is
 // automatically started.
-func NewPubSubHub(dataSource wsDataSource) (*PubSubHub, error) {
+func NewPubSubHub(dataSource DataSource) (*PubSubHub, error) {
 	psh := new(PubSubHub)
 	psh.sourceBase = dataSource
 
