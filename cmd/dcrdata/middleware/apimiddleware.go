@@ -20,10 +20,10 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/dcrutil/v3"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
-	apitypes "github.com/decred/dcrdata/v6/api/types"
+	apitypes "github.com/decred/dcrdata/v7/api/types"
 	"github.com/didip/tollbooth/v6"
 	"github.com/didip/tollbooth/v6/limiter"
 	"github.com/go-chi/chi/v5"
@@ -418,7 +418,7 @@ func GetAddressCtx(r *http.Request, activeNetParams *chaincfg.Params) ([]string,
 	}
 
 	for _, addrStr := range addressStrs {
-		_, err := dcrutil.DecodeAddress(addrStr, activeNetParams)
+		_, err := stdaddr.DecodeAddress(addrStr, activeNetParams)
 		if err != nil {
 			return nil, fmt.Errorf("invalid address %q for this network: %w",
 				addrStr, err)
@@ -429,14 +429,14 @@ func GetAddressCtx(r *http.Request, activeNetParams *chaincfg.Params) ([]string,
 
 // GetAddressRawCtx returns a slice of addresses parsed from the {address} URL
 // parameter. Multiple comma-delimited address strings can be specified.
-func GetAddressRawCtx(r *http.Request, activeNetParams *chaincfg.Params) ([]dcrutil.Address, error) {
+func GetAddressRawCtx(r *http.Request, activeNetParams *chaincfg.Params) ([]stdaddr.Address, error) {
 	addressStrs, ok := r.Context().Value(CtxAddress).([]string)
 	if !ok {
 		return nil, fmt.Errorf("type assertion failed")
 	}
-	addresses := make([]dcrutil.Address, 0, len(addressStrs))
+	addresses := make([]stdaddr.Address, 0, len(addressStrs))
 	for _, addrStr := range addressStrs {
-		addr, err := dcrutil.DecodeAddress(addrStr, activeNetParams)
+		addr, err := stdaddr.DecodeAddress(addrStr, activeNetParams)
 		if err != nil {
 			return nil, fmt.Errorf("invalid address %q for this network: %w",
 				addrStr, err)

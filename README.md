@@ -783,7 +783,7 @@ the future.
 mempool using the `OnTxAccepted` notification handler to send newly received
 transaction hashes via a designated channel. Ticket purchases (SSTx) are
 triggers for mempool data collection, which is handled by the
-`MempoolDataCollector` class, and data storage, which is handled by any number
+`DataCollector` class, and data storage, which is handled by any number
 of objects implementing the `MempoolDataSaver` interface.
 
 ## Plans

@@ -11,14 +11,14 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/slog"
 	survey "gopkg.in/AlecAivazis/survey.v1"
 
-	exptypes "github.com/decred/dcrdata/v6/explorer/types"
-	"github.com/decred/dcrdata/v6/pubsub/psclient"
-	pstypes "github.com/decred/dcrdata/v6/pubsub/types"
-	"github.com/decred/dcrdata/v6/semver"
+	exptypes "github.com/decred/dcrdata/v7/explorer/types"
+	"github.com/decred/dcrdata/v7/pubsub/psclient"
+	pstypes "github.com/decred/dcrdata/v7/pubsub/types"
+	"github.com/decred/dcrdata/v7/semver"
 )
 
 var cfg *config
@@ -138,7 +138,7 @@ func main() {
 							log.Fatal(err)
 							continue
 						}
-						_, err = dcrutil.DecodeAddress(addr, params)
+						_, err = stdaddr.DecodeAddress(addr, params)
 						if err != nil {
 							log.Fatalf("Invalid address %s: %v", addr, err)
 							continue

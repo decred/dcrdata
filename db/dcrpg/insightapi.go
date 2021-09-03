@@ -10,13 +10,13 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil/v3"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 
-	apitypes "github.com/decred/dcrdata/v6/api/types"
-	"github.com/decred/dcrdata/v6/db/cache"
-	"github.com/decred/dcrdata/v6/db/dbtypes"
-	"github.com/decred/dcrdata/v6/txhelpers"
+	apitypes "github.com/decred/dcrdata/v7/api/types"
+	"github.com/decred/dcrdata/v7/db/cache"
+	"github.com/decred/dcrdata/v7/db/dbtypes"
+	"github.com/decred/dcrdata/v7/txhelpers"
 )
 
 // GetRawTransactionByHash gets a chainjson.TxRawResult for the specified
@@ -138,7 +138,7 @@ func (pgb *ChainDB) AddressIDsByOutpoint(txHash string, voutIndex uint32) ([]uin
 // TODO: Does this really need all the prev vout extra data?
 func (pgb *ChainDB) InsightSearchRPCAddressTransactions(addr string, count,
 	skip int) []*chainjson.SearchRawTransactionsResult {
-	address, err := dcrutil.DecodeAddress(addr, pgb.chainParams)
+	address, err := stdaddr.DecodeAddress(addr, pgb.chainParams)
 	if err != nil {
 		log.Infof("Invalid address %s: %v", addr, err)
 		return nil
@@ -228,7 +228,7 @@ func (pgb *ChainDB) BlockSummaryTimeRange(min, max int64, limit int) ([]dbtypes.
 // AddressUTXO returns the unspent transaction outputs (UTXOs) paying to the
 // specified address in a []*dbtypes.AddressTxnOutput.
 func (pgb *ChainDB) AddressUTXO(address string) ([]*dbtypes.AddressTxnOutput, bool, error) {
-	_, err := dcrutil.DecodeAddress(address, pgb.chainParams)
+	_, err := stdaddr.DecodeAddress(address, pgb.chainParams)
 	if err != nil {
 		return nil, false, err
 	}

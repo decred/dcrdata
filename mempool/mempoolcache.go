@@ -8,16 +8,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/dcrutil/v3"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
+	"github.com/decred/dcrd/dcrutil/v4"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
 
-	apitypes "github.com/decred/dcrdata/v6/api/types"
-	"github.com/decred/dcrdata/v6/db/dbtypes"
-	exptypes "github.com/decred/dcrdata/v6/explorer/types"
+	apitypes "github.com/decred/dcrdata/v7/api/types"
+	"github.com/decred/dcrdata/v7/db/dbtypes"
+	exptypes "github.com/decred/dcrdata/v7/explorer/types"
 )
 
-// MempoolDataCache models the basic data for the mempool cache.
-type MempoolDataCache struct {
+// DataCache models the basic data for the mempool cache.
+type DataCache struct {
 	mtx sync.RWMutex
 
 	// Height and hash of best block at time of data collection
@@ -43,7 +43,7 @@ type MempoolDataCache struct {
 // StoreMPData stores info from data in the mempool cache. It is advisable to
 // pass a copy of the []types.MempoolTx so that it may be modified (e.g. sorted)
 // without affecting other MempoolDataSavers.
-func (c *MempoolDataCache) StoreMPData(stakeData *StakeData, txsCopy []exptypes.MempoolTx, _ *exptypes.MempoolInfo) {
+func (c *DataCache) StoreMPData(stakeData *StakeData, txsCopy []exptypes.MempoolTx, _ *exptypes.MempoolInfo) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
@@ -64,7 +64,7 @@ func (c *MempoolDataCache) StoreMPData(stakeData *StakeData, txsCopy []exptypes.
 }
 
 // GetHeight returns the mempool height
-func (c *MempoolDataCache) GetHeight() uint32 {
+func (c *DataCache) GetHeight() uint32 {
 	c.mtx.RLock()
 	defer c.mtx.RUnlock()
 	return c.height
@@ -72,28 +72,28 @@ func (c *MempoolDataCache) GetHeight() uint32 {
 
 // SBits returns the current stake difficulty, and the current best block
 // height.
-func (c *MempoolDataCache) SBits() (int64, uint32) {
+func (c *DataCache) SBits() (int64, uint32) {
 	c.mtx.RLock()
 	defer c.mtx.RUnlock()
 	return c.stakeDiff, c.height
 }
 
 // GetNumTickets returns the mempool height and number of tickets
-func (c *MempoolDataCache) GetNumTickets() (uint32, uint32) {
+func (c *DataCache) GetNumTickets() (uint32, uint32) {
 	c.mtx.RLock()
 	defer c.mtx.RUnlock()
 	return c.height, c.numTickets
 }
 
 // GetFeeInfo returns the mempool height and basic fee info
-func (c *MempoolDataCache) GetFeeInfo() (uint32, chainjson.FeeInfoMempool) {
+func (c *DataCache) GetFeeInfo() (uint32, chainjson.FeeInfoMempool) {
 	c.mtx.RLock()
 	defer c.mtx.RUnlock()
 	return c.height, c.ticketFeeInfo
 }
 
 // GetFeeInfoExtra returns the mempool height and detailed fee info
-func (c *MempoolDataCache) GetFeeInfoExtra() (uint32, *apitypes.MempoolTicketFeeInfo) {
+func (c *DataCache) GetFeeInfoExtra() (uint32, *apitypes.MempoolTicketFeeInfo) {
 	c.mtx.RLock()
 	defer c.mtx.RUnlock()
 	feeInfo := apitypes.MempoolTicketFeeInfo{
@@ -106,7 +106,7 @@ func (c *MempoolDataCache) GetFeeInfoExtra() (uint32, *apitypes.MempoolTicketFee
 }
 
 // GetFees returns the mempool height number of fees and an array of the fields
-func (c *MempoolDataCache) GetFees(N int) (uint32, int, []float64) {
+func (c *DataCache) GetFees(N int) (uint32, int, []float64) {
 	c.mtx.RLock()
 	defer c.mtx.RUnlock()
 
@@ -133,7 +133,7 @@ func (c *MempoolDataCache) GetFees(N int) (uint32, int, []float64) {
 
 // GetFeeRates returns the mempool height, time, number of fees and an array of
 // fee rates
-func (c *MempoolDataCache) GetFeeRates(N int) (uint32, int64, int, []float64) {
+func (c *DataCache) GetFeeRates(N int) (uint32, int64, int, []float64) {
 	c.mtx.RLock()
 	defer c.mtx.RUnlock()
 
@@ -160,7 +160,7 @@ func (c *MempoolDataCache) GetFeeRates(N int) (uint32, int64, int, []float64) {
 
 // GetTicketsDetails returns the mempool height, time, number of tickets and the
 // ticket details
-func (c *MempoolDataCache) GetTicketsDetails(N int) (uint32, int64, int, TicketsDetails) {
+func (c *DataCache) GetTicketsDetails(N int) (uint32, int64, int, TicketsDetails) {
 	c.mtx.RLock()
 	defer c.mtx.RUnlock()
 
@@ -185,7 +185,7 @@ func (c *MempoolDataCache) GetTicketsDetails(N int) (uint32, int64, int, Tickets
 }
 
 // GetTicketPriceCountTime gathers the nominal info for mempool tickets.
-func (c *MempoolDataCache) GetTicketPriceCountTime(feeAvgLength int) *apitypes.PriceCountTime {
+func (c *DataCache) GetTicketPriceCountTime(feeAvgLength int) *apitypes.PriceCountTime {
 	c.mtx.RLock()
 	defer c.mtx.RUnlock()
 

@@ -11,9 +11,10 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/dcrutil/v3"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	"github.com/decred/dcrd/txscript/v3"
+	"github.com/decred/dcrd/dcrutil/v4"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
+	"github.com/decred/dcrd/txscript/v4"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 
 	socketio "github.com/googollee/go-socket.io"
@@ -21,8 +22,8 @@ import (
 	"github.com/googollee/go-socket.io/engineio/transport"
 	"github.com/googollee/go-socket.io/engineio/transport/websocket"
 
-	"github.com/decred/dcrdata/v6/blockdata"
-	"github.com/decred/dcrdata/v6/txhelpers"
+	"github.com/decred/dcrdata/v7/blockdata"
+	"github.com/decred/dcrdata/v7/txhelpers"
 )
 
 const maxAddressSubsPerConn uint32 = 32768
@@ -151,7 +152,7 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 		}
 
 		// See if the room is a Decred address.
-		if _, err = dcrutil.DecodeAddress(room, params); err != nil {
+		if _, err = stdaddr.DecodeAddress(room, params); err != nil {
 			apiLog.Debugf("socket.io connection %s requested invalid subscription: %s",
 				so.ID(), room)
 			msg := fmt.Sprintf(`invalid subscription "%s"`, room)
@@ -286,7 +287,7 @@ func (soc *SocketServer) sendNewTx(msgTx *wire.MsgTx, vouts []chainjson.Vout) er
 			}
 			var addrs []string
 			for i := range scriptAddrs {
-				addrs = append(addrs, scriptAddrs[i].Address())
+				addrs = append(addrs, scriptAddrs[i].String())
 			}
 			voutAddrs = append(voutAddrs, addrs)
 		} else {

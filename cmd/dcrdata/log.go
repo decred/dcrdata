@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/decred/dcrd/rpcclient/v6"
+	"github.com/decred/dcrd/rpcclient/v7"
 	"github.com/decred/slog"
 	"github.com/jrick/logrotate/rotator"
 
@@ -19,16 +19,16 @@ import (
 	"github.com/decred/dcrdata/cmd/dcrdata/middleware"
 	notify "github.com/decred/dcrdata/cmd/dcrdata/notification"
 
-	"github.com/decred/dcrdata/db/dcrpg/v6"
+	"github.com/decred/dcrdata/db/dcrpg/v7"
 	"github.com/decred/dcrdata/exchanges/v3"
-	"github.com/decred/dcrdata/gov/v4/agendas"
-	"github.com/decred/dcrdata/gov/v4/politeia"
+	"github.com/decred/dcrdata/gov/v5/agendas"
+	"github.com/decred/dcrdata/gov/v5/politeia"
 
-	"github.com/decred/dcrdata/v6/blockdata"
-	"github.com/decred/dcrdata/v6/mempool"
-	"github.com/decred/dcrdata/v6/pubsub"
-	"github.com/decred/dcrdata/v6/rpcutils"
-	"github.com/decred/dcrdata/v6/stakedb"
+	"github.com/decred/dcrdata/v7/blockdata"
+	"github.com/decred/dcrdata/v7/mempool"
+	"github.com/decred/dcrdata/v7/pubsub"
+	"github.com/decred/dcrdata/v7/rpcutils"
+	"github.com/decred/dcrdata/v7/stakedb"
 )
 
 // logWriter implements an io.Writer that outputs to both standard output and

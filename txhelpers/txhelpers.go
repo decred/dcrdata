@@ -21,13 +21,14 @@ import (
 	"sync"
 
 	"github.com/decred/base58"
-	"github.com/decred/dcrd/blockchain/stake/v3"
+	"github.com/decred/dcrd/blockchain/stake/v4"
 	"github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/dcrutil/v3"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	"github.com/decred/dcrd/txscript/v3"
+	"github.com/decred/dcrd/dcrutil/v4"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
+	"github.com/decred/dcrd/txscript/v4"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -351,7 +352,7 @@ func TxOutpointsByAddr(txAddrOuts MempoolAddressStore, msgTx *wire.MsgTx, params
 
 		// Check if we are watching any address for this TxOut.
 		for _, txAddr := range txOutAddrs {
-			addr := txAddr.Address()
+			addr := txAddr.String()
 
 			op := wire.NewOutPoint(hash, uint32(outIndex), txTree)
 
@@ -480,7 +481,7 @@ func TxPrevOutsByAddr(txAddrOuts MempoolAddressStore, txnsStore TxnsStore, msgTx
 		// For each address paid to by this previous outpoint, record the
 		// previous outpoint and the containing transactions.
 		for _, txAddr := range txAddrs {
-			addr := txAddr.Address()
+			addr := txAddr.String()
 
 			// Check if it is already in the address store.
 			addrOuts := txAddrOuts[addr]
@@ -573,7 +574,7 @@ func TxConsumesOutpointWithAddress(msgTx *wire.MsgTx, addr string, c VerboseTran
 		// For each address that matches the address of interest, record this
 		// previous outpoint and the containing transactions.
 		for _, txAddr := range txAddrs {
-			addrstr := txAddr.Address()
+			addrstr := txAddr.String()
 			if addr == addrstr {
 				tree := TxTree(prevTx, treasuryActive)
 				outpoint := wire.NewOutPoint(&hash, prevOut.Index, tree)
@@ -630,7 +631,7 @@ func BlockConsumesOutpointWithAddresses(block *dcrutil.Block, addrs map[string]T
 					}
 
 					for _, txAddr := range txAddrs {
-						addrstr := txAddr.Address()
+						addrstr := txAddr.String()
 						if _, ok := addrs[addrstr]; ok {
 							if addrMap[addrstr] == nil {
 								addrMap[addrstr] = make([]*dcrutil.Tx, 0)
@@ -665,7 +666,7 @@ func TxPaysToAddress(msgTx *wire.MsgTx, addr string, params *chaincfg.Params, tr
 
 		// Check if we are watching any address for this TxOut
 		for _, txAddr := range txOutAddrs {
-			addrstr := txAddr.Address()
+			addrstr := txAddr.String()
 			if addr == addrstr {
 				outpoints = append(outpoints, wire.NewOutPoint(&hash,
 					uint32(outIndex), txTree))
@@ -695,7 +696,7 @@ func BlockReceivesToAddresses(block *dcrutil.Block, addrs map[string]TxAction,
 
 				// Check if we are watching any address for this TxOut
 				for _, txAddr := range txOutAddrs {
-					addrstr := txAddr.Address()
+					addrstr := txAddr.String()
 					if _, ok := addrs[addrstr]; ok {
 						if _, gotSlice := addrMap[addrstr]; !gotSlice {
 							addrMap[addrstr] = make([]*dcrutil.Tx, 0) // nil
@@ -739,7 +740,7 @@ func OutPointAddresses(outPoint *wire.OutPoint, c RawTransactionGetter,
 	value := dcrutil.Amount(txOut.Value)
 	addresses := make([]string, 0, len(txAddrs))
 	for _, txAddr := range txAddrs {
-		addr := txAddr.Address()
+		addr := txAddr.String()
 		addresses = append(addresses, addr)
 	}
 	return addresses, value, nil
@@ -1266,7 +1267,7 @@ func GenesisTxHash(params *chaincfg.Params) chainhash.Hash {
 func IsZeroHashP2PHKAddress(checkAddressString string, params *chaincfg.Params) bool {
 	zeroed := [20]byte{}
 	// expecting DsQxuVRvS4eaJ42dhQEsCXauMWjvopWgrVg address for mainnet
-	address, err := dcrutil.NewAddressPubKeyHash(zeroed[:], params, 0)
+	address, err := stdaddr.NewAddressPubKeyHashEcdsaSecp256k1V0(zeroed[:], params)
 	if err != nil {
 		return false
 	}
@@ -1317,9 +1318,9 @@ const (
 // the zero pubkey hash address, in which case AddressErrorZeroAddress is
 // returned with the determined address type. If it is another address,
 // AddressErrorNoError (nil) is returned with the determined address type.
-func AddressValidation(address string, params *chaincfg.Params) (dcrutil.Address, AddressType, AddressError) {
+func AddressValidation(address string, params *chaincfg.Params) (stdaddr.Address, AddressType, AddressError) {
 	// Decode and validate the address.
-	addr, err := dcrutil.DecodeAddress(address, params)
+	addr, err := stdaddr.DecodeAddress(address, params)
 	if err != nil {
 		// if errors.Is(err, dcrutil.ErrUnknownAddressType) {
 		// 	return nil, AddressTypeUnknown, AddressErrorWrongNet // possible? ErrUnknownAddressType means many things

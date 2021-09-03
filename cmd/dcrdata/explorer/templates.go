@@ -15,11 +15,11 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/dcrec"
-	"github.com/decred/dcrd/dcrutil/v3"
-	"github.com/decred/dcrdata/v6/db/dbtypes"
-	"github.com/decred/dcrdata/v6/explorer/types"
-	"github.com/decred/dcrdata/v6/txhelpers"
+	"github.com/decred/dcrd/dcrutil/v4"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
+	"github.com/decred/dcrdata/v7/db/dbtypes"
+	"github.com/decred/dcrdata/v7/explorer/types"
+	"github.com/decred/dcrdata/v7/txhelpers"
 	humanize "github.com/dustin/go-humanize"
 )
 
@@ -590,23 +590,20 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		},
 		"PKAddr2PKHAddr": func(address string) (p2pkh string) {
 			// Attempt to decode the pay-to-pubkey address.
-			var addr dcrutil.Address
-			addr, err := dcrutil.DecodeAddress(address, params)
+			addr, err := stdaddr.DecodeAddress(address, params)
 			if err != nil {
 				log.Errorf(err.Error())
 				return ""
 			}
-
-			// Extract the pubkey hash.
-			addrHash := addr.Hash160()
+			pkHasher, ok := addr.(stdaddr.AddressPubKeyHasher)
+			if !ok {
+				log.Errorf("Not an AddressPubKeyHasher: %v", addr)
+			}
 
 			// Create a new pay-to-pubkey-hash address.
-			addrPKH, err := dcrutil.NewAddressPubKeyHash(addrHash[:], params, dcrec.STEcdsaSecp256k1)
-			if err != nil {
-				log.Errorf(err.Error())
-				return ""
-			}
-			return addrPKH.Address()
+			// addrPKH, err := stdaddr.NewAddressPubKeyHash(addrHash[:], params, dcrec.STEcdsaSecp256k1)
+			addrPKH := pkHasher.AddressPubKeyHash()
+			return addrPKH.String()
 		},
 		"toAbsValue": math.Abs,
 		"toFloat64": func(x uint32) float64 {

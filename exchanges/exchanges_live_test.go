@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/dcrutil/v4"
 )
 
 func makeKillSwitch() chan os.Signal {

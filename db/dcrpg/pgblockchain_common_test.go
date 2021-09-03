@@ -12,8 +12,8 @@ import (
 	"testing"
 
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrdata/v6/db/cache"
-	"github.com/decred/dcrdata/v6/testutil/dbconfig"
+	"github.com/decred/dcrdata/v7/db/cache"
+	"github.com/decred/dcrdata/v7/testutil/dbconfig"
 	"github.com/decred/slog"
 )
 
