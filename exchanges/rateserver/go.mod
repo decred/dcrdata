@@ -1,8 +1,6 @@
 module github.com/decred/dcrdata/exchanges/rateserver
 
-go 1.15
-
-replace github.com/decred/dcrdata/exchanges/v3 => ../
+go 1.16
 
 require (
 	github.com/decred/dcrd/certgen v1.1.1

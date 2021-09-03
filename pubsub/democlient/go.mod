@@ -1,8 +1,6 @@
 module github.com/decred/dcrdata/pubsub/democlient
 
-go 1.15
-
-replace github.com/decred/dcrdata/v6 => ../../
+go 1.16
 
 require (
 	github.com/decred/dcrd/chaincfg/v3 v3.0.0
