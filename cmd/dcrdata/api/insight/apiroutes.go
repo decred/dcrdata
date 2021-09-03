@@ -27,7 +27,7 @@ import (
 	m "github.com/decred/dcrdata/cmd/dcrdata/middleware"
 	apitypes "github.com/decred/dcrdata/v6/api/types"
 	"github.com/decred/dcrdata/v6/db/dbtypes"
-	"github.com/decred/dcrdata/v6/rpcutils"
+	"github.com/decred/dcrdata/v6/txhelpers"
 )
 
 type BlockDataSource interface {
@@ -70,13 +70,18 @@ const (
 	inflightUTXOLimit = maxInsightAddrsUTXOs * 5 / 4
 )
 
+// MempoolAddressChecker is an interface implementing UnconfirmedTxnsForAddress
+type MempoolAddressChecker interface {
+	UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error)
+}
+
 // InsightApi contains the resources for the Insight HTTP API. InsightApi's
 // methods include the http.Handlers for the URL path routes.
 type InsightApi struct {
 	nodeClient      *rpcclient.Client
 	BlockData       BlockDataSource
 	params          *chaincfg.Params
-	mp              rpcutils.MempoolAddressChecker
+	mp              MempoolAddressChecker
 	status          *apitypes.Status
 	JSONIndent      string
 	ReqPerSecLimit  float64
@@ -86,7 +91,7 @@ type InsightApi struct {
 
 // NewInsightAPI is the constructor for InsightApi.
 func NewInsightAPI(client *rpcclient.Client, blockData BlockDataSource, params *chaincfg.Params,
-	memPoolData rpcutils.MempoolAddressChecker, JSONIndent string, status *apitypes.Status) *InsightApi {
+	memPoolData MempoolAddressChecker, JSONIndent string, status *apitypes.Status) *InsightApi {
 
 	return &InsightApi{
 		nodeClient:     client,

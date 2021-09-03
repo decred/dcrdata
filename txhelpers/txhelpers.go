@@ -27,7 +27,6 @@ import (
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v3"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	"github.com/decred/dcrd/rpcclient/v6"
 	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
 )
@@ -106,12 +105,49 @@ type RawTransactionGetter interface {
 	GetRawTransaction(ctx context.Context, txHash *chainhash.Hash) (*dcrutil.Tx, error)
 }
 
+// TxReceiver is satisfied by the return type from GetRawTransactionAsync
+// (rpcclient.FutureGetRawTransactionResult).
+type TxReceiver interface {
+	Receive() (*dcrutil.Tx, error)
+}
+
+// TransactionPromiseGetter is satisfied by rpcclient.Client, and required by
+// functions that would otherwise require a rpcclient.Client just for
+// GetRawTransactionVerboseAsync. See VerboseTransactionPromiseGetter and
+// rpcutils.NewAsyncTxClient for more on wrapping an rpcclient.Client.
+type TransactionPromiseGetter interface {
+	GetRawTransactionPromise(ctx context.Context, txHash *chainhash.Hash) TxReceiver
+}
+
 // VerboseTransactionGetter is an interface satisfied by rpcclient.Client, and
 // required by functions that would otherwise require a rpcclient.Client just
 // for GetRawTransactionVerbose.
 type VerboseTransactionGetter interface {
 	GetRawTransactionVerbose(ctx context.Context, txHash *chainhash.Hash) (*chainjson.TxRawResult, error)
-	GetRawTransactionVerboseAsync(ctx context.Context, txHash *chainhash.Hash) *rpcclient.FutureGetRawTransactionVerboseResult
+}
+
+// VerboseTxReceiver is satisfied by the return type from
+// GetRawTransactionVerboseAsync
+// (rpcclient.FutureGetRawTransactionVerboseResult).
+type VerboseTxReceiver interface {
+	Receive() (*chainjson.TxRawResult, error)
+}
+
+// VerboseTransactionPromiseGetter is required by functions that would otherwise
+// require a rpcclient.Client just for GetRawTransactionVerboseAsync. You may
+// construct a simple wrapper for an rpcclient.Client with
+// rpcutils.NewAsyncTxClient like:
+//
+//  type mempoolClient struct {
+//      *rpcclient.Client
+//  }
+//  func (cl *mempoolClient) GetRawTransactionVerbosePromise(ctx context.Context, txHash *chainhash.Hash) txhelpers.VerboseTxReceiver {
+//      return cl.Client.GetRawTransactionVerboseAsync(ctx, txHash)
+//  }
+//
+//  var _ VerboseTransactionPromiseGetter = (*mempoolClient)(nil)
+type VerboseTransactionPromiseGetter interface {
+	GetRawTransactionVerbosePromise(ctx context.Context, txHash *chainhash.Hash) VerboseTxReceiver
 }
 
 // TxAction is what is happening to the transaction (mined or inserted into
@@ -266,7 +302,7 @@ func (a *AddressOutpoints) Merge(ao *AddressOutpoints) {
 
 // TxInvolvesAddress checks the inputs and outputs of a transaction for
 // involvement of the given address.
-func TxInvolvesAddress(msgTx *wire.MsgTx, addr string, c VerboseTransactionGetter,
+func TxInvolvesAddress(msgTx *wire.MsgTx, addr string, c VerboseTransactionPromiseGetter,
 	params *chaincfg.Params, treasuryActive bool) (outpoints []*wire.OutPoint,
 	prevOuts []PrevOut, prevTxs []*TxWithBlockData) {
 	// The outpoints of this transaction paying to the address
@@ -341,13 +377,13 @@ func TxOutpointsByAddr(txAddrOuts MempoolAddressStore, msgTx *wire.MsgTx, params
 // TxPrevOutsByAddr sets the PrevOuts field for the AddressOutpoints stored in
 // the MempoolAddressStore. For addresses not yet present in the
 // MempoolAddressStore, a new AddressOutpoints is added to the store. The
-// provided MempoolAddressStore must be initialized. A VerboseTransactionGetter
-// is required to retrieve the pkScripts for the previous outpoints. The number
-// of consumed previous outpoints that paid addresses in the provided
-// transaction are counted and returned. The addresses in the previous outpoints
-// are listed in the output addrs map, where the value of the stored bool
-// indicates the address is new to the MempoolAddressStore.
-func TxPrevOutsByAddr(txAddrOuts MempoolAddressStore, txnsStore TxnsStore, msgTx *wire.MsgTx, c VerboseTransactionGetter,
+// provided MempoolAddressStore must be initialized. A
+// VerboseTransactionPromiseGetter is required to retrieve the pkScripts for the
+// previous outpoints. The number of consumed previous outpoints that paid
+// addresses in the provided transaction are counted and returned. The addresses
+// in the previous outpoints are listed in the output addrs map, where the value
+// of the stored bool indicates the address is new to the MempoolAddressStore.
+func TxPrevOutsByAddr(txAddrOuts MempoolAddressStore, txnsStore TxnsStore, msgTx *wire.MsgTx, c VerboseTransactionPromiseGetter,
 	params *chaincfg.Params, treasuryActive bool) (newPrevOuts int, addrs map[string]bool, valsIn []int64) {
 	if txAddrOuts == nil {
 		panic("TxPrevOutAddresses: input map must be initialized: map[string]*AddressOutpoints")
@@ -358,7 +394,7 @@ func TxPrevOutsByAddr(txAddrOuts MempoolAddressStore, txnsStore TxnsStore, msgTx
 
 	// Send all the raw transaction requests
 	type promiseGetRawTransaction struct {
-		result *rpcclient.FutureGetRawTransactionVerboseResult
+		result VerboseTxReceiver
 		inIdx  int
 	}
 	promisesGetRawTransaction := make([]promiseGetRawTransaction, 0, len(msgTx.TxIn))
@@ -369,7 +405,7 @@ func TxPrevOutsByAddr(txAddrOuts MempoolAddressStore, txnsStore TxnsStore, msgTx
 			continue // coinbase or stakebase
 		}
 		promisesGetRawTransaction = append(promisesGetRawTransaction, promiseGetRawTransaction{
-			result: c.GetRawTransactionVerboseAsync(context.TODO(), hash),
+			result: c.GetRawTransactionVerbosePromise(context.TODO(), hash),
 			inIdx:  inIdx,
 		})
 	}
@@ -477,11 +513,11 @@ func TxPrevOutsByAddr(txAddrOuts MempoolAddressStore, txnsStore TxnsStore, msgTx
 // TxConsumesOutpointWithAddress checks a transaction for inputs that spend an
 // outpoint paying to the given address. Returned are the identified input
 // indexes and the corresponding previous outpoints determined.
-func TxConsumesOutpointWithAddress(msgTx *wire.MsgTx, addr string, c VerboseTransactionGetter,
+func TxConsumesOutpointWithAddress(msgTx *wire.MsgTx, addr string, c VerboseTransactionPromiseGetter,
 	params *chaincfg.Params, treasuryActive bool) (prevOuts []PrevOut, prevTxs []*TxWithBlockData) {
 	// Send all the raw transaction requests.
 	type promiseGetRawTransaction struct {
-		result *rpcclient.FutureGetRawTransactionVerboseResult
+		result VerboseTxReceiver
 		inIdx  int
 	}
 	numPrevOut := len(msgTx.TxIn)
@@ -493,7 +529,7 @@ func TxConsumesOutpointWithAddress(msgTx *wire.MsgTx, addr string, c VerboseTran
 			continue // coinbase or stakebase
 		}
 		promisesGetRawTransaction = append(promisesGetRawTransaction, promiseGetRawTransaction{
-			result: c.GetRawTransactionVerboseAsync(context.TODO(), hash),
+			result: c.GetRawTransactionVerbosePromise(context.TODO(), hash),
 			inIdx:  inIdx,
 		})
 	}

@@ -4568,13 +4568,13 @@ func (pgb *ChainDB) GetStakeInfoExtendedByHash(hashStr string) *apitypes.StakeIn
 		log.Errorf("GetStakeInfoExtendedByHash -> NewHashFromStr: %v", err)
 		return nil
 	}
-	block, err := rpcutils.GetBlockByHash(hash, pgb.Client)
+	msgBlock, err := pgb.Client.GetBlock(pgb.ctx, hash)
 	if err != nil {
-		log.Errorf("GetStakeInfoExtendedByHash -> GetBlockByHash: %v", err)
+		log.Errorf("GetStakeInfoExtendedByHash -> GetBlock: %v", err)
 		return nil
 	}
+	block := dcrutil.NewBlock(msgBlock)
 
-	msgBlock := block.MsgBlock()
 	height := msgBlock.Header.Height
 
 	var size, val int64

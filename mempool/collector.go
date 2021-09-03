@@ -16,25 +16,39 @@ import (
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v3"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	"github.com/decred/dcrd/rpcclient/v6"
 
 	apitypes "github.com/decred/dcrdata/v6/api/types"
 	exptypes "github.com/decred/dcrdata/v6/explorer/types"
-	"github.com/decred/dcrdata/v6/rpcutils"
 	"github.com/decred/dcrdata/v6/txhelpers"
 )
+
+// NodeClient is similar to a rpcclient.Client, except for the addition of
+// GetRawTransactionVerbosePromise. Use rpcutils.NewAsyncTxClient to create one
+// from an rpcclient.Client or just implement a wrapper that provides
+// txhelpers.VerboseTransactionPromiseGetter.
+type NodeClient interface {
+	GetRawMempoolVerbose(ctx context.Context, txType chainjson.GetRawMempoolTxTypeCmd) (map[string]chainjson.GetRawMempoolVerboseResult, error)
+	GetBestBlock(ctx context.Context) (*chainhash.Hash, int64, error)
+	txhelpers.VerboseTransactionGetter
+	txhelpers.VerboseTransactionPromiseGetter
+	GetStakeDifficulty(ctx context.Context) (*chainjson.GetStakeDifficultyResult, error)
+	GetBlockHeaderVerbose(ctx context.Context, hash *chainhash.Hash) (*chainjson.GetBlockHeaderVerboseResult, error)
+	TicketFeeInfo(ctx context.Context, blocks *uint32, windows *uint32) (*chainjson.TicketFeeInfoResult, error)
+}
 
 // MempoolDataCollector is used for retrieving and processing data from a chain
 // server's mempool.
 type MempoolDataCollector struct {
 	// Mutex is used to prevent multiple concurrent calls to Collect.
 	mtx          sync.Mutex
-	dcrdChainSvr *rpcclient.Client
+	dcrdChainSvr NodeClient
 	activeChain  *chaincfg.Params
 }
 
-// NewMempoolDataCollector creates a new MempoolDataCollector.
-func NewMempoolDataCollector(dcrdChainSvr *rpcclient.Client, params *chaincfg.Params) *MempoolDataCollector {
+// NewMempoolDataCollector creates a new MempoolDataCollector. Use a
+// rpcutils.AsyncTxClient to create a NodeClient from an rpcclient.Client or
+// implement a wrapper that provides txhelpers.VerboseTransactionPromiseGetter.
+func NewMempoolDataCollector(dcrdChainSvr NodeClient, params *chaincfg.Params) *MempoolDataCollector {
 	return &MempoolDataCollector{
 		dcrdChainSvr: dcrdChainSvr,
 		activeChain:  params,
@@ -67,7 +81,7 @@ func (t *MempoolDataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.Me
 			log.Warn(err)
 			continue
 		}
-		rawtx, err := rpcutils.GetTransactionVerboseByID(t.dcrdChainSvr, hash)
+		rawtx, err := t.dcrdChainSvr.GetRawTransactionVerbose(context.TODO(), hash)
 		if err != nil {
 			log.Warn(err)
 			continue
@@ -171,33 +185,30 @@ func (t *MempoolDataCollector) Collect() (*StakeData, []exptypes.MempoolTx, txhe
 			time.Since(start))
 	}(time.Now())
 
-	// client
-	c := t.dcrdChainSvr
-
 	// Get a map of ticket hashes to getrawmempool results
 	// mempoolTickets[ticketHashes[0].String()].Fee
-	mempoolTickets, err := c.GetRawMempoolVerbose(context.TODO(), chainjson.GRMTickets)
+	mempoolTickets, err := t.dcrdChainSvr.GetRawMempoolVerbose(context.TODO(), chainjson.GRMTickets)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
 
-	mempoolVotes, err := c.GetRawMempoolVerbose(context.TODO(), chainjson.GRMVotes)
+	mempoolVotes, err := t.dcrdChainSvr.GetRawMempoolVerbose(context.TODO(), chainjson.GRMVotes)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
 	numVotes := len(mempoolVotes)
 
 	// Grab the current stake difficulty (ticket price).
-	stakeDiff, err := c.GetStakeDifficulty(context.TODO())
+	stakeDiff, err := t.dcrdChainSvr.GetStakeDifficulty(context.TODO())
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
 
-	hash, height, err := c.GetBestBlock(context.TODO())
+	hash, height, err := t.dcrdChainSvr.GetBestBlock(context.TODO())
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	header, err := c.GetBlockHeaderVerbose(context.TODO(), hash)
+	header, err := t.dcrdChainSvr.GetBlockHeaderVerbose(context.TODO(), hash)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -205,7 +216,7 @@ func (t *MempoolDataCollector) Collect() (*StakeData, []exptypes.MempoolTx, txhe
 
 	// Fee info
 	var numFeeWindows, numFeeBlocks uint32 = 0, 0
-	feeInfo, err := c.TicketFeeInfo(context.TODO(), &numFeeBlocks, &numFeeWindows)
+	feeInfo, err := t.dcrdChainSvr.TicketFeeInfo(context.TODO(), &numFeeBlocks, &numFeeWindows)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}

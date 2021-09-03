@@ -65,6 +65,17 @@ func main() {
 	os.Exit(0)
 }
 
+// Instead of an rpcutils.AsyncTxClient for NewMempoolDataCollector, we could
+// make a simple wrapper to provide txhelpers.VerboseTransactionPromiseGetter:
+//
+// type mempoolClient struct {
+// 	*rpcclient.Client
+// }
+// func (cl *mempoolClient) GetRawTransactionVerbosePromise(ctx context.Context, txHash *chainhash.Hash) txhelpers.VerboseTxReceiver {
+// 	return cl.Client.GetRawTransactionVerboseAsync(ctx, txHash)
+// }
+// var _ txhelpers.VerboseTransactionPromiseGetter = (*mempoolClient)(nil)
+
 // _main does all the work. Deferred functions do not run after os.Exit(), so
 // main wraps this function, which returns a code.
 func _main(ctx context.Context) error {
@@ -138,13 +149,18 @@ func _main(ctx context.Context) error {
 		return fmt.Errorf("expected network %s, got %s", activeNet.Net, curnet)
 	}
 
+	// Wrap the rpcclient to satisfy the TransactionPromiseGetter and
+	// VerboseTransactionPromiseGetter interfaces in txhelpers. Both stakedb and
+	// mempool packages use this rather than require an actual rpcclient.Client.
+	promiseClient := rpcutils.NewAsyncTxClient(dcrdClient)
+
 	// StakeDatabase
-	stakeDB, stakeDBHeight, err := stakedb.NewStakeDatabase(dcrdClient, activeChain, cfg.DataDir)
+	stakeDB, stakeDBHeight, err := stakedb.NewStakeDatabase(promiseClient, activeChain, cfg.DataDir)
 	if err != nil {
 		log.Errorf("Unable to create stake DB: %v", err)
 		if stakeDBHeight >= 0 {
 			log.Infof("Attempting to recover stake DB...")
-			stakeDB, err = stakedb.LoadAndRecover(dcrdClient, activeChain, cfg.DataDir, stakeDBHeight-288)
+			stakeDB, err = stakedb.LoadAndRecover(promiseClient, activeChain, cfg.DataDir, stakeDBHeight-288)
 			stakeDBHeight = int64(stakeDB.Height())
 		}
 		if err != nil {
@@ -497,7 +513,7 @@ func _main(ctx context.Context) error {
 	psHub.SetReady(false)
 
 	// Create the mempool data collector.
-	mpoolCollector := mempool.NewMempoolDataCollector(dcrdClient, activeChain)
+	mpoolCollector := mempool.NewMempoolDataCollector(promiseClient, activeChain)
 	if mpoolCollector == nil {
 		// Shutdown goroutines.
 		requestShutdown()
@@ -513,7 +529,7 @@ func _main(ctx context.Context) error {
 	signalToExplorer := explore.MempoolSignal()
 	mempoolSigOuts := []chan<- pstypes.HubMessage{signalToPSHub, signalToExplorer}
 	mpm, err := mempool.NewMempoolMonitor(ctx, mpoolCollector, mempoolSavers,
-		activeChain, dcrdClient, mempoolSigOuts, true)
+		activeChain, mempoolSigOuts, true)
 
 	// Ensure the initial collect/store succeeded.
 	if err != nil {

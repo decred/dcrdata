@@ -1,12 +1,10 @@
 package txhelpers
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"strings"
@@ -16,9 +14,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v3"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	"github.com/decred/dcrd/rpcclient/v6"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/v6/semver"
 )
 
 type TxGetter struct {
@@ -144,6 +140,7 @@ func TxToWriter(tx *dcrutil.Tx, w io.Writer) error {
 	return nil
 }
 
+/*
 // ConnectNodeRPC attempts to create a new websocket connection to a dcrd node,
 // with the given credentials and optional notification handlers.
 func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool) (*rpcclient.Client, semver.Semver, error) {
@@ -182,6 +179,7 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool) (*rpcclient.
 
 	return dcrdClient, nodeVer, nil
 }
+*/
 
 func TestFilterHashSlice(t *testing.T) {
 	var hashList, blackList []chainhash.Hash

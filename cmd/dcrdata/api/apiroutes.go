@@ -37,7 +37,6 @@ import (
 	apitypes "github.com/decred/dcrdata/v6/api/types"
 	"github.com/decred/dcrdata/v6/db/cache"
 	"github.com/decred/dcrdata/v6/db/dbtypes"
-	"github.com/decred/dcrdata/v6/rpcutils"
 	"github.com/decred/dcrdata/v6/txhelpers"
 )
 
@@ -778,7 +777,11 @@ func (c *appContext) getTxSwapsInfo(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			spendingTxHash, spendingInputIndex := spendingTxHashes[i], spendingTxVinInds[i]
-			spendingTx, err := rpcutils.GetTransactionVerboseByHashString(c.nodeClient, spendingTxHash)
+			txhash, err := chainhash.NewHashFromStr(spendingTxHash)
+			if err != nil {
+				return
+			}
+			spendingTx, err := c.nodeClient.GetRawTransactionVerbose(r.Context(), txhash)
 			if err != nil {
 				apiLog.Errorf("Unable to get transaction %s: %v", spendingTxHash, err)
 				http.Error(w, http.StatusText(422), 422)
@@ -1873,12 +1876,12 @@ func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Re
 
 // getAgendaData processes a request for agenda chart data from /agenda/{agendaId}.
 func (c *appContext) getAgendaData(w http.ResponseWriter, r *http.Request) {
-	agendaId := m.GetAgendaIdCtx(r)
-	if agendaId == "" {
+	agendaID := m.GetAgendaIdCtx(r)
+	if agendaID == "" {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
-	chartDataByTime, err := c.DataSource.AgendaVotes(agendaId, 0)
+	chartDataByTime, err := c.DataSource.AgendaVotes(agendaID, 0)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("AgendaVotes timeout error %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1889,7 +1892,7 @@ func (c *appContext) getAgendaData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	chartDataByHeight, err := c.DataSource.AgendaVotes(agendaId, 1)
+	chartDataByHeight, err := c.DataSource.AgendaVotes(agendaID, 1)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("AgendaVotes timeout error: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)

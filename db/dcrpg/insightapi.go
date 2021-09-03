@@ -16,14 +16,17 @@ import (
 	apitypes "github.com/decred/dcrdata/v6/api/types"
 	"github.com/decred/dcrdata/v6/db/cache"
 	"github.com/decred/dcrdata/v6/db/dbtypes"
-	"github.com/decred/dcrdata/v6/rpcutils"
 	"github.com/decred/dcrdata/v6/txhelpers"
 )
 
 // GetRawTransactionByHash gets a chainjson.TxRawResult for the specified
 // transaction hash string.
 func (pgb *ChainDB) GetRawTransactionByHash(txid string) (*chainjson.TxRawResult, error) {
-	txraw, err := rpcutils.GetTransactionVerboseByHashString(pgb.Client, txid)
+	txhash, err := chainhash.NewHashFromStr(txid)
+	if err != nil {
+		return nil, err
+	}
+	txraw, err := pgb.Client.GetRawTransactionVerbose(context.TODO(), txhash)
 	if err != nil {
 		log.Errorf("GetRawTransactionVerbose failed for: %s", txid)
 		return nil, err
@@ -34,7 +37,7 @@ func (pgb *ChainDB) GetRawTransactionByHash(txid string) (*chainjson.TxRawResult
 // GetRawTransaction gets a chainjson.TxRawResult for the specified transaction
 // hash.
 func (pgb *ChainDB) GetRawTransaction(txid *chainhash.Hash) (*chainjson.TxRawResult, error) {
-	txraw, err := rpcutils.GetTransactionVerboseByID(pgb.Client, txid)
+	txraw, err := pgb.Client.GetRawTransactionVerbose(context.TODO(), txid)
 	if err != nil {
 		log.Errorf("GetRawTransactionVerbose failed for: %s", txid)
 		return nil, err
@@ -155,10 +158,9 @@ func (pgb *ChainDB) InsightSearchRPCAddressTransactions(addr string, count,
 // GetTransactionHex returns the full serialized transaction for the specified
 // transaction hash as a hex encode string.
 func (pgb *ChainDB) GetTransactionHex(txid *chainhash.Hash) string {
-	txraw, err := rpcutils.GetTransactionVerboseByID(pgb.Client, txid)
-
+	txraw, err := pgb.Client.GetRawTransactionVerbose(context.TODO(), txid)
 	if err != nil {
-		log.Errorf("GetRawTransactionVerbose failed for: %v", err)
+		log.Errorf("GetRawTransactionVerbose(%v) failed: %v", txid, err)
 		return ""
 	}
 
@@ -168,14 +170,24 @@ func (pgb *ChainDB) GetTransactionHex(txid *chainhash.Hash) string {
 // GetBlockVerboseByHash returns a *chainjson.GetBlockVerboseResult for the
 // specified block hash, optionally with transaction details.
 func (pgb *ChainDB) GetBlockVerboseByHash(hash string, verboseTx bool) *chainjson.GetBlockVerboseResult {
-	return rpcutils.GetBlockVerboseByHash(pgb.Client, hash, verboseTx)
+	blockhash, err := chainhash.NewHashFromStr(hash)
+	if err != nil {
+		log.Errorf("Invalid block hash %s", hash)
+		return nil
+	}
+
+	blockVerbose, err := pgb.Client.GetBlockVerbose(context.TODO(), blockhash, verboseTx)
+	if err != nil {
+		log.Errorf("GetBlockVerbose(%v) failed: %v", hash, err)
+		return nil
+	}
+	return blockVerbose
 }
 
 // GetTransactionsForBlockByHash returns a *apitypes.BlockTransactions for the
 // block with the specified hash.
 func (pgb *ChainDB) GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions {
-	blockVerbose := rpcutils.GetBlockVerboseByHash(pgb.Client, hash, false)
-
+	blockVerbose := pgb.GetBlockVerboseByHash(hash, false)
 	return makeBlockTransactions(blockVerbose)
 }
 
