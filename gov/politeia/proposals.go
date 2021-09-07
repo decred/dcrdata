@@ -38,7 +38,8 @@ const dbinfo = "_proposals.db_"
 // ProposalsDB defines the object that interacts with the local proposals
 // db, and with decred's politeia server.
 type ProposalsDB struct {
-	lastSync int64 // atomic
+	lastSync int64  // atomic
+	updating uint32 // atomic
 	dbP      *storm.DB
 	client   *piclient.Client
 	APIPath  string
@@ -129,6 +130,12 @@ func (db *ProposalsDB) ProposalsSync() error {
 	if db == nil || db.dbP == nil {
 		return errDef
 	}
+
+	if !atomic.CompareAndSwapUint32(&db.updating, 0, 1) {
+		log.Debug("ProposalsSync: proposals update already in progress.")
+		return nil
+	}
+	defer atomic.StoreUint32(&db.updating, 0)
 
 	// Save the timestamp of the last update check.
 	defer atomic.StoreInt64(&db.lastSync, time.Now().UTC().Unix())
