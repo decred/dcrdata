@@ -5712,6 +5712,7 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 	txBasic, txType := makeExplorerTxBasic(txraw, ticketPrice, msgTx, pgb.chainParams)
 	tx := &exptypes.TxInfo{
 		TxBasic:       txBasic,
+		TxVersion:     txraw.Version,
 		BlockHeight:   txraw.BlockHeight,
 		BlockIndex:    txraw.BlockIndex,
 		BlockHash:     txraw.BlockHash,
@@ -5845,6 +5846,7 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 			Type:            vout.ScriptPubKey.Type,
 			Spent:           txout == nil,
 			Index:           vout.N,
+			Version:         vout.Version,
 		})
 	}
 	tx.Vout = outputs

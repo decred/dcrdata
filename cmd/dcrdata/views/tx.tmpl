@@ -228,25 +228,23 @@
                   {{end}}
               {{end}}
               <tr>
-                <td class="text-right medium-sans text-nowrap pr-2 py-2"
-                  >Raw Tx:
+                <td class="text-right medium-sans text-nowrap pr-2 py-2">Tx Raw: </td>
+                <td class="text-left py-1 text-secondary">
+                  <a href="/api/tx/decoded/{{.TxID}}?indent=true" data-turbolinks="false">decoded</a> &middot;
+                  <a href="/api/tx/hex/{{.TxID}}" data-turbolinks="false">hex</a>
                 </td>
-                <td class="text-left py-1 text-secondary"><a
-                  href="/api/tx/decoded/{{.TxID}}?indent=true" data-turbolinks="false">decoded</a> &middot; <a
-                  href="/api/tx/hex/{{.TxID}}" data-turbolinks="false">hex</a>
-                </td>
-                <td class="text-right medium-sans text-nowrap pr-2 py-2"
-                  >Time:
-                </td>
+                <td class="text-right medium-sans text-nowrap pr-2 py-2">Time: </td>
                 <td class="text-left py-1 text-secondary" data-target="tx.formattedAge">{{.Time.String}}</td>
               </tr>
               <tr>
-                <td class="text-right medium-sans text-nowrap pr-2 py-2"
-                  >Size:
-                </td>
-                <td class="text-left py-1 text-secondary">{{.FormattedSize}}</td>
-                <td class="text-right medium-sans text-nowrap pr-2 py-2">Rate:</td>
+                <td class="text-right medium-sans text-nowrap pr-2 py-2">Tx Version: </td>
+                <td class="text-left py-1 text-secondary">{{.TxVersion}}</td>
+                <td class="text-right medium-sans text-nowrap pr-2 py-2">Rate: </td>
                 <td class="text-left py-1 text-secondary">{{.FeeRate}}/kB</td>
+              </tr>
+              <tr>
+                <td class="text-right medium-sans text-nowrap pr-2 py-2">Size: </td>
+                <td class="text-left py-1 text-secondary">{{.FormattedSize}}</td>
               </tr>
               {{if $.SwapsFound}}
                 <tr>
@@ -362,6 +360,7 @@
                     <th class="shrink-to-fit">#</th>
                     <th class="addr-hash-column"><div class="pl-1">Address</div></th>
                     <th class="text-left shrink-to-fit">Type</th>
+                    <th class="text-left shrink-to-fit">Version</th>
                     <th class="text-left shrink-to-fit">Spent</th>
                     <th class="text-right shrink-to-fit">DCR</th>
                   </tr>
@@ -395,6 +394,9 @@
                         </td>
                         <td class="fs13 break-word shrink-to-fit">
                             {{.Type}}
+                        </td>
+                        <td class="fs13 break-word shrink-to-fit">
+                            {{$v.Version}}
                         </td>
                         <td class="text-left fs13 shrink-to-fit">{{with $spending := (index $.Data.SpendingTxns $i) }}
                             {{if $spending.Hash}}
