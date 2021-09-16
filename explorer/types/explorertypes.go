@@ -173,6 +173,7 @@ type TrimmedTxInfo struct {
 // TxInfo models data needed for display on the tx page
 type TxInfo struct {
 	*TxBasic
+	TxVersion        int32
 	SpendingTxns     []TxInID
 	Vin              []Vin
 	Vout             []Vout
@@ -427,6 +428,7 @@ type Vout struct {
 	OP_RETURN       string
 	OP_TADD         bool
 	Index           uint32
+	Version         uint16
 }
 
 // TrimmedBlockInfo models data needed to display block info on the new home page
