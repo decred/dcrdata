@@ -45,7 +45,8 @@ export default class extends Controller {
       'mpRevTotal', 'mpRevCount', 'mpRegBar', 'mpVoteBar', 'mpTicketBar',
       'mpRevBar', 'voteTally', 'blockVotes', 'blockHeight', 'blockSize',
       'blockTotal', 'consensusMsg', 'powConverted', 'convertedDev',
-      'convertedSupply', 'convertedDevSub', 'exchangeRate', 'convertedStake'
+      'convertedSupply', 'convertedDevSub', 'exchangeRate', 'convertedStake',
+      'mixedPct'
     ]
   }
 
