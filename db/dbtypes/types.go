@@ -837,7 +837,6 @@ func (a UInt64Array) Value() (driver.Value, error) {
 
 // Vout defines a transaction output
 type Vout struct {
-	// txDbID           int64
 	TxHash           string           `json:"tx_hash"`
 	TxIndex          uint32           `json:"tx_index"`
 	TxTree           int8             `json:"tx_tree"`
@@ -1685,7 +1684,7 @@ type ScriptPubKeyData struct {
 	ReqSigs   uint32   `json:"reqSigs"`
 	Type      string   `json:"type"`
 	Addresses []string `json:"addresses"`
-	// TODO: script version here instead?
+	// NOTE: Script version is in Vout struct.
 }
 
 // VinTxProperty models a transaction input with previous outpoint information.

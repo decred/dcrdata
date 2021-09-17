@@ -150,6 +150,7 @@ type WebBasicBlock struct {
 type TxBasic struct {
 	TxID          string
 	Type          string
+	Version       int32
 	FormattedSize string
 	Total         float64
 	Fee           dcrutil.Amount
@@ -173,7 +174,6 @@ type TrimmedTxInfo struct {
 // TxInfo models data needed for display on the tx page
 type TxInfo struct {
 	*TxBasic
-	TxVersion        int32
 	SpendingTxns     []TxInID
 	Vin              []Vin
 	Vout             []Vout
@@ -696,13 +696,14 @@ func TrimMempoolTx(tx *MempoolTx) (trimmedTx *TrimmedTxInfo) {
 	}
 	txBasic := &TxBasic{
 		TxID:          tx.TxID,
+		Type:          tx.Type,
+		Version:       tx.Version,
 		FormattedSize: BytesString(uint64(tx.Size)),
 		Total:         tx.TotalOut,
 		Fee:           fee,
 		FeeRate:       feeRate,
 		VoteInfo:      tx.VoteInfo,
-		Coinbase:      tx.Coinbase, // eh, in mempool???
-		// TreasuryBase not in mempool (either)
+		// TreasuryBase and Coinbase are not in mempool
 	}
 
 	var voteValid bool
@@ -986,6 +987,7 @@ type TicketPoolInfo struct {
 // MempoolTx models the tx basic data for the mempool page
 type MempoolTx struct {
 	TxID    string  `json:"txid"`
+	Version int32   `json:"version"`
 	Fees    float64 `json:"fees"`
 	FeeRate float64 `json:"fee_rate"`
 	// Consider atom representation:
@@ -993,7 +995,7 @@ type MempoolTx struct {
 	VinCount  int            `json:"vin_count"`
 	VoutCount int            `json:"vout_count"`
 	Vin       []MempoolInput `json:"vin,omitempty"`
-	Coinbase  bool           `json:"coinbase"` // why?
+	Coinbase  bool           `json:"coinbase"` // to signal the coinbase tx on new block despite not being in mempool
 	Hash      string         `json:"hash"`     // dup of TxID?
 	Time      int64          `json:"time"`
 	Size      int32          `json:"size"`

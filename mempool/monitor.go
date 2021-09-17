@@ -245,6 +245,7 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 
 	tx := exptypes.MempoolTx{
 		TxID:      hash,
+		Version:   rawTx.Version,
 		Fees:      fee.ToCoin(),
 		FeeRate:   feeRate.ToCoin(),
 		VinCount:  len(msgTx.TxIn),
