@@ -859,6 +859,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			TxBasic: &types.TxBasic{
 				TxID:          hash,
 				Type:          txTypeStr,
+				Version:       int32(dbTx0.Version),
 				FormattedSize: humanize.Bytes(uint64(dbTx0.Size)),
 				Total:         dcrutil.Amount(dbTx0.Sent).ToCoin(),
 				Fee:           fees,
@@ -922,11 +923,12 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				Addresses:       vouts[iv].ScriptPubKeyData.Addresses,
 				Amount:          amount,
 				FormattedAmount: humanize.Commaf(amount),
-				Type:            txTypeStr, // wrong, needs to be output script type
+				Type:            vouts[iv].ScriptPubKeyData.Type,
 				Spent:           spendingTx != "",
 				OP_RETURN:       opReturn,
 				OP_TADD:         opTAdd,
 				Index:           vouts[iv].TxIndex,
+				Version:         vouts[iv].Version,
 			})
 		}
 

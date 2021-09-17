@@ -149,6 +149,7 @@ func (t *DataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.MempoolAd
 
 		txs = append(txs, exptypes.MempoolTx{
 			TxID:      hashStr,
+			Version:   rawtx.Version,
 			Fees:      tx.Fee,
 			FeeRate:   feeRate.ToCoin(),
 			VinCount:  len(msgTx.TxIn),

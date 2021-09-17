@@ -745,7 +745,8 @@ func (psh *PubSubHub) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBl
 	// The coinbase transaction is also sent in a new transaction signal to
 	// pubsub clients. It's not really mempool.
 	newTxCoinbase := exptypes.MempoolTx{
-		TxID: coinbaseHash,
+		TxID:    coinbaseHash,
+		Version: int32(coinbaseTx.Version),
 		// Fees are 0
 		VinCount:  len(coinbaseTx.TxIn),
 		VoutCount: len(coinbaseTx.TxOut),

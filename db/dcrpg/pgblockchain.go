@@ -5382,6 +5382,7 @@ func makeExplorerTxBasic(data *chainjson.TxRawResult, ticketPrice int64, msgTx *
 	tx := &exptypes.TxBasic{
 		TxID:          data.Txid,
 		Type:          txhelpers.TxTypeToString(int(txType)),
+		Version:       data.Version,
 		FormattedSize: humanize.Bytes(uint64(len(data.Hex) / 2)),
 		Total:         txhelpers.TotalVout(data.Vout).ToCoin(),
 	}
@@ -5712,7 +5713,6 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 	txBasic, txType := makeExplorerTxBasic(txraw, ticketPrice, msgTx, pgb.chainParams)
 	tx := &exptypes.TxInfo{
 		TxBasic:       txBasic,
-		TxVersion:     txraw.Version,
 		BlockHeight:   txraw.BlockHeight,
 		BlockIndex:    txraw.BlockIndex,
 		BlockHash:     txraw.BlockHash,
@@ -6216,6 +6216,7 @@ func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
 
 		txs = append(txs, exptypes.MempoolTx{
 			TxID:     hashStr,
+			Version:  rawtx.Version, // or int32(msgTx.Version)
 			Fees:     fee.ToCoin(),
 			FeeRate:  feeRate.ToCoin(),
 			Hash:     hashStr, // dup of TxID!

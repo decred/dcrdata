@@ -42,6 +42,7 @@ func TestDeepCopys(t *testing.T) {
 	tickets := []MempoolTx{
 		{
 			TxID:      "96e10d7ce108b1a357168b0a923d86d2744ba9777a2d81cbff71ffb982381c95",
+			Version:   1,
 			Fees:      0.0001,
 			VinCount:  2,
 			VoutCount: 5,
@@ -64,6 +65,7 @@ func TestDeepCopys(t *testing.T) {
 		},
 		{
 			TxID:      "8eb2f6c8f3a9cdc8d6de2ef3bfca9efcffed4484dd4fde2d01dc0fc0e415c75a",
+			Version:   2,
 			Fees:      0.0001,
 			VinCount:  2,
 			VoutCount: 5,
