@@ -40,7 +40,6 @@
     "eslint-webpack-plugin": "^3.0.1",
     "mini-css-extract-plugin": "^2.2.2",
     "mousetrap": "^1.6.5",
-    "notifyjs": "^3.0.0",
     "sass": "^1.39.0",
     "sass-loader": "^12.1.0",
     "stimulus": "^1.1.1",
