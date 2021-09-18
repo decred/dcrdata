@@ -2,14 +2,13 @@
 import 'regenerator-runtime/runtime'
 /* global require */
 import ws from './js/services/messagesocket_service'
-import './js/services/desktop_notification_service'
+import { notifyNewBlock } from './js/services/desktop_notification_service'
 import { Application } from 'stimulus'
 import { definitionsFromContext } from 'stimulus/webpack-helpers'
 import { darkEnabled } from './js/services/theme_service'
 import globalEventBus from './js/services/event_bus_service'
 
 require('./scss/application.scss')
-// import './scss/application.scss'
 
 window.darkEnabled = darkEnabled
 
@@ -35,7 +34,7 @@ function sleep (ms) {
 async function createWebSocket (loc) {
   // wait a bit to prevent websocket churn from drive by page loads
   const uri = getSocketURI(loc)
-  await sleep(1000)
+  await sleep(300)
   ws.connect(uri)
 
   const updateBlockData = function (event) {
@@ -63,3 +62,4 @@ window.logDebug = yes => {
 }
 
 createWebSocket(window.location)
+globalEventBus.on('BLOCK_RECEIVED', notifyNewBlock)
