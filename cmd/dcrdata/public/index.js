@@ -2,7 +2,6 @@
 import 'regenerator-runtime/runtime'
 /* global require */
 import ws from './js/services/messagesocket_service'
-import { notifyNewBlock } from './js/services/desktop_notification_service'
 import { Application } from 'stimulus'
 import { definitionsFromContext } from 'stimulus/webpack-helpers'
 import { darkEnabled } from './js/services/theme_service'
@@ -22,6 +21,17 @@ document.addEventListener('turbolinks:load', function (e) {
   })
 })
 
+export function notifyNewBlock (newBlock) {
+  if (window.Notification.permission !== 'granted') return
+  const block = newBlock.block
+  const newBlockNtfn = new window.Notification('New Decred Block Mined', {
+    body: `Block mined at height <b>${block.height}</b>`,
+    icon: '/images/dcrdata144x128.png',
+    notifyError: (e) => console.error('Error showing notification:', e)
+  })
+  setTimeout(() => newBlockNtfn.close(), 3000)
+}
+
 function getSocketURI (loc) {
   const protocol = (loc.protocol === 'https:') ? 'wss' : 'ws'
   return protocol + '://' + loc.host + '/ws'
@@ -40,8 +50,7 @@ async function createWebSocket (loc) {
   const updateBlockData = function (event) {
     const newBlock = JSON.parse(event)
     if (window.loggingDebug) {
-      console.log('Block received')
-      console.log(newBlock)
+      console.log('Block received:', newBlock)
     }
     newBlock.block.unixStamp = new Date(newBlock.block.time).getTime() / 1000
     globalEventBus.publish('BLOCK_RECEIVED', newBlock)

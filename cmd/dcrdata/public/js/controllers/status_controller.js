@@ -2,7 +2,6 @@
 import { Controller } from 'stimulus'
 import dompurify from 'dompurify'
 import ws from '../services/messagesocket_service'
-import Notify from 'notifyjs'
 import globalEventBus from '../services/event_bus_service'
 
 function buildProgressBar (data) {
@@ -48,21 +47,6 @@ function humanizeTime (secs) {
     .join('  ')
 }
 
-function doNotification () {
-  const newBlockNtfn = new Notify('Blockchain Sync Complete', {
-    body: 'Redirecting to home in 20 secs.',
-    tag: 'blockheight',
-    image: '/images/dcrdata144x128.png',
-    icon: '/images/dcrdata144x128.png',
-    notifyShow: Notify.onShowNotification,
-    notifyClose: Notify.onCloseNotification,
-    notifyClick: Notify.onClickNotification,
-    notifyError: Notify.onErrorNotification,
-    timeout: 10
-  })
-  newBlockNtfn.show()
-}
-
 let hasRedirected = false
 
 export default class extends Controller {
@@ -88,10 +72,16 @@ export default class extends Controller {
 
         if (v.subtitle === 'sync complete' && !hasRedirected) {
           hasRedirected = true // block consecutive calls.
-          if (!Notify.needsPermission) doNotification()
-
-          this.messageTarget.querySelector('h5').textContent = 'Blockchain sync is complete. Redirecting to home in 20 secs.'
-          setTimeout(() => Turbolinks.visit('/'), 20000)
+          const msg = 'Blockchain synchronization complete. You will be redirected to the home page shortly.'
+          this.messageTarget.querySelector('h5').textContent = msg
+          setTimeout(() => Turbolinks.visit('/'), 10000)
+          if (window.Notification.permission === 'granted') {
+            const ntfn = new window.Notification('Blockchain Sync Complete', {
+              body: msg,
+              icon: '/images/dcrdata144x128.png'
+            })
+            setTimeout(() => ntfn.close(), 5000)
+          }
           return
         }
       }
