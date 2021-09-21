@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"decred.org/dcrwallet/v2/wallet/txrules"
-	"github.com/chappjc/trylock"
 	"github.com/decred/dcrd/blockchain/stake/v4"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
@@ -39,6 +38,7 @@ import (
 	"github.com/decred/dcrdata/v7/mempool"
 	"github.com/decred/dcrdata/v7/rpcutils"
 	"github.com/decred/dcrdata/v7/stakedb"
+	"github.com/decred/dcrdata/v7/trylock"
 	"github.com/decred/dcrdata/v7/txhelpers"
 )
 
@@ -102,7 +102,7 @@ func TicketPoolData(interval dbtypes.TimeBasedGrouping, height int64) (timeGraph
 	intervalFound = tFound && pFound && dFound
 
 	actualHeight = ticketPoolGraphsCache.Height[interval]
-	isStale = ticketPoolGraphsCache.Height[interval] != height
+	isStale = actualHeight != height
 
 	return
 }

@@ -6,7 +6,6 @@ replace github.com/decred/dcrdata/v7 => ../../
 
 require (
 	decred.org/dcrwallet/v2 v2.0.0-20210901150254-d3e3ef3c3c26
-	github.com/chappjc/trylock v1.0.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/decred/dcrd/blockchain/stake/v4 v4.0.0-20210901152745-8830d9c9cdba
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.3-0.20210525214639-70483c835b7f
