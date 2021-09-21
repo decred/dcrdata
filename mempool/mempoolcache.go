@@ -197,7 +197,9 @@ func (c *DataCache) GetTicketPriceCountTime(feeAvgLength int) *apitypes.PriceCou
 	for i := 0; i < feeAvgLength; i++ {
 		feeAvg += c.allFees[numFees-i-1]
 	}
-	feeAvg /= float64(feeAvgLength)
+	if feeAvgLength > 0 {
+		feeAvg /= float64(feeAvgLength)
+	}
 
 	return &apitypes.PriceCountTime{
 		Price: dcrutil.Amount(c.stakeDiff).ToCoin() + feeAvg,
