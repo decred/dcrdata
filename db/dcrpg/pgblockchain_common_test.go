@@ -50,12 +50,6 @@ var (
 	addrCacheCap int   = 1e4
 )
 
-type dummyParser struct{}
-
-func (p *dummyParser) UpdateSignal() <-chan struct{} {
-	return make(chan struct{})
-}
-
 func openDB() (func() error, error) {
 	dbi := &DBInfo{
 		Host:   dbconfig.PGTestsHost,
@@ -70,7 +64,7 @@ func openDB() (func() error, error) {
 		true, false, 24, 1024, 1 << 16,
 	}
 	var err error
-	db, err = NewChainDB(context.Background(), cfg, nil, nil, new(dummyParser), nil, func() {})
+	db, err = NewChainDB(context.Background(), cfg, nil, nil, nil, func() {})
 	cleanUp := func() error { return nil }
 	if db != nil {
 		cleanUp = db.Close
