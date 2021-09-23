@@ -2,11 +2,24 @@
 <head data-turbolinks-eval="false">
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+	<!-- The above meta tags *must* come first in the head -->
 	<meta name="description" content="dcrdata, an original Decred block explorer powered by Go">
 	<meta name="author" content="The Decred developers">
-	<meta name="application-name"           content="Decred - Autonomous Digital Currency">
-	<meta name="apple-mobile-web-app-title" content="Decred - Autonomous Digital Currency">
+	<meta name="application-name"           content="dcrdata - The Decred Block Explorer">
+	<meta name="apple-mobile-web-app-title" content="dcrdata - The Decred Block Explorer">
+
+	<meta name="twitter:card" content="summary"/>
+	<meta name="twitter:title" content="dcrdata - The Decred Block Explorer"/>
+	<meta name="twitter:description" content="{{ .Title }}"/>
+	<meta name="twitter:image" content="{{ .Data.BaseURL }}/images/dcrdata400x348.png"/>
+
+	<meta property="og:site_name"   content="dcrdata" />
+	<meta property="og:title"       content="dcrdata - The Decred Block Explorer" />
+	<meta property="og:description" content="{{ .Title }}" />
+	<meta property="og:type"        content="website" />
+	<meta property="og:url"         content="{{ .Data.FullURL }}" />
+	<meta property="og:image"       content="{{ .Data.BaseURL }}/images/dcrdata400x348.png" />
+
 	<!--  Custom favicon  -->
 		<!-- Apple PWA -->
 		<link rel="apple-touch-icon" sizes="57x57"   href="/images/favicon/apple-touch-icon-57x57.png?v=yHh3NA">
@@ -38,6 +51,7 @@
 
 	<meta name="turbolinks-cache-control" content="no-cache">
 	<title>{{.Title}}</title>
+
 	<link rel="preload" href="/fonts/icomoon.ttf?g003m6" as="font" type="font/ttf" crossorigin="anonymous" />
 	<link rel="preload" href="/fonts/inconsolata-v15-latin-regular.woff?x=65tv3" as="font" type="font/woff" crossorigin="anonymous" />
 	<link rel="preload" href="/fonts/source-sans-pro-v9-latin-regular.woff?x=65tv3" as="font" type="font/woff" crossorigin="anonymous" />
@@ -46,6 +60,7 @@
 	<link rel="preload" href="/images/themes/light/logo.svg?x=65tv3" as="image" type="image/svg+xml" />
 	<link rel="preload" href="/images/connected.svg?x=65tv3" as="image" type="image/svg+xml" />
 	<link rel="preload" href="/images/disconnected.svg?x=65tv3" as="image" type="image/svg+xml" />
+
 	<link href="/dist/css/style.css?v=PdgRb7S" rel="stylesheet">
 
 	<script src="/js/vendor/turbolinks.min.js?v=65tv3"></script>
