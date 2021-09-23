@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/decred/dcrdata/v7/db/dbtypes"
@@ -29,6 +30,45 @@ const (
 	ctxAgendaId
 	ctxProposalToken
 )
+
+var (
+	xForwardedHost   = http.CanonicalHeaderKey("X-Forwarded-Host")
+	xForwardedProto  = http.CanonicalHeaderKey("X-Forwarded-Proto")
+	xForwardedScheme = http.CanonicalHeaderKey("X-Forwarded-Scheme")
+)
+
+// ProxyHeaders should only be used when behind a trusted proxy, not with direct
+// client connections. This sets Request.URL.Scheme from X-Forwarded-Proto, then
+// X-Forwarded-Scheme, and falls back to the scheme impled by the Request.TLS
+// field. This also sets Request.Host if X-Forwarded-Host was set, but
+// Request.Host is usually already preserved by well-configured reverse proxies.
+func ProxyHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL == nil { // The http.Server should have initialized URL.
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+
+		// Check for X-Forwarded-Host, but the regular Host header is probably
+		// used instead by reverse proxies.
+		if r.Header.Get(xForwardedHost) != "" {
+			r.Host = r.Header.Get(xForwardedHost)
+		}
+
+		// Check for X-Forwarded-Proto, then X-Forwarded-Scheme, and fall back
+		// to the scheme impled by the Request.TLS field.
+		if proto := r.Header.Get(xForwardedProto); proto != "" {
+			r.URL.Scheme = strings.ToLower(proto)
+		} else if proto = r.Header.Get(xForwardedScheme); proto != "" {
+			r.URL.Scheme = strings.ToLower(proto)
+		} else if r.TLS != nil {
+			r.URL.Scheme = "https"
+		} else {
+			r.URL.Scheme = "http"
+		}
+		next.ServeHTTP(w, r)
+	})
+}
 
 const (
 	darkModeCoookie   = "dcrdataDarkBG"

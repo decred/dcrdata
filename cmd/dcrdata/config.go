@@ -112,7 +112,8 @@ type config struct {
 	APIProto            string  `long:"apiproto" description:"Protocol for API (http or https)" env:"DCRDATA_ENABLE_HTTPS"`
 	APIListen           string  `long:"apilisten" description:"Listen address for API. default localhost:7777, :17778 testnet, :17779 simnet" env:"DCRDATA_LISTEN_URL"`
 	IndentJSON          string  `long:"indentjson" description:"String for JSON indentation (default is \"   \"), when indentation is requested via URL query." env:"DCRDATA_INDENT_JSON"`
-	UseRealIP           bool    `long:"userealip" description:"Use the RealIP middleware from the pressly/chi/middleware package to get the client's real IP from the X-Forwarded-For or X-Real-IP headers, in that order." env:"DCRDATA_USE_REAL_IP"`
+	UseRealIP           bool    `long:"userealip" description:"Use the RealIP middleware from the pressly/chi/middleware package to get the client's real IP from the X-Forwarded-For or X-Real-IP headers, in that order. You must have a trusted proxy!" env:"DCRDATA_USE_REAL_IP"`
+	TrustProxy          bool    `long:"trustproxy" description:"There is a trusted proxy between us and the actual client. If this is true, determine the original request scheme and host from X-Forwarded-{Proto,Host}. The regular Host header is likely to be set already."`
 	CacheControlMaxAge  int     `long:"cachecontrol-maxage" description:"Set CacheControl in the HTTP response header to a value in seconds for clients to cache the response. This applies only to FileServer routes." env:"DCRDATA_MAX_CACHE_AGE"`
 	InsightReqRateLimit float64 `long:"insight-limit-rps" description:"Requests/second per client IP for the Insight API's rate limiter." env:"DCRDATA_INSIGHT_RATE_LIMIT"`
 	MaxCSVAddrs         int     `long:"max-api-addrs" description:"Maximum allowed comma-separated addresses for endpoints that accept multiple addresses." env:"DCRDATA_MAX_CSV_ADDRS"`
@@ -654,6 +655,13 @@ func loadConfig() (*config, error) {
 		cfg.ServerHeader = ""
 	case "version":
 		cfg.ServerHeader = AppName + "-" + Version()
+	}
+
+	// If detecting real IP from X headers, this implies you are trusting a
+	// proxy, so we can enable inspecting the other X-Forwarded- headers for
+	// request host and scheme.
+	if cfg.UseRealIP {
+		cfg.TrustProxy = true
 	}
 
 	// Expand some additional paths.

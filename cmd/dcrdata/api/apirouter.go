@@ -334,11 +334,3 @@ func stackedMux(useRealIP bool) *chi.Mux {
 	mux.Use(corsMW.Handler)
 	return mux
 }
-
-func (mux *apiMux) ListenAndServeProto(listen, proto string) {
-	apiLog.Infof("Now serving on %s://%v/", proto, listen)
-	if proto == "https" {
-		go http.ListenAndServeTLS(listen, "dcrdata.cert", "dcrdata.key", mux)
-	}
-	go http.ListenAndServe(listen, mux)
-}
