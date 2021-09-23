@@ -617,5 +617,16 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			return intStr
 		},
 		"floor": math.Floor,
+		"headData": func(data *CommonPageData, title string) headData {
+			return headData{
+				Data:  data,
+				Title: title,
+			}
+		},
 	}
+}
+
+type headData struct {
+	Data  *CommonPageData
+	Title string
 }

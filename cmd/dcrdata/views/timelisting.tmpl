@@ -3,7 +3,7 @@
 <html lang="en">
 {{$lastGrouping := 1}}
 {{$oldest := 0}}
-{{template "html-head" printf "Decred %s List" .TimeGrouping}}
+{{template "html-head" headData .CommonPageData (printf "Decred %s List" .TimeGrouping)}}
     {{template "navbar" . }}
     {{template "blocksBanner" .}}
     <div class="container main" data-controller="time pagenavigation">

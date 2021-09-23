@@ -2,7 +2,7 @@
 {{- $botState := .XcState -}}
 <!DOCTYPE html>
 <html lang="en">
-{{template "html-head" "Decred Market Data"}}
+{{template "html-head" headData .CommonPageData "Decred Market Data"}}
 <body class="{{ theme }}" style="background-color: #3d5873;">
 
 {{- template "navbar" . -}}

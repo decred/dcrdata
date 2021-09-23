@@ -1,7 +1,7 @@
 {{define "mempool"}}
 <!DOCTYPE html>
 <html lang="en">
-{{template "html-head" printf "Decred Mempool"}}
+{{template "html-head" headData .CommonPageData "Decred Mempool"}}
     {{template "navbar" . }}
         {{with .Mempool}}
         <div class="container main"

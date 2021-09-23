@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
 {{$topBlock := 0}}
-{{template "html-head" "Decred Blocks List"}}
+{{template "html-head" headData .CommonPageData "Decred Blocks List"}}
     {{template "navbar" . }}
     {{template "blocksBanner" .}}
     <div class="container px-0 main" data-controller="time pagenavigation blocklist">

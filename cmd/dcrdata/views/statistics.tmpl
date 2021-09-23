@@ -1,7 +1,7 @@
 {{define "statistics"}}
 <!DOCTYPE html>
 <html lang="en">
-    {{ template "html-head" printf "Decred Statistics"}}
+    {{ template "html-head" headData .CommonPageData "Decred Statistics"}}
         {{ template "navbar" . }}
         {{with .Stats}}
         <div class="container py-1">

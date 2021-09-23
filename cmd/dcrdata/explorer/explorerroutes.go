@@ -62,7 +62,14 @@ type CommonPageData struct {
 	Links         *links
 	NetName       string
 	Cookies       Cookies
+	Host          string
+	BaseURL       string // scheme + "://" + "host"
 	RequestURI    string
+}
+
+// FullURL constructs the page's complete URL.
+func (cp *CommonPageData) FullURL() string {
+	return cp.BaseURL + cp.RequestURI
 }
 
 // Status page strings
@@ -1539,7 +1546,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	switch addrType {
 	case txhelpers.AddressTypeP2PKH, txhelpers.AddressTypeP2SH:
 		// All good.
-	case txhelpers.AddressTypeP2PK:
+	case txhelpers.AddressTypeP2PK: // TODO: allow this!
 		message := "Looks like you are searching for an address of type P2PK."
 		exp.StatusPage(w, defaultErrorCode, message, address, ExpStatusP2PKAddress)
 		return
@@ -2583,6 +2590,17 @@ func (exp *explorerUI) commonData(r *http.Request) *CommonPageData {
 	if err != nil && err != http.ErrNoCookie {
 		log.Errorf("Cookie dcrdataDarkBG retrieval error: %v", err)
 	}
+
+	scheme := r.URL.Scheme
+	if scheme == "" {
+		if r.TLS == nil {
+			scheme = "http"
+		} else {
+			scheme = "https"
+		}
+	}
+	baseURL := scheme + "://" + r.Host // assumes not opaque url
+
 	return &CommonPageData{
 		Tip:           tip,
 		Version:       exp.Version,
@@ -2594,6 +2612,8 @@ func (exp *explorerUI) commonData(r *http.Request) *CommonPageData {
 		Cookies: Cookies{
 			DarkMode: darkMode != nil && darkMode.Value == "1",
 		},
+		Host:       r.Host,
+		BaseURL:    baseURL,
 		RequestURI: r.URL.RequestURI(),
 	}
 }
