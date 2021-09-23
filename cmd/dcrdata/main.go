@@ -46,6 +46,7 @@ import (
 	notify "github.com/decred/dcrdata/cmd/dcrdata/notification"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/gops/agent"
 )
 
@@ -662,6 +663,10 @@ func _main(ctx context.Context) error {
 		log.Debugf("Using Server HTTP response header %q", cfg.ServerHeader)
 		webMux.Use(mw.Server(cfg.ServerHeader))
 	}
+	webMux.Use(middleware.Recoverer)
+	if cfg.TrustProxy { // try to determine actual request scheme and host from x-forwarded-{proto,host} headers
+		webMux.Use(explorer.ProxyHeaders)
+	}
 	webMux.With(explore.SyncStatusPageIntercept).Group(func(r chi.Router) {
 		r.Get("/", explore.Home)
 		r.Get("/visualblocks", explore.VisualBlocks)
@@ -724,7 +729,7 @@ func _main(ctx context.Context) error {
 	webMux.With(explore.SyncStatusPageIntercept).Group(func(r chi.Router) {
 		r.NotFound(explore.NotFound)
 
-		r.Mount("/explorer", explore.Mux)
+		r.Mount("/explorer", explore.Mux) // legacy
 		r.Get("/days", explore.DayBlocksListing)
 		r.Get("/weeks", explore.WeekBlocksListing)
 		r.Get("/months", explore.MonthBlocksListing)
