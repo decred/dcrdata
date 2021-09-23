@@ -1,7 +1,7 @@
 {{define "agenda"}}
 <!DOCTYPE html>
 <html lang="en">
-    {{template "html-head" printf "Decred Agenda Charts"}}
+    {{template "html-head" headData .CommonPageData "Decred Agenda Charts"}}
         {{template "navbar" .}}
         {{with .Ai}}
         <div class="container main">

@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
 
-{{template "html-head" printf "Decred Address %s" .Data.Address}}
+{{template "html-head" headData .CommonPageData (printf "Decred Address %s" .Data.Address)}}
     {{template "navbar" . }}
     {{- with .Data}}
     {{- $TxnCount := add .TxnCount .NumUnconfirmed}}

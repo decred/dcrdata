@@ -1,7 +1,7 @@
 {{define "treasury"}}
 <!DOCTYPE html>
 <html lang="en">
-{{template "html-head" "Decred Decentralized Treasury"}}
+{{template "html-head" headData .CommonPageData "Decred Decentralized Treasury"}}
   {{template "navbar" . }}
   {{- with .Data}}
   {{- $bal := .Balance -}}

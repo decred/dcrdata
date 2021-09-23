@@ -1,7 +1,7 @@
 {{define "block" -}}
 <!DOCTYPE html>
 <html lang="en">
-{{template "html-head" printf "Decred Block %d" .Data.Height}}
+{{template "html-head" headData .CommonPageData (printf "Decred Block %d" .Data.Height)}}
 {{ template "navbar" . }}
 <div class="container main" data-controller="time">
 {{- with .Data -}}

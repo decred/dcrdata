@@ -4,7 +4,7 @@
 {{$lastWindow := 0}}
 {{$oldest := 0}}
 
-{{template "html-head" "Decred Windows List"}}
+{{template "html-head" headData .CommonPageData "Decred Windows List"}}
     {{template "navbar" . }}
     {{template "blocksBanner" .}}
     <div data-controller="pagenavigation" class="container main">
