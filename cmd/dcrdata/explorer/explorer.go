@@ -158,7 +158,7 @@ var explorerLinks = &links{
 	Github:          "https://github.com/decred/dcrdata",
 	License:         "https://github.com/decred/dcrdata/blob/master/LICENSE",
 	NetParams:       "https://github.com/decred/dcrd/blob/master/chaincfg/params.go",
-	DownloadLink:    "https://decred.org/downloads/",
+	DownloadLink:    "https://decred.org/wallets/",
 }
 
 // TicketStatusText generates the text to display on the explorer's transaction

@@ -1505,6 +1505,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	type AddressPageData struct {
 		*CommonPageData
 		Data         *dbtypes.AddressInfo
+		Type         txhelpers.AddressType
 		CRLFDownload bool
 		FiatBalance  *exchanges.Conversion
 		Pages        []pageNumber
@@ -1544,12 +1545,9 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 
 	// Handle valid but unsupported address types.
 	switch addrType {
-	case txhelpers.AddressTypeP2PKH, txhelpers.AddressTypeP2SH:
-		// All good.
-	case txhelpers.AddressTypeP2PK: // TODO: allow this!
-		message := "Looks like you are searching for an address of type P2PK."
-		exp.StatusPage(w, defaultErrorCode, message, address, ExpStatusP2PKAddress)
-		return
+	case txhelpers.AddressTypeP2PKH, txhelpers.AddressTypeP2SH, txhelpers.AddressTypeP2PK:
+		// All good. Used to go to StatusPage with ExpStatusP2PKAddress for
+		// txhelpers.AddressTypeP2PK.
 	default:
 		message := "Unsupported address type."
 		exp.StatusPage(w, defaultErrorCode, message, address, ExpStatusNotSupported)
@@ -1563,6 +1561,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		// short-circuit any queries.
 		addrData = &dbtypes.AddressInfo{
 			Address:         address,
+			Type:            addrType,
 			Net:             exp.ChainParams.Net.String(),
 			IsDummyAddress:  true,
 			Balance:         new(dbtypes.AddressBalance),
@@ -1579,7 +1578,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set page parameters.
-	addrData.IsDummyAddress = isZeroAddress // may be redundant
 	addrData.Path = r.URL.Path
 
 	// If exchange monitoring is active, prepare a fiat balance conversion

@@ -1310,6 +1310,22 @@ const (
 	AddressTypeUnknown
 )
 
+// String describes the AddressType.
+func (at AddressType) String() string {
+	switch at {
+	case AddressTypeP2PK:
+		return "pubkey"
+	case AddressTypeP2PKH, AddressTypeOther: // AddressTypeOther is currently schnorr or edwards pkh, but still pkh
+		return "pubkeyhash"
+	case AddressTypeP2SH:
+		return "scripthash"
+	case AddressTypeUnknown:
+		fallthrough
+	default:
+		return "unknown"
+	}
+}
+
 // AddressValidation performs several validation checks on the given address
 // string. Initially, decoding as a Decred address is attempted. If it fails to
 // decode, AddressErrorDecodeFailed is returned with AddressTypeUnknown. If the

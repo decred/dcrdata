@@ -2199,8 +2199,8 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 // AddressData returns comprehensive, paginated information for an address.
 func (pgb *ChainDB) AddressData(address string, limitN, offsetAddrOuts int64,
 	txnType dbtypes.AddrTxnViewType) (addrData *dbtypes.AddressInfo, err error) {
-	_, err = stdaddr.DecodeAddress(address, pgb.chainParams)
-	if err != nil {
+	_, addrType, addrErr := txhelpers.AddressValidation(address, pgb.chainParams)
+	if addrErr != nil && !errors.Is(err, txhelpers.AddressErrorNoError) {
 		return nil, err
 	}
 
@@ -2215,6 +2215,7 @@ func (pgb *ChainDB) AddressData(address string, limitN, offsetAddrOuts int64,
 	}
 
 	populateTemplate := func() {
+		addrData.Type = addrType
 		addrData.Offset = offsetAddrOuts
 		addrData.Limit = limitN
 		addrData.TxnType = txnType.String()

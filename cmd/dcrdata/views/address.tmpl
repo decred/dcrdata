@@ -18,27 +18,30 @@
       <div class="secondary-card d-inline-block w-100 h-100 p-4" data-target="address.bigchart"></div>
     </div>
     <div class="row pb-4 px-2">
-      <div class="col-24 col-xl-10 bg-white px-3 py-3 position-relative">
+      <div class="col-24 col-xl-11 bg-white px-3 py-3 position-relative">
           {{- if eq .Address $.DevAddress}}
               <div class="fs22 pb-3">Legacy Decred Treasury</div>
           {{- else}}
               <div class="fs22 pb-3">Address</div>
           {{- end}}
           <div class="text-left d-flex align-items-start flex-wrap">
-            <div class="fs15 medium-sans break-word d-inline-block hash-box mb-3 clipboard" data-target="address.addr">
+            <div class="fs15 medium-sans break-word d-inline-block hash-box clipboard" data-target="address.addr">
               {{.Address}}{{template "copyTextIcon"}}
             </div>
             <a
               data-action="click->address#showQRCode"
               data-target="address.qricon"
-              class="dcricon-qrcode jsonly no-underline color-inherit clickable lh1rem ml-2 mt-2 mb-3"
+              class="dcricon-qrcode jsonly no-underline color-inherit clickable lh1rem ml-2 mt-2"
             ></a>
             <div class="d-inline-block" data-target="address.qrbox">
                 <div data-action="click->address#hideQRCode"
                     data-target="address.qrimg"
-                    class="qrimg clickable d-inline-block mb-3"
+                    class="qrimg clickable d-inline-block"
                 ></div>
             </div>
+          </div>
+          <div class="text-left d-flex fs12 text-secondary pb-2 flex-wrap">
+          {{.Type}}
           </div>
           <div class="position-relative d-flex justify-content-between align-items-center flex-wrap">
             <div class="d-inline-block text-left pr-2 pb-3">
@@ -117,7 +120,7 @@
             {{end}}
           </div>
       </div>
-      <div class="col-24 col-xl-14 secondary-card p-2">
+      <div class="col-24 col-xl-13 secondary-card p-2">
         <noscript>
           <div class="text-center pt-5 fs15">Enable Javascript to see charts</div>
         </noscript>
