@@ -1927,6 +1927,7 @@ type AddressInfo struct {
 	// Address is the decred address on the current page
 	Address string
 	Net     string
+	Type    txhelpers.AddressType
 
 	// IsDummyAddress is true when the address is the dummy address typically
 	// used for unspendable ticket change outputs. See
