@@ -26,10 +26,10 @@ function txTableRow (tx) {
           ${copyIcon()}
           ${alertArea()}
           </td>
-        <td class="mono fs15 text-right">${humanize.decimalParts(tx.total, false, 8)}</td>
-        <td class="mono fs15 text-right">${tx.size} B</td>
-        <td class="mono fs15 text-right">${tx.fee_rate} DCR/kB</td>
-        <td class="mono fs15 text-right" data-target="time.age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
+        <td class="mono fs15 text-end">${humanize.decimalParts(tx.total, false, 8)}</td>
+        <td class="mono fs15 text-end">${tx.size} B</td>
+        <td class="mono fs15 text-end">${tx.fee_rate} DCR/kB</td>
+        <td class="mono fs15 text-end" data-target="time.age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
     </tr>`)
 }
 
@@ -44,9 +44,9 @@ function voteTxTableRow (tx) {
           class="small">${tx.vote_info.last_block ? ' best' : ''}</span></a></td>
         <td class="mono fs15"><a href="/tx/${tx.vote_info.ticket_spent}">${tx.vote_info.mempool_ticket_index}<a/></td>
         <td class="mono fs15">${tx.vote_info.vote_version}</td>
-        <td class="mono fs15 text-right d-none d-sm-table-cell">${humanize.decimalParts(tx.total, false, 8)}</td>
-        <td class="mono fs15 text-right">${humanize.bytes(tx.size)}</td>
-        <td class="mono fs15 text-right d-none d-sm-table-cell jsonly" data-target="time.age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
+        <td class="mono fs15 text-end d-none d-sm-table-cell">${humanize.decimalParts(tx.total, false, 8)}</td>
+        <td class="mono fs15 text-end">${humanize.bytes(tx.size)}</td>
+        <td class="mono fs15 text-end d-none d-sm-table-cell jsonly" data-target="time.age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
     </tr>`)
 }
 

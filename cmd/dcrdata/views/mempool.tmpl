@@ -15,21 +15,21 @@
                 <div class="col-24 col-sm-12 col-md-24 col-lg-12 bg-white py-3 px-3 position-relative">
                     <div class="card-pointer pointer-right d-none d-sm-block d-md-none d-lg-block"></div>
                     <div class="card-pointer pointer-bottom d-sm-none d-md-block d-lg-none"></div>
-                    <div class="pl-1">
+                    <div class="ps-1">
                         <span class="dcricon-stack h5"></span>
-                        <span class="h6 d-inline-block pl-2">Current Mempool</span>
+                        <span class="h6 d-inline-block ps-2">Current Mempool</span>
                     </div>
                     <div class="row">
                         <div class="col-24 col-md-12 col-lg-24 col-xl-12 row pb-2 pb-sm-3 pt-2 pt-md-0 pt-lg-2 pt-xl-0">
                             <div class="col-12 text-center">
-                                <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
+                                <div class="d-inline-block text-center text-md-start text-lg-center text-xl-start">
                                     <span class="text-secondary fs13">Total Sent</span>
                                     <br>
                                     <span class="h4" data-target="mempool.likelyTotal">{{threeSigFigs .LikelyMineable.Total}}</span> <span class="text-secondary">DCR</span>
                                 </div>
                             </div>
                             <div class="col-12 text-center">
-                                <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
+                                <div class="d-inline-block text-center text-md-start text-lg-center text-xl-start">
                                     <span class="text-secondary fs13">Last Block</span>
                                     <br>
                                     <span class="h4"><a href="/block/{{.LastBlockHeight}}" data-target="mempool.bestBlock" data-hash="{{.LastBlockHash}}" data-keynav-priority>{{.LastBlockHeight}}</a></span>
@@ -38,14 +38,14 @@
                         </div>
                         <div class="col-24 col-md-12 col-lg-24 col-xl-12 row pb-3 pt-2 pt-md-0 pt-lg-2 pt-xl-0">
                             <div class="col-12 text-center">
-                                <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
+                                <div class="d-inline-block text-center text-md-start text-lg-center text-xl-start">
                                     <span class="text-secondary fs13" data-target="time.header" data-jstitle="Since Last Block">Last Block</span>
                                     <br>
                                     <span class="h4" data-target="mempool.bestBlockTime time.age" data-age="{{.LastBlockTime}}"><span class="fs13">{{.FormattedBlockTime}}</span></span>
                                 </div>
                             </div>
                             <div class="col-12 text-center">
-                                <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
+                                <div class="d-inline-block text-center text-md-start text-lg-center text-xl-start">
                                     <span class="text-secondary fs13">Size</span>
                                     <br>
                                     <span class="h4" data-target="mempool.mempoolSize">{{.LikelyMineable.FormattedSize}}</span>
@@ -55,9 +55,9 @@
                     </div>
                 </div>
                 <div class="col-24 col-sm-12 col-md-24 col-lg-12 secondary-card pt-3 pb-3 px-3">
-                    <div class="pl-1">
+                    <div class="ps-1">
                       <!-- <span class="dcricon-stack h5"></span> -->
-                      <span class="h6 d-inline-block pl-2">Transactions</span>
+                      <span class="h6 d-inline-block ps-2">Transactions</span>
                     </div>
 
                     <div class="row mt-1">
@@ -118,8 +118,8 @@
                           <thead>
                             <tr>
                               <th>Transaction ID</th>
-                              <th class="text-right">Total DCR</th>
-                              <th class="text-right">Time in Mempool</th>
+                              <th class="text-end">Total DCR</th>
+                              <th class="text-end">Time in Mempool</th>
                             </tr>
                           </thead>
                           <tbody data-target="mempool.revocationTransactions">
@@ -130,10 +130,10 @@
                                     <a class="hash lh1rem" href="/tx/{{.Hash}}">{{.Hash}}</a>
                                     {{template "copyTextIcon"}}
                                   </td>
-                                  <td class="mono fs15 text-right">
+                                  <td class="mono fs15 text-end">
                                     {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
                                   </td>
-                                  <td class="mono fs15 text-right" data-target="time.age" data-age="{{.Time}}"></td>
+                                  <td class="mono fs15 text-end" data-target="time.age" data-age="{{.Time}}"></td>
                               </tr>
                               {{end}}
                               {{else}}
@@ -153,8 +153,8 @@
                           <thead>
                             <tr>
                               <th>Transaction ID</th>
-                              <th class="text-right">Total DCR</th>
-                              <th class="text-right">Time in Mempool</th>
+                              <th class="text-end">Total DCR</th>
+                              <th class="text-end">Time in Mempool</th>
                             </tr>
                           </thead>
                           <tbody data-target="mempool.revocationTransactions">
@@ -164,10 +164,10 @@
                                     <a class="hash lh1rem" href="/tx/{{.Hash}}">{{.Hash}}</a>
                                     {{template "copyTextIcon"}}
                                   </td>
-                                  <td class="mono fs15 text-right">
+                                  <td class="mono fs15 text-end">
                                     {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
                                   </td>
-                                  <td class="mono fs15 text-right" data-target="time.age" data-age="{{.Time}}"></td>
+                                  <td class="mono fs15 text-end" data-target="time.age" data-age="{{.Time}}"></td>
                               </tr>
                               {{end}}
                           </tbody>
@@ -184,11 +184,11 @@
                             <tr>
                               <th>Transaction ID</th>
                               <th>Voting On</th>
-                              <th class="text-right"><div class="inline-block position-relative"><span class="d-none d-sm-inline">Validator ID</span><span class="d-inline d-sm-none" data-tooltip="Validator ID">VID</span></div></th>
-                              <th class="text-right"><div class="inline-block position-relative"><span class="d-none d-sm-inline">Vote Version</span><span class="d-inline d-sm-none" data-tooltip="Vote Version">Ver</span></div></th>
-                              <th class="text-right d-none d-sm-table-cell">Total DCR</th>
-                              <th class="text-right">Size</th>
-                              <th class="text-right d-none d-sm-table-cell jsonly">Time in Mempool</th>
+                              <th class="text-end"><div class="inline-block position-relative"><span class="d-none d-sm-inline">Validator ID</span><span class="d-inline d-sm-none" data-tooltip="Validator ID">VID</span></div></th>
+                              <th class="text-end"><div class="inline-block position-relative"><span class="d-none d-sm-inline">Vote Version</span><span class="d-inline d-sm-none" data-tooltip="Vote Version">Ver</span></div></th>
+                              <th class="text-end d-none d-sm-table-cell">Total DCR</th>
+                              <th class="text-end">Size</th>
+                              <th class="text-end d-none d-sm-table-cell jsonly">Time in Mempool</th>
                             </tr>
                           </thead>
                           <tbody data-target="mempool.voteTransactions">
@@ -205,13 +205,13 @@
                                   </td>
                                   <td class="mono fs15"><a href="/block/{{.VoteInfo.Validation.Hash}}">{{.VoteInfo.Validation.Height}}<span
                                     class="small">{{if .VoteInfo.ForLastBlock}} (best){{end}}</span></a></td>
-                                  <td class="mono fs15 text-right"><a href="/tx/{{.VoteInfo.TicketSpent}}">{{.VoteInfo.MempoolTicketIndex}}</a></td>
-                                  <td class="mono fs15 text-right">{{.VoteInfo.Version}}</td>
-                                  <td class="mono fs15 text-right d-none d-sm-table-cell">
+                                  <td class="mono fs15 text-end"><a href="/tx/{{.VoteInfo.TicketSpent}}">{{.VoteInfo.MempoolTicketIndex}}</a></td>
+                                  <td class="mono fs15 text-end">{{.VoteInfo.Version}}</td>
+                                  <td class="mono fs15 text-end d-none d-sm-table-cell">
                                       {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
                                   </td>
-                                  <td class="mono fs15 text-right">{{.Size}} B</td>
-                                  <td class="mono fs15 text-right d-none d-sm-table-cell jsonly" data-target="time.age" data-age="{{.Time}}"></td>
+                                  <td class="mono fs15 text-end">{{.Size}} B</td>
+                                  <td class="mono fs15 text-end d-none d-sm-table-cell jsonly" data-target="time.age" data-age="{{.Time}}"></td>
                               </tr>
                               {{end}}
                               {{else}}
@@ -230,10 +230,10 @@
                           <thead>
                             <tr>
                               <th>Transaction ID</th>
-                              <th class="text-right">Total DCR</th>
-                              <th class="text-right">Size</th>
-                              <th class="text-right">Fee Rate</th>
-                              <th class="text-right">Time in Mempool</th>
+                              <th class="text-end">Total DCR</th>
+                              <th class="text-end">Size</th>
+                              <th class="text-end">Fee Rate</th>
+                              <th class="text-end">Time in Mempool</th>
                             </tr>
                           </thead>
                           <tbody data-target="mempool.ticketTransactions">
@@ -244,12 +244,12 @@
                                     <a class="hash lh1rem" href="/tx/{{.Hash}}">{{.Hash}}</a>
                                     {{template "copyTextIcon"}}
                                   </td>
-                                  <td class="mono fs15 text-right">
+                                  <td class="mono fs15 text-end">
                                     {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
                                   </td>
-                                  <td class="mono fs15 text-right">{{.Size}} B</td>
-                                  <td class="mono fs15 text-right">{{printf "%.8f" (.FeeRate)}} DCR/kB</td>
-                                  <td class="mono fs15 text-right" data-target="time.age" data-age="{{.Time}}"></td>
+                                  <td class="mono fs15 text-end">{{.Size}} B</td>
+                                  <td class="mono fs15 text-end">{{printf "%.8f" (.FeeRate)}} DCR/kB</td>
+                                  <td class="mono fs15 text-end" data-target="time.age" data-age="{{.Time}}"></td>
                               </tr>
                               {{end}}
                               {{else}}
@@ -269,9 +269,9 @@
                           <thead>
                             <tr>
                               <th>Transaction ID</th>
-                              <th class="text-right">Total DCR</th>
-                              <th class="text-right">Size</th>
-                              <th class="text-right">Time in Mempool</th>
+                              <th class="text-end">Total DCR</th>
+                              <th class="text-end">Size</th>
+                              <th class="text-end">Time in Mempool</th>
                             </tr>
                           </thead>
                           <tbody data-target="mempool.revocationTransactions">
@@ -282,11 +282,11 @@
                                     <a class="hash lh1rem" href="/tx/{{.Hash}}">{{.Hash}}</a>
                                     {{template "copyTextIcon"}}
                                   </td>
-                                  <td class="mono fs15 text-right">
+                                  <td class="mono fs15 text-end">
                                     {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
                                   </td>
-                                  <td class="mono fs15 text-right">{{.Size}} B</td>
-                                  <td class="mono fs15 text-right" data-target="time.age" data-age="{{.Time}}"></td>
+                                  <td class="mono fs15 text-end">{{.Size}} B</td>
+                                  <td class="mono fs15 text-end" data-target="time.age" data-age="{{.Time}}"></td>
                               </tr>
                               {{end}}
                               {{else}}
@@ -306,10 +306,10 @@
                           <thead>
                             <tr>
                               <th>Transaction ID</th>
-                              <th class="text-right">Total DCR</th>
-                              <th class="text-right">Size</th>
-                              <th class="text-right">Fee Rate</th>
-                              <th class="text-right">Time in Mempool</th>
+                              <th class="text-end">Total DCR</th>
+                              <th class="text-end">Size</th>
+                              <th class="text-end">Fee Rate</th>
+                              <th class="text-end">Time in Mempool</th>
                             </tr>
                           </thead>
                           <tbody data-target="mempool.regularTransactions">
@@ -320,12 +320,12 @@
                                       <a class="hash lh1rem" href="/tx/{{.Hash}}">{{.Hash}}</a>
                                       {{template "copyTextIcon"}}
                                   </td>
-                                  <td class="mono fs15 text-right">
+                                  <td class="mono fs15 text-end">
                                     {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
                                   </td>
-                                  <td class="mono fs15 text-right">{{.Size}} B</td>
-                                  <td class="mono fs15 text-right">{{printf "%.8f" (.FeeRate)}} DCR/kB</td>
-                                  <td class="mono fs15 text-right" data-target="time.age" data-age="{{.Time}}"></td>
+                                  <td class="mono fs15 text-end">{{.Size}} B</td>
+                                  <td class="mono fs15 text-end">{{printf "%.8f" (.FeeRate)}} DCR/kB</td>
+                                  <td class="mono fs15 text-end" data-target="time.age" data-age="{{.Time}}"></td>
                               </tr>
                               {{end}}
                               {{else}}

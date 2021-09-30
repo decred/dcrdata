@@ -66,7 +66,7 @@
                 {{end}}
 
                 <div class="d-flex w-100 justify-content-start p-2 my-2 secondary-card rounded">
-                  <div class="col-auto lilbox">
+                  <div class="col-auto lilbox px-2">
                     <!-- <div class="text-secondary text-center fs13">Approval</div> -->
                     <div
                       class="meter text-center js-only lil arch"
@@ -77,22 +77,22 @@
                       {{printf "%.1f" (f32x100 $metadata.Approval)}}%
                     </div>
                   </div>
-                  <div class="col-auto d-flex flex-column justify-content-between pl-3">
+                  <div class="col-auto d-flex flex-column justify-content-between ps-3">
                     <span class="fs17 lh1em">
                       <span class="fs22 medium-sans">{{printf "%.1f" (f32x100 $metadata.Approval)}}%</span>
                       approval of {{intComma $metadata.VoteCount}} votes ({{printf "%.0f" (percentage $metadata.VoteCount (int64 .EligibleTickets))}}% turnout)
                     </span>
                     {{if $metadata.QuorumAchieved}}
-                      <div class="d-flex align-items-center"><span class="fs20 dcricon-affirm mr-2"></span>
+                      <div class="d-flex align-items-center"><span class="fs20 dcricon-affirm me-2"></span>
                       <span class="lh1em pb-1">Quorum achieved</span></div>
                     {{else}}
                       {{if eq $status "started"}}
                         <span class="text-secondary fs13">Quorum</span>
-                        <div class="d-flex align-items-center"><span class="fs20 dcricon-missing mr-2"></span>
+                        <div class="d-flex align-items-center"><span class="fs20 dcricon-missing me-2"></span>
                           <span class="pb-1">{{$metadata.VoteCount}} of {{$metadata.QuorumCount}} needed votes</span>
                         </div>
                       {{else}}
-                        <div class="d-flex align-items-center"><span class="fs20 dcricon-reject mr-2"></span>
+                        <div class="d-flex align-items-center"><span class="fs20 dcricon-reject me-2"></span>
                         <span class="pb-1">Quorum not achieved</span></div>
                       {{end}}
                     {{end}}
@@ -101,11 +101,11 @@
               {{end}}{{/* END LIVE OR FINISHED */ -}}
               <div class="d-flex justify-content-between w-100 pb-1 fs-17">
                 <a class="d-block" href="{{$.PoliteiaURL}}/record/{{$.ShortToken}}">
-                  <span class="dcricon-discussion mr-2 pt-1"></span>
+                  <span class="dcricon-discussion me-2 pt-1"></span>
                   Discussion
                 </a>
                 <a class="d-block" href="/proposals">
-                  <span class="dcricon-back mr-2 pt-1"></span>
+                  <span class="dcricon-back me-2 pt-1"></span>
                   Proposals
                 </a>
               </div>
@@ -113,32 +113,32 @@
 
             {{- /* ADDITIONAL DATA */ -}}
             <div class="col-24 col-xl-13 secondary-card px-3 position-relative d-flex justify-content-center align-items-center">
-              <table class="fs14 my-3 text-left d-flex">
+              <table class="fs14 my-3 text-start d-flex">
                 <tbody>
                   <tr>
-                    <td class="text-right medium-sans text-nowrap pr-2 py-2" >Author:</td>
-                    <td class="text-left py-1 text-secondary">{{.Username}}</td>
-                    <td class="text-right medium-sans text-nowrap pr-2 py-2">Status:</td>
-                    <td class="text-left py-1 text-secondary">
+                    <td class="text-end medium-sans text-nowrap pe-2 py-2" >Author:</td>
+                    <td class="text-start py-1 text-secondary">{{.Username}}</td>
+                    <td class="text-end medium-sans text-nowrap pe-2 py-2">Status:</td>
+                    <td class="text-start py-1 text-secondary">
                       {{$metadata.ProposalStateDesc}} / {{$metadata.ProposalStatusDesc}}
                     </td>
                   </tr>
                   {{if $metadata.VoteCount}}
                     <tr>
-                      <td class="text-right medium-sans text-nowrap pr-2 py-2" >Yes:</td>
-                      <td class="text-left py-1 text-secondary">
+                      <td class="text-end medium-sans text-nowrap pe-2 py-2" >Yes:</td>
+                      <td class="text-start py-1 text-secondary">
                         {{$metadata.Yes}} votes ({{printf "%.1f" (f32x100 $metadata.Approval)}}%)
                       </td>
-                      <td class="text-right medium-sans text-nowrap pr-2 py-2">No:</td>
-                      <td class="text-left py-1 text-secondary">
+                      <td class="text-end medium-sans text-nowrap pe-2 py-2">No:</td>
+                      <td class="text-start py-1 text-secondary">
                         {{$metadata.No}} votes ({{printf "%.1f" (f32x100 $metadata.Rejection)}}%)
                       </td>
                     </tr>
                     <tr>
-                      <td class="text-right medium-sans text-nowrap pr-2 py-2" >Eligible:</td>
-                      <td class="text-left py-1 text-secondary">{{.EligibleTickets}} tickets</td>
-                      <td class="text-right medium-sans text-nowrap pr-2 py-2">Voting Period:</td>
-                      <td class="text-left py-1 text-secondary"
+                      <td class="text-end medium-sans text-nowrap pe-2 py-2" >Eligible:</td>
+                      <td class="text-start py-1 text-secondary">{{.EligibleTickets}} tickets</td>
+                      <td class="text-end medium-sans text-nowrap pe-2 py-2">Voting Period:</td>
+                      <td class="text-start py-1 text-secondary"
                         ><a href="/block/{{.StartBlockHeight}}">{{.StartBlockHeight}}</a>
                         &ndash;
                         {{if eq $status "finished"}}
@@ -150,20 +150,20 @@
                     </tr>
                   {{end}}
                   <tr>
-                    <td class="text-right medium-sans text-nowrap pr-2 py-2">Discussion:</td>
-                    <td class="text-left py-1 text-secondary">{{.CommentsCount}} comments</td>
-                    <td class="text-right medium-sans text-nowrap pr-2 py-2" >Updated:</td>
-                    <td class="text-left py-1 text-secondary">{{TimeConversion .Timestamp}}</td>
+                    <td class="text-end medium-sans text-nowrap pe-2 py-2">Discussion:</td>
+                    <td class="text-start py-1 text-secondary">{{.CommentsCount}} comments</td>
+                    <td class="text-end medium-sans text-nowrap pe-2 py-2" >Updated:</td>
+                    <td class="text-start py-1 text-secondary">{{TimeConversion .Timestamp}}</td>
                   </tr>
                   <tr>
-                    <td class="text-right medium-sans text-nowrap pr-2 py-2">Version:</td>
-                    <td class="text-left py-1 text-secondary">v{{.Version}}</td>
-                    <td class="text-right medium-sans text-nowrap pr-2 py-2">Published:</td>
-                    <td class="text-left py-1 text-secondary">{{TimeConversion .PublishedAt}}</td>
+                    <td class="text-end medium-sans text-nowrap pe-2 py-2">Version:</td>
+                    <td class="text-start py-1 text-secondary">v{{.Version}}</td>
+                    <td class="text-end medium-sans text-nowrap pe-2 py-2">Published:</td>
+                    <td class="text-start py-1 text-secondary">{{TimeConversion .PublishedAt}}</td>
                   </tr>
                   <tr>
-                    <td class="text-right medium-sans text-nowrap pr-2 py-2">Token:</td>
-                    <td colspan="3" class="text-left py-1 text-secondary break-word lh1rem">{{.Token}}</td>
+                    <td class="text-end medium-sans text-nowrap pe-2 py-2">Token:</td>
+                    <td colspan="3" class="text-start py-1 text-secondary break-word lh1rem">{{.Token}}</td>
                   </tr>
                 </tbody>
               </table>

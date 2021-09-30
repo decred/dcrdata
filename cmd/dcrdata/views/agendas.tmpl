@@ -2,16 +2,16 @@
   <table class="w-100 fs14 mt-2">
     <tbody>
       <tr>
-        <td class="text-right medium-sans">Ayes: &nbsp;</td>
-        <td class="text-left"> &nbsp;{{.Aye}}</td>
-        <td class="text-right medium-sans">Approved: &nbsp;</td>
-        <td class="text-left"> &nbsp;{{printf "%.1f" (f32x100 .Approval)}}%</td>
+        <td class="text-end medium-sans">Ayes: &nbsp;</td>
+        <td class="text-start"> &nbsp;{{.Aye}}</td>
+        <td class="text-end medium-sans">Approved: &nbsp;</td>
+        <td class="text-start"> &nbsp;{{printf "%.1f" (f32x100 .Approval)}}%</td>
       </tr>
       <tr>
-        <td class="text-right medium-sans">Nays: &nbsp;</td>
-        <td class="text-left"> &nbsp;{{.Nay}}</td>
-        <td class="text-right medium-sans">Abstain: &nbsp;</td>
-        <td class="text-left"> &nbsp;{{.Abstain}} ({{printf "%.1f" (f32x100 .AbstainRate)}}%)</td>
+        <td class="text-end medium-sans">Nays: &nbsp;</td>
+        <td class="text-start"> &nbsp;{{.Nay}}</td>
+        <td class="text-end medium-sans">Abstain: &nbsp;</td>
+        <td class="text-start"> &nbsp;{{.Abstain}} ({{printf "%.1f" (f32x100 .AbstainRate)}}%)</td>
       </tr>
     </tbody>
   </table>
@@ -30,16 +30,16 @@
             {{if .VotingSummary}}
             {{with .VotingSummary}}
             <div class="row">
-                <div class="py-1 px-4 px-lg-3 text-left col-24 col-lg-12 my-2">
+                <div class="py-1 px-4 px-lg-3 text-start col-24 col-lg-12 my-2">
                   {{range .Agendas}}
-                    <div class="fs16 w-100 text-left bg-white mb-3 p-3">
+                    <div class="fs16 w-100 text-start bg-white mb-3 p-3">
                       {{if .IsDefined}}
                         {{if .VotingTriggered}}
                             <span class="fs18 font-weight-bold lh1rem">{{.ID}} vote scheduled</span><br />
                             <span class="fs14 d-inline-block lh1rem mb-2">voting begins at block {{$.VotingSummary.NextRCIHeight}} (about <span class="font-weight-bold">{{secondsToShortDurationString $.VotingSummary.TilNextRCI}}</span>)</span><br />
                             {{.Description}}
                         {{else}}
-                            <span class="fs18 font-weight-bold mr-2">{{.ID}}</span><br>
+                            <span class="fs18 font-weight-bold me-2">{{.ID}}</span><br>
                             {{.Description}}
                         {{end}}
                       {{else if .IsVoting}}
@@ -49,9 +49,9 @@
                           {{template "voteTable" .}}
                       {{else if .IsLocked}}
                           <div class="d-flex justify-content-start align-items-center mb-2">
-                              <span class="fs22 text-green dcricon-affirm mr-2 pt-1"></span>
+                              <span class="fs22 text-green dcricon-affirm me-2 pt-1"></span>
                               <div class="d-inline-block">
-                                <span class="fs18 font-weight-bold mr-2">{{.ID}} approved</span>
+                                <span class="fs18 font-weight-bold me-2">{{.ID}} approved</span>
                                 <span class="fs14">active at block {{$.VotingSummary.NextRCIHeight}} (about {{secondsToShortDurationString $.VotingSummary.TilNextRCI}})</span>
                               </div>
                           </div>
@@ -59,13 +59,13 @@
                           {{template "voteTable" .}}
                       {{else if .IsFailed}}
                           <div class="d-flex justify-content-start align-items-center mb-2">
-                              <span class="fs22 text-danger dcricon-reject mr-2 pt-1"></span> <span class="fs18 font-weight-bold">{{.ID}} rejected</span>
+                              <span class="fs22 text-danger dcricon-reject me-2 pt-1"></span> <span class="fs18 font-weight-bold">{{.ID}} rejected</span>
                           </div>
                           {{.Description}}
                           {{template "voteTable" .}}
                       {{else if .IsActive}}
                           <div class="d-flex justify-content-start align-items-center mb-2">
-                              <span class="fs22 text-green dcricon-affirm mr-2 pt-1"></span> <span class="fs18 font-weight-bold">{{.ID}} passed (active)</span>
+                              <span class="fs22 text-green dcricon-affirm me-2 pt-1"></span> <span class="fs18 font-weight-bold">{{.ID}} passed (active)</span>
                           </div>
                           {{.Description}}
                           {{template "voteTable" .}}
@@ -73,32 +73,32 @@
                     </div>
                   {{end}}{{/* END AGENDA ITERATION, START RCI/SVI PROGRESS BARS */}}
                     <div class="row justify-content-between">
-                        <div class="col-24 col-sm-12 text-left">
+                        <div class="col-24 col-sm-12 text-start">
                             <span class="text-secondary fs14">Rule Change Interval</span>
                             <div class="progress v2-progress col-24 col-sm-18 px-0">
                                 <div
-                                    class="progress-bar rounded text-left"
+                                    class="progress-bar rounded text-start"
                                     role="progressbar"
                                     style="width: {{f32x100 .RCIProgress}}%;"
                                     aria-valuenow="{{.RCIMined}}"
                                     aria-valuemin="0"
                                     aria-valuemax="{{.RCIBlocks}}"
-                                ><span class="font-weight-bold ml-2">{{printf "%.0f" (f32x100 .RCIProgress)}} %</span>
+                                ><span class="font-weight-bold ms-2">{{printf "%.0f" (f32x100 .RCIProgress)}} %</span>
                                 </div>
                             </div>
                             <span class="fs14">{{.RCIMined}} of {{.RCIBlocks}} blocks</span>
                         </div>
-                        <div class="col-24 col-sm-12 text-left mb-3">
+                        <div class="col-24 col-sm-12 text-start mb-3">
                             <span class="text-secondary fs14">Stake Version Interval</span>
                             <div class="progress v2-progress col-24 col-sm-18 px-0">
                                 <div
-                                    class="progress-bar rounded text-left"
+                                    class="progress-bar rounded text-start"
                                     role="progressbar"
                                     style="width: {{f32x100 .SVIProgress}}%;"
                                     aria-valuenow="{{.SVIMined}}"
                                     aria-valuemin="0"
                                     aria-valuemax="{{.SVIBlocks}}"
-                                ><span class="font-weight-bold ml-2">{{printf "%.0f" (f32x100 .SVIProgress)}} %</span>
+                                ><span class="font-weight-bold ms-2">{{printf "%.0f" (f32x100 .SVIProgress)}} %</span>
                                 </div>
                             </div>
                             <span class="fs14">{{.SVIMined}} of {{.SVIBlocks}} blocks</span>
@@ -242,10 +242,10 @@
                   <tr>
                     <th>Agenda ID</th>
                     <th class="d-none d-md-table-cell">Description</th>
-                    <th class="text-right">Status</th>
-                    <th class="text-right">Vote Version</th>
-                    <th class="text-right d-none d-sm-table-cell">Start Time (UTC)</th>
-                    <th class="text-right d-none d-sm-table-cell">Expire Time (UTC)</th>
+                    <th class="text-end">Status</th>
+                    <th class="text-end">Vote Version</th>
+                    <th class="text-end d-none d-sm-table-cell">Start Time (UTC)</th>
+                    <th class="text-end d-none d-sm-table-cell">Expire Time (UTC)</th>
                   </tr>
                 </thead>
                 {{range $i, $v := .Agendas}}
@@ -253,10 +253,10 @@
                 <tbody>
                     <td><a href="/agenda/{{.ID}}">{{.ID}}</a></td>
                     <td class="d-none d-md-table-cell truncate">{{.Description}}</td>
-                    <td class="text-right">{{.Status}}</td>
-                    <td class="text-right">{{.VoteVersion}}</td>
-                    <td class="text-right d-none d-sm-table-cell">{{dateTimeWithoutTimeZone .StartTime}}</td>
-                    <td class="text-right d-none d-sm-table-cell">{{dateTimeWithoutTimeZone .ExpireTime}}</td>
+                    <td class="text-end">{{.Status}}</td>
+                    <td class="text-end">{{.VoteVersion}}</td>
+                    <td class="text-end d-none d-sm-table-cell">{{dateTimeWithoutTimeZone .StartTime}}</td>
+                    <td class="text-end d-none d-sm-table-cell">{{dateTimeWithoutTimeZone .ExpireTime}}</td>
                 </tbody>
                 {{end}}
                 {{end}}

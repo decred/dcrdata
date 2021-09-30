@@ -18,25 +18,25 @@
                 <div class="col-lg-12 col-sm-12 d-flex">
                     <table class="">
                         <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117 medium-sans">Description</td>
+                            <td class="text-end pe-2 lh1rem vam nowrap xs-w117 medium-sans">Description</td>
                             <td>
                                 <span class="hash lh1rem">{{.Description}}</span>
                             </td>
                         </tr>
                          <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117 medium-sans">Vote Version</td>
+                            <td class="text-end pe-2 lh1rem vam nowrap xs-w117 medium-sans">Vote Version</td>
                             <td class="lh1rem">
                                 <span class="hash break-word">v{{.VoteVersion}}</span>
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117 medium-sans">Agenda Valid</td>
+                            <td class="text-end pe-2 lh1rem vam nowrap xs-w117 medium-sans">Agenda Valid</td>
                             <td>
                                 <span class="hash break-word">{{TimeConversion .StartTime}}</span>
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117 medium-sans">Agenda Expire</td>
+                            <td class="text-end pe-2 lh1rem vam nowrap xs-w117 medium-sans">Agenda Expire</td>
                             <td>
                                 <span class="hash break-word">{{TimeConversion .ExpireTime}}</span>
                             </td>
@@ -46,20 +46,20 @@
                 <div class="col-lg-7 col-sm-12 d-flex">
                 <table class="">
                         <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117 medium-sans">Voting Start</td>
+                            <td class="text-end pe-2 lh1rem vam nowrap xs-w117 medium-sans">Voting Start</td>
                             <td class="lh1rem">
                                 <span class="hash break-word">{{if eq $.VotingStarted 0}}N/A{{else}}<a href="/block/{{$.VotingStarted}}">{{$.VotingStarted}}</a>{{end}}</span>
                             </td>
                         </tr>
                          <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117 medium-sans">Voting End</td>
+                            <td class="text-end pe-2 lh1rem vam nowrap xs-w117 medium-sans">Voting End</td>
                             <td class="lh1rem">
                                 <span class="hash break-word">{{if eq $.LockedIn 0}}N/A{{else}}<a href="/block/{{$.LockedIn}}">{{$.LockedIn}}</a>{{end}}</span>
                             </td>
                         </tr>
                         <tr>
                             {{if gt $.BlocksLeft 0}}
-                                <td class="text-right pr-2 lh1rem vam nowrap xs-w117 medium-sans">Blocks Left</td>
+                                <td class="text-end pe-2 lh1rem vam nowrap xs-w117 medium-sans">Blocks Left</td>
                                 <td class="lh1rem">
                                     <span class="hash break-word">{{intComma $.BlocksLeft}}</span>
                                 </td>
@@ -67,7 +67,7 @@
                         </tr>
                          <tr>
                             {{if ne $.TimeRemaining ""}}
-                                <td class="text-right pr-2 lh1rem vam nowrap xs-w117 medium-sans">Remaining</td>
+                                <td class="text-end pe-2 lh1rem vam nowrap xs-w117 medium-sans">Remaining</td>
                                 <td class="lh1rem">
                                     <span class="hash break-word">{{$.TimeRemaining}}</span>
                                 </td>
@@ -79,20 +79,20 @@
                     <table class="">
 
                         <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117 medium-sans">Status</td>
+                            <td class="text-end pe-2 lh1rem vam nowrap xs-w117 medium-sans">Status</td>
                             <td class="lh1rem">
                                 <span class="hash break-word">{{toTitleCase .Status.String}}</span>
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117 medium-sans">Total Votes</td>
+                            <td class="text-end pe-2 lh1rem vam nowrap xs-w117 medium-sans">Total Votes</td>
                             <td>
                                 <span class="hash break-word">{{$.TotalVotes}}</span>
                             </td>
                         </tr>
                         <tr>
                             {{if gt .QuorumProgress 0.0}}
-                                <td class="text-right pr-2 lh1rem vam nowrap xs-w117 medium-sans">Quorum</td>
+                                <td class="text-end pe-2 lh1rem vam nowrap xs-w117 medium-sans">Quorum</td>
                                 <td class="lh1rem">
                                     <span class="hash break-word">{{$.QuorumVotes}}/{{$.RuleChangeQ}} ({{printf "%.2f" (x100 .QuorumProgress)}}%)</span>
                                 </td>
@@ -110,10 +110,10 @@
                   <tr>
                     <th>ID</th>
                     <th>Description</th>
-                    <th class="text-right">Bits</th>
-                    <th class="text-right">Count</th>
+                    <th class="text-end">Bits</th>
+                    <th class="text-end">Count</th>
                     {{if $showProgress}}
-                        <th class="text-right">Progress</th>
+                        <th class="text-end">Progress</th>
                    {{end}}
                   </tr>
                 </thead>
@@ -121,12 +121,12 @@
                 {{range $i, $v := .Choices}}
                 {{with $v}}
                     <tr>
-                        <td class="text-left">{{.ID}}</td>
-                        <td class="text-left">{{.Description}}</td>
-                        <td class="text-right">{{.Bits}}</td>
-                        <td class="text-right">{{.Count}}</td>
+                        <td class="text-start">{{.ID}}</td>
+                        <td class="text-start">{{.Description}}</td>
+                        <td class="text-end">{{.Bits}}</td>
+                        <td class="text-end">{{.Count}}</td>
                         {{if $showProgress}}
-                            <td class="text-right">{{printf "%.2f" (x100 .Progress)}}%</td>
+                            <td class="text-end">{{printf "%.2f" (x100 .Progress)}}%</td>
                         {{end}}
                     </tr>
                 {{end}}
