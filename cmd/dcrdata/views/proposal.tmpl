@@ -15,7 +15,7 @@
                 {{if .AbandonedAt}}
                   {{block "abandoned" .}}
                     <div class="fs22">{{.Name}}</div>
-                    <div class="fs18 font-weight-bold py-2">Proposal abandoned</div>
+                    <div class="fs18 fw-bold py-2">Proposal abandoned</div>
                     <div class="pb-2">This proposal was designated abandoned {{TimeConversion .AbandonedAt}}.</div>
                   {{end}}
                 {{else}}
@@ -27,7 +27,7 @@
                   {{template "abandoned" .}}
                 {{else}}
                   <div class="fs22">{{.Name}}</div>
-                  <span class="fs18 font-weight-bold lh1rem">Proposal in discussion</span>
+                  <span class="fs18 fw-bold lh1rem">Proposal in discussion</span>
                   <div class="py-2">
                     {{.Username}} has not initiated voting yet. There is
                     <a href="{{$.PoliteiaURL}}/record/{{$.ShortToken}}">an ongoing discussion</a>
@@ -38,7 +38,7 @@
               {{- /* AUTHORIZED */ -}}
               {{else if eq $status "authorized"}}
                 <div class="fs22">{{.Name}}</div>
-                <span class="fs18 font-weight-bold lh1rem">Vote scheduled</span>
+                <span class="fs18 fw-bold lh1rem">Vote scheduled</span>
                 <div class="py-2">
                   {{.Username}} has authorized voting on this proposal.
                   Awaiting admin approval.

@@ -47,7 +47,7 @@
             <div class="d-inline-block text-start pe-2 pb-3">
               <span class="text-secondary fs13">Balance</span>
               <br>
-              <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal font-weight-bold">
+              <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal fw-bold">
                 {{- if .Balance}}
                     {{template "decimalParts" (amountAsDecimalParts .Balance.TotalUnspent true)}}<span class="text-secondary fs14">DCR</span>
                 {{- else}}
@@ -62,7 +62,7 @@
             <div class="d-inline-block text-start pe-2 pb-3">
               <span class="text-secondary fs13">Received</span>
                 <br>
-                <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal font-weight-bold">
+                <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal fw-bold">
                     {{- if .Balance}}
                         {{- $received := add .Balance.TotalSpent .Balance.TotalUnspent}}
                         {{- template "decimalParts" (amountAsDecimalParts $received true)}} <span class="text-secondary fs14">DCR</span>
@@ -76,7 +76,7 @@
             <div class="d-inline-block text-start pe-2 pb-3">
               <span class="text-secondary fs13">Spent</span>
               <br>
-                <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal font-weight-bold">
+                <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal fw-bold">
                 {{- if .Balance}}
                     {{- template "decimalParts" (amountAsDecimalParts .Balance.TotalSpent true)}} <span class="text-secondary fs14">DCR</span>
                 {{- else}}
@@ -91,17 +91,17 @@
           <div class="row pb-2">
               {{- if ne .NumUnconfirmed 0}}
                 <div class="col-12 pb-2 fs14 text-secondary text-start" data-target="address.numUnconfirmed">
-                    <span class="font-weight-bold">Unconfirmed</span>: <span class="addr-unconfirmed-count">{{.NumUnconfirmed}}</span>
+                    <span class="fw-bold">Unconfirmed</span>: <span class="addr-unconfirmed-count">{{.NumUnconfirmed}}</span>
                 </div>
               {{- end}}
               {{- if .Balance.HasStakeOutputs}}
                 <div class="col-12 pb-2 fs14 text-secondary text-start">
-                    <span class="font-weight-bold">Stake spending</span>: {{printf "%.1f" (x100 .Balance.FromStake)}}%
+                    <span class="fw-bold">Stake spending</span>: {{printf "%.1f" (x100 .Balance.FromStake)}}%
                 </div>
               {{- end}}
               {{- if .Balance.HasStakeInputs}}
                 <div class="col-12 pb-2 fs14 text-secondary text-start">
-                    <span class="font-weight-bold">Stake income</span>: {{printf "%.1f" (x100 .Balance.ToStake)}}%
+                    <span class="fw-bold">Stake income</span>: {{printf "%.1f" (x100 .Balance.ToStake)}}%
                 </div>
               {{- end}}
           </div>

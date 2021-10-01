@@ -20,7 +20,7 @@
         <div class="ms-4 me-2 my-4 p-2 p-lg-4 bg-white text-center">
             <div class="text-center fs18 text-secondary">1 DCR =</div>
             {{if eq $botState.BtcIndex "USD"}}
-                <span class="fs18 font-weight-bold d-inline-block pt-1" style="vertical-align:top;">$</span>
+                <span class="fs18 fw-bold d-inline-block pt-1" style="vertical-align:top;">$</span>
             {{end}}
             <span class="fs28" data-target="market.price">{{printf "%.2f" $botState.Price}}</span> <span class="fs16 text-secondary">{{$botState.BtcIndex}}</span>
         </div>
@@ -33,14 +33,14 @@
                 <tbody>
                     <tr class="fs14 lh1rem">
                       <td></td>
-                      <td class="text-end font-weight-bold">DCR Vol.</td>
-                      <td class="text-end font-weight-bold">BTC</td>
+                      <td class="text-end fw-bold">DCR Vol.</td>
+                      <td class="text-end fw-bold">BTC</td>
                       <td></td>
-                      <td class="text-end font-weight-bold">{{$botState.BtcIndex}}</td>
+                      <td class="text-end fw-bold">{{$botState.BtcIndex}}</td>
                     </tr>
                     {{range $botState.VolumeOrderedExchanges}}
                         <tr class="fs hover-row" data-target="market.xcRow" data-action="click->market#setExchange" data-token="{{.Token}}">
-                            <td class="py-2 fs18 font-weight-bold"><div class="exchange-logo {{.Token}} me-2"></div> {{xcDisplayName .Token}}</td>
+                            <td class="py-2 fs18 fw-bold"><div class="exchange-logo {{.Token}} me-2"></div> {{xcDisplayName .Token}}</td>
                             <td class="ps-2 fs16 py-2 text-end" data-type="volume">
                                 {{threeSigFigs .State.Volume}}
                             </td>
@@ -62,7 +62,7 @@
                         </tr>
                     {{end}}
                     <tr class="fs sum-row hover-row" data-target="market.xcRow" data-action="click->market#setExchange" data-token="aggregated">
-                        <td class="py-2 fs18 font-weight-bold"><div class="exchange-logo aggregated me-2"></div> Aggregate</td>
+                        <td class="py-2 fs18 fw-bold"><div class="exchange-logo aggregated me-2"></div> Aggregate</td>
                         <td class="ps-2 fs16 py-2 text-end" data-type="volume">
                             {{threeSigFigs $botState.Volume}}
                         </td>
@@ -85,9 +85,9 @@
             <div class="row">
               {{range $token, $state := $botState.FiatIndices}}
                   <div class="col-12 text-center">
-                      <div class="fs18 font-weight-bold d-flex align-items-center justify-content-center"><div class="exchange-logo {{$token}} me-1"></div> <span class="d-inline-block">{{toTitleCase $token}}</span></div>
+                      <div class="fs18 fw-bold d-flex align-items-center justify-content-center"><div class="exchange-logo {{$token}} me-1"></div> <span class="d-inline-block">{{toTitleCase $token}}</span></div>
                       {{if eq $botState.BtcIndex "USD"}}
-                          <span class="fs16 font-weight-bold d-inline-block pt-1 valign-top">$</span>
+                          <span class="fs16 fw-bold d-inline-block pt-1 valign-top">$</span>
                       {{end}}
                       <span class="fs24" data-price="{{$state.Price}}" data-token="{{$token}}" data-target="market.xcIndex">{{printf "%.2f" $state.Price}}</span> <span class="fs16 text-secondary">{{$botState.BtcIndex}}</span><br>
                       {{if eq $token "coindesk"}}

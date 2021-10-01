@@ -52,7 +52,7 @@
 			</div>
 			<div class="text-start lh1rem py-1">
 				<div class="fs13 text-secondary pb-1">Block Hash</div>
-				<div class="d-inline-block fs14 break-word rounded font-weight-bold">{{.Hash}}</div>
+				<div class="d-inline-block fs14 break-word rounded fw-bold">{{.Hash}}</div>
 			</div>
 			{{if gt (len $.AltBlocks) 0}}
 			<div class="text-start lh1rem py-1">
@@ -60,7 +60,7 @@
 					Alternative Block{{if gt (len $.AltBlocks) 1}}s{{end}}
 				</div>
 				{{range $.AltBlocks}}
-				<div class="d-inline-block fs14 break-word rounded font-weight-bold">
+				<div class="d-inline-block fs14 break-word rounded fw-bold">
 					<a href="/block/{{.Hash}}" title="Valid: {{.IsValid}}">{{.Hash}}</a>
 					<span> ({{if .IsMainchain}}main{{else}}side{{end}})</span>
 				</div>
@@ -72,7 +72,7 @@
 					<span class="text-secondary fs13">Total Sent</span>
 					<br>
 					<span class="lh1rem d-inline-block pt-1"
-						><span class="fs18 fs14-decimal font-weight-bold">{{template "decimalParts" (float64AsDecimalParts .TotalSent 8 true 2)}}</span><span class="text-secondary fs14"> DCR</span>
+						><span class="fs18 fs14-decimal fw-bold">{{template "decimalParts" (float64AsDecimalParts .TotalSent 8 true 2)}}</span><span class="text-secondary fs14"> DCR</span>
 					</span>
 					{{if $.FiatConversion}}
 					<br>
@@ -89,14 +89,14 @@
 				<div class="col-7 col-sm-8 text-start">
 					<span class="text-secondary fs13">Size</span>
 					<br>
-					<span class="fs18 font-weight-bold lh1rem d-inline-block pt-1">{{.FormattedBytes}}</span>
+					<span class="fs18 fw-bold lh1rem d-inline-block pt-1">{{.FormattedBytes}}</span>
 					<br>
 					<span class="fs14 text-secondary">{{.TxCount}} <span class="d-sm-none">txs</span><span class="d-none d-sm-inline">transactions</span></span>
 				</div>
 				<div class="col-7 col-sm-8 text-start">
 					<span class="text-secondary fs13">Block Time</span>
 					<br>
-					<span class="fs18 font-weight-bold lh1rem d-inline-block pt-1">{{.BlockTime.PrettyMDY}}</span>
+					<span class="fs18 fw-bold lh1rem d-inline-block pt-1">{{.BlockTime.PrettyMDY}}</span>
 					<br>
 					<span class="fs14 text-secondary">{{.BlockTime.HMSTZ}} <span class="jsonly">(<span data-target="time.age" data-age="{{.BlockTime.UNIX}}"></span> ago)</span></span>
 				</div>
@@ -113,53 +113,53 @@
 			<table class="w-100 fs14 mt-2 details">
 				<tbody>
 					<tr>
-						<td class="text-end font-weight-bold text-nowrap pe-2"
+						<td class="text-end fw-bold text-nowrap pe-2"
 							><span class="d-none d-sm-inline">Ticket Price</span
 							><span class="d-sm-none">Tkt Price</span>: </td>
 						<td class="text-start text-secondary">{{template "decimalParts" (float64AsDecimalParts .SBits 8 false)}}</td>
-						<td class="text-end font-weight-bold text-nowrap pe-2">Fees: </td>
+						<td class="text-end fw-bold text-nowrap pe-2">Fees: </td>
 						<td class="text-start text-secondary">{{printf "%.8f" .MiningFee}}</td>
-						<td class="d-none d-sm-table-cell text-end font-weight-bold text-nowrap pe-2">Pool Size: </td>
+						<td class="d-none d-sm-table-cell text-end fw-bold text-nowrap pe-2">Pool Size: </td>
 						<td class="d-none d-sm-table-cell text-start text-secondary">{{.PoolSize}}</td>
 					</tr>
 					<tr>
-						<td class="text-end font-weight-bold text-nowrap pe-2"
+						<td class="text-end fw-bold text-nowrap pe-2"
 							><span class="d-none d-sm-inline">PoW Difficulty</span
 							><span class="d-sm-none">PoW Diff</span>: </td>
 						<td class="text-start text-secondary">{{template "decimalParts" (float64AsDecimalParts .Difficulty 0 true)}}</td>
-						<td class="text-end font-weight-bold text-nowrap pe-2"
+						<td class="text-end fw-bold text-nowrap pe-2"
 							><span class="d-none d-sm-inline">Block Version</span
 							><span class="d-sm-none">Blk Ver</span>: </td>
 						<td class="text-start text-secondary">{{.Version}}</td>
-						<td class="d-none d-sm-table-cell text-end font-weight-bold text-nowrap pe-2">Nonce: </td>
+						<td class="d-none d-sm-table-cell text-end fw-bold text-nowrap pe-2">Nonce: </td>
 						<td class="d-none d-sm-table-cell text-start text-secondary">{{.Nonce}}</td>
 					</tr>
 					<tr>
-						<td class="text-end font-weight-bold text-nowrap pe-2">Final State: </td>
+						<td class="text-end fw-bold text-nowrap pe-2">Final State: </td>
 						<td class="text-start text-secondary">{{.FinalState}}</td>
-						<td class="text-end font-weight-bold text-nowrap pe-2"
+						<td class="text-end fw-bold text-nowrap pe-2"
 							><span class="d-none d-sm-inline">Stake Version</span
 							><span class="d-sm-none">Stk Ver</span>: </td>
 						<td class="text-start text-secondary">{{.StakeVersion}}</td>
-						<td class="d-none d-sm-table-cell text-end font-weight-bold text-nowrap pe-2">Vote Bits: </td>
+						<td class="d-none d-sm-table-cell text-end fw-bold text-nowrap pe-2">Vote Bits: </td>
 						<td class="d-none d-sm-table-cell text-start text-secondary">{{.VoteBits}} ({{blockVoteBitsStr .VoteBits}})</td>
 					</tr>
 					<tr class="d-sm-none">
-						<td class="text-end font-weight-bold text-nowrap pe-2">Pool Size: </td>
+						<td class="text-end fw-bold text-nowrap pe-2">Pool Size: </td>
 						<td class="text-start text-secondary">{{.PoolSize}}</td>
-						<td class="text-end font-weight-bold text-nowrap pe-2">Vote Bits: </td>
+						<td class="text-end fw-bold text-nowrap pe-2">Vote Bits: </td>
 						<td class="text-start text-secondary">{{.VoteBits}} ({{blockVoteBitsStr .VoteBits}})</td>
 					</tr>
 					<tr class="d-sm-none">
-						<td class="text-end font-weight-bold text-nowrap pe-2">Nonce: </td>
+						<td class="text-end fw-bold text-nowrap pe-2">Nonce: </td>
 						<td class="text-start text-secondary">{{.Nonce}}</td>
 					</tr>
 					<tr>
-						<td class="text-end font-weight-bold text-nowrap pe-2">Merkle Root: </td>
+						<td class="text-end fw-bold text-nowrap pe-2">Merkle Root: </td>
 						<td colspan="5" class="text-start break-word text-secondary lh1rem"> {{.MerkleRoot}}</td>
 					</tr>
 					<tr>
-						<td class="text-end font-weight-bold text-nowrap pe-2">Stake Root: </td>
+						<td class="text-end fw-bold text-nowrap pe-2">Stake Root: </td>
 						<td colspan="5" class="text-start break-word text-secondary lh1rem"> {{.StakeRoot}}</td>
 					</tr>
 				</tbody>

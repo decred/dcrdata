@@ -35,23 +35,23 @@
                     <div class="fs16 w-100 text-start bg-white mb-3 p-3">
                       {{if .IsDefined}}
                         {{if .VotingTriggered}}
-                            <span class="fs18 font-weight-bold lh1rem">{{.ID}} vote scheduled</span><br />
-                            <span class="fs14 d-inline-block lh1rem mb-2">voting begins at block {{$.VotingSummary.NextRCIHeight}} (about <span class="font-weight-bold">{{secondsToShortDurationString $.VotingSummary.TilNextRCI}}</span>)</span><br />
+                            <span class="fs18 fw-bold lh1rem">{{.ID}} vote scheduled</span><br />
+                            <span class="fs14 d-inline-block lh1rem mb-2">voting begins at block {{$.VotingSummary.NextRCIHeight}} (about <span class="fw-bold">{{secondsToShortDurationString $.VotingSummary.TilNextRCI}}</span>)</span><br />
                             {{.Description}}
                         {{else}}
-                            <span class="fs18 font-weight-bold me-2">{{.ID}}</span><br>
+                            <span class="fs18 fw-bold me-2">{{.ID}}</span><br>
                             {{.Description}}
                         {{end}}
                       {{else if .IsVoting}}
-                          <span class="fs18 font-weight-bold lh1rem">Now voting on {{.ID}}</span><br>
-                          <span class="fs14 d-inline-block lh1rem mb-2">voting ends at block {{$.VotingSummary.NextRCIHeight}} (about <span class="font-weight-bold">{{secondsToShortDurationString $.VotingSummary.TilNextRCI}}</span>)</span><br>
+                          <span class="fs18 fw-bold lh1rem">Now voting on {{.ID}}</span><br>
+                          <span class="fs14 d-inline-block lh1rem mb-2">voting ends at block {{$.VotingSummary.NextRCIHeight}} (about <span class="fw-bold">{{secondsToShortDurationString $.VotingSummary.TilNextRCI}}</span>)</span><br>
                           {{.Description}}
                           {{template "voteTable" .}}
                       {{else if .IsLocked}}
                           <div class="d-flex justify-content-start align-items-center mb-2">
                               <span class="fs22 text-green dcricon-affirm me-2 pt-1"></span>
                               <div class="d-inline-block">
-                                <span class="fs18 font-weight-bold me-2">{{.ID}} approved</span>
+                                <span class="fs18 fw-bold me-2">{{.ID}} approved</span>
                                 <span class="fs14">active at block {{$.VotingSummary.NextRCIHeight}} (about {{secondsToShortDurationString $.VotingSummary.TilNextRCI}})</span>
                               </div>
                           </div>
@@ -59,13 +59,13 @@
                           {{template "voteTable" .}}
                       {{else if .IsFailed}}
                           <div class="d-flex justify-content-start align-items-center mb-2">
-                              <span class="fs22 text-danger dcricon-reject me-2 pt-1"></span> <span class="fs18 font-weight-bold">{{.ID}} rejected</span>
+                              <span class="fs22 text-danger dcricon-reject me-2 pt-1"></span> <span class="fs18 fw-bold">{{.ID}} rejected</span>
                           </div>
                           {{.Description}}
                           {{template "voteTable" .}}
                       {{else if .IsActive}}
                           <div class="d-flex justify-content-start align-items-center mb-2">
-                              <span class="fs22 text-green dcricon-affirm me-2 pt-1"></span> <span class="fs18 font-weight-bold">{{.ID}} passed (active)</span>
+                              <span class="fs22 text-green dcricon-affirm me-2 pt-1"></span> <span class="fs18 fw-bold">{{.ID}} passed (active)</span>
                           </div>
                           {{.Description}}
                           {{template "voteTable" .}}
@@ -83,7 +83,7 @@
                                     aria-valuenow="{{.RCIMined}}"
                                     aria-valuemin="0"
                                     aria-valuemax="{{.RCIBlocks}}"
-                                ><span class="font-weight-bold ms-2">{{printf "%.0f" (f32x100 .RCIProgress)}} %</span>
+                                ><span class="fw-bold ms-2">{{printf "%.0f" (f32x100 .RCIProgress)}} %</span>
                                 </div>
                             </div>
                             <span class="fs14">{{.RCIMined}} of {{.RCIBlocks}} blocks</span>
@@ -98,7 +98,7 @@
                                     aria-valuenow="{{.SVIMined}}"
                                     aria-valuemin="0"
                                     aria-valuemax="{{.SVIBlocks}}"
-                                ><span class="font-weight-bold ms-2">{{printf "%.0f" (f32x100 .SVIProgress)}} %</span>
+                                ><span class="fw-bold ms-2">{{printf "%.0f" (f32x100 .SVIProgress)}} %</span>
                                 </div>
                             </div>
                             <span class="fs14">{{.SVIMined}} of {{.SVIBlocks}} blocks</span>
@@ -117,7 +117,7 @@
                       {{end}}
                       <div class="col-24 d-flex justify-content-around align-items-center">
                         <div class="d-inline-block text-center p-2">
-                          <span class="fs16 font-weight-bold">v{{.Version}} Miners</span><br>
+                          <span class="fs16 fw-bold">v{{.Version}} Miners</span><br>
                           <div
                             class="meter text-center js-only large-gap"
                             data-target="agendas.minerMeter"
@@ -126,10 +126,10 @@
                             >
                             {{printf "%.1f" (f32x100 .MinerProgress)}}%
                           </div><br>
-                          <span class="text-secondary fs14 lh1rem">threshold <span class="font-weight-bold">{{printf "%.0f" (f32x100 .MinerThreshold)}} %</span></span>
+                          <span class="text-secondary fs14 lh1rem">threshold <span class="fw-bold">{{printf "%.0f" (f32x100 .MinerThreshold)}} %</span></span>
                         </div>
                         <div class="d-inline-block text-center p-4">
-                          <span class="fs16 font-weight-bold">v{{.Version}} Voters</span><br>
+                          <span class="fs16 fw-bold">v{{.Version}} Voters</span><br>
                           <div
                             class="meter text-center js-only large-gap"
                             data-target="agendas.voterMeter"
@@ -138,7 +138,7 @@
                             >
                             {{printf "%.1f" (f32x100 .VoterProgress)}}%
                           </div><br>
-                          <span class="text-secondary fs14">threshold <span class="font-weight-bold">{{printf "%.0f" (f32x100 .VoterThreshold)}} %</span></span>
+                          <span class="text-secondary fs14">threshold <span class="fw-bold">{{printf "%.0f" (f32x100 .VoterThreshold)}} %</span></span>
                         </div>
                       </div>
                     </div>
@@ -152,20 +152,20 @@
                       <div class="col-24 col-lg-12 d-flex flex-column justify-content-start pt-2 px-2 text-center">
                           <div>
                             {{if not .QuorumAchieved}}
-                              <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border"><span class="font-weight-bold">{{.ID}}</span> has not achieved quorum yet</div>
+                              <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border"><span class="fw-bold">{{.ID}}</span> has not achieved quorum yet</div>
                             {{else if .IsLocked}}
-                              <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border"><span class="font-weight-bold">{{.ID}}</span> has passed</div>
+                              <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border"><span class="fw-bold">{{.ID}}</span> has passed</div>
                             {{else if .IsWinning}}
-                              <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border"><span class="font-weight-bold">{{.ID}}</span> is winning, but not a lock yet</div>
+                              <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border"><span class="fw-bold">{{.ID}}</span> is winning, but not a lock yet</div>
                             {{else if .IsLosing}}
-                              <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border"><span class="font-weight-bold">{{.ID}}</span> is losing, but hasn't been rejected yet</div>
+                              <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border"><span class="fw-bold">{{.ID}}</span> is losing, but hasn't been rejected yet</div>
                             {{else}}
-                              <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border">Voting on <span class="font-weight-bold">{{.ID}}</span></div>
+                              <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border">Voting on <span class="fw-bold">{{.ID}}</span></div>
                             {{end}}
                           </div>
                           <div class="d-flex justify-content-around align-items-start flex-wrap mt-2">
                             <div class="d-inline-block text-center p-2">
-                              <span class="fs16 font-weight-bold">Quorum</span><br>
+                              <span class="fs16 fw-bold">Quorum</span><br>
                               <div
                                 class="meter text-center js-only large-gap"
                                 data-target="agendas.quorumMeter"
@@ -177,11 +177,11 @@
                               {{if .QuorumAchieved}}
                                 <span class="text-secondary fs14">quorum achieved</span>
                               {{else}}
-                                <span class="text-secondary fs14"><span class="font-weight-bold">{{.VoteCount}} of {{.Quorum}}</span> votes cast</span>
+                                <span class="text-secondary fs14"><span class="fw-bold">{{.VoteCount}} of {{.Quorum}}</span> votes cast</span>
                               {{end}}
                             </div>
                             <div class="d-inline-block text-center p-2">
-                              <span class="fs16 font-weight-bold">Approval</span><br>
+                              <span class="fs16 fw-bold">Approval</span><br>
                               <div
                                 class="meter text-center js-only large-gap"
                                 data-target="agendas.approvalMeter"
@@ -201,7 +201,7 @@
                     {{else if or .IsFailed .IsLocked .IsActive}}{{/* VOTING COMPLETE */}}
                         <div class="col-24 col-lg-12 py-3 px-1 row flex-column justify-content-center align-items-center">
                             <div class="d-inline-block text-center p-2">
-                              <span class="fs16 font-weight-bold">{{.ID}} Results</span><br>
+                              <span class="fs16 fw-bold">{{.ID}} Results</span><br>
                               <div
                                 class="meter text-center js-only large-gap"
                                 data-target="agendas.approvalMeter"

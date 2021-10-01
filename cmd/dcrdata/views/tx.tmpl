@@ -57,7 +57,7 @@
                 <span class="text-secondary fs13">Total Sent</span>
                 <br>
                 <span class="lh1rem d-inline-block pt-1"
-                  ><span class="fs18 fs14-decimal font-weight-bold">{{template "decimalParts" (float64AsDecimalParts .Total 8 true 2)}}</span><span class="text-secondary fs14">DCR</span>
+                  ><span class="fs18 fs14-decimal fw-bold">{{template "decimalParts" (float64AsDecimalParts .Total 8 true 2)}}</span><span class="text-secondary fs14">DCR</span>
                 </span>
                 {{if $conv.Total}}
                 <br>
@@ -73,7 +73,7 @@
             <div class="col-8 text-start"{{if $isMempool}} data-target="tx.unconfirmed" data-txid="{{.TxID}}"{{end}}>
                 <span class="text-secondary fs13"><span class="d-none d-sm-inline">Included in Block</span><span class="d-sm-none">Block #</span></span>
                 <br>
-                <span class="fs18 font-weight-bold lh1rem d-inline-block pt-1">
+                <span class="fs18 fw-bold lh1rem d-inline-block pt-1">
                 {{if $isMempool}}
                     <span><span class="mp-unconfirmed-msg">mempool</span><a href="" class="fs18 mp-unconfirmed-link"></a></span>
                 {{else}}
@@ -98,7 +98,7 @@
                 <span class="text-secondary fs13">Fee</span>
                 <br>
                 <span class="lh1rem d-inline-block pt-1"
-                  ><span class="fs18 fs14-decimal font-weight-bold">{{template "decimalParts" (float64AsDecimalParts .Fee.ToCoin 8 true 2)}}</span><span class="text-secondary fs14">DCR</span>
+                  ><span class="fs18 fs14-decimal fw-bold">{{template "decimalParts" (float64AsDecimalParts .Fee.ToCoin 8 true 2)}}</span><span class="text-secondary fs14">DCR</span>
                 </span>
                 {{if $conv.Fees}}
                 <br>
@@ -113,7 +113,7 @@
               <div class="my-2 w-75 fs14" data-target="tx.ticketStage">
                   <div class="fs13 text-secondary pb-1" data-target="tx.ticketMsg">Maturity</div>
                   <div class="d-none" data-target="tx.expiryMsg">
-                    <span class="fs14 font-weight-bold" data-target="tx.expiryChance">
+                    <span class="fs14 fw-bold" data-target="tx.expiryChance">
                       {{printf "%.2f%%" .TicketInfo.Probability}}
                     </span><span class="fs13 text-secondary"> chance of expiration</span>
                   </div>
@@ -183,7 +183,7 @@
           {{else if .IsLiveTicket}}
             <div class="my-2 text-start" data-target="tx.ticketStage">
               <div>
-                <span class="fs14 font-weight-bold" data-target="tx.expiryChance">
+                <span class="fs14 fw-bold" data-target="tx.expiryChance">
                   {{printf "%.2f%%" .TicketInfo.Probability}}
                 </span><span class="fs13 text-secondary"> chance of expiration</span>
               </div>
