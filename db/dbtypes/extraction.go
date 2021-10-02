@@ -67,7 +67,7 @@ func processTransactions(msgBlock *wire.MsgBlock, tree int8, chainParams *chainc
 	ticketPrice := msgBlock.Header.SBits
 
 	for txIndex, tx := range txs {
-		txType := stake.DetermineTxType(tx, treasuryActive)
+		txType := txhelpers.DetermineTxType(tx, treasuryActive)
 		isStake := txType != stake.TxTypeRegular
 		if isStake && !stakeTree {
 			fmt.Printf(" ***************** INCONSISTENT TREE: txn %v, type = %v", tx.TxHash(), txType)

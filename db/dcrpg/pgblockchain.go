@@ -5378,7 +5378,7 @@ func makeExplorerTxBasic(data *chainjson.TxRawResult, ticketPrice int64, msgTx *
 	if data.BlockHeight > 0 {
 		treasuryActive = txhelpers.IsTreasuryActive(params.Net, data.BlockHeight)
 	}
-	txType := stake.DetermineTxType(msgTx, treasuryActive)
+	txType := txhelpers.DetermineTxType(msgTx, treasuryActive)
 
 	tx := &exptypes.TxBasic{
 		TxID:          data.Txid,
@@ -6190,7 +6190,7 @@ func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
 			continue
 		}
 
-		txType := stake.DetermineTxType(msgTx, treasuryActive)
+		txType := txhelpers.DetermineTxType(msgTx, treasuryActive)
 
 		var voteInfo *exptypes.VoteInfo
 		if txType == stake.TxTypeSSGen /* stake.IsSSGen(msgTx, treasuryActive) */ {

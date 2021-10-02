@@ -1119,8 +1119,26 @@ const (
 // according to consensus at height of txn and thus true can be safely used,
 // although this may be more inefficient than necessary.
 func DetermineTxTypeString(msgTx *wire.MsgTx, treasuryActive bool) string {
-	txType := stake.DetermineTxType(msgTx, treasuryActive)
+	txType := DetermineTxType(msgTx, treasuryActive)
 	return TxTypeToString(int(txType))
+}
+
+func DetermineTxType(msgTx *wire.MsgTx, treasuryActive bool) stake.TxType {
+	// isAutoRevocationsEnabled is set false to keep manually generated
+	// revocations still considered to be valid revocations.  Enabling this
+	// flag would cause legacy revocations to not be flagged as such.
+	// Enabling the flag only adds additional checks, so it's not necessary
+	// to make the call twice with the flag enabled and disabled.
+	return stake.DetermineTxType(msgTx, treasuryActive, false)
+}
+
+func IsSSRtx(tx *wire.MsgTx) bool {
+	// isAutoRevocationsEnabled is set false to keep manually generated
+	// revocations still considered to be valid revocations.  Enabling this
+	// flag would cause legacy revocations to not be flagged as such.
+	// Enabling the flag only adds additional checks, so it's not necessary
+	// to make the call twice with the flag enabled and disabled.
+	return stake.IsSSRtx(tx, false)
 }
 
 // TxTypeToString returns a string representation of the provided transaction
@@ -1182,7 +1200,7 @@ func TxIsRegular(txType int) bool {
 
 // IsStakeTx indicates if the input MsgTx is a stake transaction.
 func IsStakeTx(msgTx *wire.MsgTx, treasuryActive bool) bool {
-	return stake.DetermineTxType(msgTx, treasuryActive) != stake.TxTypeRegular
+	return DetermineTxType(msgTx, treasuryActive) != stake.TxTypeRegular
 }
 
 // TxTree returns for a wire.MsgTx either wire.TxTreeStake or wire.TxTreeRegular

@@ -116,7 +116,7 @@ func (t *DataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.MempoolAd
 			totalOut += v.Value
 		}
 
-		txType := stake.DetermineTxType(msgTx, treasuryActive)
+		txType := txhelpers.DetermineTxType(msgTx, treasuryActive)
 
 		var voteInfo *exptypes.VoteInfo
 		if txType == stake.TxTypeSSGen /* stake.IsSSGen(msgTx, treasuryActive)*/ {
