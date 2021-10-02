@@ -139,7 +139,7 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 	treasuryActive := txhelpers.IsTreasuryActive(p.params.Net, nextHeight)
 
 	hash := msgTx.CachedTxHash().String()
-	txType := stake.DetermineTxType(msgTx, treasuryActive)
+	txType := txhelpers.DetermineTxType(msgTx, treasuryActive)
 	txTypeStr := txhelpers.TxTypeToString(int(txType))
 
 	// Maintain the list of unique stake and regular txns encountered.

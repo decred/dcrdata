@@ -203,7 +203,7 @@ func VotesInBlock(bl *dcrutil.Block) []chainhash.Hash {
 func RevokedTicketsInBlock(bl *dcrutil.Block) []chainhash.Hash {
 	tickets := make([]chainhash.Hash, 0)
 	for _, stx := range bl.STransactions() {
-		if stake.IsSSRtx(stx.MsgTx()) {
+		if IsSSRtx(stx.MsgTx()) {
 			tickets = append(tickets, stx.MsgTx().TxIn[0].PreviousOutPoint.Hash)
 		}
 	}

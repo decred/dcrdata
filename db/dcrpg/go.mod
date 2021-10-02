@@ -5,16 +5,18 @@ go 1.16
 replace github.com/decred/dcrdata/v7 => ../../
 
 require (
-	decred.org/dcrwallet/v2 v2.0.0-20210901150254-d3e3ef3c3c26
+	decred.org/dcrwallet/v2 v2.0.0-20210923184553-4f3b2d70ea25
 	github.com/davecgh/go-spew v1.1.1
-	github.com/decred/dcrd/blockchain/stake/v4 v4.0.0-20210901152745-8830d9c9cdba
-	github.com/decred/dcrd/chaincfg/chainhash v1.0.3-0.20210525214639-70483c835b7f
-	github.com/decred/dcrd/chaincfg/v3 v3.0.1-0.20210525214639-70483c835b7f
-	github.com/decred/dcrd/dcrutil/v4 v4.0.0-20210901152745-8830d9c9cdba
-	github.com/decred/dcrd/rpc/jsonrpc/types/v3 v3.0.0-20210901152745-8830d9c9cdba
+	github.com/decred/dcrd/blockchain/stake/v4 v4.0.0-20210914212651-723d86274b0d
+	github.com/decred/dcrd/chaincfg/chainhash v1.0.4-0.20210914212651-723d86274b0d
+	github.com/decred/dcrd/chaincfg/v3 v3.0.1-0.20210914212651-723d86274b0d
+	github.com/decred/dcrd/dcrec/edwards/v2 v2.0.2-0.20210525214639-70483c835b7f // indirect
+	github.com/decred/dcrd/dcrjson/v3 v3.1.1-0.20210525214639-70483c835b7f // indirect
+	github.com/decred/dcrd/dcrutil/v4 v4.0.0-20210914212651-723d86274b0d
+	github.com/decred/dcrd/rpc/jsonrpc/types/v3 v3.0.0-20210914212651-723d86274b0d
 	github.com/decred/dcrd/rpcclient/v7 v7.0.0-20210901152745-8830d9c9cdba
-	github.com/decred/dcrd/txscript/v4 v4.0.0-20210901152745-8830d9c9cdba
-	github.com/decred/dcrd/wire v1.4.1-0.20210727015103-4d81fc1b6e95
+	github.com/decred/dcrd/txscript/v4 v4.0.0-20210914212651-723d86274b0d
+	github.com/decred/dcrd/wire v1.4.1-0.20210914212651-723d86274b0d
 	github.com/decred/dcrdata/v7 v7.0.0
 	github.com/decred/slog v1.2.0
 	github.com/dustin/go-humanize v1.0.0
