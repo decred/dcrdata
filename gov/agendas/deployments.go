@@ -13,7 +13,7 @@ import (
 
 	"github.com/asdine/storm/v3"
 	"github.com/asdine/storm/v3/q"
-	"github.com/decred/dcrd/dcrjson/v3"
+	"github.com/decred/dcrd/dcrjson/v4"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
 	"github.com/decred/dcrdata/v7/db/dbtypes"
 	"github.com/decred/dcrdata/v7/semver"
@@ -136,7 +136,6 @@ func listStakeVersions(client DeploymentSource) ([]uint32, error) {
 			break
 		}
 
-		// When dcrd fixes the code, do this instead of regexp:
 		if jerr, ok := err.(*dcrjson.RPCError); ok &&
 			jerr.Code == dcrjson.ErrRPCInvalidParameter {
 			firstVer++
