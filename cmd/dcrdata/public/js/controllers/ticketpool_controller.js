@@ -81,7 +81,7 @@ function populateOutputs (data) {
   let tableData = '<tr><th style="width: 30%;"># of sstxcommitment outputs</th><th>Count</th><th>% Occurrence</th></tr>'
   data.outputs.map((n, i) => {
     const count = parseInt(data.count[i])
-    tableData += `<tr><td class="pr-2 lh1rem vam nowrap xs-w117 fw-bold">${parseInt(n)}</td>
+    tableData += `<tr><td class="pe-2 lh1rem vam nowrap xs-w117 fw-bold">${parseInt(n)}</td>
     <td><span class="hash lh1rem">${count}</span></td>
     <td><span class="hash lh1rem">${((count * 100) / totalCount).toFixed(4)}% </span></td></tr>`
   })
