@@ -85,7 +85,7 @@ function legendFormatter (data) {
     const yVals = data.series.reduce((nodes, series) => {
       if (!series.isVisible) return nodes
       const precession = series.y >= 1 ? 2 : 6
-      return `${nodes} <span class="ml-3">${series.labelHTML}: ${digitformat(series.y, precession)}x</span>`
+      return `${nodes} <span class="ms-3">${series.labelHTML}: ${digitformat(series.y, precession)}x</span>`
     }, '<br>')
 
     html = `<span>${this.getLabels()[0]}: ${digitformat(data.x, 0)}</span>${yVals}`
