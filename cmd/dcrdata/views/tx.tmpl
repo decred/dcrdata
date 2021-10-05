@@ -11,7 +11,7 @@
         <div class="col-24 col-xl-12 bg-white p-3 p-sm-4 position-relative">
           <div class="card-pointer pointer-right d-none d-xl-block"></div>
           <div class="card-pointer pointer-bottom d-xl-none"></div>
-          <div class="pb-1 pl-1 position-relative">
+          <div class="pb-1 ps-1 position-relative">
             {{if or .IsTicket .IsRevocation}}
               <span class="fs22 dcricon-ticket"></span>
             {{else if .IsVote}}
@@ -23,7 +23,7 @@
             {{else}}
               <span class="fs22 dcricon-coin-negative"></span>
             {{end}}
-            <span class="h5 d-inline-block pl-1">{{.Type}}</span>
+            <span class="h5 d-inline-block ps-1">{{.Type}}</span>
               <div class="d-inline-block confirmations-box{{if $.IsConfirmedMainchain}} confirmed{{end}} mx-2 fs14"
                 data-controller="newblock"
                 data-target="newblock.confirmations tx.confirmations"
@@ -48,16 +48,16 @@
           {{if and (ne .BlockHeight 0) (not $.IsConfirmedMainchain)}}
               <span class="attention">This transaction is not included in a stakeholder-approved mainchain block.</span>
           {{end}}
-          <div class="text-left lh1rem py-2">
+          <div class="text-start lh1rem py-2">
             <div class="fs13 text-secondary pb-1">Transaction ID</div>
             <div class="d-inline-block fs14 break-word rounded medium-sans clipboard">{{.TxID}}{{template "copyTextIcon"}}</div>
           </div>
           <div class="row py-2">
-            <div class="col-8 text-left">
+            <div class="col-8 text-start">
                 <span class="text-secondary fs13">Total Sent</span>
                 <br>
                 <span class="lh1rem d-inline-block pt-1"
-                  ><span class="fs18 fs14-decimal font-weight-bold">{{template "decimalParts" (float64AsDecimalParts .Total 8 true 2)}}</span><span class="text-secondary fs14">DCR</span>
+                  ><span class="fs18 fs14-decimal fw-bold">{{template "decimalParts" (float64AsDecimalParts .Total 8 true 2)}}</span><span class="text-secondary fs14">DCR</span>
                 </span>
                 {{if $conv.Total}}
                 <br>
@@ -70,10 +70,10 @@
                 </div>
                 {{end}}
             </div>
-            <div class="col-8 text-left"{{if $isMempool}} data-target="tx.unconfirmed" data-txid="{{.TxID}}"{{end}}>
+            <div class="col-8 text-start"{{if $isMempool}} data-target="tx.unconfirmed" data-txid="{{.TxID}}"{{end}}>
                 <span class="text-secondary fs13"><span class="d-none d-sm-inline">Included in Block</span><span class="d-sm-none">Block #</span></span>
                 <br>
-                <span class="fs18 font-weight-bold lh1rem d-inline-block pt-1">
+                <span class="fs18 fw-bold lh1rem d-inline-block pt-1">
                 {{if $isMempool}}
                     <span><span class="mp-unconfirmed-msg">mempool</span><a href="" class="fs18 mp-unconfirmed-link"></a></span>
                 {{else}}
@@ -94,11 +94,11 @@
                 <span class="fs16 text-secondary lh1rem  d-inline-block jsonly"><span class="mp-unconfirmed-time" data-target="time.age tx.age" data-age="{{.Time.UNIX}}"></span> ago</span>
 
             </div>
-            <div class="col-8 text-left">
+            <div class="col-8 text-start">
                 <span class="text-secondary fs13">Fee</span>
                 <br>
                 <span class="lh1rem d-inline-block pt-1"
-                  ><span class="fs18 fs14-decimal font-weight-bold">{{template "decimalParts" (float64AsDecimalParts .Fee.ToCoin 8 true 2)}}</span><span class="text-secondary fs14">DCR</span>
+                  ><span class="fs18 fs14-decimal fw-bold">{{template "decimalParts" (float64AsDecimalParts .Fee.ToCoin 8 true 2)}}</span><span class="text-secondary fs14">DCR</span>
                 </span>
                 {{if $conv.Fees}}
                 <br>
@@ -113,7 +113,7 @@
               <div class="my-2 w-75 fs14" data-target="tx.ticketStage">
                   <div class="fs13 text-secondary pb-1" data-target="tx.ticketMsg">Maturity</div>
                   <div class="d-none" data-target="tx.expiryMsg">
-                    <span class="fs14 font-weight-bold" data-target="tx.expiryChance">
+                    <span class="fs14 fw-bold" data-target="tx.expiryChance">
                       {{printf "%.2f%%" .TicketInfo.Probability}}
                     </span><span class="fs13 text-secondary"> chance of expiration</span>
                   </div>
@@ -131,7 +131,7 @@
                           data-expiry="{{.TicketInfo.TicketExpiry}}"
                           data-tickets-per-block="{{$.ChainParams.TicketsPerBlock}}"
                       >
-                          <span class="nowrap pl-1 pr-1">
+                          <span class="nowrap ps-1 pe-1">
                             {{if gt .Confirmations 0}}
                               {{if eq .Confirmations .TicketInfo.TicketMaturity}}
                                 Mature,
@@ -170,7 +170,7 @@
                         data-confirm-height="{{$.Data.BlockHeight}}"
                         data-tx-type="{{.Type}}"
                     >
-                        <span class="nowrap pl-1 pr-1">
+                        <span class="nowrap ps-1 pe-1">
                           {{if gt .Confirmations 0}}
                             Immature, spendable in {{ if eq (add .Confirmations 1) .Maturity }}next block{{else}}{{subtract .Maturity .Confirmations}} blocks ({{printf "%.1f" .MaturityTimeTill}} hours remaining){{end}}
                           {{else}}
@@ -181,9 +181,9 @@
                 </div>
             </div>
           {{else if .IsLiveTicket}}
-            <div class="my-2 text-left" data-target="tx.ticketStage">
+            <div class="my-2 text-start" data-target="tx.ticketStage">
               <div>
-                <span class="fs14 font-weight-bold" data-target="tx.expiryChance">
+                <span class="fs14 fw-bold" data-target="tx.expiryChance">
                   {{printf "%.2f%%" .TicketInfo.Probability}}
                 </span><span class="fs13 text-secondary"> chance of expiration</span>
               </div>
@@ -201,7 +201,7 @@
                           data-tx-type="LiveTicket"
                           data-tickets-per-block="{{$.ChainParams.TicketsPerBlock}}"
                       >
-                          <span class="nowrap pl-1 pr-1">
+                          <span class="nowrap ps-1 pe-1">
                               block {{.TicketInfo.TicketLiveBlocks}} of {{.TicketInfo.TicketExpiry}} ({{printf "%.1f" .TicketInfo.TicketExpiryDaysLeft}} days remaining)
                           </span>
                       </div>
@@ -211,15 +211,15 @@
           {{end}}
         </div>
         <div class="col-24 col-xl-12 secondary-card py-3 px-3 px-xl-4 d-flex flex-column justify-content-between">
-          <div class="h6 d-inline-block my-2 pl-3">Transaction Details</div>
+          <div class="h6 d-inline-block my-2 ps-3">Transaction Details</div>
           <table class="w-100 fs14 my-1 mb-xl-3">
             <tbody>
               {{if or .IsVote .IsRevocation}}
                   {{range .Vin}}
                       {{if .Txid}}
                           <tr>
-                              <td class="text-right medium-sans text-nowrap pr-2 py-2">Ticket Spent:</td>
-                              <td colspan="3" class="text-left py-1 text-secondary break-word lh1rem clipboard">
+                              <td class="text-end medium-sans text-nowrap pe-2 py-2">Ticket Spent:</td>
+                              <td colspan="3" class="text-start py-1 text-secondary break-word lh1rem clipboard">
                                 <a href="/tx/{{.Txid}}">{{.Txid}}</a>
                                 {{template "copyTextIcon"}}
                               </td>
@@ -228,40 +228,40 @@
                   {{end}}
               {{end}}
               <tr>
-                <td class="text-right medium-sans text-nowrap pr-2 py-2">Raw Tx:</td>
-                <td class="text-left py-1 text-secondary">
+                <td class="text-end medium-sans text-nowrap pe-2 py-2">Raw Tx:</td>
+                <td class="text-start py-1 text-secondary">
                   <a href="/api/tx/decoded/{{.TxID}}?indent=true" data-turbolinks="false">decoded</a> &middot;
                   <a href="/api/tx/hex/{{.TxID}}" data-turbolinks="false">hex</a>
                 </td>
-                <td class="text-right medium-sans text-nowrap pr-2 py-2">Time:</td>
-                <td class="text-left py-1 text-secondary" data-target="tx.formattedAge">{{.Time.String}}</td>
+                <td class="text-end medium-sans text-nowrap pe-2 py-2">Time:</td>
+                <td class="text-start py-1 text-secondary" data-target="tx.formattedAge">{{.Time.String}}</td>
               </tr>
               <tr>
-                <td class="text-right medium-sans text-nowrap pr-2 py-2">Version:</td>
-                <td class="text-left py-1 text-secondary">{{.Version}}</td>
-                <td class="text-right medium-sans text-nowrap pr-2 py-2">Rate:</td>
-                <td class="text-left py-1 text-secondary">{{.FeeRate}}/kB</td>
+                <td class="text-end medium-sans text-nowrap pe-2 py-2">Version:</td>
+                <td class="text-start py-1 text-secondary">{{.Version}}</td>
+                <td class="text-end medium-sans text-nowrap pe-2 py-2">Rate:</td>
+                <td class="text-start py-1 text-secondary">{{.FeeRate}}/kB</td>
               </tr>
               <tr>
-                <td class="text-right medium-sans text-nowrap pr-2 py-2">Size:</td>
-                <td class="text-left py-1 text-secondary">{{.FormattedSize}}</td>
+                <td class="text-end medium-sans text-nowrap pe-2 py-2">Size:</td>
+                <td class="text-start py-1 text-secondary">{{.FormattedSize}}</td>
               </tr>
               {{if $.SwapsFound}}
                 <tr>
-                  <td class="text-right medium-sans text-nowrap pr-2 py-2"
+                  <td class="text-end medium-sans text-nowrap pe-2 py-2"
                     >Swaps Info:
                   </td>
-                  <td class="text-left py-1 text-secondary"><a
+                  <td class="text-start py-1 text-secondary"><a
                     href="/api/tx/swaps/{{.TxID}}?indent=true" data-turbolinks="false">swaps</a>
                   </td>
                 </tr>
               {{end}}
               {{if .IsTicket}}
                 <tr>
-                  <td class="text-right medium-sans text-nowrap pr-2 py-2"
+                  <td class="text-end medium-sans text-nowrap pe-2 py-2"
                     >Status:
                   </td>
-                  <td class="text-left py-1 text-secondary"
+                  <td class="text-start py-1 text-secondary"
                     data-target="tx.statusMsg"
                     >{{if or (eq .TicketInfo.PoolStatus "") (eq .Confirmations 0)}}
                       unconfirmed
@@ -275,8 +275,8 @@
                       {{end}}
                     {{end}}
                   </td>
-                  <td class="text-right medium-sans text-nowrap pr-2 py-2"><span class="d-none d-sm-inline">Spending</span><span class="d-sm-none">Sp.</span> Tx:</td>
-                  <td class="text-left py-1 text-secondary" data-target="tx.spendingTx">
+                  <td class="text-end medium-sans text-nowrap pe-2 py-2"><span class="d-none d-sm-inline">Spending</span><span class="d-sm-none">Sp.</span> Tx:</td>
+                  <td class="text-start py-1 text-secondary" data-target="tx.spendingTx">
                     {{- $spendingTx := index .SpendingTxns 0 -}}
                     {{- if $spendingTx.Hash -}}
                       <a href="/tx/{{$spendingTx.Hash}}">
@@ -305,7 +305,7 @@
                     <th class="text-nowrap">Previous Outpoint</th>
                     <th class="addr-hash-column">Addresses</th>
                     <th class="text-center shrink-to-fit">Block</th>
-                    <th class="text-right shrink-to-fit">DCR</th>
+                    <th class="text-end shrink-to-fit">DCR</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -337,7 +337,7 @@
                             <a href="/block/{{.BlockHeight}}">{{.BlockHeight}}</a>
                         {{end}}
                         </td>
-                        <td class="mono fs13 text-right shrink-to-fit">{{if lt .AmountIn 0.0}} N/A {{else}}
+                        <td class="mono fs13 text-end shrink-to-fit">{{if lt .AmountIn 0.0}} N/A {{else}}
                         {{template "decimalParts" (float64AsDecimalParts .AmountIn 8 false)}} {{end}}
                         </td>
                     </tr>
@@ -346,7 +346,7 @@
                         <tr>
                             <td></td>
                             <td colspan="3" class="mono fs13">(block mining fees collected)</td>
-                            <td class="mono fs13 text-right">{{template "decimalParts" (amountAsDecimalParts .BlockMiningFee false)}}</td>
+                            <td class="mono fs13 text-end">{{template "decimalParts" (amountAsDecimalParts .BlockMiningFee false)}}</td>
                         </tr>
                     {{end}}
                 </tbody>
@@ -358,11 +358,11 @@
                 <thead>
                   <tr>
                     <th class="shrink-to-fit">#</th>
-                    <th class="addr-hash-column"><div class="pl-1">Address</div></th>
-                    <th class="text-left shrink-to-fit">Type</th>
-                    <th class="text-left shrink-to-fit"><span class="d-none d-sm-inline">Version</span><span class="d-sm-none">Ver</span></th>
-                    <th class="text-left shrink-to-fit">Spent</th>
-                    <th class="text-right shrink-to-fit">DCR</th>
+                    <th class="addr-hash-column"><div class="ps-1">Address</div></th>
+                    <th class="text-start shrink-to-fit">Type</th>
+                    <th class="text-start shrink-to-fit"><span class="d-none d-sm-inline">Version</span><span class="d-sm-none">Ver</span></th>
+                    <th class="text-start shrink-to-fit">Spent</th>
+                    <th class="text-end shrink-to-fit">DCR</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -398,7 +398,7 @@
                         <td class="fs13 break-word shrink-to-fit">
                             {{$v.Version}}
                         </td>
-                        <td class="text-left fs13 shrink-to-fit">{{with $spending := (index $.Data.SpendingTxns $i) }}
+                        <td class="text-start fs13 shrink-to-fit">{{with $spending := (index $.Data.SpendingTxns $i) }}
                             {{if $spending.Hash}}
                                 <a href="/tx/{{$spending.Hash}}/in/{{$spending.Index}}">{{$v.Spent}}</a>
                             {{else}}
@@ -410,7 +410,7 @@
                             {{end}}
                             {{end}}
                         </td>
-			                  <td class="text-right mono fs13">
+			                  <td class="text-end mono fs13">
                           {{template "decimalParts" (float64AsDecimalParts .Amount 8 false)}}
                         </td>
                     </tr>
@@ -453,7 +453,7 @@
             <table class="table">
                 <thead>
                   <tr>
-                    <th class="text-right">Issue ID</th>
+                    <th class="text-end">Issue ID</th>
                     <th>Issue Description</th>
                     <th>Choice ID</th>
                     <th>Choice Description</th>
@@ -462,7 +462,7 @@
                 <tbody>
                     {{range .Choices}}
                     <tr>
-                        <td class="text-right"><span class="highlight-text"><a href="/agenda/{{.ID}}">{{.ID}}</a></span></td>
+                        <td class="text-end"><span class="highlight-text"><a href="/agenda/{{.ID}}">{{.ID}}</a></span></td>
                         <td>{{.Description}}</td>
                         <td>
                             <span class="agenda-voting-overview-option-dot _{{.Choice.Id}}"></span>

@@ -120,10 +120,10 @@
 						<input type="hidden" name="darkmode" value="darkmode">
 						<input type="hidden" name="requestURI" value="{{.RequestURI}}">
 						<button type="submit" data-action="click->menu#onSunClick"
-								class="menu-submit text-left w-100 p-0"
+								class="menu-submit text-start w-100 p-0"
 								data-keynav-skip>
 								<div class="menu-item">
-								  <span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span>
+								  <span id="sun-icon" class="dcricon-sun-fill no-underline pe-2"></span>
 								  Night Mode
 								</div>
 						</button>
@@ -147,7 +147,7 @@
 		</span>
 		<span>
 			<a
-				class="text-nowrap d-none d-md-inline-block pr-3"
+				class="text-nowrap d-none d-md-inline-block pe-3"
 				href="{{.Links.Github}}"
 				title="dcrdata on GitHub"
 				target="_blank"
@@ -155,7 +155,7 @@
 			>dcrdata v{{.Version}}</a>
 			{{- if ne .Links.OnionURL "" }}
 			<a
-				class="text-nowrap d-none d-md-inline-block pr-3"
+				class="text-nowrap d-none d-md-inline-block pe-3"
 				href="{{.Links.OnionURL}}"
 				title="Access dcrdata over Tor"
 				target="_blank"
@@ -240,31 +240,31 @@
 	<thead>
 		<tr>
 		<th class="d-none d-sm-table-cell">Tx Type</th>
-		<th class="text-left">Input/&#8203;Output ID</th>
+		<th class="text-start">Input/&#8203;Output ID</th>
 	{{- if eq $txType "merged_debit"}}
-		<th class="text-right"><span class="d-sm-none position-relative" data-tooltip="merged input count">Cnt</span
+		<th class="text-end"><span class="d-sm-none position-relative" data-tooltip="merged input count">Cnt</span
 			><span class="d-none d-sm-inline">Inputs</span>
 		</th>
-		<th class="text-right">Debit DCR</th>
+		<th class="text-end">Debit DCR</th>
 	{{- else if eq $txType "merged_credit" }}
-		<th class="text-right"><span class="d-sm-none position-relative" data-tooltip="merged output count">Cnt</span
+		<th class="text-end"><span class="d-sm-none position-relative" data-tooltip="merged output count">Cnt</span
 			><span class="d-none d-sm-inline">Outputs</span>
 		</th>
-		<th class="text-right">Credit DCR</th>
+		<th class="text-end">Credit DCR</th>
 	{{- else if eq $txType "merged" }}
-		<th title="Count of address's inputs and outputs in the transaction." class="text-right"><span class="d-none d-sm-inline-block">I/O Count</span><span class="d-sm-none position-relative" data-tooltip="# of inputs and outputs">#</span></th>
-		<th class="text-right">Credit DCR</th>
-		<th class="text-right">Debit DCR</th>
+		<th title="Count of address's inputs and outputs in the transaction." class="text-end"><span class="d-none d-sm-inline-block">I/O Count</span><span class="d-sm-none position-relative" data-tooltip="# of inputs and outputs">#</span></th>
+		<th class="text-end">Credit DCR</th>
+		<th class="text-end">Debit DCR</th>
 	{{- else if eq $txType "unspent" }}
-		<th class="text-right">Credit DCR</th>
+		<th class="text-end">Credit DCR</th>
 	{{- else}}
-		<th class="text-right">Credit DCR</th>
-		<th class="text-right">Debit DCR</th>
+		<th class="text-end">Credit DCR</th>
+		<th class="text-end">Debit DCR</th>
 	{{- end}}
-		<th class="d-none d-sm-table-cell text-right">Time (UTC)</th>
-		<th class="text-right">Age</th>
-		<th class="text-right"><span class="d-sm-none position-relative" data-tooltip="Confirmations">Cons</span><span class="d-none d-sm-inline">Confirms</span></th>
-		<th class="d-none d-sm-table-cell text-right">Size</th>
+		<th class="d-none d-sm-table-cell text-end">Time (UTC)</th>
+		<th class="text-end">Age</th>
+		<th class="text-end"><span class="d-sm-none position-relative" data-tooltip="Confirmations">Cons</span><span class="d-none d-sm-inline">Confirms</span></th>
+		<th class="d-none d-sm-table-cell text-end">Size</th>
 		</tr>
 	</thead>
 	<tbody>
@@ -273,58 +273,58 @@
 			<td class="d-none d-sm-table-cell">{{.TxType}}</td>
 			<td class="clipboard">{{template "hashElide" (hashlink .TxID .Link)}}</td>
 		{{- if eq $txType "merged_debit"}}
-			<td class="text-right">{{.MergedTxnCount}}</td>
-			<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</td>
+			<td class="text-end">{{.MergedTxnCount}}</td>
+			<td class="text-end fs15">{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</td>
 		{{- else if eq $txType "merged_credit"}}
-			<td class="text-right">{{.MergedTxnCount}}</td>
-			<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</td>
+			<td class="text-end">{{.MergedTxnCount}}</td>
+			<td class="text-end fs15">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</td>
 		{{- else if eq $txType "merged"}}
-			<td class="text-right">{{.MergedTxnCount}}</td>
+			<td class="text-end">{{.MergedTxnCount}}</td>
 			{{- if .IsFunding}}
-			<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</td>
-			<td class="text-right">&mdash;</td>
+			<td class="text-end fs15">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</td>
+			<td class="text-end">&mdash;</td>
 			{{- else}}
-			<td class="text-right">&mdash;</td>
-			<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</td>
+			<td class="text-end">&mdash;</td>
+			<td class="text-end fs15">{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</td>
 			{{- end}}
 		{{- else if eq $txType "unspent"}}
-			<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</td>
+			<td class="text-end fs15">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</td>
 		{{- else if or (eq $txType "credit") .IsFunding}}{{/* .IsFunding = true && txType = "all" is a credit */}}
-			<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</td>
+			<td class="text-end fs15">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</td>
 			{{- if ne .MatchedTx ""}}
-			<td class="text-right"><a href="/tx/{{.MatchedTx}}/in/{{.MatchedTxIndex}}"
+			<td class="text-end"><a href="/tx/{{.MatchedTx}}/in/{{.MatchedTxIndex}}"
 				data-txid="{{.MatchedTx}}"
 				data-action="mouseover->address#hashOver mouseout->address#hashOut"
 				>spent</a></td>
 			{{- else}}
-			<td class="text-right">unspent</td>
+			<td class="text-end">unspent</td>
 			{{- end}}
 		{{- else}}{{/* either "debit", or "all" with .IsFunding = false */ -}}
 			{{- if eq .SentTotal 0.0}}
-			<td class="text-right">sstxcommitment</td>
+			<td class="text-end">sstxcommitment</td>
 			{{- else if ne .MatchedTx ""}}
-			<td class="text-right"><a href="/tx/{{.MatchedTx}}/out/{{.MatchedTxIndex}}" data-action="mouseover->address#hashOver mouseout->address#hashOut">source</a></td>
+			<td class="text-end"><a href="/tx/{{.MatchedTx}}/out/{{.MatchedTxIndex}}" data-action="mouseover->address#hashOver mouseout->address#hashOut">source</a></td>
 			{{- else}}
-			<td class="text-right">N/A</td>
+			<td class="text-end">N/A</td>
 			{{- end}}
-			<td class="text-right fs15">{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</td>
+			<td class="text-end fs15">{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</td>
 		{{- end}}
-			<td class="addr-tx-time d-none d-sm-table-cell text-right">{{if eq .Confirmations 0}}Unconfirmed{{else}}{{.Time.DatetimeWithoutTZ}}{{end}}</td>
-			<td class="addr-tx-age text-right">
+			<td class="addr-tx-time d-none d-sm-table-cell text-end">{{if eq .Confirmations 0}}Unconfirmed{{else}}{{.Time.DatetimeWithoutTZ}}{{end}}</td>
+			<td class="addr-tx-age text-end">
 			{{- if eq (.Time.T.Unix) 0}}
 				N/A
 			{{- else}}
 				<span data-controller="time" data-target="time.age" data-age="{{.Time.UNIX}}"></span>
 			{{- end}}
 			</td>
-			<td class="addr-tx-confirms text-right"	{{/*Update confirmations with Stimulus*/ -}}
+			<td class="addr-tx-confirms text-end"	{{/*Update confirmations with Stimulus*/ -}}
 				data-target="newblock.confirmations" {{/*trim*/ -}}
 				data-confirmations="{{.Confirmations}}" {{/*trim*/ -}}
 				data-confirmation-block-height="{{if eq .Confirmations 0}}-1{{else}}{{.BlockHeight}}{{end}}" {{/*trim*/ -}}
 				data-yes="#" {{/*trim*/ -}}
 				data-no="(unconfirmed)" {{/*trim*/ -}}
 			>{{.Confirmations}}</td>
-			<td class="text-right d-none d-sm-table-cell text-right">{{.FormattedSize}}</td>
+			<td class="text-end d-none d-sm-table-cell text-end">{{.FormattedSize}}</td>
 		</tr>
 	{{- end}}
 	</tbody>
@@ -360,27 +360,27 @@
 <div class="bg-white block-banner">
 	<div class="container px-0">
 		<div>
-			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/blocks">
+			<a class="d-inline-block position-relative me-4 py-2 unstyled-link" href="/blocks">
 				<span class="px-2{{if eq .TimeGrouping "Blocks"}} unstyled-link{{else}} text-secondary{{end}}">Blocks</span>
 				<div class="blocks-selector{{if eq .TimeGrouping "Blocks"}} active{{end}}"></div>
 			</a>
-			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/ticketpricewindows">
-				<span class="separator pl-2 pr-5{{if eq .TimeGrouping "Windows"}} unstyled-link{{else}} text-secondary{{end}}">Windows</span>
+			<a class="d-inline-block position-relative me-4 py-2 unstyled-link" href="/ticketpricewindows">
+				<span class="separator ps-2 pe-5{{if eq .TimeGrouping "Windows"}} unstyled-link{{else}} text-secondary{{end}}">Windows</span>
 				<div class="separator blocks-selector{{if eq .TimeGrouping "Windows"}} active{{end}}"></div>
 			</a>
-			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/years">
-				<span class="pr-2 pl-3{{if eq .TimeGrouping "Years"}} unstyled-link{{else}} text-secondary{{end}}">Years</span>
+			<a class="d-inline-block position-relative me-4 py-2 unstyled-link" href="/years">
+				<span class="pe-2 ps-3{{if eq .TimeGrouping "Years"}} unstyled-link{{else}} text-secondary{{end}}">Years</span>
 				<div class="blocks-selector{{if eq .TimeGrouping "Years"}} active{{end}}"></div>
 			</a>
-			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/months">
+			<a class="d-inline-block position-relative me-4 py-2 unstyled-link" href="/months">
 				<span class="px-2{{if eq .TimeGrouping "Months"}} unstyled-link{{else}} text-secondary{{end}}">Months</span>
 				<div class="blocks-selector{{if eq .TimeGrouping "Months"}} active{{end}}"></div>
 			</a>
-			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/weeks">
+			<a class="d-inline-block position-relative me-4 py-2 unstyled-link" href="/weeks">
 				<span class="px-2{{if eq .TimeGrouping "Weeks"}} unstyled-link{{else}} text-secondary{{end}}">Weeks</span>
 				<div class="blocks-selector{{if eq .TimeGrouping "Weeks"}} active{{end}}"></div>
 			</a>
-			<a class="d-inline-block position-relative mr-4 py-2 unstyled-link" href="/days">
+			<a class="d-inline-block position-relative me-4 py-2 unstyled-link" href="/days">
 				<span class="px-2{{if eq .TimeGrouping "Days"}} unstyled-link{{else}} text-secondary{{end}}">Days</span>
 				<div class="blocks-selector{{if eq .TimeGrouping "Days"}} active{{end}}"></div>
 			</a>
@@ -403,11 +403,11 @@
 	<thead>
 		<tr>
 		<th class="d-none d-sm-table-cell">Tx Type</th>
-		<th class="text-left">Transaction</th>
-		<th class="text-right">Amount</th>
-		<th class="text-right">Block</th>
-		<th class="d-none d-sm-table-cell text-right">Time (UTC)</th>
-		<!-- <th class="text-right"><span class="d-sm-none position-relative" data-tooltip="Confirmations">Cons</span><span class="d-none d-sm-inline">Confirms</span></th> -->
+		<th class="text-start">Transaction</th>
+		<th class="text-end">Amount</th>
+		<th class="text-end">Block</th>
+		<th class="d-none d-sm-table-cell text-end">Time (UTC)</th>
+		<!-- <th class="text-end"><span class="d-sm-none position-relative" data-tooltip="Confirmations">Cons</span><span class="d-none d-sm-inline">Confirms</span></th> -->
 		</tr>
 	</thead>
 	<tbody>
@@ -415,10 +415,10 @@
 		<tr> {{/* {{if eq .Confirmations 0}}data-target="address.pending" data-txid="{{.TxID}}"{{end}} */}}
 			<td class="d-none d-sm-table-cell">{{txtypeStr .Type}}</td>
 			<td class="clipboard">{{template "hashElide" (hashlink .TxID (printf "/tx/%s" .TxID))}}</td>
-			<td class="text-right fs15">{{template "decimalParts" (amountAsDecimalParts .Amount false)}}</td>
-			<td class="text-right fs15">{{.BlockHeight}}</td>
-			<td class="addr-tx-time d-none d-sm-table-cell text-right">{{.BlockTime.DatetimeWithoutTZ}}</td>
-			{{/*  <td class="addr-tx-confirms text-right"
+			<td class="text-end fs15">{{template "decimalParts" (amountAsDecimalParts .Amount false)}}</td>
+			<td class="text-end fs15">{{.BlockHeight}}</td>
+			<td class="addr-tx-time d-none d-sm-table-cell text-end">{{.BlockTime.DatetimeWithoutTZ}}</td>
+			{{/*  <td class="addr-tx-confirms text-end"
 				data-target="newblock.confirmations"
 				data-confirmations="{{.Confirmations}}"
 				data-confirmation-block-height="{{if eq .Confirmations 0}}-1{{else}}{{.BlockHeight}}{{end}}"

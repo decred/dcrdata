@@ -66,6 +66,10 @@
   border: 1px solid #bbb;
 }
 
+.bg-white {
+  background-color: $white !important;
+}
+
 body.darkBG .dark-card .progress {
   border: none;
 }

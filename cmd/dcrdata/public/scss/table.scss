@@ -45,7 +45,7 @@ table.table {
   td {
     color: #052f4b; // Setting explicitly so bootstrap > 4.3.1 won't override.
     border-top: none;
-    border-bottom: 1px solid #e4e4e4;
+    border-bottom: 1px solid #e4e4e4 !important;
     padding: 0.75em 0.5em;
   }
 }
@@ -64,7 +64,7 @@ table.details td {
 
 table tr.disabled-row {
   background-color: #00000015;
-  border-bottom: 1px solid #8885;
+  border-bottom: 1px solid #8885 !important;
 }
 
 .blue-row {

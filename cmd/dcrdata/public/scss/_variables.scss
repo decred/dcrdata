@@ -52,3 +52,13 @@ $card-bg-secondary: #f8f8f9;
 $card-bg-secondary-dark: #222326;
 
 $dark-link-hover-color: #94ffca;
+
+// links
+$link-decoration: none;
+$link-hover-decoration: underline;
+
+// variables that changed with the bootstrap 5 migration.
+$input-bg: #fff;
+$input-color: #495057;
+$nav-link-color: inherit;
+// $min-contrast-ratio: 3.9; // contrasting color for the primary (Decred blue) depends on contrast factor

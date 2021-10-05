@@ -11,7 +11,7 @@
 
                 <div class="bg-white mb-1 py-2 px-3 my-0">
                     <div class="d-inline-block position-relative p-2">
-                        <span class="card-icon dcricon-twoblocks h1 mr-2"></span> <a href="/blocks" class="h3 my-3">Latest {{.NetName}} Blocks</a>
+                        <span class="card-icon dcricon-twoblocks h1 me-2"></span> <a href="/blocks" class="h3 my-3">Latest {{.NetName}} Blocks</a>
                     </div>
 
                     <div class="row">
@@ -26,7 +26,7 @@
                         </div>
                         <div class="col-12 col-sm-6 text-center">
                             <div class="d-flex align-items-baseline justify-content-center p-0 m-0">
-                                <span class="h6 mr-2 text-secondary" data-tooltip="stakeholder's votes for the proposed block.">votes</span>
+                                <span class="h6 me-2 text-secondary" data-tooltip="stakeholder's votes for the proposed block.">votes</span>
                                 {{if eq $.Consensus -1}}
                                 <span data-target="homepage.consensusMsg" class="small text-danger">rejected</span>
                                 {{else if eq $.Consensus 0}}
@@ -57,7 +57,7 @@
                             <table class="table w-100 mt-2 mx-auto mb-0">
                                 <thead>
                                     <tr>
-                                        <th class="text-left pl-2">Height</th>
+                                        <th class="text-start ps-2">Height</th>
                                         <th class="text-center"
                                           ><span class="d-sm-none position-relative" data-tooltip="regular transactions">Txn</span
                                           ><span class="d-none d-sm-inline">Transactions</span></th>
@@ -70,27 +70,27 @@
                                         <th class="text-center"
                                           ><span class="d-sm-none position-relative" data-tooltip="ticket revocations">Rev</span
                                           ><span class="d-none d-sm-inline">Revokes</span></th>
-                                        <th class="text-right" data-tooltip="total DCR sent">DCR</th>
-                                        <th class="d-none d-sm-table-cell d-md-none d-lg-table-cell text-right">Size</th>
-                                        <th class="text-right pr-2" data-target="time.header" data-jstitle="Age">Time (UTC)</th>
+                                        <th class="text-end" data-tooltip="total DCR sent">DCR</th>
+                                        <th class="d-none d-sm-table-cell d-md-none d-lg-table-cell text-end">Size</th>
+                                        <th class="text-end pe-2" data-target="time.header" data-jstitle="Age">Time (UTC)</th>
                                     </tr>
                                 </thead>
                                 <tbody data-target="blocklist.table">
                                     {{range .Blocks}}
                                     <tr data-height="{{.Height}}" data-link-class="fs18">
-                                        <td class="text-left pl-1" data-type="height"><a href="/block/{{.Height}}" class="fs18">{{.Height}}</a></td>
+                                        <td class="text-start ps-1" data-type="height"><a href="/block/{{.Height}}" class="fs18">{{.Height}}</a></td>
                                         <td class="text-center" data-type="tx">{{.Transactions}}</td>
                                         <td class="text-center" data-type="votes">{{.Voters}}</td>
                                         <td class="text-center" data-type="tickets">{{.FreshStake}}</td>
                                         <td class="text-center" data-type="revocations">{{.Revocations}}</td>
-                                        <td class="text-right" data-type="value">{{threeSigFigs .Total}}</td>
-                                        <td class="text-right d-none d-sm-table-cell d-md-none d-lg-table-cell text-nowrap" data-type="size">{{.FormattedBytes}}</td>
-                                        <td class="text-right pr-1 text-nowrap" data-type="age" data-target="time.age" data-age="{{.BlockTime.UNIX}}">{{.BlockTime.DatetimeWithoutTZ}}</td>
+                                        <td class="text-end" data-type="value">{{threeSigFigs .Total}}</td>
+                                        <td class="text-end d-none d-sm-table-cell d-md-none d-lg-table-cell text-nowrap" data-type="size">{{.FormattedBytes}}</td>
+                                        <td class="text-end pe-1 text-nowrap" data-type="age" data-target="time.age" data-age="{{.BlockTime.UNIX}}">{{.BlockTime.DatetimeWithoutTZ}}</td>
                                     </tr>
                                     {{end}}
                                 </tbody>
                             </table>
-                            <a href="/blocks" class="small ml-2">more blocks...</a>
+                            <a href="/blocks" class="small ms-2">more blocks...</a>
                         </div>
                     </div>
                 </div> <!-- end blocks card -->
@@ -99,9 +99,9 @@
 
                     <div class="d-flex align-items-baseline my-2">
                         <div class="position-relative col nowrap">
-                            <span class="card-icon dcricon-stack h1 mr-2"></span> <a href="/mempool" class="h3">Mempool</a>
+                            <span class="card-icon dcricon-stack h1 me-2"></span> <a href="/mempool" class="h3">Mempool</a>
                         </div>
-                        <div class="align-right mr-3">
+                        <div class="align-right me-3">
                             <span
                                 class="h2 position-relative"
                                 data-target="homepage.mempool"
@@ -115,14 +115,15 @@
                     <div class="row mb-2">
                         <div class="col-md-9 mb-3">
                             <div class="d-flex justify-content-between align-items-center px-2 mx-auto mt-1 mt-lg-4 pt-1">
-                                <div class="text-left pl-3 pl-sm-3 pl-md-3 pl-lg-3 tx-bar tx-regular d-inline-block">
+                                <div class="text-start ps-3 ps-sm-3 ps-md-3 ps-lg-3 tx-bar tx-regular d-inline-block">
                                     <span data-target="homepage.mpRegCount" class="h4">{{.Mempool.NumRegular}}</span>
                                     <span class="h6"> regular</span>
                                     <br>
                                     <span class="h4" data-target="homepage.mpRegTotal">{{threeSigFigs .Mempool.LikelyMineable.RegularTotal}}</span>
                                     <span class="h6">DCR</span>
                                 </div>
-                                <div class="text-right pr-3 pr-sm-3 pr-md-3 pr-lg-3 tx-bar tx-ticket d-inline-block">
+                                {{/* TODO: pe-SM, pe-MD, ETC CAN GO */}}
+                                <div class="text-end pe-3 pe-sm-3 pe-md-3 pe-lg-3 tx-bar tx-ticket d-inline-block">
                                     <span data-target="homepage.mpTicketCount" class="h4">{{.Mempool.NumTickets}}</span>
                                     <span class="h6"> tickets</span>
                                     <br>
@@ -133,14 +134,14 @@
                             </div>
 
                             <div class="mx-2 jsonly text-nowrap d-flex my-3">
-                                <div class="tx-gauge tx-regular rounded-left" data-target="homepage.mpRegBar"></div>
+                                <div class="tx-gauge tx-regular rounded-start" data-target="homepage.mpRegBar"></div>
                                 <div class="tx-gauge tx-ticket" data-target="homepage.mpTicketBar"></div>
                                 <div class="tx-gauge tx-rev" data-target="homepage.mpRevBar"></div>
-                                <div class="tx-gauge tx-vote rounded-right" data-target="homepage.mpVoteBar"></div>
+                                <div class="tx-gauge tx-vote rounded-end" data-target="homepage.mpVoteBar"></div>
                             </div>
 
                             <div class="d-flex justify-content-between align-items-center mx-auto px-2">
-                                <div class="text-left pl-3 pr-sm-3 pr-md-3 pr-lg-3 tx-bar tx-rev d-inline-block">
+                                <div class="text-start ps-3 pe-sm-3 pe-md-3 pe-lg-3 tx-bar tx-rev d-inline-block">
                                     <span data-target="homepage.mpRevCount" class="h4 lh1rem">{{.Mempool.NumRevokes}}</span>
                                     <span class="h6"> revokes</span>
                                     <br>
@@ -148,7 +149,7 @@
                                     >{{threeSigFigs .Mempool.LikelyMineable.RevokeTotal}}</span>
                                     <span class="h6">DCR</span>
                                 </div>
-                                <div class="text-right pr-3 pl-sm-3 pl-md-3 pl-lg-3 tx-bar tx-bar tx-vote d-inline-block">
+                                <div class="text-end pe-3 ps-sm-3 ps-md-3 ps-lg-3 tx-bar tx-bar tx-vote d-inline-block">
                                     <span data-target="homepage.mpVoteCount"
                                     class="h4 lh1rem"
                                     data-tickets-per-block="{{.Mempool.VotingInfo.MaxVotesPerBlock}}">
@@ -177,26 +178,26 @@
                             <table class="table table-sm w-100 mx-auto mb-0">
                                 <thead>
                                 <tr>
-                                    <th class="text-left pl-2">Hash</th>
-                                    <th class="text-left">Type</th>
-                                    <th class="text-right">DCR</th>
-                                    <th class="text-right">Size</th>
-                                    <th class="text-right pr-2 jsonly">Age</th>
+                                    <th class="text-start ps-2">Hash</th>
+                                    <th class="text-start">Type</th>
+                                    <th class="text-end">DCR</th>
+                                    <th class="text-end">Size</th>
+                                    <th class="text-end pe-2 jsonly">Age</th>
                                 </tr>
                                 </thead>
                                 <tbody class="homepage-mempool" data-target="homepage.transactions">
                                 {{range .Mempool.LatestTransactions}}
                                 <tr>
-                                    <td class="text-left pl-1 clipboard">{{template "hashElide" (hashlink .Hash (print "/tx/" .Hash))}}</td>
-                                    <td class="text-left">{{.Type}}</td>
-                                    <td class="text-right">{{threeSigFigs .TotalOut}}</td>
-                                    <td class="text-nowrap text-right">{{.Size}} B</td>
-                                    <td class="text-right pr-1 jsonly text-nowrap" data-target="time.age" data-age="{{.Time}}"></td>
+                                    <td class="text-start ps-1 clipboard">{{template "hashElide" (hashlink .Hash (print "/tx/" .Hash))}}</td>
+                                    <td class="text-start">{{.Type}}</td>
+                                    <td class="text-end">{{threeSigFigs .TotalOut}}</td>
+                                    <td class="text-nowrap text-end">{{.Size}} B</td>
+                                    <td class="text-end pe-1 jsonly text-nowrap" data-target="time.age" data-age="{{.Time}}"></td>
                                 </tr>
                                 {{end}}
                                 </tbody>
                             </table>
-                            <a href="/mempool" class="small ml-2">more transactions...</a>
+                            <a href="/mempool" class="small ms-2">more transactions...</a>
                         </div>
                     </div>
                 </div>  <!-- end mempool card -->
@@ -206,7 +207,7 @@
                 {{with .Info}}
                 <div class="bg-white mb-1 py-2 px-3 mx-1">
                     <div class="mt-2 my-3 h4">
-                        <span class="dcricon-ticket d-inline-block pr-2 h3"></span>
+                        <span class="dcricon-ticket d-inline-block pe-2 h3"></span>
                         Voting
                     </div>
                     <div class="row mt-1">
@@ -216,7 +217,7 @@
                             </div>
                             <div class="mono lh1rem fs14-decimal fs24 pt-1 pb-1 d-flex align-items-baseline">
                                 <span data-target="homepage.blocksdiff">{{template "decimalParts" (float64AsDecimalParts .StakeDiff 8 false 2)}}</span>
-                                <span class="pl-1 unit lh15rem">DCR</span>
+                                <span class="ps-1 unit lh15rem">DCR</span>
                             </div>
                             {{if $conv}}
                             <div class="fs12 lh1rem text-black-50">
@@ -228,7 +229,7 @@
                             <div class="fs13 text-secondary">Next Ticket Price</div>
                             <div class="mono d-flex align-items-baseline lh1rem pt-1 pb-1">
                                 <span class="fs22">~</span><span class="fs24 d-flex" data-target="homepage.nextExpectedSdiff">{{template "decimalParts" (float64AsDecimalParts .NextExpectedStakeDiff 2 false)}}</span>
-                                <span class="pl-1 unit lh15rem">DCR</span>
+                                <span class="ps-1 unit lh15rem">DCR</span>
                             </div>
                             <div class="d-flex lh1rem fs12 text-black-50">
                                 <span>min:&nbsp;</span>
@@ -262,7 +263,7 @@
                                     aria-valuemin="0"
                                     aria-valuemax="{{.Params.WindowSize}}"
                                 >
-                                    <span class="nowrap pl-1">block <span data-target="homepage.windowIndex" >{{.IdxBlockInWindow}}</span> of {{.Params.WindowSize}}</span>
+                                    <span class="nowrap ps-1">block <span data-target="homepage.windowIndex" >{{.IdxBlockInWindow}}</span> of {{.Params.WindowSize}}</span>
                                 </div>
                             </div>
                             <div class="fs12 lh1rem">
@@ -277,7 +278,7 @@
                                 <span data-target="homepage.bsubsidyPos">
                                     {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount (divide .NBlockSubsidy.PoS 5)) 8 true 2)}}
                                 </span>
-                                <span class="pl-1 unit lh15rem" style="font-size:13px;">DCR/vote</span>
+                                <span class="ps-1 unit lh15rem" style="font-size:13px;">DCR/vote</span>
                             </div>
                             <div class="fs12 lh1rem text-black-50">
                                 <span data-target="homepage.ticketReward">{{printf "%.2f" .TicketReward}}%</span> per ~{{.RewardPeriod}}
@@ -290,7 +291,7 @@
                                 <span data-target="homepage.poolValue">
                                     {{template "decimalParts" (float64AsDecimalParts .PoolInfo.Value 0 true)}}
                                 </span>
-                                <span class="pl-1 unit lh15rem">DCR</span>
+                                <span class="ps-1 unit lh15rem">DCR</span>
                             </div>
                             <div class="fs12 lh1rem text-black-50">
                                 <span data-target="homepage.poolSizePct">{{printf "%.2f" .PoolInfo.Percentage}}</span> % of circulating supply
@@ -301,7 +302,7 @@
 
                 <div class="bg-white mb-1 py-2 px-3 mx-1 my-0">
                     <div class="my-3 h4">
-                        <span class="dcricon-pickaxe d-inline-block pr-2 h3"></span>
+                        <span class="dcricon-pickaxe d-inline-block pe-2 h3"></span>
                         <span>Mining</span>
                     </div>
                     <div class="row mt-1">
@@ -311,14 +312,14 @@
                             </div>
                             <div class="mono lh1rem p03rem0 fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
                                 <span data-target="homepage.difficulty">{{template "decimalParts" (float64AsDecimalParts (divideFloat .Difficulty 1000000.0) 0 true)}}</span>
-                                <span class="pl-1 unit lh15rem">Mil</span>
+                                <span class="ps-1 unit lh15rem">Mil</span>
                             </div>
                         </div>
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                             <div class="fs13 text-secondary"><a href="/charts?chart=hashrate">Hashrate</a></div>
                             <div class="mono lh1rem pt-1 pb-1 fs14-decimal fs24 d-flex align-items-baseline">
                                 <span data-target="homepage.hashrate">{{template "decimalParts" (float64AsDecimalParts .HashRate 8 true 2)}}</span>
-                                <span class="pl-1 unit lh15rem">Ph/s</span>
+                                <span class="ps-1 unit lh15rem">Ph/s</span>
                             </div>
                             <div class="fs12 text-black-50 lh1rem text-black-50">
                                 <span data-target="homepage.hashrateDelta">{{template "fmtPercentage" .HashRateChangeMonth}}</span> in past 30 days
@@ -328,7 +329,7 @@
                             <div class="fs13 text-secondary">PoW Reward</div>
                             <div class="mono lh1rem p03rem0 fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
                                 <span data-target="homepage.bsubsidyPow">{{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.PoW) 8 true 2)}}</span>
-                                <span class="pl-1 unit lh15rem">DCR</span>
+                                <span class="ps-1 unit lh15rem">DCR</span>
                             </div>
                             {{if $conv}}
                             <div class="fs12 lh1rem text-black-50">
@@ -350,7 +351,7 @@
                                 >
                                     <span
                                         id="powreward"
-                                        class="nowrap pl-1"
+                                        class="nowrap ps-1"
                                     >
                                         block <span data-target="homepage.rewardIdx" >{{.IdxInRewardWindow}}</span> of {{.Params.RewardWindowSize}}
                                     </span>
@@ -367,7 +368,7 @@
 
                 <div class="bg-white mb-1 p-2 px-3 mx-1 flex-grow-1">
                     <div class="my-3 h4">
-                        <span class="dcricon-tree d-inline-block pr-2 h4"></span>
+                        <span class="dcricon-tree d-inline-block pe-2 h4"></span>
                         Distribution
                     </div>
                     <div class="row mt-1">
@@ -378,7 +379,7 @@
                                 <span data-target="homepage.devFund">
                                     {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount (add .DevFund .TreasuryBalance.Balance)) 0 true)}}
                                 </span>
-                                <span class="pl-1 unit lh15rem">DCR</span>
+                                <span class="ps-1 unit lh15rem">DCR</span>
                             </div>
                             {{if $conv}}
                             <div class="fs12 lh1rem text-black-50">
@@ -393,7 +394,7 @@
                                 <span data-target="homepage.coinSupply">
                                     {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .CoinSupply) 0 true)}}
                                 </span>
-                                <span class="pl-1 unit lh15rem">DCR</span>
+                                <span class="ps-1 unit lh15rem">DCR</span>
                             </div>
                             <div class="fs12 lh1rem text-black-50">
                                 {{if $conv}}
@@ -408,7 +409,7 @@
                                 <span data-target="homepage.bsubsidyDev">
                                     {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.Dev) 8 true 2)}}
                                 </span>
-                                <span class="pl-1 unit lh15rem">DCR</span>
+                                <span class="ps-1 unit lh15rem">DCR</span>
                             </div>
                             {{if $conv}}
                             <div class="fs12 lh1rem text-black-50">
@@ -423,7 +424,7 @@
                             </div>
                             <div class="mono lh1rem fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
                                 <span class="d-inline-block" data-target="homepage.exchangeRate">{{$conv.ExchangeRate.TwoDecimals}}</span>
-                                <span class="pl-1 unit lh15rem">{{$conv.ExchangeRate.Index}}</span>
+                                <span class="ps-1 unit lh15rem">{{$conv.ExchangeRate.Index}}</span>
                             </div>
                         </div>
                         {{end}}

@@ -17,9 +17,9 @@
                 {{$pending := (subtract $lastGrouping .Offset)}}
                 {{$dropVal := $lastGrouping}}
                 {{if gt $lastGrouping 200}}{{$dropVal = 200}}{{end}}
-                <span class="h2 d-flex pt-4 pb-1 pr-2">
+                <span class="h2 d-flex pt-4 pb-1 pe-2">
                     {{.TimeGrouping}}
-                    <span class="dcricon-info fs24 ml-3 mt-2"></span>
+                    <span class="dcricon-info fs24 ms-3 mt-2"></span>
                 </span>
 
                 <div class="pb-1 d-flex justify-content-end align-items-end flex-wrap">
@@ -27,7 +27,7 @@
                     {{intComma (add .Offset 1)}} &ndash; {{intComma $oldest}} of {{ intComma $lastGrouping }} rows
                   </span>
                   {{if ge $dropVal 10}}
-                    <span class="fs12 nowrap text-right">
+                    <span class="fs12 nowrap text-end">
                         <select
                             data-target="pagenavigation.pagesize"
                             data-action="change->pagenavigation#setPageSize"
@@ -45,7 +45,7 @@
                         </select>
                     </span>
                   {{end}}
-                  <nav aria-label="blocks navigation" data-limit="{{.Limit}}" class="ml-2 my-2 d-inline-block text-right">
+                  <nav aria-label="blocks navigation" data-limit="{{.Limit}}" class="ms-2 my-2 d-inline-block text-end">
                       <ul class="pages mb-0">
                           {{if ne .Offset 0}}
                           <li>
@@ -80,7 +80,7 @@
                 </div>
             </div>
             {{else}}
-            <span class="fs12 nowrap text-right list-display">no confirmed blocks found</span>
+            <span class="fs12 nowrap text-end list-display">no confirmed blocks found</span>
             {{end}}
         </div>
 
@@ -89,7 +89,7 @@
           <table class="table v3">
               <thead>
                   <tr>
-                      <th class="text-left pl-0">Start Date (UTC)</th>
+                      <th class="text-start ps-0">Start Date (UTC)</th>
                       <th class="text-center d-none d-sm-table-cell">
                           <span class="d-none d-md-inline">Regular</span>
                           <span class="d-md-none position-relative" data-tooltip="regular transactions">R</span>
@@ -108,14 +108,14 @@
                       </th>
                       <th class="text-center d-table-cell d-sm-none">Txns</th>
                       <th class="text-center"><span class="d-none d-sm-inline">Total </span>Blocks</th>
-                      <th class="text-right pr-0"><span class="d-none d-sm-inline">Total </span>Size</th>
-                      <th class="text-right pr-0">Age</th>
+                      <th class="text-end pe-0"><span class="d-none d-sm-inline">Total </span>Size</th>
+                      <th class="text-end pe-0">Age</th>
                   </tr>
               </thead>
               <tbody>
               {{range .Data}}
                   <tr>
-                      <td class="text-left pl-0"
+                      <td class="text-start ps-0"
                         ><a class="fs16 height" data-keynav-priority href="{{fetchRowLinkURL $lowerCaseVal .EndBlock .StartTime.T .EndTime.T}}">{{.FormattedStartTime}}</a>
                       </td>
                       <td class="text-center d-none d-sm-table-cell">{{intComma .Transactions}}</td>
@@ -124,14 +124,14 @@
                       <td class="text-center d-none d-sm-table-cell">{{intComma .Revocations}}</td>
                       <td class="text-center d-table-cell d-sm-none">{{intComma .TxCount}}</td>
                       <td class="text-center">{{intComma .BlocksCount}}</td>
-                      <td class="text-right pr-0">{{.FormattedSize}}</td>
-                      <td class="text-right pr-0" data-target="time.age" data-age="{{.StartTime.UNIX}}"></td>
+                      <td class="text-end pe-0">{{.FormattedSize}}</td>
+                      <td class="text-end pe-0" data-target="time.age" data-age="{{.StartTime.UNIX}}"></td>
                   </tr>
               {{end}}
               </tbody>
           </table>
           {{if len .Pages}}
-          <div class="text-right pr-3">
+          <div class="text-end pe-3">
             {{if ne .Offset 0}}
               <a href="/{{$lowerCaseVal}}?offset={{subtract .Offset .Limit}}&rows={{.Limit}}"
               class="d-inline-block dcricon-arrow-left m-1 fs20"></a>

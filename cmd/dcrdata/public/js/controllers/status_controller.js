@@ -27,7 +27,7 @@ function buildProgressBar (data) {
 
   return htmlString + clean(`<div class="progress" style="height:30px;border-radius:5px;">
                 <div class="progress-bar sync-progress-bar" role="progressbar" style="height:auto; width:` + progressVal + `%;">
-                <span class="nowrap pl-1 font-weight-bold">Progress ` + progressVal + '% (' + remainingStr + `)</span>
+                <span class="nowrap ps-1 fw-bold">Progress ` + progressVal + '% (' + remainingStr + `)</span>
                 </div>
             </div>`, { FORBID_TAGS: ['svg', 'math'] }) + notifStr
 }

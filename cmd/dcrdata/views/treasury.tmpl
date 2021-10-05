@@ -21,10 +21,10 @@
       <div class="col-24 col-xl-10 bg-white px-3 py-3 position-relative">
         <div class="fs22 pb-3">Decred Treasury</div>
         <div class="position-relative d-flex justify-content-between align-items-start flex-wrap">
-          <div class="d-inline-block text-left pr-2 pb-3">
+          <div class="d-inline-block text-start pe-2 pb-3">
             <span class="text-secondary fs13">Balance</span>
             <br>
-            <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal font-weight-bold">
+            <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal fw-bold">
             {{- if $bal.Balance}}
               {{template "decimalParts" (amountAsDecimalParts $bal.Balance true)}} <span class="text-secondary fs14">DCR</span><br>
             {{- else}}
@@ -39,10 +39,10 @@
             <br>
             <span class="text-secondary fs14 lh1rem">{{template "decimalParts" (amountAsDecimalParts $bal.Immature true)}} immature</span>
           </div>
-          <div class="d-inline-block text-left pr-2 pb-3">
+          <div class="d-inline-block text-start pe-2 pb-3">
             <span class="text-secondary fs13">Received</span>
             <br>
-            <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal font-weight-bold">
+            <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal fw-bold">
             {{- if or $bal.Added $bal.TGen}}
               {{- $received := add $bal.Added $bal.TGen}}
               {{- template "decimalParts" (amountAsDecimalParts $received true)}} <span class="text-secondary fs14">DCR</span>
@@ -53,10 +53,10 @@
             <br>
             <span class="text-secondary fs14 lh1rem">{{intComma $bal.TGenCount}} gens, {{intComma $bal.AddCount}} adds</span>
           </div>
-          <div class="d-inline-block text-left pr-2 pb-3">
+          <div class="d-inline-block text-start pe-2 pb-3">
             <span class="text-secondary fs13">Spent</span>
             <br>
-            <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal font-weight-bold">
+            <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal fw-bold">
             {{- if $bal.Spent}}
               {{- template "decimalParts" (amountAsDecimalParts $bal.Spent true)}} <span class="text-secondary fs14">DCR</span>
             {{- else}}
@@ -112,7 +112,7 @@
                 data-target="address.interval"
                 data-action="click->address#changeBin"
               >
-                <label class="d-inline-flex pr-1">Group By </label>
+                <label class="d-inline-flex pe-1">Group By </label>
                 <button name="year">Year</button>
                 <button class="btn-selected" name="month">Month</button>
                 <button name="week">Week</button>
@@ -121,11 +121,11 @@
               </div>
               <div class="row flex-nowrap d-inline-flex d-hide mx-2 mb-2" data-target="address.flow"
                 data-action="change->address#updateFlow">
-                <label class="customcheck ml-2 d-inline-flex">Sent
+                <label class="customcheck ms-2 d-inline-flex">Sent
                   <input type="checkbox" value="2">
                   <span class="checkmark sent"></span>
                 </label>
-                <label class="customcheck ml-2 d-inline-flex">Received
+                <label class="customcheck ms-2 d-inline-flex">Received
                   <input type="checkbox" checked="checked" value="1">
                   <span class="checkmark received"></span>
                 </label>
@@ -147,15 +147,15 @@
     
     <div class="position-relative" data-target="address.listbox">
       <div class="row align-items-center">
-        <div class="mr-auto mb-0 h4 col-24 col-sm-6">Transactions</div>
+        <div class="me-auto mb-0 h4 col-24 col-sm-6">Transactions</div>
         <div class="d-flex flex-wrap-reverse align-items-center justify-content-end py-1 col-24 col-sm-18">
-          <span class="fs12 nowrap text-right" data-target="address.range">
+          <span class="fs12 nowrap text-end" data-target="address.range">
             showing {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumTransactions)}} of
             <span data-target="address.txnCount" data-txn-count="{{$bal.TxCount}}">{{intComma .TypeCount}}</span> transactions
           </span>
           <nav aria-label="address transactions navigation"
             data-limit="{{.Limit}}"
-            class="my-1 ml-2{{if ge .NumTransactions $TxnCount}} d-hide{{end}}"
+            class="my-1 ms-2{{if ge .NumTransactions $TxnCount}} d-hide{{end}}"
             data-target="address.pagebuttons"
           >
             <ul class="pagination mb-0 pagination-sm">
@@ -188,7 +188,7 @@
           {{template "treasuryTable" .}}
         </div>
       </div>
-      <div class="text-right pr-3" data-target="address.tablePagination">
+      <div class="text-end pe-3" data-target="address.tablePagination">
         {{if ne .Offset 0}}
         <a class="d-inline-block dcricon-arrow-left m-1 fz20"
            data-action="click->address#pageNumberLink"
@@ -212,13 +212,13 @@
       <div class="d-flex align-items-center justify-content-between">
         <span></span>{{/*This dummy span ensures left/right alignment of the buttons, even if one is hidden.*/}}
         <div class="d-flex flex-row">
-          <div class="d-inline-block text-right">
-            <label class="mb-0 mr-1" for="txntype">Type</label>
+          <div class="d-inline-block text-end">
+            <label class="mb-0 me-1" for="txntype">Type</label>
             <select
               name="txntype"
               data-target="address.txntype"
               data-action="change->address#changeTxType"
-              class="form-control-sm mb-2 mr-sm-2 mb-sm-0"
+              class="form-control-sm mb-2 me-sm-2 mb-sm-0"
             >
               <option {{if eq $txType "all"}}selected{{end}} value="all">All</option>
               <option {{if eq $txType "tspend"}}selected{{end}} value="tspend">Spend</option>
@@ -226,14 +226,14 @@
               <option {{if eq $txType "treasurybase"}}selected{{end}} value="treasurybase">Treasurybase</option>
             </select>
           </div>
-          <div class="d-inline-block text-right">
-            <label class="mb-0 mr-1" for="pagesize">Page size</label>
+          <div class="d-inline-block text-end">
+            <label class="mb-0 me-1" for="pagesize">Page size</label>
             <select
               name="pagesize"
               id="pagesize"
               data-target="address.pagesize"
               data-action="change->address#changePageSize"
-              class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $TxnCount 20}}disabled{{end}}"
+              class="form-control-sm mb-2 me-sm-2 mb-sm-0 {{if lt $TxnCount 20}}disabled{{end}}"
               {{- if lt $TxnCount 20}} disabled{{end}}
             >
             {{- $Txlen := len .Transactions}}
