@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/dcrjson/v3"
+	"github.com/decred/dcrd/dcrjson/v4"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
 )
 

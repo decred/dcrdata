@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/asdine/storm/v3"
-	"github.com/decred/dcrd/dcrjson/v3"
+	"github.com/decred/dcrd/dcrjson/v4"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
 	"github.com/decred/dcrdata/v7/db/dbtypes"
 )
