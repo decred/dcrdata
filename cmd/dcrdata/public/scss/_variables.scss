@@ -56,3 +56,8 @@ $dark-link-hover-color: #94ffca;
 // links
 $link-decoration: none;
 $link-hover-decoration: underline;
+
+// variables that changed with the bootstrap 5 migration.
+$input-bg: #fff;
+$input-color: #495057;
+$nav-link-color: inherit;

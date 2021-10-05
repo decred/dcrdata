@@ -9,7 +9,7 @@
                 <textarea
                     autofocus
                     rows="6"
-                    class="col"
+                    class="w-100"
                     data-target="rawtx.rawTransaction"
                     data-action="keypress->rawtx#send"
                     data-event-id="decodetx"
@@ -27,10 +27,10 @@
                     data-target="rawtx.broadcast"
                     data-action="click->rawtx#send"
                     data-event-id="sendtx"
-                    class="button btn btn-success"
+                    class="button btn btn-success color-inherit"
                 >Broadcast</button>
             </form>
-            <h4 class="mb-2" data-target="rawtx.decodeHeader">Decoded transaction</h4>
+            <h4 class="my-2" data-target="rawtx.decodeHeader">Decoded transaction</h4>
             <pre
                 data-target="rawtx.decodedTransaction"
                 class="json-block mono pt-3 pe-3 pb-3 ps-3"
