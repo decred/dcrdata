@@ -24,6 +24,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v4"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
 	"github.com/decred/dcrd/rpcclient/v7"
+	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
@@ -4818,7 +4819,8 @@ func (pgb *ChainDB) GetBlockHeight(hash string) (int64, error) {
 // GetAPITransaction gets an *apitypes.Tx for a given transaction ID.
 func (pgb *ChainDB) GetAPITransaction(txid *chainhash.Hash) *apitypes.Tx {
 	// We're going to be lazy use a node RPC since it gives is block data,
-	// confirmations, ticket commitment info decoded, etc.
+	// confirmations, ticket commitment info decoded, etc. The DB also lacks
+	// ScriptSig and Sequence.
 	txraw, err := pgb.Client.GetRawTransactionVerbose(pgb.ctx, txid)
 	if err != nil {
 		log.Errorf("APITransaction failed for %v: %v", txid, err)
@@ -4832,7 +4834,7 @@ func (pgb *ChainDB) GetAPITransaction(txid *chainhash.Hash) *apitypes.Tx {
 			Version:  txraw.Version,
 			Locktime: txraw.LockTime,
 			Expiry:   txraw.Expiry,
-			Vin:      make([]chainjson.Vin, len(txraw.Vin)),
+			Vin:      make([]apitypes.Vin, len(txraw.Vin)),
 			Vout:     make([]apitypes.Vout, len(txraw.Vout)),
 		},
 		Confirmations: txraw.Confirmations,
@@ -4848,11 +4850,12 @@ func (pgb *ChainDB) GetAPITransaction(txid *chainhash.Hash) *apitypes.Tx {
 	copy(tx.Vin, txraw.Vin)
 
 	for i := range txraw.Vout {
-		tx.Vout[i].Value = txraw.Vout[i].Value
-		tx.Vout[i].N = txraw.Vout[i].N
-		tx.Vout[i].Version = txraw.Vout[i].Version
+		vout := &txraw.Vout[i]
+		tx.Vout[i].Value = vout.Value
+		tx.Vout[i].N = vout.N
+		tx.Vout[i].Version = vout.Version
 		spk := &tx.Vout[i].ScriptPubKeyDecoded
-		spkRaw := &txraw.Vout[i].ScriptPubKey
+		spkRaw := &vout.ScriptPubKey
 		spk.Asm = spkRaw.Asm
 		spk.Version = spkRaw.Version
 		spk.Hex = spkRaw.Hex
@@ -5349,63 +5352,247 @@ func (pgb *ChainDB) GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails 
 	return &mpTicketDetails
 }
 
-// GetAddressTransactionsRawWithSkip returns an array of apitypes.AddressTxRaw objects
-// representing the raw result of SearchRawTransactionsverbose
-func (pgb *ChainDB) GetAddressTransactionsRawWithSkip(addr string, count int, skip int) []*apitypes.AddressTxRaw {
-	address, err := stdaddr.DecodeAddress(addr, pgb.chainParams)
+func decPkScript(ver uint16, pkScript []byte, isTicketCommit bool, chainParams *chaincfg.Params) (spkDec apitypes.ScriptPubKey) {
+	scriptType, addrs := stdscript.ExtractAddrs(ver, pkScript, chainParams)
+	reqSigs := stdscript.DetermineRequiredSigs(ver, pkScript)
+	spkDec.Asm, _ = txscript.DisasmString(pkScript)
+	spkDec.Hex = hex.EncodeToString(pkScript)
+	spkDec.ReqSigs = int32(reqSigs)
+	if len(addrs) > 0 {
+		spkDec.Addresses = make([]string, len(addrs))
+		for i := range addrs {
+			spkDec.Addresses[i] = addrs[i].String()
+		}
+	}
+
+	if !isTicketCommit {
+		spkDec.Type = apitypes.NewScriptClass(scriptType).String()
+		return
+	}
+
+	// If it's a ticket commitment (sstxcommitment), decode the address and
+	// amount from the OP_RETURN.
+	spkDec.Type = apitypes.ScriptClassStakeSubCommit.String()
+	addr, err := stake.AddrFromSStxPkScrCommitment(pkScript, chainParams)
+	if err != nil {
+		log.Warnf("failed to decode ticket commitment addr for script %x: %v",
+			pkScript, err)
+	} else {
+		spkDec.Addresses = []string{addr.String()}
+	}
+	amt, err := stake.AmountFromSStxPkScrCommitment(pkScript)
+	if err != nil {
+		log.Warnf("failed to decode ticket commitment amt output for script %x: %v",
+			pkScript, err)
+	} else {
+		commitAmt := amt.ToCoin()
+		spkDec.CommitAmt = &commitAmt
+	}
+
+	return
+}
+
+// GetAddressTransactionsRawWithSkip returns a slice of apitypes.AddressTxRaw
+// objects similar to the raw result of SearchRawTransactionsVerbose, but with
+// fewer Vin details, namely the SigScript and Sequence. This powers the
+// /address/{addr}/.../raw API endpoints.
+func (pgb *ChainDB) GetAddressTransactionsRawWithSkip(addr string, count, skip int) []*apitypes.AddressTxRaw {
+	_, err := stdaddr.DecodeAddress(addr, pgb.chainParams) // likely redundant with checks in caller
 	if err != nil {
 		log.Infof("Invalid address %s: %v", addr, err)
 		return nil
 	}
-	ctx, cancel := context.WithTimeout(pgb.ctx, 10*time.Second)
-	defer cancel()
-	txs, err := pgb.Client.SearchRawTransactionsVerbose(ctx, address, skip, count, true, true, nil)
+
+	var txs []*apitypes.AddressTxRaw
+
+	// Mempool
+	mpTxs, _, err := pgb.mp.UnconfirmedTxnsForAddress(addr)
 	if err != nil {
-		if strings.Contains(err.Error(), "No Txns available") {
-			return make([]*apitypes.AddressTxRaw, 0)
-		}
-		log.Warnf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
+		log.Errorf("GetAddressTransactionsRawWithSkip: UnconfirmedTxnsForAddress %s: %v", addr, err)
 		return nil
 	}
-	txarray := make([]*apitypes.AddressTxRaw, 0, len(txs))
-	for i := range txs {
-		tx := new(apitypes.AddressTxRaw)
-		tx.Size = int32(len(txs[i].Hex) / 2)
-		tx.TxID = txs[i].Txid
-		tx.Version = txs[i].Version
-		tx.Locktime = txs[i].LockTime
-		tx.Vin = make([]chainjson.VinPrevOut, len(txs[i].Vin))
-		copy(tx.Vin, txs[i].Vin)
-		tx.Confirmations = int64(txs[i].Confirmations)
-		tx.BlockHash = txs[i].BlockHash
-		tx.Blocktime = apitypes.TimeAPI{S: dbtypes.NewTimeDefFromUNIX(txs[i].Blocktime)}
-		tx.Time = apitypes.TimeAPI{S: dbtypes.NewTimeDefFromUNIX(txs[i].Time)}
-		tx.Vout = make([]apitypes.Vout, len(txs[i].Vout))
-		for j := range txs[i].Vout {
-			tx.Vout[j].Value = txs[i].Vout[j].Value
-			tx.Vout[j].N = txs[i].Vout[j].N
-			tx.Vout[j].Version = txs[i].Vout[j].Version
-			spk := &tx.Vout[j].ScriptPubKeyDecoded
-			spkRaw := &txs[i].Vout[j].ScriptPubKey
-			spk.Asm = spkRaw.Asm
-			spk.Version = spkRaw.Version
-			spk.Hex = spkRaw.Hex
-			spk.ReqSigs = spkRaw.ReqSigs
-			pkScript, _ := hex.DecodeString(spkRaw.Hex)
-			scriptType := stdscript.DetermineScriptType(spkRaw.Version, pkScript)
-			spk.Type = apitypes.NewScriptClass(scriptType).String()
-			spk.Addresses = make([]string, len(spkRaw.Addresses))
-			copy(spk.Addresses, spkRaw.Addresses)
-			if spkRaw.CommitAmt != nil {
-				spk.CommitAmt = new(float64)
-				*spk.CommitAmt = *spkRaw.CommitAmt
-				spk.Type = apitypes.ScriptClassStakeSubCommit.String()
+	for hash, mpTx := range mpTxs.TxnsStore {
+		tx := mpTx.Tx
+		txType := stake.DetermineTxType(tx, true, false)
+
+		vins := make([]apitypes.VinShort, len(tx.TxIn))
+		for i, txIn := range tx.TxIn {
+			vins[i] = apitypes.VinShort{
+				Txid: txIn.PreviousOutPoint.Hash.String(),
+				Vout: txIn.PreviousOutPoint.Index,
+				Tree: txIn.PreviousOutPoint.Tree,
+				// Unconfirmed, so no BlockHeight or BlockIndex set.
+			}
+			vin := &vins[i]
+			if i == 0 && vin.Txid == string(zeroHashStringBytes) {
+				switch txType {
+				case stake.TxTypeRegular:
+					vin.Coinbase = true
+				case stake.TxTypeSSGen:
+					vin.Stakebase = true
+				case stake.TxTypeTSpend:
+					vin.TreasurySpend = true
+				case stake.TxTypeTreasuryBase:
+					vin.Treasurybase = true
+				}
+			}
+			if txIn.ValueIn > 0 {
+				vin.AmountIn = dcrutil.Amount(txIn.ValueIn).ToCoin()
 			}
 		}
-		txarray = append(txarray, tx)
+		vouts := make([]apitypes.Vout, len(tx.TxOut))
+		for i, txOut := range tx.TxOut {
+			isTicketCommit := txType == stake.TxTypeSStx && (i%2 != 0)
+			vouts[i] = apitypes.Vout{
+				Value:               dcrutil.Amount(txOut.Value).ToCoin(),
+				N:                   uint32(i),
+				Version:             txOut.Version,
+				ScriptPubKeyDecoded: decPkScript(txOut.Version, txOut.PkScript, isTicketCommit, pgb.chainParams),
+			}
+		}
+		txs = append(txs, &apitypes.AddressTxRaw{
+			Size:     int32(tx.SerializeSize()),
+			TxID:     hash.String(),
+			Version:  int32(tx.Version),
+			Locktime: tx.LockTime,
+			Type:     int32(txType),
+			Vin:      vins,
+			Vout:     vouts,
+			Time:     apitypes.NewTimeAPIFromUNIX(mpTx.MemPoolTime),
+		})
 	}
 
-	return txarray
+	_, height := pgb.BestBlock() // for confirmations
+
+	ctx, cancel := context.WithTimeout(pgb.ctx, 10*time.Second)
+	defer cancel()
+
+	// vins
+	rows, err := pgb.db.QueryContext(ctx, internal.SelectVinsForAddress, addr, count, skip)
+	if err != nil {
+		log.Errorf("GetAddressTransactionsRawWithSkip: SelectVinsForAddress %s: %v", addr, err)
+		return nil
+	}
+	defer rows.Close()
+
+	type vinIndexed struct {
+		*apitypes.VinShort
+		idx int32
+	}
+	vins := make(map[string][]*vinIndexed)
+	for rows.Next() {
+		var txid string // redeeming tx
+		var idx int32
+		var vin apitypes.VinShort
+		var val int64
+		if err = rows.Scan(&txid, &idx, &vin.Txid, &vin.Vout, &vin.Tree, &val,
+			&vin.BlockHeight, &vin.BlockIndex); err != nil {
+			log.Errorf("GetAddressTransactionsRawWithSkip: SelectVinsForAddress %s: %v", addr, err)
+			return nil
+		}
+
+		if val > 0 {
+			vin.AmountIn = dcrutil.Amount(val).ToCoin()
+		}
+		// Coinbase, Stakebase, etc. booleans are set on TxType detection below.
+		vins[txid] = append(vins[txid], &vinIndexed{&vin, idx})
+	}
+
+	// tx
+	rows, err = pgb.db.QueryContext(ctx, internal.SelectAddressTxns, addr, count, skip)
+	if err != nil {
+		log.Errorf("GetAddressTransactionsRawWithSkip: SelectAddressTxns %s: %v", addr, err)
+		return nil
+	}
+	defer rows.Close()
+
+	txns := make(map[string]*apitypes.AddressTxRaw)
+
+	for rows.Next() {
+		var tx apitypes.AddressTxRaw
+		var blockHeight int64
+		var numVins, numVouts int32
+		// var vinDbIDs, voutDbIDs pq.Int64Array
+		if err = rows.Scan(&tx.TxID, &tx.BlockHash, &blockHeight,
+			&tx.Time.S, &tx.Version, &tx.Locktime, &tx.Size, &tx.Type, &numVins, &numVouts /*, &vinDbIDs, &voutDbIDs*/); err != nil {
+			log.Errorf("GetAddressTransactionsRawWithSkip: Scan %s: %v", addr, err)
+			return nil
+		}
+		tx.Blocktime = &tx.Time
+		tx.Confirmations = height - blockHeight + 1
+
+		txns[tx.TxID] = &tx
+
+		txVins, found := vins[tx.TxID]
+		if found {
+			sort.Slice(txVins, func(i, j int) bool {
+				return txVins[i].idx < txVins[j].idx
+			})
+			tx.Vin = make([]apitypes.VinShort, 0, numVins)
+			for i, vin := range txVins {
+				if i == 0 && vin.Txid == string(zeroHashStringBytes) {
+					switch stake.TxType(tx.Type) {
+					case stake.TxTypeRegular:
+						vin.Coinbase = true
+					case stake.TxTypeSSGen:
+						vin.Stakebase = true
+					case stake.TxTypeTSpend:
+						vin.TreasurySpend = true
+					case stake.TxTypeTreasuryBase:
+						vin.Treasurybase = true
+					}
+				}
+				tx.Vin = append(tx.Vin, *vin.VinShort)
+			}
+		} else {
+			tx.Vin = []apitypes.VinShort{} // [] instead of null
+		}
+
+		// vouts need the tx type to set ticket commitment amount
+
+		txs = append(txs, &tx)
+	}
+
+	// vouts
+	rows, err = pgb.db.QueryContext(ctx, internal.SelectVoutsForAddress, addr, count, skip)
+	if err != nil {
+		log.Errorf("GetAddressTransactionsRawWithSkip: SelectVoutsForAddress %s: %v", addr, err)
+		return nil
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var txid string // funding tx
+		var vout apitypes.Vout
+		var val int64
+		var pkScript []byte
+		if err = rows.Scan(&val, &txid, &vout.N, &vout.Version, &pkScript); err != nil {
+			log.Errorf("GetAddressTransactionsRawWithSkip: SelectVoutsForAddress %s: %v", addr, err)
+			return nil
+		}
+
+		if val > 0 {
+			vout.Value = dcrutil.Amount(val).ToCoin()
+		}
+
+		tx, found := txns[txid]
+		if !found {
+			log.Errorf("Tx %v for vout not found.", txid)
+			continue
+		}
+
+		isTicketCommit := stake.TxType(tx.Type) == stake.TxTypeSStx && (vout.N%2 != 0)
+		vout.ScriptPubKeyDecoded = decPkScript(vout.Version, pkScript, isTicketCommit, pgb.chainParams)
+		tx.Vout = append(tx.Vout, vout)
+	}
+
+	for _, tx := range txs {
+		sort.Slice(tx.Vout, func(i, j int) bool {
+			return tx.Vout[i].N < tx.Vout[j].N
+		})
+	}
+
+	return txs
 }
 
 // GetMempoolPriceCountTime retrieves from mempool: the ticket price, the number
@@ -6062,176 +6249,6 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 	tx.SpendingTxns = make([]exptypes.TxInID, len(outputs))
 
 	return tx
-}
-
-func makeExplorerAddressTx(data *chainjson.SearchRawTransactionsResult, address string, treasuryActive bool) *dbtypes.AddressTx {
-	tx := &dbtypes.AddressTx{
-		TxID:          data.Txid,
-		FormattedSize: humanize.Bytes(uint64(len(data.Hex) / 2)),
-		Total:         txhelpers.TotalVout(data.Vout).ToCoin(),
-		Time:          dbtypes.NewTimeDefFromUNIX(data.Time),
-		Confirmations: data.Confirmations,
-	}
-
-	msgTx, err := txhelpers.MsgTxFromHex(data.Hex)
-	if err == nil {
-		tx.TxType = txhelpers.DetermineTxTypeString(msgTx, treasuryActive)
-	} else {
-		log.Warn("makeExplorerAddressTx cannot get tx type", err)
-	}
-
-	for i := range data.Vin {
-		vin := &data.Vin[i]
-		if vin.PrevOut != nil && len(vin.PrevOut.Addresses) > 0 {
-			if vin.PrevOut.Addresses[0] == address {
-				tx.SentTotal += *vin.AmountIn
-			}
-		}
-	}
-	for i := range data.Vout {
-		vout := &data.Vout[i]
-		if len(vout.ScriptPubKey.Addresses) != 0 {
-			if vout.ScriptPubKey.Addresses[0] == address {
-				tx.ReceivedTotal += vout.Value
-			}
-		}
-	}
-	return tx
-}
-
-// MaxAddressRows is an upper limit on the number of rows that may be
-// requested with the searchrawtransactions RPC.
-const MaxAddressRows int64 = 1000
-
-// GetExplorerAddress fetches a *dbtypes.AddressInfo for the given address.
-// Also returns the txhelpers.AddressType. DEPRECATED, was used by search.
-func (pgb *ChainDB) GetExplorerAddress(address string, count, offset int64) (*dbtypes.AddressInfo, txhelpers.AddressType, txhelpers.AddressError) {
-	// Validate the address.
-	addr, addrType, addrErr := txhelpers.AddressValidation(address, pgb.chainParams)
-	netName := pgb.chainParams.Net.String()
-	switch addrErr {
-	case txhelpers.AddressErrorNoError:
-		// All good!
-	case txhelpers.AddressErrorZeroAddress:
-		// Short circuit the transaction and balance queries if the provided
-		// address is the zero pubkey hash address commonly used for zero
-		// value sstxchange-tagged outputs.
-		return &dbtypes.AddressInfo{
-			Address:         address,
-			Net:             netName,
-			IsDummyAddress:  true,
-			Balance:         new(dbtypes.AddressBalance),
-			UnconfirmedTxns: new(dbtypes.AddressTransactions),
-			Limit:           count,
-			Offset:          offset,
-		}, addrType, nil
-	case txhelpers.AddressErrorWrongNet:
-		// Set the net name field so a user can be properly directed.
-		return &dbtypes.AddressInfo{
-			Address: address,
-			Net:     netName,
-		}, addrType, addrErr
-	default:
-		return nil, addrType, addrErr
-	}
-
-	ctx, cancel := context.WithTimeout(pgb.ctx, 10*time.Second)
-	defer cancel()
-	txs, err := pgb.Client.SearchRawTransactionsVerbose(ctx, addr,
-		int(offset), int(MaxAddressRows), true, true, nil)
-	if err != nil {
-		if err.Error() == "-32603: No Txns available" {
-			log.Tracef("GetExplorerAddress: No transactions found for address %s: %v", addr, err)
-			return &dbtypes.AddressInfo{
-				Address:    address,
-				Net:        netName,
-				MaxTxLimit: MaxAddressRows,
-				Limit:      count,
-				Offset:     offset,
-			}, addrType, nil
-		}
-		log.Warnf("GetExplorerAddress: SearchRawTransactionsVerbose failed for address %s: %v", addr, err)
-		return nil, addrType, txhelpers.AddressErrorUnknown
-	}
-
-	addressTxs := make([]*dbtypes.AddressTx, 0, len(txs))
-	for i, tx := range txs {
-		if int64(i) == count { // count >= len(txs)
-			break
-		}
-		treasuryActive := true
-		if tx.BlockHeight >= 0 {
-			treasuryActive = txhelpers.IsTreasuryActive(pgb.chainParams.Net, tx.BlockHeight)
-		}
-		addressTxs = append(addressTxs, makeExplorerAddressTx(tx, address, treasuryActive))
-	}
-
-	var numUnconfirmed, numReceiving, numSpending int64
-	var totalreceived, totalsent dcrutil.Amount
-
-	for _, tx := range txs {
-		if tx.Confirmations == 0 {
-			numUnconfirmed++
-		}
-		for _, y := range tx.Vout {
-			if len(y.ScriptPubKey.Addresses) != 0 {
-				if address == y.ScriptPubKey.Addresses[0] {
-					t, _ := dcrutil.NewAmount(y.Value)
-					if t > 0 {
-						totalreceived += t
-					}
-					numReceiving++
-				}
-			}
-		}
-		for _, u := range tx.Vin {
-			if u.PrevOut != nil && len(u.PrevOut.Addresses) != 0 {
-				if address == u.PrevOut.Addresses[0] {
-					t, _ := dcrutil.NewAmount(*u.AmountIn)
-					if t > 0 {
-						totalsent += t
-					}
-					numSpending++
-				}
-			}
-		}
-	}
-
-	numTxns, numberMaxOfTx := count, int64(len(txs))
-	if numTxns > numberMaxOfTx {
-		numTxns = numberMaxOfTx
-	}
-	balance := &dbtypes.AddressBalance{
-		Address:      address,
-		NumSpent:     numSpending,
-		NumUnspent:   numReceiving,
-		TotalSpent:   int64(totalsent),
-		TotalUnspent: int64(totalreceived - totalsent),
-	}
-	addrData := &dbtypes.AddressInfo{
-		Address:           address,
-		Net:               netName,
-		MaxTxLimit:        MaxAddressRows,
-		Limit:             count,
-		Offset:            offset,
-		NumUnconfirmed:    numUnconfirmed,
-		Transactions:      addressTxs,
-		NumTransactions:   numTxns,
-		NumFundingTxns:    numReceiving,
-		NumSpendingTxns:   numSpending,
-		AmountReceived:    totalreceived,
-		AmountSent:        totalsent,
-		AmountUnspent:     totalreceived - totalsent,
-		Balance:           balance,
-		KnownTransactions: numberMaxOfTx,
-		KnownFundingTxns:  numReceiving,
-		KnownSpendingTxns: numSpending,
-	}
-
-	// Sort by date and calculate block height.
-	addrData.PostProcess(uint32(pgb.Height()))
-
-	return addrData, addrType, nil
 }
 
 // GetTip grabs the highest block stored in the database.

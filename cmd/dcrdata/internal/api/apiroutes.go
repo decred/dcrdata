@@ -624,6 +624,7 @@ func (c *appContext) setTrimmedTxSpends(tx *apitypes.TrimmedTx) error {
 	return c.setOutputSpends(tx.TxID, tx.Vout)
 }
 
+// getTransaction handles the /tx/{txid} API endpoint.
 func (c *appContext) getTransaction(w http.ResponseWriter, r *http.Request) {
 	// Look up any spending transactions for each output of this transaction
 	// when the client requests spends with the URL query ?spends=true.
@@ -811,6 +812,7 @@ func (c *appContext) getTxSwapsInfo(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, swapsInfo, m.GetIndentCtx(r))
 }
 
+// getTransactions handles the /txns POST API endpoint.
 func (c *appContext) getTransactions(w http.ResponseWriter, r *http.Request) {
 	// Look up any spending transactions for each output of this transaction
 	// when the client requests spends with the URL query ?spends=true.
@@ -1857,6 +1859,8 @@ func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Reque
 	writeJSON(w, txs, m.GetIndentCtx(r))
 }
 
+// getAddressTransactionsRaw handles the various /address/{addr}/.../raw API
+// endpoints.
 func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Request) {
 	addresses, err := m.GetAddressCtx(r, c.Params)
 	if err != nil || len(addresses) > 1 {
@@ -1869,14 +1873,13 @@ func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Re
 	skip := int64(m.GetMCtx(r))
 	if count <= 0 {
 		count = 10
-	} else if count > 8000 {
-		count = 8000
+	} else if count > 1000 {
+		count = 1000
 	}
 	if skip <= 0 {
 		skip = 0
 	}
 
-	// TODO: add postgresql powered method
 	txs := c.DataSource.GetAddressTransactionsRawWithSkip(address, int(count), int(skip))
 	if txs == nil {
 		http.Error(w, http.StatusText(422), 422)

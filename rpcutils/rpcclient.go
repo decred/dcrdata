@@ -17,7 +17,6 @@ import (
 	"github.com/decred/dcrd/dcrutil/v4"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
 	"github.com/decred/dcrd/rpcclient/v7"
-	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 
 	"github.com/decred/dcrdata/v8/semver"
@@ -74,6 +73,7 @@ func NewAsyncTxClient(c *rpcclient.Client) *AsyncTxClient {
 // dcrdata.
 var compatibleChainServerAPIs = []semver.Semver{
 	semver.NewSemver(7, 0, 0),
+	semver.NewSemver(8, 0, 0), // removed methods we no longer use i.e. searchrawtransactions
 }
 
 var (
@@ -361,23 +361,6 @@ func reverseStringSlice(s []string) {
 		j := N - 1 - i
 		s[i], s[j] = s[j], s[i]
 	}
-}
-
-// SearchRawTransaction fetch transactions pertaining to an address.
-func SearchRawTransaction(ctx context.Context, client *rpcclient.Client, params *chaincfg.Params, count int, address string) ([]*chainjson.SearchRawTransactionsResult, error) {
-	addr, err := stdaddr.DecodeAddress(address, params)
-	if err != nil {
-		log.Infof("Invalid address %s: %v", address, err)
-		return nil, err
-	}
-
-	//change the 1000 000 number demo for now
-	txs, err := client.SearchRawTransactionsVerbose(ctx, addr, 0, count,
-		true, true, nil)
-	if err != nil {
-		log.Warnf("SearchRawTransaction failed for address %s: %v", addr, err)
-	}
-	return txs, nil
 }
 
 // CommonAncestor attempts to determine the common ancestor block for two chains

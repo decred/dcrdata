@@ -7,6 +7,7 @@ package internal
 // These queries relate primarily to the "vins" and "vouts" tables.
 const (
 	// vins
+	// TODO: add sequence num?
 
 	CreateVinTable = `CREATE TABLE IF NOT EXISTS vins (
 		id SERIAL8 PRIMARY KEY,
@@ -23,7 +24,7 @@ const (
 		tx_type INT4
 	);`
 
-	// insertVinRow is the basis for several vinvs insert/upsert statements.
+	// insertVinRow is the basis for several vins insert/upsert statements.
 	insertVinRow = `INSERT INTO vins (tx_hash, tx_index, tx_tree, prev_tx_hash, prev_tx_index, prev_tx_tree,
 		value_in, is_valid, is_mainchain, block_time, tx_type) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) `
 

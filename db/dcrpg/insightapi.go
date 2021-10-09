@@ -131,29 +131,6 @@ func (pgb *ChainDB) AddressIDsByOutpoint(txHash string, voutIndex uint32) ([]uin
 	return ids, addrs, val, pgb.replaceCancelError(err)
 }
 
-// InsightSearchRPCAddressTransactions performs a searchrawtransactions for the
-// specified address, max number of transactions, and offset into the transaction
-// list. The search results are in reverse temporal order.
-// TODO: Does this really need all the prev vout extra data?
-func (pgb *ChainDB) InsightSearchRPCAddressTransactions(addr string, count,
-	skip int) []*chainjson.SearchRawTransactionsResult {
-	address, err := stdaddr.DecodeAddress(addr, pgb.chainParams)
-	if err != nil {
-		log.Infof("Invalid address %s: %v", addr, err)
-		return nil
-	}
-	prevVoutExtraData := true
-	ctx, cancel := context.WithTimeout(pgb.ctx, 10*time.Second)
-	defer cancel()
-	txs, err := pgb.Client.SearchRawTransactionsVerbose(ctx,
-		address, skip, count, prevVoutExtraData, true, nil)
-	if err != nil {
-		log.Warnf("GetAddressTransactions failed for address %s: %v", addr, err)
-		return nil
-	}
-	return txs
-}
-
 // GetTransactionHex returns the full serialized transaction for the specified
 // transaction hash as a hex encode string.
 func (pgb *ChainDB) GetTransactionHex(txid *chainhash.Hash) string {

@@ -132,9 +132,9 @@ Always run the Current release or on the Current stable branch. Do not use `mast
 - [Go](https://golang.org) 1.18 or 1.19
 - [Node.js](https://nodejs.org/en/download/) 16.x or 18.x. Node.js is only used
   as a build tool, and is **not used at runtime**.
-- Running `dcrd` running with `--txindex --addrindex`, and synchronized to the
-  current best block on the network. On startup, dcrdata will verify that the
-  dcrd version is compatible.
+- Running `dcrd` running with `--txindex`, and synchronized to the current best
+  block on the network. On startup, dcrdata will verify that the dcrd version is
+  compatible.
 - PostgreSQL 11+
 
 ## Docker Support
@@ -367,7 +367,6 @@ dcrd.conf:
 
 ```ini
 txindex=1
-addrindex=1
 ```
 
 If these parameters are not set, dcrdata will be unable to retrieve transaction

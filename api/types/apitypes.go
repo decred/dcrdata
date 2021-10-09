@@ -24,6 +24,8 @@ type TimeAPI struct {
 	S dbtypes.TimeDef
 }
 
+var _ fmt.Stringer = TimeAPI{}
+
 // String formats the time in a human-friendly layout.
 func (t TimeAPI) String() string {
 	return t.S.String()
@@ -33,6 +35,9 @@ func (t TimeAPI) String() string {
 func (t TimeAPI) UNIX() int64 {
 	return t.S.UNIX()
 }
+
+var _ json.Marshaler = (*TimeAPI)(nil)
+var _ json.Unmarshaler = (*TimeAPI)(nil)
 
 // MarshalJSON is set as the default marshalling function for TimeAPI struct.
 func (t *TimeAPI) MarshalJSON() ([]byte, error) {
@@ -83,6 +88,7 @@ type Tx struct {
 	Block         *BlockID `json:"block,omitempty"`
 }
 
+// Vin is an alias for dcrd's rpc/jsonrpc/types/v3.Vin type.
 type Vin = chainjson.Vin
 
 // TxShort models info about transaction TxID
@@ -191,7 +197,7 @@ type Vout struct {
 	N                   uint32       `json:"n"`
 	Version             uint16       `json:"version"`
 	ScriptPubKeyDecoded ScriptPubKey `json:"scriptPubKey"`
-	Spend               *TxInputID   `json:"spend,omitempty"`
+	Spend               *TxInputID   `json:"spend,omitempty"` // unused?
 }
 
 // TxInputID specifies a transaction input as hash:vin_index.
@@ -380,19 +386,104 @@ type Address struct {
 	Transactions []*AddressTxShort `json:"address_transactions"`
 }
 
+// ScriptSig models the signature script used to redeem a transaction output.
+// type ScriptSig struct {
+// 	Asm string `json:"asm,omitempty"`
+// 	Hex string `json:"hex,omitempty"`
+// }
+
+// VinShort describes a transaction input with limited detail, for the address
+// txn API endpoints. In particular, there is no ScriptSig or Sequence, and the
+// string fields for Coinbase, Stakebase, and TreasurySpend are just booleans.
+type VinShort struct {
+	Coinbase      bool    `json:"coinbase"`
+	Stakebase     bool    `json:"stakebase"`
+	Treasurybase  bool    `json:"treasurybase"`
+	TreasurySpend bool    `json:"treasuryspend"`
+	Txid          string  `json:"txid"`
+	Vout          uint32  `json:"vout"`
+	Tree          int8    `json:"tree"`
+	AmountIn      float64 `json:"amountin"`
+	BlockHeight   *uint32 `json:"blockheight,omitempty"`
+	BlockIndex    *uint32 `json:"blockindex,omitempty"`
+	// No ScriptSig or Sequence
+}
+
+// MarshalJSON is used to marshal a Vin to JSON with special handling for when
+// the these are generate coins (should be zero txid).
+func (v *VinShort) MarshalJSON() ([]byte, error) {
+	switch {
+	case v.Coinbase:
+		generated := struct {
+			Coinbase bool    `json:"coinbase"`
+			AmountIn float64 `json:"amountin"`
+		}{
+			Coinbase: true,
+			AmountIn: v.AmountIn,
+		}
+		return json.Marshal(generated)
+	case v.Stakebase:
+		generated := struct {
+			Stakebase bool    `json:"stakebase"`
+			AmountIn  float64 `json:"amountin"`
+		}{
+			Stakebase: true,
+			AmountIn:  v.AmountIn,
+		}
+		return json.Marshal(generated)
+	case v.Treasurybase:
+		generated := struct {
+			Treasurybase bool    `json:"treasurybase"`
+			AmountIn     float64 `json:"amountin"`
+		}{
+			Treasurybase: true,
+			AmountIn:     v.AmountIn,
+		}
+		return json.Marshal(generated)
+	case v.TreasurySpend:
+		generated := struct {
+			TreasurySpend bool    `json:"treasuryspend"`
+			AmountIn      float64 `json:"amountin"`
+		}{
+			TreasurySpend: true,
+			AmountIn:      v.AmountIn,
+		}
+		return json.Marshal(generated)
+
+	}
+
+	return json.Marshal(struct {
+		Txid        string  `json:"txid"`
+		Vout        uint32  `json:"vout"`
+		Tree        int8    `json:"tree"`
+		AmountIn    float64 `json:"amountin"`
+		BlockHeight *uint32 `json:"blockheight,omitempty"`
+		BlockIndex  *uint32 `json:"blockindex,omitempty"`
+	}{
+		Txid:        v.Txid,
+		Vout:        v.Vout,
+		Tree:        v.Tree,
+		AmountIn:    v.AmountIn,
+		BlockHeight: v.BlockHeight,
+		BlockIndex:  v.BlockIndex,
+	})
+}
+
 // AddressTxRaw is modeled from SearchRawTransactionsResult but with size in
-// place of hex
+// place of hex, and a limited vin structure.
 type AddressTxRaw struct {
-	Size          int32                  `json:"size"`
-	TxID          string                 `json:"txid"`
-	Version       int32                  `json:"version"`
-	Locktime      uint32                 `json:"locktime"`
-	Vin           []chainjson.VinPrevOut `json:"vin"`
-	Vout          []Vout                 `json:"vout"`
-	Confirmations int64                  `json:"confirmations"`
-	BlockHash     string                 `json:"blockhash"`
-	Time          TimeAPI                `json:"time,omitempty"`
-	Blocktime     TimeAPI                `json:"blocktime,omitempty"`
+	Size          int32      `json:"size"`
+	TxID          string     `json:"txid"`
+	Version       int32      `json:"version"`
+	Locktime      uint32     `json:"locktime"`
+	Type          int32      `json:"type"`
+	Vin           []VinShort `json:"vin"`
+	Vout          []Vout     `json:"vout"`
+	Confirmations int64      `json:"confirmations"`
+	BlockHash     string     `json:"blockhash,omitempty"`
+	Time          TimeAPI    `json:"time,omitempty"`      // for mempool txns?
+	Blocktime     *TimeAPI   `json:"blocktime,omitempty"` // vs mined?
+	// BlockHeight   int64                  `json:"blockheight"`
 }
 
 // AddressTxShort is a subset of AddressTxRaw with just the basic tx details
@@ -437,37 +528,6 @@ type TxRawWithTxType struct {
 	chainjson.TxRawResult
 	TxType string
 }
-
-// ScriptSig models the signature script used to redeem the origin transaction
-// as a JSON object (non-coinbase txns only)
-type ScriptSig struct {
-	Asm string `json:"asm,omitempty"`
-	Hex string `json:"hex,omitempty"`
-}
-
-// PrevOut represents previous output for an input Vin.
-type PrevOut struct {
-	Addresses []string `json:"addresses,omitempty"`
-	Value     float64  `json:"value"`
-}
-
-// VinPrevOut is like Vin except it includes PrevOut.  It is used by
-// searchrawtransaction
-type VinPrevOut struct {
-	Coinbase    string     `json:"coinbase"`
-	Stakebase   string     `json:"stakebase"`
-	Txid        string     `json:"txid"`
-	Vout        uint32     `json:"vout"`
-	Tree        int8       `json:"tree"`
-	AmountIn    *float64   `json:"amountin,omitempty"`
-	BlockHeight *uint32    `json:"blockheight,omitempty"`
-	BlockIndex  *uint32    `json:"blockindex,omitempty"`
-	ScriptSig   *ScriptSig `json:"scriptSig"`
-	PrevOut     *PrevOut   `json:"prevOut"`
-	Sequence    uint32     `json:"sequence"`
-}
-
-// end copy-paste from chainjson
 
 // Status indicates the state of the server. All fields are mutex protected and
 // and should be set with the getters and setters.
