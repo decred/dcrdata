@@ -1923,7 +1923,7 @@ type Tx struct {
 	BlockHash   string  `json:"block_hash"`
 	BlockHeight int64   `json:"block_height"`
 	BlockTime   TimeDef `json:"block_time"`
-	Time        TimeDef `json:"time"`
+	Time        TimeDef `json:"time"` // REMOVE!
 	TxType      int16   `json:"tx_type"`
 	Version     uint16  `json:"version"`
 	Tree        int8    `json:"tree"`

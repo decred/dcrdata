@@ -4,14 +4,33 @@ package dcrpg
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/db/dcrpg/v8/internal"
 )
+
+func TestGetAddressTransactionsRawWithSkip(t *testing.T) {
+	// a := "DsoFFRrsCvWLSgy9wnjWuqrRkUrAYoWSH3s" // split tx and ticket spending it
+	a := "Dsnm5MaPtic52uveAP6savT8hkSHttAFpvv" // stakesubmission (ticket) and vote
+	// a := "DsSWTHFrsXV77SwAcMe451kJTwWjwPYjWTM" // miner with coinbases
+	t0 := time.Now()
+	res := db.GetAddressTransactionsRawWithSkip(a, 1000, 0)
+	d := time.Since(t0)
+	// spew.Dump(res)
+
+	b, err := json.MarshalIndent(res, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Println(string(b), len(res))
+	t.Log(d)
+}
 
 func TestMixedUtxosByHeight(t *testing.T) {
 	heights, utxoCountReg, utxoValueReg, utxoCountStk, utxoValueStk, err := db.MixedUtxosByHeight()

@@ -17,7 +17,7 @@ const (
 		block_hash TEXT,
 		block_height INT8,
 		block_time TIMESTAMPTZ,
-		time TIMESTAMPTZ,
+		time TIMESTAMPTZ,  -- TODO: REMOVE!
 		tx_type INT4,
 		version INT4,
 		tree INT2,

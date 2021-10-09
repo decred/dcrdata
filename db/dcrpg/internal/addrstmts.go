@@ -67,8 +67,8 @@ const (
 		` ON addresses(matching_tx_hash);`
 	DeindexAddressTableOnMatchingTxHash = `DROP INDEX IF EXISTS ` + IndexOfAddressTableOnMatchingTx + ` CASCADE;`
 
-	// TODO: figure out why this index exists since it's covered by the unique
-	// on tx_vin_vout_row_id too.
+	// IndexAddressTableOnAddress exists so address can be the first column in
+	// an index; it is second in tx_vin_vout_row_id.
 	IndexAddressTableOnAddress = `CREATE INDEX IF NOT EXISTS ` + IndexOfAddressTableOnAddress +
 		` ON addresses(address);`
 	DeindexAddressTableOnAddress = `DROP INDEX IF EXISTS ` + IndexOfAddressTableOnAddress + ` CASCADE;`
@@ -81,6 +81,59 @@ const (
 	// SelectSpendingTxByPrevOut = `SELECT id, tx_hash, tx_index FROM vins WHERE prev_tx_hash=$1 AND prev_tx_index=$2;`
 	// SelectFundingTxsByTx      = `SELECT id, prev_tx_hash FROM vins WHERE tx_hash=$1;`
 	// SelectFundingTxByTxIn     = `SELECT id, prev_tx_hash FROM vins WHERE tx_hash=$1 AND tx_index=$2;`
+
+	addressTxnsSubQuery = `SELECT tx_hash
+		FROM addresses
+		WHERE address = $1
+			AND valid_mainchain
+		GROUP BY tx_hash
+		ORDER BY MAX(block_time) DESC
+		LIMIT $2 OFFSET $3`
+
+	// need random table name? does lib/pq share sessions?
+	CreateTempAddrTxnsTable = `CREATE TEMPORARY TABLE address_transactions
+		ON COMMIT DROP -- do in a txn!
+		AS (` + addressTxnsSubQuery + `);`
+
+	SelectVinsForAddress0 = `SELECT vins.tx_hash, vins.tx_index, vins.prev_tx_hash, vins.prev_tx_index,
+			vins.prev_tx_tree, vins.value_in -- no block height or block index
+		FROM (` + addressTxnsSubQuery + `) atxs
+		-- JOIN transactions txs ON txs.tx_hash=atxs.tx_hash
+		-- JOIN vins ON vins.id = any(txs.vin_db_ids)
+		JOIN vins ON vins.tx_hash = atxs.tx_hash;`
+
+	SelectVinsForAddress = `SELECT vins.tx_hash, vins.tx_index, vins.prev_tx_hash, vins.prev_tx_index,
+			vins.prev_tx_tree, vins.value_in, prevtxs.block_height, prevtxs.block_index
+		FROM (` + addressTxnsSubQuery + `) atxs
+		JOIN vins ON vins.tx_hash = atxs.tx_hash   -- JOIN vins on vins.id = any(txs.vin_db_ids)
+		LEFT JOIN transactions prevtxs ON vins.prev_tx_hash=prevtxs.tx_hash;`  // LEFT JOIN because prev_tx_hash may be coinbase
+
+	SelectVoutsForAddress = `SELECT vouts.value, vouts.tx_hash, vouts.tx_index, vouts.version, vouts.pkscript
+		FROM (` + addressTxnsSubQuery + `) atxs
+		JOIN vouts ON vouts.tx_hash = atxs.tx_hash;`  //    -- vouts.id = any(transactions.vout_db_ids)
+
+	// select distinct tx_hash, block_time
+	// from addresses
+	// where address = 'DsSWTHFrsXV77SwAcMe451kJTwWjwPYjWTM' and valid_mainchain
+	// order by block_time desc
+	// limit 10 offset 0;
+
+	SelectAddressTxns = `SELECT txs.tx_hash, txs.block_hash, txs.block_height, txs.block_time,
+			txs.version, txs.lock_time, txs.size, txs.tx_type, cardinality(txs.vin_db_ids), cardinality(txs.vout_db_ids)
+		FROM (` + addressTxnsSubQuery + `) atxs
+		JOIN transactions txs ON txs.tx_hash = atxs.tx_hash
+		WHERE is_valid AND is_mainchain -- needed?
+		ORDER BY txs.block_time DESC;`
+
+	// SelectAddressTxnsAlt is very slow with a join on the full tables
+	SelectAddressTxnsAlt = `SELECT txs.tx_hash, txs.vin_db_ids, txs.vout_db_ids,
+			txs.block_hash, txs.block_height, txs.block_time,
+			txs.version, txs.lock_time, txs.size
+		FROM addresses
+		JOIN transactions txs ON addresses.tx_hash=txs.tx_hash AND valid_mainchain
+		WHERE address = $1 AND is_valid AND is_mainchain
+		ORDER BY block_height --  NOTE: height vs time
+		LIMIT $2 OFFSET $3;`
 
 	addrsColumnNames = `id, address, matching_tx_hash, tx_hash, tx_type, valid_mainchain,
 		tx_vin_vout_index, block_time, tx_vin_vout_row_id, value, is_funding`

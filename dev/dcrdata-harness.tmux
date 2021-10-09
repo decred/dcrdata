@@ -47,7 +47,6 @@ rpcpass=${RPC_PASS}
 simnet=1
 debuglevel=INFO
 txindex=1
-addrindex=1
 EOF
 
 cat > "${HARNESS_ROOT}/${ALPHA}/dcractl.conf" <<EOF

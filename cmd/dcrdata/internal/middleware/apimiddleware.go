@@ -766,6 +766,12 @@ func AddressPathCtxN(n int) func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			addressStr := chi.URLParam(r, "address")
 			if len(addressStr) < minAddressLength {
+				apiLog.Warnf("AddressPathCtxN rejecting address parameter of length %d", len(addressStr))
+				http.Error(w, "invalid address", http.StatusUnprocessableEntity)
+				return
+			}
+			if n == 1 && len(addressStr) > maxAddressLength {
+				apiLog.Warnf("AddressPathCtxN rejecting address parameter of length %d", len(addressStr))
 				http.Error(w, "invalid address", http.StatusUnprocessableEntity)
 				return
 			}

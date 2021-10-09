@@ -92,7 +92,7 @@ func processTransactions(msgBlock *wire.MsgBlock, tree int8, chainParams *chainc
 			BlockHash:        blockHash.String(),
 			BlockHeight:      int64(blockHeight),
 			BlockTime:        blockTime,
-			Time:             blockTime, // TODO, receive time?
+			Time:             blockTime, // TODO, receive time? no! REMOVE
 			TxType:           int16(txType),
 			Version:          tx.Version,
 			Tree:             tree,
