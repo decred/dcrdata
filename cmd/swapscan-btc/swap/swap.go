@@ -33,13 +33,14 @@ func ExtractSwapDataFromWitness(wit wire.TxWitness, params *chaincfg.Params) (*A
 	switch len(wit) {
 	case 5: // maybe redeem
 		if len(wit[3]) != 1 || wit[3][0] == txscript.OP_FALSE {
-			return nil, nil, nil, false, nil
+			return nil, nil, nil, refund, nil
 		}
 		secret = wit[2]
 		contract = wit[4]
 	case 4: // maybe refund
+		refund = true
 		if len(wit[2]) != 0 {
-			return nil, nil, nil, false, nil
+			return nil, nil, nil, refund, nil
 		} // allow a single zero byte?
 		contract = wit[3]
 	default:
