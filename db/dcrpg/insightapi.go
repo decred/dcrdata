@@ -12,6 +12,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
+	"github.com/decred/dcrd/wire"
 
 	apitypes "github.com/decred/dcrdata/v7/api/types"
 	"github.com/decred/dcrdata/v7/db/cache"
@@ -19,25 +20,23 @@ import (
 	"github.com/decred/dcrdata/v7/txhelpers"
 )
 
-// GetRawTransactionByHash gets a chainjson.TxRawResult for the specified
-// transaction hash string.
-func (pgb *ChainDB) GetRawTransactionByHash(txid string) (*chainjson.TxRawResult, error) {
+// GetTransactionByHash gets a wire.MsgTx for the specified transaction hash.
+func (pgb *ChainDB) GetTransactionByHash(txid string) (*wire.MsgTx, error) {
 	txhash, err := chainhash.NewHashFromStr(txid)
 	if err != nil {
 		return nil, err
 	}
-	txraw, err := pgb.Client.GetRawTransactionVerbose(context.TODO(), txhash)
+	tx, err := pgb.Client.GetRawTransaction(pgb.ctx, txhash)
 	if err != nil {
-		log.Errorf("GetRawTransactionVerbose failed for: %s", txid)
 		return nil, err
 	}
-	return txraw, nil
+	return tx.MsgTx(), nil
 }
 
-// GetRawTransaction gets a chainjson.TxRawResult for the specified transaction
-// hash.
-func (pgb *ChainDB) GetRawTransaction(txid *chainhash.Hash) (*chainjson.TxRawResult, error) {
-	txraw, err := pgb.Client.GetRawTransactionVerbose(context.TODO(), txid)
+// GetRawTransactionVerbose gets a chainjson.TxRawResult for the specified
+// transaction hash.
+func (pgb *ChainDB) GetRawTransactionVerbose(txid *chainhash.Hash) (*chainjson.TxRawResult, error) {
+	txraw, err := pgb.Client.GetRawTransactionVerbose(pgb.ctx, txid)
 	if err != nil {
 		log.Errorf("GetRawTransactionVerbose failed for: %s", txid)
 		return nil, err
@@ -158,13 +157,17 @@ func (pgb *ChainDB) InsightSearchRPCAddressTransactions(addr string, count,
 // GetTransactionHex returns the full serialized transaction for the specified
 // transaction hash as a hex encode string.
 func (pgb *ChainDB) GetTransactionHex(txid *chainhash.Hash) string {
-	txraw, err := pgb.Client.GetRawTransactionVerbose(context.TODO(), txid)
+	tx, err := pgb.Client.GetRawTransaction(pgb.ctx, txid)
 	if err != nil {
-		log.Errorf("GetRawTransactionVerbose(%v) failed: %v", txid, err)
+		log.Errorf("GetRawTransaction(%v) failed: %v", txid, err)
 		return ""
 	}
-
-	return txraw.Hex
+	txHex, err := txhelpers.MsgTxToHex(tx.MsgTx())
+	if err != nil {
+		log.Errorf("MsgTxToHex for tx %v: %v", txid, err)
+		return ""
+	}
+	return txHex
 }
 
 // GetBlockVerboseByHash returns a *chainjson.GetBlockVerboseResult for the

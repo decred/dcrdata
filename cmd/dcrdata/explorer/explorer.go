@@ -104,7 +104,7 @@ type explorerDataSource interface {
 	GetTip() (*types.WebBasicBlock, error)
 	DecodeRawTransaction(txhex string) (*chainjson.TxRawResult, error)
 	SendRawTransaction(txhex string) (string, error)
-	GetRawTransactionByHash(txid string) (*chainjson.TxRawResult, error)
+	GetTransactionByHash(txid string) (*wire.MsgTx, error)
 	GetHeight() (int64, error)
 	TxHeight(txid *chainhash.Hash) (height int64)
 	BlockSubsidy(height int64, voters uint16) *chainjson.GetBlockSubsidyResult

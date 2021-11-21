@@ -539,7 +539,7 @@ func (u *Upgrader) upgradeSchema9to10() (err error) {
 		for _, tx := range msgBlock.Transactions[1:] { // skip the coinbase
 			// This will only identify the redeem and refund txns, unlike
 			// the use of TxAtomicSwapsInfo in API and explorer calls.
-			swapTxns, err := txhelpers.MsgTxAtomicSwapsInfo(tx, nil, u.params, false)
+			swapTxns, err := txhelpers.MsgTxAtomicSwapsInfo(tx, nil, u.params)
 			if err != nil {
 				log.Warnf("MsgTxAtomicSwapsInfo: %v", err)
 				continue

@@ -180,7 +180,7 @@ type BlockRaw struct {
 	Hex    string `json:"hex"`
 }
 
-// VoutMined appends a best block hash, number of confimations and if a
+// VoutMined appends a best block hash, number of confirmations and if a
 // transaction is a coinbase to a transaction output
 type VoutMined struct {
 	Vout
@@ -223,6 +223,8 @@ const (
 	ScriptClassStakeGen                           // Stake generation
 	ScriptClassStakeRevocation                    // Stake revocation.
 	ScriptClassStakeSubChange                     // Change for stake submission tx.
+	ScriptClassTreasuryAdd                        // Treasury Add (e.g. treasury add tx types, or 0th output of treasury base tx)
+	ScriptClassTreasuryGen                        // Treasury Generation (e.g. >0th outputs of treasury spend)
 	ScriptClassInvalid
 )
 
@@ -239,6 +241,8 @@ var scriptClassToName = map[ScriptClass]string{
 	ScriptClassStakeGen:        "stakegen",
 	ScriptClassStakeRevocation: "stakerevoke",
 	ScriptClassStakeSubChange:  "sstxchange",
+	ScriptClassTreasuryAdd:     "treasuryadd",
+	ScriptClassTreasuryGen:     "treasurygen",
 	ScriptClassInvalid:         "invalid",
 }
 
@@ -255,6 +259,9 @@ var scriptNameToClass = map[string]ScriptClass{
 	"stakegen":        ScriptClassStakeGen,
 	"stakerevoke":     ScriptClassStakeRevocation,
 	"sstxchange":      ScriptClassStakeSubChange,
+	"treasuryadd":     ScriptClassTreasuryAdd,
+	"treasurygen":     ScriptClassTreasuryGen,
+
 	// No "invalid" mapping!
 }
 
@@ -298,8 +305,9 @@ func IsNullDataScript(name string) bool {
 type ScriptPubKey struct {
 	Asm       string   `json:"asm"`
 	Hex       string   `json:"hex"`
+	Version   uint16   `json:"version"`
 	ReqSigs   int32    `json:"reqSigs,omitempty"`
-	Type      string   `json:"type"`
+	Type      string   `json:"type"` // Consider ScriptClass with marshal/unmarshal methods
 	Addresses []string `json:"addresses,omitempty"`
 	CommitAmt *float64 `json:"commitamt,omitempty"`
 }

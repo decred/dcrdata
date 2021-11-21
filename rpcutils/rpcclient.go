@@ -390,25 +390,6 @@ func reverseStringSlice(s []string) {
 	}
 }
 
-// GetTransactionVerboseByHashString get a transaction by transaction hash string.
-func GetTransactionVerboseByHashString(client txhelpers.VerboseTransactionGetter, txid string) (*chainjson.TxRawResult, error) {
-	txhash, err := chainhash.NewHashFromStr(txid)
-	if err != nil {
-		return nil, err
-	}
-	return GetTransactionVerboseByID(client, txhash)
-}
-
-// GetTransactionVerboseByID get a transaction by transaction id.
-func GetTransactionVerboseByID(client txhelpers.VerboseTransactionGetter, txhash *chainhash.Hash) (*chainjson.TxRawResult, error) {
-	txraw, err := client.GetRawTransactionVerbose(context.TODO(), txhash)
-	if err != nil {
-		log.Errorf("GetRawTransactionVerbose failed for: %v", txhash)
-		return nil, err
-	}
-	return txraw, nil
-}
-
 // SearchRawTransaction fetch transactions pertaining to an address.
 func SearchRawTransaction(ctx context.Context, client *rpcclient.Client, params *chaincfg.Params, count int, address string) ([]*chainjson.SearchRawTransactionsResult, error) {
 	addr, err := stdaddr.DecodeAddress(address, params)

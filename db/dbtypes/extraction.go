@@ -1,26 +1,23 @@
 package dbtypes
 
 import (
-	"bytes"
-	"encoding/hex"
 	"fmt"
 
 	"decred.org/dcrwallet/v2/wallet/txrules"
 	"github.com/decred/dcrd/blockchain/stake/v4"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/txscript/v4"
+	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
-
 	"github.com/decred/dcrdata/v7/txhelpers"
 )
 
 // DevSubsidyAddress returns the development subsidy address for the specified
 // network.
 func DevSubsidyAddress(params *chaincfg.Params) (string, error) {
-	_, devSubsidyAddresses, _, err := txscript.ExtractPkScriptAddrs(
-		params.OrganizationPkScriptVersion, params.OrganizationPkScript, params, false) // legacy org pkScript is not a treasury script
-	if err != nil || len(devSubsidyAddresses) != 1 {
-		return "", fmt.Errorf("failed to decode dev subsidy address: %w", err)
+	_, devSubsidyAddresses := stdscript.ExtractAddrs(
+		params.OrganizationPkScriptVersion, params.OrganizationPkScript, params) // legacy org pkScript is not a treasury script
+	if len(devSubsidyAddresses) != 1 {
+		return "", fmt.Errorf("failed to decode dev subsidy address")
 	}
 
 	return devSubsidyAddresses[0].String(), nil
@@ -155,17 +152,14 @@ func processTransactions(msgBlock *wire.MsgBlock, tree int8, chainParams *chainc
 				ScriptPubKey: txout.PkScript,
 				Mixed:        mixDenom > 0 && mixDenom == txout.Value, // later, check ticket and vote outputs against the spent outputs' mixed status
 			}
-			scriptClass, scriptAddrs, reqSigs, err := txscript.ExtractPkScriptAddrs(
-				vout.Version, vout.ScriptPubKey, chainParams, treasuryActive)
-			if err != nil && !bytes.Equal(vout.ScriptPubKey, chainParams.OrganizationPkScript) {
-				fmt.Println(dbTx.TxID, len(vout.ScriptPubKey), err, hex.EncodeToString(vout.ScriptPubKey))
-			}
+			scriptClass, scriptAddrs := stdscript.ExtractAddrs(vout.Version, vout.ScriptPubKey, chainParams)
+			reqSigs := stdscript.DetermineRequiredSigs(vout.Version, vout.ScriptPubKey)
 			addys := make([]string, 0, len(scriptAddrs))
 			for ia := range scriptAddrs {
 				addys = append(addys, scriptAddrs[ia].String())
 			}
 			vout.ScriptPubKeyData.ReqSigs = uint32(reqSigs)
-			vout.ScriptPubKeyData.Type = scriptClass.String()
+			vout.ScriptPubKeyData.Type = NewScriptClass(scriptClass)
 			vout.ScriptPubKeyData.Addresses = addys
 			dbTxVouts[txIndex] = append(dbTxVouts[txIndex], &vout)
 			//dbTx.Vouts = append(dbTx.Vouts, &vout)

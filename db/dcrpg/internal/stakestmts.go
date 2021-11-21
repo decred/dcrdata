@@ -12,7 +12,7 @@ const (
 		block_height INT4,
 		purchase_tx_db_id INT8,
 		stakesubmission_address TEXT,
-		is_multisig BOOLEAN,
+		is_multisig BOOLEAN, -- historically false always, but actually indicates is_p2sh
 		is_split BOOLEAN,
 		num_inputs INT2,
 		price FLOAT8,

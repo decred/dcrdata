@@ -16,7 +16,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
-	"github.com/decred/dcrd/txscript/v4"
+	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
 
 	"github.com/decred/dcrdata/v7/blockdata"
@@ -713,17 +713,7 @@ func (psh *PubSubHub) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBl
 	coinbaseHash := coinbaseTx.CachedTxHash().String() // data race with other Storers?
 	// Check each output's pkScript for subscribed addresses.
 	for _, out := range coinbaseTx.TxOut {
-		_, scriptAddrs, _, err := txscript.ExtractPkScriptAddrs(
-			out.Version, out.PkScript, psh.params, true)
-		if err != nil {
-			log.Warnf("failed to decode pkScript: %v", err)
-			continue
-		}
-
-		if len(scriptAddrs) == 0 {
-			continue
-		}
-
+		_, scriptAddrs := stdscript.ExtractAddrs(out.Version, out.PkScript, psh.params)
 		for _, scriptAddr := range scriptAddrs {
 			addr := scriptAddr.String()
 			go func() {

@@ -5,6 +5,7 @@ package dbtypes
 
 import (
 	"context"
+	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
@@ -15,10 +16,151 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v4"
+	"github.com/decred/dcrd/txscript/v4/stdscript"
 
 	"github.com/decred/dcrdata/v7/db/dbtypes/internal"
 	"github.com/decred/dcrdata/v7/txhelpers"
 )
+
+var scriptClassNames map[string]ScriptClass
+
+func init() {
+	// Set up the map for the NewScriptClassFromString function.
+	scriptClassNames = make(map[string]ScriptClass, len(scriptClassNames))
+	for sc, name := range scriptClassToName {
+		scriptClassNames[name] = ScriptClass(sc)
+	}
+}
+
+// ScriptClass is an enumeration for the list of standard types of script.
+type ScriptClass byte
+
+// Classes of script payment known about in the blockchain.
+const (
+	SCNonStandard     ScriptClass = iota // None of the recognized forms.
+	SCPubKey                             // Pay pubkey.
+	SCPubKeyHash                         // Pay pubkey hash.
+	SCScriptHash                         // Pay to script hash.
+	SCMultiSig                           // Multi signature.
+	SCNullData                           // Empty data-only (provably prunable).
+	SCStakeSubmission                    // Stake submission.
+	SCStakeGen                           // Stake generation
+	SCStakeRevocation                    // Stake revocation.
+	SCStakeSubChange                     // Change for stake submission tx.
+	SCPubkeyAlt                          // Alternative signature pubkey.
+	SCPubkeyHashAlt                      // Alternative signature pubkey hash.
+	SCTreasuryAdd                        // Add value to treasury
+	SCTreasuryGen                        // Generate utxos from treasury account
+	scLen
+
+	SCInvalid ScriptClass = 0xff
+)
+
+var scriptClassToName = [...]string{
+	SCNonStandard:     "nonstandard",
+	SCPubKey:          "pubkey",
+	SCPubkeyAlt:       "pubkeyalt",
+	SCPubKeyHash:      "pubkeyhash",
+	SCPubkeyHashAlt:   "pubkeyhashalt",
+	SCScriptHash:      "scripthash",
+	SCMultiSig:        "multisig",
+	SCNullData:        "nulldata",
+	SCStakeSubmission: "stakesubmission",
+	SCStakeGen:        "stakegen",
+	SCStakeRevocation: "stakerevoke",
+	SCStakeSubChange:  "sstxchange",
+	SCTreasuryAdd:     "treasuryadd",
+	SCTreasuryGen:     "treasurygen",
+}
+
+// NewScriptClass converts a stdscript.ScriptType to the DB's ScriptClass type,
+// which is less fine-grained with respect to the stake subtypes.
+func NewScriptClass(sc stdscript.ScriptType) ScriptClass {
+	switch sc {
+	case stdscript.STNonStandard:
+		return SCNonStandard
+	case stdscript.STPubKeyEcdsaSecp256k1:
+		return SCPubKey
+	case stdscript.STPubKeyHashEcdsaSecp256k1:
+		return SCPubKeyHash
+	case stdscript.STScriptHash:
+		return SCScriptHash
+	case stdscript.STMultiSig:
+		return SCMultiSig
+	case stdscript.STNullData:
+		return SCNullData
+	case stdscript.STStakeSubmissionPubKeyHash, stdscript.STStakeSubmissionScriptHash:
+		return SCStakeSubmission
+	case stdscript.STStakeGenPubKeyHash, stdscript.STStakeGenScriptHash:
+		return SCStakeGen
+	case stdscript.STStakeRevocationPubKeyHash, stdscript.STStakeRevocationScriptHash:
+		return SCStakeRevocation
+	case stdscript.STStakeChangePubKeyHash, stdscript.STStakeChangeScriptHash:
+		return SCStakeSubChange
+	case stdscript.STPubKeyEd25519, stdscript.STPubKeySchnorrSecp256k1:
+		return SCPubkeyAlt
+	case stdscript.STPubKeyHashEd25519, stdscript.STPubKeyHashSchnorrSecp256k1:
+		return SCPubkeyHashAlt
+	case stdscript.STTreasuryGenPubKeyHash, stdscript.STTreasuryGenScriptHash:
+		return SCTreasuryGen
+	case stdscript.STTreasuryAdd:
+		return SCTreasuryAdd
+	}
+	return SCInvalid
+}
+
+// NewScriptClassFromString creates a ScriptClass from a string representation.
+func NewScriptClassFromString(stdSC string) ScriptClass {
+	sc, found := scriptClassNames[strings.ToLower(stdSC)]
+	if !found {
+		return SCInvalid
+	}
+	return sc
+}
+
+// String implements the Stringer interface by returning the name of
+// the enum script class. If the enum is invalid then "Invalid" will be
+// returned.
+func (sc ScriptClass) String() string {
+	if sc < scLen {
+		return scriptClassToName[sc]
+	}
+	return "invalid"
+}
+
+// Scan satisfies the sql.Scanner interface.
+func (sc *ScriptClass) Scan(src interface{}) error {
+	str, ok := src.(string)
+	if !ok {
+		return fmt.Errorf("not a string script class")
+	}
+	*sc = NewScriptClassFromString(str)
+	return nil
+}
+
+var _ sql.Scanner = (*ScriptClass)(nil)
+
+// Scan satisfies the sql/driver.Valuer interface.
+func (sc ScriptClass) Value() (driver.Value, error) {
+	return sc.String(), nil
+}
+
+var _ driver.Valuer = ScriptClass(0)
+
+// MarshalJSON marshals a ScriptClass to JSON, just the string in quotes.
+func (sc ScriptClass) MarshalJSON() ([]byte, error) {
+	return json.Marshal(sc.String())
+}
+
+// UnmarshalJSON unmarshals a ScriptClass from JSON, which must be a string.
+func (sc *ScriptClass) UnmarshalJSON(b []byte) error {
+	var str string
+	if err := json.Unmarshal(b, &str); err != nil {
+		return err
+	}
+	*sc = NewScriptClassFromString(str)
+	return nil
+}
 
 // ErrorKind identifies a kind of error that can be used to define new errors
 // via const SomeError = dbtypes.ErrorKind("something").
@@ -1681,9 +1823,9 @@ type ChartsData struct {
 
 // ScriptPubKeyData is part of the result of decodescript(ScriptPubKeyHex)
 type ScriptPubKeyData struct {
-	ReqSigs   uint32   `json:"reqSigs"`
-	Type      string   `json:"type"`
-	Addresses []string `json:"addresses"`
+	ReqSigs   uint32      `json:"reqSigs"`
+	Type      ScriptClass `json:"type"` // marshals to string
+	Addresses []string    `json:"addresses"`
 	// NOTE: Script version is in Vout struct.
 }
 

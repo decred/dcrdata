@@ -25,6 +25,7 @@ import (
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
 	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
+	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
 
 	"github.com/decred/dcrdata/exchanges/v3"
@@ -930,7 +931,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				Addresses:       vouts[iv].ScriptPubKeyData.Addresses,
 				Amount:          amount,
 				FormattedAmount: humanize.Commaf(amount),
-				Type:            vouts[iv].ScriptPubKeyData.Type,
+				Type:            vouts[iv].ScriptPubKeyData.Type.String(),
 				Spent:           spendingTx != "",
 				OP_RETURN:       opReturn,
 				OP_TADD:         opTAdd,
@@ -959,14 +960,9 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				log.Errorf("Failed to decode pkScript: %v", err)
 			}
-			_, scrAddrs, _, err := txscript.ExtractPkScriptAddrs(scriptVersions[iv],
-				pkScriptsStr, exp.ChainParams, true)
-			if err != nil {
-				log.Errorf("Failed to decode pkScript: %v", err)
-			} else {
-				for ia := range scrAddrs {
-					addresses = append(addresses, scrAddrs[ia].String())
-				}
+			_, scrAddrs := stdscript.ExtractAddrs(scriptVersions[iv], pkScriptsStr, exp.ChainParams)
+			for ia := range scrAddrs {
+				addresses = append(addresses, scrAddrs[ia].String())
 			}
 
 			// If the scriptsig does not decode or disassemble, oh well.
@@ -1340,32 +1336,25 @@ func (exp *explorerUI) txAtomicSwapsInfo(tx *types.TxInfo) (*txhelpers.TxSwapRes
 		return new(txhelpers.TxSwapResults), nil
 	}
 
-	rawtx, err := exp.dataSource.GetRawTransactionByHash(tx.TxID)
+	// Getting the msgTx for MsgTxAtomicSwapsInfo. Rethink TxInfo as an input!
+	msgTx, err := exp.dataSource.GetTransactionByHash(tx.TxID)
 	if err != nil {
 		return nil, fmt.Errorf("GetRawTransaction failed for %s: %v", tx.TxID, err)
-	}
-
-	msgTx, err := txhelpers.MsgTxFromHex(rawtx.Hex)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode tx %s: %v", tx.TxID, err)
 	}
 
 	// Spending information for P2SH outputs are required to determine
 	// contract outputs in this tx.
 	outputSpenders := make(map[uint32]*txhelpers.OutputSpenderTxOut)
 	for _, vout := range tx.Vout {
-		if !vout.Spent || rawtx.Vout[vout.Index].ScriptPubKey.Type != txscript.ScriptHashTy.String() {
+		txOut := msgTx.TxOut[vout.Index]
+		if !vout.Spent || !stdscript.IsScriptHashScript(txOut.Version, txOut.PkScript) {
 			// only retrieve spending tx for spent p2sh outputs
 			continue
 		}
 		spender := tx.SpendingTxns[vout.Index]
-		spendingTx, err := exp.dataSource.GetRawTransactionByHash(spender.Hash)
+		spendingMsgTx, err := exp.dataSource.GetTransactionByHash(spender.Hash)
 		if err != nil {
 			return nil, fmt.Errorf("GetRawTransaction failed for %s: %v", spender.Hash, err)
-		}
-		spendingMsgTx, err := txhelpers.MsgTxFromHex(spendingTx.Hex)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode spending tx %s: %v", spender.Hash, err)
 		}
 		outputSpenders[vout.Index] = &txhelpers.OutputSpenderTxOut{
 			Tx:  spendingMsgTx,
@@ -1373,7 +1362,7 @@ func (exp *explorerUI) txAtomicSwapsInfo(tx *types.TxInfo) (*txhelpers.TxSwapRes
 		}
 	}
 
-	return txhelpers.MsgTxAtomicSwapsInfo(msgTx, outputSpenders, exp.ChainParams, false)
+	return txhelpers.MsgTxAtomicSwapsInfo(msgTx, outputSpenders, exp.ChainParams)
 }
 
 type TreasuryInfo struct {
@@ -1939,20 +1928,6 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/address/"+searchStr, http.StatusPermanentRedirect)
 		return
 	}
-
-	/*
-		switch _, _, addrErr := txhelpers.AddressValidation(searchStr, exp.ChainParams); addrErr {
-		case txhelpers.AddressErrorNoError, txhelpers.AddressErrorZeroAddress: // valid
-			http.Redirect(w, r, "/address/"+searchStr, http.StatusPermanentRedirect)
-			return
-		case txhelpers.AddressErrorWrongNet: // decodes, but wrong network
-			// Status page will provide a link, but the address page can too.
-			message := fmt.Sprintf("The address %v is not valid on %s",
-				searchStr, exp.NetName)
-			exp.StatusPage(w, wrongNetwork, message, searchStr, ExpStatusWrongNetwork)
-			return
-		}
-	*/
 
 	// Split searchStr to the first part corresponding to a transaction hash and
 	// to the second part corresponding to a transaction output index.

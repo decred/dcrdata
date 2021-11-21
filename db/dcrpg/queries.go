@@ -19,7 +19,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
-	"github.com/decred/dcrd/txscript/v4"
+	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
 
 	"github.com/decred/dcrdata/db/dcrpg/v7/internal"
@@ -605,13 +605,15 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked, 
 	for i, tx := range ticketTx {
 		// Reference Vouts[0] to determine stakesubmission address and if multisig
 		var stakesubmissionAddress string
-		var isMultisig bool
+		var isScriptHash bool
 		if len(tx.Vouts) > 0 {
 			if len(tx.Vouts[0].ScriptPubKeyData.Addresses) > 0 {
 				stakesubmissionAddress = tx.Vouts[0].ScriptPubKeyData.Addresses[0]
 			}
-			scriptSubClass, _ := txscript.GetStakeOutSubclass(tx.Vouts[0].ScriptPubKey, false) // only looking for multisig, so treasury types are irrelevant
-			isMultisig = scriptSubClass == txscript.MultiSigTy                                 // err return nonstandard, so false
+			isScriptHash = stdscript.IsStakeSubmissionScriptHashScript(tx.Vouts[0].Version, tx.Vouts[0].ScriptPubKey)
+			// NOTE: This was historically broken, always setting false, and
+			// calling it "isMultisig"! A DB upgrade is needed to identify old
+			// p2sh tickets, or just remove the is_multisig column entirely.
 		}
 
 		price := dcrutil.Amount(tx.Vouts[0].Value).ToCoin()
@@ -621,7 +623,7 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked, 
 		var id uint64
 		err := stmt.QueryRow(
 			tx.TxID, tx.BlockHash, tx.BlockHeight, ticketDbIDs[i],
-			stakesubmissionAddress, isMultisig, isSplit, tx.NumVin,
+			stakesubmissionAddress, isScriptHash, isSplit, tx.NumVin,
 			price, fee, dbtypes.TicketUnspent, dbtypes.PoolStatusLive,
 			tx.IsMainchainBlock).Scan(&id)
 		if err != nil {
@@ -2606,10 +2608,11 @@ func RetrieveVoutsByIDs(ctx context.Context, db *sql.DB, voutDbIDs []uint64) ([]
 		var id0 uint64
 		var spendTxRowID sql.NullInt64 // discarded, but can be NULL
 		var reqSigs uint32
-		var scriptType, addresses string
+		var addresses string
+		var scriptClass dbtypes.ScriptClass // or scan a string and then dbtypes.NewScriptClassFromString(scriptTypeString)
 		err := db.QueryRowContext(ctx, internal.SelectVoutByID, id).Scan(&id0, &vout.TxHash,
 			&vout.TxIndex, &vout.TxTree, &vout.Value, &vout.Version,
-			&vout.ScriptPubKey, &reqSigs, &scriptType, &addresses, &vout.Mixed, &spendTxRowID)
+			&vout.ScriptPubKey, &reqSigs, &scriptClass, &addresses, &vout.Mixed, &spendTxRowID)
 		if err != nil {
 			return nil, err
 		}
@@ -2618,7 +2621,7 @@ func RetrieveVoutsByIDs(ctx context.Context, db *sql.DB, voutDbIDs []uint64) ([]
 		addresses = replacer.Replace(addresses)
 
 		vout.ScriptPubKeyData.ReqSigs = reqSigs
-		vout.ScriptPubKeyData.Type = scriptType
+		vout.ScriptPubKeyData.Type = scriptClass
 		// If there are no addresses, the Addresses should be nil or length
 		// zero. However, strings.Split will return [""] if addresses is "".
 		// If that is the case, leave it as a nil slice.

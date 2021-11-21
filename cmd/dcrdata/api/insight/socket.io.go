@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2021, The Decred developers
 // See LICENSE for details.
 
 package insight
@@ -13,8 +13,8 @@ import (
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
-	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
+	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
 
 	socketio "github.com/googollee/go-socket.io"
@@ -258,7 +258,7 @@ func (soc *SocketServer) sendNewTx(msgTx *wire.MsgTx, vouts []chainjson.Vout) er
 			// Assume dcrd validated the tx and treasury could be true, and this
 			// could be a treasury txn if this is the stake tree.
 			addrs, amt, err = txhelpers.OutPointAddressesFromString(
-				txid, idx, tree, soc.txGetter, soc.params, tree == wire.TxTreeStake)
+				txid, idx, tree, soc.txGetter, soc.params)
 			if err != nil {
 				apiLog.Warnf("failed to get outpoint address from txid: %v", err)
 				// Still must append this vin to maintain valid implicit
@@ -279,12 +279,7 @@ func (soc *SocketServer) sendNewTx(msgTx *wire.MsgTx, vouts []chainjson.Vout) er
 		// Allow Vouts to be nil or empty, extracting the addresses from the
 		// pkScripts here.
 		if len(vouts) == 0 {
-			_, scriptAddrs, _, err := txscript.ExtractPkScriptAddrs(
-				v.Version, v.PkScript, soc.params, true)
-			if err != nil {
-				apiLog.Warnf("failed to decode pkScript: %v", err)
-				// still need to append an empty array to voutAddrs.
-			}
+			_, scriptAddrs := stdscript.ExtractAddrs(v.Version, v.PkScript, soc.params)
 			var addrs []string
 			for i := range scriptAddrs {
 				addrs = append(addrs, scriptAddrs[i].String())

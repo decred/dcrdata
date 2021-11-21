@@ -139,7 +139,7 @@ type TxSwapResults struct {
 var zeroHash chainhash.Hash
 
 func MsgTxAtomicSwapsInfo(msgTx *wire.MsgTx, outputSpenders map[uint32]*OutputSpenderTxOut,
-	params *chaincfg.Params, treasuryEnabled bool) (*TxSwapResults, error) {
+	params *chaincfg.Params) (*TxSwapResults, error) {
 
 	// Skip if the tx is generating coins (coinbase, treasurybase, stakebase).
 	for _, input := range msgTx.TxIn {

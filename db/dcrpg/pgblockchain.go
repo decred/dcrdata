@@ -25,6 +25,7 @@ import (
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
 	"github.com/decred/dcrd/rpcclient/v7"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
+	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/lib/pq"
@@ -4233,7 +4234,7 @@ txns:
 	for _, tx := range txnsSwapScan {
 		// This will only identify the redeem and refund txns, unlike the use of
 		// TxAtomicSwapsInfo in API and explorer calls.
-		swapTxns, err := txhelpers.MsgTxAtomicSwapsInfo(tx, nil, pgb.chainParams, false)
+		swapTxns, err := txhelpers.MsgTxAtomicSwapsInfo(tx, nil, pgb.chainParams)
 		if err != nil {
 			log.Warnf("MsgTxAtomicSwapsInfo: %v", err)
 			continue
@@ -4911,6 +4912,8 @@ func (pgb *ChainDB) GetAllTxIn(txid *chainhash.Hash) []*apitypes.TxIn {
 // GetAllTxOut gets all transaction outputs, as a slice of *apitypes.TxOut, for
 // a given transaction ID.
 func (pgb *ChainDB) GetAllTxOut(txid *chainhash.Hash) []*apitypes.TxOut {
+	// Get the TxRawResult since is provides Asm and CommitAmt for all the
+	// output scripts.
 	tx, err := pgb.Client.GetRawTransactionVerbose(context.TODO(), txid)
 	if err != nil {
 		log.Warnf("Unknown transaction %s", txid)
@@ -4922,20 +4925,18 @@ func (pgb *ChainDB) GetAllTxOut(txid *chainhash.Hash) []*apitypes.TxOut {
 	for i := range txouts {
 		// chainjson.Vout and apitypes.TxOut are the same except for N.
 		spk := &tx.Vout[i].ScriptPubKey
-		// If the script type is not recognized by apitypes, the ScriptClass
-		// types may need to be updated to match dcrd.
-		if spk.Type != "invalid" && !apitypes.IsValidScriptClass(spk.Type) {
-			log.Warnf(`The ScriptPubKey's type "%s" is not known to dcrdata! ` +
-				`Update apitypes or debug dcrd.`)
-		}
+		pkScript, _ := hex.DecodeString(spk.Hex) // if error, empty script, non-std class
+		scriptClass := stdscript.DetermineScriptType(spk.Version, pkScript)
+		dbScriptClass := dbtypes.NewScriptClass(scriptClass)
 		allTxOut = append(allTxOut, &apitypes.TxOut{
 			Value:   txouts[i].Value,
 			Version: txouts[i].Version,
 			ScriptPubKeyDecoded: apitypes.ScriptPubKey{
 				Asm:       spk.Asm,
 				Hex:       spk.Hex,
+				Version:   spk.Version,
 				ReqSigs:   spk.ReqSigs,
-				Type:      spk.Type,
+				Type:      dbScriptClass.String(),
 				Addresses: spk.Addresses,
 				CommitAmt: spk.CommitAmt,
 			},
@@ -5715,11 +5716,6 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		return nil
 	}
 
-	treasuryActive := true
-	if txraw.BlockHeight > 0 {
-		treasuryActive = txhelpers.IsTreasuryActive(pgb.chainParams.Net, txraw.BlockHeight)
-	}
-
 	txBasic, txType := makeExplorerTxBasic(txraw, ticketPrice, msgTx, pgb.chainParams)
 	tx := &exptypes.TxInfo{
 		TxBasic:       txBasic,
@@ -5749,7 +5745,7 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 			valueIn0 := valueIn
 
 			addresses, valueIn, err = txhelpers.OutPointAddresses(
-				prevOut, pgb.Client, pgb.chainParams, treasuryActive) // treasury could be not active even if this tx is active
+				prevOut, pgb.Client, pgb.chainParams)
 			if err != nil {
 				log.Warnf("Failed to get outpoint address from txid: %v", err)
 				continue
@@ -5771,6 +5767,8 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 			if err != nil {
 				log.Errorf("Failed to translate hash from string: %s", vin.Txid)
 			} else {
+				// Alt. DB-powered height lookup:
+				// vin.BlockHeight = uint32(pgb.TxHeight(vinHash))
 				prevTx, err := pgb.Client.GetRawTransactionVerbose(context.TODO(), vinHash)
 				if err == nil {
 					vin.BlockHeight = uint32(prevTx.BlockHeight)
@@ -5836,6 +5834,7 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 
 	outputs := make([]exptypes.Vout, 0, len(txraw.Vout))
 	for i, vout := range txraw.Vout {
+		// Determine spent status with gettxout, including mempool.
 		txout, err := pgb.Client.GetTxOut(context.TODO(), txhash, uint32(i), tree, true)
 		if err != nil {
 			log.Warnf("Failed to determine if tx out is spent for output %d of tx %s: %v", i, txid, err)
@@ -5847,16 +5846,19 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		} else {
 			opTAdd = strings.HasPrefix(vout.ScriptPubKey.Asm, "OP_TADD")
 		}
+		// Get a consistent script class string from dbtypes.ScriptClass.
+		pkScript, version := msgTx.TxOut[i].PkScript, msgTx.TxOut[i].Version
+		dbScriptClass := dbtypes.NewScriptClass(stdscript.DetermineScriptType(version, pkScript))
 		outputs = append(outputs, exptypes.Vout{
 			Addresses:       vout.ScriptPubKey.Addresses,
 			Amount:          vout.Value,
 			FormattedAmount: humanize.Commaf(vout.Value),
 			OP_RETURN:       opReturn,
 			OP_TADD:         opTAdd,
-			Type:            vout.ScriptPubKey.Type,
+			Type:            dbScriptClass.String(),
 			Spent:           txout == nil,
 			Index:           vout.N,
-			Version:         vout.Version,
+			Version:         version,
 		})
 	}
 	tx.Vout = outputs
@@ -6093,6 +6095,19 @@ func (pgb *ChainDB) DecodeRawTransaction(txhex string) (*chainjson.TxRawResult, 
 
 // TxHeight gives the block height of the transaction id specified
 func (pgb *ChainDB) TxHeight(txid *chainhash.Hash) (height int64) {
+	// Alt. DB-powered height lookup:
+	// txBlocks, _, err := pgb.TransactionBlocks(txid.String())
+	// if err != nil {
+	// 	log.Errorf("TransactionBlocks failed for: %v", txid)
+	// 	return 0
+	// }
+	// // ordered by valid, mainchain, height
+	// for _, block := range txBlocks {
+	// 	if block.IsMainchain {
+	// 		return int64(txBlocks[0].Height)
+	// 	}
+	// }
+	// return 0
 	txraw, err := pgb.Client.GetRawTransactionVerbose(context.TODO(), txid)
 	if err != nil {
 		log.Errorf("GetRawTransactionVerbose failed for: %v", txid)
