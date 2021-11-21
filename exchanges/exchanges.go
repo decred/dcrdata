@@ -22,9 +22,9 @@ import (
 	"time"
 
 	"decred.org/dcrdex/client/core"
+	"decred.org/dcrdex/dex"
+	dexcandles "decred.org/dcrdex/dex/candles"
 	"decred.org/dcrdex/dex/msgjson"
-	dexapi "decred.org/dcrdex/server/apidata"
-	dexdb "decred.org/dcrdex/server/db"
 	"github.com/carterjones/signalr"
 	"github.com/carterjones/signalr/hubs"
 	dcrrates "github.com/decred/dcrdata/exchanges/v3/ratesproto"
@@ -171,7 +171,7 @@ var DcrExchanges = map[string]func(*http.Client, *BotChannels) (Exchange, error)
 	DexDotDecred: NewDecredDEXConstructor(&DEXConfig{
 		Token:    DexDotDecred,
 		Host:     "dex.decred.org:7232",
-		Cert:     core.CertStore["dex.decred.org:7232"],
+		Cert:     core.CertStore[dex.Mainnet]["dex.decred.org:7232"],
 		CertHost: "dex.decred.org",
 	}),
 }
@@ -2968,10 +2968,10 @@ type DEXConfig struct {
 	CertHost string
 }
 
-// candleCache embeds *dexdb.CandleCache and adds some fields for internal
+// candleCache embeds *candles.Cache and adds some fields for internal
 // handling.
 type candleCache struct {
-	*dexdb.CandleCache
+	*dexcandles.Cache
 	mtx       sync.RWMutex
 	lastStamp uint64
 	key       candlestickKey
@@ -3032,7 +3032,7 @@ func (dcr *DecredDEX) Refresh() {
 	// Ugh. I need to export the CandleCache.candles.
 	for binSize, cache := range dcr.candles() {
 		cache.mtx.RLock()
-		wc := cache.WireCandles(dexapi.CacheSize)
+		wc := cache.WireCandles(dexcandles.CacheSize)
 		sticks := make(Candlesticks, 0, len(wc.EndStamps))
 		for i := range wc.EndStamps {
 			sticks = append(sticks, Candlestick{
@@ -3047,7 +3047,7 @@ func (dcr *DecredDEX) Refresh() {
 		cache.mtx.RUnlock()
 
 		candlesticks[cache.key] = sticks
-		deepEnough := binSize*dexapi.CacheSize > aDayMS
+		deepEnough := binSize*dexcandles.CacheSize > aDayMS
 		if bestVolDur == 0 || (binSize < bestVolDur && deepEnough) {
 			bestVolDur = binSize
 			change, volume = cache.Delta(time.Now().Add(-time.Hour * 24))
@@ -3249,7 +3249,7 @@ func (dcr *DecredDEX) processWsMessage(raw []byte) {
 			if note.Candle.EndStamp == 0 {
 				return
 			}
-			candle := convertDEXCandle(&note.Candle)
+			candle := &note.Candle
 			for binSize, cache := range dcr.candles() {
 				cache.mtx.Lock()
 				if cache.lastStamp == note.StartStamp {
@@ -3267,7 +3267,7 @@ func (dcr *DecredDEX) processWsMessage(raw []byte) {
 						BaseID:     42,
 						QuoteID:    0,
 						BinSize:    (time.Duration(binSize) * time.Millisecond).String(),
-						NumCandles: dexapi.CacheSize,
+						NumCandles: dexcandles.CacheSize,
 					}, func(msg *msgjson.Message) {
 						dcr.handleCandles(cacheKey, msg)
 					})
@@ -3280,12 +3280,6 @@ func (dcr *DecredDEX) processWsMessage(raw []byte) {
 		}
 	}
 	dcr.wsUpdated()
-}
-
-// convertDEXCandle converts the *msgjson.Candle to a dexdb.Candle.
-func convertDEXCandle(c *msgjson.Candle) *dexdb.Candle {
-	dexDBCandle := dexdb.Candle(*c)
-	return &dexDBCandle
 }
 
 // handleSubResponse handles the response to the order book subscription.
@@ -3313,12 +3307,12 @@ func (dcr *DecredDEX) handleCandles(key candlestickKey, msg *msgjson.Message) {
 	candles := wireCandles.Candles()
 
 	cache := &candleCache{
-		CandleCache: dexdb.NewCandleCache(len(candles), binSize),
-		key:         key,
+		Cache: dexcandles.NewCache(len(candles), binSize),
+		key:   key,
 	}
 
 	for _, candle := range candles {
-		cache.Add(convertDEXCandle(candle))
+		cache.Add(candle)
 	}
 	if len(candles) > 0 {
 		cache.lastStamp = candles[len(candles)-1].EndStamp
@@ -3359,7 +3353,7 @@ func (dcr *DecredDEX) handleConfigResponse(msg *msgjson.Message) {
 			BaseID:     42,
 			QuoteID:    0,
 			BinSize:    durStr,
-			NumCandles: dexapi.CacheSize,
+			NumCandles: dexcandles.CacheSize,
 		}, func(msg *msgjson.Message) {
 			dcr.handleCandles(key, msg)
 		})
