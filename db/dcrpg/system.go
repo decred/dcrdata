@@ -142,8 +142,12 @@ func (pgs PGSettings) String() string {
 }
 
 // RetrievePGVersion retrieves the version of the connected PostgreSQL server.
-func RetrievePGVersion(db *sql.DB) (ver string, err error) {
+func RetrievePGVersion(db *sql.DB) (ver string, verNum uint32, err error) {
 	err = db.QueryRow(internal.RetrievePGVersion).Scan(&ver)
+	if err != nil {
+		return
+	}
+	err = db.QueryRow(internal.RetrievePGVersionNum).Scan(&verNum)
 	return
 }
 

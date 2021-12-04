@@ -33,9 +33,9 @@ func TestRetrieveSysSettingsServer(t *testing.T) {
 }
 
 func TestRetrievePGVersion(t *testing.T) {
-	ver, err := RetrievePGVersion(db.db)
+	ver, verNum, err := RetrievePGVersion(db.db)
 	if err != nil {
 		t.Errorf("Failed to retrieve postgres version: %v", err)
 	}
-	t.Logf("\n%s", ver)
+	t.Logf("\n%d: %s", verNum, ver)
 }
