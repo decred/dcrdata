@@ -456,6 +456,11 @@ type ChainDBCfg struct {
 	AddrCacheUTXOByteCap              int
 }
 
+// The minimum required PostgreSQL version in integer format as returned by
+// "SHOW server_version_num;" or "SELECT current_setting('server_version_num')".
+// This is currently 11.0, as described in README.md.
+const pgVerNumMin = 11_0000
+
 // NewChainDB constructs a cancellation-capable ChainDB for the given connection
 // and Decred network parameters. By default, duplicate row checks on insertion
 // are enabled. See EnableDuplicateCheckOnInsert to change this behavior.
@@ -481,11 +486,15 @@ func NewChainDB(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb.StakeData
 		}
 	}
 
-	pgVersion, err := RetrievePGVersion(db)
+	pgVersion, pgVerNum, err := RetrievePGVersion(db)
 	if err != nil {
 		return nil, err
 	}
 	log.Info(pgVersion)
+	if pgVerNum < pgVerNumMin {
+		return nil, fmt.Errorf("PostgreSQL version %d.%d or greater is required; got %d.%d",
+			pgVerNumMin/10_000, pgVerNumMin%10_000, pgVerNum/10_000, pgVerNum%10_000)
+	}
 
 	cockroach := strings.Contains(pgVersion, "CockroachDB")
 

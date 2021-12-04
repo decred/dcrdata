@@ -52,5 +52,6 @@ const (
 
 	RetrieveSyncCommitSetting = `SELECT setting FROM pg_settings WHERE name='synchronous_commit';`
 
-	RetrievePGVersion = `SELECT version();`
+	RetrievePGVersion    = `SELECT version();`
+	RetrievePGVersionNum = `SELECT current_setting('server_version_num');` // e.g. 130004
 )
