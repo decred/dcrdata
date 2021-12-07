@@ -166,8 +166,8 @@ type config struct {
 	RateCertificate   string `long:"ratecert" description:"File containing DCRRates TLS certificate file." env:"DCRDATA_RATE_MASTER"`
 
 	// Links
-	MainnetLink  string `long:"mainnet-link" description:"When dcrdata is on testnet, this address will be used to direct a user to a dcrdata on mainnet when appropriate." env:"DCRDATA_MAINNET_LINK"`
-	TestnetLink  string `long:"testnet-link" description:"When dcrdata is on mainnet, this address will be used to direct a user to a dcrdata on testnet when appropriate." env:"DCRDATA_TESTNET_LINK"`
+	MainnetLink  string `long:"mainnet-link" description:"When dcrdata is on mainnet, this address will be used to direct a user to a dcrdata on mainnet when appropriate." env:"DCRDATA_MAINNET_LINK"`
+	TestnetLink  string `long:"testnet-link" description:"When dcrdata is on testnet, this address will be used to direct a user to a dcrdata on testnet when appropriate." env:"DCRDATA_TESTNET_LINK"`
 	OnionAddress string `long:"onion-address" description:"Hidden service address" env:"DCRDATA_ONION_ADDRESS"`
 }
 
