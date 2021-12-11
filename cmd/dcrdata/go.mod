@@ -24,13 +24,13 @@ require (
 	github.com/decred/dcrdata/exchanges/v3 v3.0.0
 	github.com/decred/dcrdata/gov/v5 v5.0.0
 	github.com/decred/dcrdata/v7 v7.0.0
-	github.com/decred/politeia v1.1.0
+	github.com/decred/politeia v1.3.0
 	github.com/decred/slog v1.2.0
 	github.com/didip/tollbooth/v6 v6.1.0
 	github.com/dustin/go-humanize v1.0.1-0.20210705192016-249ff6c91207
 	github.com/go-chi/chi/v5 v5.0.4
 	github.com/go-chi/docgen v1.2.0
-	github.com/google/gops v0.3.17
+	github.com/google/gops v0.3.22
 	github.com/googollee/go-socket.io v1.4.4
 	github.com/jessevdk/go-flags v1.4.1-0.20200711081900-c17162fe8fd7
 	github.com/jrick/logrotate v1.0.0

@@ -142,6 +142,7 @@ github.com/decred/dcrd/blockchain/stake v1.0.2 h1:trUDgZsT5DYiwKu255k4hFtGiVEOAM
 github.com/decred/dcrd/blockchain/stake v1.0.2/go.mod h1:hgoGmWMIu2LLApBbcguVpzCEEfX7M2YhuMrQdpohJzc=
 github.com/decred/dcrd/blockchain/stake/v2 v2.0.0/go.mod h1:jv/rKMcZ87lhvVkHot/tElxeAYEUJ3mnKPHJ7WPq86U=
 github.com/decred/dcrd/blockchain/stake/v2 v2.0.1/go.mod h1:jv/rKMcZ87lhvVkHot/tElxeAYEUJ3mnKPHJ7WPq86U=
+github.com/decred/dcrd/blockchain/stake/v3 v3.0.0 h1:vr0o0ICjuEzg1End6YtBfwgDuPkg+FYIwGVEz18kFg0=
 github.com/decred/dcrd/blockchain/stake/v3 v3.0.0/go.mod h1:5GIUwsrHQCJauacgCegIR6t92SaeVi28Qls/BLN9vOw=
 github.com/decred/dcrd/blockchain/stake/v4 v4.0.0-20210906140327-598bf66f24a6/go.mod h1:CStg0VQxxpVWphul8V3BtBOlhkkHfGE3CgwZK00xYwE=
 github.com/decred/dcrd/blockchain/stake/v4 v4.0.0-20211110133211-e53d26e01d1f/go.mod h1:CStg0VQxxpVWphul8V3BtBOlhkkHfGE3CgwZK00xYwE=
@@ -186,6 +187,7 @@ github.com/decred/dcrd/database v1.0.1/go.mod h1:ILCeyOHFew3fZ7K2B9jl+tp5qFOap/p
 github.com/decred/dcrd/database v1.0.2 h1:/Q+1rxvCFUcFH3FfnzVXv+3NmVPoRZ3UQmqMr2KYReA=
 github.com/decred/dcrd/database v1.0.2/go.mod h1:ILCeyOHFew3fZ7K2B9jl+tp5qFOap/pEGoo6Yy6Wk0g=
 github.com/decred/dcrd/database/v2 v2.0.0/go.mod h1:Sj2lvTRB0mfSu9uD7ObfwCY/eJ954GFU/X+AndJIyfE=
+github.com/decred/dcrd/database/v2 v2.0.2 h1:t1ch4sk2qIhxGcAmWQJkFwsbqKITEcVa8E+BFpxOf7s=
 github.com/decred/dcrd/database/v2 v2.0.2/go.mod h1:S78KbTCCJWUTJDVTByiQuB+HmL0DM2vIMsa2WsrF9KM=
 github.com/decred/dcrd/database/v3 v3.0.0-20210802132946-9ede6ae83e0f/go.mod h1:3WUAfz3R0FOz6wJcqTZ0CcUDfyIMrlO10f3aqa2/7vk=
 github.com/decred/dcrd/database/v3 v3.0.0-20211012235250-77033596a107/go.mod h1:3WUAfz3R0FOz6wJcqTZ0CcUDfyIMrlO10f3aqa2/7vk=
@@ -239,7 +241,9 @@ github.com/decred/dcrd/dcrutil/v4 v4.0.0/go.mod h1:QQpX5WVH3/ixVtiW15xZMe+neugXX
 github.com/decred/dcrd/gcs v1.0.0/go.mod h1:5uHIPAzn4SdGP2/FhVBK2YdAoKmufds3ZI8yNzojUCM=
 github.com/decred/dcrd/gcs v1.0.1/go.mod h1:YwutGzusSdJM79CJtxCo9t7WRCvnkLtWSD19TPo1i9g=
 github.com/decred/dcrd/gcs v1.0.2/go.mod h1:eLCvrzUsWro48TlTyrmFcZAZqnllYFz0vEv5VZtufF4=
+github.com/decred/dcrd/gcs v1.1.0 h1:djuYzaFUzUTJR+6ulMSRZOQ+P9rxtIyuxQeViAEfB8s=
 github.com/decred/dcrd/gcs v1.1.0/go.mod h1:yBjhj217Vw5lw3aKnCdHip7fYb9zwMos8bCy5s79M9w=
+github.com/decred/dcrd/gcs/v2 v2.1.0 h1:foECqwfE3UJztU4CYtqUYqvR254x1Z9clXVfNdOjBQ8=
 github.com/decred/dcrd/gcs/v2 v2.1.0/go.mod h1:MbnJOINFcp42NMRAQ+CjX/xGz+53AwNgMzKZhwBibdM=
 github.com/decred/dcrd/gcs/v3 v3.0.0-20210916172859-ca03de05ecd0/go.mod h1:cfMmjV1ArvX+nemwwq1texW5pD0wrUt5TEw4IYuTmMM=
 github.com/decred/dcrd/gcs/v3 v3.0.0/go.mod h1:/OVb/rYrAz4TCtxcPneYfBs0+YI1pGIp8RA6RUNqOp4=
@@ -268,6 +272,7 @@ github.com/decred/dcrd/txscript v1.0.1 h1:IMgxZFCw3AyG4EbKwywE3SDNshOSHsoUK1Wk/5
 github.com/decred/dcrd/txscript v1.0.1/go.mod h1:FqUX07Y+u3cJ1eIGPoyWbJg+Wk1NTllln/TyDpx9KnY=
 github.com/decred/dcrd/txscript/v2 v2.0.0/go.mod h1:WStcyYYJa+PHJB4XjrLDRzV96/Z4thtsu8mZoVrU6C0=
 github.com/decred/dcrd/txscript/v2 v2.1.0/go.mod h1:XaJAVrZU4NWRx4UEzTiDAs86op1m8GRJLz24SDBKOi0=
+github.com/decred/dcrd/txscript/v3 v3.0.0 h1:74NmirXAIskbGP0g9OWtrmN7OxDbWJ9G73a5uoxTkcM=
 github.com/decred/dcrd/txscript/v3 v3.0.0/go.mod h1:pdvnlD4KGdDoc09cvWRJ8EoRQUaiUz41uDevOWuEfII=
 github.com/decred/dcrd/txscript/v4 v4.0.0-20210415215133-96b98390a9a9/go.mod h1:LBGwMZRfpS50huRsc0Bihy7w2Sl9vK3TNqv8nhCRj0U=
 github.com/decred/dcrd/txscript/v4 v4.0.0 h1:BwaBUCMCmg58MCYoBhxVjL8ZZKUIfoJuxu/djmh8h58=
@@ -309,8 +314,8 @@ github.com/decred/dcrwallet/wallet v1.0.0/go.mod h1:VWRnpNFRiKPo7FUPbzj0t5ElcGxN
 github.com/decred/dcrwallet/walletseed v1.0.0/go.mod h1:xSF6hZW+5Xhm0jJFsI5jQSfViuZUQJoDXa/cQxtgncs=
 github.com/decred/go-socks v1.0.0/go.mod h1:sDhHqkZH0X4JjSa02oYOGhcGHYp12FsY1jQ/meV8md0=
 github.com/decred/go-socks v1.1.0/go.mod h1:sDhHqkZH0X4JjSa02oYOGhcGHYp12FsY1jQ/meV8md0=
-github.com/decred/politeia v1.1.0 h1:pWn6c8EGW90r9hLbGtOyQ3Kn8hAsXsIiXAJe+mLYL6Y=
-github.com/decred/politeia v1.1.0/go.mod h1:IWytM75wWPGbQsEcQTEeHfX1KbcUt2dGDCtYbrrvqHI=
+github.com/decred/politeia v1.3.0 h1:TudjT9BvozBqRJgPB3jNqmaq00p5qkunhTj+IzIi0bY=
+github.com/decred/politeia v1.3.0/go.mod h1:IWytM75wWPGbQsEcQTEeHfX1KbcUt2dGDCtYbrrvqHI=
 github.com/decred/slog v1.0.0/go.mod h1:zR98rEZHSnbZ4WHZtO0iqmSZjDLKhkXfrPTZQKtAonQ=
 github.com/decred/slog v1.1.0/go.mod h1:kVXlGnt6DHy2fV5OjSeuvCJ0OmlmTF6LFpEPMu/fOY0=
 github.com/decred/slog v1.2.0 h1:soHAxV52B54Di3WtKLfPum9OFfWqwtf/ygf9njdfnPM=
