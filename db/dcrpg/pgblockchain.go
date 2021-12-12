@@ -4794,24 +4794,68 @@ func (pgb *ChainDB) GetBlockHeight(hash string) (int64, error) {
 	return height, nil
 }
 
-// GetRawAPITransaction gets an *apitypes.Tx for a given transaction ID.
-func (pgb *ChainDB) GetRawAPITransaction(txid *chainhash.Hash) *apitypes.Tx {
-	tx, _ := pgb.getRawAPITransaction(txid)
-	return tx
-}
-
-func (pgb *ChainDB) getRawAPITransaction(txid *chainhash.Hash) (tx *apitypes.Tx, hex string) {
-	var err error
-	tx, hex, err = rpcutils.APITransaction(pgb.Client, txid)
+// GetAPITransaction gets an *apitypes.Tx for a given transaction ID.
+func (pgb *ChainDB) GetAPITransaction(txid *chainhash.Hash) *apitypes.Tx {
+	// We're going to be lazy use a node RPC since it gives is block data,
+	// confirmations, ticket commitment info decoded, etc.
+	txraw, err := pgb.Client.GetRawTransactionVerbose(pgb.ctx, txid)
 	if err != nil {
-		log.Errorf("APITransaction failed: %v", err)
+		log.Errorf("APITransaction failed for %v: %v", txid, err)
+		return nil
 	}
-	return
+
+	tx := &apitypes.Tx{
+		TxShort: apitypes.TxShort{
+			TxID:     txraw.Txid,
+			Size:     int32(len(txraw.Hex) / 2),
+			Version:  txraw.Version,
+			Locktime: txraw.LockTime,
+			Expiry:   txraw.Expiry,
+			Vin:      make([]chainjson.Vin, len(txraw.Vin)),
+			Vout:     make([]apitypes.Vout, len(txraw.Vout)),
+		},
+		Confirmations: txraw.Confirmations,
+		Block: &apitypes.BlockID{
+			BlockHash:   txraw.BlockHash,
+			BlockHeight: txraw.BlockHeight,
+			BlockIndex:  txraw.BlockIndex,
+			Time:        txraw.Time,
+			BlockTime:   txraw.Blocktime,
+		},
+	}
+
+	copy(tx.Vin, txraw.Vin)
+
+	for i := range txraw.Vout {
+		tx.Vout[i].Value = txraw.Vout[i].Value
+		tx.Vout[i].N = txraw.Vout[i].N
+		tx.Vout[i].Version = txraw.Vout[i].Version
+		spk := &tx.Vout[i].ScriptPubKeyDecoded
+		spkRaw := &txraw.Vout[i].ScriptPubKey
+		spk.Asm = spkRaw.Asm
+		spk.Version = spkRaw.Version
+		spk.Hex = spkRaw.Hex
+		pkScript, _ := hex.DecodeString(spkRaw.Hex)
+		scriptType := stdscript.DetermineScriptType(spkRaw.Version, pkScript)
+		spk.Type = apitypes.NewScriptClass(scriptType).String()
+		spk.ReqSigs = spkRaw.ReqSigs
+		spk.Addresses = make([]string, len(spkRaw.Addresses))
+		for j := range spkRaw.Addresses {
+			spk.Addresses[j] = spkRaw.Addresses[j]
+		}
+		if spkRaw.CommitAmt != nil {
+			spk.CommitAmt = new(float64)
+			*spk.CommitAmt = *spkRaw.CommitAmt
+			spk.Type = apitypes.ScriptClassStakeSubCommit.String()
+		}
+	}
+
+	return tx
 }
 
 // GetTrimmedTransaction gets a *apitypes.TrimmedTx for a given transaction ID.
 func (pgb *ChainDB) GetTrimmedTransaction(txid *chainhash.Hash) *apitypes.TrimmedTx {
-	tx, _ := pgb.getRawAPITransaction(txid)
+	tx := pgb.GetAPITransaction(txid)
 	if tx == nil {
 		return nil
 	}
@@ -4912,8 +4956,8 @@ func (pgb *ChainDB) GetAllTxIn(txid *chainhash.Hash) []*apitypes.TxIn {
 // GetAllTxOut gets all transaction outputs, as a slice of *apitypes.TxOut, for
 // a given transaction ID.
 func (pgb *ChainDB) GetAllTxOut(txid *chainhash.Hash) []*apitypes.TxOut {
-	// Get the TxRawResult since is provides Asm and CommitAmt for all the
-	// output scripts.
+	// Get the TxRawResult since it provides Asm and CommitAmt for all the
+	// output scripts, but we could extract that info too.
 	tx, err := pgb.Client.GetRawTransactionVerbose(context.TODO(), txid)
 	if err != nil {
 		log.Warnf("Unknown transaction %s", txid)
@@ -4927,7 +4971,10 @@ func (pgb *ChainDB) GetAllTxOut(txid *chainhash.Hash) []*apitypes.TxOut {
 		spk := &tx.Vout[i].ScriptPubKey
 		pkScript, _ := hex.DecodeString(spk.Hex) // if error, empty script, non-std class
 		scriptClass := stdscript.DetermineScriptType(spk.Version, pkScript)
-		dbScriptClass := dbtypes.NewScriptClass(scriptClass)
+		apiScriptClass := apitypes.NewScriptClass(scriptClass)
+		if apiScriptClass == apitypes.ScriptClassNullData && spk.CommitAmt != nil {
+			apiScriptClass = apitypes.ScriptClassStakeSubCommit
+		}
 		allTxOut = append(allTxOut, &apitypes.TxOut{
 			Value:   txouts[i].Value,
 			Version: txouts[i].Version,
@@ -4936,7 +4983,7 @@ func (pgb *ChainDB) GetAllTxOut(txid *chainhash.Hash) []*apitypes.TxOut {
 				Hex:       spk.Hex,
 				Version:   spk.Version,
 				ReqSigs:   spk.ReqSigs,
-				Type:      dbScriptClass.String(),
+				Type:      apiScriptClass.String(),
 				Addresses: spk.Addresses,
 				CommitAmt: spk.CommitAmt,
 			},
@@ -4949,14 +4996,26 @@ func (pgb *ChainDB) GetAllTxOut(txid *chainhash.Hash) []*apitypes.TxOut {
 // GetStakeDiffEstimates gets an *apitypes.StakeDiff, which is a combo of
 // chainjson.EstimateStakeDiffResult and chainjson.GetStakeDifficultyResult
 func (pgb *ChainDB) GetStakeDiffEstimates() *apitypes.StakeDiff {
-	sd := rpcutils.GetStakeDiffEstimates(pgb.Client)
+	stakeDiff, err := pgb.Client.GetStakeDifficulty(pgb.ctx)
+	if err != nil {
+		log.Errorf("GetStakeDifficulty: %v", err)
+		return nil
+	}
+	estStakeDiff, err := pgb.Client.EstimateStakeDiff(pgb.ctx, nil)
+	if err != nil {
+		log.Errorf("EstimateStakeDiff: %v", err)
+		return nil
+	}
 
 	height := pgb.MPC.GetHeight()
 	winSize := uint32(pgb.chainParams.StakeDiffWindowSize)
-	sd.IdxBlockInWindow = int(height%winSize) + 1
-	sd.PriceWindowNum = int(height / winSize)
 
-	return sd
+	return &apitypes.StakeDiff{
+		GetStakeDifficultyResult: *stakeDiff,
+		Estimates:                *estStakeDiff,
+		IdxBlockInWindow:         int(height%winSize) + 1,
+		PriceWindowNum:           int(height / winSize),
+	}
 }
 
 // GetSummary returns the *apitypes.BlockDataBasic for a given block height.
@@ -5310,9 +5369,12 @@ func (pgb *ChainDB) GetAddressTransactionsRawWithSkip(addr string, count int, sk
 			spk := &tx.Vout[j].ScriptPubKeyDecoded
 			spkRaw := &txs[i].Vout[j].ScriptPubKey
 			spk.Asm = spkRaw.Asm
+			spk.Version = spkRaw.Version
 			spk.Hex = spkRaw.Hex
 			spk.ReqSigs = spkRaw.ReqSigs
-			spk.Type = spkRaw.Type
+			pkScript, _ := hex.DecodeString(spkRaw.Hex)
+			scriptType := stdscript.DetermineScriptType(spkRaw.Version, pkScript)
+			spk.Type = apitypes.NewScriptClass(scriptType).String()
 			spk.Addresses = make([]string, len(spkRaw.Addresses))
 			for k := range spkRaw.Addresses {
 				spk.Addresses[k] = spkRaw.Addresses[k]
@@ -5320,6 +5382,7 @@ func (pgb *ChainDB) GetAddressTransactionsRawWithSkip(addr string, count int, sk
 			if spkRaw.CommitAmt != nil {
 				spk.CommitAmt = new(float64)
 				*spk.CommitAmt = *spkRaw.CommitAmt
+				spk.Type = apitypes.ScriptClassStakeSubCommit.String()
 			}
 		}
 		txarray = append(txarray, tx)
@@ -5848,14 +5911,17 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		}
 		// Get a consistent script class string from dbtypes.ScriptClass.
 		pkScript, version := msgTx.TxOut[i].PkScript, msgTx.TxOut[i].Version
-		dbScriptClass := dbtypes.NewScriptClass(stdscript.DetermineScriptType(version, pkScript))
+		scriptClass := dbtypes.NewScriptClass(stdscript.DetermineScriptType(version, pkScript))
+		if scriptClass == dbtypes.SCNullData && vout.ScriptPubKey.CommitAmt != nil {
+			scriptClass = dbtypes.SCStakeSubCommit
+		}
 		outputs = append(outputs, exptypes.Vout{
 			Addresses:       vout.ScriptPubKey.Addresses,
 			Amount:          vout.Value,
 			FormattedAmount: humanize.Commaf(vout.Value),
 			OP_RETURN:       opReturn,
 			OP_TADD:         opTAdd,
-			Type:            dbScriptClass.String(),
+			Type:            scriptClass.String(),
 			Spent:           txout == nil,
 			Index:           vout.N,
 			Version:         version,
@@ -6166,19 +6232,10 @@ func (pgb *ChainDB) Difficulty(timestamp int64) float64 {
 	return diff
 }
 
-func (pgb *ChainDB) getRawTransactionWithHex(txid *chainhash.Hash) (tx *apitypes.Tx, hex string) {
-	var err error
-	tx, hex, err = rpcutils.APITransaction(pgb.Client, txid)
-	if err != nil {
-		log.Errorf("APITransaction failed: %v", err)
-	}
-	return
-}
-
 // GetMempool gets all transactions from the mempool for explorer and adds the
 // total out for all the txs and vote info for the votes. The returned slice
 // will be nil if the GetRawMempoolVerbose RPC fails. A zero-length non-nil
-// slice is returned if there are no transactions in mempool.
+// slice is returned if there are no transactions in mempool. UNUSED?
 func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
 	mempooltxs, err := pgb.Client.GetRawMempoolVerbose(pgb.ctx, chainjson.GRMAll)
 	if err != nil {
@@ -6200,24 +6257,21 @@ func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
 		if err != nil {
 			continue
 		}
-		rawtx, hex := pgb.getRawTransactionWithHex(hash)
-		if rawtx == nil {
-			continue
-		}
-		var total float64
-		for _, v := range rawtx.Vout {
-			total += v.Value
-		}
-		msgTx, err := txhelpers.MsgTxFromHex(hex)
+		txn, err := pgb.Client.GetRawTransaction(pgb.ctx, hash)
 		if err != nil {
-			log.Warnf("Unable to decode mempool transaction %v: %v", hashStr, err)
+			log.Errorf("GetRawTransaction: %v", err)
 			continue
+		}
+		msgTx := txn.MsgTx()
+		var total int64
+		for _, v := range msgTx.TxOut {
+			total += v.Value
 		}
 
 		txType := txhelpers.DetermineTxType(msgTx, treasuryActive)
 
 		var voteInfo *exptypes.VoteInfo
-		if txType == stake.TxTypeSSGen /* stake.IsSSGen(msgTx, treasuryActive) */ {
+		if txType == stake.TxTypeSSGen {
 			validation, version, bits, choices, tspendVotes, err := txhelpers.SSGenVoteChoices(msgTx, pgb.chainParams) // todo: hint treasury active
 			if err != nil {
 				log.Debugf("Cannot get vote choices for %s", hash)
@@ -6241,13 +6295,13 @@ func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
 
 		txs = append(txs, exptypes.MempoolTx{
 			TxID:     hashStr,
-			Version:  rawtx.Version, // or int32(msgTx.Version)
+			Version:  int32(msgTx.Version),
 			Fees:     fee.ToCoin(),
 			FeeRate:  feeRate.ToCoin(),
 			Hash:     hashStr, // dup of TxID!
 			Time:     tx.Time,
 			Size:     tx.Size,
-			TotalOut: total,
+			TotalOut: dcrutil.Amount(total).ToCoin(),
 			Type:     txhelpers.TxTypeToString(int(txType)),
 			TypeID:   int(txType),
 			VoteInfo: voteInfo,

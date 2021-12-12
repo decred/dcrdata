@@ -47,6 +47,7 @@ const (
 	SCStakeGen                           // Stake generation
 	SCStakeRevocation                    // Stake revocation.
 	SCStakeSubChange                     // Change for stake submission tx.
+	SCStakeSubCommit                     // Pseudo-class for stake submission commitments, odd outputs
 	SCPubkeyAlt                          // Alternative signature pubkey.
 	SCPubkeyHashAlt                      // Alternative signature pubkey hash.
 	SCTreasuryAdd                        // Add value to treasury
@@ -69,6 +70,7 @@ var scriptClassToName = [...]string{
 	SCStakeGen:        "stakegen",
 	SCStakeRevocation: "stakerevoke",
 	SCStakeSubChange:  "sstxchange",
+	SCStakeSubCommit:  "sstxcommitment",
 	SCTreasuryAdd:     "treasuryadd",
 	SCTreasuryGen:     "treasurygen",
 }
@@ -88,7 +90,7 @@ func NewScriptClass(sc stdscript.ScriptType) ScriptClass {
 	case stdscript.STMultiSig:
 		return SCMultiSig
 	case stdscript.STNullData:
-		return SCNullData
+		return SCNullData // could be a SCStakeSubCommit
 	case stdscript.STStakeSubmissionPubKeyHash, stdscript.STStakeSubmissionScriptHash:
 		return SCStakeSubmission
 	case stdscript.STStakeGenPubKeyHash, stdscript.STStakeGenScriptHash:

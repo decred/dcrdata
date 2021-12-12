@@ -83,7 +83,7 @@ type DataSource interface {
 	GetHeader(idx int) *chainjson.GetBlockHeaderVerboseResult
 	GetBlockHeaderByHash(hash string) (*wire.BlockHeader, error)
 	GetBlockVerboseByHash(hash string, verboseTx bool) *chainjson.GetBlockVerboseResult
-	GetRawAPITransaction(txid *chainhash.Hash) *apitypes.Tx
+	GetAPITransaction(txid *chainhash.Hash) *apitypes.Tx
 	GetTransactionHex(txid *chainhash.Hash) string
 	GetTrimmedTransaction(txid *chainhash.Hash) *apitypes.TrimmedTx
 	GetVoteInfo(txid *chainhash.Hash) (*apitypes.VoteInfo, error)
@@ -642,7 +642,7 @@ func (c *appContext) getTransaction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tx := c.DataSource.GetRawAPITransaction(txid)
+	tx := c.DataSource.GetAPITransaction(txid)
 	if tx == nil {
 		apiLog.Errorf("Unable to get transaction %s", txid)
 		http.Error(w, http.StatusText(422), 422)
@@ -831,7 +831,7 @@ func (c *appContext) getTransactions(w http.ResponseWriter, r *http.Request) {
 
 	txns := make([]*apitypes.Tx, 0, len(txids))
 	for i := range txids {
-		tx := c.DataSource.GetRawAPITransaction(txids[i])
+		tx := c.DataSource.GetAPITransaction(txids[i])
 		if tx == nil {
 			apiLog.Errorf("Unable to get transaction %s", txids[i])
 			http.Error(w, http.StatusText(422), 422)

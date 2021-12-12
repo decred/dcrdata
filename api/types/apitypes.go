@@ -12,6 +12,7 @@ import (
 	"time"
 
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
+	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrdata/v7/db/dbtypes"
 	"github.com/decred/dcrdata/v7/txhelpers"
 )
@@ -75,13 +76,6 @@ type BlockTransactions struct {
 	STx []string `json:"stx"`
 }
 
-// tx raw
-// tx short (tx raw - extra context)
-// txout
-// scriptPubKey (hex -> decodescript -> result)
-// vout
-// vin
-
 // Tx models TxShort with the number of confirmations and block info Block
 type Tx struct {
 	TxShort
@@ -89,15 +83,17 @@ type Tx struct {
 	Block         *BlockID `json:"block,omitempty"`
 }
 
+type Vin = chainjson.Vin
+
 // TxShort models info about transaction TxID
 type TxShort struct {
-	TxID     string          `json:"txid"`
-	Size     int32           `json:"size"`
-	Version  int32           `json:"version"`
-	Locktime uint32          `json:"locktime"`
-	Expiry   uint32          `json:"expiry"`
-	Vin      []chainjson.Vin `json:"vin"`
-	Vout     []Vout          `json:"vout"`
+	TxID     string `json:"txid"`
+	Size     int32  `json:"size"`
+	Version  int32  `json:"version"`
+	Locktime uint32 `json:"locktime"`
+	Expiry   uint32 `json:"expiry"`
+	Vin      []Vin  `json:"vin"`
+	Vout     []Vout `json:"vout"`
 }
 
 // AgendasInfo holds the high level details about an agenda.
@@ -117,12 +113,12 @@ type AgendaAPIResponse struct {
 
 // TrimmedTx models data to resemble to result of the decoderawtransaction RPC.
 type TrimmedTx struct {
-	TxID     string          `json:"txid"`
-	Version  int32           `json:"version"`
-	Locktime uint32          `json:"locktime"`
-	Expiry   uint32          `json:"expiry"`
-	Vin      []chainjson.Vin `json:"vin"`
-	Vout     []Vout          `json:"vout"`
+	TxID     string `json:"txid"`
+	Version  int32  `json:"version"`
+	Locktime uint32 `json:"locktime"`
+	Expiry   uint32 `json:"expiry"`
+	Vin      []Vin  `json:"vin"`
+	Vout     []Vout `json:"vout"`
 }
 
 // Txns models the multi transaction post data structure
@@ -223,6 +219,7 @@ const (
 	ScriptClassStakeGen                           // Stake generation
 	ScriptClassStakeRevocation                    // Stake revocation.
 	ScriptClassStakeSubChange                     // Change for stake submission tx.
+	ScriptClassStakeSubCommit                     // Pseudo-class, actually nulldata odd outputs of stake submission (tickets)
 	ScriptClassTreasuryAdd                        // Treasury Add (e.g. treasury add tx types, or 0th output of treasury base tx)
 	ScriptClassTreasuryGen                        // Treasury Generation (e.g. >0th outputs of treasury spend)
 	ScriptClassInvalid
@@ -241,6 +238,7 @@ var scriptClassToName = map[ScriptClass]string{
 	ScriptClassStakeGen:        "stakegen",
 	ScriptClassStakeRevocation: "stakerevoke",
 	ScriptClassStakeSubChange:  "sstxchange",
+	ScriptClassStakeSubCommit:  "sstxcommitment",
 	ScriptClassTreasuryAdd:     "treasuryadd",
 	ScriptClassTreasuryGen:     "treasurygen",
 	ScriptClassInvalid:         "invalid",
@@ -259,10 +257,47 @@ var scriptNameToClass = map[string]ScriptClass{
 	"stakegen":        ScriptClassStakeGen,
 	"stakerevoke":     ScriptClassStakeRevocation,
 	"sstxchange":      ScriptClassStakeSubChange,
+	"sstxcommitment":  ScriptClassStakeSubCommit,
 	"treasuryadd":     ScriptClassTreasuryAdd,
 	"treasurygen":     ScriptClassTreasuryGen,
 
 	// No "invalid" mapping!
+}
+
+// NewScriptClass converts a stdscript.ScriptType to the ScriptClass type, which
+// is less fine-grained with respect to the stake subtypes.
+func NewScriptClass(sc stdscript.ScriptType) ScriptClass {
+	switch sc {
+	case stdscript.STNonStandard:
+		return ScriptClassNonStandard
+	case stdscript.STPubKeyEcdsaSecp256k1:
+		return ScriptClassPubKey
+	case stdscript.STPubKeyHashEcdsaSecp256k1:
+		return ScriptClassPubKeyHash
+	case stdscript.STScriptHash:
+		return ScriptClassScriptHash
+	case stdscript.STMultiSig:
+		return ScriptClassMultiSig
+	case stdscript.STNullData:
+		return ScriptClassNullData // maybe ScriptClassStakeSubCommit!
+	case stdscript.STStakeSubmissionPubKeyHash, stdscript.STStakeSubmissionScriptHash:
+		return ScriptClassStakeSubmission
+	case stdscript.STStakeGenPubKeyHash, stdscript.STStakeGenScriptHash:
+		return ScriptClassStakeGen
+	case stdscript.STStakeRevocationPubKeyHash, stdscript.STStakeRevocationScriptHash:
+		return ScriptClassStakeRevocation
+	case stdscript.STStakeChangePubKeyHash, stdscript.STStakeChangeScriptHash:
+		return ScriptClassStakeSubChange
+	case stdscript.STPubKeyEd25519, stdscript.STPubKeySchnorrSecp256k1:
+		return ScriptClassPubkeyAlt
+	case stdscript.STPubKeyHashEd25519, stdscript.STPubKeyHashSchnorrSecp256k1:
+		return ScriptClassPubkeyHashAlt
+	case stdscript.STTreasuryGenPubKeyHash, stdscript.STTreasuryGenScriptHash:
+		return ScriptClassTreasuryGen
+	case stdscript.STTreasuryAdd:
+		return ScriptClassTreasuryAdd
+	}
+	return ScriptClassInvalid
 }
 
 // ScriptClassFromName attempts to identify the ScriptClass for the given script

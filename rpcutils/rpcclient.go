@@ -20,7 +20,6 @@ import (
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 
-	apitypes "github.com/decred/dcrdata/v7/api/types"
 	"github.com/decred/dcrdata/v7/semver"
 	"github.com/decred/dcrdata/v7/txhelpers"
 )
@@ -39,11 +38,6 @@ type VerboseBlockGetter interface {
 	GetBlockHash(ctx context.Context, blockHeight int64) (*chainhash.Hash, error)
 	GetBlockVerbose(ctx context.Context, blockHash *chainhash.Hash, verboseTx bool) (*chainjson.GetBlockVerboseResult, error)
 	GetBlockHeaderVerbose(ctx context.Context, hash *chainhash.Hash) (*chainjson.GetBlockHeaderVerboseResult, error)
-}
-
-type StakeDiffer interface {
-	EstimateStakeDiff(ctx context.Context, tickets *uint32) (*chainjson.EstimateStakeDiffResult, error)
-	GetStakeDifficulty(ctx context.Context) (*chainjson.GetStakeDifficultyResult, error)
 }
 
 type ChainTipsGetter interface {
@@ -270,27 +264,6 @@ func GetBlockVerboseByHash(client VerboseBlockGetter, hash string, verboseTx boo
 	}
 
 	return blockVerbose
-}
-
-// GetStakeDiffEstimates combines the results of EstimateStakeDiff and
-// GetStakeDifficulty into a *apitypes.StakeDiff.
-func GetStakeDiffEstimates(client StakeDiffer) *apitypes.StakeDiff {
-	stakeDiff, err := client.GetStakeDifficulty(context.TODO())
-	if err != nil {
-		return nil
-	}
-	estStakeDiff, err := client.EstimateStakeDiff(context.TODO(), nil)
-	if err != nil {
-		return nil
-	}
-	stakeDiffEstimates := apitypes.StakeDiff{
-		GetStakeDifficultyResult: chainjson.GetStakeDifficultyResult{
-			CurrentStakeDifficulty: stakeDiff.CurrentStakeDifficulty,
-			NextStakeDifficulty:    stakeDiff.NextStakeDifficulty,
-		},
-		Estimates: *estStakeDiff,
-	}
-	return &stakeDiffEstimates
 }
 
 // GetBlock gets a block at the given height from a chain server.
@@ -638,56 +611,4 @@ func UnconfirmedTxnsForAddress(client MempoolTxGetter, address string,
 	}
 
 	return addressOutpoints, numUnconfirmed, err
-}
-
-// APITransaction uses the RPC client to retrieve the specified transaction, and
-// convert the data into a *apitypes.Tx.
-func APITransaction(client txhelpers.VerboseTransactionGetter, txid *chainhash.Hash) (tx *apitypes.Tx, hex string, err error) {
-	txraw, err := client.GetRawTransactionVerbose(context.TODO(), txid)
-	if err != nil {
-		err = fmt.Errorf("APITransaction failed for %v: %v", txid, err)
-		return
-	}
-	hex = txraw.Hex
-
-	tx = new(apitypes.Tx)
-	tx.TxID = txraw.Txid
-	tx.Size = int32(len(hex) / 2)
-	tx.Version = txraw.Version
-	tx.Locktime = txraw.LockTime
-	tx.Expiry = txraw.Expiry
-	tx.Vin = make([]chainjson.Vin, len(txraw.Vin))
-	copy(tx.Vin, txraw.Vin)
-	tx.Vout = make([]apitypes.Vout, len(txraw.Vout))
-	for i := range txraw.Vout {
-		tx.Vout[i].Value = txraw.Vout[i].Value
-		tx.Vout[i].N = txraw.Vout[i].N
-		tx.Vout[i].Version = txraw.Vout[i].Version
-		spk := &tx.Vout[i].ScriptPubKeyDecoded
-		spkRaw := &txraw.Vout[i].ScriptPubKey
-		spk.Asm = spkRaw.Asm
-		spk.Hex = spkRaw.Hex
-		spk.ReqSigs = spkRaw.ReqSigs
-		spk.Type = spkRaw.Type
-		spk.Addresses = make([]string, len(spkRaw.Addresses))
-		for j := range spkRaw.Addresses {
-			spk.Addresses[j] = spkRaw.Addresses[j]
-		}
-		if spkRaw.CommitAmt != nil {
-			spk.CommitAmt = new(float64)
-			*spk.CommitAmt = *spkRaw.CommitAmt
-		}
-	}
-
-	tx.Confirmations = txraw.Confirmations
-
-	// BlockID
-	tx.Block = new(apitypes.BlockID)
-	tx.Block.BlockHash = txraw.BlockHash
-	tx.Block.BlockHeight = txraw.BlockHeight
-	tx.Block.BlockIndex = txraw.BlockIndex
-	tx.Block.Time = txraw.Time
-	tx.Block.BlockTime = txraw.Blocktime
-
-	return
 }

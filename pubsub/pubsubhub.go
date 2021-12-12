@@ -47,7 +47,6 @@ type DataSource interface {
 	DecodeRawTransaction(txhex string) (*chainjson.TxRawResult, error)
 	SendRawTransaction(txhex string) (string, error)
 	GetChainParams() *chaincfg.Params
-	GetMempool() []exptypes.MempoolTx
 	BlockSubsidy(height int64, voters uint16) *chainjson.GetBlockSubsidyResult
 	Difficulty(timestamp int64) float64
 }
