@@ -1,5 +1,8 @@
-// Copyright (c) 2021, The Decred developers
+// Copyright (c) 2021-2022, The Decred developers
 // See LICENSE for details.
+
+//go:build !go1.18
+// +build !go1.18
 
 package trylock
 
@@ -11,7 +14,8 @@ import (
 
 // Mutex is a "try lock" for coordinating multiple accessors, while allowing
 // only a single updater. It is not very smart about queueing when there are
-// multiple callers of Lock waiting.
+// multiple callers of Lock waiting. DEPRECATED: sync.Mutex has TryLock
+// functionality built-in as of Go 1.18.
 type Mutex struct {
 	mtx sync.Mutex
 	c   chan struct{}
