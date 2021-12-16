@@ -1,8 +1,6 @@
 package txhelpers
 
 import (
-	"decred.org/dcrwallet/v2/wallet/txrules"
-	"decred.org/dcrwallet/v2/wallet/txsizes"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/wire"
 )
@@ -65,14 +63,14 @@ func IsMixTx(tx *wire.MsgTx) (isMix bool, mixDenom int64, mixCount uint32) {
 // The size of a solo (non-pool) ticket purchase transaction assumes a specific
 // transaction structure and worst-case signature script sizes.
 func calcSoloTicketTxSize() int {
-	inSizes := []int{txsizes.RedeemP2PKHSigScriptSize}
-	outSizes := []int{txsizes.P2PKHPkScriptSize + 1, txsizes.TicketCommitmentScriptSize, txsizes.P2PKHPkScriptSize + 1}
-	return txsizes.EstimateSerializeSizeFromScriptSizes(inSizes, outSizes, 0)
+	inSizes := []int{redeemP2PKHSigScriptSize}
+	outSizes := []int{p2pkhPkScriptSize + 1, ticketCommitmentScriptSize, p2pkhPkScriptSize + 1}
+	return EstimateSerializeSizeFromScriptSizes(inSizes, outSizes, 0) // assume no change (with split tx)
 }
 
 var (
 	soloTicketTxSize    = calcSoloTicketTxSize()
-	defaultFeeForTicket = txrules.FeeForSerializeSize(txrules.DefaultRelayFeePerKb, soloTicketTxSize)
+	defaultFeeForTicket = FeeForSerializeSize(DefaultRelayFeePerKb, soloTicketTxSize)
 )
 
 // IsMixedSplitTx tests if a transaction is a CSPP-mixed ticket split
@@ -89,8 +87,8 @@ func IsMixedSplitTx(tx *wire.MsgTx, relayFeeRate, ticketPrice int64) (isMix bool
 	}
 
 	ticketTxFee := defaultFeeForTicket
-	if relayFeeRate != int64(txrules.DefaultRelayFeePerKb) {
-		ticketTxFee = txrules.FeeForSerializeSize(dcrutil.Amount(relayFeeRate), soloTicketTxSize)
+	if relayFeeRate != int64(DefaultRelayFeePerKb) {
+		ticketTxFee = FeeForSerializeSize(dcrutil.Amount(relayFeeRate), soloTicketTxSize)
 	}
 	ticketOutAmt = ticketPrice + int64(ticketTxFee)
 

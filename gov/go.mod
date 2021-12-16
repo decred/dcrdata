@@ -16,7 +16,6 @@ require (
 
 require (
 	decred.org/dcrwallet v1.7.0 // indirect
-	decred.org/dcrwallet/v2 v2.0.8 // indirect
 	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412 // indirect
 	github.com/dchest/siphash v1.2.2 // indirect
 	github.com/decred/base58 v1.0.4 // indirect

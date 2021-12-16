@@ -3,7 +3,6 @@ package dbtypes
 import (
 	"fmt"
 
-	"decred.org/dcrwallet/v2/wallet/txrules"
 	"github.com/decred/dcrd/blockchain/stake/v4"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/txscript/v4/stdscript"
@@ -78,7 +77,7 @@ func processTransactions(msgBlock *wire.MsgBlock, tree int8, chainParams *chainc
 		if !isStake {
 			_, mixDenom, mixCount = txhelpers.IsMixTx(tx)
 			if mixCount == 0 {
-				_, mixDenom, mixCount = txhelpers.IsMixedSplitTx(tx, int64(txrules.DefaultRelayFeePerKb), ticketPrice)
+				_, mixDenom, mixCount = txhelpers.IsMixedSplitTx(tx, int64(txhelpers.DefaultRelayFeePerKb), ticketPrice)
 			}
 		}
 		var spent, sent int64
