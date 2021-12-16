@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 
-	"decred.org/dcrwallet/v2/wallet/txrules"
 	"github.com/decred/dcrd/blockchain/stake/v4"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
@@ -792,7 +791,7 @@ func (u *Upgrader) setTxMixData() error {
 
 		_, mixDenom, mixCount := txhelpers.IsMixTx(msgTx)
 		if mixCount == 0 {
-			_, mixDenom, mixCount = txhelpers.IsMixedSplitTx(msgTx, int64(txrules.DefaultRelayFeePerKb), ticketPrice)
+			_, mixDenom, mixCount = txhelpers.IsMixedSplitTx(msgTx, int64(txhelpers.DefaultRelayFeePerKb), ticketPrice)
 			if mixCount == 0 {
 				continue
 			}

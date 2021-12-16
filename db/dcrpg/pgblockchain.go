@@ -17,7 +17,6 @@ import (
 	"sync"
 	"time"
 
-	"decred.org/dcrwallet/v2/wallet/txrules"
 	"github.com/decred/dcrd/blockchain/stake/v4"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
@@ -5503,7 +5502,8 @@ func makeExplorerTxBasic(data *chainjson.TxRawResult, ticketPrice int64, msgTx *
 	case stake.TxTypeRegular:
 		_, mixDenom, mixCount := txhelpers.IsMixTx(msgTx)
 		if mixCount == 0 {
-			_, mixDenom, mixCount = txhelpers.IsMixedSplitTx(msgTx, int64(txrules.DefaultRelayFeePerKb), ticketPrice)
+			_, mixDenom, mixCount = txhelpers.IsMixedSplitTx(msgTx,
+				int64(txhelpers.DefaultRelayFeePerKb), ticketPrice)
 		}
 		tx.MixCount = mixCount
 		tx.MixDenom = mixDenom
