@@ -29,6 +29,7 @@ import (
 type NodeClient interface {
 	GetRawMempoolVerbose(ctx context.Context, txType chainjson.GetRawMempoolTxTypeCmd) (map[string]chainjson.GetRawMempoolVerboseResult, error)
 	GetBestBlock(ctx context.Context) (*chainhash.Hash, int64, error)
+	txhelpers.RawTransactionGetter
 	txhelpers.VerboseTransactionGetter
 	txhelpers.VerboseTransactionPromiseGetter
 	GetStakeDifficulty(ctx context.Context) (*chainjson.GetStakeDifficultyResult, error)
@@ -81,22 +82,12 @@ func (t *DataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.MempoolAd
 			log.Warn(err)
 			continue
 		}
-		rawtx, err := t.dcrdChainSvr.GetRawTransactionVerbose(context.TODO(), hash)
+		txn, err := t.dcrdChainSvr.GetRawTransaction(context.TODO(), hash)
 		if err != nil {
 			log.Warn(err)
 			continue
 		}
-
-		if rawtx == nil {
-			log.Errorf("Failed to get mempool transaction %s.", hash)
-			continue
-		}
-
-		msgTx, err := txhelpers.MsgTxFromHex(rawtx.Hex)
-		if err != nil {
-			log.Errorf("Failed to decode transaction hex: %v", err)
-			continue
-		}
+		msgTx := txn.MsgTx()
 
 		// Set Outpoints in the addrMap.
 		txhelpers.TxOutpointsByAddr(addrMap, msgTx, t.activeChain, treasuryActive)
@@ -111,15 +102,15 @@ func (t *DataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.MempoolAd
 			MemPoolTime: tx.Time,
 		}
 
-		var totalOut float64
-		for _, v := range rawtx.Vout {
+		var totalOut int64
+		for _, v := range msgTx.TxOut {
 			totalOut += v.Value
 		}
 
 		txType := txhelpers.DetermineTxType(msgTx, treasuryActive)
 
 		var voteInfo *exptypes.VoteInfo
-		if txType == stake.TxTypeSSGen /* stake.IsSSGen(msgTx, treasuryActive)*/ {
+		if txType == stake.TxTypeSSGen {
 			validation, version, bits, choices, tspendVotes, err := txhelpers.SSGenVoteChoices(msgTx, t.activeChain)
 			if err != nil {
 				log.Debugf("Cannot get vote choices for %s", hash)
@@ -149,7 +140,7 @@ func (t *DataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.MempoolAd
 
 		txs = append(txs, exptypes.MempoolTx{
 			TxID:      hashStr,
-			Version:   rawtx.Version,
+			Version:   int32(msgTx.Version),
 			Fees:      tx.Fee,
 			FeeRate:   feeRate.ToCoin(),
 			VinCount:  len(msgTx.TxIn),
@@ -159,7 +150,7 @@ func (t *DataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.MempoolAd
 			Hash:     hashStr, // dup of TxID!
 			Time:     tx.Time,
 			Size:     tx.Size,
-			TotalOut: totalOut,
+			TotalOut: dcrutil.Amount(totalOut).ToCoin(),
 			Type:     txhelpers.TxTypeToString(int(txType)),
 			TypeID:   int(txType),
 			VoteInfo: voteInfo,

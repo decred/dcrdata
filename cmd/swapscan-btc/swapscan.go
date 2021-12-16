@@ -107,7 +107,7 @@ func mainCore() int {
 
 		// Check all regular tree txns except coinbase.
 		for _, tx := range msgBlock.Transactions[1:] {
-			swapRes, err := swap.MsgTxAtomicSwapsInfo(tx, nil, params, false)
+			swapRes, err := swap.MsgTxAtomicSwapsInfo(tx, nil, params)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "ERROR: %v", err)
 				return 5

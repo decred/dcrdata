@@ -11,11 +11,15 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/dcrutil/v4"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
 	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
+	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
 )
+
+const timeFmt = "2006-01-02 15:04:05 (MST)"
 
 // AtomicSwapContractPushes models the data pushes of an atomic swap contract.
 type AtomicSwapContractPushes struct {
@@ -149,7 +153,10 @@ func ExtractSwapDataFromInputScript(inputScript []byte, params *chaincfg.Params)
 // contact and returns the data pushes of the contract.
 func ParseAtomicSwapContract(scriptVersion uint16, script []byte, params *chaincfg.Params) (*AtomicSwapContractPushes, error) {
 	// validate the contract by calling txscript.ExtractAtomicSwapDataPushes
-	contractDataPushes, _ := txscript.ExtractAtomicSwapDataPushes(scriptVersion, script)
+	if scriptVersion != 0 {
+		return nil, nil
+	}
+	contractDataPushes := stdscript.ExtractAtomicSwapDataPushesV0(script)
 	if contractDataPushes == nil {
 		return nil, nil
 	}
@@ -173,7 +180,7 @@ func ParseAtomicSwapContract(scriptVersion uint16, script []byte, params *chainc
 
 	var formattedLockTime string
 	if contractDataPushes.LockTime >= int64(txscript.LockTimeThreshold) {
-		formattedLockTime = time.Unix(contractDataPushes.LockTime, 0).UTC().Format("2006-01-02 15:04:05 (MST)")
+		formattedLockTime = time.Unix(contractDataPushes.LockTime, 0).UTC().Format(timeFmt)
 	} else {
 		formattedLockTime = fmt.Sprintf("block %v", contractDataPushes.LockTime)
 	}
@@ -262,7 +269,8 @@ func TxAtomicSwapsInfo(tx *chainjson.TxRawResult, outputSpenders map[uint32]*Out
 	// Check if any of this tx's outputs are contracts. Requires the output to
 	// be spent AND the spending input to have the correct sigscript type.
 	for _, vout := range tx.Vout {
-		if vout.ScriptPubKey.Type != txscript.ScriptHashTy.String() {
+		pkScript, _ := hex.DecodeString(vout.ScriptPubKey.Hex)
+		if !stdscript.IsScriptHashScript(vout.ScriptPubKey.Version, pkScript) {
 			continue // non-p2sh outputs cannot currently be contracts
 		}
 		spender, spent := outputSpenders[vout.N]
@@ -329,6 +337,23 @@ type AtomicSwapData struct {
 	IsRefund         bool
 }
 
+func (asd *AtomicSwapData) ToAPI() *AtomicSwap {
+	return &AtomicSwap{
+		ContractTxRef:     fmt.Sprintf("%s:%d", asd.ContractTx, asd.ContractVout),
+		Contract:          fmt.Sprintf("%x", asd.Contract),
+		ContractValue:     dcrutil.Amount(asd.Value).ToCoin(),
+		ContractAddress:   asd.ContractAddress,
+		RecipientAddress:  asd.RecipientAddress,
+		RefundAddress:     asd.RefundAddress,
+		Locktime:          asd.Locktime,
+		SecretHash:        hex.EncodeToString(asd.SecretHash[:]),
+		Secret:            hex.EncodeToString(asd.Secret),
+		FormattedLocktime: time.Unix(asd.Locktime, 0).UTC().Format(timeFmt),
+		SpendTxInput:      fmt.Sprintf("%s:%d", asd.SpendTx, asd.SpendVin),
+		IsRefund:          asd.IsRefund,
+	}
+}
+
 type TxSwapResults struct {
 	TxID        chainhash.Hash
 	Found       string
@@ -337,8 +362,30 @@ type TxSwapResults struct {
 	Refunds     map[uint32]*AtomicSwapData
 }
 
+func (tsr *TxSwapResults) ToAPI() *TxAtomicSwaps {
+	tas := &TxAtomicSwaps{
+		TxID:        tsr.TxID.String(),
+		Found:       tsr.Found,
+		Contracts:   make(map[uint32]*AtomicSwap, len(tsr.Contracts)),
+		Redemptions: make(map[uint32]*AtomicSwap, len(tsr.Redemptions)),
+		Refunds:     make(map[uint32]*AtomicSwap, len(tsr.Refunds)),
+	}
+
+	for idx, dat := range tsr.Contracts {
+		tas.Contracts[idx] = dat.ToAPI()
+	}
+	for idx, dat := range tsr.Redemptions {
+		tas.Redemptions[idx] = dat.ToAPI()
+	}
+	for idx, dat := range tsr.Refunds {
+		tas.Refunds[idx] = dat.ToAPI()
+	}
+
+	return tas
+}
+
 func MsgTxAtomicSwapsInfo(msgTx *wire.MsgTx, outputSpenders map[uint32]*OutputSpenderTxOut,
-	params *chaincfg.Params, treasuryEnabled bool) (*TxSwapResults, error) {
+	params *chaincfg.Params) (*TxSwapResults, error) {
 
 	// Skip if the tx is generating coins (coinbase, treasurybase, stakebase).
 	for _, input := range msgTx.TxIn {
@@ -425,8 +472,7 @@ func MsgTxAtomicSwapsInfo(msgTx *wire.MsgTx, outputSpenders map[uint32]*OutputSp
 			continue // output must be spent to determine if it is a contract
 		}
 
-		scriptClass := txscript.GetScriptClass(vout.Version, vout.PkScript, treasuryEnabled)
-		if scriptClass != txscript.ScriptHashTy {
+		if !stdscript.IsScriptHashScript(vout.Version, vout.PkScript) {
 			continue // non-p2sh outputs cannot currently be contracts
 		}
 

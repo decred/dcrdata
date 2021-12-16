@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2021, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -24,10 +24,6 @@ func (iapi *InsightApi) TxConverter(txs []*chainjson.TxRawResult) ([]apitypes.In
 func (iapi *InsightApi) DcrToInsightTxns(txs []*chainjson.TxRawResult, noAsm, noScriptSig, noSpent bool) ([]apitypes.InsightTx, error) {
 	newTxs := make([]apitypes.InsightTx, 0, len(txs))
 	for _, tx := range txs {
-		treasuryActive := true // assume true if it is not mined
-		if tx.BlockHeight > 0 {
-			treasuryActive = txhelpers.IsTreasuryActive(iapi.params.Net, tx.BlockHeight)
-		}
 		// Build new InsightTx
 		txNew := apitypes.InsightTx{
 			Txid:          tx.Txid,
@@ -89,7 +85,7 @@ func (iapi *InsightApi) DcrToInsightTxns(txs []*chainjson.TxRawResult, noAsm, no
 					// fetch the prevout's addresses since dcrd does not include
 					// these details in the info for the spending transaction.
 					addrs, _, err := txhelpers.OutPointAddressesFromString(
-						vin.Txid, vin.Vout, vin.Tree, iapi.nodeClient, iapi.params, treasuryActive)
+						vin.Txid, vin.Vout, vin.Tree, iapi.nodeClient, iapi.params)
 					if err != nil {
 						apiLog.Errorf("OutPointAddresses: %v", err)
 					} else if len(addrs) > 0 {

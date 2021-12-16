@@ -39,7 +39,7 @@ type BlockDataSource interface {
 	GetBlockHeight(hash string) (int64, error)
 	GetBlockVerboseByHash(hash string, verboseTx bool) *chainjson.GetBlockVerboseResult
 	GetHeight() (int64, error)
-	GetRawTransaction(txid *chainhash.Hash) (*chainjson.TxRawResult, error)
+	GetRawTransactionVerbose(txid *chainhash.Hash) (*chainjson.TxRawResult, error)
 	GetTransactionHex(txid *chainhash.Hash) string
 	Height() int64
 	InsightAddressTransactions(addr []string, recentBlockHeight int64) (txs, recentTxs []chainhash.Hash, err error)
@@ -148,7 +148,7 @@ func (iapi *InsightApi) getTransaction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Return raw transaction
-	txOld, err := iapi.BlockData.GetRawTransaction(txid)
+	txOld, err := iapi.BlockData.GetRawTransactionVerbose(txid)
 	if err != nil {
 		apiLog.Errorf("Unable to get transaction %s", txid)
 		writeInsightNotFound(w, fmt.Sprintf("Unable to get transaction (%s)", txid))
@@ -737,7 +737,7 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 		skipTxns := (pageNum - 1) * txPageSize
 		txsOld := []*chainjson.TxRawResult{}
 		for i := skipTxns; i < txCount && i < txPageSize+skipTxns; i++ {
-			txOld, err := iapi.BlockData.GetRawTransaction(&hashes[i])
+			txOld, err := iapi.BlockData.GetRawTransactionVerbose(&hashes[i])
 			if err != nil {
 				apiLog.Errorf("Unable to get transaction %s", hashes[i])
 				errStr := html.EscapeString(err.Error())
@@ -912,7 +912,7 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 	// Make getrawtransaction RPCs for each selected transaction.
 	txsOld := []*chainjson.TxRawResult{}
 	for i, rawTx := range rawTxs {
-		txOld, err := iapi.BlockData.GetRawTransaction(&rawTx)
+		txOld, err := iapi.BlockData.GetRawTransactionVerbose(&rawTx)
 		if err != nil {
 			apiLog.Errorf("Unable to get transaction %s", rawTx)
 			errStr := html.EscapeString(err.Error())

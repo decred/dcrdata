@@ -27,8 +27,8 @@ import (
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
-	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
+	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -335,16 +335,10 @@ func TxOutpointsByAddr(txAddrOuts MempoolAddressStore, msgTx *wire.MsgTx, params
 
 	// Check the addresses associated with the PkScript of each TxOut.
 	txTree := TxTree(msgTx, treasuryActive)
-	isStake := txTree == wire.TxTreeRegular
 	hash := msgTx.CachedTxHash()
 	addrs = make(map[string]bool)
 	for outIndex, txOut := range msgTx.TxOut {
-		_, txOutAddrs, _, err := txscript.ExtractPkScriptAddrs(txOut.Version,
-			txOut.PkScript, params, treasuryActive && isStake)
-		if err != nil {
-			fmt.Printf("ExtractPkScriptAddrs: %v", err.Error())
-			continue
-		}
+		_, txOutAddrs := stdscript.ExtractAddrs(txOut.Version, txOut.PkScript, params)
 		if len(txOutAddrs) == 0 {
 			continue
 		}
@@ -447,13 +441,7 @@ func TxPrevOutsByAddr(txAddrOuts MempoolAddressStore, txnsStore TxnsStore, msgTx
 		// Extract the addresses from this output's PkScript. NOTE: Treasury may
 		// not actually be active even if treasuryActive is true because this is
 		// the previous output, but it is not if treasuryActive is false.
-		_, txAddrs, _, err := txscript.ExtractPkScriptAddrs(
-			txOut.Version, txOut.PkScript, params, treasuryActive)
-		if err != nil {
-			fmt.Printf("TxPrevOutsByAddr: ExtractPkScriptAddrs: %v\n", err.Error())
-			continue
-		}
-
+		_, txAddrs := stdscript.ExtractAddrs(txOut.Version, txOut.PkScript, params)
 		if len(txAddrs) == 0 {
 			fmt.Printf("pkScript of a previous transaction output "+
 				"(%v:%d) unexpectedly encoded no addresses.",
@@ -564,12 +552,7 @@ func TxConsumesOutpointWithAddress(msgTx *wire.MsgTx, addr string, c VerboseTran
 		// Extract the addresses from this output's PkScript. NOTE: Treasury may
 		// not actually be active even if treasuryActive is true because this is
 		// the previous output, but it is not if treasuryActive is false
-		_, txAddrs, _, err := txscript.ExtractPkScriptAddrs(
-			txOut.Version, txOut.PkScript, params, treasuryActive)
-		if err != nil {
-			fmt.Printf("ExtractPkScriptAddrs: %v\n", err.Error())
-			continue
-		}
+		_, txAddrs := stdscript.ExtractAddrs(txOut.Version, txOut.PkScript, params)
 
 		// For each address that matches the address of interest, record this
 		// previous outpoint and the containing transactions.
@@ -614,7 +597,6 @@ func BlockConsumesOutpointWithAddresses(block *dcrutil.Block, addrs map[string]T
 				}
 				// For each TxIn, check the indicated vout index in the txid of the
 				// previous outpoint.
-				// txrr, err := c.GetRawTransactionVerbose(&prevOut.Hash)
 				prevTx, err := c.GetRawTransaction(context.TODO(), &prevOut.Hash)
 				if err != nil {
 					fmt.Printf("Unable to get raw transaction for %s\n", prevOut.Hash.String())
@@ -623,13 +605,7 @@ func BlockConsumesOutpointWithAddresses(block *dcrutil.Block, addrs map[string]T
 
 				// prevOut.Index should tell us which one, but check all anyway
 				for _, txOut := range prevTx.MsgTx().TxOut {
-					_, txAddrs, _, err := txscript.ExtractPkScriptAddrs(
-						txOut.Version, txOut.PkScript, params, true)
-					if err != nil {
-						fmt.Printf("ExtractPkScriptAddrs: %v\n", err.Error())
-						continue
-					}
-
+					_, txAddrs := stdscript.ExtractAddrs(txOut.Version, txOut.PkScript, params)
 					for _, txAddr := range txAddrs {
 						addrstr := txAddr.String()
 						if _, ok := addrs[addrstr]; ok {
@@ -657,14 +633,8 @@ func TxPaysToAddress(msgTx *wire.MsgTx, addr string, params *chaincfg.Params, tr
 	txTree := TxTree(msgTx, treasuryActive)
 	hash := msgTx.TxHash()
 	for outIndex, txOut := range msgTx.TxOut {
-		_, txOutAddrs, _, err := txscript.ExtractPkScriptAddrs(txOut.Version,
-			txOut.PkScript, params, true)
-		if err != nil {
-			fmt.Printf("ExtractPkScriptAddrs: %v", err.Error())
-			continue
-		}
-
 		// Check if we are watching any address for this TxOut
+		_, txOutAddrs := stdscript.ExtractAddrs(txOut.Version, txOut.PkScript, params)
 		for _, txAddr := range txOutAddrs {
 			addrstr := txAddr.String()
 			if addr == addrstr {
@@ -687,14 +657,8 @@ func BlockReceivesToAddresses(block *dcrutil.Block, addrs map[string]TxAction,
 		for _, tx := range blockTxs {
 			// Check the addresses associated with the PkScript of each TxOut
 			for _, txOut := range tx.MsgTx().TxOut {
-				_, txOutAddrs, _, err := txscript.ExtractPkScriptAddrs(txOut.Version,
-					txOut.PkScript, params, treasuryActive)
-				if err != nil {
-					fmt.Printf("ExtractPkScriptAddrs: %v", err.Error())
-					continue
-				}
-
-				// Check if we are watching any address for this TxOut
+				// Check if we are watching any address for this TxOut.
+				_, txOutAddrs := stdscript.ExtractAddrs(txOut.Version, txOut.PkScript, params)
 				for _, txAddr := range txOutAddrs {
 					addrstr := txAddr.String()
 					if _, ok := addrs[addrstr]; ok {
@@ -716,7 +680,7 @@ func BlockReceivesToAddresses(block *dcrutil.Block, addrs map[string]TxAction,
 
 // OutPointAddresses gets the addresses paid to by a transaction output.
 func OutPointAddresses(outPoint *wire.OutPoint, c RawTransactionGetter,
-	params *chaincfg.Params, treasuryActive bool) ([]string, dcrutil.Amount, error) {
+	params *chaincfg.Params) ([]string, dcrutil.Amount, error) {
 	// The addresses are encoded in the pkScript, so we need to get the
 	// raw transaction, and the TxOut that contains the pkScript.
 	prevTx, err := c.GetRawTransaction(context.TODO(), &outPoint.Hash)
@@ -732,11 +696,7 @@ func OutPointAddresses(outPoint *wire.OutPoint, c RawTransactionGetter,
 
 	// For the TxOut of interest, extract the list of addresses
 	txOut := txOuts[outPoint.Index]
-	_, txAddrs, _, err := txscript.ExtractPkScriptAddrs(
-		txOut.Version, txOut.PkScript, params, treasuryActive)
-	if err != nil {
-		return nil, 0, fmt.Errorf("ExtractPkScriptAddrs: %v", err.Error())
-	}
+	_, txAddrs := stdscript.ExtractAddrs(txOut.Version, txOut.PkScript, params)
 	value := dcrutil.Amount(txOut.Value)
 	addresses := make([]string, 0, len(txAddrs))
 	for _, txAddr := range txAddrs {
@@ -749,14 +709,14 @@ func OutPointAddresses(outPoint *wire.OutPoint, c RawTransactionGetter,
 // OutPointAddressesFromString is the same as OutPointAddresses, but it takes
 // the outpoint as the tx string, vout index, and tree.
 func OutPointAddressesFromString(txid string, index uint32, tree int8,
-	c RawTransactionGetter, params *chaincfg.Params, treasuryActive bool) ([]string, dcrutil.Amount, error) {
+	c RawTransactionGetter, params *chaincfg.Params) ([]string, dcrutil.Amount, error) {
 	hash, err := chainhash.NewHashFromStr(txid)
 	if err != nil {
 		return nil, 0, fmt.Errorf("Invalid hash %s", txid)
 	}
 
 	outPoint := wire.NewOutPoint(hash, index, tree)
-	return OutPointAddresses(outPoint, c, params, treasuryActive)
+	return OutPointAddresses(outPoint, c, params)
 }
 
 // MedianAmount gets the median Amount from a slice of Amounts
@@ -1324,17 +1284,19 @@ const (
 	AddressTypeP2PK = iota
 	AddressTypeP2PKH
 	AddressTypeP2SH
-	AddressTypeOther
+	AddressTypeOther // the "alt" pkh addresses with ed25519 and schorr sigs
 	AddressTypeUnknown
 )
 
 // String describes the AddressType.
 func (at AddressType) String() string {
 	switch at {
-	case AddressTypeP2PK:
+	case AddressTypeP2PK: // includes all sig types
 		return "pubkey"
-	case AddressTypeP2PKH, AddressTypeOther: // AddressTypeOther is currently schnorr or edwards pkh, but still pkh
+	case AddressTypeP2PKH:
 		return "pubkeyhash"
+	case AddressTypeOther: // schnorr or edwards pkh, but still pkh
+		return "pubkeyhashalt"
 	case AddressTypeP2SH:
 		return "scripthash"
 	case AddressTypeUnknown:
@@ -1362,14 +1324,33 @@ func AddressValidation(address string, params *chaincfg.Params) (stdaddr.Address
 		return nil, AddressTypeUnknown, AddressErrorDecodeFailed
 	}
 
-	// Determine address type for this valid Decred address. Ignore the error
-	// since DecodeAddress succeeded.
+	// var addrType AddressType
+	// switch addr.(type) {
+	// case *stdaddr.AddressPubKeyHashEcdsaSecp256k1V0:
+	// 	addrType = AddressTypeP2PKH
+	// case *stdaddr.AddressScriptHashV0:
+	// 	addrType = AddressTypeP2SH
+	// case *stdaddr.AddressPubKeyEcdsaSecp256k1V0:
+	// 	addrType = AddressTypeP2PK
+	// case *stdaddr.AddressPubKeyEd25519V0, *stdaddr.AddressPubKeySchnorrSecp256k1V0,
+	// 	*stdaddr.AddressPubKeyHashEd25519V0, *stdaddr.AddressPubKeyHashSchnorrSecp256k1V0:
+	// 	addrType = AddressTypeOther
+	// default:
+	// 	addrType = AddressTypeUnknown
+	// }
+
+	// Determine address type for this valid Decred address.
 	_, netID, _ := base58.CheckDecode(address)
+	// Or skip the checksum:
+	// var netID [2]byte
+	// if dec := base58.Decode(address); len(dec) > 1 { // must be since DecodeAddress wored
+	// 	netID[0], netID[1] = dec[0], dec[1]
+	// }
 
 	var addrType AddressType
 	switch netID {
 	case params.PubKeyAddrID:
-		addrType = AddressTypeP2PK
+		addrType = AddressTypeP2PK // all sig types including ed25519 and schnorr
 	case params.PubKeyHashAddrID:
 		addrType = AddressTypeP2PKH
 	case params.ScriptHashAddrID:
