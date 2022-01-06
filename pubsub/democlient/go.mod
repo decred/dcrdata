@@ -5,7 +5,7 @@ go 1.16
 replace github.com/decred/dcrdata/v7 => ../../
 
 require (
-	github.com/decred/dcrd/chaincfg/v3 v3.1.0
+	github.com/decred/dcrd/chaincfg/v3 v3.1.1
 	github.com/decred/dcrd/txscript/v4 v4.0.0
 	github.com/decred/dcrdata/v7 v7.0.0
 	github.com/decred/slog v1.2.0

@@ -5,7 +5,7 @@ go 1.16
 replace github.com/decred/dcrdata/exchanges/v3 => ../
 
 require (
-	github.com/decred/dcrd/certgen v1.1.2-0.20210914212651-723d86274b0d
+	github.com/decred/dcrd/certgen v1.1.1
 	github.com/decred/dcrd/dcrutil/v4 v4.0.0
 	github.com/decred/dcrdata/exchanges/v3 v3.0.0
 	github.com/decred/slog v1.2.0

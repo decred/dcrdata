@@ -3,7 +3,7 @@ module github.com/decred/dcrdata/exchanges/v3
 go 1.16
 
 require (
-	decred.org/dcrdex v0.0.0-20211211220059-fbff9b654aca
+	decred.org/dcrdex v0.4.0
 	github.com/carterjones/signalr v0.3.5
 	github.com/decred/dcrd/dcrutil/v4 v4.0.0
 	github.com/decred/slog v1.2.0
