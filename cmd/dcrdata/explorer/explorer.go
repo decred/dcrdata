@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2021, The Decred developers
+// Copyright (c) 2018-2022, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -107,6 +107,7 @@ type explorerDataSource interface {
 	GetTransactionByHash(txid string) (*wire.MsgTx, error)
 	GetHeight() (int64, error)
 	TxHeight(txid *chainhash.Hash) (height int64)
+	DCP0010ActivationHeight() int64
 	BlockSubsidy(height int64, voters uint16) *chainjson.GetBlockSubsidyResult
 	GetExplorerFullBlocks(start int, end int) []*types.BlockInfo
 	CurrentDifficulty() (float64, error)
@@ -690,16 +691,11 @@ func (exp *explorerUI) simulateASR(StartingDCRBalance float64, IntegerTicketQty 
 	BlocksPerYear := 365 * BlocksPerDay
 	TicketsPurchased := float64(0)
 
-	StakeRewardAtBlock := func(blocknum float64) float64 {
-		// Option 1:  RPC Call
-		Subsidy := exp.dataSource.BlockSubsidy(int64(blocknum), 1)
-		return dcrutil.Amount(Subsidy.PoS).ToCoin()
+	votesPerBlock := exp.ChainParams.VotesPerBlock()
 
-		// Option 2:  Calculation
-		// epoch := math.Floor(blocknum / float64(exp.ChainParams.SubsidyReductionInterval))
-		// RewardProportionPerVote := float64(exp.ChainParams.StakeRewardProportion) / (10 * float64(exp.ChainParams.TicketsPerBlock))
-		// return float64(RewardProportionPerVote) * dcrutil.Amount(exp.ChainParams.BaseSubsidy).ToCoin() *
-		// 	math.Pow(float64(exp.ChainParams.MulSubsidy)/float64(exp.ChainParams.DivSubsidy), epoch)
+	StakeRewardAtBlock := func(blocknum float64) float64 {
+		Subsidy := exp.dataSource.BlockSubsidy(int64(blocknum), votesPerBlock)
+		return dcrutil.Amount(Subsidy.PoS / int64(votesPerBlock)).ToCoin()
 	}
 
 	MaxCoinSupplyAtBlock := func(blocknum float64) float64 {

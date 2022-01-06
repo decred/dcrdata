@@ -12,7 +12,6 @@ replace (
 require (
 	github.com/caarlos0/env/v6 v6.6.2
 	github.com/decred/dcrd/blockchain/stake/v4 v4.0.0
-	github.com/decred/dcrd/blockchain/standalone/v2 v2.1.0
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.3
 	github.com/decred/dcrd/chaincfg/v3 v3.1.1
 	github.com/decred/dcrd/dcrutil/v4 v4.0.0

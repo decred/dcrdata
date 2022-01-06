@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2021, The Decred developers
+// Copyright (c) 2018-2022, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -70,6 +70,7 @@ type DataSource interface {
 	AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error)
 	AddressRowsCompact(address string) ([]*dbtypes.AddressRowCompact, error)
 	Height() int64
+	IsDCP0010Active(height int64) bool
 	AllAgendas() (map[string]dbtypes.MileStone, error)
 	GetTicketInfo(txid string) (*apitypes.TicketInfo, error)
 	PowerlessTickets() (*apitypes.PowerlessTickets, error)
@@ -1264,7 +1265,8 @@ func (c *appContext) blockSubsidies(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	work, stake, tax := txhelpers.RewardsAtBlock(idx, uint16(numVotes), c.Params)
+	useDCP0010 := c.DataSource.IsDCP0010Active(idx)
+	work, stake, tax := txhelpers.RewardsAtBlock(idx, uint16(numVotes), c.Params, useDCP0010)
 	rewards := apitypes.BlockSubsidies{
 		BlockNum:   idx,
 		BlockHash:  hash,
