@@ -1,11 +1,12 @@
-// Copyright (c) 2018-2021, The Decred developers
+// Copyright (c) 2018-2022, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
 package insight
 
 import (
-	"github.com/decred/dcrd/blockchain/standalone/v2"
+	"math"
+
 	"github.com/decred/dcrd/dcrutil/v4"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
 
@@ -152,12 +153,15 @@ func (iapi *InsightApi) DcrToInsightTxns(txs []*chainjson.TxRawResult, noAsm, no
 
 // DcrToInsightBlock converts a chainjson.GetBlockVerboseResult to Insight block.
 func (iapi *InsightApi) DcrToInsightBlock(inBlocks []*chainjson.GetBlockVerboseResult) ([]*apitypes.InsightBlockResult, error) {
+	dcp0010Height := iapi.BlockData.DCP0010ActivationHeight()
+	if dcp0010Height == -1 {
+		dcp0010Height = math.MaxInt64
+	}
+
 	RewardAtBlock := func(blocknum int64, voters uint16) float64 {
-		subsidyCache := standalone.NewSubsidyCache(iapi.params)
-		work := subsidyCache.CalcWorkSubsidy(blocknum, voters)
-		stake := subsidyCache.CalcStakeVoteSubsidy(blocknum) * int64(voters)
-		tax := subsidyCache.CalcTreasurySubsidy(blocknum, voters, true) // ???? does it depend on height?
-		return dcrutil.Amount(work + stake + tax).ToCoin()
+		useDCP0010 := blocknum >= dcp0010Height
+		work, stake, tax := txhelpers.RewardsAtBlock(blocknum, voters, iapi.params, useDCP0010)
+		return dcrutil.Amount(work + stake*int64(voters) + tax).ToCoin()
 	}
 
 	outBlocks := make([]*apitypes.InsightBlockResult, 0, len(inBlocks))

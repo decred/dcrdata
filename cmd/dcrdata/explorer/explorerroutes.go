@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2021, The Decred developers
+// Copyright (c) 2018-2022, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -2452,7 +2452,8 @@ func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Subsidies
-	ultSubsidy := txhelpers.UltimateSubsidy(exp.ChainParams)
+	dcp0010Height := exp.dataSource.DCP0010ActivationHeight()
+	ultSubsidy := txhelpers.UltimateSubsidy(exp.ChainParams, dcp0010Height)
 	bestBlockHeight, err := exp.dataSource.GetHeight()
 	if err != nil {
 		log.Errorf("GetHeight failed: %v", err)

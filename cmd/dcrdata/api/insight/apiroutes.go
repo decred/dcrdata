@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2021, The Decred developers
+// Copyright (c) 2018-2022, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -42,6 +42,7 @@ type BlockDataSource interface {
 	GetRawTransactionVerbose(txid *chainhash.Hash) (*chainjson.TxRawResult, error)
 	GetTransactionHex(txid *chainhash.Hash) string
 	Height() int64
+	DCP0010ActivationHeight() int64
 	InsightAddressTransactions(addr []string, recentBlockHeight int64) (txs, recentTxs []chainhash.Hash, err error)
 	SendRawTransaction(txhex string) (string, error)
 	SpendDetailsForFundingTx(fundHash string) ([]*apitypes.SpendByFundingHash, error)
