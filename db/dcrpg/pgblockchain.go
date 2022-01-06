@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2021, The Decred developers
+// Copyright (c) 2018-2022, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -2692,7 +2692,7 @@ func (pgb *ChainDB) UpdateChainState(blockChainInfo *chainjson.GetBlockChainInfo
 			// right voting period start height here.
 			h := blockChainInfo.Blocks
 			agendaInfo.VotingStarted = h - (h-entry.Since)%ruleChangeInterval
-			agendaInfo.Activated = agendaInfo.VotingStarted + 2*ruleChangeInterval
+			agendaInfo.Activated = agendaInfo.VotingStarted + 2*ruleChangeInterval // if it passes
 
 		case dbtypes.FailedAgendaStatus:
 			agendaInfo.VotingStarted = entry.Since - ruleChangeInterval
@@ -2736,6 +2736,7 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 
 	// update blockchain state
 	pgb.UpdateChainState(blockData.BlockchainInfo)
+	log.Infof("Current DCP0010 activation height is %d.", pgb.DCP0010ActivationHeight())
 
 	// New blocks stored this way are considered valid and part of mainchain,
 	// warranting updates to existing records. When adding side chain blocks
@@ -4735,22 +4736,53 @@ func (pgb *ChainDB) GetPool(idx int64) ([]string, error) {
 	return hss, nil
 }
 
+// DCP0010ActivationHeight indicates the height at which the changesubsidysplit
+// agenda will activate, or -1 if it is not determined yet.
+func (pgb *ChainDB) DCP0010ActivationHeight() int64 {
+	if _, ok := txhelpers.SubsidySplitStakeVer(pgb.chainParams); !ok {
+		return 0 // activate at genesis if no deployment defined in chaincfg.Params
+	}
+
+	agendaInfo, found := pgb.ChainInfo().AgendaMileStones[chaincfg.VoteIDChangeSubsidySplit]
+	if !found {
+		log.Warn("The changesubsidysplit agenda is missing.")
+		return 0
+	}
+
+	switch agendaInfo.Status {
+	case dbtypes.ActivatedAgendaStatus, dbtypes.LockedInAgendaStatus:
+		return agendaInfo.Activated // rci already added for lockedin
+	}
+	return -1 // not activated, and no future activation height known
+}
+
+// IsDCP0010Active indicates if the "changesubsidysplit" consensus deployment is
+// active at the given height according to the current status of the agendas.
+func (pgb *ChainDB) IsDCP0010Active(height int64) bool {
+	activeHeight := pgb.DCP0010ActivationHeight()
+	if activeHeight == -1 {
+		return false
+	}
+	return height >= activeHeight
+}
+
 // CurrentCoinSupply gets the current coin supply as an *apitypes.CoinSupply,
 // which additionally contains block info and max supply.
 func (pgb *ChainDB) CurrentCoinSupply() (supply *apitypes.CoinSupply) {
-	coinSupply, err := pgb.Client.GetCoinSupply(context.TODO())
+	coinSupply, err := pgb.Client.GetCoinSupply(pgb.ctx)
 	if err != nil {
 		log.Errorf("RPC failure (GetCoinSupply): %v", err)
 		return
 	}
 
+	dcp0010Height := pgb.DCP0010ActivationHeight()
 	hash, height := pgb.BestBlockStr()
 
 	return &apitypes.CoinSupply{
 		Height:   height,
 		Hash:     hash,
 		Mined:    int64(coinSupply),
-		Ultimate: txhelpers.UltimateSubsidy(pgb.chainParams),
+		Ultimate: txhelpers.UltimateSubsidy(pgb.chainParams, dcp0010Height),
 	}
 }
 
@@ -5531,11 +5563,15 @@ func trimmedTxInfoFromMsgTx(txraw *chainjson.TxRawResult, ticketPrice int64, msg
 // BlockSubsidy gets the *chainjson.GetBlockSubsidyResult for the given height
 // and number of voters, which can be fewer than the network parameter allows.
 func (pgb *ChainDB) BlockSubsidy(height int64, voters uint16) *chainjson.GetBlockSubsidyResult {
-	blockSubsidy, err := pgb.Client.GetBlockSubsidy(context.TODO(), height, voters)
-	if err != nil {
-		return nil
+	dcp0010Active := pgb.IsDCP0010Active(height)
+	work, stake, tax := txhelpers.RewardsAtBlock(height, voters, pgb.chainParams, dcp0010Active)
+	stake *= int64(voters)
+	return &chainjson.GetBlockSubsidyResult{
+		PoW:       work,
+		PoS:       stake,
+		Developer: tax,
+		Total:     work + stake + tax,
 	}
-	return blockSubsidy
 }
 
 // GetExplorerBlock gets a *exptypes.Blockinfo for the specified block.
@@ -6320,7 +6356,7 @@ func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
 
 // BlockchainInfo retrieves the result of the getblockchaininfo node RPC.
 func (pgb *ChainDB) BlockchainInfo() (*chainjson.GetBlockChainInfoResult, error) {
-	return pgb.Client.GetBlockChainInfo(context.TODO())
+	return pgb.Client.GetBlockChainInfo(pgb.ctx)
 }
 
 // UpdateChan creates a channel that will receive height updates. All calls to
