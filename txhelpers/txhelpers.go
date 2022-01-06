@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2021, The Decred developers
+// Copyright (c) 2018-2022, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -41,21 +41,55 @@ var CoinbaseFlags = "/dcrd/"
 var CoinbaseScript = append([]byte{0x00, 0x00}, []byte(CoinbaseFlags)...)
 
 const (
-	TreasuryHeightMainnet  = 552448 // lockedin at 544384
-	TreasuryHeightTestnet3 = 560208
+	treasuryHeightMainnet  = 552448 // lockedin at 544384
+	treasuryHeightTestnet3 = 560208
 )
 
+// IsTreasuryActive indicates if the decentralized treasury is active for the
+// given network and block height.
 func IsTreasuryActive(net wire.CurrencyNet, height int64) bool {
 	switch net {
 	case wire.MainNet:
-		return height >= TreasuryHeightMainnet
+		return height >= treasuryHeightMainnet
 	case wire.TestNet3:
-		return height >= TreasuryHeightTestnet3
+		return height >= treasuryHeightTestnet3
 	case wire.SimNet:
 		return height >= 2
 	default:
 		fmt.Printf("unrecognized network %v\n", net)
 		return false
+	}
+}
+
+// SubsidySplitStakeVer locates the "changesubsidysplit" agenda item in the
+// consensus deployments defined in the provided chain parameters. If found, the
+// corresponding stake version is returned.
+func SubsidySplitStakeVer(params *chaincfg.Params) (uint32, bool) {
+	for stakeVer, deployments := range params.Deployments {
+		for i := range deployments {
+			if deployments[i].Vote.Id == chaincfg.VoteIDChangeSubsidySplit {
+				return stakeVer, true
+			}
+		}
+	}
+	return 0, false
+}
+
+// DCP0010ActivationHeight indicates the height at which the
+// "changesubsidysplit" consensus change activates for the provided
+// getblockchaininfo result.
+func DCP0010ActivationHeight(params *chaincfg.Params, bci *chainjson.GetBlockChainInfoResult) int64 {
+	splitAgendaInfo, found := bci.Deployments[chaincfg.VoteIDChangeSubsidySplit]
+	if !found {
+		return 0
+	}
+	switch splitAgendaInfo.Status {
+	case "active":
+		return splitAgendaInfo.Since
+	case "lockedin":
+		return splitAgendaInfo.Since + int64(params.RuleChangeActivationInterval)
+	default:
+		return -1 // not active
 	}
 }
 
