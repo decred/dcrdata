@@ -98,17 +98,17 @@ var (
 		Price: "https://api.coinbase.com/v2/exchange-rates?currency=BTC",
 	}
 	CoindeskURLs = URLs{
-		Price: "https://api.coindesk.com/v1/bpi/currentprice.json",
+		Price: "https://api.coindesk.com/v2/bpi/currentprice.json",
 	}
 	BinanceURLs = URLs{
-		Price: "https://api.binance.com/api/v1/ticker/24hr?symbol=DCRBTC",
-		// Binance returns a maximum of 1000 depth chart points. This seems like it
+		Price: "https://api.binance.com/api/v3/ticker/24hr?symbol=DCRBTC",
+		// Binance returns a maximum of 5000 depth chart points. This seems like it
 		// is the entire order book at least sometimes.
-		Depth: "https://api.binance.com/api/v1/depth?symbol=DCRBTC&limit=1000",
+		Depth: "https://api.binance.com/api/v3/depth?symbol=DCRBTC&limit=5000",
 		Candlesticks: map[candlestickKey]string{
-			hourKey:  "https://api.binance.com/api/v1/klines?symbol=DCRBTC&interval=1h",
-			dayKey:   "https://api.binance.com/api/v1/klines?symbol=DCRBTC&interval=1d",
-			monthKey: "https://api.binance.com/api/v1/klines?symbol=DCRBTC&interval=1M",
+			hourKey:  "https://api.binance.com/api/v3/klines?symbol=DCRBTC&interval=1h",
+			dayKey:   "https://api.binance.com/api/v3/klines?symbol=DCRBTC&interval=1d",
+			monthKey: "https://api.binance.com/api/v3/klines?symbol=DCRBTC&interval=1M",
 		},
 	}
 	BittrexURLs = URLs{
