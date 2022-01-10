@@ -177,16 +177,16 @@
                                                 </span>
                                             {{else}}
                                                 {{if lt $votesPercent (toFloat64 $v.PassPercentage)}}
-                                                    <span class="text-failed position-relative" data-tooltip="Failed vote">
-                                                        Failed
+                                                    <span class="text-failed position-relative" data-tooltip="Proposal rejected">
+                                                        Rejected
                                                         <span class="fs12 text-black-50">({{printf "%.0f" ($votesPercent)}}%
                                                             <span class="d-none d-sm-inline">approval)</span>
                                                             <span class="d-sm-none">yes)</span>
                                                         </span>
                                                     </span>
                                                 {{else}}
-                                                    <span class="text-green position-relative" data-tooltip="Passed vote">
-                                                        Passed
+                                                    <span class="text-green position-relative" data-tooltip="Proposal approved">
+                                                        Approved
                                                         <span class="fs12 text-black-50">({{printf "%.0f" ($votesPercent)}}%
                                                             <span class="d-none d-sm-inline">approval)</span>
                                                             <span class="d-sm-none">yes)</span>
