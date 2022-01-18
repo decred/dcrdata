@@ -27,6 +27,7 @@ $container-max-widths: map-merge(
 // typography
 $font-family-sans-serif: "source-sans-pro-v9-latin-regular", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 $font-family-monospace: "inconsolata-v15-latin-regular", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !default;
+$small-font-size: 80% !default;
 
 // progress bar
 $progress-height: 1.25rem;
