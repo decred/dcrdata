@@ -478,6 +478,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 	treasuryBalance, err := exp.dataSource.TreasuryBalance()
 	if err != nil {
 		log.Errorf("Store: TreasuryBalance failed: %v", err)
+		treasuryBalance = &dbtypes.TreasuryBalance{}
 	}
 
 	// Update pageData with block data and chain (home) info.

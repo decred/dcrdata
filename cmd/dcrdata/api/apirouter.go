@@ -202,6 +202,7 @@ func NewAPIRouter(app *appContext, JSONIndent string, useRealIP, compressLarge b
 
 	// Treasury
 	mux.Route("/treasury", func(r chi.Router) {
+		r.Get("/balance", app.getTreasuryBalance)
 		r.With(m.ChartGroupingCtx).Get("/io/{chartgrouping}", app.getTreasuryIO)
 	})
 

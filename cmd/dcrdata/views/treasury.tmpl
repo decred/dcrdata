@@ -43,15 +43,15 @@
             <span class="text-secondary fs13">Received</span>
             <br>
             <span class="lh1rem d-inline-block pt-1 fs18 fs14-decimal fw-bold">
-            {{- if or $bal.Added $bal.TGen}}
-              {{- $received := add $bal.Added $bal.TGen}}
+            {{- if or $bal.Added $bal.TBase}}
+              {{- $received := add $bal.Added $bal.TBase}}
               {{- template "decimalParts" (amountAsDecimalParts $received true)}} <span class="text-secondary fs14">DCR</span>
             {{- else}}
               <span class="fs18">0</span> <span class="text-secondary fs14">DCR</span>
             {{- end}}
             </span>
             <br>
-            <span class="text-secondary fs14 lh1rem">{{intComma $bal.TGenCount}} gens, {{intComma $bal.AddCount}} adds</span>
+            <span class="text-secondary fs14 lh1rem">{{intComma $bal.TBaseCount}} gens, {{intComma $bal.AddCount}} adds</span>
           </div>
           <div class="d-inline-block text-start pe-2 pb-3">
             <span class="text-secondary fs13">Spent</span>

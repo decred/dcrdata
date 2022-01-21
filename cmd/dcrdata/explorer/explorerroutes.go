@@ -1752,7 +1752,7 @@ func treasuryTypeCount(treasuryBalance *dbtypes.TreasuryBalance, txType stake.Tx
 	case stake.TxTypeTAdd:
 		typedCount = treasuryBalance.AddCount
 	case stake.TxTypeTreasuryBase:
-		typedCount = treasuryBalance.TGenCount
+		typedCount = treasuryBalance.TBaseCount
 	}
 	return typedCount
 }
