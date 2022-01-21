@@ -1696,22 +1696,22 @@ func (pgb *ChainDB) TSpendVotes(tspendID *chainhash.Hash) (*dbtypes.TreasurySpen
 }
 
 // TreasuryBalance calculates the *dbtypes.TreasuryBalance.
-func (pgb *ChainDB) TreasuryBalance() (_ *dbtypes.TreasuryBalance, err error) {
-	var addCount, added, immatureCount, immature, spendCount, spent, genCount, gen int64
+func (pgb *ChainDB) TreasuryBalance() (*dbtypes.TreasuryBalance, error) {
+	var addCount, added, immatureCount, immature, spendCount, spent, baseCount, base int64
 
 	_, tipHeight := pgb.BestBlock()
 	maturityHeight := tipHeight - int64(pgb.chainParams.CoinbaseMaturity)
 
 	rows, err := pgb.db.QueryContext(pgb.ctx, internal.SelectTreasuryBalance, maturityHeight)
 	if err != nil {
-		return
+		return nil, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var txType, matureCount, allCount, matureValue, allValue sql.NullInt64
 		if err = rows.Scan(&txType, &matureCount, &allCount, &matureValue, &allValue); err != nil {
-			return
+			return nil, err
 		}
 
 		imCount := allCount.Int64 - matureCount.Int64
@@ -1720,7 +1720,7 @@ func (pgb *ChainDB) TreasuryBalance() (_ *dbtypes.TreasuryBalance, err error) {
 		switch stake.TxType(txType.Int64) {
 		case stake.TxTypeTSpend:
 			spendCount = allCount.Int64
-			spent = -allCount.Int64
+			spent = -matureValue.Int64
 		case stake.TxTypeTAdd:
 			immatureCount += imCount
 			immature += imValue
@@ -1729,22 +1729,28 @@ func (pgb *ChainDB) TreasuryBalance() (_ *dbtypes.TreasuryBalance, err error) {
 		case stake.TxTypeTreasuryBase:
 			immatureCount += imCount
 			immature += imValue
-			genCount = allCount.Int64
-			gen = matureValue.Int64
+			baseCount = allCount.Int64
+			base = matureValue.Int64
 		}
 	}
 
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return &dbtypes.TreasuryBalance{
-		Balance:       added + gen - spent,
-		TxCount:       addCount + spendCount + genCount,
-		AddCount:      addCount,
-		Added:         added,
-		SpendCount:    spendCount,
-		Spent:         spent,
-		TGenCount:     genCount,
-		TGen:          gen,
-		ImmatureCount: immatureCount,
-		Immature:      immature,
+		Height:         tipHeight,
+		MaturityHeight: maturityHeight,
+		Balance:        added + base - spent,
+		TxCount:        addCount + spendCount + baseCount,
+		AddCount:       addCount,
+		Added:          added,
+		SpendCount:     spendCount,
+		Spent:          spent,
+		TBaseCount:     baseCount,
+		TBase:          base,
+		ImmatureCount:  immatureCount,
+		Immature:       immature,
 	}, nil
 }
 
