@@ -63,6 +63,7 @@ type DataSource interface {
 	VotesInBlock(hash string) (int16, error)
 	TxHistoryData(address string, addrChart dbtypes.HistoryChart,
 		chartGroupings dbtypes.TimeBasedGrouping) (*dbtypes.ChartsData, error)
+	TreasuryBalance() (*dbtypes.TreasuryBalance, error)
 	BinnedTreasuryIO(chartGroupings dbtypes.TimeBasedGrouping) (*dbtypes.ChartsData, error)
 	TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) (
 		*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, int64, error)
@@ -1726,6 +1727,17 @@ func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.R
 	}
 
 	writeJSON(w, data, m.GetIndentCtx(r))
+}
+
+func (c *appContext) getTreasuryBalance(w http.ResponseWriter, r *http.Request) {
+	treasuryBalance, err := c.DataSource.TreasuryBalance()
+	if err != nil {
+		log.Errorf("TreasuryBalance failed: %v", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, treasuryBalance, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getTreasuryIO(w http.ResponseWriter, r *http.Request) {
