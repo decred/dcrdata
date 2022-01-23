@@ -52,6 +52,7 @@ module.exports = {
     new StyleLintPlugin()
   ],
   output: {
+    hashFunction: "xxhash64",
     filename: 'js/[name].bundle.js',
     path: path.resolve(__dirname, 'public/dist'),
     publicPath: '/dist/'
