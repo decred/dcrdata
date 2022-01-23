@@ -22,12 +22,7 @@
     {{template "html-head" headData .CommonPageData "Consensus Deployment Agendas"}}
         {{template "navbar" .}}
         <div class="container main pb-5" data-controller="agendas">
-
-
-
-
             {{- /* PRIMARY INFO CARD. LISTS AGENDAS AND SHOWS RCI/SVI PROGRESS BARS */}}
-            {{if .VotingSummary}}
             {{with .VotingSummary}}
             <div class="row">
                 <div class="py-1 px-4 px-lg-3 text-start col-24 col-lg-12 my-2">
@@ -104,127 +99,126 @@
                             <span class="fs14">{{.SVIMined}} of {{.SVIBlocks}} blocks</span>
                         </div>
                     </div>{{/* END OF SVI/RCI INTERVAL PROGRESS BARS */}}
-                </div>{{/* END OF PRMARY INFO CARD */ -}}
-
+                </div>{{/* END OF PRIMARY INFO CARD */ -}}
 
                 {{/* PRE-VOTING */}}
                 {{if or (not .NetworkUpgraded) .VotingTriggered}}
-                    <div class="col-24 col-lg-12 pt-2 px-2 text-center">
-                      {{if .VotingTriggered}}
-                        <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border">Upgrade complete. A vote has been triggered</div>
-                      {{else}}
-                        <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border">Upgrade threshold not met</div>
-                      {{end}}
-                      <div class="col-24 d-flex justify-content-around align-items-center">
-                        <div class="d-inline-block text-center p-2">
-                          <span class="fs16 fw-bold">v{{.Version}} Miners</span><br>
-                          <div
-                            class="meter text-center js-only large-gap"
-                            data-target="agendas.minerMeter"
-                            data-progress="{{.MinerProgress}}"
-                            data-threshold="{{.MinerThreshold}}"
-                            >
-                            {{printf "%.1f" (f32x100 .MinerProgress)}}%
-                          </div><br>
-                          <span class="text-secondary fs14 lh1rem">threshold <span class="fw-bold">{{printf "%.0f" (f32x100 .MinerThreshold)}} %</span></span>
-                        </div>
-                        <div class="d-inline-block text-center p-4">
-                          <span class="fs16 fw-bold">v{{.Version}} Voters</span><br>
-                          <div
-                            class="meter text-center js-only large-gap"
-                            data-target="agendas.voterMeter"
-                            data-progress="{{.VoterProgress}}"
-                            data-threshold="{{.VoterThreshold}}"
-                            >
-                            {{printf "%.1f" (f32x100 .VoterProgress)}}%
-                          </div><br>
-                          <span class="text-secondary fs14">threshold <span class="fw-bold">{{printf "%.0f" (f32x100 .VoterThreshold)}} %</span></span>
-                        </div>
+                  <div class="col-24 col-lg-12 pt-2 px-2 text-center">
+                    {{if .VotingTriggered}}
+                      <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border">Upgrade complete. A vote has been triggered</div>
+                    {{else}}
+                      <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border">Upgrade threshold not met</div>
+                    {{end}}
+                    <div class="col-24 d-flex justify-content-around align-items-center">
+                      <div class="d-inline-block text-center p-2">
+                        <span class="fs16 fw-bold">v{{.Version}} Miners</span><br>
+                        <div
+                          class="meter text-center js-only large-gap"
+                          data-target="agendas.minerMeter"
+                          data-progress="{{.MinerProgress}}"
+                          data-threshold="{{.MinerThreshold}}"
+                          >
+                          {{printf "%.1f" (f32x100 .MinerProgress)}}%
+                        </div><br>
+                        <span class="text-secondary fs14 lh1rem">threshold <span class="fw-bold">{{printf "%.0f" (f32x100 .MinerThreshold)}} %</span></span>
+                      </div>
+                      <div class="d-inline-block text-center p-4">
+                        <span class="fs16 fw-bold">v{{.Version}} Voters</span><br>
+                        <div
+                          class="meter text-center js-only large-gap"
+                          data-target="agendas.voterMeter"
+                          data-progress="{{.VoterProgress}}"
+                          data-threshold="{{.VoterThreshold}}"
+                          >
+                          {{printf "%.1f" (f32x100 .VoterProgress)}}%
+                        </div><br>
+                        <span class="text-secondary fs14">threshold <span class="fw-bold">{{printf "%.0f" (f32x100 .VoterThreshold)}} %</span></span>
                       </div>
                     </div>
+                  </div>
                 {{end}}{{/* END PRE-VOTING */ -}}
 
-
-
                 {{/* FOR CURRENT OR COMPLETED VOTES, SHOW THE TALLIES */}}
+                {{if .Agendas}}
+                  <div class="col-24 col-lg-12 d-flex flex-column justify-content-start pt-2 px-2 text-center">
+                {{end}}
                 {{range .Agendas}}
-                    {{if .IsVoting}}
-                      <div class="col-24 col-lg-12 d-flex flex-column justify-content-start pt-2 px-2 text-center">
-                          <div>
-                            {{if not .QuorumAchieved}}
-                              <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border"><span class="fw-bold">{{.ID}}</span> has not achieved quorum yet</div>
-                            {{else if .IsLocked}}
-                              <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border"><span class="fw-bold">{{.ID}}</span> has passed</div>
-                            {{else if .IsWinning}}
-                              <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border"><span class="fw-bold">{{.ID}}</span> is winning, but not a lock yet</div>
-                            {{else if .IsLosing}}
-                              <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border"><span class="fw-bold">{{.ID}}</span> is losing, but hasn't been rejected yet</div>
-                            {{else}}
-                              <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border">Voting on <span class="fw-bold">{{.ID}}</span></div>
-                            {{end}}
-                          </div>
-                          <div class="d-flex justify-content-around align-items-start flex-wrap mt-2">
-                            <div class="d-inline-block text-center p-2">
-                              <span class="fs16 fw-bold">Quorum</span><br>
-                              <div
-                                class="meter text-center js-only large-gap"
-                                data-target="agendas.quorumMeter"
-                                data-progress="{{.QuorumProgress}}"
-                                data-threshold="1.0"
-                                >
-                                {{printf "%.1f" (f32x100 .QuorumProgress)}}%
-                              </div><br>
-                              {{if .QuorumAchieved}}
-                                <span class="text-secondary fs14">quorum achieved</span>
-                              {{else}}
-                                <span class="text-secondary fs14"><span class="fw-bold">{{.VoteCount}} of {{.Quorum}}</span> votes cast</span>
-                              {{end}}
-                            </div>
-                            <div class="d-inline-block text-center p-2">
-                              <span class="fs16 fw-bold">Approval</span><br>
-                              <div
-                                class="meter text-center js-only large-gap"
-                                data-target="agendas.approvalMeter"
-                                data-approval="{{.Approval}}"
-                                data-threshold="{{.PassThreshold}}"
-                                >
-                                {{printf "%.1f" (f32x100 .Approval)}}%
-                              </div><br>
-                              <span class="text-secondary fs14">{{printf "%.0f" (f32x100 .PassThreshold)}}% passes,
-                                &lt; {{printf "%.0f" (f32x100 .FailThreshold)}}% rejects, <br>
-                                otherwise vote again
-                              </span>
-                            </div>
-                          </div>
-                          <span></span>{{/* FLEX SPACER */}}
+                  {{if .IsVoting}}
+                    <div>
+                      {{if not .QuorumAchieved}}
+                        <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border"><span class="fw-bold">{{.ID}}</span> has not achieved quorum yet</div>
+                      {{else if .IsLocked}}
+                        <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border"><span class="fw-bold">{{.ID}}</span> has passed</div>
+                      {{else if .IsWinning}}
+                        <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border"><span class="fw-bold">{{.ID}}</span> is winning, but not a lock yet</div>
+                      {{else if .IsLosing}}
+                        <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border"><span class="fw-bold">{{.ID}}</span> is losing, but hasn't been rejected yet</div>
+                      {{else}}
+                        <div class="bg-white d-inline-block p-2 fs16 text-center mx-2 border">Voting on <span class="fw-bold">{{.ID}}</span></div>
+                      {{end}}
+                    </div>
+                    <div class="d-flex justify-content-around align-items-start flex-wrap mt-2">
+                      <div class="d-inline-block text-center p-2">
+                        <span class="fs16 fw-bold">Quorum</span><br>
+                        <div
+                          class="quorum meter text-center js-only large-gap"
+                          data-target="agendas.quorumMeter"
+                          data-progress="{{.QuorumProgress}}"
+                          data-threshold="1.0"
+                          >
+                          {{printf "%.1f" (f32x100 .QuorumProgress)}}%
+                        </div><br>
+                        {{if .QuorumAchieved}}
+                          <span class="text-secondary fs14">quorum achieved</span>
+                        {{else}}
+                          <span class="text-secondary fs14"><span class="fw-bold">{{.VoteCount}} of {{.Quorum}}</span> votes cast</span>
+                        {{end}}
                       </div>
-                    {{else if or .IsFailed .IsLocked .IsActive}}{{/* VOTING COMPLETE */}}
-                        <div class="col-24 col-lg-12 py-3 px-1 row flex-column justify-content-center align-items-center">
-                            <div class="d-inline-block text-center p-2">
-                              <span class="fs16 fw-bold">{{.ID}} Results</span><br>
-                              <div
-                                class="meter text-center js-only large-gap"
-                                data-target="agendas.approvalMeter"
-                                data-approval="{{.Approval}}"
-                                data-threshold="{{.PassThreshold}}"
-                                >
-                                {{printf "%.1f" (f32x100 .Approval)}}%
-                              </div><br>
-                              {{if or .IsLocked .IsActive}}
-                                <span class="text-secondary fs14">passed</span>
-                              {{else}}
-                                <span class="text-secondary fs14">rejected</span>
-                              {{end}}
-                            </div>
-                        </div>
-                    {{end}}{{/* END VOTE METER CARDS */}}
-                {{end}}{{/* END ITERATING AGENDAS */}}
+                      <div class="d-inline-block text-center p-2">
+                        <span class="fs16 fw-bold">Approval</span><br>
+                        <div
+                          class="approval meter text-center js-only large-gap"
+                          data-target="agendas.approvalMeter"
+                          data-approval="{{.Approval}}"
+                          data-threshold="{{.PassThreshold}}"
+                          >
+                          {{printf "%.1f" (f32x100 .Approval)}}%
+                        </div><br>
+                        <span class="text-secondary fs14">{{printf "%.0f" (f32x100 .PassThreshold)}}% passes,
+                          &lt; {{printf "%.0f" (f32x100 .FailThreshold)}}% rejects, <br>
+                          otherwise vote again
+                        </span>
+                      </div>
+                    </div>
+                    <span></span>{{/* FLEX SPACER */}}
+                  {{else if or .IsFailed .IsLocked .IsActive}}{{/* VOTING COMPLETE */}}
+                    <div class="col-24 col-lg-12 py-3 px-1 flex-column justify-content-center align-items-center">
+                      <div class="d-inline-block text-center p-2">
+                        <span class="fs16 fw-bold">{{.ID}} Results</span><br>
+                        <div
+                          class="approval meter text-center js-only large-gap"
+                          data-target="agendas.approvalMeter"
+                          data-approval="{{.Approval}}"
+                          data-threshold="{{.PassThreshold}}"
+                          >
+                          {{printf "%.1f" (f32x100 .Approval)}}%
+                        </div><br>
+                        {{if or .IsLocked .IsActive}}
+                          <span class="text-secondary fs14">passed</span>
+                        {{else}}
+                          <span class="text-secondary fs14">rejected</span>
+                        {{end}}
+                      </div>
+                    </div>
+                  {{end}}{{/* END VOTE METER CARDS */}}
+                {{end}}{{/* END range .Agendas */}}
+                {{if .Agendas}}
+                </div>
+                {{end}}
             </div>
-            {{- end}}{{/* END WITH VOTESUMMARY */}}
-            {{end}}{{/* END TOP CURRENT VOTE SUMMARY SECTION */ -}}
+            {{- end}}{{/* with .VotingSummary */}}
 
-
-            {{/* AGENDA TABLE */}}
+            {{- /* AGENDA TABLE */ -}}
             <div class="row justify-content-between">
                 <div class="col-lg-14 col-sm-12 d-flex">
                     <h4 class="mb-2">Agendas</h4>
@@ -232,9 +226,9 @@
             </div>
             {{ if not .Agendas }}
             <table class="table">
-                <tr>
-                    <td>No agendas found for {{ .NetName }}</td>
-                </tr>
+              <tr>
+                <td>No agendas found for {{ .NetName }}</td>
+              </tr>
             </table>
             {{ else }}
             <table class="table table-mono-cells">
@@ -248,18 +242,20 @@
                     <th class="text-end d-none d-sm-table-cell">Expire Time (UTC)</th>
                   </tr>
                 </thead>
-                {{range $i, $v := .Agendas}}
-                {{with $v}}
                 <tbody>
+                {{- range $i, $v := .Agendas}}
+                {{- with $v}}
+                  <tr>
                     <td><a href="/agenda/{{.ID}}">{{.ID}}</a></td>
                     <td class="d-none d-md-table-cell truncate">{{.Description}}</td>
                     <td class="text-end">{{.Status}}</td>
                     <td class="text-end">{{.VoteVersion}}</td>
                     <td class="text-end d-none d-sm-table-cell">{{dateTimeWithoutTimeZone .StartTime}}</td>
                     <td class="text-end d-none d-sm-table-cell">{{dateTimeWithoutTimeZone .ExpireTime}}</td>
+                  </tr>
+                {{- end -}}
+                {{- end}}
                 </tbody>
-                {{end}}
-                {{end}}
             </table>
             {{end}}{{/* END TOP CURRENT VOTE SUMMARY SECTION */}}
         </div>

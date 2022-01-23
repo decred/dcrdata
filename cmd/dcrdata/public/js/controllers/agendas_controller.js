@@ -6,7 +6,7 @@ import { VoteMeter, ProgressMeter } from '../helpers/meters.js'
 export default class extends Controller {
   static get targets () {
     return [
-      'minerMeter', 'voterMeter', 'quorumMeter', 'approvalMeter'
+      'minerMeter', 'voterMeter'
     ]
   }
 
@@ -24,14 +24,14 @@ export default class extends Controller {
       this.voterMeter = new ProgressMeter(this.voterMeterTarget, opts)
       this.meters.push(this.voterMeter)
     }
-    if (this.hasQuorumMeterTarget) {
-      this.quorumMeter = new ProgressMeter(this.quorumMeterTarget, opts)
-      this.meters.push(this.quorumMeter)
-    }
-    if (this.hasApprovalMeterTarget) {
-      this.approvalMeter = new VoteMeter(this.approvalMeterTarget, opts)
-      this.meters.push(this.approvalMeter)
-    }
+    const quorumMetersDivs = document.querySelectorAll('div.quorum')
+    quorumMetersDivs.forEach((meterDiv) => {
+      this.meters.push(new ProgressMeter(meterDiv, opts))
+    })
+    const approvalMetersDivs = document.querySelectorAll('div.approval')
+    approvalMetersDivs.forEach((meterDiv) => {
+      this.meters.push(new VoteMeter(meterDiv, opts))
+    })
     this.setNightMode = this._setNightMode.bind(this)
     globalEventBus.on('NIGHT_MODE', this.setNightMode)
   }
