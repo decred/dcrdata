@@ -7,7 +7,7 @@
         "no-alert": "error",
         "no-eval": "error",
         "no-implied-eval": "error",
-        "no-var": "warn", // TODO: turn to error (default)
+        "no-var": "error",
         "array-callback-return": "off"
     }
 }

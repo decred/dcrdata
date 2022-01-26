@@ -7,7 +7,8 @@ module.exports = merge(common, {
   mode: 'production',
   devtool: 'source-map',
   plugins: [new ESLintPlugin({
-    formatter: 'stylish'
+    formatter: 'stylish',
+    threads: true
   })],
   optimization: {
     usedExports: true,

@@ -9,7 +9,7 @@ export function darkEnabled () {
 }
 
 function menuToggle () {
-  return document.querySelector('#menuToggle input')
+  return document.querySelector('#menu-toggle input')
 }
 
 if (darkEnabled()) {

@@ -239,7 +239,7 @@ export default class extends Controller {
       axes: { y2: { axisLabelFormatter: (d) => { return d.toFixed(1) } } }
     }
     return new Dygraph(
-      document.getElementById('tickets_by_purchase_date'),
+      document.getElementById('tickets-by-purchase-date'),
       d, { ...commonOptions, ...p }
     )
   }
@@ -255,7 +255,7 @@ export default class extends Controller {
       ylabel: 'Number of Tickets'
     }
     return new Dygraph(
-      document.getElementById('tickets_by_purchase_price'),
+      document.getElementById('tickets-by-purchase-price'),
       d, { ...commonOptions, ...p }
     )
   }

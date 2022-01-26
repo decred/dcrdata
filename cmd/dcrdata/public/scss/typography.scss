@@ -12,7 +12,7 @@
 }
 
 .medium-sans {
-  font-family: 'source-sans-pro-semibold', sans-serif;
+  font-family: "source-sans-pro-semibold", sans-serif;
 }
 
 .sep {
@@ -22,12 +22,12 @@
   height: 14px;
   background: #848484;
   display: inline-block;
-  margin: 0 3px 0 3px;
+  margin: 0 3px;
 }
 
 .hash {
   font-size: 14px;
-  font-family: 'inconsolata-v15-latin-regular', monospace;
+  font-family: "inconsolata-v15-latin-regular", monospace;
   display: inline-block;
   word-wrap: break-word;
   transition: 0.133s transform;
@@ -41,7 +41,7 @@
 }
 
 .mono {
-  font-family: 'inconsolata-v15-latin-regular', monospace;
+  font-family: "inconsolata-v15-latin-regular", monospace;
 }
 
 .unstyled-link,
@@ -58,7 +58,7 @@
 .elidedhash {
   position: relative;
   display: inline-block;
-  font-family: 'inconsolata-v15-latin-regular', monospace;
+  font-family: "inconsolata-v15-latin-regular", monospace;
   color: transparent;
   max-width: 100%;
   -webkit-user-select: all;
@@ -136,11 +136,11 @@ a.elidedhash:hover {
 }
 
 body .grayed {
-  color: rgba(33, 37, 41, 0.5);
+  color: rgba(33 37 41 / 50%);
 }
 
 a.grayed {
-  color: rgba(46, 117, 255, 0.75) !important;
+  color: rgba(46 117 255 / 75%) !important;
 }
 
 /* content */

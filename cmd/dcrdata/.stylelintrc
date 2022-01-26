@@ -1,3 +1,13 @@
 {
-    "extends": "stylelint-config-standard"
+    "extends": "stylelint-config-standard-scss",
+    "rules": {
+        "selector-class-pattern": null,
+        "selector-attribute-quotes": null,
+        "property-no-vendor-prefix": null,
+        "value-no-vendor-prefix": null,
+        "at-rule-no-vendor-prefix": null,
+        "value-keyword-case": null,
+        "font-family-name-quotes": "always-unless-keyword",
+        "string-quotes": "double"
+    }
 }
