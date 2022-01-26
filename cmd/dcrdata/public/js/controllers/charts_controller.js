@@ -1,4 +1,4 @@
-import { Controller } from 'stimulus'
+import { Controller } from '@hotwired/stimulus'
 import { map, assign, merge } from 'lodash-es'
 import Zoom from '../helpers/zoom_helper'
 import { darkEnabled } from '../services/theme_service'
@@ -380,7 +380,7 @@ export default class extends Controller {
     // Prepare the legend element generators.
     const lm = this.legendMarkerTarget
     lm.remove()
-    lm.removeAttribute('data-target')
+    lm.removeAttribute('data-charts-target')
     legendMarker = () => {
       const node = document.createElement('div')
       node.appendChild(lm.cloneNode())
@@ -388,7 +388,7 @@ export default class extends Controller {
     }
     const le = this.legendEntryTarget
     le.remove()
-    le.removeAttribute('data-target')
+    le.removeAttribute('data-charts-target')
     legendEntry = s => {
       const node = le.cloneNode()
       node.innerHTML = s

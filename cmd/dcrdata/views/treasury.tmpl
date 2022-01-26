@@ -14,8 +14,8 @@
     data-address-txn-count="{{ $bal.TxCount}}"
     data-address-balance="{{toFloat64Amount $bal.Balance}}"
   >
-    <div class="fullscreen d-none" data-target="address.fullscreen" data-action="click->address#exitFullscreen">
-      <div class="secondary-card d-inline-block w-100 h-100 p-4" data-target="address.bigchart"></div>
+    <div class="fullscreen d-none" data-address-target="fullscreen" data-action="click->address#exitFullscreen">
+      <div class="secondary-card d-inline-block w-100 h-100 p-4" data-address-target="bigchart"></div>
     </div>
     <div class="row pb-4 px-2">
       <div class="col-24 col-xl-10 bg-white px-3 py-3 position-relative">
@@ -76,15 +76,15 @@
         <noscript>
           <div class="text-center pt-5 fs15">Enable Javascript to see charts</div>
         </noscript>
-        <div class="jsonly h-100" data-target="address.littlechart">
-          <div class="d-flex flex-column h-100" data-target="address.chartbox">
+        <div class="jsonly h-100" data-address-target="littlechart">
+          <div class="d-flex flex-column h-100" data-address-target="chartbox">
             <div class="d-flex flex-wrap justify-content-around align-items-start">
-              <div class="loader-v2 loading" data-target="address.chartLoader"></div>
+              <div class="loader-v2 loading" data-address-target="chartLoader"></div>
               <div class="btn-set secondary-card d-inline-flex flex-nowrap mx-2">
                 <label>Chart</label>
                 <select
                   class="chart-box d-inline-flex"
-                  data-target="address.options"
+                  data-address-target="options"
                   data-action="change->address#changeGraph"
                 >
                   <option name="balance" value="balance">Balance</option>
@@ -95,7 +95,7 @@
               <div
                 class="btn-set secondary-card d-inline-flex flex-nowrap mx-2"
                 data-toggle="buttons"
-                data-target="address.zoom"
+                data-address-target="zoom"
                 data-action="click->address#onZoom"
               >
                 <label>Zoom</label>
@@ -109,7 +109,7 @@
                 class="btn-set secondary-card d-inline-flex flex-nowrap mx-2"
                 data-toggle="buttons"
                 data-txcount="{{$TxnCount}}"
-                data-target="address.interval"
+                data-address-target="interval"
                 data-action="click->address#changeBin"
               >
                 <label class="d-inline-flex pe-1">Group By </label>
@@ -119,7 +119,7 @@
                 <button name="day" data-fixed="1">Day</button>
                 <button name="all" data-fixed="1">Block</button>
               </div>
-              <div class="row flex-nowrap d-inline-flex d-hide mx-2 mb-2" data-target="address.flow"
+              <div class="row flex-nowrap d-inline-flex d-hide mx-2 mb-2" data-address-target="flow"
                 data-action="change->address#updateFlow">
                 <label class="customcheck ms-2 d-inline-flex">Sent
                   <input type="checkbox" value="2">
@@ -136,44 +136,44 @@
               </div>
             </div>
             <div class="p-3 address_chart_wrap">
-              <div class="expando dcricon-expand" data-target="address.expando" data-action="click->address#toggleExpand"></div>
-              <div class="py-5 fs16 d-none" data-target="address.noconfirms"></div>
-              <div data-target="address.chart" class="address_chart"></div>
+              <div class="expando dcricon-expand" data-address-target="expando" data-action="click->address#toggleExpand"></div>
+              <div class="py-5 fs16 d-none" data-address-target="noconfirms"></div>
+              <div data-address-target="chart" class="address_chart"></div>
             </div>
           </div>
         </div>
       </div>
     </div>
     
-    <div class="position-relative" data-target="address.listbox">
+    <div class="position-relative" data-address-target="listbox">
       <div class="row align-items-center">
         <div class="me-auto mb-0 h4 col-24 col-sm-6">Transactions</div>
         <div class="d-flex flex-wrap-reverse align-items-center justify-content-end py-1 col-24 col-sm-18">
-          <span class="fs12 nowrap text-end" data-target="address.range">
+          <span class="fs12 nowrap text-end" data-address-target="range">
             showing {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumTransactions)}} of
-            <span data-target="address.txnCount" data-txn-count="{{$bal.TxCount}}">{{intComma .TypeCount}}</span> transactions
+            <span data-address-target="txnCount" data-txn-count="{{$bal.TxCount}}">{{intComma .TypeCount}}</span> transactions
           </span>
           <nav aria-label="address transactions navigation"
             data-limit="{{.Limit}}"
             class="my-1 ms-2{{if ge .NumTransactions $TxnCount}} d-hide{{end}}"
-            data-target="address.pagebuttons"
+            data-address-target="pagebuttons"
           >
             <ul class="pagination mb-0 pagination-sm">
               <li class="page-item {{if eq .Offset 0}}disabled{{end}}"
-                  data-target="address.pageminus">
+                  data-address-target="pageminus">
                 <a class="page-link"
                    href="{{.Path}}?n={{.Limit}}&start={{if gt (subtract .Offset .Limit) 0}}{{subtract .Offset .Limit}}{{else}}0{{end}}&txntype={{$txType}}"
                    data-turbolinks="false"
-                   data-target="address.paginator"
+                   data-address-target="paginator"
                    data-action="address#prevPage"
                 >Previous</a>
               </li>
               <li class="page-item {{if lt (subtract $TxnCount .Offset) (add .Limit 1)}}disabled{{end}}"
-                  data-target="address.pageplus">
+                  data-address-target="pageplus">
                 <a class="page-link"
                    href="{{.Path}}?n={{.Limit}}&start={{add .Offset .Limit}}&txntype={{$txType}}"
                    data-turbolinks="false"
-                   data-target="address.paginator"
+                   data-address-target="paginator"
                    data-action="address#nextPage"
                 >Next</a>
               </li>
@@ -183,12 +183,12 @@
       </div>
       <div class="position-relative">
       <!-- TODO: unconfirmed tadd and tspend txns -->
-        <div class="loader-v2" data-target="address.listLoader"></div>
-        <div class="position-relative" data-target="address.table">
+        <div class="loader-v2" data-address-target="listLoader"></div>
+        <div class="position-relative" data-address-target="table">
           {{template "treasuryTable" .}}
         </div>
       </div>
-      <div class="text-end pe-3" data-target="address.tablePagination">
+      <div class="text-end pe-3" data-address-target="tablePagination">
         {{if ne .Offset 0}}
         <a class="d-inline-block dcricon-arrow-left m-1 fz20"
            data-action="click->address#pageNumberLink"
@@ -216,7 +216,7 @@
             <label class="mb-0 me-1" for="txntype">Type</label>
             <select
               name="txntype"
-              data-target="address.txntype"
+              data-address-target="txntype"
               data-action="change->address#changeTxType"
               class="form-control-sm mb-2 me-sm-2 mb-sm-0"
             >
@@ -231,7 +231,7 @@
             <select
               name="pagesize"
               id="pagesize"
-              data-target="address.pagesize"
+              data-address-target="pagesize"
               data-action="change->address#changePageSize"
               class="form-control-sm mb-2 me-sm-2 mb-sm-0 {{if lt $TxnCount 20}}disabled{{end}}"
               {{- if lt $TxnCount 20}} disabled{{end}}

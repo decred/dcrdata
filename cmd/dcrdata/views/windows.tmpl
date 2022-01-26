@@ -28,7 +28,7 @@
                 </span>
                 <span class="fs12 nowrap text-end">
                     <select
-                        data-target="pagenavigation.pagesize"
+                        data-pagenavigation-target="pagesize"
                         data-action="change->pagenavigation#setPageSize"
                         data-offset="{{$.OffsetWindow}}"
                         data-offsetkey="offset"
@@ -130,7 +130,7 @@
                       <td>{{.FormattedSize}}</td>
                       <td class="text-center d-none d-sm-table-cell">{{template "decimalParts" (float64AsDecimalParts .Difficulty 0 true)}}</td>
                       <td class="text-center">{{printf "%.2f" (toFloat64Amount .TicketPrice)}}</td>
-                      <td class="text-end pe-0 jsonly" data-controller="time" data-target="time.age" data-age="{{.StartTime.UNIX}}"></td>
+                      <td class="text-end pe-0 jsonly" data-controller="time" data-time-target="age" data-age="{{.StartTime.UNIX}}"></td>
                       <td class="text-end pe-0 d-none d-sm-table-cell">{{.StartTime.DatetimeWithoutTZ}}</td>
                   </tr>
               {{end}}

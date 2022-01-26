@@ -26,7 +26,7 @@
                   </span>
                   <span class="fs12 nowrap text-end">
                       <select
-                          data-target="pagenavigation.pagesize"
+                          data-pagenavigation-target="pagesize"
                           data-action="change->pagenavigation#setPageSize"
                           data-offset="{{$pendingBlocks}}"
                           data-offsetkey="height"
@@ -111,7 +111,7 @@
                         <th class="text-end px-0">Time (UTC)</th>
                     </tr>
                 </thead>
-                <tbody data-target="blocklist.table">
+                <tbody data-blocklist-target="table">
                 {{range .Data}}
                     <tr data-height="{{ .Height }}">
                         <td data-type="height" class="text-start ps-0"><a href="/block/{{.Height}}" data-keynav-priority>{{if not .Valid}}<span class="attention">&#9888;</span>{{end}}{{ .Height }}</a></td>
@@ -123,7 +123,7 @@
                         <td class="text-center" data-type="value">{{threeSigFigs .Total}}</td>
                         <td class="text-center" data-type="size">{{.FormattedBytes}}</td>
                         <td class="text-center d-none d-sm-table-cell" data-type="version">{{.Version}}</td>
-                        <td class="text-end px-0" data-type="age" class="jsonly" data-target="time.age" data-age="{{.BlockTime.UNIX}}"></td>
+                        <td class="text-end px-0" data-type="age" class="jsonly" data-time-target="age" data-age="{{.BlockTime.UNIX}}"></td>
                         <td class="text-end px-0" data-type="time">{{.BlockTime.DatetimeWithoutTZ}}</td>
                     </tr>
                 {{end}}

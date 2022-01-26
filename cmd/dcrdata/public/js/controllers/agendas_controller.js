@@ -1,4 +1,4 @@
-import { Controller } from 'stimulus'
+import { Controller } from '@hotwired/stimulus'
 import globalEventBus from '../services/event_bus_service'
 import { darkEnabled } from '../services/theme_service'
 import { VoteMeter, ProgressMeter } from '../helpers/meters.js'

@@ -114,7 +114,7 @@
                         <span class="fs16 fw-bold">v{{.Version}} Miners</span><br>
                         <div
                           class="meter text-center js-only large-gap"
-                          data-target="agendas.minerMeter"
+                          data-agendas-target="minerMeter"
                           data-progress="{{.MinerProgress}}"
                           data-threshold="{{.MinerThreshold}}"
                           >
@@ -126,7 +126,7 @@
                         <span class="fs16 fw-bold">v{{.Version}} Voters</span><br>
                         <div
                           class="meter text-center js-only large-gap"
-                          data-target="agendas.voterMeter"
+                          data-agendas-target="voterMeter"
                           data-progress="{{.VoterProgress}}"
                           data-threshold="{{.VoterThreshold}}"
                           >
@@ -162,7 +162,7 @@
                         <span class="fs16 fw-bold">Quorum</span><br>
                         <div
                           class="quorum meter text-center js-only large-gap"
-                          data-target="agendas.quorumMeter"
+                          data-agendas-target="quorumMeter"
                           data-progress="{{.QuorumProgress}}"
                           data-threshold="1.0"
                           >
@@ -178,7 +178,7 @@
                         <span class="fs16 fw-bold">Approval</span><br>
                         <div
                           class="approval meter text-center js-only large-gap"
-                          data-target="agendas.approvalMeter"
+                          data-agendas-target="approvalMeter"
                           data-approval="{{.Approval}}"
                           data-threshold="{{.PassThreshold}}"
                           >

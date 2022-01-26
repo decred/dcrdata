@@ -26,7 +26,7 @@
             <span class="h5 d-inline-block ps-1">{{.Type}}</span>
               <div class="d-inline-block confirmations-box{{if $.IsConfirmedMainchain}} confirmed{{end}} mx-2 fs14"
                 data-controller="newblock"
-                data-target="newblock.confirmations tx.confirmations"
+                data-newblock-target="confirmations tx.confirmations"
                 data-confirmations="{{.Confirmations}}"
                 data-yes="# confirmation@"
                 data-no="unconfirmed"
@@ -70,7 +70,7 @@
                 </div>
                 {{end}}
             </div>
-            <div class="col-8 text-start"{{if $isMempool}} data-target="tx.unconfirmed" data-txid="{{.TxID}}"{{end}}>
+            <div class="col-8 text-start"{{if $isMempool}} data-tx-target="unconfirmed" data-txid="{{.TxID}}"{{end}}>
                 <span class="text-secondary fs13"><span class="d-none d-sm-inline">Included in Block</span><span class="d-sm-none">Block #</span></span>
                 <br>
                 <span class="fs18 fw-bold lh1rem d-inline-block pt-1">
@@ -91,7 +91,7 @@
                 {{end}}
                 </span>
                 <br>
-                <span class="fs16 text-secondary lh1rem  d-inline-block jsonly"><span class="mp-unconfirmed-time" data-target="time.age tx.age" data-age="{{.Time.UNIX}}"></span> ago</span>
+                <span class="fs16 text-secondary lh1rem  d-inline-block jsonly"><span class="mp-unconfirmed-time" data-time-target="age tx.age" data-age="{{.Time.UNIX}}"></span> ago</span>
 
             </div>
             <div class="col-8 text-start">
@@ -110,17 +110,17 @@
             </div>
           </div>
           {{if .IsImmatureTicket}}
-              <div class="my-2 w-75 fs14" data-target="tx.ticketStage">
-                  <div class="fs13 text-secondary pb-1" data-target="tx.ticketMsg">Maturity</div>
-                  <div class="d-none" data-target="tx.expiryMsg">
-                    <span class="fs14 fw-bold" data-target="tx.expiryChance">
+              <div class="my-2 w-75 fs14" data-tx-target="ticketStage">
+                  <div class="fs13 text-secondary pb-1" data-tx-target="ticketMsg">Maturity</div>
+                  <div class="d-none" data-tx-target="expiryMsg">
+                    <span class="fs14 fw-bold" data-tx-target="expiryChance">
                       {{printf "%.2f%%" .TicketInfo.Probability}}
                     </span><span class="fs13 text-secondary"> chance of expiration</span>
                   </div>
                   <div class="progress">
                       <div
                           class="progress-bar rounded"
-                          data-target="tx.progressBar"
+                          data-tx-target="progressBar"
                           role="progressbar"
                           style="width:{{if eq .Confirmations 0}}0{{else}}{{percentage (subtract .Confirmations 1) .TicketInfo.TicketMaturity}}%{{end}};"
                           aria-valuenow="{{.Confirmations}}"
@@ -156,12 +156,12 @@
                   </div>
               </div>
           {{else if .IsImmature}}
-            <div class="my-2 w-75" data-target="tx.ticketStage">
+            <div class="my-2 w-75" data-tx-target="ticketStage">
                 <div class="fs13 text-secondary pb-1">Maturity</div>
                 <div class="progress">
                     <div
                         class="progress-bar rounded"
-                        data-target="tx.progressBar"
+                        data-tx-target="progressBar"
                         role="progressbar"
                         style="width: {{percentage  .Confirmations .Maturity}}%;"
                         aria-valuenow="{{.Confirmations}}"
@@ -181,9 +181,9 @@
                 </div>
             </div>
           {{else if .IsLiveTicket}}
-            <div class="my-2 text-start" data-target="tx.ticketStage">
+            <div class="my-2 text-start" data-tx-target="ticketStage">
               <div>
-                <span class="fs14 fw-bold" data-target="tx.expiryChance">
+                <span class="fs14 fw-bold" data-tx-target="expiryChance">
                   {{printf "%.2f%%" .TicketInfo.Probability}}
                 </span><span class="fs13 text-secondary"> chance of expiration</span>
               </div>
@@ -191,7 +191,7 @@
                   <div class="progress">
                       <div
                           class="progress-bar rounded"
-                          data-target="tx.progressBar"
+                          data-tx-target="progressBar"
                           role="progressbar"
                           style="width: {{percentage (subtract .TicketInfo.TicketLiveBlocks 1) .TicketInfo.TicketExpiry}}%;"
                           aria-valuenow="{{subtract .TicketInfo.TicketLiveBlocks 1}}"
@@ -234,7 +234,7 @@
                   <a href="/api/tx/hex/{{.TxID}}" data-turbolinks="false">hex</a>
                 </td>
                 <td class="text-end medium-sans text-nowrap pe-2 py-2">Time:</td>
-                <td class="text-start py-1 text-secondary" data-target="tx.formattedAge">{{.Time.String}}</td>
+                <td class="text-start py-1 text-secondary" data-tx-target="formattedAge">{{.Time.String}}</td>
               </tr>
               <tr>
                 <td class="text-end medium-sans text-nowrap pe-2 py-2">Version:</td>
@@ -262,7 +262,7 @@
                     >Status:
                   </td>
                   <td class="text-start py-1 text-secondary"
-                    data-target="tx.statusMsg"
+                    data-tx-target="statusMsg"
                     >{{if or (eq .TicketInfo.PoolStatus "") (eq .Confirmations 0)}}
                       unconfirmed
                     {{else if eq .Confirmations .TicketInfo.TicketMaturity}}
@@ -276,7 +276,7 @@
                     {{end}}
                   </td>
                   <td class="text-end medium-sans text-nowrap pe-2 py-2"><span class="d-none d-sm-inline">Spending</span><span class="d-sm-none">Sp.</span> Tx:</td>
-                  <td class="text-start py-1 text-secondary" data-target="tx.spendingTx">
+                  <td class="text-start py-1 text-secondary" data-tx-target="spendingTx">
                     {{- $spendingTx := index .SpendingTxns 0 -}}
                     {{- if $spendingTx.Hash -}}
                       <a href="/tx/{{$spendingTx.Hash}}">
@@ -326,7 +326,7 @@
                                 N/A
                             {{end}}
                         </td>
-                        <td class="shrink-to-fit"{{if $isMempool}} data-target="tx.mempoolTd" data-txid="{{.Txid}}"{{end}}>
+                        <td class="shrink-to-fit"{{if $isMempool}} data-tx-target="mempoolTd" data-txid="{{.Txid}}"{{end}}>
                         {{if or .Treasurybase (or .Coinbase .Stakebase)}}
                             created
                         {{else if .TreasurySpend}}

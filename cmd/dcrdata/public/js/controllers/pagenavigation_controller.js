@@ -1,5 +1,5 @@
 /* global Turbolinks */
-import { Controller } from 'stimulus'
+import { Controller } from '@hotwired/stimulus'
 import Url from 'url-parse'
 
 export default class extends Controller {

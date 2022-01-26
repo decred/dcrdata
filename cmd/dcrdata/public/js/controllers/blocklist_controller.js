@@ -1,4 +1,4 @@
-import { Controller } from 'stimulus'
+import { Controller } from '@hotwired/stimulus'
 import globalEventBus from '../services/event_bus_service'
 import humanize from '../helpers/humanize_helper'
 

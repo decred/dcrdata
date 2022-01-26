@@ -94,7 +94,7 @@
 		</form>
 		<nav id="hamburger-menu" data-controller="menu" data-turbolinks-permanent>
 			<div id="menuToggle">
-				<input type="checkbox" data-target="menu.toggle" data-action="change->menu#toggle"/>
+				<input type="checkbox" data-menu-target="toggle" data-action="change->menu#toggle"/>
 				<span class="patty"></span>
 				<span class="patty"></span>
 				<span class="patty short"></span>
@@ -116,7 +116,7 @@
 				{{- else}}
 					<a class="menu-item" data-keynav-skip href="{{.Links.Mainnet}}" title="Home">Switch To Mainnet</a>
 				{{- end}}
-					<form action="/set" method="post" data-target="menu.form" class="menu-form">
+					<form action="/set" method="post" data-menu-target="form" class="menu-form">
 						<input type="hidden" name="darkmode" value="darkmode">
 						<input type="hidden" name="requestURI" value="{{.RequestURI}}">
 						<button type="submit" data-action="click->menu#onSunClick"
@@ -143,7 +143,7 @@
 <footer class="navbar-fixed-bottom">
 	<div class="container d-flex justify-content-between align-items-center">
 		<span>
-			<span data-controller="time" data-target="time.blocktime" data-stamp="{{$.Tip.Time}}"></span> <span class="d-none d-sm-inline">since last block</span>
+			<span data-controller="time" data-time-target="blocktime" data-stamp="{{$.Tip.Time}}"></span> <span class="d-none d-sm-inline">since last block</span>
 		</span>
 		<span>
 			<a
@@ -174,10 +174,10 @@
 			class="text-nowrap align-items-center clickable d-inline-block"
 			data-turbolinks-permanent
 			data-controller="connection"
-			data-target="connection.indicator"
+			data-connection-target="indicator"
 			data-action="click->connection#requestNotifyPermission"
 			title="While connected, you will receive live page updates and, if enabled, desktop notifications (click to enable)."
-			><span class="d-none d-sm-inline" data-target="connection.status">Connecting <span class="d-none d-md-inline-block">to WebSocket...</span></span><div></div>
+			><span class="d-none d-sm-inline" data-connection-target="status">Connecting <span class="d-none d-md-inline-block">to WebSocket...</span></span><div></div>
 		</span>
 	</div>
 	<script
@@ -269,7 +269,7 @@
 	</thead>
 	<tbody>
 	{{- range .Transactions}}
-		<tr{{if eq .Confirmations 0}} data-target="address.pending" data-txid="{{.TxID}}"{{end}}>
+		<tr{{if eq .Confirmations 0}} data-address-target="pending" data-txid="{{.TxID}}"{{end}}>
 			<td class="d-none d-sm-table-cell">{{.TxType}}</td>
 			<td class="clipboard">{{template "hashElide" (hashlink .TxID .Link)}}</td>
 		{{- if eq $txType "merged_debit"}}
@@ -314,11 +314,11 @@
 			{{- if eq (.Time.T.Unix) 0}}
 				N/A
 			{{- else}}
-				<span data-controller="time" data-target="time.age" data-age="{{.Time.UNIX}}"></span>
+				<span data-controller="time" data-time-target="age" data-age="{{.Time.UNIX}}"></span>
 			{{- end}}
 			</td>
 			<td class="addr-tx-confirms text-end"	{{/*Update confirmations with Stimulus*/ -}}
-				data-target="newblock.confirmations" {{/*trim*/ -}}
+				data-newblock-target="confirmations" {{/*trim*/ -}}
 				data-confirmations="{{.Confirmations}}" {{/*trim*/ -}}
 				data-confirmation-block-height="{{if eq .Confirmations 0}}-1{{else}}{{.BlockHeight}}{{end}}" {{/*trim*/ -}}
 				data-yes="#" {{/*trim*/ -}}
@@ -412,14 +412,14 @@
 	</thead>
 	<tbody>
 	{{- range .Transactions}}
-		<tr> {{/* {{if eq .Confirmations 0}}data-target="address.pending" data-txid="{{.TxID}}"{{end}} */}}
+		<tr> {{/* {{if eq .Confirmations 0}}data-address-target="pending" data-txid="{{.TxID}}"{{end}} */}}
 			<td class="d-none d-sm-table-cell">{{txtypeStr .Type}}</td>
 			<td class="clipboard">{{template "hashElide" (hashlink .TxID (printf "/tx/%s" .TxID))}}</td>
 			<td class="text-end fs15">{{template "decimalParts" (amountAsDecimalParts .Amount false)}}</td>
 			<td class="text-end fs15">{{.BlockHeight}}</td>
 			<td class="addr-tx-time d-none d-sm-table-cell text-end">{{.BlockTime.DatetimeWithoutTZ}}</td>
 			{{/*  <td class="addr-tx-confirms text-end"
-				data-target="newblock.confirmations"
+				data-newblock-target="confirmations"
 				data-confirmations="{{.Confirmations}}"
 				data-confirmation-block-height="{{if eq .Confirmations 0}}-1{{else}}{{.BlockHeight}}{{end}}"
 				data-yes="#"

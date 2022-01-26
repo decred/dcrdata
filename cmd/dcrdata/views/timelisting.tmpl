@@ -29,7 +29,7 @@
                   {{if ge $dropVal 10}}
                     <span class="fs12 nowrap text-end">
                         <select
-                            data-target="pagenavigation.pagesize"
+                            data-pagenavigation-target="pagesize"
                             data-action="change->pagenavigation#setPageSize"
                             data-offset="{{$.Offset}}"
                             data-offsetkey="offset"
@@ -125,7 +125,7 @@
                       <td class="text-center d-table-cell d-sm-none">{{intComma .TxCount}}</td>
                       <td class="text-center">{{intComma .BlocksCount}}</td>
                       <td class="text-end pe-0">{{.FormattedSize}}</td>
-                      <td class="text-end pe-0" data-target="time.age" data-age="{{.StartTime.UNIX}}"></td>
+                      <td class="text-end pe-0" data-time-target="age" data-age="{{.StartTime.UNIX}}"></td>
                   </tr>
               {{end}}
               </tbody>

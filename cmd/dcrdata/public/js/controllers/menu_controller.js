@@ -1,4 +1,4 @@
-import { Controller } from 'stimulus'
+import { Controller } from '@hotwired/stimulus'
 import { closeMenu, toggleSun } from '../services/theme_service'
 
 function closest (el, id) {

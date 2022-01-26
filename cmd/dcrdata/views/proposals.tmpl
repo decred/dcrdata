@@ -10,7 +10,7 @@
                         Politeia Proposals
                         <span class="mb-0 fs11 text-black-50 nowrap">
                             &nbsp;(<span class="me-2">Proposals Sync:&nbsp;
-                                <span data-controller="time" data-target="time.age" data-age="{{$.LastPropSync}}"></span>&nbsp;ago
+                                <span data-controller="time" data-time-target="age" data-age="{{$.LastPropSync}}"></span>&nbsp;ago
                             </span>
                         </span>
                     </h4>
@@ -25,7 +25,7 @@
                             <select
                                 id="votestatus"
                                 class="form-control-sm mb-2 me-sm-2 mb-sm-0"
-                                data-target="pagenavigation.votestatus"
+                                data-pagenavigation-target="votestatus"
                                 data-action="change->pagenavigation#setFilterbyVoteStatus"
                             >
                                 <option value="0">All</option>
@@ -55,7 +55,7 @@
                             <label class="mb-0 me-1" for="tbPagesize">Page Size</label>
                             <select
                                 id="tbPagesize"
-                                data-target="pagenavigation.pagesize"
+                                data-pagenavigation-target="pagesize"
                                 data-action="change->pagenavigation#setPageSize"
                                 data-offset="{{$.Offset}}"
                                 data-offsetkey="offset"
@@ -219,7 +219,7 @@
                                &mdash;
                             {{end}}
                         </td>
-                        <td class="text-end" data-target="time.age" data-age="{{(int64 .Timestamp)}}"></td>
+                        <td class="text-end" data-time-target="age" data-age="{{(int64 .Timestamp)}}"></td>
                     </tr>
                 {{end}}
                 {{end}}

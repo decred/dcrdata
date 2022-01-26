@@ -1,4 +1,4 @@
-import { Controller } from 'stimulus'
+import { Controller } from '@hotwired/stimulus'
 import ws from '../services/messagesocket_service'
 
 export default class extends Controller {

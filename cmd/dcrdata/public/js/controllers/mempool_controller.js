@@ -1,4 +1,4 @@
-import { Controller } from 'stimulus'
+import { Controller } from '@hotwired/stimulus'
 import { map, each } from 'lodash-es'
 import dompurify from 'dompurify'
 import humanize from '../helpers/humanize_helper'
@@ -29,7 +29,7 @@ function txTableRow (tx) {
         <td class="mono fs15 text-end">${humanize.decimalParts(tx.total, false, 8)}</td>
         <td class="mono fs15 text-end">${tx.size} B</td>
         <td class="mono fs15 text-end">${tx.fee_rate} DCR/kB</td>
-        <td class="mono fs15 text-end" data-target="time.age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
+        <td class="mono fs15 text-end" data-time-target="age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
     </tr>`)
 }
 
@@ -46,7 +46,7 @@ function voteTxTableRow (tx) {
         <td class="mono fs15">${tx.vote_info.vote_version}</td>
         <td class="mono fs15 text-end d-none d-sm-table-cell">${humanize.decimalParts(tx.total, false, 8)}</td>
         <td class="mono fs15 text-end">${humanize.bytes(tx.size)}</td>
-        <td class="mono fs15 text-end d-none d-sm-table-cell jsonly" data-target="time.age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
+        <td class="mono fs15 text-end d-none d-sm-table-cell jsonly" data-time-target="age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
     </tr>`)
 }
 

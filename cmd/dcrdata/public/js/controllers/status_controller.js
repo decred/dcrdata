@@ -1,5 +1,5 @@
 /* global Turbolinks */
-import { Controller } from 'stimulus'
+import { Controller } from '@hotwired/stimulus'
 import dompurify from 'dompurify'
 import ws from '../services/messagesocket_service'
 import globalEventBus from '../services/event_bus_service'

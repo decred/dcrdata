@@ -1,4 +1,4 @@
-import { Controller } from 'stimulus'
+import { Controller } from '@hotwired/stimulus'
 import ws from '../services/messagesocket_service'
 import { fadeIn } from '../helpers/animation_helper'
 
