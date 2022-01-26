@@ -16,6 +16,10 @@ table {
     border: none;
   }
 
+  tbody {
+    border-top: none !important;
+  }
+
   thead tr {
     background: #fff;
     font-family: 'source-sans-pro-semibold', sans-serif;
