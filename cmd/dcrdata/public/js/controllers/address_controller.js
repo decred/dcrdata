@@ -1,4 +1,4 @@
-import { Controller } from 'stimulus'
+import { Controller } from '@hotwired/stimulus'
 import { isEmpty } from 'lodash-es'
 import dompurify from 'dompurify'
 import { getDefault } from '../helpers/module_helper'

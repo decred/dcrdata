@@ -1,4 +1,4 @@
-import { Controller } from 'stimulus'
+import { Controller } from '@hotwired/stimulus'
 import dompurify from 'dompurify'
 import globalEventBus from '../services/event_bus_service'
 import ws from '../services/messagesocket_service'

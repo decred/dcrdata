@@ -1,4 +1,4 @@
-import { Controller } from 'stimulus'
+import { Controller } from '@hotwired/stimulus'
 import { each } from 'lodash-es'
 import dompurify from 'dompurify'
 import humanize from '../helpers/humanize_helper'

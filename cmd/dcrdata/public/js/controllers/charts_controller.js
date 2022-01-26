@@ -1,4 +1,4 @@
-import { Controller } from 'stimulus'
+import { Controller } from '@hotwired/stimulus'
 import { map, assign, merge } from 'lodash-es'
 import Zoom from '../helpers/zoom_helper'
 import { darkEnabled } from '../services/theme_service'

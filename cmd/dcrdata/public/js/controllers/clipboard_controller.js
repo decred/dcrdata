@@ -1,4 +1,4 @@
-import { Controller } from 'stimulus'
+import { Controller } from '@hotwired/stimulus'
 
 export const copyIcon = () => {
   const copyIcon = document.createElement('span')

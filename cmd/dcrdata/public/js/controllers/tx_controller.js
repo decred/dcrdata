@@ -1,6 +1,6 @@
 import txInBlock from '../helpers/block_helper'
 import globalEventBus from '../services/event_bus_service'
-import { Controller } from 'stimulus'
+import { Controller } from '@hotwired/stimulus'
 import humanize from '../helpers/humanize_helper'
 
 export default class extends Controller {
