@@ -17,7 +17,7 @@ let searchBar, keyNavToggle, menuToggle
 function bindElements () {
   searchBar = document.getElementById('search')
   keyNavToggle = document.getElementById('keynav-toggle')
-  menuToggle = document.getElementById('menuToggle').querySelector('input')
+  menuToggle = document.getElementById('menu-toggle').querySelector('input')
 }
 bindElements()
 

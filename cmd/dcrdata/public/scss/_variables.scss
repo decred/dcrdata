@@ -5,7 +5,7 @@ $body-bg: #f3f5f6;
 $inverse-bg-white: #2f3338;
 
 // layout
-$border-radius: .125rem;
+$border-radius: 0.125rem;
 
 // grid
 // Grid columns
@@ -25,8 +25,10 @@ $container-max-widths: map-merge(
 );
 
 // typography
-$font-family-sans-serif: "source-sans-pro-v9-latin-regular", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-$font-family-monospace: "inconsolata-v15-latin-regular", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !default;
+$font-family-sans-serif: "source-sans-pro-v9-latin-regular", -apple-system, BlinkMacSystemFont,
+  "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+$font-family-monospace: "inconsolata-v15-latin-regular", SFMono-Regular, Menlo, Monaco,
+  Consolas, "Liberation Mono", "Courier New", monospace !default;
 $small-font-size: 80% !default;
 
 // progress bar
@@ -36,15 +38,15 @@ $progress-bar-bg: #74e06b;
 $progress-bar-color: #333;
 
 // nav
-$nav-pills-border-radius: .2rem;
-$nav-link-padding-y: .3rem;
-$nav-link-padding-x: .45rem;
+$nav-pills-border-radius: 0.2rem;
+$nav-link-padding-y: 0.3rem;
+$nav-link-padding-x: 0.45rem;
 
 // transaction type colors
-$regular-light: #2970FF;
-$ticket-light: #2ED6A1;
+$regular-light: #2970ff;
+$ticket-light: #2ed6a1;
 $vote-light: #c600c0;
-$rev-light: #ED6D47;
+$rev-light: #ed6d47;
 
 // card background colors
 // primary background color is white, so can use bootstrap bg-white, which has
@@ -52,14 +54,14 @@ $rev-light: #ED6D47;
 $card-bg-secondary: #f8f8f9;
 $card-bg-secondary-dark: #222326;
 
-$dark-link-hover-color: #94ffca;
-
 // links
 $link-decoration: none;
 $link-hover-decoration: underline;
+$dark-link-hover-color: #94ffca;
 
 // variables that changed with the bootstrap 5 migration.
 $input-bg: #fff;
 $input-color: #495057;
 $nav-link-color: inherit;
+
 // $min-contrast-ratio: 3.9; // contrasting color for the primary (Decred blue) depends on contrast factor

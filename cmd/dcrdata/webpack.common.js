@@ -49,7 +49,10 @@ module.exports = {
       // chunkFilename: '[id].css'
       filename: 'css/style.css'
     }),
-    new StyleLintPlugin()
+    new StyleLintPlugin({
+      threads: true,
+      allowEmptyInput: true, // avoid errors with .stylelintignore
+    })
   ],
   output: {
     hashFunction: "xxhash64",

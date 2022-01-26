@@ -38,7 +38,7 @@ input[type=number]::-webkit-inner-spin-button {
 }
 
 .slider:focus::-webkit-slider-thumb {
-  box-shadow: 0 0 0 1px #fff, 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  box-shadow: 0 0 0 1px #fff, 0 0 0 0.2rem rgba(0 123 255 / 25%);
 }
 
 .slider::-moz-range-thumb {
@@ -52,7 +52,7 @@ input[type=number]::-webkit-inner-spin-button {
 }
 
 .slider:focus::-moz-range-thumb {
-  box-shadow: 0 0 0 1px #fff, 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  box-shadow: 0 0 0 1px #fff, 0 0 0 0.2rem rgba(0 123 255 / 25%);
 }
 
 .slider::-ms-thumb {
@@ -68,7 +68,7 @@ input[type=number]::-webkit-inner-spin-button {
 }
 
 .slider:focus::-ms-thumb {
-  box-shadow: 0 0 0 1px #fff, 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  box-shadow: 0 0 0 1px #fff, 0 0 0 0.2rem rgba(0 123 255 / 25%);
 }
 
 .slider::-webkit-slider-thumb:active {

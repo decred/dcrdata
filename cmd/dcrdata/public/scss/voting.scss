@@ -6,7 +6,7 @@
   border-radius: 3px;
   line-height: 20px;
   font-weight: 600;
-  background-color: rgba(105, 211, 245, 0.3);
+  background-color: rgba(105 211 245 / 30%);
 }
 
 .agenda-voting-overview-option-dot {
@@ -20,7 +20,7 @@
 }
 
 .agenda-voting-overview-option-dot._abstain {
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0 0 0 / 50%);
 }
 
 .agenda-voting-overview-option-dot._yes {

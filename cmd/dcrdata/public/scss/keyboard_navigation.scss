@@ -40,7 +40,7 @@ a {
 }
 
 body.darkBG .keynav-target {
-  animation-name: greenHighlight;
+  animation-name: green-highlight;
 }
 
 @keyframes highlight {
@@ -51,7 +51,7 @@ body.darkBG .keynav-target {
   100% { outline-color: #4582fe29; }
 }
 
-@keyframes greenHighlight {
+@keyframes green-highlight {
   0% { outline-color: #8defbf3b; }
 
   33% { outline-color: #8defbf99; }

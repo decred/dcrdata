@@ -10,12 +10,12 @@ body.theme-testnet {
     color: #fff;
   }
 
-  #menuToggle .patty {
+  #menu-toggle .patty {
     background: #fff;
   }
 
   .dcrdata-logo {
-    background-image: url(/images/themes/night/logo.svg);
+    background-image: url("/images/themes/night/logo.svg");
   }
 }
 
@@ -31,7 +31,7 @@ body.theme-simnet {
     color: #fff;
   }
 
-  #menuToggle .patty {
+  #menu-toggle .patty {
     background: #fff;
   }
 }
@@ -42,7 +42,7 @@ body.darkBG {
   color: #fdfdfd;
 
   .grayed {
-    color: rgba(253, 253, 253, 0.5);
+    color: rgba(253 253 253 / 50%);
   }
 
   a,
@@ -68,7 +68,7 @@ body.darkBG {
 
   a.grayed,
   a.grayed:hover {
-    color: rgba(148, 255, 202, 0.75) !important;
+    color: rgba(148 255 202 / 75%) !important;
   }
 
   table thead th {
@@ -112,8 +112,8 @@ body.darkBG {
   }
 
   .page-link {
-    background-color: rgba(255, 255, 255, 0.18);
-    border: 1px solid rgba(221, 221, 221, 0);
+    background-color: rgba(255 255 255 / 18%);
+    border: 1px solid rgba(221 221 221 / 0%);
   }
 
   .page-item.disabled .page-link {
@@ -129,16 +129,16 @@ body.darkBG {
     color: #7fbdff;
   }
 
-  .top-nav input:-webkit-autofill {
-    -webkit-animation-name: autofilldark;
-    -webkit-animation-fill-mode: both;
+  .top-nav input:autofill {
+    animation-name: autofill-dark;
+    animation-fill-mode: both;
   }
 
-  #menuToggle .patty {
+  #menu-toggle .patty {
     background: #fdfdfd;
   }
 
-  #menuToggle input:checked ~ .patty {
+  #menu-toggle input:checked ~ .patty {
     background: #fbfbfb;
   }
 
@@ -177,10 +177,10 @@ body.darkBG {
   }
 
   .dcrdata-logo {
-    background-image: url(/images/themes/night/logo.svg);
+    background-image: url("/images/themes/night/logo.svg");
   }
 
-  //bootstrap dark theme
+  // bootstrap dark theme
   .bg-white {
     background-color: $inverse-bg-white !important;
   }
@@ -190,7 +190,7 @@ body.darkBG {
   }
 
   .text-black-50 {
-    color: rgba(255, 255, 255, 0.5) !important;
+    color: rgba(255 255 255 / 50%) !important;
   }
 
   .text-green {

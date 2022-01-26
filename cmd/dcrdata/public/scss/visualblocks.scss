@@ -211,7 +211,7 @@ body.darkBG {
   }
 
   .blocks-holder .info-block .color-code {
-    color: rgba(148, 255, 202, 0.75) !important;
+    color: rgba(148 255 202 / 75%) !important;
   }
 
   .block-rows .block-rewards,
@@ -297,7 +297,10 @@ body.darkBG {
 
 .tippy-tooltip.light-theme {
   color: #26323d;
-  box-shadow: 0 0 20px 4px rgba(154, 161, 177, 0.15), 0 4px 80px -8px rgba(36, 40, 47, 0.25), 0 4px 4px -2px rgba(91, 94, 105, 0.15);
+  box-shadow:
+    0 0 20px 4px rgba(154 161 177 / 15%),
+    0 4px 80px -8px rgba(36 40 47 / 25%),
+    0 4px 4px -2px rgba(91 94 105 / 15%);
   background-color: #fff;
 }
 
@@ -331,6 +334,6 @@ body.darkBG {
 
 @media only screen and (max-width: 576px) {
   .blocks-section {
-    padding: 0 0;
+    padding: 0;
   }
 }

@@ -1,31 +1,31 @@
 /* socket connection */
 
 /* Notice: Portions of the connection indicator style come from html5rocks.com */
-@-webkit-keyframes glowgreen {
+@keyframes glowgreen {
   from {
-    -webkit-box-shadow: rgba(0, 255, 0, 0) 0 0 0;
+    box-shadow: rgb(0 255 0 / 0%) 0 0 0;
   }
 
   50% {
-    -webkit-box-shadow: rgba(0, 255, 0, 1) 0 0 10px;
+    box-shadow: rgb(0 255 0 / 100%) 0 0 10px;
   }
 
   to {
-    -webkit-box-shadow: rgba(0, 255, 0, 0) 0 0 0;
+    box-shadow: rgb(0 255 0 / 0%) 0 0 0;
   }
 }
 
-@-webkit-keyframes glowred {
+@keyframes glowred {
   from {
-    -webkit-box-shadow: rgba(255, 0, 0, 0) 0 0 0;
+    box-shadow: rgb(255 0 0 / 0%) 0 0 0;
   }
 
   50% {
-    -webkit-box-shadow: rgba(255, 0, 0, 1) 0 0 10px;
+    box-shadow: rgb(255 0 0 / 100%) 0 0 10px;
   }
 
   to {
-    -webkit-box-shadow: rgba(255, 0, 0, 0) 0 0 0;
+    box-shadow: rgb(255 0 0 / 0%) 0 0 0;
   }
 }
 
@@ -44,19 +44,19 @@
   display: inline-block;
   border-radius: 10px;
   margin-left: 5px;
-  -webkit-animation-duration: 2s;
-  -webkit-animation-iteration-count: infinite;
-  -webkit-animation-timing-function: linear;
+  animation-duration: 2s;
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
 }
 
 #connection.connected div {
   background-image: url("/images/connected.svg");
-  -webkit-box-shadow: rgba(0, 255, 0, 0.5) 0 0 5px;
-  -webkit-animation-name: glowgreen;
+  box-shadow: rgb(0 255 0 / 50%) 0 0 5px;
+  animation-name: glowgreen;
 }
 
 #connection.disconnected div {
   background-image: url("/images/disconnected.svg");
-  -webkit-box-shadow: rgba(255, 0, 0, 0.5) 0 0 5px;
-  -webkit-animation-name: glowred;
+  box-shadow: rgb(255 0 0 / 50%) 0 0 5px;
+  animation-name: glowred;
 }

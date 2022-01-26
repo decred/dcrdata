@@ -17,7 +17,7 @@
         <div class="modal position-absolute"></div>
         <label>Zoom :</label>
         <div class="btn-group" data-toggle="buttons">
-          <input data-ticketpool-target="zoom" data-action="click->ticketpool#onZoom" type="button" class="btn btn_sm all btn-active" value="Blocks" name="all">
+          <input data-ticketpool-target="zoom" data-action="click->ticketpool#onZoom" type="button" class="btn btn_sm all btn-active" value="All" name="all">
           <input data-ticketpool-target="zoom" data-action="click->ticketpool#onZoom" type="button" class="btn btn_sm 1d" value="Day" name="day">
           <input data-ticketpool-target="zoom" data-action="click->ticketpool#onZoom" type="button" class="btn btn_sm 1wk" value="Week" name="wk">
           <input data-ticketpool-target="zoom" data-action="click->ticketpool#onZoom" type="button" class="btn btn_sm 1m" value="Month" name="mo">
@@ -31,9 +31,9 @@
           <input data-ticketpool-target="bars" data-action="click->ticketpool#onBarsChange" type="button" class="btn btn_sm 1m" value="Month" name="mo">
         </div>
 
-        <div id="tickets_by_purchase_date" class="tp-charts"></div>
+        <div id="tickets-by-purchase-date" class="tp-charts"></div>
         <br>
-        <div id="tickets_by_purchase_price" class="tp-charts"></div>
+        <div id="tickets-by-purchase-price" class="tp-charts"></div>
         <br>
         <div class="justify-content-between">
           <div class="dygraph-label dygraph-title mb-1">Distribution of Tickets by Reward Outputs</div>
