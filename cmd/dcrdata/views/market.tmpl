@@ -224,7 +224,7 @@
             {{- /* CHART */ -}}
             <div class="flex-grow-1 ps-3 pe-4 mb-2 market-chart-box d-flex">
               <div class="d-flex w-100 position-relative market-chart">
-                <div class="market-chart-title d-flex align-items-center d-none">
+                <div class="market-chart-title d-flex align-items-center">
                     <div data-market-target="xcLogo"></div>
                     <div data-market-target="xcName"></div>
                 </div>
@@ -234,7 +234,7 @@
             </div>
 
             {{- /* TODO: Test this data controller (time & market) */ -}}
-            <div class="text-center py-2 py-lg-0 text-lg-end px-4 fs13 d-hide" data-market-target="age">updated <span data-controller="time" data-time-target="age market.ageSpan" data-age="0"></span> ago</div>
+            <div class="text-center py-2 py-lg-0 text-lg-end px-4 fs13 d-hide" data-market-target="age">updated <span data-controller="time" data-time-target="age" data-market-target="ageSpan" data-age="0"></span> ago</div>
         
         </div>
     </div>
