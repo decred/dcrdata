@@ -53,7 +53,7 @@ for MODPATH in $MODPATHS; do
   (cd "${module}"
     go test $TESTTAGS ./...
     golangci-lint run --deadline=10m \
-      --out-format=github-actions \
+      --out-format=github-actions,colored-line-number \
       --disable-all \
       --enable govet \
       --enable staticcheck \
