@@ -49,7 +49,7 @@ module.exports = {
       // both options are optional
       // filename: '[name].css',
       // chunkFilename: '[id].css'
-      filename: 'css/style.[fullhash].css'
+      filename: 'css/style.[contenthash].css'
     }),
     new StyleLintPlugin({
       threads: true,
@@ -63,15 +63,21 @@ module.exports = {
             // Do nothing on error
             return;
           }
+          // Get filenames with hashes from app assets
+          const hashes = s.entrypoints.app.assets.reduce((obj, v) => {
+            if (v.name.includes('js/4')) obj.vendor = v.name.split('/')[1]
+            if (v.name.includes('css/style')) obj.css = v.name.split('/')[1]
+            if (v.name.includes('js/app')) obj.app = v.name.split('/')[1]
+            return obj
+          }, {})
           // Update js/css bundles with the generated cache hash on the
           // extras.tmpl file
-          const jsRegexp = new RegExp('(\\w)\\w+\\.bundle\\.js', 'g')
-          const cssRegexp = new RegExp('(\\w)\\w+\\.css', 'g')
           const tmplPath = Path.join(__dirname, './views/extras.tmpl')
           const tmplIn = FileSystem.readFileSync(tmplPath, "utf8")
           const tmplOut = tmplIn
-            .replace(jsRegexp, `${s.hash}.bundle.js`)
-            .replace(cssRegexp, `${s.hash}.css`)
+            .replace(new RegExp('4.(\\w)\\w+\\.bundle\\.js'), `${hashes.vendor}`)
+            .replace(new RegExp('style.(\\w)\\w+\\.css'), `${hashes.css}`)
+            .replace(new RegExp('app.(\\w)\\w+\\.bundle\\.js'), `${hashes.app}`)
           FileSystem.writeFileSync(tmplPath, tmplOut)
         });
       }
@@ -79,7 +85,7 @@ module.exports = {
   ],
   output: {
     hashFunction: "xxhash64",
-    filename: 'js/[name].[fullhash].bundle.js',
+    filename: 'js/[name].[contenthash].bundle.js',
     path: path.resolve(__dirname, 'public/dist'),
     publicPath: '/dist/'
   },
