@@ -30,7 +30,6 @@ modern javascript features, as well as SCSS for styling.
     - [From v2.x or earlier](#from-v2x-or-earlier)
   - [Getting Started](#getting-started)
     - [Configuring PostgreSQL (**IMPORTANT!** Seriously, read this.)](#configuring-postgresql-important-seriously-read-this)
-    - [CockroachDB Support (experimental)](#cockroachdb-support-experimental)
     - [Creating the dcrdata Configuration File](#creating-the-dcrdata-configuration-file)
     - [Using Environment Variables for Configuration](#using-environment-variables-for-configuration)
     - [Indexing the Blockchain](#indexing-the-blockchain)
@@ -339,23 +338,6 @@ resource.
 On Linux, you may wish to use a unix domain socket instead of a TCP connection.
 The path to the socket depends on the system, but it is commonly
 `/var/run/postgresql`. Just set this path in `pghost`.
-
-### CockroachDB (deprecated)
-
-While dcrdata has some special handling for [CockroachDB](https://github.com/decred/dcrdata/issues/1291),
-it is not recommended or supported for several reasons:
-
-- Compared to a well-configure PostgreSQL backend, CoackroachDB performance is
-  suboptimal. See the [CockroachDB issue](https://github.com/decred/dcrdata/issues/1291)
-  for more information.
-- The bulk of the testing and performance optimization is done with PostgreSQL
-  in mind.
-
-If you decide to use CockroachDB with dcrdata, (1) do not do so in production
-and (2) expect some bugs and relatively poor performance.
-
-See [dcrdata's CockroachDB wiki page](https://github.com/decred/dcrdata/wiki/CockroachDB)
-for more information.
 
 ### Creating the dcrdata Configuration File
 

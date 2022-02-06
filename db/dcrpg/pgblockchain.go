@@ -260,7 +260,6 @@ type ChainDB struct {
 	mixSetDiffsMtx     sync.Mutex
 	mixSetDiffs        map[uint32]int64 // height to value diff
 	deployments        *ChainDeployments
-	cockroach          bool
 	MPC                *mempool.DataCache
 	// BlockCache stores apitypes.BlockDataBasic and apitypes.StakeInfoExtended
 	// in StoreBlock for quick retrieval without a DB query.
@@ -497,10 +496,8 @@ func NewChainDB(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb.StakeData
 			pgVerNumMin/10_000, pgVerNumMin%10_000, pgVerNum/10_000, pgVerNum%10_000)
 	}
 
-	cockroach := strings.Contains(pgVersion, "CockroachDB")
-
 	// Optionally logs the PostgreSQL configuration.
-	if !cockroach && !cfg.HidePGConfig {
+	if !cfg.HidePGConfig {
 		perfSettings, err := RetrieveSysSettingsPerformance(db)
 		if err != nil {
 			return nil, err
@@ -515,45 +512,23 @@ func NewChainDB(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb.StakeData
 	}
 
 	// Check the synchronous_commit setting.
-	if !cockroach {
-		syncCommit, err := RetrieveSysSettingSyncCommit(db)
-		if err != nil {
+	syncCommit, err := RetrieveSysSettingSyncCommit(db)
+	if err != nil {
+		return nil, err
+	}
+	if syncCommit != "off" {
+		log.Warnf(`PERFORMANCE ISSUE! The synchronous_commit setting is "%s". `+
+			`Changing it to "off".`, syncCommit)
+		// Turn off synchronous_commit.
+		if err = SetSynchronousCommit(db, "off"); err != nil {
+			return nil, fmt.Errorf("failed to set synchronous_commit: %w", err)
+		}
+		// Verify that the setting was changed.
+		if syncCommit, err = RetrieveSysSettingSyncCommit(db); err != nil {
 			return nil, err
 		}
 		if syncCommit != "off" {
-			log.Warnf(`PERFORMANCE ISSUE! The synchronous_commit setting is "%s". `+
-				`Changing it to "off".`, syncCommit)
-			// Turn off synchronous_commit.
-			if err = SetSynchronousCommit(db, "off"); err != nil {
-				return nil, fmt.Errorf("failed to set synchronous_commit: %w", err)
-			}
-			// Verify that the setting was changed.
-			if syncCommit, err = RetrieveSysSettingSyncCommit(db); err != nil {
-				return nil, err
-			}
-			if syncCommit != "off" {
-				log.Errorf(`Failed to set synchronous_commit="off". Check PostgreSQL user permissions.`)
-			}
-		}
-	} else {
-		// Force CockroachDB to use a real sequence when creating a table with a
-		// SERIAL column.
-		_, err = db.Exec("SET experimental_serial_normalization = sql_sequence;")
-		if err != nil {
-			return nil, fmt.Errorf("failed to set experimental_serial_normalization: %w", err)
-		}
-
-		// Prevent too many versions of nextval() during bulk inserts using
-		// autoincrement of row primary key by lowering garbage the collection
-		// interval (from 25 hours!).
-		crdbGCInterval := 1200 // 20 minutes between garbage collections
-		_, err = db.Exec(fmt.Sprintf(`ALTER DATABASE %s CONFIGURE ZONE USING gc.ttlseconds=$1;`,
-			dbi.DBName), crdbGCInterval)
-		if err != nil {
-			// In secure mode, the user may need permissions to modify zones. e.g.
-			// GRANT UPDATE ON TABLE dcrdata_mainnet.crdb_internal.zones TO dcrdata_user;
-			return nil, fmt.Errorf("failed to set gc.ttlseconds=%d for database %q: %w",
-				crdbGCInterval, dbi.DBName, err)
+			log.Errorf(`Failed to set synchronous_commit="off". Check PostgreSQL user permissions.`)
 		}
 	}
 
@@ -744,7 +719,6 @@ func NewChainDB(ctx context.Context, cfg *ChainDBCfg, stakeDB *stakedb.StakeData
 		utxoCache:          newUtxoStore(5e4),
 		mixSetDiffs:        make(map[uint32]int64),
 		deployments:        new(ChainDeployments),
-		cockroach:          cockroach,
 		MPC:                new(mempool.DataCache),
 		BlockCache:         apitypes.NewAPICache(1e4),
 		heightClients:      make([]chan uint32, 0),

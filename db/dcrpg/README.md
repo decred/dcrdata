@@ -8,12 +8,6 @@ tables, and storing blocks, transactions, inputs, and outputs.
 PostgreSQL versions 10.5 to 11.x are fully supported. The bulk of the testing
 and performance optimization is done with PostgreSQL in mind.
 
-[Experimental support for CockroachDB](https://github.com/decred/dcrdata/issues/1291)
-was added for dcrdata 5.0. However, compared to a well-configure PostgreSQL
-backend, CoackroachDB performance is suboptimal. See the
-[CockroachDB support issue](https://github.com/decred/dcrdata/issues/1291) for
-more information.
-
 ## Performance and Bulk Loading
 
 When performing a bulk data import, it is wise to first drop any existing

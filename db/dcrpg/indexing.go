@@ -382,28 +382,8 @@ func (pgb *ChainDB) DeleteDuplicateVouts() (int64, error) {
 	return DeleteDuplicateVouts(pgb.db)
 }
 
-func (pgb *ChainDB) DeleteDuplicateVinsCockroach() (int64, error) {
-	return DeleteDuplicateVinsCockroach(pgb.db)
-}
-
-func (pgb *ChainDB) DeleteDuplicateVoutsCockroach() (int64, error) {
-	return DeleteDuplicateVoutsCockroach(pgb.db)
-}
-
 func (pgb *ChainDB) DeleteDuplicateTxns() (int64, error) {
 	return DeleteDuplicateTxns(pgb.db)
-}
-
-func (pgb *ChainDB) DeleteDuplicateTickets() (int64, error) {
-	return DeleteDuplicateTickets(pgb.db)
-}
-
-func (pgb *ChainDB) DeleteDuplicateVotes() (int64, error) {
-	return DeleteDuplicateVotes(pgb.db)
-}
-
-func (pgb *ChainDB) DeleteDuplicateMisses() (int64, error) {
-	return DeleteDuplicateMisses(pgb.db)
 }
 
 func (pgb *ChainDB) DeleteDuplicateAgendas() (int64, error) {
