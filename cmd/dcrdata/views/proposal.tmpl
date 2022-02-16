@@ -141,7 +141,7 @@
                       <td class="text-start py-1 text-secondary"
                         ><a href="/block/{{.StartBlockHeight}}">{{.StartBlockHeight}}</a>
                         &ndash;
-                        {{if eq $status "finished"}}
+                        {{if or (eq $status "finished") (eq $status "approved") (eq $status "rejected")}}
                           <a href="/block/{{.EndBlockHeight}}">{{.EndBlockHeight}}</a>
                         {{else}}
                           {{.EndBlockHeight}}
