@@ -197,7 +197,7 @@
         <div class="row align-items-center">
           <div class="me-auto mb-0 h4 col-24 col-sm-6">Transactions</div>
           <div class="d-flex flex-wrap-reverse align-items-center justify-content-end py-1 col-24 col-sm-18">
-              <span class="fs12 nowrap text-end" data-address-target="address.range">
+              <span class="fs12 nowrap text-end" data-address-target="range">
                   showing {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumTransactions)}} of
                       <span data-address-target="txnCount" data-txn-count="{{$TxnCount}}">{{intComma $TxnCount}}</span> transactions
               </span>
