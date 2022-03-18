@@ -35,6 +35,7 @@ require (
 	github.com/jrick/logrotate v1.0.0
 	github.com/rs/cors v1.8.0
 	golang.org/x/net v0.0.0-20210903162142-ad29c8ab022f
+	golang.org/x/text v0.3.6
 )
 
 require (
@@ -87,7 +88,6 @@ require (
 	go.etcd.io/bbolt v1.3.5 // indirect
 	golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97 // indirect
 	golang.org/x/sys v0.0.0-20210902050250-f475640dd07b // indirect
-	golang.org/x/text v0.3.6 // indirect
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba // indirect
 	google.golang.org/genproto v0.0.0-20201022181438-0ff5f38871d5 // indirect
 	google.golang.org/grpc v1.36.1 // indirect
