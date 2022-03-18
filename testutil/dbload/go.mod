@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/testutil/dbload
 
-go 1.16
+go 1.17
 
 replace github.com/decred/dcrdata/v7 => ../../
 

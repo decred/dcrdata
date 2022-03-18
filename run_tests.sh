@@ -66,7 +66,7 @@ for MODPATH in $MODPATHS; do
       --enable unparam \
       --enable asciicheck \
       --enable makezero
-    if [[ "$GV" =~ ^1.17 ]]; then
+    if [[ "$GV" =~ ^1.18 ]]; then
       MOD_STATUS=$(git status --porcelain go.mod go.sum)
       go mod tidy
       UPDATED_MOD_STATUS=$(git status --porcelain go.mod go.sum)
