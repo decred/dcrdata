@@ -37,9 +37,14 @@ import (
 	ticketvotev1 "github.com/decred/politeia/politeiawww/api/ticketvote/v1"
 
 	humanize "github.com/dustin/go-humanize"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
-var dummyRequest = new(http.Request)
+var (
+	titler       = cases.Title(language.AmericanEnglish)
+	dummyRequest = new(http.Request)
+)
 
 func init() {
 	// URL should be set because commonData call a method on it.
@@ -131,7 +136,7 @@ func netName(chainParams *chaincfg.Params) string {
 	if strings.HasPrefix(strings.ToLower(chainParams.Name), "testnet") {
 		return testnetNetName
 	}
-	return strings.Title(chainParams.Name)
+	return titler.String(chainParams.Name)
 }
 
 func (exp *explorerUI) timeoutErrorPage(w http.ResponseWriter, err error, debugStr string) (wasTimeout bool) {

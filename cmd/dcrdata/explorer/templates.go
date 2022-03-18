@@ -475,13 +475,13 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			return dateTime.Format("2006-01-02 15:04:05")
 		},
 		"toLowerCase": strings.ToLower,
-		"toTitleCase": strings.Title,
+		"toTitleCase": titler.String,
 		"xcDisplayName": func(token string) string {
 			switch token {
 			case "dcrdex":
 				return "dex.decred.org"
 			}
-			return strings.Title(token)
+			return titler.String(token)
 		},
 		"prefixPath": func(prefix, path string) string {
 			if path == "" {
