@@ -1,5 +1,4 @@
 //go:build pgonline || chartdata
-// +build pgonline chartdata
 
 package dcrpg
 

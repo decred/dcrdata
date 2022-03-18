@@ -1,5 +1,4 @@
 //go:build livexc
-// +build livexc
 
 // run these tests with go test -race -tags-livexc -run FuncName
 

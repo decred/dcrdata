@@ -1,5 +1,4 @@
 //go:build testnetRPC
-// +build testnetRPC
 
 // TODO: All these test should run with regnet. They were originally made for
 // testnet2, which no longer exists.

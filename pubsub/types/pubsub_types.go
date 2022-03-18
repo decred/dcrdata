@@ -49,9 +49,10 @@ func IsIOTimeoutErr(err error) bool {
 }
 
 // IsTemporaryErr checks if the passed error indicates a transient error.
+// DEPRECATED.
 func IsTemporaryErr(err error) bool {
 	t, ok := err.(net.Error)
-	return ok && t.Temporary()
+	return ok && t.Temporary() //nolint:staticcheck
 }
 
 // WebSocketMessage represents the JSON object used to send and receive typed
