@@ -11,9 +11,9 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/rpcclient"
-	"github.com/btcsuite/btcutil"
 	"github.com/decred/dcrdata/cmd/swapscan-btc/swap"
 )
 
