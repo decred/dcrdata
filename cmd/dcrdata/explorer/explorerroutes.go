@@ -70,12 +70,22 @@ type CommonPageData struct {
 	Cookies       Cookies
 	Host          string
 	BaseURL       string // scheme + "://" + "host"
-	RequestURI    string
+	Path          string
+	RequestURI    string // path?query
 }
 
 // FullURL constructs the page's complete URL.
 func (cp *CommonPageData) FullURL() string {
 	return cp.BaseURL + cp.RequestURI
+}
+
+// CanonicalURL constructs the page's canonical URL. According to Facebook:
+// "This should be the undecorated URL, without session variables, user
+// identifying parameters, or counters. Likes and Shares for this URL will
+// aggregate at this URL."
+// https://developers.facebook.com/docs/sharing/webmasters/
+func (cp *CommonPageData) CanonicalURL() string {
+	return cp.BaseURL + cp.Path
 }
 
 // Status page strings
@@ -2593,6 +2603,7 @@ func (exp *explorerUI) commonData(r *http.Request) *CommonPageData {
 		},
 		Host:       r.Host,
 		BaseURL:    baseURL,
+		Path:       r.URL.Path,
 		RequestURI: r.URL.RequestURI(),
 	}
 }
