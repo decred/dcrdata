@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -190,7 +189,7 @@ func copyFile(src, dst string) error {
 }
 
 func copyDir(src, dst string) error {
-	entries, err := ioutil.ReadDir(src)
+	entries, err := os.ReadDir(src)
 	if err != nil {
 		return err
 	}

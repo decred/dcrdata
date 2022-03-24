@@ -8,7 +8,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -57,7 +56,7 @@ func openRPCKeyPair(cfg *config) (credentials.TransportCredentials, error) {
 	return credentials.NewServerTLSFromCert(&cert), nil
 }
 
-// CertWriter is an interface that wraps either ioutil.WriteFile or a stub for
+// CertWriter is an interface that wraps either os.WriteFile or a stub for
 // testing.
 type CertWriter interface {
 	WriteCertificate(string, []byte) error
@@ -66,7 +65,7 @@ type CertWriter interface {
 type certWriter struct{}
 
 func (w certWriter) WriteCertificate(certPath string, cert []byte) error {
-	return ioutil.WriteFile(certPath, cert, 0600)
+	return os.WriteFile(certPath, cert, 0600)
 }
 
 // generateRPCKeyPair generates a new RPC TLS keypair and writes the cert and

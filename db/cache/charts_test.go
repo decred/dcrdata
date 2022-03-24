@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -27,9 +26,9 @@ func printJson(thing interface{}) {
 // TestMain setups the tempDir and cleans it up after tests.
 func TestMain(m *testing.M) {
 	var err error
-	tempDir, err = ioutil.TempDir(os.TempDir(), "cache")
+	tempDir, err = os.MkdirTemp("", "cache")
 	if err != nil {
-		fmt.Printf("ioutil.TempDir: %v", err)
+		fmt.Printf("os.MkdirTemp: %v", err)
 		return
 	}
 
@@ -96,7 +95,7 @@ func TestChartsCache(t *testing.T) {
 	t.Run("Read_a_non-gob_file_encoding_dump", func(t *testing.T) {
 		path := filepath.Join(tempDir, "log2.txt")
 
-		err := ioutil.WriteFile(path, []byte(`Who let the dogs bark?`), 0644)
+		err := os.WriteFile(path, []byte(`Who let the dogs bark?`), 0644)
 		if err != nil {
 			t.Fatalf("expected no error but found: %v", err)
 		}
@@ -110,7 +109,7 @@ func TestChartsCache(t *testing.T) {
 	t.Run("Write_to_existing_non-GOB_file", func(t *testing.T) {
 		path := filepath.Join(tempDir, "log3.txt")
 
-		err := ioutil.WriteFile(path, []byte(`Who let the dogs bark?`), 0644)
+		err := os.WriteFile(path, []byte(`Who let the dogs bark?`), 0644)
 		if err != nil {
 			t.Fatalf("expected no error but found: %v", err)
 		}

@@ -3,7 +3,6 @@ package agendas
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -47,7 +46,7 @@ var firstAgendaInfo = &AgendaTagged{
 // TestMain sets up the temporary db needed for testing
 func TestMain(m *testing.M) {
 	var err error
-	tempDir, err = ioutil.TempDir(os.TempDir(), "onchain")
+	tempDir, err = os.MkdirTemp("", "onchain")
 	if err != nil {
 		panic(err)
 	}

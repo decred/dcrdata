@@ -7,7 +7,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"decred.org/dcrwallet/v2/wallet/txrules"
@@ -904,7 +903,7 @@ func (u *Upgrader) upgradeSchema1to2() error {
 	}
 	defer blockRows.Close()
 	// Set the stake database to the genesis block.
-	dir, err := ioutil.TempDir("", "tempstake")
+	dir, err := os.MkdirTemp("", "tempstake")
 	if err != nil {
 		return makeErr("unable to create temp directory")
 	}

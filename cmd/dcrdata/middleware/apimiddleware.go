@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"html"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -249,7 +248,7 @@ func OriginalRequestURI(next http.Handler) http.Handler {
 func PostBroadcastTxCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req apitypes.InsightRawTx
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		r.Body.Close()
 		if err != nil {
 			writeHTMLBadRequest(w, fmt.Sprintf("Error reading JSON message: %v", err))
@@ -331,7 +330,7 @@ func Next(next http.Handler) http.Handler {
 func PostTxnsCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		req := apitypes.Txns{}
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		r.Body.Close()
 		if err != nil {
 			apiLog.Debugf("No/invalid txns: %v", err)

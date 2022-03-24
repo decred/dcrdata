@@ -148,7 +148,7 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool) (*rpcclient.
 	var err error
 	var nodeVer semver.Semver
 	if !disableTLS {
-		dcrdCerts, err = ioutil.ReadFile(cert)
+		dcrdCerts, err = os.ReadFile(cert)
 		if err != nil {
 			return nil, nodeVer, err
 		}
