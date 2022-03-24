@@ -9,7 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -158,7 +158,7 @@ func (iapi *InsightApi) ValidatePostCtx(next http.Handler) http.Handler {
 func PostAddrsTxsCtxN(n int) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			body, err := ioutil.ReadAll(r.Body)
+			body, err := io.ReadAll(r.Body)
 			r.Body.Close()
 			if err != nil {
 				errStr := html.EscapeString(err.Error())
@@ -265,7 +265,7 @@ func PostAddrsUtxoCtxN(n int) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			req := apitypes.InsightAddr{}
-			body, err := ioutil.ReadAll(r.Body)
+			body, err := io.ReadAll(r.Body)
 			r.Body.Close()
 			if err != nil {
 				errStr := html.EscapeString(err.Error())

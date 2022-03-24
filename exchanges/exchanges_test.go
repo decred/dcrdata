@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
@@ -252,7 +251,7 @@ func (d *tDoer) queue(body interface{}) *http.Response {
 		panic("tDoer.queue error:" + err.Error())
 	}
 	resp := &http.Response{
-		Body: ioutil.NopCloser(bytes.NewReader(b)),
+		Body: io.NopCloser(bytes.NewReader(b)),
 	}
 	d.responses = append(d.responses, resp)
 	return resp

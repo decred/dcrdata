@@ -7,7 +7,6 @@ package exchanges
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/signal"
@@ -304,7 +303,7 @@ func TestDecredDEXLive(t *testing.T) {
 
 	usr, _ := user.Current()
 	dextestCertPath := filepath.Join(usr.HomeDir, "dextest", "dcrdex", "rpc.cert")
-	cert, err := ioutil.ReadFile(dextestCertPath)
+	cert, err := os.ReadFile(dextestCertPath)
 	if err != nil {
 		log.Errorf("error reading file for simnet cert: %v", err)
 		return

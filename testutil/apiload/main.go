@@ -7,7 +7,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -225,7 +224,7 @@ out:
 		log.Fatalf("Failed to parse JSON from vegeta.Metrics for %s:", Config.Attack)
 	}
 	path := filepath.Join(Config.ResultDirectory, fmt.Sprintf(outputFileTemplate, Config.Attack, fmtTime))
-	err = ioutil.WriteFile(path, jsonBytes, 0755)
+	err = os.WriteFile(path, jsonBytes, 0755)
 	if err != nil {
 		log.Fatalf("Failed to write result file to %s", path)
 	}
@@ -247,7 +246,7 @@ func createResultsDirectory() (err error) {
 }
 
 func loadProfiles() (profiles map[string]*Attack, err error) {
-	jsonBytes, err := ioutil.ReadFile(Config.ProfilesPath)
+	jsonBytes, err := os.ReadFile(Config.ProfilesPath)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to load attack profile definitions from %s: %v", Config.ProfilesPath, err)
 	}

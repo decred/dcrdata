@@ -9,7 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strconv"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -94,7 +94,7 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS, disableReconnect 
 	var err error
 	var nodeVer semver.Semver
 	if !disableTLS {
-		dcrdCerts, err = ioutil.ReadFile(cert)
+		dcrdCerts, err = os.ReadFile(cert)
 		if err != nil {
 			log.Errorf("Failed to read dcrd cert file at %s: %s\n",
 				cert, err.Error())

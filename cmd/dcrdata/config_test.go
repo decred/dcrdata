@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -16,12 +15,12 @@ var tempAppDataDir string
 func TestMain(m *testing.M) {
 	// Temp config file is used to ensure there are no external influences
 	// from previously set env variables or default config files.
-	tempConfigFile, _ = ioutil.TempFile("", "dcrdata_test_file.cfg")
+	tempConfigFile, _ = os.CreateTemp("", "dcrdata_test_file.cfg")
 	defer os.Remove(tempConfigFile.Name())
 	os.Setenv("DCRDATA_CONFIG_FILE", tempConfigFile.Name())
 
 	// Make an empty folder for appdata tests.
-	tempAppDataDir, _ = ioutil.TempDir("", "dcrdata_test_appdata")
+	tempAppDataDir, _ = os.MkdirTemp("", "dcrdata_test_appdata")
 	defer os.RemoveAll(tempAppDataDir)
 
 	// Parse the -test.* flags before removing them from the command line
@@ -80,7 +79,7 @@ func TestLoadCustomConfigMissing(t *testing.T) {
 
 	// Set a path to a non-existent config file. Use TempFile followed by Remove
 	// to guarantee the file does not exist.
-	goneFile, _ := ioutil.TempFile("", "blah")
+	goneFile, _ := os.CreateTemp("", "blah")
 	os.Remove(goneFile.Name())
 	os.Setenv("DCRDATA_CONFIG_FILE", goneFile.Name())
 
@@ -181,7 +180,7 @@ func TestCustomHomeDirWithEnv(t *testing.T) {
 // Ensure that command line flags override env variables.
 func TestDefaultConfigHomeDirWithEnvAndFlag(t *testing.T) {
 	tmp2 := "dcrdata_test_appdata2"
-	cliOverride, err := ioutil.TempDir("", tmp2)
+	cliOverride, err := os.MkdirTemp("", tmp2)
 	if err != nil {
 		t.Fatalf("Unable to create temporary folder %s: %v", tmp2, err)
 	}
