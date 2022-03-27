@@ -142,9 +142,15 @@
                         <td class="text-start">
                             {{if .VoteStatus}}
                                 {{if eq (index $.VotesStatus .VoteStatus) "Ineligible"}}
-                                    <span class="text-abandoned position-relative" data-tooltip="Proposal abandoned">
-                                        Abandoned
-                                    </span>
+                                    {{if .AbandonedAt}}
+                                        <span class="text-abandoned position-relative" data-tooltip="Proposal abandoned">
+                                            Abandoned
+                                        </span>
+                                    {{else if .CensoredAt}}
+                                        <span class="text-abandoned position-relative" data-tooltip="Proposal censored">
+                                            Censored
+                                        </span>
+                                    {{end}}
                                 {{else if eq (index $.VotesStatus .VoteStatus) "Unauthorized"}}
                                     <span class="text-abandoned position-relative" data-tooltip="Proposal in discussion">
                                         In Discussion
