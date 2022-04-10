@@ -1,0 +1,62 @@
+{{define "verify_message"}}
+<!DOCTYPE html>
+<html lang="en">
+{{template "html-head" headData .CommonPageData "Verify Message"}}
+{{template "navbar" . }}
+<div class="container main">
+        <h4 class="mb-2">
+                Verify Message
+        </h4>
+        <div class="mb-1 fs15">
+                <p>After you or your counterparty has generated a signature, you can use this form to verify the
+                        validity of the signature. Once you have entered the address, the message and the corresponding
+                        signature, you will see VALID if the signature appropriately matches the address and message,
+                        otherwise INVALID.</p>
+        </div>
+        <form action="/verify-message" method="post">
+                <div class="mb-3 row">
+                        <label for="addressInput" class=" col-auto col-form-label">Address:</label>
+                        <div class="w-50 ms-2 border-1 border-bottom">
+                                <input type="text" name="address"
+                                        class="bg-transparent border-0 ps-0 color-inherit form-control shadow-none"
+                                        id="addressInput" required placeholder="Enter your address" autocomplete="off"
+                                        value="{{with .VerifyMessageResult}}{{.Address}}{{end}}">
+
+                        </div>
+                </div>
+                <div class="mb-3 row">
+                        <label for="signatureInput" class="col-auto col-form-label">Signature:</label>
+                        <div class="w-50 ms-2 border-1 border-bottom">
+                                <input type="text" name="signature"
+                                        class="bg-transparent border-0 ps-0 color-inherit form-control shadow-none"
+                                        id="signatureInput" required placeholder="Enter your signature"
+                                        autocomplete="off" value="{{with .VerifyMessageResult}}{{.Signature}}{{end}}">
+                        </div>
+                </div>
+                <div class="mb-3 row">
+                        <label for="messageInput" class="col-auto col-form-label">Message:</label>
+                        <div class="w-75 ms-2 border-1 border-bottom">
+                                <input type="text" name="message"
+                                        class="bg-transparent border-0 ps-0 color-inherit form-control shadow-none"
+                                        id="messageInput" required placeholder="Enter your message" autocomplete="off"
+                                        value="{{with .VerifyMessageResult}}{{.Message}}{{end}}">
+                        </div>
+                </div>
+                <button class="btn btn-primary mt-3 color-inherit" type="submit">Verify Message</button>
+        </form>
+
+        {{with .VerifyMessageResult}}
+        {{if .Error}}
+        <span class="border row border-danger m-3 p-4 fs-15 fw-bold rounded text-danger"> Something went
+                wrong... {{.Error}}</span>
+        {{else if .Valid}}
+        <span class="border row m-3 border-success m-3 p-4 fs-15 fw-bold rounded text-green"> Valid Signature! </span>
+        {{else}}
+        <span class="border row border-danger m-3 p-4 fs-15 fw-bold rounded text-danger"> Invalid Signature! </span>
+        {{end}}
+        {{end}}
+</div>
+{{ template "footer" . }}
+</body>
+</html>
+{{end}}

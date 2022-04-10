@@ -21,6 +21,7 @@ import (
 	"github.com/decred/dcrd/blockchain/stake/v4"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
+
 	"github.com/decred/dcrd/dcrutil/v4"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
 	"github.com/decred/dcrd/txscript/v4"
@@ -2776,4 +2777,75 @@ func (exp *explorerUI) AttackCost(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, str)
+}
+
+type verifyMessageResult struct {
+	Address   string
+	Signature string
+	Message   string
+	Valid     bool
+	Error     string
+}
+
+// VerifyMessagePage is the page handler for "GET /verify-message" path.
+func (exp *explorerUI) VerifyMessagePage(w http.ResponseWriter, r *http.Request) {
+	str, err := exp.templates.exec("verify_message", struct {
+		*CommonPageData
+		VerifyMessageResult *verifyMessageResult
+	}{
+		CommonPageData: exp.commonData(r),
+	})
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+// VerifyMessageHandler is the handler for "POST /verify-message" path.
+func (exp *explorerUI) VerifyMessageHandler(w http.ResponseWriter, r *http.Request) {
+	address := r.PostFormValue("address")
+	signature := r.PostFormValue("signature")
+	message := r.PostFormValue("message")
+
+	displayPage := func(msg string, result bool) {
+		str, err := exp.templates.exec("verify_message", struct {
+			*CommonPageData
+			VerifyMessageResult *verifyMessageResult
+		}{
+			CommonPageData: exp.commonData(r),
+			VerifyMessageResult: &verifyMessageResult{
+				Address:   address,
+				Signature: signature,
+				Message:   message,
+				Valid:     result,
+				Error:     msg,
+			},
+		})
+
+		if err != nil {
+			log.Errorf("Template execute failure: %v", err)
+			exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusOK)
+		io.WriteString(w, str)
+	}
+
+	if address == "" || signature == "" || message == "" {
+		displayPage("Form values cannot be empty", false)
+		return
+	}
+
+	if err := dcrutil.VerifyMessage(address, signature, message, exp.ChainParams); err != nil {
+		displayPage("", false)
+		return
+	}
+	displayPage("", true)
 }
