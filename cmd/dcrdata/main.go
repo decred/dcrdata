@@ -663,6 +663,22 @@ func _main(ctx context.Context) error {
 		log.Debugf("Using Server HTTP response header %q", cfg.ServerHeader)
 		webMux.Use(mw.Server(cfg.ServerHeader))
 	}
+
+	// Request per sec limit for "POST /verify-message" endpoint.
+	reqPerSecLimit := 5.0
+	// Create a rate limiter struct.
+	limiter := mw.NewLimiter(reqPerSecLimit)
+	limiter.SetMessage(fmt.Sprintf(
+		"You have reached the maximum request limit (%g req/s)", reqPerSecLimit))
+
+	if cfg.UseRealIP {
+		webMux.Use(middleware.RealIP)
+		// RealIP sets RemoteAddr
+		limiter.SetIPLookups([]string{"RemoteAddr"})
+	} else {
+		limiter.SetIPLookups([]string{"X-Forwarded-For", "X-Real-IP", "RemoteAddr"})
+	}
+
 	webMux.Use(middleware.Recoverer)
 	if cfg.TrustProxy { // try to determine actual request scheme and host from x-forwarded-{proto,host} headers
 		webMux.Use(explorer.ProxyHeaders)
@@ -767,6 +783,8 @@ func _main(ctx context.Context) error {
 		// fallback.
 		r.With(explorer.MenuFormParser).Post("/set", explore.Home)
 		r.Get("/attack-cost", explore.AttackCost)
+		r.Get("/verify-message", explore.VerifyMessagePage)
+		r.With(mw.Tollbooth(limiter)).Post("/verify-message", explore.VerifyMessageHandler)
 	})
 
 	// Configure a page for the bare "/insight" path. This mounts the static
