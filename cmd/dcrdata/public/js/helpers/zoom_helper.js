@@ -10,10 +10,7 @@ const zoomMap = {
 }
 
 function zoomObject (start, end) {
-  return {
-    start: start,
-    end: end
-  }
+  return { start, end }
 }
 
 // Attempts to decode a string of format start-end where start and end are
