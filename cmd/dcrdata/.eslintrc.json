@@ -8,6 +8,7 @@
         "no-eval": "error",
         "no-implied-eval": "error",
         "no-var": "error",
-        "array-callback-return": "off"
+        "array-callback-return": "off",
+        "object-shorthand": ["error", "consistent"]
     }
 }

@@ -1,11 +1,6 @@
 const PIPI = 2 * Math.PI
 
-function makePt (x, y) {
-  return {
-    x: x,
-    y: y
-  }
-}
+function makePt (x, y) { return { x, y } }
 
 function addOffset (pt, offset) {
   return {

@@ -315,10 +315,7 @@ function circulationFunc (chartData) {
     x += xIncrement
     data.push([xFunc(x), null, yMax, null])
   }
-  return {
-    data: data,
-    inflation: inflation
-  }
+  return { data, inflation }
 }
 
 function missedVotesFunc (data) {

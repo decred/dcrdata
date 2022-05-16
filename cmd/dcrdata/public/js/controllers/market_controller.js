@@ -426,7 +426,7 @@ function drawLine (ctx, start, end) {
   ctx.stroke()
 }
 
-function makePt (x, y) { return { x: x, y: y } }
+function makePt (x, y) { return { x, y } }
 
 function canvasXY (area, pt) {
   return {
