@@ -1,4 +1,4 @@
-// Utitlities for keeping a shallow local copy of the mempool.
+// Utilities for keeping a shallow local copy of the mempool.
 
 const mpKeys = {
   Regular: 'regular',
