@@ -54,8 +54,7 @@ trap 'ERROR=$?' ERR
 for MODPATH in $MODPATHS; do
     module=$(dirname "${MODPATH}")
     pushd "$module" > /dev/null
-    MOD=$(go list -m)
-    echo "Linting: $MOD"
+    echo "Linting: $MODPATH"
     superlint
     if [[ "$GV" =~ ^1.17 ]]; then
 		MOD_STATUS=$(git status --porcelain go.mod go.sum)
