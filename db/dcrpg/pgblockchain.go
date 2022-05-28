@@ -4878,9 +4878,7 @@ func (pgb *ChainDB) GetAPITransaction(txid *chainhash.Hash) *apitypes.Tx {
 		spk.Type = apitypes.NewScriptClass(scriptType).String()
 		spk.ReqSigs = spkRaw.ReqSigs
 		spk.Addresses = make([]string, len(spkRaw.Addresses))
-		for j := range spkRaw.Addresses {
-			spk.Addresses[j] = spkRaw.Addresses[j]
-		}
+		copy(spk.Addresses, spkRaw.Addresses)
 		if spkRaw.CommitAmt != nil {
 			spk.CommitAmt = new(float64)
 			*spk.CommitAmt = *spkRaw.CommitAmt
@@ -5414,9 +5412,7 @@ func (pgb *ChainDB) GetAddressTransactionsRawWithSkip(addr string, count int, sk
 			scriptType := stdscript.DetermineScriptType(spkRaw.Version, pkScript)
 			spk.Type = apitypes.NewScriptClass(scriptType).String()
 			spk.Addresses = make([]string, len(spkRaw.Addresses))
-			for k := range spkRaw.Addresses {
-				spk.Addresses[k] = spkRaw.Addresses[k]
-			}
+			copy(spk.Addresses, spkRaw.Addresses)
 			if spkRaw.CommitAmt != nil {
 				spk.CommitAmt = new(float64)
 				*spk.CommitAmt = *spkRaw.CommitAmt
