@@ -804,7 +804,7 @@ here's the gist of it:
 
 **DO NOT merge from master to your feature branch; rebase.**
 
-Also, [come chat with us on Matrix](https://www.decred.org/matrix/) in the
+Also, [come chat with us on Matrix](https://chat.decred.org/) in the
 dcrdata channel!
 
 ## License
