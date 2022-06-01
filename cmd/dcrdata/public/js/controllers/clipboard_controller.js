@@ -18,35 +18,19 @@ export const alertArea = () => {
 }
 
 export default class extends Controller {
-  connect () {
-    const copySupported = document.queryCommandSupported('copy')
-    if (copySupported === false) {
-      for (const classname of ['dcricon-copy', 'alert-copy']) {
-        const icons = document.getElementsByClassName(classname)
-        while (icons.length > 0) icons[0].remove()
-      }
-    }
-  }
-
   copyTextToClipboard (clickEvent) {
     const parentNode = clickEvent.srcElement.parentNode
     const textContent = parentNode.textContent.trim().split(' ')[0]
-    const copyTextArea = document.createElement('textarea')
-    copyTextArea.value = textContent
-    document.body.appendChild(copyTextArea)
-    copyTextArea.select()
-    try {
-      document.execCommand('copy')
+    navigator.clipboard.writeText(textContent).then(() => {
       const alertCopy = parentNode.getElementsByClassName('alert-copy')[0]
-      alertCopy.textContent = 'Copied!'
+      alertCopy.textContent = 'Copied'
       alertCopy.style.display = 'inline-table'
       setTimeout(function () {
         alertCopy.textContent = ''
         alertCopy.style.display = 'none'
       }, 1000)
-    } catch (err) {
-      console.log('Unable to copy: you can Ctrl+C or Command+C selected area')
-    }
-    document.body.removeChild(copyTextArea)
+    }, (reason) => {
+      console.error('Unable to copy:', reason)
+    })
   }
 }
