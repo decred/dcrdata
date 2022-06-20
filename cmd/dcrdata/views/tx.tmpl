@@ -327,7 +327,6 @@
                     {{end}}
                   </div>
                 {{end}}              
-
                 <div class="d-flex w-100 justify-content-start p-2 my-2 secondary-card rounded">
                   <div class="col-auto lilbox px-2">
                     <div
@@ -342,7 +341,7 @@
                   <div class="col-auto d-flex flex-column justify-content-between ps-3">
                     <span class="fs17 lh1em">
                       <span class="fs22 medium-sans">{{printf "%.1f" (f32x100 .Approval)}}%</span>
-                      approval of {{intComma .TotalVotes}} votes ({{printf "%.0f" (percentage .TotalVotes (int64 .MaxVotes))}}% turnout)
+                      approval of {{if gt .MaxRemainingVotes 0}}a possible{{end}} {{intComma (add .TotalVotes .MaxRemainingVotes)}} votes
                     </span>
                     {{if .QuorumAchieved}}
                       <div class="d-flex align-items-center"><span class="fs20 dcricon-affirm me-2"></span>
@@ -394,7 +393,11 @@
                  </tr>
                  <tr>
                    <td class="text-end medium-sans text-nowrap pe-2 py-2" >Max Possible Votes:</td>
-                   <td class="text-start py-1 text-secondary">{{.MaxVotes}} votes</td>
+                   <td class="text-start py-1 text-secondary">{{.MaxVotes}} 
+                   {{if gt .MaxRemainingVotes 0}}
+                      ({{.MaxRemainingVotes}} remaining)
+                   {{end}} votes
+                   </td>
                  {{if lt $tip .VoteEnd}}
                    <td class="text-end medium-sans text-nowrap pe-2 py-2" >Vote Ends In:</td>
                    <td class="text-start py-1 text-secondary"> ~ {{formatDateTime .VoteEndDate}}</td>
@@ -404,10 +407,10 @@
                  {{end}}
                  </tr>
                  <tr>
-                 {{if lt $tip .VoteEnd}}
-                   <td class="text-end medium-sans text-nowrap pe-2 py-2">Max Remaining Votes:</td>
-                   <td class="text-start py-1 text-secondary"> {{.MaxRemainingVotes}}</td>
-                 {{end}}
+                   <td class="text-end medium-sans text-nowrap pe-2 py-2">Actual Votes:</td>
+                   <td class="text-start py-1 text-secondary"> {{.TotalVotes}} 
+                    ({{printf "%.0f" (percentage .TotalVotes .MaxVotes)}}% turnout)
+                  </td>
                    <td class="text-end medium-sans text-nowrap pe-2 py-2">Voting Period:</td>
                    <td class="text-start py-1 text-secondary">
                  {{if $votingStarted}}
@@ -416,7 +419,7 @@
                    {{.VoteStart}}
                  {{end}}
                      &ndash;
-                 {{if (ge $tip .VoteEnd)}}
+                 {{if ge $tip .VoteEnd}}
                      <a href="/block/{{.VoteEnd}}">{{.VoteEnd}}</a>
                  {{else}}
                      {{.VoteEnd}}
