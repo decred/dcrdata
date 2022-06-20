@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2021, The Decred developers
+// Copyright (c) 2018-2022, The Decred developers
 // See LICENSE for details.
 
 package dbtypes
@@ -758,6 +758,26 @@ type TreasurySpendVotes struct {
 	VoteEnd   int64  `json:"voteend"`
 	YesVotes  int64  `json:"yesvotes"`
 	NoVotes   int64  `json:"novotes"`
+}
+
+// TreasurySpendMetaData extends TreasurySpendVotes and contains some
+// status-dependent data representations for display purposes.
+type TreasurySpendMetaData struct {
+	*TreasurySpendVotes
+	PoliteiaKey       string
+	VoteEndDate       time.Time
+	VoteStartDate     time.Time
+	NextTVI           int64
+	NextTVITime       time.Time
+	Approved          bool
+	QuorumAchieved    bool
+	QuorumCount       int64
+	MaxVotes          int64
+	MaxRemainingVotes int64
+	RequiredYesVotes  int64
+	TotalVotes        int64
+	PassPercent       float32
+	Approval          float32
 }
 
 // BlockChainData defines data holding the latest block chain state from the
@@ -1845,7 +1865,7 @@ type VinTxProperty struct {
 	TxType      int16   `json:"tx_type"`
 	BlockHeight uint32  `json:"blockheight"`
 	BlockIndex  uint32  `json:"blockindex"`
-	ScriptHex   []byte  `json:"scripthex"`
+	ScriptSig   []byte  `json:"scriptSig"`
 	IsValid     bool    `json:"is_valid"`
 	IsMainchain bool    `json:"is_mainchain"`
 	Time        TimeDef `json:"time"`

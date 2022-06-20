@@ -10,6 +10,7 @@ require (
 	github.com/decred/dcrd/blockchain/stake/v4 v4.0.0
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.3
 	github.com/decred/dcrd/chaincfg/v3 v3.1.1
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1
 	github.com/decred/dcrd/dcrutil/v4 v4.0.0
 	github.com/decred/dcrd/rpc/jsonrpc/types/v3 v3.0.0
 	github.com/decred/dcrd/rpcclient/v7 v7.0.0
@@ -35,7 +36,6 @@ require (
 	github.com/decred/dcrd/database/v3 v3.0.0 // indirect
 	github.com/decred/dcrd/dcrec v1.0.1-0.20200921185235-6d75c7ec1199 // indirect
 	github.com/decred/dcrd/dcrec/edwards/v2 v2.0.2 // indirect
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/decred/dcrd/dcrjson/v4 v4.0.0 // indirect
 	github.com/decred/dcrd/gcs/v3 v3.0.0 // indirect
 	github.com/decred/go-socks v1.1.0 // indirect

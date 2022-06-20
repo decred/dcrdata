@@ -130,7 +130,7 @@ func processTransactions(msgBlock *wire.MsgBlock, tree int8, chainParams *chainc
 				Time:        blockTime,
 				BlockHeight: txin.BlockHeight,
 				BlockIndex:  txin.BlockIndex,
-				ScriptHex:   txin.SignatureScript,
+				ScriptSig:   txin.SignatureScript,
 				IsValid:     dbTx.IsValid,
 				IsMainchain: isMainchain,
 			})

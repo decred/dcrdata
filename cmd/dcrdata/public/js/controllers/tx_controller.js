@@ -2,12 +2,14 @@ import txInBlock from '../helpers/block_helper'
 import globalEventBus from '../services/event_bus_service'
 import { Controller } from '@hotwired/stimulus'
 import humanize from '../helpers/humanize_helper'
+import { MiniMeter } from '../helpers/meters.js'
+import { darkEnabled } from '../services/theme_service'
 
 export default class extends Controller {
   static get targets () {
     return ['unconfirmed', 'confirmations', 'formattedAge', 'age', 'progressBar',
       'ticketStage', 'expiryChance', 'mempoolTd', 'ticketMsg',
-      'expiryMsg', 'statusMsg', 'spendingTx']
+      'expiryMsg', 'statusMsg', 'spendingTx', 'approvalMeter']
   }
 
   connect () {
@@ -15,6 +17,19 @@ export default class extends Controller {
     this.processBlock = this._processBlock.bind(this)
     this.targetBlockTime = parseInt(document.getElementById('navBar').dataset.blocktime)
     globalEventBus.on('BLOCK_RECEIVED', this.processBlock)
+
+    // Approval meter for tspend votes.
+    if (!this.hasApprovalMeterTarget) return // there will be no meter.
+
+    const d = this.approvalMeterTarget.dataset
+    const opts = {
+      darkMode: darkEnabled(),
+      segments: [
+        { end: d.threshold, color: '#ed6d47' },
+        { end: 1, color: '#2dd8a3' }
+      ]
+    }
+    this.approvalMeter = new MiniMeter(this.approvalMeterTarget, opts)
   }
 
   disconnect () {
@@ -160,5 +175,11 @@ export default class extends Controller {
     const scriptData = target.querySelector('div.script-data')
     if (!scriptData) return
     scriptData.classList.toggle('d-hide')
+  }
+
+  _setNightMode (state) {
+    if (this.approvalMeter) {
+      this.approvalMeter.setDarkMode(state.nightMode)
+    }
   }
 }

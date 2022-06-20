@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2021, The Decred developers
+// Copyright (c) 2018-2022, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -466,6 +466,13 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			}
 			dateTime := time.Unix(int64(a), 0).UTC()
 			return dateTime.Format("2006-01-02 15:04:05 MST")
+		},
+		"formatDateTime": func(t time.Time) string {
+			d := time.Until(t)
+			if d > 0 {
+				return formattedDuration(d, shortPeriods)
+			}
+			return t.Format("2006-01-02 15:04:05 MST")
 		},
 		"dateTimeWithoutTimeZone": func(a uint64) string {
 			if a == 0 {

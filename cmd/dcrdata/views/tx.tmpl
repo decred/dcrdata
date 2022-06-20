@@ -296,6 +296,140 @@
           <span></span>{{/* dummy for flex alignment */}}
         </div>
     </div>
+
+    {{$tip := $.CommonPageData.Tip.Height}}
+    {{if $.Data.TSpendMeta}}
+    {{with $.Data.TSpendMeta}}
+    {{$votingStarted := ge $tip .VoteStart}}
+    {{$votingEnded := or .Approved (ge $tip .VoteEnd)}}
+    <div class="row pt-2 px-2">
+        <div class="col-24 col-xl-11 bg-white px-2 px-xl-5 py-3 position-relative d-flex flex-column justify-content-between align-items-start">
+                <div class="fs22">Treasury Spend Approval</div>
+                {{if not $votingStarted}}
+                  <span class="fs16 lh1rem">Voting has not started for this Treasury Spend.</span>
+                {{else if not $votingEnded}}
+                  <div>
+                    <span class="fs18 lh1rem">Voting now</span>
+                      <span class="float-right fs16">
+                      &nbsp;~&nbsp;{{formatDateTime .VoteEndDate}} remaining
+                    </span>
+                  </div>
+                {{else}}
+                  <div>
+                    <span class="fs18 lh1rem">Voting complete</span> &ndash;
+                    {{if .Approved}}
+                      <span class="text-green">Approved</span>.
+                      {{if eq $.BlockHeight 0}}
+                      <span>Next TVI: {{.NextTVI}} (~ {{formatDateTime .NextTVITime}}).</span>
+                      {{end}}
+                    {{else}}
+                      <span class="text-danger">Rejected</span>
+                    {{end}}
+                  </div>
+                {{end}}              
+
+                <div class="d-flex w-100 justify-content-start p-2 my-2 secondary-card rounded">
+                  <div class="col-auto lilbox px-2">
+                    <div
+                      class="meter text-center js-only lil arch"
+                      data-tx-target="approvalMeter"
+                      data-value="{{.Approval}}"
+                      data-threshold="{{.PassPercent}}"
+                      >
+                      {{printf "%.1f" (f32x100 .Approval)}}%
+                    </div>
+                  </div>
+                  <div class="col-auto d-flex flex-column justify-content-between ps-3">
+                    <span class="fs17 lh1em">
+                      <span class="fs22 medium-sans">{{printf "%.1f" (f32x100 .Approval)}}%</span>
+                      approval of {{intComma .TotalVotes}} votes ({{printf "%.0f" (percentage .TotalVotes (int64 .MaxVotes))}}% turnout)
+                    </span>
+                    {{if .QuorumAchieved}}
+                      <div class="d-flex align-items-center"><span class="fs20 dcricon-affirm me-2"></span>
+                      <span class="lh1em pb-1">Quorum achieved</span></div>
+                    {{else if $votingEnded}}
+                      <div class="d-flex align-items-center"><span class="fs20 dcricon-reject me-2"></span>
+                      <span class="pb-1">Quorum not achieved</span></div>
+                    {{else}}
+                       <span class="text-secondary fs13">Quorum</span>
+                       <div class="d-flex align-items-center"><span class="fs20 dcricon-missing me-2"></span>
+                       <span class="pb-1">{{.TotalVotes}} of {{.QuorumCount}} needed votes</span>
+                        </div>
+                     {{end}}
+                  </div>
+                </div>
+        </div>
+        {{- /* ADDITIONAL DATA */ -}}
+        <div class="col-24 col-xl-13 secondary-card px-3 position-relative d-flex justify-content-center align-items-center">
+            <table class="fs14 my-3 text-start d-flex">
+              <tbody>
+                 <tr>
+                    <td class="text-end medium-sans text-nowrap pe-2 py-2">Politeia Key:</td>
+                    <td colspan="3" class="text-start py-1 text-secondary break-word lh1rem">{{.PoliteiaKey}}</td>
+                 </tr>
+                {{if .TotalVotes}}
+                  {{$yesPercent := percentage .YesVotes .TotalVotes}}
+                  {{$noPercent := percentage .NoVotes .TotalVotes}}
+                 <tr>
+                   <td class="text-end medium-sans text-nowrap pe-2 py-2">Yes Votes:</td>
+                   <td class="text-start py-1 text-secondary">
+                      {{.YesVotes}} votes ({{printf "%.1f" $yesPercent}}%)
+                   </td>
+                   <td class="text-end medium-sans text-nowrap pe-2 py-2">No Votes:</td>
+                   <td class="text-start py-1 text-secondary">
+                      {{.NoVotes}} votes  ({{printf "%.1f" $noPercent}}%)
+                   </td>
+                 </tr>
+                 {{end}}
+                 <tr>
+                   <td class="text-end medium-sans text-nowrap pe-2 py-2" >Min Required Yes Votes:</td>
+                   <td class="text-start py-1 text-secondary">{{.RequiredYesVotes}} votes</td>
+                 {{if not $votingStarted}}
+                   <td class="text-end medium-sans text-nowrap pe-2 py-2">Vote Starts In:</td>
+                   <td class="text-start py-1 text-secondary"> ~ {{formatDateTime .VoteStartDate}}</td>
+                 {{else}}
+                   <td class="text-end medium-sans text-nowrap pe-2 py-2" >Vote Started:</td>
+                   <td class="text-start py-1 text-secondary"> {{formatDateTime .VoteStartDate}}</td>
+                 {{end}}
+                 </tr>
+                 <tr>
+                   <td class="text-end medium-sans text-nowrap pe-2 py-2" >Max Possible Votes:</td>
+                   <td class="text-start py-1 text-secondary">{{.MaxVotes}} votes</td>
+                 {{if lt $tip .VoteEnd}}
+                   <td class="text-end medium-sans text-nowrap pe-2 py-2" >Vote Ends In:</td>
+                   <td class="text-start py-1 text-secondary"> ~ {{formatDateTime .VoteEndDate}}</td>
+                 {{else if ge $tip .VoteEnd}}
+                   <td class="text-end medium-sans text-nowrap pe-2 py-2" >Vote Ended:</td>
+                   <td class="text-start py-1 text-secondary"> {{formatDateTime .VoteEndDate}}</td>
+                 {{end}}
+                 </tr>
+                 <tr>
+                 {{if lt $tip .VoteEnd}}
+                   <td class="text-end medium-sans text-nowrap pe-2 py-2">Max Remaining Votes:</td>
+                   <td class="text-start py-1 text-secondary"> {{.MaxRemainingVotes}}</td>
+                 {{end}}
+                   <td class="text-end medium-sans text-nowrap pe-2 py-2">Voting Period:</td>
+                   <td class="text-start py-1 text-secondary">
+                 {{if $votingStarted}}
+                   <a href="/block/{{.VoteStart}}">{{.VoteStart}}</a>
+                 {{else}}
+                   {{.VoteStart}}
+                 {{end}}
+                     &ndash;
+                 {{if (ge $tip .VoteEnd)}}
+                     <a href="/block/{{.VoteEnd}}">{{.VoteEnd}}</a>
+                 {{else}}
+                     {{.VoteEnd}}
+                 {{end}}
+                   </td>
+                 </tr>
+              </tbody>
+            </table>
+        </div>
+    </div>
+    {{end}}
+    {{end}}
+
     <div class="row mb-5">
         <div class="col-lg-12 mt-4 mb-2">
             <h5 class="pb-2">{{len .Vin}} Input{{if gt (len .Vin) 1}}s{{end}} Consumed</h5>
@@ -420,28 +554,7 @@
             </table>
         </div>
     </div>
-    {{if .TSpendTally}}
-    {{with .TSpendTally}}
-    <h4>Treasury Spend Approval</h4>
-    <div class="col mb-3">
-        <div class="row-lg-8">
-            <span class="text-secondary fs13">Current Vote interval</span>
-            <br>
-            <span class="medium-sans lh1rem d-inline-block pt-1">{{.VoteStart}} to {{.VoteEnd}}</span>
-        </div>
-        <div class="row-lg-8">
-            <span class="text-secondary fs13">Yes Votes</span>
-            <br>
-            <div class="medium-sans text-green lh1rem d-inline-block">{{.YesVotes}}</div>
-        </div>
-        <div class="row-lg-8">
-            <span class="text-secondary fs13">No Votes</span>
-            <br>
-            <div class="medium-sans text-red lh1rem d-inline-block">{{.NoVotes}}</div>
-        </div>
-    </div>
-    {{end}}
-    {{end}}
+   
     {{if .VoteInfo}}
     {{with .VoteInfo}}
     <div class="row mb-3">
@@ -502,8 +615,8 @@
     </div>
     {{end}}
     {{end}}
-{{end}}
 </div>
+{{end}}
 
 {{ template "footer" . }}
 
