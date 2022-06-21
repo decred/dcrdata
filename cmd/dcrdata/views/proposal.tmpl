@@ -10,8 +10,8 @@
             <div class="col-24 col-xl-11 bg-white px-2 px-xl-5 py-3 position-relative d-flex flex-column justify-content-between align-items-start">
               {{$status := $metadata.VoteStatusDesc}}
 
-              {{- /* INVALID AND NON-EXISTENT */ -}}
-              {{if eq $status "invalid"}}
+              {{- /* INVALID OR INELIGIBLE */ -}}
+              {{if or (eq $status "invalid") (eq $status "ineligible")}}
                 {{if .AbandonedAt}}
                   {{block "abandoned" .}}
                     <div class="fs22">{{.Name}}</div>
