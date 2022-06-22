@@ -374,7 +374,7 @@ Then edit dcrdata.conf with your dcrd RPC settings. See the output of `dcrdata
 If dcrdata has not previously been run with the PostgreSQL database backend, it
 is necessary to perform a bulk import of blockchain data and generate table
 indexes. _This will be done automatically by `dcrdata`_ on a fresh startup.
-**Do NO interrupt the initial sync or use the browser interface until it is
+**Do NOT interrupt the initial sync or use the browser interface until it is
 completed.**
 
 Note that dcrdata requires that
@@ -408,7 +408,7 @@ On subsequent launches, only blocks new to dcrdata are processed.
 ./dcrdata    # don't forget to configure dcrdata.conf in the appdata folder!
 ```
 
-**Do NO interrupt the initial sync or use the browser interface until it is
+**Do NOT interrupt the initial sync or use the browser interface until it is
 completed.** Follow the messages carefully, and if you are uncertain of the
 current sync status, check system resource utilization. Interrupting the
 initial sync can leave dcrdata and it's databases in an unrecoverable or
