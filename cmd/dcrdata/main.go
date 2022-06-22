@@ -39,11 +39,11 @@ import (
 	"github.com/decred/dcrdata/v8/semver"
 	"github.com/decred/dcrdata/v8/stakedb"
 
-	"github.com/decred/dcrdata/cmd/dcrdata/api"
-	"github.com/decred/dcrdata/cmd/dcrdata/api/insight"
-	"github.com/decred/dcrdata/cmd/dcrdata/explorer"
-	mw "github.com/decred/dcrdata/cmd/dcrdata/middleware"
-	notify "github.com/decred/dcrdata/cmd/dcrdata/notification"
+	"github.com/decred/dcrdata/cmd/dcrdata/internal/api"
+	"github.com/decred/dcrdata/cmd/dcrdata/internal/api/insight"
+	"github.com/decred/dcrdata/cmd/dcrdata/internal/explorer"
+	mw "github.com/decred/dcrdata/cmd/dcrdata/internal/middleware"
+	notify "github.com/decred/dcrdata/cmd/dcrdata/internal/notification"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"

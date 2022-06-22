@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	m "github.com/decred/dcrdata/cmd/dcrdata/middleware"
+	m "github.com/decred/dcrdata/cmd/dcrdata/internal/middleware"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rs/cors"
