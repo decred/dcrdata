@@ -234,6 +234,8 @@ github.com/decred/dcrd/txscript/v4 v4.0.0/go.mod h1:OJtxNc5RqwQyfrRnG2gG8uMeNPo8
 github.com/decred/dcrd/wire v1.4.0/go.mod h1:WxC/0K+cCAnBh+SKsRjIX9YPgvrjhmE+6pZlel1G7Ro=
 github.com/decred/dcrd/wire v1.5.0 h1:3SgcEzSjqAMQvOugP0a8iX7yQSpiVT1yNi9bc4iOXVg=
 github.com/decred/dcrd/wire v1.5.0/go.mod h1:fzAjVqw32LkbAZIt5mnrvBR751GTa3e0rRQdOIhPY3w=
+github.com/decred/dcrdata/exchanges/v3 v3.1.0 h1:owiSeR0FfKaQp6i5o5Ta3Jkxdaxdqlp1CR0j3W8hy/k=
+github.com/decred/dcrdata/exchanges/v3 v3.1.0/go.mod h1:s20kFgbqvhlEUd5nT2FWmG5D9XX0mLwCaex5JcIJlqs=
 github.com/decred/go-socks v1.1.0 h1:dnENcc0KIqQo3HSXdgboXAHgqsCIutkqq6ntQjYtm2U=
 github.com/decred/go-socks v1.1.0/go.mod h1:sDhHqkZH0X4JjSa02oYOGhcGHYp12FsY1jQ/meV8md0=
 github.com/decred/slog v1.1.0/go.mod h1:kVXlGnt6DHy2fV5OjSeuvCJ0OmlmTF6LFpEPMu/fOY0=

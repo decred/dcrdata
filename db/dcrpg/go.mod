@@ -2,8 +2,6 @@ module github.com/decred/dcrdata/db/dcrpg/v7
 
 go 1.17
 
-replace github.com/decred/dcrdata/v7 => ../../
-
 require (
 	decred.org/dcrwallet/v2 v2.0.0
 	github.com/davecgh/go-spew v1.1.1

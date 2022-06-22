@@ -2,8 +2,6 @@ module github.com/decred/dcrdata/gov/v5
 
 go 1.17
 
-replace github.com/decred/dcrdata/v7 => ../
-
 require (
 	github.com/asdine/storm/v3 v3.2.1
 	github.com/decred/dcrd/chaincfg/v3 v3.1.1

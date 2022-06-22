@@ -283,6 +283,8 @@ github.com/decred/dcrdata/db/dbtypes/v2 v2.1.4/go.mod h1:UF4KWxcCYhdXqaTwbA2Mb10
 github.com/decred/dcrdata/semver v1.0.0/go.mod h1:z+nQqiAd9fYkHhBLbejysZ2FPHtgkrErWDgMf+JlZWE=
 github.com/decred/dcrdata/txhelpers/v3 v3.0.4/go.mod h1:tKEDhoO+TbYrFrx+5qKZDxcla8ELQFYs4f5+8gL4cuY=
 github.com/decred/dcrdata/v6 v6.0.0-20210510222533-6a2ca18d4382/go.mod h1:CWT5trkQ+8KUSBeyuI5/V1TQMleYyCh1vo/Ry6PiFWU=
+github.com/decred/dcrdata/v7 v7.0.0 h1:seQUfJWV1n7Hvmp7LgJzrRFOY9K+0c6z9zl5k2uwJlQ=
+github.com/decred/dcrdata/v7 v7.0.0/go.mod h1:2o/PComCLw7EVP6YwcwKsxVpqianLPt/qG2GNMYFwZY=
 github.com/decred/dcrtime v0.0.0-20191018193024-8d8b4ef0458e h1:sNDR7vx6gaA3WD+WoEofTvtdjfwHAiogtjB3kt8iFco=
 github.com/decred/dcrtime v0.0.0-20191018193024-8d8b4ef0458e/go.mod h1:IyZnyBE3E6RBFsEjwEs21FrO/UsrLrL15hUnpZZQxpU=
 github.com/decred/dcrtime/api/v2 v2.0.0-20200912200806-b1e4dbc46be9/go.mod h1:JdIX208vnNj4TdU6hDRaN+ccxmxp1I1R6sWGZNK1BAQ=

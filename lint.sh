@@ -56,13 +56,13 @@ for MODPATH in $MODPATHS; do
     pushd "$module" > /dev/null
     echo "Linting: $MODPATH"
     superlint
-    if [[ "$GV" =~ ^1.17 ]]; then
+    if [[ "$GV" =~ ^1.18 ]]; then
 		MOD_STATUS=$(git status --porcelain go.mod go.sum)
 		go mod tidy
 		UPDATED_MOD_STATUS=$(git status --porcelain go.mod go.sum)
 		if [ "$UPDATED_MOD_STATUS" != "$MOD_STATUS" ]; then
 			echo "$module: running 'go mod tidy' modified go.mod and/or go.sum"
-		git diff --unified=0 go.mod go.sum
+		    git diff --unified=0 go.mod go.sum
 			exit 1
 		fi
 	fi
