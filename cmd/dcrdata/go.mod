@@ -2,11 +2,6 @@ module github.com/decred/dcrdata/cmd/dcrdata
 
 go 1.17
 
-replace (
-	github.com/decred/dcrdata/db/dcrpg/v7 => ../../db/dcrpg/
-	github.com/decred/dcrdata/gov/v5 => ../../gov/
-)
-
 require (
 	github.com/caarlos0/env/v6 v6.6.2
 	github.com/decred/dcrd/blockchain/stake/v4 v4.0.0

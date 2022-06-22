@@ -48,6 +48,8 @@ github.com/decred/dcrd/rpcclient/v7 v7.0.0/go.mod h1:k4UDXFt0iwTRhKzdMGJbz/0wD/1
 github.com/decred/dcrd/txscript/v4 v4.0.0/go.mod h1:OJtxNc5RqwQyfrRnG2gG8uMeNPo8IAJp+TD1UKXkqk8=
 github.com/decred/dcrd/wire v1.4.0/go.mod h1:WxC/0K+cCAnBh+SKsRjIX9YPgvrjhmE+6pZlel1G7Ro=
 github.com/decred/dcrd/wire v1.5.0/go.mod h1:fzAjVqw32LkbAZIt5mnrvBR751GTa3e0rRQdOIhPY3w=
+github.com/decred/dcrdata/v7 v7.0.0 h1:seQUfJWV1n7Hvmp7LgJzrRFOY9K+0c6z9zl5k2uwJlQ=
+github.com/decred/dcrdata/v7 v7.0.0/go.mod h1:2o/PComCLw7EVP6YwcwKsxVpqianLPt/qG2GNMYFwZY=
 github.com/decred/go-socks v1.1.0/go.mod h1:sDhHqkZH0X4JjSa02oYOGhcGHYp12FsY1jQ/meV8md0=
 github.com/decred/slog v1.2.0/go.mod h1:kVXlGnt6DHy2fV5OjSeuvCJ0OmlmTF6LFpEPMu/fOY0=
 github.com/dgraph-io/badger v1.6.2/go.mod h1:JW2yswe3V058sS0kZ2h/AXeDSqFjxnZcRrVH//y2UQE=
