@@ -3,7 +3,7 @@ module github.com/decred/dcrdata/cmd/swapscan-btc
 go 1.17
 
 require (
-	github.com/btcsuite/btcd v0.22.0-beta.0.20220316175102-8d5c75c28923
+	github.com/btcsuite/btcd v0.23.1
 	github.com/btcsuite/btcd/btcutil v1.1.1
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1
 )
@@ -16,4 +16,5 @@ require (
 	github.com/decred/dcrd/crypto/blake256 v1.0.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
+	golang.org/x/sys v0.0.0-20200814200057-3d37ad5750ed // indirect
 )
