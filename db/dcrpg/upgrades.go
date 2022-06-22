@@ -14,9 +14,9 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/db/dcrpg/v7/internal"
-	"github.com/decred/dcrdata/v7/stakedb"
-	"github.com/decred/dcrdata/v7/txhelpers"
+	"github.com/decred/dcrdata/db/dcrpg/v8/internal"
+	"github.com/decred/dcrdata/v8/stakedb"
+	"github.com/decred/dcrdata/v8/txhelpers"
 	"github.com/lib/pq"
 )
 

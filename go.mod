@@ -1,4 +1,4 @@
-module github.com/decred/dcrdata/v7
+module github.com/decred/dcrdata/v8
 
 go 1.17
 

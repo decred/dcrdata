@@ -20,8 +20,8 @@ import (
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 
-	"github.com/decred/dcrdata/v7/semver"
-	"github.com/decred/dcrdata/v7/txhelpers"
+	"github.com/decred/dcrdata/v8/semver"
+	"github.com/decred/dcrdata/v8/txhelpers"
 )
 
 type MempoolGetter interface {

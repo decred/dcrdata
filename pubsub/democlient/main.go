@@ -15,10 +15,10 @@ import (
 	"github.com/decred/slog"
 	survey "gopkg.in/AlecAivazis/survey.v1"
 
-	exptypes "github.com/decred/dcrdata/v7/explorer/types"
-	"github.com/decred/dcrdata/v7/pubsub/psclient"
-	pstypes "github.com/decred/dcrdata/v7/pubsub/types"
-	"github.com/decred/dcrdata/v7/semver"
+	exptypes "github.com/decred/dcrdata/v8/explorer/types"
+	"github.com/decred/dcrdata/v8/pubsub/psclient"
+	pstypes "github.com/decred/dcrdata/v8/pubsub/types"
+	"github.com/decred/dcrdata/v8/semver"
 )
 
 var cfg *config

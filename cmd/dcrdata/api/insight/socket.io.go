@@ -22,8 +22,8 @@ import (
 	"github.com/googollee/go-socket.io/engineio/transport"
 	"github.com/googollee/go-socket.io/engineio/transport/websocket"
 
-	"github.com/decred/dcrdata/v7/blockdata"
-	"github.com/decred/dcrdata/v7/txhelpers"
+	"github.com/decred/dcrdata/v8/blockdata"
+	"github.com/decred/dcrdata/v8/txhelpers"
 )
 
 const maxAddressSubsPerConn uint32 = 32768

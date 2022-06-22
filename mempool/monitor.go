@@ -16,9 +16,9 @@ import (
 	"github.com/decred/dcrd/chaincfg/v3"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
 
-	exptypes "github.com/decred/dcrdata/v7/explorer/types"
-	pstypes "github.com/decred/dcrdata/v7/pubsub/types"
-	"github.com/decred/dcrdata/v7/txhelpers"
+	exptypes "github.com/decred/dcrdata/v8/explorer/types"
+	pstypes "github.com/decred/dcrdata/v8/pubsub/types"
+	"github.com/decred/dcrdata/v8/txhelpers"
 )
 
 // MempoolDataSaver is an interface for storing mempool data.

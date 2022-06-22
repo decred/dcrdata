@@ -16,8 +16,8 @@ import (
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/rpcclient/v7"
 
-	"github.com/decred/dcrdata/v7/rpcutils"
-	"github.com/decred/dcrdata/v7/txhelpers"
+	"github.com/decred/dcrdata/v8/rpcutils"
+	"github.com/decred/dcrdata/v8/txhelpers"
 	"github.com/decred/slog"
 )
 
