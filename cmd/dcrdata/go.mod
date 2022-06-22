@@ -39,7 +39,7 @@ require (
 )
 
 require (
-	decred.org/dcrdex v0.4.0 // indirect
+	decred.org/dcrdex v0.4.3 // indirect
 	decred.org/dcrwallet v1.7.0 // indirect
 	decred.org/dcrwallet/v2 v2.0.0 // indirect
 	github.com/AndreasBriese/bbloom v0.0.0-20190825152654-46b345b51c96 // indirect
@@ -85,7 +85,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/robertkrimen/otto v0.0.0-20180617131154-15f95af6e78d // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
-	go.etcd.io/bbolt v1.3.5 // indirect
+	go.etcd.io/bbolt v1.3.7-0.20220130032806-d5db64bdbfde // indirect
 	golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97 // indirect
 	golang.org/x/sys v0.0.0-20210902050250-f475640dd07b // indirect
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba // indirect

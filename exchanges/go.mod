@@ -3,7 +3,7 @@ module github.com/decred/dcrdata/exchanges/v3
 go 1.17
 
 require (
-	decred.org/dcrdex v0.4.0
+	decred.org/dcrdex v0.4.3
 	github.com/carterjones/signalr v0.3.5
 	github.com/decred/dcrd/dcrutil/v4 v4.0.0
 	github.com/decred/slog v1.2.0
@@ -15,6 +15,8 @@ require (
 require (
 	decred.org/dcrwallet/v2 v2.0.0 // indirect
 	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412 // indirect
+	github.com/btcsuite/btcd v0.22.1 // indirect
+	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1 // indirect
 	github.com/carterjones/go-cloudflare-scraper v0.1.2 // indirect
 	github.com/dchest/siphash v1.2.2 // indirect
 	github.com/decred/base58 v1.0.3 // indirect
@@ -33,7 +35,7 @@ require (
 	github.com/lib/pq v1.10.3 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/robertkrimen/otto v0.0.0-20180617131154-15f95af6e78d // indirect
-	go.etcd.io/bbolt v1.3.5 // indirect
+	go.etcd.io/bbolt v1.3.7-0.20220130032806-d5db64bdbfde // indirect
 	golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97 // indirect
 	golang.org/x/net v0.0.0-20210903162142-ad29c8ab022f // indirect
 	golang.org/x/sys v0.0.0-20210902050250-f475640dd07b // indirect
