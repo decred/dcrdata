@@ -63,16 +63,6 @@ const (
 		WHERE  tx_hash = $1 AND block_hash = $2 -- only executed if no INSERT
 		LIMIT  1;`
 
-	// DeleteTicketsDuplicateRows removes rows that would violate the unique
-	// index uix_ticket_hashes_index. This should be run prior to creating the
-	// index.
-	DeleteTicketsDuplicateRows = `DELETE FROM tickets
-		WHERE id IN (SELECT id FROM (
-				SELECT id, ROW_NUMBER()
-				OVER (partition BY tx_hash, block_hash ORDER BY id) AS rnum
-				FROM tickets) t
-			WHERE t.rnum > 1);`
-
 	// Indexes
 
 	// IndexTicketsTableOnHashes creates the unique index
@@ -222,15 +212,6 @@ const (
 		WHERE  tx_hash = $2 AND block_hash = $3 -- only executed if no INSERT
 		LIMIT  1;`
 
-	// DeleteVotesDuplicateRows removes rows that would violate the unique index
-	// uix_votes_hashes_index. This should be run prior to creating the index.
-	DeleteVotesDuplicateRows = `DELETE FROM votes
-		WHERE id IN (SELECT id FROM (
-				SELECT id, ROW_NUMBER()
-				OVER (partition BY tx_hash, block_hash ORDER BY id) AS rnum
-				FROM votes) t
-			WHERE t.rnum > 1);`
-
 	// Indexes
 
 	// IndexVotesTableOnHashes creates the unique index uix_votes_hashes_index
@@ -315,16 +296,6 @@ const (
 		SELECT id FROM misses
 		WHERE  block_hash = $2 AND ticket_hash = $4 -- only executed if no INSERT
 		LIMIT  1;`
-
-	// DeleteMissesDuplicateRows removes rows that would violate the unique
-	// index uix_misses_hashes_index. This should be run prior to creating the
-	// index.
-	DeleteMissesDuplicateRows = `DELETE FROM misses
-		WHERE id IN (SELECT id FROM (
-				SELECT id, ROW_NUMBER()
-				OVER (partition BY ticket_hash, block_hash ORDER BY id) AS rnum
-				FROM misses) t
-			WHERE t.rnum > 1);`
 
 	// IndexMissesTableOnHashes creates the unique index uix_misses_hashes_index
 	// on (ticket_hash, block_hash).

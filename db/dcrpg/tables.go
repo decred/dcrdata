@@ -196,69 +196,9 @@ func CheckColumnDataType(db *sql.DB, table, column string) (dataType string, err
 	return
 }
 
-// DeleteDuplicates attempts to delete "duplicate" rows in tables where unique
-// indexes are to be created.
+// DeleteDuplicates attempts to delete "duplicate" rows in tables
+// where unique indexes are to be created.
 func (pgb *ChainDB) DeleteDuplicates(barLoad chan *dbtypes.ProgressBarLoad) error {
-	var allDuplicates []dropDuplicatesInfo
-	if pgb.cockroach {
-		allDuplicates = append(allDuplicates,
-			// Remove duplicate vins
-			dropDuplicatesInfo{TableName: "vins", DropDupsFunc: pgb.DeleteDuplicateVinsCockroach},
-
-			// Remove duplicate vouts
-			dropDuplicatesInfo{TableName: "vouts", DropDupsFunc: pgb.DeleteDuplicateVoutsCockroach},
-		)
-	} else {
-		allDuplicates = append(allDuplicates,
-			// Remove duplicate vins
-			dropDuplicatesInfo{TableName: "vins", DropDupsFunc: pgb.DeleteDuplicateVins},
-
-			// Remove duplicate vouts
-			dropDuplicatesInfo{TableName: "vouts", DropDupsFunc: pgb.DeleteDuplicateVouts},
-		)
-	}
-
-	allDuplicates = append(allDuplicates,
-		// Remove duplicate transactions
-		dropDuplicatesInfo{TableName: "transactions", DropDupsFunc: pgb.DeleteDuplicateTxns},
-
-		// Remove duplicate agendas
-		dropDuplicatesInfo{TableName: "agendas", DropDupsFunc: pgb.DeleteDuplicateAgendas},
-
-		// Remove duplicate agenda_votes
-		dropDuplicatesInfo{TableName: "agenda_votes", DropDupsFunc: pgb.DeleteDuplicateAgendaVotes},
-	)
-
-	var err error
-	for _, val := range allDuplicates {
-		msg := fmt.Sprintf("Finding and removing duplicate %s entries...", val.TableName)
-		if barLoad != nil {
-			barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: msg}
-		}
-		log.Info(msg)
-
-		var numRemoved int64
-		if numRemoved, err = val.DropDupsFunc(); err != nil {
-			return fmt.Errorf("delete %s duplicate failed: %v", val.TableName, err)
-		}
-
-		msg = fmt.Sprintf("Removed %d duplicate %s entries.", numRemoved, val.TableName)
-		if barLoad != nil {
-			barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: msg}
-		}
-		log.Info(msg)
-	}
-	// Signal task is done
-	if barLoad != nil {
-		barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: " "}
-	}
-	return nil
-}
-
-// DeleteDuplicatesRecovery attempts to delete "duplicate" rows in all tables
-// where unique indexes are to be created.  This is like DeleteDuplicates, but
-// it also includes transactions, tickets, votes, and misses.
-func (pgb *ChainDB) DeleteDuplicatesRecovery(barLoad chan *dbtypes.ProgressBarLoad) error {
 	allDuplicates := []dropDuplicatesInfo{
 		// Remove duplicate vins
 		{TableName: "vins", DropDupsFunc: pgb.DeleteDuplicateVins},
@@ -268,15 +208,6 @@ func (pgb *ChainDB) DeleteDuplicatesRecovery(barLoad chan *dbtypes.ProgressBarLo
 
 		// Remove duplicate transactions
 		{TableName: "transactions", DropDupsFunc: pgb.DeleteDuplicateTxns},
-
-		// Remove duplicate tickets
-		{TableName: "tickets", DropDupsFunc: pgb.DeleteDuplicateTickets},
-
-		// Remove duplicate votes
-		{TableName: "votes", DropDupsFunc: pgb.DeleteDuplicateVotes},
-
-		// Remove duplicate misses
-		{TableName: "misses", DropDupsFunc: pgb.DeleteDuplicateMisses},
 
 		// Remove duplicate agendas
 		{TableName: "agendas", DropDupsFunc: pgb.DeleteDuplicateAgendas},
