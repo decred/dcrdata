@@ -31,7 +31,7 @@ import (
 	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
 
-	m "github.com/decred/dcrdata/cmd/dcrdata/middleware"
+	m "github.com/decred/dcrdata/cmd/dcrdata/internal/middleware"
 	"github.com/decred/dcrdata/exchanges/v3"
 	"github.com/decred/dcrdata/gov/v6/agendas"
 	"github.com/decred/dcrdata/gov/v6/politeia"

@@ -24,7 +24,8 @@ import (
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
 	"github.com/decred/dcrd/rpcclient/v7"
 
-	m "github.com/decred/dcrdata/cmd/dcrdata/middleware"
+	m "github.com/decred/dcrdata/cmd/dcrdata/internal/middleware"
+
 	apitypes "github.com/decred/dcrdata/v8/api/types"
 	"github.com/decred/dcrdata/v8/db/dbtypes"
 	"github.com/decred/dcrdata/v8/txhelpers"

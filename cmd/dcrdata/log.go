@@ -13,11 +13,11 @@ import (
 	"github.com/decred/slog"
 	"github.com/jrick/logrotate/rotator"
 
-	"github.com/decred/dcrdata/cmd/dcrdata/api"
-	"github.com/decred/dcrdata/cmd/dcrdata/api/insight"
-	"github.com/decred/dcrdata/cmd/dcrdata/explorer"
-	"github.com/decred/dcrdata/cmd/dcrdata/middleware"
-	notify "github.com/decred/dcrdata/cmd/dcrdata/notification"
+	"github.com/decred/dcrdata/cmd/dcrdata/internal/api"
+	"github.com/decred/dcrdata/cmd/dcrdata/internal/api/insight"
+	"github.com/decred/dcrdata/cmd/dcrdata/internal/explorer"
+	"github.com/decred/dcrdata/cmd/dcrdata/internal/middleware"
+	notify "github.com/decred/dcrdata/cmd/dcrdata/internal/notification"
 
 	"github.com/decred/dcrdata/db/dcrpg/v8"
 	"github.com/decred/dcrdata/exchanges/v3"

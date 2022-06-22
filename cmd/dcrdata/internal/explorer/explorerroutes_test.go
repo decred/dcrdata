@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	viewsPath = "../views"
+	viewsPath = "../../views"
 )
 
 // ChainDBStub satisfies explorerDataSource, but will likely panic with a nil
