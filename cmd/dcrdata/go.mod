@@ -49,7 +49,7 @@ require (
 	github.com/carterjones/signalr v0.3.5 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/dchest/siphash v1.2.2 // indirect
-	github.com/decred/base58 v1.0.3 // indirect
+	github.com/decred/base58 v1.0.4 // indirect
 	github.com/decred/dcrd/blockchain/stake/v3 v3.0.0 // indirect
 	github.com/decred/dcrd/blockchain/standalone/v2 v2.1.0 // indirect
 	github.com/decred/dcrd/certgen v1.1.1 // indirect
