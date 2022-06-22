@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/decred/dcrdata/v7/db/dbtypes"
+	"github.com/decred/dcrdata/v8/db/dbtypes"
 	"github.com/go-chi/chi/v5"
 )
 

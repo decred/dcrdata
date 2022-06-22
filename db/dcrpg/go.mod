@@ -1,8 +1,8 @@
-module github.com/decred/dcrdata/db/dcrpg/v7
+module github.com/decred/dcrdata/db/dcrpg/v8
 
 go 1.17
 
-replace github.com/decred/dcrdata/v7 => ../../
+replace github.com/decred/dcrdata/v8 => ../../
 
 require (
 	decred.org/dcrwallet/v2 v2.0.0
@@ -15,7 +15,7 @@ require (
 	github.com/decred/dcrd/rpcclient/v7 v7.0.0
 	github.com/decred/dcrd/txscript/v4 v4.0.0
 	github.com/decred/dcrd/wire v1.5.0
-	github.com/decred/dcrdata/v7 v7.0.0
+	github.com/decred/dcrdata/v8 v8.0.0
 	github.com/decred/slog v1.2.0
 	github.com/dustin/go-humanize v1.0.1-0.20210705192016-249ff6c91207
 	github.com/jessevdk/go-flags v1.4.1-0.20200711081900-c17162fe8fd7

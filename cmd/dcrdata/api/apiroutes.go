@@ -33,12 +33,12 @@ import (
 
 	m "github.com/decred/dcrdata/cmd/dcrdata/middleware"
 	"github.com/decred/dcrdata/exchanges/v3"
-	"github.com/decred/dcrdata/gov/v5/agendas"
-	"github.com/decred/dcrdata/gov/v5/politeia"
-	apitypes "github.com/decred/dcrdata/v7/api/types"
-	"github.com/decred/dcrdata/v7/db/cache"
-	"github.com/decred/dcrdata/v7/db/dbtypes"
-	"github.com/decred/dcrdata/v7/txhelpers"
+	"github.com/decred/dcrdata/gov/v6/agendas"
+	"github.com/decred/dcrdata/gov/v6/politeia"
+	apitypes "github.com/decred/dcrdata/v8/api/types"
+	"github.com/decred/dcrdata/v8/db/cache"
+	"github.com/decred/dcrdata/v8/db/dbtypes"
+	"github.com/decred/dcrdata/v8/txhelpers"
 )
 
 // maxBlockRangeCount is the maximum number of blocks that can be requested at

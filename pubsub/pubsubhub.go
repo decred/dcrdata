@@ -19,13 +19,13 @@ import (
 	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
 
-	"github.com/decred/dcrdata/v7/blockdata"
-	"github.com/decred/dcrdata/v7/db/dbtypes"
-	exptypes "github.com/decred/dcrdata/v7/explorer/types"
-	"github.com/decred/dcrdata/v7/mempool"
-	pstypes "github.com/decred/dcrdata/v7/pubsub/types"
-	"github.com/decred/dcrdata/v7/semver"
-	"github.com/decred/dcrdata/v7/txhelpers"
+	"github.com/decred/dcrdata/v8/blockdata"
+	"github.com/decred/dcrdata/v8/db/dbtypes"
+	exptypes "github.com/decred/dcrdata/v8/explorer/types"
+	"github.com/decred/dcrdata/v8/mempool"
+	pstypes "github.com/decred/dcrdata/v8/pubsub/types"
+	"github.com/decred/dcrdata/v8/semver"
+	"github.com/decred/dcrdata/v8/txhelpers"
 	"golang.org/x/net/websocket"
 )
 

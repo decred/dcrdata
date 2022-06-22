@@ -22,11 +22,11 @@ import (
 	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
 
-	"github.com/decred/dcrdata/db/dcrpg/v7/internal"
-	apitypes "github.com/decred/dcrdata/v7/api/types"
-	"github.com/decred/dcrdata/v7/db/cache"
-	"github.com/decred/dcrdata/v7/db/dbtypes"
-	"github.com/decred/dcrdata/v7/txhelpers"
+	"github.com/decred/dcrdata/db/dcrpg/v8/internal"
+	apitypes "github.com/decred/dcrdata/v8/api/types"
+	"github.com/decred/dcrdata/v8/db/cache"
+	"github.com/decred/dcrdata/v8/db/dbtypes"
+	"github.com/decred/dcrdata/v8/txhelpers"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/lib/pq"
 )

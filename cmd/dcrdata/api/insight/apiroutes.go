@@ -25,9 +25,9 @@ import (
 	"github.com/decred/dcrd/rpcclient/v7"
 
 	m "github.com/decred/dcrdata/cmd/dcrdata/middleware"
-	apitypes "github.com/decred/dcrdata/v7/api/types"
-	"github.com/decred/dcrdata/v7/db/dbtypes"
-	"github.com/decred/dcrdata/v7/txhelpers"
+	apitypes "github.com/decred/dcrdata/v8/api/types"
+	"github.com/decred/dcrdata/v8/db/dbtypes"
+	"github.com/decred/dcrdata/v8/txhelpers"
 )
 
 type BlockDataSource interface {

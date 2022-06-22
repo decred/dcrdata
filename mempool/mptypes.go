@@ -8,7 +8,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
-	apitypes "github.com/decred/dcrdata/v7/api/types"
+	apitypes "github.com/decred/dcrdata/v8/api/types"
 )
 
 // MempoolInfo models basic data about the node's mempool

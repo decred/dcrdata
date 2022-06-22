@@ -7,7 +7,7 @@ package types
 import (
 	"encoding/json"
 
-	"github.com/decred/dcrdata/v7/db/dbtypes"
+	"github.com/decred/dcrdata/v8/db/dbtypes"
 )
 
 // SyncResponse contains sync status information.

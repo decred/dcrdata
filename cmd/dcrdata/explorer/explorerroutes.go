@@ -29,11 +29,11 @@ import (
 	"github.com/decred/dcrd/wire"
 
 	"github.com/decred/dcrdata/exchanges/v3"
-	"github.com/decred/dcrdata/gov/v5/agendas"
-	pitypes "github.com/decred/dcrdata/gov/v5/politeia/types"
-	"github.com/decred/dcrdata/v7/db/dbtypes"
-	"github.com/decred/dcrdata/v7/explorer/types"
-	"github.com/decred/dcrdata/v7/txhelpers"
+	"github.com/decred/dcrdata/gov/v6/agendas"
+	pitypes "github.com/decred/dcrdata/gov/v6/politeia/types"
+	"github.com/decred/dcrdata/v8/db/dbtypes"
+	"github.com/decred/dcrdata/v8/explorer/types"
+	"github.com/decred/dcrdata/v8/txhelpers"
 	ticketvotev1 "github.com/decred/politeia/politeiawww/api/ticketvote/v1"
 
 	humanize "github.com/dustin/go-humanize"

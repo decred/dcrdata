@@ -17,9 +17,9 @@ import (
 	"github.com/decred/dcrd/dcrutil/v4"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
 
-	apitypes "github.com/decred/dcrdata/v7/api/types"
-	exptypes "github.com/decred/dcrdata/v7/explorer/types"
-	"github.com/decred/dcrdata/v7/txhelpers"
+	apitypes "github.com/decred/dcrdata/v8/api/types"
+	exptypes "github.com/decred/dcrdata/v8/explorer/types"
+	"github.com/decred/dcrdata/v8/txhelpers"
 )
 
 // NodeClient is similar to a rpcclient.Client, except for the addition of

@@ -19,16 +19,16 @@ import (
 	"github.com/decred/dcrdata/cmd/dcrdata/middleware"
 	notify "github.com/decred/dcrdata/cmd/dcrdata/notification"
 
-	"github.com/decred/dcrdata/db/dcrpg/v7"
+	"github.com/decred/dcrdata/db/dcrpg/v8"
 	"github.com/decred/dcrdata/exchanges/v3"
-	"github.com/decred/dcrdata/gov/v5/agendas"
-	"github.com/decred/dcrdata/gov/v5/politeia"
+	"github.com/decred/dcrdata/gov/v6/agendas"
+	"github.com/decred/dcrdata/gov/v6/politeia"
 
-	"github.com/decred/dcrdata/v7/blockdata"
-	"github.com/decred/dcrdata/v7/mempool"
-	"github.com/decred/dcrdata/v7/pubsub"
-	"github.com/decred/dcrdata/v7/rpcutils"
-	"github.com/decred/dcrdata/v7/stakedb"
+	"github.com/decred/dcrdata/v8/blockdata"
+	"github.com/decred/dcrdata/v8/mempool"
+	"github.com/decred/dcrdata/v8/pubsub"
+	"github.com/decred/dcrdata/v8/rpcutils"
+	"github.com/decred/dcrdata/v8/stakedb"
 )
 
 // logWriter implements an io.Writer that outputs to both standard output and

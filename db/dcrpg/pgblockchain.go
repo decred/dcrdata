@@ -30,17 +30,17 @@ import (
 	humanize "github.com/dustin/go-humanize"
 	"github.com/lib/pq"
 
-	"github.com/decred/dcrdata/db/dcrpg/v7/internal"
-	apitypes "github.com/decred/dcrdata/v7/api/types"
-	"github.com/decred/dcrdata/v7/blockdata"
-	"github.com/decred/dcrdata/v7/db/cache"
-	"github.com/decred/dcrdata/v7/db/dbtypes"
-	exptypes "github.com/decred/dcrdata/v7/explorer/types"
-	"github.com/decred/dcrdata/v7/mempool"
-	"github.com/decred/dcrdata/v7/rpcutils"
-	"github.com/decred/dcrdata/v7/stakedb"
-	"github.com/decred/dcrdata/v7/trylock"
-	"github.com/decred/dcrdata/v7/txhelpers"
+	"github.com/decred/dcrdata/db/dcrpg/v8/internal"
+	apitypes "github.com/decred/dcrdata/v8/api/types"
+	"github.com/decred/dcrdata/v8/blockdata"
+	"github.com/decred/dcrdata/v8/db/cache"
+	"github.com/decred/dcrdata/v8/db/dbtypes"
+	exptypes "github.com/decred/dcrdata/v8/explorer/types"
+	"github.com/decred/dcrdata/v8/mempool"
+	"github.com/decred/dcrdata/v8/rpcutils"
+	"github.com/decred/dcrdata/v8/stakedb"
+	"github.com/decred/dcrdata/v8/trylock"
+	"github.com/decred/dcrdata/v8/txhelpers"
 )
 
 var (

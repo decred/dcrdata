@@ -8,7 +8,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/v7/txhelpers"
+	"github.com/decred/dcrdata/v8/txhelpers"
 )
 
 // DevSubsidyAddress returns the development subsidy address for the specified

@@ -18,8 +18,8 @@ import (
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4/stdscript"
 
-	"github.com/decred/dcrdata/v7/db/dbtypes/internal"
-	"github.com/decred/dcrdata/v7/txhelpers"
+	"github.com/decred/dcrdata/v8/db/dbtypes/internal"
+	"github.com/decred/dcrdata/v8/txhelpers"
 )
 
 var scriptClassNames map[string]ScriptClass
