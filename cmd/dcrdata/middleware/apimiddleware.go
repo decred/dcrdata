@@ -114,6 +114,17 @@ func Tollbooth(l *Limiter) func(http.Handler) http.Handler {
 	}
 }
 
+// RequestBodyLimiter creates a middleware that wraps the request body using
+// MaxBytesReader for a certain number of bytes.
+func RequestBodyLimiter(lim int64) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.Body = http.MaxBytesReader(w, r.Body, lim)
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 // GetBlockStepCtx retrieves the ctxBlockStep data from the request context. If
 // not set, the return value is -1.
 func GetBlockStepCtx(r *http.Request) int {

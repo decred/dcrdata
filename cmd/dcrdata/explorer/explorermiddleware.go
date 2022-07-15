@@ -39,7 +39,7 @@ var (
 
 // ProxyHeaders should only be used when behind a trusted proxy, not with direct
 // client connections. This sets Request.URL.Scheme from X-Forwarded-Proto, then
-// X-Forwarded-Scheme, and falls back to the scheme impled by the Request.TLS
+// X-Forwarded-Scheme, and falls back to the scheme implied by the Request.TLS
 // field. This also sets Request.Host if X-Forwarded-Host was set, but
 // Request.Host is usually already preserved by well-configured reverse proxies.
 func ProxyHeaders(next http.Handler) http.Handler {

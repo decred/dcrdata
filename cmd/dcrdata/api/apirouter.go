@@ -333,5 +333,6 @@ func stackedMux(useRealIP bool) *chi.Mux {
 	corsMW := cors.Default()
 	corsMW.Log = loggerFunc(apiLog.Tracef)
 	mux.Use(corsMW.Handler)
+	mux.Use(m.RequestBodyLimiter(1 << 21)) // 2 MiB, down from 10 MiB default
 	return mux
 }
