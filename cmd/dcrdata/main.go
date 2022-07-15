@@ -680,7 +680,8 @@ func _main(ctx context.Context) error {
 	}
 
 	webMux.Use(middleware.Recoverer)
-	if cfg.TrustProxy { // try to determine actual request scheme and host from x-forwarded-{proto,host} headers
+	webMux.Use(mw.RequestBodyLimiter(1 << 21)) // 2 MiB, down from 10 MiB default
+	if cfg.TrustProxy {                        // try to determine actual request scheme and host from x-forwarded-{proto,host} headers
 		webMux.Use(explorer.ProxyHeaders)
 	}
 	webMux.With(explore.SyncStatusPageIntercept).Group(func(r chi.Router) {
