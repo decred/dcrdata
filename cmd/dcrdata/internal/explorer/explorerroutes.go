@@ -2844,7 +2844,13 @@ func (exp *explorerUI) VerifyMessageHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	if err := dcrutil.VerifyMessage(address, signature, message, exp.ChainParams); err != nil {
-		displayPage("", false)
+		if strings.Contains(err.Error(), "message not signed by address") {
+			displayPage("", false)
+		} else if strings.Contains(err.Error(), "malformed base64 encoding") {
+			displayPage("invalid signature encoding", false)
+		} else {
+			displayPage(err.Error(), false)
+		}
 		return
 	}
 	displayPage("", true)
