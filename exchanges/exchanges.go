@@ -10,6 +10,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -648,6 +649,10 @@ func (xc *CommonExchange) startWebsocket() {
 // connections, use xc.sr.Send directly.
 func (xc *CommonExchange) wsSend(msg interface{}) error {
 	ws, _ := xc.websocket()
+	if ws == nil {
+		// TODO: figure out why we are sending in this state
+		return errors.New("no connection")
+	}
 	return ws.Write(msg)
 }
 
@@ -1046,15 +1051,17 @@ type BinancePriceResponse struct {
 // API. Binance has a response with mixed-type arrays, so type-checking is
 // appropriate. Sample response is
 // [
-//   [
-//     1499040000000,      // Open time
-//     "0.01634790",       // Open
-//     "0.80000000",       // High
-//     "0.01575800",       // Low
-//     "0.01577100",       // Close
-//     "148976.11427815",  // Volume
-//     ...
-//   ]
+//
+//	[
+//	  1499040000000,      // Open time
+//	  "0.01634790",       // Open
+//	  "0.80000000",       // High
+//	  "0.01575800",       // Low
+//	  "0.01577100",       // Close
+//	  "148976.11427815",  // Volume
+//	  ...
+//	]
+//
 // ]
 type BinanceCandlestickResponse [][]interface{}
 
