@@ -155,7 +155,7 @@ var explorerLinks = &links{
 	CoinbaseComment: "https://github.com/decred/dcrd/blob/2a18beb4d56fe59d614a7309308d84891a0cba96/chaincfg/genesis.go#L17-L53",
 	POSExplanation:  "https://docs.decred.org/proof-of-stake/overview/",
 	APIDocs:         "https://github.com/decred/dcrdata#apis",
-	InsightAPIDocs:  "https://github.com/decred/dcrdata/blob/master/api/Insight_API_documentation.md",
+	InsightAPIDocs:  "https://github.com/decred/dcrdata/blob/master/docs/Insight_API_documentation.md",
 	Github:          "https://github.com/decred/dcrdata",
 	License:         "https://github.com/decred/dcrdata/blob/master/LICENSE",
 	NetParams:       "https://github.com/decred/dcrd/blob/master/chaincfg/params.go",
