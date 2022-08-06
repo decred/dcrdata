@@ -1704,7 +1704,7 @@ func (exp *explorerUI) TreasuryTable(w http.ResponseWriter, r *http.Request) {
 		HTML     string       `json:"html"`
 		Pages    []pageNumber `json:"pages"`
 	}{
-		TxnCount: bal.TxCount, // + addrData.ImmatureCount,
+		TxnCount: treasuryTypeCount(bal, txType),
 		Pages:    calcPages(int(treasuryTypeCount(bal, txType)), int(limitN), int(offset), linkTemplate),
 	}
 
