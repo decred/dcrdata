@@ -853,6 +853,11 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	// If dcrd has no information about the transaction, pull the transaction
 	// details from the auxiliary DB database.
 	if tx == nil {
+		exp.StatusPage(w, defaultErrorCode, "could not find that transaction",
+			"", ExpStatusNotFound)
+		return
+
+		//nolint:govet
 		log.Warnf("No transaction information for %v. Trying tables in case this is an orphaned txn.", hash)
 		// Search for occurrences of the transaction in the database.
 		dbTxs, err := exp.dataSource.Transaction(hash)
@@ -1703,7 +1708,7 @@ func (exp *explorerUI) TreasuryTable(w http.ResponseWriter, r *http.Request) {
 		HTML     string       `json:"html"`
 		Pages    []pageNumber `json:"pages"`
 	}{
-		TxnCount: bal.TxCount, // + addrData.ImmatureCount,
+		TxnCount: treasuryTypeCount(bal, txType),
 		Pages:    calcPages(int(treasuryTypeCount(bal, txType)), int(limitN), int(offset), linkTemplate),
 	}
 

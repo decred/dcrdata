@@ -158,7 +158,7 @@ export default class extends Controller {
       'range', 'chartbox', 'noconfirms', 'chart', 'pagebuttons',
       'pending', 'hash', 'matchhash', 'view', 'mergedMsg',
       'chartLoader', 'listLoader', 'expando', 'littlechart', 'bigchart',
-      'fullscreen', 'tablePagination']
+      'fullscreen', 'tablePagination', 'paginationheader']
   }
 
   async connect () {
@@ -353,6 +353,11 @@ export default class extends Controller {
     const params = ctrl.paginationParams
     const rowMax = params.count
     const count = ctrl.pageSize
+    if (ctrl.paginationParams.count === 0) {
+      ctrl.paginationheaderTarget.classList.add('d-hide')
+    } else {
+      ctrl.paginationheaderTarget.classList.remove('d-hide')
+    }
     if (rowMax > count) {
       ctrl.pagebuttonsTarget.classList.remove('d-hide')
     } else {
