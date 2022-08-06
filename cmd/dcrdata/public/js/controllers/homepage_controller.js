@@ -186,7 +186,8 @@ export default class extends Controller {
     this.poolValueTarget.innerHTML = humanize.decimalParts(ex.pool_info.value, true, 0)
     this.ticketRewardTarget.innerHTML = `${ex.reward.toFixed(2)}%`
     this.poolSizePctTarget.textContent = parseFloat(ex.pool_info.percent).toFixed(2)
-    if (this.hasDevFundTarget) this.devFundTarget.innerHTML = humanize.decimalParts(ex.dev_fund / 100000000, true, 0)
+    const treasuryTotal = ex.dev_fund + ex.treasury_bal.balance
+    this.devFundTarget.innerHTML = humanize.decimalParts(treasuryTotal / 100000000, true, 0)
     this.hashrateTarget.innerHTML = humanize.decimalParts(ex.hash_rate, false, 8, 2)
     this.hashrateDeltaTarget.innerHTML = humanize.fmtPercentage(ex.hash_rate_change_month)
     this.blockVotesTarget.dataset.hash = blockData.block.hash
@@ -204,7 +205,7 @@ export default class extends Controller {
         this.powConvertedTarget.textContent = `${humanize.twoDecimals(ex.subsidy.pow / 1e8 * xcRate)} ${btcIndex}`
       }
       if (this.hasConvertedDevTarget) {
-        this.convertedDevTarget.textContent = `${humanize.threeSigFigs(ex.dev_fund / 1e8 * xcRate)} ${btcIndex}`
+        this.convertedDevTarget.textContent = `${humanize.threeSigFigs(treasuryTotal / 1e8 * xcRate)} ${btcIndex}`
       }
       if (this.hasConvertedSupplyTarget) {
         this.convertedSupplyTarget.textContent = `${humanize.threeSigFigs(ex.coin_supply / 1e8 * xcRate)} ${btcIndex}`
