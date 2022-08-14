@@ -1,11 +1,11 @@
 module github.com/decred/dcrdata/db/dcrpg/v8
 
-go 1.17
+go 1.18
 
 replace github.com/decred/dcrdata/v8 => ../../
 
 require (
-	decred.org/dcrwallet/v2 v2.0.0
+	decred.org/dcrwallet/v2 v2.0.8
 	github.com/davecgh/go-spew v1.1.1
 	github.com/decred/dcrd/blockchain/stake/v4 v4.0.0
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.3
@@ -20,7 +20,7 @@ require (
 	github.com/dustin/go-humanize v1.0.1-0.20210705192016-249ff6c91207
 	github.com/jessevdk/go-flags v1.4.1-0.20200711081900-c17162fe8fd7
 	github.com/jrick/logrotate v1.0.0
-	github.com/lib/pq v1.10.3
+	github.com/lib/pq v1.10.4
 )
 
 require (
@@ -28,7 +28,7 @@ require (
 	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/dchest/siphash v1.2.2 // indirect
-	github.com/decred/base58 v1.0.3 // indirect
+	github.com/decred/base58 v1.0.4 // indirect
 	github.com/decred/dcrd/blockchain/standalone/v2 v2.1.0 // indirect
 	github.com/decred/dcrd/crypto/blake256 v1.0.1-0.20200921185235-6d75c7ec1199 // indirect
 	github.com/decred/dcrd/crypto/ripemd160 v1.0.1 // indirect

@@ -129,8 +129,8 @@ Always run the Current release or on the Current stable branch. Do not use `mast
 
 ## Requirements
 
-- [Go](https://golang.org) 1.17 or 1.18
-- [Node.js](https://nodejs.org/en/download/) 16.x or 17.x. Node.js is only used
+- [Go](https://golang.org) 1.18 or 1.19
+- [Node.js](https://nodejs.org/en/download/) 16.x or 18.x. Node.js is only used
   as a build tool, and is **not used at runtime**.
 - Running `dcrd` running with `--txindex --addrindex`, and synchronized to the
   current best block on the network. On startup, dcrdata will verify that the

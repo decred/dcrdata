@@ -113,8 +113,10 @@ func IsCoinBaseTx(tx *wire.MsgTx) bool {
 // and new chains, and the common ancestor that should not be included in either
 // chain. Below is the description of the reorg data with the letter indicating
 // the various blocks in the chain:
-// 			A  -> B  -> C
-//   			\  -> B' -> C' -> D'
+//
+//		A  -> B  -> C
+//	  		\  -> B' -> C' -> D'
+//
 // CommonAncestor - Hash of A
 // OldChainHead - Hash of C
 // OldChainHeight - Height of C
@@ -173,14 +175,14 @@ type VerboseTxReceiver interface {
 // construct a simple wrapper for an rpcclient.Client with
 // rpcutils.NewAsyncTxClient like:
 //
-//  type mempoolClient struct {
-//      *rpcclient.Client
-//  }
-//  func (cl *mempoolClient) GetRawTransactionVerbosePromise(ctx context.Context, txHash *chainhash.Hash) txhelpers.VerboseTxReceiver {
-//      return cl.Client.GetRawTransactionVerboseAsync(ctx, txHash)
-//  }
+//	type mempoolClient struct {
+//	    *rpcclient.Client
+//	}
+//	func (cl *mempoolClient) GetRawTransactionVerbosePromise(ctx context.Context, txHash *chainhash.Hash) txhelpers.VerboseTxReceiver {
+//	    return cl.Client.GetRawTransactionVerboseAsync(ctx, txHash)
+//	}
 //
-//  var _ VerboseTransactionPromiseGetter = (*mempoolClient)(nil)
+//	var _ VerboseTransactionPromiseGetter = (*mempoolClient)(nil)
 type VerboseTransactionPromiseGetter interface {
 	GetRawTransactionVerbosePromise(ctx context.Context, txHash *chainhash.Hash) VerboseTxReceiver
 }
@@ -246,9 +248,9 @@ func IncludesTx(txHash *chainhash.Hash, block *dcrutil.Block) (int, int8) {
 // evaluates to true for a given element. For example, given a slice of hashes
 // called blackList that should be removed from the slice hashList:
 //
-// hashList = FilterHashSlice(hashList, func(h chainhash.Hash) bool {
-//  return HashInSlice(h, blackList)
-// })
+//	hashList = FilterHashSlice(hashList, func(h chainhash.Hash) bool {
+//	 return HashInSlice(h, blackList)
+//	})
 func FilterHashSlice(s []chainhash.Hash, doRemove func(h chainhash.Hash) bool) []chainhash.Hash {
 	_s := s[:0]
 	for _, h := range s {
