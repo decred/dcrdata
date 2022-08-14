@@ -42,8 +42,8 @@ function voteTxTableRow (tx) {
         </td>
         <td class="mono fs15"><a href="/block/${tx.vote_info.block_validation.hash}">${tx.vote_info.block_validation.height}<span
           class="small">${tx.vote_info.last_block ? ' best' : ''}</span></a></td>
-        <td class="mono fs15"><a href="/tx/${tx.vote_info.ticket_spent}">${tx.vote_info.mempool_ticket_index}<a/></td>
-        <td class="mono fs15">${tx.vote_info.vote_version}</td>
+        <td class="mono fs15 text-end"><a href="/tx/${tx.vote_info.ticket_spent}">${tx.vote_info.mempool_ticket_index}<a/></td>
+        <td class="mono fs15 text-end">${tx.vote_info.vote_version}</td>
         <td class="mono fs15 text-end d-none d-sm-table-cell">${humanize.decimalParts(tx.total, false, 8)}</td>
         <td class="mono fs15 text-end">${humanize.bytes(tx.size)}</td>
         <td class="mono fs15 text-end d-none d-sm-table-cell jsonly" data-time-target="age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
