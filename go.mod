@@ -1,11 +1,11 @@
 module github.com/decred/dcrdata/v8
 
-go 1.17
+go 1.18
 
 require (
-	decred.org/dcrwallet/v2 v2.0.0
+	decred.org/dcrwallet/v2 v2.0.8
 	github.com/davecgh/go-spew v1.1.1
-	github.com/decred/base58 v1.0.3
+	github.com/decred/base58 v1.0.4
 	github.com/decred/dcrd/blockchain/stake/v4 v4.0.0
 	github.com/decred/dcrd/blockchain/standalone/v2 v2.1.0
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.3

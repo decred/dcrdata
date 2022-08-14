@@ -636,10 +636,11 @@ func (pq *BlockPriorityQueue) Reheap() {
 
 // Insert will add an element, while respecting the queue's capacity
 // if at capacity
-// 		- compare with top and replace or return
-// 		- if replaced top, heapdown (Fix(pq,0))
+//   - compare with top and replace or return
+//   - if replaced top, heapdown (Fix(pq,0))
+//
 // else (not at capacity)
-// 		- heap.Push, which is pq.Push (append at bottom) then heapup
+//   - heap.Push, which is pq.Push (append at bottom) then heapup
 func (pq *BlockPriorityQueue) Insert(summary *BlockDataBasic, stakeInfo *StakeInfoExtended) (bool, *chainhash.Hash, int64) {
 	pq.mtx.Lock()
 	defer pq.mtx.Unlock()

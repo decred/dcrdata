@@ -4,18 +4,18 @@
 
 // Package notification synchronizes dcrd notifications to any number of
 // handlers. Typical use:
-// 1. Create a Notifier with NewNotifier.
-// 2. Grab dcrd configuration settings with DcrdHandlers.
-// 3. Create an dcrd/rpcclient.Client with the settings from step 2.
-// 4. Add handlers with the Register*Group methods. You can add more than
-//    one handler (a "group") at a time. Groups are run sequentially in the
-//    order that they are registered, but the handlers within a group are run
-//    asynchronously.
-// 5. Set the previous best known block with SetPreviousBlock. By this point,
-//    it should be certain that all of the data consumers are synced to the best
-//    block.
-// 6. **After all handlers have been added**, start the Notifier with Listen,
-//    providing as an argument the dcrd client created in step 3.
+//  1. Create a Notifier with NewNotifier.
+//  2. Grab dcrd configuration settings with DcrdHandlers.
+//  3. Create an dcrd/rpcclient.Client with the settings from step 2.
+//  4. Add handlers with the Register*Group methods. You can add more than
+//     one handler (a "group") at a time. Groups are run sequentially in the
+//     order that they are registered, but the handlers within a group are run
+//     asynchronously.
+//  5. Set the previous best known block with SetPreviousBlock. By this point,
+//     it should be certain that all of the data consumers are synced to the best
+//     block.
+//  6. **After all handlers have been added**, start the Notifier with Listen,
+//     providing as an argument the dcrd client created in step 3.
 package notification
 
 import (

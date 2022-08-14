@@ -69,6 +69,7 @@ type InsightSocketVout struct {
 
 // MarshalJSON implements json.Marshaler so that an InsightSocketVout will
 // marshal to JSON like:
+//
 //	{
 //	  "DsZQaCQES5vh3JmcyyFokJYz3aSw8Sm1dsQ": 13741789
 //	}

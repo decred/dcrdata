@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/pubsub/democlient
 
-go 1.17
+go 1.18
 
 replace github.com/decred/dcrdata/v8 => ../../
 
@@ -14,12 +14,12 @@ require (
 )
 
 require (
-	decred.org/dcrwallet/v2 v2.0.0 // indirect
+	decred.org/dcrwallet/v2 v2.0.8 // indirect
 	github.com/AndreasBriese/bbloom v0.0.0-20190825152654-46b345b51c96 // indirect
 	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/dchest/siphash v1.2.2 // indirect
-	github.com/decred/base58 v1.0.3 // indirect
+	github.com/decred/base58 v1.0.4 // indirect
 	github.com/decred/dcrd/blockchain/stake/v4 v4.0.0 // indirect
 	github.com/decred/dcrd/blockchain/standalone/v2 v2.1.0 // indirect
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.3 // indirect
