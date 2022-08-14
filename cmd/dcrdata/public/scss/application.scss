@@ -1,9 +1,12 @@
-// Variables
+// Bootstrap functions must come first.
+@import "~bootstrap/scss/functions";
+
+// Variable customizations
 @import "./variables";
 
 // Bootstrap
-@import "~bootstrap/scss/functions";
 @import "~bootstrap/scss/variables";
+@import "~bootstrap/scss/maps";
 @import "~bootstrap/scss/mixins";
 @import "~bootstrap/scss/vendor/rfs";
 @import "~bootstrap/scss/root";
