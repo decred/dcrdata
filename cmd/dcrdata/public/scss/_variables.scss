@@ -1,3 +1,5 @@
+@use "sass:map";
+
 // colors
 $blue: #007bff;
 $green: #2ed6a1;
@@ -14,7 +16,7 @@ $border-radius: 0.125rem;
 $grid-columns: 24;
 $grid-gutter-width: 15px;
 $container-max-widths: ();
-$container-max-widths: map-merge(
+$container-max-widths: map.merge(
   (
     sm: 540px,
     md: 720px,
