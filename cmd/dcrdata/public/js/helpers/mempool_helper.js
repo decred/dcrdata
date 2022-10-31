@@ -1,14 +1,18 @@
 // Utilities for keeping a shallow local copy of the mempool.
 
+// txhelpers.TxType*
 const mpKeys = {
   Regular: 'regular',
   Vote: 'vote',
   Ticket: 'ticket',
-  Revocation: 'rev'
+  Revocation: 'rev',
+  'Treasury Spend': 'tspend',
+  'Treasury Add': 'tadd'
 }
 
+// explorer/types.MempoolInfo
 function txLists (mempool) {
-  return [mempool.tx, mempool.tickets, mempool.votes, mempool.revs]
+  return [mempool.tx, mempool.tickets, mempool.votes, mempool.revs, mempool.tspends, mempool.tadds]
 }
 
 function txList (mempool) {

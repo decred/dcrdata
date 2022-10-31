@@ -192,6 +192,7 @@ type TxInfo struct {
 }
 
 // These are the text representations of the various special transaction types.
+// These strings should match the strings returned by txhelpers.TxTypeToString.
 const (
 	TicketTypeStr   = "Ticket"
 	VoteTypeStr     = "Vote"
