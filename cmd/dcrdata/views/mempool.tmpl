@@ -122,12 +122,12 @@
                               <th class="text-end">Time in Mempool</th>
                             </tr>
                           </thead>
-                          <tbody data-mempool-target="revocationTransactions">
+                          <tbody data-mempool-target="tspendTransactions">
                               {{if gt .NumTSpends 0}}
                               {{range .TSpends}}
                               <tr>
                                   <td class="break-word clipboard">
-                                    <a class="hash lh1rem" href="/tx/{{.Hash}}">{{.Hash}}</a>
+                                    <a class="hash lh1rem" href="/tx/{{.Hash}}" title="{{.Hash}}">{{.Hash}}</a>
                                     {{template "copyTextIcon"}}
                                   </td>
                                   <td class="mono fs15 text-end">
@@ -157,7 +157,7 @@
                               <th class="text-end">Time in Mempool</th>
                             </tr>
                           </thead>
-                          <tbody data-mempool-target="revocationTransactions">
+                          <tbody data-mempool-target="taddTransactions">
                               {{range .TAdds}}
                               <tr>
                                   <td class="break-word clipboard">

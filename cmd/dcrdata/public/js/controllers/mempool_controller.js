@@ -25,10 +25,22 @@ function txTableRow (tx) {
           <a class="hash" href="/tx/${tx.hash}" title="${tx.hash}">${tx.hash}</a>
           ${copyIcon()}
           ${alertArea()}
-          </td>
+        </td>
         <td class="mono fs15 text-end">${humanize.decimalParts(tx.total, false, 8)}</td>
         <td class="mono fs15 text-end">${tx.size} B</td>
         <td class="mono fs15 text-end">${tx.fee_rate} DCR/kB</td>
+        <td class="mono fs15 text-end" data-time-target="age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
+    </tr>`)
+}
+
+function treasuryTxTableRow (tx) {
+  return rowNode(`<tr class="flash">
+        <td class="break-word clipboard">
+          <a class="hash" href="/tx/${tx.hash}" title="${tx.hash}">${tx.hash}</a>
+          ${copyIcon()}
+          ${alertArea()}
+        </td>
+        <td class="mono fs15 text-end">${humanize.decimalParts(tx.total, false, 8)}</td>
         <td class="mono fs15 text-end" data-time-target="age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
     </tr>`)
 }
@@ -73,6 +85,8 @@ export default class extends Controller {
     return [
       'bestBlock',
       'bestBlockTime',
+      'tspendTransactions',
+      'taddTransactions',
       'voteTransactions',
       'ticketTransactions',
       'revocationTransactions',
@@ -98,11 +112,13 @@ export default class extends Controller {
     ws.send('getmempooltxs', mempoolData.id)
     this.mempool = new Mempool(mempoolData, this.voteTallyTargets)
     this.txTargetMap = {
+      'Treasury Spend': this.tspendTransactionsTarget,
       Vote: this.voteTransactionsTarget,
       Ticket: this.ticketTransactionsTarget,
       Revocation: this.revocationTransactionsTarget,
       Regular: this.regularTransactionsTarget
     }
+    if (this.hasTaddTransactionsTarget) this.txTargetMap['Treasury Add'] = this.taddTransactionsTarget
     this.countTargetMap = {
       Vote: this.numVoteTarget,
       Ticket: this.numTicketTarget,
@@ -179,12 +195,28 @@ export default class extends Controller {
     buildTable(this.revocationTransactionsTarget, 'revocations', m.revs, txTableRow)
     buildTable(this.voteTransactionsTarget, 'votes', m.votes, voteTxTableRow)
     buildTable(this.ticketTransactionsTarget, 'tickets', m.tickets, txTableRow)
+    buildTable(this.tspendTransactionsTarget, 'tspends', m.tspends, treasuryTxTableRow)
+    if (this.hasTaddTransactionsTarget) buildTable(this.taddTransactionsTarget, 'tadds', m.tadds, treasuryTxTableRow)
   }
 
   renderNewTxns (txs) {
     each(txs, (tx) => {
       incrementValue(this.countTargetMap[tx.Type])
-      const rowFn = tx.Type === 'Vote' ? voteTxTableRow : txTableRow
+      let rowFn
+      switch (tx.Type) {
+        case 'Vote':
+          rowFn = voteTxTableRow
+          break
+        case 'Treasury Spend':
+          rowFn = treasuryTxTableRow
+          break
+        case 'Treasury Add':
+          if (!this.hasTaddTransactionsTarget) return
+          rowFn = treasuryTxTableRow
+          break
+        default:
+          rowFn = txTableRow
+      }
       addTxRow(tx, this.txTargetMap[tx.Type], rowFn)
     })
   }
@@ -196,6 +228,7 @@ export default class extends Controller {
       const voteValidationHash = tr.dataset.blockhash
       const voteBlockHeight = tr.dataset.height
       const best = tr.querySelector('.small')
+      if (!best) return // Just the "No votes in mempool." td?
       best.textContent = ''
       if (voteBlockHeight > bestBlockHeight) {
         tr.classList.add('blue-row')
