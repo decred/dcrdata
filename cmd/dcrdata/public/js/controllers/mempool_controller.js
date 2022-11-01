@@ -16,7 +16,7 @@ function rowNode (rowText) {
   const tbody = document.createElement('tbody')
   tbody.innerHTML = rowText
   dompurify.sanitize(tbody, { IN_PLACE: true, FORBID_TAGS: ['svg', 'math'] })
-  return tbody.firstChild
+  return tbody.firstElementChild
 }
 
 function txTableRow (tx) {
@@ -74,8 +74,8 @@ function buildTable (target, txType, txns, rowFn) {
 }
 
 function addTxRow (tx, target, rowFn) {
-  if (target.childElementCount === 1 && target.firstChild.classList.contains('no-tx-tr')) {
-    target.removeChild(target.firstChild)
+  if (target.childElementCount === 1 && target.firstElementChild.classList.contains('no-tx-tr')) {
+    target.removeChild(target.firstElementChild)
   }
   target.insertBefore(rowFn(tx), target.firstChild)
 }
