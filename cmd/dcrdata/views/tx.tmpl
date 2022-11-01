@@ -26,7 +26,8 @@
             <span class="h5 d-inline-block ps-1">{{.Type}}</span>
               <div class="d-inline-block confirmations-box{{if $.IsConfirmedMainchain}} confirmed{{end}} mx-2 fs14"
                 data-controller="newblock"
-                data-newblock-target="confirmations tx.confirmations"
+                data-newblock-target="confirmations"
+                data-tx-target="confirmations"
                 data-confirmations="{{.Confirmations}}"
                 data-yes="# confirmation@"
                 data-no="unconfirmed"
@@ -91,7 +92,7 @@
                 {{end}}
                 </span>
                 <br>
-                <span class="fs16 text-secondary lh1rem  d-inline-block jsonly"><span class="mp-unconfirmed-time" data-time-target="age tx.age" data-age="{{.Time.UNIX}}"></span> ago</span>
+                <span class="fs16 text-secondary lh1rem  d-inline-block jsonly"><span class="mp-unconfirmed-time" data-time-target="age" data-tx-target="age" data-age="{{.Time.UNIX}}"></span> ago</span>
 
             </div>
             <div class="col-8 text-start">
