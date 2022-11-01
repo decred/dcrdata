@@ -1,21 +1,19 @@
-{{define "home"}}
-{{$conv := .Conversions}}
+{{define "home" -}}
+{{- $conv := .Conversions -}}
 <!DOCTYPE html>
 <html lang="en">
-
 {{ template "html-head" headData .CommonPageData "Decred Block Explorer by dcrdata.org"}}
     {{ template "navbar" . }}
     <div class="container main" data-controller="time blocklist homepage">
         <div class="row">
             <div class="d-flex flex-column col-md-15 p-0">
-
                 <div class="bg-white mb-1 py-2 px-3 my-0">
                     <div class="d-inline-block position-relative p-2">
                         <span class="card-icon dcricon-twoblocks h1 me-2"></span> <a href="/blocks" class="h3 my-3">Latest {{.NetName}} Blocks</a>
                     </div>
 
                     <div class="row">
-                        {{with .BestBlock}}
+                        {{with .BestBlock -}}
                         <div class="col-12 col-sm-6 text-center">
                             <span class="h6 mb-0 position-relative text-secondary" data-tooltip="stakeholders are validating this block now.">proposed</span><br>
                             <a class="d-inline-block h3 position-relative" href="/block/{{.Hash}}" data-homepage-target="blockHeight">{{.Height}}</a>
@@ -27,30 +25,30 @@
                         <div class="col-12 col-sm-6 text-center">
                             <div class="d-flex align-items-baseline justify-content-center p-0 m-0">
                                 <span class="h6 me-2 text-secondary" data-tooltip="stakeholder's votes for the proposed block.">votes</span>
-                                {{if eq $.Consensus -1}}
+                                {{if eq $.Consensus -1 -}}
                                 <span data-homepage-target="consensusMsg" class="small text-danger">rejected</span>
                                 {{else if eq $.Consensus 0}}
                                 <span data-homepage-target="consensusMsg" class="small"></span>
                                 {{else}}
                                 <span data-homepage-target="consensusMsg" class="small text-green">approved</span>
-                                {{end}}
+                                {{- end}}
                             </div>
                             <div class="d-inline-block p1 h5" data-homepage-target="blockVotes" data-hash="{{.Hash}}">
-                                {{range $index, $vote := $.BlockTally}}
+                                {{range $index, $vote := $.BlockTally -}}
                                 <div
                                 class="d-inline-block position-relative"
                                 data-tooltip="{{if eq $vote -1}}the stakeholder has voted to reject this block{{else if eq $vote 1}}the stakeholder has voted to accept this block{{else}}this vote has not been received yet{{end}}"
                                 >
                                 <span class="dcricon-{{if eq $vote -1}}reject{{else if eq $vote 1}}affirm{{else}}missing{{end}}"></span>
                                 </div>
-                                {{end}}
+                                {{- end}}
                             </div>
                         </div>
                         <div class="col-12 col-sm-6 text-center">
                             <span class="h6 text-secondary">size</span><br>
                             <span class="h4" data-homepage-target="blockSize">{{.FormattedBytes}}</span>
                         </div>
-                        {{end}}
+                        {{- end}}
                     </div>
                     <div class="row">
                         <div class="col">
@@ -76,7 +74,7 @@
                                     </tr>
                                 </thead>
                                 <tbody data-blocklist-target="table">
-                                    {{range .Blocks}}
+                                    {{range .Blocks -}}
                                     <tr data-height="{{.Height}}" data-link-class="fs18">
                                         <td class="text-start ps-1" data-type="height"><a href="/block/{{.Height}}" class="fs18">{{.Height}}</a></td>
                                         <td class="text-center" data-type="tx">{{.Transactions}}</td>
@@ -87,7 +85,7 @@
                                         <td class="text-end d-none d-sm-table-cell d-md-none d-lg-table-cell text-nowrap" data-type="size">{{.FormattedBytes}}</td>
                                         <td class="text-end pe-1 text-nowrap" data-type="age" data-time-target="age" data-age="{{.BlockTime.UNIX}}">{{.BlockTime.DatetimeWithoutTZ}}</td>
                                     </tr>
-                                    {{end}}
+                                    {{- end}}
                                 </tbody>
                             </table>
                             <a href="/blocks" class="small ms-2">more blocks...</a>
@@ -122,7 +120,7 @@
                                     <span class="h4" data-homepage-target="mpRegTotal">{{threeSigFigs .Mempool.LikelyMineable.RegularTotal}}</span>
                                     <span class="h6">DCR</span>
                                 </div>
-                                {{/* TODO: pe-SM, pe-MD, ETC CAN GO */}}
+                                {{- /* TODO: pe-SM, pe-MD, ETC CAN GO */ -}}
                                 <div class="text-end pe-3 pe-sm-3 pe-md-3 pe-lg-3 tx-bar tx-ticket d-inline-block">
                                     <span data-homepage-target="mpTicketCount" class="h4">{{.Mempool.NumTickets}}</span>
                                     <span class="h6"> tickets</span>
@@ -153,8 +151,8 @@
                                     <span data-homepage-target="mpVoteCount"
                                     class="h4 lh1rem"
                                     data-tickets-per-block="{{.Mempool.VotingInfo.MaxVotesPerBlock}}">
-                                    {{$afterFirst := false}}
-                                    {{range $hash, $tally := .Mempool.VotingInfo.VoteTallys}}
+                                    {{$afterFirst := false -}}
+                                    {{- range $hash, $tally := .Mempool.VotingInfo.VoteTallys -}}
                                         {{if $afterFirst}} + {{end}}
                                         <span class="position-relative d-inline-block"
                                         data-homepage-target="voteTally"
@@ -164,7 +162,7 @@
                                         data-tooltip="for block {{$hash}}"
                                         >{{$tally.VoteCount}}</span>
                                         {{$afterFirst = true}}
-                                    {{end}}
+                                    {{- end}}
                                     </span>
                                     <span class="h6"> votes</span>
                                     <br>
@@ -186,7 +184,7 @@
                                 </tr>
                                 </thead>
                                 <tbody class="homepage-mempool" data-homepage-target="transactions">
-                                {{range .Mempool.LatestTransactions}}
+                                {{range .Mempool.LatestTransactions -}}
                                 <tr>
                                     <td class="text-start ps-1 clipboard">{{template "hashElide" (hashlink .Hash (print "/tx/" .Hash))}}</td>
                                     <td class="text-start">{{.Type}}</td>
@@ -194,7 +192,7 @@
                                     <td class="text-nowrap text-end">{{.Size}} B</td>
                                     <td class="text-end pe-1 jsonly text-nowrap" data-time-target="age" data-age="{{.Time}}"></td>
                                 </tr>
-                                {{end}}
+                                {{- end}}
                                 </tbody>
                             </table>
                             <a href="/mempool" class="small ms-2">more transactions...</a>
@@ -204,7 +202,7 @@
             </div> <!-- end column -->
 
             <div class="d-flex flex-column col-md-9 p-0">
-                {{with .Info}}
+                {{with .Info -}}
                 <div class="bg-white mb-1 py-2 px-3 mx-1">
                     <div class="my-3 h4">
                         <span class="dcricon-ticket d-inline-block pe-2 h3"></span>
@@ -219,11 +217,11 @@
                                 <span data-homepage-target="blocksdiff">{{template "decimalParts" (float64AsDecimalParts .StakeDiff 8 false 2)}}</span>
                                 <span class="ps-1 unit lh15rem">DCR</span>
                             </div>
-                            {{if $conv}}
+                            {{if $conv -}}
                             <div class="fs12 lh1rem text-black-50">
                                 <span data-homepage-target="convertedStake">{{$conv.StakeDiff.TwoDecimals}} {{$conv.StakeDiff.Index}}</span>
                             </div>
-                            {{end}}
+                            {{- end}}
                         </div>
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                             <div class="fs13 text-secondary">Next Ticket Price</div>
@@ -247,7 +245,7 @@
                             </div>
                             <div class="fs12 lh1rem text-black-50">
                                 <span data-homepage-target="targetPct">{{printf "%.2f" (toAbsValue $.PercentChange)}}</span>%
-                                {{if lt $.PercentChange 0.0}} under {{else}} over {{end}}
+                                {{if lt $.PercentChange 0.0}} under {{else}} over {{end -}}
                                 target
                             </div>
                         </div>
@@ -331,11 +329,11 @@
                                 <span data-homepage-target="bsubsidyPow">{{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.PoW) 8 true 2)}}</span>
                                 <span class="ps-1 unit lh15rem">DCR</span>
                             </div>
-                            {{if $conv}}
+                            {{if $conv -}}
                             <div class="fs12 lh1rem text-black-50">
                                 <span data-homepage-target="powConverted">{{$conv.PowSplit.TwoDecimals}} {{$conv.PowSplit.Index}}</span>
                             </div>
-                            {{end}}
+                            {{- end}}
                         </div>
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                             <div class="fs13 text-secondary lh1rem">Next Block Reward Reduction</div>
@@ -380,11 +378,11 @@
                                 </span>
                                 <span class="ps-1 unit lh15rem">DCR</span>
                             </div>
-                            {{if $conv}}
+                            {{if $conv -}}
                             <div class="fs12 lh1rem text-black-50">
                                 <span data-homepage-target="convertedDev">{{threeSigFigs $conv.TreasuryBalance.Value}} {{$conv.TreasuryBalance.Index}}</span>
                             </div>
-                            {{end}}
+                            {{- end}}
                         </div>
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                             <div class="d-block fs13 text-secondary lh1rem"><a href="/charts?chart=coin-supply">Total Coin Supply</a> <span class="nowrap">(of 21 mil)</span></div>
@@ -395,9 +393,9 @@
                                 <span class="ps-1 unit lh15rem">DCR</span>
                             </div>
                             <div class="fs12 lh1rem text-black-50">
-                                {{if $conv}}
+                                {{if $conv -}}
                                 <span data-homepage-target="convertedSupply">{{threeSigFigs $conv.CoinSupply.Value}} {{$conv.CoinSupply.Index}}</span>,
-                                {{end}}
+                                {{- end}}
                                 <span data-homepage-target="mixedPct">{{printf "%.0f" .MixedPercent}}</span>% mixed
                             </div>
                         </div>
@@ -409,13 +407,13 @@
                                 </span>
                                 <span class="ps-1 unit lh15rem">DCR</span>
                             </div>
-                            {{if $conv}}
+                            {{if $conv -}}
                             <div class="fs12 lh1rem text-black-50">
                                 <span data-homepage-target="convertedDevSub">{{$conv.TreasurySplit.TwoDecimals}} {{$conv.TreasurySplit.Index}}</span>
                             </div>
-                            {{end}}
+                            {{- end}}
                         </div>
-                        {{if $conv}}
+                        {{if $conv -}}
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                             <div class="fs13 text-secondary">
                                 <a class="no-underline" href="/market">Exchange Rate</a>
@@ -425,17 +423,15 @@
                                 <span class="ps-1 unit lh15rem">{{$conv.ExchangeRate.Index}}</span>
                             </div>
                         </div>
-                        {{end}}
+                        {{- end}}
                     </div>
                 </div>
-                {{end}}
+                {{- end}}
             </div> <!-- end column -->
         </div>
     </div>
     <!-- end wrapper -->
-
     {{  template "footer" . }}
-
 </body>
 </html>
-{{end}}
+{{- end}}

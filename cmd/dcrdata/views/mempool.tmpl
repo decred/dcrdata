@@ -1,9 +1,9 @@
-{{define "mempool"}}
+{{define "mempool" -}}
 <!DOCTYPE html>
 <html lang="en">
 {{template "html-head" headData .CommonPageData "Decred Mempool"}}
     {{template "navbar" . }}
-        {{with .Mempool}}
+        {{with .Mempool -}}
         <div class="container main"
         data-controller="mempool time"
         data-mempool-target="mempool"
@@ -81,8 +81,8 @@
                             <div class="col-12">
                                 <div class="text-center text-secondary fs13">Votes</div>
                                 <div class="text-center h4 mb-0" data-mempool-target="voteCount">
-                                    {{$afterFirst := false}}
-                                    {{range $hash, $tally := .VotingInfo.VoteTallys}}
+                                    {{$afterFirst := false -}}
+                                    {{- range $hash, $tally := .VotingInfo.VoteTallys -}}
                                         {{if $afterFirst}} + {{end}}
                                         <span class="text-center position-relative d-inline-block"
                                         data-mempool-target="voteTally"
@@ -92,7 +92,7 @@
                                         data-tooltip="for block {{$hash}}"
                                         >{{$tally.VoteCount}}</span>
                                         {{$afterFirst = true}}
-                                    {{end}}
+                                    {{- end}}
                                 </div>
                                 <div class="text-center fs13">
                                     <span data-mempool-target="voteTotal">{{threeSigFigs .LikelyMineable.VoteTotal}}</span> DCR
@@ -123,8 +123,8 @@
                             </tr>
                           </thead>
                           <tbody data-mempool-target="tspendTransactions">
-                              {{if gt .NumTSpends 0}}
-                              {{range .TSpends}}
+                              {{if gt .NumTSpends 0 -}}
+                              {{- range .TSpends -}}
                               <tr>
                                   <td class="break-word clipboard">
                                     <a class="hash lh1rem" href="/tx/{{.Hash}}" title="{{.Hash}}">{{.Hash}}</a>
@@ -135,17 +135,17 @@
                                   </td>
                                   <td class="mono fs15 text-end" data-time-target="age" data-age="{{.Time}}"></td>
                               </tr>
-                              {{end}}
-                              {{else}}
+                              {{- end -}}
+                              {{- else -}}
                                   <tr class="no-tx-tr">
                                       <td colspan="4">No treasury spends in mempool.</td>
                                   </tr>
-                              {{end}}
+                              {{- end}}
                           </tbody>
                       </table>
                   </div>
               </div>
-              {{if gt .NumTAdds 0}}{{/* this will be rare, so only show the section header and table if needed */}}
+              {{if gt .NumTAdds 0 -}}{{- /* this will be rare, so only show the section header and table if needed */ -}}
               <div class="row">
                   <div class="col-sm-24">
                   <h4 class="pt-5 pb-2"><span>Treasury Adds</span></h4>
@@ -158,7 +158,7 @@
                             </tr>
                           </thead>
                           <tbody data-mempool-target="taddTransactions">
-                              {{range .TAdds}}
+                              {{range .TAdds -}}
                               <tr>
                                   <td class="break-word clipboard">
                                     <a class="hash lh1rem" href="/tx/{{.Hash}}">{{.Hash}}</a>
@@ -169,12 +169,12 @@
                                   </td>
                                   <td class="mono fs15 text-end" data-time-target="age" data-age="{{.Time}}"></td>
                               </tr>
-                              {{end}}
+                              {{- end}}
                           </tbody>
                       </table>
                   </div>
               </div>
-              {{end}}
+              {{- end}}
               <div class="row">
                   <div class="col-sm-24">
                   <h4 class="pt-3 pb-2"><span>Votes</span></h4>
@@ -192,8 +192,8 @@
                             </tr>
                           </thead>
                           <tbody data-mempool-target="voteTransactions">
-                              {{if gt .NumVotes 0}}
-                              {{range .Votes}}
+                              {{if gt .NumVotes 0 -}}
+                              {{- range .Votes -}}
                               <tr {{if not .VoteInfo.ForLastBlock}}class="disabled-row"{{end}}
                               data-blockhash="{{.VoteInfo.Validation.Hash}}"
                               data-height="{{.VoteInfo.Validation.Height}}"
@@ -213,12 +213,12 @@
                                   <td class="mono fs15 text-end">{{.Size}} B</td>
                                   <td class="mono fs15 text-end d-none d-sm-table-cell jsonly" data-time-target="age" data-age="{{.Time}}"></td>
                               </tr>
-                              {{end}}
-                              {{else}}
-                                  <tr>
-                                      <td colspan="8">No votes in mempool.</td>
-                                  </tr>
-                              {{end}}
+                              {{- end -}}
+                              {{- else -}}
+                              <tr>
+                                <td colspan="8">No votes in mempool.</td>
+                              </tr>
+                              {{- end}}
                           </tbody>
                       </table>
                   </div>
@@ -237,8 +237,8 @@
                             </tr>
                           </thead>
                           <tbody data-mempool-target="ticketTransactions">
-                              {{if gt .NumTickets 0}}
-                              {{range .Tickets}}
+                              {{if gt .NumTickets 0 -}}
+                              {{- range .Tickets -}}
                               <tr>
                                   <td class="break-word clipboard">
                                     <a class="hash lh1rem" href="/tx/{{.Hash}}">{{.Hash}}</a>
@@ -251,12 +251,12 @@
                                   <td class="mono fs15 text-end">{{printf "%.8f" (.FeeRate)}} DCR/kB</td>
                                   <td class="mono fs15 text-end" data-time-target="age" data-age="{{.Time}}"></td>
                               </tr>
-                              {{end}}
-                              {{else}}
+                              {{- end -}}
+                              {{- else -}}
                               <tr class="no-tx-tr">
                                   <td colspan="5">No tickets in mempool.</td>
                               </tr>
-                              {{end}}
+                              {{- end}}
                           </tbody>
                       </table>
                   </div>
@@ -275,8 +275,8 @@
                             </tr>
                           </thead>
                           <tbody data-mempool-target="revocationTransactions">
-                              {{if gt .NumRevokes 0}}
-                              {{range .Revocations}}
+                              {{if gt .NumRevokes 0 -}}
+                              {{- range .Revocations -}}
                               <tr>
                                   <td class="break-word clipboard">
                                     <a class="hash lh1rem" href="/tx/{{.Hash}}">{{.Hash}}</a>
@@ -288,12 +288,12 @@
                                   <td class="mono fs15 text-end">{{.Size}} B</td>
                                   <td class="mono fs15 text-end" data-time-target="age" data-age="{{.Time}}"></td>
                               </tr>
-                              {{end}}
-                              {{else}}
+                              {{- end -}}
+                              {{- else -}}
                                   <tr class="no-tx-tr">
                                       <td colspan="4">No revokes in mempool.</td>
                                   </tr>
-                              {{end}}
+                              {{- end}}
                           </tbody>
                       </table>
                   </div>
@@ -313,8 +313,8 @@
                             </tr>
                           </thead>
                           <tbody data-mempool-target="regularTransactions">
-                              {{if gt .NumRegular 0}}
-                              {{range .Transactions}}
+                              {{if gt .NumRegular 0 -}}
+                              {{- range .Transactions -}}
                               <tr>
                                   <td class="break-word clipboard">
                                       <a class="hash lh1rem" href="/tx/{{.Hash}}">{{.Hash}}</a>
@@ -327,20 +327,20 @@
                                   <td class="mono fs15 text-end">{{printf "%.8f" (.FeeRate)}} DCR/kB</td>
                                   <td class="mono fs15 text-end" data-time-target="age" data-age="{{.Time}}"></td>
                               </tr>
-                              {{end}}
-                              {{else}}
+                              {{- end -}}
+                              {{- else -}}
                               <tr class="no-tx-tr">
                                   <td colspan="5">No regular transactions in mempool.</td>
                               </tr>
-                              {{end}}
+                              {{- end}}
                           </tbody>
                       </table>
                   </div>
               </div>
             </div>
         </div>
-        {{end}}
+        {{- end}}
         {{ template "footer" . }}
     </body>
 </html>
-{{end}}
+{{- end}}
