@@ -16,22 +16,22 @@ require (
 
 require (
 	decred.org/cspp/v2 v2.0.0 // indirect
-	decred.org/dcrdex v0.5.0-rc1.0.20220812205206-99377fa0a218 // indirect
+	decred.org/dcrdex v0.5.5 // indirect
 	decred.org/dcrwallet/v2 v2.0.8 // indirect
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/VictoriaMetrics/fastcache v1.6.0 // indirect
 	github.com/aead/siphash v1.0.1 // indirect
 	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412 // indirect
-	github.com/btcsuite/btcd v0.22.0-beta.0.20220413172512-bf64c8bdbbbf // indirect
-	github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
-	github.com/btcsuite/btcd/btcutil v1.1.1 // indirect
-	github.com/btcsuite/btcd/btcutil/psbt v1.1.3 // indirect
+	github.com/btcsuite/btcd v0.23.3 // indirect
+	github.com/btcsuite/btcd/btcec/v2 v2.2.1 // indirect
+	github.com/btcsuite/btcd/btcutil v1.1.2 // indirect
+	github.com/btcsuite/btcd/btcutil/psbt v1.1.5 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1 // indirect
 	github.com/btcsuite/btclog v0.0.0-20170628155309-84c8d2346e9f // indirect
-	github.com/btcsuite/btcwallet v0.14.1-0.20220322205928-94c51d7bdbf9 // indirect
-	github.com/btcsuite/btcwallet/wallet/txauthor v1.2.3 // indirect
+	github.com/btcsuite/btcwallet v0.16.1 // indirect
+	github.com/btcsuite/btcwallet/wallet/txauthor v1.3.2 // indirect
 	github.com/btcsuite/btcwallet/wallet/txrules v1.2.0 // indirect
-	github.com/btcsuite/btcwallet/wallet/txsizes v1.1.0 // indirect
+	github.com/btcsuite/btcwallet/wallet/txsizes v1.2.3 // indirect
 	github.com/btcsuite/btcwallet/walletdb v1.4.0 // indirect
 	github.com/btcsuite/btcwallet/wtxmgr v1.5.0 // indirect
 	github.com/btcsuite/go-socks v0.0.0-20170105172521-4720035b7bfd // indirect
@@ -69,7 +69,7 @@ require (
 	github.com/decred/dcrd/wire v1.5.0 // indirect
 	github.com/decred/go-socks v1.1.0 // indirect
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
-	github.com/ethereum/go-ethereum v1.10.20 // indirect
+	github.com/ethereum/go-ethereum v1.10.25 // indirect
 	github.com/fjl/memsize v0.0.0-20190710130421-bcb5799ab5e5 // indirect
 	github.com/gballet/go-libpcsclite v0.0.0-20190607065134-2772fd86a8ff // indirect
 	github.com/gcash/bchd v0.19.0 // indirect
@@ -95,7 +95,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
 	github.com/lib/pq v1.10.4 // indirect
 	github.com/lightninglabs/gozmq v0.0.0-20191113021534-d20a764486bf // indirect
-	github.com/lightninglabs/neutrino v0.14.1 // indirect
+	github.com/lightninglabs/neutrino v0.14.2 // indirect
 	github.com/lightningnetwork/lnd/clock v1.0.1 // indirect
 	github.com/lightningnetwork/lnd/queue v1.0.1 // indirect
 	github.com/lightningnetwork/lnd/ticker v1.0.0 // indirect
@@ -115,7 +115,7 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
 	github.com/status-im/keycard-go v0.0.0-20190316090335-8537d3370df4 // indirect
-	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a // indirect
+	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
 	github.com/tklauser/go-sysconf v0.3.5 // indirect
 	github.com/tklauser/numcpus v0.2.2 // indirect
 	github.com/tyler-smith/go-bip39 v1.0.1-0.20181017060643-dbb3b84ba2ef // indirect
