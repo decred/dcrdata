@@ -42,12 +42,12 @@ export default class extends Controller {
         this.formattedAgeTarget.textContent = humanize.date(block.time, true)
         this.ageTarget.dataset.age = block.unixStamp
         this.ageTarget.textContent = humanize.timeSince(block.unixStamp)
-        this.ageTarget.dataset.target = 'time.age'
+        this.ageTarget.dataset.timeTarget = 'age'
         // Prepare the progress bar for updating
         if (this.hasProgressBarTarget) {
           this.progressBarTarget.dataset.confirmHeight = block.height
         }
-        delete this.unconfirmedTarget.dataset.target
+        delete this.unconfirmedTarget.dataset.txTarget
       }
     }
 
@@ -61,7 +61,7 @@ export default class extends Controller {
           link.href = `/block/${block.height}`
           while (td.firstChild) td.removeChild(td.firstChild)
           td.appendChild(link)
-          delete td.dataset.target
+          delete td.dataset.txTarget
         }
       })
     }
@@ -124,7 +124,7 @@ export default class extends Controller {
           break
         case 'LiveTicket':
           barMsg.textContent = 'Ticket has expired'
-          delete bar.dataset.target
+          delete bar.dataset.txTarget
           this.statusMsgTarget.textContent = 'expired'
           break
         default: // Vote

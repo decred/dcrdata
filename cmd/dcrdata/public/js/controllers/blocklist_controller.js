@@ -44,7 +44,7 @@ export default class extends Controller {
       switch (dataType) {
         case 'age':
           newTd.dataset.age = block.unixStamp
-          newTd.dataset.target = 'time.age'
+          newTd.dataset.timeTarget = 'age'
           newTd.textContent = humanize.timeSince(block.unixStamp)
           break
         case 'height': {

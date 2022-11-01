@@ -746,7 +746,7 @@ export default class extends Controller {
           const age = row.querySelector('td.addr-tx-age > span')
           age.dataset.age = block.time
           age.textContent = humanize.timeSince(block.unixStamp)
-          delete row.dataset.target
+          delete row.dataset.addressTarget
           // Increment the displayed tx count
           const count = this.txnCountTarget
           count.dataset.txnCount++
@@ -758,7 +758,7 @@ export default class extends Controller {
             tr.dataset.count = count
             if (count === 0) {
               tr.classList.add('.d-hide')
-              delete tr.dataset.target
+              delete tr.dataset.addressTarget
             } else {
               td.textContent = count
             }
