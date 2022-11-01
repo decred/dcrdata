@@ -30,7 +30,7 @@ function mempoolTableRow (tx) {
     <td class="text-end pe-1 text-nowrap" data-time-target="age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
   </tr>`
   dompurify.sanitize(tbody, { IN_PLACE: true, FORBID_TAGS: ['svg', 'math'] })
-  return tbody.firstChild
+  return tbody.firstElementChild
 }
 
 export default class extends Controller {
@@ -123,7 +123,7 @@ export default class extends Controller {
     const hash = this.blockVotesTarget.dataset.hash
     const votes = this.mempool.blockVoteTally(hash)
     this.blockVotesTarget.querySelectorAll('div').forEach((div, i) => {
-      const span = div.firstChild
+      const span = div.firstElementChild
       if (i < votes.affirm) {
         span.className = 'd-inline-block dcricon-affirm'
         div.dataset.tooltip = 'the stakeholder has voted to accept this block'
