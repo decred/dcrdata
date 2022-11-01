@@ -3,7 +3,7 @@ module github.com/decred/dcrdata/cmd/swapscan-btc
 go 1.18
 
 require (
-	github.com/btcsuite/btcd v0.23.1
+	github.com/btcsuite/btcd v0.23.3
 	github.com/btcsuite/btcd/btcutil v1.1.2
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1
 )
