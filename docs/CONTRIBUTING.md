@@ -27,7 +27,7 @@ examples of valid PR/Issues naming formats:
 - net/url: Parsing 192.168.12.12:8080 returns an error (Issue)
 - views/home: data-type of size column needs to be "size" (PR)
 - db/dcrpg: Charts data updates could use incremental changes. (Issue)
-- doc/contributing.md: Updating the users contribution guidilines. (PR)
+- doc/contributing.md: Updating the users contribution guidelines. (PR)
 
 ### When to Search the Issue Tracker
 
@@ -128,7 +128,7 @@ In the text editor, change the command from `pick` to `fixup` or `squash` for **
 commit message for everything, change the command from `pick` to `reword` on the top commit.
 It should look something like this before saving.
 
-![alt text](https://i.imgur.com/fOtaYtb.png "Rebase commmit command guide")
+![alt text](https://i.imgur.com/fOtaYtb.png "Rebase commit command guide")
 
 7. **If you have conflicts**, resolve them by iterating through the diffs one conflicting commit at a time.
 
@@ -182,7 +182,7 @@ For example, if you have made 3 commits since your last push, then run the follo
 git rebase -i HEAD~3
 ```
 
-The number after the tilda (~) is the number of commits that you want to combine, including the one you did at the beginning of this step. Try not to squash post-review commits with pre-review commits. Leaving them separate makes navigating the changes easier.
+The number after the tilde (~) is the number of commits that you want to combine, including the one you did at the beginning of this step. Try not to squash post-review commits with pre-review commits. Leaving them separate makes navigating the changes easier.
 
 ###### b)
 

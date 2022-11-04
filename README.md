@@ -319,7 +319,7 @@ the dcrdata workload.
 Read [postgresql-tuning.conf](./db/dcrpg/postgresql-tuning.conf) carefully for
 details on how to make the necessary changes to your system. A helpful online
 tool for determining good settings for your system is called
-[PGTune](https://pgtune.leopard.in.ua/). Note that when using this tool to
+[PGTune](https://pgtune.leopard.in.ua/). Note that when using this tool,
 subtract 1.5-2GB from your system RAM so dcrdata itself will have plenty of
 memory. **DO NOT** simply use this file in place of your existing
 postgresql.conf. **DO NOT** simply copy and paste these settings into the
