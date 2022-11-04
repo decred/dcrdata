@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2021, The Decred developers
+// Copyright (c) 2018-2022, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -602,7 +602,7 @@ func (pq *BlockPriorityQueue) Pop() interface{} {
 // ResetHeap creates a fresh queue given the input []*CachedBlock. For every
 // CachedBlock in the queue, ResetHeap resets the access count and time, and
 // heap index. The min/max heights are reset, the heap is heapifies. NOTE: the
-// input slice is modifed, but not reordered. A fresh slice is created for PQ
+// input slice is modified, but not reordered. A fresh slice is created for PQ
 // internal use.
 func (pq *BlockPriorityQueue) ResetHeap(bh []*CachedBlock) {
 	pq.mtx.Lock()
@@ -662,7 +662,7 @@ func (pq *BlockPriorityQueue) Insert(summary *BlockDataBasic, stakeInfo *StakeIn
 
 		// If new block not lower priority than next to pop, replace that in the
 		// queue and fix up the heap. Usually you don't replace if equal, but
-		// new one is necessariy more recently accessed, so we replace.
+		// new one is necessarily more recently accessed, so we replace.
 		if pq.lessFn(pq.bh[0], cachedBlock) {
 			removedBlockHashStr := pq.bh[0].hash
 			removedBlockHash, _ := chainhash.NewHashFromStr(removedBlockHashStr)
@@ -833,8 +833,8 @@ func (pq *BlockPriorityQueue) RemoveIndex(idx int) {
 	pq.RescanMinMaxForRemove(removedHeight)
 }
 
-// RescanMinMax rescans the enitire heap to get the current min/max heights.
-// This function is NOT thread-safe.
+// RescanMinMax rescans the entire heap to get the current min/max heights. This
+// function is NOT thread-safe.
 func (pq *BlockPriorityQueue) RescanMinMax() {
 	for i := range pq.bh {
 		pq.updateMinMax(pq.bh[i].height)

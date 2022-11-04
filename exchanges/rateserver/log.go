@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Decred developers
+// Copyright (c) 2022 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -30,7 +30,7 @@ func (logWriter) Write(p []byte) (n int, err error) {
 	return logRotator.Write(p)
 }
 
-// initializeLogging initializes the logging rotater to write logs to logFile
+// initializeLogging initializes the logging rotator to write logs to logFile
 // and create roll files in the same directory.  It must be called before the
 // package-global log rotater variables are used.
 func initializeLogging(logFile, logLevel string) {
