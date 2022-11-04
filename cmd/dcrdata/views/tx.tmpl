@@ -298,7 +298,6 @@
     </div>
 
     {{$tip := $.CommonPageData.Tip.Height}}
-    {{if $.Data.TSpendMeta}}
     {{with $.Data.TSpendMeta}}
     {{$votingStarted := ge $tip .VoteStart}}
     {{$votingEnded := or .Approved (ge $tip .VoteEnd)}}
@@ -319,7 +318,7 @@
                     <span class="fs18 lh1rem">Voting complete</span> &ndash;
                     {{if .Approved}}
                       <span class="text-green">Approved</span>.
-                      {{if eq $.BlockHeight 0}}
+                      {{if eq $.Data.BlockHeight 0}}
                       <span>Next TVI: {{.NextTVI}} (~ {{formatDateTime .NextTVITime}}).</span>
                       {{end}}
                     {{else}}
@@ -430,7 +429,6 @@
             </table>
         </div>
     </div>
-    {{end}}
     {{end}}
 
     <div class="row mb-5">

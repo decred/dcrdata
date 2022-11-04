@@ -5964,7 +5964,12 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 			txIn, err := hex.DecodeString(tx.Vin[0].TreasurySpend)
 			if err != nil {
 				log.Errorf("failed to retrieve pikey: %v", err)
-			} else {
+			}
+
+			// The length of the signature script in transaction input 0 must be
+			// 100 bytes according to dcp-0006: ([OP_DATA_64] [signature]
+			// [OP_DATA_33] [PiKey] [OP_TSPEND] = 1 + 64 + 1 + 33 + 1 = 100)
+			if len(txIn) == 100 {
 				pubKey = txIn[66 : 66+secp256k1.PubKeyBytesLenCompressed]
 			}
 			tx.TSpendMeta.PoliteiaKey = hex.EncodeToString(pubKey)
