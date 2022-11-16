@@ -340,7 +340,7 @@
                   <div class="col-auto d-flex flex-column justify-content-between ps-3">
                     <span class="fs17 lh1em">
                       <span class="fs22 medium-sans">{{printf "%.1f" (f32x100 .Approval)}}%</span>
-                      approval of {{if gt .MaxRemainingVotes 0}}a possible{{end}} {{intComma (add .TotalVotes .MaxRemainingVotes)}} votes
+                      approval of {{intComma .TotalVotes}} votes.
                     </span>
                     {{if .QuorumAchieved}}
                       <div class="d-flex align-items-center"><span class="fs20 dcricon-affirm me-2"></span>
@@ -383,10 +383,10 @@
                    <td class="text-end medium-sans text-nowrap pe-2 py-2" >Min Required Yes Votes:</td>
                    <td class="text-start py-1 text-secondary">{{.RequiredYesVotes}} votes</td>
                  {{if not $votingStarted}}
-                   <td class="text-end medium-sans text-nowrap pe-2 py-2">Vote Starts In:</td>
+                   <td class="text-end medium-sans text-nowrap pe-2 py-2">Voting Starts In:</td>
                    <td class="text-start py-1 text-secondary"> ~ {{formatDateTime .VoteStartDate}}</td>
                  {{else}}
-                   <td class="text-end medium-sans text-nowrap pe-2 py-2" >Vote Started:</td>
+                   <td class="text-end medium-sans text-nowrap pe-2 py-2" >Voting Started:</td>
                    <td class="text-start py-1 text-secondary"> {{formatDateTime .VoteStartDate}}</td>
                  {{end}}
                  </tr>
@@ -398,10 +398,10 @@
                    {{end}} votes
                    </td>
                  {{if lt $tip .VoteEnd}}
-                   <td class="text-end medium-sans text-nowrap pe-2 py-2" >Vote Ends In:</td>
+                   <td class="text-end medium-sans text-nowrap pe-2 py-2" >Voting Ends In:</td>
                    <td class="text-start py-1 text-secondary"> ~ {{formatDateTime .VoteEndDate}}</td>
                  {{else if ge $tip .VoteEnd}}
-                   <td class="text-end medium-sans text-nowrap pe-2 py-2" >Vote Ended:</td>
+                   <td class="text-end medium-sans text-nowrap pe-2 py-2" >Voting Ended:</td>
                    <td class="text-start py-1 text-secondary"> {{formatDateTime .VoteEndDate}}</td>
                  {{end}}
                  </tr>

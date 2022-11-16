@@ -5929,7 +5929,7 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 			tx.TSpendMeta.PassPercent = float32(pgb.chainParams.TreasuryVoteRequiredMultiplier) / float32(pgb.chainParams.TreasuryVoteRequiredDivisor)
 
 			if totalVotes > 0 {
-				tx.TSpendMeta.Approval = float32(tx.TSpendMeta.YesVotes) / float32(totalVotes+maxRemainingVotes)
+				tx.TSpendMeta.Approval = float32(tx.TSpendMeta.YesVotes) / float32(totalVotes)
 			}
 
 			secTillVoteStart := (tx.TSpendMeta.VoteStart - tipHeight) * targetBlockTimeSec
