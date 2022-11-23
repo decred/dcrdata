@@ -372,8 +372,8 @@ const (
 	// index uix_agendas_name. This should be run prior to creating the index.
 	DeleteAgendasDuplicateRows = `DELETE FROM agendas
 		WHERE id IN (SELECT id FROM (
-				SELECT id, ROW_NUMBER()
-				OVER (partition BY name ORDER BY id) AS rnum
+				SELECT id,
+					row_number() OVER (PARTITION BY name ORDER BY id DESC) AS rnum
 				FROM agendas) t
 			WHERE t.rnum > 1);`
 
@@ -403,8 +403,8 @@ const (
 	// index uix_agenda_votes. This should be run prior to creating the index.
 	DeleteAgendaVotesDuplicateRows = `DELETE FROM agenda_votes
 		WHERE id IN (SELECT id FROM (
-				SELECT id, ROW_NUMBER()
-				OVER (partition BY votes_row_id, agendas_row_id ORDER BY id) AS rnum
+				SELECT id,
+					row_number() OVER (PARTITION BY votes_row_id, agendas_row_id ORDER BY id DESC) AS rnum
 				FROM agenda_votes) t
 			WHERE t.rnum > 1);`
 
