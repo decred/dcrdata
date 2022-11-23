@@ -85,8 +85,8 @@ const (
 	// uix_tx_hashes. This should be run prior to creating the index.
 	DeleteTxDuplicateRows = `DELETE FROM transactions
 		WHERE id IN (SELECT id FROM (
-			SELECT id, ROW_NUMBER()
-			OVER (partition BY tx_hash, block_hash ORDER BY id) AS rnum
+			SELECT id,
+				row_number() OVER (PARTITION BY tx_hash, block_hash ORDER BY id DESC) AS rnum
 			FROM transactions) t
 		WHERE t.rnum > 1);`
 

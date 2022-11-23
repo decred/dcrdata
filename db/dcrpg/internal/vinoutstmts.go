@@ -59,8 +59,8 @@ const (
 	// uix_vin. This should be run prior to creating the index.
 	DeleteVinsDuplicateRows = `DELETE FROM vins
 		WHERE id IN (SELECT id FROM (
-				SELECT id, ROW_NUMBER()
-				OVER (partition BY tx_hash, tx_index, tx_tree ORDER BY id) AS rnum
+				SELECT id,
+					row_number() OVER (PARTITION BY tx_hash, tx_index, tx_tree ORDER BY id DESC) AS rnum
 				FROM vins) t
 			WHERE t.rnum > 1);`
 
@@ -224,11 +224,14 @@ const (
 	// DeleteVoutDuplicateRows removes rows that would violate the unique index
 	// uix_vout_txhash_ind. This should be run prior to creating the index.
 	DeleteVoutDuplicateRows = `DELETE FROM vouts
-		WHERE id IN (SELECT id FROM (
-				SELECT id, ROW_NUMBER()
-				OVER (partition BY tx_hash, tx_index, tx_tree ORDER BY id) AS rnum
-				FROM vouts) t
-			WHERE t.rnum > 1);`
+		WHERE id IN (
+			SELECT id FROM (
+				SELECT id,
+					row_number() OVER (PARTITION BY tx_hash, tx_index, tx_tree ORDER BY id DESC) AS rnum
+				FROM vouts
+			) t
+			WHERE t.rnum > 1
+		);`
 
 	ShowCreateVoutsTable     = `WITH a AS (SHOW CREATE vouts) SELECT create_statement FROM a;`
 	DistinctVoutsToTempTable = `INSERT INTO vouts_temp
