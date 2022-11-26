@@ -381,7 +381,7 @@
                  {{end}}
                  <tr>
                    <td class="text-end medium-sans text-nowrap pe-2 py-2" >Min Required Yes Votes:</td>
-                   <td class="text-start py-1 text-secondary">{{.RequiredYesVotes}} votes</td>
+                   <td class="text-start py-1 text-secondary">{{.RequiredYesVotes}}</td>
                  {{if not $votingStarted}}
                    <td class="text-end medium-sans text-nowrap pe-2 py-2">Voting Starts In:</td>
                    <td class="text-start py-1 text-secondary"> ~ {{formatDateTime .VoteStartDate}}</td>
@@ -395,7 +395,7 @@
                    <td class="text-start py-1 text-secondary">{{.MaxVotes}} 
                    {{if gt .MaxRemainingVotes 0}}
                       ({{.MaxRemainingVotes}} remaining)
-                   {{end}} votes
+                   {{end}}
                    </td>
                  {{if lt $tip .VoteEnd}}
                    <td class="text-end medium-sans text-nowrap pe-2 py-2" >Voting Ends In:</td>
@@ -406,9 +406,9 @@
                  {{end}}
                  </tr>
                  <tr>
-                   <td class="text-end medium-sans text-nowrap pe-2 py-2">Actual Votes:</td>
+                   <td class="text-end medium-sans text-nowrap pe-2 py-2">Votes Cast:</td>
                    <td class="text-start py-1 text-secondary"> {{.TotalVotes}} 
-                    ({{printf "%.0f" (percentage .TotalVotes .MaxVotes)}}% turnout)
+                    ({{printf "%.0f" (percentage .TotalVotes (subtract .MaxVotes .MaxRemainingVotes))}}% turnout)
                   </td>
                    <td class="text-end medium-sans text-nowrap pe-2 py-2">Voting Period:</td>
                    <td class="text-start py-1 text-secondary">
