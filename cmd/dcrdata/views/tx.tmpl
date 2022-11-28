@@ -347,10 +347,10 @@
                     </span>
                     {{if .QuorumAchieved}}
                       <div class="d-flex align-items-center"><span class="fs20 dcricon-affirm me-2"></span>
-                      <span class="lh1em pb-1">Quorum achieved</span></div>
+                      <span class="lh1em pb-1">Quorum achieved ({{.TotalVotes}} of {{.QuorumCount}} needed votes)</span></div>
                     {{else if $votingEnded}}
                       <div class="d-flex align-items-center"><span class="fs20 dcricon-reject me-2"></span>
-                      <span class="pb-1">Quorum not achieved</span></div>
+                      <span class="pb-1">Quorum not achieved ({{.TotalVotes}} of {{.QuorumCount}} needed votes)</span></div>
                     {{else}}
                        <span class="text-secondary fs13">Quorum</span>
                        <div class="d-flex align-items-center"><span class="fs20 dcricon-missing me-2"></span>
