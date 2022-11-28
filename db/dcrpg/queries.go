@@ -719,6 +719,31 @@ func RetrieveMissedVotesInBlock(ctx context.Context, db *sql.DB, blockHash strin
 	return
 }
 
+// retrieveMissedVotesForBlockRange retrieves missed votes for the specified
+// block range.
+func retrieveMissedVotesForBlockRange(ctx context.Context, db *sql.DB, startHeight, endHeight int64) (missedVotes int64, err error) {
+	var rows *sql.Rows
+	rows, err = db.QueryContext(ctx, internal.SelectMissCountForBlockRange, startHeight, endHeight)
+	if err != nil {
+		return 0, err
+	}
+
+	defer closeRows(rows)
+	var missedVotesHashes []string
+	for rows.Next() {
+		var hash string
+		err = rows.Scan(&hash)
+		if err != nil {
+			return
+		}
+		missedVotesHashes = append(missedVotesHashes, hash)
+	}
+	err = rows.Err()
+	missedVotes = int64(len(missedVotesHashes))
+
+	return
+}
+
 // RetrieveMissesForTicket gets all of the blocks in which the ticket was called
 // to place a vote on the previous block. The previous block that would have
 // been validated by the vote is not the block data that is returned.

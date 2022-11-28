@@ -764,20 +764,20 @@ type TreasurySpendVotes struct {
 // status-dependent data representations for display purposes.
 type TreasurySpendMetaData struct {
 	*TreasurySpendVotes
-	PoliteiaKey       string
-	VoteEndDate       time.Time
-	VoteStartDate     time.Time
-	NextTVI           int64
-	NextTVITime       time.Time
-	Approved          bool
-	QuorumAchieved    bool
-	QuorumCount       int64
-	MaxVotes          int64
-	MaxRemainingVotes int64
-	RequiredYesVotes  int64
-	TotalVotes        int64
-	PassPercent       float32
-	Approval          float32
+	PoliteiaKey      string
+	VoteEndDate      time.Time
+	VoteStartDate    time.Time
+	NextTVI          int64
+	NextTVITime      time.Time
+	Approved         bool
+	QuorumAchieved   bool
+	QuorumCount      int64
+	MaxVotes         int64
+	EligibleVotes    int64
+	RequiredYesVotes int64
+	TotalVotes       int64
+	PassPercent      float32
+	Approval         float32
 }
 
 // BlockChainData defines data holding the latest block chain state from the

@@ -394,12 +394,8 @@
                  {{end}}
                  </tr>
                  <tr>
-                   <td class="text-end medium-sans text-nowrap pe-2 py-2" >Max Possible Votes:</td>
-                   <td class="text-start py-1 text-secondary">{{.MaxVotes}} 
-                   {{if gt .MaxRemainingVotes 0}}
-                      ({{.MaxRemainingVotes}} remaining)
-                   {{end}}
-                   </td>
+                   <td class="text-end medium-sans text-nowrap pe-2 py-2" >Eligible Votes:</td>
+                   <td class="text-start py-1 text-secondary">{{.EligibleVotes}} (of max possible {{.MaxVotes}})</td>
                  {{if lt $tip .VoteEnd}}
                    <td class="text-end medium-sans text-nowrap pe-2 py-2" >Voting Ends In:</td>
                    <td class="text-start py-1 text-secondary"> ~ {{formatDateTime .VoteEndDate}}</td>
@@ -411,7 +407,7 @@
                  <tr>
                    <td class="text-end medium-sans text-nowrap pe-2 py-2">Votes Cast:</td>
                    <td class="text-start py-1 text-secondary"> {{.TotalVotes}} 
-                    ({{printf "%.0f" (percentage .TotalVotes (subtract .MaxVotes .MaxRemainingVotes))}}% turnout)
+                    ({{printf "%.0f" (percentage .TotalVotes .EligibleVotes)}}% turnout)
                   </td>
                    <td class="text-end medium-sans text-nowrap pe-2 py-2">Voting Period:</td>
                    <td class="text-start py-1 text-secondary">

@@ -1202,6 +1202,15 @@ func (pgb *ChainDB) BlockMissedVotes(blockHash string) ([]string, error) {
 	return mv, pgb.replaceCancelError(err)
 }
 
+// missedVotesForBlockRange retrieves the number of missed votes for the block
+// range specified.
+func (pgb *ChainDB) missedVotesForBlockRange(startHeight, endHeight int64) (int64, error) {
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	defer cancel()
+	missed, err := retrieveMissedVotesForBlockRange(ctx, pgb.db, startHeight, endHeight)
+	return missed, pgb.replaceCancelError(err)
+}
+
 // TicketMisses retrieves all blocks in which the specified ticket was called to
 // vote but failed to do so (miss). There may be multiple since this consideres
 // side chain blocks. See TicketMiss for a mainchain-only version. If the ticket
@@ -5921,7 +5930,6 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 			} else if tx.TSpendMeta.VoteEnd > tipHeight {
 				maxRemainingVotes = (tx.TSpendMeta.VoteEnd - tipHeight) * int64(pgb.chainParams.TicketsPerBlock)
 			}
-			tx.TSpendMeta.MaxRemainingVotes = maxRemainingVotes
 
 			requiredYesVotes := (totalVotes + maxRemainingVotes) * int64(pgb.chainParams.TreasuryVoteRequiredMultiplier) / int64(pgb.chainParams.TreasuryVoteRequiredDivisor)
 			tx.TSpendMeta.RequiredYesVotes = requiredYesVotes
@@ -5957,6 +5965,32 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 					log.Errorf("Error fetching tspend end block time: %v", err)
 				}
 				tx.TSpendMeta.VoteEndDate = time.Unix(voteEndTimeStamp, 0).UTC()
+			}
+
+			if voteStarted {
+				// currentVoteEndBlock is the tspend vote end block, the block this
+				// tspend was mined(minus 1) or the currect block height if the tspend is
+				// still voting.
+				currentVoteEndBlock := tx.TSpendMeta.VoteEnd
+				if tx.TSpendMeta.Approved && tx.BlockHeight > 0 && tx.BlockHeight < tx.TSpendMeta.VoteEnd { // short-circuited tspend
+					currentVoteEndBlock = tx.BlockHeight - 1
+				} else if tx.TSpendMeta.VoteEnd > tipHeight { // still voting
+					currentVoteEndBlock = tipHeight
+				}
+
+				misses, err := pgb.missedVotesForBlockRange(tx.TSpendMeta.VoteStart, currentVoteEndBlock)
+				if err != nil {
+					log.Errorf("failed to get missed votes count for tspend voting window: %v", err)
+					return nil
+				}
+
+				// tx.TSpendMeta.EligibleVotes is the number of actual votes
+				// that were cast in the tspend voting window, including votes
+				// that did not indicate a tspend choice (aka abstaining votes).
+				// This is used to calculate vote turnout and give information
+				// about the number of eligible votes that were cast in the
+				// current voting window.
+				tx.TSpendMeta.EligibleVotes = int64(pgb.chainParams.TicketsPerBlock)*(currentVoteEndBlock-tx.TSpendMeta.VoteStart) - misses
 			}
 
 			// Retrieve Public Key a.k.a Politieia key.
