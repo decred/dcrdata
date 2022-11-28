@@ -305,21 +305,24 @@
         <div class="col-24 col-xl-11 bg-white px-2 px-xl-5 py-3 position-relative d-flex flex-column justify-content-between align-items-start">
                 <div class="fs22">Treasury Spend Approval</div>
                 {{if not $votingStarted}}
-                  <span class="fs16 lh1rem">Voting has not started for this Treasury Spend.</span>
+                  <span class="fs16 lh1rem">Voting has not started for this Treasury Spend</span>
                 {{else if not $votingEnded}}
                   <div>
-                    <span class="fs18 lh1rem">Voting now</span>
+                      <span class="fs18 lh1rem">Voting now</span>
                       <span class="float-right fs16">
-                      &nbsp;~&nbsp;{{formatDateTime .VoteEndDate}} remaining
-                    </span>
+                       &nbsp;~&nbsp;{{formatDateTime .VoteEndDate}} remaining
+                      </span>
                   </div>
                 {{else}}
                   <div>
                     <span class="fs18 lh1rem">Voting complete</span> &ndash;
                     {{if .Approved}}
-                      <span class="text-green">Approved</span>.
                       {{if eq $.Data.BlockHeight 0}}
-                      <span>Next TVI: {{.NextTVI}} (~ {{formatDateTime .NextTVITime}}).</span>
+                      <span>Next TVI: {{.NextTVI}} (~ {{formatDateTime .NextTVITime}})</span>
+                      {{else if lt $.Data.BlockHeight .VoteEnd}}
+                      <span class="text-green">Fast Approval</span>
+                      {{else}}
+                      <span class="text-green">Approved</span>
                       {{end}}
                     {{else}}
                       <span class="text-danger">Rejected</span>
@@ -340,7 +343,7 @@
                   <div class="col-auto d-flex flex-column justify-content-between ps-3">
                     <span class="fs17 lh1em">
                       <span class="fs22 medium-sans">{{printf "%.1f" (f32x100 .Approval)}}%</span>
-                      approval of {{intComma .TotalVotes}} votes.
+                      approval of {{intComma .TotalVotes}} votes
                     </span>
                     {{if .QuorumAchieved}}
                       <div class="d-flex align-items-center"><span class="fs20 dcricon-affirm me-2"></span>
