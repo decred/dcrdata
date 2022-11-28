@@ -722,25 +722,10 @@ func RetrieveMissedVotesInBlock(ctx context.Context, db *sql.DB, blockHash strin
 // retrieveMissedVotesForBlockRange retrieves missed votes for the specified
 // block range.
 func retrieveMissedVotesForBlockRange(ctx context.Context, db *sql.DB, startHeight, endHeight int64) (missedVotes int64, err error) {
-	var rows *sql.Rows
-	rows, err = db.QueryContext(ctx, internal.SelectMissCountForBlockRange, startHeight, endHeight)
+	err = db.QueryRowContext(ctx, internal.SelectMissCountForBlockRange, startHeight, endHeight).Scan(&missedVotes)
 	if err != nil {
 		return 0, err
 	}
-
-	defer closeRows(rows)
-	var missedVotesHashes []string
-	for rows.Next() {
-		var hash string
-		err = rows.Scan(&hash)
-		if err != nil {
-			return
-		}
-		missedVotesHashes = append(missedVotesHashes, hash)
-	}
-	err = rows.Err()
-	missedVotes = int64(len(missedVotesHashes))
-
 	return
 }
 

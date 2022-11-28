@@ -332,7 +332,7 @@ const (
 			GROUP BY blocks.hash, blocks.height, misses.block_hash
 			ORDER BY blocks.height;`
 
-	SelectMissCountForBlockRange = `SELECT ticket_hash FROM misses WHERE height >= $1 AND height <= $2;`
+	SelectMissCountForBlockRange = `SELECT count(1) FROM misses WHERE height >= $1 AND height <= $2;`
 
 	// agendas table
 
