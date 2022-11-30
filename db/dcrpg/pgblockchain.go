@@ -5924,12 +5924,17 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 			tx.TSpendMeta.QuorumAchieved = totalVotes >= tx.TSpendMeta.QuorumCount
 			tx.TSpendMeta.TotalVotes = totalVotes
 
-			var maxRemainingVotes int64
+			var maxRemainingBlocks int64
 			if !voteStarted {
-				maxRemainingVotes = (tx.TSpendMeta.VoteEnd - tx.TSpendMeta.VoteStart) * int64(pgb.chainParams.TicketsPerBlock)
+				maxRemainingBlocks = tx.TSpendMeta.VoteEnd - tx.TSpendMeta.VoteStart
+			} else if tx.BlockHeight != 0 && tx.TSpendMeta.VoteEnd > tx.BlockHeight {
+				// tspend was short-circuited but we still account for the max
+				// remaining votes at the block it the short-circuited.
+				maxRemainingBlocks = tx.TSpendMeta.VoteEnd - tx.BlockHeight
 			} else if tx.TSpendMeta.VoteEnd > tipHeight {
-				maxRemainingVotes = (tx.TSpendMeta.VoteEnd - tipHeight) * int64(pgb.chainParams.TicketsPerBlock)
+				maxRemainingBlocks = tx.TSpendMeta.VoteEnd - tipHeight
 			}
+			maxRemainingVotes := maxRemainingBlocks * int64(pgb.chainParams.TicketsPerBlock)
 
 			requiredYesVotes := (totalVotes + maxRemainingVotes) * int64(pgb.chainParams.TreasuryVoteRequiredMultiplier) / int64(pgb.chainParams.TreasuryVoteRequiredDivisor)
 			tx.TSpendMeta.RequiredYesVotes = requiredYesVotes
@@ -5968,12 +5973,12 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 			}
 
 			if voteStarted {
-				// currentVoteEndBlock is the tspend vote end block, the block this
-				// tspend was mined(minus 1) or the currect block height if the tspend is
-				// still voting.
+				// currentVoteEndBlock is the tspend vote end block, the block
+				// this tspend was mined or the currect block height if the
+				// tspend is still voting.
 				currentVoteEndBlock := tx.TSpendMeta.VoteEnd
-				if tx.TSpendMeta.Approved && tx.BlockHeight > 0 && tx.BlockHeight < tx.TSpendMeta.VoteEnd { // short-circuited tspend
-					currentVoteEndBlock = tx.BlockHeight - 1
+				if (tx.TSpendMeta.Approved && tx.BlockHeight > 0) && tx.BlockHeight < tx.TSpendMeta.VoteEnd { // short-circuited tspend
+					currentVoteEndBlock = tx.BlockHeight
 				} else if tx.TSpendMeta.VoteEnd > tipHeight { // still voting
 					currentVoteEndBlock = tipHeight
 				}
@@ -5986,7 +5991,7 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 
 				// tx.TSpendMeta.EligibleVotes is the number of actual votes
 				// that were cast in the tspend voting window, including votes
-				// that did not indicate a tspend choice (aka abstaining votes).
+				// that did not indicate a tspend choice (aka abstain votes).
 				// This is used to calculate vote turnout and give information
 				// about the number of eligible votes that were cast in the
 				// current voting window.

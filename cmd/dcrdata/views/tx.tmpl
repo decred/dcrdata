@@ -383,8 +383,8 @@
                  </tr>
                  {{end}}
                  <tr>
-                   <td class="text-end medium-sans text-nowrap pe-2 py-2" >Min Required Yes Votes:</td>
-                   <td class="text-start py-1 text-secondary">{{.RequiredYesVotes}}</td>
+                   <td class="text-end medium-sans text-nowrap pe-2 py-2" >Eligible Votes:</td>
+                   <td class="text-start py-1 text-secondary">{{.EligibleVotes}} (of max possible {{.MaxVotes}})</td>
                  {{if not $votingStarted}}
                    <td class="text-end medium-sans text-nowrap pe-2 py-2">Voting Starts In:</td>
                    <td class="text-start py-1 text-secondary"> ~ {{formatDateTime .VoteStartDate}}</td>
@@ -394,8 +394,10 @@
                  {{end}}
                  </tr>
                  <tr>
-                   <td class="text-end medium-sans text-nowrap pe-2 py-2" >Eligible Votes:</td>
-                   <td class="text-start py-1 text-secondary">{{.EligibleVotes}} (of max possible {{.MaxVotes}})</td>
+                   <td class="text-end medium-sans text-nowrap pe-2 py-2">Votes Cast:</td>
+                   <td class="text-start py-1 text-secondary"> {{.TotalVotes}} 
+                    ({{printf "%.0f" (percentage .TotalVotes .EligibleVotes)}}% turnout)
+                   </td>
                  {{if lt $tip .VoteEnd}}
                    <td class="text-end medium-sans text-nowrap pe-2 py-2" >Voting Ends In:</td>
                    <td class="text-start py-1 text-secondary"> ~ {{formatDateTime .VoteEndDate}}</td>
@@ -405,10 +407,15 @@
                  {{end}}
                  </tr>
                  <tr>
-                   <td class="text-end medium-sans text-nowrap pe-2 py-2">Votes Cast:</td>
-                   <td class="text-start py-1 text-secondary"> {{.TotalVotes}} 
-                    ({{printf "%.0f" (percentage .TotalVotes .EligibleVotes)}}% turnout)
-                  </td>
+                  {{if not .Approved}} 
+                   <td class="text-end medium-sans text-nowrap pe-2 py-2" >Yes Votes Still Needed:</td>
+                   <td class="text-start py-1 text-secondary">
+                     {{$remainingYesVotes := subtract .RequiredYesVotes .YesVotes}}
+                     {{if gt $remainingYesVotes 0}}
+                       {{$remainingYesVotes}}
+                     {{end}}
+                   </td>
+                  {{end}}  
                    <td class="text-end medium-sans text-nowrap pe-2 py-2">Voting Period:</td>
                    <td class="text-start py-1 text-secondary">
                  {{if $votingStarted}}
