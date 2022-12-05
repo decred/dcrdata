@@ -318,7 +318,7 @@
                     <span class="fs18 lh1rem">Voting complete</span> &ndash;
                     {{if .Approved}}
                       {{if eq $.Data.BlockHeight 0}}
-                      <span>Next TVI: {{.NextTVI}} (~ {{formatDateTime .NextTVITime}})</span>
+                      <span>Mineable at Next TVI: {{.NextTVI}} (~ {{formatDateTime .NextTVITime}})</span>
                       {{else if lt $.Data.BlockHeight .VoteEnd}}
                       <span class="text-green">Fast Approval</span>
                       {{else}}
@@ -398,16 +398,24 @@
                    <td class="text-start py-1 text-secondary"> {{.TotalVotes}} 
                     ({{printf "%.0f" (percentage .TotalVotes .EligibleVotes)}}% turnout)
                    </td>
-                 {{if lt $tip .VoteEnd}}
-                   <td class="text-end medium-sans text-nowrap pe-2 py-2" >Voting Ends In:</td>
-                   <td class="text-start py-1 text-secondary"> ~ {{formatDateTime .VoteEndDate}}</td>
-                 {{else if ge $tip .VoteEnd}}
-                   <td class="text-end medium-sans text-nowrap pe-2 py-2" >Voting Ended:</td>
-                   <td class="text-start py-1 text-secondary"> {{formatDateTime .VoteEndDate}}</td>
+                 {{if not .Approved}}
+                    <td class="text-end medium-sans text-nowrap pe-2 py-2" >Voting Ends In:</td>
+                    <td class="text-start py-1 text-secondary"> ~ {{formatDateTime .VoteEndDate}}</td>
+                 {{else}}
+                   {{if eq $.Data.BlockHeight 0}}
+                    <td class="text-end medium-sans text-nowrap pe-2 py-2" >Voting Ends In:</td>
+                    <td class="text-start py-1 text-secondary"> ~ {{formatDateTime .NextTVITime}}</td>
+                   {{else if gt $.Data.BlockHeight .VoteEnd}}
+                    <td class="text-end medium-sans text-nowrap pe-2 py-2" >Voting Ended:</td>
+                    <td class="text-start py-1 text-secondary">{{formatDateTime .VoteEndDate}}</td>
+                   {{else}}
+                    <td class="text-end medium-sans text-nowrap pe-2 py-2" >Voting Ended:</td>
+                    <td class="text-start py-1 text-secondary" data-tx-target="formattedAge">{{$.Data.Time.String}}</td>  
+                  {{end}}
                  {{end}}
                  </tr>
                  <tr>
-                  {{if not .Approved}} 
+                 {{if not .Approved}} 
                    <td class="text-end medium-sans text-nowrap pe-2 py-2" >Yes Votes Still Needed:</td>
                    <td class="text-start py-1 text-secondary">
                      {{$remainingYesVotes := subtract .RequiredYesVotes .YesVotes}}
@@ -415,7 +423,7 @@
                        {{$remainingYesVotes}}
                      {{end}}
                    </td>
-                  {{end}}  
+                 {{end}}  
                    <td class="text-end medium-sans text-nowrap pe-2 py-2">Voting Period:</td>
                    <td class="text-start py-1 text-secondary">
                  {{if $votingStarted}}
@@ -424,10 +432,20 @@
                    {{.VoteStart}}
                  {{end}}
                      &ndash;
-                 {{if ge $tip .VoteEnd}}
+                 {{if not .Approved}}
+                   {{if ge $tip .VoteEnd}}
                      <a href="/block/{{.VoteEnd}}">{{.VoteEnd}}</a>
                  {{else}}
                      {{.VoteEnd}}
+                   {{end}}
+                 {{else}}
+                   {{if eq $.Data.BlockHeight 0}}
+                        {{.NextTVI}}
+                   {{else if gt $.Data.BlockHeight .VoteEnd}}
+                      <a href="/block/{{.VoteEnd}}">{{.VoteEnd}}</a>
+                   {{else}}
+                      <a href="/block/{{$.Data.BlockHeight}}">{{$.Data.BlockHeight}}</a>
+                   {{end}}
                  {{end}}
                    </td>
                  </tr>
