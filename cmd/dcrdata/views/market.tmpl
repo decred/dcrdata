@@ -18,11 +18,11 @@
 
         {{- /* PRICE */ -}}
         <div class="ms-4 me-2 my-4 p-2 p-lg-4 bg-white text-center">
-            <div class="text-center fs18 text-secondary">1 DCR =</div>
+            <span class="text-center fs18 text-secondary">1 DCR =</span>
             {{if eq $botState.BtcIndex "USD"}}
-                <span class="fs18 fw-bold d-inline-block pt-1" style="vertical-align:top;">$</span>
+                <span class="fs22 fw-bold d-inline-block">$</span>
             {{end}}
-            <span class="fs28" data-market-target="price">{{printf "%.2f" $botState.Price}}</span> <span class="fs16 text-secondary">{{$botState.BtcIndex}}</span>
+            <span class="fs24" data-market-target="price">{{printf "%.2f" $botState.Price}}</span> <span class="fs16 text-secondary">{{$botState.BtcIndex}}</span>
         </div>
 
 
@@ -87,7 +87,7 @@
                   <div class="col-12 text-center">
                       <div class="fs18 fw-bold d-flex align-items-center justify-content-center"><div class="exchange-logo {{$token}} me-1"></div> <span class="d-inline-block">{{toTitleCase $token}}</span></div>
                       {{if eq $botState.BtcIndex "USD"}}
-                          <span class="fs16 fw-bold d-inline-block pt-1 valign-top">$</span>
+                          <span class="fs22 fw-bold d-inline-block">$</span>
                       {{end}}
                       <span class="fs24" data-price="{{$state.Price}}" data-token="{{$token}}" data-market-target="xcIndex">{{printf "%.2f" $state.Price}}</span> <span class="fs16 text-secondary">{{$botState.BtcIndex}}</span><br>
                       {{if eq $token "coindesk"}}

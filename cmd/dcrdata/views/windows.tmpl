@@ -9,7 +9,7 @@
     {{template "blocksBanner" .}}
     <div data-controller="pagenavigation" class="container main">
         {{$windowsCount := (int64 (len .Data))}}
-        <div class="mb-1">
+        <div class="px-1 mb-1">
             {{if gt $windowsCount 0}}
             {{$pendingWindows := (int64 (index .Data 0).IndexVal)}}
             {{$oldest = (add .OffsetWindow $windowsCount)}}
@@ -22,7 +22,7 @@
                 <span class="dcricon-info fs14 ms-2 mt-2" title="Decred Blocks Grouped By Ticket Price Windows"></span>
               </span>
 
-              <div class="pb-1 d-flex justify-content-end align-items-end flex-wrap">
+              <div class="pb-1 d-flex justify-content-end align-items-center flex-wrap">
               <span class="fs12 nowrap text-secondary px-2 my-2">
                     {{intComma (add .OffsetWindow 1)}} &ndash; {{intComma $oldest}} of {{ intComma $lastWindow }} rows
                 </span>
