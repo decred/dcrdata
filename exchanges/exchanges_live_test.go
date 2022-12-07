@@ -344,7 +344,7 @@ func TestDecredDEXLive(t *testing.T) {
 			case <-chans.index:
 				log.Infof("Why are we receiving index updates?")
 			case u := <-chans.exchange:
-				log.Infof("Exchange update received: %s", mustEncode(t, u))
+				log.Infof("Exchange update received: %s", mustEncode(u))
 			}
 		}
 	}()

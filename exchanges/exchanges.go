@@ -26,8 +26,6 @@ import (
 	"decred.org/dcrdex/dex"
 	dexcandles "decred.org/dcrdex/dex/candles"
 	"decred.org/dcrdex/dex/msgjson"
-	"github.com/carterjones/signalr"
-	"github.com/carterjones/signalr/hubs"
 	dcrrates "github.com/decred/dcrdata/exchanges/v3/ratesproto"
 )
 
@@ -122,7 +120,7 @@ var (
 		},
 		// Bittrex uses SignalR, which retrieves the actual websocket endpoint via
 		// HTTP.
-		Websocket: "socket.bittrex.com",
+		Websocket: "socket-v3.bittrex.com",
 	}
 	DragonExURLs = URLs{
 		Price: "https://openapi.dragonex.io/api/v1/market/real/?symbol_id=1520101",
@@ -453,7 +451,6 @@ type CommonExchange struct {
 	channels     *BotChannels
 	wsMtx        sync.RWMutex
 	ws           websocketFeed
-	sr           signalrClient
 	wsSync       struct {
 		err      error
 		errCount int
@@ -461,12 +458,10 @@ type CommonExchange struct {
 		update   time.Time
 		fail     time.Time
 	}
-	// wsProcessor is only used for websockets, not SignalR. For SignalR, the
-	// callback function is passed as part of the signalrConfig.
+	// wsProcessor is used to process messages from websockets.
 	wsProcessor WebsocketProcessor
-	// Exchanges that use websockets or signalr to maintain a live orderbook can
-	// use the buy and sell slices to leverage some useful methods on
-	// CommonExchange.
+	// Exchanges that use websockets to maintain a live orderbook can use the
+	// buy and sell slices to leverage some useful methods on CommonExchange.
 	orderMtx sync.RWMutex
 	buys     wsOrders
 	asks     wsOrders
@@ -602,21 +597,9 @@ func (xc *CommonExchange) websocket() (websocketFeed, WebsocketProcessor) {
 	return xc.ws, xc.wsProcessor
 }
 
-// Grab the SignalR client, which is nil for most exchanges.
-func (xc *CommonExchange) signalr() signalrClient {
-	xc.mtx.RLock()
-	defer xc.mtx.RUnlock()
-	return xc.sr
-}
-
-// Creates a websocket connection and starts a listen loop. Closes any existing
-// connections for this exchange.
-func (xc *CommonExchange) connectWebsocket(processor WebsocketProcessor, cfg *socketConfig) error {
-	ws, err := newSocketConnection(cfg)
-	if err != nil {
-		return err
-	}
-
+// addWebsocketConnection adds a websocket connection and it's message processor
+// to an exchange.
+func (xc *CommonExchange) addWebsocketConnection(ws websocketFeed, processor WebsocketProcessor) {
 	xc.wsMtx.Lock()
 	// Ensure that any previous websocket is closed.
 	if xc.ws != nil {
@@ -627,6 +610,17 @@ func (xc *CommonExchange) connectWebsocket(processor WebsocketProcessor, cfg *so
 	xc.wsMtx.Unlock()
 
 	xc.startWebsocket()
+}
+
+// Creates a websocket connection and starts a listen loop. Closes any existing
+// connections for this exchange.
+func (xc *CommonExchange) connectWebsocket(processor WebsocketProcessor, cfg *socketConfig) error {
+	ws, err := newSocketConnection(cfg)
+	if err != nil {
+		return err
+	}
+
+	xc.addWebsocketConnection(ws, processor)
 	return nil
 }
 
@@ -645,8 +639,7 @@ func (xc *CommonExchange) startWebsocket() {
 	}()
 }
 
-// wsSend sends a message on a standard websocket connection. For SignalR
-// connections, use xc.sr.Send directly.
+// wsSend sends a message on a standard websocket connection.
 func (xc *CommonExchange) wsSend(msg interface{}) error {
 	ws, _ := xc.websocket()
 	if ws == nil {
@@ -654,6 +647,15 @@ func (xc *CommonExchange) wsSend(msg interface{}) error {
 		return errors.New("no connection")
 	}
 	return ws.Write(msg)
+}
+
+// wsSendJSON is like wsSend but it encodes msg to JSON before sending.
+func (xc *CommonExchange) wsSendJSON(msg interface{}) error {
+	ws, _ := xc.websocket()
+	if ws == nil {
+		return errors.New("no connection")
+	}
+	return ws.WriteJSON(msg)
 }
 
 // Checks whether the websocketFeed Done channel is closed.
@@ -672,15 +674,6 @@ func (xc *CommonExchange) setWsFail(err error) {
 		xc.ws.Close()
 		// Clear the field to prevent double Close'ing.
 		xc.ws = nil
-	}
-	if xc.sr != nil {
-		// The carterjones/signalr can hang on Close. The goroutine is a stopgap while
-		// we migrate to a new signalr client.
-		// https://github.com/decred/dcrdata/issues/1818
-		go xc.sr.Close()
-		// Clear the field to prevent double Close'ing. signalr will hang on
-		// second call.
-		xc.sr = nil
 	}
 	xc.wsSync.err = err
 	xc.wsSync.errCount++
@@ -729,26 +722,6 @@ func (xc *CommonExchange) wsErrorCount() int {
 	xc.wsMtx.RLock()
 	defer xc.wsMtx.RUnlock()
 	return xc.wsSync.errCount
-}
-
-// For exchanges that have SignalR-wrapped websockets, connectSignalr will be
-// used instead of connectWebsocket.
-func (xc *CommonExchange) connectSignalr(cfg *signalrConfig) (err error) {
-	if cfg.errHandler == nil {
-		cfg.errHandler = func(err error) {
-			xc.wsMtx.Lock()
-			xc.sr = nil
-			xc.wsMtx.Unlock()
-			xc.setWsFail(err)
-		}
-	}
-	xc.wsMtx.Lock()
-	defer xc.wsMtx.Unlock()
-	if xc.sr != nil {
-		xc.sr.Close()
-	}
-	xc.sr, err = newSignalrConnection(cfg)
-	return
 }
 
 // An intermediate order representation used to track an orderbook over a
@@ -860,7 +833,6 @@ func (xc *CommonExchange) wsDepthStatus(connector func()) (tryHttp, initializing
 		log.Errorf("%s websocket disabled. Too many errors. Will attempt to reconnect after %.1f minutes", xc.token, time.Until(okToTry).Minutes())
 	}
 	return
-
 }
 
 // Used to initialize the embedding exchanges.
@@ -1305,9 +1277,9 @@ func NewBittrex(client *http.Client, channels *BotChannels) (bittrex Exchange, e
 	}
 	go func() {
 		<-channels.done
-		sr := b.signalr()
-		if sr != nil {
-			sr.Close()
+		ws, _ := b.websocket()
+		if ws != nil {
+			ws.Close()
 		}
 	}()
 	bittrex = b
@@ -1429,7 +1401,7 @@ func translateBittrexCandlesticks(inSticks []*BittrexCandlestick) Candlesticks {
 
 const maxBittrexQueueSize = 50
 
-var bittrexSubscribeOrderbook = hubs.ClientMsg{
+var bittrexSubscribeOrderbook = signalRClientMsg{
 	H: "c3",
 	M: "Subscribe",
 	A: []interface{}{[]interface{}{"orderbook_DCR-BTC_500", "heartbeat"}},
@@ -1443,7 +1415,7 @@ func (bittrex *BittrexExchange) processBittrexOrderbookPoint(order *BittrexOrder
 	case 0:
 		_, found := book[k]
 		if !found {
-			bittrex.setWsFail(fmt.Errorf("no order found for bittrex orderbook removal-type update at key %d\n", k))
+			bittrex.setWsFail(fmt.Errorf("no order found for bittrex orderbook removal-type update at key %d", k))
 			return
 		}
 		delete(book, k)
@@ -1554,7 +1526,7 @@ type BittrexOrderbookDelta struct {
 	Rate StringFloat `json:"rate"`
 }
 
-// BittrexWSMsg is used to parse the ridiculous signalr message format into
+// BittrexWSMsg is used to parse the ridiculous signalR message format into
 // something sane.
 type BittrexWSMsg struct {
 	Name    string
@@ -1566,7 +1538,7 @@ const (
 	BittrexMsgBookUpdate = "orderBook"
 )
 
-func decodeBittrexWSMessage(msg signalr.Message) ([]*BittrexWSMsg, error) {
+func decodeBittrexWSMessage(msg signalRMessage) ([]*BittrexWSMsg, error) {
 	msgs := make([]*BittrexWSMsg, 0, len(msg.M))
 	for _, hubMsg := range msg.M {
 		msg := &BittrexWSMsg{
@@ -1613,11 +1585,23 @@ func decodeBittrexWSMessage(msg signalr.Message) ([]*BittrexWSMsg, error) {
 	return msgs, nil
 }
 
-// Handle the SignalR message. The message can be either a full orderbook at
-// msg.R (msg.I == "1"), or a list of updates in msg.M[i].A.
-func (bittrex *BittrexExchange) msgHandler(inMsg signalr.Message) {
+// processWsMessage handles message from the bittrex websocket. The message can
+// be either a full orderbook at msg.R (msg.I == "1"), or a list of updates in
+// msg.M[i].A.
+func (bittrex *BittrexExchange) processWsMessage(inMsg []byte) {
+	// Ignore KeepAlive messages.
+	if len(inMsg) == 2 && inMsg[0] == '{' && inMsg[1] == '}' {
+		return
+	}
 
-	msgs, err := decodeBittrexWSMessage(inMsg)
+	var msg signalRMessage
+	err := json.Unmarshal(inMsg, &msg)
+	if err != nil {
+		bittrex.setWsFail(fmt.Errorf("unable to read message bytes: %v", err))
+		return
+	}
+
+	msgs, err := decodeBittrexWSMessage(msg)
 	if err != nil {
 		bittrex.setWsFail(fmt.Errorf("Bittrex websocket message decode error: %v", err))
 		return
@@ -1685,20 +1669,18 @@ func (bittrex *BittrexExchange) connectWs() {
 	bittrex.orderSeq = 0
 	bittrex.orderMtx.Unlock()
 
-	err := bittrex.connectSignalr(&signalrConfig{
-		host:       "socket-v3.bittrex.com",
-		protocol:   "1.5",
-		endpoint:   "/signalr",
-		msgHandler: bittrex.msgHandler,
-	})
+	conn, err := connectSignalRWebsocket(BittrexURLs.Websocket, "/signalr", nil)
 	if err != nil {
-		bittrex.setWsFail(err)
+		bittrex.setWsFail(fmt.Errorf("connectSignalrWebsocket error: %v", err))
 		return
 	}
 
-	// Subscribe to the feed. The full orderbook will be requested once the first
-	// delta is received.
-	err = bittrex.sr.Send(bittrexSubscribeOrderbook)
+	// Add the websocket feed to the bittrex exchange.
+	bittrex.addWebsocketConnection(conn, bittrex.processWsMessage)
+
+	// Subscribe to the feed. The full orderbook will be requested once the
+	// first delta is received.
+	err = bittrex.wsSendJSON(bittrexSubscribeOrderbook)
 	if err != nil {
 		bittrex.setWsFail(fmt.Errorf("Failed to send order update request to bittrex: %v", err))
 		return
@@ -1713,8 +1695,8 @@ func (bittrex *BittrexExchange) connectWs() {
 	bittrex.processFullOrderbook(book)
 }
 
-// Refresh retrieves and parses API data from Bittrex.
-// Bittrex provides timestamps in a string format that is not quite RFC 3339.
+// Refresh retrieves and parses API data from Bittrex. Bittrex provides
+// timestamps in a string format that is not quite RFC 3339.
 func (bittrex *BittrexExchange) Refresh() {
 	bittrex.LogRequest()
 	priceResponse := new(BittrexPriceResponse)

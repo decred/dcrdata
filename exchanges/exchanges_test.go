@@ -19,8 +19,6 @@ import (
 	"time"
 
 	"decred.org/dcrdex/dex/msgjson"
-	"github.com/carterjones/signalr"
-	"github.com/carterjones/signalr/hubs"
 	"github.com/decred/slog"
 )
 
@@ -149,6 +147,9 @@ func (p *fakePoloniexWebsocket) Read() ([]byte, error) {
 func (p *fakePoloniexWebsocket) Write(interface{}) error {
 	return nil
 }
+func (p *fakePoloniexWebsocket) WriteJSON(interface{}) error {
+	return nil
+}
 
 var poloMtx sync.Mutex
 var poloOn bool = true
@@ -268,7 +269,7 @@ func (conn testBittrexConnection) On() bool {
 	return false
 }
 
-func (conn testBittrexConnection) Send(hubs.ClientMsg) error {
+func (conn testBittrexConnection) Send(signalRClientMsg) error {
 	return nil
 }
 
@@ -289,7 +290,6 @@ func newTestBittrexExchange() (*BittrexExchange, *tDoer) {
 		},
 		queue: make([]*BittrexOrderbookUpdate, 0),
 	}
-	bittrex.sr = testBittrexConnection{xc: bittrex}
 	return bittrex, doer
 }
 
@@ -297,7 +297,7 @@ func TestBittrexWebsocket(t *testing.T) {
 	var seq uint64
 
 	// helper function to prepare a websocket orderbook update.
-	obUpdate := func(bids []*BittrexOrderbookDelta, asks []*BittrexOrderbookDelta) signalr.Message {
+	obUpdate := func(bids []*BittrexOrderbookDelta, asks []*BittrexOrderbookDelta) []byte {
 		t.Helper()
 		u := BittrexOrderbookUpdate{
 			MarketSymbol: "DCR-BTC",
@@ -326,14 +326,21 @@ func TestBittrexWebsocket(t *testing.T) {
 
 		b64 := base64.StdEncoding.EncodeToString(buf.Bytes())
 
-		return signalr.Message{
-			M: []hubs.ClientMsg{
+		msg := signalRMessage{
+			M: []signalRClientMsg{
 				{
 					M: BittrexMsgBookUpdate,
 					A: []interface{}{b64},
 				},
 			},
 		}
+
+		msgBytes, err := json.Marshal(msg)
+		if err != nil {
+			t.Fatalf("error encoding msg to json: %v", err)
+		}
+
+		return msgBytes
 	}
 
 	bittrex, doer := newTestBittrexExchange()
@@ -357,7 +364,7 @@ func TestBittrexWebsocket(t *testing.T) {
 		Qty:  456789,
 		Rate: 987654,
 	}}
-	bittrex.msgHandler(obUpdate(nil, asks))
+	bittrex.processWsMessage(obUpdate(nil, asks))
 
 	bittrex.processFullOrderbook(ob)
 
@@ -382,7 +389,7 @@ func TestBittrexWebsocket(t *testing.T) {
 		Qty:  0,
 		Rate: 987654,
 	}}
-	bittrex.msgHandler(obUpdate(nil, asks))
+	bittrex.processWsMessage(obUpdate(nil, asks))
 
 	depths := bittrex.wsDepths()
 	if len(depths.Asks) != 0 {
@@ -491,6 +498,10 @@ func (ws *dexWS) Write(thing interface{}) error {
 	case msgjson.CandlesRoute:
 		ws.candleID <- msg.ID
 	}
+	return nil
+}
+
+func (ws *dexWS) WriteJSON(thing interface{}) error {
 	return nil
 }
 

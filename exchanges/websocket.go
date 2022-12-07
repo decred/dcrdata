@@ -6,12 +6,11 @@ package exchanges
 import (
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
 
-	"github.com/carterjones/signalr"
-	"github.com/carterjones/signalr/hubs"
 	"github.com/gorilla/websocket"
 )
 
@@ -28,6 +27,12 @@ type websocketFeed interface {
 	// Write sends a message. Write will safely sequence messages from multiple
 	// threads.
 	Write(interface{}) error
+	// WriteJSON is modeled after the function defined at
+	// https://godoc.org/github.com/gorilla/websocket#Conn.WriteJSON
+	//
+	// WriteJSON is like Write but it will encode a message to json before
+	// sending it.
+	WriteJSON(interface{}) error
 	// Close will disconnect, causing any pending Read operations to error out.
 	Close()
 }
@@ -38,6 +43,7 @@ type websocketFeed interface {
 type socketConfig struct {
 	address   string
 	tlsConfig *tls.Config
+	headers   http.Header
 }
 
 // A manager for a gorilla websocket connection.
@@ -68,6 +74,15 @@ func (client *socketClient) Write(msg interface{}) error {
 	return client.conn.WriteMessage(websocket.TextMessage, b)
 }
 
+// WriteJSON is a wrapper for gorilla WriteJSON. Satisfies
+// websocketFeed.WriteJSON. Writes are sequenced with a mutex lock for
+// per-connection multi-threaded use.
+func (client *socketClient) WriteJSON(msg interface{}) error {
+	client.mtx.Lock()
+	defer client.mtx.Unlock()
+	return client.conn.WriteJSON(msg)
+}
+
 // Done returns a channel that will be closed when the websocket connection is
 // closed. Satisfies websocketFeed.Done.
 func (client *socketClient) Done() chan struct{} {
@@ -94,115 +109,19 @@ func newSocketConnection(cfg *socketConfig) (websocketFeed, error) {
 		TLSClientConfig:  cfg.tlsConfig,
 	}
 
-	conn, _, err := dialer.Dial(cfg.address, nil)
-	if err != nil {
-		return nil, err
+	conn, resp, err := dialer.Dial(cfg.address, cfg.headers)
+	if err == nil { // Return early if no error.
+		return &socketClient{
+			conn: conn,
+			done: make(chan struct{}),
+			on:   true,
+		}, nil
 	}
-	return &socketClient{
-		conn: conn,
-		done: make(chan struct{}),
-		on:   true,
-	}, nil
-}
 
-/*
-// Quickly encode the thing to a JSON-encoded string.
-func jsonify(thing interface{}) string {
-	s, _ := json.MarshalIndent(thing, "", "    ")
-	return string(s)
-}
-
-// Dump the signalr.Message to something readable.
-func dumpSignalrMsg(msg signalr.Message) {
-	fmt.Println("=================================")
-	fmt.Printf("C: %s\n", jsonify(msg.C))
-	fmt.Printf("S: %s\n", jsonify(msg.S))
-	fmt.Printf("G: %s\n", jsonify(msg.G))
-	fmt.Printf("I: %s\n", jsonify(msg.I))
-	fmt.Printf("E: %s\n", jsonify(msg.E))
-	s, _ := msg.R.MarshalJSON()
-	fmt.Printf("R: %s\n", string(s))
-	s, _ = msg.H.MarshalJSON()
-	fmt.Printf("H: %s\n", string(s))
-	s, _ = msg.D.MarshalJSON()
-	fmt.Printf("D: %s\n", string(s))
-	s, _ = msg.T.MarshalJSON()
-	fmt.Printf("T: %s\n", string(s))
-	for _, hubMsg := range msg.M {
-		fmt.Printf("  M: %s\n", hubMsg.M)
-		for _, arg := range hubMsg.A {
-			fmt.Printf("    A: %s\n", jsonify(arg))
-		}
+	// Handle response properly.
+	if resp == nil {
+		return nil, fmt.Errorf("received empty response body and an error: %w", err)
 	}
-	fmt.Println("=================================")
-}
-*/
 
-// The interface for a signalr connection.
-type signalrClient interface {
-	Send(hubs.ClientMsg) error
-	Close()
-}
-
-type signalrConfig struct {
-	host           string
-	protocol       string
-	endpoint       string
-	connectionData string
-	params         map[string]string
-	msgHandler     signalr.MsgHandler // func(msg signalr.Message)
-	errHandler     signalr.ErrHandler // func(err error)
-}
-
-// A wrapper for the signalr.Client. Satisfies signalrClient.
-type signalrConnection struct {
-	c   *signalr.Client
-	mtx sync.Mutex
-	on  bool
-}
-
-// Send sends the ClientMsg on the connection. A mutex makes Send thread-safe.
-func (conn *signalrConnection) Send(msg hubs.ClientMsg) error {
-	conn.mtx.Lock()
-	defer conn.mtx.Unlock()
-	return conn.c.Send(msg)
-}
-
-// Close closes the underlying signalr connection.
-func (conn *signalrConnection) Close() {
-	// Underlying connection Close can block, so measures should be taken prevent
-	// calls to Close on an already closed connection.
-	conn.mtx.Lock()
-	defer conn.mtx.Unlock()
-	if !conn.on {
-		return
-	}
-	conn.on = false
-	conn.c.Close()
-}
-
-// Create a new signalr connection. Returns the signalrClient interface rather
-// than the signalrConnection.
-func newSignalrConnection(cfg *signalrConfig) (signalrClient, error) {
-	// Prepare a SignalR client.
-	c := signalr.New(
-		cfg.host,
-		cfg.protocol,
-		cfg.endpoint,
-		cfg.connectionData,
-		cfg.params,
-	)
-
-	// Set the user agent to one that looks like a browser.
-	c.Headers["User-Agent"] = fauxBrowserUA
-
-	// Start the connection.
-	err := c.Run(cfg.msgHandler, cfg.errHandler)
-	if err != nil {
-		return nil, err
-	}
-	return &signalrConnection{
-		c:  c,
-		on: true,
-	}, nil
+	return nil, fmt.Errorf("unexpected response status %s and error: %w", resp.Status, err)
 }
