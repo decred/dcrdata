@@ -907,7 +907,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			tx.Type = types.CoinbaseTypeStr
 		}
 
-		// TODO: tx.TSpendTally
+		// TODO: tx.TSpendTally?
 
 		// Retrieve vouts from DB.
 		vouts, err := exp.dataSource.VoutsForTx(dbTx0)
@@ -982,7 +982,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// If the scriptsig does not decode or disassemble, oh well.
-			asm, _ := txscript.DisasmString(vins[iv].ScriptHex)
+			asm, _ := txscript.DisasmString(vins[iv].ScriptSig)
 
 			txIndex := vins[iv].TxIndex
 			amount := dcrutil.Amount(vins[iv].ValueIn).ToCoin()
@@ -1014,7 +1014,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 					BlockIndex:    tx.BlockIndex,
 					ScriptSig: &chainjson.ScriptSig{
 						Asm: asm,
-						Hex: hex.EncodeToString(vins[iv].ScriptHex),
+						Hex: hex.EncodeToString(vins[iv].ScriptSig),
 					},
 				},
 				Addresses:       addresses,
@@ -1409,8 +1409,7 @@ func (exp *explorerUI) TreasuryPage(w http.ResponseWriter, r *http.Request) {
 	ctx := context.WithValue(r.Context(), ctxAddress, exp.pageData.HomeInfo.DevAddress)
 	r = r.WithContext(ctx)
 	if queryVals := r.URL.Query(); queryVals.Get("txntype") == "" {
-		// TODO: Change default to "tspend" once there are some tspends.
-		queryVals.Set("txntype", "all")
+		queryVals.Set("txntype", "tspend")
 		r.URL.RawQuery = queryVals.Encode()
 	}
 

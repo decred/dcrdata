@@ -187,7 +187,7 @@ type TxInfo struct {
 	VoteFundsLocked  string
 	Maturity         int64   // Total number of blocks before mature
 	MaturityTimeTill float64 // Time in hours until mature
-	TSpendTally      *dbtypes.TreasurySpendVotes
+	TSpendMeta       *dbtypes.TreasurySpendMetaData
 	TicketInfo
 }
 

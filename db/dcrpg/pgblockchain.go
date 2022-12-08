@@ -20,6 +20,7 @@ import (
 	"github.com/decred/dcrd/blockchain/stake/v4"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/decred/dcrd/dcrutil/v4"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
 	"github.com/decred/dcrd/rpcclient/v7"
@@ -1198,6 +1199,15 @@ func (pgb *ChainDB) BlockMissedVotes(blockHash string) ([]string, error) {
 	defer cancel()
 	mv, err := RetrieveMissedVotesInBlock(ctx, pgb.db, blockHash)
 	return mv, pgb.replaceCancelError(err)
+}
+
+// missedVotesForBlockRange retrieves the number of missed votes for the block
+// range specified.
+func (pgb *ChainDB) missedVotesForBlockRange(startHeight, endHeight int64) (int64, error) {
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	defer cancel()
+	missed, err := retrieveMissedVotesForBlockRange(ctx, pgb.db, startHeight, endHeight)
+	return missed, pgb.replaceCancelError(err)
 }
 
 // TicketMisses retrieves all blocks in which the specified ticket was called to
@@ -5891,10 +5901,117 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		tx.Maturity = int64(pgb.chainParams.CoinbaseMaturity)
 
 		if tx.IsTreasurySpend() {
-			tx.TSpendTally, err = pgb.TSpendVotes(txhash)
+			tSpendTally, err := pgb.TSpendVotes(txhash)
 			if err != nil {
 				log.Errorf("Failed to retrieve vote tally for tspend %v: %v", txid, err)
 			}
+			tx.TSpendMeta = new(dbtypes.TreasurySpendMetaData)
+			tx.TSpendMeta.TreasurySpendVotes = tSpendTally
+
+			tip, err := pgb.GetTip()
+			if err != nil {
+				log.Errorf("Failed to get the chain tip from the database.: %v", err)
+				return nil
+			}
+			tipHeight := int64(tip.Height)
+
+			totalVotes := tx.TSpendMeta.YesVotes + tx.TSpendMeta.NoVotes
+			targetBlockTimeSec := int64(pgb.chainParams.TargetTimePerBlock / time.Second)
+			voteStarted := tipHeight >= tx.TSpendMeta.VoteStart
+
+			tx.TSpendMeta.MaxVotes = int64(uint64(pgb.chainParams.TicketsPerBlock) * pgb.chainParams.TreasuryVoteInterval * pgb.chainParams.TreasuryVoteIntervalMultiplier)
+			tx.TSpendMeta.QuorumCount = tx.TSpendMeta.MaxVotes * int64(pgb.chainParams.TreasuryVoteQuorumMultiplier) / int64(pgb.chainParams.TreasuryVoteQuorumDivisor)
+			tx.TSpendMeta.QuorumAchieved = totalVotes >= tx.TSpendMeta.QuorumCount
+			tx.TSpendMeta.TotalVotes = totalVotes
+
+			var maxRemainingBlocks int64
+			if !voteStarted {
+				maxRemainingBlocks = tx.TSpendMeta.VoteEnd - tx.TSpendMeta.VoteStart
+			} else if tx.BlockHeight != 0 && tx.TSpendMeta.VoteEnd > tx.BlockHeight {
+				// tspend was short-circuited but we still account for the max
+				// remaining votes at the block it the short-circuited.
+				maxRemainingBlocks = tx.TSpendMeta.VoteEnd - tx.BlockHeight
+			} else if tx.TSpendMeta.VoteEnd > tipHeight {
+				maxRemainingBlocks = tx.TSpendMeta.VoteEnd - tipHeight
+			}
+			maxRemainingVotes := maxRemainingBlocks * int64(pgb.chainParams.TicketsPerBlock)
+
+			requiredYesVotes := (totalVotes + maxRemainingVotes) * int64(pgb.chainParams.TreasuryVoteRequiredMultiplier) / int64(pgb.chainParams.TreasuryVoteRequiredDivisor)
+			tx.TSpendMeta.RequiredYesVotes = requiredYesVotes
+			tx.TSpendMeta.Approved = tx.TSpendMeta.YesVotes >= requiredYesVotes && tx.TSpendMeta.TotalVotes >= tx.TSpendMeta.QuorumCount
+			tx.TSpendMeta.PassPercent = float32(pgb.chainParams.TreasuryVoteRequiredMultiplier) / float32(pgb.chainParams.TreasuryVoteRequiredDivisor)
+
+			if totalVotes > 0 {
+				tx.TSpendMeta.Approval = float32(tx.TSpendMeta.YesVotes) / float32(totalVotes)
+			}
+
+			secTillVoteStart := (tx.TSpendMeta.VoteStart - tipHeight) * targetBlockTimeSec
+			tx.TSpendMeta.VoteStartDate = time.Now().Add(time.Duration(secTillVoteStart) * time.Second).UTC()
+			if voteStarted { // started
+				voteStartTimeStamp, err := pgb.BlockTimeByHeight(tx.TSpendMeta.VoteStart)
+				if err != nil {
+					log.Errorf("Error fetching tspend start block time: %v", err)
+				}
+				tx.TSpendMeta.VoteStartDate = time.Unix(voteStartTimeStamp, 0).UTC()
+			}
+
+			secTillVoteEnd := (tx.TSpendMeta.VoteEnd - tipHeight) * targetBlockTimeSec
+			tx.TSpendMeta.VoteEndDate = time.Now().Add(time.Duration(secTillVoteEnd) * time.Second).UTC()
+			if tx.TSpendMeta.Approved && tx.BlockHeight == 0 { // tspend is approved, may have been short-circuited
+				// tspend yet to be mined, will go in next TVI block
+				blocksToNextTVI := pgb.chainParams.TreasuryVoteInterval - uint64(tipHeight)%pgb.chainParams.TreasuryVoteInterval
+				secsTillNextTVI := blocksToNextTVI * uint64(targetBlockTimeSec)
+				tx.TSpendMeta.NextTVITime = time.Now().Add(time.Duration(secsTillNextTVI) * time.Second).UTC()
+				tx.TSpendMeta.NextTVI = tipHeight + int64(blocksToNextTVI)
+			}
+			if tipHeight > tx.TSpendMeta.VoteEnd { // voting has ended
+				voteEndTimeStamp, err := pgb.BlockTimeByHeight(tx.TSpendMeta.VoteEnd)
+				if err != nil {
+					log.Errorf("Error fetching tspend end block time: %v", err)
+				}
+				tx.TSpendMeta.VoteEndDate = time.Unix(voteEndTimeStamp, 0).UTC()
+			}
+
+			if voteStarted {
+				// currentVoteEndBlock is the tspend vote end block, the block
+				// this tspend was mined or the currect block height if the
+				// tspend is still voting.
+				currentVoteEndBlock := tx.TSpendMeta.VoteEnd
+				if (tx.TSpendMeta.Approved && tx.BlockHeight > 0) && tx.BlockHeight < tx.TSpendMeta.VoteEnd { // short-circuited tspend
+					currentVoteEndBlock = tx.BlockHeight
+				} else if tx.TSpendMeta.VoteEnd > tipHeight { // still voting
+					currentVoteEndBlock = tipHeight
+				}
+
+				misses, err := pgb.missedVotesForBlockRange(tx.TSpendMeta.VoteStart, currentVoteEndBlock)
+				if err != nil {
+					log.Errorf("failed to get missed votes count for tspend voting window: %v", err)
+					return nil
+				}
+
+				// tx.TSpendMeta.EligibleVotes is the number of actual votes
+				// that were cast in the tspend voting window, including votes
+				// that did not indicate a tspend choice (aka abstain votes).
+				// This is used to calculate vote turnout and give information
+				// about the number of eligible votes that were cast in the
+				// current voting window.
+				tx.TSpendMeta.EligibleVotes = int64(pgb.chainParams.TicketsPerBlock)*(currentVoteEndBlock-tx.TSpendMeta.VoteStart) - misses
+			}
+
+			// Retrieve Public Key a.k.a Politieia key.
+			var pubKey []byte
+			txIn, err := hex.DecodeString(tx.Vin[0].TreasurySpend)
+			if err != nil {
+				log.Errorf("failed to retrieve pikey: %v", err)
+			}
+
+			// The length of the signature script in transaction input 0 must be
+			// 100 bytes according to dcp-0006: ([OP_DATA_64] [signature]
+			// [OP_DATA_33] [PiKey] [OP_TSPEND] = 1 + 64 + 1 + 33 + 1 = 100)
+			if len(txIn) == 100 {
+				pubKey = txIn[66 : 66+secp256k1.PubKeyBytesLenCompressed]
+			}
+			tx.TSpendMeta.PoliteiaKey = hex.EncodeToString(pubKey)
 		}
 	}
 
