@@ -8,7 +8,7 @@
     {{template "blocksBanner" .}}
     <div class="container main" data-controller="time pagenavigation">
         {{$count := (int64 (len .Data))}}
-        <div class="mb-1">
+        <div class="px-1 mb-1">
             {{if gt $count 0}}
             <div class="d-flex justify-content-between align-items-end">
                 {{$oldest = (add .Offset $count)}}
@@ -22,7 +22,7 @@
                     <span class="dcricon-info fs14 ms-2 mt-2" title="Decred Blocks Grouped By {{.TimeGrouping}}"></span>
                 </span>
 
-                <div class="pb-1 d-flex justify-content-end align-items-end flex-wrap">
+                <div class="pb-1 d-flex justify-content-end align-items-center flex-wrap">
                   <span class="fs12 nowrap text-secondary px-2 my-2">
                     {{intComma (add .Offset 1)}} &ndash; {{intComma $oldest}} of {{ intComma $lastGrouping }} rows
                   </span>

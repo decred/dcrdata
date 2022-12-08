@@ -10,7 +10,8 @@
                         Politeia Proposals
                         <span class="mb-0 fs11 text-black-50 nowrap">
                             &nbsp;(<span class="me-2">Proposals Sync:&nbsp;
-                                <span data-controller="time" data-time-target="age" data-age="{{$.LastPropSync}}"></span>&nbsp;ago
+                                <span data-controller="time" data-time-target="age" data-age="{{$.LastPropSync}}"></span>
+                            &nbsp;ago)
                             </span>
                         </span>
                     </h4>
@@ -69,7 +70,7 @@
                             {{if eq $count 20 30 50}}{{else}}<option selected value="{{$count}}">{{$count}}</option>{{end}}
                             </select>
                         </span>
-                        <span class="fs12 nowrap text-end px-2">
+                        <span class="fs12 nowrap text-end form-control-sm mb-2 me-sm-2 mb-sm-0">
                             {{intComma (add .Offset 1)}} &ndash; {{intComma $oldest}} of {{ intComma $.TotalCount }} rows
                         </span>
                         <nav aria-label="blocks navigation" data-limit="{{.Limit}}" class="m-2">

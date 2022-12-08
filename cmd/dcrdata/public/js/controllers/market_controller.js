@@ -1218,7 +1218,7 @@ export default class extends Controller {
     if (update.fiat) { // btc-fiat exchange update
       this.xcIndexTargets.forEach(span => {
         if (span.dataset.token === xc.token) {
-          span.textContent = xc.price.toFixed(2)
+          span.textContent = humanize.commaWithDecimal(xc.price, 2)
         }
       })
     } else { // dcr-btc exchange update

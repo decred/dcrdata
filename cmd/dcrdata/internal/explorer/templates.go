@@ -390,7 +390,8 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"intComma": func(v interface{}) string {
 			return humanize.Comma(toInt64(v))
 		},
-		"int64Comma": humanize.Comma,
+		"int64Comma":       humanize.Comma,
+		"commaWithDecimal": humanize.CommafWithDigits,
 		"ticketWindowProgress": func(i int) float64 {
 			p := (float64(i) / float64(params.StakeDiffWindowSize)) * 100
 			return p

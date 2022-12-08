@@ -18,6 +18,12 @@ function hashParts (hash) {
 }
 
 const humanize = {
+  commaWithDecimal: function (val, decimal) {
+    if (isNaN(val) || val === 0) return '0'
+    if (isNaN(decimal)) decimal = 2
+    else if (decimal > 8) decimal = 8
+    return val.toLocaleString(undefined, { minimumFractionDigits: decimal, maximumFractionDigits: decimal })
+  },
   fmtPercentage: function (val) {
     let sign = '+'
     let cssClass = 'text-green'
