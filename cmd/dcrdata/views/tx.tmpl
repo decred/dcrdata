@@ -559,15 +559,15 @@
                             {{$v.Version}}
                         </td>
                         <td class="text-start fs13 shrink-to-fit">{{with $spending := (index $.Data.SpendingTxns $i) }}
-                            {{if $spending.Hash}}
-                                <a href="/tx/{{$spending.Hash}}/in/{{$spending.Index}}">{{$v.Spent}}</a>
-                            {{else}}
-                                {{if gt $v.Amount 0.0}}
-                                {{$v.Spent}}
-                                {{else}}
-                                n/a
+                              {{if $spending.Hash}}
+                                 <a href="/tx/{{$spending.Hash}}/in/{{$spending.Index}}">{{$v.Spent}}</a>
+                              {{else}}
+                                {{if or $v.OP_TADD (le $v.Amount 0.0)}}
+                                  n/a
+                                {{else if gt $v.Amount 0.0}}
+                                  {{$v.Spent}}
                                 {{end}}
-                            {{end}}
+                              {{end}}
                             {{end}}
                         </td>
 			                  <td class="text-end mono fs13">
