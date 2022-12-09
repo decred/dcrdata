@@ -101,6 +101,7 @@ type TxShort struct {
 	Vin      []Vin  `json:"vin"`
 	Vout     []Vout `json:"vout"`
 	Tree     int8   `json:"tree"`
+	Type     string `json:"type"`
 }
 
 // AgendasInfo holds the high level details about an agenda.
