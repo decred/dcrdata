@@ -100,6 +100,7 @@ type TxShort struct {
 	Expiry   uint32 `json:"expiry"`
 	Vin      []Vin  `json:"vin"`
 	Vout     []Vout `json:"vout"`
+	Tree     int8   `json:"tree"`
 }
 
 // AgendasInfo holds the high level details about an agenda.
