@@ -193,7 +193,7 @@ func TestPoloniexLiveWebsocket(t *testing.T) {
 	}
 
 	testConnectWs := func() {
-		poloniexDoneChannel = make(chan struct{})
+		poloniex.ws = newFakePoloniexWebsocket()
 		poloniex.connectWebsocket(processor, &socketConfig{
 			address: PoloniexURLs.Websocket,
 		})
@@ -208,9 +208,13 @@ func TestPoloniexLiveWebsocket(t *testing.T) {
 	}
 	// Test reconnection by forcing a fail, then checking the wsDepthStatus
 	poloniex.setWsFail(fmt.Errorf("test failure. ignore"))
-	// subsequent calls to close should be inconsequential.
-	poloniex.ws.Close()
-	poloniex.ws.Close()
+
+	// poloniex.setWsFail above closes the ws connection and set poloniex.ws to
+	// nil.
+	if poloniex.ws != nil {
+		t.Fatal("expected nil'ed and closed poloniex websocketFeed")
+	}
+
 	// wsDepthStatus should recognize the closed connection and create a real
 	// websocket connection, signalling to use the HTTP fallback in the meantime.
 	tryHttp, initializing, depth := poloniex.wsDepthStatus(testConnectWs)
@@ -233,6 +237,10 @@ func TestPoloniexLiveWebsocket(t *testing.T) {
 		return
 	}
 	checkWsDepths(t, poloniex.wsDepths())
+	poloniex.ws.Close()
+
+	// Subsequent calls to Close should be inconsequential.
+	poloniex.ws.Close()
 	poloniex.ws.Close()
 }
 func TestBittrexLiveWebsocket(t *testing.T) {
@@ -292,6 +300,7 @@ func TestDecredDEXLive(t *testing.T) {
 	enableTestLog()
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	chans := &BotChannels{
 		index:    make(chan *IndexUpdate),
@@ -318,7 +327,7 @@ func TestDecredDEXLive(t *testing.T) {
 
 	xc, err := constructor(nil, chans)
 	if err != nil {
-		t.Fatalf("NewDecredDEX error: %v", err)
+		t.Fatalf("NewDecredDEXConstructor error: %v", err)
 	}
 	dcr := xc.(*DecredDEX)
 	defer func() { dcr.ws.Close() }()

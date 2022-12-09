@@ -29,7 +29,8 @@ func enableTestLog() {
 	}
 }
 
-var initialPoloniexOrderbook = []byte(`[
+var (
+	initialPoloniexOrderbook = []byte(`[
         14,
         8767,
         [
@@ -74,11 +75,11 @@ var initialPoloniexOrderbook = []byte(`[
         ]
 ]`)
 
-var poloniexEmptyUpdate = []byte(`[
+	poloniexEmptyUpdate = []byte(`[
     1010
 ]`)
 
-var poloniexOrderbookUpdate = []byte(`[
+	poloniexOrderbookUpdate = []byte(`[
     14,
     8768,
     [
@@ -97,7 +98,7 @@ var poloniexOrderbookUpdate = []byte(`[
     ]
 ]`)
 
-var poloniexTrade = []byte(`[
+	poloniexTrade = []byte(`[
     14,
     8769,
     [
@@ -111,26 +112,28 @@ var poloniexTrade = []byte(`[
 			]
     ]
 ]`)
+)
 
 // Satisfies the websocketFeed interface
-type fakePoloniexWebsocket struct{}
-
-var poloniexDoneChannel = make(chan struct{})
-
-var poloniexReadCount int
-
-// Done() chan struct{}
-// Read() ([]byte, error)
-// Write(interface{}) error
-// Close()
-
-func (p *fakePoloniexWebsocket) Done() chan struct{} {
-	return poloniexDoneChannel
+type fakePoloniexWebsocket struct {
+	readCount int
+	done      chan struct{}
+	mtx       sync.Mutex
+	on        bool
 }
 
+func newFakePoloniexWebsocket() *fakePoloniexWebsocket {
+	return &fakePoloniexWebsocket{
+		done: make(chan struct{}),
+		on:   true,
+	}
+}
+func (p *fakePoloniexWebsocket) Done() chan struct{} {
+	return p.done
+}
 func (p *fakePoloniexWebsocket) Read() ([]byte, error) {
-	poloniexReadCount++
-	switch poloniexReadCount {
+	p.readCount++
+	switch p.readCount {
 	case 1:
 		return initialPoloniexOrderbook, nil
 	case 2:
@@ -140,33 +143,28 @@ func (p *fakePoloniexWebsocket) Read() ([]byte, error) {
 		time.Sleep(100 * time.Millisecond)
 		return poloniexOrderbookUpdate, nil
 	}
-	<-poloniexDoneChannel
+	<-p.done
 	return nil, fmt.Errorf("closed (expected)")
 }
-
 func (p *fakePoloniexWebsocket) Write(interface{}) error {
 	return nil
 }
 func (p *fakePoloniexWebsocket) WriteJSON(interface{}) error {
 	return nil
 }
-
-var poloMtx sync.Mutex
-var poloOn bool = true
-
 func (p *fakePoloniexWebsocket) Close() {
-	poloMtx.Lock()
-	defer poloMtx.Unlock()
-	if poloOn {
-		poloOn = false
-		close(poloniexDoneChannel)
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+	if !p.on {
+		return
 	}
+	p.on = false
+	close(p.done)
 }
-
 func (p *fakePoloniexWebsocket) On() bool {
-	poloMtx.Lock()
-	defer poloMtx.Unlock()
-	return poloOn
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+	return p.on
 }
 
 func newTestPoloniexExchange() *PoloniexExchange {
@@ -189,7 +187,7 @@ func TestPoloniexWebsocket(t *testing.T) {
 	enableTestLog()
 
 	poloniex := newTestPoloniexExchange()
-	poloniex.ws = &fakePoloniexWebsocket{}
+	poloniex.ws = newFakePoloniexWebsocket()
 
 	checkLengths := func(askLen, buyLen int) {
 		if len(poloniex.asks) != askLen || len(poloniex.buys) != buyLen {
@@ -256,21 +254,6 @@ func (d *tDoer) queue(body interface{}) *http.Response {
 	}
 	d.responses = append(d.responses, resp)
 	return resp
-}
-
-type testBittrexConnection struct {
-	xc *BittrexExchange
-}
-
-func (conn testBittrexConnection) Close() {}
-
-func (conn testBittrexConnection) On() bool {
-	// Doesn't matter right now.
-	return false
-}
-
-func (conn testBittrexConnection) Send(signalRClientMsg) error {
-	return nil
 }
 
 func newTestBittrexExchange() (*BittrexExchange, *tDoer) {
