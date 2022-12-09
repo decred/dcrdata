@@ -4838,6 +4838,8 @@ func (pgb *ChainDB) GetAPITransaction(txid *chainhash.Hash) *apitypes.Tx {
 		treasuryActive = txhelpers.IsTreasuryActive(pgb.chainParams.Net, txraw.BlockHeight)
 	}
 
+	txTree := txhelpers.TxTree(msgTx, treasuryActive)
+
 	tx := &apitypes.Tx{
 		TxShort: apitypes.TxShort{
 			TxID:     txraw.Txid,
@@ -4847,7 +4849,8 @@ func (pgb *ChainDB) GetAPITransaction(txid *chainhash.Hash) *apitypes.Tx {
 			Expiry:   txraw.Expiry,
 			Vin:      make([]apitypes.Vin, len(txraw.Vin)),
 			Vout:     make([]apitypes.Vout, len(txraw.Vout)),
-			Tree:     txhelpers.TxTree(msgTx, treasuryActive),
+			Tree:     txTree,
+			Type:     strings.ToLower(txhelpers.TxTypeToString(int(txTree))),
 		},
 		Confirmations: txraw.Confirmations,
 		Block: &apitypes.BlockID{
