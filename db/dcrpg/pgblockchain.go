@@ -4827,6 +4827,17 @@ func (pgb *ChainDB) GetAPITransaction(txid *chainhash.Hash) *apitypes.Tx {
 		return nil
 	}
 
+	msgTx, err := txhelpers.MsgTxFromHex(txraw.Hex)
+	if err != nil {
+		log.Errorf("Cannot create MsgTx for tx %v: %v", txid.String(), err)
+		return nil
+	}
+
+	treasuryActive := true
+	if txraw.BlockHeight > 0 {
+		treasuryActive = txhelpers.IsTreasuryActive(pgb.chainParams.Net, txraw.BlockHeight)
+	}
+
 	tx := &apitypes.Tx{
 		TxShort: apitypes.TxShort{
 			TxID:     txraw.Txid,
@@ -4836,6 +4847,7 @@ func (pgb *ChainDB) GetAPITransaction(txid *chainhash.Hash) *apitypes.Tx {
 			Expiry:   txraw.Expiry,
 			Vin:      make([]apitypes.Vin, len(txraw.Vin)),
 			Vout:     make([]apitypes.Vout, len(txraw.Vout)),
+			Tree:     txhelpers.TxTree(msgTx, treasuryActive),
 		},
 		Confirmations: txraw.Confirmations,
 		Block: &apitypes.BlockID{
