@@ -2803,3 +2803,162 @@ func (exp *explorerUI) VerifyMessageHandler(w http.ResponseWriter, r *http.Reque
 	}
 	displayPage("", true)
 }
+
+type stakeReward struct {
+	Reward               float64
+	RewardInDcr          float64
+	RewardDurationInDays float64
+	TotalTicketsCost     float64
+	Amount               string
+	StartDate            string
+	EndDate              string
+	Error                string
+}
+
+// StakeReward is the page handler for the "GET /stake-reward" path.
+func (exp *explorerUI) StakeReward(w http.ResponseWriter, r *http.Request) {
+	voteReward := exp.pageData.HomeInfo.NBlockSubsidy.PoS / int64(exp.ChainParams.VotesPerBlock())
+	str, err := exp.templates.exec("stake_reward", struct {
+		*CommonPageData
+		VoteReward          float64
+		CurrentTicketPrice  float64
+		TicketReward        float64
+		MinimumRewardPeriod string
+		ExchangeRate        *types.Conversion
+		StakeReward         *stakeReward
+	}{
+		VoteReward:          toFloat64Amount(voteReward),
+		CurrentTicketPrice:  exp.pageData.HomeInfo.StakeDiff,
+		TicketReward:        exp.pageData.HomeInfo.TicketReward,
+		MinimumRewardPeriod: exp.pageData.HomeInfo.RewardPeriod,
+		ExchangeRate:        exp.pageData.HomeInfo.ExchangeRate,
+		CommonPageData:      exp.commonData(r),
+	})
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+// CalculateStakeReward is the handler for "POST /stake-reward" path.
+func (exp *explorerUI) CalculateStakeReward(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	startDateStr := r.PostFormValue("startDate")
+	endDateStr := r.PostFormValue("endDate")
+	amountStr := r.PostFormValue("amount")
+
+	var reward, rewardInDcr, totalTicketCost float64
+	var durationInDays float64
+	var err error
+	exchangeRate := exp.pageData.HomeInfo.ExchangeRate
+	currentTicketPrice := exp.pageData.HomeInfo.StakeDiff
+	homeInfo := exp.pageData.HomeInfo
+	voteReward := exp.pageData.HomeInfo.NBlockSubsidy.PoS / int64(exp.ChainParams.VotesPerBlock())
+
+	displayPage := func(errMsg string) {
+		str, err := exp.templates.exec("stake_reward", struct {
+			*CommonPageData
+			VoteReward          float64
+			CurrentTicketPrice  float64
+			TicketReward        float64
+			MinimumRewardPeriod string
+			ExchangeRate        *types.Conversion
+			StakeReward         *stakeReward
+		}{
+			CommonPageData:      exp.commonData(r),
+			VoteReward:          toFloat64Amount(voteReward),
+			CurrentTicketPrice:  currentTicketPrice,
+			TicketReward:        homeInfo.TicketReward,
+			MinimumRewardPeriod: homeInfo.RewardPeriod,
+			ExchangeRate:        exchangeRate,
+			StakeReward: &stakeReward{
+				Reward:               reward,
+				Amount:               amountStr,
+				RewardDurationInDays: durationInDays,
+				TotalTicketsCost:     totalTicketCost,
+				StartDate:            startDateStr,
+				RewardInDcr:          rewardInDcr,
+				EndDate:              endDateStr,
+				Error:                errMsg,
+			},
+		})
+
+		if err != nil {
+			log.Errorf("Template execute failure: %v", err)
+			exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusOK)
+		io.WriteString(w, str)
+	}
+
+	startDate, err := time.Parse("2006-01-02", startDateStr)
+	if err != nil {
+		displayPage("invalid start date")
+		return
+	}
+
+	now := time.Now()
+	if startDate.Before(now) {
+		displayPage("staking start date must be in the future")
+		return
+	}
+
+	endDate, err := time.Parse("2006-01-02", endDateStr)
+	if err != nil {
+		displayPage("invalid end date")
+		return
+	}
+
+	if endDate.Before(now) {
+		displayPage("staking end date must be in the future")
+		return
+	}
+
+	if startDate.After(endDate) {
+		displayPage("staking start date cannot be before specified end date")
+		return
+	}
+
+	// Parse and ensure amount provided for tickets is sane.
+	amount, err := strconv.ParseInt(amountStr, 10, 64)
+	if err != nil {
+		displayPage(err.Error())
+		return
+	}
+
+	amountInDCR := float64(amount) / exchangeRate.Value
+	if amountInDCR < currentTicketPrice {
+		displayPage(fmt.Sprintf("%s (%s) cannot buy a single ticket, need at least %.2f (%s)",
+			amountStr, exchangeRate.Index, (currentTicketPrice * exchangeRate.Value), exchangeRate.Index))
+		return
+	}
+
+	durationInDays = endDate.Sub(startDate).Hours() / 24
+	minimumRewardDurationInDays := ((float64(exp.ChainParams.TicketMaturity) +
+		float64(exp.MeanVotingBlocks) +
+		float64(exp.ChainParams.CoinbaseMaturity)) * exp.ChainParams.TargetTimePerBlock.Hours()) / 24
+
+	if durationInDays < minimumRewardDurationInDays {
+		displayPage(fmt.Sprintf("minimum stake reward duration is %.2f days", minimumRewardDurationInDays))
+		return
+	}
+
+	poolPercent := homeInfo.PoolInfo.Percentage / 100
+	reward, _ = exp.simulateStakeReturn(ctx, amountInDCR, true, poolPercent,
+		dcrutil.Amount(homeInfo.CoinSupply).ToCoin(), float64(exp.pageData.BlockInfo.Height),
+		currentTicketPrice, durationInDays)
+
+	rewardInDcr = amountInDCR * reward / 100
+	totalTicketCost = math.Floor(amountInDCR/currentTicketPrice) * currentTicketPrice
+
+	displayPage("")
+}

@@ -1,0 +1,150 @@
+{{define "stake_reward" -}}
+<!DOCTYPE html>
+<html lang="en">
+{{template "html-head" headData .CommonPageData "Decred Staking Reward Calculator"}}
+{{template "navbar" . }}
+<div class="container main">
+    <h4 class="mb-2">Calculate Decred Staking Reward</h4>
+    <div class="mb-1 fs15">
+        <p> Use this Decred Staking Calculator to estimate your potential stake reward to see how much you'll earn by staking Decred.
+            The rewards predicted by this calculator are only an estimate, It does not consider network fees or fees paid to a VSP. 
+            Staking Decred provides stake holders with rewards in addition to the potential market price gains.
+        </p>
+        <p> The mimimum duration required for a ticket to recieve a stake reward of {{printf "%.2f" .TicketReward}}% is {{ .MinimumRewardPeriod}}. The more Decred you stake, the more rewards you can earn.
+         <a href="https://docs.decred.org/proof-of-stake/how-to-stake/"> Learn how to stake Decred</a>.
+        </p>
+        <p> <b>Disclaimer</b>: This calculator only predicts an estimate of rewards. The actual amount of Decred earned may vary and will depend on several factors,
+            including actual stake reward or changes to network parameters.
+            Decred provides this calculator for guidance only and accepts no responsibility for any discrepancy between estimated and actual rewards.
+        </p>
+
+    </div>
+    <div class="row">
+      <form action="/stake-reward" method="post" class="py-1 px-lg-3 text-start col-24 col-lg-12 my-2">
+        <div class="mb-3 row">
+            <label for="amount" class="col-auto col-form-label">Amount ({{.ExchangeRate.Index}}):</label>
+            <div class="ms-2 border-1 border-bottom">
+                 <input 
+                   type="number" name="amount"
+                   class="bg-transparent border-0 ps-0 color-inherit form-control shadow-none mono"
+                   id="amount" required min={{with .ExchangeRate}}{{printf "%.f" (float64Multiply $.CurrentTicketPrice .Value)}}{{end}}
+                   placeholder="Enter an amount you want to stake" autocomplete="off"
+                   value="{{with .StakeReward}}{{.Amount}}{{end}}">
+            </div>
+        </div>
+        <div class="mb-3 row">
+            <label for="startDate" class="col-auto col-form-label">Start Date:</label>
+            <div class="ms-2 border-1 border-bottom">
+                <input type="date" name="startDate"
+                    class="bg-transparent border-0 ps-0 color-inherit form-control shadow-none mono"
+                    id="startDate" required placeholder="Specify a start date"
+                    autocomplete="off" value="{{with .StakeReward}}{{.StartDate}}{{end}}">
+            </div>
+        </div>
+        <div class="mb-3 row">
+            <label for="endDate" class="col-auto col-form-label">End Date:</label>
+            <div class="ms-2 border-1 border-bottom">
+                <input type="date" name="endDate"
+                    class="bg-transparent border-0 ps-0 color-inherit form-control shadow-none mono"
+                    id="endDate" required placeholder="Specify an end date"
+                    autocomplete="off" value="{{with .StakeReward}}{{.EndDate}}{{end}}">
+            </div>
+        </div>
+        <button class="btn btn-primary mt-3 color-inherit" type="submit">Calculate Reward</button>
+        {{with .StakeReward}}
+          {{- if .Error -}}
+            <span class="border row border-danger m-3 p-3 fs-15 fw-bold rounded text-danger">Error calculating stake reward: {{.Error}}</span>
+          {{end}}
+        {{end}}
+    </form>
+
+    {{$conv := .ExchangeRate}}
+    <div class="py-1 px-lg-3 text-start col-24 col-lg-12 my-2">
+          <div class="row my-2">
+             <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
+             <div class="fs16 text-secondary">
+                  <a class="no-underline" href="/charts?chart=ticket-price&zoom=month">Current Ticket Price</a>
+             </div>
+             <div class="mono lh1rem fs14-decimal fs24 pt-1 pb-1 d-flex align-items-baseline">
+               <span>{{template "decimalParts" (float64AsDecimalParts .CurrentTicketPrice 8 false 2)}}</span>
+               <span class="ps-1 unit lh15rem">DCR</span>
+             </div>
+             {{if $conv}}
+              <div class="fs12 lh1rem text-black-50">
+                  <span>{{printf "%.2f" (float64Multiply .CurrentTicketPrice $conv.Value)}} {{$conv.Index}}</span>
+              </div>
+             {{- end}}
+            </div>
+            <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
+               <div class="fs16 text-secondary">Vote Reward</div>
+               <div class="mono lh1rem fs14-decimal fs24 pt-1 pb-1 d-flex align-items-baseline">
+                  <span>
+                     {{template "decimalParts" (float64AsDecimalParts .VoteReward 8 true 2)}}
+                  </span>
+                  <span class="ps-1 unit lh15rem" style="font-size:13px;">DCR/vote</span>
+               </div>
+               {{if $conv}}
+                <div class="fs12 lh1rem text-black-50">
+                  <span>{{printf "%.2f" (float64Multiply .VoteReward $conv.Value)}} {{$conv.Index}}</span>
+                </div>
+               {{- end}}
+             </div>
+          </div>
+          {{with .StakeReward -}}
+          {{- if not .Error -}}
+           <h6>Estimated Stake Rewards</h6>
+           <div class="row my-2">
+             <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
+                <div class="fs16 text-secondary">
+                    Reward
+                    <span 
+                     class="dcricon-info fs14 ms-2 mt-2" 
+                     title="This is an estimated reward for the duration specified, a ticket receives a reward of {{printf "%.2f" $.TicketReward}}% ususally after {{$.MinimumRewardPeriod}}."
+                    >
+                    </span>
+                </div>
+                <div class="mono lh1rem fs14-decimal fs24 pt-1 pb-1 d-flex align-items-baseline">
+                  <span>
+                     {{template "decimalParts" (float64AsDecimalParts .RewardInDcr 8 true 2)}}
+                  </span>
+                  <span class="ps-1 unit lh15rem" style="font-size:13px;">DCR</span>
+                </div>
+               {{if $conv}}
+                <div class="fs12 lh1rem text-black-50">
+                  <span>{{printf "%.2f" (float64Multiply .RewardInDcr $conv.Value)}} {{$conv.Index}}</span>
+                </div>
+               {{- end}}
+               <div class="fs12 lh1rem text-black-50">
+                  <span>~{{printf "%.2f" .Reward}}%</span> in ~{{.RewardDurationInDays}} days
+               </div>
+             </div>
+             <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
+                {{$nTickets := divideFloat .TotalTicketsCost $.CurrentTicketPrice}}
+                <div class="fs16 text-secondary">
+                  Total Cost
+                  <span class="dcricon-info fs14 ms-2 mt-2" title="Cost of purchasing {{$nTickets}} Ticket(s), excluding network and VSP fees."></span>
+                </div>
+                <div class="mono lh1rem fs14-decimal fs24 pt-1 pb-1 d-flex align-items-baseline">
+                  <span>
+                     {{template "decimalParts" (float64AsDecimalParts .TotalTicketsCost 8 true 2)}}
+                  </span>
+                  <span class="ps-1 unit lh15rem" style="font-size:13px;">DCR</span>
+                </div>
+               {{if $conv}}
+                <div class="fs12 lh1rem text-black-50">
+                  <span>{{printf "%.2f" (float64Multiply .TotalTicketsCost $conv.Value)}} {{$conv.Index}}</span>
+                </div>
+               {{- end}}
+                <div class="fs12 lh1rem text-black-50">
+                  <span>{{printf "%.f" $nTickets}} {{if gt $nTickets 1.0}}Tickets{{else}}Ticket{{end}}</span>
+                </div>
+             </div>
+          </div>
+         {{- end -}}
+         {{- end -}}
+    </div> 
+</div>
+{{ template "footer" . }}
+</body>
+</html>
+{{- end}}

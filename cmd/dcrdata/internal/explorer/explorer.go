@@ -369,7 +369,8 @@ func New(cfg *ExplorerConfig) *explorerUI {
 		"rawtx", "status", "parameters", "agenda", "agendas", "charts",
 		"sidechains", "disapproved", "ticketpool", "visualblocks",
 		"windows", "timelisting", "addresstable", "proposals", "proposal",
-		"market", "insight_root", "attackcost", "treasury", "treasurytable", "verify_message"}
+		"market", "insight_root", "attackcost", "treasury", "treasurytable",
+		"verify_message", "stake_reward"}
 
 	for _, name := range tmpls {
 		if err := exp.templates.addTemplate(name); err != nil {
@@ -574,9 +575,9 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 
 	// Simulate the annual staking rate.
 	go func(height int64, sdiff float64, supply int64) {
-		ASR, _ := exp.simulateASR(ctx, 1000, false, stakePerc,
+		ASR, _ := exp.simulateStakeReturn(ctx, 1000, false, stakePerc,
 			dcrutil.Amount(supply).ToCoin(),
-			float64(height), sdiff)
+			float64(height), sdiff, 365 /* for a year */)
 		p.Lock()
 		p.HomeInfo.ASR = ASR
 		p.Unlock()
@@ -676,13 +677,12 @@ func (exp *explorerUI) addRoutes() {
 	exp.Mux.Get("/decodetx", redirect("decodetx"))
 }
 
-// Simulate ticket purchase and re-investment over a full year for a given
-// starting amount of DCR and calculation parameters.  Generate a TEXT table of
-// the simulation results that can optionally be used for future expansion of
-// dcrdata functionality.
-func (exp *explorerUI) simulateASR(ctx context.Context, StartingDCRBalance float64, IntegerTicketQty bool,
-	CurrentStakePercent float64, ActualCoinbase float64, CurrentBlockNum float64,
-	ActualTicketPrice float64) (ASR float64, ReturnTable string) {
+// simulateStakeReturn simulates ticket purchase and re-investment over the
+// specified durationInDays for a given starting amount of DCR and calculation
+// parameters.
+func (exp *explorerUI) simulateStakeReturn(ctx context.Context, startingDCRBalance float64, integerTicketQty bool,
+	currentStakePercent float64, actualCoinbase float64, currentBlockNum float64,
+	actualTicketPrice float64, durationInDays float64) (stakeReturn float64, returnTable string) {
 
 	// Calculations are only useful on mainnet.  Short circuit calculations if
 	// on any other version of chain params.
@@ -690,18 +690,18 @@ func (exp *explorerUI) simulateASR(ctx context.Context, StartingDCRBalance float
 		return 0, ""
 	}
 
-	BlocksPerDay := 86400 / exp.ChainParams.TargetTimePerBlock.Seconds()
-	BlocksPerYear := 365 * BlocksPerDay
-	TicketsPurchased := float64(0)
+	blocksPerDay := 86400 / exp.ChainParams.TargetTimePerBlock.Seconds()
+	totalBlocksInDuration := durationInDays * blocksPerDay
+	ticketsPurchased := float64(0)
 
 	votesPerBlock := exp.ChainParams.VotesPerBlock()
 
-	StakeRewardAtBlock := func(blocknum float64) float64 {
-		Subsidy := exp.dataSource.BlockSubsidy(ctx, int64(blocknum), votesPerBlock)
-		return dcrutil.Amount(Subsidy.PoS / int64(votesPerBlock)).ToCoin()
+	stakeRewardAtBlock := func(blocknum float64) float64 {
+		subsidy := exp.dataSource.BlockSubsidy(ctx, int64(blocknum), votesPerBlock)
+		return dcrutil.Amount(subsidy.PoS / int64(votesPerBlock)).ToCoin()
 	}
 
-	MaxCoinSupplyAtBlock := func(blocknum float64) float64 {
+	maxCoinSupplyAtBlock := func(blocknum float64) float64 {
 		// 4th order poly best fit curve to Decred mainnet emissions plot.
 		// Curve fit was done with 0 Y intercept and Pre-Mine added after.
 
@@ -712,72 +712,70 @@ func (exp *explorerUI) simulateASR(ctx context.Context, StartingDCRBalance float
 			1680000) // Premine 1.68M
 	}
 
-	CoinAdjustmentFactor := ActualCoinbase / MaxCoinSupplyAtBlock(CurrentBlockNum)
+	coinAdjustmentFactor := actualCoinbase / maxCoinSupplyAtBlock(currentBlockNum)
 
-	TheoreticalTicketPrice := func(blocknum float64) float64 {
-		ProjectedCoinsCirculating := MaxCoinSupplyAtBlock(blocknum) * CoinAdjustmentFactor * CurrentStakePercent
-		TicketPoolSize := (float64(exp.MeanVotingBlocks) + float64(exp.ChainParams.TicketMaturity) +
+	theoreticalTicketPrice := func(blocknum float64) float64 {
+		projectedCoinsCirculating := maxCoinSupplyAtBlock(blocknum) * coinAdjustmentFactor * currentStakePercent
+		ticketPoolSize := (float64(exp.MeanVotingBlocks) + float64(exp.ChainParams.TicketMaturity) +
 			float64(exp.ChainParams.CoinbaseMaturity)) * float64(exp.ChainParams.TicketsPerBlock)
-		return ProjectedCoinsCirculating / TicketPoolSize
+		return projectedCoinsCirculating / ticketPoolSize
 	}
-	TicketAdjustmentFactor := ActualTicketPrice / TheoreticalTicketPrice(CurrentBlockNum)
+	ticketAdjustmentFactor := actualTicketPrice / theoreticalTicketPrice(currentBlockNum)
 
 	// Prepare for simulation
-	simblock := CurrentBlockNum
-	TicketPrice := ActualTicketPrice
-	DCRBalance := StartingDCRBalance
+	simblock := currentBlockNum
+	ticketPrice := actualTicketPrice
+	dcrBalance := startingDCRBalance
 
-	ReturnTable += "\n\nBLOCKNUM        DCR  TICKETS TKT_PRICE TKT_REWRD  ACTION\n"
-	ReturnTable += fmt.Sprintf("%8d  %9.2f %8.1f %9.2f %9.2f    INIT\n",
-		int64(simblock), DCRBalance, TicketsPurchased,
-		TicketPrice, StakeRewardAtBlock(simblock))
+	returnTable = "\n\nBLOCKNUM        DCR  TICKETS TKT_PRICE TKT_REWRD  ACTION\n"
+	returnTable += fmt.Sprintf("%8d  %9.2f %8.1f %9.2f %9.2f    INIT\n",
+		int64(simblock), dcrBalance, ticketsPurchased,
+		ticketPrice, stakeRewardAtBlock(simblock))
 
-	for simblock < (BlocksPerYear + CurrentBlockNum) {
+	for simblock < (totalBlocksInDuration + currentBlockNum) {
 		// Simulate a Purchase on simblock
-		TicketPrice = TheoreticalTicketPrice(simblock) * TicketAdjustmentFactor
+		ticketPrice = theoreticalTicketPrice(simblock) * ticketAdjustmentFactor
 
-		if IntegerTicketQty {
+		if integerTicketQty {
 			// Use this to simulate integer qtys of tickets up to max funds
-			TicketsPurchased = math.Floor(DCRBalance / TicketPrice)
+			ticketsPurchased = math.Floor(dcrBalance / ticketPrice)
 		} else {
 			// Use this to simulate ALL funds used to buy tickets - even fractional tickets
 			// which is actually not possible
-			TicketsPurchased = (DCRBalance / TicketPrice)
+			ticketsPurchased = (dcrBalance / ticketPrice)
 		}
 
-		DCRBalance -= (TicketPrice * TicketsPurchased)
-		ReturnTable += fmt.Sprintf("%8d  %9.2f %8.1f %9.2f %9.2f     BUY\n",
-			int64(simblock), DCRBalance, TicketsPurchased,
-			TicketPrice, StakeRewardAtBlock(simblock))
+		dcrBalance -= (ticketPrice * ticketsPurchased)
+		returnTable += fmt.Sprintf("%8d  %9.2f %8.1f %9.2f %9.2f     BUY\n",
+			int64(simblock), dcrBalance, ticketsPurchased,
+			ticketPrice, stakeRewardAtBlock(simblock))
 
 		// Move forward to average vote
 		simblock += (float64(exp.ChainParams.TicketMaturity) + float64(exp.MeanVotingBlocks))
-		ReturnTable += fmt.Sprintf("%8d  %9.2f %8.1f %9.2f %9.2f    VOTE\n",
-			int64(simblock), DCRBalance, TicketsPurchased,
-			(TheoreticalTicketPrice(simblock) * TicketAdjustmentFactor), StakeRewardAtBlock(simblock))
+		returnTable += fmt.Sprintf("%8d  %9.2f %8.1f %9.2f %9.2f    VOTE\n",
+			int64(simblock), dcrBalance, ticketsPurchased,
+			(theoreticalTicketPrice(simblock) * ticketAdjustmentFactor), stakeRewardAtBlock(simblock))
 
 		// Simulate return of funds
-		DCRBalance += (TicketPrice * TicketsPurchased)
+		dcrBalance += (ticketPrice * ticketsPurchased)
 
 		// Simulate reward
-		DCRBalance += (StakeRewardAtBlock(simblock) * TicketsPurchased)
-		TicketsPurchased = 0
+		dcrBalance += (stakeRewardAtBlock(simblock) * ticketsPurchased)
+		ticketsPurchased = 0
 
 		// Move forward to coinbase maturity
 		simblock += float64(exp.ChainParams.CoinbaseMaturity)
 
-		ReturnTable += fmt.Sprintf("%8d  %9.2f %8.1f %9.2f %9.2f  REWARD\n",
-			int64(simblock), DCRBalance, TicketsPurchased,
-			(TheoreticalTicketPrice(simblock) * TicketAdjustmentFactor), StakeRewardAtBlock(simblock))
+		returnTable += fmt.Sprintf("%8d  %9.2f %8.1f %9.2f %9.2f  REWARD\n",
+			int64(simblock), dcrBalance, ticketsPurchased,
+			(theoreticalTicketPrice(simblock) * ticketAdjustmentFactor), stakeRewardAtBlock(simblock))
 
 		// Need to receive funds before we can use them again so add 1 block
 		simblock++
 	}
 
-	// Scale down to exactly 365 days
-	SimulationReward := ((DCRBalance - StartingDCRBalance) / StartingDCRBalance) * 100
-	ASR = (BlocksPerYear / (simblock - CurrentBlockNum)) * SimulationReward
-	ReturnTable += fmt.Sprintf("ASR over 365 Days is %.2f.\n", ASR)
+	simulationReward := ((dcrBalance - startingDCRBalance) / startingDCRBalance) * 100
+	stakeReturn = (totalBlocksInDuration / (simblock - currentBlockNum)) * simulationReward
 	return
 }
 
