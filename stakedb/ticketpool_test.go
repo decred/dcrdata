@@ -2,8 +2,11 @@ package stakedb
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -26,6 +29,54 @@ func randomHashSlice(N int) []chainhash.Hash {
 	return s
 }
 
+func copyFile(src, dst string) error {
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	_, err = io.Copy(out, in)
+	return err
+}
+
+func copyDir(src, dst string) error {
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return err
+	}
+	fi, err := os.Stat(dst)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		err = os.MkdirAll(dst, 0700)
+		if err != nil {
+			return err
+		}
+	} else if !fi.IsDir() {
+		return fmt.Errorf("%q is not a directory", dst)
+	}
+
+	for _, fd := range entries {
+		fName := fd.Name()
+		srcFile := filepath.Join(src, fName)
+		dstFile := filepath.Join(dst, fName)
+		log.Debugf("Copying %v to %v", srcFile, dstFile)
+		err := copyFile(srcFile, dstFile)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func TestMain(m *testing.M) {
 	UseLogger(slog.NewBackend(os.Stdout).Logger("EXE"))
 	log.SetLevel(slog.LevelTrace)
@@ -42,8 +93,10 @@ var (
 	dbFolder             = "pooldiffs.bdgr"
 	dbFolderRefV0        = "pooldiffs0.bdgr"
 	dbFolderRefV1        = "pooldiffs1.bdgr"
+	dbFolderRefV2        = "pooldiffs2.bdgr"
 	dbFolderFullV0       = "test_ticket_pool.bdgr"
 	dbFolderFullV1       = "test_ticket_pool_v1.bdgr"
+	dbFolderFullV2       = "test_ticket_pool_v2.bdgr"
 	fullHeight     int64 = 239191
 	fullPoolSize         = 40763
 	poolSpots            = []int64{32215, 43268, 85508, 66322, 178346, 11013, 98265, 1081,
@@ -75,11 +128,15 @@ var (
 // testTicketPoolTraverseFull tests AdvanceToTip and Pool for random access.
 // After each Pool call, it checks the pool size against the expected size.
 func TestTicketPoolTraverseFullV0(t *testing.T) {
-	testTicketPoolTraverseFull(t, dbFolderFullV0) // modifies dbFolderFullV0
+	testTicketPoolTraverseFull(t, dbFolderFullV0) // upgrades dbFolderFullV0
 }
 
 func TestTicketPoolTraverseFullV1(t *testing.T) {
 	testTicketPoolTraverseFull(t, dbFolderFullV1)
+}
+
+func TestTicketPoolTraverseFullV2(t *testing.T) {
+	testTicketPoolTraverseFull(t, dbFolderFullV2)
 }
 
 func testTicketPoolTraverseFull(t *testing.T, dir string) {
@@ -385,14 +442,13 @@ func TestTicketPoolHeight(t *testing.T) {
 // TestTicketPoolPersistent tests the persistent DB by loading a reference db,
 // and verifies its state is as expected, and Pool works on it.
 func TestTicketPoolPersistent(t *testing.T) {
-	tmpDir := t.TempDir()
-	err := copyDir(dbFolderRefV0, tmpDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	testDBDir := func(dir string) {
-		p, err := NewTicketPool("", dir)
+		tmpDir := t.TempDir()
+		err := copyDir(dir, tmpDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, err := NewTicketPool("", tmpDir)
 		if err != nil {
 			t.Fatalf("NewTicketPool failed: %v", err)
 		}
@@ -430,14 +486,14 @@ func TestTicketPoolPersistent(t *testing.T) {
 	}
 
 	// Test the upgrade of the v0 folder in the temp copy.
-	t.Logf("Testing upgrade of v0 DB at %v", tmpDir)
-	testDBDir(tmpDir)
+	t.Logf("Testing upgrade of v0 DB at %v", dbFolderRefV0)
+	testDBDir(dbFolderRefV0)
 
-	// Now test the upgraded DB folder.
-	t.Logf("Testing newly upgraded v1 DB at %v", tmpDir)
-	testDBDir(tmpDir)
-
-	// Now the reference v1 folder (should not modify it).
-	t.Logf("Testing reference v1 DB at %v", dbFolderRefV1)
+	// Now test v1 db upgrade DB folder.
+	t.Logf("Testing newly upgraded v1 DB at %v", dbFolderRefV1)
 	testDBDir(dbFolderRefV1)
+
+	// Now the reference v2 folder (should not modify it).
+	t.Logf("Testing reference v2 DB at %v", dbFolderRefV2)
+	testDBDir(dbFolderRefV2)
 }
