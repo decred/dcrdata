@@ -7,7 +7,6 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 
@@ -70,10 +69,8 @@ func canUpgrade(db *bv1.DB, expectedVer uint32) (bool, error) {
 
 // openV1DB opens a v1 badger database.
 func openV1DB(dbPath string) (*bv1.DB, error) {
-	opts := bv1.DefaultOptions(dbPath).
-		WithValueDir(dbPath).
-		WithNumVersionsToKeep(math.MaxUint32).
-		WithLogger(&badgerLogger{log})
+	opts := bv1.DefaultOptions(dbPath)
+	opts.Logger = &badgerLogger{log}
 	db, err := bv1.Open(opts)
 	if err == bv1.ErrTruncateNeeded {
 		// Try again with value log truncation enabled.
