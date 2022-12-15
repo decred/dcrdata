@@ -184,13 +184,8 @@ func NewTicketPool(dataDir, dbSubDir string) (tp *TicketPool, err error) {
 		}
 
 		// Upgrade database.
-		if err = upgrade(badgerDbPath); err != nil {
+		if db, err = upgradeDB(badgerDbPath, opts, 0 /* attempt upgrade from v0*/); err != nil {
 			return nil, fmt.Errorf("upgrade error: %w", err)
-		}
-
-		// Reopen ticket pool DB.
-		if db, err = badger.Open(opts); err != nil {
-			return nil, fmt.Errorf("badger.Open error: %w", err)
 		}
 	}
 
@@ -220,6 +215,12 @@ func NewTicketPool(dataDir, dbSubDir string) (tp *TicketPool, err error) {
 	}
 	if ver > currentVersion {
 		return nil, fmt.Errorf("unsupported db version %d", ver)
+	}
+
+	if ver != currentVersion {
+		if db, err = upgradeDB(badgerDbPath, opts, ver); err != nil {
+			return nil, fmt.Errorf("upgrade error: %w", err)
+		}
 	}
 
 	// Attempt garbage collection of badger value log. If greater than
@@ -305,22 +306,25 @@ func loadAllPoolDiffs(db *badger.DB) ([]PoolDiff, []uint64, error) {
 	return poolDiffs, heights, err
 }
 
-func upgrade(dbPath string) error {
-	for ver, upgrade := range upgrades {
+// upgradeDB upgrades a ticket pool database starting from the specified version
+// and returns the upgraded database.
+func upgradeDB(dbPath string, opts badger.Options, version uint32) (*badger.DB, error) {
+	for ver, upgrade := range upgrades[version:] {
 		var newVersion = uint32(ver) + 1
 		if newVersion > currentVersion {
 			newVersion = currentVersion
 		}
 
-		log.Infof("Upgrading ticket pool DB to version %d", newVersion)
+		log.Infof("Upgrading ticket pool DB to version %d...", newVersion)
 		err := upgrade(dbPath)
 		if err != nil {
-			return fmt.Errorf("error upgrading from version %d: %w", ver, err)
+			return nil, fmt.Errorf("error upgrading from version %d: %w", ver, err)
 		}
 	}
 
 	log.Infof("Ticket pool DB has been successfully upgraded to version %d", currentVersion)
-	return nil
+
+	return badger.Open(opts)
 }
 
 // Close closes the persistent diff DB.

@@ -19,7 +19,7 @@ type upgradeFunc func(string) error
 
 // Each database upgrade function should be keyed by the database
 // version it upgrades.
-var upgrades = []upgradeFunc{
+var upgrades = [...]upgradeFunc{
 	// v0 => v1, rewrite db using custom encoding.
 	v1Upgrade,
 	// v1 => v2, upgrades db to new badger v3.
@@ -276,7 +276,7 @@ func v2Upgrade(dbPath string) error {
 		return err
 	}
 
-	err = db.Load(backupFile, 100)
+	err = db.Load(backupFile, 1000)
 	if err != nil {
 		return fmt.Errorf("db.Load error: %w", err)
 	}
