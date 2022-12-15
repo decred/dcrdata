@@ -96,7 +96,6 @@ var (
 	dbFolderRefV2        = "pooldiffs2.bdgr"
 	dbFolderFullV0       = "test_ticket_pool.bdgr"
 	dbFolderFullV1       = "test_ticket_pool_v1.bdgr"
-	dbFolderFullV2       = "test_ticket_pool_v2.bdgr"
 	fullHeight     int64 = 239191
 	fullPoolSize         = 40763
 	poolSpots            = []int64{32215, 43268, 85508, 66322, 178346, 11013, 98265, 1081,
@@ -132,11 +131,7 @@ func TestTicketPoolTraverseFullV0(t *testing.T) {
 }
 
 func TestTicketPoolTraverseFullV1(t *testing.T) {
-	testTicketPoolTraverseFull(t, dbFolderFullV1)
-}
-
-func TestTicketPoolTraverseFullV2(t *testing.T) {
-	testTicketPoolTraverseFull(t, dbFolderFullV2)
+	testTicketPoolTraverseFull(t, dbFolderFullV1) // upgrades dbFolderFullV1
 }
 
 func testTicketPoolTraverseFull(t *testing.T, dir string) {
@@ -489,11 +484,11 @@ func TestTicketPoolPersistent(t *testing.T) {
 	t.Logf("Testing upgrade of v0 DB at %v", dbFolderRefV0)
 	testDBDir(dbFolderRefV0)
 
-	// Now test v1 db upgrade DB folder.
+	// Now the upgrade of the v1 folder in the temp copy.
 	t.Logf("Testing newly upgraded v1 DB at %v", dbFolderRefV1)
 	testDBDir(dbFolderRefV1)
 
-	// Now the reference v2 folder (should not modify it).
+	// Now the reference v2 folder in the temp copy, should not modify it.
 	t.Logf("Testing reference v2 DB at %v", dbFolderRefV2)
 	testDBDir(dbFolderRefV2)
 }

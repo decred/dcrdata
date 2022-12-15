@@ -161,7 +161,7 @@ func rewriteDB(db *bv1.DB, diffs []PoolDiff, heights []uint64, ver uint32) error
 	for i, h := range heights {
 		err := storeDiffTx(txn, &diffs[i], h)
 		// If this transaction got too big, commit and make a new one.
-		if errors.Is(err, badger.ErrTxnTooBig) {
+		if errors.Is(err, bv1.ErrTxnTooBig) {
 			if err = txn.Commit(); err != nil {
 				txn.Discard()
 				return err
