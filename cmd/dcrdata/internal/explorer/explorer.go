@@ -575,7 +575,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 
 	// Simulate the annual staking rate.
 	go func(height int64, sdiff float64, supply int64) {
-		ASR, _ := exp.simulateStakeReturn(ctx, 1000, false, stakePerc,
+		ASR := exp.simulateStakeReturn(ctx, 1000, false, stakePerc,
 			dcrutil.Amount(supply).ToCoin(),
 			float64(height), sdiff, 365 /* for a year */)
 		p.Lock()
@@ -682,17 +682,16 @@ func (exp *explorerUI) addRoutes() {
 // parameters.
 func (exp *explorerUI) simulateStakeReturn(ctx context.Context, startingDCRBalance float64, integerTicketQty bool,
 	currentStakePercent float64, actualCoinbase float64, currentBlockNum float64,
-	actualTicketPrice float64, durationInDays float64) (stakeReturn float64, returnTable string) {
+	actualTicketPrice float64, durationInDays float64) float64 {
 
 	// Calculations are only useful on mainnet.  Short circuit calculations if
 	// on any other version of chain params.
 	if exp.ChainParams.Name != "mainnet" {
-		return 0, ""
+		return 0
 	}
 
 	blocksPerDay := 86400 / exp.ChainParams.TargetTimePerBlock.Seconds()
 	totalBlocksInDuration := durationInDays * blocksPerDay
-	ticketsPurchased := float64(0)
 
 	votesPerBlock := exp.ChainParams.VotesPerBlock()
 
@@ -724,17 +723,12 @@ func (exp *explorerUI) simulateStakeReturn(ctx context.Context, startingDCRBalan
 
 	// Prepare for simulation
 	simblock := currentBlockNum
-	ticketPrice := actualTicketPrice
 	dcrBalance := startingDCRBalance
-
-	returnTable = "\n\nBLOCKNUM        DCR  TICKETS TKT_PRICE TKT_REWRD  ACTION\n"
-	returnTable += fmt.Sprintf("%8d  %9.2f %8.1f %9.2f %9.2f    INIT\n",
-		int64(simblock), dcrBalance, ticketsPurchased,
-		ticketPrice, stakeRewardAtBlock(simblock))
 
 	for simblock < (totalBlocksInDuration + currentBlockNum) {
 		// Simulate a Purchase on simblock
-		ticketPrice = theoreticalTicketPrice(simblock) * ticketAdjustmentFactor
+		var ticketsPurchased float64
+		ticketPrice := theoreticalTicketPrice(simblock) * ticketAdjustmentFactor
 
 		if integerTicketQty {
 			// Use this to simulate integer qtys of tickets up to max funds
@@ -746,37 +740,25 @@ func (exp *explorerUI) simulateStakeReturn(ctx context.Context, startingDCRBalan
 		}
 
 		dcrBalance -= (ticketPrice * ticketsPurchased)
-		returnTable += fmt.Sprintf("%8d  %9.2f %8.1f %9.2f %9.2f     BUY\n",
-			int64(simblock), dcrBalance, ticketsPurchased,
-			ticketPrice, stakeRewardAtBlock(simblock))
 
 		// Move forward to average vote
 		simblock += (float64(exp.ChainParams.TicketMaturity) + float64(exp.MeanVotingBlocks))
-		returnTable += fmt.Sprintf("%8d  %9.2f %8.1f %9.2f %9.2f    VOTE\n",
-			int64(simblock), dcrBalance, ticketsPurchased,
-			(theoreticalTicketPrice(simblock) * ticketAdjustmentFactor), stakeRewardAtBlock(simblock))
 
 		// Simulate return of funds
 		dcrBalance += (ticketPrice * ticketsPurchased)
 
 		// Simulate reward
 		dcrBalance += (stakeRewardAtBlock(simblock) * ticketsPurchased)
-		ticketsPurchased = 0
 
 		// Move forward to coinbase maturity
 		simblock += float64(exp.ChainParams.CoinbaseMaturity)
-
-		returnTable += fmt.Sprintf("%8d  %9.2f %8.1f %9.2f %9.2f  REWARD\n",
-			int64(simblock), dcrBalance, ticketsPurchased,
-			(theoreticalTicketPrice(simblock) * ticketAdjustmentFactor), stakeRewardAtBlock(simblock))
 
 		// Need to receive funds before we can use them again so add 1 block
 		simblock++
 	}
 
 	simulationReward := ((dcrBalance - startingDCRBalance) / startingDCRBalance) * 100
-	stakeReturn = (totalBlocksInDuration / (simblock - currentBlockNum)) * simulationReward
-	return
+	return (totalBlocksInDuration / (simblock - currentBlockNum)) * simulationReward
 }
 
 func (exp *explorerUI) watchExchanges() {
