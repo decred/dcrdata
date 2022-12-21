@@ -259,9 +259,7 @@ func v2Upgrade(dbPath string) error {
 		return fmt.Errorf("failed to delete db file: %w", err)
 	}
 
-	opts := badger.DefaultOptions(dbPath)
-	opts.MetricsEnabled = false
-	opts.Logger = &badgerLogger{log}
+	opts := badgerOptions(dbPath)
 	db, err := badger.Open(opts)
 	if err != nil {
 		return err

@@ -169,14 +169,21 @@ func dbVersion(db *badger.DB) (uint32, error) {
 	})
 }
 
+func badgerOptions(badgerDbPath string) badger.Options {
+	opts := badger.DefaultOptions(badgerDbPath)
+	opts.DetectConflicts = false
+	opts.CompactL0OnClose = true
+	opts.MetricsEnabled = false
+	opts.Logger = &badgerLogger{log}
+	return opts
+}
+
 // NewTicketPool constructs a TicketPool by opening the persistent diff db,
 // loading all known diffs, initializing the TicketPool values.
 func NewTicketPool(dataDir, dbSubDir string) (tp *TicketPool, err error) {
 	// Open ticket pool diffs database
 	badgerDbPath := filepath.Join(dataDir, dbSubDir)
-	opts := badger.DefaultOptions(badgerDbPath)
-	opts.MetricsEnabled = false
-	opts.Logger = &badgerLogger{log}
+	opts := badgerOptions(badgerDbPath)
 	db, err := badger.Open(opts)
 	if err != nil {
 		if !strings.Contains(err.Error(), "manifest has unsupported version") {
