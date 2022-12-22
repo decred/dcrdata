@@ -2936,12 +2936,6 @@ func (exp *explorerUI) CalculateStakeReward(w http.ResponseWriter, r *http.Reque
 	}
 
 	amountInDCR := float64(amount) / exchangeRate.Value
-	if amountInDCR < currentTicketPrice {
-		displayPage(fmt.Sprintf("%s (%s) cannot buy a single ticket, need at least %.2f (%s)",
-			amountStr, exchangeRate.Index, (currentTicketPrice * exchangeRate.Value), exchangeRate.Index))
-		return
-	}
-
 	durationInDays = endDate.Sub(startDate).Hours() / 24
 	minimumRewardDurationInDays := ((float64(exp.ChainParams.TicketMaturity) +
 		float64(exp.MeanVotingBlocks) +

@@ -27,8 +27,8 @@
                  <input 
                    type="number" name="amount"
                    class="bg-transparent border-0 ps-0 color-inherit form-control shadow-none mono"
-                   id="amount" required min={{with .ExchangeRate}}{{printf "%.f" (float64Multiply $.CurrentTicketPrice .Value)}}{{end}}
-                   placeholder="Enter an amount you want to stake" autocomplete="off"
+                   id="amount" required min=1
+                   placeholder="Enter the amount you want to stake" autocomplete="off"
                    value="{{with .StakeReward}}{{.Amount}}{{end}}">
             </div>
         </div>
@@ -99,7 +99,7 @@
                     Reward
                     <span 
                      class="dcricon-info fs14 ms-2 mt-2" 
-                     title="This is an estimated reward for the duration specified, a ticket receives a reward of {{printf "%.2f" $.TicketReward}}% ususally after {{$.MinimumRewardPeriod}}."
+                     title="This is an estimated reward for the duration specified, even if your stake amount cannot purchase a single ticket. A ticket receives a reward of ~{{printf "%.2f" $.TicketReward}}% usually after ~{{$.MinimumRewardPeriod}}."
                     >
                     </span>
                 </div>
@@ -122,7 +122,7 @@
                 {{$nTickets := divideFloat .TotalTicketsCost $.CurrentTicketPrice}}
                 <div class="fs16 text-secondary">
                   Total Cost
-                  <span class="dcricon-info fs14 ms-2 mt-2" title="Cost of purchasing {{$nTickets}} Ticket(s), excluding network and VSP fees."></span>
+                  <span class="dcricon-info fs14 ms-2 mt-2" title="Cost of purchasing {{printf "%.f" $nTickets}} Ticket(s), excluding network and VSP fees."></span>
                 </div>
                 <div class="mono lh1rem fs14-decimal fs24 pt-1 pb-1 d-flex align-items-baseline">
                   <span>
@@ -136,7 +136,13 @@
                 </div>
                {{- end}}
                 <div class="fs12 lh1rem text-black-50">
-                  <span>{{printf "%.f" $nTickets}} {{if gt $nTickets 1.0}}Tickets{{else}}Ticket{{end}}</span>
+                  <span> 
+                  {{if lt $nTickets 1.0}}
+                  Note: Stake amount is not sufficient to buy a single ticket.
+                  {{else}}
+                  {{printf "%.f" $nTickets}} {{if gt $nTickets 1.0}}Tickets{{else}}Ticket{{end}}
+                  {{end}}
+                  </span>
                 </div>
              </div>
           </div>
