@@ -172,6 +172,7 @@ func dbVersion(db *badger.DB) (uint32, error) {
 func badgerOptions(badgerDbPath string) badger.Options {
 	opts := badger.DefaultOptions(badgerDbPath)
 	opts.DetectConflicts = false
+	opts.BlockCacheSize = 300 << 20
 	opts.CompactL0OnClose = true
 	opts.MetricsEnabled = false
 	opts.Logger = &badgerLogger{log}
