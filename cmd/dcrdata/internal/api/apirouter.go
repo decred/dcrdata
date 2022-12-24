@@ -18,6 +18,11 @@ type apiMux struct {
 	*chi.Mux
 }
 
+// Version returns the version of this API handler.
+func (am *apiMux) Version() int {
+	return APIVersion
+}
+
 type fileMux struct {
 	*chi.Mux
 }

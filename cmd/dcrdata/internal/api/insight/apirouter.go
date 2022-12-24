@@ -19,8 +19,10 @@ type ApiMux struct {
 	*chi.Mux
 }
 
-// APIVersion is an integer value, incremented for breaking changes
-const APIVersion = 0
+// Version returns the version of this API handler.
+func (am *ApiMux) Version() int {
+	return APIVersion
+}
 
 // NewInsightAPIRouter returns a new HTTP path router, ApiMux, for the Insight
 // API, app.

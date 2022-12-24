@@ -723,15 +723,24 @@ func _main(ctx context.Context) error {
 	// SyncStatusAPIIntercept returns a json response if the sync status page is
 	// enabled (no the full explorer while syncing).
 	webMux.With(explore.SyncStatusAPIIntercept).Group(func(r chi.Router) {
-		// Mount the dcrdata's REST API.
+		// Mount the default dcrdata REST API.
 		r.Mount("/api", apiMux.Mux)
-		// Setup and mount the Insight API.
+		// Mount the versioned dcrdata REST API.
+		versionPrefix := fmt.Sprintf("/api/v%d", apiMux.Version())
+		r.Mount(versionPrefix, apiMux.Mux)
+
+		// Setup the Insight API.
 		insightApp := insight.NewInsightAPI(dcrdClient, chainDB,
 			activeChain, mpm, cfg.IndentJSON, app.Status)
 		insightApp.SetReqRateLimit(cfg.InsightReqRateLimit)
 		insightMux := insight.NewInsightAPIRouter(insightApp, cfg.UseRealIP,
 			cfg.CompressAPI, cfg.MaxCSVAddrs)
+
+		// Mount the default dcrdata insight REST API.
 		r.Mount("/insight/api", insightMux.Mux)
+		// Mount the versioned dcrdata insight REST API.
+		insightVersionPrefix := fmt.Sprintf("/insight/api/v%d", insightMux.Version())
+		r.Mount(insightVersionPrefix, insightMux.Mux)
 
 		if insightSocketServer != nil {
 			r.With(mw.NoOrigin).Get("/insight/socket.io/", insightSocketServer.ServeHTTP)
