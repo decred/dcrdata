@@ -36,7 +36,7 @@ import (
 	"github.com/decred/dcrdata/exchanges/v3"
 	"github.com/decred/dcrdata/gov/v6/agendas"
 	"github.com/decred/dcrdata/gov/v6/politeia"
-	apitypes "github.com/decred/dcrdata/v8/api/types"
+	apitypes "github.com/decred/dcrdata/v8/api/types/v1"
 	"github.com/decred/dcrdata/v8/db/cache"
 	"github.com/decred/dcrdata/v8/db/dbtypes"
 	"github.com/decred/dcrdata/v8/txhelpers"
@@ -160,7 +160,7 @@ func NewContext(cfg *AppContextConfig) *appContext {
 		xcBot:       cfg.XcBot,
 		AgendaDB:    cfg.AgendasDBInstance,
 		ProposalsDB: cfg.ProposalsDB,
-		Status:      apitypes.NewStatus(uint32(nodeHeight), conns, APIVersion, cfg.AppVer, cfg.Params.Name),
+		Status:      apitypes.NewStatus(uint32(nodeHeight), conns, currentAPIVersion, cfg.AppVer, cfg.Params.Name),
 		maxCSVAddrs: cfg.MaxAddrs,
 		charts:      cfg.Charts,
 	}

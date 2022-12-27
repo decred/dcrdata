@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2021, The Decred developers
+// Copyright (c) 2018-2022, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -22,7 +22,7 @@ import (
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
-	apitypes "github.com/decred/dcrdata/v8/api/types"
+	apitypes "github.com/decred/dcrdata/v8/api/types/v1"
 	"github.com/didip/tollbooth/v6"
 	"github.com/didip/tollbooth/v6/limiter"
 	"github.com/go-chi/chi/v5"
@@ -60,6 +60,7 @@ const (
 	ctxXcToken
 	ctxStickWidth
 	ctxIndent
+	ctxAPIVersion
 )
 
 type DataSource interface {
@@ -1100,4 +1101,25 @@ func RetrieveStickWidthCtx(r *http.Request) string {
 		return ""
 	}
 	return bin
+}
+
+// APIVersionCtx adds supported API version to a request context.
+func APIVersionCtx(version string) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r = r.WithContext(context.WithValue(r.Context(), ctxAPIVersion, version))
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// RetrieveAPIVersion pulls the API version of this request form the request's
+// context. Unused
+func RetrieveAPIVersion(r *http.Request) string {
+	version, ok := r.Context().Value(ctxAPIVersion).(string)
+	if !ok {
+		// The request was sent to the default API route, so no version was set.
+		return ""
+	}
+	return version
 }
