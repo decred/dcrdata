@@ -6,12 +6,8 @@
     box-shadow: rgb(0 255 0 / 0%) 0 0 0;
   }
 
-  50% {
-    box-shadow: rgb(0 255 0 / 100%) 0 0 10px;
-  }
-
   to {
-    box-shadow: rgb(0 255 0 / 0%) 0 0 0;
+    box-shadow: rgb(0 255 0 / 100%) 0 0 10px;
   }
 }
 
@@ -20,12 +16,8 @@
     box-shadow: rgb(255 0 0 / 0%) 0 0 0;
   }
 
-  50% {
-    box-shadow: rgb(255 0 0 / 100%) 0 0 10px;
-  }
-
   to {
-    box-shadow: rgb(255 0 0 / 0%) 0 0 0;
+    box-shadow: rgb(255 0 0 / 100%) 0 0 10px;
   }
 }
 
