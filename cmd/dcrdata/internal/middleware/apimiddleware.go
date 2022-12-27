@@ -1104,7 +1104,7 @@ func RetrieveStickWidthCtx(r *http.Request) string {
 }
 
 // APIVersionCtx adds supported API version to a request context.
-func APIVersionCtx(version string) func(next http.Handler) http.Handler {
+func APIVersionCtx(version int) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			r = r.WithContext(context.WithValue(r.Context(), ctxAPIVersion, version))
@@ -1115,11 +1115,11 @@ func APIVersionCtx(version string) func(next http.Handler) http.Handler {
 
 // RetrieveAPIVersion pulls the API version of this request form the request's
 // context. Unused
-func RetrieveAPIVersion(r *http.Request) string {
-	version, ok := r.Context().Value(ctxAPIVersion).(string)
+func RetrieveAPIVersion(r *http.Request) int {
+	version, ok := r.Context().Value(ctxAPIVersion).(int)
 	if !ok {
 		// The request was sent to the default API route, so no version was set.
-		return ""
+		return 0
 	}
 	return version
 }

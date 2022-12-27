@@ -731,8 +731,7 @@ func _main(ctx context.Context) error {
 		r.Mount("/api", apiMux.Mux)
 		// Mount versioned dcrdata REST API.
 		for _, version := range apiMux.Versions() {
-			versionStr := fmt.Sprintf("v%d", version)
-			r.With(mw.APIVersionCtx(versionStr)).Mount(fmt.Sprintf("/api/%s", versionStr), apiMux.Mux)
+			r.With(mw.APIVersionCtx(int(version))).Mount(fmt.Sprintf("/api/v%d", version), apiMux.Mux)
 		}
 
 		// Setup the Insight API.
@@ -746,8 +745,7 @@ func _main(ctx context.Context) error {
 		r.Mount("/insight/api", insightMux.Mux)
 		// Mount the versioned insight REST API.
 		for _, version := range insightMux.Versions() {
-			versionStr := fmt.Sprintf("v%d", version)
-			r.With(mw.APIVersionCtx(versionStr)).Mount(fmt.Sprintf("/insight/api/%s", versionStr), insightMux.Mux)
+			r.With(mw.APIVersionCtx(int(version))).Mount(fmt.Sprintf("/insight/api/v%d", version), insightMux.Mux)
 		}
 
 		if insightSocketServer != nil {
