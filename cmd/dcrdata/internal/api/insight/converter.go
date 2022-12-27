@@ -10,7 +10,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v4"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
 
-	apitypes "github.com/decred/dcrdata/v8/api/types"
+	apitypes "github.com/decred/dcrdata/v8/api/types/v1"
 	"github.com/decred/dcrdata/v8/txhelpers"
 )
 
