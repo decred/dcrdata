@@ -3,27 +3,14 @@
 <html lang="en">
 {{ template "html-head" headData .CommonPageData "Decred Block Explorer by dcrdata.org"}}
     {{ template "navbar" . }}
-
-    <div
-        id="mainContainer"
-        class="container py-1"
-        data-controller="time"
-    >
-        <div
-            class="blocks-section"
-            data-controller="visualBlocks"
-            data-visualBlocks-target="root"
-        >
-            <a
-                class="no-underline title fw-bold"
-                href="/blocks"
-                data-visualBlocks-target="title"
-                href="/blocks"
-            >Latest Blocks</a>
-            <div
-                class="blocks-holder"
-                data-visualBlocks-target="box"
-            >
+    {{template "blocksBanner" .}}
+    <div id="mainContainer" class="container main px-1" data-controller="time">
+        <div class="blocks-section" data-controller="visualBlocks" data-visualBlocks-target="root">
+            <span class="h2 d-flex pt-4 px-1 pb-1 pe-2" data-visualBlocks-target="title">
+                Visual Blocks
+                <span class="dcricon-info fs14 ms-2 mt-2" data-visualBlocks-target="tooltip" title="Latest Decred Visual Blocks"></span>
+            </span>
+            <div class="blocks-holder px-md-4" data-visualBlocks-target="box">
                 <!-- add mempool element -->
                 {{with .Mempool}}
                 <div class="block visible" data-visualBlocks-target="block">

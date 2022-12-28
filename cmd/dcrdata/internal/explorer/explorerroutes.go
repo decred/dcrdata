@@ -368,14 +368,16 @@ func (exp *explorerUI) VisualBlocks(w http.ResponseWriter, r *http.Request) {
 
 	str, err := exp.templates.exec("visualblocks", struct {
 		*CommonPageData
-		Info    *types.HomeInfo
-		Mempool *types.TrimmedMempoolInfo
-		Blocks  []*types.TrimmedBlockInfo
+		Info         *types.HomeInfo
+		Mempool      *types.TrimmedMempoolInfo
+		Blocks       []*types.TrimmedBlockInfo
+		TimeGrouping string
 	}{
 		CommonPageData: exp.commonData(r),
 		Info:           exp.pageData.HomeInfo,
 		Mempool:        mempoolInfo,
 		Blocks:         trimmedBlocks,
+		TimeGrouping:   "Visual Blocks",
 	})
 
 	exp.pageData.RUnlock()
