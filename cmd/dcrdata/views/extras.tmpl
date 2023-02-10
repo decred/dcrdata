@@ -266,7 +266,8 @@
 	{{- end}}
 		<th class="d-none d-sm-table-cell text-end">Time (UTC)</th>
 		<th class="text-end">Age</th>
-		<th class="text-end"><span class="d-sm-none position-relative" data-tooltip="Confirmations">Cons</span><span class="d-none d-sm-inline">Confirms</span></th>
+		<th class="d-none d-sm-table-cell text-end">Block</th>
+		<th class="text-end"><span class="d-sm-none position-relative" data-tooltip="Confirmations">Confs</span><span class="d-none d-sm-inline">Confirms</span></th>
 		<th class="d-none d-sm-table-cell text-end">Size</th>
 		</tr>
 	</thead>
@@ -320,6 +321,7 @@
 				<span data-controller="time" data-time-target="age" data-age="{{.Time.UNIX}}"></span>
 			{{- end}}
 			</td>
+			<td class="d-none d-sm-table-cell text-end">{{if eq .Confirmations 0}}{{.BlockHeight}}{{else}}<a href="/block/{{.BlockHeight}}">{{.BlockHeight}}</a>{{end}}</td>
 			<td class="addr-tx-confirms text-end"	{{/*Update confirmations with Stimulus*/ -}}
 				data-newblock-target="confirmations" {{/*trim*/ -}}
 				data-confirmations="{{.Confirmations}}" {{/*trim*/ -}}
@@ -327,7 +329,7 @@
 				data-yes="#" {{/*trim*/ -}}
 				data-no="(unconfirmed)" {{/*trim*/ -}}
 			>{{.Confirmations}}</td>
-			<td class="text-end d-none d-sm-table-cell text-end">{{.FormattedSize}}</td>
+			<td class="d-none d-sm-table-cell text-end">{{.FormattedSize}}</td>
 		</tr>
 	{{- end}}
 	</tbody>
@@ -419,7 +421,7 @@
 			<td class="d-none d-sm-table-cell">{{txtypeStr .Type}}</td>
 			<td class="clipboard">{{template "hashElide" (hashlink .TxID (printf "/tx/%s" .TxID))}}</td>
 			<td class="text-end fs15">{{template "decimalParts" (amountAsDecimalParts .Amount false)}}</td>
-			<td class="text-end fs15">{{.BlockHeight}}</td>
+			<td class="text-end fs15">{{if eq .Confirmations 0}}{{.BlockHeight}}{{else}}<a href="/block/{{.BlockHeight}}">{{.BlockHeight}}</a>{{end}}</td>
 			<td class="addr-tx-time d-none d-sm-table-cell text-end">{{.BlockTime.DatetimeWithoutTZ}}</td>
 			{{/*  <td class="addr-tx-confirms text-end"
 				data-newblock-target="confirmations"
