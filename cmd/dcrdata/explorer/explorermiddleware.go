@@ -37,6 +37,28 @@ var (
 	xForwardedScheme = http.CanonicalHeaderKey("X-Forwarded-Scheme")
 )
 
+// AllowedHosts will clear the Host request header entry unless it matches one
+// of the provided hosts names.
+func AllowedHosts(hosts []string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		hf := func(w http.ResponseWriter, r *http.Request) {
+			var ok bool
+			for _, host := range hosts {
+				if strings.EqualFold(r.Host, host) {
+					r.Host = host
+					ok = true
+					break
+				}
+			}
+			if !ok {
+				r.Host = ""
+			}
+			next.ServeHTTP(w, r)
+		}
+		return http.HandlerFunc(hf)
+	}
+}
+
 // ProxyHeaders should only be used when behind a trusted proxy, not with direct
 // client connections. This sets Request.URL.Scheme from X-Forwarded-Proto, then
 // X-Forwarded-Scheme, and falls back to the scheme implied by the Request.TLS

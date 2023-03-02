@@ -668,6 +668,10 @@ func _main(ctx context.Context) error {
 	if cfg.TrustProxy {                        // try to determine actual request scheme and host from x-forwarded-{proto,host} headers
 		webMux.Use(explorer.ProxyHeaders)
 	}
+	if len(cfg.AllowedHosts) > 0 {
+		webMux.Use(explorer.AllowedHosts(cfg.AllowedHosts))
+	}
+
 	webMux.With(explore.SyncStatusPageIntercept).Group(func(r chi.Router) {
 		r.Get("/", explore.Home)
 		r.Get("/visualblocks", explore.VisualBlocks)
