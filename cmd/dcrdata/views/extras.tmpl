@@ -3,6 +3,7 @@
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	{{/* The above meta tags *must* come first in the head */ -}}
+	{{- if .Data.Host -}}
 	<meta name="description" content="dcrdata, an original Decred block explorer powered by Go">
 	<meta name="author" content="The Decred developers">
 	<meta name="application-name"           content="dcrdata - The Decred Block Explorer">
@@ -19,6 +20,7 @@
 	<meta property="og:type"        content="website" />
 	<meta property="og:url"         content="{{ .Data.CanonicalURL }}" />
 	<meta property="og:image"       content="{{ .Data.BaseURL }}/images/dcrdata400x348.png" />
+	{{- end}}
 
 	<!--  Custom favicon  -->
 		<!-- Apple PWA -->
