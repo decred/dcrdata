@@ -106,11 +106,11 @@ const (
 			vins.prev_tx_tree, vins.value_in, prevtxs.block_height, prevtxs.block_index
 		FROM (` + addressTxnsSubQuery + `) atxs
 		JOIN vins ON vins.tx_hash = atxs.tx_hash   -- JOIN vins on vins.id = any(txs.vin_db_ids)
-		LEFT JOIN transactions prevtxs ON vins.prev_tx_hash=prevtxs.tx_hash;`  // LEFT JOIN because prev_tx_hash may be coinbase
+		LEFT JOIN transactions prevtxs ON vins.prev_tx_hash=prevtxs.tx_hash;` // LEFT JOIN because prev_tx_hash may be coinbase
 
 	SelectVoutsForAddress = `SELECT vouts.value, vouts.tx_hash, vouts.tx_index, vouts.version, vouts.pkscript
 		FROM (` + addressTxnsSubQuery + `) atxs
-		JOIN vouts ON vouts.tx_hash = atxs.tx_hash;`  //    -- vouts.id = any(transactions.vout_db_ids)
+		JOIN vouts ON vouts.tx_hash = atxs.tx_hash;` //    -- vouts.id = any(transactions.vout_db_ids)
 
 	// select distinct tx_hash, block_time
 	// from addresses
@@ -351,7 +351,7 @@ const (
 	// transaction) for the addresses rows corresponding to the specified
 	// outpoint (tx_hash:tx_vin_vout_index), a funding tx row.
 	SetAddressMatchingTxHashForOutpoint = `UPDATE addresses SET matching_tx_hash=$1
-		WHERE tx_hash=$2 AND is_funding AND tx_vin_vout_index=$3 AND valid_mainchain = $4 `  // not terminated with ;
+		WHERE tx_hash=$2 AND is_funding AND tx_vin_vout_index=$3 AND valid_mainchain = $4 ` // not terminated with ;
 
 	// AssignMatchingTxHashForOutpoint is like
 	// SetAddressMatchingTxHashForOutpoint except that it only updates rows

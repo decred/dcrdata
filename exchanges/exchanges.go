@@ -3057,7 +3057,7 @@ func (dcr *DecredDEX) Refresh() {
 		deepEnough := binSize*dexcandles.CacheSize > aDayMS
 		if bestVolDur == 0 || (binSize < bestVolDur && deepEnough) {
 			bestVolDur = binSize
-			change, volume = cache.Delta(time.Now().Add(-time.Hour * 24))
+			change, volume, _, _ = cache.Delta(time.Now().Add(-time.Hour * 24))
 		}
 	}
 

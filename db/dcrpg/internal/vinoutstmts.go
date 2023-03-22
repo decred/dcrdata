@@ -185,7 +185,7 @@ const (
 	// insertVinRow is the basis for several vout insert/upsert statements.
 	insertVoutRow = `INSERT INTO vouts (tx_hash, tx_index, tx_tree, value,
 		version, pkscript, script_req_sigs, script_type, script_addresses, mixed)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) `  // not with spend_tx_row_id
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ` // not with spend_tx_row_id
 
 	// InsertVoutRow inserts a new vout row without checking for unique index
 	// conflicts. This should only be used before the unique indexes are created
