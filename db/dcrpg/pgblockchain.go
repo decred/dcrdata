@@ -113,6 +113,10 @@ func TicketPoolData(interval dbtypes.TimeBasedGrouping, height int64) (timeGraph
 // stacking calls to update the cache.
 func UpdateTicketPoolData(interval dbtypes.TimeBasedGrouping, timeGraph *dbtypes.PoolTicketsData,
 	priceGraph *dbtypes.PoolTicketsData, donutcharts *dbtypes.PoolTicketsData, height int64) {
+	if interval >= dbtypes.NumIntervals {
+		return
+	}
+
 	ticketPoolGraphsCache.Lock()
 	defer ticketPoolGraphsCache.Unlock()
 
@@ -1360,6 +1364,9 @@ func (pgb *ChainDB) AllAgendas() (map[string]dbtypes.MileStone, error) {
 // specified grouping where there are entries in the addresses table for the
 // given address.
 func (pgb *ChainDB) NumAddressIntervals(addr string, grouping dbtypes.TimeBasedGrouping) (int64, error) {
+	if grouping >= dbtypes.NumIntervals {
+		return 0, fmt.Errorf("invalid time grouping %d", grouping)
+	}
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 	return retrieveAddressTxsCount(ctx, pgb.db, addr, grouping.String())
@@ -1519,6 +1526,9 @@ func (pgb *ChainDB) PosIntervals(limit, offset uint64) ([]*dbtypes.BlocksGrouped
 // not uniform.
 func (pgb *ChainDB) TimeBasedIntervals(timeGrouping dbtypes.TimeBasedGrouping,
 	limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error) {
+	if timeGrouping >= dbtypes.NumIntervals {
+		return nil, fmt.Errorf("invalid time grouping %d", timeGrouping)
+	}
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 	bgi, err := retrieveTimeBasedBlockListing(ctx, pgb.db, timeGrouping.String(),
@@ -1535,6 +1545,9 @@ func (pgb *ChainDB) TimeBasedIntervals(timeGrouping dbtypes.TimeBasedGrouping,
 // if one is running, it will wait for the query to complete.
 func (pgb *ChainDB) TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) (*dbtypes.PoolTicketsData,
 	*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, int64, error) {
+	if interval >= dbtypes.NumIntervals {
+		return nil, nil, nil, -1, fmt.Errorf("invalid time grouping %d", interval)
+	}
 	// Attempt to retrieve data for the current block from cache.
 	heightSeen := pgb.Height() // current block seen *by the ChainDB*
 	if heightSeen < 0 {
@@ -1599,6 +1612,9 @@ func (pgb *ChainDB) TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) 
 // graphs. The data grouped by time and price are returned in a slice.
 func (pgb *ChainDB) ticketPoolVisualization(interval dbtypes.TimeBasedGrouping) (timeChart *dbtypes.PoolTicketsData,
 	priceChart *dbtypes.PoolTicketsData, byInputs *dbtypes.PoolTicketsData, height int64, err error) {
+	if interval >= dbtypes.NumIntervals {
+		return nil, nil, nil, 0, fmt.Errorf("invalid time grouping %d", interval)
+	}
 	// Ensure DB height is the same before and after queries since they are not
 	// atomic. Initial height:
 	height = pgb.Height()
@@ -2837,6 +2853,9 @@ func (pgb *ChainDB) RewindStakeDB(ctx context.Context, toHeight int64, quiet ...
 // type and time grouping.
 func (pgb *ChainDB) TxHistoryData(address string, addrChart dbtypes.HistoryChart,
 	chartGroupings dbtypes.TimeBasedGrouping) (cd *dbtypes.ChartsData, err error) {
+	if chartGroupings >= dbtypes.NumIntervals {
+		return nil, fmt.Errorf("invalid time grouping %d", chartGroupings)
+	}
 	_, err = stdaddr.DecodeAddress(address, pgb.chainParams)
 	if err != nil {
 		return nil, err
@@ -2903,6 +2922,9 @@ func (pgb *ChainDB) TxHistoryData(address string, addrChart dbtypes.HistoryChart
 }
 
 func (pgb *ChainDB) BinnedTreasuryIO(chartGroupings dbtypes.TimeBasedGrouping) (*dbtypes.ChartsData, error) {
+	if chartGroupings >= dbtypes.NumIntervals {
+		return nil, fmt.Errorf("invalid time grouping %d", chartGroupings)
+	}
 	timeInterval := chartGroupings.String()
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
