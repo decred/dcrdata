@@ -1179,6 +1179,10 @@ func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request)
 	// TicketPoolVisualization here even though it returns a lot of data not
 	// needed by this request.
 	interval := dbtypes.TimeGroupingFromStr(tp)
+	if interval == dbtypes.UnknownGrouping {
+		http.Error(w, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
+		return
+	}
 	timeChart, _, _, height, err := c.DataSource.TicketPoolVisualization(interval)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("TicketPoolVisualization: %v", err)
@@ -1674,19 +1678,23 @@ func (c *appContext) addressIoCsv(crlf bool, w http.ResponseWriter, r *http.Requ
 func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Request) {
 	addresses, err := m.GetAddressCtx(r, c.Params)
 	if err != nil || len(addresses) > 1 {
-		http.Error(w, http.StatusText(422), 422)
+		http.Error(w, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
 		return
 	}
 	address := addresses[0]
 
 	chartGrouping := m.GetChartGroupingCtx(r)
 	if chartGrouping == "" {
-		http.Error(w, http.StatusText(422), 422)
+		http.Error(w, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
 		return
 	}
 
-	data, err := c.DataSource.TxHistoryData(address, dbtypes.TxsType,
-		dbtypes.TimeGroupingFromStr(chartGrouping))
+	interval := dbtypes.TimeGroupingFromStr(chartGrouping)
+	if interval == dbtypes.UnknownGrouping {
+		http.Error(w, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
+		return
+	}
+	data, err := c.DataSource.TxHistoryData(address, dbtypes.TxsType, interval)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("TxHistoryData: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1694,7 +1702,7 @@ func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Reques
 	}
 	if err != nil {
 		log.Warnf("failed to get address (%s) history by tx type : %v", address, err)
-		http.Error(w, http.StatusText(422), 422)
+		http.Error(w, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -1704,19 +1712,22 @@ func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Reques
 func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.Request) {
 	addresses, err := m.GetAddressCtx(r, c.Params)
 	if err != nil || len(addresses) > 1 {
-		http.Error(w, http.StatusText(422), 422)
+		http.Error(w, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
 		return
 	}
 	address := addresses[0]
 
 	chartGrouping := m.GetChartGroupingCtx(r)
 	if chartGrouping == "" {
-		http.Error(w, http.StatusText(422), 422)
+		http.Error(w, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
 		return
 	}
-
-	data, err := c.DataSource.TxHistoryData(address, dbtypes.AmountFlow,
-		dbtypes.TimeGroupingFromStr(chartGrouping))
+	interval := dbtypes.TimeGroupingFromStr(chartGrouping)
+	if interval == dbtypes.UnknownGrouping {
+		http.Error(w, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
+		return
+	}
+	data, err := c.DataSource.TxHistoryData(address, dbtypes.AmountFlow, interval)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("TxHistoryData: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1724,7 +1735,7 @@ func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.R
 	}
 	if err != nil {
 		log.Warnf("failed to get address (%s) history by amount flow: %v", address, err)
-		http.Error(w, http.StatusText(422), 422)
+		http.Error(w, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -1745,11 +1756,15 @@ func (c *appContext) getTreasuryBalance(w http.ResponseWriter, r *http.Request) 
 func (c *appContext) getTreasuryIO(w http.ResponseWriter, r *http.Request) {
 	chartGrouping := m.GetChartGroupingCtx(r)
 	if chartGrouping == "" {
-		http.Error(w, http.StatusText(422), 422)
+		http.Error(w, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
 		return
 	}
-
-	data, err := c.DataSource.BinnedTreasuryIO(dbtypes.TimeGroupingFromStr(chartGrouping))
+	interval := dbtypes.TimeGroupingFromStr(chartGrouping)
+	if interval == dbtypes.UnknownGrouping {
+		http.Error(w, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
+		return
+	}
+	data, err := c.DataSource.BinnedTreasuryIO(interval)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("BinnedTreasuryIO: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1757,7 +1772,7 @@ func (c *appContext) getTreasuryIO(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		log.Warnf("failed to get treasury i/o: %v", err)
-		http.Error(w, http.StatusText(422), 422)
+		http.Error(w, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
 		return
 	}
 
