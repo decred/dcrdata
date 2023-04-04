@@ -298,7 +298,7 @@ const (
 		COUNT(CASE WHEN tx_type = 2 THEN 1 ELSE NULL END) as SSGen,
 		COUNT(CASE WHEN tx_type = 3 THEN 1 ELSE NULL END) as SSRtx
 		FROM addresses
-		WHERE address=$1
+		WHERE address=$1 AND valid_mainchain
 		GROUP BY timestamp
 		ORDER BY timestamp;`
 
@@ -306,7 +306,7 @@ const (
 		SUM(CASE WHEN is_funding = TRUE THEN value ELSE 0 END) as received,
 		SUM(CASE WHEN is_funding = FALSE THEN value ELSE 0 END) as sent
 		FROM addresses
-		WHERE address=$1
+		WHERE address=$1 AND valid_mainchain
 		GROUP BY timestamp
 		ORDER BY timestamp;`
 
