@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2021, The Decred developers
+// Copyright (c) 2019-2022, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
