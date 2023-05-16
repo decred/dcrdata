@@ -154,14 +154,14 @@ const (
 		WHERE tx_hash = $5 AND tx_index = $6 AND tx_tree = $7;`
 
 	// SelectCoinSupply fetches the newly minted atoms per block by filtering
-	// for stakebase and stake-validated coinbase transactions.
+	// for stakebase, treasurybase, and stake-validated coinbase transactions.
 	SelectCoinSupply = `SELECT vins.block_time, sum(vins.value_in)
 		FROM vins JOIN transactions
 		ON vins.tx_hash = transactions.tx_hash
 		WHERE vins.prev_tx_hash = '0000000000000000000000000000000000000000000000000000000000000000'
 		AND transactions.block_height > $1
-		AND NOT (vins.is_valid = false AND vins.tx_tree = 0)
-		AND vins.is_mainchain
+		AND vins.is_mainchain AND (vins.is_valid OR vins.tx_tree != 0)
+		AND vins.tx_type = ANY(ARRAY[0,2,6])   --- coinbase(regular),ssgen,treasurybase, but NOT tspend, same as =ANY('{0,2,6}') or IN(0,2,6)
 		GROUP BY vins.block_time, transactions.block_height
 		ORDER BY transactions.block_height;`
 
