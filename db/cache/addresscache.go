@@ -135,25 +135,6 @@ func addressRows(rows []*dbtypes.AddressRowCompact, N, offset int) []*dbtypes.Ad
 	return []*dbtypes.AddressRowCompact{}
 }
 
-func addressRowsMerged(rows []*dbtypes.AddressRowMerged, N, offset int) []*dbtypes.AddressRowMerged {
-	if rows == nil {
-		return nil
-	}
-	numRows := len(rows)
-	if offset >= numRows {
-		return []*dbtypes.AddressRowMerged{}
-	}
-
-	end := offset + N
-	if end > numRows {
-		end = numRows
-	}
-	if offset < end {
-		return rows[offset:end]
-	}
-	return []*dbtypes.AddressRowMerged{}
-}
-
 // CreditAddressRows returns up to N credit (funding) address rows from the
 // given AddressRow slice, starting after skipping offset rows. The input rows
 // may only be of type []dbtypes.AddressRowCompact or

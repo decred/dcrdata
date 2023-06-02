@@ -3138,56 +3138,6 @@ func (pgb *ChainDB) PowerlessTickets() (*apitypes.PowerlessTickets, error) {
 	return retrievePowerlessTickets(ctx, pgb.db)
 }
 
-// ticketsByBlocks fetches the tickets by blocks output count chart data from
-// retrieveTicketByOutputCount
-// This chart has been deprecated. Leaving ticketsByBlocks for possible future
-// re-appropriation, says buck54321 on April 24, 2019.
-func (pgb *ChainDB) ticketsByBlocks(heightArr, soloArr, pooledArr []uint64) ([]uint64,
-	[]uint64, []uint64, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
-	defer cancel()
-
-	var err error
-	heightArr, soloArr, pooledArr, err = retrieveTicketByOutputCount(ctx,
-		pgb.db, 1, outputCountByAllBlocks, heightArr, soloArr, pooledArr)
-	if err != nil {
-		err = fmt.Errorf("ticketsByBlocks: %w", pgb.replaceCancelError(err))
-	}
-
-	return heightArr, soloArr, pooledArr, err
-}
-
-// ticketsByTPWindows fetches the tickets by ticket pool windows count chart data
-// from retrieveTicketByOutputCount.
-// This chart has been deprecated. Leaving ticketsByTPWindows for possible
-// future re-appropriation, says buck54321 on April 24, 2019.
-func (pgb *ChainDB) ticketsByTPWindows(heightArr, soloArr, pooledArr []uint64) ([]uint64,
-	[]uint64, []uint64, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
-	defer cancel()
-
-	var err error
-	heightArr, soloArr, pooledArr, err = retrieveTicketByOutputCount(ctx, pgb.db,
-		pgb.chainParams.StakeDiffWindowSize, outputCountByTicketPoolWindow,
-		heightArr, soloArr, pooledArr)
-	if err != nil {
-		err = fmt.Errorf("ticketsByTPWindows: %w", pgb.replaceCancelError(err))
-	}
-
-	return heightArr, soloArr, pooledArr, err
-}
-
-// getChartData returns the chart data if it exists and initializes a new chart
-// data instance if otherwise.
-func (pgb *ChainDB) getChartData(data map[string]*dbtypes.ChartsData,
-	chartT string) *dbtypes.ChartsData {
-	cData := data[chartT]
-	if cData == nil {
-		cData = new(dbtypes.ChartsData)
-	}
-	return cData
-}
-
 // SetVinsMainchainByBlock first retrieves for all transactions in the specified
 // block the vin_db_ids and vout_db_ids arrays, along with mainchain status,
 // from the transactions table, and then sets the is_mainchain flag in the vins

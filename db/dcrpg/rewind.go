@@ -98,16 +98,8 @@ func deleteVoutsForBlockSubQry(dbTx SqlExecutor, hash string) (rowsDeleted int64
 	return sqlExec(dbTx, internal.DeleteVoutsSubQry, "failed to delete vouts", hash)
 }
 
-func deleteVinsForBlock(dbTx SqlExecutor, hash string) (rowsDeleted int64, err error) {
-	return sqlExec(dbTx, internal.DeleteVins, "failed to delete vins", hash)
-}
-
 func deleteVinsForBlockSubQry(dbTx SqlExecutor, hash string) (rowsDeleted int64, err error) {
 	return sqlExec(dbTx, internal.DeleteVinsSubQry, "failed to delete vins", hash)
-}
-
-func deleteAddressesForBlock(dbTx SqlExecutor, hash string) (rowsDeleted int64, err error) {
-	return sqlExec(dbTx, internal.DeleteAddresses, "failed to delete addresses", hash)
 }
 
 func deleteAddressesForBlockSubQry(dbTx SqlExecutor, hash string) (rowsDeleted int64, err error) {

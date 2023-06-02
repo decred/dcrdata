@@ -30,8 +30,6 @@ var start = flag.Uint64("start", 491_705, "Start block height")
 var end = flag.Uint64("end", 1<<32, "End block height")
 
 var (
-	activeNetParams = chaincfg.MainNetParams()
-
 	backendLog      *slog.Backend
 	rpcclientLogger slog.Logger
 )

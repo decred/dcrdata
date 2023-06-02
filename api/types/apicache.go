@@ -745,12 +745,6 @@ func (pq *BlockPriorityQueue) UpdateBlock(b *CachedBlock, summary *BlockDataBasi
 	}
 }
 
-func (pq *BlockPriorityQueue) lastAccessTime() time.Time {
-	pq.mtx.RLock()
-	defer pq.mtx.RUnlock()
-	return pq.lastAccess
-}
-
 func (pq *BlockPriorityQueue) setAccessTime(t time.Time) {
 	pq.mtx.Lock()
 	defer pq.mtx.Unlock()

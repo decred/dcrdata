@@ -865,6 +865,8 @@ func (charts *ChartData) Update() error {
 	for _, updater := range charts.updaters {
 		ti := time.Now()
 		stateID := charts.StateID()
+		// The Appender checks rows.Err
+		// nolint:rowserrcheck
 		rows, cancel, err := updater.Fetcher(charts)
 		if err != nil {
 			err = fmt.Errorf("error encountered during charts %s update. aborting update: %v", updater.Tag, err)

@@ -1305,33 +1305,6 @@ func SetSpendingForTickets(db *sql.DB, ticketDbIDs, spendDbIDs []uint64,
 	return totalTicketsUpdated, dbtx.Commit()
 }
 
-// setSpendingForTickets is identical to SetSpendingForTickets except it takes a
-// database transaction that was begun and will be committed by the caller.
-func setSpendingForTickets(dbtx *sql.Tx, ticketDbIDs, spendDbIDs []uint64,
-	blockHeights []int64, spendTypes []dbtypes.TicketSpendType,
-	poolStatuses []dbtypes.TicketPoolStatus) error {
-	stmt, err := dbtx.Prepare(internal.SetTicketSpendingInfoForTicketDbID)
-	if err != nil {
-		return fmt.Errorf("tickets SELECT prepare failed: %w", err)
-	}
-
-	rowsAffected := make([]int64, len(ticketDbIDs))
-	for i, ticketDbID := range ticketDbIDs {
-		rowsAffected[i], err = sqlExecStmt(stmt, "failed to set ticket spending info: ",
-			ticketDbID, blockHeights[i], spendDbIDs[i], spendTypes[i], poolStatuses[i])
-		if err != nil {
-			_ = stmt.Close()
-			return err
-		}
-		if rowsAffected[i] != 1 {
-			log.Warnf("Updated spending info for %d tickets, expecting just 1!",
-				rowsAffected[i])
-		}
-	}
-
-	return stmt.Close()
-}
-
 // --- addresses table ---
 
 // InsertAddressRow inserts an AddressRow (input or output), returning the row
