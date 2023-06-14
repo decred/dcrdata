@@ -52,20 +52,7 @@ for MODPATH in $MODPATHS; do
   echo "==> ${module}"
   (cd "${module}"
     go test $TESTTAGS ./...
-    golangci-lint run --deadline=10m \
-      --out-format=github-actions,colored-line-number \
-      --disable-all \
-      --enable govet \
-      --enable staticcheck \
-      --enable gosimple \
-      --enable unconvert \
-      --enable ineffassign \
-      --enable structcheck \
-      --enable goimports \
-      --enable misspell \
-      --enable unparam \
-      --enable asciicheck \
-      --enable makezero
+    golangci-lint run
     if [[ "$GV" =~ ^1.20 ]]; then
       MOD_STATUS=$(git status --porcelain go.mod go.sum)
       go mod tidy

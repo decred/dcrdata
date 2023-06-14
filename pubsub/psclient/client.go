@@ -315,14 +315,6 @@ func (c *Client) send(msg []byte) error {
 	return err
 }
 
-func (c *Client) newRequestID() int64 {
-	c.reqMtx.Lock()
-	reqID := c.nextRequestID
-	c.nextRequestID++
-	c.reqMtx.Unlock()
-	return reqID
-}
-
 func (c *Client) responseChan(reqID int64) chan *pstypes.ResponseMessage {
 	c.reqMtx.Lock()
 	defer c.reqMtx.Unlock()
@@ -460,13 +452,6 @@ func (c *Client) receiveMsgTimeout(timeout time.Duration) (*pstypes.WebSocketMes
 // Client's configured ReadTimeout is used.
 func (c *Client) receiveMsg() (*pstypes.WebSocketMessage, error) {
 	return c.receiveMsgTimeout(c.readTimeout)
-}
-
-// receiveRaw for a message, returned undecoded as a string.
-func (c *Client) receiveRaw() (message string, err error) {
-	_ = c.SetReadDeadline(time.Now().Add(c.readTimeout))
-	err = websocket.Message.Receive(c.Conn, &message)
-	return
 }
 
 // DecodeMsg attempts to decode the Message content of the given

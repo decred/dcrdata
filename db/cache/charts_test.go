@@ -2,7 +2,6 @@ package cache
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -17,11 +16,6 @@ import (
 )
 
 var tempDir string
-
-func printJson(thing interface{}) {
-	s, _ := json.MarshalIndent(thing, "", "    ")
-	fmt.Println(string(s))
-}
 
 // TestMain setups the tempDir and cleans it up after tests.
 func TestMain(m *testing.M) {
