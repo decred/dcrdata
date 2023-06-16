@@ -15,8 +15,8 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
-	"github.com/decred/dcrd/rpcclient/v7"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
+	"github.com/decred/dcrd/rpcclient/v8"
 	"github.com/decred/dcrd/wire"
 
 	"github.com/decred/dcrdata/v8/semver"
@@ -548,12 +548,6 @@ func UnconfirmedTxnsForAddress(client MempoolTxGetter, address string,
 		return nil, 0, err
 	}
 
-	_, height, err := client.GetBestBlock(context.TODO())
-	if err != nil {
-		return nil, 0, fmt.Errorf("GetBestBlock failure: %w", err)
-	}
-	treasuryActive := txhelpers.IsTreasuryActive(params.Net, height+1)
-
 	// Check each transaction for involvement with provided address.
 	var numUnconfirmed int64
 	addressOutpoints := txhelpers.NewAddressOutpoints(address)
@@ -573,7 +567,7 @@ func UnconfirmedTxnsForAddress(client MempoolTxGetter, address string,
 		}
 		// Scan transaction for inputs/outputs involving the address of interest
 		outpoints, prevouts, prevTxns := txhelpers.TxInvolvesAddress(Tx.MsgTx(),
-			address, client, params, treasuryActive)
+			address, client, params)
 		if len(outpoints) == 0 && len(prevouts) == 0 {
 			continue
 		}

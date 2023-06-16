@@ -11,10 +11,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/blockchain/stake/v4"
+	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
 
 	exptypes "github.com/decred/dcrdata/v8/explorer/types"
 	pstypes "github.com/decred/dcrdata/v8/pubsub/types"
@@ -135,11 +135,9 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 		log.Errorf("Failed to decode transaction: %v", err)
 		return err
 	}
-	nextHeight := p.LastBlockHeight() + 1
-	treasuryActive := txhelpers.IsTreasuryActive(p.params.Net, nextHeight)
 
 	hash := msgTx.CachedTxHash().String()
-	txType := txhelpers.DetermineTxType(msgTx, treasuryActive)
+	txType := txhelpers.DetermineTxType(msgTx)
 	txTypeStr := txhelpers.TxTypeToString(int(txType))
 
 	// Maintain the list of unique stake and regular txns encountered.
@@ -166,7 +164,7 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 	}
 	txAddresses := make(map[string]struct{})
 	newOuts, addressesOut := txhelpers.TxOutpointsByAddr(p.addrMap.store, msgTx,
-		p.params, treasuryActive)
+		p.params)
 	var newOutAddrs int
 	for addr, isNew := range addressesOut {
 		txAddresses[addr] = struct{}{}
@@ -180,7 +178,7 @@ func (p *MempoolMonitor) TxHandler(rawTx *chainjson.TxRawResult) error {
 		p.txnsStore = make(txhelpers.TxnsStore)
 	}
 	newPrevOuts, addressesIn, valsIn := txhelpers.TxPrevOutsByAddr(
-		p.addrMap.store, p.txnsStore, msgTx, p.collector.dcrdChainSvr, p.params, treasuryActive)
+		p.addrMap.store, p.txnsStore, msgTx, p.collector.dcrdChainSvr, p.params)
 	var newInAddrs int
 	for addr, isNew := range addressesIn {
 		txAddresses[addr] = struct{}{}

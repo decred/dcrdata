@@ -11,11 +11,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/blockchain/stake/v4"
+	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
 
 	apitypes "github.com/decred/dcrdata/v8/api/types"
 	exptypes "github.com/decred/dcrdata/v8/explorer/types"
@@ -65,12 +65,11 @@ func (t *DataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.MempoolAd
 		return nil, nil, nil, fmt.Errorf("GetRawMempoolVerbose failed: %v", err)
 	}
 
-	blockHash, height, err := t.dcrdChainSvr.GetBestBlock(context.TODO())
+	blockHash, _, err := t.dcrdChainSvr.GetBestBlock(context.TODO())
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	blockhash := blockHash.String()
-	treasuryActive := txhelpers.IsTreasuryActive(t.activeChain.Net, height+1)
 
 	txs := make([]exptypes.MempoolTx, 0, len(mempooltxs))
 	addrMap := make(txhelpers.MempoolAddressStore)
@@ -90,10 +89,10 @@ func (t *DataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.MempoolAd
 		msgTx := txn.MsgTx()
 
 		// Set Outpoints in the addrMap.
-		txhelpers.TxOutpointsByAddr(addrMap, msgTx, t.activeChain, treasuryActive)
+		txhelpers.TxOutpointsByAddr(addrMap, msgTx, t.activeChain)
 
 		// Set PrevOuts in the addrMap, and related txns data in txnsStore.
-		txhelpers.TxPrevOutsByAddr(addrMap, txnsStore, msgTx, t.dcrdChainSvr, t.activeChain, treasuryActive)
+		txhelpers.TxPrevOutsByAddr(addrMap, txnsStore, msgTx, t.dcrdChainSvr, t.activeChain)
 
 		// Store the current mempool transaction with MemPoolTime from GRM, and
 		// block info zeroed.
@@ -107,7 +106,7 @@ func (t *DataCollector) mempoolTxns() ([]exptypes.MempoolTx, txhelpers.MempoolAd
 			totalOut += v.Value
 		}
 
-		txType := txhelpers.DetermineTxType(msgTx, treasuryActive)
+		txType := txhelpers.DetermineTxType(msgTx)
 
 		var voteInfo *exptypes.VoteInfo
 		if txType == stake.TxTypeSSGen {

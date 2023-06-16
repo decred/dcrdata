@@ -17,13 +17,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/blockchain/stake/v4"
+	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/decred/dcrd/dcrutil/v4"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
-	"github.com/decred/dcrd/rpcclient/v7"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
+	"github.com/decred/dcrd/rpcclient/v8"
 	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/txscript/v4/stdscript"
@@ -2357,7 +2357,7 @@ FUNDING_TX_DUPLICATE_CHECK:
 		if txnType == dbtypes.AddrTxnAll || txnType == dbtypes.AddrTxnCredit || txnType == dbtypes.AddrUnspentTxn {
 			addrTx := &dbtypes.AddressTx{
 				TxID:          fundingTx.Hash().String(),
-				TxType:        txhelpers.DetermineTxTypeString(fundingTx.Tx, true), // unconfirmed, just assume treasury could be active
+				TxType:        txhelpers.DetermineTxTypeString(fundingTx.Tx),
 				InOutID:       f.Index,
 				Time:          dbtypes.NewTimeDefFromUNIX(fundingTx.MemPoolTime),
 				FormattedSize: humanize.Bytes(uint64(fundingTx.Tx.SerializeSize())),
@@ -2418,7 +2418,7 @@ SPENDING_TX_DUPLICATE_CHECK:
 		if txnType == dbtypes.AddrTxnAll || txnType == dbtypes.AddrTxnDebit {
 			addrTx := &dbtypes.AddressTx{
 				TxID:           spendingTx.Hash().String(),
-				TxType:         txhelpers.DetermineTxTypeString(spendingTx.Tx, true), // unconfirmed tx, so assume treasury could be active
+				TxType:         txhelpers.DetermineTxTypeString(spendingTx.Tx),
 				InOutID:        uint32(f.InputIndex),
 				Time:           dbtypes.NewTimeDefFromUNIX(spendingTx.MemPoolTime),
 				FormattedSize:  humanize.Bytes(uint64(spendingTx.Tx.SerializeSize())),
@@ -4805,12 +4805,7 @@ func (pgb *ChainDB) GetAPITransaction(txid *chainhash.Hash) *apitypes.Tx {
 		return nil
 	}
 
-	treasuryActive := true
-	if txraw.BlockHeight > 0 {
-		treasuryActive = txhelpers.IsTreasuryActive(pgb.chainParams.Net, txraw.BlockHeight)
-	}
-
-	txTree := txhelpers.TxTree(msgTx, treasuryActive)
+	txTree := txhelpers.TxTree(msgTx)
 
 	tx := &apitypes.Tx{
 		TxShort: apitypes.TxShort{
@@ -5400,7 +5395,7 @@ func (pgb *ChainDB) GetAddressTransactionsRawWithSkip(addr string, count, skip i
 	}
 	for hash, mpTx := range mpTxs.TxnsStore {
 		tx := mpTx.Tx
-		txType := stake.DetermineTxType(tx, true, false)
+		txType := stake.DetermineTxType(tx)
 
 		vins := make([]apitypes.VinShort, len(tx.TxIn))
 		for i, txIn := range tx.TxIn {
@@ -5638,11 +5633,7 @@ func makeExplorerBlockBasic(data *chainjson.GetBlockVerboseResult, params *chain
 }
 
 func makeExplorerTxBasic(data *chainjson.TxRawResult, ticketPrice int64, msgTx *wire.MsgTx, params *chaincfg.Params) (*exptypes.TxBasic, stake.TxType) {
-	treasuryActive := true
-	if data.BlockHeight > 0 {
-		treasuryActive = txhelpers.IsTreasuryActive(params.Net, data.BlockHeight)
-	}
-	txType := txhelpers.DetermineTxType(msgTx, treasuryActive)
+	txType := txhelpers.DetermineTxType(msgTx)
 
 	tx := &exptypes.TxBasic{
 		TxID:          data.Txid,
@@ -6376,13 +6367,6 @@ func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
 		return nil
 	}
 
-	_, height, err := pgb.Client.GetBestBlock(pgb.ctx)
-	if err != nil {
-		log.Errorf("GetBestBlock failed: %v", err)
-		return nil
-	}
-	treasuryActive := txhelpers.IsTreasuryActive(pgb.chainParams.Net, height+1)
-
 	txs := make([]exptypes.MempoolTx, 0, len(mempooltxs))
 
 	for hashStr, tx := range mempooltxs {
@@ -6401,11 +6385,11 @@ func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
 			total += v.Value
 		}
 
-		txType := txhelpers.DetermineTxType(msgTx, treasuryActive)
+		txType := txhelpers.DetermineTxType(msgTx)
 
 		var voteInfo *exptypes.VoteInfo
 		if txType == stake.TxTypeSSGen {
-			validation, version, bits, choices, tspendVotes, err := txhelpers.SSGenVoteChoices(msgTx, pgb.chainParams) // todo: hint treasury active
+			validation, version, bits, choices, tspendVotes, err := txhelpers.SSGenVoteChoices(msgTx, pgb.chainParams)
 			if err != nil {
 				log.Debugf("Cannot get vote choices for %s", hash)
 			} else {

@@ -21,12 +21,12 @@ import (
 	"sync"
 
 	"github.com/decred/base58"
-	"github.com/decred/dcrd/blockchain/stake/v4"
+	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
@@ -340,13 +340,13 @@ func (a *AddressOutpoints) Merge(ao *AddressOutpoints) {
 // TxInvolvesAddress checks the inputs and outputs of a transaction for
 // involvement of the given address.
 func TxInvolvesAddress(msgTx *wire.MsgTx, addr string, c VerboseTransactionPromiseGetter,
-	params *chaincfg.Params, treasuryActive bool) (outpoints []*wire.OutPoint,
+	params *chaincfg.Params) (outpoints []*wire.OutPoint,
 	prevOuts []PrevOut, prevTxs []*TxWithBlockData) {
 	// The outpoints of this transaction paying to the address
-	outpoints = TxPaysToAddress(msgTx, addr, params, treasuryActive)
+	outpoints = TxPaysToAddress(msgTx, addr, params)
 	// The inputs of this transaction funded by outpoints of previous
 	// transactions paying to the address.
-	prevOuts, prevTxs = TxConsumesOutpointWithAddress(msgTx, addr, c, params, treasuryActive)
+	prevOuts, prevTxs = TxConsumesOutpointWithAddress(msgTx, addr, c, params)
 	return
 }
 
@@ -363,14 +363,13 @@ type TxnsStore map[chainhash.Hash]*TxWithBlockData
 // that pay to any address are counted and returned. The addresses paid to by
 // the transaction are listed in the output addrs map, where the value of the
 // stored bool indicates the address is new to the MempoolAddressStore.
-func TxOutpointsByAddr(txAddrOuts MempoolAddressStore, msgTx *wire.MsgTx, params *chaincfg.Params,
-	treasuryActive bool) (newOuts int, addrs map[string]bool) {
+func TxOutpointsByAddr(txAddrOuts MempoolAddressStore, msgTx *wire.MsgTx, params *chaincfg.Params) (newOuts int, addrs map[string]bool) {
 	if txAddrOuts == nil {
 		panic("TxAddressOutpoints: input map must be initialized: map[string]*AddressOutpoints")
 	}
 
 	// Check the addresses associated with the PkScript of each TxOut.
-	txTree := TxTree(msgTx, treasuryActive)
+	txTree := TxTree(msgTx)
 	hash := msgTx.CachedTxHash()
 	addrs = make(map[string]bool)
 	for outIndex, txOut := range msgTx.TxOut {
@@ -415,7 +414,7 @@ func TxOutpointsByAddr(txAddrOuts MempoolAddressStore, msgTx *wire.MsgTx, params
 // in the previous outpoints are listed in the output addrs map, where the value
 // of the stored bool indicates the address is new to the MempoolAddressStore.
 func TxPrevOutsByAddr(txAddrOuts MempoolAddressStore, txnsStore TxnsStore, msgTx *wire.MsgTx, c VerboseTransactionPromiseGetter,
-	params *chaincfg.Params, treasuryActive bool) (newPrevOuts int, addrs map[string]bool, valsIn []int64) {
+	params *chaincfg.Params) (newPrevOuts int, addrs map[string]bool, valsIn []int64) {
 	if txAddrOuts == nil {
 		panic("TxPrevOutAddresses: input map must be initialized: map[string]*AddressOutpoints")
 	}
@@ -474,9 +473,7 @@ func TxPrevOutsByAddr(txAddrOuts MempoolAddressStore, txnsStore TxnsStore, msgTx
 		// Get the values.
 		valsIn[inIdx] = txOut.Value
 
-		// Extract the addresses from this output's PkScript. NOTE: Treasury may
-		// not actually be active even if treasuryActive is true because this is
-		// the previous output, but it is not if treasuryActive is false.
+		// Extract the addresses from this output's PkScript.
 		_, txAddrs := stdscript.ExtractAddrs(txOut.Version, txOut.PkScript, params)
 		if len(txAddrs) == 0 {
 			fmt.Printf("pkScript of a previous transaction output "+
@@ -494,7 +491,7 @@ func TxPrevOutsByAddr(txAddrOuts MempoolAddressStore, txnsStore TxnsStore, msgTx
 			BlockHash:   prevTxRaw.BlockHash,
 		}
 
-		tree := TxTree(prevTx, treasuryActive)
+		tree := TxTree(prevTx)
 		outpoint := wire.NewOutPoint(&hash, prevOut.Index, tree)
 		prevOutExtended := PrevOut{
 			TxSpending:       *msgTx.CachedTxHash(),
@@ -539,7 +536,7 @@ func TxPrevOutsByAddr(txAddrOuts MempoolAddressStore, txnsStore TxnsStore, msgTx
 // outpoint paying to the given address. Returned are the identified input
 // indexes and the corresponding previous outpoints determined.
 func TxConsumesOutpointWithAddress(msgTx *wire.MsgTx, addr string, c VerboseTransactionPromiseGetter,
-	params *chaincfg.Params, treasuryActive bool) (prevOuts []PrevOut, prevTxs []*TxWithBlockData) {
+	params *chaincfg.Params) (prevOuts []PrevOut, prevTxs []*TxWithBlockData) {
 	// Send all the raw transaction requests.
 	type promiseGetRawTransaction struct {
 		result VerboseTxReceiver
@@ -585,9 +582,7 @@ func TxConsumesOutpointWithAddress(msgTx *wire.MsgTx, addr string, c VerboseTran
 
 		// prevOut.Index indicates which output.
 		txOut := prevTx.TxOut[prevOut.Index]
-		// Extract the addresses from this output's PkScript. NOTE: Treasury may
-		// not actually be active even if treasuryActive is true because this is
-		// the previous output, but it is not if treasuryActive is false
+		// Extract the addresses from this output's PkScript.
 		_, txAddrs := stdscript.ExtractAddrs(txOut.Version, txOut.PkScript, params)
 
 		// For each address that matches the address of interest, record this
@@ -595,7 +590,7 @@ func TxConsumesOutpointWithAddress(msgTx *wire.MsgTx, addr string, c VerboseTran
 		for _, txAddr := range txAddrs {
 			addrstr := txAddr.String()
 			if addr == addrstr {
-				tree := TxTree(prevTx, treasuryActive)
+				tree := TxTree(prevTx)
 				outpoint := wire.NewOutPoint(&hash, prevOut.Index, tree)
 				prevOuts = append(prevOuts, PrevOut{
 					TxSpending:       msgTx.TxHash(),
@@ -664,9 +659,9 @@ func BlockConsumesOutpointWithAddresses(block *dcrutil.Block, addrs map[string]T
 
 // TxPaysToAddress returns a slice of outpoints of a transaction which pay to
 // specified address.
-func TxPaysToAddress(msgTx *wire.MsgTx, addr string, params *chaincfg.Params, treasuryActive bool) (outpoints []*wire.OutPoint) {
+func TxPaysToAddress(msgTx *wire.MsgTx, addr string, params *chaincfg.Params) (outpoints []*wire.OutPoint) {
 	// Check the addresses associated with the PkScript of each TxOut
-	txTree := TxTree(msgTx, treasuryActive)
+	txTree := TxTree(msgTx)
 	hash := msgTx.TxHash()
 	for outIndex, txOut := range msgTx.TxOut {
 		// Check if we are watching any address for this TxOut
@@ -686,7 +681,7 @@ func TxPaysToAddress(msgTx *wire.MsgTx, addr string, params *chaincfg.Params, tr
 // specified addresses, and creates a map of addresses to a slice of dcrutil.Tx
 // involving the address.
 func BlockReceivesToAddresses(block *dcrutil.Block, addrs map[string]TxAction,
-	params *chaincfg.Params, treasuryActive bool) map[string][]*dcrutil.Tx {
+	params *chaincfg.Params) map[string][]*dcrutil.Tx {
 	addrMap := make(map[string][]*dcrutil.Tx)
 
 	checkForAddrOut := func(blockTxs []*dcrutil.Tx) {
@@ -822,7 +817,7 @@ func SSTXInBlock(block *dcrutil.Block) []*dcrutil.Tx {
 // votes. The error return may be ignored if the input transaction is known to
 // be a valid ssgen (vote), otherwise it should be checked.
 func SSGenVoteBlockValid(msgTx *wire.MsgTx) (BlockValidation, []*TSpendVote, uint16, error) {
-	treasuryVotes, err := stake.CheckSSGenVotes(msgTx, true)
+	treasuryVotes, err := stake.CheckSSGenVotes(msgTx)
 	if err != nil {
 		return BlockValidation{}, nil, 0, fmt.Errorf("not a vote transaction")
 	}
@@ -851,7 +846,7 @@ func SSGenVoteBlockValid(msgTx *wire.MsgTx) (BlockValidation, []*TSpendVote, uin
 func VoteBitsInBlock(block *dcrutil.Block) []stake.VoteVersionTuple {
 	var voteBits []stake.VoteVersionTuple
 	for _, stx := range block.MsgBlock().STransactions {
-		if !stake.IsSSGen(stx, true /* TODO treasuryEnabled */) {
+		if !stake.IsSSGen(stx) {
 			continue
 		}
 
@@ -939,7 +934,7 @@ type TSpendVote struct {
 // there are no consensus deployments for the transaction's vote version. The
 // error value may be non-nil if the tx is not a valid ssgen.
 func SSGenVoteChoices(tx *wire.MsgTx, params *chaincfg.Params) (BlockValidation, uint32, uint16, []*VoteChoice, []*TSpendVote, error) {
-	validBlock, tspendVotes, voteBits, err := SSGenVoteBlockValid(tx /*, TODO treasuryEnabled */)
+	validBlock, tspendVotes, voteBits, err := SSGenVoteBlockValid(tx)
 	if err != nil {
 		return validBlock, 0, 0, nil, nil, err
 	}
@@ -1114,27 +1109,17 @@ const (
 // for this txn, but the MsgTx is from from dcrd, it can be assumed to be valid
 // according to consensus at height of txn and thus true can be safely used,
 // although this may be more inefficient than necessary.
-func DetermineTxTypeString(msgTx *wire.MsgTx, treasuryActive bool) string {
-	txType := DetermineTxType(msgTx, treasuryActive)
+func DetermineTxTypeString(msgTx *wire.MsgTx) string {
+	txType := DetermineTxType(msgTx)
 	return TxTypeToString(int(txType))
 }
 
-func DetermineTxType(msgTx *wire.MsgTx, treasuryActive bool) stake.TxType {
-	// isAutoRevocationsEnabled is set false to keep manually generated
-	// revocations still considered to be valid revocations.  Enabling this
-	// flag would cause legacy revocations to not be flagged as such.
-	// Enabling the flag only adds additional checks, so it's not necessary
-	// to make the call twice with the flag enabled and disabled.
-	return stake.DetermineTxType(msgTx, treasuryActive, false)
+func DetermineTxType(msgTx *wire.MsgTx) stake.TxType {
+	return stake.DetermineTxType(msgTx)
 }
 
 func IsSSRtx(tx *wire.MsgTx) bool {
-	// isAutoRevocationsEnabled is set false to keep manually generated
-	// revocations still considered to be valid revocations.  Enabling this
-	// flag would cause legacy revocations to not be flagged as such.
-	// Enabling the flag only adds additional checks, so it's not necessary
-	// to make the call twice with the flag enabled and disabled.
-	return stake.IsSSRtx(tx, false)
+	return stake.IsSSRtx(tx)
 }
 
 // TxTypeToString returns a string representation of the provided transaction
@@ -1195,14 +1180,14 @@ func TxIsRegular(txType int) bool {
 }
 
 // IsStakeTx indicates if the input MsgTx is a stake transaction.
-func IsStakeTx(msgTx *wire.MsgTx, treasuryActive bool) bool {
-	return DetermineTxType(msgTx, treasuryActive) != stake.TxTypeRegular
+func IsStakeTx(msgTx *wire.MsgTx) bool {
+	return DetermineTxType(msgTx) != stake.TxTypeRegular
 }
 
 // TxTree returns for a wire.MsgTx either wire.TxTreeStake or wire.TxTreeRegular
 // depending on the type of transaction.
-func TxTree(msgTx *wire.MsgTx, treasuryActive bool) int8 {
-	if IsStakeTx(msgTx, treasuryActive) {
+func TxTree(msgTx *wire.MsgTx) int8 {
+	if IsStakeTx(msgTx) {
 		return wire.TxTreeStake
 	}
 	return wire.TxTreeRegular

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/decred/dcrd/blockchain/stake/v4"
+	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/database/v3"
@@ -177,7 +177,7 @@ func TicketTxnsInBlock(bl *dcrutil.Block) ([]chainhash.Hash, []*dcrutil.Tx) {
 func TicketsSpentInBlock(bl *dcrutil.Block) []chainhash.Hash {
 	tickets := make([]chainhash.Hash, 0)
 	for _, stx := range bl.STransactions() {
-		if stake.IsSSGen(stx.MsgTx(), true /* TODO treasuryEnabled */) {
+		if stake.IsSSGen(stx.MsgTx()) {
 			// Hash of the original STtx
 			tickets = append(tickets, stx.MsgTx().TxIn[1].PreviousOutPoint.Hash)
 		}
@@ -190,7 +190,7 @@ func TicketsSpentInBlock(bl *dcrutil.Block) []chainhash.Hash {
 func VotesInBlock(bl *dcrutil.Block) []chainhash.Hash {
 	votes := make([]chainhash.Hash, 0)
 	for _, stx := range bl.STransactions() {
-		if stake.IsSSGen(stx.MsgTx(), true /* TODO treasuryEnabled */) {
+		if stake.IsSSGen(stx.MsgTx()) {
 			h := stx.Hash()
 			votes = append(votes, *h)
 		}

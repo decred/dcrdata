@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
 	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrdata/v8/db/dbtypes"
 	"github.com/decred/dcrdata/v8/txhelpers"
@@ -88,7 +88,7 @@ type Tx struct {
 	Block         *BlockID `json:"block,omitempty"`
 }
 
-// Vin is an alias for dcrd's rpc/jsonrpc/types/v3.Vin type.
+// Vin is an alias for dcrd's rpc/jsonrpc/types/v4.Vin type.
 type Vin = chainjson.Vin
 
 // TxShort models info about transaction TxID
