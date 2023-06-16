@@ -25,8 +25,8 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
-	"github.com/decred/dcrd/rpcclient/v7"
+	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
+	"github.com/decred/dcrd/rpcclient/v8"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
@@ -736,7 +736,7 @@ func (c *appContext) getTxSwapsInfo(w http.ResponseWriter, r *http.Request) {
 	msgTx := tx.MsgTx()
 
 	// Check if tx is a stake tree tx or coinbase tx and return empty swap info.
-	if txhelpers.IsStakeTx(msgTx, true) || txhelpers.IsCoinBaseTx(msgTx) {
+	if txhelpers.IsStakeTx(msgTx) || txhelpers.IsCoinBaseTx(msgTx) {
 		noSwaps := &txhelpers.TxAtomicSwaps{
 			TxID:  txHash.String(),
 			Found: "No created or redeemed swaps in tx",

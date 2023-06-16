@@ -84,7 +84,7 @@ func TestGetAddressCtx(t *testing.T) {
 			args:     args{2, []string{"DcxxxxcGjmENx4DhNqDctW5wJCVyT3Qeqkx"}},
 			want:     nil,
 			wantErr:  true,
-			errMsg:   `invalid address "DcxxxxcGjmENx4DhNqDctW5wJCVyT3Qeqkx" for this network: failed to decoded address "DcxxxxcGjmENx4DhNqDctW5wJCVyT3Qeqkx": checksum error`},
+			errMsg:   `invalid address "DcxxxxcGjmENx4DhNqDctW5wJCVyT3Qeqkx" for this network: failed to decode address "DcxxxxcGjmENx4DhNqDctW5wJCVyT3Qeqkx": checksum error`},
 		{
 			testName: "wrong_net",
 			args:     args{2, []string{"TsWmwignm9Q6iBQMSHw9WhBeR5wgUPpD14Q"}},

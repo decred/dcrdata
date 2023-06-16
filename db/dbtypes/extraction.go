@@ -3,7 +3,7 @@ package dbtypes
 import (
 	"fmt"
 
-	"github.com/decred/dcrd/blockchain/stake/v4"
+	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
@@ -54,8 +54,6 @@ func processTransactions(msgBlock *wire.MsgBlock, tree int8, chainParams *chainc
 	blockHash := msgBlock.BlockHash()
 	blockTime := NewTimeDef(msgBlock.Header.Timestamp)
 
-	treasuryActive := stakeTree && txhelpers.IsTreasuryActive(chainParams.Net, int64(blockHeight)) // treasury txns are stake
-
 	dbTransactions := make([]*Tx, 0, len(txs))
 	dbTxVouts := make([][]*Vout, len(txs))
 	dbTxVins := make([]VinTxPropertyARRAY, len(txs))
@@ -63,7 +61,7 @@ func processTransactions(msgBlock *wire.MsgBlock, tree int8, chainParams *chainc
 	ticketPrice := msgBlock.Header.SBits
 
 	for txIndex, tx := range txs {
-		txType := txhelpers.DetermineTxType(tx, treasuryActive)
+		txType := txhelpers.DetermineTxType(tx)
 		isStake := txType != stake.TxTypeRegular
 		if isStake && !stakeTree {
 			fmt.Printf(" ***************** INCONSISTENT TREE: txn %v, type = %v", tx.TxHash(), txType)
