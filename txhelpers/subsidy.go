@@ -17,6 +17,7 @@ import (
 type netHeight struct {
 	net         uint32
 	dcp10height int64
+	dcp12height int64
 }
 
 type subsidySumCache struct {
@@ -41,19 +42,16 @@ func (ssc *subsidySumCache) store(nh netHeight, total int64) {
 var ultimateSubsidies = subsidySumCache{m: map[netHeight]int64{}}
 
 // UltimateSubsidy computes the total subsidy over the entire subsidy
-// distribution period of the network, given a known height at which the subsidy
-// split change goes into effect (DCP0010). If the height is unknown, provide -1
-// to perform the computation with the original subsidy split for all heights.
-func UltimateSubsidy(params *chaincfg.Params, subsidySplitChangeHeight int64) int64 {
+// distribution period of the network, given a known height at which the first
+// and second subsidy split change go into effect (DCP0010 and DCP0012). If the
+// height is unknown, provide -1 to perform the computation with the original
+// subsidy split for all heights.
+func UltimateSubsidy(params *chaincfg.Params, dcp0010Height, dcp0012Height int64) int64 {
 	// Check previously computed ultimate subsidies.
-	nh := netHeight{uint32(params.Net), subsidySplitChangeHeight}
+	nh := netHeight{uint32(params.Net), dcp0010Height, dcp0012Height}
 	result, ok := ultimateSubsidies.load(nh)
 	if ok {
 		return result
-	}
-
-	if subsidySplitChangeHeight == -1 {
-		subsidySplitChangeHeight = math.MaxInt64
 	}
 
 	votesPerBlock := params.VotesPerBlock()
@@ -61,13 +59,38 @@ func UltimateSubsidy(params *chaincfg.Params, subsidySplitChangeHeight int64) in
 	reductionInterval := params.SubsidyReductionIntervalBlocks()
 
 	subsidyCache := networkSubsidyCache(params)
-	subsidySum := func(height int64) int64 {
-		useDCP0010 := height >= subsidySplitChangeHeight
-		work := subsidyCache.CalcWorkSubsidyV2(height, votesPerBlock, useDCP0010)
-		vote := subsidyCache.CalcStakeVoteSubsidyV2(height, useDCP0010) * int64(votesPerBlock)
+	subsidySum := func(height int64, ssv standalone.SubsidySplitVariant) int64 {
+		work := subsidyCache.CalcWorkSubsidyV3(height, votesPerBlock, ssv)
+		vote := subsidyCache.CalcStakeVoteSubsidyV3(height, ssv) * int64(votesPerBlock)
 		// With voters set to max (votesPerBlock), treasury bool is unimportant.
 		treasury := subsidyCache.CalcTreasurySubsidy(height, votesPerBlock, false)
 		return work + vote + treasury
+	}
+
+	// Define details to account for partial intervals where the subsidy split
+	// changes.
+	subsidySplitChanges := map[int64]struct {
+		activationHeight int64
+		splitBefore      standalone.SubsidySplitVariant
+		splitAfter       standalone.SubsidySplitVariant
+	}{
+		dcp0010Height / reductionInterval: {
+			activationHeight: dcp0010Height,
+			splitBefore:      standalone.SSVOriginal,
+			splitAfter:       standalone.SSVDCP0010,
+		},
+		dcp0012Height / reductionInterval: {
+			activationHeight: dcp0012Height,
+			splitBefore:      standalone.SSVDCP0010,
+			splitAfter:       standalone.SSVDCP0012,
+		},
+	}
+
+	if dcp0010Height == -1 {
+		dcp0010Height = math.MaxInt64
+	}
+	if dcp0012Height == -1 {
+		dcp0012Height = math.MaxInt64
 	}
 
 	totalSubsidy := params.BlockOneSubsidy()
@@ -81,20 +104,43 @@ func UltimateSubsidy(params *chaincfg.Params, subsidySplitChangeHeight int64) in
 			// first two special blocks.
 			subsidyCalcHeight := int64(2)
 			nonVotingBlocks := stakeValidationHeight - subsidyCalcHeight
-			totalSubsidy += subsidySum(subsidyCalcHeight) * nonVotingBlocks
+			totalSubsidy += subsidySum(subsidyCalcHeight, standalone.SSVOriginal) * nonVotingBlocks
 
 			// Account for the blocks remaining in the interval once voting
 			// begins.
 			subsidyCalcHeight = stakeValidationHeight
 			votingBlocks := reductionInterval - subsidyCalcHeight
-			totalSubsidy += subsidySum(subsidyCalcHeight) * votingBlocks
+			totalSubsidy += subsidySum(subsidyCalcHeight, standalone.SSVOriginal) * votingBlocks
+			continue
+		}
+
+		// Account for partial intervals with subsidy split changes.
+		subsidyCalcHeight := i * reductionInterval
+		if change, ok := subsidySplitChanges[i]; ok {
+			// Account for the blocks up to the point the subsidy split changed.
+			preChangeBlocks := change.activationHeight - subsidyCalcHeight
+			totalSubsidy += subsidySum(subsidyCalcHeight, change.splitBefore) *
+				preChangeBlocks
+
+			// Account for the blocks remaining in the interval after the
+			// subsidy split changed.
+			subsidyCalcHeight = change.activationHeight
+			remainingBlocks := reductionInterval - preChangeBlocks
+			totalSubsidy += subsidySum(subsidyCalcHeight, change.splitAfter) *
+				remainingBlocks
 			continue
 		}
 
 		// Account for the all other reduction intervals until all subsidy has
-		// been produced.
-		subsidyCalcHeight := i * reductionInterval
-		sum := subsidySum(subsidyCalcHeight)
+		// been produced including partial intervals with subsidy split changes.
+		splitVariant := standalone.SSVOriginal
+		switch {
+		case subsidyCalcHeight >= dcp0012Height:
+			splitVariant = standalone.SSVDCP0012
+		case subsidyCalcHeight >= dcp0010Height:
+			splitVariant = standalone.SSVDCP0010
+		}
+		sum := subsidySum(subsidyCalcHeight, splitVariant)
 		if sum == 0 {
 			break
 		}
@@ -130,10 +176,10 @@ func networkSubsidyCache(p *chaincfg.Params) *standalone.SubsidyCache {
 // at for the specified block index, assuming a certain number of votes. The
 // stake reward is for a single vote. The total reward for the block is thus
 // work + stake * votes + tax.
-func RewardsAtBlock(blockIdx int64, votes uint16, p *chaincfg.Params, useDCP0010 bool) (work, stake, tax int64) {
+func RewardsAtBlock(blockIdx int64, votes uint16, p *chaincfg.Params, ssv standalone.SubsidySplitVariant) (work, stake, tax int64) {
 	subsidyCache := networkSubsidyCache(p)
-	work = subsidyCache.CalcWorkSubsidyV2(blockIdx, votes, useDCP0010)
-	stake = subsidyCache.CalcStakeVoteSubsidyV2(blockIdx, useDCP0010)
+	work = subsidyCache.CalcWorkSubsidyV3(blockIdx, votes, ssv)
+	stake = subsidyCache.CalcStakeVoteSubsidyV3(blockIdx, ssv)
 	treasuryActive := IsTreasuryActive(p.Net, blockIdx)
 	tax = subsidyCache.CalcTreasurySubsidy(blockIdx, votes, treasuryActive)
 	return

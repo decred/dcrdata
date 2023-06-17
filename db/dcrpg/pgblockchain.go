@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/blockchain/stake/v5"
+	"github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
@@ -4722,6 +4723,66 @@ func (pgb *ChainDB) IsDCP0010Active(height int64) bool {
 	return height >= activeHeight
 }
 
+// DCP0011ActivationHeight indicates the height at which the blake3pow
+// agenda will activate, or -1 if it is not determined yet.
+func (pgb *ChainDB) DCP0011ActivationHeight() int64 {
+	if _, ok := txhelpers.Blake3PowStakeVer(pgb.chainParams); !ok {
+		return 0 // activate at genesis if no deployment defined in chaincfg.Params
+	}
+
+	agendaInfo, found := pgb.ChainInfo().AgendaMileStones[chaincfg.VoteIDBlake3Pow]
+	if !found {
+		log.Warn("The blake3pow agenda is missing.")
+		return 0
+	}
+
+	switch agendaInfo.Status {
+	case dbtypes.ActivatedAgendaStatus, dbtypes.LockedInAgendaStatus:
+		return agendaInfo.Activated // rci already added for lockedin
+	}
+	return -1 // not activated, and no future activation height known
+}
+
+// IsDCP0011Active indicates if the "blake3pow" consensus deployment is
+// active at the given height according to the current status of the agendas.
+func (pgb *ChainDB) IsDCP0011Active(height int64) bool {
+	activeHeight := pgb.DCP0011ActivationHeight()
+	if activeHeight == -1 {
+		return false
+	}
+	return height >= activeHeight
+}
+
+// DCP0012ActivationHeight indicates the height at which the
+// changesubsidysplitr2 agenda will activate, or -1 if it is not determined yet.
+func (pgb *ChainDB) DCP0012ActivationHeight() int64 {
+	if _, ok := txhelpers.SubsidySplitR2StakeVer(pgb.chainParams); !ok {
+		return 0 // activate at genesis if no deployment defined in chaincfg.Params
+	}
+
+	agendaInfo, found := pgb.ChainInfo().AgendaMileStones[chaincfg.VoteIDChangeSubsidySplitR2]
+	if !found {
+		log.Warn("The changesubsidysplitr2 agenda is missing.")
+		return 0
+	}
+
+	switch agendaInfo.Status {
+	case dbtypes.ActivatedAgendaStatus, dbtypes.LockedInAgendaStatus:
+		return agendaInfo.Activated // rci already added for lockedin
+	}
+	return -1 // not activated, and no future activation height known
+}
+
+// IsDCP0012Active indicates if the "blake3pow" consensus deployment is
+// active at the given height according to the current status of the agendas.
+func (pgb *ChainDB) IsDCP0012Active(height int64) bool {
+	activeHeight := pgb.DCP0012ActivationHeight()
+	if activeHeight == -1 {
+		return false
+	}
+	return height >= activeHeight
+}
+
 // CurrentCoinSupply gets the current coin supply as an *apitypes.CoinSupply,
 // which additionally contains block info and max supply.
 func (pgb *ChainDB) CurrentCoinSupply() (supply *apitypes.CoinSupply) {
@@ -4732,13 +4793,14 @@ func (pgb *ChainDB) CurrentCoinSupply() (supply *apitypes.CoinSupply) {
 	}
 
 	dcp0010Height := pgb.DCP0010ActivationHeight()
+	dcp0012Height := pgb.DCP0012ActivationHeight()
 	hash, height := pgb.BestBlockStr()
 
 	return &apitypes.CoinSupply{
 		Height:   height,
 		Hash:     hash,
 		Mined:    int64(coinSupply),
-		Ultimate: txhelpers.UltimateSubsidy(pgb.chainParams, dcp0010Height),
+		Ultimate: txhelpers.UltimateSubsidy(pgb.chainParams, dcp0010Height, dcp0012Height),
 	}
 }
 
@@ -5708,8 +5770,13 @@ func trimmedTxInfoFromMsgTx(txraw *chainjson.TxRawResult, ticketPrice int64, msg
 // BlockSubsidy gets the *chainjson.GetBlockSubsidyResult for the given height
 // and number of voters, which can be fewer than the network parameter allows.
 func (pgb *ChainDB) BlockSubsidy(height int64, voters uint16) *chainjson.GetBlockSubsidyResult {
-	dcp0010Active := pgb.IsDCP0010Active(height)
-	work, stake, tax := txhelpers.RewardsAtBlock(height, voters, pgb.chainParams, dcp0010Active)
+	ssv := standalone.SSVOriginal
+	if pgb.IsDCP0012Active(height) {
+		ssv = standalone.SSVDCP0012
+	} else if pgb.IsDCP0010Active(height) {
+		ssv = standalone.SSVDCP0010
+	}
+	work, stake, tax := txhelpers.RewardsAtBlock(height, voters, pgb.chainParams, ssv)
 	stake *= int64(voters)
 	return &chainjson.GetBlockSubsidyResult{
 		PoW:       work,

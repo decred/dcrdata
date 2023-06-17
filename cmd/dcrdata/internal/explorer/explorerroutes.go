@@ -2468,7 +2468,8 @@ func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 
 	// Subsidies
 	dcp0010Height := exp.dataSource.DCP0010ActivationHeight()
-	ultSubsidy := txhelpers.UltimateSubsidy(exp.ChainParams, dcp0010Height)
+	dcp0012Height := exp.dataSource.DCP0012ActivationHeight()
+	ultSubsidy := txhelpers.UltimateSubsidy(exp.ChainParams, dcp0010Height, dcp0012Height)
 	bestBlockHeight, err := exp.dataSource.GetHeight()
 	if err != nil {
 		log.Errorf("GetHeight failed: %v", err)

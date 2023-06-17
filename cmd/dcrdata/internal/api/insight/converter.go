@@ -7,6 +7,7 @@ package insight
 import (
 	"math"
 
+	"github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/dcrutil/v4"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
 
@@ -157,10 +158,19 @@ func (iapi *InsightApi) DcrToInsightBlock(inBlocks []*chainjson.GetBlockVerboseR
 	if dcp0010Height == -1 {
 		dcp0010Height = math.MaxInt64
 	}
+	dcp0012Height := iapi.BlockData.DCP0012ActivationHeight()
+	if dcp0012Height == -1 {
+		dcp0012Height = math.MaxInt64
+	}
 
 	RewardAtBlock := func(blocknum int64, voters uint16) float64 {
-		useDCP0010 := blocknum >= dcp0010Height
-		work, stake, tax := txhelpers.RewardsAtBlock(blocknum, voters, iapi.params, useDCP0010)
+		ssv := standalone.SSVOriginal
+		if blocknum >= dcp0012Height {
+			ssv = standalone.SSVDCP0012
+		} else if blocknum >= dcp0010Height {
+			ssv = standalone.SSVDCP0010
+		}
+		work, stake, tax := txhelpers.RewardsAtBlock(blocknum, voters, iapi.params, ssv)
 		return dcrutil.Amount(work + stake*int64(voters) + tax).ToCoin()
 	}
 
