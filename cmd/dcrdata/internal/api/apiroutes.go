@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
@@ -71,6 +72,8 @@ type DataSource interface {
 	AddressRowsCompact(address string) ([]*dbtypes.AddressRowCompact, error)
 	Height() int64
 	IsDCP0010Active(height int64) bool
+	IsDCP0011Active(height int64) bool
+	IsDCP0012Active(height int64) bool
 	AllAgendas() (map[string]dbtypes.MileStone, error)
 	GetTicketInfo(txid string) (*apitypes.TicketInfo, error)
 	PowerlessTickets() (*apitypes.PowerlessTickets, error)
@@ -1271,8 +1274,13 @@ func (c *appContext) blockSubsidies(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	useDCP0010 := c.DataSource.IsDCP0010Active(idx)
-	work, stake, tax := txhelpers.RewardsAtBlock(idx, uint16(numVotes), c.Params, useDCP0010)
+	ssv := standalone.SSVOriginal
+	if c.DataSource.IsDCP0012Active(idx) {
+		ssv = standalone.SSVDCP0012
+	} else if c.DataSource.IsDCP0010Active(idx) {
+		ssv = standalone.SSVDCP0010
+	}
+	work, stake, tax := txhelpers.RewardsAtBlock(idx, uint16(numVotes), c.Params, ssv)
 	rewards := apitypes.BlockSubsidies{
 		BlockNum:   idx,
 		BlockHash:  hash,

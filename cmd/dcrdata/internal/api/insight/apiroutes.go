@@ -44,6 +44,8 @@ type BlockDataSource interface {
 	GetTransactionHex(txid *chainhash.Hash) string
 	Height() int64
 	DCP0010ActivationHeight() int64
+	DCP0011ActivationHeight() int64
+	DCP0012ActivationHeight() int64
 	InsightAddressTransactions(addr []string, recentBlockHeight int64) (txs, recentTxs []chainhash.Hash, err error)
 	SendRawTransaction(txhex string) (string, error)
 	SpendDetailsForFundingTx(fundHash string) ([]*apitypes.SpendByFundingHash, error)

@@ -75,6 +75,34 @@ func SubsidySplitStakeVer(params *chaincfg.Params) (uint32, bool) {
 	return 0, false
 }
 
+// Blake3PowStakeVer locates the "blake3pow" agenda item in the consensus
+// deployments defined in the provided chain parameters. If found, the
+// corresponding stake version is returned.
+func Blake3PowStakeVer(params *chaincfg.Params) (uint32, bool) {
+	for stakeVer, deployments := range params.Deployments {
+		for i := range deployments {
+			if deployments[i].Vote.Id == chaincfg.VoteIDBlake3Pow {
+				return stakeVer, true
+			}
+		}
+	}
+	return 0, false
+}
+
+// SubsidySplitR2StakeVer locates the "changesubsidysplitr2" agenda item in the
+// consensus deployments defined in the provided chain parameters. If found, the
+// corresponding stake version is returned.
+func SubsidySplitR2StakeVer(params *chaincfg.Params) (uint32, bool) {
+	for stakeVer, deployments := range params.Deployments {
+		for i := range deployments {
+			if deployments[i].Vote.Id == chaincfg.VoteIDChangeSubsidySplitR2 {
+				return stakeVer, true
+			}
+		}
+	}
+	return 0, false
+}
+
 // DCP0010ActivationHeight indicates the height at which the
 // "changesubsidysplit" consensus change activates for the provided
 // getblockchaininfo result.

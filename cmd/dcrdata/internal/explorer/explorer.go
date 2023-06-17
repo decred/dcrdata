@@ -108,6 +108,8 @@ type explorerDataSource interface {
 	GetHeight() (int64, error)
 	TxHeight(txid *chainhash.Hash) (height int64)
 	DCP0010ActivationHeight() int64
+	DCP0011ActivationHeight() int64
+	DCP0012ActivationHeight() int64
 	BlockSubsidy(height int64, voters uint16) *chainjson.GetBlockSubsidyResult
 	GetExplorerFullBlocks(start int, end int) []*types.BlockInfo
 	CurrentDifficulty() (float64, error)
