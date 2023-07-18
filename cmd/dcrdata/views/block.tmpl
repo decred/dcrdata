@@ -154,6 +154,12 @@
 						<td class="text-end fw-bold text-nowrap pe-2">Nonce: </td>
 						<td class="text-start text-secondary">{{.Nonce}}</td>
 					</tr>
+					{{if and (ne .PoWHash .Hash) (ne .PoWHash "")}} 
+					<tr>
+						<td class="text-end fw-bold text-nowrap pe-2">PoW Hash: </td>
+						<td colspan="5" class="text-start break-word text-secondary lh1rem"> {{.PoWHash}}</td>
+					</tr>
+					{{end}}
 					<tr>
 						<td class="text-end fw-bold text-nowrap pe-2">Merkle Root: </td>
 						<td colspan="5" class="text-start break-word text-secondary lh1rem"> {{.MerkleRoot}}</td>

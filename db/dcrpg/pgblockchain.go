@@ -5811,6 +5811,7 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 	block := &exptypes.BlockInfo{
 		BlockBasic:            b,
 		Confirmations:         data.Confirmations,
+		PoWHash:               b.Hash,
 		StakeRoot:             data.StakeRoot,
 		MerkleRoot:            data.MerkleRoot,
 		Nonce:                 data.Nonce,
@@ -5826,6 +5827,23 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 		NextHash:              data.NextHash,
 		StakeValidationHeight: pgb.chainParams.StakeValidationHeight,
 		Subsidy:               pgb.BlockSubsidy(b.Height, b.Voters),
+	}
+
+	if pgb.IsDCP0011Active(b.Height) {
+		blockChainHash, err := chainhash.NewHashFromStr(data.Hash)
+		if err != nil {
+			log.Errorf("error parsing hash for block %d (hash=%s): %v", data.Height, data.Hash, err)
+			return nil
+		}
+
+		// Get the block header
+		header, err := pgb.Client.GetBlockHeader(pgb.ctx, blockChainHash)
+		if err != nil {
+			log.Errorf("failed to fetch header for block hash %s: %v", data.Hash, err)
+			return nil
+		}
+
+		block.PoWHash = header.PowHashV2().String()
 	}
 
 	votes := make([]*exptypes.TrimmedTxInfo, 0, block.Voters)
