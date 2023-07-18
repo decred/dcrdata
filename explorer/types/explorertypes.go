@@ -449,6 +449,7 @@ type TrimmedBlockInfo struct {
 type BlockInfo struct {
 	*BlockBasic
 	Confirmations         int64
+	PoWHash               string
 	StakeRoot             string
 	MerkleRoot            string
 	TxAvailable           bool
