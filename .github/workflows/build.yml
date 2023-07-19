@@ -17,6 +17,7 @@ jobs:
       uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 #v4.0.1
       with:
         go-version: ${{ matrix.go }}
+        check-latest: true
 
     - name: Go Build dcrdata
       run: go build -v ./...
