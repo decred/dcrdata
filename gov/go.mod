@@ -8,7 +8,7 @@ require (
 	github.com/asdine/storm/v3 v3.2.1
 	github.com/decred/dcrd/chaincfg/v3 v3.2.0
 	github.com/decred/dcrd/dcrjson/v4 v4.0.1
-	github.com/decred/dcrd/rpc/jsonrpc/types/v4 v4.0.0
+	github.com/decred/dcrd/rpc/jsonrpc/types/v4 v4.1.0
 	github.com/decred/dcrdata/v8 v8.0.0
 	github.com/decred/politeia v1.4.0
 	github.com/decred/slog v1.2.0

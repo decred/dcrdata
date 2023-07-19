@@ -16,7 +16,7 @@ require (
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.4
 	github.com/decred/dcrd/chaincfg/v3 v3.2.0
 	github.com/decred/dcrd/dcrutil/v4 v4.0.1
-	github.com/decred/dcrd/rpc/jsonrpc/types/v4 v4.0.0
+	github.com/decred/dcrd/rpc/jsonrpc/types/v4 v4.1.0
 	github.com/decred/dcrd/rpcclient/v8 v8.0.0
 	github.com/decred/dcrd/txscript/v4 v4.1.0
 	github.com/decred/dcrd/wire v1.6.0

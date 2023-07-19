@@ -336,8 +336,8 @@ github.com/decred/dcrd/mining v1.0.0/go.mod h1:VA5H4zhJgXb8LK5lqM5H58dhMRXJRcaQQ
 github.com/decred/dcrd/mining v1.0.1/go.mod h1:+CSOLPi7TM8OlQg7mJ7XzWLXCDb4nHK8R6cvXOzhEoU=
 github.com/decred/dcrd/rpc/jsonrpc/types v1.0.0/go.mod h1:0dwmpIP21tJxjg/UuUHWIFMbfoLv2ifCBMokNKlOxpo=
 github.com/decred/dcrd/rpc/jsonrpc/types/v2 v2.3.0/go.mod h1:krn89ZOgSa8yc7sA4WpDK95p61NnjNWFkNlMnGrKbMc=
-github.com/decred/dcrd/rpc/jsonrpc/types/v4 v4.0.0 h1:4YUKsWKrKlkhVMYGRB6G0XI6QfwUnwEH18eoEbM1/+M=
-github.com/decred/dcrd/rpc/jsonrpc/types/v4 v4.0.0/go.mod h1:dDHO7ivrPAhZjFD3LoOJN/kdq5gi0sxie6zCsWHAiUo=
+github.com/decred/dcrd/rpc/jsonrpc/types/v4 v4.1.0 h1:kQFK7FMTmMDX9amyhh8IR0vwwI8dH0KCBm42C64bWVs=
+github.com/decred/dcrd/rpc/jsonrpc/types/v4 v4.1.0/go.mod h1:dDHO7ivrPAhZjFD3LoOJN/kdq5gi0sxie6zCsWHAiUo=
 github.com/decred/dcrd/rpcclient v1.0.1/go.mod h1:tApXK3wwrAQtz7lcXeeqBwuktUZesvrFfvhAdedYqdM=
 github.com/decred/dcrd/rpcclient/v4 v4.0.0/go.mod h1:DNGwfiL5H+K/pk3hVB0z5ypRdiDXMssR+YEqDUEXCQo=
 github.com/decred/dcrd/txscript v1.0.0/go.mod h1:9byvrOaBSBVVnDG7Cm0JgN8bZytl1oi9Ba245VBeI18=

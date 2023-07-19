@@ -506,8 +506,8 @@ github.com/decred/dcrd/rpc/jsonrpc/types v1.0.0/go.mod h1:0dwmpIP21tJxjg/UuUHWIF
 github.com/decred/dcrd/rpc/jsonrpc/types/v2 v2.3.0/go.mod h1:krn89ZOgSa8yc7sA4WpDK95p61NnjNWFkNlMnGrKbMc=
 github.com/decred/dcrd/rpc/jsonrpc/types/v3 v3.0.0 h1:WzG2IARR6OghjhWdxfUbXSPE4GEF2hZlCE5y2L/45f4=
 github.com/decred/dcrd/rpc/jsonrpc/types/v3 v3.0.0/go.mod h1:1ILDxMKVS/qY71MylpZzuEX4O0u1SON4RPKbaZP71K0=
-github.com/decred/dcrd/rpc/jsonrpc/types/v4 v4.0.0 h1:4YUKsWKrKlkhVMYGRB6G0XI6QfwUnwEH18eoEbM1/+M=
-github.com/decred/dcrd/rpc/jsonrpc/types/v4 v4.0.0/go.mod h1:dDHO7ivrPAhZjFD3LoOJN/kdq5gi0sxie6zCsWHAiUo=
+github.com/decred/dcrd/rpc/jsonrpc/types/v4 v4.1.0 h1:kQFK7FMTmMDX9amyhh8IR0vwwI8dH0KCBm42C64bWVs=
+github.com/decred/dcrd/rpc/jsonrpc/types/v4 v4.1.0/go.mod h1:dDHO7ivrPAhZjFD3LoOJN/kdq5gi0sxie6zCsWHAiUo=
 github.com/decred/dcrd/rpcclient v1.0.1/go.mod h1:tApXK3wwrAQtz7lcXeeqBwuktUZesvrFfvhAdedYqdM=
 github.com/decred/dcrd/rpcclient/v4 v4.0.0/go.mod h1:DNGwfiL5H+K/pk3hVB0z5ypRdiDXMssR+YEqDUEXCQo=
 github.com/decred/dcrd/rpcclient/v7 v7.0.0 h1:1XuGWpyjOPMscpwSDuumWTnfLl94LbIqg+5X6uCPYeY=
