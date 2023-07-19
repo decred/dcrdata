@@ -5829,7 +5829,9 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 		Subsidy:               pgb.BlockSubsidy(b.Height, b.Voters),
 	}
 
-	if pgb.IsDCP0011Active(b.Height) {
+	if data.PoWHash != "" {
+		block.PoWHash = data.PoWHash
+	} else if pgb.IsDCP0011Active(b.Height) {
 		blockChainHash, err := chainhash.NewHashFromStr(data.Hash)
 		if err != nil {
 			log.Errorf("error parsing hash for block %d (hash=%s): %v", data.Height, data.Hash, err)
