@@ -141,8 +141,8 @@ func (pgs PGSettings) String() string {
 	return out
 }
 
-// RetrievePGVersion retrieves the version of the connected PostgreSQL server.
-func RetrievePGVersion(db *sql.DB) (ver string, verNum uint32, err error) {
+// retrievePGVersion retrieves the version of the connected PostgreSQL server.
+func retrievePGVersion(db *sql.DB) (ver string, verNum uint32, err error) {
 	err = db.QueryRow(internal.RetrievePGVersion).Scan(&ver)
 	if err != nil {
 		return
@@ -201,27 +201,21 @@ func retrieveSysSettings(stmt string, db *sql.DB) (PGSettings, error) {
 	return settings, nil
 }
 
-// RetrieveSysSettingsConfFile retrieves settings that are set by a
-// configuration file (rather than default, environment variable, etc.).
-func RetrieveSysSettingsConfFile(db *sql.DB) (PGSettings, error) {
-	return retrieveSysSettings(internal.RetrieveSysSettingsConfFile, db)
-}
-
-// RetrieveSysSettingsPerformance retrieves performance-related settings.
-func RetrieveSysSettingsPerformance(db *sql.DB) (PGSettings, error) {
+// retrieveSysSettingsPerformance retrieves performance-related settings.
+func retrieveSysSettingsPerformance(db *sql.DB) (PGSettings, error) {
 	return retrieveSysSettings(internal.RetrieveSysSettingsPerformance, db)
 }
 
-// RetrieveSysSettingsServer a key server configuration settings (config_file,
+// retrieveSysSettingsServer a key server configuration settings (config_file,
 // data_directory, max_connections, dynamic_shared_memory_type,
 // max_files_per_process, port, unix_socket_directories), which may be helpful
 // in debugging connectivity issues or other DB errors.
-func RetrieveSysSettingsServer(db *sql.DB) (PGSettings, error) {
+func retrieveSysSettingsServer(db *sql.DB) (PGSettings, error) {
 	return retrieveSysSettings(internal.RetrieveSysSettingsServer, db)
 }
 
-// RetrieveSysSettingSyncCommit retrieves the synchronous_commit setting.
-func RetrieveSysSettingSyncCommit(db *sql.DB) (syncCommit string, err error) {
+// retrieveSysSettingSyncCommit retrieves the synchronous_commit setting.
+func retrieveSysSettingSyncCommit(db *sql.DB) (syncCommit string, err error) {
 	err = db.QueryRow(internal.RetrieveSyncCommitSetting).Scan(&syncCommit)
 	return
 }

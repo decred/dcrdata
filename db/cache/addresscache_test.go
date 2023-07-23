@@ -97,7 +97,7 @@ func TestAddressCacheItem_Transactions(t *testing.T) {
 	aci.rows = []*dbtypes.AddressRowCompact{
 		{
 			Address: "Dsnieug5H7Zn3SjUWwbcZ17ox9d3F2TEvZV",
-			TxHash:  *txHash,
+			TxHash:  dbtypes.ChainHash(*txHash),
 			Value:   121,
 		},
 	}

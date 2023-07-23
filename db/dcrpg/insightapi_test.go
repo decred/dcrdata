@@ -5,10 +5,25 @@ package dcrpg
 
 import (
 	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 )
+
+type txSortable struct {
+	Hash chainhash.Hash
+	Time int64
+}
+
+func sortTxsByTimeAndHash(txns []txSortable) {
+	sort.Slice(txns, func(i, j int) bool {
+		if txns[i].Time == txns[j].Time {
+			return txns[i].Hash.String() < txns[j].Hash.String()
+		}
+		return txns[i].Time > txns[j].Time
+	})
+}
 
 func Test_sortTxsByTimeAndHash(t *testing.T) {
 	h0, _ := chainhash.NewHashFromStr("79936a1fb658ba249443f0caf4a6a44ce73afe16d543d4f7b8dcf847dfb21a9d")

@@ -6,7 +6,7 @@ package dcrpg
 
 import (
 	"context"
-	"sort"
+	"encoding/hex"
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -62,20 +62,6 @@ func (pgb *ChainDB) SendRawTransaction(txhex string) (string, error) {
 	return hash.String(), err
 }
 
-type txSortable struct {
-	Hash chainhash.Hash
-	Time int64
-}
-
-func sortTxsByTimeAndHash(txns []txSortable) {
-	sort.Slice(txns, func(i, j int) bool {
-		if txns[i].Time == txns[j].Time {
-			return txns[i].Hash.String() < txns[j].Hash.String()
-		}
-		return txns[i].Time > txns[j].Time
-	})
-}
-
 // InsightAddressTransactions performs DB queries to get all transaction hashes
 // for the specified addresses in descending order by time, then ascending order
 // by hash. It also returns a list of recently (defined as greater than
@@ -98,7 +84,7 @@ func (pgb *ChainDB) InsightAddressTransactions(addr []string, recentBlockHeight 
 		}
 		for _, r := range rows {
 			//txns = append(txns, txSortable{r.TxHash, r.TxBlockTime})
-			txns = append(txns, r.TxHash)
+			txns = append(txns, chainhash.Hash(r.TxHash))
 			// Count the number of "recent" txns.
 			if r.TxBlockTime > recentBlocktime {
 				numRecent++
@@ -122,13 +108,17 @@ func (pgb *ChainDB) InsightAddressTransactions(addr []string, recentBlockHeight 
 	return
 }
 
-// AddressIDsByOutpoint fetches all address row IDs for a given outpoint
+// OutpointAddresses fetches all addresses and the value of a given outpoint
 // (txHash:voutIndex).
-func (pgb *ChainDB) AddressIDsByOutpoint(txHash string, voutIndex uint32) ([]uint64, []string, int64, error) {
+func (pgb *ChainDB) OutpointAddresses(txHash string, voutIndex uint32) ([]string, int64, error) {
+	ch, err := chainHashFromStr(txHash)
+	if err != nil {
+		return nil, 0, err
+	}
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
-	ids, addrs, val, err := RetrieveAddressIDsByOutpoint(ctx, pgb.db, txHash, voutIndex)
-	return ids, addrs, val, pgb.replaceCancelError(err)
+	_, addrs, val, err := retrieveAddressIDsByOutpoint(ctx, pgb.db, ch, voutIndex)
+	return addrs, val, pgb.replaceCancelError(err)
 }
 
 // GetTransactionHex returns the full serialized transaction for the specified
@@ -156,7 +146,7 @@ func (pgb *ChainDB) GetBlockVerboseByHash(hash string, verboseTx bool) *chainjso
 		return nil
 	}
 
-	blockVerbose, err := pgb.Client.GetBlockVerbose(context.TODO(), blockhash, verboseTx)
+	blockVerbose, err := pgb.Client.GetBlockVerbose(pgb.ctx, blockhash, verboseTx)
 	if err != nil {
 		log.Errorf("GetBlockVerbose(%v) failed: %v", hash, err)
 		return nil
@@ -188,12 +178,12 @@ func makeBlockTransactions(blockVerbose *chainjson.GetBlockVerboseResult) *apity
 func (pgb *ChainDB) GetBlockHash(idx int64) (string, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
-	hash, err := RetrieveBlockHash(ctx, pgb.db, idx)
+	hash, err := retrieveBlockHash(ctx, pgb.db, idx)
 	if err != nil {
 		log.Errorf("Unable to get block hash for block number %d: %v", idx, err)
 		return "", pgb.replaceCancelError(err)
 	}
-	return hash, nil
+	return hash.String(), nil
 }
 
 // BlockSummaryTimeRange returns the blocks created within a specified time
@@ -201,7 +191,7 @@ func (pgb *ChainDB) GetBlockHash(idx int64) (string, error) {
 func (pgb *ChainDB) BlockSummaryTimeRange(min, max int64, limit int) ([]dbtypes.BlockDataBasic, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
-	blockSummary, err := RetrieveBlockSummaryByTimeRange(ctx, pgb.db, min, max, limit)
+	blockSummary, err := retrieveBlockSummaryByTimeRange(ctx, pgb.db, min, max, limit)
 	return blockSummary, pgb.replaceCancelError(err)
 }
 
@@ -259,9 +249,19 @@ func (pgb *ChainDB) AddressUTXO(address string) ([]*dbtypes.AddressTxnOutput, bo
 	// Query the DB for the current UTXO set for this address.
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
-	txnOutputs, err := RetrieveAddressDbUTXOs(ctx, pgb.db, address)
+	txnOutputs, err := retrieveAddressDbUTXOs(ctx, pgb.db, address)
 	if err != nil {
 		return nil, false, pgb.replaceCancelError(err)
+	}
+	// Get the pkscripts that db doesn't have.
+	for _, out := range txnOutputs {
+		txOutRes, err := pgb.Client.GetTxOut(pgb.ctx, (*chainhash.Hash)(&out.TxHash), out.Vout, 0, false)
+		if err != nil {
+			log.Warnf("could not get tx out (%v:%d): %w", out.TxHash, out.Vout, err)
+			continue
+		}
+
+		out.PkScript, _ = hex.DecodeString(txOutRes.ScriptPubKey.Hex)
 	}
 
 	// Update the address cache.
@@ -273,9 +273,13 @@ func (pgb *ChainDB) AddressUTXO(address string) ([]*dbtypes.AddressTxnOutput, bo
 // SpendDetailsForFundingTx will return the details of any spending transactions
 // (tx, index, block height) for a given funding transaction.
 func (pgb *ChainDB) SpendDetailsForFundingTx(fundHash string) ([]*apitypes.SpendByFundingHash, error) {
+	ch, err := chainHashFromStr(fundHash)
+	if err != nil {
+		return nil, err
+	}
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
-	addrRow, err := RetrieveSpendingTxsByFundingTxWithBlockHeight(ctx, pgb.db, fundHash)
+	addrRow, err := retrieveSpendingTxsByFundingTxWithBlockHeight(ctx, pgb.db, ch)
 	if err != nil {
 		return nil, pgb.replaceCancelError(err)
 	}

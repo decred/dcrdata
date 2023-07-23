@@ -347,6 +347,16 @@ func NewExchangeBot(config *ExchangeBotConfig) (*ExchangeBot, error) {
 		failed:            false,
 	}
 
+	/* TODO: specify proxy
+	proxyURL, err := url.Parse("socks5://127.0.0.1:1080")
+	if err != nil {
+		return nil, err
+	}
+	bot.client.Transport = &http.Transport{
+		Proxy: http.ProxyURL(proxyURL),
+	}
+	*/
+
 	if config.MasterBot != "" {
 		if config.MasterCertFile == "" {
 			return nil, fmt.Errorf("No TLS certificate path provided")

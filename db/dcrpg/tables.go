@@ -82,7 +82,11 @@ func DropTables(db *sql.DB) {
 
 // DropTestingTable drops only the "testing" table.
 func DropTestingTable(db SqlExecutor) error {
-	_, err := db.Exec(`DROP TABLE IF EXISTS testing;`)
+	_, err := db.Exec(`DROP TABLE IF EXISTS hashtest;`)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`DROP TABLE IF EXISTS testing;`)
 	return err
 }
 
@@ -196,24 +200,24 @@ func CheckColumnDataType(db *sql.DB, table, column string) (dataType string, err
 	return
 }
 
-// DeleteDuplicates attempts to delete "duplicate" rows in tables
+// deleteDuplicates attempts to delete "duplicate" rows in tables
 // where unique indexes are to be created.
-func (pgb *ChainDB) DeleteDuplicates(barLoad chan *dbtypes.ProgressBarLoad) error {
+func (pgb *ChainDB) deleteDuplicates(barLoad chan *dbtypes.ProgressBarLoad) error {
 	allDuplicates := []dropDuplicatesInfo{
 		// Remove duplicate vins
-		{TableName: "vins", DropDupsFunc: pgb.DeleteDuplicateVins},
+		{TableName: "vins", DropDupsFunc: pgb.deleteDuplicateVins},
 
 		// Remove duplicate vouts
-		{TableName: "vouts", DropDupsFunc: pgb.DeleteDuplicateVouts},
+		{TableName: "vouts", DropDupsFunc: pgb.deleteDuplicateVouts},
 
 		// Remove duplicate transactions
-		{TableName: "transactions", DropDupsFunc: pgb.DeleteDuplicateTxns},
+		{TableName: "transactions", DropDupsFunc: pgb.deleteDuplicateTxns},
 
 		// Remove duplicate agendas
-		{TableName: "agendas", DropDupsFunc: pgb.DeleteDuplicateAgendas},
+		{TableName: "agendas", DropDupsFunc: pgb.deleteDuplicateAgendas},
 
 		// Remove duplicate agenda_votes
-		{TableName: "agenda_votes", DropDupsFunc: pgb.DeleteDuplicateAgendaVotes},
+		{TableName: "agenda_votes", DropDupsFunc: pgb.deleteDuplicateAgendaVotes},
 	}
 
 	var err error

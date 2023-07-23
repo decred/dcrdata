@@ -8,18 +8,18 @@ package internal
 const (
 	CreateBlockTable = `CREATE TABLE IF NOT EXISTS blocks (
 		id SERIAL PRIMARY KEY,
-		hash TEXT NOT NULL, -- UNIQUE
+		hash BYTEA NOT NULL, -- UNIQUE
 		height INT4,
 		size INT4,
 		is_valid BOOLEAN,
 		is_mainchain BOOLEAN,
 		version INT4,
-		numtx INT4,
-		num_rtx INT4,
-		tx TEXT[],
+		numtx INT4, -- REDUNDANT if we keep tx and stx (or ids)
+		num_rtx INT4, -- REDUNDANT if we keep tx and stx (or ids)
+		-- tx BYTEA[], -- REMOVE and use a blocks_txs table?
 		txDbIDs INT8[],
-		num_stx INT4,
-		stx TEXT[],
+		num_stx INT4, -- REDUNDANT if we keep tx and stx (or ids)
+		-- stx BYTEA[], -- REMOVE and use a blocks_stxs table?
 		stxDbIDs INT8[],
 		time TIMESTAMPTZ,
 		nonce INT8,
@@ -32,9 +32,9 @@ const (
 		sbits INT8,
 		difficulty FLOAT8,
 		stake_version INT4,
-		previous_hash TEXT,
-		chainwork TEXT,
-		winners TEXT[]
+		previous_hash BYTEA,
+		chainwork TEXT, -- todo: BYTE
+		winners BYTEA[] -- remove? make a new stake table? to get TicketPoolInfo.Winners we'd need a join or second query
 	);`
 
 	// Block inserts. is_valid refers to blocks that have been validated by
@@ -45,15 +45,15 @@ const (
 	// insertBlockRow is the basis for several block insert/upsert statements.
 	insertBlockRow = `INSERT INTO blocks (
 		hash, height, size, is_valid, is_mainchain, version,
-		numtx, num_rtx, tx, txDbIDs, num_stx, stx, stxDbIDs,
+		numtx, num_rtx, txDbIDs, num_stx,  stxDbIDs,
 		time, nonce, vote_bits, voters,
 		fresh_stake, revocations, pool_size, bits, sbits,
 		difficulty, stake_version, previous_hash, chainwork, winners)
 	VALUES ($1, $2, $3, $4, $5, $6,
-		$7, $8, $9, $10, $11, $12, $13,
-		$14, $15, $16, $17, $18, $19,
-		$20, $21, $22, $23, $24, $25,
-		$26, $27) `
+		$7, $8, $9, $10, $11,
+		$12, $13, $14, $15,
+		$16, $17, $18, $19, $20,
+		$21, $22, $23, $24, $25) `
 
 	// InsertBlockRow inserts a new block row without checking for unique index
 	// conflicts. This should only be used before the unique indexes are created
@@ -70,6 +70,7 @@ const (
 	// either the inserted row or the existing row that causes the conflict. The
 	// complexity of this statement is necessary to avoid an unnecessary UPSERT,
 	// which would have performance consequences. The row is not locked.
+	/* unused
 	InsertBlockRowOnConflictDoNothing = `WITH ins AS (` +
 		insertBlockRow +
 		`	ON CONFLICT (hash) DO NOTHING -- no lock on row
@@ -80,6 +81,7 @@ const (
 		SELECT id FROM blocks
 		WHERE  hash = $1 -- only executed if no INSERT
 		LIMIT  1;`
+	*/
 
 	// IndexBlockTableOnHash creates the unique index uix_block_hash on (hash).
 	IndexBlockTableOnHash   = `CREATE UNIQUE INDEX ` + IndexOfBlocksTableOnHash + ` ON blocks(hash);`
@@ -105,8 +107,8 @@ const (
 	SelectBlockTimeByHeight = `SELECT time FROM blocks
 		WHERE height = $1 AND is_mainchain = true;`
 
-	RetrieveBestBlockHeightAny = `SELECT id, hash, height FROM blocks
-		ORDER BY height DESC LIMIT 1;`
+	// RetrieveBestBlockHeightAny = `SELECT id, hash, height FROM blocks
+	// 	ORDER BY height DESC LIMIT 1;`
 	RetrieveBestBlockHeight = `SELECT id, hash, height FROM blocks
 		WHERE is_mainchain = true ORDER BY height DESC LIMIT 1;`
 
@@ -116,11 +118,6 @@ const (
 		FROM blocks
 		WHERE height > $1
 		ORDER BY height;`
-
-	SelectGenesisTime = `SELECT time
-		FROM blocks
-		WHERE height = 0
-		AND is_mainchain`
 
 	SelectWindowsByLimit = `SELECT (height/$1)*$1 AS window_start,
 		MAX(difficulty) AS difficulty,
@@ -153,9 +150,9 @@ const (
 		ORDER BY index_value DESC
 		LIMIT $2 OFFSET $3;`
 
-	SelectBlocksPreviousHash = `SELECT previous_hash FROM blocks WHERE hash = $1;`
+	// SelectBlocksPreviousHash = `SELECT previous_hash FROM blocks WHERE hash = $1;`
 
-	SelectBlocksHashes = `SELECT hash FROM blocks ORDER BY id;`
+	// SelectBlocksHashes = `SELECT hash FROM blocks ORDER BY id;`
 
 	SelectBlockVoteCount = `SELECT voters FROM blocks WHERE hash = $1;`
 
@@ -163,12 +160,6 @@ const (
 		FROM blocks
 		JOIN block_chain ON this_hash=hash
 		WHERE is_mainchain = FALSE
-		ORDER BY height DESC;`
-
-	SelectSideChainTips = `SELECT is_valid, height, previous_hash, hash
-		FROM blocks
-		JOIN block_chain ON this_hash=hash
-		WHERE is_mainchain = FALSE AND block_chain.next_hash=''
 		ORDER BY height DESC;`
 
 	SelectBlockStatus = `SELECT is_valid, is_mainchain, height, previous_hash, hash, block_chain.next_hash
@@ -190,11 +181,11 @@ const (
 		WHERE is_valid = FALSE
 		ORDER BY height DESC;`
 
-	SelectTxsPerDay = `SELECT date_trunc('day',time) AS date, sum(numtx)
-		FROM blocks
-		WHERE time > $1
-		GROUP BY date
-		ORDER BY date;`
+	// SelectTxsPerDay = `SELECT date_trunc('day',time) AS date, sum(numtx)
+	// 	FROM blocks
+	// 	WHERE time > $1
+	// 	GROUP BY date
+	// 	ORDER BY date;`
 
 	// blocks table updates
 
@@ -206,9 +197,9 @@ const (
 	// blocks table.
 	CreateBlockPrevNextTable = `CREATE TABLE IF NOT EXISTS block_chain (
 		block_db_id INT8 PRIMARY KEY,
-		prev_hash TEXT NOT NULL,
-		this_hash TEXT UNIQUE NOT NULL, -- UNIQUE
-		next_hash TEXT
+		prev_hash BYTEA NOT NULL,
+		this_hash BYTEA UNIQUE NOT NULL,
+		next_hash BYTEA
 	);`
 
 	// InsertBlockPrevNext includes the primary key, which should be the row ID
@@ -273,7 +264,7 @@ const (
 		ORDER BY blocks.height DESC;`
 
 	SelectBlockDataByHash = `
-			SELECT blocks.hash, blocks.height, blocks.size,
+			SELECT blocks.height, blocks.size,
 				blocks.difficulty, blocks.sbits, blocks.time, stats.pool_size,
 				stats.pool_val, blocks.winners, blocks.is_mainchain, blocks.is_valid
 			FROM blocks INNER JOIN stats ON blocks.id = stats.blocks_id

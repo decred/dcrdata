@@ -53,7 +53,7 @@ func TestInsertSwap(t *testing.T) {
 		Contract:         []byte{1, 2, 3, 4, 5, 6, 7, 8}, // not stored
 		IsRefund:         true,
 	}
-	err = InsertSwap(db.db, 1234, asd)
+	err = insertSwap(db.db, 1234, asd)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestInsertSwap(t *testing.T) {
 	asd.SpendTx = &chainhash.Hash{5, 6}
 	asd.SpendVin = 2
 	asd.Secret = nil
-	err = InsertSwap(db.db, 1234, asd)
+	err = insertSwap(db.db, 1234, asd)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +141,7 @@ func TestMergeRows(t *testing.T) {
 }
 
 func TestRetrieveUTXOs(t *testing.T) {
-	utxos, err := RetrieveUTXOs(context.Background(), db.db)
+	utxos, err := retrieveUTXOs(context.Background(), db.db)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +159,7 @@ func TestRetrieveUTXOs(t *testing.T) {
 }
 
 func TestUtxoStore_Reinit(t *testing.T) {
-	utxos, err := RetrieveUTXOs(context.Background(), db.db)
+	utxos, err := retrieveUTXOs(context.Background(), db.db)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,7 +195,7 @@ func TestCheckDefaultTimeZone(t *testing.T) {
 
 func TestDeleteBestBlock(t *testing.T) {
 	ctx := context.Background()
-	res, height, hash, err := DeleteBestBlock(ctx, db.db)
+	res, height, hash, err := deleteBestBlock(ctx, db.db)
 	t.Logf("Deletion summary for block %d (%s): %v", height, hash, res)
 	if err != nil {
 		t.Errorf("Failed to delete best block data: %v", err)
@@ -217,7 +217,7 @@ func TestDeleteBestBlock(t *testing.T) {
 }
 
 func TestDeleteBlocks(t *testing.T) {
-	height0, hash0, _, err := RetrieveBestBlockHeight(context.Background(), db.db)
+	height0, hash0, err := retrieveBestBlockHeight(context.Background(), db.db)
 	if err != nil {
 		t.Error(err)
 	}
@@ -233,7 +233,7 @@ func TestDeleteBlocks(t *testing.T) {
 	start := time.Now()
 	ctx := context.Background()
 
-	res, _, _, err := DeleteBlocks(ctx, N, db.db)
+	res, _, _, err := deleteBlocks(ctx, N, db.db)
 	if err != nil {
 		t.Error(err)
 	}
@@ -245,7 +245,7 @@ func TestDeleteBlocks(t *testing.T) {
 	t.Log("*** Blocks deleted from DB! Resync or download new test data! ***")
 	t.Log("*****************************************************************")
 
-	height, hash, _, err := RetrieveBestBlockHeight(ctx, db.db)
+	height, hash, err := retrieveBestBlockHeight(ctx, db.db)
 	if err != nil {
 		t.Error(err)
 	}
@@ -260,9 +260,8 @@ func TestDeleteBlocks(t *testing.T) {
 
 func TestRetrieveTxsByBlockHash(t *testing.T) {
 	//block80740 := "00000000000003ae4fa13a6dcd53bf2fddacfac12e86e5b5f98a08a71d3e6caa"
-	block0 := "298e5cc3d985bfe7f81dc135f360abe089edd4396b86d2de66b0cef42b21d980" // genesis
-	_, _, _, _, blockTimes, _ := RetrieveTxsByBlockHash(
-		context.Background(), db.db, block0)
+	block0, _ := chainHashFromStr("298e5cc3d985bfe7f81dc135f360abe089edd4396b86d2de66b0cef42b21d980") // genesis
+	_, _, _, blockTimes, _ := retrieveTxsByBlockHash(context.Background(), db.db, block0)
 	// Check TimeDef.String
 	blockTimeStr := blockTimes[0].String()
 	t.Log(blockTimeStr)
@@ -336,12 +335,14 @@ func TestUpdateChainState(t *testing.T) {
 		t.Fatalf("expected no error to be returned but found: %v", err)
 	}
 
+	bbh, _ := chainHashFromStr("00000000000000001d8cfa54dc13cfb0563421fd017801401cb2bdebe3579355")
+
 	// Expected payload
 	var expectedPayload = dbtypes.BlockChainData{
 		Chain:                  "mainnet",
 		SyncHeight:             316016,
 		BestHeight:             316016,
-		BestBlockHash:          "00000000000000001d8cfa54dc13cfb0563421fd017801401cb2bdebe3579355",
+		BestBlockHash:          bbh,
 		Difficulty:             406452686,
 		VerificationProgress:   1.0,
 		ChainWork:              "0000000000000000000000000000000000000000000209c779c196914f038522",

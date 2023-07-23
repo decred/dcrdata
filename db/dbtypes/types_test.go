@@ -154,3 +154,31 @@ func TestTimeDef_Scan(t *testing.T) {
 		t.Fatal("TimeDef.Scan(int64) should have failed")
 	}
 }
+
+func TestChainHashArray2_Value(t *testing.T) {
+	tests := []struct {
+		name    string
+		a       ChainHashArray2
+		want    string
+		wantErr bool
+	}{
+		{
+			"ok",
+			ChainHashArray2{ChainHash{1, 2, 3}, ChainHash{4, 5, 6}},
+			`{"\\x0000000000000000000000000000000000000000000000000000000000030201","\\x0000000000000000000000000000000000000000000000000000000000060504"}`,
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tt.a.Value()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ChainHashArray2.Value() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Want =  \"%s\", got = \"%s\"", tt.want, got)
+			}
+		})
+	}
+}

@@ -7,8 +7,8 @@ const (
 
 	CreateTicketsTable = `CREATE TABLE IF NOT EXISTS tickets (
 		id SERIAL PRIMARY KEY,
-		tx_hash TEXT NOT NULL,
-		block_hash TEXT NOT NULL,
+		tx_hash BYTEA NOT NULL,
+		block_hash BYTEA NOT NULL,
 		block_height INT4,
 		purchase_tx_db_id INT8,
 		stakesubmission_address TEXT,
@@ -86,9 +86,13 @@ const (
 		` ON tickets(pool_status);`
 	DeindexTicketsTableOnPoolStatus = `DROP INDEX IF EXISTS ` + IndexOfTicketsTableOnPoolStatus + ` CASCADE;`
 
-	SelectTicketsInBlock        = `SELECT * FROM tickets WHERE block_hash = $1;`
+	allCols = `id, tx_hash, block_hash, block_height, purchase_tx_db_id,
+		stakesubmission_address, is_multisig, is_split, num_inputs, price, fee, spend_type,
+		pool_status, is_mainchain, spend_height, spend_tx_db_id`
+
+	SelectTicketsInBlock        = `SELECT ` + allCols + ` FROM tickets WHERE block_hash = $1;`
 	SelectTicketsTxDbIDsInBlock = `SELECT purchase_tx_db_id FROM tickets WHERE block_hash = $1;`
-	SelectTicketsForAddress     = `SELECT * FROM tickets WHERE stakesubmission_address = $1;`
+	SelectTicketsForAddress     = `SELECT ` + allCols + ` FROM tickets WHERE stakesubmission_address = $1;`
 
 	forTxHashMainchainFirst    = ` WHERE tx_hash = $1 ORDER BY is_mainchain DESC;`
 	SelectTicketIDHeightByHash = `SELECT id, block_height FROM tickets` + forTxHashMainchainFirst
@@ -99,8 +103,8 @@ const (
 	SelectUnspentTickets = `SELECT id, tx_hash FROM tickets
 		WHERE spend_type = 0 AND is_mainchain = true;`
 
-	SelectTicketsForPriceAtLeast = `SELECT * FROM tickets WHERE price >= $1;`
-	SelectTicketsForPriceAtMost  = `SELECT * FROM tickets WHERE price <= $1;`
+	SelectTicketsForPriceAtLeast = `SELECT ` + allCols + ` FROM tickets WHERE price >= $1;`
+	SelectTicketsForPriceAtMost  = `SELECT ` + allCols + ` FROM tickets WHERE price <= $1;`
 
 	SelectTicketsByPrice = `SELECT price,
 		SUM(CASE WHEN tickets.block_height >= $1 THEN 1 ELSE 0 END) as immature,
@@ -157,13 +161,13 @@ const (
 	CreateVotesTable = `CREATE TABLE IF NOT EXISTS votes (
 		id SERIAL PRIMARY KEY,
 		height INT4,
-		tx_hash TEXT NOT NULL,
-		block_hash TEXT NOT NULL,
-		candidate_block_hash TEXT NOT NULL,
+		tx_hash BYTEA NOT NULL,
+		block_hash BYTEA NOT NULL,
+		candidate_block_hash BYTEA NOT NULL,
 		version INT4,
 		vote_bits INT2,
 		block_valid BOOLEAN,
-		ticket_hash TEXT,
+		ticket_hash BYTEA,
 		ticket_tx_db_id INT8,
 		ticket_price FLOAT8,
 		vote_reward FLOAT8,
@@ -260,9 +264,9 @@ const (
 	CreateMissesTable = `CREATE TABLE IF NOT EXISTS misses (
 		id SERIAL PRIMARY KEY,
 		height INT4,
-		block_hash TEXT NOT NULL,
-		candidate_block_hash TEXT NOT NULL,
-		ticket_hash TEXT NOT NULL
+		block_hash BYTEA NOT NULL,
+		candidate_block_hash BYTEA NOT NULL,
+		ticket_hash BYTEA NOT NULL
 	);`
 
 	// insertMissRow is the basis for several miss insert/upsert statements.

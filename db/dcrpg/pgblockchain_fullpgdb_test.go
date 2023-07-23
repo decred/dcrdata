@@ -3,10 +3,8 @@
 package dcrpg
 
 import (
-	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
@@ -30,36 +28,6 @@ func TestGetAddressTransactionsRawWithSkip(t *testing.T) {
 	}
 	fmt.Println(string(b), len(res))
 	t.Log(d)
-}
-
-func TestMixedUtxosByHeight(t *testing.T) {
-	heights, utxoCountReg, utxoValueReg, utxoCountStk, utxoValueStk, err := db.MixedUtxosByHeight()
-	if err != nil {
-		t.Fatalf("failed: %v", err)
-	}
-
-	csvfile, err := os.Create("utxos.csv")
-	if err != nil {
-		t.Fatalf("error creating utxos file: %s", err)
-	}
-	defer csvfile.Close()
-
-	csvwriter := csv.NewWriter(csvfile)
-	defer csvwriter.Flush()
-
-	for i := range heights {
-		err = csvwriter.Write([]string{
-			fmt.Sprint(heights[i]),
-			fmt.Sprint(utxoCountReg[i]),
-			fmt.Sprint(utxoValueReg[i] / 1e8),
-			fmt.Sprint(utxoCountStk[i]),
-			fmt.Sprint(utxoValueStk[i] / 1e8),
-		})
-		if err != nil {
-			t.Fatalf("csvwriter.Write: %s", err)
-		}
-	}
-
 }
 
 func TestAddressRows(t *testing.T) {

@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/db/dcrpg/v8
 
-go 1.18
+go 1.21
 
 replace github.com/decred/dcrdata/v8 => ../../
 
@@ -21,7 +21,7 @@ require (
 	github.com/dustin/go-humanize v1.0.1
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/jrick/logrotate v1.0.0
-	github.com/lib/pq v1.10.4
+	github.com/lib/pq v1.10.9
 )
 
 require (

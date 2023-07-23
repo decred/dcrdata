@@ -1,14 +1,13 @@
-// Copyright (c) 2018-2021, The Decred developers
+// Copyright (c) 2018-2023, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
 package dcrpg
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
-	"encoding/hex"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"math/big"
@@ -16,10 +15,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/blockchain/stake/v5"
-	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/dcrutil/v4"
-	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
 
 	"github.com/decred/dcrdata/db/dcrpg/v8/internal"
@@ -31,10 +27,10 @@ import (
 	"github.com/lib/pq"
 )
 
-// DBBestBlock retrieves the best block hash and height from the meta table. The
+// dbBestBlock retrieves the best block hash and height from the meta table. The
 // error value will never be sql.ErrNoRows; instead with height == -1 indicating
 // no data in the meta table.
-func DBBestBlock(ctx context.Context, db *sql.DB) (hash string, height int64, err error) {
+func dbBestBlock(ctx context.Context, db *sql.DB) (hash dbtypes.ChainHash, height int64, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectMetaDBBestBlock).Scan(&height, &hash)
 	if err == sql.ErrNoRows {
 		err = nil
@@ -43,8 +39,8 @@ func DBBestBlock(ctx context.Context, db *sql.DB) (hash string, height int64, er
 	return
 }
 
-// SetDBBestBlock sets the best block hash and height in the meta table.
-func SetDBBestBlock(db *sql.DB, hash string, height int64) error {
+// setDBBestBlock sets the best block hash and height in the meta table.
+func setDBBestBlock(db *sql.DB, hash dbtypes.ChainHash, height int64) error {
 	numRows, err := sqlExec(db, internal.SetMetaDBBestBlock,
 		"failed to update best block in meta table: ", height, hash)
 	if err != nil {
@@ -57,16 +53,16 @@ func SetDBBestBlock(db *sql.DB, hash string, height int64) error {
 	return nil
 }
 
-// IBDComplete indicates whether initial block download was completed according
+// ibdComplete indicates whether initial block download was completed according
 // to the meta.ibd_complete flag.
-func IBDComplete(db *sql.DB) (ibdComplete bool, err error) {
+func ibdComplete(db *sql.DB) (ibdComplete bool, err error) {
 	err = db.QueryRow(internal.SelectMetaDBIbdComplete).Scan(&ibdComplete)
 	return
 }
 
-// SetIBDComplete set the ibd_complete (Initial Block Download complete) flag in
+// setIBDComplete set the ibd_complete (Initial Block Download complete) flag in
 // the meta table.
-func SetIBDComplete(db SqlExecutor, ibdComplete bool) error {
+func setIBDComplete(db SqlExecutor, ibdComplete bool) error {
 	numRows, err := sqlExec(db, internal.SetMetaDBIbdComplete,
 		"failed to update ibd_complete in meta table: ", ibdComplete)
 	if err != nil {
@@ -79,16 +75,7 @@ func SetIBDComplete(db SqlExecutor, ibdComplete bool) error {
 	return nil
 }
 
-// outputCountType defines the modes of the output count chart data.
-// outputCountByAllBlocks defines count per block i.e. solo and pooled tickets
-// count per block. outputCountByTicketPoolWindow defines the output count per
-// given ticket price window
-type outputCountType int
-
 const (
-	outputCountByAllBlocks outputCountType = iota
-	outputCountByTicketPoolWindow
-
 	notOneRowErrMsg = "failed to update exactly 1 row"
 )
 
@@ -180,9 +167,9 @@ func IsUniqueIndex(db *sql.DB, indexName string) (isUnique bool, err error) {
 	return
 }
 
-// DeleteDuplicateVins deletes rows in vin with duplicate tx information,
+// deleteDuplicateVins deletes rows in vin with duplicate tx information,
 // leaving the one row with the lowest id.
-func DeleteDuplicateVins(db *sql.DB) (int64, error) {
+func deleteDuplicateVins(db *sql.DB) (int64, error) {
 	execErrPrefix := "failed to delete duplicate vins: "
 
 	existsIdx, err := ExistsIndex(db, "uix_vin")
@@ -204,9 +191,9 @@ func DeleteDuplicateVins(db *sql.DB) (int64, error) {
 	return sqlExec(db, internal.DeleteVinsDuplicateRows, execErrPrefix)
 }
 
-// DeleteDuplicateVouts deletes rows in vouts with duplicate tx information,
+// deleteDuplicateVouts deletes rows in vouts with duplicate tx information,
 // leaving the one row with the lowest id.
-func DeleteDuplicateVouts(db *sql.DB) (int64, error) {
+func deleteDuplicateVouts(db *sql.DB) (int64, error) {
 	execErrPrefix := "failed to delete duplicate vouts: "
 
 	existsIdx, err := ExistsIndex(db, "uix_vout_txhash_ind")
@@ -225,9 +212,9 @@ func DeleteDuplicateVouts(db *sql.DB) (int64, error) {
 	return sqlExec(db, internal.DeleteVoutDuplicateRows, execErrPrefix)
 }
 
-// DeleteDuplicateTxns deletes rows in transactions with duplicate tx-block
+// deleteDuplicateTxns deletes rows in transactions with duplicate tx-block
 // hashes, leaving the one row with the lowest id.
-func DeleteDuplicateTxns(db *sql.DB) (int64, error) {
+func deleteDuplicateTxns(db *sql.DB) (int64, error) {
 	execErrPrefix := "failed to delete duplicate transactions: "
 
 	existsIdx, err := ExistsIndex(db, "uix_tx_hashes")
@@ -246,9 +233,9 @@ func DeleteDuplicateTxns(db *sql.DB) (int64, error) {
 	return sqlExec(db, internal.DeleteTxDuplicateRows, execErrPrefix)
 }
 
-// DeleteDuplicateAgendas deletes rows in agendas with duplicate names leaving
+// deleteDuplicateAgendas deletes rows in agendas with duplicate names leaving
 // the one row with the lowest id.
-func DeleteDuplicateAgendas(db *sql.DB) (int64, error) {
+func deleteDuplicateAgendas(db *sql.DB) (int64, error) {
 	if isuniq, err := IsUniqueIndex(db, "uix_agendas_name"); err != nil && err != sql.ErrNoRows {
 		return 0, err
 	} else if isuniq {
@@ -258,9 +245,9 @@ func DeleteDuplicateAgendas(db *sql.DB) (int64, error) {
 	return sqlExec(db, internal.DeleteAgendasDuplicateRows, execErrPrefix)
 }
 
-// DeleteDuplicateAgendaVotes deletes rows in agenda_votes with duplicate
+// deleteDuplicateAgendaVotes deletes rows in agenda_votes with duplicate
 // votes-row-id and agendas-row-id leaving the one row with the lowest id.
-func DeleteDuplicateAgendaVotes(db *sql.DB) (int64, error) {
+func deleteDuplicateAgendaVotes(db *sql.DB) (int64, error) {
 	if isuniq, err := IsUniqueIndex(db, "uix_agenda_votes"); err != nil && err != sql.ErrNoRows {
 		return 0, err
 	} else if isuniq {
@@ -272,7 +259,7 @@ func DeleteDuplicateAgendaVotes(db *sql.DB) (int64, error) {
 
 // --- stake (votes, tickets, misses, treasury) tables ---
 
-func InsertTreasuryTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked, updateExistingRecords bool) error {
+func insertTreasuryTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked, updateExistingRecords bool) error {
 	dbtx, err := db.Begin()
 	if err != nil {
 		return fmt.Errorf("unable to begin database transaction: %w", err)
@@ -321,11 +308,11 @@ func InsertTreasuryTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked, updateExistin
 	return dbtx.Commit()
 }
 
-// InsertTickets takes a slice of *dbtypes.Tx and corresponding DB row IDs for
+// insertTickets takes a slice of *dbtypes.Tx and corresponding DB row IDs for
 // transactions, extracts the tickets, and inserts the tickets into the
 // database. Outputs are a slice of DB row IDs of the inserted tickets, and an
 // error.
-func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked, updateExistingRecords bool) ([]uint64, []*dbtypes.Tx, error) {
+func insertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked, updateExistingRecords bool) ([]uint64, []*dbtypes.Tx, error) {
 	dbtx, err := db.Begin()
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to begin database transaction: %w", err)
@@ -360,14 +347,15 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked, 
 			if len(tx.Vouts[0].ScriptPubKeyData.Addresses) > 0 {
 				stakesubmissionAddress = tx.Vouts[0].ScriptPubKeyData.Addresses[0]
 			}
-			isScriptHash = stdscript.IsStakeSubmissionScriptHashScript(tx.Vouts[0].Version, tx.Vouts[0].ScriptPubKey)
+			isScriptHash = tx.Vouts[0].ScriptPubKeyData.Type == dbtypes.SCScriptHash
+			// isScriptHash = stdscript.IsStakeSubmissionScriptHashScript(tx.Vouts[0].Version, tx.Vouts[0].ScriptPubKey)
 			// NOTE: This was historically broken, always setting false, and
 			// calling it "isMultisig"! A DB upgrade is needed to identify old
 			// p2sh tickets, or just remove the is_multisig column entirely.
 		}
 
-		price := dcrutil.Amount(tx.Vouts[0].Value).ToCoin()
-		fee := dcrutil.Amount(tx.Fees).ToCoin()
+		price := toCoin(tx.Vouts[0].Value)
+		fee := toCoin(tx.Fees)
 		isSplit := tx.NumVin > 1
 
 		var id uint64
@@ -395,7 +383,7 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked, 
 	return ids, ticketTx, dbtx.Commit()
 }
 
-// InsertVotes takes a slice of *dbtypes.Tx, which must contain all the stake
+// insertVotes takes a slice of *dbtypes.Tx, which must contain all the stake
 // transactions in a block, extracts the votes, and inserts the votes into the
 // database. The input MsgBlockPG contains each stake transaction's MsgTx in
 // STransactions, and they must be in the same order as the dbtypes.Tx slice.
@@ -418,10 +406,10 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked, 
 // information and references to the agendas and votes tables.
 //
 // Outputs are slices of DB row IDs for the votes and misses, and an error.
-func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *TicketTxnIDGetter,
+func insertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *TicketTxnIDGetter,
 	msgBlock *MsgBlockPG, checked, updateExistingRecords bool, params *chaincfg.Params,
-	votesMilestones *dbtypes.BlockChainData) ([]uint64, []*dbtypes.Tx, []string,
-	[]uint64, map[string]uint64, error) {
+	votesMilestones *dbtypes.BlockChainData) ([]uint64, []*dbtypes.Tx, []dbtypes.ChainHash,
+	[]uint64, map[dbtypes.ChainHash]uint64, error) {
 	// Choose only SSGen txns
 	msgTxs := msgBlock.STransactions
 	var voteTxs []*dbtypes.Tx
@@ -533,11 +521,11 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 
 	// Insert each vote, and build list of missed votes equal to
 	// setdiff(Validators, votes).
-	candidateBlockHash := msgBlock.Header.PrevBlock.String()
+	candidateBlockHash := dbtypes.ChainHash(msgBlock.Header.PrevBlock)
 	ids := make([]uint64, 0, len(voteTxs))
-	spentTicketHashes := make([]string, 0, len(voteTxs))
+	spentTicketHashes := make([]dbtypes.ChainHash, 0, len(voteTxs))
 	spentTicketDbIDs := make([]uint64, 0, len(voteTxs))
-	misses := make([]string, len(msgBlock.Validators))
+	misses := make([]dbtypes.ChainHash, len(msgBlock.Validators))
 	copy(misses, msgBlock.Validators)
 	for i, tx := range voteTxs {
 		msgTx := voteMsgTxs[i]
@@ -548,9 +536,9 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 			return nil, nil, nil, nil, nil, err
 		}
 
-		voteReward := dcrutil.Amount(msgTx.TxIn[0].ValueIn).ToCoin()
-		stakeSubmissionAmount := dcrutil.Amount(msgTx.TxIn[1].ValueIn).ToCoin()
-		stakeSubmissionTxHash := msgTx.TxIn[1].PreviousOutPoint.Hash.String()
+		voteReward := toCoin(msgTx.TxIn[0].ValueIn)
+		stakeSubmissionAmount := toCoin(msgTx.TxIn[1].ValueIn)
+		stakeSubmissionTxHash := dbtypes.ChainHash(msgTx.TxIn[1].PreviousOutPoint.Hash)
 		spentTicketHashes = append(spentTicketHashes, stakeSubmissionTxHash)
 
 		// Lookup the row ID in the transactions table for the ticket purchase.
@@ -657,7 +645,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 	}
 
 	// Store missed tickets.
-	missHashMap := make(map[string]uint64)
+	missHashMap := make(map[dbtypes.ChainHash]uint64)
 	if len(misses) > 0 {
 		// Insert misses, optionally updating a row if it conflicts with the
 		// unique index on (ticket_hash, block_hash).
@@ -670,7 +658,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 
 		// Insert the miss in the misses table, and store the row ID of the
 		// new/existing/updated miss.
-		blockHash := msgBlock.BlockHash().String()
+		blockHash := dbtypes.ChainHash(msgBlock.BlockHash())
 		for i := range misses {
 			var id uint64
 			err = stmtMissed.QueryRow(
@@ -694,9 +682,9 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 	return ids, voteTxs, spentTicketHashes, spentTicketDbIDs, missHashMap, dbtx.Commit()
 }
 
-// RetrieveMissedVotesInBlock gets a list of ticket hashes that were called to
+// retrieveMissedVotesInBlock gets a list of ticket hashes that were called to
 // vote in the given block, but missed their vote.
-func RetrieveMissedVotesInBlock(ctx context.Context, db *sql.DB, blockHash string) (ticketHashes []string, err error) {
+func retrieveMissedVotesInBlock(ctx context.Context, db *sql.DB, blockHash dbtypes.ChainHash) (ticketHashes []dbtypes.ChainHash, err error) {
 	var rows *sql.Rows
 	rows, err = db.QueryContext(ctx, internal.SelectMissesInBlock, blockHash)
 	if err != nil {
@@ -706,7 +694,7 @@ func RetrieveMissedVotesInBlock(ctx context.Context, db *sql.DB, blockHash strin
 	defer closeRows(rows)
 
 	for rows.Next() {
-		var hash string
+		var hash dbtypes.ChainHash
 		err = rows.Scan(&hash)
 		if err != nil {
 			return
@@ -729,10 +717,11 @@ func retrieveMissedVotesForBlockRange(ctx context.Context, db *sql.DB, startHeig
 	return
 }
 
-// RetrieveMissesForTicket gets all of the blocks in which the ticket was called
+// retrieveMissesForTicket gets all of the blocks in which the ticket was called
 // to place a vote on the previous block. The previous block that would have
 // been validated by the vote is not the block data that is returned.
-func RetrieveMissesForTicket(ctx context.Context, db *sql.DB, ticketHash string) (blockHashes []string, blockHeights []int64, err error) {
+/*
+func retrieveMissesForTicket(ctx context.Context, db *sql.DB, ticketHash string) (blockHashes []string, blockHeights []int64, err error) {
 	var rows *sql.Rows
 	rows, err = db.QueryContext(ctx, internal.SelectMissesForTicket, ticketHash)
 	if err != nil {
@@ -756,11 +745,12 @@ func RetrieveMissesForTicket(ctx context.Context, db *sql.DB, ticketHash string)
 
 	return
 }
+*/
 
-// RetrieveMissForTicket gets the mainchain block in which the ticket was called
+// retrieveMissForTicket gets the mainchain block in which the ticket was called
 // to place a vote on the previous block. The previous block that would have
 // been validated by the vote is not the block data that is returned.
-func RetrieveMissForTicket(ctx context.Context, db *sql.DB, ticketHash string) (blockHash string, blockHeight int64, err error) {
+func retrieveMissForTicket(ctx context.Context, db *sql.DB, ticketHash dbtypes.ChainHash) (blockHash dbtypes.ChainHash, blockHeight int64, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectMissesMainchainForTicket,
 		ticketHash).Scan(&blockHeight, &blockHash)
 	return
@@ -792,13 +782,14 @@ func retrieveAllAgendas(db *sql.DB) (map[string]dbtypes.MileStone, error) {
 	return currentMilestones, err
 }
 
-// RetrieveAllRevokes gets for all ticket revocations the row IDs (primary
+// retrieveAllRevokes gets for all ticket revocations the row IDs (primary
 // keys), transaction hashes, block heights. It also gets the row ID in the vins
 // table for the first input of the revocation transaction, which should
 // correspond to the stakesubmission previous outpoint of the ticket purchase.
 // This function is used in UpdateSpendingInfoInAllTickets, so it should not be
 // subject to timeouts.
-func RetrieveAllRevokes(ctx context.Context, db *sql.DB) (ids []uint64, hashes []string, heights []int64, vinDbIDs []uint64, err error) {
+/*
+func retrieveAllRevokes(ctx context.Context, db *sql.DB) (ids []uint64, hashes []string, heights []int64, vinDbIDs []uint64, err error) {
 	var rows *sql.Rows
 	rows, err = db.QueryContext(ctx, internal.SelectAllRevokes)
 	if err != nil {
@@ -825,12 +816,14 @@ func RetrieveAllRevokes(ctx context.Context, db *sql.DB) (ids []uint64, hashes [
 
 	return
 }
+*/
 
-// RetrieveAllVotesDbIDsHeightsTicketDbIDs gets for all votes the row IDs
+// retrieveAllVotesDbIDsHeightsTicketDbIDs gets for all votes the row IDs
 // (primary keys) in the votes table, the block heights, and the row IDs in the
 // tickets table of the spent tickets. This function is used in
 // UpdateSpendingInfoInAllTickets, so it should not be subject to timeouts.
-func RetrieveAllVotesDbIDsHeightsTicketDbIDs(ctx context.Context, db *sql.DB) (ids []uint64, heights []int64,
+/*
+func retrieveAllVotesDbIDsHeightsTicketDbIDs(ctx context.Context, db *sql.DB) (ids []uint64, heights []int64,
 	ticketDbIDs []uint64, err error) {
 	var rows *sql.Rows
 	rows, err = db.QueryContext(ctx, internal.SelectAllVoteDbIDsHeightsTicketDbIDs)
@@ -855,6 +848,7 @@ func RetrieveAllVotesDbIDsHeightsTicketDbIDs(ctx context.Context, db *sql.DB) (i
 
 	return
 }
+*/
 
 // retrieveWindowBlocks fetches chunks of windows using the limit and offset provided
 // for a window size of chaincfg.Params.StakeDiffWindowSize.
@@ -955,8 +949,8 @@ func retrieveTimeBasedBlockListing(ctx context.Context, db *sql.DB, timeInterval
 	return data, nil
 }
 
-// RetrieveUnspentTickets gets all unspent tickets.
-func RetrieveUnspentTickets(ctx context.Context, db *sql.DB) (ids []uint64, hashes []string, err error) {
+// retrieveUnspentTickets gets all unspent tickets.
+func retrieveUnspentTickets(ctx context.Context, db *sql.DB) (ids []uint64, hashes []dbtypes.ChainHash, err error) {
 	var rows *sql.Rows
 	rows, err = db.QueryContext(ctx, internal.SelectUnspentTickets)
 	if err != nil {
@@ -966,7 +960,7 @@ func RetrieveUnspentTickets(ctx context.Context, db *sql.DB) (ids []uint64, hash
 
 	for rows.Next() {
 		var id uint64
-		var hash string
+		var hash dbtypes.ChainHash
 		err = rows.Scan(&id, &hash)
 		if err != nil {
 			return nil, nil, err
@@ -982,29 +976,29 @@ func RetrieveUnspentTickets(ctx context.Context, db *sql.DB) (ids []uint64, hash
 	return ids, hashes, nil
 }
 
-// RetrieveTicketIDByHashNoCancel gets the db row ID (primary key) in the
+// retrieveTicketIDByHashNoCancel gets the db row ID (primary key) in the
 // tickets table for the given ticket hash. As the name implies, this query
 // should not accept a cancelable context.
-func RetrieveTicketIDByHashNoCancel(db *sql.DB, ticketHash string) (id uint64, err error) {
+func retrieveTicketIDByHashNoCancel(db *sql.DB, ticketHash dbtypes.ChainHash) (id uint64, err error) {
 	err = db.QueryRow(internal.SelectTicketIDByHash, ticketHash).Scan(&id)
 	return
 }
 
-// RetrieveTicketStatusByHash gets the spend status and ticket pool status for
+// retrieveTicketStatusByHash gets the spend status and ticket pool status for
 // the given ticket hash.
-func RetrieveTicketStatusByHash(ctx context.Context, db *sql.DB, ticketHash string) (id uint64,
+func retrieveTicketStatusByHash(ctx context.Context, db *sql.DB, ticketHash dbtypes.ChainHash) (id uint64,
 	spendStatus dbtypes.TicketSpendType, poolStatus dbtypes.TicketPoolStatus, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectTicketStatusByHash, ticketHash).
 		Scan(&id, &spendStatus, &poolStatus)
 	return
 }
 
-// RetrieveTicketInfoByHash retrieves the ticket spend and pool statuses as well
+// retrieveTicketInfoByHash retrieves the ticket spend and pool statuses as well
 // as the purchase and spending block info and spending txid.
-func RetrieveTicketInfoByHash(ctx context.Context, db *sql.DB, ticketHash string) (spendStatus dbtypes.TicketSpendType,
-	poolStatus dbtypes.TicketPoolStatus, purchaseBlock, lotteryBlock *apitypes.TinyBlock, spendTxid string, err error) {
+func retrieveTicketInfoByHash(ctx context.Context, db *sql.DB, ticketHash dbtypes.ChainHash) (spendStatus dbtypes.TicketSpendType,
+	poolStatus dbtypes.TicketPoolStatus, purchaseBlock, lotteryBlock *apitypes.TinyBlock, spendTxid dbtypes.ChainHash, err error) {
 	var dbid sql.NullInt64
-	var purchaseHash, spendHash string
+	var purchaseHash, spendHash dbtypes.ChainHash
 	var purchaseHeight, spendHeight uint32
 	err = db.QueryRowContext(ctx, internal.SelectTicketInfoByHash, ticketHash).
 		Scan(&purchaseHash, &purchaseHeight, &spendStatus, &poolStatus, &dbid)
@@ -1013,7 +1007,7 @@ func RetrieveTicketInfoByHash(ctx context.Context, db *sql.DB, ticketHash string
 	}
 
 	purchaseBlock = &apitypes.TinyBlock{
-		Hash:   purchaseHash,
+		Hash:   purchaseHash.String(),
 		Height: purchaseHeight,
 	}
 
@@ -1035,7 +1029,7 @@ func RetrieveTicketInfoByHash(ctx context.Context, db *sql.DB, ticketHash string
 
 	if spendStatus == dbtypes.TicketVoted {
 		lotteryBlock = &apitypes.TinyBlock{
-			Hash:   spendHash,
+			Hash:   spendHash.String(),
 			Height: spendHeight,
 		}
 	}
@@ -1043,9 +1037,10 @@ func RetrieveTicketInfoByHash(ctx context.Context, db *sql.DB, ticketHash string
 	return
 }
 
-// RetrieveTicketIDsByHashes gets the db row IDs (primary keys) in the tickets
+// retrieveTicketIDsByHashes gets the db row IDs (primary keys) in the tickets
 // table for the given ticket purchase transaction hashes.
-func RetrieveTicketIDsByHashes(ctx context.Context, db *sql.DB, ticketHashes []string) (ids []uint64, err error) {
+/*
+func retrieveTicketIDsByHashes(ctx context.Context, db *sql.DB, ticketHashes []string) (ids []uint64, err error) {
 	var dbtx *sql.Tx
 	dbtx, err = db.BeginTx(ctx, &sql.TxOptions{
 		Isolation: sql.LevelDefault,
@@ -1081,6 +1076,7 @@ func RetrieveTicketIDsByHashes(ctx context.Context, db *sql.DB, ticketHashes []s
 
 	return ids, dbtx.Commit()
 }
+*/
 
 // retrieveTicketsByDate fetches the tickets in the current ticketpool order by the
 // purchase date. The maturity block is needed to identify immature tickets.
@@ -1097,7 +1093,7 @@ func retrieveTicketsByDate(ctx context.Context, db *sql.DB, maturityBlock int64,
 	for rows.Next() {
 		var immature, live uint64
 		var timestamp time.Time
-		var price, total float64
+		var price float64
 		err = rows.Scan(&timestamp, &price, &immature, &live)
 		if err != nil {
 			return nil, fmt.Errorf("retrieveTicketsByDate: %w", err)
@@ -1108,9 +1104,8 @@ func retrieveTicketsByDate(ctx context.Context, db *sql.DB, maturityBlock int64,
 		tickets.Live = append(tickets.Live, live)
 
 		// Returns the average value of a ticket depending on the grouping mode used
-		price *= 100000000
-		total = float64(live + immature)
-		tickets.Price = append(tickets.Price, dcrutil.Amount(price/total).ToCoin())
+		avg := uint64(price*1e8) / (live + immature)
+		tickets.Price = append(tickets.Price, toCoin(avg))
 	}
 	if err = rows.Err(); err != nil {
 		return nil, err
@@ -1183,9 +1178,9 @@ func retrieveTicketsGroupedByType(ctx context.Context, db *sql.DB) (*dbtypes.Poo
 	return tickets, nil
 }
 
-// SetPoolStatusForTickets sets the ticket pool status for the tickets specified
+// setPoolStatusForTickets sets the ticket pool status for the tickets specified
 // by db row ID.
-func SetPoolStatusForTickets(db *sql.DB, ticketDbIDs []uint64, poolStatuses []dbtypes.TicketPoolStatus) (int64, error) {
+func setPoolStatusForTickets(db *sql.DB, ticketDbIDs []uint64, poolStatuses []dbtypes.TicketPoolStatus) (int64, error) {
 	if len(ticketDbIDs) == 0 {
 		return 0, nil
 	}
@@ -1225,6 +1220,7 @@ func SetPoolStatusForTickets(db *sql.DB, ticketDbIDs []uint64, poolStatuses []db
 
 // SetPoolStatusForTicketsByHash sets the ticket pool status for the tickets
 // specified by ticket purchase transaction hash.
+/*
 func SetPoolStatusForTicketsByHash(db *sql.DB, tickets []string,
 	poolStatuses []dbtypes.TicketPoolStatus) (int64, error) {
 	if len(tickets) == 0 {
@@ -1264,11 +1260,12 @@ func SetPoolStatusForTicketsByHash(db *sql.DB, tickets []string,
 
 	return totalTicketsUpdated, dbtx.Commit()
 }
+*/
 
-// SetSpendingForTickets sets the spend type, spend height, spending transaction
+// setSpendingForTickets sets the spend type, spend height, spending transaction
 // row IDs (in the table relevant to the spend type), and ticket pool status for
 // the given tickets specified by their db row IDs.
-func SetSpendingForTickets(db *sql.DB, ticketDbIDs, spendDbIDs []uint64,
+func setSpendingForTickets(db *sql.DB, ticketDbIDs, spendDbIDs []uint64,
 	blockHeights []int64, spendTypes []dbtypes.TicketSpendType,
 	poolStatuses []dbtypes.TicketPoolStatus) (int64, error) {
 	dbtx, err := db.Begin()
@@ -1309,6 +1306,7 @@ func SetSpendingForTickets(db *sql.DB, ticketDbIDs, spendDbIDs []uint64,
 
 // InsertAddressRow inserts an AddressRow (input or output), returning the row
 // ID in the addresses table of the inserted data.
+/*
 func InsertAddressRow(db *sql.DB, dbA *dbtypes.AddressRow, dupCheck, updateExistingRecords bool) (uint64, error) {
 	sqlStmt := internal.MakeAddressRowInsertStatement(dupCheck, updateExistingRecords)
 	var id uint64
@@ -1317,11 +1315,12 @@ func InsertAddressRow(db *sql.DB, dbA *dbtypes.AddressRow, dupCheck, updateExist
 		dbA.IsFunding, dbA.ValidMainChain, dbA.TxType).Scan(&id)
 	return id, err
 }
+*/
 
-// InsertAddressRowsDbTx is like InsertAddressRows, except that it takes a
+// insertAddressRowsDbTx is like InsertAddressRows, except that it takes a
 // sql.Tx. The caller is required to Commit or Rollback the transaction
 // depending on the returned error value.
-func InsertAddressRowsDbTx(dbTx *sql.Tx, dbAs []*dbtypes.AddressRow, dupCheck, updateExistingRecords bool) ([]uint64, error) {
+func insertAddressRowsDbTx(dbTx *sql.Tx, dbAs []*dbtypes.AddressRow, dupCheck, updateExistingRecords bool) ([]uint64, error) {
 	// Prepare the addresses row insert statement.
 	stmt, err := dbTx.Prepare(internal.MakeAddressRowInsertStatement(dupCheck, updateExistingRecords))
 	if err != nil {
@@ -1352,6 +1351,7 @@ func InsertAddressRowsDbTx(dbTx *sql.Tx, dbAs []*dbtypes.AddressRow, dupCheck, u
 	return ids, nil
 }
 
+/*
 // InsertAddressRows inserts multiple transaction inputs or outputs for certain
 // addresses ([]AddressRow). The row IDs of the inserted data are returned.
 func InsertAddressRows(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck, updateExistingRecords bool) ([]uint64, error) {
@@ -1370,30 +1370,31 @@ func InsertAddressRows(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck, updateE
 	return ids, dbtx.Commit()
 }
 
-func RetrieveAddressUnspent(ctx context.Context, db *sql.DB, address string) (count, totalAmount int64, err error) {
+func retrieveAddressUnspent(ctx context.Context, db *sql.DB, address string) (count, totalAmount int64, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectAddressUnspentCountANDValue, address).
 		Scan(&count, &totalAmount)
 	return
 }
 
-func RetrieveAddressSpent(ctx context.Context, db *sql.DB, address string) (count, totalAmount int64, err error) {
+func retrieveAddressSpent(ctx context.Context, db *sql.DB, address string) (count, totalAmount int64, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectAddressSpentCountANDValue, address).
 		Scan(&count, &totalAmount)
 	return
 }
+*/
 
 // retrieveAddressTxsCount return the number of record groups, where grouping is
 // done by a specified time interval, for an address.
-func retrieveAddressTxsCount(ctx context.Context, db *sql.DB, address, interval string) (count int64, err error) {
-	err = db.QueryRowContext(ctx, internal.MakeSelectAddressTimeGroupingCount(interval), address).Scan(&count)
-	return
-}
+// func retrieveAddressTxsCount(ctx context.Context, db *sql.DB, address, interval string) (count int64, err error) {
+// 	err = db.QueryRowContext(ctx, internal.MakeSelectAddressTimeGroupingCount(interval), address).Scan(&count)
+// 	return
+// }
 
-// RetrieveAddressBalance gets the numbers of spent and unspent outpoints
+// retrieveAddressBalance gets the numbers of spent and unspent outpoints
 // for the given address, the total amounts spent and unspent, the number of
 // distinct spending transactions, and the fraction spent to and received from
 // stake-related transactions.
-func RetrieveAddressBalance(ctx context.Context, db *sql.DB, address string) (balance *dbtypes.AddressBalance, err error) {
+func retrieveAddressBalance(ctx context.Context, db *sql.DB, address string) (balance *dbtypes.AddressBalance, err error) {
 	// Never return nil *AddressBalance.
 	balance = &dbtypes.AddressBalance{Address: address}
 
@@ -1470,15 +1471,15 @@ func RetrieveAddressBalance(ctx context.Context, db *sql.DB, address string) (ba
 	return
 }
 
-func CountMergedSpendingTxns(ctx context.Context, db *sql.DB, address string) (count int64, err error) {
+func countMergedSpendingTxns(ctx context.Context, db *sql.DB, address string) (count int64, err error) {
 	return countMerged(ctx, db, address, internal.SelectAddressesMergedSpentCount)
 }
 
-func CountMergedFundingTxns(ctx context.Context, db *sql.DB, address string) (count int64, err error) {
+func countMergedFundingTxns(ctx context.Context, db *sql.DB, address string) (count int64, err error) {
 	return countMerged(ctx, db, address, internal.SelectAddressesMergedFundingCount)
 }
 
-func CountMergedTxns(ctx context.Context, db *sql.DB, address string) (count int64, err error) {
+func countMergedTxns(ctx context.Context, db *sql.DB, address string) (count int64, err error) {
 	return countMerged(ctx, db, address, internal.SelectAddressesMergedCount)
 }
 
@@ -1514,10 +1515,11 @@ func countMerged(ctx context.Context, db *sql.DB, address, query string) (count 
 	return
 }
 
-// RetrieveAddressUTXOs gets the unspent transaction outputs (UTXOs) paying to
+// retrieveAddressUTXOs gets the unspent transaction outputs (UTXOs) paying to
 // the specified address as a []*apitypes.AddressTxnOutput. The input current
 // block height is used to compute confirmations of the located transactions.
-func RetrieveAddressUTXOs(ctx context.Context, db *sql.DB, address string, currentBlockHeight int64) ([]*apitypes.AddressTxnOutput, error) {
+/*
+func retrieveAddressUTXOs(ctx context.Context, db *sql.DB, address string, currentBlockHeight int64) ([]*apitypes.AddressTxnOutput, error) {
 	stmt, err := db.Prepare(internal.SelectAddressUnspentWithTxn)
 	if err != nil {
 		log.Error(err)
@@ -1543,8 +1545,8 @@ func RetrieveAddressUTXOs(ctx context.Context, db *sql.DB, address string, curre
 			return nil, err
 		}
 		txnOutput.BlockTime = blockTime.UNIX()
-		txnOutput.ScriptPubKey = hex.EncodeToString(pkScript)
-		txnOutput.Amount = dcrutil.Amount(atoms).ToCoin()
+		txnOutput.ScriptPubKey = pkScript
+		txnOutput.Amount = toCoin(atoms)
 		txnOutput.Satoshis = atoms
 		txnOutput.Height = blockHeight
 		txnOutput.Confirmations = currentBlockHeight - blockHeight + 1
@@ -1556,11 +1558,12 @@ func RetrieveAddressUTXOs(ctx context.Context, db *sql.DB, address string, curre
 
 	return outputs, nil
 }
+*/
 
-// RetrieveAddressDbUTXOs gets the unspent transaction outputs (UTXOs) paying to
+// retrieveAddressDbUTXOs gets the unspent transaction outputs (UTXOs) paying to
 // the specified address as a []*dbtypes.AddressTxnOutput. The input current
 // block height is used to compute confirmations of the located transactions.
-func RetrieveAddressDbUTXOs(ctx context.Context, db *sql.DB, address string) ([]*dbtypes.AddressTxnOutput, error) {
+func retrieveAddressDbUTXOs(ctx context.Context, db *sql.DB, address string) ([]*dbtypes.AddressTxnOutput, error) {
 	stmt, err := db.Prepare(internal.SelectAddressUnspentWithTxn)
 	if err != nil {
 		log.Error(err)
@@ -1576,23 +1579,15 @@ func RetrieveAddressDbUTXOs(ctx context.Context, db *sql.DB, address string) ([]
 
 	var outputs []*dbtypes.AddressTxnOutput
 	for rows.Next() {
-		pkScript := []byte{}
-		var txHash string
 		var blockTime dbtypes.TimeDef
 		txnOutput := new(dbtypes.AddressTxnOutput)
-		if err = rows.Scan(&txnOutput.Address, &txHash,
+		if err = rows.Scan(&txnOutput.Address, &txnOutput.TxHash,
 			&txnOutput.Atoms, &txnOutput.Height, &blockTime,
-			&txnOutput.Vout, &pkScript); err != nil {
+			&txnOutput.Vout); err != nil {
 			log.Error(err)
 			return nil, err
 		}
 		txnOutput.BlockTime = blockTime.UNIX()
-		err = chainhash.Decode(&txnOutput.TxHash, txHash)
-		if err != nil {
-			log.Error(err)
-			return nil, err
-		}
-		txnOutput.PkScript = hex.EncodeToString(pkScript)
 		outputs = append(outputs, txnOutput)
 	}
 	if err = rows.Err(); err != nil {
@@ -1602,11 +1597,12 @@ func RetrieveAddressDbUTXOs(ctx context.Context, db *sql.DB, address string) ([]
 	return outputs, nil
 }
 
-// RetrieveAddressTxnsOrdered will get all transactions for addresses provided
+// retrieveAddressTxnsOrdered will get all transactions for addresses provided
 // and return them sorted by time in descending order. It will also return a
 // short list of recently (defined as greater than recentBlockHeight) confirmed
 // transactions that can be used to validate mempool status.
-func RetrieveAddressTxnsOrdered(ctx context.Context, db *sql.DB, addresses []string,
+/*
+func retrieveAddressTxnsOrdered(ctx context.Context, db *sql.DB, addresses []string,
 	recentBlockTime int64) (txs, recenttxs []chainhash.Hash, err error) {
 	var stmt *sql.Stmt
 	stmt, err = db.Prepare(internal.SelectAddressesAllTxn)
@@ -1643,10 +1639,12 @@ func RetrieveAddressTxnsOrdered(ctx context.Context, db *sql.DB, addresses []str
 
 	return
 }
+*/
 
-// RetrieveAllAddressTxns retrieves all rows of the address table pertaining to
+// retrieveAllAddressTxns retrieves all rows of the address table pertaining to
 // the given address.
-func RetrieveAllAddressTxns(ctx context.Context, db *sql.DB, address string) ([]*dbtypes.AddressRow, error) {
+/*
+func retrieveAllAddressTxns(ctx context.Context, db *sql.DB, address string) ([]*dbtypes.AddressRow, error) {
 	rows, err := db.QueryContext(ctx, internal.SelectAddressAllByAddress, address)
 	if err != nil {
 		return nil, err
@@ -1655,11 +1653,13 @@ func RetrieveAllAddressTxns(ctx context.Context, db *sql.DB, address string) ([]
 
 	return scanAddressQueryRows(rows, creditDebitQuery)
 }
+*/
 
-// RetrieveAllMainchainAddressTxns retrieves all non-merged and valid_mainchain
+// retrieveAllMainchainAddressTxns retrieves all non-merged and valid_mainchain
 // rows of the address table pertaining to the given address. For a limited
-// query, use RetrieveAddressTxns.
-func RetrieveAllMainchainAddressTxns(ctx context.Context, db *sql.DB, address string) ([]*dbtypes.AddressRow, error) {
+// query, use retrieveAddressTxns.
+/*
+func retrieveAllMainchainAddressTxns(ctx context.Context, db *sql.DB, address string) ([]*dbtypes.AddressRow, error) {
 	rows, err := db.QueryContext(ctx, internal.SelectAddressAllMainchainByAddress, address)
 	if err != nil {
 		return nil, err
@@ -1668,12 +1668,14 @@ func RetrieveAllMainchainAddressTxns(ctx context.Context, db *sql.DB, address st
 
 	return scanAddressQueryRows(rows, creditDebitQuery)
 }
+*/
 
-// RetrieveAllAddressMergedTxns retrieves all merged rows of the address table
+// retrieveAllAddressMergedTxns retrieves all merged rows of the address table
 // pertaining to the given address. Specify only valid_mainchain=true rows via
 // the onlyValidMainchain argument. For a limited query, use
-// RetrieveAddressMergedTxns.
-func RetrieveAllAddressMergedTxns(ctx context.Context, db *sql.DB, address string, onlyValidMainchain bool) ([]uint64, []*dbtypes.AddressRow, error) {
+// retrieveAddressMergedTxns.
+/*
+func retrieveAllAddressMergedTxns(ctx context.Context, db *sql.DB, address string, onlyValidMainchain bool) ([]uint64, []*dbtypes.AddressRow, error) {
 	rows, err := db.QueryContext(ctx, internal.SelectAddressMergedViewAll, address)
 	if err != nil {
 		return nil, nil, err
@@ -1684,44 +1686,25 @@ func RetrieveAllAddressMergedTxns(ctx context.Context, db *sql.DB, address strin
 		onlyValidMainchain)
 	return nil, addr, err
 }
+*/
 
 // Regular (non-merged) address transactions queries.
 
-func RetrieveAddressTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]*dbtypes.AddressRow, error) {
-	return retrieveAddressTxns(ctx, db, address, N, offset,
+func retrieveAddressTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]*dbtypes.AddressRow, error) {
+	return retrieveAddressTxnsStmt(ctx, db, address, N, offset,
 		internal.SelectAddressLimitNByAddress, creditDebitQuery)
-}
-
-func RetrieveAddressDebitTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]*dbtypes.AddressRow, error) {
-	return retrieveAddressTxns(ctx, db, address, N, offset,
-		internal.SelectAddressDebitsLimitNByAddress, creditQuery)
-}
-
-func RetrieveAddressCreditTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]*dbtypes.AddressRow, error) {
-	return retrieveAddressTxns(ctx, db, address, N, offset,
-		internal.SelectAddressCreditsLimitNByAddress, debitQuery)
 }
 
 // Merged address transactions queries.
 
-func RetrieveAddressMergedDebitTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]*dbtypes.AddressRow, error) {
-	return retrieveAddressTxns(ctx, db, address, N, offset,
-		internal.SelectAddressMergedDebitView, mergedDebitQuery)
-}
-
-func RetrieveAddressMergedCreditTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]*dbtypes.AddressRow, error) {
-	return retrieveAddressTxns(ctx, db, address, N, offset,
-		internal.SelectAddressMergedCreditView, mergedCreditQuery)
-}
-
-func RetrieveAddressMergedTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]*dbtypes.AddressRow, error) {
-	return retrieveAddressTxns(ctx, db, address, N, offset,
+func retrieveAddressMergedTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]*dbtypes.AddressRow, error) {
+	return retrieveAddressTxnsStmt(ctx, db, address, N, offset,
 		internal.SelectAddressMergedView, mergedQuery)
 }
 
 // Address transaction query helpers.
 
-func retrieveAddressTxns(ctx context.Context, db *sql.DB, address string, N, offset int64,
+func retrieveAddressTxnsStmt(ctx context.Context, db *sql.DB, address string, N, offset int64,
 	statement string, queryType int) ([]*dbtypes.AddressRow, error) {
 	rows, err := db.QueryContext(ctx, statement, address, N, offset)
 	if err != nil {
@@ -1784,10 +1767,9 @@ func scanAddressQueryRows(rows *sql.Rows, queryType int) (addressRows []*dbtypes
 	for rows.Next() {
 		var id uint64
 		var addr dbtypes.AddressRow
-		var matchingTxHash sql.NullString
 		var txVinIndex, vinDbID sql.NullInt64
 
-		err = rows.Scan(&id, &addr.Address, &matchingTxHash, &addr.TxHash, &addr.TxType,
+		err = rows.Scan(&id, &addr.Address, &addr.MatchingTxHash, &addr.TxHash, &addr.TxType,
 			&addr.ValidMainChain, &txVinIndex, &addr.TxBlockTime, &vinDbID,
 			&addr.Value, &addr.IsFunding)
 
@@ -1810,9 +1792,6 @@ func scanAddressQueryRows(rows *sql.Rows, queryType int) (addressRows []*dbtypes
 			log.Warnf("Unrecognized addresses query type: %d", queryType)
 		}
 
-		if matchingTxHash.Valid {
-			addr.MatchingTxHash = matchingTxHash.String
-		}
 		if txVinIndex.Valid {
 			addr.TxVinVoutIndex = uint32(txVinIndex.Int64)
 		}
@@ -1827,9 +1806,9 @@ func scanAddressQueryRows(rows *sql.Rows, queryType int) (addressRows []*dbtypes
 	return
 }
 
-// RetrieveAddressIDsByOutpoint gets all address row IDs, addresses, and values
+// retrieveAddressIDsByOutpoint gets all address row IDs, addresses, and values
 // for a given outpoint.
-func RetrieveAddressIDsByOutpoint(ctx context.Context, db *sql.DB, txHash string, voutIndex uint32) ([]uint64, []string, int64, error) {
+func retrieveAddressIDsByOutpoint(ctx context.Context, db *sql.DB, txHash dbtypes.ChainHash, voutIndex uint32) ([]uint64, []string, int64, error) {
 	var ids []uint64
 	var addresses []string
 	var value int64
@@ -1860,10 +1839,10 @@ func RetrieveAddressIDsByOutpoint(ctx context.Context, db *sql.DB, txHash string
 // retrieveOldestTxBlockTime helps choose the most appropriate address page
 // graph grouping to load by default depending on when the first transaction to
 // the specific address was made.
-func retrieveOldestTxBlockTime(ctx context.Context, db *sql.DB, addr string) (blockTime dbtypes.TimeDef, err error) {
-	err = db.QueryRowContext(ctx, internal.SelectAddressOldestTxBlockTime, addr).Scan(&blockTime)
-	return
-}
+// func retrieveOldestTxBlockTime(ctx context.Context, db *sql.DB, addr string) (blockTime dbtypes.TimeDef, err error) {
+// 	err = db.QueryRowContext(ctx, internal.SelectAddressOldestTxBlockTime, addr).Scan(&blockTime)
+// 	return
+// }
 
 // retrieveTxHistoryByType fetches the transaction types count for all the
 // transactions associated with a given address for the given time interval.
@@ -1881,7 +1860,8 @@ func retrieveTxHistoryByType(ctx context.Context, db *sql.DB, addr, timeInterval
 	items := new(dbtypes.ChartsData)
 	for rows.Next() {
 		var blockTime time.Time
-		var sentRtx, receivedRtx, tickets, votes, revokeTx uint64
+		var tickets, votes, revokeTx uint32
+		var sentRtx, receivedRtx uint64
 		err = rows.Scan(&blockTime, &sentRtx, &receivedRtx, &tickets, &votes, &revokeTx)
 		if err != nil {
 			return nil, err
@@ -1924,6 +1904,7 @@ func retrieveTxHistoryByAmountFlow(ctx context.Context, db *sql.DB, addr, timeIn
 // the new/updated/conflicting row is returned. The updateOnConflict argument
 // may be omitted, in which case an upsert will be favored over no nothing, but
 // only if checked=true.
+/*
 func InsertVin(db *sql.DB, dbVin dbtypes.VinTxProperty, checked bool, updateOnConflict ...bool) (id uint64, err error) {
 	doUpsert := true
 	if len(updateOnConflict) > 0 {
@@ -1936,10 +1917,11 @@ func InsertVin(db *sql.DB, dbVin dbtypes.VinTxProperty, checked bool, updateOnCo
 		dbVin.TxType).Scan(&id)
 	return
 }
+*/
 
-// InsertVinsStmt is like InsertVins, except that it takes a sql.Stmt. The
+// insertVinsStmt is like InsertVins, except that it takes a sql.Stmt. The
 // caller is required to Close the transaction.
-func InsertVinsStmt(stmt *sql.Stmt, dbVins dbtypes.VinTxPropertyARRAY, checked bool, doUpsert bool) ([]uint64, error) {
+func insertVinsStmt(stmt *sql.Stmt, dbVins dbtypes.VinTxPropertyARRAY) ([]uint64, error) {
 	// TODO/Question: Should we skip inserting coinbase txns, which have same PrevTxHash?
 	ids := make([]uint64, 0, len(dbVins))
 	for _, vin := range dbVins {
@@ -1959,6 +1941,7 @@ func InsertVinsStmt(stmt *sql.Stmt, dbVins dbtypes.VinTxPropertyARRAY, checked b
 // InsertVinsDbTxn is like InsertVins, except that it takes a sql.Tx. The caller
 // is required to Commit or Rollback the transaction depending on the returned
 // error value.
+/*
 func InsertVinsDbTxn(dbTx *sql.Tx, dbVins dbtypes.VinTxPropertyARRAY, checked bool, doUpsert bool) ([]uint64, error) {
 	stmt, err := dbTx.Prepare(internal.MakeVinInsertStatement(checked, doUpsert))
 	if err != nil {
@@ -1977,8 +1960,10 @@ func InsertVinsDbTxn(dbTx *sql.Tx, dbVins dbtypes.VinTxPropertyARRAY, checked bo
 	}
 	return ids, nil
 }
+*/
 
 // InsertVins is like InsertVin, except that it operates on a slice of vin data.
+/*
 func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY, checked bool, updateOnConflict ...bool) ([]uint64, error) {
 	dbtx, err := db.Begin()
 	if err != nil {
@@ -1998,6 +1983,7 @@ func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY, checked bool, upd
 
 	return ids, dbtx.Commit()
 }
+*/
 
 // InsertVout either inserts, attempts to insert, or upserts the given vout data
 // into the vouts table. If checked=false, an unconditional insert as attempted,
@@ -2007,6 +1993,7 @@ func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY, checked bool, upd
 // the new/updated/conflicting row is returned. The updateOnConflict argument
 // may be omitted, in which case an upsert will be favored over no nothing, but
 // only if checked=true.
+/*
 func InsertVout(db *sql.DB, dbVout *dbtypes.Vout, checked bool, updateOnConflict ...bool) (uint64, error) {
 	doUpsert := true
 	if len(updateOnConflict) > 0 {
@@ -2022,19 +2009,52 @@ func InsertVout(db *sql.DB, dbVout *dbtypes.Vout, checked bool, updateOnConflict
 		pq.Array(dbVout.ScriptPubKeyData.Addresses)).Scan(&id)
 	return id, err
 }
+*/
 
-// InsertVoutsStmt is like InsertVouts, except that it takes a sql.Stmt. The
+type addressList []string
+
+func (al addressList) Value() (driver.Value, error) {
+	switch len(al) {
+	case 0:
+		return "unknown", nil
+	case 1:
+		return al[0], nil
+	}
+
+	return pq.StringArray(al).Value()
+}
+
+func (al *addressList) Scan(src interface{}) error {
+	switch src := src.(type) {
+	case string:
+		switch src {
+		case "unknown", "{}":
+			*al = []string{}
+			return nil
+		}
+		if len(src) > 2 && src[0] == '{' && src[len(src)-1] == '}' {
+			*al = strings.Split(src, ",")
+			return nil
+		}
+		*al = []string{src}
+		return nil
+	default:
+		return errors.New("not an addressList")
+	}
+}
+
+// insertVoutsStmt is like InsertVouts, except that it takes a sql.Stmt. The
 // caller is required to Close the statement.
-func InsertVoutsStmt(stmt *sql.Stmt, dbVouts []*dbtypes.Vout, checked bool, doUpsert bool) ([]uint64, []dbtypes.AddressRow, error) {
+func insertVoutsStmt(stmt *sql.Stmt, dbVouts []*dbtypes.Vout) ([]uint64, []dbtypes.AddressRow, error) {
 	addressRows := make([]dbtypes.AddressRow, 0, len(dbVouts)) // may grow with multisig
 	ids := make([]uint64, 0, len(dbVouts))
 	for _, vout := range dbVouts {
 		var id uint64
 		err := stmt.QueryRow(
 			vout.TxHash, vout.TxIndex, vout.TxTree, vout.Value, int32(vout.Version),
-			vout.ScriptPubKey, int32(vout.ScriptPubKeyData.ReqSigs),
+			// vout.ScriptPubKey, int32(vout.ScriptPubKeyData.ReqSigs),
 			vout.ScriptPubKeyData.Type,
-			pq.Array(vout.ScriptPubKeyData.Addresses), vout.Mixed).Scan(&id)
+			addressList(vout.ScriptPubKeyData.Addresses), vout.Mixed).Scan(&id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				continue
@@ -2063,6 +2083,7 @@ func InsertVoutsStmt(stmt *sql.Stmt, dbVouts []*dbtypes.Vout, checked bool, doUp
 // InsertVoutsDbTxn is like InsertVouts, except that it takes a sql.Tx. The
 // caller is required to Commit or Rollback the transaction depending on the
 // returned error value.
+/*
 func InsertVoutsDbTxn(dbTx *sql.Tx, dbVouts []*dbtypes.Vout, checked bool, doUpsert bool) ([]uint64, []dbtypes.AddressRow, error) {
 	stmt, err := dbTx.Prepare(internal.MakeVoutInsertStatement(checked, doUpsert))
 	if err != nil {
@@ -2080,9 +2101,11 @@ func InsertVoutsDbTxn(dbTx *sql.Tx, dbVouts []*dbtypes.Vout, checked bool, doUps
 
 	return ids, addressRows, stmt.Close()
 }
+*/
 
 // InsertVouts is like InsertVout, except that it operates on a slice of vout
 // data.
+/*
 func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool, updateOnConflict ...bool) ([]uint64, []dbtypes.AddressRow, error) {
 	// All inserts in atomic DB transaction
 	dbTx, err := db.Begin()
@@ -2103,33 +2126,38 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool, updateOnConf
 
 	return ids, addressRows, dbTx.Commit()
 }
+*/
 
-func RetrievePkScriptByVinID(ctx context.Context, db *sql.DB, vinID uint64) (pkScript []byte, ver uint16, err error) {
-	err = db.QueryRowContext(ctx, internal.SelectPkScriptByVinID, vinID).Scan(&ver, &pkScript)
-	return
-}
+// func retrievePkScriptByVinID(ctx context.Context, db *sql.DB, vinID uint64) (pkScript []byte, ver uint16, err error) {
+// 	err = db.QueryRowContext(ctx, internal.SelectPkScriptByVinID, vinID).Scan(&ver, &pkScript)
+// 	return
+// }
 
-func RetrievePkScriptByVoutID(ctx context.Context, db *sql.DB, voutID uint64) (pkScript []byte, ver uint16, err error) {
+/*
+func retrievePkScriptByVoutID(ctx context.Context, db *sql.DB, voutID uint64) (pkScript []byte, ver uint16, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectPkScriptByID, voutID).Scan(&ver, &pkScript)
 	return
 }
 
-func RetrievePkScriptByOutpoint(ctx context.Context, db *sql.DB, txHash string, voutIndex uint32) (pkScript []byte, ver uint16, err error) {
+func retrievePkScriptByOutpoint(ctx context.Context, db *sql.DB, txHash string, voutIndex uint32) (pkScript []byte, ver uint16, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectPkScriptByOutpoint, txHash, voutIndex).Scan(&ver, &pkScript)
 	return
 }
 
-func RetrieveVoutIDByOutpoint(ctx context.Context, db *sql.DB, txHash string, voutIndex uint32) (id uint64, err error) {
+func retrieveVoutIDByOutpoint(ctx context.Context, db *sql.DB, txHash string, voutIndex uint32) (id uint64, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectVoutIDByOutpoint, txHash, voutIndex).Scan(&id)
 	return
 }
+*/
 
-func RetrieveVoutValue(ctx context.Context, db *sql.DB, txHash string, voutIndex uint32) (value uint64, err error) {
+// TEST ONLY REMOVE
+func retrieveVoutValue(ctx context.Context, db *sql.DB, txHash dbtypes.ChainHash, voutIndex uint32) (value uint64, err error) {
 	err = db.QueryRowContext(ctx, internal.RetrieveVoutValue, txHash, voutIndex).Scan(&value)
 	return
 }
 
-func RetrieveVoutValues(ctx context.Context, db *sql.DB, txHash string) (values []uint64, txInds []uint32, txTrees []int8, err error) {
+// TEST ONLY REMOVE
+func retrieveVoutValues(ctx context.Context, db *sql.DB, txHash dbtypes.ChainHash) (values []uint64, txInds []uint32, txTrees []int8, err error) {
 	var rows *sql.Rows
 	rows, err = db.QueryContext(ctx, internal.RetrieveVoutValues, txHash)
 	if err != nil {
@@ -2155,10 +2183,11 @@ func RetrieveVoutValues(ctx context.Context, db *sql.DB, txHash string) (values 
 	return
 }
 
-// RetrieveAllVinDbIDs gets every row ID (the primary keys) for the vins table.
+// retrieveAllVinDbIDs gets every row ID (the primary keys) for the vins table.
 // This function is used in UpdateSpendingInfoInAllAddresses, so it should not
 // be subject to timeouts.
-func RetrieveAllVinDbIDs(db *sql.DB) (vinDbIDs []uint64, err error) {
+/* unused
+func retrieveAllVinDbIDs(db *sql.DB) (vinDbIDs []uint64, err error) {
 	var rows *sql.Rows
 	rows, err = db.Query(internal.SelectVinIDsALL)
 	if err != nil {
@@ -2179,76 +2208,85 @@ func RetrieveAllVinDbIDs(db *sql.DB) (vinDbIDs []uint64, err error) {
 
 	return
 }
+*/
 
-// RetrieveFundingOutpointByTxIn gets the previous outpoint for a transaction
+// retrieveFundingOutpointByTxIn gets the previous outpoint for a transaction
 // input specified by transaction hash and input index.
-func RetrieveFundingOutpointByTxIn(ctx context.Context, db *sql.DB, txHash string,
+/* unused
+func retrieveFundingOutpointByTxIn(ctx context.Context, db *sql.DB, txHash string,
 	vinIndex uint32) (id uint64, tx string, index uint32, tree int8, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectFundingOutpointByTxIn, txHash, vinIndex).
 		Scan(&id, &tx, &index, &tree)
 	return
 }
+*/
 
-// RetrieveFundingOutpointByVinID gets the previous outpoint for a transaction
+// retrieveFundingOutpointByVinID gets the previous outpoint for a transaction
 // input specified by row ID in the vins table.
-func RetrieveFundingOutpointByVinID(ctx context.Context, db *sql.DB, vinDbID uint64) (tx string, index uint32, tree int8, err error) {
+/* unused
+func retrieveFundingOutpointByVinID(ctx context.Context, db *sql.DB, vinDbID uint64) (tx string, index uint32, tree int8, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectFundingOutpointByVinID, vinDbID).
 		Scan(&tx, &index, &tree)
 	return
 }
+*/
 
-// RetrieveFundingOutpointIndxByVinID gets the transaction output index of the
+// retrieveFundingOutpointIndxByVinID gets the transaction output index of the
 // previous outpoint for a transaction input specified by row ID in the vins
 // table.
-func RetrieveFundingOutpointIndxByVinID(ctx context.Context, db *sql.DB, vinDbID uint64) (idx uint32, err error) {
+func retrieveFundingOutpointIndxByVinID(ctx context.Context, db *sql.DB, vinDbID uint64) (idx uint32, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectFundingOutpointIndxByVinID, vinDbID).Scan(&idx)
 	return
 }
 
-// RetrieveFundingTxByTxIn gets the transaction hash of the previous outpoint
+// retrieveFundingTxByTxIn gets the transaction hash of the previous outpoint
 // for a transaction input specified by hash and input index.
-func RetrieveFundingTxByTxIn(ctx context.Context, db *sql.DB, txHash string, vinIndex uint32) (id uint64, tx string, err error) {
+/* unused
+func retrieveFundingTxByTxIn(ctx context.Context, db *sql.DB, txHash string, vinIndex uint32) (id uint64, tx string, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectFundingTxByTxIn, txHash, vinIndex).
 		Scan(&id, &tx)
 	return
 }
+*/
 
-// RetrieveFundingTxByVinDbID gets the transaction hash of the previous outpoint
+// retrieveFundingTxByVinDbID gets the transaction hash of the previous outpoint
 // for a transaction input specified by row ID in the vins table. This function
 // is used only in UpdateSpendingInfoInAllTickets, so it should not be subject
 // to timeouts.
-func RetrieveFundingTxByVinDbID(ctx context.Context, db *sql.DB, vinDbID uint64) (tx string, err error) {
-	err = db.QueryRowContext(ctx, internal.SelectFundingTxByVinID, vinDbID).Scan(&tx)
-	return
-}
+// func retrieveFundingTxByVinDbID(ctx context.Context, db *sql.DB, vinDbID uint64) (tx string, err error) {
+// 	err = db.QueryRowContext(ctx, internal.SelectFundingTxByVinID, vinDbID).Scan(&tx)
+// 	return
+// }
 
-// RetrieveSpendingTxByVinID gets the spending transaction input (hash, vin
+// retrieveSpendingTxByVinID gets the spending transaction input (hash, vin
 // number, and tx tree) for the transaction input specified by row ID in the
 // vins table.
-func RetrieveSpendingTxByVinID(ctx context.Context, db *sql.DB, vinDbID uint64) (tx string,
+/* unused
+func retrieveSpendingTxByVinID(ctx context.Context, db *sql.DB, vinDbID uint64) (tx string,
 	vinIndex uint32, tree int8, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectSpendingTxByVinID, vinDbID).
 		Scan(&tx, &vinIndex, &tree)
 	return
 }
+*/
 
-// RetrieveSpendingTxByTxOut gets any spending transaction input info for a
+// retrieveSpendingTxByTxOut gets any spending transaction input info for a
 // previous outpoint specified by funding transaction hash and vout number. This
 // function is called by SpendingTransaction, an important part of the address
 // page loading.
-func RetrieveSpendingTxByTxOut(ctx context.Context, db *sql.DB, txHash string,
-	voutIndex uint32) (id uint64, tx string, vin uint32, tree int8, err error) {
+func retrieveSpendingTxByTxOut(ctx context.Context, db *sql.DB, txHash dbtypes.ChainHash,
+	voutIndex uint32) (id uint64, tx dbtypes.ChainHash, vin uint32, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectSpendingTxByPrevOut,
-		txHash, voutIndex).Scan(&id, &tx, &vin, &tree)
+		txHash, voutIndex).Scan(&id, &tx, &vin)
 	return
 }
 
-// RetrieveSpendingTxsByFundingTx gets info on all spending transaction inputs
+// retrieveSpendingTxsByFundingTx gets info on all spending transaction inputs
 // for the given funding transaction specified by DB row ID. This function is
 // called by SpendingTransactions, an important part of the transaction page
 // loading, among other functions..
-func RetrieveSpendingTxsByFundingTx(ctx context.Context, db *sql.DB, fundingTxID string) (dbIDs []uint64,
-	txns []string, vinInds []uint32, voutInds []uint32, err error) {
+func retrieveSpendingTxsByFundingTx(ctx context.Context, db *sql.DB, fundingTxID dbtypes.ChainHash) (dbIDs []uint64,
+	txns []dbtypes.ChainHash, vinInds []uint32, voutInds []uint32, err error) {
 	var rows *sql.Rows
 	rows, err = db.QueryContext(ctx, internal.SelectSpendingTxsByPrevTx, fundingTxID)
 	if err != nil {
@@ -2258,15 +2296,15 @@ func RetrieveSpendingTxsByFundingTx(ctx context.Context, db *sql.DB, fundingTxID
 
 	for rows.Next() {
 		var id uint64
-		var tx string
+		var txHash dbtypes.ChainHash
 		var vin, vout uint32
-		err = rows.Scan(&id, &tx, &vin, &vout)
+		err = rows.Scan(&id, &txHash, &vin, &vout)
 		if err != nil {
 			return
 		}
 
 		dbIDs = append(dbIDs, id)
-		txns = append(txns, tx)
+		txns = append(txns, txHash)
 		vinInds = append(vinInds, vin)
 		voutInds = append(voutInds, vout)
 	}
@@ -2275,10 +2313,10 @@ func RetrieveSpendingTxsByFundingTx(ctx context.Context, db *sql.DB, fundingTxID
 	return
 }
 
-// RetrieveSpendingTxsByFundingTxWithBlockHeight will retrieve all transactions,
+// retrieveSpendingTxsByFundingTxWithBlockHeight will retrieve all transactions,
 // indexes and block heights funded by a specific transaction. This function is
 // used by the DCR to Insight transaction converter.
-func RetrieveSpendingTxsByFundingTxWithBlockHeight(ctx context.Context, db *sql.DB, fundingTxID string) (aSpendByFunHash []*apitypes.SpendByFundingHash, err error) {
+func retrieveSpendingTxsByFundingTxWithBlockHeight(ctx context.Context, db *sql.DB, fundingTxID dbtypes.ChainHash) (aSpendByFunHash []*apitypes.SpendByFundingHash, err error) {
 	var rows *sql.Rows
 	rows, err = db.QueryContext(ctx, internal.SelectSpendingTxsByPrevTxWithBlockHeight, fundingTxID)
 	if err != nil {
@@ -2301,8 +2339,9 @@ func RetrieveSpendingTxsByFundingTxWithBlockHeight(ctx context.Context, db *sql.
 	return
 }
 
-// RetrieveVinByID gets from the vins table for the provided row ID.
-func RetrieveVinByID(ctx context.Context, db *sql.DB, vinDbID uint64) (prevOutHash string, prevOutVoutInd uint32,
+// retrieveVinByID gets from the vins table for the provided row ID.
+/* unused
+func retrieveVinByID(ctx context.Context, db *sql.DB, vinDbID uint64) (prevOutHash string, prevOutVoutInd uint32,
 	prevOutTree int8, txHash string, txVinInd uint32, txTree int8, valueIn int64, err error) {
 	var blockTime dbtypes.TimeDef
 	var isValid, isMainchain bool
@@ -2312,11 +2351,12 @@ func RetrieveVinByID(ctx context.Context, db *sql.DB, vinDbID uint64) (prevOutHa
 			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn, &txType)
 	return
 }
+*/
 
-// RetrieveVinsByIDs retrieves vin details for the rows of the vins table
+// retrieveVinsByIDs retrieves vin details for the rows of the vins table
 // specified by the provided row IDs. This function is an important part of the
 // transaction page.
-func RetrieveVinsByIDs(ctx context.Context, db *sql.DB, vinDbIDs []uint64) ([]dbtypes.VinTxProperty, error) {
+func retrieveVinsByIDs(ctx context.Context, db *sql.DB, vinDbIDs []uint64) ([]dbtypes.VinTxProperty, error) {
 	vins := make([]dbtypes.VinTxProperty, len(vinDbIDs))
 	for i, id := range vinDbIDs {
 		vin := &vins[i]
@@ -2331,52 +2371,52 @@ func RetrieveVinsByIDs(ctx context.Context, db *sql.DB, vinDbIDs []uint64) ([]db
 	return vins, nil
 }
 
-// RetrieveVoutsByIDs retrieves vout details for the rows of the vouts table
+// retrieveVoutsByIDs retrieves vout details for the rows of the vouts table
 // specified by the provided row IDs. This function is an important part of the
 // transaction page.
-func RetrieveVoutsByIDs(ctx context.Context, db *sql.DB, voutDbIDs []uint64) ([]dbtypes.Vout, error) {
+func retrieveVoutsByIDs(ctx context.Context, db *sql.DB, voutDbIDs []uint64) ([]dbtypes.Vout, error) {
 	vouts := make([]dbtypes.Vout, len(voutDbIDs))
 	for i, id := range voutDbIDs {
 		vout := &vouts[i]
 		var id0 uint64
 		var spendTxRowID sql.NullInt64 // discarded, but can be NULL
-		var reqSigs uint32
-		var addresses string
+		// var reqSigs uint32
+		var addresses addressList
 		var scriptClass dbtypes.ScriptClass // or scan a string and then dbtypes.NewScriptClassFromString(scriptTypeString)
 		err := db.QueryRowContext(ctx, internal.SelectVoutByID, id).Scan(&id0, &vout.TxHash,
 			&vout.TxIndex, &vout.TxTree, &vout.Value, &vout.Version,
-			&vout.ScriptPubKey, &reqSigs, &scriptClass, &addresses, &vout.Mixed, &spendTxRowID)
+			/* &vout.ScriptPubKey, &reqSigs, */ &scriptClass, &addresses, &vout.Mixed, &spendTxRowID)
 		if err != nil {
 			return nil, err
 		}
 		// Parse the addresses array
-		replacer := strings.NewReplacer("{", "", "}", "")
-		addresses = replacer.Replace(addresses)
+		// replacer := strings.NewReplacer("{", "", "}", "")
+		// addresses = replacer.Replace(addresses)
 
-		vout.ScriptPubKeyData.ReqSigs = reqSigs
+		// vout.ScriptPubKeyData.ReqSigs = reqSigs
 		vout.ScriptPubKeyData.Type = scriptClass
 		// If there are no addresses, the Addresses should be nil or length
 		// zero. However, strings.Split will return [""] if addresses is "".
 		// If that is the case, leave it as a nil slice.
 		if len(addresses) > 0 {
-			vout.ScriptPubKeyData.Addresses = strings.Split(addresses, ",")
+			vout.ScriptPubKeyData.Addresses = addresses // strings.Split(addresses, ",")
 		}
 	}
 	return vouts, nil
 }
 
-func RetrieveUTXOsByVinsJoin(ctx context.Context, db *sql.DB) ([]dbtypes.UTXO, error) {
-	return retrieveUTXOs(ctx, db, internal.SelectUTXOsViaVinsMatch)
-}
-
-// RetrieveUTXOs gets the entire UTXO set from the vouts and vins tables.
-func RetrieveUTXOs(ctx context.Context, db *sql.DB) ([]dbtypes.UTXO, error) {
-	return retrieveUTXOs(ctx, db, internal.SelectUTXOs)
-}
+// func retrieveUTXOsByVinsJoin(ctx context.Context, db *sql.DB) ([]dbtypes.UTXO, error) {
+// 	return retrieveUTXOsStmt(ctx, db, internal.SelectUTXOsViaVinsMatch)
+// }
 
 // retrieveUTXOs gets the entire UTXO set from the vouts and vins tables.
-func retrieveUTXOs(ctx context.Context, db *sql.DB, stmt string) ([]dbtypes.UTXO, error) {
-	_, height, err := DBBestBlock(ctx, db)
+func retrieveUTXOs(ctx context.Context, db *sql.DB) ([]dbtypes.UTXO, error) {
+	return retrieveUTXOsStmt(ctx, db, internal.SelectUTXOs)
+}
+
+// retrieveUTXOsStmt gets the entire UTXO set from the vouts and vins tables.
+func retrieveUTXOsStmt(ctx context.Context, db *sql.DB, stmt string) ([]dbtypes.UTXO, error) {
+	_, height, err := dbBestBlock(ctx, db)
 	if err != nil {
 		return nil, err
 	}
@@ -2426,6 +2466,7 @@ func retrieveUTXOs(ctx context.Context, db *sql.DB, stmt string) ([]dbtypes.UTXO
 // SetSpendingForVinDbIDs updates rows of the addresses table with spending
 // information from the rows of the vins table specified by vinDbIDs. This does
 // not insert the spending transaction into the addresses table.
+/*
 func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, error) {
 	// Get funding details for vin and set them in the address table.
 	dbtx, err := db.Begin()
@@ -2484,10 +2525,12 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 
 	return addressRowsUpdated, totalUpdated, dbtx.Commit()
 }
+*/
 
 // SetSpendingForVinDbID updates rows of the addresses table with spending
 // information from the row of the vins table specified by vinDbID. This does
 // not insert the spending transaction into the addresses table.
+/*
 func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 	// Get funding details for the vin and set them in the address table.
 	dbtx, err := db.Begin()
@@ -2521,15 +2564,16 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 
 	return N, dbtx.Commit()
 }
+*/
 
-// SetSpendingForFundingOP updates funding rows of the addresses table with the
+// setSpendingForFundingOP updates funding rows of the addresses table with the
 // provided spending transaction output info. Only update rows of mainchain or
 // side chain transactions according to forMainchain. Technically
 // forMainchain=false also permits updating rows that are stake invalidated, but
 // consensus-validated transactions cannot spend outputs from stake-invalidated
 // transactions so the funding tx must not be invalid.
-func SetSpendingForFundingOP(db SqlExecutor, fundingTxHash string, fundingTxVoutIndex uint32,
-	spendingTxHash string, forMainchain bool) (int64, error) {
+func setSpendingForFundingOP(db SqlExecutor, fundingTxHash dbtypes.ChainHash, fundingTxVoutIndex uint32,
+	spendingTxHash dbtypes.ChainHash, forMainchain bool) (int64, error) {
 	// Update the matchingTxHash for the funding tx output. matchingTxHash here
 	// is the hash of the funding tx.
 	res, err := db.Exec(internal.SetAddressMatchingTxHashForOutpoint,
@@ -2588,6 +2632,7 @@ func resetSpendingForVoutsByTxRowID(tx *sql.Tx, spendingTxRowIDs []int64) (int64
 
 // InsertSpendingAddressRow inserts a new spending tx row, and updates any
 // corresponding funding tx row.
+/*
 func InsertSpendingAddressRow(db *sql.DB, fundingTxHash string, fundingTxVoutIndex uint32, fundingTxTree int8,
 	spendingTxHash string, spendingTxVinIndex uint32, vinDbID uint64, utxoData *dbtypes.UTXOData,
 	checked, updateExisting, mainchain, valid bool, txType int16, updateFundingRow bool,
@@ -2608,25 +2653,9 @@ func InsertSpendingAddressRow(db *sql.DB, fundingTxHash string, fundingTxVoutInd
 
 	return fromAddrs, c, voutDbID, mixedOut, dbtx.Commit()
 }
+*/
 
-func updateSpendTxInfoInAllVouts(db SqlExecutor) (int64, error) {
-	// Set vouts.spend_tx_row_id using vouts.tx_hash, vins.prev_tx_hash, and
-	// transactions.tx_hash.
-	res, err := db.Exec(`UPDATE vouts SET spend_tx_row_id = transactions.id
-			FROM vins, transactions
-			WHERE vouts.tx_hash=vins.prev_tx_hash
-				AND vouts.tx_index=vins.prev_tx_index
-				AND vouts.value > 0
-				AND vins.is_mainchain=TRUE
-				AND transactions.tx_hash=vins.tx_hash
-				AND transactions.is_valid;`) // transactions.tree=1 implies transactions.is_valid=true
-	if err != nil {
-		return 0, fmt.Errorf("UPDATE vouts.spend_tx_row_id error: %w", err)
-	}
-	return res.RowsAffected()
-}
-
-func retrieveTxOutData(tx SqlQueryer, txid string, idx uint32, tree int8) (*dbtypes.UTXOData, error) {
+func retrieveTxOutData(tx SqlQueryer, txid dbtypes.ChainHash, idx uint32, tree int8) (*dbtypes.UTXOData, error) {
 	var data dbtypes.UTXOData
 	var addrArray string
 	err := tx.QueryRow(internal.SelectVoutAddressesByTxOut, txid, idx, tree).
@@ -2646,8 +2675,8 @@ func retrieveTxOutData(tx SqlQueryer, txid string, idx uint32, tree int8) (*dbty
 // insertSpendingAddressRow inserts a new row in the addresses table for a new
 // transaction input, and updates the spending information for the addresses
 // table row and vouts table row corresponding to the previous outpoint.
-func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutIndex uint32,
-	fundingTxTree int8, spendingTxHash string, spendingTxVinIndex uint32, vinDbID uint64,
+func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash dbtypes.ChainHash, fundingTxVoutIndex uint32,
+	fundingTxTree int8, spendingTxHash dbtypes.ChainHash, spendingTxVinIndex uint32, vinDbID uint64,
 	spentUtxoData *dbtypes.UTXOData, checked, updateExisting, mainchain, valid bool, txType int16,
 	updateFundingRow bool, blockT ...dbtypes.TimeDef) ([]string, int64, int64, bool, error) {
 
@@ -2707,7 +2736,7 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 		// the spending transaction is side chain, so must be the funding tx to
 		// update it. (Similarly for mainchain, but a mainchain block always has
 		// a parent on the main chain).
-		N, err := SetSpendingForFundingOP(tx, fundingTxHash, fundingTxVoutIndex,
+		N, err := setSpendingForFundingOP(tx, fundingTxHash, fundingTxVoutIndex,
 			spendingTxHash, mainchain)
 		return addrs, N, voutDbID, mixed, err
 	}
@@ -2797,13 +2826,13 @@ func retrieveTotalAgendaVotesCount(ctx context.Context, db *sql.DB, agendaID str
 
 // --- atomic swap tables
 
-func InsertSwap(db SqlExecutor, spendHeight int64, swapInfo *txhelpers.AtomicSwapData) error {
+func insertSwap(db SqlExecutor, spendHeight int64, swapInfo *txhelpers.AtomicSwapData) error {
 	var secret interface{} // only nil interface stores a NULL, not even nil slice
 	if len(swapInfo.Secret) > 0 {
 		secret = swapInfo.Secret
 	}
-	_, err := db.Exec(internal.InsertContractSpend, swapInfo.ContractTx.String(), swapInfo.ContractVout,
-		swapInfo.SpendTx.String(), swapInfo.SpendVin, spendHeight,
+	_, err := db.Exec(internal.InsertContractSpend, (*dbtypes.ChainHash)(swapInfo.ContractTx), swapInfo.ContractVout,
+		(*dbtypes.ChainHash)(swapInfo.SpendTx), swapInfo.SpendVin, spendHeight,
 		swapInfo.ContractAddress, swapInfo.Value,
 		swapInfo.SecretHash[:], secret, swapInfo.Locktime)
 	return err
@@ -2811,6 +2840,7 @@ func InsertSwap(db SqlExecutor, spendHeight int64, swapInfo *txhelpers.AtomicSwa
 
 // --- transactions table ---
 
+/*
 func InsertTx(db *sql.DB, dbTx *dbtypes.Tx, checked, updateExistingRecords bool) (uint64, error) {
 	insertStatement := internal.MakeTxInsertStatement(checked, updateExistingRecords)
 	var id uint64
@@ -2824,13 +2854,14 @@ func InsertTx(db *sql.DB, dbTx *dbtypes.Tx, checked, updateExistingRecords bool)
 		dbTx.IsValid, dbTx.IsMainchainBlock).Scan(&id)
 	return id, err
 }
+*/
 
-func InsertTxnsStmt(stmt *sql.Stmt, dbTxns []*dbtypes.Tx, checked, updateExistingRecords bool) ([]uint64, error) {
+func insertTxnsStmt(stmt *sql.Stmt, dbTxns []*dbtypes.Tx) ([]uint64, error) {
 	ids := make([]uint64, 0, len(dbTxns))
 	for _, tx := range dbTxns {
 		var id uint64
 		err := stmt.QueryRow(
-			tx.BlockHash, tx.BlockHeight, tx.BlockTime, tx.Time,
+			tx.BlockHash, tx.BlockHeight, tx.BlockTime,
 			tx.TxType, int16(tx.Version), tx.Tree, tx.TxID, tx.BlockIndex,
 			int32(tx.Locktime), int32(tx.Expiry), tx.Size, tx.Spent, tx.Sent, tx.Fees,
 			tx.MixCount, tx.MixDenom,
@@ -2848,13 +2879,13 @@ func InsertTxnsStmt(stmt *sql.Stmt, dbTxns []*dbtypes.Tx, checked, updateExistin
 	return ids, nil
 }
 
-func InsertTxnsDbTxn(dbTx *sql.Tx, dbTxns []*dbtypes.Tx, checked, updateExistingRecords bool) ([]uint64, error) {
+func insertTxnsDbTxn(dbTx *sql.Tx, dbTxns []*dbtypes.Tx, checked, updateExistingRecords bool) ([]uint64, error) {
 	stmt, err := dbTx.Prepare(internal.MakeTxInsertStatement(checked, updateExistingRecords))
 	if err != nil {
 		return nil, err
 	}
 
-	ids, err := InsertTxnsStmt(stmt, dbTxns, checked, updateExistingRecords)
+	ids, err := insertTxnsStmt(stmt, dbTxns)
 	// Try to close the statement even if the inserts failed.
 	errClose := stmt.Close()
 	if err != nil {
@@ -2866,6 +2897,7 @@ func InsertTxnsDbTxn(dbTx *sql.Tx, dbTxns []*dbtypes.Tx, checked, updateExisting
 	return ids, nil
 }
 
+/*
 func InsertTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked, updateExistingRecords bool) ([]uint64, error) {
 	dbtx, err := db.Begin()
 	if err != nil {
@@ -2908,17 +2940,18 @@ func InsertTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked, updateExistingRecords
 
 	return ids, dbtx.Commit()
 }
+*/
 
-// RetrieveDbTxByHash retrieves a row of the transactions table corresponding to
+// retrieveDbTxByHash retrieves a row of the transactions table corresponding to
 // the given transaction hash. Stake-validated transactions in mainchain blocks
 // are chosen first. This function is used by FillAddressTransactions, an
 // important component of the addresses page.
-func RetrieveDbTxByHash(ctx context.Context, db *sql.DB, txHash string) (id uint64, dbTx *dbtypes.Tx, err error) {
+func retrieveDbTxByHash(ctx context.Context, db *sql.DB, txHash dbtypes.ChainHash) (id uint64, dbTx *dbtypes.Tx, err error) {
 	dbTx = new(dbtypes.Tx)
 	vinDbIDs := dbtypes.UInt64Array(dbTx.VinDbIds)
 	voutDbIDs := dbtypes.UInt64Array(dbTx.VoutDbIds)
 	err = db.QueryRowContext(ctx, internal.SelectFullTxByHash, txHash).Scan(&id,
-		&dbTx.BlockHash, &dbTx.BlockHeight, &dbTx.BlockTime, &dbTx.Time,
+		&dbTx.BlockHash, &dbTx.BlockHeight, &dbTx.BlockTime,
 		&dbTx.TxType, &dbTx.Version, &dbTx.Tree, &dbTx.TxID, &dbTx.BlockIndex,
 		&dbTx.Locktime, &dbTx.Expiry, &dbTx.Size, &dbTx.Spent, &dbTx.Sent,
 		&dbTx.Fees, &dbTx.MixCount, &dbTx.MixDenom, &dbTx.NumVin, &vinDbIDs,
@@ -2928,10 +2961,11 @@ func RetrieveDbTxByHash(ctx context.Context, db *sql.DB, txHash string) (id uint
 	return
 }
 
-// RetrieveFullTxByHash gets all data from the transactions table for the
+// retrieveFullTxByHash gets all data from the transactions table for the
 // transaction specified by its hash. Transactions in valid and mainchain blocks
-// are chosen first. See also RetrieveDbTxByHash.
-func RetrieveFullTxByHash(ctx context.Context, db *sql.DB, txHash string) (id uint64,
+// are chosen first. See also retrieveDbTxByHash.
+/*
+func retrieveFullTxByHash(ctx context.Context, db *sql.DB, txHash string) (id uint64,
 	blockHash string, blockHeight int64, blockTime, timeVal dbtypes.TimeDef,
 	txType int16, version int32, tree int8, blockInd uint32,
 	lockTime, expiry int32, size uint32, spent, sent, fees int64,
@@ -2946,11 +2980,12 @@ func RetrieveFullTxByHash(ctx context.Context, db *sql.DB, txHash string) (id ui
 		&isValidBlock, &isMainchainBlock)
 	return
 }
+*/
 
-// RetrieveDbTxsByHash retrieves all the rows of the transactions table,
+// retrieveDbTxsByHash retrieves all the rows of the transactions table,
 // including the primary keys/ids, for the given transaction hash. This function
 // is used by the transaction page via ChainDB.Transaction.
-func RetrieveDbTxsByHash(ctx context.Context, db *sql.DB, txHash string) (ids []uint64, dbTxs []*dbtypes.Tx, err error) {
+func retrieveDbTxsByHash(ctx context.Context, db *sql.DB, txHash dbtypes.ChainHash) (ids []uint64, dbTxs []*dbtypes.Tx, err error) {
 	var rows *sql.Rows
 	rows, err = db.QueryContext(ctx, internal.SelectFullTxsByHash, txHash)
 	if err != nil {
@@ -2966,7 +3001,7 @@ func RetrieveDbTxsByHash(ctx context.Context, db *sql.DB, txHash string) (ids []
 		// voutDbIDs := dbtypes.UInt64Array(dbTx.VoutDbIds)
 
 		err = rows.Scan(&id,
-			&dbTx.BlockHash, &dbTx.BlockHeight, &dbTx.BlockTime, &dbTx.Time,
+			&dbTx.BlockHash, &dbTx.BlockHeight, &dbTx.BlockTime,
 			&dbTx.TxType, &dbTx.Version, &dbTx.Tree, &dbTx.TxID, &dbTx.BlockIndex,
 			&dbTx.Locktime, &dbTx.Expiry, &dbTx.Size, &dbTx.Spent, &dbTx.Sent,
 			&dbTx.Fees, &dbTx.MixCount, &dbTx.MixDenom, &dbTx.NumVin, &vinids,
@@ -2986,11 +3021,12 @@ func RetrieveDbTxsByHash(ctx context.Context, db *sql.DB, txHash string) (ids []
 	return
 }
 
-// RetrieveTxnsVinsByBlock retrieves for all the transactions in the specified
+// retrieveTxnsVinsByBlock retrieves for all the transactions in the specified
 // block the vin_db_ids arrays, is_valid, and is_mainchain. This function is
 // used by handleVinsTableMainchainupgrade, so it should not be subject to
 // timeouts.
-func RetrieveTxnsVinsByBlock(ctx context.Context, db *sql.DB, blockHash string) (vinDbIDs []dbtypes.UInt64Array,
+/*
+func retrieveTxnsVinsByBlock(ctx context.Context, db *sql.DB, blockHash string) (vinDbIDs []dbtypes.UInt64Array,
 	areValid []bool, areMainchain []bool, err error) {
 	var rows *sql.Rows
 	rows, err = db.QueryContext(ctx, internal.SelectTxnsVinsByBlock, blockHash)
@@ -3015,12 +3051,13 @@ func RetrieveTxnsVinsByBlock(ctx context.Context, db *sql.DB, blockHash string) 
 
 	return
 }
+*/
 
-// RetrieveTxnsVinsVoutsByBlock retrieves for all the transactions in the
+// retrieveTxnsVinsVoutsByBlock retrieves for all the transactions in the
 // specified block the vin_db_ids and vout_db_ids arrays. This function is used
 // only by UpdateLastAddressesValid and other setting functions, where it should
 // not be subject to a timeout.
-func RetrieveTxnsVinsVoutsByBlock(ctx context.Context, db *sql.DB, blockHash string, onlyRegular bool) (vinDbIDs, voutDbIDs []dbtypes.UInt64Array,
+func retrieveTxnsVinsVoutsByBlock(ctx context.Context, db *sql.DB, blockHash dbtypes.ChainHash, onlyRegular bool) (vinDbIDs, voutDbIDs []dbtypes.UInt64Array,
 	areMainchain []bool, err error) {
 	stmt := internal.SelectTxnsVinsVoutsByBlock
 	if onlyRegular {
@@ -3051,21 +3088,23 @@ func RetrieveTxnsVinsVoutsByBlock(ctx context.Context, db *sql.DB, blockHash str
 	return
 }
 
-func RetrieveTxByHash(ctx context.Context, db *sql.DB, txHash string) (id uint64, blockHash string,
+func retrieveTxByHash(ctx context.Context, db *sql.DB, txHash dbtypes.ChainHash) (id uint64, blockHash dbtypes.ChainHash,
 	blockInd uint32, tree int8, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectTxByHash, txHash).Scan(&id, &blockHash, &blockInd, &tree)
 	return
 }
 
-func RetrieveTxBlockTimeByHash(ctx context.Context, db *sql.DB, txHash string) (blockTime dbtypes.TimeDef, err error) {
+/*
+func retrieveTxBlockTimeByHash(ctx context.Context, db *sql.DB, txHash string) (blockTime dbtypes.TimeDef, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectTxBlockTimeByHash, txHash).Scan(&blockTime)
 	return
 }
+*/
 
-// RetrieveTxsByBlockHash retrieves all transactions in a given block. This is
+// retrieveTxsByBlockHash retrieves all transactions in a given block. This is
 // used by update functions, so care should be taken to not timeout in these
 // cases.
-func RetrieveTxsByBlockHash(ctx context.Context, db *sql.DB, blockHash string) (ids []uint64, txs []string,
+func retrieveTxsByBlockHash(ctx context.Context, db *sql.DB, blockHash dbtypes.ChainHash) (txs []dbtypes.ChainHash,
 	blockInds []uint32, trees []int8, blockTimes []dbtypes.TimeDef, err error) {
 	var rows *sql.Rows
 	rows, err = db.QueryContext(ctx, internal.SelectTxsByBlockHash, blockHash)
@@ -3075,17 +3114,15 @@ func RetrieveTxsByBlockHash(ctx context.Context, db *sql.DB, blockHash string) (
 	defer closeRows(rows)
 
 	for rows.Next() {
-		var id uint64
 		var blockTime dbtypes.TimeDef
-		var tx string
+		var tx dbtypes.ChainHash
 		var bind uint32
 		var tree int8
-		err = rows.Scan(&id, &tx, &bind, &tree, &blockTime)
+		err = rows.Scan(&tx, &bind, &tree, &blockTime)
 		if err != nil {
 			return
 		}
 
-		ids = append(ids, id)
 		txs = append(txs, tx)
 		blockInds = append(blockInds, bind)
 		trees = append(trees, tree)
@@ -3096,10 +3133,10 @@ func RetrieveTxsByBlockHash(ctx context.Context, db *sql.DB, blockHash string) (
 	return
 }
 
-// RetrieveTxnsBlocks retrieves for the specified transaction hash the following
+// retrieveTxnsBlocks retrieves for the specified transaction hash the following
 // data for each block containing the transactions: block_hash, block_index,
 // is_valid, is_mainchain.
-func RetrieveTxnsBlocks(ctx context.Context, db *sql.DB, txHash string) (blockHashes []string,
+func retrieveTxnsBlocks(ctx context.Context, db *sql.DB, txHash dbtypes.ChainHash) (blockHashes []dbtypes.ChainHash,
 	blockHeights, blockIndexes []uint32, areValid, areMainchain []bool, err error) {
 	var rows *sql.Rows
 	rows, err = db.QueryContext(ctx, internal.SelectTxsBlocks, txHash)
@@ -3109,7 +3146,7 @@ func RetrieveTxnsBlocks(ctx context.Context, db *sql.DB, txHash string) (blockHa
 	defer closeRows(rows)
 
 	for rows.Next() {
-		var hash string
+		var hash dbtypes.ChainHash
 		var height, idx uint32
 		var isValid, isMainchain bool
 		err = rows.Scan(&height, &hash, &idx, &isValid, &isMainchain)
@@ -3155,7 +3192,7 @@ func appendChartBlocks(charts *cache.ChartData, rows *sql.Rows) error {
 	}
 
 	var timeDef dbtypes.TimeDef
-	var workhex string
+	var workhex string // []byte
 	var count, size, height uint64
 	var rowCount int32
 	blocks := charts.Blocks
@@ -3167,6 +3204,7 @@ func appendChartBlocks(charts *cache.ChartData, rows *sql.Rows) error {
 			return err
 		}
 
+		// bigwork := new(big.Int).SetBytes(work)
 		bigwork, ok := new(big.Int).SetString(workhex, 16)
 		if !ok {
 			badRow()
@@ -3520,6 +3558,7 @@ func retrievePowerlessTickets(ctx context.Context, db *sql.DB) (*apitypes.Powerl
 }
 
 // retrieveTxPerDay fetches data for tx-per-day chart from the blocks table.
+/*
 func retrieveTxPerDay(ctx context.Context, db *sql.DB, timeArr []dbtypes.TimeDef,
 	txCountArr []uint64) ([]dbtypes.TimeDef, []uint64, error) {
 	var since time.Time
@@ -3553,90 +3592,47 @@ func retrieveTxPerDay(ctx context.Context, db *sql.DB, timeArr []dbtypes.TimeDef
 
 	return timeArr, txCountArr, err
 }
-
-// retrieveTicketByOutputCount fetches the data for ticket-by-outputs-windows
-// chart if outputCountType outputCountByTicketPoolWindow is passed and
-// ticket-by-outputs-blocks if outputCountType outputCountByAllBlocks is passed.
-func retrieveTicketByOutputCount(ctx context.Context, db *sql.DB, interval int64,
-	dataType outputCountType, heightArr, soloArr, pooledArr []uint64) ([]uint64,
-	[]uint64, []uint64, error) {
-	var since uint64
-
-	if c := len(heightArr); c > 0 {
-		since = heightArr[c-1]
-
-		// drop the last entry to avoid duplication.
-		if dataType == outputCountByTicketPoolWindow {
-			heightArr = heightArr[:c-1]
-			soloArr = soloArr[:c-1]
-			pooledArr = pooledArr[:c-1]
-		}
-	}
-
-	var query string
-	var args []interface{}
-	switch dataType {
-	case outputCountByAllBlocks:
-		query = internal.SelectTicketsOutputCountByAllBlocks
-		args = []interface{}{stake.TxTypeSStx, since}
-
-	case outputCountByTicketPoolWindow:
-		query = internal.SelectTicketsOutputCountByTPWindow
-		since = since * uint64(interval)
-		args = []interface{}{stake.TxTypeSStx, since, interval}
-
-	default:
-		return heightArr, soloArr, pooledArr,
-			fmt.Errorf("unknown output count type '%v'", dataType)
-	}
-
-	rows, err := db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return heightArr, soloArr, pooledArr, err
-	}
-
-	defer closeRows(rows)
-
-	for rows.Next() {
-		var height, solo, pooled uint64
-		if err = rows.Scan(&height, &solo, &pooled); err != nil {
-			return heightArr, soloArr, pooledArr, err
-		}
-
-		heightArr = append(heightArr, height)
-		soloArr = append(soloArr, solo)
-		pooledArr = append(pooledArr, pooled)
-	}
-	err = rows.Err()
-
-	return heightArr, soloArr, pooledArr, err
-}
+*/
 
 // --- blocks and block_chain tables ---
 
-// InsertBlock inserts the specified dbtypes.Block as with the given
+// insertBlock inserts the specified dbtypes.Block as with the given
 // valid/mainchain status. If checked is true, an upsert statement is used so
 // that a unique constraint violation will result in an update instead of
 // attempting to insert a duplicate row. If checked is false and there is a
 // duplicate row, an error will be returned.
-func InsertBlock(db *sql.DB, dbBlock *dbtypes.Block, isValid, isMainchain, checked bool) (uint64, error) {
+func insertBlock(db *sql.DB, dbBlock *dbtypes.Block, isValid, isMainchain, checked bool) (uint64, error) {
 	insertStatement := internal.BlockInsertStatement(checked)
 	var id uint64
 	err := db.QueryRow(insertStatement,
 		dbBlock.Hash, dbBlock.Height, dbBlock.Size, isValid, isMainchain,
 		int32(dbBlock.Version), dbBlock.NumTx, dbBlock.NumRegTx,
-		pq.Array(dbBlock.Tx), pq.Array(dbBlock.TxDbIDs),
-		dbBlock.NumStakeTx, pq.Array(dbBlock.STx), pq.Array(dbBlock.STxDbIDs),
+		dbtypes.UInt64Array(dbBlock.TxDbIDs), dbBlock.NumStakeTx, dbtypes.UInt64Array(dbBlock.STxDbIDs),
 		dbBlock.Time, int64(dbBlock.Nonce), int16(dbBlock.VoteBits), dbBlock.Voters,
 		dbBlock.FreshStake, dbBlock.Revocations, dbBlock.PoolSize, int64(dbBlock.Bits),
 		int64(dbBlock.SBits), dbBlock.Difficulty, int32(dbBlock.StakeVersion),
-		dbBlock.PreviousHash, dbBlock.ChainWork, pq.Array(dbBlock.Winners)).Scan(&id)
+		dbBlock.PreviousHash, dbBlock.ChainWork, dbtypes.ChainHashArray(dbBlock.Winners)).Scan(&id)
 	return id, err
 }
 
-// InsertBlockPrevNext inserts a new row of the block_chain table.
-func InsertBlockPrevNext(db *sql.DB, blockDbID uint64,
-	hash, prev, next string) error {
+// func insertBlock(db *sql.DB, dbBlock *dbtypes.Block, isValid, isMainchain, checked bool) (uint64, error) {
+// 	insertStatement := internal.BlockInsertStatement(checked)
+// 	var id uint64
+// 	err := db.QueryRow(insertStatement,
+// 		dbBlock.Hash, dbBlock.Height, dbBlock.Size, isValid, isMainchain,
+// 		int32(dbBlock.Version), dbBlock.NumTx, dbBlock.NumRegTx,
+// 		dbtypes.ChainHashArray2(dbBlock.Tx), dbtypes.UInt64Array(dbBlock.TxDbIDs),
+// 		dbBlock.NumStakeTx, dbtypes.ChainHashArray2(dbBlock.STx), dbtypes.UInt64Array(dbBlock.STxDbIDs),
+// 		dbBlock.Time, int64(dbBlock.Nonce), int16(dbBlock.VoteBits), dbBlock.Voters,
+// 		dbBlock.FreshStake, dbBlock.Revocations, dbBlock.PoolSize, int64(dbBlock.Bits),
+// 		int64(dbBlock.SBits), dbBlock.Difficulty, int32(dbBlock.StakeVersion),
+// 		dbBlock.PreviousHash, dbBlock.ChainWork, dbtypes.ChainHashArray2(dbBlock.Winners)).Scan(&id)
+// 	return id, err
+// }
+
+// insertBlockPrevNext inserts a new row of the block_chain table.
+func insertBlockPrevNext(db *sql.DB, blockDbID uint64,
+	hash, prev, next *dbtypes.ChainHash) error {
 	rows, err := db.Query(internal.InsertBlockPrevNext, blockDbID, prev, hash, next)
 	if err == nil {
 		return rows.Close()
@@ -3644,24 +3640,25 @@ func InsertBlockPrevNext(db *sql.DB, blockDbID uint64,
 	return err
 }
 
-// InsertBlockStats inserts the block stats into the stats table.
-func InsertBlockStats(db *sql.DB, blockDbID uint64, tpi *apitypes.TicketPoolInfo) error {
+// insertBlockStats inserts the block stats into the stats table.
+func insertBlockStats(db *sql.DB, blockDbID uint64, tpi *apitypes.TicketPoolInfo) error {
 	_, err := db.Exec(internal.UpsertStats, blockDbID, tpi.Height, tpi.Size, int64(tpi.Value*dcrToAtoms))
 	return err
 }
 
-// RetrieveBestBlockHeight gets the best block height and hash (main chain
+// retrieveBestBlockHeight gets the best block height and hash (main chain
 // only). Be sure to check for sql.ErrNoRows.
-func RetrieveBestBlockHeight(ctx context.Context, db *sql.DB) (height uint64, hash string, id uint64, err error) {
+func retrieveBestBlockHeight(ctx context.Context, db *sql.DB) (height uint64, hash dbtypes.ChainHash, err error) {
+	var id uint64 // maybe remove from query
 	err = db.QueryRowContext(ctx, internal.RetrieveBestBlockHeight).Scan(&id, &hash, &height)
 	return
 }
 
-// RetrieveBestBlock gets the best block height and hash (main chain only). If
+// retrieveBestBlock gets the best block height and hash (main chain only). If
 // there are no results from the query, the height is -1 and err is nil.
-func RetrieveBestBlock(ctx context.Context, db *sql.DB) (height int64, hash string, err error) {
+func retrieveBestBlock(ctx context.Context, db *sql.DB) (height int64, hash dbtypes.ChainHash, err error) {
 	var bbHeight uint64
-	bbHeight, hash, _, err = RetrieveBestBlockHeight(ctx, db)
+	bbHeight, hash, err = retrieveBestBlockHeight(ctx, db)
 	height = int64(bbHeight)
 	if err != nil && err == sql.ErrNoRows {
 		height = -1
@@ -3670,43 +3667,44 @@ func RetrieveBestBlock(ctx context.Context, db *sql.DB) (height int64, hash stri
 	return
 }
 
-// RetrieveBestBlockHeightAny gets the best block height, including side chains.
-func RetrieveBestBlockHeightAny(ctx context.Context, db *sql.DB) (height uint64, hash string, id uint64, err error) {
-	err = db.QueryRowContext(ctx, internal.RetrieveBestBlockHeightAny).Scan(&id, &hash, &height)
-	return
-}
+// retrieveBestBlockHeightAny gets the best block height, including side chains.
+// func retrieveBestBlockHeightAny(ctx context.Context, db *sql.DB) (height uint64, hash string, id uint64, err error) {
+// 	err = db.QueryRowContext(ctx, internal.retrieveBestBlockHeightAny).Scan(&id, &hash, &height)
+// 	return
+// }
 
-// RetrieveBlockHash retrieves the hash of the block at the given height, if it
+// retrieveBlockHash retrieves the hash of the block at the given height, if it
 // exists (be sure to check error against sql.ErrNoRows!). WARNING: this returns
 // the most recently added block at this height, but there may be others.
-func RetrieveBlockHash(ctx context.Context, db *sql.DB, idx int64) (hash string, err error) {
+func retrieveBlockHash(ctx context.Context, db *sql.DB, idx int64) (hash dbtypes.ChainHash, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectBlockHashByHeight, idx).Scan(&hash)
 	return
 }
 
-// RetrieveBlockTimeByHeight retrieves time hash of the main chain block at the
+// retrieveBlockTimeByHeight retrieves time hash of the main chain block at the
 // given height, if it exists (be sure to check error against sql.ErrNoRows!).
-func RetrieveBlockTimeByHeight(ctx context.Context, db *sql.DB, idx int64) (time dbtypes.TimeDef, err error) {
+func retrieveBlockTimeByHeight(ctx context.Context, db *sql.DB, idx int64) (time dbtypes.TimeDef, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectBlockTimeByHeight, idx).Scan(&time)
 	return
 }
 
-// RetrieveBlockHeight retrieves the height of the block with the given hash, if
+// retrieveBlockHeight retrieves the height of the block with the given hash, if
 // it exists (be sure to check error against sql.ErrNoRows!).
-func RetrieveBlockHeight(ctx context.Context, db *sql.DB, hash string) (height int64, err error) {
+func retrieveBlockHeight(ctx context.Context, db *sql.DB, hash dbtypes.ChainHash) (height int64, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectBlockHeightByHash, hash).Scan(&height)
 	return
 }
 
-// RetrieveBlockVoteCount gets the number of votes mined in a block.
-func RetrieveBlockVoteCount(ctx context.Context, db *sql.DB, hash string) (numVotes int16, err error) {
+// retrieveBlockVoteCount gets the number of votes mined in a block.
+func retrieveBlockVoteCount(ctx context.Context, db *sql.DB, hash dbtypes.ChainHash) (numVotes int16, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectBlockVoteCount, hash).Scan(&numVotes)
 	return
 }
 
-// RetrieveBlocksHashesAll retrieve the hash of every block in the blocks table,
+// retrieveBlocksHashesAll retrieve the hash of every block in the blocks table,
 // ordered by their row ID.
-func RetrieveBlocksHashesAll(ctx context.Context, db *sql.DB) ([]string, error) {
+/*
+func retrieveBlocksHashesAll(ctx context.Context, db *sql.DB) ([]string, error) {
 	var hashes []string
 	rows, err := db.QueryContext(ctx, internal.SelectBlocksHashes)
 	if err != nil {
@@ -3727,18 +3725,11 @@ func RetrieveBlocksHashesAll(ctx context.Context, db *sql.DB) ([]string, error) 
 
 	return hashes, err
 }
+*/
 
-// RetrieveBlockChainDbID retrieves the row id in the block_chain table of the
-// block with the given hash, if it exists (be sure to check error against
-// sql.ErrNoRows!).
-func RetrieveBlockChainDbID(ctx context.Context, db *sql.DB, hash string) (dbID uint64, err error) {
-	err = db.QueryRowContext(ctx, internal.SelectBlockChainRowIDByHash, hash).Scan(&dbID)
-	return
-}
-
-// RetrieveSideChainBlocks retrieves the block chain status for all known side
+// retrieveSideChainBlocks retrieves the block chain status for all known side
 // chain blocks.
-func RetrieveSideChainBlocks(ctx context.Context, db *sql.DB) (blocks []*dbtypes.BlockStatus, err error) {
+func retrieveSideChainBlocks(ctx context.Context, db *sql.DB) (blocks []*dbtypes.BlockStatus, err error) {
 	var rows *sql.Rows
 	rows, err = db.QueryContext(ctx, internal.SelectSideChainBlocks)
 	if err != nil {
@@ -3760,9 +3751,10 @@ func RetrieveSideChainBlocks(ctx context.Context, db *sql.DB) (blocks []*dbtypes
 	return
 }
 
-// RetrieveSideChainTips retrieves the block chain status for all known side
+// retrieveSideChainTips retrieves the block chain status for all known side
 // chain tip blocks.
-func RetrieveSideChainTips(ctx context.Context, db *sql.DB) (blocks []*dbtypes.BlockStatus, err error) {
+/*
+func retrieveSideChainTips(ctx context.Context, db *sql.DB) (blocks []*dbtypes.BlockStatus, err error) {
 	var rows *sql.Rows
 	rows, err = db.QueryContext(ctx, internal.SelectSideChainTips)
 	if err != nil {
@@ -3784,10 +3776,11 @@ func RetrieveSideChainTips(ctx context.Context, db *sql.DB) (blocks []*dbtypes.B
 
 	return
 }
+*/
 
-// RetrieveDisapprovedBlocks retrieves the block chain status for all blocks
+// retrieveDisapprovedBlocks retrieves the block chain status for all blocks
 // that had their regular transactions invalidated by stakeholder disapproval.
-func RetrieveDisapprovedBlocks(ctx context.Context, db *sql.DB) (blocks []*dbtypes.BlockStatus, err error) {
+func retrieveDisapprovedBlocks(ctx context.Context, db *sql.DB) (blocks []*dbtypes.BlockStatus, err error) {
 	var rows *sql.Rows
 	rows, err = db.QueryContext(ctx, internal.SelectDisapprovedBlocks)
 	if err != nil {
@@ -3809,17 +3802,17 @@ func RetrieveDisapprovedBlocks(ctx context.Context, db *sql.DB) (blocks []*dbtyp
 	return
 }
 
-// RetrieveBlockStatus retrieves the block chain status for the block with the
+// retrieveBlockStatus retrieves the block chain status for the block with the
 // specified hash.
-func RetrieveBlockStatus(ctx context.Context, db *sql.DB, hash string) (bs dbtypes.BlockStatus, err error) {
+func retrieveBlockStatus(ctx context.Context, db *sql.DB, hash dbtypes.ChainHash) (bs dbtypes.BlockStatus, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectBlockStatus, hash).Scan(&bs.IsValid,
 		&bs.IsMainchain, &bs.Height, &bs.PrevHash, &bs.Hash, &bs.NextHash)
 	return
 }
 
-// RetrieveBlockStatuses retrieves the block chain statuses of all blocks at
+// retrieveBlockStatuses retrieves the block chain statuses of all blocks at
 // the given height.
-func RetrieveBlockStatuses(ctx context.Context, db *sql.DB, idx int64) (blocks []*dbtypes.BlockStatus, err error) {
+func retrieveBlockStatuses(ctx context.Context, db *sql.DB, idx int64) (blocks []*dbtypes.BlockStatus, err error) {
 	var rows *sql.Rows
 	rows, err = db.QueryContext(ctx, internal.SelectBlockStatuses, idx)
 	if err != nil {
@@ -3841,17 +3834,17 @@ func RetrieveBlockStatuses(ctx context.Context, db *sql.DB, idx int64) (blocks [
 	return
 }
 
-// RetrieveBlockFlags retrieves the block's is_valid and is_mainchain flags.
-func RetrieveBlockFlags(ctx context.Context, db *sql.DB, hash string) (isValid bool, isMainchain bool, err error) {
+// retrieveBlockFlags retrieves the block's is_valid and is_mainchain flags.
+func retrieveBlockFlags(ctx context.Context, db *sql.DB, hash dbtypes.ChainHash) (isValid bool, isMainchain bool, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectBlockFlags, hash).Scan(&isValid, &isMainchain)
 	return
 }
 
-// RetrieveBlockSummaryByTimeRange retrieves the slice of block summaries for
+// retrieveBlockSummaryByTimeRange retrieves the slice of block summaries for
 // the given time range. The limit specifies the number of most recent block
 // summaries to return. A limit of 0 indicates all blocks in the time range
 // should be included.
-func RetrieveBlockSummaryByTimeRange(ctx context.Context, db *sql.DB, minTime, maxTime int64, limit int) ([]dbtypes.BlockDataBasic, error) {
+func retrieveBlockSummaryByTimeRange(ctx context.Context, db *sql.DB, minTime, maxTime int64, limit int) ([]dbtypes.BlockDataBasic, error) {
 	var blocks []dbtypes.BlockDataBasic
 	var stmt *sql.Stmt
 	var rows *sql.Rows
@@ -3900,16 +3893,16 @@ func RetrieveBlockSummaryByTimeRange(ctx context.Context, db *sql.DB, minTime, m
 	return blocks, nil
 }
 
-// RetrievePreviousHashByBlockHash retrieves the previous block hash for the
+// retrievePreviousHashByBlockHash retrieves the previous block hash for the
 // given block from the blocks table.
-func RetrievePreviousHashByBlockHash(ctx context.Context, db *sql.DB, hash string) (previousHash string, err error) {
-	err = db.QueryRowContext(ctx, internal.SelectBlocksPreviousHash, hash).Scan(&previousHash)
-	return
-}
+// func retrievePreviousHashByBlockHash(ctx context.Context, db *sql.DB, hash string) (previousHash string, err error) {
+// 	err = db.QueryRowContext(ctx, internal.SelectBlocksPreviousHash, hash).Scan(&previousHash)
+// 	return
+// }
 
-// SetMainchainByBlockHash is used to set the is_mainchain flag for the given
+// setMainchainByBlockHash is used to set the is_mainchain flag for the given
 // block. This is required to handle a reorganization.
-func SetMainchainByBlockHash(db *sql.DB, hash string, isMainchain bool) (previousHash string, err error) {
+func setMainchainByBlockHash(db *sql.DB, hash dbtypes.ChainHash, isMainchain bool) (previousHash dbtypes.ChainHash, err error) {
 	err = db.QueryRow(internal.UpdateBlockMainchain, hash, isMainchain).Scan(&previousHash)
 	return
 }
@@ -3918,7 +3911,7 @@ func SetMainchainByBlockHash(db *sql.DB, hash string, isMainchain bool) (previou
 
 // UpdateTransactionsMainchain sets the is_mainchain column for the transactions
 // in the specified block.
-func UpdateTransactionsMainchain(db *sql.DB, blockHash string, isMainchain bool) (int64, []uint64, error) {
+func updateTransactionsMainchain(db *sql.DB, blockHash dbtypes.ChainHash, isMainchain bool) (int64, []uint64, error) {
 	rows, err := db.Query(internal.UpdateTxnsMainchainByBlock, isMainchain, blockHash)
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to update transactions is_mainchain: %w", err)
@@ -3942,9 +3935,9 @@ func UpdateTransactionsMainchain(db *sql.DB, blockHash string, isMainchain bool)
 	return numRows, txRowIDs, err
 }
 
-// UpdateTransactionsValid sets the is_valid column of the transactions table
+// updateTransactionsValid sets the is_valid column of the transactions table
 // for the regular (non-stake) transactions in the specified block.
-func UpdateTransactionsValid(db *sql.DB, blockHash string, isValid bool) (int64, []uint64, error) {
+func updateTransactionsValid(db *sql.DB, blockHash dbtypes.ChainHash, isValid bool) (int64, []uint64, error) {
 	rows, err := db.Query(internal.UpdateRegularTxnsValidByBlock, isValid, blockHash)
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to update regular transactions is_valid: %w", err)
@@ -3968,9 +3961,9 @@ func UpdateTransactionsValid(db *sql.DB, blockHash string, isValid bool) (int64,
 	return numRows, txRowIDs, err
 }
 
-// UpdateVotesMainchain sets the is_mainchain column for the votes in the
+// updateVotesMainchain sets the is_mainchain column for the votes in the
 // specified block.
-func UpdateVotesMainchain(db SqlExecutor, blockHash string, isMainchain bool) (int64, error) {
+func updateVotesMainchain(db SqlExecutor, blockHash dbtypes.ChainHash, isMainchain bool) (int64, error) {
 	numRows, err := sqlExec(db, internal.UpdateVotesMainchainByBlock,
 		"failed to update votes is_mainchain: ", isMainchain, blockHash)
 	if err != nil {
@@ -3979,9 +3972,9 @@ func UpdateVotesMainchain(db SqlExecutor, blockHash string, isMainchain bool) (i
 	return numRows, nil
 }
 
-// UpdateTicketsMainchain sets the is_mainchain column for the tickets in the
+// updateTicketsMainchain sets the is_mainchain column for the tickets in the
 // specified block.
-func UpdateTicketsMainchain(db SqlExecutor, blockHash string, isMainchain bool) (int64, error) {
+func updateTicketsMainchain(db SqlExecutor, blockHash dbtypes.ChainHash, isMainchain bool) (int64, error) {
 	numRows, err := sqlExec(db, internal.UpdateTicketsMainchainByBlock,
 		"failed to update tickets is_mainchain: ", isMainchain, blockHash)
 	if err != nil {
@@ -3990,9 +3983,9 @@ func UpdateTicketsMainchain(db SqlExecutor, blockHash string, isMainchain bool) 
 	return numRows, nil
 }
 
-// UpdateTreasuryMainchain sets the is_mainchain column for the entires in the
+// updateTreasuryMainchain sets the is_mainchain column for the entires in the
 // specified block.
-func UpdateTreasuryMainchain(db SqlExecutor, blockHash string, isMainchain bool) (int64, error) {
+func updateTreasuryMainchain(db SqlExecutor, blockHash dbtypes.ChainHash, isMainchain bool) (int64, error) {
 	numRows, err := sqlExec(db, internal.UpdateTreasuryMainchainByBlock,
 		"failed to update treasury txns is_mainchain: ", isMainchain, blockHash)
 	if err != nil {
@@ -4009,6 +4002,10 @@ func binnedTreasuryIO(ctx context.Context, db *sql.DB, timeInterval string) (*db
 	return parseRowsSentReceived(rows)
 }
 
+func toCoin[T int64 | uint64](amt T) float64 {
+	return float64(amt) / 1e8
+}
+
 func parseRowsSentReceived(rows *sql.Rows) (*dbtypes.ChartsData, error) {
 	defer closeRows(rows)
 	var items = new(dbtypes.ChartsData)
@@ -4021,13 +4018,13 @@ func parseRowsSentReceived(rows *sql.Rows) (*dbtypes.ChartsData, error) {
 		}
 
 		items.Time = append(items.Time, dbtypes.NewTimeDef(blockTime))
-		items.Received = append(items.Received, dcrutil.Amount(received).ToCoin())
-		items.Sent = append(items.Sent, dcrutil.Amount(sent).ToCoin())
+		items.Received = append(items.Received, toCoin(received))
+		items.Sent = append(items.Sent, toCoin(sent))
 		// Net represents the difference between the received and sent amount for a
 		// given block. If the difference is positive then the value is unspent amount
 		// otherwise if the value is zero then all amount is spent and if the net amount
 		// is negative then for the given block more amount was sent than received.
-		items.Net = append(items.Net, dcrutil.Amount(received-sent).ToCoin())
+		items.Net = append(items.Net, toCoin(received-sent))
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -4036,9 +4033,9 @@ func parseRowsSentReceived(rows *sql.Rows) (*dbtypes.ChartsData, error) {
 	return items, nil
 }
 
-// UpdateAddressesMainchainByIDs sets the valid_mainchain column for the
+// updateAddressesMainchainByIDs sets the valid_mainchain column for the
 // addresses specified by their vin (spending) or vout (funding) row IDs.
-func UpdateAddressesMainchainByIDs(db SqlExecQueryer, vinsBlk, voutsBlk []dbtypes.UInt64Array,
+func updateAddressesMainchainByIDs(db SqlExecQueryer, vinsBlk, voutsBlk []dbtypes.UInt64Array,
 	isValidMainchain bool) (addresses []string, numSpendingRows, numFundingRows int64, err error) {
 	addrs := make(map[string]struct{}, len(vinsBlk)+len(voutsBlk)) // may be over-alloc
 	// Spending/vins: Set valid_mainchain for the is_funding=false addresses
@@ -4086,9 +4083,9 @@ func UpdateAddressesMainchainByIDs(db SqlExecQueryer, vinsBlk, voutsBlk []dbtype
 	return
 }
 
-// UpdateLastBlockValid updates the is_valid column of the block specified by
+// updateLastBlockValid updates the is_valid column of the block specified by
 // the row id for the blocks table.
-func UpdateLastBlockValid(db SqlExecutor, blockDbID uint64, isValid bool) error {
+func updateLastBlockValid(db SqlExecutor, blockDbID uint64, isValid bool) error {
 	numRows, err := sqlExec(db, internal.UpdateLastBlockValid,
 		"failed to update last block validity: ", blockDbID, isValid)
 	if err != nil {
@@ -4101,7 +4098,7 @@ func UpdateLastBlockValid(db SqlExecutor, blockDbID uint64, isValid bool) error 
 	return nil
 }
 
-func clearVoutRegularSpendTxRowIDs(db SqlExecutor, invalidatedBlockHash string) (int64, error) {
+func clearVoutRegularSpendTxRowIDs(db SqlExecutor, invalidatedBlockHash dbtypes.ChainHash) (int64, error) {
 	return sqlExec(db, `UPDATE vouts SET spend_tx_row_id = NULL
 		FROM transactions
 		WHERE transactions.tree=0 
@@ -4111,7 +4108,7 @@ func clearVoutRegularSpendTxRowIDs(db SqlExecutor, invalidatedBlockHash string) 
 		invalidatedBlockHash)
 }
 
-func clearVoutAllSpendTxRowIDs(db SqlExecutor, transactionsBlockHash string) (int64, error) {
+func clearVoutAllSpendTxRowIDs(db SqlExecutor, transactionsBlockHash dbtypes.ChainHash) (int64, error) {
 	return sqlExec(db, `UPDATE vouts SET spend_tx_row_id = NULL
 		FROM transactions
 		WHERE transactions.block_hash=$1
@@ -4120,14 +4117,14 @@ func clearVoutAllSpendTxRowIDs(db SqlExecutor, transactionsBlockHash string) (in
 		transactionsBlockHash)
 }
 
-// UpdateLastVins updates the is_valid and is_mainchain columns in the vins
+// updateLastVins updates the is_valid and is_mainchain columns in the vins
 // table for all of the transactions in the block specified by the given block
 // hash.
-func UpdateLastVins(db *sql.DB, blockHash string, isValid, isMainchain bool) error {
-	// Retrieve the hash for every transaction in this block. A context with no
+func updateLastVins(db *sql.DB, blockHash dbtypes.ChainHash, isValid, isMainchain bool) error {
+	// retrieve the hash for every transaction in this block. A context with no
 	// deadline or cancellation function is used since this UpdateLastVins needs
 	// to complete to ensure DB integrity.
-	_, txs, _, trees, timestamps, err := RetrieveTxsByBlockHash(context.Background(), db, blockHash)
+	txs, _, trees, timestamps, err := retrieveTxsByBlockHash(context.Background(), db, blockHash)
 	if err != nil {
 		return err
 	}
@@ -4149,23 +4146,23 @@ func UpdateLastVins(db *sql.DB, blockHash string, isValid, isMainchain bool) err
 	return nil
 }
 
-// UpdateLastAddressesValid sets valid_mainchain as specified by isValid for
+// updateLastAddressesValid sets valid_mainchain as specified by isValid for
 // addresses table rows pertaining to regular (non-stake) transactions found in
 // the given block.
-func UpdateLastAddressesValid(db *sql.DB, blockHash string, isValid bool) ([]string, error) {
+func updateLastAddressesValid(db *sql.DB, blockHash dbtypes.ChainHash, isValid bool) ([]string, error) {
 	// The queries in this function should not timeout or (probably) canceled,
 	// so use a background context.
 	ctx := context.Background()
 
 	// Get the row ids of all vins and vouts of regular txns in this block.
 	onlyRegularTxns := true
-	vinDbIDsBlk, voutDbIDsBlk, _, err := RetrieveTxnsVinsVoutsByBlock(ctx, db, blockHash, onlyRegularTxns)
+	vinDbIDsBlk, voutDbIDsBlk, _, err := retrieveTxnsVinsVoutsByBlock(ctx, db, blockHash, onlyRegularTxns)
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve vin data for block %s: %w", blockHash, err)
 	}
 	// Using vins and vouts row ids, update the valid_mainchain column of the
 	// rows of the address table referring to these vins and vouts.
-	addresses, numAddrSpending, numAddrFunding, err := UpdateAddressesMainchainByIDs(db,
+	addresses, numAddrSpending, numAddrFunding, err := updateAddressesMainchainByIDs(db,
 		vinDbIDsBlk, voutDbIDsBlk, isValid)
 	if err != nil {
 		log.Errorf("Failed to set addresses rows in block %s as sidechain: %w", blockHash, err)
@@ -4175,9 +4172,9 @@ func UpdateLastAddressesValid(db *sql.DB, blockHash string, isValid bool) ([]str
 	return addresses, err
 }
 
-// UpdateBlockNext sets the next block's hash for the specified row of the
+// updateBlockNext sets the next block's hash for the specified row of the
 // block_chain table specified by DB row ID.
-func UpdateBlockNext(db SqlExecutor, blockDbID uint64, next string) error {
+func updateBlockNext(db SqlExecutor, blockDbID uint64, next dbtypes.ChainHash) error {
 	res, err := db.Exec(internal.UpdateBlockNext, blockDbID, next)
 	if err != nil {
 		return err
@@ -4192,9 +4189,9 @@ func UpdateBlockNext(db SqlExecutor, blockDbID uint64, next string) error {
 	return nil
 }
 
-// UpdateBlockNextByHash sets the next block's hash for the block in the
+// updateBlockNextByHash sets the next block's hash for the block in the
 // block_chain table specified by hash.
-func UpdateBlockNextByHash(db SqlExecutor, this, next string) error {
+func updateBlockNextByHash(db SqlExecutor, this, next dbtypes.ChainHash) error {
 	res, err := db.Exec(internal.UpdateBlockNextByHash, this, next)
 	if err != nil {
 		return err
@@ -4209,9 +4206,9 @@ func UpdateBlockNextByHash(db SqlExecutor, this, next string) error {
 	return nil
 }
 
-// UpdateBlockNextByNextHash sets the next block's hash for the block in the
+// updateBlockNextByNextHash sets the next block's hash for the block in the
 // block_chain table with a current next_hash specified by hash.
-func UpdateBlockNextByNextHash(db SqlExecutor, currentNext, newNext string) error {
+func updateBlockNextByNextHash(db SqlExecutor, currentNext, newNext dbtypes.ChainHash) error {
 	res, err := db.Exec(internal.UpdateBlockNextByNextHash, currentNext, newNext)
 	if err != nil {
 		return err
@@ -4226,41 +4223,31 @@ func UpdateBlockNextByNextHash(db SqlExecutor, currentNext, newNext string) erro
 	return nil
 }
 
-// RetrievePoolInfo returns ticket pool info for block height ind
-func RetrievePoolInfo(ctx context.Context, db *sql.DB, ind int64) (*apitypes.TicketPoolInfo, error) {
+// retrievePoolInfo returns ticket pool info for block height ind
+func retrievePoolInfo(ctx context.Context, db *sql.DB, ind int64) (*apitypes.TicketPoolInfo, error) {
 	tpi := &apitypes.TicketPoolInfo{
 		Height: uint32(ind),
 	}
-	var hash string
-	var winners []string
+	var hash dbtypes.ChainHash // trash?
+	var winners dbtypes.ChainHashArray
 	var val int64
 	err := db.QueryRowContext(ctx, internal.SelectPoolInfoByHeight, ind).Scan(&hash, &tpi.Size,
-		&val, pq.Array(&winners))
-	tpi.Value = dcrutil.Amount(val).ToCoin()
+		&val, &winners)
+	tpi.Value = toCoin(val)
 	tpi.ValAvg = tpi.Value / float64(tpi.Size)
-	tpi.Winners = winners
+	tpi.Winners = make([]string, len(winners))
+	for i := range winners {
+		tpi.Winners[i] = winners[i].String()
+	}
 	return tpi, err
 }
 
-// RetrievePoolInfoByHash returns ticket pool info for blockhash hash.
-func RetrievePoolInfoByHash(ctx context.Context, db *sql.DB, hash string) (*apitypes.TicketPoolInfo, error) {
-	tpi := new(apitypes.TicketPoolInfo)
-	var winners []string
-	var val int64
-	err := db.QueryRowContext(ctx, internal.SelectPoolInfoByHash, hash).Scan(&tpi.Height, &tpi.Size,
-		&val, pq.Array(&winners))
-	tpi.Value = dcrutil.Amount(val).ToCoin()
-	tpi.ValAvg = tpi.Value / float64(tpi.Size)
-	tpi.Winners = winners
-	return tpi, err
-}
-
-// RetrievePoolInfoRange returns an array of apitypes.TicketPoolInfo for block
+// retrievePoolInfoRange returns an array of apitypes.TicketPoolInfo for block
 // range ind0 to ind1 and a non-nil error on success
-func RetrievePoolInfoRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) ([]apitypes.TicketPoolInfo, []string, error) {
+func retrievePoolInfoRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) ([]apitypes.TicketPoolInfo, []dbtypes.ChainHash, error) {
 	N := ind1 - ind0 + 1
 	if N == 0 {
-		return []apitypes.TicketPoolInfo{}, []string{}, nil
+		return []apitypes.TicketPoolInfo{}, []dbtypes.ChainHash{}, nil
 	}
 	if N < 0 {
 		return nil, nil, fmt.Errorf("Cannot retrieve pool info range (%d>%d)",
@@ -4268,7 +4255,7 @@ func RetrievePoolInfoRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) ([
 	}
 
 	tpis := make([]apitypes.TicketPoolInfo, 0, N)
-	hashes := make([]string, 0, N)
+	hashes := make([]dbtypes.ChainHash, 0, N)
 
 	stmt, err := db.PrepareContext(ctx, internal.SelectPoolInfoRange)
 	if err != nil {
@@ -4285,17 +4272,20 @@ func RetrievePoolInfoRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) ([
 
 	for rows.Next() {
 		var tpi apitypes.TicketPoolInfo
-		var hash string
-		var winners []string
+		var hash dbtypes.ChainHash
+		var winners dbtypes.ChainHashArray
 		var val int64
-		if err = rows.Scan(&tpi.Height, &hash, &tpi.Size, &val,
-			pq.Array(&winners)); err != nil {
+		if err = rows.Scan(&tpi.Height, &hash, &tpi.Size, &val, &winners); err != nil {
 			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
 			return nil, nil, err
 		}
-		tpi.Value = dcrutil.Amount(val).ToCoin()
+		tpi.Value = toCoin(val)
 		tpi.ValAvg = tpi.Value / float64(tpi.Size)
-		tpi.Winners = winners
+
+		tpi.Winners = make([]string, len(winners))
+		for i := range winners {
+			tpi.Winners[i] = winners[i].String()
+		}
 		tpis = append(tpis, tpi)
 		hashes = append(hashes, hash)
 	}
@@ -4306,9 +4296,9 @@ func RetrievePoolInfoRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) ([
 	return tpis, hashes, nil
 }
 
-// RetrievePoolValAndSizeRange returns an array each of the pool values and
+// retrievePoolValAndSizeRange returns an array each of the pool values and
 // sizes for block range ind0 to ind1.
-func RetrievePoolValAndSizeRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) ([]float64, []uint32, error) {
+func retrievePoolValAndSizeRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) ([]float64, []uint32, error) {
 	N := ind1 - ind0 + 1
 	if N == 0 {
 		return []float64{}, []uint32{}, nil
@@ -4341,7 +4331,7 @@ func RetrievePoolValAndSizeRange(ctx context.Context, db *sql.DB, ind0, ind1 int
 			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
 			return nil, nil, err
 		}
-		poolvals = append(poolvals, dcrutil.Amount(pval).ToCoin())
+		poolvals = append(poolvals, toCoin(pval))
 		poolsizes = append(poolsizes, psize)
 	}
 	if err = rows.Err(); err != nil {
@@ -4349,61 +4339,70 @@ func RetrievePoolValAndSizeRange(ctx context.Context, db *sql.DB, ind0, ind1 int
 	}
 
 	if len(poolsizes) != int(N) {
-		log.Warnf("RetrievePoolValAndSizeRange: Retrieved pool values (%d) not expected number (%d)",
+		log.Warnf("retrievePoolValAndSizeRange: retrieved pool values (%d) not expected number (%d)",
 			len(poolsizes), N)
 	}
 
 	return poolvals, poolsizes, nil
 }
 
-// RetrieveBlockSummary fetches basic block data for block ind.
-func RetrieveBlockSummary(ctx context.Context, db *sql.DB, ind int64) (*apitypes.BlockDataBasic, error) {
+// retrieveBlockSummary fetches basic block data for block ind.
+func retrieveBlockSummary(ctx context.Context, db *sql.DB, ind int64) (*apitypes.BlockDataBasic, error) {
 	bd := apitypes.NewBlockDataBasic()
-	var winners []string
+	var winners dbtypes.ChainHashArray
 	var isValid bool
 	var val, sbits int64
+	var hash dbtypes.ChainHash
 	var timestamp dbtypes.TimeDef
 	err := db.QueryRowContext(ctx, internal.SelectBlockDataByHeight, ind).Scan(
-		&bd.Hash, &bd.Height, &bd.Size, &bd.Difficulty, &sbits, &timestamp,
-		&bd.PoolInfo.Size, &val, pq.Array(&winners), &isValid)
+		&hash, &bd.Height, &bd.Size, &bd.Difficulty, &sbits, &timestamp,
+		&bd.PoolInfo.Size, &val, &winners, &isValid)
 	if err != nil {
 		return nil, err
 	}
-	bd.PoolInfo.Value = dcrutil.Amount(val).ToCoin()
+	bd.Hash = hash.String()
+	bd.PoolInfo.Value = toCoin(val)
 	bd.PoolInfo.ValAvg = bd.PoolInfo.Value / float64(bd.Size)
 	bd.Time = apitypes.TimeAPI{S: timestamp}
-	bd.PoolInfo.Winners = winners
-	bd.StakeDiff = dcrutil.Amount(sbits).ToCoin()
+	bd.PoolInfo.Winners = make([]string, len(winners))
+	for i := range winners {
+		bd.PoolInfo.Winners[i] = winners[i].String()
+	}
+	bd.StakeDiff = toCoin(sbits)
 
 	return bd, nil
 }
 
-// RetrieveBlockSummaryByHash fetches basic block data for block hash.
-func RetrieveBlockSummaryByHash(ctx context.Context, db *sql.DB, hash string) (*apitypes.BlockDataBasic, error) {
+// retrieveBlockSummaryByHash fetches basic block data for block hash.
+func retrieveBlockSummaryByHash(ctx context.Context, db *sql.DB, hash dbtypes.ChainHash) (*apitypes.BlockDataBasic, error) {
 	bd := apitypes.NewBlockDataBasic()
-	var winners []string
+	var winners dbtypes.ChainHashArray
 	var isMainchain, isValid bool
 	var timestamp dbtypes.TimeDef
 	var val, psize sql.NullInt64 // pool value and size are only stored for mainchain blocks
 	var sbits int64
 	err := db.QueryRowContext(ctx, internal.SelectBlockDataByHash, hash).Scan(
-		&bd.Hash, &bd.Height, &bd.Size, &bd.Difficulty, &sbits, &timestamp,
-		&psize, &val, pq.Array(&winners), &isMainchain, &isValid)
+		&bd.Height, &bd.Size, &bd.Difficulty, &sbits, &timestamp,
+		&psize, &val, &winners, &isMainchain, &isValid)
 	if err != nil {
 		return nil, err
 	}
-	bd.PoolInfo.Value = dcrutil.Amount(val.Int64).ToCoin()
+	bd.Hash = hash.String()
+	bd.PoolInfo.Value = toCoin(val.Int64)
 	bd.PoolInfo.Size = uint32(psize.Int64)
 	bd.PoolInfo.ValAvg = bd.PoolInfo.Value / float64(bd.Size)
 	bd.Time = apitypes.TimeAPI{S: timestamp}
-	bd.PoolInfo.Winners = winners
-	bd.StakeDiff = dcrutil.Amount(sbits).ToCoin()
+	bd.PoolInfo.Winners = make([]string, len(winners))
+	for i := range winners {
+		bd.PoolInfo.Winners[i] = winners[i].String()
+	}
+	bd.StakeDiff = toCoin(sbits)
 	return bd, nil
 }
 
-// RetrieveBlockSummaryRange fetches basic block data for the blocks in range
+// retrieveBlockSummaryRange fetches basic block data for the blocks in range
 // (ind0, ind1).
-func RetrieveBlockSummaryRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) ([]*apitypes.BlockDataBasic, error) {
+func retrieveBlockSummaryRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) ([]*apitypes.BlockDataBasic, error) {
 	var desc bool
 	low, high := ind0, ind1
 	if low > high {
@@ -4426,22 +4425,27 @@ func RetrieveBlockSummaryRange(ctx context.Context, db *sql.DB, ind0, ind1 int64
 	defer rows.Close()
 	for rows.Next() {
 		bd := apitypes.NewBlockDataBasic()
-		var winners []string
+		var winners dbtypes.ChainHashArray
 		var isValid bool
 		var val, sbits int64
 		var timestamp dbtypes.TimeDef
+		var hash dbtypes.ChainHash
 		err := rows.Scan(
-			&bd.Hash, &bd.Height, &bd.Size, &bd.Difficulty, &sbits, &timestamp,
-			&bd.PoolInfo.Size, &val, pq.Array(&winners), &isValid,
+			&hash, &bd.Height, &bd.Size, &bd.Difficulty, &sbits, &timestamp,
+			&bd.PoolInfo.Size, &val, &winners, &isValid,
 		)
 		if err != nil {
 			return nil, err
 		}
-		bd.PoolInfo.Value = dcrutil.Amount(val).ToCoin()
+		bd.Hash = hash.String()
+		bd.PoolInfo.Value = toCoin(val)
 		bd.PoolInfo.ValAvg = bd.PoolInfo.Value / float64(bd.Size)
 		bd.Time = apitypes.TimeAPI{S: timestamp}
-		bd.PoolInfo.Winners = winners
-		bd.StakeDiff = dcrutil.Amount(sbits).ToCoin()
+		bd.PoolInfo.Winners = make([]string, len(winners))
+		for i := range winners {
+			bd.PoolInfo.Winners[i] = winners[i].String()
+		}
+		bd.StakeDiff = toCoin(sbits)
 		blocks = append(blocks, bd)
 	}
 	if err = rows.Err(); err != nil {
@@ -4452,9 +4456,9 @@ func RetrieveBlockSummaryRange(ctx context.Context, db *sql.DB, ind0, ind1 int64
 	return blocks, nil
 }
 
-// RetrieveBlockSummaryRangeStepped fetches basic block data for every step'th
+// retrieveBlockSummaryRangeStepped fetches basic block data for every step'th
 // block in range (ind0, ind1).
-func RetrieveBlockSummaryRangeStepped(ctx context.Context, db *sql.DB, ind0, ind1, step int64) ([]*apitypes.BlockDataBasic, error) {
+func retrieveBlockSummaryRangeStepped(ctx context.Context, db *sql.DB, ind0, ind1, step int64) ([]*apitypes.BlockDataBasic, error) {
 	var desc bool
 	stepMod := ind0 % step
 	low, high := ind0, ind1
@@ -4479,22 +4483,27 @@ func RetrieveBlockSummaryRangeStepped(ctx context.Context, db *sql.DB, ind0, ind
 	defer rows.Close()
 	for rows.Next() {
 		bd := apitypes.NewBlockDataBasic()
-		var winners []string
+		var winners dbtypes.ChainHashArray
 		var isValid bool
 		var val, sbits int64
 		var timestamp dbtypes.TimeDef
+		var hash dbtypes.ChainHash
 		err := rows.Scan(
-			&bd.Hash, &bd.Height, &bd.Size, &bd.Difficulty, &sbits, &timestamp,
-			&bd.PoolInfo.Size, &val, pq.Array(&winners), &isValid,
+			&hash, &bd.Height, &bd.Size, &bd.Difficulty, &sbits, &timestamp,
+			&bd.PoolInfo.Size, &val, &winners, &isValid,
 		)
 		if err != nil {
 			return nil, err
 		}
-		bd.PoolInfo.Value = dcrutil.Amount(val).ToCoin()
+		bd.Hash = hash.String()
+		bd.PoolInfo.Value = toCoin(val)
 		bd.PoolInfo.ValAvg = bd.PoolInfo.Value / float64(bd.Size)
 		bd.Time = apitypes.TimeAPI{S: timestamp}
-		bd.PoolInfo.Winners = winners
-		bd.StakeDiff = dcrutil.Amount(sbits).ToCoin()
+		bd.PoolInfo.Winners = make([]string, len(winners))
+		for i := range winners {
+			bd.PoolInfo.Winners[i] = winners[i].String()
+		}
+		bd.StakeDiff = toCoin(sbits)
 		blocks = append(blocks, bd)
 	}
 	if err = rows.Err(); err != nil {
@@ -4505,8 +4514,8 @@ func RetrieveBlockSummaryRangeStepped(ctx context.Context, db *sql.DB, ind0, ind
 	return blocks, nil
 }
 
-// RetrieveBlockSize return the size of block at height ind.
-func RetrieveBlockSize(ctx context.Context, db *sql.DB, ind int64) (int32, error) {
+// retrieveBlockSize return the size of block at height ind.
+func retrieveBlockSize(ctx context.Context, db *sql.DB, ind int64) (int32, error) {
 	var blockSize int32
 	err := db.QueryRowContext(ctx, internal.SelectBlockSizeByHeight, ind).Scan(&blockSize)
 	if err != nil {
@@ -4516,8 +4525,8 @@ func RetrieveBlockSize(ctx context.Context, db *sql.DB, ind int64) (int32, error
 	return blockSize, nil
 }
 
-// RetrieveBlockSizeRange returns an array of block sizes for block range ind0 to ind1
-func RetrieveBlockSizeRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) ([]int32, error) {
+// retrieveBlockSizeRange returns an array of block sizes for block range ind0 to ind1
+func retrieveBlockSizeRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) ([]int32, error) {
 	N := ind1 - ind0 + 1
 	if N == 0 {
 		return []int32{}, nil
@@ -4557,25 +4566,25 @@ func RetrieveBlockSizeRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) (
 	return blockSizes, nil
 }
 
-// RetrieveSDiff returns the stake difficulty for block at the specified chain
+// retrieveSDiff returns the stake difficulty for block at the specified chain
 // height.
-func RetrieveSDiff(ctx context.Context, db *sql.DB, ind int64) (float64, error) {
+func retrieveSDiff(ctx context.Context, db *sql.DB, ind int64) (float64, error) {
 	var sbits int64
 	err := db.QueryRowContext(ctx, internal.SelectSBitsByHeight, ind).Scan(&sbits)
-	return dcrutil.Amount(sbits).ToCoin(), err
+	return toCoin(sbits), err
 }
 
-// RetrieveSBitsByHash returns the stake difficulty in atoms for the specified
+// retrieveSBitsByHash returns the stake difficulty in atoms for the specified
 // block.
-func RetrieveSBitsByHash(ctx context.Context, db *sql.DB, hash string) (int64, error) {
+func retrieveSBitsByHash(ctx context.Context, db *sql.DB, hash dbtypes.ChainHash) (int64, error) {
 	var sbits int64
 	err := db.QueryRowContext(ctx, internal.SelectSBitsByHash, hash).Scan(&sbits)
 	return sbits, err
 }
 
-// RetrieveSDiffRange returns an array of stake difficulties for block range
+// retrieveSDiffRange returns an array of stake difficulties for block range
 // ind0 to ind1.
-func RetrieveSDiffRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) ([]float64, error) {
+func retrieveSDiffRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) ([]float64, error) {
 	N := ind1 - ind0 + 1
 	if N == 0 {
 		return []float64{}, nil
@@ -4605,7 +4614,7 @@ func RetrieveSDiffRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) ([]fl
 			log.Errorf("Unable to scan for sdiff fields: %v", err)
 			return nil, err
 		}
-		sdiffs = append(sdiffs, dcrutil.Amount(sbits).ToCoin())
+		sdiffs = append(sdiffs, toCoin(sbits))
 	}
 	if err = rows.Err(); err != nil {
 		return nil, err
@@ -4614,31 +4623,36 @@ func RetrieveSDiffRange(ctx context.Context, db *sql.DB, ind0, ind1 int64) ([]fl
 	return sdiffs, nil
 }
 
-// RetrieveLatestBlockSummary returns the block summary for the best block.
-func RetrieveLatestBlockSummary(ctx context.Context, db *sql.DB) (*apitypes.BlockDataBasic, error) {
+// retrieveLatestBlockSummary returns the block summary for the best block.
+func retrieveLatestBlockSummary(ctx context.Context, db *sql.DB) (*apitypes.BlockDataBasic, error) {
 	bd := apitypes.NewBlockDataBasic()
 
-	var winners []string
+	var winners dbtypes.ChainHashArray
 	var timestamp dbtypes.TimeDef
 	var isValid bool
 	var val, sbits int64
+	var hash dbtypes.ChainHash
 	err := db.QueryRowContext(ctx, internal.SelectBlockDataBest).Scan(
-		&bd.Hash, &bd.Height, &bd.Size, &bd.Difficulty, &sbits, &timestamp,
-		&bd.PoolInfo.Size, &val, pq.Array(&winners), &isValid)
+		&hash, &bd.Height, &bd.Size, &bd.Difficulty, &sbits, &timestamp,
+		&bd.PoolInfo.Size, &val, &winners, &isValid)
 	if err != nil {
 		return nil, err
 	}
-	bd.PoolInfo.Value = dcrutil.Amount(val).ToCoin()
+	bd.Hash = hash.String()
+	bd.PoolInfo.Value = toCoin(val)
 	bd.PoolInfo.ValAvg = bd.PoolInfo.Value / float64(bd.PoolInfo.Size)
 	bd.Time = apitypes.TimeAPI{S: timestamp}
-	bd.PoolInfo.Winners = winners
-	bd.StakeDiff = dcrutil.Amount(sbits).ToCoin()
+	bd.PoolInfo.Winners = make([]string, len(winners))
+	for i := range winners {
+		bd.PoolInfo.Winners = append(bd.PoolInfo.Winners, winners[i].String())
+	}
+	bd.StakeDiff = toCoin(sbits)
 	return bd, nil
 }
 
-// RetrieveDiff returns the difficulty for the first block mined after the
+// retrieveDiff returns the difficulty for the first block mined after the
 // provided UNIX timestamp.
-func RetrieveDiff(ctx context.Context, db *sql.DB, timestamp int64) (float64, error) {
+func retrieveDiff(ctx context.Context, db *sql.DB, timestamp int64) (float64, error) {
 	var diff float64
 	tDef := dbtypes.NewTimeDefFromUNIX(timestamp)
 	err := db.QueryRowContext(ctx, internal.SelectDiffByTime, tDef).Scan(&diff)

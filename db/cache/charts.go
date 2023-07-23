@@ -886,7 +886,7 @@ func (charts *ChartData) Update() error {
 		if err != nil {
 			return err
 		}
-		log.Tracef(" - Chart updater %q completed in %f seconds.",
+		log.Debugf(" - Chart updater %q completed in %f seconds.",
 			updater.Tag, time.Since(ti).Seconds())
 	}
 

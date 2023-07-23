@@ -79,7 +79,7 @@ func (iapi *InsightApi) DcrToInsightTxns(txs []*chainjson.TxRawResult, noAsm, no
 			// work if the funding transaction is confirmed. Otherwise use RPC
 			// to get the funding transaction outpoint addresses.
 			if !vinGenerated {
-				_, addresses, _, err := iapi.BlockData.AddressIDsByOutpoint(vin.Txid, vin.Vout)
+				addresses, _, err := iapi.BlockData.OutpointAddresses(vin.Txid, vin.Vout)
 				if err == nil && len(addresses) > 0 {
 					InsightVin.Addr = addresses[0]
 				} else {
