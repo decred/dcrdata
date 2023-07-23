@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/cmd/swapscan-btc
 
-go 1.18
+go 1.21
 
 require (
 	github.com/btcsuite/btcd v0.23.3

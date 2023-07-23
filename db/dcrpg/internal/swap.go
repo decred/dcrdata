@@ -2,9 +2,9 @@ package internal
 
 const (
 	CreateAtomicSwapTableV0 = `CREATE TABLE IF NOT EXISTS swaps (
-		contract_tx TEXT,
+		contract_tx BYTEA,
 		contract_vout INT4,
-		spend_tx TEXT,
+		spend_tx BYTEA,
 		spend_vin INT4,
 		spend_height INT8,
 		p2sh_addr TEXT,

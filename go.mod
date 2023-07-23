@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/v8
 
-go 1.18
+go 1.21
 
 require (
 	github.com/davecgh/go-spew v1.1.1
@@ -17,6 +17,7 @@ require (
 	github.com/decred/dcrd/wire v1.6.0
 	github.com/decred/slog v1.2.0
 	github.com/dgraph-io/badger v1.6.2
+	github.com/lib/pq v1.10.9
 	golang.org/x/net v0.20.0
 )
 

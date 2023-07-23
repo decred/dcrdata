@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/cmd/dcrdata
 
-go 1.18
+go 1.21
 
 replace (
 	github.com/decred/dcrdata/db/dcrpg/v8 => ../../db/dcrpg/
@@ -147,7 +147,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
-	github.com/lib/pq v1.10.4 // indirect
+	github.com/lib/pq v1.10.9 // indirect
 	github.com/lightninglabs/gozmq v0.0.0-20191113021534-d20a764486bf // indirect
 	github.com/lightninglabs/neutrino v0.14.3-0.20221024182812-792af8548c14 // indirect
 	github.com/lightningnetwork/lnd/clock v1.0.1 // indirect

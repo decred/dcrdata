@@ -91,9 +91,9 @@ func TestHashStart(t *testing.T) {
 		t.Fatalf(`Template function map does not contain "hashStart".`)
 	}
 
-	hashStartFn, ok := hashStart.(func(hash string) string)
+	hashStartFn, ok := hashStart.(func(hash any) string)
 	if !ok {
-		t.Fatalf(`Template function "hashStart" is not of type "func(hash string) string".`)
+		t.Fatalf(`Template function "hashStart" is not of type "func(hash any) string, is %T".`, hashStart)
 	}
 
 	testData := []struct {
@@ -125,9 +125,9 @@ func TestHashEnd(t *testing.T) {
 		t.Fatalf(`Template function map does not contain "hashEnd".`)
 	}
 
-	hashEndFn, ok := hashEnd.(func(hash string) string)
+	hashEndFn, ok := hashEnd.(func(hash any) string)
 	if !ok {
-		t.Fatalf(`Template function "hashEnd" is not of type "func(hash string) string".`)
+		t.Fatalf(`Template function "hashEnd" is not of type "func(hash string) string, is %T".`, hashEnd)
 	}
 
 	testData := []struct {
@@ -159,7 +159,7 @@ func TestHashStartEnd(t *testing.T) {
 		t.Fatalf(`Template function map does not contain "hashStart".`)
 	}
 
-	hashStartFn, ok := hashStart.(func(hash string) string)
+	hashStartFn, ok := hashStart.(func(hash any) string)
 	if !ok {
 		t.Fatalf(`Template function "hashStart" is not of type "func(hash string) string".`)
 	}
@@ -169,7 +169,7 @@ func TestHashStartEnd(t *testing.T) {
 		t.Fatalf(`Template function map does not contain "hashEnd".`)
 	}
 
-	hashEndFn, ok := hashEnd.(func(hash string) string)
+	hashEndFn, ok := hashEnd.(func(hash any) string)
 	if !ok {
 		t.Fatalf(`Template function "hashEnd" is not of type "func(hash string) string".`)
 	}

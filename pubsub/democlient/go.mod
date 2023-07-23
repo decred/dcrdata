@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/pubsub/democlient
 
-go 1.18
+go 1.21
 
 replace github.com/decred/dcrdata/v8 => ../../
 
@@ -39,6 +39,7 @@ require (
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
+	github.com/lib/pq v1.10.9 // indirect
 	github.com/mattn/go-colorable v0.1.8 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect

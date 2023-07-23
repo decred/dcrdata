@@ -815,7 +815,7 @@ func ChartGroupingCtx(next http.Handler) http.Handler {
 
 // apiDocs generates a middleware with a "docs" in the context containing a map
 // of the routers handlers, etc.
-func apiDocs(mux *chi.Mux) func(next http.Handler) http.Handler {
+func apiDocs(mux *chi.Mux) func(next http.Handler) http.Handler { //nolint
 	var buf bytes.Buffer
 	err := json.Indent(&buf, []byte(docgen.JSONRoutesDoc(mux)), "", "\t")
 	if err != nil {

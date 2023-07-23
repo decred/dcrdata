@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/gov/v6
 
-go 1.18
+go 1.21
 
 replace github.com/decred/dcrdata/v8 => ../
 
@@ -46,6 +46,7 @@ require (
 	github.com/gorilla/schema v1.1.0 // indirect
 	github.com/h2non/go-is-svg v0.0.0-20160927212452-35e8c4b0612c // indirect
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
+	github.com/lib/pq v1.10.9 // indirect
 	github.com/marcopeereboom/sbox v1.1.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect

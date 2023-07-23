@@ -4,16 +4,24 @@ import "fmt"
 
 // These queries relate primarily to the "addresses" table.
 const (
+	// instead of this addresses table, maybe:
+	//  - address index table: id, address
+	//  - address_transactions table: address_id, tx_db_id, vin_vout_db_id, is_funding, matching_tx_db_id
+	// get valid_mainchain, tx_hash(es), time, from transactions table
+	// get value from vouts/vins table
+	//
+	// or perhaps two tables: address_credits, address_debits
+
 	CreateAddressTable = `CREATE TABLE IF NOT EXISTS addresses (
 		id SERIAL8 PRIMARY KEY,
 		address TEXT,
-		tx_hash TEXT,
+		tx_hash BYTEA,
 		valid_mainchain BOOLEAN,
-		matching_tx_hash TEXT,
+		matching_tx_hash BYTEA, -- the funder if is_funding is FALSE, otherwise any known spender (may be NULL)
 		value INT8,
-		block_time TIMESTAMPTZ NOT NULL,
+		block_time TIMESTAMPTZ NOT NULL, -- ugh, so much dup
 		is_funding BOOLEAN,
-		tx_vin_vout_index INT4,
+		tx_vin_vout_index INT4, -- vout if is_funding is TRUE, vin if FALSE
 		tx_vin_vout_row_id INT8,
 		tx_type INT4
 	);`
@@ -91,11 +99,11 @@ const (
 		LIMIT $2 OFFSET $3`
 
 	// need random table name? does lib/pq share sessions?
-	CreateTempAddrTxnsTable = `CREATE TEMPORARY TABLE address_transactions
-		ON COMMIT DROP -- do in a txn!
-		AS (` + addressTxnsSubQuery + `);`
+	// CreateTempAddrTxnsTable = `CREATE TEMPORARY TABLE address_transactions
+	// 	ON COMMIT DROP -- do in a txn!
+	// 	AS (` + addressTxnsSubQuery + `);`
 
-	SelectVinsForAddress0 = `SELECT vins.tx_hash, vins.tx_index, vins.prev_tx_hash, vins.prev_tx_index,
+	SelectVinsForAddressAlt = `SELECT vins.tx_hash, vins.tx_index, vins.prev_tx_hash, vins.prev_tx_index,
 			vins.prev_tx_tree, vins.value_in -- no block height or block index
 		FROM (` + addressTxnsSubQuery + `) atxs
 		-- JOIN transactions txs ON txs.tx_hash=atxs.tx_hash
@@ -108,7 +116,7 @@ const (
 		JOIN vins ON vins.tx_hash = atxs.tx_hash   -- JOIN vins on vins.id = any(txs.vin_db_ids)
 		LEFT JOIN transactions prevtxs ON vins.prev_tx_hash=prevtxs.tx_hash;` // LEFT JOIN because prev_tx_hash may be coinbase
 
-	SelectVoutsForAddress = `SELECT vouts.value, vouts.tx_hash, vouts.tx_index, vouts.version, vouts.pkscript
+	SelectVoutsForAddress = `SELECT vouts.value, vouts.tx_hash, vouts.tx_index, vouts.version
 		FROM (` + addressTxnsSubQuery + `) atxs
 		JOIN vouts ON vouts.tx_hash = atxs.tx_hash;` //    -- vouts.id = any(transactions.vout_db_ids)
 
@@ -138,6 +146,7 @@ const (
 	addrsColumnNames = `id, address, matching_tx_hash, tx_hash, tx_type, valid_mainchain,
 		tx_vin_vout_index, block_time, tx_vin_vout_row_id, value, is_funding`
 
+	/* unused
 	SelectAddressAllByAddress = `SELECT ` + addrsColumnNames + ` FROM addresses
 		WHERE address=$1
 		ORDER BY block_time DESC, tx_hash ASC;`
@@ -162,16 +171,19 @@ const (
 		FROM addresses
 		WHERE address = ANY($1) AND valid_mainchain
 		ORDER BY block_time DESC, tx_hash ASC;`
+	*/
 
 	// selectAddressTimeGroupingCount return the count of record groups,
 	// where grouping is done by a specified time interval, for an addresses.
-	selectAddressTimeGroupingCount = `SELECT COUNT(DISTINCT %s) FROM addresses WHERE address=$1;`
+	// selectAddressTimeGroupingCount = `SELECT COUNT(DISTINCT %s) FROM addresses WHERE address=$1;`
 
+	/* unused
 	SelectAddressUnspentCountANDValue = `SELECT COUNT(*), SUM(value) FROM addresses
 	    WHERE address = $1 AND is_funding = TRUE AND matching_tx_hash = '' AND valid_mainchain;`
 
 	SelectAddressSpentCountANDValue = `SELECT COUNT(*), SUM(value) FROM addresses
 		WHERE address = $1 AND is_funding = FALSE AND matching_tx_hash != '' AND valid_mainchain;`
+	*/
 
 	SelectAddressesMergedSpentCount = `SELECT COUNT( DISTINCT tx_hash ) FROM addresses
 		WHERE address = $1 AND is_funding = FALSE AND valid_mainchain;`
@@ -208,12 +220,12 @@ const (
 			COUNT(*),
 			SUM(value),
 			is_funding,
-			(matching_tx_hash = '') AS all_empty_matching
-			-- NOT BOOL_AND(matching_tx_hash = '') AS no_empty_matching
+			(matching_tx_hash IS NULL) AS all_empty_matching
+			-- NOT BOOL_AND(matching_tx_hash IS NULL) AS no_empty_matching
 		FROM addresses
 		WHERE address = $1 AND valid_mainchain
 		GROUP BY tx_type=0, is_funding, 
-			matching_tx_hash=''  -- separate spent and unspent
+			matching_tx_hash IS NULL  -- separate spent and unspent
 		ORDER BY count, is_funding;`
 
 	SelectAddressUnspentWithTxn = `SELECT
@@ -222,13 +234,12 @@ const (
 			addresses.value,
 			transactions.block_height,
 			addresses.block_time,
-			addresses.tx_vin_vout_index,
-			vouts.pkscript
+			addresses.tx_vin_vout_index
 		FROM addresses
 		JOIN transactions ON
 			addresses.tx_hash = transactions.tx_hash
 		JOIN vouts ON addresses.tx_vin_vout_row_id = vouts.id
-		WHERE addresses.address=$1 AND addresses.is_funding AND addresses.matching_tx_hash = '' AND valid_mainchain
+		WHERE addresses.address=$1 AND addresses.is_funding AND addresses.matching_tx_hash IS NULL AND valid_mainchain
 		ORDER BY addresses.block_time DESC;`
 	// Since tx_vin_vout_row_id is the vouts table primary key (id) when
 	// is_funding=true, there is no need to join vouts on tx_hash and tx_index.
@@ -245,6 +256,7 @@ const (
 	// 	SELECT * FROM these
 	// 	ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
 
+	/* unused
 	SelectAddressMergedDebitView = `SELECT tx_hash, valid_mainchain, block_time, sum(value), COUNT(*)
 		FROM addresses
 		WHERE address=$1 AND is_funding = FALSE          -- spending transactions
@@ -256,6 +268,7 @@ const (
 		WHERE address=$1 AND is_funding = TRUE           -- funding transactions
 		GROUP BY (tx_hash, valid_mainchain, block_time)  -- merging common transactions in same valid mainchain block
 		ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
+	*/
 
 	SelectAddressMergedViewAll = `SELECT tx_hash, valid_mainchain, block_time, sum(CASE WHEN is_funding = TRUE THEN value ELSE 0 END),
 		sum(CASE WHEN is_funding = FALSE THEN value ELSE 0 END), COUNT(*)
@@ -266,9 +279,10 @@ const (
 
 	SelectAddressMergedView = SelectAddressMergedViewAll + ` LIMIT $2 OFFSET $3;`
 
-	SelectAddressCsvView = "SELECT tx_hash, valid_mainchain, matching_tx_hash, value, block_time, is_funding, " +
-		"tx_vin_vout_index, tx_type FROM addresses WHERE address=$1 ORDER BY block_time DESC"
+	// SelectAddressCsvView = "SELECT tx_hash, valid_mainchain, matching_tx_hash, value, block_time, is_funding, " +
+	// 	"tx_vin_vout_index, tx_type FROM addresses WHERE address=$1 ORDER BY block_time DESC"
 
+	/* unused
 	SelectAddressDebitsLimitNByAddress = `SELECT ` + addrsColumnNames + `
 		FROM addresses WHERE address=$1 AND is_funding = FALSE AND valid_mainchain
 		ORDER BY block_time DESC, tx_hash ASC
@@ -278,14 +292,15 @@ const (
 		FROM addresses WHERE address=$1 AND is_funding AND valid_mainchain
 		ORDER BY block_time DESC, tx_hash ASC
 		LIMIT $2 OFFSET $3;`
+	*/
 
 	SelectAddressIDsByFundingOutpoint = `SELECT id, address, value
 		FROM addresses
 		WHERE tx_hash=$1 AND tx_vin_vout_index=$2 AND is_funding
 		ORDER BY block_time DESC;`
 
-	SelectAddressOldestTxBlockTime = `SELECT block_time FROM addresses WHERE
-		address=$1 ORDER BY block_time LIMIT 1;`
+	// SelectAddressOldestTxBlockTime = `SELECT block_time FROM addresses WHERE
+	// 	address=$1 ORDER BY block_time LIMIT 1;`
 
 	// selectAddressTxTypesByAddress gets the transaction type histogram for the
 	// given address using block time binning with bin size of block_time.
@@ -319,6 +334,15 @@ const (
 			AND vouts.tx_index=addresses.tx_vin_vout_index
 			AND transactions.id=vouts.spend_tx_row_id;`
 
+	UpdateAllAddressesMatchingTxHashRangeXX = `UPDATE addresses SET matching_tx_hash=vins.tx_hash
+		FROM vins, transactions
+		WHERE transactions.block_height >= $1 AND transactions.block_height < $2
+			AND addresses.is_funding AND addresses.value > 0 
+			AND vins.prev_tx_hash=addresses.tx_hash
+			AND vins.prev_tx_index=addresses.tx_vin_vout_index
+			AND transactions.tx_hash=vins.tx_hash;`
+
+	/* alts
 	UpdateAllAddressesMatchingTxHash = `UPDATE addresses SET matching_tx_hash=transactions.tx_hash
 		FROM vouts, transactions
 		WHERE vouts.value>0 AND addresses.is_funding
@@ -346,6 +370,7 @@ const (
 			AS stuff
 		WHERE addresses.id=stuff.addr_id
 			AND transactions.id=stuff.spend_tx_row_id;`
+	*/
 
 	// SetAddressMatchingTxHashForOutpoint sets the matching tx hash (a spending
 	// transaction) for the addresses rows corresponding to the specified
@@ -356,7 +381,7 @@ const (
 	// AssignMatchingTxHashForOutpoint is like
 	// SetAddressMatchingTxHashForOutpoint except that it only updates rows
 	// where matching_tx_hash is not already set.
-	AssignMatchingTxHashForOutpoint = SetAddressMatchingTxHashForOutpoint + ` AND matching_tx_hash='';`
+	// AssignMatchingTxHashForOutpoint = SetAddressMatchingTxHashForOutpoint + ` AND matching_tx_hash='';`
 
 	SetAddressMainchainForVoutIDs = `UPDATE addresses SET valid_mainchain=$1
 		WHERE is_funding = TRUE AND tx_vin_vout_row_id=$2
@@ -365,68 +390,6 @@ const (
 	SetAddressMainchainForVinIDs = `UPDATE addresses SET valid_mainchain=$1
 		WHERE is_funding = FALSE AND tx_vin_vout_row_id=$2
 		RETURNING address;`
-
-	// Patches/upgrades
-
-	// The SelectAddressesGloballyInvalid and UpdateAddressesGloballyInvalid
-	// queries are used to patch a bug in new block handling that neglected to
-	// set valid_mainchain=false for the previous block when the new block's
-	// vote bits invalidate the previous block. This pertains to dcrpg 3.5.x.
-
-	// SelectAddressesGloballyInvalid selects the row ids of the addresses table
-	// corresponding to transactions that should have valid_mainchain set to
-	// false according to the transactions table. Should is defined as any
-	// occurrence of a given transaction (hash) being flagged as is_valid AND
-	// is_mainchain.
-	SelectAddressesGloballyInvalid = `SELECT id, valid_mainchain
-		FROM addresses
-		JOIN
-			(  -- globally_invalid transactions with no (is_valid && is_mainchain)=true occurrence
-				SELECT tx_hash
-				FROM
-				(
-					SELECT bool_or(is_valid AND is_mainchain) AS any_valid, tx_hash
-					FROM transactions
-					GROUP BY tx_hash
-				) AS foo
-				WHERE any_valid=FALSE
-			) AS globally_invalid
-		ON globally_invalid.tx_hash = addresses.tx_hash `
-
-	// UpdateAddressesGloballyInvalid sets valid_mainchain=false on address rows
-	// identified by the SelectAddressesGloballyInvalid query (ids of
-	// globally_invalid subquery table) as requiring this flag set, but which do
-	// not already have it set (incorrectly_valid).
-	UpdateAddressesGloballyInvalid = `UPDATE addresses SET valid_mainchain=false
-		FROM (
-			SELECT id FROM
-			(
-				` + SelectAddressesGloballyInvalid + `
-			) AS invalid_ids
-			WHERE invalid_ids.valid_mainchain=true
-		) AS incorrectly_valid
-		WHERE incorrectly_valid.id=addresses.id;`
-
-	// UpdateAddressesFundingMatchingHash sets matching_tx_hash as per the vins
-	// table. This is needed to fix partially updated addresses table entries
-	// that were affected by stake invalidation.
-	UpdateAddressesFundingMatchingHash = `UPDATE addresses SET matching_tx_hash=vins.tx_hash -- , matching_tx_index=vins.tx_index
-		FROM vins
-		WHERE addresses.tx_hash=vins.prev_tx_hash
-		AND addresses.tx_vin_vout_index=vins.prev_tx_index
-		AND is_funding=TRUE
-		AND is_valid=TRUE
-		AND matching_tx_hash!=vins.tx_hash;`
-	// AND (matching_tx_hash!=vins.tx_hash OR matching_tx_index!=vins.tx_index);`
-
-	// UpdateValidMainchainFromTransactions sets valid_mainchain in all rows of
-	// the addresses table according to the transactions table, unlike
-	// UpdateAddressesGloballyInvalid that does it selectively for only the
-	// incorrectly set addresses table rows.  This is much slower.
-	UpdateValidMainchainFromTransactions = `UPDATE addresses
-		SET valid_mainchain = (tr.is_mainchain::int * tr.is_valid::int)::boolean
-		FROM transactions AS tr
-		WHERE addresses.tx_hash = tr.tx_hash;`
 )
 
 // MakeAddressRowInsertStatement returns the appropriate addresses insert statement for
@@ -456,10 +419,6 @@ func MakeSelectAddressTxTypesByAddress(group string) string {
 // MakeSelectAddressAmountFlowByAddress returns the selectAddressAmountFlowByAddress query
 func MakeSelectAddressAmountFlowByAddress(group string) string {
 	return formatGroupingQuery(selectAddressAmountFlowByAddress, group, "block_time")
-}
-
-func MakeSelectAddressTimeGroupingCount(group string) string {
-	return formatGroupingQuery(selectAddressTimeGroupingCount, group, "block_time")
 }
 
 // Since date_trunc function doesn't have an option to group by "all" grouping,

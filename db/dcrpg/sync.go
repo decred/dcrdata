@@ -57,7 +57,7 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.BlockFetche
 	reindexing := newIndexes || lastBlock == -1
 
 	// See if initial sync (initial block download) was previously completed.
-	ibdComplete, err := IBDComplete(pgb.db)
+	ibdComplete, err := ibdComplete(pgb.db)
 	if err != nil {
 		return lastBlock, fmt.Errorf("IBDComplete failed: %w", err)
 	}
@@ -105,7 +105,7 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.BlockFetche
 
 	if pgb.utxoCache.Size() == 0 { // entries at any height implies it's warmed by previous sync
 		log.Infof("Collecting all UTXO data prior to height %d...", lastBlock+1)
-		utxos, err := RetrieveUTXOs(ctx, pgb.db)
+		utxos, err := retrieveUTXOs(ctx, pgb.db)
 		if err != nil {
 			return -1, fmt.Errorf("RetrieveUTXOs: %w", err)
 		}
@@ -149,7 +149,7 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.BlockFetche
 	// ibd_complete flag to false if it is not already false.
 	if ibdComplete && (reindexing || updateAllAddresses) {
 		// Set meta.ibd_complete = FALSE.
-		if err = SetIBDComplete(pgb.db, false); err != nil {
+		if err = setIBDComplete(pgb.db, false); err != nil {
 			return nodeHeight, fmt.Errorf("failed to set meta.ibd_complete: %w", err)
 		}
 	}
@@ -397,7 +397,7 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.BlockFetche
 		// invalidated and the transactions are subsequently re-mined in another
 		// block. Remove these before indexing.
 		log.Infof("Finding and removing duplicate table rows before indexing...")
-		if err = pgb.DeleteDuplicates(barLoad); err != nil {
+		if err = pgb.deleteDuplicates(barLoad); err != nil {
 			return 0, err
 		}
 
@@ -460,7 +460,7 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.BlockFetche
 		// Drop the index on addresses.matching_tx_hash if it exists.
 		_ = DeindexAddressTableOnMatchingTxHash(pgb.db) // ignore error if the index is absent
 
-		numAddresses, err := pgb.UpdateSpendingInfoInAllAddresses(barLoad)
+		numAddresses, err := pgb.updateSpendingInfoInAllAddresses(barLoad)
 		if err != nil {
 			return nodeHeight, fmt.Errorf("UpdateSpendingInfoInAllAddresses FAILED: %w", err)
 		}
@@ -494,7 +494,7 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.BlockFetche
 	}
 
 	// Set meta.ibd_complete = TRUE.
-	if err = SetIBDComplete(pgb.db, true); err != nil {
+	if err = setIBDComplete(pgb.db, true); err != nil {
 		return nodeHeight, fmt.Errorf("failed to set meta.ibd_complete: %w", err)
 	}
 

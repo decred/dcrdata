@@ -564,24 +564,45 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			}
 			return arr
 		},
-		"hashlink": func(hash string, link string) [2]string {
-			return [2]string{hash, link}
+		"hashlink": func(hash any, link string) [2]string {
+			var h string
+			switch ht := hash.(type) {
+			case string:
+				h = ht
+			case fmt.Stringer: // e.g. dbtypes.ChainHash
+				h = ht.String()
+			}
+			return [2]string{h, link}
 		},
-		"hashStart": func(hash string) string {
+		"hashStart": func(hash any) string {
+			var h string
+			switch ht := hash.(type) {
+			case string:
+				h = ht
+			case fmt.Stringer: // e.g. dbtypes.ChainHash
+				h = ht.String()
+			}
 			clipLen := 6
-			hashLen := len(hash) - clipLen
+			hashLen := len(h) - clipLen
 			if hashLen < 1 {
 				return ""
 			}
-			return hash[0:hashLen]
+			return h[0:hashLen]
 		},
-		"hashEnd": func(hash string) string {
-			clipLen := 6
-			hashLen := len(hash) - clipLen
-			if hashLen < 0 {
-				return hash
+		"hashEnd": func(hash any) string {
+			var h string
+			switch ht := hash.(type) {
+			case string:
+				h = ht
+			case fmt.Stringer: // e.g. dbtypes.ChainHash
+				h = ht.String()
 			}
-			return hash[hashLen:]
+			clipLen := 6
+			hashLen := len(h) - clipLen
+			if hashLen < 0 {
+				return h
+			}
+			return h[hashLen:]
 		},
 		"redirectToMainnet": func(netName string, message string) bool {
 			if netName != "Mainnet" && strings.Contains(message, "mainnet") {

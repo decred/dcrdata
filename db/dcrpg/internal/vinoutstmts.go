@@ -11,14 +11,14 @@ const (
 
 	CreateVinTable = `CREATE TABLE IF NOT EXISTS vins (
 		id SERIAL8 PRIMARY KEY,
-		tx_hash TEXT,
+		tx_hash BYTEA, -- maybe a transactions_vins id-id table instead?
 		tx_index INT4,
 		tx_tree INT2,
-		is_valid BOOLEAN,
+		is_valid BOOLEAN, -- dup in transactions table...
 		is_mainchain BOOLEAN,
 		block_time TIMESTAMPTZ,
-		prev_tx_hash TEXT,
-		prev_tx_index INT8,
+		prev_tx_hash BYTEA,
+		prev_tx_index INT8, -- int8???
 		prev_tx_tree INT2,
 		value_in INT8,
 		tx_type INT4
@@ -65,16 +65,11 @@ const (
 				FROM vins) t
 			WHERE t.rnum > 1);`
 
-	ShowCreateVinsTable     = `WITH a AS (SHOW CREATE vins) SELECT create_statement FROM a;`
-	DistinctVinsToTempTable = `INSERT INTO vins_temp
-		SELECT DISTINCT ON (tx_hash, tx_index) *
-		FROM vins;`
-	RenameVinsTemp = `ALTER TABLE vins_temp RENAME TO vins;`
-
+	/* unused
 	SelectVinDupIDs = `WITH dups AS (
 		SELECT array_agg(id) AS ids
 		FROM vins
-		GROUP BY tx_hash, tx_index 
+		GROUP BY tx_hash, tx_index
 		HAVING count(id)>1
 	)
 	SELECT array_agg(dupids) FROM (
@@ -82,9 +77,7 @@ const (
 		FROM dups
 		ORDER BY dupids DESC
 	) AS _;`
-
-	DeleteVinRows = `DELETE FROM vins
-		WHERE id = ANY($1);`
+	*/
 
 	IndexVinTableOnVins = `CREATE UNIQUE INDEX ` + IndexOfVinsTableOnVin +
 		` ON vins(tx_hash, tx_index, tx_tree);`
@@ -94,9 +87,6 @@ const (
 		` ON vins(prev_tx_hash, prev_tx_index);`
 	DeindexVinTableOnPrevOuts = `DROP INDEX ` + IndexOfVinsTableOnPrevOut + ` CASCADE;`
 
-	SelectVinIDsALL = `SELECT id FROM vins;`
-	CountVinsRows   = `SELECT reltuples::BIGINT AS estimate FROM pg_class WHERE relname='vins';`
-
 	SelectSpendingTxsByPrevTx                = `SELECT id, tx_hash, tx_index, prev_tx_index FROM vins WHERE prev_tx_hash=$1;`
 	SelectSpendingTxsByPrevTxWithBlockHeight = `SELECT prev_tx_index, vins.tx_hash, vins.tx_index, block_height
 		FROM vins LEFT JOIN transactions ON
@@ -104,21 +94,14 @@ const (
 			transactions.is_valid AND
 			transactions.is_mainchain
 		WHERE prev_tx_hash=$1 AND vins.is_valid AND vins.is_mainchain;`
-	SelectSpendingTxByPrevOut = `SELECT id, tx_hash, tx_index, tx_tree FROM vins
+	SelectSpendingTxByPrevOut = `SELECT id, tx_hash, tx_index FROM vins
 		WHERE prev_tx_hash=$1 AND prev_tx_index=$2 ORDER BY is_valid DESC, is_mainchain DESC, block_time DESC;`
-	SelectFundingTxsByTx        = `SELECT id, prev_tx_hash FROM vins WHERE tx_hash=$1;`
-	SelectFundingTxByTxIn       = `SELECT id, prev_tx_hash FROM vins WHERE tx_hash=$1 AND tx_index=$2;`
-	SelectFundingOutpointByTxIn = `SELECT id, prev_tx_hash, prev_tx_index, prev_tx_tree FROM vins
-		WHERE tx_hash=$1 AND tx_index=$2;`
 
-	SelectFundingOutpointByVinID     = `SELECT prev_tx_hash, prev_tx_index, prev_tx_tree FROM vins WHERE id=$1;`
 	SelectFundingOutpointIndxByVinID = `SELECT prev_tx_index FROM vins WHERE id=$1;`
-	SelectFundingTxByVinID           = `SELECT prev_tx_hash FROM vins WHERE id=$1;`
-	SelectSpendingTxByVinID          = `SELECT tx_hash, tx_index, tx_tree FROM vins WHERE id=$1;`
-	SelectAllVinInfoByID             = `SELECT tx_hash, tx_index, tx_tree, is_valid, is_mainchain, block_time,
+	SelectAllVinInfoByID             = `SELECT tx_hash, tx_index, tx_tree, is_valid, is_mainchain, block_time,  --- could easily do this by tx_hash and tx_index
 		prev_tx_hash, prev_tx_index, prev_tx_tree, value_in, tx_type FROM vins WHERE id = $1;`
-	SelectVinVoutPairByID = `SELECT tx_hash, tx_index, prev_tx_hash, prev_tx_index FROM vins WHERE id = $1;`
 
+	/* alt without spend_tx_row_id
 	SelectUTXOsViaVinsMatch = `SELECT vouts.id, vouts.tx_hash, vouts.tx_index,   -- row ID and outpoint
 			vouts.script_addresses, vouts.value, vouts.mixed         -- value, addresses, and mixed flag of output
 		FROM vouts
@@ -129,6 +112,7 @@ const (
 		WHERE vins.prev_tx_hash IS NULL                   -- unspent, condition applied after join, which will put NULL when no vin matches the vout
 			AND array_length(script_addresses, 1)>0
 			AND transactions.is_mainchain AND transactions.is_valid;`
+	*/
 
 	SelectUTXOs = `SELECT vouts.id, vouts.tx_hash, vouts.tx_index, vouts.script_addresses, vouts.value, vouts.mixed
 		FROM vouts
@@ -138,27 +122,15 @@ const (
 
 	SetIsValidIsMainchainByTxHash = `UPDATE vins SET is_valid = $1, is_mainchain = $2
 		WHERE tx_hash = $3 AND block_time = $4;`
-	SetIsValidIsMainchainByVinID = `UPDATE vins SET is_valid = $2, is_mainchain = $3
-		WHERE id = $1;`
-	SetIsValidByTxHash = `UPDATE vins SET is_valid = $1
-		WHERE tx_hash = $2 AND block_time = $3;`
-	SetIsValidByVinID = `UPDATE vins SET is_valid = $2
-		WHERE id = $1;`
-	SetIsMainchainByTxHash = `UPDATE vins SET is_mainchain = $1
-		WHERE tx_hash = $2 AND block_time = $3;`
 	SetIsMainchainByVinID = `UPDATE vins SET is_mainchain = $2
 		WHERE id = $1;`
-
-	// SetVinsTableCoinSupplyUpgrade does not set is_mainchain because that upgrade comes after this one
-	SetVinsTableCoinSupplyUpgrade = `UPDATE vins SET is_valid = $1, block_time = $3, value_in = $4
-		WHERE tx_hash = $5 AND tx_index = $6 AND tx_tree = $7;`
 
 	// SelectCoinSupply fetches the newly minted atoms per block by filtering
 	// for stakebase, treasurybase, and stake-validated coinbase transactions.
 	SelectCoinSupply = `SELECT vins.block_time, sum(vins.value_in)
 		FROM vins JOIN transactions
 		ON vins.tx_hash = transactions.tx_hash
-		WHERE vins.prev_tx_hash = '0000000000000000000000000000000000000000000000000000000000000000'
+		WHERE vins.prev_tx_hash = '\x0000000000000000000000000000000000000000000000000000000000000000'::bytea
 		AND transactions.block_height > $1
 		AND vins.is_mainchain AND (vins.is_valid OR vins.tx_tree != 0)
 		AND vins.tx_type = ANY(ARRAY[0,2,6])   --- coinbase(regular),ssgen,treasurybase, but NOT tspend, same as =ANY('{0,2,6}') or IN(0,2,6)
@@ -169,23 +141,22 @@ const (
 
 	CreateVoutTable = `CREATE TABLE IF NOT EXISTS vouts (
 		id SERIAL8 PRIMARY KEY,
-		tx_hash TEXT,
+		tx_hash BYTEA, -- maybe a transactions_vouts id-id table instead
 		tx_index INT4,
 		tx_tree INT2,
 		value INT8,
 		version INT2,
-		pkscript BYTEA,
-		script_req_sigs INT4,
+		-- pkscript BYTEA, -- ask the node
 		script_type TEXT,
-		script_addresses TEXT[],
+		script_addresses TEXT, -- but the addresses table... (!)
 		mixed BOOLEAN DEFAULT FALSE,
 		spend_tx_row_id INT8
 	);`
 
 	// insertVinRow is the basis for several vout insert/upsert statements.
 	insertVoutRow = `INSERT INTO vouts (tx_hash, tx_index, tx_tree, value,
-		version, pkscript, script_req_sigs, script_type, script_addresses, mixed)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ` // not with spend_tx_row_id
+		version, script_type, script_addresses, mixed)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ` // not with spend_tx_row_id
 
 	// InsertVoutRow inserts a new vout row without checking for unique index
 	// conflicts. This should only be used before the unique indexes are created
@@ -234,26 +205,19 @@ const (
 			WHERE t.rnum > 1
 		);`
 
-	ShowCreateVoutsTable     = `WITH a AS (SHOW CREATE vouts) SELECT create_statement FROM a;`
-	DistinctVoutsToTempTable = `INSERT INTO vouts_temp
-		SELECT DISTINCT ON (tx_hash, tx_index) *
-		FROM vouts;`
-	RenameVoutsTemp = `ALTER TABLE vouts_temp RENAME TO vouts;`
-
-	SelectVoutDupIDs = `WITH dups AS (
-		SELECT array_agg(id) AS ids
-		FROM vouts
-		GROUP BY tx_hash, tx_index 
-		HAVING count(id)>1
-	)
-	SELECT array_agg(dupids) FROM (
-		SELECT unnest(ids) AS dupids
-		FROM dups
-		ORDER BY dupids DESC
-	) AS _;`
-
-	DeleteVoutRows = `DELETE FROM vins
-		WHERE id = ANY($1);`
+	/*
+		SelectVoutDupIDs = `WITH dups AS (
+			SELECT array_agg(id) AS ids
+			FROM vouts
+			GROUP BY tx_hash, tx_index
+			HAVING count(id)>1
+		)
+		SELECT array_agg(dupids) FROM (
+			SELECT unnest(ids) AS dupids
+			FROM dups
+			ORDER BY dupids DESC
+		) AS _;`
+	*/
 
 	// IndexVoutTableOnTxHashIdx creates the unique index uix_vout_txhash_ind on
 	// (tx_hash, tx_index, tx_tree).
@@ -268,15 +232,11 @@ const (
 	SelectVoutAddressesByTxOut = `SELECT id, script_addresses, value, mixed FROM vouts
 		WHERE tx_hash = $1 AND tx_index = $2 AND tx_tree = $3;`
 
-	SelectPkScriptByID       = `SELECT version, pkscript FROM vouts WHERE id=$1;`
-	SelectPkScriptByOutpoint = `SELECT version, pkscript FROM vouts WHERE tx_hash=$1 and tx_index=$2;`
-	SelectPkScriptByVinID    = `SELECT version, pkscript FROM vouts
-		JOIN vins ON vouts.tx_hash=vins.prev_tx_hash and vouts.tx_index=vins.prev_tx_index
-		WHERE vins.id=$1;`
+	SelectVoutByID = `SELECT id, tx_hash, tx_index, tx_tree, is_valid, is_mainchain,
+			block_time, prev_tx_hash, prev_tx_index, prev_tx_tree, value_in, tx_type
+		FROM vouts WHERE id=$1;`
 
-	SelectVoutIDByOutpoint = `SELECT id FROM vouts WHERE tx_hash=$1 and tx_index=$2;`
-	SelectVoutByID         = `SELECT * FROM vouts WHERE id=$1;`
-
+	// TEST ONLY REMOVE
 	RetrieveVoutValue  = `SELECT value FROM vouts WHERE tx_hash=$1 and tx_index=$2;`
 	RetrieveVoutValues = `SELECT value, tx_index, tx_tree FROM vouts WHERE tx_hash=$1;`
 )

@@ -33,7 +33,7 @@ import (
 
 type BlockDataSource interface {
 	AddressBalance(address string) (bal *dbtypes.AddressBalance, cacheUpdated bool, err error)
-	AddressIDsByOutpoint(txHash string, voutIndex uint32) ([]uint64, []string, int64, error)
+	OutpointAddresses(txHash string, voutIndex uint32) ([]string, int64, error)
 	AddressUTXO(address string) ([]*dbtypes.AddressTxnOutput, bool, error)
 	BlockSummaryTimeRange(min, max int64, limit int) ([]dbtypes.BlockDataBasic, error)
 	GetBlockHash(idx int64) (string, error)
@@ -130,7 +130,7 @@ func writeJSON(w http.ResponseWriter, thing interface{}, indent string) {
 func writeInsightError(w http.ResponseWriter, str string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusBadRequest)
-	io.WriteString(w, str)
+	io.WriteString(w, str) //nolint:errcheck
 }
 
 // Insight API response for an item NOT FOUND.  This means the request was valid
@@ -140,7 +140,7 @@ func writeInsightError(w http.ResponseWriter, str string) {
 func writeInsightNotFound(w http.ResponseWriter, str string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusNotFound)
-	io.WriteString(w, str)
+	io.WriteString(w, str) //nolint:errcheck
 }
 
 func (iapi *InsightApi) getTransaction(w http.ResponseWriter, r *http.Request) {
@@ -459,7 +459,7 @@ func (iapi *InsightApi) getAddressesTxnOutput(w http.ResponseWriter, r *http.Req
 				// need to do one more search on utxo and do not add if this is
 				// already in the list as a confirmed tx.
 				for _, utxo := range confirmedTxnOutputs {
-					if utxo.Vout == f.Index && utxo.TxHash == f.Hash {
+					if utxo.Vout == f.Index && utxo.TxHash == dbtypes.ChainHash(f.Hash) {
 						continue FUNDING_TX_DUPLICATE_CHECK
 					}
 				}
@@ -473,7 +473,7 @@ func (iapi *InsightApi) getAddressesTxnOutput(w http.ResponseWriter, r *http.Req
 					TxnID:         fundingTx.Hash().String(),
 					Vout:          f.Index,
 					BlockTime:     fundingTx.MemPoolTime,
-					ScriptPubKey:  hex.EncodeToString(txOut.PkScript),
+					ScriptPubKey:  txOut.PkScript,
 					Amount:        dcrutil.Amount(txOut.Value).ToCoin(),
 					Satoshis:      txOut.Value,
 					Confirmations: 0,

@@ -207,7 +207,9 @@ func NewSocketServer(params *chaincfg.Params, txGetter txhelpers.RawTransactionG
 
 	apiLog.Infof("Started Insight socket.io server.")
 
-	go server.Serve()
+	go func() {
+		apiLog.Warnf("SocketServer.Serve: %v", server.Serve())
+	}()
 	return server, nil
 }
 

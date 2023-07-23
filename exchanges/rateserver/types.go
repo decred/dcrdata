@@ -225,8 +225,3 @@ func (client *rateClient) SendExchangeUpdate(update *dcrrates.ExchangeRateUpdate
 func (client *rateClient) Stream() GRPCStream {
 	return client.stream
 }
-
-// Determine if the grpc.ServerStream's context Done() channel has been closed.
-func (client *rateClient) isDone() bool {
-	return client.stream.Context().Err() != nil
-}

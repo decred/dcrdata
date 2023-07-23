@@ -4,10 +4,13 @@
 package dbtypes
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -17,6 +20,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4/stdscript"
+	"github.com/lib/pq"
 
 	"github.com/decred/dcrdata/v8/db/dbtypes/internal"
 	"github.com/decred/dcrdata/v8/txhelpers"
@@ -162,6 +166,210 @@ func (sc *ScriptClass) UnmarshalJSON(b []byte) error {
 	}
 	*sc = NewScriptClassFromString(str)
 	return nil
+}
+
+type ChainHash chainhash.Hash
+
+func (ch ChainHash) String() string {
+	return chainhash.Hash(ch).String() // byte reverse and hex encode
+}
+
+func (ch *ChainHash) MarshalJSON() ([]byte, error) {
+	return json.Marshal(ch.String())
+}
+
+var zeroHash chainhash.Hash
+
+func (ch *ChainHash) IsZero() bool {
+	if ch == nil {
+		return true
+	}
+	return (*chainhash.Hash)(ch).IsEqual(&zeroHash)
+}
+
+func (ch *ChainHash) UnmarshalJSON(b []byte) error {
+	if len(b) < 2+64 {
+		return fmt.Errorf("wrong length")
+	}
+	if b[0] != '"' || b[len(b)-1] != '"' {
+		return fmt.Errorf("not a quoted json string")
+	}
+	bs := b[1 : len(b)-1]
+	err := chainhash.Decode((*chainhash.Hash)(ch), string(bs))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func revHash(ch *ChainHash) {
+	sz := len(ch)
+	for i := range ch[:sz/2] {
+		ch[i], ch[sz-1-i] = ch[sz-1-i], ch[i]
+	}
+}
+
+// Scan satisfies the sql.Scanner interface.
+func (ch *ChainHash) Scan(src interface{}) error {
+	// switch src := src.(type) {
+	// case []byte:
+	// 	if len(src) != chainhash.HashSize {
+	// 		return fmt.Errorf("wrong length chain hash")
+	// 	}
+	// 	copy(ch[:], src)
+	// 	revHash(ch)
+	// 	return nil
+	// case nil:
+	// 	return nil
+	// }
+	// return fmt.Errorf("not a chain hash")
+
+	if src == nil { // scanned a NULL value
+		*ch = ChainHash{} // caller doesn't really know if it was null or zeros, context is important
+		return nil        // leave *ch as the zero value
+	}
+	hb, ok := src.([]byte)
+	if !ok {
+		return fmt.Errorf("not a chain hash")
+	}
+	sz := len(hb)
+	if sz == 0 {
+		return nil // pretend this was NULL
+	}
+	if sz != chainhash.HashSize {
+		return fmt.Errorf("wrong length chain hash")
+	}
+	// copy(ch[:], hb)
+	// revHash(ch)
+	for i := range hb {
+		ch[sz-1-i], ch[i] = hb[i], hb[sz-1-i]
+	}
+	return nil
+}
+
+var _ sql.Scanner = (*ChainHash)(nil)
+
+// Scan satisfies the sql/driver.Valuer interface.
+func (ch ChainHash) Value() (driver.Value, error) {
+	revHash(&ch) // reverse in place since this is a value receiver
+	// fmt.Printf("%x\n", ch[:])
+	return ch[:], nil
+}
+
+var _ driver.Valuer = ChainHash{}
+var _ driver.Valuer = (*ChainHash)(nil)
+
+// ChainHashArray represents a one-dimensional array of the ChainHash type.
+type ChainHashArray []ChainHash
+
+// Scan implements the sql.Scanner interface.
+func (a *ChainHashArray) Scan(src interface{}) error {
+	var ba pq.ByteaArray
+	err := ba.Scan(src)
+	if err != nil {
+		return err
+	}
+
+	*a = make([]ChainHash, len(ba))
+	for i := range ba {
+		chi := &(*a)[i]
+		if err = chi.Scan(ba[i]); err != nil {
+			*a = ChainHashArray{}
+			return err
+		}
+	}
+	return nil
+}
+
+// Value implements the driver.Valuer interface.
+func (a ChainHashArray) Value() (driver.Value, error) {
+	if a == nil {
+		return nil, nil
+	}
+	if len(a) == 0 {
+		return "{}", nil
+	}
+
+	ba := make(pq.ByteaArray, 0, len(a))
+	for i := range a {
+		revB, _ := a[i].Value()
+		ba = append(ba, revB.([]byte))
+	}
+	return ba.Value()
+}
+
+// ChainHashArray2 represents a one-dimensional array of the ChainHash bytea type.
+type ChainHashArray2 []ChainHash
+
+// Scan implements the sql.Scanner interface.
+func (a *ChainHashArray2) Scan(src interface{}) error {
+	switch src := src.(type) {
+	case []byte:
+		return a.scanBytes(src)
+	case string:
+		return a.scanBytes([]byte(src))
+	case nil:
+		*a = nil
+		return nil
+	}
+
+	return fmt.Errorf("pq: cannot convert %T to ChainHashArray2", src)
+}
+
+func (a *ChainHashArray2) scanBytes(src []byte) error {
+	elems, err := internal.ScanLinearArray(src, []byte{','}, "ChainHashArray2")
+	if err != nil {
+		return err
+	}
+	if len(elems) == 0 && *a != nil {
+		*a = (*a)[:0] // truncate if it's a non-nil slice
+		return nil
+	}
+
+	b := make(ChainHashArray2, len(elems))
+	for i, s := range elems {
+		if len(s) < 2 || !bytes.Equal(s[:2], []byte("\\x")) {
+			return errors.New("scanBytes: invalid chain hash")
+		}
+		s = s[2:] // trim off leading "\x"
+		if err = b[i].Scan(s); err != nil {
+			return err
+		}
+	}
+	*a = b
+
+	return nil
+}
+
+// Value implements the driver.Valuer interface. It uses the "hex" format which
+// is only supported on PostgreSQL 9.0 or newer.
+func (a ChainHashArray2) Value() (driver.Value, error) {
+	if a == nil {
+		return nil, nil
+	}
+
+	n := len(a)
+	if n == 0 {
+		return "{}", nil
+	}
+
+	// There will be at least two curly brackets, 2*N bytes of quotes,
+	// 3*N bytes of hex formatting, and N-1 bytes of delimiters.
+	size := 1 + 6*n + len(a)*64
+	b := make([]byte, size)
+
+	for i, s := 0, b; i < n; i++ {
+		o := copy(s, `,"\\x`)
+		ar, _ := a[i].Value()
+		o += hex.Encode(s[o:], ar.([]byte))
+		s[o] = '"'
+		s = s[o+1:]
+	}
+
+	b[0] = '{' // overwrites a comma
+	b[size-1] = '}'
+
+	return string(b), nil
 }
 
 // ErrorKind identifies a kind of error that can be used to define new errors
@@ -705,6 +913,7 @@ func ChoiceIndexFromStr(choice string) (VoteChoice, error) {
 }
 
 // These are text keys used to identify different chart types.
+/*
 const (
 	AvgBlockSize    = "avg-block-size"
 	BlockChainSize  = "blockchain-size"
@@ -723,6 +932,7 @@ const (
 	TicketPoolSize  = "ticket-pool-size"
 	TicketPoolValue = "ticket-pool-value"
 )
+*/
 
 // MileStone defines the various stages passed by vote on a given agenda.
 // Activated is the height at which the delay time begins before a vote activates.
@@ -752,12 +962,12 @@ type AgendaSummary struct {
 
 // TreasurySpendVotes summarizes the vote tally for a tspend.
 type TreasurySpendVotes struct {
-	Hash      string `json:"hash"`
-	Expiry    int64  `json:"expiry"`
-	VoteStart int64  `json:"votestart"`
-	VoteEnd   int64  `json:"voteend"`
-	YesVotes  int64  `json:"yesvotes"`
-	NoVotes   int64  `json:"novotes"`
+	Hash      ChainHash `json:"hash"`
+	Expiry    int64     `json:"expiry"`
+	VoteStart int64     `json:"votestart"`
+	VoteEnd   int64     `json:"voteend"`
+	YesVotes  int64     `json:"yesvotes"`
+	NoVotes   int64     `json:"novotes"`
 }
 
 // TreasurySpendMetaData extends TreasurySpendVotes and contains some
@@ -786,7 +996,7 @@ type BlockChainData struct {
 	Chain                  string
 	SyncHeight             int64
 	BestHeight             int64
-	BestBlockHash          string
+	BestBlockHash          ChainHash
 	Difficulty             uint32
 	VerificationProgress   float64
 	ChainWork              string
@@ -1001,13 +1211,12 @@ func (a UInt64Array) Value() (driver.Value, error) {
 
 // Vout defines a transaction output
 type Vout struct {
-	TxHash           string           `json:"tx_hash"`
+	TxHash           ChainHash        `json:"tx_hash"`
 	TxIndex          uint32           `json:"tx_index"`
 	TxTree           int8             `json:"tx_tree"`
 	TxType           int16            `json:"tx_type"`
 	Value            uint64           `json:"value"`
 	Version          uint16           `json:"version"`
-	ScriptPubKey     []byte           `json:"pkScriptHex"`
 	ScriptPubKeyData ScriptPubKeyData `json:"pkScript"`
 	Mixed            bool             `json:"mixed"`
 }
@@ -1023,7 +1232,7 @@ type UTXOData struct {
 // UTXO represents a transaction output, but it is intended to help track
 // unspent outputs.
 type UTXO struct {
-	TxHash  string
+	TxHash  ChainHash
 	TxIndex uint32
 	UTXOData
 }
@@ -1034,10 +1243,10 @@ type AddressRow struct {
 	ValidMainChain bool
 	// MatchingTxHash provides the relationship between spending tx inputs and
 	// funding tx outputs.
-	MatchingTxHash string
+	MatchingTxHash *ChainHash
 	IsFunding      bool
 	TxBlockTime    TimeDef
-	TxHash         string
+	TxHash         ChainHash
 	TxVinVoutIndex uint32
 	Value          uint64
 	VinVoutDbID    uint64
@@ -1066,8 +1275,8 @@ func (ar *AddressRow) IsMerged() bool {
 type AddressRowCompact struct {
 	Address        string
 	TxBlockTime    int64
-	MatchingTxHash chainhash.Hash
-	TxHash         chainhash.Hash
+	TxHash         ChainHash
+	MatchingTxHash *ChainHash
 	TxVinVoutIndex uint32
 	TxType         int16
 	ValidMainChain bool
@@ -1086,7 +1295,7 @@ type AddressRowCompact struct {
 type AddressRowMerged struct {
 	Address        string
 	TxBlockTime    int64
-	TxHash         chainhash.Hash
+	TxHash         ChainHash
 	AtomsCredit    uint64
 	AtomsDebit     uint64
 	MergedCount    int32
@@ -1183,7 +1392,7 @@ func CountCreditDebitRows(rows []*AddressRow) (numCredit, numDebit int) {
 // address rows in a []*AddressRow.
 func CountUnspentCreditRows(rows []*AddressRow) (numCredit, numDebit int) {
 	for _, r := range rows {
-		if r.IsFunding && r.MatchingTxHash == "" {
+		if r.IsFunding && r.MatchingTxHash == nil {
 			numCredit++
 		}
 	}
@@ -1326,7 +1535,7 @@ func CountMergedRows(rows []*AddressRow, txnView AddrTxnViewType) (numMerged int
 		return 0, fmt.Errorf("MergedTxnCount: requested count for non-merged view")
 	}
 
-	merged := make(map[string]struct{})
+	merged := make(map[ChainHash]struct{})
 	for _, r := range rows {
 		if r.MergedCount != 0 {
 			return 0, fmt.Errorf("CountMergedRows: merged row found in input; " +
@@ -1369,7 +1578,7 @@ func CountMergedRowsCompact(rows []*AddressRowCompact, txnView AddrTxnViewType) 
 		return 0, fmt.Errorf("MergedTxnCount: requested count for non-merged view")
 	}
 
-	merged := make(map[chainhash.Hash]struct{})
+	merged := make(map[ChainHash]struct{})
 	for _, row := range rows {
 		if wrongDirection(row.IsFunding) {
 			continue
@@ -1399,7 +1608,7 @@ func MergeRows(rows []*AddressRow) ([]*AddressRowMerged, error) {
 	// pre-allocate, since we have an idea of the ballpark size of the result,
 	// but try not to overshoot as space will be wasted.
 	numUniqueHashesGuess := len(rows)*2/3 + 1
-	hashMap := make(map[chainhash.Hash]*AddressRowMerged, numUniqueHashesGuess)
+	hashMap := make(map[ChainHash]*AddressRowMerged, numUniqueHashesGuess)
 	mergedRows := make([]*AddressRowMerged, 0, numUniqueHashesGuess)
 	for _, r := range rows {
 		if r.MergedCount != 0 {
@@ -1407,19 +1616,13 @@ func MergeRows(rows []*AddressRow) ([]*AddressRowMerged, error) {
 				"only non-merged rows may be merged")
 		}
 
-		Hash, err := chainhash.NewHashFromStr(r.TxHash)
-		if err != nil {
-			fmt.Printf("invalid address: %s", r.TxHash)
-			continue
-		}
-
 		// New transactions are started with MergedCount = 1.
-		row := hashMap[*Hash]
+		row := hashMap[r.TxHash]
 		if row == nil {
 			mr := AddressRowMerged{
 				Address:        r.Address,
 				TxBlockTime:    r.TxBlockTime.T.Unix(),
-				TxHash:         *Hash,
+				TxHash:         r.TxHash,
 				MergedCount:    1,
 				TxType:         r.TxType,
 				ValidMainChain: r.ValidMainChain,
@@ -1431,7 +1634,7 @@ func MergeRows(rows []*AddressRow) ([]*AddressRowMerged, error) {
 				mr.AtomsDebit = r.Value
 			}
 
-			hashMap[*Hash] = &mr
+			hashMap[r.TxHash] = &mr
 			mergedRows = append(mergedRows, &mr)
 			continue
 		}
@@ -1486,10 +1689,10 @@ func MergeRowsRange(rows []*AddressRow, N, offset int, txnView AddrTxnViewType) 
 
 	// Skip over the first offset unique tx hashes.
 	var skipped int
-	seen := make(map[chainhash.Hash]struct{}, offset)
+	seen := make(map[ChainHash]struct{}, offset)
 
 	// Output has at most N elements, each with a unique hash.
-	hashMap := make(map[chainhash.Hash]*AddressRowMerged, N)
+	hashMap := make(map[ChainHash]*AddressRowMerged, N)
 	mergedRows := make([]*AddressRowMerged, 0, N)
 	for _, r := range rows {
 		if wrongDirection(r.IsFunding) {
@@ -1501,14 +1704,8 @@ func MergeRowsRange(rows []*AddressRow, N, offset int, txnView AddrTxnViewType) 
 				"only non-merged rows may be merged")
 		}
 
-		Hash, err := chainhash.NewHashFromStr(r.TxHash)
-		if err != nil {
-			fmt.Printf("invalid address: %s", r.TxHash)
-			continue
-		}
-
 		// New transactions are started with MergedCount = 1.
-		row := hashMap[*Hash]
+		row := hashMap[r.TxHash]
 		if row == nil {
 			// Do not get beyond N merged rows, but continue looking for more
 			// data to merge.
@@ -1518,11 +1715,11 @@ func MergeRowsRange(rows []*AddressRow, N, offset int, txnView AddrTxnViewType) 
 
 			// Skip over offset merged rows.
 			if skipped < offset {
-				if _, found := seen[*Hash]; !found {
+				if _, found := seen[r.TxHash]; !found {
 					// This new hash would create a new merged row. Increment
 					// the skip counter and register this tx hash.
 					skipped++
-					seen[*Hash] = struct{}{}
+					seen[r.TxHash] = struct{}{}
 				}
 				// Skip this merged row data.
 				continue
@@ -1531,7 +1728,7 @@ func MergeRowsRange(rows []*AddressRow, N, offset int, txnView AddrTxnViewType) 
 			mr := AddressRowMerged{
 				Address:        r.Address,
 				TxBlockTime:    r.TxBlockTime.T.Unix(),
-				TxHash:         *Hash,
+				TxHash:         r.TxHash,
 				MergedCount:    1,
 				TxType:         r.TxType,
 				ValidMainChain: r.ValidMainChain,
@@ -1543,7 +1740,7 @@ func MergeRowsRange(rows []*AddressRow, N, offset int, txnView AddrTxnViewType) 
 				mr.AtomsDebit = r.Value
 			}
 
-			hashMap[*Hash] = &mr
+			hashMap[r.TxHash] = &mr
 			mergedRows = append(mergedRows, &mr)
 			continue
 		}
@@ -1572,7 +1769,7 @@ func MergeRowsCompact(rows []*AddressRowCompact) []*AddressRowMerged {
 	// pre-allocate, since we have an idea of the ballpark size of the result,
 	// but try not to overshoot as space will be wasted.
 	numUniqueHashesGuess := len(rows)*2/3 + 1
-	hashMap := make(map[chainhash.Hash]*AddressRowMerged, numUniqueHashesGuess)
+	hashMap := make(map[ChainHash]*AddressRowMerged, numUniqueHashesGuess)
 	mergedRows := make([]*AddressRowMerged, 0, numUniqueHashesGuess)
 	for _, r := range rows {
 		// New transactions are started with MergedCount = 1.
@@ -1648,10 +1845,10 @@ func MergeRowsCompactRange(rows []*AddressRowCompact, N, offset int, txnView Add
 
 	// Skip over the first offset unique tx hashes.
 	var skipped int
-	seen := make(map[chainhash.Hash]struct{}, offset)
+	seen := make(map[ChainHash]struct{}, offset)
 
 	// Output has at most N elements, each with a unique hash.
-	hashMap := make(map[chainhash.Hash]*AddressRowMerged, N)
+	hashMap := make(map[ChainHash]*AddressRowMerged, N)
 	mergedRows := make([]*AddressRowMerged, 0, N)
 	for _, r := range rows {
 		if wrongDirection(r.IsFunding) {
@@ -1715,17 +1912,11 @@ func MergeRowsCompactRange(rows []*AddressRowCompact, N, offset int, txnView Add
 func CompactRows(rows []*AddressRow) []*AddressRowCompact {
 	compact := make([]*AddressRowCompact, 0, len(rows))
 	for _, r := range rows {
-		hash, err := chainhash.NewHashFromStr(r.TxHash)
-		if err != nil {
-			fmt.Println("Bad hash", r.TxHash)
-			return nil
-		}
-		mhash, _ := chainhash.NewHashFromStr(r.MatchingTxHash) // zero array on error
 		compact = append(compact, &AddressRowCompact{
 			Address:        r.Address,
 			TxBlockTime:    r.TxBlockTime.UNIX(),
-			MatchingTxHash: *mhash,
-			TxHash:         *hash,
+			MatchingTxHash: r.MatchingTxHash,
+			TxHash:         r.TxHash,
 			TxVinVoutIndex: r.TxVinVoutIndex,
 			TxType:         r.TxType,
 			ValidMainChain: r.ValidMainChain,
@@ -1745,18 +1936,13 @@ func UncompactRows(compact []*AddressRowCompact) []*AddressRow {
 	}
 	rows := make([]*AddressRow, 0, len(compact))
 	for _, r := range compact {
-		// An unset matching hash is represented by the zero-value array.
-		var matchingHash string
-		if !txhelpers.IsZeroHash(r.MatchingTxHash) {
-			matchingHash = r.MatchingTxHash.String()
-		}
 		rows = append(rows, &AddressRow{
 			Address:        r.Address,
 			ValidMainChain: r.ValidMainChain,
-			MatchingTxHash: matchingHash,
+			MatchingTxHash: r.MatchingTxHash,
 			IsFunding:      r.IsFunding,
 			TxBlockTime:    NewTimeDefFromUNIX(r.TxBlockTime),
-			TxHash:         r.TxHash.String(),
+			TxHash:         r.TxHash,
 			TxVinVoutIndex: r.TxVinVoutIndex,
 			Value:          r.Value,
 			// VinVoutDbID unknown. Do not use.
@@ -1781,7 +1967,7 @@ func UncompactMergedRows(merged []*AddressRowMerged) []*AddressRow {
 			// no MatchingTxHash for merged
 			IsFunding:   r.IsFunding(),
 			TxBlockTime: NewTimeDefFromUNIX(r.TxBlockTime),
-			TxHash:      r.TxHash.String(),
+			TxHash:      r.TxHash,
 			// no TxVinVoutIndex for merged
 			Value: r.Value(),
 			// no VinVoutDbID for merged
@@ -1795,8 +1981,8 @@ func UncompactMergedRows(merged []*AddressRowMerged) []*AddressRow {
 // AddressTxnOutput is a compact version of api/types.AddressTxnOutput.
 type AddressTxnOutput struct {
 	Address  string
-	PkScript string
-	TxHash   chainhash.Hash
+	PkScript []byte
+	TxHash   ChainHash
 	//BlockHash chainhash.Hash
 	Vout      uint32
 	Height    int32
@@ -1807,7 +1993,7 @@ type AddressTxnOutput struct {
 // AddressMetrics defines address metrics needed to make decisions by which
 // grouping buttons on the address history page charts should be disabled or
 // enabled by default.
-type AddressMetrics struct {
+type AddressMetrics struct { // unused as of?
 	OldestBlockTime TimeDef
 	YearTxsCount    int64 // number of year intervals with transactions
 	MonthTxsCount   int64 // number of year month with transactions
@@ -1815,37 +2001,22 @@ type AddressMetrics struct {
 	DayTxsCount     int64 // number of year day with transactions
 }
 
-// ChartsData defines the fields that store the values needed to plot the charts
-// on the frontend.
+// ChartsData defines the fields that store the values needed to plot address
+// charts on the frontend.
 type ChartsData struct {
-	Difficulty  []float64 `json:"difficulty,omitempty"`
 	Time        []TimeDef `json:"time,omitempty"`
-	Size        []uint64  `json:"size,omitempty"`
-	ChainSize   []uint64  `json:"chainsize,omitempty"`
-	Count       []uint64  `json:"count,omitempty"`
-	SizeF       []float64 `json:"sizef,omitempty"`
-	ValueF      []float64 `json:"valuef,omitempty"`
-	Unspent     []uint64  `json:"unspent,omitempty"`
-	Revoked     []uint64  `json:"revoked,omitempty"`
-	Height      []uint64  `json:"height,omitempty"`
-	Pooled      []uint64  `json:"pooled,omitempty"`
-	Solo        []uint64  `json:"solo,omitempty"`
 	SentRtx     []uint64  `json:"sentRtx,omitempty"`
 	ReceivedRtx []uint64  `json:"receivedRtx,omitempty"`
-	Tickets     []uint64  `json:"tickets,omitempty"`
-	Votes       []uint64  `json:"votes,omitempty"`
-	RevokeTx    []uint64  `json:"revokeTx,omitempty"`
-	Amount      []float64 `json:"amount,omitempty"`
+	Tickets     []uint32  `json:"tickets,omitempty"`
+	Votes       []uint32  `json:"votes,omitempty"`
+	RevokeTx    []uint32  `json:"revokeTx,omitempty"`
 	Received    []float64 `json:"received,omitempty"`
 	Sent        []float64 `json:"sent,omitempty"`
 	Net         []float64 `json:"net,omitempty"`
-	ChainWork   []uint64  `json:"chainwork,omitempty"`
-	NetHash     []uint64  `json:"nethash,omitempty"`
 }
 
 // ScriptPubKeyData is part of the result of decodescript(ScriptPubKeyHex)
 type ScriptPubKeyData struct {
-	ReqSigs   uint32      `json:"reqSigs"`
 	Type      ScriptClass `json:"type"` // marshals to string
 	Addresses []string    `json:"addresses"`
 	// NOTE: Script version is in Vout struct.
@@ -1853,22 +2024,21 @@ type ScriptPubKeyData struct {
 
 // VinTxProperty models a transaction input with previous outpoint information.
 type VinTxProperty struct {
-	PrevOut     string  `json:"prevout"`
-	PrevTxHash  string  `json:"prevtxhash"`
-	PrevTxIndex uint32  `json:"prevvoutidx"`
-	PrevTxTree  uint16  `json:"tree"`
-	Sequence    uint32  `json:"sequence"`
-	ValueIn     int64   `json:"amountin"`
-	TxID        string  `json:"tx_hash"`
-	TxIndex     uint32  `json:"tx_index"`
-	TxTree      uint16  `json:"tx_tree"`
-	TxType      int16   `json:"tx_type"`
-	BlockHeight uint32  `json:"blockheight"`
-	BlockIndex  uint32  `json:"blockindex"`
-	ScriptSig   []byte  `json:"scriptSig"`
-	IsValid     bool    `json:"is_valid"`
-	IsMainchain bool    `json:"is_mainchain"`
-	Time        TimeDef `json:"time"`
+	PrevTxHash  ChainHash `json:"prevtxhash"`
+	PrevTxIndex uint32    `json:"prevvoutidx"`
+	PrevTxTree  uint16    `json:"tree"`
+	Sequence    uint32    `json:"sequence"`
+	ValueIn     int64     `json:"amountin"`
+	TxID        ChainHash `json:"tx_hash"`
+	TxIndex     uint32    `json:"tx_index"`
+	TxTree      uint16    `json:"tx_tree"`
+	TxType      int16     `json:"tx_type"`
+	BlockHeight uint32    `json:"blockheight"`
+	BlockIndex  uint32    `json:"blockindex"`
+	ScriptSig   []byte    `json:"scriptSig"`
+	IsValid     bool      `json:"is_valid"`
+	IsMainchain bool      `json:"is_mainchain"`
+	Time        TimeDef   `json:"time"`
 }
 
 // PoolTicketsData defines the real time data
@@ -1884,18 +2054,20 @@ type PoolTicketsData struct {
 }
 
 // Vin models a transaction input.
+/* unused
 type Vin struct {
 	//txDbID      int64
-	Coinbase    string  `json:"coinbase"`
-	TxHash      string  `json:"txhash"`
-	VoutIdx     uint32  `json:"voutidx"`
-	Tree        int8    `json:"tree"`
-	Sequence    uint32  `json:"sequence"`
-	AmountIn    float64 `json:"amountin"`
-	BlockHeight uint32  `json:"blockheight"`
-	BlockIndex  uint32  `json:"blockindex"`
-	ScriptHex   string  `json:"scripthex"`
+	Coinbase    string    `json:"coinbase"`
+	TxHash      ChainHash `json:"txhash"`
+	VoutIdx     uint32    `json:"voutidx"`
+	Tree        int8      `json:"tree"`
+	Sequence    uint32    `json:"sequence"`
+	AmountIn    float64   `json:"amountin"`
+	BlockHeight uint32    `json:"blockheight"`
+	BlockIndex  uint32    `json:"blockindex"`
+	ScriptHex   string    `json:"scripthex"`
 }
+*/
 
 // ScriptSig models the signature script used to redeem the origin transaction
 // as a JSON object (non-coinbase txns only)
@@ -1920,29 +2092,27 @@ type AgendaVoteChoices struct {
 // Tx models a Decred transaction. It is stored in a Block.
 type Tx struct {
 	//blockDbID  int64
-	BlockHash   string  `json:"block_hash"`
-	BlockHeight int64   `json:"block_height"`
-	BlockTime   TimeDef `json:"block_time"`
-	Time        TimeDef `json:"time"` // REMOVE!
-	TxType      int16   `json:"tx_type"`
-	Version     uint16  `json:"version"`
-	Tree        int8    `json:"tree"`
-	TxID        string  `json:"txid"`
-	BlockIndex  uint32  `json:"block_index"`
-	Locktime    uint32  `json:"locktime"`
-	Expiry      uint32  `json:"expiry"`
-	Size        uint32  `json:"size"`
-	Spent       int64   `json:"spent"`
-	Sent        int64   `json:"sent"`
-	Fees        int64   `json:"fees"`
-	MixCount    int32   `json:"mix_count"`
-	MixDenom    int64   `json:"mix_denom"`
-	NumVin      uint32  `json:"numvin"`
-	//Vins        VinTxPropertyARRAY `json:"vins"`
-	VinDbIds  []uint64 `json:"vindbids"`
-	NumVout   uint32   `json:"numvout"`
-	Vouts     []*Vout  `json:"vouts"`
-	VoutDbIds []uint64 `json:"voutdbids"`
+	BlockHash   ChainHash `json:"block_hash"`
+	BlockHeight int64     `json:"block_height"`
+	BlockTime   TimeDef   `json:"block_time"`
+	TxType      int16     `json:"tx_type"`
+	Version     uint16    `json:"version"`
+	Tree        int8      `json:"tree"`
+	TxID        ChainHash `json:"txid"`
+	BlockIndex  uint32    `json:"block_index"`
+	Locktime    uint32    `json:"locktime"`
+	Expiry      uint32    `json:"expiry"`
+	Size        uint32    `json:"size"`
+	Spent       int64     `json:"spent"`
+	Sent        int64     `json:"sent"`
+	Fees        int64     `json:"fees"`
+	MixCount    int32     `json:"mix_count"`
+	MixDenom    int64     `json:"mix_denom"`
+	NumVin      uint32    `json:"numvin"`
+	VinDbIds    []uint64  `json:"vindbids"`
+	NumVout     uint32    `json:"numvout"`
+	Vouts       []*Vout   `json:"vouts"`
+	VoutDbIds   []uint64  `json:"voutdbids"`
 	// NOTE: VoutDbIds may not be needed if there is a vout table since each
 	// vout will have a tx_dbid
 	IsValid          bool `json:"valid"`
@@ -1951,62 +2121,60 @@ type Tx struct {
 
 // Block models a Decred block.
 type Block struct {
-	Hash         string `json:"hash"`
-	Size         uint32 `json:"size"`
-	Height       uint32 `json:"height"`
-	Version      uint32 `json:"version"`
+	Hash         ChainHash `json:"hash"`
+	Size         uint32    `json:"size"`
+	Height       uint32    `json:"height"`
+	Version      uint32    `json:"version"`
 	NumTx        uint32
 	NumRegTx     uint32
-	Tx           []string `json:"tx"`
 	TxDbIDs      []uint64
 	NumStakeTx   uint32
-	STx          []string `json:"stx"`
 	STxDbIDs     []uint64
-	Time         TimeDef  `json:"time"`
-	Nonce        uint64   `json:"nonce"`
-	VoteBits     uint16   `json:"votebits"`
-	Voters       uint16   `json:"voters"`
-	FreshStake   uint8    `json:"freshstake"`
-	Revocations  uint8    `json:"revocations"`
-	PoolSize     uint32   `json:"poolsize"`
-	Bits         uint32   `json:"bits"`
-	SBits        uint64   `json:"sbits"`
-	Difficulty   float64  `json:"difficulty"`
-	StakeVersion uint32   `json:"stakeversion"`
-	PreviousHash string   `json:"previousblockhash"`
-	ChainWork    string   `json:"chainwork"`
-	Winners      []string `json:"winners"`
+	Time         TimeDef     `json:"time"`
+	Nonce        uint64      `json:"nonce"`
+	VoteBits     uint16      `json:"votebits"`
+	Voters       uint16      `json:"voters"`
+	FreshStake   uint8       `json:"freshstake"`
+	Revocations  uint8       `json:"revocations"`
+	PoolSize     uint32      `json:"poolsize"`
+	Bits         uint32      `json:"bits"`
+	SBits        uint64      `json:"sbits"`
+	Difficulty   float64     `json:"difficulty"`
+	StakeVersion uint32      `json:"stakeversion"`
+	PreviousHash ChainHash   `json:"previousblockhash"`
+	ChainWork    string      `json:"chainwork"`
+	Winners      []ChainHash `json:"winners"`
 }
 
 type BlockDataBasic struct {
-	Height     uint32  `json:"height,omitempty"`
-	Size       uint32  `json:"size,omitempty"`
-	Hash       string  `json:"hash,omitempty"`
-	Difficulty float64 `json:"diff,omitempty"`
-	StakeDiff  float64 `json:"sdiff,omitempty"`
-	Time       TimeDef `json:"time,omitempty"`
-	NumTx      uint32  `json:"txlength,omitempty"`
+	Height     uint32    `json:"height,omitempty"`
+	Size       uint32    `json:"size,omitempty"`
+	Hash       ChainHash `json:"hash,omitempty"`
+	Difficulty float64   `json:"diff,omitempty"`
+	StakeDiff  float64   `json:"sdiff,omitempty"`
+	Time       TimeDef   `json:"time,omitempty"`
+	NumTx      uint32    `json:"txlength,omitempty"`
 }
 
 // BlockStatus describes a block's status in the block chain.
 type BlockStatus struct {
-	IsValid     bool   `json:"is_valid"`
-	IsMainchain bool   `json:"is_mainchain"`
-	Height      uint32 `json:"height"`
-	PrevHash    string `json:"previous_hash"`
-	Hash        string `json:"hash"`
-	NextHash    string `json:"next_hash"`
+	IsValid     bool      `json:"is_valid"`
+	IsMainchain bool      `json:"is_mainchain"`
+	Height      uint32    `json:"height"`
+	PrevHash    ChainHash `json:"previous_hash"`
+	Hash        ChainHash `json:"hash"`
+	NextHash    ChainHash `json:"next_hash"`
 }
 
 // SideChain represents blocks of a side chain, in ascending height order.
 type SideChain struct {
-	Hashes  []string
+	Hashes  []chainhash.Hash
 	Heights []int64
 }
 
 // AddressTx models data for transactions on the address page.
 type AddressTx struct {
-	TxID           string
+	TxID           ChainHash
 	TxType         string
 	InOutID        uint32
 	Size           uint32
@@ -2017,27 +2185,10 @@ type AddressTx struct {
 	ReceivedTotal  float64
 	SentTotal      float64
 	IsFunding      bool
-	MatchedTx      string
+	MatchedTx      *ChainHash
 	MatchedTxIndex uint32
 	MergedTxnCount uint64 `json:",omitempty"`
 	BlockHeight    uint32
-}
-
-// IOID formats an identification string for the transaction input (or output)
-// represented by the AddressTx.
-func (a *AddressTx) IOID(txType ...string) string {
-	// If transaction is of type merged_debit, return unformatted transaction ID
-	if len(txType) > 0 && AddrTxnViewTypeFromStr(txType[0]) == AddrMergedTxnDebit {
-		return a.TxID
-	}
-	// When AddressTx is used properly, at least one of ReceivedTotal or
-	// SentTotal should be zero.
-	if a.IsFunding {
-		// An outpoint receiving funds
-		return fmt.Sprintf("%s:out[%d]", a.TxID, a.InOutID)
-	}
-	// A transaction input referencing an outpoint being spent
-	return fmt.Sprintf("%s:in[%d]", a.TxID, a.InOutID)
 }
 
 // Link formats a link for the transaction, with vin/vout index if the AddressTx
@@ -2054,10 +2205,10 @@ func (a *AddressTx) Link() string {
 }
 
 type TreasuryTx struct {
-	TxID        string
+	TxID        ChainHash
 	Type        int
 	Amount      int64
-	BlockHash   string
+	BlockHash   ChainHash
 	BlockHeight int64
 	BlockTime   TimeDef
 }

@@ -6,7 +6,6 @@ package explorer
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,11 +22,8 @@ import (
 	"github.com/decred/dcrd/chaincfg/v3"
 
 	"github.com/decred/dcrd/dcrutil/v4"
-	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
-	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/txscript/v4/stdscript"
-	"github.com/decred/dcrd/wire"
 
 	"github.com/decred/dcrdata/exchanges/v3"
 	"github.com/decred/dcrdata/gov/v6/agendas"
@@ -37,7 +33,6 @@ import (
 	"github.com/decred/dcrdata/v8/txhelpers"
 	ticketvotev1 "github.com/decred/politeia/politeiawww/api/ticketvote/v1"
 
-	humanize "github.com/dustin/go-humanize"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -244,7 +239,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
-	io.WriteString(w, str)
+	io.WriteString(w, str) //nolint:errcheck
 }
 
 // SideChains is the page handler for the "/side" path.
@@ -275,7 +270,7 @@ func (exp *explorerUI) SideChains(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
-	io.WriteString(w, str)
+	io.WriteString(w, str) //nolint:errcheck
 }
 
 // InsightRootPage is the page for the "/insight" path.
@@ -293,7 +288,7 @@ func (exp *explorerUI) InsightRootPage(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
-	io.WriteString(w, str)
+	io.WriteString(w, str) //nolint:errcheck
 }
 
 // DisapprovedBlocks is the page handler for the "/disapproved" path.
@@ -324,7 +319,7 @@ func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request)
 	}
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
-	io.WriteString(w, str)
+	io.WriteString(w, str) //nolint:errcheck
 }
 
 // VisualBlocks is the page handler for the "/visualblocks" path.
@@ -746,7 +741,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		log.Warnf("Unable to retrieve chain status for block %s: %v", hash, err)
 	}
 	for i, block := range altBlocks {
-		if block.Hash == hash {
+		if block.Hash.String() == hash {
 			data.Valid = block.IsValid
 			data.MainChain = block.IsMainchain
 			altBlocks = append(altBlocks[:i], altBlocks[i+1:]...)
@@ -852,8 +847,16 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 
 	tx := exp.dataSource.GetExplorerTx(hash)
 	// If dcrd has no information about the transaction, pull the transaction
-	// details from the auxiliary DB database.
+	// details from the auxiliary DB database. Several pieces of information may
+	// be missing, namely the pkScripts and various information, including the
+	// prevout addresses.
 	if tx == nil {
+		exp.StatusPage(w, defaultErrorCode, "could not find that transaction",
+			"", ExpStatusNotFound)
+		return
+
+		/* maybe some day, but this is pointless and costly for now
+
 		log.Warnf("No transaction information for %v. Trying tables in case this is an orphaned txn.", hash)
 		// Search for occurrences of the transaction in the database.
 		dbTxs, err := exp.dataSource.Transaction(hash)
@@ -897,9 +900,9 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			// Vouts - looked-up in vouts table
 			BlockHeight:   dbTx0.BlockHeight,
 			BlockIndex:    dbTx0.BlockIndex,
-			BlockHash:     dbTx0.BlockHash,
+			BlockHash:     dbTx0.BlockHash.String(),
 			Confirmations: exp.Height() - dbTx0.BlockHeight + 1,
-			Time:          types.TimeDef(dbTx0.Time),
+			Time:          types.TimeDef(dbTx0.BlockTime),
 		}
 
 		// Coinbase transactions are regular, but call them coinbase for the page.
@@ -924,17 +927,17 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		// Convert to explorer.Vout, getting spending information from DB.
 		for iv := range vouts {
 			// Check pkScript for OP_RETURN and OP_TADD.
-			pkScript := vouts[iv].ScriptPubKey
-			opTAdd := len(pkScript) > 0 && pkScript[0] == txscript.OP_TADD
-			var opReturn string
-			if !opTAdd {
-				asm, _ := txscript.DisasmString(pkScript)
-				if strings.HasPrefix(asm, "OP_RETURN") {
-					opReturn = asm
-				}
-			}
+			// pkScript := vouts[iv].ScriptPubKey
+			// opTAdd := len(pkScript) > 0 && pkScript[0] == txscript.OP_TADD
+			// var opReturn string
+			// if !opTAdd {
+			// 	asm, _ := txscript.DisasmString(pkScript)
+			// 	if strings.HasPrefix(asm, "OP_RETURN") {
+			// 		opReturn = asm
+			// 	}
+			// }
 			// Determine if the outpoint is spent
-			spendingTx, _, _, err := exp.dataSource.SpendingTransaction(hash, vouts[iv].TxIndex)
+			spendingTx, _, err := exp.dataSource.SpendingTransaction(hash, vouts[iv].TxIndex)
 			if exp.timeoutErrorPage(w, err, "SpendingTransaction") {
 				return
 			}
@@ -949,15 +952,15 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				FormattedAmount: humanize.Commaf(amount),
 				Type:            vouts[iv].ScriptPubKeyData.Type.String(),
 				Spent:           spendingTx != "",
-				OP_RETURN:       opReturn,
-				OP_TADD:         opTAdd,
-				Index:           vouts[iv].TxIndex,
-				Version:         vouts[iv].Version,
+				// OP_RETURN:       opReturn,
+				// OP_TADD:         opTAdd,
+				Index:   vouts[iv].TxIndex,
+				Version: vouts[iv].Version,
 			})
 		}
 
 		// Retrieve vins from DB.
-		vins, prevPkScripts, scriptVersions, err := exp.dataSource.VinsForTx(dbTx0)
+		vins, err := exp.dataSource.VinsForTx(dbTx0)
 		if exp.timeoutErrorPage(w, err, "VinsForTx") {
 			return
 		}
@@ -971,15 +974,15 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		// Convert to explorer.Vin from dbtypes.VinTxProperty.
 		for iv := range vins {
 			// Decode all addresses from previous outpoint's pkScript.
-			var addresses []string
-			pkScriptsStr, err := hex.DecodeString(prevPkScripts[iv])
-			if err != nil {
-				log.Errorf("Failed to decode pkScript: %v", err)
-			}
-			_, scrAddrs := stdscript.ExtractAddrs(scriptVersions[iv], pkScriptsStr, exp.ChainParams)
-			for ia := range scrAddrs {
-				addresses = append(addresses, scrAddrs[ia].String())
-			}
+			// var addresses []string
+			// pkScriptsStr, err := hex.DecodeString(prevPkScripts[iv])
+			// if err != nil {
+			// 	log.Errorf("Failed to decode pkScript: %v", err)
+			// }
+			// _, scrAddrs := stdscript.ExtractAddrs(scriptVersions[iv], pkScriptsStr, exp.ChainParams)
+			// for ia := range scrAddrs {
+			// 	addresses = append(addresses, scrAddrs[ia].String())
+			// }
 
 			// If the scriptsig does not decode or disassemble, oh well.
 			asm, _ := txscript.DisasmString(vins[iv].ScriptSig)
@@ -1017,7 +1020,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 						Hex: hex.EncodeToString(vins[iv].ScriptSig),
 					},
 				},
-				Addresses:       addresses,
+				Addresses:       []string{"unknown"}, // addresses,
 				FormattedAmount: humanize.Commaf(amount),
 				Index:           txIndex,
 			})
@@ -1049,9 +1052,10 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				tx.Mature = "True"
 			}
 		}
+		*/
 	} // tx == nil (not found by dcrd)
 
-	// Check for any transaction outputs that appear unspent.
+	// Check for any transaction outputs that *appear* unspent.
 	unspents := types.UnspentOutputIndices(tx.Vout)
 	if len(unspents) > 0 {
 		// Grab the mempool transaction inputs that match this transaction.
@@ -1976,7 +1980,8 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// If it is not a valid hash, try proposals and give up.
-	if _, err = chainhash.NewHashFromStr(searchStrSplit[0]); err != nil {
+	hash, err := chainhash.NewHashFromStr(searchStrSplit[0])
+	if err != nil {
 		if tryProp() {
 			return
 		}
@@ -1985,6 +1990,10 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 			"", ExpStatusNotFound)
 		return
 	}
+	hashStr := hash.String()
+	if utxoLike {
+		searchStrRewritten = hashStr + "/out/" + searchStrSplit[1]
+	}
 
 	// A valid hash could be block, txid, or prop. First try blocks, then tx via
 	// getrawtransaction, then props, then tx via DB query.
@@ -1992,21 +2001,20 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	if !utxoLike {
 		// Attempt to get a block index by calling GetBlockHeight to see if the
 		// value is a block hash and then redirect to the block page if it is.
-		_, err = exp.dataSource.GetBlockHeight(searchStrSplit[0])
+		_, err = exp.dataSource.GetBlockHeight(hashStr)
 		if err == nil {
-			http.Redirect(w, r, "/block/"+searchStrSplit[0], http.StatusPermanentRedirect)
+			http.Redirect(w, r, "/block/"+hashStr, http.StatusPermanentRedirect)
 			return
 		}
 	}
 
 	// It's unlikely to be a tx id with many leading/trailing zeros.
-	trimmedZeros := 2*chainhash.HashSize - len(strings.Trim(searchStrSplit[0], "0"))
+	trimmedZeros := 2*chainhash.HashSize - len(strings.Trim(hashStr, "0"))
 
-	// Call GetExplorerTx to see if the value is a transaction hash and then
-	// redirect to the tx page if it is.
+	// See if it's a transaction and then redirect to the tx page if it is.
 	if trimmedZeros < 10 {
-		tx := exp.dataSource.GetExplorerTx(searchStrSplit[0])
-		if tx != nil {
+		_, err = exp.dataSource.GetTransactionByHash(hashStr)
+		if err == nil {
 			http.Redirect(w, r, "/tx/"+searchStrRewritten, http.StatusPermanentRedirect)
 			return
 		}
@@ -2018,16 +2026,16 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Also check the DB as it may have transactions from orphaned blocks.
-	if trimmedZeros < 10 {
-		dbTxs, err := exp.dataSource.Transaction(searchStrSplit[0])
-		if err != nil && !errors.Is(err, dbtypes.ErrNoResult) {
-			log.Errorf("Searching for transaction failed: %v", err)
-		}
-		if dbTxs != nil {
-			http.Redirect(w, r, "/tx/"+searchStrRewritten, http.StatusPermanentRedirect)
-			return
-		}
-	}
+	// if trimmedZeros < 10 {
+	// 	dbTxs, err := exp.dataSource.Transaction(searchStrSplit[0])
+	// 	if err != nil && !errors.Is(err, dbtypes.ErrNoResult) {
+	// 		log.Errorf("Searching for transaction failed: %v", err)
+	// 	}
+	// 	if dbTxs != nil {
+	// 		http.Redirect(w, r, "/tx/"+searchStrRewritten, http.StatusPermanentRedirect)
+	// 		return
+	// 	}
+	// }
 
 	message := "The search did not find any matching address, block, transaction or proposal token: " + searchStr
 	exp.StatusPage(w, "search failed", message, "", ExpStatusNotFound)

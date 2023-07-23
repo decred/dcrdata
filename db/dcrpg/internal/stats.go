@@ -51,11 +51,7 @@ const (
 		WHERE stats.height = $1
 			AND is_mainchain
 	;`
-	SelectPoolInfoByHash = `
-		SELECT stats.height, stats.pool_size, stats.pool_val,	blocks.winners
-		FROM stats JOIN blocks ON stats.blocks_id = blocks.id
-		WHERE blocks.hash = $1
-	;`
+
 	SelectPoolInfoRange = `
 		SELECT stats.height, blocks.hash, stats.pool_size,
 			stats.pool_val, blocks.winners
