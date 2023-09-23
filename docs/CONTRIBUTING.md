@@ -57,11 +57,11 @@ Only submit a PR once the intended edits are either done or nearing completion. 
 
 ### Suggested Toolkit
 
-- Go language distribution - latest release or latest-1 (e.g. 1.8.3 and 1.9). [download](https://golang.org/doc/install)
+- Go - the [latest release](https://golang.org/doc/install) or the one immediately prior (e.g. 1.21 or 1.20).
 - git client with command line support. [download](https://git-scm.com/downloads)
 - [GitHub](https://github.com/) account
 - Visual Studio Code with Go extension plus `gometalinter`
-- coffee, preferably black. [some good stuff](http://haiticoffeeacademy.com/)
+- Coffee, preferably black.
 
 ### Git Workflow
 
