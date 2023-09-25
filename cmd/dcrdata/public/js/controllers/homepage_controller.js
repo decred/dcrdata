@@ -167,7 +167,7 @@ export default class extends Controller {
 
   _processBlock (blockData) {
     const ex = blockData.extra
-    this.difficultyTarget.innerHTML = humanize.decimalParts(ex.difficulty / 1000000, true, 0)
+    this.difficultyTarget.innerHTML = humanize.decimalParts(ex.difficulty, true, 0)
     this.bsubsidyPowTarget.innerHTML = humanize.decimalParts(ex.subsidy.pow / 100000000, false, 8, 2)
     this.bsubsidyPosTarget.innerHTML = humanize.decimalParts((ex.subsidy.pos / 500000000), false, 8, 2) // 5 votes per block (usually)
     this.bsubsidyDevTarget.innerHTML = humanize.decimalParts(ex.subsidy.dev / 100000000, false, 8, 2)
