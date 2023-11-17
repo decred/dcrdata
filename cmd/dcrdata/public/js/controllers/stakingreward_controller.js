@@ -3,9 +3,6 @@ import TurboQuery from '../helpers/turbolinks_helper'
 import { requestJSON } from '../helpers/http'
 
 const responseCache = {}
-// Msg element for display input error of Amount and Date Range
-const amountError = document.getElementById('amount_error')
-const startDateErr = document.getElementById('startDate_error')
 let requestCounter = 0
 
 function hasCache (k) {
@@ -21,7 +18,7 @@ export default class extends Controller {
       'startDate', 'endDate',
       'priceDCR', 'dayText', 'amount', 'days', 'daysText',
       'amountRoi', 'percentageRoi',
-      'table', 'tableBody', 'rowTemplate'
+      'table', 'tableBody', 'rowTemplate', 'amountError', 'startDateErr'
     ]
   }
 
@@ -137,16 +134,17 @@ export default class extends Controller {
 
     if (startDate > endDate) {
       console.log('Invalid date range')
-      startDateErr.textContent = 'Invalid date range'
+      this.startDateErrTarget.textContent = 'Invalid date range'
       return
     }
     const days = this.getDaysOfRange(startDate, endDate)
     if (days < this.rewardPeriod) {
       console.log(`You must stake for more than ${this.rewardPeriod} days`)
-      startDateErr.textContent = `You must stake for more than ${this.rewardPeriod} days`
+      this.startDateErrTarget.textContent = `You must stake for more than ${this.rewardPeriod} days`
       return false
     }
-    startDateErr.textContent = ''
+
+    this.startDateErrTarget.textContent = ''
     return true
   }
 
@@ -181,20 +179,21 @@ export default class extends Controller {
     const amount = parseFloat(this.amountTarget.value)
     if (!(amount > 0)) {
       console.log('Amount must be greater than 0')
-      amountError.textContent = 'Amount must be greater than 0'
+      _this.amountErrorTarget.textContent = 'Amount must be greater than 0'
       return
     }
-    amountError.textContent = ''
+    _this.amountErrorTarget.textContent = ''
+
     const startDate = new Date(this.startDateTarget.value)
     const endDate = new Date(this.endDateTarget.value)
     const days = this.getDaysOfRange(startDate, endDate)
 
     if (days < this.rewardPeriod) {
       console.log(`You must stake for more than ${this.rewardPeriod} days`)
-      startDateErr.textContent = `You must stake for more than ${this.rewardPeriod} days`
+      _this.startDateErrTarget.textContent = `You must stake for more than ${this.rewardPeriod} days`
       return
     }
-    startDateErr.textContent = ''
+    _this.startDateErrTarget.textContent = ''
     this.updateQueryString()
     const startDateUnix = startDate.getTime()
     const endDateUnix = endDate.getTime()
@@ -206,7 +205,6 @@ export default class extends Controller {
       // response = await axios.get(url)
       response = await requestJSON(url)
       responseCache[url] = response
-      console.log('this request: ' + thisRequest + ' ; requetst count: ' + requestCounter)
       if (thisRequest !== requestCounter) {
         // new request was issued while waiting.
         this.startDateTarget.classList.remove('loading')
