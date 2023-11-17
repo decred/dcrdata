@@ -2218,8 +2218,6 @@ func (c *appContext) simulateStakingReward(numberOfDays float64, startingDCRBala
 	}
 	ticketPrice = TheoreticalTicketPrice(startingBlockHeight)
 	TicketAdjustmentFactor := actualTicketPrice / TheoreticalTicketPrice(height)
-	fmt.Println("Height: ", height)
-	fmt.Println("TicketAdjustmentFactor: ", TicketAdjustmentFactor)
 	// Prepare for simulation
 	simblock := startingBlockHeight
 	var TicketPrice float64
