@@ -789,6 +789,7 @@ func _main(ctx context.Context) error {
 		r.With(explorer.MenuFormParser).Post("/set", explore.Home)
 		r.Get("/attack-cost", explore.AttackCost)
 		r.Get("/verify-message", explore.VerifyMessagePage)
+		r.Get("/stakingcalc", explore.StakeRewardCalcPage)
 		r.With(mw.Tollbooth(limiter)).Post("/verify-message", explore.VerifyMessageHandler)
 	})
 

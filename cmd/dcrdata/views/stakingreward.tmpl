@@ -1,0 +1,116 @@
+<template>
+  {{define "stakingreward"}}
+  <!DOCTYPE html>
+  <html lang="en">
+  {{ $topBlock := 0 }}
+  {{ template "html-head" headData .CommonPageData "Staking Reward Calculator" }}
+  {{ template "navbar". }}
+  <div class="content">
+    <div class="container px-0 main" 
+      data-controller="stakingreward"
+      data-stakingreward-ticket-reward="{{.TicketReward}}" 
+      data-stakingreward-reward-period="{{.RewardPeriod}}"
+      data-stakingreward-dcrprice="{{.DCRPrice}}">
+      <div class="px-1 mb-1">
+        <div class="d-flex justify-content-between align-items-end">
+          <span class="h2 d-flex pt-4 pb-1 pe-2">
+            Staking Reward Calculator
+          </span>
+        </div>
+        <div class="mb-3 bg-white p-3 pb-0">
+          <div class="row">
+            <div class="col-lg-6 col-md-8 col-sm-10 d-flex mt-2">
+              <span class="form-label align-self-center mr-1 text-nowrap">Amount (<span class="text-secondary">DCR</span>)</span>
+              <input data-action="change->stakingreward#amountChanged" 
+                data-action="keyup->stakingreward#amountKeypress"
+                data-stakingreward-target="amount" type="number" 
+                class="form-control amount mr-1 ms-2"
+                placeholder="Enter the amount of DCR to stake">
+            </div>
+
+            <div class="col-lg-6 col-md-8 col-sm-10 d-flex mt-2 ms-2">
+              <span class="form-label align-self-center mr-1 text-nowrap">Start</span>
+              <input data-action="change->stakingreward#startDateChanged" 
+                data-action="keyup->staking#startDateKeypress"
+                data-stakingreward-target="startDate" min="2016-01-02" type="date" 
+                class="form-control date mr-1 ms-2"
+                placeholder="Start Date">
+            </div>
+
+            <div class="col-lg-6 col-md-8 col-sm-10 d-flex mt-2 ms-2">
+              <span class="form-label align-self-center mr-1 text-nowrap">End</span>
+              <input data-action="change->stakingreward#endDateChanged" 
+                data-action="keyup->staking#endDateKeypress"
+                data-stakingreward-target="endDate" min="2016-01-02" type="date" 
+                class="form-control date ms-2"
+                placeholder="End Date">
+            </div>
+          </div>
+          <div class="row">
+           <div class="col-lg-6 col-md-8 col-sm-10 d-flex">
+              <span data-stakingreward-target="amountError" class="fs14" style="color: #f12222;"></span>
+            </div>
+            <div class="col-lg-6 col-md-8 col-sm-10 d-flex ms-2">
+              <span data-stakingreward-target="startDateErr" class="fs14" style="color: #f12222;"></span>
+            </div>
+          </div>
+          <div class="row">
+            <p class="m-0 desc mt-2" style="line-height: 30px;">
+              <span>
+                <span class="form-label">Days:</span>
+                <span class="fw-bold" data-stakingreward-target="daysText">0</span>
+              </span>
+
+              <span class="d-block d-sm-inline ms-3">
+                <span class="form-label">Yield:</span>
+                <span class="fw-bold" data-stakingreward-target="percentageRoi">0</span>
+                <span class="text-secondary">%</span>
+              </span>
+
+              <span class="d-block d-sm-inline ms-3">
+                <span class="form-label">Reward:</span>
+                <span class="fw-bold" data-stakingreward-target="amountRoi">0</span>
+                <span class="text-secondary">DCR</span>
+              </span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white px-1 px-md-4 pb-4">
+        <table class="table v3 d-none" data-stakingreward-target="table">
+          <thead>
+            <tr class="text-secondary">
+              <th class="text-start ps-0">Date</th>
+              <th class="text-center d-sm-table-cell">Height</th>
+              <th class="text-center d-sm-table-cell">Tickets Price Avg <small>(<span class="text-secondary">DCR</span>)</small></th>
+              <th class="text-center d-sm-table-cell">Returned Fund <small>(<span class="text-secondary">DCR</span>)</small></th>
+              <th class="text-center d-sm-table-cell">Reward <small>(<span class="text-secondary">DCR</span>)</small></th>
+              <th class="text-center d-sm-table-cell">Total Balance <small>(<span class="text-secondary">DCR</span>)</small></th>
+              <th class="text-center d-sm-table-cell">% Gained</th>
+              <th class="text-center d-sm-table-cell">Tickets Purchased</th>
+            </tr>
+          </thead>
+          <tbody data-stakingreward-target="tableBody"></tbody>
+        </table>
+        <template data-stakingreward-target="rowTemplate">
+          <tr>
+            <td class="text-start ps-0"></td>
+            <td class="text-center d-sm-table-cell"></td>
+            <td class="text-center d-sm-table-cell"></td>
+            <td class="text-center d-sm-table-cell"></td>
+            <td class="text-center d-sm-table-cell"></td>
+            <td class="text-center d-sm-table-cell"></td>
+            <td class="text-center d-sm-table-cell"></td>
+            <td class="text-center d-sm-table-cell"></td>
+          </tr>
+        </template>
+      </div>
+    </div>
+  </div>
+  {{ template "footer". }}
+  </body>
+
+  </html>
+  {{ end }}
+</template>
