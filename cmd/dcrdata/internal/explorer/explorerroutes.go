@@ -2779,6 +2779,45 @@ func (exp *explorerUI) AttackCost(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+// StakeRewardCalcPage is the page handler for the "/stakingcalc" path.
+func (exp *explorerUI) StakeRewardCalcPage(w http.ResponseWriter, r *http.Request) {
+	price := 24.42
+	if exp.xcBot != nil {
+		if rate := exp.xcBot.Conversion(1.0); rate != nil {
+			price = rate.Value
+		}
+	}
+
+	exp.pageData.RLock()
+
+	ticketReward := exp.pageData.HomeInfo.TicketReward
+	rewardPeriod := exp.pageData.HomeInfo.RewardPeriod
+
+	exp.pageData.RUnlock()
+
+	str, err := exp.templates.execTemplateToString("stakingreward", struct {
+		*CommonPageData
+		RewardPeriod string
+		TicketReward float64
+		DCRPrice     float64
+	}{
+		CommonPageData: exp.commonData(r),
+		RewardPeriod:   rewardPeriod,
+		TicketReward:   ticketReward,
+		DCRPrice:       price,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
 type verifyMessageResult struct {
 	Address   string
 	Signature string
