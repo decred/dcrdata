@@ -394,6 +394,18 @@ func (pgb *ChainDB) DeleteDuplicateAgendaVotes() (int64, error) {
 	return DeleteDuplicateAgendaVotes(pgb.db)
 }
 
+func (pgb *ChainDB) DeleteDuplicateVotes() (int64, error) {
+	return DeleteDuplicateVotes(pgb.db)
+}
+
+func (pgb *ChainDB) DeleteDuplicateMisses() (int64, error) {
+	return DeleteDuplicateMisses(pgb.db)
+}
+
+func (pgb *ChainDB) DeleteDuplicateTreasuryTxs() (int64, error) {
+	return DeleteDuplicateTreasuryTxs(pgb.db)
+}
+
 // Indexes checks
 
 // MissingIndexes lists missing table indexes and their descriptions.
