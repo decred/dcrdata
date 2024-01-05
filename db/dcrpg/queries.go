@@ -270,6 +270,42 @@ func DeleteDuplicateAgendaVotes(db *sql.DB) (int64, error) {
 	return sqlExec(db, internal.DeleteAgendaVotesDuplicateRows, execErrPrefix)
 }
 
+// DeleteDuplicateVotes deletes rows in votes with duplicate tx_hash and
+// block_hash leaving one row with the lowest id.
+func DeleteDuplicateVotes(db *sql.DB) (int64, error) {
+	if isuniq, err := IsUniqueIndex(db, internal.IndexOfVotesTableOnHashes); err != nil && err != sql.ErrNoRows {
+		return 0, err
+	} else if isuniq {
+		return 0, nil
+	}
+	execErrPrefix := "failed to delete duplicate votes: "
+	return sqlExec(db, internal.DeleteVotesDuplicateRows, execErrPrefix)
+}
+
+// DeleteDuplicateMisses deletes rows in misses with duplicate ticket_hash and
+// block_hash leaving one row with the lowest id.
+func DeleteDuplicateMisses(db *sql.DB) (int64, error) {
+	if isuniq, err := IsUniqueIndex(db, internal.IndexOfMissesTableOnHashes); err != nil && err != sql.ErrNoRows {
+		return 0, err
+	} else if isuniq {
+		return 0, nil
+	}
+	execErrPrefix := "failed to delete duplicate misses: "
+	return sqlExec(db, internal.DeleteMissesDuplicateRows, execErrPrefix)
+}
+
+// DeleteDuplicateTreasuryTxs deletes rows in misses with duplicate tx_hash and
+// block_hash leaving one row with the lowest id.
+func DeleteDuplicateTreasuryTxs(db *sql.DB) (int64, error) {
+	if isuniq, err := IsUniqueIndex(db, internal.IndexOfTreasuryTableOnTxHash); err != nil && err != sql.ErrNoRows {
+		return 0, err
+	} else if isuniq {
+		return 0, nil
+	}
+	execErrPrefix := "failed to delete duplicate treasury txs: "
+	return sqlExec(db, internal.DeleteTreasuryTxsDuplicateRows, execErrPrefix)
+}
+
 // --- stake (votes, tickets, misses, treasury) tables ---
 
 func InsertTreasuryTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked, updateExistingRecords bool) error {
