@@ -569,6 +569,10 @@ the `/api` path prefix.
 | Verbose transaction result for last <br> `N` transactions, skipping `M` | `/address/A/count/N/skip/M/raw` | `types.AddressTxRaw`  |
 | Transaction inputs and outputs as a CSV formatted file.                 | `/download/address/io/A`        | CSV file              |
 
+| Treasury                                                          | Path                  | Type                        |
+| ----------------------------------------------------------------- | --------------------- | --------------------------- |
+| Current treasury info (e.g. spendable/immature/spent balance)     | `/treasury/balance`   | `dbtypes.TreasuryBalance`   |
+
 | Stake Difficulty (Ticket Price)        | Path                    | Type                               |
 | -------------------------------------- | ----------------------- | ---------------------------------- |
 | Current sdiff and estimates            | `/stake/diff`           | `types.StakeDiff`                  |
