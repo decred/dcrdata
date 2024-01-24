@@ -17,7 +17,7 @@ require (
 	github.com/decred/dcrd/wire v1.6.0
 	github.com/decred/slog v1.2.0
 	github.com/dgraph-io/badger v1.6.2
-	golang.org/x/net v0.8.0
+	golang.org/x/net v0.20.0
 )
 
 require (
@@ -43,7 +43,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/stretchr/testify v1.7.0 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
-	golang.org/x/sys v0.6.0 // indirect
+	golang.org/x/sys v0.16.0 // indirect
 	google.golang.org/protobuf v1.25.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	lukechampine.com/blake3 v1.2.1 // indirect

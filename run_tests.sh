@@ -54,7 +54,7 @@ for MODPATH in $MODPATHS; do
   (cd "${module}"
     go test $TESTTAGS ./...
     golangci-lint run -c ${ROOT}/.golangci.yml
-    if [[ "$GV" =~ ^1.20 ]]; then
+    if [[ "$GV" =~ ^1.21 ]]; then
       MOD_STATUS=$(git status --porcelain go.mod go.sum)
       go mod tidy
       UPDATED_MOD_STATUS=$(git status --porcelain go.mod go.sum)

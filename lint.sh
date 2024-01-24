@@ -56,7 +56,7 @@ for MODPATH in $MODPATHS; do
     pushd "$module" > /dev/null
     echo "Linting: $MODPATH"
     superlint
-    if [[ "$GV" =~ ^1.20 ]]; then
+    if [[ "$GV" =~ ^1.21 ]]; then
 		MOD_STATUS=$(git status --porcelain go.mod go.sum)
 		go mod tidy
 		UPDATED_MOD_STATUS=$(git status --porcelain go.mod go.sum)
