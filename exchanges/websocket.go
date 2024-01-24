@@ -10,12 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/carterjones/signalr"
-	"github.com/carterjones/signalr/hubs"
 	"github.com/gorilla/websocket"
 )
-
-const fauxBrowserUA = "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36"
 
 // An interface wraps the websocket to enable testing.
 type websocketFeed interface {
@@ -102,107 +98,5 @@ func newSocketConnection(cfg *socketConfig) (websocketFeed, error) {
 		conn: conn,
 		done: make(chan struct{}),
 		on:   true,
-	}, nil
-}
-
-/*
-// Quickly encode the thing to a JSON-encoded string.
-func jsonify(thing interface{}) string {
-	s, _ := json.MarshalIndent(thing, "", "    ")
-	return string(s)
-}
-
-// Dump the signalr.Message to something readable.
-func dumpSignalrMsg(msg signalr.Message) {
-	fmt.Println("=================================")
-	fmt.Printf("C: %s\n", jsonify(msg.C))
-	fmt.Printf("S: %s\n", jsonify(msg.S))
-	fmt.Printf("G: %s\n", jsonify(msg.G))
-	fmt.Printf("I: %s\n", jsonify(msg.I))
-	fmt.Printf("E: %s\n", jsonify(msg.E))
-	s, _ := msg.R.MarshalJSON()
-	fmt.Printf("R: %s\n", string(s))
-	s, _ = msg.H.MarshalJSON()
-	fmt.Printf("H: %s\n", string(s))
-	s, _ = msg.D.MarshalJSON()
-	fmt.Printf("D: %s\n", string(s))
-	s, _ = msg.T.MarshalJSON()
-	fmt.Printf("T: %s\n", string(s))
-	for _, hubMsg := range msg.M {
-		fmt.Printf("  M: %s\n", hubMsg.M)
-		for _, arg := range hubMsg.A {
-			fmt.Printf("    A: %s\n", jsonify(arg))
-		}
-	}
-	fmt.Println("=================================")
-}
-*/
-
-// The interface for a signalr connection.
-type signalrClient interface {
-	Send(hubs.ClientMsg) error
-	Close()
-}
-
-type signalrConfig struct {
-	host           string
-	protocol       string
-	endpoint       string
-	connectionData string
-	params         map[string]string
-	msgHandler     signalr.MsgHandler // func(msg signalr.Message)
-	errHandler     signalr.ErrHandler // func(err error)
-}
-
-// A wrapper for the signalr.Client. Satisfies signalrClient.
-type signalrConnection struct {
-	c   *signalr.Client
-	mtx sync.Mutex
-	on  bool
-}
-
-// Send sends the ClientMsg on the connection. A mutex makes Send thread-safe.
-func (conn *signalrConnection) Send(msg hubs.ClientMsg) error {
-	conn.mtx.Lock()
-	defer conn.mtx.Unlock()
-	return conn.c.Send(msg)
-}
-
-// Close closes the underlying signalr connection.
-func (conn *signalrConnection) Close() {
-	// Underlying connection Close can block, so measures should be taken prevent
-	// calls to Close on an already closed connection.
-	conn.mtx.Lock()
-	defer conn.mtx.Unlock()
-	if !conn.on {
-		return
-	}
-	conn.on = false
-	conn.c.Close()
-}
-
-// Create a new signalr connection. Returns the signalrClient interface rather
-// than the signalrConnection.
-func newSignalrConnection(cfg *signalrConfig) (signalrClient, error) {
-	// Prepare a SignalR client.
-	c := signalr.New(
-		cfg.host,
-		cfg.protocol,
-		cfg.endpoint,
-		cfg.connectionData,
-		cfg.params,
-	)
-
-	// Set the user agent to one that looks like a browser.
-	c.Headers["User-Agent"] = fauxBrowserUA
-
-	// Start the connection.
-	err := c.Run(cfg.msgHandler, cfg.errHandler)
-	if err != nil {
-		return nil, err
-	}
-	return &signalrConnection{
-		c:  c,
-		on: true,
 	}, nil
 }

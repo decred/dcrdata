@@ -301,8 +301,10 @@ func (notifier *Notifier) processBlock(bh *wire.BlockHeader) {
 			go func(h BlockHandler) {
 				tStart := time.Now()
 				defer wg.Done()
-				defer log.Tracef("Notifier: BlockHandler %s completed in %v",
-					functionName(h), time.Since(tStart))
+				defer func() {
+					log.Tracef("Notifier: BlockHandler %s completed in %v",
+						functionName(h), time.Since(tStart))
+				}()
 				if err := h(bh); err != nil {
 					log.Errorf("block handler failed: %v", err)
 					return

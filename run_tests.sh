@@ -46,13 +46,14 @@ MODPATHS="./go.mod ./exchanges/go.mod ./gov/go.mod ./db/dcrpg/go.mod ./cmd/dcrda
     ./testutil/apiload/go.mod ./exchanges/rateserver/go.mod"
 #MODPATHS=$(find . -name go.mod -type f -print)
 
+ROOT=$PWD
 # run tests on all modules
 for MODPATH in $MODPATHS; do
   module=$(dirname "$MODPATH")
   echo "==> ${module}"
   (cd "${module}"
     go test $TESTTAGS ./...
-    golangci-lint run
+    golangci-lint run -c ${ROOT}/.golangci.yml
     if [[ "$GV" =~ ^1.20 ]]; then
       MOD_STATUS=$(git status --porcelain go.mod go.sum)
       go mod tidy
