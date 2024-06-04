@@ -22,6 +22,10 @@
 	<meta property="og:image"       content="{{ .Data.BaseURL }}/images/dcrdata400x348.png" />
 	{{- end}}
 
+	{{- if ne .Data.Links.OnionURL "" }}
+	<meta http-equiv="onion-location" content="http://{{.Data.Links.OnionURL}}" />
+	{{ end }}
+
 	<!--  Custom favicon  -->
 		<!-- Apple PWA -->
 		<link rel="apple-touch-icon" sizes="57x57"   href="/images/favicon/apple-touch-icon-57x57.png?v=yHh3NA">
