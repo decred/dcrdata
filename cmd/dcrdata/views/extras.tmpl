@@ -203,7 +203,13 @@
 {{define "decimalParts" -}}
 <div class="decimal-parts d-inline-block">
 	{{- if eq (len .) 4 -}}
-		<span class="int">{{ index . 0 }}.{{ index . 1 }}</span>
+		<span class="int">
+		{{- if gt (len (index . 1)) 0 -}}
+			{{ index . 0 }}.{{index . 1 }}
+		{{- else -}}
+			{{index . 0 }}
+		{{- end -}}
+	    </span>
 		{{- if gt (len (index . 2)) 0 -}}
 		<span class="decimal">{{ index . 2 }}</span>
 		{{- /* trailing zeros  */ -}}
