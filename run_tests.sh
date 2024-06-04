@@ -13,7 +13,7 @@ set -ex
 GV=$(go version | sed "s/^.*go\([0-9.]*\).*/\1/")
 echo "Go version: $GV"
 
-if [[ -v TESTTAGS ]]; then
+if [[ -n "${TESTTAGS}" ]]; then
   TESTTAGS="-tags \"${TESTTAGS}\""
 else
   TESTTAGS=
