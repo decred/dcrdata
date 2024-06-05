@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/v3"
@@ -28,19 +29,20 @@ type pageTemplate struct {
 }
 
 type templates struct {
-	templates map[string]pageTemplate
-	common    []string
-	folder    string
-	helpers   template.FuncMap
-	exec      func(string, interface{}) (string, error)
+	templateMtx sync.RWMutex
+	templates   map[string]pageTemplate
+	common      []string
+	folder      string
+	helpers     template.FuncMap
+	exec        func(string, interface{}) (string, error)
 }
 
-func newTemplates(folder string, reload bool, common []string, helpers template.FuncMap) templates {
+func newTemplates(folder string, reload bool, common []string, helpers template.FuncMap) *templates {
 	com := make([]string, 0, len(common))
 	for _, file := range common {
 		com = append(com, filepath.Join(folder, file+".tmpl"))
 	}
-	t := templates{
+	t := &templates{
 		templates: make(map[string]pageTemplate),
 		common:    com,
 		folder:    folder,
@@ -54,10 +56,17 @@ func newTemplates(folder string, reload bool, common []string, helpers template.
 	return t
 }
 
-func (t *templates) addTemplate(name string) error {
+func (t *templates) prepareTemplate(name string) (string, *template.Template, error) {
 	fileName := filepath.Join(t.folder, name+".tmpl")
 	files := append(t.common, fileName)
 	temp, err := template.New(name).Funcs(t.helpers).ParseFiles(files...)
+	return fileName, temp, err
+}
+
+func (t *templates) addTemplate(name string) error {
+	t.templateMtx.Lock()
+	defer t.templateMtx.Unlock()
+	fileName, temp, err := t.prepareTemplate(name)
 	if err == nil {
 		t.templates[name] = pageTemplate{
 			file:     fileName,
@@ -68,11 +77,18 @@ func (t *templates) addTemplate(name string) error {
 }
 
 func (t *templates) reloadTemplates() error {
+	t.templateMtx.Lock()
+	defer t.templateMtx.Unlock()
 	var errorStrings []string
-	for fileName := range t.templates {
-		err := t.addTemplate(fileName)
+	for name := range t.templates {
+		fileName, temp, err := t.prepareTemplate(name)
 		if err != nil {
 			errorStrings = append(errorStrings, err.Error())
+		} else {
+			t.templates[name] = pageTemplate{
+				file:     fileName,
+				template: temp,
+			}
 		}
 	}
 	if errorStrings == nil {
@@ -84,9 +100,11 @@ func (t *templates) reloadTemplates() error {
 // execTemplateToString executes the associated input template using the
 // supplied data, and writes the result into a string. If the template fails to
 // execute or isn't found, a non-nil error will be returned. Check it before
-// writing to theclient, otherwise you might as well execute directly into
+// writing to the client, otherwise you might as well execute directly into
 // your response writer instead of the internal buffer of this function.
 func (t *templates) execTemplateToString(name string, data interface{}) (string, error) {
+	t.templateMtx.RLock()
+	defer t.templateMtx.RUnlock()
 	temp, ok := t.templates[name]
 	if !ok {
 		return "", fmt.Errorf("Template %s not known", name)
@@ -133,7 +151,7 @@ var toInt64 = func(v interface{}) int64 {
 // places to be written with same font as the whole number value of the float.
 // If boldNumPlaces is provided the returned slice should have at least four items
 // otherwise it should have at least three items. i.e. given v is to 342.12132000,
-// numplaces is 8 and boldNumPlaces is set to 2 the following should be returned
+// numPlaces is 8 and boldNumPlaces is set to 2 the following should be returned
 // []string{"342", "12", "132", "000"}. If boldNumPlace is not set the returned
 // slice should be []string{"342", "12132", "000"}.
 func float64Formatting(v float64, numPlaces int, useCommas bool, boldNumPlaces ...int) []string {

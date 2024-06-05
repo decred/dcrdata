@@ -211,7 +211,7 @@ type explorerUI struct {
 	proposals        PoliteiaBackend
 	dbsSyncing       atomic.Value
 	devPrefetch      bool
-	templates        templates
+	templates        *templates
 	wsHub            *WebsocketHub
 	pageData         *pageData
 	ChainParams      *chaincfg.Params
