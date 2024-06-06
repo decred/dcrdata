@@ -158,7 +158,7 @@ func updateSchemaVersion(db *sql.DB, schema uint32) error {
 	return err
 }
 
-func updateMaintVersion(db *sql.DB, maint uint32) error {
+func updateMaintenanceVersion(db *sql.DB, maint uint32) error {
 	_, err := db.Exec(internal.SetDBMaintenanceVersion, maint)
 	return err
 }
@@ -321,7 +321,7 @@ func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool
 				}
 			}
 			current.maint++
-			if err = updateMaintVersion(u.db, current.maint); err != nil {
+			if err = updateMaintenanceVersion(u.db, current.maint); err != nil {
 				return false, fmt.Errorf("failed to update maintenance version: %v", err)
 			}
 			fallthrough
@@ -338,7 +338,7 @@ func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool
 		}
 		current.schema++
 		current.maint = 0
-		if storeVers(u.db, &current); err != nil {
+		if err = storeVers(u.db, &current); err != nil {
 			return false, err
 		}
 
@@ -351,7 +351,7 @@ func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool
 		}
 		current.schema++
 		current.maint = 0
-		if storeVers(u.db, &current); err != nil {
+		if err = storeVers(u.db, &current); err != nil {
 			return false, err
 		}
 
@@ -364,7 +364,7 @@ func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool
 		}
 		current.schema++
 		current.maint = 0
-		if storeVers(u.db, &current); err != nil {
+		if err = storeVers(u.db, &current); err != nil {
 			return false, err
 		}
 
@@ -377,7 +377,7 @@ func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool
 		}
 		current.schema++
 		current.maint = 0
-		if storeVers(u.db, &current); err != nil {
+		if err = storeVers(u.db, &current); err != nil {
 			return false, err
 		}
 
@@ -390,7 +390,7 @@ func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool
 		}
 		current.schema++
 		current.maint = 0
-		if storeVers(u.db, &current); err != nil {
+		if err = storeVers(u.db, &current); err != nil {
 			return false, err
 		}
 
@@ -403,7 +403,7 @@ func (u *Upgrader) compatVersion1Upgrades(current, target DatabaseVersion) (bool
 		}
 		current.schema++
 		current.maint = 0
-		if storeVers(u.db, &current); err != nil {
+		if err = storeVers(u.db, &current); err != nil {
 			return false, err
 		}
 
@@ -427,7 +427,7 @@ func storeVers(db *sql.DB, dbVer *DatabaseVersion) error {
 	if err != nil {
 		return fmt.Errorf("failed to update schema version: %w", err)
 	}
-	err = updateMaintVersion(db, dbVer.maint)
+	err = updateMaintenanceVersion(db, dbVer.maint)
 	return fmt.Errorf("failed to update maintenance version: %w", err)
 }
 
