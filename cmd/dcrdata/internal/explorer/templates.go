@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2022, The Decred developers
+// Copyright (c) 2018-2024, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -368,6 +368,9 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		},
 		"intMultiply": func(a, b int) int {
 			return a * b
+		},
+		"currentYear": func() string {
+			return fmt.Sprint(time.Now().Year())
 		},
 		"timezone": func() string {
 			t, _ := time.Now().Zone()
