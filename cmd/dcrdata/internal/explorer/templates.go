@@ -325,6 +325,10 @@ func formattedDuration(duration time.Duration, str *periodMap) string {
 	return i(durationsec) + pl(str.s, durationsec)
 }
 
+func toFloat64Amount(intAmount int64) float64 {
+	return dcrutil.Amount(intAmount).ToCoin()
+}
+
 func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 	netTheme := "theme-" + strings.ToLower(netName(params))
 
@@ -362,6 +366,9 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		},
 		"divideFloat": func(n, d float64) float64 {
 			return n / d
+		},
+		"float64Multiply": func(x, y float64) float64 {
+			return x * y
 		},
 		"multiply": func(a, b int64) int64 {
 			return a * b
@@ -404,9 +411,7 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"amountAsDecimalParts": func(v int64, useCommas bool) []string {
 			return float64Formatting(dcrutil.Amount(v).ToCoin(), 8, useCommas)
 		},
-		"toFloat64Amount": func(intAmount int64) float64 {
-			return dcrutil.Amount(intAmount).ToCoin()
-		},
+		"toFloat64Amount": toFloat64Amount,
 		"dcrPerKbToAtomsPerByte": func(amt dcrutil.Amount) int64 {
 			return int64(math.Round(float64(amt) / 1e3))
 		},
