@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021, The Decred developers
+// Copyright (c) 2020-2022, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -16,7 +16,7 @@ import (
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
 	"github.com/decred/dcrd/wire"
 
-	apitypes "github.com/decred/dcrdata/v8/api/types"
+	apitypes "github.com/decred/dcrdata/v8/api/types/v1"
 	"github.com/decred/dcrdata/v8/db/dbtypes"
 	"github.com/decred/dcrdata/v8/stakedb"
 	"github.com/decred/dcrdata/v8/txhelpers"
