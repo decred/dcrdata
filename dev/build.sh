@@ -44,7 +44,7 @@ rm -f ${ROOT}/dcrdata
 pushd $ROOT/cmd/dcrdata > /dev/null
 
 echo "Building the dcrdata binary..."
-GO111MODULE=on go build -v
+go build -v
 
 echo "Packaging static frontend assets..."
 npm clean-install
