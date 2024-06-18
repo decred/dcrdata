@@ -1,6 +1,6 @@
 module github.com/decred/dcrdata/v8
 
-go 1.18
+go 1.21
 
 require (
 	github.com/davecgh/go-spew v1.1.1

@@ -220,9 +220,6 @@ The go tool will process the source code and automatically download
 dependencies. If the dependencies are configured correctly, there will be no
 modifications to the `go.mod` and `go.sum` files.
 
-Note that performing the above commands with older versions of Go within
-`$GOPATH` may require setting `GO111MODULE=on`.
-
 As a reward for reading this far, you may use the [build.sh](dev/build.sh)
 script to mostly automate the build steps.
 
@@ -273,9 +270,6 @@ go build -v
 npm clean-install
 npm run build # or npm run watch
 ```
-
-Note that performing the above commands with versions of Go prior to 1.16
-within `$GOPATH` may require setting `GO111MODULE=on`.
 
 ## Upgrading Instructions
 
