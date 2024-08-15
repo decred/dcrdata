@@ -18,11 +18,14 @@
 
         {{- /* PRICE */ -}}
         <div class="ms-4 me-2 my-4 p-2 p-lg-4 bg-white text-center">
-            <div class="text-center fs18 text-secondary">1 DCR =</div>
-            {{if eq $botState.BtcIndex "USD"}}
-                <span class="fs22 fw-bold d-inline-block">$</span>
-            {{end}}
-            <span class="fs24" data-market-target="price">{{printf "%.2f" $botState.Price}}</span> <span class="fs16 text-secondary">{{$botState.BtcIndex}}</span>
+            <div class="text-center">
+                <span class="fs18 text-secondary">1 DCR =</span>
+                {{if eq $botState.Index "USD"}}
+                    <span class="fs22 fw-bold d-inline-block">$</span>
+                {{end}}
+                <span class="fs24" data-market-target="price">{{printf "%.2f" $botState.Price}}</span>
+                <span class="fs16 text-secondary">{{$botState.Index}}</span>
+            </div>
         </div>
 
 
@@ -34,13 +37,17 @@
                     <tr class="fs14 lh1rem">
                       <td></td>
                       <td class="text-end fw-bold">DCR Vol.</td>
-                      <td class="text-end fw-bold">BTC</td>
+                      <td class="text-end fw-bold">Price</td>
                       <td></td>
-                      <td class="text-end fw-bold">{{$botState.BtcIndex}}</td>
+                      <td class="text-end fw-bold">{{$botState.Index}}</td>
                     </tr>
                     {{range $botState.VolumeOrderedExchanges}}
-                        <tr class="fs hover-row" data-market-target="xcRow" data-action="click->market#setExchange" data-token="{{.Token}}">
-                            <td class="py-2 fs18 fw-bold"><div class="exchange-logo {{.Token}} me-2"></div> {{xcDisplayName .Token}}</td>
+                        <tr class="fs hover-row" data-market-target="xcRow" data-action="click->market#setExchange" data-token="{{.Token}}" data-pair="{{.CurrencyPair}}">
+                            <td class="py-2 fs18 fw-bold">
+                                <div class="exchange-logo {{.Token}} me-2"></div>
+                                <span >{{xcDisplayName .Token}}</span>
+                                <span class="py-2 fs12 fw-bold">({{.CurrencyPair.QuoteAsset}})</span> 
+                            </td>
                             <td class="ps-2 fs16 py-2 text-end" data-type="volume">
                                 {{threeSigFigs .State.Volume}}
                             </td>
@@ -57,11 +64,11 @@
                               {{end}}
                             </td>
                             <td class="ps-1 fs16 py-2 text-end" data-type="fiat">
-                                {{printf "%.2f" ($botState.BtcToFiat .State.Price)}}
+                                {{printf "%.2f" ($botState.PriceToFiat .State.Price .CurrencyPair)}}
                             </td>
                         </tr>
                     {{end}}
-                    <tr class="fs sum-row hover-row" data-market-target="xcRow" data-action="click->market#setExchange" data-token="aggregated">
+                    <tr class="fs sum-row" data-market-target="xcRow" data-token="aggregated">
                         <td class="py-2 fs18 fw-bold"><div class="exchange-logo aggregated me-2"></div> Aggregate</td>
                         <td class="ps-2 fs16 py-2 text-end" data-type="volume">
                             {{threeSigFigs $botState.Volume}}
@@ -83,13 +90,13 @@
         <div class="ms-4 me-2 my-4 py-4 bg-white">
             <div colspan="4" class="fs24 d-flex align-items-center justify-content-center pb-3"><div class="exchange-logo bitcoin me-2"></div> <span>Bitcoin Indices</span></div>
             <div class="row">
-              {{range $token, $state := $botState.FiatIndices}}
+              {{range $token, $state := $botState.BitcoinIndices}}
                   <div class="col-12 text-center">
                       <div class="fs18 fw-bold d-flex align-items-center justify-content-center"><div class="exchange-logo {{$token}} me-1"></div> <span class="d-inline-block">{{toTitleCase $token}}</span></div>
-                      {{if eq $botState.BtcIndex "USD"}}
+                      {{if eq $botState.Index "USD"}}
                           <span class="fs22 fw-bold d-inline-block">$</span>
                       {{end}}
-                      <span class="fs24" data-price="{{$state.Price}}" data-token="{{$token}}" data-market-target="xcIndex">{{commaWithDecimal $state.Price 2}}</span> <span class="fs16 text-secondary">{{$botState.BtcIndex}}</span><br>
+                      <span class="fs24" data-price="{{$state.Price}}" data-token="{{$token}}" data-market-target="xcIndex">{{commaWithDecimal $state.Price 2}}</span> <span class="fs16 text-secondary">{{$botState.Index}}</span><br>
                       {{if eq $token "coindesk"}}
                         <a class="fs12" href="https://www.coindesk.com/price/bitcoin">Powered by CoinDesk</a>
                       {{end}}
@@ -102,7 +109,7 @@
 
     {{- /* RIGHT COLUMN */ -}}
     <div class="row flex-grow-0 flex-lg-grow-1 col-24 col-lg mx-0 p-0">
-        <div class="col ms-4 ms-lg-3 me-2 me-lg-3 mb-4 mt-1 mt-lg-4 flex-grow-1 d-flex flex-column bg-white px-2 px-lg-5 py-2 py-lg-3 position-relative">
+        <div class="col ms-4 ms-lg-3 me-2 me-lg-3 mb-4 mt-1 mt-lg-4 flex-grow-1 d-flex flex-column bg-white px-2 px-lg-4 py-2 py-lg-3 position-relative">
         <div class="loader-v2 loading" data-market-target="chartLoader"></div>
 
 
@@ -120,7 +127,7 @@
                     >
                         {{range $botState.VolumeOrderedExchanges}}
                           <option
-                              value="{{.Token}}"
+                              value="{{.Token}}:{{.CurrencyPair}}"
                               {{if .State.HasCandlesticks}}
                                   data-sticks="1"
                                   data-bins="{{.State.StickList}}"
@@ -128,15 +135,9 @@
                               {{if .State.HasDepth}}
                                   data-depth="1"
                               {{end}}
-                              >{{xcDisplayName .Token}}
+                              >{{xcDisplayName .Token}} ({{.CurrencyPair.QuoteAsset}})
                           </option>
                         {{end}}
-                        <option
-                            data-market-target="aggOption"
-                            value="aggregated"
-                            data-depth="1"
-                            >Aggregated
-                        </option>
                     </select>
                 </div>
 
@@ -178,23 +179,13 @@
                 <div
                     class="btn-set bg-white d-inline-flex flex-nowrap mx-2 mx-lg-4"
                     data-market-target="conversion"
-                    data-factor="{{$botState.BtcPrice}}"
-                    data-code="{{$botState.BtcIndex}}"
+                    data-indices="{{$botState.Indices}}"
+                    data-code="{{$botState.Index}}"
                     data-action="click->market#setConversion"
                 >
                   <label>Index</label>
-                  <button class="btn-selected" name="BTC">BTC</button>
-                  <button name="fiat">{{$botState.BtcIndex}}</button>
-                </div>
-
-                {{- /* AGGREGATE DEPTH STACKING */ -}}
-                <div
-                    class="btn-set bg-white d-inline-flex flex-nowrap mx-2 mx-lg-4"
-                    data-market-target="aggStack"
-                >
-                  <label>Stacking</label>
-                  <button class="btn-selected" data-action="click->market#setStacking" name="on">On</button>
-                  <button data-action="click->market#setStacking" name="off">Off</button>
+                  <button class="btn-selected" name="USDT">USDT</button>
+                  <button name="fiat">{{$botState.Index}}</button>
                 </div>
 
                 {{- /* ZOOM */ -}}
@@ -222,7 +213,7 @@
 
 
             {{- /* CHART */ -}}
-            <div class="flex-grow-1 ps-3 pe-4 mb-2 market-chart-box d-flex">
+            <div class="flex-grow-1 ps-3 mb-2 market-chart-box d-flex">
               <div class="d-flex w-100 position-relative market-chart">
                 <div class="market-chart-title d-flex align-items-center">
                     <div data-market-target="xcLogo"></div>

@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package dcrrates;
 
+option go_package = ".";
+
 // DCRRates takes a subscription from a client and pushes data as its received
 // from external sources.
 service DCRRates {
@@ -9,7 +11,7 @@ service DCRRates {
 }
 
 message ExchangeSubscription {
-  string btcIndex = 1;
+  string index = 1;
   repeated string exchanges = 2;
 }
 
@@ -44,4 +46,5 @@ message ExchangeRateUpdate {
     repeated Candlestick sticks = 2;
   }
   repeated Candlesticks candlesticks = 9;
+  string currencyPair = 10;
 }

@@ -200,24 +200,24 @@ export default class extends Controller {
 
     if (ex.exchange_rate) {
       const xcRate = ex.exchange_rate.value
-      const btcIndex = ex.exchange_rate.index
+      const index = ex.exchange_rate.index
       if (this.hasPowConvertedTarget) {
-        this.powConvertedTarget.textContent = `${humanize.twoDecimals(ex.subsidy.pow / 1e8 * xcRate)} ${btcIndex}`
+        this.powConvertedTarget.textContent = `${humanize.twoDecimals(ex.subsidy.pow / 1e8 * xcRate)} ${index}`
       }
       if (this.hasConvertedDevTarget) {
-        this.convertedDevTarget.textContent = `${humanize.threeSigFigs(treasuryTotal / 1e8 * xcRate)} ${btcIndex}`
+        this.convertedDevTarget.textContent = `${humanize.threeSigFigs(treasuryTotal / 1e8 * xcRate)} ${index}`
       }
       if (this.hasConvertedSupplyTarget) {
-        this.convertedSupplyTarget.textContent = `${humanize.threeSigFigs(ex.coin_supply / 1e8 * xcRate)} ${btcIndex}`
+        this.convertedSupplyTarget.textContent = `${humanize.threeSigFigs(ex.coin_supply / 1e8 * xcRate)} ${index}`
       }
       if (this.hasConvertedDevSubTarget) {
-        this.convertedDevSubTarget.textContent = `${humanize.twoDecimals(ex.subsidy.dev / 1e8 * xcRate)} ${btcIndex}`
+        this.convertedDevSubTarget.textContent = `${humanize.twoDecimals(ex.subsidy.dev / 1e8 * xcRate)} ${index}`
       }
       if (this.hasExchangeRateTarget) {
         this.exchangeRateTarget.textContent = humanize.twoDecimals(xcRate)
       }
       if (this.hasConvertedStakeTarget) {
-        this.convertedStakeTarget.textContent = `${humanize.twoDecimals(ex.sdiff * xcRate)} ${btcIndex}`
+        this.convertedStakeTarget.textContent = `${humanize.twoDecimals(ex.sdiff * xcRate)} ${index}`
       }
     }
   }

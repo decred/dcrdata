@@ -31,8 +31,7 @@ const (
 
 	defaultDCRRatesPort = "7778"
 
-	aggregatedOrderbookKey = "aggregated"
-	orderbookKey           = "depth"
+	orderbookKey = "depth"
 )
 
 // ExchangeBotConfig is the configuration options for ExchangeBot.
@@ -43,7 +42,7 @@ type ExchangeBotConfig struct {
 	Disabled       []string
 	DataExpiry     string
 	RequestExpiry  string
-	BtcIndex       string
+	Index          string
 	Indent         bool
 	MasterBot      string
 	MasterCertFile string
@@ -54,17 +53,20 @@ type ExchangeBotConfig struct {
 // structures are prepared. Make ExchangeBot with NewExchangeBot.
 type ExchangeBot struct {
 	mtx             sync.RWMutex
-	DcrBtcExchanges map[string]Exchange
+	DcrExchanges    map[string]Exchange
 	IndexExchanges  map[string]Exchange
 	Exchanges       map[string]Exchange
 	versionedCharts map[string]*versionedChart
 	chartVersions   map[string]int
-	// BtcIndex is the (typically fiat) currency to which the DCR price should be
+	// Index is the (typically fiat) currency to which the DCR price should be
 	// converted by default. Other conversions are available via a lookup in
 	// indexMap, but with slightly lower performance.
 	// 3-letter currency code, e.g. USD.
-	BtcIndex     string
-	indexMap     map[string]FiatIndices
+	Index string
+	// indexMap is a map of exchanges to supported indices for valid currencies
+	// like BTC and USDT or any other asset that is added for dcr in the future.
+	// New currency pairs must have at least one entry.
+	indexMap     map[string]map[CurrencyPair]FiatIndices
 	currentState ExchangeBotState
 	// Both currentState and stateCopy hold the same information. currentState
 	// is updated by ExchangeBot, and a copy stored in stateCopy. After creation,
@@ -96,36 +98,60 @@ type ExchangeBot struct {
 // ExchangeBotState is the current known state of all exchanges, in a certain
 // base currency, and a volume-averaged price and total volume in DCR.
 type ExchangeBotState struct {
-	BtcIndex string                    `json:"btc_index"`
-	BtcPrice float64                   `json:"btc_fiat_price"`
-	Price    float64                   `json:"price"`
-	Volume   float64                   `json:"volume"`
-	DcrBtc   map[string]*ExchangeState `json:"dcr_btc_exchanges"`
+	Index        string                                     `json:"index"`
+	BtcPrice     float64                                    `json:"btc_fiat_price"`
+	Price        float64                                    `json:"price"`
+	Volume       float64                                    `json:"volume"`
+	DCRExchanges map[string]map[CurrencyPair]*ExchangeState `json:"dcr_exchanges"`
 	// FiatIndices:
 	// TODO: We only really need the BaseState for the fiat indices.
-	FiatIndices map[string]*ExchangeState `json:"btc_indices"`
+	FiatIndices map[string]map[CurrencyPair]*ExchangeState `json:"indices"`
 }
 
 // Copy an ExchangeState map.
-func copyStates(m map[string]*ExchangeState) map[string]*ExchangeState {
-	c := make(map[string]*ExchangeState)
-	for k, v := range m {
-		c[k] = v
+func copyStates(m map[string]map[CurrencyPair]*ExchangeState) map[string]map[CurrencyPair]*ExchangeState {
+	c := make(map[string]map[CurrencyPair]*ExchangeState)
+	for t, v := range m {
+		mc := make(map[CurrencyPair]*ExchangeState)
+		for p, s := range v {
+			mc[p] = s
+		}
+		c[t] = mc
 	}
 	return c
 }
 
 // Creates a pointer to a copy of the ExchangeBotState.
 func (state ExchangeBotState) copy() *ExchangeBotState {
-	state.DcrBtc = copyStates(state.DcrBtc)
+	state.DCRExchanges = copyStates(state.DCRExchanges)
 	state.FiatIndices = copyStates(state.FiatIndices)
 	return &state
 }
 
-// BtcToFiat converts an amount of Bitcoin to fiat using the current calculated
-// exchange rate.
-func (state *ExchangeBotState) BtcToFiat(btc float64) float64 {
-	return state.BtcPrice * btc
+// BtcToFiat converts an amount of {Bitcoin, USDT} to fiat using the current
+// calculated exchange rate.
+func (state *ExchangeBotState) PriceToFiat(price float64, currencyPair CurrencyPair) float64 {
+	switch currencyPair {
+	case CurrencyPairDCRBTC:
+		return state.BtcPrice * price
+
+	case CurrencyPairDCRUSDT:
+		var usdtPrice, nSources float64
+		for _, currencyIndices := range state.FiatIndices {
+			state := currencyIndices[USDTIndex]
+			if state != nil {
+				usdtPrice += state.Price
+				nSources++
+			}
+		}
+		if usdtPrice != 0 {
+			usdtPrice = usdtPrice / nSources
+		}
+		return usdtPrice * price
+
+	default:
+		return 0
+	}
 }
 
 // FiatToBtc converts an amount of fiat in the default index to a value in BTC.
@@ -136,22 +162,74 @@ func (state *ExchangeBotState) FiatToBtc(fiat float64) float64 {
 	return fiat / state.BtcPrice
 }
 
+// BitcoinIndices returns a map of all exchanges that provide a bitcoin index.
+func (state *ExchangeBotState) BitcoinIndices() map[string]BaseState {
+	fiatIndices := make(map[string]BaseState)
+	for token, states := range state.FiatIndices {
+		s := states[BTCIndex]
+		if s != nil {
+			fiatIndices[token] = s.BaseState
+		}
+	}
+	return fiatIndices
+}
+
+// Indices returns a map of known indices to their current fiat price. Returns
+// an empty json object ({}) if it encounters an error.
+func (state *ExchangeBotState) Indices() string {
+	sumIndexPrice := func(index CurrencyPair) float64 {
+		var price, nSource float64
+		for _, states := range state.FiatIndices {
+			s := states[index]
+			if s != nil && s.Price > 0 {
+				price += s.Price
+				nSource++
+			}
+		}
+		if price == 0 {
+			return 0
+		}
+		return price / nSource
+	}
+
+	fiatIndices := make(map[string]float64)
+	for _, states := range state.FiatIndices {
+		for i := range states {
+			if _, found := fiatIndices[i.String()]; !found {
+				fiatIndices[i.String()] = sumIndexPrice(i)
+			}
+		}
+	}
+
+	b, err := json.Marshal(fiatIndices)
+	if err != nil {
+		log.Errorf("ExchangeBotState.Indices: json.Marshal error: %v", err)
+		return "{}"
+	}
+
+	return string(b)
+}
+
 // ExchangeState doesn't have a Token field, so if the states are returned as a
 // slice (rather than ranging over a map), a token is needed.
 type tokenedExchange struct {
 	Token string
+	CurrencyPair
 	State *ExchangeState
 }
 
 // VolumeOrderedExchanges returns a list of tokenedExchange sorted by volume,
 // highest volume first.
 func (state *ExchangeBotState) VolumeOrderedExchanges() []*tokenedExchange {
-	xcList := make([]*tokenedExchange, 0, len(state.DcrBtc))
-	for token, state := range state.DcrBtc {
-		xcList = append(xcList, &tokenedExchange{
-			Token: token,
-			State: state,
-		})
+	var xcList []*tokenedExchange
+	for token, states := range state.DCRExchanges {
+		for pair, state := range states {
+			xcList = append(xcList, &tokenedExchange{
+				Token:        token,
+				CurrencyPair: pair,
+				State:        state,
+			})
+		}
 	}
 	sort.Slice(xcList, func(i, j int) bool {
 		return xcList[i].State.Volume > xcList[j].State.Volume
@@ -159,46 +237,15 @@ func (state *ExchangeBotState) VolumeOrderedExchanges() []*tokenedExchange {
 	return xcList
 }
 
-// A price bin for the aggregated orderbook. The Volumes array will be length
-// N = number of depth-reporting exchanges. If any exchange has an order book
-// entry at price Price, then an agBookPt should be created. If a different
-// exchange does not have an order at Price, there will be a 0 in Volumes at
-// the exchange's index. An exchange's index in Volumes is set by its index
-// in (aggregateOrderbook).Tokens.
-type agBookPt struct {
-	Price   float64   `json:"price"`
-	Volumes []float64 `json:"volumes"`
-}
-
-// The aggregated depth data. Similar to DepthData, but with agBookPts instead.
-// For aggregateData, the Time will indicate the most recent time at which an
-// exchange with non-nil DepthData was updated.
-type aggregateData struct {
-	Time int64      `json:"time"`
-	Bids []agBookPt `json:"bids"`
-	Asks []agBookPt `json:"asks"`
-}
-
-// An aggregated orderbook. Combines all data from the DepthData of each
-// Exchange. For aggregatedOrderbook, the Expiration is set to the time of the
-// most recent DepthData update plus an additional (ExchangeBot).RequestExpiry,
-// though new data may be available before then.
-type aggregateOrderbook struct {
-	BtcIndex    string        `json:"btc_index"`
-	Price       float64       `json:"price"`
-	Tokens      []string      `json:"tokens"`
-	UpdateTimes []int64       `json:"update_times"`
-	Data        aggregateData `json:"data"`
-	Expiration  int64         `json:"expiration"`
-}
-
-// FiatIndices maps currency codes to Bitcoin exchange rates.
+// FiatIndices maps currency codes to an asset's exchange rates, e.g
+// Bitcoin-USD etc.
 type FiatIndices map[string]float64
 
 // IndexUpdate is sent from the Exchange to the ExchangeBot indexChan when new
 // data is received.
 type IndexUpdate struct {
-	Token   string
+	Token string
+	CurrencyPair
 	Indices FiatIndices
 }
 
@@ -219,7 +266,7 @@ type UpdateChannels struct {
 // The chart data structures that are encoded and cached are the
 // candlestickResponse and the depthResponse.
 type candlestickResponse struct {
-	BtcIndex   string       `json:"index"`
+	Index      string       `json:"index"`
 	Price      float64      `json:"price"`
 	Sticks     Candlesticks `json:"sticks"`
 	Expiration int64        `json:"expiration"`
@@ -267,24 +314,24 @@ func NewExchangeBot(config *ExchangeBotConfig) (*ExchangeBot, error) {
 	if dataExpiry < time.Minute {
 		return nil, fmt.Errorf("Expiration must be at least one minute")
 	}
-	if config.BtcIndex == "" {
-		config.BtcIndex = DefaultCurrency
+	if config.Index == "" {
+		config.Index = DefaultCurrency
 	}
 
 	bot := &ExchangeBot{
-		DcrBtcExchanges: make(map[string]Exchange),
+		DcrExchanges:    make(map[string]Exchange),
 		IndexExchanges:  make(map[string]Exchange),
 		Exchanges:       make(map[string]Exchange),
 		versionedCharts: make(map[string]*versionedChart),
 		chartVersions:   make(map[string]int),
-		BtcIndex:        config.BtcIndex,
-		indexMap:        make(map[string]FiatIndices),
+		Index:           config.Index,
+		indexMap:        make(map[string]map[CurrencyPair]FiatIndices),
 		currentState: ExchangeBotState{
-			BtcIndex:    config.BtcIndex,
-			Price:       0,
-			Volume:      0,
-			DcrBtc:      make(map[string]*ExchangeState),
-			FiatIndices: make(map[string]*ExchangeState),
+			Index:        config.Index,
+			Price:        0,
+			Volume:       0,
+			DCRExchanges: make(map[string]map[CurrencyPair]*ExchangeState),
+			FiatIndices:  make(map[string]map[CurrencyPair]*ExchangeState),
 		},
 		currentStateBytes: []byte{},
 		DataExpiry:        dataExpiry,
@@ -353,20 +400,20 @@ func NewExchangeBot(config *ExchangeBotConfig) (*ExchangeBot, error) {
 		bot.Exchanges[token] = xc
 	}
 
-	for token, constructor := range BtcIndices {
+	for token, constructor := range Indices {
 		buildExchange(token, constructor, bot.IndexExchanges)
 	}
 
 	for token, constructor := range DcrExchanges {
-		buildExchange(token, constructor, bot.DcrBtcExchanges)
+		buildExchange(token, constructor, bot.DcrExchanges)
 	}
 
-	if len(bot.DcrBtcExchanges) == 0 {
-		return nil, fmt.Errorf("no DCR-BTC exchanges were initialized")
+	if len(bot.DcrExchanges) == 0 {
+		return nil, fmt.Errorf("no DCR exchanges were initialized")
 	}
 
 	if len(bot.IndexExchanges) == 0 {
-		return nil, fmt.Errorf("no BTC-fiat exchanges were initialized")
+		return nil, fmt.Errorf("no {BTC, USDT}-fiat exchanges were initialized")
 	}
 
 	return bot, nil
@@ -422,13 +469,22 @@ func (bot *ExchangeBot) Start(ctx context.Context, wg *sync.WaitGroup) {
 						reconnectionAttempt = 0
 						continue
 					}
-					// Send the update through the Exchange so that appropriate attributes
-					// are set.
+					// Send the update through the Exchange so that appropriate
+					// attributes are set.
 					if IsDcrExchange(update.Token) {
-						state := exchangeStateFromProto(update)
-						bot.Exchanges[update.Token].Update(state)
-					} else if IsBtcIndex(update.Token) {
-						bot.Exchanges[update.Token].UpdateIndices(update.GetIndices())
+						currencyPair, state := exchangeStateFromProto(update)
+						if !currencyPair.IsValidDCRPair() {
+							log.Errorf("Received update for unknown currency pair %s", currencyPair)
+						} else {
+							bot.Exchanges[update.Token].Update(currencyPair, state)
+						}
+					} else if IsIndex(update.Token) {
+						currencyIndex := CurrencyPair(update.GetCurrencyPair())
+						if !currencyIndex.IsValidIndex() {
+							log.Errorf("Received update for unknown index %s", currencyIndex)
+						} else {
+							bot.Exchanges[update.Token].UpdateIndices(currencyIndex, update.GetIndices())
+						}
 					}
 				}
 			}()
@@ -454,7 +510,7 @@ out:
 	for {
 		select {
 		case update := <-bot.exchangeChan:
-			log.Tracef("exchange update received from %s with a BTC price %f, ", update.Token, update.State.Price)
+			log.Tracef("exchange update received from %s (Currency Pair: %s) with price %f, ", update.Token, update.CurrencyPair, update.State.Price)
 			err := bot.updateExchange(update)
 			if err != nil {
 				log.Warnf("Error encountered in exchange update: %v", err)
@@ -462,9 +518,9 @@ out:
 			}
 			bot.signalExchangeUpdate(update)
 		case update := <-bot.indexChan:
-			btcPrice, found := update.Indices[bot.BtcIndex]
+			price, found := update.Indices[bot.Index]
 			if found {
-				log.Tracef("index update received from %s with %d indices, %s price for Bitcoin is %f", update.Token, len(update.Indices), bot.BtcIndex, btcPrice)
+				log.Tracef("index update received from %s with %d indices, %s price for %s is %f", update.Token, len(update.Indices), bot.Index, update.CurrencyPair, price)
 			}
 			err := bot.updateIndices(update)
 			if err != nil {
@@ -515,7 +571,7 @@ func (bot *ExchangeBot) connectMasterBot(ctx context.Context, delay time.Duratio
 	bot.masterConnection = conn
 	grpcClient := dcrrates.NewDCRRatesClient(conn)
 	stream, err := grpcClient.SubscribeExchanges(ctx, &dcrrates.ExchangeSubscription{
-		BtcIndex:  bot.BtcIndex,
+		Index:     bot.Index,
 		Exchanges: bot.subscribedExchanges(),
 	})
 	if err != nil {
@@ -583,34 +639,42 @@ func (bot *ExchangeBot) State() *ExchangeBotState {
 	return bot.stateCopy
 }
 
+// indicesForCode must be called under bot.mtx lock.
+func (bot *ExchangeBot) indicesForCode(code string) map[string]map[CurrencyPair]*ExchangeState {
+	fiatIndices := make(map[string]map[CurrencyPair]*ExchangeState)
+	for token, indices := range bot.indexMap {
+		for currencyPair, indice := range indices {
+			for symbol, price := range indice {
+				if symbol == code {
+					fiatIndices[token] = map[CurrencyPair]*ExchangeState{
+						currencyPair: {BaseState: BaseState{Price: price}},
+					}
+				}
+			}
+		}
+	}
+	return fiatIndices
+}
+
 // ConvertedState returns an ExchangeBotState with a base of the provided
 // currency code, if available.
 func (bot *ExchangeBot) ConvertedState(code string) (*ExchangeBotState, error) {
 	bot.mtx.RLock()
 	defer bot.mtx.RUnlock()
-	fiatIndices := make(map[string]*ExchangeState)
-	for token, indices := range bot.indexMap {
-		for symbol, price := range indices {
-			if symbol == code {
-				fiatIndices[token] = &ExchangeState{BaseState: BaseState{Price: price}}
-			}
-		}
-	}
-
-	dcrPrice, volume := bot.processState(bot.currentState.DcrBtc, true)
-	btcPrice, _ := bot.processState(fiatIndices, false)
+	dcrPrice, volume := bot.dcrPriceAndVolume(code)
+	btcPrice := bot.indexPrice(BTCIndex, code)
 	if dcrPrice == 0 || btcPrice == 0 {
 		bot.failed = true
 		return nil, fmt.Errorf("Unable to process price for currency %s", code)
 	}
 
 	state := ExchangeBotState{
-		BtcIndex:    code,
-		Volume:      volume * btcPrice,
-		Price:       dcrPrice * btcPrice,
-		BtcPrice:    btcPrice,
-		DcrBtc:      bot.currentState.DcrBtc,
-		FiatIndices: fiatIndices,
+		Index:        code,
+		Volume:       volume,
+		Price:        dcrPrice,
+		BtcPrice:     dcrPrice,
+		DCRExchanges: bot.currentState.DCRExchanges,
+		FiatIndices:  bot.indicesForCode(code),
 	}
 
 	return state.copy(), nil
@@ -618,10 +682,10 @@ func (bot *ExchangeBot) ConvertedState(code string) (*ExchangeBotState, error) {
 
 // ExchangeRates is the dcr and btc prices converted to fiat.
 type ExchangeRates struct {
-	BtcIndex  string               `json:"btcIndex"`
-	DcrPrice  float64              `json:"dcrPrice"`
-	BtcPrice  float64              `json:"btcPrice"`
-	Exchanges map[string]BaseState `json:"exchanges"`
+	Index     string                                `json:"index"`
+	DcrPrice  float64                               `json:"dcrPrice"`
+	BtcPrice  float64                               `json:"btcPrice"`
+	Exchanges map[string]map[CurrencyPair]BaseState `json:"exchanges"`
 }
 
 // Rates is the current exchange rates for dcr and btc.
@@ -630,16 +694,20 @@ func (bot *ExchangeBot) Rates() *ExchangeRates {
 	defer bot.mtx.RUnlock()
 	s := bot.stateCopy
 
-	xcs := make(map[string]BaseState, len(s.DcrBtc))
-	for token, xcState := range s.DcrBtc {
-		xcs[token] = xcState.BaseState
+	xcMarkets := make(map[string]map[CurrencyPair]BaseState, len(s.DCRExchanges))
+	for token, xcStates := range s.DCRExchanges {
+		xcs := make(map[CurrencyPair]BaseState, len(xcStates))
+		for currencyPair, xcState := range xcStates {
+			xcs[currencyPair] = xcState.BaseState
+		}
+		xcMarkets[token] = xcs
 	}
 
 	return &ExchangeRates{
-		BtcIndex:  s.BtcIndex,
+		Index:     s.Index,
 		DcrPrice:  s.Price,
 		BtcPrice:  s.BtcPrice,
-		Exchanges: xcs,
+		Exchanges: xcMarkets,
 	}
 }
 
@@ -648,25 +716,16 @@ func (bot *ExchangeBot) Rates() *ExchangeRates {
 func (bot *ExchangeBot) ConvertedRates(code string) (*ExchangeRates, error) {
 	bot.mtx.RLock()
 	defer bot.mtx.RUnlock()
-	fiatIndices := make(map[string]*ExchangeState)
-	for token, indices := range bot.indexMap {
-		for symbol, price := range indices {
-			if symbol == code {
-				fiatIndices[token] = &ExchangeState{BaseState: BaseState{Price: price}}
-			}
-		}
-	}
-
-	dcrPrice, _ := bot.processState(bot.currentState.DcrBtc, true)
-	btcPrice, _ := bot.processState(fiatIndices, false)
-	if dcrPrice == 0 || btcPrice == 0 {
+	dcrPrice, _ := bot.dcrPriceAndVolume(code)
+	btcPrice := bot.indexPrice(BTCIndex, code)
+	if btcPrice == 0 || dcrPrice == 0 {
 		bot.failed = true
 		return nil, fmt.Errorf("Unable to process price for currency %s", code)
 	}
 
 	return &ExchangeRates{
-		BtcIndex: code,
-		DcrPrice: dcrPrice * btcPrice,
+		Index:    code,
+		DcrPrice: dcrPrice,
 		BtcPrice: btcPrice,
 	}, nil
 }
@@ -710,21 +769,23 @@ func (bot *ExchangeBot) AvailableIndices() []string {
 		indices = append(indices, index)
 	}
 	for _, fiatIndices := range bot.indexMap {
-		for symbol := range fiatIndices {
-			add(symbol)
+		for _, indices := range fiatIndices {
+			for symbol := range indices {
+				add(symbol)
+			}
 		}
 	}
 	sort.Sort(indices)
 	return indices
 }
 
-// Indices is the fiat indices for a given BTC index exchange.
-func (bot *ExchangeBot) Indices(token string) FiatIndices {
+// Indices is the fiat indices for a given {BTC, USDT} index exchange.
+func (bot *ExchangeBot) Indices(token string) map[CurrencyPair]FiatIndices {
 	bot.mtx.RLock()
 	defer bot.mtx.RUnlock()
-	indices := make(FiatIndices)
-	for code, price := range bot.indexMap[token] {
-		indices[code] = price
+	indices := make(map[CurrencyPair]FiatIndices)
+	for currencyIndex, indice := range bot.indexMap[token] {
+		indices[currencyIndex] = indice
 	}
 	return indices
 }
@@ -746,60 +807,99 @@ func (bot *ExchangeBot) cachedChartVersion(chartId string) int {
 	return cid
 }
 
-// processState is a helper function to process a slice of ExchangeState into
-// a price, and optionally a volume sum, and perform some cleanup along the way.
+// processState is a helper function to process a slice of ExchangeState into a
+// price, and optionally a volume sum, and perform some cleanup along the way.
 // If volumeAveraged is false, all exchanges are given equal weight in the avg.
-func (bot *ExchangeBot) processState(states map[string]*ExchangeState, volumeAveraged bool) (float64, float64) {
-	var priceAccumulator, volSum float64
-	var deletions []string
+// If exchange is invalid, a bool false is returned as a last return value.
+func (bot *ExchangeBot) processState(token, code string, states map[CurrencyPair]*ExchangeState, volumeAveraged bool) (float64, float64, bool) {
 	oldestValid := time.Now().Add(-bot.RequestExpiry)
-	for token, state := range states {
-		if bot.Exchanges[token].LastUpdate().Before(oldestValid) {
-			deletions = append(deletions, token)
-			continue
-		}
+	if bot.Exchanges[token].LastUpdate().Before(oldestValid) {
+		return 0, 0, false
+	}
+
+	var priceAccumulator, volSum float64
+	for currencyPair, state := range states {
 		volume := 1.0
 		if volumeAveraged {
 			volume = state.Volume
 		}
 		volSum += volume
-		priceAccumulator += volume * state.Price
+
+		// Convert price to bot.Index.
+		price := state.Price
+		switch currencyPair {
+		case CurrencyPairDCRBTC:
+			price = bot.indexPrice(BTCIndex, code) * price
+		case CurrencyPairDCRUSDT:
+			price = bot.indexPrice(USDTIndex, code) * price
+		}
+		if price == 0 { // missing index price for currencyPair.
+			return 0, 0, false
+		}
+
+		priceAccumulator += volume * price
 	}
-	for _, token := range deletions {
-		delete(states, token)
-	}
+
 	if volSum == 0 {
-		return 0, 0
+		return 0, 0, true
 	}
-	return priceAccumulator / volSum, volSum
+	return priceAccumulator / volSum, volSum, true
 }
 
-// updateExchange processes an update from a Decred-BTC Exchange.
+// indexPrice retrieves the index price for the provided currency index
+// {BTC-Index, USDT-Index}. Must be called under bot.mutex lock.
+func (bot *ExchangeBot) indexPrice(index CurrencyPair, code string) float64 {
+	var price, nSource float64
+	for _, currencyIndex := range bot.indexMap {
+		indices := currencyIndex[index]
+		if len(indices) != 0 && indices[code] > 0 {
+			price += indices[code]
+			nSource++
+		}
+	}
+	if price == 0 {
+		return 0
+	}
+	return price / nSource
+}
+
+// updateExchange processes an update from a Decred-{Asset} Exchange.
 func (bot *ExchangeBot) updateExchange(update *ExchangeUpdate) error {
 	bot.mtx.Lock()
 	defer bot.mtx.Unlock()
 	if update.State.Candlesticks != nil {
 		for bin := range update.State.Candlesticks {
-			bot.incrementChart(genCacheID(update.Token, string(bin)))
+			bot.incrementChart(genCacheID(update.CurrencyPair.String(), update.Token, string(bin)))
 		}
 	}
 	if update.State.Depth != nil {
-		bot.incrementChart(genCacheID(update.Token, orderbookKey))
-		bot.incrementChart(genCacheID(aggregatedOrderbookKey, orderbookKey))
+		bot.incrementChart(genCacheID(update.CurrencyPair.String(), update.Token, orderbookKey))
 	}
-	bot.currentState.DcrBtc[update.Token] = update.State
+
+	if bot.currentState.DCRExchanges[update.Token] == nil {
+		bot.currentState.DCRExchanges[update.Token] = make(map[CurrencyPair]*ExchangeState)
+	}
+	bot.currentState.DCRExchanges[update.Token][update.CurrencyPair] = update.State
 	return bot.updateState()
 }
 
-// updateIndices processes an update from an Bitcoin index source, essentially
-// a map pairing currency codes to bitcoin prices.
+// updateIndices processes an update from an {Bitcoin, USDT} index source,
+// essentially a map pairing currency codes to bitcoin or usdt prices.
 func (bot *ExchangeBot) updateIndices(update *IndexUpdate) error {
 	bot.mtx.Lock()
 	defer bot.mtx.Unlock()
-	bot.indexMap[update.Token] = update.Indices
-	price, hasCode := update.Indices[bot.config.BtcIndex]
+	if bot.indexMap[update.Token] == nil {
+		bot.indexMap[update.Token] = make(map[CurrencyPair]FiatIndices)
+	}
+
+	bot.indexMap[update.Token][update.CurrencyPair] = update.Indices
+	price, hasCode := update.Indices[bot.config.Index]
 	if hasCode {
-		bot.currentState.FiatIndices[update.Token] = &ExchangeState{
+		if bot.currentState.FiatIndices[update.Token] == nil {
+			bot.currentState.FiatIndices[update.Token] = make(map[CurrencyPair]*ExchangeState)
+		}
+
+		bot.currentState.FiatIndices[update.Token][update.CurrencyPair] = &ExchangeState{
 			BaseState: BaseState{
 				Price: price,
 				Stamp: time.Now().Unix(),
@@ -807,19 +907,44 @@ func (bot *ExchangeBot) updateIndices(update *IndexUpdate) error {
 		}
 		return bot.updateState()
 	}
-	log.Warnf("Default currency code, %s, not contained in update from %s", bot.BtcIndex, update.Token)
+	log.Warnf("Default currency code, %s, not contained in update from %s", bot.Index, update.Token)
 	return nil
+}
+
+// dcrPriceAndVolume calculates and returns dcr price and volume. The returned
+// dcr price is converted to the provided index code. Must be called under
+// bot.mtx lock.
+func (bot *ExchangeBot) dcrPriceAndVolume(code string) (float64, float64) {
+	var dcrPrice, volume, nSources float64
+	for token, xcStates := range bot.currentState.DCRExchanges {
+		processedDcrPrice, processedVolume, ok := bot.processState(token, code, xcStates, true)
+		if !ok {
+			continue
+		}
+
+		volume += processedVolume
+		if processedDcrPrice != 0 {
+			dcrPrice += processedDcrPrice
+			nSources++
+		}
+	}
+
+	if dcrPrice == 0 {
+		return 0, 0
+	}
+
+	return dcrPrice / nSources, volume
 }
 
 // Called from both updateIndices and updateExchange (under mutex lock).
 func (bot *ExchangeBot) updateState() error {
-	dcrPrice, volume := bot.processState(bot.currentState.DcrBtc, true)
-	btcPrice, _ := bot.processState(bot.currentState.FiatIndices, false)
-	if dcrPrice == 0 || btcPrice == 0 {
+	btcPrice := bot.indexPrice(BTCIndex, bot.Index)
+	dcrPrice, volume := bot.dcrPriceAndVolume(bot.Index)
+	if btcPrice == 0 || dcrPrice == 0 {
 		bot.failed = true
 	} else {
 		bot.failed = false
-		bot.currentState.Price = dcrPrice * btcPrice
+		bot.currentState.Price = dcrPrice
 		bot.currentState.BtcPrice = btcPrice
 		bot.currentState.Volume = volume
 	}
@@ -880,7 +1005,7 @@ func (bot *ExchangeBot) Cycle() {
 	}
 }
 
-// Price gets the lastest Price in the default currency (BtcIndex).
+// Price gets the latest Price in the default currency (Index).
 func (bot *ExchangeBot) Price() float64 {
 	bot.mtx.RLock()
 	defer bot.mtx.RUnlock()
@@ -915,7 +1040,7 @@ func (bot *ExchangeBot) Conversion(dcrVal float64) *Conversion {
 	if xcState != nil {
 		return &Conversion{
 			Value: xcState.Price * dcrVal,
-			Index: xcState.BtcIndex,
+			Index: xcState.Index,
 		}
 	}
 	// Haven't gotten data yet, but we're running.
@@ -939,8 +1064,12 @@ func (bot *ExchangeBot) fetchFromCache(chartID string) (data []byte, bestVersion
 
 // QuickSticks returns the up-to-date candlestick data for the specified
 // exchange and bin width, pulling from the cache if appropriate.
-func (bot *ExchangeBot) QuickSticks(token string, rawBin string) ([]byte, error) {
-	chartID := genCacheID(token, rawBin)
+func (bot *ExchangeBot) QuickSticks(token string, market CurrencyPair, rawBin string) ([]byte, error) {
+	if !market.IsValidDCRPair() {
+		return nil, fmt.Errorf("invalid market %s", market)
+	}
+
+	chartID := genCacheID(market.String(), token, rawBin)
 	bin := candlestickKey(rawBin)
 	data, bestVersion, isGood := bot.fetchFromCache(chartID)
 	if isGood {
@@ -951,9 +1080,14 @@ func (bot *ExchangeBot) QuickSticks(token string, rawBin string) ([]byte, error)
 
 	bot.mtx.Lock()
 	defer bot.mtx.Unlock()
-	state, found := bot.currentState.DcrBtc[token]
+	xcStates, found := bot.currentState.DCRExchanges[token]
 	if !found {
 		return nil, fmt.Errorf("Failed to find DCR exchange state for %s", token)
+	}
+
+	state, found := xcStates[market]
+	if !found {
+		return nil, fmt.Errorf("Failed to find DCR exchange state for %s (Currency Pair: %s)", token, market)
 	}
 	if state.Candlesticks == nil {
 		return nil, fmt.Errorf("Failed to find candlesticks for %s", token)
@@ -968,9 +1102,8 @@ func (bot *ExchangeBot) QuickSticks(token string, rawBin string) ([]byte, error)
 	}
 
 	expiration := sticks[len(sticks)-1].Start.Add(2 * bin.duration())
-
 	chart, err := bot.encodeJSON(&candlestickResponse{
-		BtcIndex:   bot.BtcIndex,
+		Index:      bot.Index,
 		Price:      bot.currentState.Price,
 		Sticks:     sticks,
 		Expiration: expiration.Unix(),
@@ -989,130 +1122,37 @@ func (bot *ExchangeBot) QuickSticks(token string, rawBin string) ([]byte, error)
 	return vChart.chart, nil
 }
 
-// Move the DepthPoint array into a map whose entries are agBookPt, inserting
-// the (DepthPoint).Quantity values at xcIndex of Volumes. Creates Volumes
-// if it does not yet exist.
-func mapifyDepthPoints(source []DepthPoint, target map[int64]agBookPt, xcIndex, ptCount int) {
-	for _, pt := range source {
-		k := eightPtKey(pt.Price)
-		_, found := target[k]
-		if !found {
-			target[k] = agBookPt{
-				Price:   pt.Price,
-				Volumes: make([]float64, ptCount),
-			}
-		}
-		target[k].Volumes[xcIndex] = pt.Quantity
+// QuickDepth returns the up-to-date depth chart data for the specified exchange
+// market, pulling from the cache if appropriate.
+func (bot *ExchangeBot) QuickDepth(token string, market CurrencyPair) (chart []byte, err error) {
+	if !market.IsValidDCRPair() {
+		return nil, fmt.Errorf("invalid market %s", market)
 	}
-}
 
-// A list of eightPtKey keys from an orderbook tracking map. Used for sorting.
-func agBookMapKeys(book map[int64]agBookPt) []int64 {
-	keys := make([]int64, 0, len(book))
-	for k := range book {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
-// After the aggregate orderbook map is fully assembled, sort the keys and
-// process the map into a list of lists.
-func unmapAgOrders(book map[int64]agBookPt, reverse bool) []agBookPt {
-	orderedBook := make([]agBookPt, 0, len(book))
-	keys := agBookMapKeys(book)
-	if reverse {
-		sort.Slice(keys, func(i, j int) bool { return keys[j] < keys[i] })
-	} else {
-		sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
-	}
-	for _, k := range keys {
-		orderedBook = append(orderedBook, book[k])
-	}
-	return orderedBook
-}
-
-// Make an aggregate orderbook from all depth data.
-func (bot *ExchangeBot) aggOrderbook() *aggregateOrderbook {
-	state := bot.State()
-	if state == nil {
-		return nil
-	}
-	bids := make(map[int64]agBookPt)
-	asks := make(map[int64]agBookPt)
-
-	oldestUpdate := time.Now().Unix()
-	var newestTime int64
-	// First, grab the tokens for exchanges with depth data so that they can be
-	// counted and sorted alphabetically.
-	tokens := []string{}
-	for token, xcState := range state.DcrBtc {
-		if !xcState.HasDepth() {
-			continue
-		}
-		tokens = append(tokens, token)
-	}
-	numXc := len(tokens)
-	updateTimes := make([]int64, 0, numXc)
-	sort.Strings(tokens)
-	for i, token := range tokens {
-		xcState := state.DcrBtc[token]
-		depth := xcState.Depth
-		if depth.Time < oldestUpdate {
-			oldestUpdate = depth.Time
-		}
-		if depth.Time > newestTime {
-			newestTime = depth.Time
-		}
-		updateTimes = append(updateTimes, depth.Time)
-		mapifyDepthPoints(depth.Bids, bids, i, numXc)
-		mapifyDepthPoints(depth.Asks, asks, i, numXc)
-	}
-	return &aggregateOrderbook{
-		Tokens:      tokens,
-		BtcIndex:    bot.BtcIndex,
-		Price:       state.Price,
-		UpdateTimes: updateTimes,
-		Data: aggregateData{
-			Time: newestTime,
-			Bids: unmapAgOrders(bids, true),
-			Asks: unmapAgOrders(asks, false),
-		},
-		Expiration: oldestUpdate + int64(bot.RequestExpiry.Seconds()),
-	}
-}
-
-// QuickDepth returns the up-to-date depth chart data for the specified
-// exchange, pulling from the cache if appropriate.
-func (bot *ExchangeBot) QuickDepth(token string) (chart []byte, err error) {
-	chartID := genCacheID(token, orderbookKey)
+	chartID := genCacheID(market.String(), token, orderbookKey)
 	data, bestVersion, isGood := bot.fetchFromCache(chartID)
 	if isGood {
 		return data, nil
 	}
 
-	if token == aggregatedOrderbookKey {
-		agDepth := bot.aggOrderbook()
-		if agDepth == nil {
-			return nil, fmt.Errorf("Failed to find depth for %s", token)
-		}
-		chart, err = bot.encodeJSON(agDepth)
-	} else {
-		bot.mtx.Lock()
-		defer bot.mtx.Unlock()
-		xcState, found := bot.currentState.DcrBtc[token]
-		if !found {
-			return nil, fmt.Errorf("Failed to find DCR exchange state for %s", token)
-		}
-		if xcState.Depth == nil {
-			return nil, fmt.Errorf("Failed to find depth for %s", token)
-		}
-		chart, err = bot.encodeJSON(&depthResponse{
-			BtcIndex:   bot.BtcIndex,
-			Price:      bot.currentState.Price,
-			Data:       xcState.Depth,
-			Expiration: xcState.Depth.Time + int64(bot.RequestExpiry.Seconds()),
-		})
+	bot.mtx.Lock()
+	defer bot.mtx.Unlock()
+	xcStates, found := bot.currentState.DCRExchanges[token]
+	if !found {
+		return nil, fmt.Errorf("Failed to find DCR exchange state for %s (Currency Pair: %s)", token, market)
 	}
+
+	state, ok := xcStates[market]
+	if !ok || state.Depth == nil {
+		return nil, fmt.Errorf("Failed to find depth for %s (Currency Pair: %s)", token, market)
+	}
+
+	chart, err = bot.encodeJSON(&depthResponse{
+		BtcIndex:   bot.Index,
+		Price:      bot.currentState.Price,
+		Data:       state.Depth,
+		Expiration: state.Depth.Time + int64(bot.RequestExpiry.Seconds()),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("JSON encode error for %s depth chart", token)
 	}

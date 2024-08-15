@@ -374,10 +374,11 @@ const exchangeUpdateID = "exchange"
 // WebsocketMiniExchange is minimal info regarding the exchange that triggered
 // an update.
 type WebsocketMiniExchange struct {
-	Token  string  `json:"token"`
-	Price  float64 `json:"price"`
-	Volume float64 `json:"volume"`
-	Change float64 `json:"change"`
+	Token        string  `json:"token"`
+	CurrencyPair string  `json:"pair"`
+	Price        float64 `json:"price"`
+	Volume       float64 `json:"volume"`
+	Change       float64 `json:"change"`
 }
 
 // WebsocketExchangeUpdate is an update to the exchange state to send over the
@@ -385,8 +386,10 @@ type WebsocketMiniExchange struct {
 type WebsocketExchangeUpdate struct {
 	Updater     WebsocketMiniExchange `json:"updater"`
 	IsFiatIndex bool                  `json:"fiat"`
-	BtcIndex    string                `json:"index"`
+	Index       string                `json:"index"`
 	Price       float64               `json:"price"`
-	BtcPrice    float64               `json:"btc_price"`
 	Volume      float64               `json:"volume"`
+	// Indices is a map of supported indices to their index price, e.g
+	// BTC-Index, USDT-Index.
+	Indices map[string]float64 `json:"indices"`
 }
