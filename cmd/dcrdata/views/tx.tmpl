@@ -396,7 +396,7 @@
                  <tr>
                    <td class="text-end medium-sans text-nowrap pe-2 py-2">Votes Cast:</td>
                    <td class="text-start py-1 text-secondary"> {{.TotalVotes}} 
-                    ({{printf "%.0f" (percentage .TotalVotes .EligibleVotes)}}% turnout)
+                    ({{if gt .TotalVotes 0}}{{printf "%.0f" (percentage .TotalVotes .EligibleVotes)}}{{else}}0{{end}}% turnout)
                    </td>
                  {{if not .Approved}}
                     <td class="text-end medium-sans text-nowrap pe-2 py-2" >Voting Ends In:</td>
