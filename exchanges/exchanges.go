@@ -2419,6 +2419,7 @@ type DecredDEX struct {
 	reqs         map[uint64]func(*msgjson.Message)
 	cacheMtx     sync.RWMutex
 	candleCaches map[uint64]*candleCache
+	lastRate     float64
 	seq          uint64
 	stamp        int64
 	cfg          *DEXConfig
@@ -2488,9 +2489,14 @@ func (dcr *DecredDEX) Refresh() {
 		}
 	}
 
+	// Use mid gap if we are yet to get an epoch report notification.
+	if dcr.lastRate == 0 {
+		dcr.lastRate = depth.MidGap()
+	}
+
 	dcr.Update(&ExchangeState{
 		BaseState: BaseState{
-			Price:  depth.MidGap(),
+			Price:  dcr.lastRate,
 			Change: change,
 			Volume: float64(volume) / 1e8,
 			Stamp:  dcr.lastStamp(),
@@ -2683,6 +2689,9 @@ func (dcr *DecredDEX) processWsMessage(raw []byte) {
 			if note.Candle.EndStamp == 0 {
 				return
 			}
+
+			dcr.lastRate = float64(note.Candle.EndRate) / 1e8
+
 			candle := &note.Candle
 			for binSize, cache := range dcr.candles() {
 				cache.mtx.Lock()
@@ -2852,7 +2861,7 @@ func (dcr *DecredDEX) setOrderBook(ob *msgjson.OrderBook) {
 
 	dcr.Update(&ExchangeState{
 		BaseState: BaseState{
-			Price: depth.MidGap(),
+			Price: dcr.lastRate,
 			// Change:       priceChange, // With candlesticks
 			Stamp: dcr.stamp,
 		},
