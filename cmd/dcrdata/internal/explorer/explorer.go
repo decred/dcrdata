@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2022, The Decred developers
+// Copyright (c) 2018-2024, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -366,7 +366,7 @@ func New(cfg *ExplorerConfig) *explorerUI {
 
 	tmpls := []string{"home", "blocks", "mempool", "block", "tx", "address",
 		"rawtx", "status", "parameters", "agenda", "agendas", "charts",
-		"sidechains", "disapproved", "ticketpool", "visualblocks", "statistics",
+		"sidechains", "disapproved", "ticketpool", "visualblocks",
 		"windows", "timelisting", "addresstable", "proposals", "proposal",
 		"market", "insight_root", "attackcost", "treasury", "treasurytable", "verify_message"}
 
@@ -671,8 +671,6 @@ func (exp *explorerUI) addRoutes() {
 	exp.Mux.Get("/address/{x}", redirect("address"))
 
 	exp.Mux.Get("/decodetx", redirect("decodetx"))
-
-	exp.Mux.Get("/stats", redirect("statistics"))
 }
 
 // Simulate ticket purchase and re-investment over a full year for a given
