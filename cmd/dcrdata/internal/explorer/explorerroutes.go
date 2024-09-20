@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2022, The Decred developers
+// Copyright (c) 2018-2024, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -2455,93 +2455,6 @@ func (exp *explorerUI) HandleApiRequestsOnSync(w http.ResponseWriter, r *http.Re
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusServiceUnavailable)
-	io.WriteString(w, str)
-}
-
-// StatsPage is the page handler for the "/stats" path.
-func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
-	// Get current PoW difficulty.
-	powDiff, err := exp.dataSource.CurrentDifficulty()
-	if err != nil {
-		log.Errorf("Failed to get Difficulty: %v", err)
-	}
-
-	// Subsidies
-	dcp0010Height := exp.dataSource.DCP0010ActivationHeight()
-	dcp0012Height := exp.dataSource.DCP0012ActivationHeight()
-	ultSubsidy := txhelpers.UltimateSubsidy(exp.ChainParams, dcp0010Height, dcp0012Height)
-	bestBlockHeight, err := exp.dataSource.GetHeight()
-	if err != nil {
-		log.Errorf("GetHeight failed: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "",
-			ExpStatusError)
-		return
-	}
-	blockSubsidy := exp.dataSource.BlockSubsidy(bestBlockHeight,
-		exp.ChainParams.TicketsPerBlock)
-
-	// Safely retrieve the inventory pointer, which can be reset in StoreMPData.
-	inv := exp.MempoolInventory()
-
-	// Prevent modifications to the shared inventory struct (e.g. in the
-	// MempoolMonitor) while we retrieve the number of votes and tickets.
-	inv.RLock()
-	numVotes := inv.NumVotes
-	numTickets := inv.NumTickets
-	inv.RUnlock()
-
-	exp.pageData.RLock()
-	stats := types.StatsInfo{
-		TotalSupply:    exp.pageData.HomeInfo.CoinSupply,
-		UltimateSupply: ultSubsidy,
-		TotalSupplyPercentage: float64(exp.pageData.HomeInfo.CoinSupply) /
-			float64(ultSubsidy) * 100,
-		ProjectFunds:             exp.pageData.HomeInfo.DevFund,
-		ProjectAddress:           exp.pageData.HomeInfo.DevAddress,
-		PoWDiff:                  exp.pageData.HomeInfo.Difficulty,
-		BlockReward:              blockSubsidy.Total,
-		NextBlockReward:          exp.pageData.HomeInfo.NBlockSubsidy.Total,
-		PoWReward:                exp.pageData.HomeInfo.NBlockSubsidy.PoW,
-		PoSReward:                exp.pageData.HomeInfo.NBlockSubsidy.PoS,
-		ProjectFundReward:        exp.pageData.HomeInfo.NBlockSubsidy.Dev,
-		VotesInMempool:           numVotes,
-		TicketsInMempool:         numTickets,
-		TicketPrice:              exp.pageData.HomeInfo.StakeDiff,
-		NextEstimatedTicketPrice: exp.pageData.HomeInfo.NextExpectedStakeDiff,
-		TicketPoolSize:           exp.pageData.HomeInfo.PoolInfo.Size,
-		TicketPoolSizePerToTarget: float64(exp.pageData.HomeInfo.PoolInfo.Size) /
-			float64(exp.ChainParams.TicketPoolSize*exp.ChainParams.TicketsPerBlock) * 100,
-		TicketPoolValue:            exp.pageData.HomeInfo.PoolInfo.Value,
-		TPVOfTotalSupplyPeecentage: exp.pageData.HomeInfo.PoolInfo.Percentage,
-		TicketsROI:                 exp.pageData.HomeInfo.TicketReward,
-		RewardPeriod:               exp.pageData.HomeInfo.RewardPeriod,
-		ASR:                        exp.pageData.HomeInfo.ASR,
-		APR:                        exp.pageData.HomeInfo.ASR,
-		IdxBlockInWindow:           exp.pageData.HomeInfo.IdxBlockInWindow,
-		WindowSize:                 exp.pageData.HomeInfo.Params.WindowSize,
-		BlockTime:                  exp.pageData.HomeInfo.Params.BlockTime,
-		IdxInRewardWindow:          exp.pageData.HomeInfo.IdxInRewardWindow,
-		RewardWindowSize:           exp.pageData.HomeInfo.Params.RewardWindowSize,
-		HashRate: powDiff * math.Pow(2, 32) /
-			exp.ChainParams.TargetTimePerBlock.Seconds() / math.Pow(10, 15),
-	}
-	exp.pageData.RUnlock()
-
-	str, err := exp.templates.exec("statistics", struct {
-		*CommonPageData
-		Stats types.StatsInfo
-	}{
-		CommonPageData: exp.commonData(r),
-		Stats:          stats,
-	})
-
-	if err != nil {
-		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
-		return
-	}
-	w.Header().Set("Content-Type", "text/html")
-	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, str)
 }
 

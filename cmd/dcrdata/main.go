@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2022, The Decred developers
+// Copyright (c) 2018-2024, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -779,10 +779,9 @@ func _main(ctx context.Context) error {
 		r.Get("/search", explore.Search)
 		r.Get("/charts", explore.Charts)
 		r.Get("/ticketpool", explore.Ticketpool)
-		r.Get("/stats", explore.StatsPage)
 		r.Get("/market", explore.MarketPage)
-		r.Get("/statistics", func(w http.ResponseWriter, r *http.Request) {
-			http.Redirect(w, r, "/stats", http.StatusPermanentRedirect)
+		r.Get("/stats", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/", http.StatusPermanentRedirect)
 		})
 		// MenuFormParser will typically redirect, but going to the homepage as a
 		// fallback.
