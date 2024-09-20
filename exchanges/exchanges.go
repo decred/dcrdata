@@ -2489,9 +2489,8 @@ func (dcr *DecredDEX) Refresh() {
 		}
 	}
 
-	// Use mid gap if we are yet to get an epoch report notification.
 	if dcr.lastRate == 0 {
-		dcr.lastRate = depth.MidGap()
+		return // no rate, nothing to do.
 	}
 
 	dcr.Update(&ExchangeState{
@@ -2858,6 +2857,15 @@ func (dcr *DecredDEX) setOrderBook(ob *msgjson.OrderBook) {
 	dcr.wsInitialized()
 
 	depth := dcr.wsDepthSnapshot()
+
+	if dcr.lastRate == 0 {
+		// Use mid gap as a sane default if the orderbook is not empty.
+		midGap := depth.MidGap()
+		if midGap == 1 {
+			return // don't send rate update if we don't have a valid rate.
+		}
+		dcr.lastRate = midGap
+	}
 
 	dcr.Update(&ExchangeState{
 		BaseState: BaseState{
