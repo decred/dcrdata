@@ -2859,12 +2859,11 @@ func (dcr *DecredDEX) setOrderBook(ob *msgjson.OrderBook) {
 	depth := dcr.wsDepthSnapshot()
 
 	if dcr.lastRate == 0 {
-		// Use mid gap as a sane default if the orderbook is not empty.
-		midGap := depth.MidGap()
-		if midGap == 1 {
-			return // don't send rate update if we don't have a valid rate.
+		if len(ob.Orders) == 0 {
+			return // don't send rate update if we don't have a valid rate and there are no orders to get a sane midGap.
 		}
-		dcr.lastRate = midGap
+		// Use mid gap as a sane default if the orderbook is not empty.
+		dcr.lastRate = depth.MidGap()
 	}
 
 	dcr.Update(&ExchangeState{
