@@ -124,12 +124,6 @@ out:
 		logMissing(token)
 	}
 
-	depth, err := bot.QuickDepth(aggregatedOrderbookKey)
-	if err != nil {
-		t.Errorf("failed to create aggregated orderbook")
-	}
-	log.Infof("aggregated orderbook size: %d kiB", len(depth)/1024)
-
 	log.Infof("%d Bitcoin indices available", len(bot.AvailableIndices()))
 	log.Infof("final state is %d kiB", len(bot.StateBytes())/1024)
 

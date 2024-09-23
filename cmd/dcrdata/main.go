@@ -417,7 +417,7 @@ func _main(ctx context.Context) error {
 	}
 	if cfg.EnableExchangeBot {
 		botCfg := exchanges.ExchangeBotConfig{
-			BtcIndex:       cfg.ExchangeCurrency,
+			Index:          cfg.ExchangeCurrency,
 			MasterBot:      cfg.RateMaster,
 			MasterCertFile: cfg.RateCertificate,
 		}

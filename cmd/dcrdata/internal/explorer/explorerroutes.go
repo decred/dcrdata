@@ -2424,7 +2424,7 @@ func (exp *explorerUI) HandleApiRequestsOnSync(w http.ResponseWriter, r *http.Re
 	dataFetched := SyncStatus()
 
 	syncStatus := "in progress"
-	if len(dataFetched) == complete {
+	if len(dataFetched) == complete && !exp.ShowingSyncStatusPage() {
 		syncStatus = "complete"
 	}
 
@@ -2462,9 +2462,7 @@ func (exp *explorerUI) HandleApiRequestsOnSync(w http.ResponseWriter, r *http.Re
 func (exp *explorerUI) MarketPage(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.exec("market", struct {
 		*CommonPageData
-		DepthMarkets []string
-		StickMarkets map[string]string
-		XcState      *exchanges.ExchangeBotState
+		XcState *exchanges.ExchangeBotState
 	}{
 		CommonPageData: exp.commonData(r),
 		XcState:        exp.getExchangeState(),

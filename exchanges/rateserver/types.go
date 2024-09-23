@@ -20,10 +20,12 @@ var streamCounter StreamID
 
 // RateServer manages the data sources and client subscriptions.
 type RateServer struct {
-	btcIndex   string
+	index      string
 	xcBot      *exchanges.ExchangeBot
 	clientLock *sync.RWMutex
 	clients    map[StreamID]RateClient
+
+	dcrrates.UnimplementedDCRRatesServer
 }
 
 // RateClient is an interface for rateClient to enable testing the server via
@@ -36,7 +38,7 @@ type RateClient interface {
 // NewRateServer is a constructor for a RateServer.
 func NewRateServer(index string, xcBot *exchanges.ExchangeBot) *RateServer {
 	return &RateServer{
-		btcIndex:   index,
+		index:      index,
 		clientLock: new(sync.RWMutex),
 		clients:    make(map[StreamID]RateClient),
 		xcBot:      xcBot,
@@ -51,15 +53,18 @@ type GRPCStream interface {
 
 // sendStateList is a helper for parsing the ExchangeBotState when a new client
 // subscription is received.
-func sendStateList(client RateClient, states map[string]*exchanges.ExchangeState) (err error) {
-	for token, state := range states {
-		err = client.SendExchangeUpdate(makeExchangeRateUpdate(&exchanges.ExchangeUpdate{
-			Token: token,
-			State: state,
-		}))
-		if err != nil {
-			log.Errorf("SendExchangeUpdate error for %s: %v", token, err)
-			return
+func sendStateList(client RateClient, states map[string]map[exchanges.CurrencyPair]*exchanges.ExchangeState) (err error) {
+	for token, xcStates := range states {
+		for pair, state := range xcStates {
+			err = client.SendExchangeUpdate(makeExchangeRateUpdate(&exchanges.ExchangeUpdate{
+				Token:        token,
+				CurrencyPair: pair,
+				State:        state,
+			}))
+			if err != nil {
+				log.Errorf("SendExchangeUpdate error for %s: %v", token, err)
+				return
+			}
 		}
 	}
 	return
@@ -78,8 +83,8 @@ func (server *RateServer) SubscribeExchanges(hello *dcrrates.ExchangeSubscriptio
 func (server *RateServer) ReallySubscribeExchanges(hello *dcrrates.ExchangeSubscription, stream GRPCStream) (err error) {
 	// For now, require the ExchangeBot clients to have the same base currency.
 	// ToDo: Allow any index.
-	if hello.BtcIndex != server.btcIndex {
-		return fmt.Errorf("Exchange subscription has wrong BTC index. Given: %s, Required: %s", hello.BtcIndex, server.btcIndex)
+	if hello.Index != server.index {
+		return fmt.Errorf("Exchange subscription has wrong index. Given: %s, Required: %s", hello.Index, server.index)
 	}
 	// Save the client for use in the main loop.
 	client, sid := server.addClient(stream, hello)
@@ -94,22 +99,28 @@ func (server *RateServer) ReallySubscribeExchanges(hello *dcrrates.ExchangeSubsc
 	}
 
 	state := server.xcBot.State()
-	// Send Decred exchanges.
-	err = sendStateList(client, state.DcrBtc)
-	if err != nil {
-		return err
-	}
-	// Send Bitcoin-fiat indices.
-	for token := range state.FiatIndices {
-		err = client.SendExchangeUpdate(&dcrrates.ExchangeRateUpdate{
-			Token:   token,
-			Indices: server.xcBot.Indices(token),
-		})
+	if state != nil {
+		// Send Decred exchanges.
+		err = sendStateList(client, state.DCRExchanges)
 		if err != nil {
-			log.Errorf("Error encountered while sending fiat indices to client at %s: %v", clientAddr, err)
-			// Assuming the Done channel will be closed on error, no further iteration
-			// is necessary.
-			break
+			return err
+		}
+		// Send Bitcoin-fiat indices.
+		for token := range state.FiatIndices {
+			currencyIndexes := server.xcBot.Indices(token)
+			for currencyPair, indices := range currencyIndexes {
+				err = client.SendExchangeUpdate(&dcrrates.ExchangeRateUpdate{
+					Token:        token,
+					Indices:      indices,
+					CurrencyPair: string(currencyPair),
+				})
+				if err != nil {
+					log.Errorf("Error encountered while sending fiat indices to client at %s: %v", clientAddr, err)
+					// Assuming the Done channel will be closed on error, no further iteration
+					// is necessary.
+					break
+				}
+			}
 		}
 	}
 
@@ -158,12 +169,13 @@ func NewRateClient(stream GRPCStream, exchanges []string) RateClient {
 func makeExchangeRateUpdate(update *exchanges.ExchangeUpdate) *dcrrates.ExchangeRateUpdate {
 	state := update.State
 	protoUpdate := &dcrrates.ExchangeRateUpdate{
-		Token:      update.Token,
-		Price:      state.Price,
-		BaseVolume: state.BaseVolume,
-		Volume:     state.Volume,
-		Change:     state.Change,
-		Stamp:      state.Stamp,
+		CurrencyPair: update.CurrencyPair.String(),
+		Token:        update.Token,
+		Price:        state.Price,
+		BaseVolume:   state.BaseVolume,
+		Volume:       state.Volume,
+		Change:       state.Change,
+		Stamp:        state.Stamp,
 	}
 	if state.Candlesticks != nil {
 		protoUpdate.Candlesticks = make([]*dcrrates.ExchangeRateUpdate_Candlesticks, 0, len(state.Candlesticks))

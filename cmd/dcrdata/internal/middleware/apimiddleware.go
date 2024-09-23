@@ -22,6 +22,7 @@ import (
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrdata/exchanges/v3"
 	apitypes "github.com/decred/dcrdata/v8/api/types"
 	"github.com/didip/tollbooth/v6"
 	"github.com/didip/tollbooth/v6/limiter"
@@ -502,7 +503,7 @@ func GetOffsetCtx(r *http.Request) int {
 
 // GetPageNumCtx retrieves the ctxPageNum data ("pageNum") URL path element from
 // the request context. If not set, the return value is 1. The page number must
-// be a postitive integer.
+// be a positive integer.
 func GetPageNumCtx(r *http.Request) int {
 	pageNum, ok := r.Context().Value(ctxPageNum).(int)
 	if !ok {
@@ -1100,4 +1101,17 @@ func RetrieveStickWidthCtx(r *http.Request) string {
 		return ""
 	}
 	return bin
+}
+
+// RetrieveCurrencyPair tries to fetch the currency pair from the request query.
+func RetrieveCurrencyPair(r *http.Request) (exchanges.CurrencyPair, error) {
+	pair := exchanges.CurrencyPair(r.URL.Query().Get("currencyPair"))
+	if pair == "" {
+		// Use the DCR-BTC pair for backward compatibility.
+		pair = exchanges.CurrencyPairDCRBTC
+	}
+	if !pair.IsValidDCRPair() {
+		return "", fmt.Errorf("invalid currency pair (%s)", pair)
+	}
+	return pair, nil
 }

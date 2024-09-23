@@ -165,8 +165,10 @@ func newTestPoloniexExchange() *PoloniexExchange {
 	return &PoloniexExchange{
 		CommonExchange: &CommonExchange{
 			token: Poloniex,
-			currentState: &ExchangeState{
-				BaseState: BaseState{Price: 1},
+			currentState: map[CurrencyPair]*ExchangeState{
+				CurrencyPairDCRBTC: {
+					BaseState: BaseState{Price: 1},
+				},
 			},
 			channels: &BotChannels{
 				exchange: make(chan *ExchangeUpdate, 2),
@@ -205,7 +207,9 @@ func TestPoloniexWebsocket(t *testing.T) {
 	poloniex.wsProcessor = poloniex.processWsMessage
 	poloniex.buys = make(wsOrders)
 	poloniex.asks = make(wsOrders)
-	poloniex.currentState = &ExchangeState{BaseState: BaseState{Price: 1}}
+	poloniex.currentState = map[CurrencyPair]*ExchangeState{
+		CurrencyPairDCRBTC: {BaseState: BaseState{Price: 1}},
+	}
 	poloniex.startWebsocket()
 	time.Sleep(300 * time.Millisecond)
 	poloniex.ws.Close()
@@ -288,8 +292,10 @@ func newTestDex() *DecredDEX {
 	return &DecredDEX{
 		CommonExchange: &CommonExchange{
 			token: DexDotDecred,
-			currentState: &ExchangeState{
-				BaseState: BaseState{Price: 1},
+			currentState: map[CurrencyPair]*ExchangeState{
+				CurrencyPairDCRBTC: {
+					BaseState: BaseState{Price: 1},
+				},
 			},
 			channels: &BotChannels{
 				exchange: make(chan *ExchangeUpdate, 2),
@@ -396,7 +402,9 @@ func TestDecredDEX(t *testing.T) {
 	dcr.wsProcessor = dcr.processWsMessage
 	dcr.buys = make(wsOrders)
 	dcr.asks = make(wsOrders)
-	dcr.currentState = &ExchangeState{BaseState: BaseState{Price: 1}}
+	dcr.currentState = map[CurrencyPair]*ExchangeState{
+		CurrencyPairDCRBTC: {BaseState: BaseState{Price: 1}},
+	}
 	dcr.startWebsocket()
 	defer dcr.ws.Close()
 
