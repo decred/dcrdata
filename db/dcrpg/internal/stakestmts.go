@@ -410,6 +410,35 @@ const (
 				FROM agenda_votes) t
 			WHERE t.rnum > 1);`
 
+	// DeleteVotesDuplicateRows removes rows that would violate the unique
+	// index uix_votes_hashes_index. This should be run prior to creating the index.
+	DeleteVotesDuplicateRows = `DELETE FROM votes
+	WHERE id IN (SELECT id FROM (
+			SELECT id,
+				row_number() OVER (PARTITION BY tx_hash, block_hash ORDER BY id DESC) AS rnum
+			FROM votes) t
+		WHERE t.rnum > 1);`
+
+	// DeleteMissesDuplicateRows removes rows that would violate the unique
+	// index uix_misses_hashes_index. This should be run prior to creating the index.
+	DeleteMissesDuplicateRows = `DELETE FROM misses
+	WHERE id IN (SELECT id FROM (
+			SELECT id,
+				row_number() OVER (PARTITION BY ticket_hash, block_hash ORDER BY id DESC) AS rnum
+			FROM misses) t
+		WHERE t.rnum > 1);`
+
+	// DeleteTreasuryTxsDuplicateRows removes rows that would violate the unique
+	// index uix_treasury_tx_hash. This should be run prior to creating the index.
+	DeleteTreasuryTxsDuplicateRows = `DELETE FROM treasury
+	WHERE (tx_hash, block_hash) IN (SELECT tx_hash, block_hash FROM (
+			SELECT 
+			tx_hash,
+			block_hash,
+				row_number() OVER (PARTITION BY tx_hash, block_hash) AS rnum
+			FROM treasury) t
+		WHERE t.rnum > 1);`
+
 	// Select
 
 	SelectAgendasVotesByTime = `SELECT votes.block_time AS timestamp,` +
