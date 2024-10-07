@@ -19,8 +19,6 @@ set -e
 
 shopt -s expand_aliases
 
-export GO111MODULE=on
-
 GV=$(go version | sed "s/^.*go\([0-9.]*\).*/\1/")
 echo "Go version: $GV"
 
@@ -33,20 +31,6 @@ MODPATHS="./go.mod ./exchanges/go.mod ./gov/go.mod ./db/dcrpg/go.mod ./cmd/dcrda
     ./testutil/apiload/go.mod ./exchanges/rateserver/go.mod"
 #MODPATHS=$(find . -name go.mod -type f -print)
 
-alias superlint="golangci-lint run --deadline=10m \
-    --disable-all \
-    --enable govet \
-    --enable staticcheck \
-    --enable gosimple \
-    --enable unconvert \
-    --enable ineffassign \
-    --enable structcheck \
-    --enable goimports \
-    --enable misspell \
-    --enable unparam \
-    --enable asciicheck \
-    --enable makezero"
-
 # run lint on all listed modules
 set +e
 ERROR=0
@@ -55,8 +39,8 @@ for MODPATH in $MODPATHS; do
     module=$(dirname "${MODPATH}")
     pushd "$module" > /dev/null
     echo "Linting: $MODPATH"
-    superlint
-    if [[ "$GV" =~ ^1.21 ]]; then
+    golangci-lint run
+    if [[ "$GV" =~ ^1.22 ]]; then
 		MOD_STATUS=$(git status --porcelain go.mod go.sum)
 		go mod tidy
 		UPDATED_MOD_STATUS=$(git status --porcelain go.mod go.sum)
