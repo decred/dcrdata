@@ -33,7 +33,7 @@ import (
 	"github.com/lib/pq"
 
 	"github.com/decred/dcrdata/db/dcrpg/v8/internal"
-	apitypes "github.com/decred/dcrdata/v8/api/types"
+	apitypes "github.com/decred/dcrdata/v8/api/types/v1"
 	"github.com/decred/dcrdata/v8/blockdata"
 	"github.com/decred/dcrdata/v8/db/cache"
 	"github.com/decred/dcrdata/v8/db/dbtypes"

@@ -15,7 +15,7 @@ import (
 	"strings"
 
 	m "github.com/decred/dcrdata/cmd/dcrdata/internal/middleware"
-	apitypes "github.com/decred/dcrdata/v8/api/types"
+	apitypes "github.com/decred/dcrdata/v8/api/types/v1"
 	"github.com/go-chi/chi/v5"
 )
 
