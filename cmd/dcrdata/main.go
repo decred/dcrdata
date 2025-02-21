@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2024, The Decred developers
+// Copyright (c) 2018-2025, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -651,6 +651,10 @@ func _main(ctx context.Context) error {
 		chainDB.SignalHeight(uint32(chainDBHeight))
 	}
 
+	// Set explore status. This will enable tracking wheter or not we are still
+	// connected to a node.
+	explore.SetStatus(app.Status)
+
 	// Configure the URL path to http handler router for the API.
 	apiMux := api.NewAPIRouter(app, cfg.IndentJSON, cfg.UseRealIP, cfg.CompressAPI)
 
@@ -688,7 +692,7 @@ func _main(ctx context.Context) error {
 		webMux.Use(explorer.AllowedHosts(cfg.AllowedHosts))
 	}
 
-	webMux.With(explore.SyncStatusPageIntercept).Group(func(r chi.Router) {
+	webMux.With(explore.StatusPageIntercept).Group(func(r chi.Router) {
 		r.Get("/", explore.Home)
 		r.Get("/visualblocks", explore.VisualBlocks)
 	})
@@ -724,9 +728,8 @@ func _main(ctx context.Context) error {
 		webMux.Mount(profPath, http.StripPrefix(profPath, http.DefaultServeMux))
 	}
 
-	// SyncStatusAPIIntercept returns a json response if the sync status page is
-	// enabled (no the full explorer while syncing).
-	webMux.With(explore.SyncStatusAPIIntercept).Group(func(r chi.Router) {
+	// APIStatusIntercept returns a json response if the status page if enabled.
+	webMux.With(explore.APIStatusIntercept).Group(func(r chi.Router) {
 		// Mount the dcrdata's REST API.
 		r.Mount("/api", apiMux.Mux)
 		// Setup and mount the Insight API.
@@ -743,11 +746,11 @@ func _main(ctx context.Context) error {
 	})
 
 	// HTTP Error 503 StatusServiceUnavailable for file requests before sync.
-	webMux.With(explore.SyncStatusFileIntercept).Group(func(r chi.Router) {
+	webMux.With(explore.ExplorerStatusFileIntercept).Group(func(r chi.Router) {
 		r.Mount("/download", fileMux.Mux)
 	})
 
-	webMux.With(explore.SyncStatusPageIntercept).Group(func(r chi.Router) {
+	webMux.With(explore.StatusPageIntercept).Group(func(r chi.Router) {
 		r.NotFound(explore.NotFound)
 
 		r.Mount("/explorer", explore.Mux) // legacy

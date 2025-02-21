@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2022, The Decred developers
+// Copyright (c) 2018-2025, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -45,6 +45,11 @@ import (
 // maxBlockRangeCount is the maximum number of blocks that can be requested at
 // once.
 const maxBlockRangeCount = 1000
+
+// noConnectionError is the error message returned by updateNodeConnections when
+// there are no connection to a dcrd node. This error means dcrdata has to be
+// restarted because auto reconnect has been disabled at the time of writing.
+var noConnectionError = errors.New("failed to get connection count")
 
 // DataSource specifies an interface for advanced data collection using the
 // auxiliary DB (e.g. PostgreSQL).
@@ -169,9 +174,10 @@ func NewContext(cfg *AppContextConfig) *appContext {
 func (c *appContext) updateNodeConnections() error {
 	nodeConnections, err := c.nodeClient.GetConnectionCount(context.TODO())
 	if err != nil {
-		// Assume there arr no connections if RPC had an error.
+		// Assume there are no connections if RPC had an error.
+		c.Status.SetReady(false)
 		c.Status.SetConnections(0)
-		return fmt.Errorf("failed to get connection count: %v", err)
+		return fmt.Errorf("%w: %v", noConnectionError, err)
 	}
 
 	// Before updating connections, get the previous connection count.
@@ -223,7 +229,14 @@ out:
 		case <-rpcCheckTicker.C:
 			if err := c.updateNodeConnections(); err != nil {
 				log.Warn("updateNodeConnections: ", err)
-				break keepon
+
+				if !errors.Is(err, noConnectionError) {
+					break keepon
+				}
+
+				log.Warn("Exiting block connected handler for STATUS monitor.")
+				rpcCheckTicker.Stop()
+				break out
 			}
 
 		case height, ok := <-wireHeightChan:

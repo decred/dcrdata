@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2024, The Decred developers
+// Copyright (c) 2018-2025, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -28,6 +28,7 @@ import (
 	"github.com/decred/dcrdata/exchanges/v3"
 	"github.com/decred/dcrdata/gov/v6/agendas"
 	pitypes "github.com/decred/dcrdata/gov/v6/politeia/types"
+	apitypes "github.com/decred/dcrdata/v8/api/types"
 	"github.com/decred/dcrdata/v8/blockdata"
 	"github.com/decred/dcrdata/v8/db/dbtypes"
 	"github.com/decred/dcrdata/v8/explorer/types"
@@ -228,6 +229,7 @@ type explorerUI struct {
 	invsMtx sync.RWMutex
 	invs    *types.MempoolInfo
 	premine int64
+	status  *apitypes.Status
 }
 
 // AreDBsSyncing is a thread-safe way to fetch the boolean in dbsSyncing.
@@ -274,6 +276,12 @@ func (exp *explorerUI) StopWebsocketHub() {
 	log.Info("Stopping websocket hub.")
 	exp.wsHub.Stop()
 	close(exp.xcDone)
+}
+
+// SetStatus updates exp.status and MUST not be used in a goroutine to avoid
+// data races.
+func (exp *explorerUI) SetStatus(status *apitypes.Status) {
+	exp.status = status
 }
 
 // ExplorerConfig is the configuration settings for explorerUI.
