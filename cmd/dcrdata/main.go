@@ -651,7 +651,7 @@ func _main(ctx context.Context) error {
 		chainDB.SignalHeight(uint32(chainDBHeight))
 	}
 
-	// Set explore status. This will enable tracking wheter or not we are still
+	// Set explore status. This will enable tracking whether or not we are still
 	// connected to a node.
 	explore.SetStatus(app.Status)
 
