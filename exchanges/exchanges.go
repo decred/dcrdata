@@ -217,20 +217,20 @@ var (
 		},
 	}
 	HuobiURLs = URLs{
-		Markets: []CurrencyPair{CurrencyPairDCRBTC},
+		Markets: []CurrencyPair{CurrencyPairDCRUSDT},
 		Price: map[CurrencyPair]string{
-			CurrencyPairDCRBTC: "https://api.huobi.pro/market/detail/merged?symbol=dcrbtc",
+			CurrencyPairDCRUSDT: "https://api.huobi.pro/market/detail/merged?symbol=dcrusdt",
 		},
 		// Huobi's only depth parameter defines bin size, 'step0' seems to mean bin
 		// width of zero.
 		Depth: map[CurrencyPair]string{
-			CurrencyPairDCRBTC: "https://api.huobi.pro/market/depth?symbol=dcrbtc&type=step0",
+			CurrencyPairDCRUSDT: "https://api.huobi.pro/market/depth?symbol=dcrusdt&type=step0",
 		},
 		Candlesticks: map[CurrencyPair]map[candlestickKey]string{
-			CurrencyPairDCRBTC: {
-				hourKey:  "https://api.huobi.pro/market/history/kline?symbol=dcrbtc&period=60min&size=2000",
-				dayKey:   "https://api.huobi.pro/market/history/kline?symbol=dcrbtc&period=1day&size=2000",
-				monthKey: "https://api.huobi.pro/market/history/kline?symbol=dcrbtc&period=1mon&size=2000",
+			CurrencyPairDCRUSDT: {
+				hourKey:  "https://api.huobi.pro/market/history/kline?symbol=dcrusdt&period=60min&size=2000",
+				dayKey:   "https://api.huobi.pro/market/history/kline?symbol=dcrusdt&period=1day&size=2000",
+				monthKey: "https://api.huobi.pro/market/history/kline?symbol=dcrusdt&period=1mon&size=2000",
 			},
 		},
 	}
