@@ -24,22 +24,53 @@ func TestAddDeleteClient(t *testing.T) {
 	}
 }
 
-type clientStub struct{}
+type clientStub struct {
+	dcrExchanges map[string]map[exchanges.CurrencyPair]*exchanges.ExchangeState
+}
 
-func (clientStub) SendExchangeUpdate(*dcrrates.ExchangeRateUpdate) error {
+func (c *clientStub) SendExchangeUpdate(update *dcrrates.ExchangeRateUpdate) error {
+	if c.dcrExchanges == nil {
+		c.dcrExchanges = make(map[string]map[exchanges.CurrencyPair]*exchanges.ExchangeState)
+	}
+
+	if c.dcrExchanges[update.Token] == nil {
+		c.dcrExchanges[update.Token] = make(map[exchanges.CurrencyPair]*exchanges.ExchangeState)
+	}
+
+	currencyPair := exchanges.CurrencyPair(update.CurrencyPair)
+	c.dcrExchanges[update.Token][currencyPair] = &exchanges.ExchangeState{
+		BaseState: exchanges.BaseState{
+			Price:      update.GetPrice(),
+			BaseVolume: update.GetBaseVolume(),
+			Volume:     update.GetVolume(),
+			Change:     update.GetChange(),
+			Stamp:      update.GetStamp(),
+		},
+	}
+
 	return nil
 }
 
-func (clientStub) Stream() GRPCStream {
+func (c *clientStub) Stream() GRPCStream {
 	return nil
 }
 
 func TestSendStateList(t *testing.T) {
-	updates := make(map[string]*exchanges.ExchangeState)
-	updates["DummyToken"] = &exchanges.ExchangeState{}
-	err := sendStateList(clientStub{}, updates)
+	updates := make(map[string]map[exchanges.CurrencyPair]*exchanges.ExchangeState)
+	currencyPair := exchanges.CurrencyPairDCRBTC
+	xcToken := "DummyToken"
+	updates[xcToken] = map[exchanges.CurrencyPair]*exchanges.ExchangeState{
+		currencyPair: {},
+	}
+
+	client := &clientStub{}
+	err := sendStateList(client, updates)
 	if err != nil {
 		t.Fatalf("Error sending exchange states: %v", err)
+	}
+
+	if client.dcrExchanges[xcToken][currencyPair] == nil {
+		t.Fatalf("expected at least one exchange state for currency pair %s", currencyPair)
 	}
 }
 

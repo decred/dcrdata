@@ -64,7 +64,7 @@ func main() {
 	botCfg := exchanges.ExchangeBotConfig{
 		DataExpiry:    cfg.ExchangeRefresh,
 		RequestExpiry: cfg.ExchangeExpiry,
-		BtcIndex:      cfg.ExchangeCurrency,
+		Index:         cfg.ExchangeCurrency,
 	}
 	if cfg.DisabledExchanges != "" {
 		botCfg.Disabled = strings.Split(cfg.DisabledExchanges, ",")
@@ -101,10 +101,12 @@ func main() {
 	grpcServer := grpc.NewServer(grpc.Creds(creds))
 	dcrrates.RegisterDCRRatesServer(grpcServer, rateServer)
 
-	printUpdate := func(token string) {
-		msg := fmt.Sprintf("Update received from %s", token)
+	log.Infof("ExchangeBot listening on %s", listener.Addr())
+
+	printUpdate := func(token string, pair exchanges.CurrencyPair) {
+		msg := fmt.Sprintf("%s: Update received from %s", pair, token)
 		if !xcBot.IsFailed() {
-			msg += fmt.Sprintf(". Current price: %.2f %s", xcBot.Price(), xcBot.BtcIndex)
+			msg += fmt.Sprintf(". Current price: %.2f %s", xcBot.Price(), xcBot.Index)
 		}
 		log.Infof(msg)
 	}
@@ -128,13 +130,14 @@ func main() {
 			case <-killSwitch:
 				break out
 			case update := <-xcSignals.Exchange:
-				printUpdate(update.Token)
+				printUpdate(update.Token, update.CurrencyPair)
 				sendUpdate(makeExchangeRateUpdate(update))
 			case update := <-xcSignals.Index:
-				printUpdate(update.Token)
+				printUpdate(update.Token, update.CurrencyPair)
 				sendUpdate(&dcrrates.ExchangeRateUpdate{
-					Token:   update.Token,
-					Indices: update.Indices,
+					Token:        update.Token,
+					CurrencyPair: string(update.CurrencyPair),
+					Indices:      update.Indices,
 				})
 			case <-xcSignals.Quit:
 				log.Infof("ExchangeBot Quit signal received.")

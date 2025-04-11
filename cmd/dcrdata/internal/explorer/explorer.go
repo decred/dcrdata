@@ -784,21 +784,28 @@ func (exp *explorerUI) watchExchanges() {
 	}
 	xcChans := exp.xcBot.UpdateChannels()
 
-	sendXcUpdate := func(isFiat bool, token string, updater *exchanges.ExchangeState) {
+	sendXcUpdate := func(isFiat bool, token, pair string, updater *exchanges.ExchangeState) {
 		xcState := exp.xcBot.State()
 		update := &WebsocketExchangeUpdate{
 			Updater: WebsocketMiniExchange{
-				Token:  token,
-				Price:  updater.Price,
-				Volume: updater.Volume,
-				Change: updater.Change,
+				Token:        token,
+				CurrencyPair: pair,
+				Price:        updater.Price,
+				Volume:       updater.Volume,
+				Change:       updater.Change,
 			},
 			IsFiatIndex: isFiat,
-			BtcIndex:    exp.xcBot.BtcIndex,
+			Index:       exp.xcBot.Index,
 			Price:       xcState.Price,
-			BtcPrice:    xcState.BtcPrice,
 			Volume:      xcState.Volume,
+			Indices:     make(map[string]float64),
 		}
+
+		// Other DCR pairs should also provide an index price for the quote
+		// asset.
+		update.Indices[string(exchanges.BTCIndex)] = xcState.BtcPrice
+		update.Indices[string(exchanges.USDTIndex)] = indexPrice(exchanges.USDTIndex, xcState.FiatIndices)
+
 		select {
 		case exp.wsHub.xcChan <- update:
 		default:
@@ -809,14 +816,22 @@ func (exp *explorerUI) watchExchanges() {
 	for {
 		select {
 		case update := <-xcChans.Exchange:
-			sendXcUpdate(false, update.Token, update.State)
+			sendXcUpdate(false, update.Token, string(update.CurrencyPair), update.State)
 		case update := <-xcChans.Index:
-			indexState, found := exp.xcBot.State().FiatIndices[update.Token]
+			currencyIndices, found := exp.xcBot.State().FiatIndices[update.Token]
 			if !found {
-				log.Errorf("Index state not found when preparing websocket update")
+				log.Error("Index state not found when preparing websocket update")
 				continue
 			}
-			sendXcUpdate(true, update.Token, indexState)
+
+			indexState, found := currencyIndices[update.CurrencyPair]
+			if !found {
+				log.Errorf("Index state not found for %s when preparing websocket update", update.CurrencyPair)
+				continue
+			}
+
+			sendXcUpdate(true, update.Token, string(update.CurrencyPair), indexState)
+
 		case <-xcChans.Quit:
 			log.Warnf("ExchangeBot has quit.")
 			return
@@ -843,4 +858,21 @@ func (exp *explorerUI) mempoolTime(txid string) types.TimeDef {
 		return types.NewTimeDefFromUNIX(0)
 	}
 	return types.NewTimeDefFromUNIX(tx.Time)
+}
+
+// indexPrice is calculates the aggregate index price across all exchanges.
+func indexPrice(index exchanges.CurrencyPair, indices map[string]map[exchanges.CurrencyPair]*exchanges.ExchangeState) float64 {
+	var price, nSources float64
+	for _, currecncyIndices := range indices {
+		for pair, state := range currecncyIndices {
+			if pair == index {
+				price += state.Price
+				nSources++
+			}
+		}
+	}
+	if nSources == 0 {
+		return 0
+	}
+	return price / nSources
 }

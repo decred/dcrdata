@@ -162,7 +162,7 @@ type config struct {
 	// ExchangeBot settings
 	EnableExchangeBot bool   `long:"exchange-monitor" description:"Enable the exchange monitor" env:"DCRDATA_MONITOR_EXCHANGES"`
 	DisabledExchanges string `long:"disable-exchange" description:"Exchanges to disable. See /exchanges/exchanges.go for available exchanges. Use a comma to separate multiple exchanges" env:"DCRDATA_DISABLE_EXCHANGES"`
-	ExchangeCurrency  string `long:"exchange-currency" description:"The default bitcoin price index. A 3-letter currency code" env:"DCRDATA_EXCHANGE_INDEX"`
+	ExchangeCurrency  string `long:"exchange-currency" description:"The default price index. A 3-letter currency code." env:"DCRDATA_EXCHANGE_INDEX"`
 	RateMaster        string `long:"ratemaster" description:"The address of a DCRRates instance. Exchange monitoring will get all data from a DCRRates subscription." env:"DCRDATA_RATE_MASTER"`
 	RateCertificate   string `long:"ratecert" description:"File containing DCRRates TLS certificate file." env:"DCRDATA_RATE_MASTER"`
 

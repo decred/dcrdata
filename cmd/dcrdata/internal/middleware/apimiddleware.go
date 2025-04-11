@@ -502,7 +502,7 @@ func GetOffsetCtx(r *http.Request) int {
 
 // GetPageNumCtx retrieves the ctxPageNum data ("pageNum") URL path element from
 // the request context. If not set, the return value is 1. The page number must
-// be a postitive integer.
+// be a positive integer.
 func GetPageNumCtx(r *http.Request) int {
 	pageNum, ok := r.Context().Value(ctxPageNum).(int)
 	if !ok {
@@ -557,7 +557,7 @@ func CacheControl(maxAge int64) func(http.Handler) http.Handler {
 
 // Indent creates a middleware for using the specified JSON indentation string
 // when the "indent" URL query parameter parses to a true boolean value. Use
-// GetIndentCtx with request handlers with the Indent middeware.
+// GetIndentCtx with request handlers with the Indent middleware.
 func Indent(indent string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

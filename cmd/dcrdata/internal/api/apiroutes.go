@@ -1814,12 +1814,13 @@ func (c *appContext) getCandlestickChart(w http.ResponseWriter, r *http.Request)
 	}
 	token := m.RetrieveExchangeTokenCtx(r)
 	bin := m.RetrieveStickWidthCtx(r)
-	if token == "" || bin == "" {
+	currencyPair, err := c.retrieveCurrencyPair(r)
+	if token == "" || bin == "" || err != nil {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
-	chart, err := c.xcBot.QuickSticks(token, bin)
+	chart, err := c.xcBot.QuickSticks(token, currencyPair, bin)
 	if err != nil {
 		apiLog.Infof("QuickSticks error: %v", err)
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
@@ -1835,12 +1836,13 @@ func (c *appContext) getDepthChart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	token := m.RetrieveExchangeTokenCtx(r)
-	if token == "" {
+	currencyPair, err := c.retrieveCurrencyPair(r)
+	if token == "" || err != nil {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
-	chart, err := c.xcBot.QuickDepth(token)
+	chart, err := c.xcBot.QuickDepth(token, currencyPair)
 	if err != nil {
 		apiLog.Infof("QuickDepth error: %v", err)
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
@@ -1962,7 +1964,7 @@ func (c *appContext) getExchanges(w http.ResponseWriter, r *http.Request) {
 
 	code := r.URL.Query().Get("code")
 	var state *exchanges.ExchangeBotState
-	if code != "" && code != c.xcBot.BtcIndex {
+	if code != "" && code != c.xcBot.Index {
 		var err error
 		state, err = c.xcBot.ConvertedState(code)
 		if err != nil {
@@ -1988,7 +1990,7 @@ func (c *appContext) getExchangeRates(w http.ResponseWriter, r *http.Request) {
 
 	code := r.URL.Query().Get("code")
 	var rates *exchanges.ExchangeRates
-	if code != "" && code != c.xcBot.BtcIndex {
+	if code != "" && code != c.xcBot.Index {
 		var err error
 		rates, err = c.xcBot.ConvertedRates(code)
 		if err != nil {
@@ -2087,4 +2089,17 @@ func (c *appContext) getBlockHashCtx(r *http.Request) (string, error) {
 		}
 	}
 	return hash, nil
+}
+
+// retrieveCurrencyPair tries to fetch the currency pair from the request query.
+func (c *appContext) retrieveCurrencyPair(r *http.Request) (exchanges.CurrencyPair, error) {
+	pair := exchanges.CurrencyPair(r.URL.Query().Get("currencyPair"))
+	if pair == "" {
+		// Use the DCR-BTC pair for backward compatibility.
+		pair = exchanges.CurrencyPairDCRBTC
+	}
+	if !pair.IsValidDCRPair() {
+		return "", fmt.Errorf("invalid currency pair (%s)", pair)
+	}
+	return pair, nil
 }

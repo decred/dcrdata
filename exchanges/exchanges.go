@@ -34,13 +34,13 @@ const (
 	Huobi        = "huobi"
 	Poloniex     = "poloniex"
 	DexDotDecred = "dcrdex"
+	Mexc         = "mexc"
 )
 
 // A few candlestick bin sizes.
 type candlestickKey string
 
 const (
-	fiveMinKey  candlestickKey = "5m"
 	halfHourKey candlestickKey = "30m"
 	hourKey     candlestickKey = "1h"
 	dayKey      candlestickKey = "1d"
@@ -48,7 +48,6 @@ const (
 )
 
 var candlestickDurations = map[candlestickKey]time.Duration{
-	fiveMinKey:  time.Minute * 5,
 	halfHourKey: time.Minute * 30,
 	hourKey:     time.Hour,
 	dayKey:      time.Hour * 24,
@@ -64,12 +63,43 @@ func (k candlestickKey) duration() time.Duration {
 	return d
 }
 
+// CurrencyPair is any currency pair, e.g DCR-{Asset} or currency index, e.g
+// BTC-Index, USDT-Index.
+type CurrencyPair string
+
+const (
+	CurrencyPairDCRBTC  CurrencyPair = "DCR-BTC"
+	CurrencyPairDCRUSDT CurrencyPair = "DCR-USDT"
+
+	// BTCIndex is an index pair and not a valid DCR-{Asset} market.
+	BTCIndex  CurrencyPair = "BTC-Index"
+	USDTIndex CurrencyPair = "USDT-Index"
+)
+
+func (cp CurrencyPair) IsValidDCRPair() bool {
+	return cp == CurrencyPairDCRBTC || cp == CurrencyPairDCRUSDT
+}
+
+func (cp CurrencyPair) IsValidIndex() bool {
+	return cp == BTCIndex || cp == USDTIndex
+}
+
+func (cp CurrencyPair) QuoteAsset() string {
+	if !cp.IsValidDCRPair() {
+		return string(cp)
+	}
+
+	v := strings.Split(string(cp), "-")
+	return strings.ToTitle(v[1])
+}
+
 // URLs is a set of endpoints for an exchange's various datasets.
 type URLs struct {
-	Price        string
-	Stats        string
-	Depth        string
-	Candlesticks map[candlestickKey]string
+	Markets      []CurrencyPair
+	Price        map[CurrencyPair]string
+	Stats        map[CurrencyPair]string
+	Depth        map[CurrencyPair]string
+	Candlesticks map[CurrencyPair]map[candlestickKey]string
 	Websocket    string
 }
 
@@ -80,82 +110,156 @@ type requests struct {
 	candlesticks map[candlestickKey]*http.Request
 }
 
-func newRequests() requests {
-	return requests{
-		candlesticks: make(map[candlestickKey]*http.Request),
+func newRequests(markets []CurrencyPair) map[CurrencyPair]*requests {
+	reqs := make(map[CurrencyPair]*requests, len(markets))
+	for _, mkt := range markets {
+		reqs[mkt] = &requests{
+			candlesticks: make(map[candlestickKey]*http.Request),
+		}
 	}
+	return reqs
 }
 
 // Prepare the URLs.
 var (
 	CoinbaseURLs = URLs{
-		Price: "https://api.coinbase.com/v2/exchange-rates?currency=BTC",
+		Markets: []CurrencyPair{BTCIndex, USDTIndex},
+		Price: map[CurrencyPair]string{
+			BTCIndex:  "https://api.coinbase.com/v2/exchange-rates?currency=BTC",
+			USDTIndex: "https://api.coinbase.com/v2/exchange-rates?currency=USDT",
+		},
 	}
 	CoindeskURLs = URLs{
-		Price: "https://api.coindesk.com/v2/bpi/currentprice.json",
+		Markets: []CurrencyPair{BTCIndex},
+		Price: map[CurrencyPair]string{
+			BTCIndex: "https://api.coindesk.com/v2/bpi/currentprice.json",
+		},
+	}
+	// https://api.mexc.com/api/v3/depth?symbol=DCRUSDT
+	MexcURLs = URLs{
+		Markets: []CurrencyPair{CurrencyPairDCRUSDT},
+		Price: map[CurrencyPair]string{
+			CurrencyPairDCRUSDT: "https://api.mexc.com/api/v3/ticker/24hr?symbol=DCRUSDT",
+		},
+		Depth: map[CurrencyPair]string{
+			// Mexc returns a maximum of 5000 depth chart points. This seems
+			// like it is the entire order book at least sometimes.
+			CurrencyPairDCRUSDT: "https://api.mexc.com/api/v3/depth?symbol=DCRUSDT&limit=5000",
+		},
+		Candlesticks: map[CurrencyPair]map[candlestickKey]string{
+			CurrencyPairDCRUSDT: {
+				// 1000 is the maximum sticks returned.
+				hourKey:  "https://api.mexc.com/api/v3/klines?symbol=DCRUSDT&limit=1000&interval=60m",
+				dayKey:   "https://api.mexc.com/api/v3/klines?symbol=DCRUSDT&limit=1000&interval=1d",
+				monthKey: "https://api.mexc.com/api/v3/klines?symbol=DCRUSDT&limit=1000&interval=1M",
+			},
+		},
 	}
 	BinanceURLs = URLs{
-		Price: "https://api.binance.com/api/v3/ticker/24hr?symbol=DCRBTC",
-		// Binance returns a maximum of 5000 depth chart points. This seems like it
-		// is the entire order book at least sometimes.
-		Depth: "https://api.binance.com/api/v3/depth?symbol=DCRBTC&limit=5000",
-		Candlesticks: map[candlestickKey]string{
-			hourKey:  "https://api.binance.com/api/v3/klines?symbol=DCRBTC&interval=1h",
-			dayKey:   "https://api.binance.com/api/v3/klines?symbol=DCRBTC&interval=1d",
-			monthKey: "https://api.binance.com/api/v3/klines?symbol=DCRBTC&interval=1M",
+		Markets: []CurrencyPair{CurrencyPairDCRBTC, CurrencyPairDCRUSDT},
+		Price: map[CurrencyPair]string{
+			CurrencyPairDCRBTC:  "https://api.binance.com/api/v3/ticker/24hr?symbol=DCRBTC",
+			CurrencyPairDCRUSDT: "https://api.binance.com/api/v3/ticker/24hr?symbol=DCRUSDT",
+		},
+		Depth: map[CurrencyPair]string{
+			// Binance returns a maximum of 5000 depth chart points. This seems
+			// like it is the entire order book at least sometimes.
+			CurrencyPairDCRBTC:  "https://api.binance.com/api/v3/depth?symbol=DCRBTC&limit=5000",
+			CurrencyPairDCRUSDT: "https://api.binance.com/api/v3/depth?symbol=DCRUSDT&limit=5000",
+		},
+		Candlesticks: map[CurrencyPair]map[candlestickKey]string{
+			CurrencyPairDCRBTC: {
+				hourKey:  "https://api.binance.com/api/v3/klines?symbol=DCRBTC&interval=1h",
+				dayKey:   "https://api.binance.com/api/v3/klines?symbol=DCRBTC&interval=1d",
+				monthKey: "https://api.binance.com/api/v3/klines?symbol=DCRBTC&interval=1M",
+			},
+			CurrencyPairDCRUSDT: {
+				hourKey:  "https://api.binance.com/api/v3/klines?symbol=DCRUSDT&interval=1h",
+				dayKey:   "https://api.binance.com/api/v3/klines?symbol=DCRUSDT&interval=1d",
+				monthKey: "https://api.binance.com/api/v3/klines?symbol=DCRUSDT&interval=1M",
+			},
 		},
 	}
 	BittrexURLs = URLs{
-		Price: "https://api.bittrex.com/v3/markets/dcr-btc/ticker",
-		Stats: "https://api.bittrex.com/v3/markets/dcr-btc/summary",
-		Depth: "https://api.bittrex.com/v3/markets/dcr-btc/orderbook?depth=500",
-		Candlesticks: map[candlestickKey]string{
-			hourKey: "https://api.bittrex.com/v3/markets/dcr-btc/candles/HOUR_1/recent",
-			dayKey:  "https://api.bittrex.com/v3/markets/dcr-btc/candles/DAY_1/recent",
+		Markets: []CurrencyPair{CurrencyPairDCRBTC},
+		Price: map[CurrencyPair]string{
+			CurrencyPairDCRBTC: "https://api.bittrex.com/v3/markets/dcr-btc/ticker",
 		},
+		Stats: map[CurrencyPair]string{
+			CurrencyPairDCRBTC: "https://api.bittrex.com/v3/markets/dcr-btc/summary",
+		},
+		Depth: map[CurrencyPair]string{
+			CurrencyPairDCRBTC: "https://api.bittrex.com/v3/markets/dcr-btc/orderbook?depth=500",
+		},
+		Candlesticks: map[CurrencyPair]map[candlestickKey]string{
+			CurrencyPairDCRBTC: {
+				hourKey: "https://api.bittrex.com/v3/markets/dcr-btc/candles/HOUR_1/recent",
+				dayKey:  "https://api.bittrex.com/v3/markets/dcr-btc/candles/DAY_1/recent",
+			}},
 		// Bittrex uses SignalR, which retrieves the actual websocket endpoint via
 		// HTTP.
 		Websocket: "socket.bittrex.com",
 	}
 	DragonExURLs = URLs{
-		Price: "https://openapi.dragonex.io/api/v1/market/real/?symbol_id=1520101",
+		Markets: []CurrencyPair{CurrencyPairDCRBTC},
+		Price: map[CurrencyPair]string{
+			CurrencyPairDCRBTC: "https://openapi.dragonex.io/api/v1/market/real/?symbol_id=1520101",
+		},
 		// DragonEx depth chart has no parameters for configuring amount of data.
-		Depth: "https://openapi.dragonex.io/api/v1/market/%s/?symbol_id=1520101", // Separate buy and sell endpoints
-		Candlesticks: map[candlestickKey]string{
-			hourKey: "https://openapi.dragonex.io/api/v1/market/kline/?symbol_id=1520101&count=100&kline_type=5",
-			dayKey:  "https://openapi.dragonex.io/api/v1/market/kline/?symbol_id=1520101&count=100&kline_type=6",
+		Depth: map[CurrencyPair]string{
+			CurrencyPairDCRBTC: "https://openapi.dragonex.io/api/v1/market/%s/?symbol_id=1520101", // Separate buy and sell endpoints
+		},
+		Candlesticks: map[CurrencyPair]map[candlestickKey]string{
+			CurrencyPairDCRBTC: {
+				hourKey: "https://openapi.dragonex.io/api/v1/market/kline/?symbol_id=1520101&count=100&kline_type=5",
+				dayKey:  "https://openapi.dragonex.io/api/v1/market/kline/?symbol_id=1520101&count=100&kline_type=6",
+			},
 		},
 	}
 	HuobiURLs = URLs{
-		Price: "https://api.huobi.pro/market/detail/merged?symbol=dcrbtc",
+		Markets: []CurrencyPair{CurrencyPairDCRBTC},
+		Price: map[CurrencyPair]string{
+			CurrencyPairDCRBTC: "https://api.huobi.pro/market/detail/merged?symbol=dcrbtc",
+		},
 		// Huobi's only depth parameter defines bin size, 'step0' seems to mean bin
 		// width of zero.
-		Depth: "https://api.huobi.pro/market/depth?symbol=dcrbtc&type=step0",
-		Candlesticks: map[candlestickKey]string{
-			hourKey:  "https://api.huobi.pro/market/history/kline?symbol=dcrbtc&period=60min&size=2000",
-			dayKey:   "https://api.huobi.pro/market/history/kline?symbol=dcrbtc&period=1day&size=2000",
-			monthKey: "https://api.huobi.pro/market/history/kline?symbol=dcrbtc&period=1mon&size=2000",
+		Depth: map[CurrencyPair]string{
+			CurrencyPairDCRBTC: "https://api.huobi.pro/market/depth?symbol=dcrbtc&type=step0",
+		},
+		Candlesticks: map[CurrencyPair]map[candlestickKey]string{
+			CurrencyPairDCRBTC: {
+				hourKey:  "https://api.huobi.pro/market/history/kline?symbol=dcrbtc&period=60min&size=2000",
+				dayKey:   "https://api.huobi.pro/market/history/kline?symbol=dcrbtc&period=1day&size=2000",
+				monthKey: "https://api.huobi.pro/market/history/kline?symbol=dcrbtc&period=1mon&size=2000",
+			},
 		},
 	}
 	PoloniexURLs = URLs{
-		Price: "https://poloniex.com/public?command=returnTicker",
-		// Maximum value of 100 for depth parameter.
-		Depth: "https://poloniex.com/public?command=returnOrderBook&currencyPair=BTC_DCR&depth=100",
-		Candlesticks: map[candlestickKey]string{
-			halfHourKey: "https://poloniex.com/public?command=returnChartData&currencyPair=BTC_DCR&period=1800&start=0&resolution=auto",
-			dayKey:      "https://poloniex.com/public?command=returnChartData&currencyPair=BTC_DCR&period=86400&start=0&resolution=auto",
+		Markets: []CurrencyPair{CurrencyPairDCRBTC},
+		Price: map[CurrencyPair]string{
+			CurrencyPairDCRBTC: "https://poloniex.com/public?command=returnTicker",
+		},
+		Depth: map[CurrencyPair]string{
+			// Maximum value of 100 for depth parameter.
+			CurrencyPairDCRBTC: "https://poloniex.com/public?command=returnOrderBook&currencyPair=BTC_DCR&depth=100",
+		},
+		Candlesticks: map[CurrencyPair]map[candlestickKey]string{
+			CurrencyPairDCRBTC: {
+				halfHourKey: "https://poloniex.com/public?command=returnChartData&currencyPair=BTC_DCR&period=1800&start=0&resolution=auto",
+				dayKey:      "https://poloniex.com/public?command=returnChartData&currencyPair=BTC_DCR&period=86400&start=0&resolution=auto",
+			},
 		},
 		Websocket: "wss://api2.poloniex.com",
 	}
 )
 
-// BtcIndices maps tokens to constructors for BTC-fiat exchanges.
-var BtcIndices = map[string]func(*http.Client, *BotChannels) (Exchange, error){
+// Indices maps tokens to constructors for {BTC, USDT}-fiat exchanges.
+var Indices = map[string]func(*http.Client, *BotChannels) (Exchange, error){
 	Coinbase: NewCoinbase,
 	Coindesk: NewCoindesk,
 }
 
-// DcrExchanges maps tokens to constructors for DCR-BTC exchanges.
+// DcrExchanges maps tokens to constructors for DCR-{Asset} exchanges.
 var DcrExchanges = map[string]func(*http.Client, *BotChannels) (Exchange, error){
 	Binance:  NewBinance,
 	DragonEx: NewDragonEx,
@@ -167,16 +271,17 @@ var DcrExchanges = map[string]func(*http.Client, *BotChannels) (Exchange, error)
 		Cert:     core.CertStore[dex.Mainnet]["dex.decred.org:7232"],
 		CertHost: "dex.decred.org",
 	}),
+	Mexc: NewMexc,
 }
 
-// IsBtcIndex checks whether the given token is a known Bitcoin index, as
-// opposed to a Decred-to-Bitcoin Exchange.
-func IsBtcIndex(token string) bool {
-	_, ok := BtcIndices[token]
+// IsIndex checks whether the given token is a known {Bitcoin, USDT} index, as
+// opposed to a Decred-to-{Bitcoin, USDT} Exchange.
+func IsIndex(token string) bool {
+	_, ok := Indices[token]
 	return ok
 }
 
-// IsDcrExchange checks whether the given token is a known Decred-BTC exchange.
+// IsDcrExchange checks whether the given token is a known Decred-{Asset} exchange.
 func IsDcrExchange(token string) bool {
 	_, ok := DcrExchanges[token]
 	return ok
@@ -184,9 +289,9 @@ func IsDcrExchange(token string) bool {
 
 // Tokens is a new slice of available exchange tokens.
 func Tokens() []string {
-	tokens := make([]string, 0, len(BtcIndices)+len(DcrExchanges))
+	tokens := make([]string, 0, len(Indices)+len(DcrExchanges))
 	var token string
-	for token = range BtcIndices {
+	for token = range Indices {
 		tokens = append(tokens, token)
 	}
 	for token = range DcrExchanges {
@@ -274,8 +379,8 @@ func (sticks Candlesticks) needsUpdate(bin candlestickKey) bool {
 // BaseState.
 type BaseState struct {
 	Price float64 `json:"price"`
-	// BaseVolume is poorly named. This is the volume in terms of (usually) BTC,
-	// not the base asset of any particular market.
+	// BaseVolume is poorly named. This is the volume in terms of (usually) BTC
+	// or USDT, not the base asset of any particular market.
 	BaseVolume float64 `json:"base_volume,omitempty"`
 	Volume     float64 `json:"volume,omitempty"`
 	Change     float64 `json:"change,omitempty"`
@@ -290,26 +395,6 @@ type ExchangeState struct {
 	Depth        *DepthData                      `json:"depth,omitempty"`
 	Candlesticks map[candlestickKey]Candlesticks `json:"candlesticks,omitempty"`
 }
-
-/*
-func (state *ExchangeState) copy() *ExchangeState {
-	newState := &ExchangeState{
-		Price:      state.Price,
-		BaseVolume: state.BaseVolume,
-		Volume:     state.Volume,
-		Change:     state.Change,
-		Stamp:      state.Stamp,
-		Depth:      state.Depth,
-	}
-	if state.Candlesticks != nil {
-		newState.Candlesticks = make(map[candlestickKey]Candlesticks)
-		for bin, sticks := range state.Candlesticks {
-			newState.Candlesticks[bin] = sticks
-		}
-	}
-	return newState
-}
-*/
 
 // Grab any candlesticks from the top that are not in the receiver. Candlesticks
 // are historical data, so never need to be discarded.
@@ -329,7 +414,7 @@ func (state *ExchangeState) stealSticks(top *ExchangeState) {
 }
 
 // Parse an ExchangeState from a protocol buffer message.
-func exchangeStateFromProto(proto *dcrrates.ExchangeRateUpdate) *ExchangeState {
+func exchangeStateFromProto(proto *dcrrates.ExchangeRateUpdate) (CurrencyPair, *ExchangeState) {
 	state := &ExchangeState{
 		BaseState: BaseState{
 			Price:      proto.GetPrice(),
@@ -380,7 +465,8 @@ func exchangeStateFromProto(proto *dcrrates.ExchangeRateUpdate) *ExchangeState {
 		}
 		state.Candlesticks = stickMap
 	}
-	return state
+
+	return CurrencyPair(proto.CurrencyPair), state
 }
 
 // HasCandlesticks checks for data in the candlesticks map.
@@ -405,6 +491,7 @@ func (state *ExchangeState) StickList() string {
 // ExchangeUpdate packages the ExchangeState for the update channel.
 type ExchangeUpdate struct {
 	Token string
+	CurrencyPair
 	State *ExchangeState
 }
 
@@ -419,9 +506,9 @@ type Exchange interface {
 	IsFailed() bool
 	Token() string
 	Hurry(time.Duration)
-	Update(*ExchangeState)
-	SilentUpdate(*ExchangeState) // skip passing update to the update channel
-	UpdateIndices(FiatIndices)
+	Update(CurrencyPair, *ExchangeState)
+	SilentUpdate(CurrencyPair, *ExchangeState) // skip passing update to the update channel
+	UpdateIndices(CurrencyPair, FiatIndices)
 }
 
 // Doer is an interface for a *http.Client to allow testing of Refresh paths.
@@ -436,12 +523,12 @@ type CommonExchange struct {
 	mtx          sync.RWMutex
 	token        string
 	URL          string
-	currentState *ExchangeState
+	currentState map[CurrencyPair]*ExchangeState
 	client       Doer
 	lastUpdate   time.Time
 	lastFail     time.Time
 	lastRequest  time.Time
-	requests     requests
+	requests     map[CurrencyPair]*requests
 	channels     *BotChannels
 	wsMtx        sync.RWMutex
 	ws           websocketFeed
@@ -457,7 +544,7 @@ type CommonExchange struct {
 	wsProcessor WebsocketProcessor
 	// Exchanges that use websockets or signalr to maintain a live orderbook can
 	// use the buy and sell slices to leverage some useful methods on
-	// CommonExchange.
+	// CommonExchange. These fields are only for the BTC_DCR market.
 	orderMtx sync.RWMutex
 	buys     wsOrders
 	asks     wsOrders
@@ -525,39 +612,44 @@ func (xc *CommonExchange) fail(msg string, err error) {
 }
 
 // Update sends an updated ExchangeState to the ExchangeBot.
-func (xc *CommonExchange) Update(state *ExchangeState) {
-	xc.update(state, true)
+func (xc *CommonExchange) Update(market CurrencyPair, state *ExchangeState) {
+	xc.update(market, state, true)
 }
 
 // SilentUpdate stores the update for internal use, but does not signal an
 // update to the ExchangeBot.
-func (xc *CommonExchange) SilentUpdate(state *ExchangeState) {
-	xc.update(state, false)
+func (xc *CommonExchange) SilentUpdate(market CurrencyPair, state *ExchangeState) {
+	xc.update(market, state, false)
 }
 
-func (xc *CommonExchange) update(state *ExchangeState, send bool) {
+func (xc *CommonExchange) update(market CurrencyPair, state *ExchangeState, send bool) {
 	xc.mtx.Lock()
 	defer xc.mtx.Unlock()
 	xc.lastUpdate = time.Now()
-	state.stealSticks(xc.currentState)
-	xc.currentState = state
+	currentState := xc.currentState[market]
+	if currentState != nil {
+		state.stealSticks(currentState)
+	}
+	xc.currentState[market] = state
 	if !send {
 		return
 	}
 	xc.channels.exchange <- &ExchangeUpdate{
-		Token: xc.token,
-		State: state,
+		CurrencyPair: market,
+		Token:        xc.token,
+		State:        state,
 	}
 }
 
 // UpdateIndices sends a bitcoin index update to the ExchangeBot.
-func (xc *CommonExchange) UpdateIndices(indices FiatIndices) {
+func (xc *CommonExchange) UpdateIndices(index CurrencyPair, indices FiatIndices) {
 	xc.mtx.Lock()
 	defer xc.mtx.Unlock()
 	xc.lastUpdate = time.Now()
 	xc.channels.index <- &IndexUpdate{
-		Token:   xc.token,
-		Indices: indices,
+		Token:        xc.token,
+		CurrencyPair: index,
+		Indices:      indices,
 	}
 }
 
@@ -575,11 +667,11 @@ func (xc *CommonExchange) fetch(request *http.Request, response interface{}) (er
 	return
 }
 
-// A thread-safe getter for the last known ExchangeState.
-func (xc *CommonExchange) state() *ExchangeState {
+// A thread-safe getter for the last known ExchangeState for supported markets.
+func (xc *CommonExchange) state(market CurrencyPair) *ExchangeState {
 	xc.mtx.RLock()
 	defer xc.mtx.RUnlock()
-	return xc.currentState
+	return xc.currentState[market]
 }
 
 // WebsocketProcessor is a callback for new websocket messages from the server.
@@ -820,13 +912,18 @@ func (xc *CommonExchange) wsDepthStatus(connector func()) (tryHttp, initializing
 
 // Used to initialize the embedding exchanges.
 func newCommonExchange(token string, client *http.Client,
-	reqs requests, channels *BotChannels) *CommonExchange {
+	reqs map[CurrencyPair]*requests, channels *BotChannels) *CommonExchange {
+	currentState := make(map[CurrencyPair]*ExchangeState, len(reqs))
+	for mkt := range reqs {
+		currentState[mkt] = new(ExchangeState)
+	}
+
 	var tZero time.Time
 	return &CommonExchange{
 		token:        token,
 		client:       client,
 		channels:     channels,
-		currentState: new(ExchangeState),
+		currentState: currentState,
 		lastUpdate:   tZero,
 		lastFail:     tZero,
 		lastRequest:  tZero,
@@ -843,10 +940,12 @@ type CoinbaseExchange struct {
 
 // NewCoinbase constructs a CoinbaseExchange.
 func NewCoinbase(client *http.Client, channels *BotChannels) (coinbase Exchange, err error) {
-	reqs := newRequests()
-	reqs.price, err = http.NewRequest(http.MethodGet, CoinbaseURLs.Price, nil)
-	if err != nil {
-		return
+	reqs := newRequests(CoinbaseURLs.Markets)
+	for mkt, price := range CoinbaseURLs.Price {
+		reqs[mkt].price, err = http.NewRequest(http.MethodGet, price, nil)
+		if err != nil {
+			return
+		}
 	}
 	coinbase = &CoinbaseExchange{
 		CommonExchange: newCommonExchange(Coinbase, client, reqs, channels),
@@ -868,10 +967,16 @@ type CoinbaseResponseData struct {
 // Refresh retrieves and parses API data from Coinbase.
 func (coinbase *CoinbaseExchange) Refresh() {
 	coinbase.LogRequest()
+	for mkt, reqs := range coinbase.requests {
+		coinbase.refresh(mkt, reqs)
+	}
+}
+
+func (coinbase *CoinbaseExchange) refresh(mkt CurrencyPair, requests *requests) {
 	response := new(CoinbaseResponse)
-	err := coinbase.fetch(coinbase.requests.price, response)
+	err := coinbase.fetch(requests.price, response)
 	if err != nil {
-		coinbase.fail("Fetch", err)
+		coinbase.fail(fmt.Sprintf("%s: Fetch", mkt), err)
 		return
 	}
 
@@ -879,26 +984,29 @@ func (coinbase *CoinbaseExchange) Refresh() {
 	for code, floatStr := range response.Data.Rates {
 		price, err := strconv.ParseFloat(floatStr, 64)
 		if err != nil {
-			coinbase.fail(fmt.Sprintf("Failed to parse float for index %s. Given %s", code, floatStr), err)
+			coinbase.fail(fmt.Sprintf("%s: Failed to parse float for index %s. Given %s", mkt, code, floatStr), err)
 			continue
 		}
 		indices[code] = price
 	}
-	coinbase.UpdateIndices(indices)
+	coinbase.UpdateIndices(mkt, indices)
 }
 
-// CoindeskExchange provides Bitcoin indices for USD, GBP, and EUR by default.
-// Others are available, but custom requests would need to be implemented.
+// CoindeskExchange provides {Bitcoin, USDT} indices for USD, GBP, and EUR by
+// default. Others are available, but custom requests would need to be
+// implemented.
 type CoindeskExchange struct {
 	*CommonExchange
 }
 
 // NewCoindesk constructs a CoindeskExchange.
 func NewCoindesk(client *http.Client, channels *BotChannels) (coindesk Exchange, err error) {
-	reqs := newRequests()
-	reqs.price, err = http.NewRequest(http.MethodGet, CoindeskURLs.Price, nil)
-	if err != nil {
-		return
+	reqs := newRequests(CoindeskURLs.Markets)
+	for index, price := range CoindeskURLs.Price {
+		reqs[index].price, err = http.NewRequest(http.MethodGet, price, nil)
+		if err != nil {
+			return
+		}
 	}
 	coindesk = &CoindeskExchange{
 		CommonExchange: newCommonExchange(Coindesk, client, reqs, channels),
@@ -933,8 +1041,14 @@ type CoindeskResponseBpi struct {
 // Refresh retrieves and parses API data from Coindesk.
 func (coindesk *CoindeskExchange) Refresh() {
 	coindesk.LogRequest()
+	for index, requests := range coindesk.requests {
+		coindesk.refresh(index, requests)
+	}
+}
+
+func (coindesk *CoindeskExchange) refresh(index CurrencyPair, requests *requests) {
 	response := new(CoindeskResponse)
-	err := coindesk.fetch(coindesk.requests.price, response)
+	err := coindesk.fetch(requests.price, response)
 	if err != nil {
 		coindesk.fail("Fetch", err)
 		return
@@ -944,7 +1058,7 @@ func (coindesk *CoindeskExchange) Refresh() {
 	for code, bpi := range response.Bpi {
 		indices[code] = bpi.RateFloat
 	}
-	coindesk.UpdateIndices(indices)
+	coindesk.UpdateIndices(index, indices)
 }
 
 // BinanceExchange is a high-volume and well-respected crypto exchange.
@@ -954,23 +1068,30 @@ type BinanceExchange struct {
 
 // NewBinance constructs a BinanceExchange.
 func NewBinance(client *http.Client, channels *BotChannels) (binance Exchange, err error) {
-	reqs := newRequests()
-	reqs.price, err = http.NewRequest(http.MethodGet, BinanceURLs.Price, nil)
-	if err != nil {
-		return
-	}
-
-	reqs.depth, err = http.NewRequest(http.MethodGet, BinanceURLs.Depth, nil)
-	if err != nil {
-		return
-	}
-
-	for dur, url := range BinanceURLs.Candlesticks {
-		reqs.candlesticks[dur], err = http.NewRequest(http.MethodGet, url, nil)
+	reqs := newRequests(BinanceURLs.Markets)
+	for mkt, price := range BinanceURLs.Price {
+		reqs[mkt].price, err = http.NewRequest(http.MethodGet, price, nil)
 		if err != nil {
 			return
 		}
 	}
+
+	for mkt, depth := range BinanceURLs.Depth {
+		reqs[mkt].depth, err = http.NewRequest(http.MethodGet, depth, nil)
+		if err != nil {
+			return
+		}
+	}
+
+	for mkt, candlesticks := range BinanceURLs.Candlesticks {
+		for dur, url := range candlesticks {
+			reqs[mkt].candlesticks[dur], err = http.NewRequest(http.MethodGet, url, nil)
+			if err != nil {
+				return
+			}
+		}
+	}
+
 	binance = &BinanceExchange{
 		CommonExchange: newCommonExchange(Binance, client, reqs, channels),
 	}
@@ -1002,10 +1123,9 @@ type BinancePriceResponse struct {
 	Count              int64  `json:"count"`
 }
 
-// BinanceCandlestickResponse models candlestick data returned from the Binance
-// API. Binance has a response with mixed-type arrays, so type-checking is
-// appropriate. Sample response is
-// [
+// CandlestickResponse models candlestick data returned from the Mexc and Binance
+// API. The candlestick response has mixed-type arrays, so type-checking is
+// appropriate. Sample response is [
 //
 //	[
 //	  1499040000000,      // Open time
@@ -1014,73 +1134,74 @@ type BinancePriceResponse struct {
 //	  "0.01575800",       // Low
 //	  "0.01577100",       // Close
 //	  "148976.11427815",  // Volume
-//	  ...
+//	  1640804940000,      // Close Time (Mexc Only)
+//	  "168387.3"          // Quote Asset Volume (Mexc Only)
 //	]
 //
 // ]
-type BinanceCandlestickResponse [][]interface{}
+type CandlestickResponse [][]interface{}
 
-func badBinanceStickElement(key string, element interface{}) Candlesticks {
-	log.Errorf("Unable to decode %s from Binance candlestick: %T: %v", key, element, element)
+func badStickElement(key string, element interface{}) Candlesticks {
+	log.Errorf("Unable to decode %s from candlestick: %T: %v", key, element, element)
 	return Candlesticks{}
 }
 
-func (r BinanceCandlestickResponse) translate() Candlesticks {
+func (r CandlestickResponse) translate() Candlesticks {
 	sticks := make(Candlesticks, 0, len(r))
 	for _, rawStick := range r {
 		if len(rawStick) < 6 {
-			log.Error("Unable to decode Binance candlestick response. Not enough elements.")
+			log.Error("Unable to decode candlestick response. Not enough elements.")
 			return Candlesticks{}
 		}
 		unixMsFlt, ok := rawStick[0].(float64)
 		if !ok {
-			return badBinanceStickElement("start time", rawStick[0])
+			return badStickElement("start time", rawStick[0])
 		}
 		startTime := time.Unix(int64(unixMsFlt/1e3), 0)
 
 		openStr, ok := rawStick[1].(string)
 		if !ok {
-			return badBinanceStickElement("open", rawStick[1])
+			return badStickElement("open", rawStick[1])
 		}
 		open, err := strconv.ParseFloat(openStr, 64)
 		if err != nil {
-			return badBinanceStickElement("open float", err)
+			return badStickElement("open float", err)
 		}
 
 		highStr, ok := rawStick[2].(string)
 		if !ok {
-			return badBinanceStickElement("high", rawStick[2])
+			return badStickElement("high", rawStick[2])
 		}
 		high, err := strconv.ParseFloat(highStr, 64)
 		if err != nil {
-			return badBinanceStickElement("high float", err)
+			return badStickElement("high float", err)
 		}
 
 		lowStr, ok := rawStick[3].(string)
 		if !ok {
-			return badBinanceStickElement("low", rawStick[3])
+			return badStickElement("low", rawStick[3])
 		}
 		low, err := strconv.ParseFloat(lowStr, 64)
 		if err != nil {
-			return badBinanceStickElement("low float", err)
+			return badStickElement("low float", err)
 		}
 
 		closeStr, ok := rawStick[4].(string)
 		if !ok {
-			return badBinanceStickElement("close", rawStick[4])
+			return badStickElement("close", rawStick[4])
 		}
 		close, err := strconv.ParseFloat(closeStr, 64)
 		if err != nil {
-			return badBinanceStickElement("close float", err)
+			return badStickElement("close float", err)
 		}
 
 		volumeStr, ok := rawStick[5].(string)
 		if !ok {
-			return badBinanceStickElement("volume", rawStick[5])
+			return badStickElement("volume", rawStick[5])
 		}
 		volume, err := strconv.ParseFloat(volumeStr, 64)
 		if err != nil {
-			return badBinanceStickElement("volume float", err)
+			return badStickElement("volume float", err)
 		}
 
 		sticks = append(sticks, Candlestick{
@@ -1102,17 +1223,17 @@ type BinanceDepthResponse struct {
 	Asks     [][2]string
 }
 
-func parseBinanceDepthPoints(pts [][2]string) ([]DepthPoint, error) {
+func parseDepthPoints(pts [][2]string) ([]DepthPoint, error) {
 	outPts := make([]DepthPoint, 0, len(pts))
 	for _, pt := range pts {
 		price, err := strconv.ParseFloat(pt[0], 64)
 		if err != nil {
-			return outPts, fmt.Errorf("Unable to parse Binance depth point price: %v", err)
+			return outPts, fmt.Errorf("Unable to parse depth point price: %v", err)
 		}
 
 		quantity, err := strconv.ParseFloat(pt[1], 64)
 		if err != nil {
-			return outPts, fmt.Errorf("Unable to parse Binance depth point quantity: %v", err)
+			return outPts, fmt.Errorf("Unable to parse depth point quantity: %v", err)
 		}
 
 		outPts = append(outPts, DepthPoint{
@@ -1123,21 +1244,18 @@ func parseBinanceDepthPoints(pts [][2]string) ([]DepthPoint, error) {
 	return outPts, nil
 }
 
-func (r *BinanceDepthResponse) translate() *DepthData {
-	if r == nil {
-		return nil
-	}
+func translateDepthPoints(xc string, asks [][2]string, bids [][2]string) *DepthData {
 	depth := new(DepthData)
 	depth.Time = time.Now().Unix()
 	var err error
-	depth.Asks, err = parseBinanceDepthPoints(r.Asks)
+	depth.Asks, err = parseDepthPoints(asks)
 	if err != nil {
-		log.Errorf("%v", err)
+		log.Errorf("%s: %v", xc, err)
 		return nil
 	}
-	depth.Bids, err = parseBinanceDepthPoints(r.Bids)
+	depth.Bids, err = parseDepthPoints(bids)
 	if err != nil {
-		log.Errorf("%v", err)
+		log.Errorf("%s: %v", xc, err)
 		return nil
 	}
 	return depth
@@ -1146,51 +1264,57 @@ func (r *BinanceDepthResponse) translate() *DepthData {
 // Refresh retrieves and parses API data from Binance.
 func (binance *BinanceExchange) Refresh() {
 	binance.LogRequest()
+	for mkt, requests := range binance.requests {
+		binance.refresh(mkt, requests)
+	}
+}
+
+func (binance *BinanceExchange) refresh(mkt CurrencyPair, requests *requests) {
 	priceResponse := new(BinancePriceResponse)
-	err := binance.fetch(binance.requests.price, priceResponse)
+	err := binance.fetch(requests.price, priceResponse)
 	if err != nil {
-		binance.fail("Fetch price", err)
+		binance.fail(fmt.Sprintf("%s: Fetch price", mkt), err)
 		return
 	}
 	price, err := strconv.ParseFloat(priceResponse.LastPrice, 64)
 	if err != nil {
-		binance.fail(fmt.Sprintf("Failed to parse float from LastPrice=%s", priceResponse.LastPrice), err)
+		binance.fail(fmt.Sprintf("%s: Failed to parse float from LastPrice=%s", mkt, priceResponse.LastPrice), err)
 		return
 	}
 	baseVolume, err := strconv.ParseFloat(priceResponse.QuoteVolume, 64)
 	if err != nil {
-		binance.fail(fmt.Sprintf("Failed to parse float from QuoteVolume=%s", priceResponse.QuoteVolume), err)
+		binance.fail(fmt.Sprintf("%s: Failed to parse float from QuoteVolume=%s", mkt, priceResponse.QuoteVolume), err)
 		return
 	}
 
 	dcrVolume, err := strconv.ParseFloat(priceResponse.Volume, 64)
 	if err != nil {
-		binance.fail(fmt.Sprintf("Failed to parse float from Volume=%s", priceResponse.Volume), err)
+		binance.fail(fmt.Sprintf("%s: Failed to parse float from Volume=%s", mkt, priceResponse.Volume), err)
 		return
 	}
 	priceChange, err := strconv.ParseFloat(priceResponse.PriceChange, 64)
 	if err != nil {
-		binance.fail(fmt.Sprintf("Failed to parse float from PriceChange=%s", priceResponse.PriceChange), err)
+		binance.fail(fmt.Sprintf("%s: Failed to parse float from PriceChange=%s", mkt, priceResponse.PriceChange), err)
 		return
 	}
 
 	// Get the depth chart
 	depthResponse := new(BinanceDepthResponse)
-	err = binance.fetch(binance.requests.depth, depthResponse)
+	err = binance.fetch(requests.depth, depthResponse)
 	if err != nil {
-		log.Errorf("Error retrieving depth chart data from Binance: %v", err)
+		log.Errorf("Error retrieving depth chart data from Binance(%s): %v", mkt, err)
 	}
-	depth := depthResponse.translate()
+	depth := translateDepthPoints(Binance, depthResponse.Asks, depthResponse.Bids)
 
 	// Grab the current state to check if candlesticks need updating
-	state := binance.state()
+	state := binance.state(mkt)
 
 	candlesticks := map[candlestickKey]Candlesticks{}
-	for bin, req := range binance.requests.candlesticks {
+	for bin, req := range requests.candlesticks {
 		oldSticks, found := state.Candlesticks[bin]
 		if !found || oldSticks.needsUpdate(bin) {
-			log.Tracef("Signalling candlestick update for %s, bin size %s", binance.token, bin)
-			response := new(BinanceCandlestickResponse)
+			log.Tracef("Signalling candlestick update for %s, market %s, bin size %s", binance.token, mkt, bin)
+			response := new(CandlestickResponse)
 			err := binance.fetch(req, response)
 			if err != nil {
 				log.Errorf("Error retrieving candlestick data from binance for bin size %s: %v", string(bin), err)
@@ -1204,7 +1328,7 @@ func (binance *BinanceExchange) Refresh() {
 		}
 	}
 
-	binance.Update(&ExchangeState{
+	binance.Update(mkt, &ExchangeState{
 		BaseState: BaseState{
 			Price:      price,
 			BaseVolume: baseVolume,
@@ -1221,43 +1345,54 @@ func (binance *BinanceExchange) Refresh() {
 type DragonExchange struct {
 	*CommonExchange
 	SymbolID         int
-	depthBuyRequest  *http.Request
-	depthSellRequest *http.Request
+	depthBuyRequest  map[CurrencyPair]*http.Request
+	depthSellRequest map[CurrencyPair]*http.Request
 }
 
 // NewDragonEx constructs a DragonExchange.
 func NewDragonEx(client *http.Client, channels *BotChannels) (dragonex Exchange, err error) {
-	reqs := newRequests()
-	reqs.price, err = http.NewRequest(http.MethodGet, DragonExURLs.Price, nil)
-	if err != nil {
-		return
-	}
-
-	// Dragonex has separate endpoints for buy and sell, so the requests are
-	// stored as fields of DragonExchange
-	var depthSell, depthBuy *http.Request
-	depthSell, err = http.NewRequest(http.MethodGet, fmt.Sprintf(DragonExURLs.Depth, "sell"), nil)
-	if err != nil {
-		return
-	}
-
-	depthBuy, err = http.NewRequest(http.MethodGet, fmt.Sprintf(DragonExURLs.Depth, "buy"), nil)
-	if err != nil {
-		return
-	}
-
-	for dur, url := range DragonExURLs.Candlesticks {
-		reqs.candlesticks[dur], err = http.NewRequest(http.MethodGet, url, nil)
+	reqs := newRequests(DragonExURLs.Markets)
+	for mkt, price := range DragonExURLs.Price {
+		reqs[mkt].price, err = http.NewRequest(http.MethodGet, price, nil)
 		if err != nil {
 			return
+		}
+	}
+
+	depthBuyMap := make(map[CurrencyPair]*http.Request, len(reqs))
+	depthSellMap := make(map[CurrencyPair]*http.Request, len(reqs))
+	for mkt, depth := range DragonExURLs.Depth {
+		// Dragonex has separate endpoints for buy and sell, so the requests are
+		// stored as fields of DragonExchange
+		var depthSell, depthBuy *http.Request
+		depthSell, err = http.NewRequest(http.MethodGet, fmt.Sprintf(depth, "sell"), nil)
+		if err != nil {
+			return
+		}
+
+		depthBuy, err = http.NewRequest(http.MethodGet, fmt.Sprintf(depth, "buy"), nil)
+		if err != nil {
+			return
+		}
+
+		depthBuyMap[mkt] = depthBuy
+		depthSellMap[mkt] = depthSell
+	}
+
+	for mkt, candlesticks := range DragonExURLs.Candlesticks {
+		for dur, url := range candlesticks {
+			reqs[mkt].candlesticks[dur], err = http.NewRequest(http.MethodGet, url, nil)
+			if err != nil {
+				return
+			}
 		}
 	}
 
 	dragonex = &DragonExchange{
 		CommonExchange:   newCommonExchange(DragonEx, client, reqs, channels),
 		SymbolID:         1520101,
-		depthBuyRequest:  depthBuy,
-		depthSellRequest: depthSell,
+		depthBuyRequest:  depthBuyMap,
+		depthSellRequest: depthSellMap,
 	}
 	return
 }
@@ -1482,53 +1617,59 @@ func (dragonex *DragonExchange) getDragonExDepthData(req *http.Request, response
 // Refresh retrieves and parses API data from DragonEx.
 func (dragonex *DragonExchange) Refresh() {
 	dragonex.LogRequest()
+	for mkt, req := range dragonex.requests {
+		dragonex.refresh(mkt, req)
+	}
+}
+
+func (dragonex *DragonExchange) refresh(mkt CurrencyPair, requests *requests) {
 	response := new(DragonExPriceResponse)
-	err := dragonex.fetch(dragonex.requests.price, response)
+	err := dragonex.fetch(requests.price, response)
 	if err != nil {
-		dragonex.fail("Fetch", err)
+		dragonex.fail(fmt.Sprintf("%s: Fetch", mkt), err)
 		return
 	}
 	if !response.Ok {
-		dragonex.fail("Response not ok", err)
+		dragonex.fail(fmt.Sprintf("%s: Response not ok", mkt), err)
 		return
 	}
 	if len(response.Data) == 0 {
-		dragonex.fail("No data", fmt.Errorf("Response data array is empty"))
+		dragonex.fail(fmt.Sprintf("%s: No data", mkt), fmt.Errorf("Response data array is empty"))
 		return
 	}
 	data := response.Data[0]
 	if data.SymbolID != dragonex.SymbolID {
-		dragonex.fail("Wrong code", fmt.Errorf("Pair id %d in response is not the expected id %d", data.SymbolID, dragonex.SymbolID))
+		dragonex.fail(fmt.Sprintf("%s: Wrong code", mkt), fmt.Errorf("Pair id %d in response is not the expected id %d", data.SymbolID, dragonex.SymbolID))
 		return
 	}
 	price, err := strconv.ParseFloat(data.ClosePrice, 64)
 	if err != nil {
-		dragonex.fail(fmt.Sprintf("Failed to parse float from ClosePrice=%s", data.ClosePrice), err)
+		dragonex.fail(fmt.Sprintf("%s: Failed to parse float from ClosePrice=%s", mkt, data.ClosePrice), err)
 		return
 	}
 	volume, err := strconv.ParseFloat(data.TotalVolume, 64)
 	if err != nil {
-		dragonex.fail(fmt.Sprintf("Failed to parse float from TotalVolume=%s", data.TotalVolume), err)
+		dragonex.fail(fmt.Sprintf("%s: Failed to parse float from TotalVolume=%s", mkt, data.TotalVolume), err)
 		return
 	}
 	btcVolume := volume * price
 	priceChange, err := strconv.ParseFloat(data.PriceChange, 64)
 	if err != nil {
-		dragonex.fail(fmt.Sprintf("Failed to parse float from PriceChange=%s", data.PriceChange), err)
+		dragonex.fail(fmt.Sprintf("%s: Failed to parse float from PriceChange=%s", mkt, data.PriceChange), err)
 		return
 	}
 
 	// Depth chart
 	depthSellResponse := new(DragonExDepthResponse)
-	sellErr := dragonex.getDragonExDepthData(dragonex.depthSellRequest, depthSellResponse)
+	sellErr := dragonex.getDragonExDepthData(dragonex.depthSellRequest[mkt], depthSellResponse)
 	if sellErr != nil {
-		log.Errorf("DragonEx sell order book response error: %v", sellErr)
+		log.Errorf("%s: DragonEx sell order book response error: %v", mkt, sellErr)
 	}
 
 	depthBuyResponse := new(DragonExDepthResponse)
-	buyErr := dragonex.getDragonExDepthData(dragonex.depthBuyRequest, depthBuyResponse)
+	buyErr := dragonex.getDragonExDepthData(dragonex.depthBuyRequest[mkt], depthBuyResponse)
 	if buyErr != nil {
-		log.Errorf("DragonEx buy order book response error: %v", buyErr)
+		log.Errorf("%s: DragonEx buy order book response error: %v", mkt, buyErr)
 	}
 
 	var depth *DepthData
@@ -1541,10 +1682,10 @@ func (dragonex *DragonExchange) Refresh() {
 	}
 
 	// Grab the current state to check if candlesticks need updating
-	state := dragonex.state()
+	state := dragonex.state(mkt)
 
 	candlesticks := map[candlestickKey]Candlesticks{}
-	for bin, req := range dragonex.requests.candlesticks {
+	for bin, req := range requests.candlesticks {
 		oldSticks, found := state.Candlesticks[bin]
 		if !found || oldSticks.needsUpdate(bin) {
 			log.Tracef("Signalling candlestick update for %s, bin size %s", dragonex.token, bin)
@@ -1565,7 +1706,7 @@ func (dragonex *DragonExchange) Refresh() {
 		}
 	}
 
-	dragonex.Update(&ExchangeState{
+	dragonex.Update(mkt, &ExchangeState{
 		BaseState: BaseState{
 			Price:      price,
 			BaseVolume: btcVolume,
@@ -1586,25 +1727,33 @@ type HuobiExchange struct {
 
 // NewHuobi constructs a HuobiExchange.
 func NewHuobi(client *http.Client, channels *BotChannels) (huobi Exchange, err error) {
-	reqs := newRequests()
-	reqs.price, err = http.NewRequest(http.MethodGet, HuobiURLs.Price, nil)
-	if err != nil {
-		return
-	}
-	reqs.price.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	reqs.depth, err = http.NewRequest(http.MethodGet, HuobiURLs.Depth, nil)
-	if err != nil {
-		return
-	}
-	reqs.depth.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	for dur, url := range HuobiURLs.Candlesticks {
-		reqs.candlesticks[dur], err = http.NewRequest(http.MethodGet, url, nil)
+	reqs := newRequests(HuobiURLs.Markets)
+	for mkt, price := range HuobiURLs.Price {
+		reqs[mkt].price, err = http.NewRequest(http.MethodGet, price, nil)
 		if err != nil {
 			return
 		}
-		reqs.candlesticks[dur].Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+		reqs[mkt].price.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	}
+
+	for mkt, depth := range HuobiURLs.Depth {
+		reqs[mkt].depth, err = http.NewRequest(http.MethodGet, depth, nil)
+		if err != nil {
+			return
+		}
+
+		reqs[mkt].depth.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	}
+
+	for mkt, candlesticks := range HuobiURLs.Candlesticks {
+		for dur, url := range candlesticks {
+			reqs[mkt].candlesticks[dur], err = http.NewRequest(http.MethodGet, url, nil)
+			if err != nil {
+				return
+			}
+			reqs[mkt].candlesticks[dur].Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		}
 	}
 
 	return &HuobiExchange{
@@ -1711,14 +1860,20 @@ type HuobiCandlestickResponse struct {
 // Refresh retrieves and parses API data from Huobi.
 func (huobi *HuobiExchange) Refresh() {
 	huobi.LogRequest()
+	for mkt, requests := range huobi.requests {
+		huobi.refresh(mkt, requests)
+	}
+}
+
+func (huobi *HuobiExchange) refresh(mkt CurrencyPair, requests *requests) {
 	priceResponse := new(HuobiPriceResponse)
-	err := huobi.fetch(huobi.requests.price, priceResponse)
+	err := huobi.fetch(requests.price, priceResponse)
 	if err != nil {
-		huobi.fail("Fetch", err)
+		huobi.fail(fmt.Sprintf("%s: Fetch", mkt), err)
 		return
 	}
 	if priceResponse.Status != huobi.Ok {
-		huobi.fail("Status not ok", fmt.Errorf("Expected status %s. Received %s", huobi.Ok, priceResponse.Status))
+		huobi.fail("Status not ok", fmt.Errorf("%s: Expected status %s. Received %s", mkt, huobi.Ok, priceResponse.Status))
 		return
 	}
 	baseVolume := priceResponse.Tick.Vol
@@ -1726,11 +1881,11 @@ func (huobi *HuobiExchange) Refresh() {
 	// Depth data
 	var depth *DepthData
 	depthResponse := new(HuobiDepthResponse)
-	err = huobi.fetch(huobi.requests.depth, depthResponse)
+	err = huobi.fetch(requests.depth, depthResponse)
 	if err != nil {
-		log.Errorf("Huobi depth chart fetch error: %v", err)
+		log.Errorf("%s: Huobi depth chart fetch error: %v", mkt, err)
 	} else if depthResponse.Status != huobi.Ok {
-		log.Errorf("Huobi server depth response error. status: %s", depthResponse.Status)
+		log.Errorf("%s: Huobi server depth response error. status: %s", mkt, depthResponse.Status)
 	} else {
 		depth = &DepthData{
 			Time: depthResponse.Ts / 1000,
@@ -1740,20 +1895,20 @@ func (huobi *HuobiExchange) Refresh() {
 	}
 
 	// Candlestick data
-	state := huobi.state()
+	state := huobi.state(mkt)
 	candlesticks := map[candlestickKey]Candlesticks{}
-	for bin, req := range huobi.requests.candlesticks {
+	for bin, req := range requests.candlesticks {
 		oldSticks, found := state.Candlesticks[bin]
 		if !found || oldSticks.needsUpdate(bin) {
-			log.Tracef("Signalling candlestick update for %s, bin size %s", huobi.token, bin)
+			log.Tracef("%s: Signalling candlestick update for %s, bin size %s", mkt, huobi.token, bin)
 			response := new(HuobiCandlestickResponse)
 			err := huobi.fetch(req, response)
 			if err != nil {
-				log.Errorf("Error retrieving candlestick data from huobi for bin size %s: %v", string(bin), err)
+				log.Errorf("%s: Error retrieving candlestick data from huobi for bin size %s: %v", mkt, string(bin), err)
 				continue
 			}
 			if response.Status != huobi.Ok {
-				log.Errorf("Huobi server error while fetching candlestick data. status: %s", response.Status)
+				log.Errorf("%s: Huobi server error while fetching candlestick data. status: %s", mkt, response.Status)
 				continue
 			}
 
@@ -1764,7 +1919,7 @@ func (huobi *HuobiExchange) Refresh() {
 		}
 	}
 
-	huobi.Update(&ExchangeState{
+	huobi.Update(mkt, &ExchangeState{
 		BaseState: BaseState{
 			Price:      priceResponse.Tick.Close,
 			BaseVolume: baseVolume,
@@ -1780,33 +1935,47 @@ func (huobi *HuobiExchange) Refresh() {
 // PoloniexExchange is a U.S.-based exchange.
 type PoloniexExchange struct {
 	*CommonExchange
-	CurrencyPair string
-	orderSeq     int64
+	markets  []string
+	orderSeq int64
 }
 
 // NewPoloniex constructs a PoloniexExchange.
 func NewPoloniex(client *http.Client, channels *BotChannels) (poloniex Exchange, err error) {
-	reqs := newRequests()
-	reqs.price, err = http.NewRequest(http.MethodGet, PoloniexURLs.Price, nil)
-	if err != nil {
-		return
+	reqs := newRequests(PoloniexURLs.Markets)
+	var markets []string
+	for mkt, price := range PoloniexURLs.Price {
+		reqs[mkt].price, err = http.NewRequest(http.MethodGet, price, nil)
+		if err != nil {
+			return
+		}
+
+		switch mkt {
+		case CurrencyPairDCRBTC:
+			markets = append(markets, "BTC_DCR")
+		case CurrencyPairDCRUSDT:
+			markets = append(markets, "DCR_USDT")
+		}
 	}
 
-	reqs.depth, err = http.NewRequest(http.MethodGet, PoloniexURLs.Depth, nil)
-	if err != nil {
-		return
-	}
-
-	for dur, url := range PoloniexURLs.Candlesticks {
-		reqs.candlesticks[dur], err = http.NewRequest(http.MethodGet, url, nil)
+	for mkt, depth := range PoloniexURLs.Depth {
+		reqs[mkt].depth, err = http.NewRequest(http.MethodGet, depth, nil)
 		if err != nil {
 			return
 		}
 	}
 
+	for mkt, candlesticks := range PoloniexURLs.Candlesticks {
+		for dur, url := range candlesticks {
+			reqs[mkt].candlesticks[dur], err = http.NewRequest(http.MethodGet, url, nil)
+			if err != nil {
+				return
+			}
+		}
+	}
+
 	p := &PoloniexExchange{
 		CommonExchange: newCommonExchange(Poloniex, client, reqs, channels),
-		CurrencyPair:   "BTC_DCR",
+		markets:        markets,
 	}
 	go func() {
 		<-channels.done
@@ -1911,8 +2080,6 @@ func (r *PoloniexDepthResponse) translate() *DepthData {
 }
 
 // PoloniexCandlestickResponse models the k-line data response from Poloniex.
-// {"date":1463356800,"high":1,"low":0.0037,"open":1,"close":0.00432007,"volume":357.23057396,"quoteVolume":76195.11422729,"weightedAverage":0.00468836}
-
 type PoloniexCandlestickPt struct {
 	Date            int64   `json:"date"`
 	High            float64 `json:"high"`
@@ -1949,7 +2116,7 @@ type poloniexWsSubscription struct {
 
 var poloniexOrderbookSubscription = poloniexWsSubscription{
 	Command: "subscribe",
-	Channel: 162,
+	Channel: 162, // BTC_DCR, No orderbook support for other dcr pairs.
 }
 
 // The final structure to parse in the initial websocket message is a map of the
@@ -2165,7 +2332,7 @@ func (poloniex *PoloniexExchange) processWsMessage(raw []byte) {
 	}
 	switch len(msg) {
 	case 1:
-		// Likely a heatbeat
+		// Likely a heartbeat
 		code, ok := msg[0].(float64)
 		if !ok {
 			poloniex.setWsFail(fmt.Errorf("non-integer single-element poloniex response of implicit type %T", msg[0]))
@@ -2199,10 +2366,10 @@ func (poloniex *PoloniexExchange) processWsMessage(raw []byte) {
 
 		if code == poloniexInitialOrderbookKey {
 			poloniex.processWsOrderbook(seq, responseList)
-			state := poloniex.state()
+			state := poloniex.state(CurrencyPairDCRBTC)
 			if state != nil { // Only send update if price has been fetched
 				depth := poloniex.wsDepths()
-				poloniex.Update(&ExchangeState{
+				poloniex.Update(CurrencyPairDCRBTC, &ExchangeState{
 					BaseState: BaseState{
 						Price:      state.Price,
 						BaseVolume: state.BaseVolume,
@@ -2293,14 +2460,14 @@ func (poloniex *PoloniexExchange) Refresh() {
 	poloniex.LogRequest()
 
 	var response map[string]*PoloniexPair
-	err := poloniex.fetch(poloniex.requests.price, &response)
+	err := poloniex.fetch(poloniex.requests[CurrencyPairDCRBTC].price, &response)
 	if err != nil {
 		poloniex.fail("Fetch", err)
 		return
 	}
-	market, ok := response[poloniex.CurrencyPair]
+	market, ok := response[poloniex.markets[0]]
 	if !ok {
-		poloniex.fail("Market not in response", fmt.Errorf("Response did not have expected CurrencyPair %s", poloniex.CurrencyPair))
+		poloniex.fail("Market not in response", fmt.Errorf("Response did not have expected CurrencyPair %s", poloniex.markets[0]))
 		return
 	}
 	price, err := strconv.ParseFloat(market.Last, 64)
@@ -2331,7 +2498,7 @@ func (poloniex *PoloniexExchange) Refresh() {
 	// If not expecting depth data from the websocket, grab it from HTTP
 	if tryHttp {
 		depthResponse := new(PoloniexDepthResponse)
-		err = poloniex.fetch(poloniex.requests.depth, depthResponse)
+		err = poloniex.fetch(poloniex.requests[CurrencyPairDCRBTC].depth, depthResponse)
 		if err != nil {
 			log.Errorf("Poloniex depth chart fetch error: %v", err)
 		}
@@ -2347,10 +2514,10 @@ func (poloniex *PoloniexExchange) Refresh() {
 	}
 
 	// Candlesticks
-	state := poloniex.state()
+	state := poloniex.state(CurrencyPairDCRBTC)
 
 	candlesticks := map[candlestickKey]Candlesticks{}
-	for bin, req := range poloniex.requests.candlesticks {
+	for bin, req := range poloniex.requests[CurrencyPairDCRBTC].candlesticks {
 		oldSticks, found := state.Candlesticks[bin]
 		if !found || oldSticks.needsUpdate(bin) {
 			log.Tracef("Signalling candlestick update for %s, bin size %s", poloniex.token, bin)
@@ -2379,9 +2546,9 @@ func (poloniex *PoloniexExchange) Refresh() {
 		Candlesticks: candlesticks,
 	}
 	if wsStarting {
-		poloniex.SilentUpdate(update)
+		poloniex.SilentUpdate(CurrencyPairDCRBTC, update)
 	} else {
-		poloniex.Update(update)
+		poloniex.Update(CurrencyPairDCRBTC, update)
 	}
 }
 
@@ -2430,7 +2597,7 @@ type DecredDEX struct {
 func NewDecredDEXConstructor(cfg *DEXConfig) func(*http.Client, *BotChannels) (Exchange, error) {
 	return func(client *http.Client, channels *BotChannels) (Exchange, error) {
 		dcr := &DecredDEX{
-			CommonExchange: newCommonExchange(cfg.Token, client, requests{}, channels),
+			CommonExchange: newCommonExchange(cfg.Token, client, make(map[CurrencyPair]*requests), channels),
 			candleCaches:   make(map[uint64]*candleCache),
 			reqs:           make(map[uint64]func(*msgjson.Message)),
 			cfg:            cfg,
@@ -2493,7 +2660,7 @@ func (dcr *DecredDEX) Refresh() {
 		return // no rate, nothing to do.
 	}
 
-	dcr.Update(&ExchangeState{
+	dcr.Update(CurrencyPairDCRBTC, &ExchangeState{
 		BaseState: BaseState{
 			Price:  dcr.lastRate,
 			Change: change,
@@ -2866,7 +3033,7 @@ func (dcr *DecredDEX) setOrderBook(ob *msgjson.OrderBook) {
 		dcr.lastRate = depth.MidGap()
 	}
 
-	dcr.Update(&ExchangeState{
+	dcr.Update(CurrencyPairDCRBTC, &ExchangeState{
 		BaseState: BaseState{
 			Price: dcr.lastRate,
 			// Change:       priceChange, // With candlesticks
@@ -2941,4 +3108,148 @@ func (dcr *DecredDEX) updateRemaining(update *msgjson.UpdateRemainingNote) {
 	if bucket.volume < 1e-8 {
 		delete(side, rateKey)
 	}
+}
+
+// MexcExchange is a high-volume and well-respected crypto exchange.
+type MexcExchange struct {
+	*CommonExchange
+}
+
+// NewMexc constructs a *MexcExchange.
+func NewMexc(client *http.Client, channels *BotChannels) (mexc Exchange, err error) {
+	reqs := newRequests(MexcURLs.Markets)
+	for mkt, price := range MexcURLs.Price {
+		reqs[mkt].price, err = http.NewRequest(http.MethodGet, price, nil)
+		if err != nil {
+			return
+		}
+	}
+
+	for mkt, depth := range MexcURLs.Depth {
+		reqs[mkt].depth, err = http.NewRequest(http.MethodGet, depth, nil)
+		if err != nil {
+			return
+		}
+	}
+
+	for mkt, candlesticks := range MexcURLs.Candlesticks {
+		for dur, url := range candlesticks {
+			reqs[mkt].candlesticks[dur], err = http.NewRequest(http.MethodGet, url, nil)
+			if err != nil {
+				return
+			}
+		}
+	}
+
+	mexc = &MexcExchange{
+		CommonExchange: newCommonExchange(Mexc, client, reqs, channels),
+	}
+	return
+}
+
+// MexcPriceResponse models the JSON price data returned from the Mexc API.
+type MexcPriceResponse struct {
+	Symbol             string `json:"symbol"`
+	PriceChange        string `json:"priceChange"`
+	PriceChangePercent string `json:"priceChangePercent"`
+	PrevClosePrice     string `json:"prevClosePrice"`
+	LastPrice          string `json:"lastPrice"`
+	BidPrice           string `json:"bidPrice"`
+	BidQty             string `json:"bidQty"`
+	AskPrice           string `json:"askPrice"`
+	AskQty             string `json:"askQty"`
+	OpenPrice          string `json:"openPrice"`
+	HighPrice          string `json:"highPrice"`
+	LowPrice           string `json:"lowPrice"`
+	Volume             string `json:"volume"`
+	QuoteVolume        string `json:"quoteVolume"`
+	OpenTime           int64  `json:"openTime"`
+	CloseTime          int64  `json:"closeTime"`
+}
+
+// MexcDepthResponse models the response for Mexc depth chart data.
+type MexcDepthResponse struct {
+	UpdateID int64 `json:"lastUpdateId"`
+	Bids     [][2]string
+	Asks     [][2]string
+}
+
+// Refresh retrieves and parses API data from Mexc Exchange.
+func (mexc *MexcExchange) Refresh() {
+	mexc.LogRequest()
+	for currencyPair, requests := range mexc.requests {
+		mexc.refresh(currencyPair, requests)
+	}
+}
+
+func (mexc *MexcExchange) refresh(pair CurrencyPair, requests *requests) {
+	priceResponse := new(MexcPriceResponse)
+	err := mexc.fetch(requests.price, priceResponse)
+	if err != nil {
+		mexc.fail(fmt.Sprintf("%s: Fetch price", pair), err)
+		return
+	}
+	price, err := strconv.ParseFloat(priceResponse.LastPrice, 64)
+	if err != nil {
+		mexc.fail(fmt.Sprintf("%s: Failed to parse float from LastPrice=%s", pair, priceResponse.LastPrice), err)
+		return
+	}
+	baseVolume, err := strconv.ParseFloat(priceResponse.QuoteVolume, 64)
+	if err != nil {
+		mexc.fail(fmt.Sprintf("%s: Failed to parse float from QuoteVolume=%s", pair, priceResponse.QuoteVolume), err)
+		return
+	}
+
+	dcrVolume, err := strconv.ParseFloat(priceResponse.Volume, 64)
+	if err != nil {
+		mexc.fail(fmt.Sprintf("%s: Failed to parse float from Volume=%s", pair, priceResponse.Volume), err)
+		return
+	}
+	priceChange, err := strconv.ParseFloat(priceResponse.PriceChange, 64)
+	if err != nil {
+		mexc.fail(fmt.Sprintf("%s: Failed to parse float from PriceChange=%s", pair, priceResponse.PriceChange), err)
+		return
+	}
+
+	// Get the depth chart
+	depthResponse := new(MexcDepthResponse)
+	err = mexc.fetch(requests.depth, depthResponse)
+	if err != nil {
+		log.Errorf("Error retrieving depth chart data from Mexc(%s): %v", pair, err)
+	}
+	depth := translateDepthPoints(Mexc, depthResponse.Asks, depthResponse.Bids)
+
+	// Grab the current state to check if candlesticks need updating
+	state := mexc.state(pair)
+
+	candlesticks := map[candlestickKey]Candlesticks{}
+	for bin, req := range requests.candlesticks {
+		oldSticks, found := state.Candlesticks[bin]
+		if !found || oldSticks.needsUpdate(bin) {
+			log.Tracef("Signalling candlestick update for %s, market %s, bin size %s", mexc.token, pair, bin)
+			response := new(CandlestickResponse)
+			err := mexc.fetch(req, response)
+			if err != nil {
+				log.Errorf("Error retrieving candlestick data from mexc for bin size %s: %v", string(bin), err)
+				continue
+			}
+			sticks := response.translate()
+
+			if !found || sticks.time().After(oldSticks.time()) {
+				candlesticks[bin] = sticks
+			}
+		}
+	}
+
+	mexc.Update(pair, &ExchangeState{
+		BaseState: BaseState{
+			Price:      price,
+			BaseVolume: baseVolume,
+			Volume:     dcrVolume,
+			Change:     priceChange,
+			Stamp:      priceResponse.CloseTime / 1000,
+		},
+		Candlesticks: candlesticks,
+		Depth:        depth,
+	})
 }
