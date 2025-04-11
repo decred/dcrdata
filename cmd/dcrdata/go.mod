@@ -21,7 +21,7 @@ require (
 	github.com/decred/dcrd/txscript/v4 v4.1.0
 	github.com/decred/dcrd/wire v1.6.0
 	github.com/decred/dcrdata/db/dcrpg/v8 v8.0.0
-	github.com/decred/dcrdata/exchanges/v3 v3.0.0
+	github.com/decred/dcrdata/exchanges/v3 v3.1.0
 	github.com/decred/dcrdata/gov/v6 v6.0.0
 	github.com/decred/dcrdata/v8 v8.0.0
 	github.com/decred/politeia v1.4.0

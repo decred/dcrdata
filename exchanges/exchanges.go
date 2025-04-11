@@ -86,15 +86,11 @@ func (cp CurrencyPair) IsValidIndex() bool {
 
 func (cp CurrencyPair) QuoteAsset() string {
 	if !cp.IsValidDCRPair() {
-		return cp.String()
+		return string(cp)
 	}
 
-	v := strings.Split(cp.String(), "-")
+	v := strings.Split(string(cp), "-")
 	return strings.ToTitle(v[1])
-}
-
-func (cp CurrencyPair) String() string {
-	return string(cp)
 }
 
 // URLs is a set of endpoints for an exchange's various datasets.

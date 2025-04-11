@@ -803,8 +803,8 @@ func (exp *explorerUI) watchExchanges() {
 
 		// Other DCR pairs should also provide an index price for the quote
 		// asset.
-		update.Indices[exchanges.BTCIndex.String()] = xcState.BtcPrice
-		update.Indices[exchanges.USDTIndex.String()] = indexPrice(exchanges.USDTIndex, xcState.FiatIndices)
+		update.Indices[string(exchanges.BTCIndex)] = xcState.BtcPrice
+		update.Indices[string(exchanges.USDTIndex)] = indexPrice(exchanges.USDTIndex, xcState.FiatIndices)
 
 		select {
 		case exp.wsHub.xcChan <- update:
@@ -816,7 +816,7 @@ func (exp *explorerUI) watchExchanges() {
 	for {
 		select {
 		case update := <-xcChans.Exchange:
-			sendXcUpdate(false, update.Token, update.CurrencyPair.String(), update.State)
+			sendXcUpdate(false, update.Token, string(update.CurrencyPair), update.State)
 		case update := <-xcChans.Index:
 			currencyIndices, found := exp.xcBot.State().FiatIndices[update.Token]
 			if !found {
@@ -830,7 +830,7 @@ func (exp *explorerUI) watchExchanges() {
 				continue
 			}
 
-			sendXcUpdate(true, update.Token, update.CurrencyPair.String(), indexState)
+			sendXcUpdate(true, update.Token, string(update.CurrencyPair), indexState)
 
 		case <-xcChans.Quit:
 			log.Warnf("ExchangeBot has quit.")
@@ -871,7 +871,7 @@ func indexPrice(index exchanges.CurrencyPair, indices map[string]map[exchanges.C
 			}
 		}
 	}
-	if price == 0 {
+	if nSources == 0 {
 		return 0
 	}
 	return price / nSources

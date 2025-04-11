@@ -22,7 +22,6 @@ import (
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/exchanges/v3"
 	apitypes "github.com/decred/dcrdata/v8/api/types"
 	"github.com/didip/tollbooth/v6"
 	"github.com/didip/tollbooth/v6/limiter"
@@ -558,7 +557,7 @@ func CacheControl(maxAge int64) func(http.Handler) http.Handler {
 
 // Indent creates a middleware for using the specified JSON indentation string
 // when the "indent" URL query parameter parses to a true boolean value. Use
-// GetIndentCtx with request handlers with the Indent middeware.
+// GetIndentCtx with request handlers with the Indent middleware.
 func Indent(indent string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1101,17 +1100,4 @@ func RetrieveStickWidthCtx(r *http.Request) string {
 		return ""
 	}
 	return bin
-}
-
-// RetrieveCurrencyPair tries to fetch the currency pair from the request query.
-func RetrieveCurrencyPair(r *http.Request) (exchanges.CurrencyPair, error) {
-	pair := exchanges.CurrencyPair(r.URL.Query().Get("currencyPair"))
-	if pair == "" {
-		// Use the DCR-BTC pair for backward compatibility.
-		pair = exchanges.CurrencyPairDCRBTC
-	}
-	if !pair.IsValidDCRPair() {
-		return "", fmt.Errorf("invalid currency pair (%s)", pair)
-	}
-	return pair, nil
 }

@@ -1814,8 +1814,8 @@ func (c *appContext) getCandlestickChart(w http.ResponseWriter, r *http.Request)
 	}
 	token := m.RetrieveExchangeTokenCtx(r)
 	bin := m.RetrieveStickWidthCtx(r)
-	currencyPair, error := m.RetrieveCurrencyPair(r)
-	if token == "" || bin == "" || error != nil {
+	currencyPair, err := c.retrieveCurrencyPair(r)
+	if token == "" || bin == "" || err != nil {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
@@ -1836,8 +1836,8 @@ func (c *appContext) getDepthChart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	token := m.RetrieveExchangeTokenCtx(r)
-	currencyPair, error := m.RetrieveCurrencyPair(r)
-	if token == "" || error != nil {
+	currencyPair, err := c.retrieveCurrencyPair(r)
+	if token == "" || err != nil {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
@@ -2089,4 +2089,17 @@ func (c *appContext) getBlockHashCtx(r *http.Request) (string, error) {
 		}
 	}
 	return hash, nil
+}
+
+// retrieveCurrencyPair tries to fetch the currency pair from the request query.
+func (c *appContext) retrieveCurrencyPair(r *http.Request) (exchanges.CurrencyPair, error) {
+	pair := exchanges.CurrencyPair(r.URL.Query().Get("currencyPair"))
+	if pair == "" {
+		// Use the DCR-BTC pair for backward compatibility.
+		pair = exchanges.CurrencyPairDCRBTC
+	}
+	if !pair.IsValidDCRPair() {
+		return "", fmt.Errorf("invalid currency pair (%s)", pair)
+	}
+	return pair, nil
 }

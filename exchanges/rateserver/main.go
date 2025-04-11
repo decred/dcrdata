@@ -136,7 +136,7 @@ func main() {
 				printUpdate(update.Token, update.CurrencyPair)
 				sendUpdate(&dcrrates.ExchangeRateUpdate{
 					Token:        update.Token,
-					CurrencyPair: update.CurrencyPair.String(),
+					CurrencyPair: string(update.CurrencyPair),
 					Indices:      update.Indices,
 				})
 			case <-xcSignals.Quit:

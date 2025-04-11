@@ -169,7 +169,7 @@ func NewRateClient(stream GRPCStream, exchanges []string) RateClient {
 func makeExchangeRateUpdate(update *exchanges.ExchangeUpdate) *dcrrates.ExchangeRateUpdate {
 	state := update.State
 	protoUpdate := &dcrrates.ExchangeRateUpdate{
-		CurrencyPair: update.CurrencyPair.String(),
+		CurrencyPair: string(update.CurrencyPair),
 		Token:        update.Token,
 		Price:        state.Price,
 		BaseVolume:   state.BaseVolume,

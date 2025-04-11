@@ -186,7 +186,7 @@ func (state *ExchangeBotState) Indices() string {
 				nSource++
 			}
 		}
-		if price == 0 {
+		if nSource == 0 {
 			return 0
 		}
 		return price / nSource
@@ -195,8 +195,8 @@ func (state *ExchangeBotState) Indices() string {
 	fiatIndices := make(map[string]float64)
 	for _, states := range state.FiatIndices {
 		for i := range states {
-			if _, found := fiatIndices[i.String()]; !found {
-				fiatIndices[i.String()] = sumIndexPrice(i)
+			if _, found := fiatIndices[string(i)]; !found {
+				fiatIndices[string(i)] = sumIndexPrice(i)
 			}
 		}
 	}
@@ -857,7 +857,7 @@ func (bot *ExchangeBot) indexPrice(index CurrencyPair, code string) float64 {
 			nSource++
 		}
 	}
-	if price == 0 {
+	if nSource == 0 {
 		return 0
 	}
 	return price / nSource
@@ -869,11 +869,11 @@ func (bot *ExchangeBot) updateExchange(update *ExchangeUpdate) error {
 	defer bot.mtx.Unlock()
 	if update.State.Candlesticks != nil {
 		for bin := range update.State.Candlesticks {
-			bot.incrementChart(genCacheID(update.CurrencyPair.String(), update.Token, string(bin)))
+			bot.incrementChart(genCacheID(string(update.CurrencyPair), update.Token, string(bin)))
 		}
 	}
 	if update.State.Depth != nil {
-		bot.incrementChart(genCacheID(update.CurrencyPair.String(), update.Token, orderbookKey))
+		bot.incrementChart(genCacheID(string(update.CurrencyPair), update.Token, orderbookKey))
 	}
 
 	if bot.currentState.DCRExchanges[update.Token] == nil {
@@ -1069,7 +1069,7 @@ func (bot *ExchangeBot) QuickSticks(token string, market CurrencyPair, rawBin st
 		return nil, fmt.Errorf("invalid market %s", market)
 	}
 
-	chartID := genCacheID(market.String(), token, rawBin)
+	chartID := genCacheID(string(market), token, rawBin)
 	bin := candlestickKey(rawBin)
 	data, bestVersion, isGood := bot.fetchFromCache(chartID)
 	if isGood {
@@ -1129,7 +1129,7 @@ func (bot *ExchangeBot) QuickDepth(token string, market CurrencyPair) (chart []b
 		return nil, fmt.Errorf("invalid market %s", market)
 	}
 
-	chartID := genCacheID(market.String(), token, orderbookKey)
+	chartID := genCacheID(string(market), token, orderbookKey)
 	data, bestVersion, isGood := bot.fetchFromCache(chartID)
 	if isGood {
 		return data, nil
