@@ -7,6 +7,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrdata/db/dcrpg/v8"
+	apitypes "github.com/decred/dcrdata/v8/api/types"
 	"github.com/decred/dcrdata/v8/explorer/types"
 )
 
@@ -70,6 +71,8 @@ func TestStatusPageResponseCodes(t *testing.T) {
 		MainnetLink:   "/",
 		TestnetLink:   "/",
 	})
+
+	exp.SetStatus(new(apitypes.Status))
 
 	// handler := http.HandlerFunc()
 	// handler.ServeHTTP(rr, req)

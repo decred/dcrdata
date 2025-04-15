@@ -176,6 +176,7 @@
 				rel="noopener noreferrer"
 			>© {{currentYear}} The Decred developers (ISC)</a>
 		</span>
+		{{if .Ready }}
 		<span
 			id="connection"
 			class="text-nowrap align-items-center clickable d-inline-block"
@@ -186,6 +187,11 @@
 			title="While connected, you will receive live page updates and, if enabled, desktop notifications (click to enable)."
 			><span class="d-none d-sm-inline" data-connection-target="status">Connecting <span class="d-none d-md-inline-block">to WebSocket...</span></span><div></div>
 		</span>
+		{{else}}
+		<span class="text-nowrap align-items-center d-inline-block">
+			Not ready...
+		</span>
+		{{end}}
 	</div>
 	<script
 		src="/dist/js/4.06b06a4759f2b4ad.bundle.js"
