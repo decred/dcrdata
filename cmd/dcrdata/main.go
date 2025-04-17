@@ -789,6 +789,8 @@ func _main(ctx context.Context) error {
 		r.Get("/attack-cost", explore.AttackCost)
 		r.Get("/verify-message", explore.VerifyMessagePage)
 		r.With(mw.Tollbooth(limiter)).Post("/verify-message", explore.VerifyMessageHandler)
+		r.Get("/stake-reward", explore.StakeReward)
+		r.With(mw.Tollbooth(limiter)).Post("/stake-reward", explore.CalculateStakeReward)
 	})
 
 	// Configure a page for the bare "/insight" path. This mounts the static
