@@ -32,6 +32,7 @@ const (
 	DexDotDecred = "dcrdex"
 	Mexc         = "mexc"
 	Kucoin       = "kucoin"
+	CoinEx       = "coinex"
 )
 
 // A few candlestick bin sizes.
@@ -186,6 +187,32 @@ var (
 			},
 		},
 	}
+	CoinExURLs = URLs{
+		Markets: []CurrencyPair{CurrencyPairDCRUSDT, CurrencyPairDCRBTC},
+		Price: map[CurrencyPair]string{
+			CurrencyPairDCRUSDT: "https://api.coinex.com/v2/spot/ticker?market=DCRUSDT",
+			CurrencyPairDCRBTC:  "https://api.coinex.com/v2/spot/ticker?market=DCRBTC",
+		},
+		Depth: map[CurrencyPair]string{
+			// This API will return data with partial orderbook (max 50).
+			CurrencyPairDCRUSDT: "https://api.coinex.com/v2/spot/depth?market=DCRUSDT&limit=50&interval=0.00000001",
+			CurrencyPairDCRBTC:  "https://api.coinex.com/v2/spot/depth?market=DCRBTC&limit=50&interval=0.00000001",
+		},
+		Candlesticks: map[CurrencyPair]map[candlestickKey]string{
+			// For each query, the system would return at most 1000 pieces
+			// of data. Default of 100 max if no limit is specified. Read
+			// more:
+			// https://docs.coinex.com/api/v2/spot/market/http/list-market-kline
+			CurrencyPairDCRUSDT: {
+				hourKey: "https://api.coinex.com/v2/spot/kline?market=DCRUSDT&limit=1000&period=1hour",
+				dayKey:  "https://api.coinex.com/v2/spot/kline?market=DCRUSDT&limit=1000&period=1day",
+			},
+			CurrencyPairDCRBTC: {
+				hourKey: "https://api.coinex.com/v2/spot/kline?market=DCRBTC&limit=1000&period=1hour",
+				dayKey:  "https://api.coinex.com/v2/spot/kline?market=DCRBTC&limit=1000&period=1day",
+			},
+		},
+	}
 )
 
 // Indices maps tokens to constructors for {BTC, USDT}-fiat exchanges.
@@ -204,6 +231,7 @@ var DcrExchanges = map[string]func(*http.Client, *BotChannels) (Exchange, error)
 	}),
 	Mexc:   NewMexc,
 	Kucoin: NewKucoin,
+	CoinEx: NewCoinEx,
 }
 
 // IsIndex checks whether the given token is a known {Bitcoin, USDT} index, as
@@ -1914,7 +1942,7 @@ type KucoinExchange struct {
 	*CommonExchange
 }
 
-// NewBinance constructs a BinanceExchange.
+// NewKucoin constructs a *KucoinExchange.
 func NewKucoin(client *http.Client, channels *BotChannels) (kucoin Exchange, err error) {
 	reqs := newRequests(KucoinURLS.Markets)
 	for mkt, price := range KucoinURLS.Price {
@@ -2070,6 +2098,7 @@ func (r KucoinCandlestickResponse) translate() Candlesticks {
 type KucoinDepthResponse struct {
 	// Code string `json:"code"`
 	Data struct {
+		// These are unsed fields, but left commented since they are part of the original schema.
 		// Time int64 `json:"time"` used
 		// Sequence string `json:"sequence"` used
 		Bids [][2]string
@@ -2151,6 +2180,253 @@ func (kucoin *KucoinExchange) refresh(mkt CurrencyPair, requests *requests) {
 			Volume:     dcrVolume,
 			Change:     priceChange,
 			Stamp:      priceResponse.Data.Time / 1000,
+		},
+		Candlesticks: candlesticks,
+		Depth:        depth,
+	})
+}
+
+// CoinExchange is a global and well-known crypto exchange.
+type CoinExchange struct {
+	*CommonExchange
+}
+
+// NewCoinEx constructs a *CoinExchange.
+func NewCoinEx(client *http.Client, channels *BotChannels) (coinEx Exchange, err error) {
+	reqs := newRequests(CoinExURLs.Markets)
+	for mkt, price := range CoinExURLs.Price {
+		reqs[mkt].price, err = http.NewRequest(http.MethodGet, price, nil)
+		if err != nil {
+			return
+		}
+	}
+
+	for mkt, depth := range CoinExURLs.Depth {
+		reqs[mkt].depth, err = http.NewRequest(http.MethodGet, depth, nil)
+		if err != nil {
+			return
+		}
+	}
+
+	for mkt, candlesticks := range CoinExURLs.Candlesticks {
+		for dur, url := range candlesticks {
+			reqs[mkt].candlesticks[dur], err = http.NewRequest(http.MethodGet, url, nil)
+			if err != nil {
+				return
+			}
+		}
+	}
+
+	coinEx = &CoinExchange{
+		CommonExchange: newCommonExchange(CoinEx, client, reqs, channels),
+	}
+	return
+}
+
+// CoinExPriceResponse models the JSON price data returned from the CoinEx API.
+type CoinExPriceResponse struct {
+	// Code int64 `json:"code"`
+	Data []struct {
+		Close  string `json:"close"`
+		High   string `json:"high"`
+		Last   string `json:"last"`
+		Low    string `json:"low"`
+		Open   string `json:"open"`
+		Value  string `json:"value"`
+		Volume string `json:"volume"`
+
+		// These are unsed fields, but left commented since they are part of the
+		// original schema.
+		// Market     string `json:"market"`
+		// Period     int64  `json:"period"`
+		// VolumeBuy  string `json:"volume_buy"`
+		// VolumeSell string `json:"volume_sell"`
+	} `json:"data"`
+	// Message string `json:"message"`
+}
+
+// CoinExCandlestickResponse models candlestick data returned from the CoinEx
+// API. The candlestick response has mixed-type arrays, so type-checking is
+// appropriate. Sample response is:
+//
+//	{
+//	 "code": 0,
+//	 "data": [
+//	   {
+//	     "close": "23.6538",
+//	     "created_at": 1658793600000,
+//	      "high": "24.4502",
+//	      "low": "22.652",
+//	      "market": "DCRUSDT",
+//	      "open": "24.1441",
+//	      "value": "4164.677065377772",
+//	      "volume": "175.75783949"
+//	    },
+//	}
+type CoinExCandlestickResponse struct {
+	// Code int64 `json:"code"`
+	Data []struct {
+		Close     string `json:"close"`
+		CreatedAt int64  `json:"created_at"`
+		High      string `json:"high"`
+		Low       string `json:"low"`
+		Open      string `json:"open"`
+		Volume    string `json:"volume"`
+
+		// These are unsed fields, but left commented since they are part of the
+		// original schema.
+		// Market    string `json:"market"`
+		// Value     string `json:"value"`
+	} `json:"data"`
+}
+
+func (r CoinExCandlestickResponse) translate() Candlesticks {
+	sticks := make(Candlesticks, 0, len(r.Data))
+	for _, rawStick := range r.Data {
+		startTime := time.Unix(rawStick.CreatedAt/1e3, 0)
+
+		open, err := strconv.ParseFloat(rawStick.Open, 64)
+		if err != nil {
+			return badStickElement("open float", err)
+		}
+
+		high, err := strconv.ParseFloat(rawStick.High, 64)
+		if err != nil {
+			return badStickElement("high float", err)
+		}
+
+		low, err := strconv.ParseFloat(rawStick.Low, 64)
+		if err != nil {
+			return badStickElement("low float", err)
+		}
+
+		close, err := strconv.ParseFloat(rawStick.Close, 64)
+		if err != nil {
+			return badStickElement("close float", err)
+		}
+
+		volume, err := strconv.ParseFloat(rawStick.Volume, 64)
+		if err != nil {
+			return badStickElement("volume float", err)
+		}
+
+		sticks = append(sticks, Candlestick{
+			High:   high,
+			Low:    low,
+			Open:   open,
+			Close:  close,
+			Volume: volume,
+			Start:  startTime,
+		})
+	}
+	return sticks
+}
+
+// CoinExDepthResponse models the response for CoinEx depth chart data.
+type CoinExDepthResponse struct {
+	Code int64
+	Data struct {
+		Depth struct {
+			Bids [][2]string `json:"bids"`
+			Asks [][2]string `json:"asks"`
+		} `json:"depth"`
+
+		// These are unsed fields, but left commented since they are part of the
+		// original schema.
+		// Last      string `json:"last"`
+		// UpdatedAt int64  `json:"updated_at"`
+		// Checksum  string `json:"checksum"`
+	} `json:"data"`
+
+	// These are unsed fields, but left commented since they are part of the
+	// original schema.
+	// IsFull bool   `json:"is_full"`
+	// Market string `json:"market"`
+}
+
+// Refresh retrieves and parses API data from CoinEx.
+func (coinex *CoinExchange) Refresh() {
+	coinex.LogRequest()
+	for mkt, requests := range coinex.requests {
+		coinex.refresh(mkt, requests)
+	}
+}
+
+func (coinex *CoinExchange) refresh(mkt CurrencyPair, requests *requests) {
+	priceResponseBody := new(CoinExPriceResponse)
+	err := coinex.fetch(requests.price, priceResponseBody)
+	if err != nil {
+		coinex.fail(fmt.Sprintf("%s: Fetch price", mkt), err)
+		return
+	}
+
+	priceResponse := priceResponseBody.Data[0]
+	price, err := strconv.ParseFloat(priceResponse.Last, 64)
+	if err != nil {
+		coinex.fail(fmt.Sprintf("%s: Failed to parse float from Last=%s", mkt, priceResponse.Last), err)
+		return
+	}
+	baseVolume, err := strconv.ParseFloat(priceResponse.Value, 64)
+	if err != nil {
+		coinex.fail(fmt.Sprintf("%s: Failed to parse float from Value=%s", mkt, priceResponse.Value), err)
+		return
+	}
+
+	dcrVolume, err := strconv.ParseFloat(priceResponse.Volume, 64)
+	if err != nil {
+		coinex.fail(fmt.Sprintf("%s: Failed to parse float from Volume=%s", mkt, priceResponse.Volume), err)
+		return
+	}
+
+	open, err := strconv.ParseFloat(priceResponse.Open, 64)
+	if err != nil {
+		coinex.fail(fmt.Sprintf("%s: Failed to parse float from High=%s", mkt, priceResponse.High), err)
+		return
+	}
+
+	close, err := strconv.ParseFloat(priceResponse.Close, 64)
+	if err != nil {
+		coinex.fail(fmt.Sprintf("%s: Failed to parse float from Close=%s", mkt, priceResponse.Close), err)
+		return
+	}
+
+	// Get the depth chart
+	depthResponse := new(CoinExDepthResponse)
+	err = coinex.fetch(requests.depth, depthResponse)
+	if err != nil {
+		log.Errorf("Error retrieving depth chart data from CoinEx(%s): %v", mkt, err)
+	}
+	depth := translateDepthPoints(CoinEx, depthResponse.Data.Depth.Asks, depthResponse.Data.Depth.Bids)
+
+	// Grab the current state to check if candlesticks need updating.
+	state := coinex.state(mkt)
+
+	candlesticks := map[candlestickKey]Candlesticks{}
+	for bin, req := range requests.candlesticks {
+		oldSticks, found := state.Candlesticks[bin]
+		if !found || oldSticks.needsUpdate(bin) {
+			log.Tracef("Signalling candlestick update for %s, market %s, bin size %s", coinex.token, mkt, bin)
+			response := new(CoinExCandlestickResponse)
+			err := coinex.fetch(req, response)
+			if err != nil {
+				log.Errorf("Error retrieving candlestick data from CoinEx for bin size %s: %v", string(bin), err)
+				continue
+			}
+			sticks := response.translate()
+
+			if !found || sticks.time().After(oldSticks.time()) {
+				candlesticks[bin] = sticks
+			}
+		}
+	}
+
+	coinex.Update(mkt, &ExchangeState{
+		BaseState: BaseState{
+			Price:      price,
+			BaseVolume: baseVolume,
+			Volume:     dcrVolume,
+			Change:     close - open,
+			Stamp:      time.Now().Unix(),
 		},
 		Candlesticks: candlesticks,
 		Depth:        depth,
