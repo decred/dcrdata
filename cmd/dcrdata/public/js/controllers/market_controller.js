@@ -33,17 +33,19 @@ const prettyDurations = {
 }
 const exchangeLinks = {
   CurrencyPairDCRBTC: {
-    binance: 'https://www.binance.com/en/trade/DCR_BTC',
     bittrex: 'https://bittrex.com/Market/Index?MarketName=BTC-DCR',
     poloniex: 'https://poloniex.com/exchange#btc_dcr',
     dragonex: 'https://dragonex.io/en-us/trade/index/dcr_btc',
-    huobi: 'https://www.hbg.com/en-us/exchange/?s=dcr_btc',
-    dcrdex: 'https://dex.decred.org'
+    dcrdex: 'https://dex.decred.org',
+    coinex: 'https://www.coinex.com/en/exchange/DCR-BTC'
   },
   CurrencyPairDCRUSDT: {
     binance: 'https://www.binance.com/en/trade/DCR_USDT',
     dcrdex: 'https://dex.decred.org',
-    mexc: 'https://www.mexc.com/exchange/DCR_USDT'
+    mexc: 'https://www.mexc.com/exchange/DCR_USDT',
+    huobi: 'https://www.hbg.com/en-us/exchange/?s=dcr_usdt',
+    kucoin: 'https://www.kucoin.com/trade/DCR-USDT',
+    coinex: 'https://www.coinex.com/en/exchange/DCR-USDT'
   }
 }
 const CurrencyPairDCRUSDT = 'DCR-USDT'
