@@ -819,9 +819,8 @@ func (bot *ExchangeBot) cachedChartVersion(chartId string) int {
 
 // processState is a helper function to process a slice of ExchangeState into a
 // price, and optionally a volume sum, and perform some cleanup along the way.
-// If volumeAveraged is false, all exchanges are given equal weight in the avg.
 // If exchange is invalid, a bool false is returned as a last return value.
-func (bot *ExchangeBot) processState(token, code string, states map[CurrencyPair]*ExchangeState, volumeAveraged bool) (float64, float64, bool) {
+func (bot *ExchangeBot) processState(token, code string, states map[CurrencyPair]*ExchangeState) (float64, float64, bool) {
 	oldestValid := time.Now().Add(-bot.RequestExpiry)
 	if bot.Exchanges[token].LastUpdate().Before(oldestValid) {
 		return 0, 0, false
@@ -829,12 +828,6 @@ func (bot *ExchangeBot) processState(token, code string, states map[CurrencyPair
 
 	var priceAccumulator, volSum float64
 	for currencyPair, state := range states {
-		volume := 1.0
-		if volumeAveraged {
-			volume = state.Volume
-		}
-		volSum += volume
-
 		// Convert price to bot.Index.
 		price := state.Price
 		switch currencyPair {
@@ -843,13 +836,13 @@ func (bot *ExchangeBot) processState(token, code string, states map[CurrencyPair
 		case CurrencyPairDCRUSDT:
 			price = bot.indexPrice(USDTIndex, code) * price
 		}
-		if price == 0 { // missing index price for currencyPair.
-			return 0, 0, false
+		if price == 0 {
+			continue // missing index price for currencyPair so let's skip this one.
 		}
 
-		priceAccumulator += volume * price
+		volSum += state.Volume
+		priceAccumulator += state.Volume * price
 	}
-
 	if volSum == 0 {
 		return 0, 0, true
 	}
@@ -927,7 +920,7 @@ func (bot *ExchangeBot) updateIndices(update *IndexUpdate) error {
 func (bot *ExchangeBot) dcrPriceAndVolume(code string) (float64, float64) {
 	var dcrPrice, volume, nSources float64
 	for token, xcStates := range bot.currentState.DCRExchanges {
-		processedDcrPrice, processedVolume, ok := bot.processState(token, code, xcStates, true)
+		processedDcrPrice, processedVolume, ok := bot.processState(token, code, xcStates)
 		if !ok {
 			continue
 		}

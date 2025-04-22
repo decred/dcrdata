@@ -340,7 +340,7 @@ func (sticks Candlesticks) needsUpdate(bin candlestickKey) bool {
 type BaseState struct {
 	Price float64 `json:"price"`
 	// BaseVolume is poorly named. This is the volume in terms of (usually) BTC
-	// or USDT, not the base asset of any particular market.
+	// or USDT, not the base asset of any particular market. TODO: Rename.
 	BaseVolume float64 `json:"base_volume,omitempty"`
 	Volume     float64 `json:"volume,omitempty"`
 	Change     float64 `json:"change,omitempty"`
@@ -1985,7 +1985,7 @@ type KucoinPriceResponse struct {
 		VolValue    string `json:"volValue"`
 		Last        string `json:"last"`
 
-		// These are unsed fields, but left commented since they are part of the original schema.
+		// These are unused fields, but left commented since they are part of the original schema.
 		// Sequence    string `json:"sequence"`
 		// Buy              string `json:"buy"`
 		// Sell             string `json:"sell"`
@@ -2098,7 +2098,7 @@ func (r KucoinCandlestickResponse) translate() Candlesticks {
 type KucoinDepthResponse struct {
 	// Code string `json:"code"`
 	Data struct {
-		// These are unsed fields, but left commented since they are part of the original schema.
+		// These are unused fields, but left commented since they are part of the original schema.
 		// Time int64 `json:"time"` used
 		// Sequence string `json:"sequence"` used
 		Bids [][2]string
@@ -2235,7 +2235,7 @@ type CoinExPriceResponse struct {
 		Value  string `json:"value"`
 		Volume string `json:"volume"`
 
-		// These are unsed fields, but left commented since they are part of the
+		// These are unused fields, but left commented since they are part of the
 		// original schema.
 		// Market     string `json:"market"`
 		// Period     int64  `json:"period"`
@@ -2273,7 +2273,7 @@ type CoinExCandlestickResponse struct {
 		Open      string `json:"open"`
 		Volume    string `json:"volume"`
 
-		// These are unsed fields, but left commented since they are part of the
+		// These are unused fields, but left commented since they are part of the
 		// original schema.
 		// Market    string `json:"market"`
 		// Value     string `json:"value"`
@@ -2331,14 +2331,14 @@ type CoinExDepthResponse struct {
 			Asks [][2]string `json:"asks"`
 		} `json:"depth"`
 
-		// These are unsed fields, but left commented since they are part of the
+		// These are unused fields, but left commented since they are part of the
 		// original schema.
 		// Last      string `json:"last"`
 		// UpdatedAt int64  `json:"updated_at"`
 		// Checksum  string `json:"checksum"`
 	} `json:"data"`
 
-	// These are unsed fields, but left commented since they are part of the
+	// These are unused fields, but left commented since they are part of the
 	// original schema.
 	// IsFull bool   `json:"is_full"`
 	// Market string `json:"market"`
