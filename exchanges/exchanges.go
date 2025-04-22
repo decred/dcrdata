@@ -432,7 +432,7 @@ func (sticks Candlesticks) needsUpdate(bin candlestickKey) bool {
 type BaseState struct {
 	Price float64 `json:"price"`
 	// BaseVolume is poorly named. This is the volume in terms of (usually) BTC
-	// or USDT, not the base asset of any particular market.
+	// or USDT, not the base asset of any particular market. TODO: Rename.
 	BaseVolume float64 `json:"base_volume,omitempty"`
 	Volume     float64 `json:"volume,omitempty"`
 	Change     float64 `json:"change,omitempty"`
@@ -1823,7 +1823,7 @@ type HuobiResponse struct {
 
 // HuobiPriceTick models the "tick" field of the Huobi API response.
 type HuobiPriceTick struct {
-	Amount  float64   `json:"amount"`
+	Amount  float64   `json:"amount"` // base volume (DCR)
 	Open    float64   `json:"open"`
 	Close   float64   `json:"close"`
 	High    float64   `json:"high"`
@@ -1832,7 +1832,7 @@ type HuobiPriceTick struct {
 	Low     float64   `json:"low"`
 	Version int64     `json:"version"`
 	Ask     []float64 `json:"ask"`
-	Vol     float64   `json:"vol"`
+	Vol     float64   `json:"vol"` // quote volume (USDT)
 	Bid     []float64 `json:"bid"`
 }
 
@@ -1878,8 +1878,8 @@ type HuobiCandlestickPt struct {
 	Close  float64 `json:"close"`
 	Low    float64 `json:"low"`
 	High   float64 `json:"high"`
-	Amount float64 `json:"amount"` // Volume BTC
-	Vol    float64 `json:"vol"`    // Volume DCR
+	Amount float64 `json:"amount"` // Volume DCR
+	Vol    float64 `json:"vol"`    // Volume USDT
 	Count  int64   `json:"count"`
 }
 
@@ -1896,7 +1896,7 @@ func (pts HuobiCandlestickData) translate() Candlesticks {
 			Low:    pt.Low,
 			Open:   pt.Open,
 			Close:  pt.Close,
-			Volume: pt.Vol,
+			Volume: pt.Amount,
 			Start:  time.Unix(pt.ID, 0),
 		})
 	}
@@ -1929,6 +1929,7 @@ func (huobi *HuobiExchange) refresh(mkt CurrencyPair, requests *requests) {
 		return
 	}
 	baseVolume := priceResponse.Tick.Vol
+	dcrVolume := priceResponse.Tick.Amount
 
 	// Depth data
 	var depth *DepthData
@@ -1975,7 +1976,7 @@ func (huobi *HuobiExchange) refresh(mkt CurrencyPair, requests *requests) {
 		BaseState: BaseState{
 			Price:      priceResponse.Tick.Close,
 			BaseVolume: baseVolume,
-			Volume:     baseVolume / priceResponse.Tick.Close,
+			Volume:     dcrVolume,
 			Change:     priceResponse.Tick.Close - priceResponse.Tick.Open,
 			Stamp:      priceResponse.Ts / 1000,
 		},
