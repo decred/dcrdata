@@ -158,23 +158,16 @@ var (
 		},
 	}
 	BinanceURLs = URLs{
-		Markets: []CurrencyPair{CurrencyPairDCRBTC, CurrencyPairDCRUSDT},
+		Markets: []CurrencyPair{CurrencyPairDCRUSDT},
 		Price: map[CurrencyPair]string{
-			CurrencyPairDCRBTC:  "https://api.binance.com/api/v3/ticker/24hr?symbol=DCRBTC",
 			CurrencyPairDCRUSDT: "https://api.binance.com/api/v3/ticker/24hr?symbol=DCRUSDT",
 		},
 		Depth: map[CurrencyPair]string{
 			// Binance returns a maximum of 5000 depth chart points. This seems
 			// like it is the entire order book at least sometimes.
-			CurrencyPairDCRBTC:  "https://api.binance.com/api/v3/depth?symbol=DCRBTC&limit=5000",
 			CurrencyPairDCRUSDT: "https://api.binance.com/api/v3/depth?symbol=DCRUSDT&limit=5000",
 		},
 		Candlesticks: map[CurrencyPair]map[candlestickKey]string{
-			CurrencyPairDCRBTC: {
-				hourKey:  "https://api.binance.com/api/v3/klines?symbol=DCRBTC&interval=1h",
-				dayKey:   "https://api.binance.com/api/v3/klines?symbol=DCRBTC&interval=1d",
-				monthKey: "https://api.binance.com/api/v3/klines?symbol=DCRBTC&interval=1M",
-			},
 			CurrencyPairDCRUSDT: {
 				hourKey:  "https://api.binance.com/api/v3/klines?symbol=DCRUSDT&interval=1h",
 				dayKey:   "https://api.binance.com/api/v3/klines?symbol=DCRUSDT&interval=1d",
