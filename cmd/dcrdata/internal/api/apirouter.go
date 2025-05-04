@@ -18,6 +18,11 @@ type apiMux struct {
 	*chi.Mux
 }
 
+// Versions returns a list of API versions supported.
+func (am *apiMux) Versions() []APIVersion {
+	return supportedAPIVersions[:]
+}
+
 type fileMux struct {
 	*chi.Mux
 }

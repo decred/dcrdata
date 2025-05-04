@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	apitypes "github.com/decred/dcrdata/v8/api/types"
+	apitypes "github.com/decred/dcrdata/v8/api/types/v1"
 )
 
 func Test_dateFromStr(t *testing.T) {

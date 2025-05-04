@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2021, The Decred developers
+// Copyright (c) 2018-2022, The Decred developers
 // Copyright (c) 2018, The dcrdata developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
@@ -21,7 +21,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/wire"
 
-	apitypes "github.com/decred/dcrdata/v8/api/types"
+	apitypes "github.com/decred/dcrdata/v8/api/types/v1"
 	"github.com/decred/dcrdata/v8/txhelpers"
 )
 
