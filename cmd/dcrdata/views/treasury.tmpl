@@ -3,12 +3,13 @@
 <html lang="en">
 {{template "html-head" headData .CommonPageData "Decred Decentralized Treasury"}}
   {{template "navbar" . }}
+  {{- $mempool := .Mempool -}}
   {{- with .Data}}
   {{- $bal := .Balance -}}
   {{- $TxnCount := $bal.TxCount}}
   {{- $txType := .TxnType -}}
   <div class="container main"
-    data-controller="address"
+    data-controller="address time"
     data-address-dcraddress="treasury"
     data-address-offset="{{.Offset}}"
     data-address-txn-count="{{ $bal.TxCount}}"
@@ -144,7 +145,72 @@
         </div>
       </div>
     </div>
-    
+    <div class="position-relative">
+      <div class="row">
+        <div class="col-sm-24">
+          <div class="me-auto h4 col-24">Unconfirmed Treasury Spends</div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Transaction ID</th>
+                <th class="text-end">Amount</th>
+                <th class="text-end">Time in Mempool</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{if gt $mempool.NumTSpends 0 -}}
+              {{- range $mempool.TSpends -}}
+              <tr>
+                <td class="break-word clipboard">
+                  <a class="hash lh1rem" href="/tx/{{.Hash}}" title="{{.Hash}}">{{.Hash}}</a>
+                  {{template "copyTextIcon"}}
+                </td>
+                <td class="mono fs15 text-end">
+                  {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
+                </td>
+                <td class="mono fs15 text-end" data-time-target="age" data-age="{{.Time}}"></td>
+              </tr>
+              {{- end -}}
+              {{- else -}}
+              <tr class="no-tx-tr">
+                <td colspan="4">No treasury spends in mempool.</td>
+              </tr>
+              {{- end}}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {{if gt $mempool.NumTAdds 0 -}}{{- /* this will be rare, so only show the section header and table if needed */ -}}
+      <div class="row">
+        <div class="col-sm-24">
+          <div class="me-auto h4 col-24">Unconfirmed Treasury Adds</div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Transaction ID</th>
+                <th class="text-end">Amount</th>
+                <th class="text-end">Time in Mempool</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{range $mempool.TAdds -}}
+              <tr>
+                <td class="break-word clipboard">
+                  <a class="hash lh1rem" href="/tx/{{.Hash}}">{{.Hash}}</a>
+                  {{template "copyTextIcon"}}
+                </td>
+                <td class="mono fs15 text-end">
+                  {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
+                </td>
+                <td class="mono fs15 text-end" data-time-target="age" data-age="{{.Time}}"></td>
+              </tr>
+              {{- end}}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {{- end}}
+    </div>
     <div class="position-relative" data-address-target="listbox">
       <div class="row align-items-center">
         <div class="me-auto mb-0 h4 col-24 col-sm-6">Transactions</div>
@@ -182,7 +248,6 @@
         </div>
       </div>
       <div class="position-relative">
-      {{- /* TODO: unconfirmed tadd and tspend txns */}}
         <div class="loader-v2" data-address-target="listLoader"></div>
         <div class="position-relative" data-address-target="table">
           {{template "treasuryTable" .}}

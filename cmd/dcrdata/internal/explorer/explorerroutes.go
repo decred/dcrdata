@@ -1484,11 +1484,13 @@ func (exp *explorerUI) TreasuryPage(w http.ResponseWriter, r *http.Request) {
 		Data        *TreasuryInfo
 		FiatBalance *exchanges.Conversion
 		Pages       []pageNumber
+		Mempool     *types.MempoolInfo
 	}{
 		CommonPageData: exp.commonData(r),
 		Data:           treasuryData,
 		FiatBalance:    exp.xcBot.Conversion(dcrutil.Amount(treasuryBalance.Balance).ToCoin()),
 		Pages:          calcPages(int(typeCount), int(limitN), int(offset), linkTemplate),
+		Mempool:        exp.MempoolInventory(),
 	}
 	str, err := exp.templates.exec("treasury", pageData)
 	if err != nil {
