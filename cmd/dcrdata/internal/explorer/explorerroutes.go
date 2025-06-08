@@ -1,11 +1,10 @@
-// Copyright (c) 2018-2024, The Decred developers
+// Copyright (c) 2018-2025, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
 package explorer
 
 import (
-	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -1389,12 +1388,6 @@ type TreasuryInfo struct {
 	Path          string
 	Limit, Offset int64  // ?n=Limit&start=Offset
 	TxnType       string // ?txntype=TxnType
-
-	// TODO: tadd and tspend can be unconfirmed. tspend for a very long time.
-	// NumUnconfirmed is the number of unconfirmed txns
-	// NumUnconfirmed  int64
-	// UnconfirmedTxns []*dbtypes.TreasuryTx
-
 	// Transactions on the current page
 	Transactions    []*dbtypes.TreasuryTx
 	NumTransactions int64 // len(Transactions) but int64 for dumb template
@@ -1402,48 +1395,30 @@ type TreasuryInfo struct {
 	Balance          *dbtypes.TreasuryBalance
 	ConvertedBalance *exchanges.Conversion
 	TypeCount        int64
+
+	// tadd and tspend can be unconfirmed. tspend for a very long time.
+	Mempool *TreasuryMempoolInfo
+}
+
+// TreasuryMempoolInfo holds the treasury-related mempool transactions that are
+// not yet confirmed in a block. It is used to display treasury mempool
+// information on the treasury page.
+type TreasuryMempoolInfo struct {
+	NumTSpends int
+	NumTAdds   int
+	TSpends    []types.MempoolTx
+	TAdds      []types.MempoolTx
 }
 
 // TreasuryPage is the page handler for the "/treasury" path
 func (exp *explorerUI) TreasuryPage(w http.ResponseWriter, r *http.Request) {
-	ctx := context.WithValue(r.Context(), ctxAddress, exp.pageData.HomeInfo.DevAddress)
-	r = r.WithContext(ctx)
-	if queryVals := r.URL.Query(); queryVals.Get("txntype") == "" {
-		queryVals.Set("txntype", "tspend")
-		r.URL.RawQuery = queryVals.Encode()
+	// Grab the URL query parameters
+	txType, txTypeStr, limitN, offset, err := parseTreasuryParams(r)
+	if err != nil {
+		log.Errorf("TreasuryPage request error: %v", err)
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
 	}
-
-	limitN := defaultAddressRows
-	if nParam := r.URL.Query().Get("n"); nParam != "" {
-		val, err := strconv.ParseUint(nParam, 10, 64)
-		if err != nil {
-			exp.StatusPage(w, defaultErrorCode, "invalid n value", "", ExpStatusError)
-			return
-		}
-		if int64(val) > MaxTreasuryRows {
-			log.Warnf("TreasuryPage: requested up to %d address rows, "+
-				"limiting to %d", limitN, MaxTreasuryRows)
-			limitN = MaxTreasuryRows
-		} else {
-			limitN = int64(val)
-		}
-	}
-
-	// Number of txns to skip (OFFSET in database query). For UX reasons, the
-	// "start" URL query parameter is used.
-	var offset int64
-	if startParam := r.URL.Query().Get("start"); startParam != "" {
-		val, err := strconv.ParseUint(startParam, 10, 64)
-		if err != nil {
-			exp.StatusPage(w, defaultErrorCode, "invalid start value", "", ExpStatusError)
-			return
-		}
-		offset = int64(val)
-	}
-
-	// Transaction types to show.
-	txTypeStr := r.URL.Query().Get("txntype")
-	txType := parseTreasuryTransactionType(txTypeStr)
 
 	txns, err := exp.dataSource.TreasuryTxns(limitN, offset, txType)
 	if exp.timeoutErrorPage(w, err, "TreasuryTxns") {
@@ -1458,6 +1433,7 @@ func (exp *explorerUI) TreasuryPage(w http.ResponseWriter, r *http.Request) {
 	exp.pageData.RUnlock()
 
 	typeCount := treasuryTypeCount(treasuryBalance, txType)
+	inv := exp.MempoolInventory()
 
 	treasuryData := &TreasuryInfo{
 		Net:             exp.ChainParams.Net.String(),
@@ -1470,6 +1446,12 @@ func (exp *explorerUI) TreasuryPage(w http.ResponseWriter, r *http.Request) {
 		Transactions:    txns,
 		Balance:         treasuryBalance,
 		TypeCount:       typeCount,
+		Mempool: &TreasuryMempoolInfo{
+			NumTSpends: inv.NumTSpends,
+			NumTAdds:   inv.NumTAdds,
+			TSpends:    inv.TSpends,
+			TAdds:      inv.TAdds,
+		},
 	}
 
 	xcBot := exp.xcBot
@@ -1478,7 +1460,7 @@ func (exp *explorerUI) TreasuryPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Execute the HTML template.
-	linkTemplate := fmt.Sprintf("/treasury?start=%%d&n=%d&txntype=%v", limitN, txType)
+	linkTemplate := fmt.Sprintf("/treasury?start=%%d&n=%d&txntype=%s", limitN, txTypeStr)
 	pageData := struct {
 		*CommonPageData
 		Data        *TreasuryInfo
@@ -1679,7 +1661,7 @@ func (exp *explorerUI) AddressTable(w http.ResponseWriter, r *http.Request) {
 // TreasuryTable is the handler for the "/treasurytable" path.
 func (exp *explorerUI) TreasuryTable(w http.ResponseWriter, r *http.Request) {
 	// Grab the URL query parameters
-	txType, limitN, offset, err := parseTreasuryParams(r)
+	txType, txTypeStr, limitN, offset, err := parseTreasuryParams(r)
 	if err != nil {
 		log.Errorf("TreasuryTable request error: %v", err)
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
@@ -1698,7 +1680,7 @@ func (exp *explorerUI) TreasuryTable(w http.ResponseWriter, r *http.Request) {
 	bal := exp.pageData.HomeInfo.TreasuryBalance
 	exp.pageData.RUnlock()
 
-	linkTemplate := "/treasury" + "?start=%d&n=" + strconv.FormatInt(limitN, 10) + "&txntype=" + fmt.Sprintf("%v", txType)
+	linkTemplate := "/treasury" + "?start=%d&n=" + strconv.FormatInt(limitN, 10) + "&txntype=" + fmt.Sprintf("%s", txTypeStr)
 
 	response := struct {
 		TxnCount int64        `json:"tx_count"`
@@ -1791,9 +1773,9 @@ func parseTreasuryTransactionType(txnTypeStr string) (txType stake.TxType) {
 
 // parseTreasuryParams parses the tx filters for the treasury page. Used by both
 // TreasuryPage and TreasuryTable.
-func parseTreasuryParams(r *http.Request) (txType stake.TxType, limitN, offsetAddrOuts int64, err error) {
-	tType, limitN, offsetAddrOuts, err := parsePaginationParams(r)
-	txType = parseTreasuryTransactionType(tType)
+func parseTreasuryParams(r *http.Request) (txType stake.TxType, txTypeStr string, limitN, offsetAddrOuts int64, err error) {
+	txTypeStr, limitN, offsetAddrOuts, err = parsePaginationParams(r)
+	txType = parseTreasuryTransactionType(txTypeStr)
 	return
 }
 
@@ -1805,7 +1787,6 @@ func parsePaginationParams(r *http.Request) (txnType string, limitN, offset int6
 	limitN = defaultAddressRows
 
 	if nParam := r.URL.Query().Get("n"); nParam != "" {
-
 		var val uint64
 		val, err = strconv.ParseUint(nParam, 10, 64)
 		if err != nil {
@@ -1834,9 +1815,8 @@ func parsePaginationParams(r *http.Request) (txnType string, limitN, offset int6
 	}
 
 	// Transaction types to show.
-	txnType = r.URL.Query().Get("txntype")
-	if txnType == "" {
-		txnType = "all"
+	if txnType = r.URL.Query().Get("txntype"); txnType == "" {
+		txnType = "tspend" // Default to tspend
 	}
 
 	return
