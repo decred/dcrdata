@@ -1730,7 +1730,7 @@ func parseAddressParams(r *http.Request) (address string, txnType dbtypes.AddrTx
 		return
 	}
 
-	tType, limitN, offsetAddrOuts, err := parsePaginationParams(r)
+	tType, limitN, offsetAddrOuts, err := parsePaginationParams(r, true)
 	txnType = dbtypes.AddrTxnViewTypeFromStr(tType)
 	if txnType == dbtypes.AddrTxnUnknown {
 		err = fmt.Errorf("unknown txntype query value")
@@ -1771,14 +1771,14 @@ func parseTreasuryTransactionType(txnTypeStr string) (txType stake.TxType) {
 // parseTreasuryParams parses the tx filters for the treasury page. Used by both
 // TreasuryPage and TreasuryTable.
 func parseTreasuryParams(r *http.Request) (txType stake.TxType, txTypeStr string, limitN, offsetAddrOuts int64, err error) {
-	txTypeStr, limitN, offsetAddrOuts, err = parsePaginationParams(r)
+	txTypeStr, limitN, offsetAddrOuts, err = parsePaginationParams(r, false)
 	txType = parseTreasuryTransactionType(txTypeStr)
 	return
 }
 
 // parsePaginationParams parses the pagination parameters from the query. The
 // txnType string is returned as-is. The caller must decipher the string.
-func parsePaginationParams(r *http.Request) (txnType string, limitN, offset int64, err error) {
+func parsePaginationParams(r *http.Request, isAddressPage bool) (txnType string, limitN, offset int64, err error) {
 	// Number of outputs for the address to query the database for. The URL
 	// query parameter "n" is used to specify the limit (e.g. "?n=20").
 	limitN = defaultAddressRows
@@ -1813,7 +1813,11 @@ func parsePaginationParams(r *http.Request) (txnType string, limitN, offset int6
 
 	// Transaction types to show.
 	if txnType = r.URL.Query().Get("txntype"); txnType == "" {
-		txnType = "tspend" // Default to tspend
+		if isAddressPage {
+			txnType = "all" // Default to all types for address page
+		} else {
+			txnType = "tspend" // Default to tspend for treasury page
+		}
 	}
 
 	return
