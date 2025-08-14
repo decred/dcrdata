@@ -885,25 +885,18 @@ func _main(ctx context.Context) error {
 			sideChainsStored++
 
 			// Collect and store data for each block in this side chain.
-			for _, hash := range sideChain.Hashes {
-				// Validate the block hash.
-				blockHash, err := chainhash.NewHashFromStr(hash)
-				if err != nil {
-					log.Errorf("Invalid block hash %s: %v.", hash, err)
-					continue
-				}
-
+			for _, blockHash := range sideChain.Hashes {
 				// Collect block data.
-				_, msgBlock, err := collector.CollectHash(blockHash)
+				_, msgBlock, err := collector.CollectHash(&blockHash)
 				if err != nil {
 					// Do not quit if unable to collect side chain block data.
 					log.Errorf("Unable to collect data for side chain block %s: %v.",
-						hash, err)
+						blockHash, err)
 					continue
 				}
 
 				// Get the chainwork
-				chainWork, err := rpcutils.GetChainWork(chainDB.Client, blockHash)
+				chainWork, err := rpcutils.GetChainWork(chainDB.Client, &blockHash)
 				if err != nil {
 					log.Errorf("GetChainWork failed (%s): %v", blockHash, err)
 					continue

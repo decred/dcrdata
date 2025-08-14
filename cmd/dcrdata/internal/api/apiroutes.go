@@ -54,7 +54,7 @@ type DataSource interface {
 	GetBlockHash(idx int64) (string, error)
 	GetBlockHeight(hash string) (int64, error)
 	GetBlockByHash(string) (*wire.MsgBlock, error)
-	SpendingTransaction(fundingTx string, vout uint32) (string, uint32, int8, error)
+	SpendingTransaction(fundingTx string, vout uint32) (string, uint32, error)
 	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
 	AddressHistory(address string, N, offset int64, txnType dbtypes.AddrTxnViewType) ([]*dbtypes.AddressRow, *dbtypes.AddressBalance, error)
 	FillAddressTransactions(addrInfo *dbtypes.AddressInfo) error
@@ -80,7 +80,7 @@ type DataSource interface {
 	GetStakeInfoExtendedByHash(hash string) *apitypes.StakeInfoExtended
 	GetStakeInfoExtendedByHeight(idx int) *apitypes.StakeInfoExtended
 	GetPoolInfo(idx int) *apitypes.TicketPoolInfo
-	GetPoolInfoByHash(hash string) *apitypes.TicketPoolInfo
+	// GetPoolInfoByHash(hash string) *apitypes.TicketPoolInfo
 	GetPoolInfoRange(idx0, idx1 int) []apitypes.TicketPoolInfo
 	GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []uint32)
 	GetPool(idx int64) ([]string, error)
@@ -1667,6 +1667,11 @@ func (c *appContext) addressIoCsv(crlf bool, w http.ResponseWriter, r *http.Requ
 			strDirection = "-1"
 		}
 
+		var matchingTx string
+		if r.MatchingTxHash != nil {
+			matchingTx = r.MatchingTxHash.String()
+		}
+
 		err = writer.Write([]string{
 			r.TxHash.String(),
 			strDirection,
@@ -1675,7 +1680,7 @@ func (c *appContext) addressIoCsv(crlf bool, w http.ResponseWriter, r *http.Requ
 			strconv.FormatFloat(dcrutil.Amount(r.Value).ToCoin(), 'f', -1, 64),
 			strconv.FormatInt(r.TxBlockTime, 10),
 			txhelpers.TxTypeToString(int(r.TxType)),
-			r.MatchingTxHash.String(),
+			matchingTx,
 		})
 		if err != nil {
 			return // too late to write an error code

@@ -304,7 +304,7 @@
 			<td class="text-end fs15">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</td>
 		{{- else if or (eq $txType "credit") .IsFunding}}{{/* .IsFunding = true && txType = "all" is a credit */}}
 			<td class="text-end fs15">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</td>
-			{{- if ne .MatchedTx ""}}
+			{{- if .MatchedTx}}
 			<td class="text-end"><a href="/tx/{{.MatchedTx}}/in/{{.MatchedTxIndex}}"
 				data-txid="{{.MatchedTx}}"
 				data-action="mouseover->address#hashOver mouseout->address#hashOut"
@@ -315,7 +315,7 @@
 		{{- else}}{{/* either "debit", or "all" with .IsFunding = false */ -}}
 			{{- if eq .SentTotal 0.0}}
 			<td class="text-end">sstxcommitment</td>
-			{{- else if ne .MatchedTx ""}}
+			{{- else if .MatchedTx }}
 			<td class="text-end"><a href="/tx/{{.MatchedTx}}/out/{{.MatchedTxIndex}}" data-action="mouseover->address#hashOver mouseout->address#hashOut">source</a></td>
 			{{- else}}
 			<td class="text-end">N/A</td>

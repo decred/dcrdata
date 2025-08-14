@@ -5,6 +5,7 @@
 package types
 
 import (
+	"encoding/hex"
 	"encoding/json"
 
 	"github.com/decred/dcrdata/v8/db/dbtypes"
@@ -80,19 +81,38 @@ type InsightPagination struct {
 	IsToday string `json:"isToday,omitempty"`
 }
 
+var _ json.Unmarshaler = (*HexBytes)(nil)
+var _ json.Marshaler = HexBytes{}
+
+type HexBytes []byte
+
+func (hb HexBytes) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + hex.EncodeToString(hb) + `"`), nil // json.Marshal(hex.EncodeToString(hb)) but not absurdly inefficient
+}
+
+func (hb *HexBytes) UnmarshalJSON(b []byte) error {
+	var str string
+	err := json.Unmarshal(b, &str)
+	if err != nil {
+		return err
+	}
+	*hb, err = hex.DecodeString(str)
+	return err
+}
+
 // AddressTxnOutput models an address transaction outputs.
 type AddressTxnOutput struct {
-	Address       string  `json:"address"`
-	TxnID         string  `json:"txid"`
-	Vout          uint32  `json:"vout"`
-	BlockTime     int64   `json:"ts,omitempty"`
-	ScriptPubKey  string  `json:"scriptPubKey"`
-	Height        int64   `json:"height,omitempty"`
-	BlockHash     string  `json:"block_hash,omitempty"`
-	Amount        float64 `json:"amount,omitempty"`
-	Atoms         int64   `json:"atoms,omitempty"` // Not Required per Insight spec
-	Satoshis      int64   `json:"satoshis,omitempty"`
-	Confirmations int64   `json:"confirmations"`
+	Address       string   `json:"address"`
+	TxnID         string   `json:"txid"`
+	Vout          uint32   `json:"vout"`
+	BlockTime     int64    `json:"ts,omitempty"`
+	ScriptPubKey  HexBytes `json:"scriptPubKey"`
+	Height        int64    `json:"height,omitempty"`
+	BlockHash     string   `json:"block_hash,omitempty"`
+	Amount        float64  `json:"amount,omitempty"`
+	Atoms         int64    `json:"atoms,omitempty"` // Not Required per Insight spec
+	Satoshis      int64    `json:"satoshis,omitempty"`
+	Confirmations int64    `json:"confirmations"`
 }
 
 // TxOutFromDB converts a dbtypes.AddressTxnOutput to a api/types.AddressTxnOutput.

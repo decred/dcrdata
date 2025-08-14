@@ -374,24 +374,24 @@ func DeindexSwapsTableOnHeight(db *sql.DB) (err error) {
 
 // Delete duplicates
 
-func (pgb *ChainDB) DeleteDuplicateVins() (int64, error) {
-	return DeleteDuplicateVins(pgb.db)
+func (pgb *ChainDB) deleteDuplicateVins() (int64, error) {
+	return deleteDuplicateVins(pgb.db)
 }
 
-func (pgb *ChainDB) DeleteDuplicateVouts() (int64, error) {
-	return DeleteDuplicateVouts(pgb.db)
+func (pgb *ChainDB) deleteDuplicateVouts() (int64, error) {
+	return deleteDuplicateVouts(pgb.db)
 }
 
-func (pgb *ChainDB) DeleteDuplicateTxns() (int64, error) {
-	return DeleteDuplicateTxns(pgb.db)
+func (pgb *ChainDB) deleteDuplicateTxns() (int64, error) {
+	return deleteDuplicateTxns(pgb.db)
 }
 
-func (pgb *ChainDB) DeleteDuplicateAgendas() (int64, error) {
-	return DeleteDuplicateAgendas(pgb.db)
+func (pgb *ChainDB) deleteDuplicateAgendas() (int64, error) {
+	return deleteDuplicateAgendas(pgb.db)
 }
 
-func (pgb *ChainDB) DeleteDuplicateAgendaVotes() (int64, error) {
-	return DeleteDuplicateAgendaVotes(pgb.db)
+func (pgb *ChainDB) deleteDuplicateAgendaVotes() (int64, error) {
+	return deleteDuplicateAgendaVotes(pgb.db)
 }
 
 // Indexes checks

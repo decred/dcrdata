@@ -11,33 +11,20 @@ import (
 )
 
 // MsgBlockToDBBlock creates a dbtypes.Block from a wire.MsgBlock
-func MsgBlockToDBBlock(msgBlock *wire.MsgBlock, chainParams *chaincfg.Params, chainWork string, winners []string) *Block {
+func MsgBlockToDBBlock(msgBlock *wire.MsgBlock, chainParams *chaincfg.Params, chainWork string, winners []ChainHash) *Block {
 	// Create the dbtypes.Block structure
 	blockHeader := msgBlock.Header
 
-	// convert each transaction hash to a hex string
-	txHashStrs := make([]string, 0, len(msgBlock.Transactions))
-	for _, tx := range msgBlock.Transactions {
-		txHashStrs = append(txHashStrs, tx.CachedTxHash().String())
-	}
-
-	stxHashStrs := make([]string, 0, len(msgBlock.STransactions))
-	for _, tx := range msgBlock.STransactions {
-		stxHashStrs = append(stxHashStrs, tx.CachedTxHash().String())
-	}
-
 	// Assemble the block
 	return &Block{
-		Hash:    blockHeader.BlockHash().String(),
+		Hash:    ChainHash(blockHeader.BlockHash()),
 		Size:    uint32(msgBlock.SerializeSize()),
 		Height:  blockHeader.Height,
 		Version: uint32(blockHeader.Version),
 		NumTx:   uint32(len(msgBlock.Transactions) + len(msgBlock.STransactions)),
 		// nil []int64 for TxDbIDs
 		NumRegTx:     uint32(len(msgBlock.Transactions)),
-		Tx:           txHashStrs,
 		NumStakeTx:   uint32(len(msgBlock.STransactions)),
-		STx:          stxHashStrs,
 		Time:         NewTimeDef(blockHeader.Timestamp),
 		Nonce:        uint64(blockHeader.Nonce),
 		VoteBits:     blockHeader.VoteBits,
@@ -49,7 +36,7 @@ func MsgBlockToDBBlock(msgBlock *wire.MsgBlock, chainParams *chaincfg.Params, ch
 		SBits:        uint64(blockHeader.SBits),
 		Difficulty:   txhelpers.GetDifficultyRatio(blockHeader.Bits, chainParams),
 		StakeVersion: blockHeader.StakeVersion,
-		PreviousHash: blockHeader.PrevBlock.String(),
+		PreviousHash: ChainHash(blockHeader.PrevBlock),
 		ChainWork:    chainWork,
 		Winners:      winners,
 	}

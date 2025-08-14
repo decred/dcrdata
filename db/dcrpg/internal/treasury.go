@@ -6,10 +6,10 @@ package internal
 // These queries relate primarily to the "treasury" table.
 const (
 	CreateTreasuryTable = `CREATE TABLE IF NOT EXISTS treasury (
-		tx_hash TEXT,
+		tx_hash BYTEA,
 		tx_type INT4,
 		value INT8,
-		block_hash TEXT,
+		block_hash BYTEA,
 		block_height INT8,
 		block_time TIMESTAMPTZ NOT NULL,
 		is_mainchain BOOLEAN
@@ -43,12 +43,16 @@ const (
 	InsertTreasuryRowOnConflictDoNothing = InsertTreasuryRow + `ON CONFLICT (tx_hash, block_hash)
 		DO NOTHING;`
 
-	SelectTreasuryTxns = `SELECT * FROM treasury 
+	SelectTreasuryTxns = `SELECT tx_hash, tx_type, value, block_hash,
+			block_height, block_time, is_mainchain
+		FROM treasury 
 		WHERE is_mainchain
 		ORDER BY block_height DESC
 		LIMIT $1 OFFSET $2;`
 
-	SelectTypedTreasuryTxns = `SELECT * FROM treasury 
+	SelectTypedTreasuryTxns = `SELECT tx_hash, tx_type, value, block_hash,
+			block_height, block_time, is_mainchain
+		FROM treasury 
 		WHERE is_mainchain
 			AND tx_type = $1
 		ORDER BY block_height DESC

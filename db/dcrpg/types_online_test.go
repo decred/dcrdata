@@ -3,11 +3,46 @@
 package dcrpg
 
 import (
+	"crypto/rand"
 	"testing"
 	"time"
 
 	"github.com/decred/dcrdata/v8/db/dbtypes"
 )
+
+func TestChainHash_ScanValue(t *testing.T) {
+	// Clear the testing table.
+	if err := ClearTestingTable(sqlDb); err != nil {
+		t.Fatalf("Failed to clear the testing table: %v", err)
+	}
+
+	err := createTable(sqlDb, "hashtest", `CREATE TABLE IF NOT EXISTS hashtest  (
+		id SERIAL8 PRIMARY KEY,
+		hash BYTEA
+	);`)
+	if err != nil {
+		t.Error(err)
+	}
+
+	var ch dbtypes.ChainHash
+	rand.Read(ch[:])
+
+	t.Logf("Initial hash %v", ch)
+
+	var id uint64
+	err = sqlDb.QueryRow(`INSERT INTO hashtest (hash) VALUES ($1) RETURNING id`, ch).Scan(&id)
+	if err != nil {
+		t.Error(err)
+	}
+
+	var chScanned dbtypes.ChainHash
+	err = sqlDb.QueryRow(`SELECT hash FROM hashtest`).Scan(&chScanned)
+	if err != nil {
+		t.Error(err)
+	}
+
+	t.Logf("Scanned hash %v", chScanned) // Scanned TimeDef at 1454954400. Location set to: UTC  <== correct
+}
 
 var (
 	// Two times in different locations for the same instant in time.

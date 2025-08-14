@@ -16,7 +16,6 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrdata/v8/db/dbtypes"
-	"github.com/decred/dcrdata/v8/txhelpers"
 )
 
 const (
@@ -96,7 +95,7 @@ func CountCreditDebitRowsCompact(rows []*dbtypes.AddressRowCompact) (numCredit, 
 // in a []dbtypes.AddressRowCompact.
 func CountUnspentCreditRowsCompact(rows []*dbtypes.AddressRowCompact) (numCredit int) {
 	for _, row := range rows {
-		if row.IsFunding && txhelpers.IsZeroHash(row.MatchingTxHash) {
+		if row.IsFunding && row.MatchingTxHash.IsZero() {
 			numCredit++
 		}
 	}
@@ -324,7 +323,7 @@ func unspentCreditAddressRows(rows []*dbtypes.AddressRowCompact, N, offset int) 
 	var skipped int
 	out := make([]*dbtypes.AddressRowCompact, 0, N)
 	for _, row := range rows {
-		if !row.IsFunding || !txhelpers.IsZeroHash(row.MatchingTxHash) {
+		if !row.IsFunding || !row.MatchingTxHash.IsZero() {
 			continue
 		}
 
@@ -725,7 +724,7 @@ func NewAddressCache(rowCapacity, addressCapacity, utxoCapacityBytes int) *Addre
 	}
 	log.Debugf("Allowing %d cached UTXOs per address (max %d addresses), using ~%.0f MiB.",
 		ac.maxUTXOsPerAddr, addressCapacity, float64(utxoCapacityBytes)/1024/1024)
-	defer func() { go ac.Reporter() }()
+	go ac.Reporter()
 	return ac
 }
 
