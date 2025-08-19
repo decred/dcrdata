@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2024, The Decred developers
+// Copyright (c) 2018-2025, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -78,14 +78,14 @@ func (t *templates) reloadTemplates() error {
 	if errorStrings == nil {
 		return nil
 	}
-	return fmt.Errorf(strings.Join(errorStrings, " | "))
+	return fmt.Errorf("%s", strings.Join(errorStrings, " | "))
 }
 
 // execTemplateToString executes the associated input template using the
 // supplied data, and writes the result into a string. If the template fails to
 // execute or isn't found, a non-nil error will be returned. Check it before
-// writing to theclient, otherwise you might as well execute directly into
-// your response writer instead of the internal buffer of this function.
+// writing to the client, otherwise you might as well execute directly into your
+// response writer instead of the internal buffer of this function.
 func (t *templates) execTemplateToString(name string, data interface{}) (string, error) {
 	temp, ok := t.templates[name]
 	if !ok {

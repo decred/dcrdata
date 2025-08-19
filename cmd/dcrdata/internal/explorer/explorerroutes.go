@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2024, The Decred developers
+// Copyright (c) 2018-2025, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -68,6 +68,7 @@ type CommonPageData struct {
 	BaseURL       string // scheme + "://" + "host"
 	Path          string
 	RequestURI    string // path?query
+	Ready         bool
 }
 
 // FullURL constructs the page's complete URL.
@@ -2468,6 +2469,14 @@ func (exp *explorerUI) HandleApiRequestsOnSync(w http.ResponseWriter, r *http.Re
 	io.WriteString(w, str)
 }
 
+// HandleAPiRequestWhenNotReady handles all API request when the explorer is not
+// ready.
+func (exp *explorerUI) HandleAPiRequestWhenNotReady(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusServiceUnavailable)
+	io.WriteString(w, `{"message": "Something went wrong, explorer is not ready. Please try again later."}`)
+}
+
 // MarketPage is the page handler for the "/market" path.
 func (exp *explorerUI) MarketPage(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.exec("market", struct {
@@ -2527,6 +2536,7 @@ func (exp *explorerUI) commonData(r *http.Request) *CommonPageData {
 		BaseURL:    baseURL,
 		Path:       r.URL.Path,
 		RequestURI: r.URL.RequestURI(),
+		Ready:      exp.status.Ready() || exp.ShowingSyncStatusPage(),
 	}
 }
 

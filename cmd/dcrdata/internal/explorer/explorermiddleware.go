@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2021, The Decred developers
+// Copyright (c) 2018-2025, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -146,39 +146,54 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 	})
 }
 
-// SyncStatusPageIntercept serves only the syncing status page until it is
-// deactivated when ShowingSyncStatusPage is set to false. This page is served
-// for all the possible routes supported until the background syncing is done.
-func (exp *explorerUI) SyncStatusPageIntercept(next http.Handler) http.Handler {
+// StatusPageIntercept serves the syncing status page when
+// exp.ShowingSyncStatusPage is set to true until when exp.ShowingSyncStatusPage
+// is set to false. This page is served for all the possible routes supported
+// until the background syncing is done. If exp.Ready is false, an error
+// StatusPage is served.
+func (exp *explorerUI) StatusPageIntercept(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if exp.ShowingSyncStatusPage() {
 			exp.StatusPage(w, "Database Update Running. Please Wait.",
 				"Blockchain sync is running. Please wait.", "", ExpStatusSyncing)
 			return
 		}
+
+		if !exp.status.Ready() {
+			exp.StatusPage(w, defaultErrorCode, "Uh Oh. Something unexpected happened, try again later. If you see this error message, please reach out to us via matrix or other communication channel.", "", ExpStatusError)
+			return
+		}
+
 		// Otherwise, proceed to the next http handler.
 		next.ServeHTTP(w, r)
 	})
 }
 
-// SyncStatusAPIIntercept returns a json response back instead of a web page
-// when display sync status is active for the api endpoints supported.
-func (exp *explorerUI) SyncStatusAPIIntercept(next http.Handler) http.Handler {
+// APIStatusIntercept returns a json response back instead of a web page for the
+// api endpoints supported when display sync status is active or explore is not
+// ready.
+func (exp *explorerUI) APIStatusIntercept(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if exp.ShowingSyncStatusPage() {
 			exp.HandleApiRequestsOnSync(w, r)
 			return
 		}
+
+		if !exp.status.Ready() {
+			exp.HandleAPiRequestWhenNotReady(w)
+			return
+		}
+
 		// Otherwise, proceed to the next http handler.
 		next.ServeHTTP(w, r)
 	})
 }
 
-// SyncStatusFileIntercept triggers an HTTP error if a file is requested for
-// download before the DB is synced.
-func (exp *explorerUI) SyncStatusFileIntercept(next http.Handler) http.Handler {
+// ExplorerStatusFileIntercept triggers an HTTP error if a file is requested for
+// download before the DB is synced or when explorer is not ready.
+func (exp *explorerUI) ExplorerStatusFileIntercept(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if exp.ShowingSyncStatusPage() {
+		if exp.ShowingSyncStatusPage() || !exp.status.Ready() {
 			http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
 			return
 		}
