@@ -1,27 +1,43 @@
+version: "2"
 run:
   timeout: 10m
-
-output:
-  format: github-actions,colored-line-number
-
 linters:
-  disable-all: true
+  default: none
   enable:
     - asciicheck
     - bidichk
     - durationcheck
-    - exportloopref
-    - gofmt
-    - goimports
-    - gosimple
+    - errchkjson
     - govet
     - grouper
     - ineffassign
     - makezero
     - misspell
+    - nilerr
     - nosprintfhostport
     - reassign
+    - rowserrcheck
     - tparallel
-    - typecheck
     - unconvert
     - unparam
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

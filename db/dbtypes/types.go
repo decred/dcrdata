@@ -1047,8 +1047,11 @@ func (p *VinTxPropertyARRAY) Scan(src interface{}) error {
 		if !ok {
 			return fmt.Errorf("type assertion .(map[string]interface) failed")
 		}
-		b, _ := json.Marshal(VinTxPropertyMapIface)
-		err := json.Unmarshal(b, &ba[ii])
+		b, err := json.Marshal(VinTxPropertyMapIface)
+		if err != nil {
+			return err
+		}
+		err = json.Unmarshal(b, &ba[ii])
 		if err != nil {
 			return err
 		}

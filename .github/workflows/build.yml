@@ -9,22 +9,26 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: ['1.20', '1.21']
+        go: ['1.24', '1.25']
     steps:
-    - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab #v3.5.2
-
+    - name: Check out source
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
     - name: Set up Go
-      uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 #v4.0.1
+      uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
       with:
         go-version: ${{ matrix.go }}
-
+    - name: Use lint cache
+      uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+      with:
+        path: |
+          ~/.cache/golangci-lint
+        key: go-lint-${{ matrix.go }}-${{ hashFiles('./go.sum') }}
+        restore-keys: go-lint-${{ matrix.go }}
+    - name: Install Linters
+      run: "go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.5.0"
     - name: Go Build dcrdata
       run: go build -v ./...
       working-directory: ./cmd/dcrdata
-
-    - name: Install Linters
-      run: "curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.55.2"
-
     - name: Go Tests
       run: |
         ./run_tests.sh
@@ -34,12 +38,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [16.x, 18.x]
+        node-version: ['lts/*']
     steps:
-      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab #v3.5.2
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Use nodejs ${{ matrix.node-version }}
-        uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c #v3.6.0
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 #v5.0.0
         with:
           node-version: ${{ matrix.node-version }}
 

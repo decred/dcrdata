@@ -59,7 +59,7 @@ func TableExists(db *sql.DB, tableName string) (bool, error) {
 			log.Errorf("Close of Query failed: %v", e)
 		}
 	}()
-	return rows.Next(), nil
+	return rows.Next(), rows.Err()
 }
 
 func dropTable(db SqlExecutor, tableName string) error {
