@@ -3634,10 +3634,13 @@ func insertBlock(db *sql.DB, dbBlock *dbtypes.Block, isValid, isMainchain, check
 func insertBlockPrevNext(db *sql.DB, blockDbID uint64,
 	hash, prev, next *dbtypes.ChainHash) error {
 	rows, err := db.Query(internal.InsertBlockPrevNext, blockDbID, prev, hash, next)
-	if err == nil {
-		return rows.Close()
+	if err != nil {
+		return err
 	}
-	return err
+	if err = rows.Err(); err != nil {
+		return err
+	}
+	return rows.Close()
 }
 
 // insertBlockStats inserts the block stats into the stats table.

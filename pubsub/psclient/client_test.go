@@ -788,7 +788,10 @@ func TestDecodeMsgNewBlock(t *testing.T) {
 
 func TestDecodeMsgPing(t *testing.T) {
 	expectedInt := 2
-	MessageJSON, _ := json.Marshal(expectedInt)
+	MessageJSON, err := json.Marshal(expectedInt)
+	if err != nil {
+		t.Fatalf("Failed to marshal %d: %v", expectedInt, err)
+	}
 	msgPing := &pstypes.WebSocketMessage{
 		EventId: "ping",
 		Message: MessageJSON,
@@ -806,7 +809,10 @@ func TestDecodeMsgPing(t *testing.T) {
 
 func TestDecodeMsgString(t *testing.T) {
 	expectedStr := "meow"
-	MessageJSON, _ := json.Marshal(expectedStr)
+	MessageJSON, err := json.Marshal(expectedStr)
+	if err != nil {
+		t.Fatalf("Failed to marshal %q: %v", expectedStr, err)
+	}
 	msgPing := &pstypes.WebSocketMessage{
 		EventId: "message",
 		Message: MessageJSON,
