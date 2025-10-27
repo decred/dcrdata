@@ -394,16 +394,16 @@ func (pgb *ChainDB) deleteDuplicateAgendaVotes() (int64, error) {
 	return deleteDuplicateAgendaVotes(pgb.db)
 }
 
-func (pgb *ChainDB) DeleteDuplicateVotes() (int64, error) {
-	return DeleteDuplicateVotes(pgb.db)
+func (pgb *ChainDB) deleteDuplicateVotes() (int64, error) {
+	return deleteDuplicateVotes(pgb.db)
 }
 
-func (pgb *ChainDB) DeleteDuplicateMisses() (int64, error) {
-	return DeleteDuplicateMisses(pgb.db)
+func (pgb *ChainDB) deleteDuplicateMisses() (int64, error) {
+	return deleteDuplicateMisses(pgb.db)
 }
 
-func (pgb *ChainDB) DeleteDuplicateTreasuryTxs() (int64, error) {
-	return DeleteDuplicateTreasuryTxs(pgb.db)
+func (pgb *ChainDB) deleteDuplicateTreasuryTxs() (int64, error) {
+	return deleteDuplicateTreasuryTxs(pgb.db)
 }
 
 // Indexes checks
