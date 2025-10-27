@@ -5,6 +5,7 @@
 package insight
 
 import (
+	"context"
 	"math"
 
 	"github.com/decred/dcrd/blockchain/standalone/v2"
@@ -16,14 +17,14 @@ import (
 )
 
 // TxConverter converts dcrd-tx to insight tx
-func (iapi *InsightApi) TxConverter(txs []*chainjson.TxRawResult) ([]apitypes.InsightTx, error) {
-	return iapi.DcrToInsightTxns(txs, false, false, false)
+func (iapi *InsightApi) TxConverter(ctx context.Context, txs []*chainjson.TxRawResult) ([]apitypes.InsightTx, error) {
+	return iapi.DcrToInsightTxns(ctx, txs, false, false, false)
 }
 
 // DcrToInsightTxns converts a chainjson TxRawResult to a InsightTx. The asm,
 // scriptSig, and spending status may be skipped by setting the appropriate
 // input arguments.
-func (iapi *InsightApi) DcrToInsightTxns(txs []*chainjson.TxRawResult, noAsm, noScriptSig, noSpent bool) ([]apitypes.InsightTx, error) {
+func (iapi *InsightApi) DcrToInsightTxns(ctx context.Context, txs []*chainjson.TxRawResult, noAsm, noScriptSig, noSpent bool) ([]apitypes.InsightTx, error) {
 	newTxs := make([]apitypes.InsightTx, 0, len(txs))
 	for _, tx := range txs {
 		// Build new InsightTx
@@ -79,7 +80,7 @@ func (iapi *InsightApi) DcrToInsightTxns(txs []*chainjson.TxRawResult, noAsm, no
 			// work if the funding transaction is confirmed. Otherwise use RPC
 			// to get the funding transaction outpoint addresses.
 			if !vinGenerated {
-				addresses, _, err := iapi.BlockData.OutpointAddresses(vin.Txid, vin.Vout)
+				addresses, _, err := iapi.BlockData.OutpointAddresses(ctx, vin.Txid, vin.Vout)
 				if err == nil && len(addresses) > 0 {
 					InsightVin.Addr = addresses[0]
 				} else {
@@ -137,7 +138,7 @@ func (iapi *InsightApi) DcrToInsightTxns(txs []*chainjson.TxRawResult, noAsm, no
 			// Populate the spending status of all vouts. Note: this only
 			// gathers information from the database, which does not include
 			// mempool transactions.
-			addrFull, err := iapi.BlockData.SpendDetailsForFundingTx(txNew.Txid)
+			addrFull, err := iapi.BlockData.SpendDetailsForFundingTx(ctx, txNew.Txid)
 			if err != nil {
 				return nil, err
 			}

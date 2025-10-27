@@ -6,6 +6,7 @@ package pubsub
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -43,12 +44,12 @@ const (
 
 // DataSource defines the interface for collecting required data.
 type DataSource interface {
-	GetExplorerBlock(hash string) *exptypes.BlockInfo
-	DecodeRawTransaction(txhex string) (*chainjson.TxRawResult, error)
-	SendRawTransaction(txhex string) (string, error)
+	GetExplorerBlock(ctx context.Context, hash string) *exptypes.BlockInfo
+	DecodeRawTransaction(ctx context.Context, txhex string) (*chainjson.TxRawResult, error)
+	SendRawTransaction(ctx context.Context, txhex string) (string, error)
 	GetChainParams() *chaincfg.Params
-	BlockSubsidy(height int64, voters uint16) *chainjson.GetBlockSubsidyResult
-	Difficulty(timestamp int64) float64
+	BlockSubsidy(ctx context.Context, height int64, voters uint16) *chainjson.GetBlockSubsidyResult
+	Difficulty(ctx context.Context, timestamp int64) float64
 }
 
 // State represents the current state of block chain.
@@ -180,7 +181,7 @@ func closeWS(ws *websocket.Conn) {
 // connections. receiveLoop should be started as a goroutine, after conn.Add(1)
 // and before a conn.Wait(). receiveLoop returns when the websocket connection,
 // conn.ws, is closed, which should be initiated when sendLoop returns.
-func (psh *PubSubHub) receiveLoop(conn *connection) {
+func (psh *PubSubHub) receiveLoop(ctx context.Context, conn *connection) {
 	//defer conn.client.cl.unsubscribeAll()
 
 	// receiveLoop should be started after conn.Add(1) and before a conn.Wait().
@@ -288,7 +289,7 @@ func (psh *PubSubHub) receiveLoop(conn *connection) {
 
 		case "decodetx":
 			log.Debugf("Received decodetx signal for hex: %.40s...", reqEvent)
-			tx, err := psh.sourceBase.DecodeRawTransaction(reqEvent)
+			tx, err := psh.sourceBase.DecodeRawTransaction(ctx, reqEvent)
 			if err == nil {
 				var decoded []byte
 				decoded, err = json.MarshalIndent(tx, "", "    ")
@@ -306,7 +307,7 @@ func (psh *PubSubHub) receiveLoop(conn *connection) {
 
 		case "sendtx":
 			log.Debugf("Received sendtx signal for hex: %.40s...", reqEvent)
-			txid, err := psh.sourceBase.SendRawTransaction(reqEvent)
+			txid, err := psh.sourceBase.SendRawTransaction(ctx, reqEvent)
 			if err != nil {
 				respMsg.Data = fmt.Sprintf("error: %v", err)
 			} else {
@@ -572,7 +573,7 @@ func (psh *PubSubHub) WebSocketHandler(w http.ResponseWriter, r *http.Request) {
 		// the connection is closed. The connection will be forcibly closed when
 		// sendLoop returns if it is still opened.
 		conn.Add(1)
-		go psh.receiveLoop(conn)
+		go psh.receiveLoop(r.Context(), conn)
 
 		// Send loop (ping, new tx, block, etc. update loop). sendLoop returns
 		// when the client's signaling channel, conn.ch.cl.c, is closed.
@@ -608,10 +609,12 @@ func (psh *PubSubHub) StoreMPData(_ *mempool.StakeData, _ []exptypes.MempoolTx, 
 // Store processes and stores new block data, then signals to the WebSocketHub
 // that the new data is available.
 func (psh *PubSubHub) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
+	ctx := context.TODO()
+
 	// treasuryActive := txhelpers.IsTreasuryActive(psh.params.Net, int64(msgBlock.Header.Height))
 
 	// Retrieve block data for the passed block hash.
-	newBlockData := psh.sourceBase.GetExplorerBlock(msgBlock.BlockHash().String())
+	newBlockData := psh.sourceBase.GetExplorerBlock(ctx, msgBlock.BlockHash().String())
 
 	// Use the latest block's blocktime to get the last 24hr timestamp.
 	day := 24 * time.Hour
@@ -619,12 +622,12 @@ func (psh *PubSubHub) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBl
 
 	// Hashrate change over last day
 	timestamp := newBlockData.BlockTime.T.Add(-day).Unix()
-	last24hrDifficulty := psh.sourceBase.Difficulty(timestamp)
+	last24hrDifficulty := psh.sourceBase.Difficulty(ctx, timestamp)
 	last24HrHashRate := dbtypes.CalculateHashRate(last24hrDifficulty, targetTimePerBlock)
 
 	// Hashrate change over last month
 	timestamp = newBlockData.BlockTime.T.Add(-30 * day).Unix()
-	lastMonthDifficulty := psh.sourceBase.Difficulty(timestamp)
+	lastMonthDifficulty := psh.sourceBase.Difficulty(ctx, timestamp)
 	lastMonthHashRate := dbtypes.CalculateHashRate(lastMonthDifficulty, targetTimePerBlock)
 
 	difficulty := blockData.Header.Difficulty

@@ -63,12 +63,12 @@ const (
 )
 
 type DataSource interface {
-	GetHeight() (int64, error)
-	GetBlockHeight(hash string) (int64, error)
-	GetBlockHash(idx int64) (string, error)
+	GetHeight(context.Context) (int64, error)
+	GetBlockHeight(ctx context.Context, hash string) (int64, error)
+	GetBlockHash(ctx context.Context, idx int64) (string, error)
 }
 
-type StakeVersionsLatest func() (*chainjson.StakeVersions, error)
+type StakeVersionsLatest func(context.Context) (*chainjson.StakeVersions, error)
 
 // writeHTMLBadRequest is used for the Insight API error response for a BAD REQUEST.
 // This means the request was malformed in some way or the request HASH,
@@ -968,24 +968,28 @@ func GetAgendaIdCtx(r *http.Request) string {
 // BlockHashPathAndIndexCtx embeds the value at the url part {blockhash}, and
 // the corresponding block index, into a request context.
 func BlockHashPathAndIndexCtx(r *http.Request, source DataSource) context.Context {
+	ctx := r.Context()
+
 	hash := chi.URLParam(r, "blockhash")
-	height, err := source.GetBlockHeight(hash)
+	height, err := source.GetBlockHeight(ctx, hash)
 	if err != nil {
 		apiLog.Errorf("Unable to GetBlockHeight(%d): %v", height, err)
 	}
-	ctx := context.WithValue(r.Context(), ctxBlockHash, hash)
+	ctx = context.WithValue(r.Context(), ctxBlockHash, hash)
 	return context.WithValue(ctx, ctxBlockIndex, int(height)) // Must be int!
 }
 
 // StatusInfoCtx embeds the best block index and the POST form data for
 // parameter "q" into a request context.
 func StatusInfoCtx(r *http.Request, source DataSource) context.Context {
+	ctx := r.Context()
+
 	idx := int64(-1)
-	h, err := source.GetHeight()
+	h, err := source.GetHeight(ctx)
 	if h >= 0 && err == nil {
 		idx = h
 	}
-	ctx := context.WithValue(r.Context(), ctxBlockIndex, int(idx)) // Must be int!
+	ctx = context.WithValue(ctx, ctxBlockIndex, int(idx)) // Must be int!
 
 	q := r.FormValue("q")
 	return context.WithValue(ctx, ctxGetStatus, q)
@@ -994,56 +998,63 @@ func StatusInfoCtx(r *http.Request, source DataSource) context.Context {
 // BlockHashLatestCtx embeds the current block height and hash into a request
 // context.
 func BlockHashLatestCtx(r *http.Request, source DataSource) context.Context {
+	ctx := r.Context()
 	var hash string
 	// if hash, err = c.BlockData.GetBestBlockHash(int64(idx)); err != nil {
 	// 	apiLog.Errorf("Unable to GetBestBlockHash: %v", idx, err)
 	// }
-	idx, err := source.GetHeight()
+	idx, err := source.GetHeight(ctx)
 	if idx >= 0 && err == nil {
 		var err error
-		if hash, err = source.GetBlockHash(idx); err != nil {
+		if hash, err = source.GetBlockHash(ctx, idx); err != nil {
 			apiLog.Errorf("Unable to GetBlockHash(%d): %v", idx, err)
 		}
 	}
 
-	ctx := context.WithValue(r.Context(), ctxBlockIndex, int(idx)) // Must be int!
+	ctx = context.WithValue(ctx, ctxBlockIndex, int(idx)) // Must be int!
 	return context.WithValue(ctx, ctxBlockHash, hash)
 }
 
 // StakeVersionLatestCtx embeds the specified StakeVersionsLatest function into
 // a request context.
 func StakeVersionLatestCtx(r *http.Request, stakeVerFun StakeVersionsLatest) context.Context {
+	ctx := r.Context()
+
 	ver := -1
-	stkVers, err := stakeVerFun()
+	stkVers, err := stakeVerFun(ctx)
 	if err == nil && stkVers != nil {
 		ver = int(stkVers.StakeVersion)
 	}
 
-	return context.WithValue(r.Context(), ctxStakeVersionLatest, ver)
+	return context.WithValue(ctx, ctxStakeVersionLatest, ver)
 }
 
 // BlockIndexLatestCtx embeds the current block height into a request context.
 func BlockIndexLatestCtx(r *http.Request, source DataSource) context.Context {
+	ctx := r.Context()
+
 	idx := int64(-1)
-	h, err := source.GetHeight()
+	h, err := source.GetHeight(ctx)
 	if h >= 0 && err == nil {
 		idx = h
 	}
 
-	return context.WithValue(r.Context(), ctxBlockIndex, int(idx)) // Must be int!
+	return context.WithValue(ctx, ctxBlockIndex, int(idx)) // Must be int!
 }
 
 // GetBlockHeightCtx returns the block height for the block index or hash
 // specified on the URL path.
 func GetBlockHeightCtx(r *http.Request, source DataSource) (int64, error) {
-	idxI, ok := r.Context().Value(ctxBlockIndex).(int)
+	ctx := r.Context()
+
+	idxI, ok := ctx.Value(ctxBlockIndex).(int)
 	idx := int64(idxI)
 	if !ok || idx < 0 {
 		hash, err := GetBlockHashCtx(r)
 		if err != nil {
 			return 0, err
 		}
-		idx, err = source.GetBlockHeight(hash)
+		idx, err = source.GetBlockHeight(ctx, hash)
 		if err != nil {
 			return 0, err
 		}

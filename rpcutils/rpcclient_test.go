@@ -144,7 +144,7 @@ func TestOrphanedTipLength(t *testing.T) {
 		4: "something else",
 	}
 
-	hashFunc := func(idx int64) (string, error) {
+	hashFunc := func(_ context.Context, idx int64) (string, error) {
 		hash, ok := hashes[idx]
 		if ok {
 			return hash, nil

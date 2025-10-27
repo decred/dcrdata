@@ -100,12 +100,14 @@ const (
 
 func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
 		height, err := strconv.ParseInt(chi.URLParam(r, "blockhash"), 10, 0)
 		var hash string
 		if err != nil {
 			// Not a height, try it as a hash.
 			hash = chi.URLParam(r, "blockhash")
-			height, err = exp.dataSource.BlockHeight(hash)
+			height, err = exp.dataSource.BlockHeight(ctx, hash)
 			if exp.timeoutErrorPage(w, err, "BlockHashPathOrIndexCtx>BlockHeight") {
 				return
 			}
@@ -128,9 +130,9 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 				return
 			}
 
-			hash, err = exp.dataSource.GetBlockHash(height)
+			hash, err = exp.dataSource.GetBlockHash(ctx, height)
 			if err != nil {
-				hash, err = exp.dataSource.BlockHash(height)
+				hash, err = exp.dataSource.BlockHash(ctx, height)
 				if err != nil {
 					log.Errorf("(*ChainDB).BlockHash(%d) failed: %v", height, err)
 					exp.StatusPage(w, defaultErrorCode, "could not find that block",
@@ -140,7 +142,7 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 			}
 		}
 
-		ctx := context.WithValue(r.Context(), ctxBlockHash, hash)
+		ctx = context.WithValue(r.Context(), ctxBlockHash, hash)
 		ctx = context.WithValue(ctx, ctxBlockIndex, int(height)) // Must be int!
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

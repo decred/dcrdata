@@ -402,7 +402,7 @@ type ChartUpdater struct {
 	Tag string
 	// In addition to the sql.Rows and an error, the fetcher should return a
 	// context.CancelFunc if appropriate, else a dummy.
-	Fetcher func(*ChartData) (*sql.Rows, func(), error)
+	Fetcher func(context.Context, *ChartData) (*sql.Rows, func(), error)
 	// The Appender will be run under mutex lock.
 	Appender func(*ChartData, *sql.Rows) error
 }
@@ -867,7 +867,7 @@ func (charts *ChartData) Update() error {
 		stateID := charts.StateID()
 		// The Appender checks rows.Err
 		// nolint:rowserrcheck
-		rows, cancel, err := updater.Fetcher(charts)
+		rows, cancel, err := updater.Fetcher(charts.ctx, charts)
 		if err != nil {
 			err = fmt.Errorf("error encountered during charts %s update. aborting update: %v", updater.Tag, err)
 		} else {

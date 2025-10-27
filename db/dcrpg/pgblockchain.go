@@ -331,7 +331,7 @@ func (pgb *ChainDB) replaceCancelError(err error) error {
 // DB. Side chains known to dcrd are listed via the getchaintips RPC. Each block
 // presence in the postgres DB is checked, and any missing block is returned in
 // a SideChain along with a count of the total number of missing blocks.
-func (pgb *ChainDB) MissingSideChainBlocks() ([]dbtypes.SideChain, int, error) {
+func (pgb *ChainDB) MissingSideChainBlocks(ctx context.Context) ([]dbtypes.SideChain, int, error) {
 	// First get the side chain tips (head blocks).
 	tips, err := rpcutils.SideChains(pgb.Client)
 	if err != nil {
@@ -358,7 +358,7 @@ func (pgb *ChainDB) MissingSideChainBlocks() ([]dbtypes.SideChain, int, error) {
 		// For each block in the side chain, check if it already stored.
 		for is := range sideChain {
 			// Check for the block hash in the DB.
-			sideHeightDB, err := pgb.BlockHeight(sideChain[is])
+			sideHeightDB, err := pgb.BlockHeight(ctx, sideChain[is])
 			if errors.Is(err, dbtypes.ErrNoResult) {
 				// This block is NOT already in the DB.
 				ch, err := chainhash.NewHashFromStr(sideChain[is])
@@ -838,8 +838,8 @@ func (pgb *ChainDB) DropTables() {
 }
 
 // SideChainBlocks retrieves all known side chain blocks.
-func (pgb *ChainDB) SideChainBlocks() ([]*dbtypes.BlockStatus, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) SideChainBlocks(ctx context.Context) ([]*dbtypes.BlockStatus, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	scb, err := retrieveSideChainBlocks(ctx, pgb.db)
 	return scb, pgb.replaceCancelError(err)
@@ -847,8 +847,8 @@ func (pgb *ChainDB) SideChainBlocks() ([]*dbtypes.BlockStatus, error) {
 
 // SideChainTips retrieves the tip/head block for all known side chains.
 /*
-func (pgb *ChainDB) SideChainTips() ([]*dbtypes.BlockStatus, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) SideChainTips(ctx context.Context) ([]*dbtypes.BlockStatus, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	sct, err := retrieveSideChainTips(ctx, pgb.db)
 	return sct, pgb.replaceCancelError(err)
@@ -856,8 +856,8 @@ func (pgb *ChainDB) SideChainTips() ([]*dbtypes.BlockStatus, error) {
 */
 
 // DisapprovedBlocks retrieves all blocks disapproved by stakeholder votes.
-func (pgb *ChainDB) DisapprovedBlocks() ([]*dbtypes.BlockStatus, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) DisapprovedBlocks(ctx context.Context) ([]*dbtypes.BlockStatus, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	disb, err := retrieveDisapprovedBlocks(ctx, pgb.db)
 	return disb, pgb.replaceCancelError(err)
@@ -869,8 +869,8 @@ func chainHashFromStr(hash string) (ch dbtypes.ChainHash, err error) {
 }
 
 // BlockStatus retrieves the block chain status of the specified block.
-func (pgb *ChainDB) BlockStatus(hash string) (dbtypes.BlockStatus, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) BlockStatus(ctx context.Context, hash string) (dbtypes.BlockStatus, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	ch, err := chainHashFromStr(hash)
 	if err != nil {
@@ -882,8 +882,8 @@ func (pgb *ChainDB) BlockStatus(hash string) (dbtypes.BlockStatus, error) {
 
 // BlockStatuses retrieves the block chain statuses of all blocks at the given
 // height.
-func (pgb *ChainDB) BlockStatuses(height int64) ([]*dbtypes.BlockStatus, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) BlockStatuses(ctx context.Context, height int64) ([]*dbtypes.BlockStatus, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	blocks, err := retrieveBlockStatuses(ctx, pgb.db, height)
 	return blocks, pgb.replaceCancelError(err)
@@ -900,8 +900,8 @@ func (pgb *ChainDB) blockFlags(ctx context.Context, hash string) (bool, bool, er
 }
 
 // BlockFlags retrieves the block's isValid and isMainchain flags.
-func (pgb *ChainDB) BlockFlags(hash string) (bool, bool, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) BlockFlags(ctx context.Context, hash string) (bool, bool, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	return pgb.blockFlags(ctx, hash)
 }
@@ -921,12 +921,12 @@ func (pgb *ChainDB) blockChainDbID(ctx context.Context, ch dbtypes.ChainHash) (d
 
 // BlockChainDbID gets the row ID of the given block hash in the block_chain
 // table. The cancellation context is used without timeout.
-func (pgb *ChainDB) BlockChainDbID(hash string) (dbID uint64, err error) {
+func (pgb *ChainDB) BlockChainDbID(ctx context.Context, hash string) (dbID uint64, err error) {
 	ch, err := chainHashFromStr(hash)
 	if err != nil {
 		return 0, err
 	}
-	return pgb.blockChainDbID(pgb.ctx, ch)
+	return pgb.blockChainDbID(ctx, ch)
 }
 
 // BlockChainDbIDNoCancel gets the row ID of the given block hash in the
@@ -994,12 +994,12 @@ func (pgb *ChainDB) RegisterCharts(charts *cache.ChartData) {
 // TransactionBlocks retrieves the blocks in which the specified transaction
 // appears, along with the index of the transaction in each of the blocks. The
 // next and previous block hashes are NOT SET in each BlockStatus.
-func (pgb *ChainDB) TransactionBlocks(txHash string) ([]*dbtypes.BlockStatus, []uint32, error) {
+func (pgb *ChainDB) TransactionBlocks(ctx context.Context, txHash string) ([]*dbtypes.BlockStatus, []uint32, error) {
 	ch, err := chainHashFromStr(txHash)
 	if err != nil {
 		return nil, nil, err
 	}
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	hashes, heights, inds, valids, mainchains, err := retrieveTxnsBlocks(ctx, pgb.db, ch)
 	if err != nil {
@@ -1022,16 +1022,16 @@ func (pgb *ChainDB) TransactionBlocks(txHash string) ([]*dbtypes.BlockStatus, []
 }
 
 // HeightDB retrieves the best block height according to the meta table.
-func (pgb *ChainDB) HeightDB() (int64, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) HeightDB(ctx context.Context) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	_, height, err := dbBestBlock(ctx, pgb.db)
 	return height, pgb.replaceCancelError(err)
 }
 
 // HashDB retrieves the best block hash according to the meta table.
-func (pgb *ChainDB) HashDB() (string, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) HashDB(ctx context.Context) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	hash, _, err := dbBestBlock(ctx, pgb.db)
 	return hash.String(), pgb.replaceCancelError(err)
@@ -1039,8 +1039,8 @@ func (pgb *ChainDB) HashDB() (string, error) {
 
 // HeightHashDB retrieves the best block height and hash according to the meta
 // table.
-func (pgb *ChainDB) HeightHashDB() (int64, string, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) HeightHashDB(ctx context.Context) (int64, string, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	hash, height, err := dbBestBlock(ctx, pgb.db)
 	return height, hash.String(), pgb.replaceCancelError(err)
@@ -1048,8 +1048,8 @@ func (pgb *ChainDB) HeightHashDB() (int64, string, error) {
 
 // HeightDBLegacy queries the blocks table for the best block height. When the
 // tables are empty, the returned height will be -1.
-func (pgb *ChainDB) HeightDBLegacy() (int64, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) HeightDBLegacy(ctx context.Context) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	bestHeight, _, err := retrieveBestBlockHeight(ctx, pgb.db)
 	height := int64(bestHeight)
@@ -1060,8 +1060,8 @@ func (pgb *ChainDB) HeightDBLegacy() (int64, error) {
 }
 
 // HashDBLegacy queries the blocks table for the best block's hash.
-func (pgb *ChainDB) HashDBLegacy() (string, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) HashDBLegacy(ctx context.Context) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	_, bestHash, err := retrieveBestBlockHeight(ctx, pgb.db)
 	return bestHash.String(), pgb.replaceCancelError(err)
@@ -1069,8 +1069,8 @@ func (pgb *ChainDB) HashDBLegacy() (string, error) {
 
 // HeightHashDBLegacy queries the blocks table for the best block's height and
 // hash.
-func (pgb *ChainDB) HeightHashDBLegacy() (uint64, string, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) HeightHashDBLegacy(ctx context.Context) (uint64, string, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	height, hash, err := retrieveBestBlockHeight(ctx, pgb.db)
 	return height, hash.String(), pgb.replaceCancelError(err)
@@ -1090,13 +1090,13 @@ func (block *BestBlock) Height() int64 {
 
 // GetHeight is for middleware DataSource compatibility. No DB query is
 // performed; the last stored height is used.
-func (pgb *ChainDB) GetHeight() (int64, error) {
+func (pgb *ChainDB) GetHeight(_ context.Context) (int64, error) {
 	return pgb.Height(), nil
 }
 
 // GetBestBlockHash is for middleware DataSource compatibility. No DB query is
 // performed; the last stored height is used.
-func (pgb *ChainDB) GetBestBlockHash() (string, error) {
+func (pgb *ChainDB) GetBestBlockHash(_ context.Context) (string, error) {
 	return pgb.BestBlockHashStr(), nil
 }
 
@@ -1137,26 +1137,26 @@ func (pgb *ChainDB) BestBlockHashStr() string {
 	return pgb.bestBlock.HashStr()
 }
 
-func (pgb *ChainDB) blockHeight(hash dbtypes.ChainHash) (int64, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) blockHeight(ctx context.Context, hash dbtypes.ChainHash) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	height, err := retrieveBlockHeight(ctx, pgb.db, hash)
 	return height, pgb.replaceCancelError(err)
 }
 
 // BlockHeight queries the DB for the height of the specified hash.
-func (pgb *ChainDB) BlockHeight(hash string) (int64, error) {
+func (pgb *ChainDB) BlockHeight(ctx context.Context, hash string) (int64, error) {
 	ch, err := chainHashFromStr(hash)
 	if err != nil {
 		return 0, err
 	}
-	return pgb.blockHeight(ch)
+	return pgb.blockHeight(ctx, ch)
 }
 
 // BlockHash queries the DB for the hash of the mainchain block at the given
 // height.
-func (pgb *ChainDB) BlockHash(height int64) (string, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) BlockHash(ctx context.Context, height int64) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	hash, err := retrieveBlockHash(ctx, pgb.db, height)
 	return hash.String(), pgb.replaceCancelError(err)
@@ -1164,8 +1164,8 @@ func (pgb *ChainDB) BlockHash(height int64) (string, error) {
 
 // BlockTimeByHeight queries the DB for the time of the mainchain block at the
 // given height.
-func (pgb *ChainDB) BlockTimeByHeight(height int64) (int64, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) BlockTimeByHeight(ctx context.Context, height int64) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	time, err := retrieveBlockTimeByHeight(ctx, pgb.db, height)
 	return time.UNIX(), pgb.replaceCancelError(err)
@@ -1173,12 +1173,12 @@ func (pgb *ChainDB) BlockTimeByHeight(height int64) (int64, error) {
 
 // VotesInBlock returns the number of votes mined in the block with the
 // specified hash.
-func (pgb *ChainDB) VotesInBlock(hash string) (int16, error) {
+func (pgb *ChainDB) VotesInBlock(ctx context.Context, hash string) (int16, error) {
 	ch, err := chainHashFromStr(hash)
 	if err != nil {
 		return 0, err
 	}
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	voters, err := retrieveBlockVoteCount(ctx, pgb.db, ch)
 	if err != nil {
@@ -1192,7 +1192,7 @@ func (pgb *ChainDB) VotesInBlock(hash string) (int16, error) {
 // ProposalVotes retrieves all the votes data associated with the provided token.
 // TODO: Rewriting this func. may not be in chaindb struct, and in appContext instead
 // func (pgb *ChainDB) ProposalVotes(proposalToken string) (*dbtypes.ProposalChartsData, error) {
-// 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+// 	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 // 	defer cancel()
 // 	chartsData, err := retrieveProposalVotesData(ctx, pgb.db, proposalToken)
 // 	return chartsData, pgb.replaceCancelError(err)
@@ -1202,12 +1202,12 @@ func (pgb *ChainDB) VotesInBlock(hash string) (int16, error) {
 // specified funding transaction. The spending transaction hashes, the spending
 // tx input indexes, and the corresponding funding tx output indexes, and an
 // error value are returned.
-func (pgb *ChainDB) SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error) {
+func (pgb *ChainDB) SpendingTransactions(ctx context.Context, fundingTxID string) ([]string, []uint32, []uint32, error) {
 	ch, err := chainHashFromStr(fundingTxID)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	_, spendingTxns, vinInds, voutInds, err := retrieveSpendingTxsByFundingTx(ctx, pgb.db, ch)
 	txStrs := make([]string, len(spendingTxns))
@@ -1220,12 +1220,12 @@ func (pgb *ChainDB) SpendingTransactions(fundingTxID string) ([]string, []uint32
 // SpendingTransaction returns the transaction that spends the specified
 // transaction outpoint, if it is spent. The spending transaction hash, input
 // index, tx tree, and an error value are returned.
-func (pgb *ChainDB) SpendingTransaction(fundingTxID string, fundingTxVout uint32) (string, uint32, error) {
+func (pgb *ChainDB) SpendingTransaction(ctx context.Context, fundingTxID string, fundingTxVout uint32) (string, uint32, error) {
 	ch, err := chainHashFromStr(fundingTxID)
 	if err != nil {
 		return "", 0, err
 	}
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	_, spendingTx, vinInd, err := retrieveSpendingTxByTxOut(ctx, pgb.db, ch, fundingTxVout)
 	return spendingTx.String(), vinInd, pgb.replaceCancelError(err)
@@ -1233,12 +1233,12 @@ func (pgb *ChainDB) SpendingTransaction(fundingTxID string, fundingTxVout uint32
 
 // BlockTransactions retrieves all transactions in the specified block, their
 // indexes in the block, their tree, and an error value.
-func (pgb *ChainDB) BlockTransactions(blockHash string) ([]string, []uint32, []int8, error) {
+func (pgb *ChainDB) BlockTransactions(ctx context.Context, blockHash string) ([]string, []uint32, []int8, error) {
 	ch, err := chainHashFromStr(blockHash)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	blockTransactions, blockInds, trees, _, err := retrieveTxsByBlockHash(ctx, pgb.db, ch)
 	txStrs := make([]string, len(blockTransactions))
@@ -1250,12 +1250,12 @@ func (pgb *ChainDB) BlockTransactions(blockHash string) ([]string, []uint32, []i
 
 // Transaction retrieves all rows from the transactions table for the given
 // transaction hash.
-func (pgb *ChainDB) Transaction(txHash string) ([]*dbtypes.Tx, error) {
+func (pgb *ChainDB) Transaction(ctx context.Context, txHash string) ([]*dbtypes.Tx, error) {
 	ch, err := chainHashFromStr(txHash)
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	_, dbTxs, err := retrieveDbTxsByHash(ctx, pgb.db, ch)
 	return dbTxs, pgb.replaceCancelError(err)
@@ -1263,12 +1263,12 @@ func (pgb *ChainDB) Transaction(txHash string) ([]*dbtypes.Tx, error) {
 
 // BlockMissedVotes retrieves the ticket IDs for all missed votes in the
 // specified block, and an error value.
-func (pgb *ChainDB) BlockMissedVotes(blockHash string) ([]string, error) {
+func (pgb *ChainDB) BlockMissedVotes(ctx context.Context, blockHash string) ([]string, error) {
 	ch, err := chainHashFromStr(blockHash)
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	mv, err := retrieveMissedVotesInBlock(ctx, pgb.db, ch)
 	txStrs := make([]string, len(mv))
@@ -1280,8 +1280,8 @@ func (pgb *ChainDB) BlockMissedVotes(blockHash string) ([]string, error) {
 
 // missedVotesForBlockRange retrieves the number of missed votes for the block
 // range specified.
-func (pgb *ChainDB) missedVotesForBlockRange(startHeight, endHeight int64) (int64, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) missedVotesForBlockRange(ctx context.Context, startHeight, endHeight int64) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	missed, err := retrieveMissedVotesForBlockRange(ctx, pgb.db, startHeight, endHeight)
 	return missed, pgb.replaceCancelError(err)
@@ -1293,7 +1293,7 @@ func (pgb *ChainDB) missedVotesForBlockRange(startHeight, endHeight int64) (int6
 // never missed a vote, the returned error will be dbtypes.ErrNoResult.
 /*
 func (pgb *ChainDB) TicketMisses(ticketHash string) ([]string, []int64, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	blockHashes, blockHeights, err := retrieveMissesForTicket(ctx, pgb.db, ticketHash)
 	return blockHashes, blockHeights, pgb.replaceCancelError(err)
@@ -1303,12 +1303,12 @@ func (pgb *ChainDB) TicketMisses(ticketHash string) ([]string, []int64, error) {
 // TicketMiss retrieves the mainchain block in which the specified ticket was
 // called to vote but failed to do so (miss). If the ticket never missed a vote,
 // the returned error will be dbtypes.ErrNoResult.
-func (pgb *ChainDB) TicketMiss(ticketHash string) (string, int64, error) {
+func (pgb *ChainDB) TicketMiss(ctx context.Context, ticketHash string) (string, int64, error) {
 	ch, err := chainHashFromStr(ticketHash)
 	if err != nil {
 		return "", 0, err
 	}
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	blockHash, blockHeight, err := retrieveMissForTicket(ctx, pgb.db, ch)
 	return blockHash.String(), blockHeight, pgb.replaceCancelError(err)
@@ -1316,12 +1316,12 @@ func (pgb *ChainDB) TicketMiss(ticketHash string) (string, int64, error) {
 
 // PoolStatusForTicket retrieves the specified ticket's spend status and ticket
 // pool status, and an error value.
-func (pgb *ChainDB) PoolStatusForTicket(txid string) (dbtypes.TicketSpendType, dbtypes.TicketPoolStatus, error) {
+func (pgb *ChainDB) PoolStatusForTicket(ctx context.Context, txid string) (dbtypes.TicketSpendType, dbtypes.TicketPoolStatus, error) {
 	ch, err := chainHashFromStr(txid)
 	if err != nil {
 		return 0, 0, err
 	}
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	_, spendType, poolStatus, err := retrieveTicketStatusByHash(ctx, pgb.db, ch)
 	return spendType, poolStatus, pgb.replaceCancelError(err)
@@ -1329,12 +1329,12 @@ func (pgb *ChainDB) PoolStatusForTicket(txid string) (dbtypes.TicketSpendType, d
 
 // VoutValue retrieves the value of the specified transaction outpoint in atoms.
 // TEST ONLY REMOVE
-func (pgb *ChainDB) VoutValue(txID string, vout uint32) (uint64, error) {
+func (pgb *ChainDB) VoutValue(ctx context.Context, txID string, vout uint32) (uint64, error) {
 	ch, err := chainHashFromStr(txID)
 	if err != nil {
 		return 0, err
 	}
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	voutValue, err := retrieveVoutValue(ctx, pgb.db, ch, vout)
 	if err != nil {
@@ -1347,12 +1347,12 @@ func (pgb *ChainDB) VoutValue(txID string, vout uint32) (uint64, error) {
 // transaction. The corresponding indexes in the block and tx trees of the
 // outpoints, and an error value are also returned.
 // TEST ONLY REMOVE
-func (pgb *ChainDB) VoutValues(txID string) ([]uint64, []uint32, []int8, error) {
+func (pgb *ChainDB) VoutValues(ctx context.Context, txID string) ([]uint64, []uint32, []int8, error) {
 	ch, err := chainHashFromStr(txID)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	voutValues, txInds, txTrees, err := retrieveVoutValues(ctx, pgb.db, ch)
 	if err != nil {
@@ -1364,12 +1364,12 @@ func (pgb *ChainDB) VoutValues(txID string) ([]uint64, []uint32, []int8, error) 
 // TransactionBlock retrieves the hash of the block containing the specified
 // transaction. The index of the transaction within the block, the transaction
 // index, and an error value are also returned.
-func (pgb *ChainDB) TransactionBlock(txID string) (string, uint32, int8, error) {
+func (pgb *ChainDB) TransactionBlock(ctx context.Context, txID string) (string, uint32, int8, error) {
 	ch, err := chainHashFromStr(txID)
 	if err != nil {
 		return "", 0, 0, err
 	}
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	_, blockHash, blockInd, tree, err := retrieveTxByHash(ctx, pgb.db, ch)
 	return blockHash.String(), blockInd, tree, pgb.replaceCancelError(err)
@@ -1377,8 +1377,8 @@ func (pgb *ChainDB) TransactionBlock(txID string) (string, uint32, int8, error) 
 
 // AgendaVotes fetches the data used to plot a graph of votes cast per day per
 // choice for the provided agenda.
-func (pgb *ChainDB) AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) AgendaVotes(ctx context.Context, agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 
 	chainInfo := pgb.ChainInfo()
@@ -1396,8 +1396,8 @@ func (pgb *ChainDB) AgendaVotes(agendaID string, chartType int) (*dbtypes.Agenda
 
 // AgendasVotesSummary fetches the total vote choices count for the provided
 // agenda.
-func (pgb *ChainDB) AgendasVotesSummary(agendaID string) (summary *dbtypes.AgendaSummary, err error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) AgendasVotesSummary(ctx context.Context, agendaID string) (summary *dbtypes.AgendaSummary, err error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 
 	chainInfo := pgb.ChainInfo()
@@ -1419,8 +1419,8 @@ func (pgb *ChainDB) AgendasVotesSummary(agendaID string) (summary *dbtypes.Agend
 }
 
 // AgendaVoteCounts returns the vote counts for the agenda as builtin types.
-func (pgb *ChainDB) AgendaVoteCounts(agendaID string) (yes, abstain, no uint32, err error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) AgendaVoteCounts(ctx context.Context, agendaID string) (yes, abstain, no uint32, err error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 
 	chainInfo := pgb.ChainInfo()
@@ -1444,11 +1444,11 @@ func (pgb *ChainDB) AllAgendas() (map[string]dbtypes.MileStone, error) {
 // specified grouping where there are entries in the addresses table for the
 // given address.
 /*
-func (pgb *ChainDB) NumAddressIntervals(addr string, grouping dbtypes.TimeBasedGrouping) (int64, error) {
+func (pgb *ChainDB) NumAddressIntervals(ctx context.Context, addr string, grouping dbtypes.TimeBasedGrouping) (int64, error) {
 	if grouping >= dbtypes.NumIntervals {
 		return 0, fmt.Errorf("invalid time grouping %d", grouping)
 	}
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	return retrieveAddressTxsCount(ctx, pgb.db, addr, grouping.String())
 }
@@ -1459,7 +1459,7 @@ func (pgb *ChainDB) NumAddressIntervals(addr string, grouping dbtypes.TimeBasedG
 // by years, months, weeks and days time grouping in seconds.
 // This helps plot more meaningful address history graphs to the user.
 /*
-func (pgb *ChainDB) AddressMetrics(addr string) (*dbtypes.AddressMetrics, error) {
+func (pgb *ChainDB) AddressMetrics(ctx context.Context, addr string) (*dbtypes.AddressMetrics, error) {
 	_, err := stdaddr.DecodeAddress(addr, pgb.chainParams)
 	if err != nil {
 		return nil, err
@@ -1488,7 +1488,7 @@ func (pgb *ChainDB) AddressMetrics(addr string) (*dbtypes.AddressMetrics, error)
 
 	// Get the time of the block with the first transaction involving the
 	// address (oldest transaction block time).
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	blockTime, err := retrieveOldestTxBlockTime(ctx, pgb.db, addr)
 	if err != nil {
@@ -1505,7 +1505,7 @@ func (pgb *ChainDB) AddressMetrics(addr string) (*dbtypes.AddressMetrics, error)
 // the first N transactions starting from the offset element in the set of all
 // txnType transactions.
 /*
-func (pgb *ChainDB) AddressTransactions(address string, N, offset int64,
+func (pgb *ChainDB) AddressTransactions(ctx context.Context, address string, N, offset int64,
 	txnType dbtypes.AddrTxnViewType) (addressRows []*dbtypes.AddressRow, err error) {
 	_, err = stdaddr.DecodeAddress(address, pgb.chainParams)
 	if err != nil {
@@ -1530,7 +1530,7 @@ func (pgb *ChainDB) AddressTransactions(address string, N, offset int64,
 		return nil, fmt.Errorf("unknown AddrTxnViewType %v", txnType)
 	}
 
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 
 	addressRows, err = addrFunc(ctx, pgb.db, address, N, offset)
@@ -1543,8 +1543,8 @@ func (pgb *ChainDB) AddressTransactions(address string, N, offset int64,
 // rows for the given address. There is presently a hard limit of 3 million rows
 // that may be returned, which is more than 4x the count for the treasury
 // address as of mainnet block 521900.
-func (pgb *ChainDB) AddressTransactionsAll(address string) (addressRows []*dbtypes.AddressRow, err error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) AddressTransactionsAll(ctx context.Context, address string) (addressRows []*dbtypes.AddressRow, err error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 
 	const limit = 3000000
@@ -1558,8 +1558,8 @@ func (pgb *ChainDB) AddressTransactionsAll(address string) (addressRows []*dbtyp
 // mainchain only) addresses table rows for the given address. There is
 // presently a hard limit of 3 million rows that may be returned, which is more
 // than 4x the count for the treasury address as of mainnet block 521900.
-func (pgb *ChainDB) AddressTransactionsAllMerged(address string) (addressRows []*dbtypes.AddressRow, err error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) AddressTransactionsAllMerged(ctx context.Context, address string) (addressRows []*dbtypes.AddressRow, err error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 
 	const limit = 3000000
@@ -1573,8 +1573,8 @@ func (pgb *ChainDB) AddressTransactionsAllMerged(address string) (addressRows []
 
 // AddressHistoryAll retrieves N address rows of type AddrTxnAll, skipping over
 // offset rows first, in order of block time.
-func (pgb *ChainDB) AddressHistoryAll(address string, N, offset int64) ([]*dbtypes.AddressRow, *dbtypes.AddressBalance, error) {
-	return pgb.AddressHistory(address, N, offset, dbtypes.AddrTxnAll)
+func (pgb *ChainDB) AddressHistoryAll(ctx context.Context, address string, N, offset int64) ([]*dbtypes.AddressRow, *dbtypes.AddressBalance, error) {
+	return pgb.AddressHistory(ctx, address, N, offset, dbtypes.AddrTxnAll)
 }
 
 // TicketPoolBlockMaturity returns the block at which all tickets with height
@@ -1586,9 +1586,9 @@ func (pgb *ChainDB) TicketPoolBlockMaturity() int64 {
 
 // TicketPoolByDateAndInterval fetches the tickets ordered by the purchase date
 // interval provided and an error value.
-func (pgb *ChainDB) TicketPoolByDateAndInterval(maturityBlock int64,
+func (pgb *ChainDB) TicketPoolByDateAndInterval(ctx context.Context, maturityBlock int64,
 	interval dbtypes.TimeBasedGrouping) (*dbtypes.PoolTicketsData, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	tpd, err := retrieveTicketsByDate(ctx, pgb.db, maturityBlock, interval.String())
 	return tpd, pgb.replaceCancelError(err)
@@ -1599,8 +1599,8 @@ func (pgb *ChainDB) TicketPoolByDateAndInterval(maturityBlock int64,
 // whose count is defined by chainParams.StakeDiffWindowSize. During this
 // chainParams.StakeDiffWindowSize block interval the ticket price and the
 // difficulty value is constant.
-func (pgb *ChainDB) PosIntervals(limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) PosIntervals(ctx context.Context, limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	bgi, err := retrieveWindowBlocks(ctx, pgb.db,
 		pgb.chainParams.StakeDiffWindowSize, pgb.Height(), limit, offset)
@@ -1610,12 +1610,12 @@ func (pgb *ChainDB) PosIntervals(limit, offset uint64) ([]*dbtypes.BlocksGrouped
 // TimeBasedIntervals retrieves blocks groups by the selected time-based
 // interval. For the consecutive groups the number of blocks grouped together is
 // not uniform.
-func (pgb *ChainDB) TimeBasedIntervals(timeGrouping dbtypes.TimeBasedGrouping,
+func (pgb *ChainDB) TimeBasedIntervals(ctx context.Context, timeGrouping dbtypes.TimeBasedGrouping,
 	limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error) {
 	if timeGrouping >= dbtypes.NumIntervals {
 		return nil, fmt.Errorf("invalid time grouping %d", timeGrouping)
 	}
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	bgi, err := retrieveTimeBasedBlockListing(ctx, pgb.db, timeGrouping.String(),
 		limit, offset)
@@ -1629,7 +1629,7 @@ func (pgb *ChainDB) TimeBasedIntervals(timeGrouping dbtypes.TimeBasedGrouping,
 // a query and updates the cache. If there is no cached data for the interval,
 // this will launch a new query for the data if one is not already running, and
 // if one is running, it will wait for the query to complete.
-func (pgb *ChainDB) TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) (*dbtypes.PoolTicketsData,
+func (pgb *ChainDB) TicketPoolVisualization(ctx context.Context, interval dbtypes.TimeBasedGrouping) (*dbtypes.PoolTicketsData,
 	*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, int64, error) {
 	if interval >= dbtypes.NumIntervals {
 		return nil, nil, nil, -1, fmt.Errorf("invalid time grouping %d", interval)
@@ -1679,7 +1679,7 @@ func (pgb *ChainDB) TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) 
 
 	// Retrieve chart data for best block in DB.
 	var err error
-	timeChart, priceChart, outputsChart, height, err = pgb.ticketPoolVisualization(interval)
+	timeChart, priceChart, outputsChart, height, err = pgb.ticketPoolVisualization(ctx, interval)
 	if err != nil {
 		log.Errorf("Failed to fetch ticket pool data: %v", err)
 		return nil, nil, nil, 0, err
@@ -1696,7 +1696,7 @@ func (pgb *ChainDB) TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) 
 // counts by ticket type (solo, pool, other split). The interval may be one of:
 // "mo", "wk", "day", or "all". The data is needed to populate the ticketpool
 // graphs. The data grouped by time and price are returned in a slice.
-func (pgb *ChainDB) ticketPoolVisualization(interval dbtypes.TimeBasedGrouping) (timeChart *dbtypes.PoolTicketsData,
+func (pgb *ChainDB) ticketPoolVisualization(ctx context.Context, interval dbtypes.TimeBasedGrouping) (timeChart *dbtypes.PoolTicketsData,
 	priceChart *dbtypes.PoolTicketsData, byInputs *dbtypes.PoolTicketsData, height int64, err error) {
 	if interval >= dbtypes.NumIntervals {
 		return nil, nil, nil, 0, fmt.Errorf("invalid time grouping %d", interval)
@@ -1709,19 +1709,19 @@ func (pgb *ChainDB) ticketPoolVisualization(interval dbtypes.TimeBasedGrouping) 
 		maturityBlock := pgb.TicketPoolBlockMaturity()
 
 		// Tickets grouped by time interval
-		timeChart, err = pgb.TicketPoolByDateAndInterval(maturityBlock, interval)
+		timeChart, err = pgb.TicketPoolByDateAndInterval(ctx, maturityBlock, interval)
 		if err != nil {
 			return nil, nil, nil, 0, err
 		}
 
 		// Tickets grouped by price
-		priceChart, err = pgb.TicketsByPrice(maturityBlock)
+		priceChart, err = pgb.TicketsByPrice(ctx, maturityBlock)
 		if err != nil {
 			return nil, nil, nil, 0, err
 		}
 
 		// Tickets grouped by number of inputs.
-		byInputs, err = pgb.TicketsByInputCount()
+		byInputs, err = pgb.TicketsByInputCount(ctx)
 		if err != nil {
 			return nil, nil, nil, 0, err
 		}
@@ -1739,12 +1739,12 @@ func (pgb *ChainDB) ticketPoolVisualization(interval dbtypes.TimeBasedGrouping) 
 
 // GetTicketInfo retrieves information about the pool and spend statuses, the
 // purchase block, the lottery block, and the spending transaction.
-func (pgb *ChainDB) GetTicketInfo(txid string) (*apitypes.TicketInfo, error) {
+func (pgb *ChainDB) GetTicketInfo(ctx context.Context, txid string) (*apitypes.TicketInfo, error) {
 	ch, err := chainHashFromStr(txid)
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	spendStatus, poolStatus, purchaseBlock, lotteryBlock, spendTxid, err := retrieveTicketInfoByHash(ctx, pgb.db, ch)
 	if err != nil {
@@ -1789,8 +1789,8 @@ func (pgb *ChainDB) GetTicketInfo(txid string) (*apitypes.TicketInfo, error) {
 	}, nil
 }
 
-func (pgb *ChainDB) TSpendVotes(tspendID *chainhash.Hash) (*dbtypes.TreasurySpendVotes, error) {
-	tspendVotesResult, err := pgb.Client.GetTreasurySpendVotes(pgb.ctx, nil, []*chainhash.Hash{tspendID})
+func (pgb *ChainDB) TSpendVotes(ctx context.Context, tspendID *chainhash.Hash) (*dbtypes.TreasurySpendVotes, error) {
+	tspendVotesResult, err := pgb.Client.GetTreasurySpendVotes(ctx, nil, []*chainhash.Hash{tspendID})
 	if err != nil {
 		return nil, err
 	}
@@ -1818,13 +1818,13 @@ func (pgb *ChainDB) TSpendVotes(tspendID *chainhash.Hash) (*dbtypes.TreasurySpen
 }
 
 // TreasuryBalance calculates the *dbtypes.TreasuryBalance.
-func (pgb *ChainDB) TreasuryBalance() (*dbtypes.TreasuryBalance, error) {
+func (pgb *ChainDB) TreasuryBalance(ctx context.Context) (*dbtypes.TreasuryBalance, error) {
 	var addCount, added, immatureCount, immature, spendCount, spent, baseCount, base int64
 
 	_, tipHeight := pgb.BestBlock()
 	maturityHeight := tipHeight - int64(pgb.chainParams.CoinbaseMaturity)
 
-	rows, err := pgb.db.QueryContext(pgb.ctx, internal.SelectTreasuryBalance, maturityHeight)
+	rows, err := pgb.db.QueryContext(ctx, internal.SelectTreasuryBalance, maturityHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -1877,14 +1877,14 @@ func (pgb *ChainDB) TreasuryBalance() (*dbtypes.TreasuryBalance, error) {
 }
 
 // TreasuryTxns fetches filtered treasury transactions.
-func (pgb *ChainDB) TreasuryTxns(n, offset int64, txType stake.TxType) ([]*dbtypes.TreasuryTx, error) {
+func (pgb *ChainDB) TreasuryTxns(ctx context.Context, n, offset int64, txType stake.TxType) ([]*dbtypes.TreasuryTx, error) {
 	var rows *sql.Rows
 	var err error
 	switch txType {
 	case -1:
-		rows, err = pgb.db.QueryContext(pgb.ctx, internal.SelectTreasuryTxns, n, offset)
+		rows, err = pgb.db.QueryContext(ctx, internal.SelectTreasuryTxns, n, offset)
 	default:
-		rows, err = pgb.db.QueryContext(pgb.ctx, internal.SelectTypedTreasuryTxns, txType, n, offset)
+		rows, err = pgb.db.QueryContext(ctx, internal.SelectTypedTreasuryTxns, txType, n, offset)
 	}
 
 	if err != nil {
@@ -1909,8 +1909,8 @@ func (pgb *ChainDB) TreasuryTxns(n, offset int64, txType stake.TxType) ([]*dbtyp
 	return txns, nil
 }
 
-func (pgb *ChainDB) updateProjectFundCache() error {
-	_, _, err := pgb.AddressHistoryAll(pgb.devAddress, 1, 0)
+func (pgb *ChainDB) updateProjectFundCache(ctx context.Context) error {
+	_, _, err := pgb.AddressHistoryAll(ctx, pgb.devAddress, 1, 0)
 	if err != nil && !IsRetryError(err) {
 		err = pgb.replaceCancelError(err)
 		return fmt.Errorf("failed to update project fund data: %w", err)
@@ -1945,20 +1945,20 @@ func (pgb *ChainDB) FreshenAddressCaches(lazyProjectFund bool, expireAddresses [
 	log.Infof("Pre-fetching project fund data at height %d...", pgb.Height())
 	if lazyProjectFund {
 		go func() {
-			if err := pgb.updateProjectFundCache(); err != nil {
+			if err := pgb.updateProjectFundCache(pgb.ctx); err != nil {
 				log.Error(err)
 			}
 		}()
 		return nil
 	}
-	return pgb.updateProjectFundCache()
+	return pgb.updateProjectFundCache(pgb.ctx)
 }
 
 // DevBalance returns the current development/project fund balance, updating the
 // cached balance if it is stale. DevBalance differs slightly from
 // addressBalance(devAddress) in that it will not initiate a DB query if a chain
 // reorganization is in progress.
-func (pgb *ChainDB) DevBalance() (*dbtypes.AddressBalance, error) {
+func (pgb *ChainDB) DevBalance(ctx context.Context) (*dbtypes.AddressBalance, error) {
 	// Check cache first.
 	cachedBalance, validBlock := pgb.AddressCache.Balance(pgb.devAddress) // bestBlockHash := pgb.BestBlockHash()
 	if cachedBalance != nil && validBlock != nil /*  && validBlock.Hash == *bestBlockHash */ {
@@ -1966,7 +1966,7 @@ func (pgb *ChainDB) DevBalance() (*dbtypes.AddressBalance, error) {
 	}
 
 	if !pgb.InReorg {
-		bal, _, err := pgb.AddressBalance(pgb.devAddress)
+		bal, _, err := pgb.AddressBalance(ctx, pgb.devAddress)
 		if err != nil {
 			return nil, err
 		}
@@ -1983,7 +1983,7 @@ func (pgb *ChainDB) DevBalance() (*dbtypes.AddressBalance, error) {
 // AddressBalance attempts to retrieve balance information for a specific
 // address from cache, and if cache is stale or missing data for the address, a
 // DB query is used. A successful DB query will freshen the cache.
-func (pgb *ChainDB) AddressBalance(address string) (bal *dbtypes.AddressBalance, cacheUpdated bool, err error) {
+func (pgb *ChainDB) AddressBalance(ctx context.Context, address string) (bal *dbtypes.AddressBalance, cacheUpdated bool, err error) {
 	_, err = stdaddr.DecodeAddress(address, pgb.chainParams)
 	if err != nil {
 		return
@@ -2009,7 +2009,7 @@ func (pgb *ChainDB) AddressBalance(address string) (bal *dbtypes.AddressBalance,
 		<-wait
 
 		// Try again, starting with the cache.
-		return pgb.AddressBalance(address)
+		return pgb.AddressBalance(ctx, address)
 	}
 
 	// We will run the DB query, so block others from doing the same. When query
@@ -2020,7 +2020,7 @@ func (pgb *ChainDB) AddressBalance(address string) (bal *dbtypes.AddressBalance,
 	log.Tracef("AddressBalance: cache MISS for %s.", address)
 
 	// Cache is empty or stale, so query the DB.
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	bal, err = retrieveAddressBalance(ctx, pgb.db, address)
 	if err != nil {
@@ -2038,7 +2038,7 @@ func (pgb *ChainDB) AddressBalance(address string) (bal *dbtypes.AddressBalance,
 // ongoing query. On completion, the cache should be ready, although it must be
 // checked again. The returned []*dbtypes.AddressRow contains ALL non-merged
 // address transaction rows that were stored in the cache.
-func (pgb *ChainDB) updateAddressRows(address string) (rows []*dbtypes.AddressRow, err error) {
+func (pgb *ChainDB) updateAddressRows(ctx context.Context, address string) (rows []*dbtypes.AddressRow, err error) {
 	busy, wait, done := pgb.CacheLocks.rows.TryLock(address)
 	if busy {
 		// Just wait until the updater is finished.
@@ -2059,7 +2059,7 @@ func (pgb *ChainDB) updateAddressRows(address string) (rows []*dbtypes.AddressRo
 	blockID := cache.NewBlockID(hash, height)
 
 	// Retrieve all non-merged address transaction rows.
-	rows, err = pgb.AddressTransactionsAll(address)
+	rows, err = pgb.AddressTransactionsAll(ctx, address)
 	if err != nil && !errors.Is(err, dbtypes.ErrNoResult) {
 		return
 	}
@@ -2071,7 +2071,7 @@ func (pgb *ChainDB) updateAddressRows(address string) (rows []*dbtypes.AddressRo
 
 // AddressRowsMerged gets the merged address rows either from cache or via DB
 // query.
-func (pgb *ChainDB) AddressRowsMerged(address string) ([]*dbtypes.AddressRowMerged, error) {
+func (pgb *ChainDB) AddressRowsMerged(ctx context.Context, address string) ([]*dbtypes.AddressRowMerged, error) {
 	_, err := stdaddr.DecodeAddress(address, pgb.chainParams)
 	if err != nil {
 		return nil, err
@@ -2097,11 +2097,11 @@ func (pgb *ChainDB) AddressRowsMerged(address string) ([]*dbtypes.AddressRowMerg
 	log.Tracef("AddressRowsMerged: rows cache MISS for %s.", address)
 
 	// Update or wait for an update to the cached AddressRows.
-	rows, err := pgb.updateAddressRows(address)
+	rows, err := pgb.updateAddressRows(ctx, address)
 	if err != nil {
 		if IsRetryError(err) {
 			// Try again, starting with cache.
-			return pgb.AddressRowsMerged(address)
+			return pgb.AddressRowsMerged(ctx, address)
 		}
 		return nil, err
 	}
@@ -2112,7 +2112,7 @@ func (pgb *ChainDB) AddressRowsMerged(address string) ([]*dbtypes.AddressRowMerg
 
 // AddressRowsCompact gets non-merged address rows either from cache or via DB
 // query.
-func (pgb *ChainDB) AddressRowsCompact(address string) ([]*dbtypes.AddressRowCompact, error) {
+func (pgb *ChainDB) AddressRowsCompact(ctx context.Context, address string) ([]*dbtypes.AddressRowCompact, error) {
 	_, err := stdaddr.DecodeAddress(address, pgb.chainParams)
 	if err != nil {
 		return nil, err
@@ -2138,11 +2138,11 @@ func (pgb *ChainDB) AddressRowsCompact(address string) ([]*dbtypes.AddressRowCom
 	log.Tracef("AddressRowsCompact: rows cache MISS for %s.", address)
 
 	// Update or wait for an update to the cached AddressRows.
-	rows, err := pgb.updateAddressRows(address)
+	rows, err := pgb.updateAddressRows(ctx, address)
 	if err != nil {
 		if IsRetryError(err) {
 			// Try again, starting with cache.
-			return pgb.AddressRowsCompact(address)
+			return pgb.AddressRowsCompact(ctx, address)
 		}
 		return nil, err
 	}
@@ -2153,8 +2153,8 @@ func (pgb *ChainDB) AddressRowsCompact(address string) ([]*dbtypes.AddressRowCom
 
 // retrieveMergedTxnCount queries the DB for the merged address transaction view
 // row count.
-func (pgb *ChainDB) retrieveMergedTxnCount(addr string, txnView dbtypes.AddrTxnViewType) (int, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) retrieveMergedTxnCount(ctx context.Context, addr string, txnView dbtypes.AddrTxnViewType) (int, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 
 	var count int64
@@ -2173,12 +2173,12 @@ func (pgb *ChainDB) retrieveMergedTxnCount(addr string, txnView dbtypes.AddrTxnV
 }
 
 // mergedTxnCount checks cache and falls back to retrieveMergedTxnCount.
-func (pgb *ChainDB) mergedTxnCount(addr string, txnView dbtypes.AddrTxnViewType) (int, error) {
+func (pgb *ChainDB) mergedTxnCount(ctx context.Context, addr string, txnView dbtypes.AddrTxnViewType) (int, error) {
 	// Try the cache first.
 	rows, blockID := pgb.AddressCache.Rows(addr)
 	if blockID == nil {
 		// Query the DB.
-		return pgb.retrieveMergedTxnCount(addr, txnView)
+		return pgb.retrieveMergedTxnCount(ctx, addr, txnView)
 	}
 
 	return dbtypes.CountMergedRowsCompact(rows, txnView)
@@ -2186,8 +2186,8 @@ func (pgb *ChainDB) mergedTxnCount(addr string, txnView dbtypes.AddrTxnViewType)
 
 // nonMergedTxnCount gets the non-merged address transaction view row count via
 // AddressBalance, which checks the cache and falls back to a DB query.
-func (pgb *ChainDB) nonMergedTxnCount(addr string, txnView dbtypes.AddrTxnViewType) (int, error) {
-	bal, _, err := pgb.AddressBalance(addr)
+func (pgb *ChainDB) nonMergedTxnCount(ctx context.Context, addr string, txnView dbtypes.AddrTxnViewType) (int, error) {
+	bal, _, err := pgb.AddressBalance(ctx, addr)
 	if err != nil {
 		return 0, err
 	}
@@ -2207,7 +2207,7 @@ func (pgb *ChainDB) nonMergedTxnCount(addr string, txnView dbtypes.AddrTxnViewTy
 
 // CountTransactions gets the total row count for the given address and address
 // transaction view.
-func (pgb *ChainDB) CountTransactions(addr string, txnView dbtypes.AddrTxnViewType) (int, error) {
+func (pgb *ChainDB) CountTransactions(ctx context.Context, addr string, txnView dbtypes.AddrTxnViewType) (int, error) {
 	_, err := stdaddr.DecodeAddress(addr, pgb.chainParams)
 	if err != nil {
 		return 0, err
@@ -2223,7 +2223,7 @@ func (pgb *ChainDB) CountTransactions(addr string, txnView dbtypes.AddrTxnViewTy
 		countFn = pgb.mergedTxnCount
 	}
 
-	count, err := countFn(addr, txnView)
+	count, err := countFn(ctx, addr, txnView)
 	if err != nil {
 		return 0, err
 	}
@@ -2233,7 +2233,7 @@ func (pgb *ChainDB) CountTransactions(addr string, txnView dbtypes.AddrTxnViewTy
 // AddressHistory queries the database for rows of the addresses table
 // containing values for a certain type of transaction (all, credits, or debits)
 // for the given address.
-func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
+func (pgb *ChainDB) AddressHistory(ctx context.Context, address string, N, offset int64,
 	txnView dbtypes.AddrTxnViewType) ([]*dbtypes.AddressRow, *dbtypes.AddressBalance, error) {
 	_, err := stdaddr.DecodeAddress(address, pgb.chainParams)
 	if err != nil {
@@ -2255,14 +2255,14 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 
 		// Update or wait for an update to the cached AddressRows, returning ALL
 		// NON-MERGED address transaction rows.
-		addressRows, err = pgb.updateAddressRows(address)
+		addressRows, err = pgb.updateAddressRows(ctx, address)
 		if err != nil && !errors.Is(err, dbtypes.ErrNoResult) && !errors.Is(err, sql.ErrNoRows) {
 			// See if another caller ran the update, in which case we were just
 			// waiting to avoid a simultaneous query. With luck the cache will
 			// be updated with this data, although it may not be. Try again.
 			if IsRetryError(err) {
 				// Try again, starting with cache.
-				return pgb.AddressHistory(address, N, offset, txnView)
+				return pgb.AddressHistory(ctx, address, N, offset, txnView)
 			}
 			return nil, nil, fmt.Errorf("failed to updateAddressRows: %w", err)
 		}
@@ -2319,7 +2319,7 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 	} else {
 		// Count spent/unspent amounts and transactions.
 		log.Debugf("AddressHistory: Obtaining balance via DB query.")
-		balance, _, err = pgb.AddressBalance(address)
+		balance, _, err = pgb.AddressBalance(ctx, address)
 		if err != nil && !errors.Is(err, dbtypes.ErrNoResult) && !errors.Is(err, sql.ErrNoRows) {
 			return nil, nil, err
 		}
@@ -2335,7 +2335,7 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 }
 
 // AddressData returns comprehensive, paginated information for an address.
-func (pgb *ChainDB) AddressData(address string, limitN, offsetAddrOuts int64,
+func (pgb *ChainDB) AddressData(ctx context.Context, address string, limitN, offsetAddrOuts int64,
 	txnType dbtypes.AddrTxnViewType) (addrData *dbtypes.AddressInfo, err error) {
 	_, addrType, addrErr := txhelpers.AddressValidation(address, pgb.chainParams)
 	if addrErr != nil && !errors.Is(err, txhelpers.AddressErrorNoError) {
@@ -2347,7 +2347,7 @@ func (pgb *ChainDB) AddressData(address string, limitN, offsetAddrOuts int64,
 		return nil, err
 	}
 
-	addrHist, balance, err := pgb.AddressHistory(address, limitN, offsetAddrOuts, txnType)
+	addrHist, balance, err := pgb.AddressHistory(ctx, address, limitN, offsetAddrOuts, txnType)
 	if dbtypes.IsTimeoutErr(err) {
 		return nil, err
 	}
@@ -2400,7 +2400,7 @@ func (pgb *ChainDB) AddressData(address string, limitN, offsetAddrOuts int64,
 		}
 		if addrData.IsMerged {
 			// For merged views, check the cache and fall back on a DB query.
-			count, err := pgb.mergedTxnCount(address, txnType)
+			count, err := pgb.mergedTxnCount(ctx, address, txnType)
 			if err != nil {
 				return nil, err
 			}
@@ -2428,7 +2428,7 @@ func (pgb *ChainDB) AddressData(address string, limitN, offsetAddrOuts int64,
 		}
 
 		// Query database for transaction details.
-		err = pgb.FillAddressTransactions(addrData)
+		err = pgb.FillAddressTransactions(ctx, addrData)
 		if dbtypes.IsTimeoutErr(err) {
 			return nil, err
 		}
@@ -2572,12 +2572,12 @@ SPENDING_TX_DUPLICATE_CHECK:
 // DbTxByHash retrieves a row of the transactions table corresponding to the
 // given transaction hash. Transactions in valid and mainchain blocks are chosen
 // first.
-func (pgb *ChainDB) DbTxByHash(txid string) (*dbtypes.Tx, error) {
+func (pgb *ChainDB) DbTxByHash(ctx context.Context, txid string) (*dbtypes.Tx, error) {
 	ch, err := chainHashFromStr(txid)
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	_, dbTx, err := retrieveDbTxByHash(ctx, pgb.db, ch)
 	return dbTx, pgb.replaceCancelError(err)
@@ -2586,8 +2586,8 @@ func (pgb *ChainDB) DbTxByHash(txid string) (*dbtypes.Tx, error) {
 // fundingOutpointIndxByVinID retrieves the the transaction output index of the
 // previous outpoint for a transaction input specified by row ID in the vins
 // table, which stores previous outpoints for each vin.
-func (pgb *ChainDB) fundingOutpointIndxByVinID(id uint64) (uint32, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) fundingOutpointIndxByVinID(ctx context.Context, id uint64) (uint32, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	ind, err := retrieveFundingOutpointIndxByVinID(ctx, pgb.db, id)
 	return ind, pgb.replaceCancelError(err)
@@ -2597,7 +2597,7 @@ func (pgb *ChainDB) fundingOutpointIndxByVinID(id uint64) (uint32, error) {
 // explorer.AddressInfo generated by dbtypes.ReduceAddressHistory, usually from
 // the output of AddressHistory. This function also sets the number of
 // unconfirmed transactions for the current best block in the database.
-func (pgb *ChainDB) FillAddressTransactions(addrInfo *dbtypes.AddressInfo) error {
+func (pgb *ChainDB) FillAddressTransactions(ctx context.Context, addrInfo *dbtypes.AddressInfo) error {
 	if addrInfo == nil {
 		return nil
 	}
@@ -2608,7 +2608,7 @@ func (pgb *ChainDB) FillAddressTransactions(addrInfo *dbtypes.AddressInfo) error
 		hashStr := txn.TxID.String()
 		// Retrieve the most valid, most mainchain, and most recent tx with this
 		// hash. This means it prefers mainchain and valid blocks first.
-		dbTx, err := pgb.DbTxByHash(hashStr) // only need: Size, Sent, BlockTime, BlockHeight, VinDbIds
+		dbTx, err := pgb.DbTxByHash(ctx, hashStr) // only need: Size, Sent, BlockTime, BlockHeight, VinDbIds
 		if err != nil {
 			return err
 		}
@@ -2631,7 +2631,7 @@ func (pgb *ChainDB) FillAddressTransactions(addrInfo *dbtypes.AddressInfo) error
 			if !txn.IsFunding {
 				// Spending transaction: lookup the previous outpoint's txout
 				// index by the vins table row ID. NOTE: could also do by txn.IxID and txn.InOutID
-				idx, err := pgb.fundingOutpointIndxByVinID(dbTx.VinDbIds[txn.InOutID])
+				idx, err := pgb.fundingOutpointIndxByVinID(ctx, dbTx.VinDbIds[txn.InOutID])
 				if err != nil {
 					log.Warnf("Matched Transaction Lookup failed for %s:%d: id: %d:  %v",
 						hashStr, txn.InOutID, txn.InOutID, err)
@@ -2641,7 +2641,7 @@ func (pgb *ChainDB) FillAddressTransactions(addrInfo *dbtypes.AddressInfo) error
 			} else {
 				// Funding transaction: lookup by the matching (spending) tx
 				// hash and tx index.
-				_, idx, err := pgb.SpendingTransaction(hashStr, txn.InOutID)
+				_, idx, err := pgb.SpendingTransaction(ctx, hashStr, txn.InOutID)
 				if err != nil {
 					log.Warnf("Matched Transaction Lookup failed for %s:%d: %v",
 						hashStr, txn.InOutID, err)
@@ -2659,14 +2659,14 @@ func (pgb *ChainDB) FillAddressTransactions(addrInfo *dbtypes.AddressInfo) error
 
 // AddressTotals queries for the following totals: amount spent, amount unspent,
 // number of unspent transaction outputs and number spent.
-func (pgb *ChainDB) AddressTotals(address string) (*apitypes.AddressTotals, error) {
+func (pgb *ChainDB) AddressTotals(ctx context.Context, address string) (*apitypes.AddressTotals, error) {
 	// Fetch address totals
 	var err error
 	var ab *dbtypes.AddressBalance
 	if address == pgb.devAddress {
-		ab, err = pgb.DevBalance()
+		ab, err = pgb.DevBalance(ctx)
 	} else {
-		ab, _, err = pgb.AddressBalance(address)
+		ab, _, err = pgb.AddressBalance(ctx, address)
 	}
 
 	if err != nil || ab == nil {
@@ -2686,7 +2686,7 @@ func (pgb *ChainDB) AddressTotals(address string) (*apitypes.AddressTotals, erro
 	}, nil
 }
 
-func (pgb *ChainDB) addressInfo(addr string, count, skip int64, txnType dbtypes.AddrTxnViewType) (*dbtypes.AddressInfo, *dbtypes.AddressBalance, error) {
+func (pgb *ChainDB) addressInfo(ctx context.Context, addr string, count, skip int64, txnType dbtypes.AddrTxnViewType) (*dbtypes.AddressInfo, *dbtypes.AddressBalance, error) {
 	address, err := stdaddr.DecodeAddress(addr, pgb.chainParams)
 	if err != nil {
 		log.Infof("Invalid address %s: %v", addr, err)
@@ -2694,7 +2694,7 @@ func (pgb *ChainDB) addressInfo(addr string, count, skip int64, txnType dbtypes.
 	}
 
 	// Get rows from the addresses table for the address
-	addrHist, balance, err := pgb.AddressHistory(addr, count, skip, txnType)
+	addrHist, balance, err := pgb.AddressHistory(ctx, addr, count, skip, txnType)
 	if err != nil {
 		log.Errorf("Unable to get address %s history: %v", address, err)
 		return nil, nil, err
@@ -2725,7 +2725,7 @@ func (pgb *ChainDB) addressInfo(addr string, count, skip int64, txnType dbtypes.
 	}
 
 	// Query database for transaction details
-	err = pgb.FillAddressTransactions(addrData)
+	err = pgb.FillAddressTransactions(ctx, addrData)
 	if err != nil {
 		return nil, balance, fmt.Errorf("Unable to fill address %s transactions: %w", address, err)
 	}
@@ -2737,10 +2737,10 @@ func (pgb *ChainDB) addressInfo(addr string, count, skip int64, txnType dbtypes.
 // count transactions of type txnType in which the address was involved,
 // starting after skip transactions. This does NOT include unconfirmed
 // transactions.
-func (pgb *ChainDB) AddressTransactionDetails(addr string, count, skip int64,
+func (pgb *ChainDB) AddressTransactionDetails(ctx context.Context, addr string, count, skip int64,
 	txnType dbtypes.AddrTxnViewType) (*apitypes.Address, error) {
 	// Fetch address history for given transaction range and type
-	addrData, _, err := pgb.addressInfo(addr, count, skip, txnType)
+	addrData, _, err := pgb.addressInfo(ctx, addr, count, skip, txnType)
 	if err != nil {
 		return nil, err
 	}
@@ -2965,7 +2965,7 @@ func (pgb *ChainDB) RewindStakeDB(ctx context.Context, toHeight int64, quiet ...
 
 // TxHistoryData fetches the address history chart data for specified chart
 // type and time grouping.
-func (pgb *ChainDB) TxHistoryData(address string, addrChart dbtypes.HistoryChart,
+func (pgb *ChainDB) TxHistoryData(ctx context.Context, address string, addrChart dbtypes.HistoryChart,
 	chartGroupings dbtypes.TimeBasedGrouping) (cd *dbtypes.ChartsData, err error) {
 	if chartGroupings >= dbtypes.NumIntervals {
 		return nil, fmt.Errorf("invalid time grouping %d", chartGroupings)
@@ -3001,7 +3001,7 @@ func (pgb *ChainDB) TxHistoryData(address string, addrChart dbtypes.HistoryChart
 		<-wait
 
 		// Try again, starting with the cache.
-		return pgb.TxHistoryData(address, addrChart, chartGroupings)
+		return pgb.TxHistoryData(ctx, address, addrChart, chartGroupings)
 	}
 
 	// We will run the DB query, so block others from doing the same. When query
@@ -3011,7 +3011,7 @@ func (pgb *ChainDB) TxHistoryData(address string, addrChart dbtypes.HistoryChart
 
 	timeInterval := chartGroupings.String()
 
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 
 	switch addrChart {
@@ -3035,20 +3035,20 @@ func (pgb *ChainDB) TxHistoryData(address string, addrChart dbtypes.HistoryChart
 	return
 }
 
-func (pgb *ChainDB) BinnedTreasuryIO(chartGroupings dbtypes.TimeBasedGrouping) (*dbtypes.ChartsData, error) {
+func (pgb *ChainDB) BinnedTreasuryIO(ctx context.Context, chartGroupings dbtypes.TimeBasedGrouping) (*dbtypes.ChartsData, error) {
 	if chartGroupings >= dbtypes.NumIntervals {
 		return nil, fmt.Errorf("invalid time grouping %d", chartGroupings)
 	}
 	timeInterval := chartGroupings.String()
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	return binnedTreasuryIO(ctx, pgb.db, timeInterval)
 }
 
 // TicketsByPrice returns chart data for tickets grouped by price. maturityBlock
 // is used to define when tickets are considered live.
-func (pgb *ChainDB) TicketsByPrice(maturityBlock int64) (*dbtypes.PoolTicketsData, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) TicketsByPrice(ctx context.Context, maturityBlock int64) (*dbtypes.PoolTicketsData, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	ptd, err := retrieveTicketByPrice(ctx, pgb.db, maturityBlock)
 	return ptd, pgb.replaceCancelError(err)
@@ -3056,8 +3056,8 @@ func (pgb *ChainDB) TicketsByPrice(maturityBlock int64) (*dbtypes.PoolTicketsDat
 
 // TicketsByInputCount returns chart data for tickets grouped by number of
 // inputs.
-func (pgb *ChainDB) TicketsByInputCount() (*dbtypes.PoolTicketsData, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) TicketsByInputCount(ctx context.Context) (*dbtypes.PoolTicketsData, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	ptd, err := retrieveTicketsGroupedByType(ctx, pgb.db)
 	return ptd, pgb.replaceCancelError(err)
@@ -3066,8 +3066,8 @@ func (pgb *ChainDB) TicketsByInputCount() (*dbtypes.PoolTicketsData, error) {
 // windowStats fetches the charts data from retrieveWindowStats.
 // This is the Fetcher half of a pair that make up a cache.ChartUpdater. The
 // Appender half is appendWindowStats.
-func (pgb *ChainDB) windowStats(charts *cache.ChartData) (*sql.Rows, func(), error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) windowStats(ctx context.Context, charts *cache.ChartData) (*sql.Rows, func(), error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 
 	rows, err := retrieveWindowStats(ctx, pgb.db, charts)
 	if err != nil {
@@ -3080,8 +3080,8 @@ func (pgb *ChainDB) windowStats(charts *cache.ChartData) (*sql.Rows, func(), err
 // missedVotesStats fetches the charts data from retrieveMissedVotes.
 // This is the Fetcher half of a pair that make up a cache.ChartUpdater. The
 // Appender half is appendMissedVotes.
-func (pgb *ChainDB) missedVotesStats(charts *cache.ChartData) (*sql.Rows, func(), error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) missedVotesStats(ctx context.Context, charts *cache.ChartData) (*sql.Rows, func(), error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 
 	rows, err := retrieveMissedVotes(ctx, pgb.db, charts)
 	if err != nil {
@@ -3094,8 +3094,8 @@ func (pgb *ChainDB) missedVotesStats(charts *cache.ChartData) (*sql.Rows, func()
 // chartBlocks sets or updates a series of per-block datasets.
 // This is the Fetcher half of a pair that make up a cache.ChartUpdater. The
 // Appender half is appendChartBlocks.
-func (pgb *ChainDB) chartBlocks(charts *cache.ChartData) (*sql.Rows, func(), error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) chartBlocks(ctx context.Context, charts *cache.ChartData) (*sql.Rows, func(), error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 
 	rows, err := retrieveChartBlocks(ctx, pgb.db, charts)
 	if err != nil {
@@ -3107,8 +3107,8 @@ func (pgb *ChainDB) chartBlocks(charts *cache.ChartData) (*sql.Rows, func(), err
 // coinSupply fetches the coin supply chart data from retrieveCoinSupply.
 // This is the Fetcher half of a pair that make up a cache.ChartUpdater. The
 // Appender half is appendCoinSupply.
-func (pgb *ChainDB) coinSupply(charts *cache.ChartData) (*sql.Rows, func(), error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) coinSupply(ctx context.Context, charts *cache.ChartData) (*sql.Rows, func(), error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 
 	rows, err := retrieveCoinSupply(ctx, pgb.db, charts)
 	if err != nil {
@@ -3121,8 +3121,8 @@ func (pgb *ChainDB) coinSupply(charts *cache.ChartData) (*sql.Rows, func(), erro
 // blockFees sets or updates a series of per-block fees.
 // This is the Fetcher half of a pair that make up a cache.ChartUpdater. The
 // Appender half is appendBlockFees.
-func (pgb *ChainDB) blockFees(charts *cache.ChartData) (*sql.Rows, func(), error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) blockFees(ctx context.Context, charts *cache.ChartData) (*sql.Rows, func(), error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 
 	rows, err := retrieveBlockFees(ctx, pgb.db, charts)
 	if err != nil {
@@ -3134,8 +3134,8 @@ func (pgb *ChainDB) blockFees(charts *cache.ChartData) (*sql.Rows, func(), error
 // appendAnonymitySet sets or updates a series of per-block privacy
 // participation. This is the Fetcher half of a pair that make up a
 // cache.ChartUpdater. The Appender half is appendPrivacyParticipation.
-func (pgb *ChainDB) privacyParticipation(charts *cache.ChartData) (*sql.Rows, func(), error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) privacyParticipation(ctx context.Context, charts *cache.ChartData) (*sql.Rows, func(), error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 
 	rows, err := retrievePrivacyParticipation(ctx, pgb.db, charts)
 	if err != nil {
@@ -3150,7 +3150,7 @@ func (pgb *ChainDB) privacyParticipation(charts *cache.ChartData) (*sql.Rows, fu
 // returned with a nil error as a signal to the appender. This is the Fetcher
 // half of a pair that make up a cache.ChartUpdater. The Appender half is
 // appendAnonymitySet.
-func (pgb *ChainDB) anonymitySet(charts *cache.ChartData) (*sql.Rows, func(), error) {
+func (pgb *ChainDB) anonymitySet(ctx context.Context, charts *cache.ChartData) (*sql.Rows, func(), error) {
 	// First check if the necessary data is available in mixSetDiffs.
 	nextDataHeight := uint32(len(charts.Blocks.AnonymitySet))
 	targetDataHeight := uint32(len(charts.Blocks.Height) - 1)
@@ -3162,7 +3162,7 @@ func (pgb *ChainDB) anonymitySet(charts *cache.ChartData) (*sql.Rows, func(), er
 		if _, found := pgb.mixSetDiffs[h]; !found {
 			log.Debugf("Mixed set deltas not available at height %d. Querying DB...", h)
 			// A DB query is necessary.
-			return pgb.retrieveAnonymitySet(int32(nextDataHeight) - 1) // -1 means include genesis
+			return pgb.retrieveAnonymitySet(ctx, int32(nextDataHeight)-1) // -1 means include genesis
 		}
 	}
 
@@ -3173,8 +3173,8 @@ func (pgb *ChainDB) anonymitySet(charts *cache.ChartData) (*sql.Rows, func(), er
 // retrieveAnonymitySet fetches the mixed output fund/spend heights and values
 // for outputs funded after bestHeight. To include all blocks including genesis
 // use -1 for bestHeight.
-func (pgb *ChainDB) retrieveAnonymitySet(bestHeight int32) (*sql.Rows, func(), error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) retrieveAnonymitySet(ctx context.Context, bestHeight int32) (*sql.Rows, func(), error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	rows, err := pgb.db.QueryContext(ctx, internal.SelectMixedVouts, bestHeight)
 	if err != nil {
 		return nil, cancel, fmt.Errorf("chartBlocks: %w", pgb.replaceCancelError(err))
@@ -3235,8 +3235,8 @@ func (pgb *ChainDB) appendAnonymitySet(charts *cache.ChartData, rows *sql.Rows) 
 // poolStats sets or updates a series of per-height ticket pool statistics.
 // This is the Fetcher half of a pair that make up a cache.ChartUpdater. The
 // Appender half is appendPoolStats.
-func (pgb *ChainDB) poolStats(charts *cache.ChartData) (*sql.Rows, func(), error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) poolStats(ctx context.Context, charts *cache.ChartData) (*sql.Rows, func(), error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 
 	rows, err := retrievePoolStats(ctx, pgb.db, charts)
 	if err != nil {
@@ -3247,8 +3247,8 @@ func (pgb *ChainDB) poolStats(charts *cache.ChartData) (*sql.Rows, func(), error
 
 // PowerlessTickets fetches all missed and expired tickets, sorted by revocation
 // status.
-func (pgb *ChainDB) PowerlessTickets() (*apitypes.PowerlessTickets, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) PowerlessTickets(ctx context.Context) (*apitypes.PowerlessTickets, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	return retrievePowerlessTickets(ctx, pgb.db)
 }
@@ -3316,9 +3316,9 @@ func (pgb *ChainDB) setVinsMainchainOneTxn(vinDbIDs dbtypes.UInt64Array,
 
 // VinsForTx returns a slice of dbtypes.VinTxProperty values for each vin
 // referenced by the transaction dbTx.
-func (pgb *ChainDB) VinsForTx(dbTx *dbtypes.Tx) ([]dbtypes.VinTxProperty, error) {
+func (pgb *ChainDB) VinsForTx(ctx context.Context, dbTx *dbtypes.Tx) ([]dbtypes.VinTxProperty, error) {
 	// Retrieve the vins row data.
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	vins, err := retrieveVinsByIDs(ctx, pgb.db, dbTx.VinDbIds)
 	if err != nil {
@@ -3329,8 +3329,8 @@ func (pgb *ChainDB) VinsForTx(dbTx *dbtypes.Tx) ([]dbtypes.VinTxProperty, error)
 
 // VoutsForTx returns a slice of dbtypes.Vout values for each vout referenced by
 // the transaction dbTx.
-func (pgb *ChainDB) VoutsForTx(dbTx *dbtypes.Tx) ([]dbtypes.Vout, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) VoutsForTx(ctx context.Context, dbTx *dbtypes.Tx) ([]dbtypes.Vout, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	vouts, err := retrieveVoutsByIDs(ctx, pgb.db, dbTx.VoutDbIds)
 	return vouts, pgb.replaceCancelError(err)
@@ -3437,7 +3437,7 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (tipHashStr string, blocksMo
 		tipHashStr = tipHash.String()
 
 		pgb.bestBlock.mtx.Lock()
-		pgb.bestBlock.height, err = pgb.blockHeight(tipHash)
+		pgb.bestBlock.height, err = pgb.blockHeight(pgb.ctx, tipHash)
 		if err != nil {
 			log.Errorf("Failed to retrieve block height for %s", tipHash)
 		}
@@ -4466,7 +4466,7 @@ func (pgb *ChainDB) collectTicketSpendDBInfo(dbTxns []*dbtypes.Tx, txDbIDs []uin
 // but much more slowly for a number of reasons (that are well worth
 // investigating BTW!).
 func (pgb *ChainDB) updateSpendingInfoInAllAddresses(barLoad chan *dbtypes.ProgressBarLoad) (int64, error) {
-	heightDB, err := pgb.HeightDB()
+	heightDB, err := pgb.HeightDB(pgb.ctx)
 	if err != nil {
 		return 0, fmt.Errorf("dbBestBlock: %w", err)
 	}
@@ -4628,13 +4628,13 @@ func (pgb *ChainDB) GenesisStamp() int64 {
 
 // GetStakeInfoExtendedByHash fetches a apitypes.StakeInfoExtended, containing
 // comprehensive data for the state of staking at a given block.
-func (pgb *ChainDB) GetStakeInfoExtendedByHash(hashStr string) *apitypes.StakeInfoExtended {
+func (pgb *ChainDB) GetStakeInfoExtendedByHash(ctx context.Context, hashStr string) *apitypes.StakeInfoExtended {
 	hash, err := chainhash.NewHashFromStr(hashStr)
 	if err != nil {
 		log.Errorf("GetStakeInfoExtendedByHash -> NewHashFromStr: %v", err)
 		return nil
 	}
-	msgBlock, err := pgb.Client.GetBlock(pgb.ctx, hash)
+	msgBlock, err := pgb.Client.GetBlock(ctx, hash)
 	if err != nil {
 		log.Errorf("GetStakeInfoExtendedByHash -> GetBlock: %v", err)
 		return nil
@@ -4645,7 +4645,7 @@ func (pgb *ChainDB) GetStakeInfoExtendedByHash(hashStr string) *apitypes.StakeIn
 
 	var size, val int64
 	var winners dbtypes.ChainHashArray
-	err = pgb.db.QueryRowContext(pgb.ctx, internal.SelectPoolInfo,
+	err = pgb.db.QueryRowContext(ctx, internal.SelectPoolInfo,
 		(*dbtypes.ChainHash)(hash)).Scan(&winners, &val, &size)
 	if err != nil {
 		log.Errorf("Error retrieving mainchain block with stats for hash %s: %v", hashStr, err)
@@ -4680,18 +4680,18 @@ func (pgb *ChainDB) GetStakeInfoExtendedByHash(hashStr string) *apitypes.StakeIn
 
 // GetStakeInfoExtendedByHeight gets extended stake information for the
 // mainchain block at the specified height.
-func (pgb *ChainDB) GetStakeInfoExtendedByHeight(height int) *apitypes.StakeInfoExtended {
-	hashStr, err := pgb.BlockHash(int64(height))
+func (pgb *ChainDB) GetStakeInfoExtendedByHeight(ctx context.Context, height int) *apitypes.StakeInfoExtended {
+	hashStr, err := pgb.BlockHash(ctx, int64(height))
 	if err != nil {
 		log.Errorf("GetStakeInfoExtendedByHeight -> BlockHash: %v", err)
 		return nil
 	}
-	return pgb.GetStakeInfoExtendedByHash(hashStr)
+	return pgb.GetStakeInfoExtendedByHash(ctx, hashStr)
 }
 
 // GetPoolInfo retrieves the ticket pool statistics at the specified height.
-func (pgb *ChainDB) GetPoolInfo(idx int) *apitypes.TicketPoolInfo {
-	ticketPoolInfo, err := retrievePoolInfo(pgb.ctx, pgb.db, int64(idx))
+func (pgb *ChainDB) GetPoolInfo(ctx context.Context, idx int) *apitypes.TicketPoolInfo {
+	ticketPoolInfo, err := retrievePoolInfo(ctx, pgb.db, int64(idx))
 	if err != nil {
 		log.Errorf("Unable to retrieve ticket pool info: %v", err)
 		return nil
@@ -4702,8 +4702,8 @@ func (pgb *ChainDB) GetPoolInfo(idx int) *apitypes.TicketPoolInfo {
 // GetPoolInfoByHash retrieves the ticket pool statistics at the specified block
 // hash.
 /*
-func (pgb *ChainDB) GetPoolInfoByHash(hash string) *apitypes.TicketPoolInfo {
-	ticketPoolInfo, err := retrievePoolInfoByHash(pgb.ctx, pgb.db, hash)
+func (pgb *ChainDB) GetPoolInfoByHash(ctx context.Context, hash string) *apitypes.TicketPoolInfo {
+	ticketPoolInfo, err := retrievePoolInfoByHash(ctx, pgb.db, hash)
 	if err != nil {
 		log.Errorf("Unable to retrieve ticket pool info: %v", err)
 		return nil
@@ -4714,7 +4714,7 @@ func (pgb *ChainDB) GetPoolInfoByHash(hash string) *apitypes.TicketPoolInfo {
 
 // GetPoolInfoRange retrieves the ticket pool statistics for a range of block
 // heights, as a slice.
-func (pgb *ChainDB) GetPoolInfoRange(idx0, idx1 int) []apitypes.TicketPoolInfo {
+func (pgb *ChainDB) GetPoolInfoRange(ctx context.Context, idx0, idx1 int) []apitypes.TicketPoolInfo {
 	ind0 := int64(idx0)
 	ind1 := int64(idx1)
 	tip := pgb.Height()
@@ -4722,7 +4722,7 @@ func (pgb *ChainDB) GetPoolInfoRange(idx0, idx1 int) []apitypes.TicketPoolInfo {
 		log.Errorf("Unable to retrieve ticket pool info for range [%d, %d], tip=%d", idx0, idx1, tip)
 		return nil
 	}
-	ticketPoolInfos, _, err := retrievePoolInfoRange(pgb.ctx, pgb.db, ind0, ind1)
+	ticketPoolInfos, _, err := retrievePoolInfoRange(ctx, pgb.db, ind0, ind1)
 	if err != nil {
 		log.Errorf("Unable to retrieve ticket pool info range: %v", err)
 		return nil
@@ -4732,7 +4732,7 @@ func (pgb *ChainDB) GetPoolInfoRange(idx0, idx1 int) []apitypes.TicketPoolInfo {
 
 // GetPoolValAndSizeRange returns the ticket pool size at each block height
 // within a given range.
-func (pgb *ChainDB) GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []uint32) {
+func (pgb *ChainDB) GetPoolValAndSizeRange(ctx context.Context, idx0, idx1 int) ([]float64, []uint32) {
 	ind0 := int64(idx0)
 	ind1 := int64(idx1)
 	tip := pgb.Height()
@@ -4740,7 +4740,7 @@ func (pgb *ChainDB) GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []uint32)
 		log.Errorf("Unable to retrieve ticket pool info for range [%d, %d], tip=%d", idx0, idx1, tip)
 		return nil, nil
 	}
-	poolvals, poolsizes, err := retrievePoolValAndSizeRange(pgb.ctx, pgb.db, ind0, ind1)
+	poolvals, poolsizes, err := retrievePoolValAndSizeRange(ctx, pgb.db, ind0, ind1)
 	if err != nil {
 		log.Errorf("Unable to retrieve ticket value and size range: %v", err)
 		return nil, nil
@@ -4877,8 +4877,8 @@ func (pgb *ChainDB) IsDCP0012Active(height int64) bool {
 
 // CurrentCoinSupply gets the current coin supply as an *apitypes.CoinSupply,
 // which additionally contains block info and max supply.
-func (pgb *ChainDB) CurrentCoinSupply() (supply *apitypes.CoinSupply) {
-	coinSupply, err := pgb.Client.GetCoinSupply(pgb.ctx)
+func (pgb *ChainDB) CurrentCoinSupply(ctx context.Context) (supply *apitypes.CoinSupply) {
+	coinSupply, err := pgb.Client.GetCoinSupply(ctx)
 	if err != nil {
 		log.Errorf("RPC failure (GetCoinSupply): %v", err)
 		return
@@ -4898,13 +4898,13 @@ func (pgb *ChainDB) CurrentCoinSupply() (supply *apitypes.CoinSupply) {
 
 // GetBlockByHash gets a *wire.MsgBlock for the supplied hex-encoded hash
 // string.
-func (pgb *ChainDB) GetBlockByHash(hash string) (*wire.MsgBlock, error) {
+func (pgb *ChainDB) GetBlockByHash(ctx context.Context, hash string) (*wire.MsgBlock, error) {
 	blockHash, err := chainhash.NewHashFromStr(hash)
 	if err != nil {
 		log.Errorf("Invalid block hash %s", hash)
 		return nil, err
 	}
-	return pgb.Client.GetBlock(pgb.ctx, blockHash)
+	return pgb.Client.GetBlock(ctx, blockHash)
 }
 
 // GetHeader fetches the *chainjson.GetBlockHeaderVerboseResult for a given
@@ -4915,22 +4915,22 @@ func (pgb *ChainDB) GetHeader(idx int) *chainjson.GetBlockHeaderVerboseResult {
 
 // GetBlockHeaderByHash fetches the *chainjson.GetBlockHeaderVerboseResult for
 // a given block hash.
-func (pgb *ChainDB) GetBlockHeaderByHash(hash string) (*wire.BlockHeader, error) {
+func (pgb *ChainDB) GetBlockHeaderByHash(ctx context.Context, hash string) (*wire.BlockHeader, error) {
 	blockHash, err := chainhash.NewHashFromStr(hash)
 	if err != nil {
 		log.Errorf("Invalid block hash %s", hash)
 		return nil, err
 	}
-	return pgb.Client.GetBlockHeader(pgb.ctx, blockHash)
+	return pgb.Client.GetBlockHeader(ctx, blockHash)
 }
 
 // GetBlockHeight returns the height of the block with the specified hash.
-func (pgb *ChainDB) GetBlockHeight(hash string) (int64, error) {
+func (pgb *ChainDB) GetBlockHeight(ctx context.Context, hash string) (int64, error) {
 	ch, err := chainHashFromStr(hash)
 	if err != nil {
 		return 0, err
 	}
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	height, err := retrieveBlockHeight(ctx, pgb.db, ch)
 	if err != nil {
@@ -4943,11 +4943,11 @@ func (pgb *ChainDB) GetBlockHeight(hash string) (int64, error) {
 }
 
 // GetAPITransaction gets an *apitypes.Tx for a given transaction ID.
-func (pgb *ChainDB) GetAPITransaction(txid *chainhash.Hash) *apitypes.Tx {
+func (pgb *ChainDB) GetAPITransaction(ctx context.Context, txid *chainhash.Hash) *apitypes.Tx {
 	// We're going to be lazy use a node RPC since it gives is block data,
 	// confirmations, ticket commitment info decoded, etc. The DB also lacks
 	// ScriptSig and Sequence.
-	txraw, err := pgb.Client.GetRawTransactionVerbose(pgb.ctx, txid)
+	txraw, err := pgb.Client.GetRawTransactionVerbose(ctx, txid)
 	if err != nil {
 		log.Errorf("APITransaction failed for %v: %v", txid, err)
 		return nil
@@ -5012,8 +5012,8 @@ func (pgb *ChainDB) GetAPITransaction(txid *chainhash.Hash) *apitypes.Tx {
 }
 
 // GetTrimmedTransaction gets a *apitypes.TrimmedTx for a given transaction ID.
-func (pgb *ChainDB) GetTrimmedTransaction(txid *chainhash.Hash) *apitypes.TrimmedTx {
-	tx := pgb.GetAPITransaction(txid)
+func (pgb *ChainDB) GetTrimmedTransaction(ctx context.Context, txid *chainhash.Hash) *apitypes.TrimmedTx {
+	tx := pgb.GetAPITransaction(ctx, txid)
 	if tx == nil {
 		return nil
 	}
@@ -5032,8 +5032,8 @@ func (pgb *ChainDB) GetTrimmedTransaction(txid *chainhash.Hash) *apitypes.Trimme
 // on the stake version with which dcrdata is compiled with (chaincfg.Params),
 // the Choices field of VoteInfo may be a nil slice even if the votebits were
 // set for a previously-valid agenda.
-func (pgb *ChainDB) GetVoteInfo(txhash *chainhash.Hash) (*apitypes.VoteInfo, error) {
-	tx, err := pgb.Client.GetRawTransaction(pgb.ctx, txhash)
+func (pgb *ChainDB) GetVoteInfo(ctx context.Context, txhash *chainhash.Hash) (*apitypes.VoteInfo, error) {
+	tx, err := pgb.Client.GetRawTransaction(ctx, txhash)
 	if err != nil {
 		log.Errorf("GetRawTransaction failed for: %v", txhash)
 		return nil, err
@@ -5058,22 +5058,22 @@ func (pgb *ChainDB) GetVoteInfo(txhash *chainhash.Hash) (*apitypes.VoteInfo, err
 }
 
 // GetVoteVersionInfo requests stake version info from the dcrd RPC server
-func (pgb *ChainDB) GetVoteVersionInfo(ver uint32) (*chainjson.GetVoteInfoResult, error) {
-	return pgb.Client.GetVoteInfo(pgb.ctx, ver)
+func (pgb *ChainDB) GetVoteVersionInfo(ctx context.Context, ver uint32) (*chainjson.GetVoteInfoResult, error) {
+	return pgb.Client.GetVoteInfo(ctx, ver)
 }
 
 // GetStakeVersions requests the output of the getstakeversions RPC, which gets
 // stake version information and individual vote version information starting at the
 // given block and for count-1 blocks prior.
-func (pgb *ChainDB) GetStakeVersions(blockHash string, count int32) (*chainjson.GetStakeVersionsResult, error) {
-	return pgb.Client.GetStakeVersions(pgb.ctx, blockHash, count)
+func (pgb *ChainDB) GetStakeVersions(ctx context.Context, blockHash string, count int32) (*chainjson.GetStakeVersionsResult, error) {
+	return pgb.Client.GetStakeVersions(ctx, blockHash, count)
 }
 
 // GetStakeVersionsLatest requests the output of the getstakeversions RPC for
 // just the current best block.
-func (pgb *ChainDB) GetStakeVersionsLatest() (*chainjson.StakeVersions, error) {
+func (pgb *ChainDB) GetStakeVersionsLatest(ctx context.Context) (*chainjson.StakeVersions, error) {
 	txHash := pgb.BestBlockHashStr()
-	stkVers, err := pgb.GetStakeVersions(txHash, 1)
+	stkVers, err := pgb.GetStakeVersions(ctx, txHash, 1)
 	if err != nil || stkVers == nil || len(stkVers.StakeVersions) == 0 {
 		return nil, err
 	}
@@ -5083,8 +5083,8 @@ func (pgb *ChainDB) GetStakeVersionsLatest() (*chainjson.StakeVersions, error) {
 
 // GetAllTxIn gets all transaction inputs, as a slice of *apitypes.TxIn, for a
 // given transaction ID.
-func (pgb *ChainDB) GetAllTxIn(txid *chainhash.Hash) []*apitypes.TxIn {
-	tx, err := pgb.Client.GetRawTransaction(pgb.ctx, txid)
+func (pgb *ChainDB) GetAllTxIn(ctx context.Context, txid *chainhash.Hash) []*apitypes.TxIn {
+	tx, err := pgb.Client.GetRawTransaction(ctx, txid)
 	if err != nil {
 		log.Errorf("Unknown transaction %s", txid)
 		return nil
@@ -5113,10 +5113,10 @@ func (pgb *ChainDB) GetAllTxIn(txid *chainhash.Hash) []*apitypes.TxIn {
 
 // GetAllTxOut gets all transaction outputs, as a slice of *apitypes.TxOut, for
 // a given transaction ID.
-func (pgb *ChainDB) GetAllTxOut(txid *chainhash.Hash) []*apitypes.TxOut {
+func (pgb *ChainDB) GetAllTxOut(ctx context.Context, txid *chainhash.Hash) []*apitypes.TxOut {
 	// Get the TxRawResult since it provides Asm and CommitAmt for all the
 	// output scripts, but we could extract that info too.
-	tx, err := pgb.Client.GetRawTransactionVerbose(pgb.ctx, txid)
+	tx, err := pgb.Client.GetRawTransactionVerbose(ctx, txid)
 	if err != nil {
 		log.Warnf("Unknown transaction %s", txid)
 		return nil
@@ -5153,13 +5153,13 @@ func (pgb *ChainDB) GetAllTxOut(txid *chainhash.Hash) []*apitypes.TxOut {
 
 // GetStakeDiffEstimates gets an *apitypes.StakeDiff, which is a combo of
 // chainjson.EstimateStakeDiffResult and chainjson.GetStakeDifficultyResult
-func (pgb *ChainDB) GetStakeDiffEstimates() *apitypes.StakeDiff {
-	stakeDiff, err := pgb.Client.GetStakeDifficulty(pgb.ctx)
+func (pgb *ChainDB) GetStakeDiffEstimates(ctx context.Context) *apitypes.StakeDiff {
+	stakeDiff, err := pgb.Client.GetStakeDifficulty(ctx)
 	if err != nil {
 		log.Errorf("GetStakeDifficulty: %v", err)
 		return nil
 	}
-	estStakeDiff, err := pgb.Client.EstimateStakeDiff(pgb.ctx, nil)
+	estStakeDiff, err := pgb.Client.EstimateStakeDiff(ctx, nil)
 	if err != nil {
 		log.Errorf("EstimateStakeDiff: %v", err)
 		return nil
@@ -5177,8 +5177,8 @@ func (pgb *ChainDB) GetStakeDiffEstimates() *apitypes.StakeDiff {
 }
 
 // GetSummary returns the *apitypes.BlockDataBasic for a given block height.
-func (pgb *ChainDB) GetSummary(idx int) *apitypes.BlockDataBasic {
-	blockSummary, err := pgb.BlockSummary(int64(idx))
+func (pgb *ChainDB) GetSummary(ctx context.Context, idx int) *apitypes.BlockDataBasic {
+	blockSummary, err := pgb.BlockSummary(ctx, int64(idx))
 	if err != nil {
 		log.Errorf("Unable to retrieve block summary: %v", err)
 		return nil
@@ -5188,7 +5188,7 @@ func (pgb *ChainDB) GetSummary(idx int) *apitypes.BlockDataBasic {
 }
 
 // BlockSummary returns basic block data for block ind.
-func (pgb *ChainDB) BlockSummary(ind int64) (*apitypes.BlockDataBasic, error) {
+func (pgb *ChainDB) BlockSummary(ctx context.Context, ind int64) (*apitypes.BlockDataBasic, error) {
 	// First try the block summary cache.
 	usingBlockCache := pgb.BlockCache != nil && pgb.BlockCache.IsEnabled()
 	if usingBlockCache {
@@ -5199,7 +5199,7 @@ func (pgb *ChainDB) BlockSummary(ind int64) (*apitypes.BlockDataBasic, error) {
 		// Cache miss necessitates a DB query.
 	}
 
-	bd, err := retrieveBlockSummary(pgb.ctx, pgb.db, ind)
+	bd, err := retrieveBlockSummary(ctx, pgb.db, ind)
 	if err != nil {
 		return nil, err
 	}
@@ -5218,8 +5218,8 @@ func (pgb *ChainDB) BlockSummary(ind int64) (*apitypes.BlockDataBasic, error) {
 
 // GetSummaryRange returns the *apitypes.BlockDataBasic for a range of block
 // heights.
-func (pgb *ChainDB) GetSummaryRange(idx0, idx1 int) []*apitypes.BlockDataBasic {
-	summaries, err := pgb.BlockSummaryRange(int64(idx0), int64(idx1))
+func (pgb *ChainDB) GetSummaryRange(ctx context.Context, idx0, idx1 int) []*apitypes.BlockDataBasic {
+	summaries, err := pgb.BlockSummaryRange(ctx, int64(idx0), int64(idx1))
 	if err != nil {
 		log.Errorf("Unable to retrieve block summaries: %v", err)
 		return nil
@@ -5229,14 +5229,14 @@ func (pgb *ChainDB) GetSummaryRange(idx0, idx1 int) []*apitypes.BlockDataBasic {
 
 // BlockSummaryRange returns the *apitypes.BlockDataBasic for a range of block
 // height.
-func (pgb *ChainDB) BlockSummaryRange(idx0, idx1 int64) ([]*apitypes.BlockDataBasic, error) {
-	return retrieveBlockSummaryRange(pgb.ctx, pgb.db, idx0, idx1)
+func (pgb *ChainDB) BlockSummaryRange(ctx context.Context, idx0, idx1 int64) ([]*apitypes.BlockDataBasic, error) {
+	return retrieveBlockSummaryRange(ctx, pgb.db, idx0, idx1)
 }
 
 // GetSummaryRangeStepped returns the []*apitypes.BlockDataBasic for a given
 // block height.
-func (pgb *ChainDB) GetSummaryRangeStepped(idx0, idx1, step int) []*apitypes.BlockDataBasic {
-	summaries, err := pgb.BlockSummaryRangeStepped(int64(idx0), int64(idx1), int64(step))
+func (pgb *ChainDB) GetSummaryRangeStepped(ctx context.Context, idx0, idx1, step int) []*apitypes.BlockDataBasic {
+	summaries, err := pgb.BlockSummaryRangeStepped(ctx, int64(idx0), int64(idx1), int64(step))
 	if err != nil {
 		log.Errorf("Unable to retrieve block summaries: %v", err)
 		return nil
@@ -5247,22 +5247,22 @@ func (pgb *ChainDB) GetSummaryRangeStepped(idx0, idx1, step int) []*apitypes.Blo
 
 // BlockSummaryRangeStepped returns the []*apitypes.BlockDataBasic for every
 // step'th block in a specified range.
-func (pgb *ChainDB) BlockSummaryRangeStepped(idx0, idx1, step int64) ([]*apitypes.BlockDataBasic, error) {
-	return retrieveBlockSummaryRangeStepped(pgb.ctx, pgb.db, idx0, idx1, step)
+func (pgb *ChainDB) BlockSummaryRangeStepped(ctx context.Context, idx0, idx1, step int64) ([]*apitypes.BlockDataBasic, error) {
+	return retrieveBlockSummaryRangeStepped(ctx, pgb.db, idx0, idx1, step)
 }
 
 // GetSummaryByHash returns a *apitypes.BlockDataBasic for a given hex-encoded
 // block hash. If withTxTotals is true, the TotalSent and MiningFee fields will
 // be set, but it's costly because it requires a GetBlockVerboseByHash RPC call.
-func (pgb *ChainDB) GetSummaryByHash(hash string, withTxTotals bool) *apitypes.BlockDataBasic {
-	blockSummary, err := pgb.BlockSummaryByHash(hash)
+func (pgb *ChainDB) GetSummaryByHash(ctx context.Context, hash string, withTxTotals bool) *apitypes.BlockDataBasic {
+	blockSummary, err := pgb.BlockSummaryByHash(ctx, hash)
 	if err != nil {
 		log.Errorf("Unable to retrieve block summary: %v", err)
 		return nil
 	}
 
 	if withTxTotals {
-		data := pgb.GetBlockVerboseByHash(hash, true)
+		data := pgb.GetBlockVerboseByHash(ctx, hash, true)
 		if data == nil {
 			log.Error("Unable to get block for block hash " + hash)
 			return nil
@@ -5306,7 +5306,7 @@ func (pgb *ChainDB) GetSummaryByHash(hash string, withTxTotals bool) *apitypes.B
 
 // BlockSummaryByHash makes a *apitypes.BlockDataBasic, checking the BlockCache
 // first before querying the database.
-func (pgb *ChainDB) BlockSummaryByHash(hash string) (*apitypes.BlockDataBasic, error) {
+func (pgb *ChainDB) BlockSummaryByHash(ctx context.Context, hash string) (*apitypes.BlockDataBasic, error) {
 	// First try the block summary cache.
 	usingBlockCache := pgb.BlockCache != nil && pgb.BlockCache.IsEnabled()
 	if usingBlockCache {
@@ -5321,7 +5321,7 @@ func (pgb *ChainDB) BlockSummaryByHash(hash string) (*apitypes.BlockDataBasic, e
 	if err != nil {
 		return nil, err
 	}
-	bd, err := retrieveBlockSummaryByHash(pgb.ctx, pgb.db, ch)
+	bd, err := retrieveBlockSummaryByHash(ctx, pgb.db, ch)
 	if err != nil {
 		return nil, err
 	}
@@ -5340,9 +5340,9 @@ func (pgb *ChainDB) BlockSummaryByHash(hash string) (*apitypes.BlockDataBasic, e
 
 // GetBestBlockSummary retrieves data for the best block in the DB. If there are
 // no blocks in the table (yet), a nil pointer is returned.
-func (pgb *ChainDB) GetBestBlockSummary() *apitypes.BlockDataBasic {
+func (pgb *ChainDB) GetBestBlockSummary(ctx context.Context) *apitypes.BlockDataBasic {
 	// Attempt to retrieve height of best block in DB.
-	dbBlkHeight, err := pgb.HeightDB()
+	dbBlkHeight, err := pgb.HeightDB(ctx)
 	if err != nil {
 		log.Errorf("GetBlockSummaryHeight failed: %v", err)
 		return nil
@@ -5354,7 +5354,7 @@ func (pgb *ChainDB) GetBestBlockSummary() *apitypes.BlockDataBasic {
 	}
 
 	// Retrieve the block data.
-	blockSummary, err := pgb.BlockSummary(dbBlkHeight)
+	blockSummary, err := pgb.BlockSummary(ctx, dbBlkHeight)
 	if err != nil {
 		log.Errorf("Unable to retrieve block %d summary: %v", dbBlkHeight, err)
 		return nil
@@ -5365,8 +5365,8 @@ func (pgb *ChainDB) GetBestBlockSummary() *apitypes.BlockDataBasic {
 
 // GetBlockSize returns the block size in bytes for the block at a given block
 // height.
-func (pgb *ChainDB) GetBlockSize(idx int) (int32, error) {
-	blockSize, err := pgb.BlockSize(int64(idx))
+func (pgb *ChainDB) GetBlockSize(ctx context.Context, idx int) (int32, error) {
+	blockSize, err := pgb.BlockSize(ctx, int64(idx))
 	if err != nil {
 		log.Errorf("Unable to retrieve block %d size: %v", idx, err)
 		return -1, err
@@ -5376,8 +5376,8 @@ func (pgb *ChainDB) GetBlockSize(idx int) (int32, error) {
 
 // GetBlockSizeRange gets the block sizes in bytes for an inclusive range of
 // block heights.
-func (pgb *ChainDB) GetBlockSizeRange(idx0, idx1 int) ([]int32, error) {
-	blockSizes, err := pgb.BlockSizeRange(int64(idx0), int64(idx1))
+func (pgb *ChainDB) GetBlockSizeRange(ctx context.Context, idx0, idx1 int) ([]int32, error) {
+	blockSizes, err := pgb.BlockSizeRange(ctx, int64(idx0), int64(idx1))
 	if err != nil {
 		log.Errorf("Unable to retrieve block size range: %v", err)
 		return nil, err
@@ -5386,7 +5386,7 @@ func (pgb *ChainDB) GetBlockSizeRange(idx0, idx1 int) ([]int32, error) {
 }
 
 // BlockSize return the size of block at height ind.
-func (pgb *ChainDB) BlockSize(ind int64) (int32, error) {
+func (pgb *ChainDB) BlockSize(ctx context.Context, ind int64) (int32, error) {
 	// First try the block summary cache.
 	usingBlockCache := pgb.BlockCache != nil && pgb.BlockCache.IsEnabled()
 	if usingBlockCache {
@@ -5404,22 +5404,22 @@ func (pgb *ChainDB) BlockSize(ind int64) (int32, error) {
 			ind, tip)
 	}
 
-	return retrieveBlockSize(pgb.ctx, pgb.db, ind)
+	return retrieveBlockSize(ctx, pgb.db, ind)
 }
 
 // BlockSizeRange returns an array of block sizes for block range ind0 to ind1
-func (pgb *ChainDB) BlockSizeRange(ind0, ind1 int64) ([]int32, error) {
+func (pgb *ChainDB) BlockSizeRange(ctx context.Context, ind0, ind1 int64) ([]int32, error) {
 	tip := pgb.Height()
 	if ind1 > tip || ind0 < 0 {
 		return nil, fmt.Errorf("Cannot retrieve block size range [%d,%d], have height %d",
 			ind0, ind1, tip)
 	}
-	return retrieveBlockSizeRange(pgb.ctx, pgb.db, ind0, ind1)
+	return retrieveBlockSizeRange(ctx, pgb.db, ind0, ind1)
 }
 
 // GetSDiff gets the stake difficulty in DCR for a given block height.
-func (pgb *ChainDB) GetSDiff(idx int) float64 {
-	sdiff, err := retrieveSDiff(pgb.ctx, pgb.db, int64(idx))
+func (pgb *ChainDB) GetSDiff(ctx context.Context, idx int) float64 {
+	sdiff, err := retrieveSDiff(ctx, pgb.db, int64(idx))
 	if err != nil {
 		log.Errorf("Unable to retrieve stake difficulty: %v", err)
 		return -1
@@ -5428,13 +5428,13 @@ func (pgb *ChainDB) GetSDiff(idx int) float64 {
 }
 
 // GetSBitsByHash gets the stake difficulty in DCR for a given block height.
-func (pgb *ChainDB) GetSBitsByHash(hash string) int64 {
+func (pgb *ChainDB) GetSBitsByHash(ctx context.Context, hash string) int64 {
 	ch, err := chainHashFromStr(hash)
 	if err != nil {
 		log.Errorf("invalid hash %s", hash)
 		return 0
 	}
-	sbits, err := retrieveSBitsByHash(pgb.ctx, pgb.db, ch)
+	sbits, err := retrieveSBitsByHash(ctx, pgb.db, ch)
 	if err != nil {
 		log.Errorf("Unable to retrieve stake difficulty: %v", err)
 		return -1
@@ -5443,8 +5443,8 @@ func (pgb *ChainDB) GetSBitsByHash(hash string) int64 {
 }
 
 // GetSDiffRange gets the stake difficulties in DCR for a range of block heights.
-func (pgb *ChainDB) GetSDiffRange(idx0, idx1 int) []float64 {
-	sdiffs, err := pgb.SDiffRange(int64(idx0), int64(idx1))
+func (pgb *ChainDB) GetSDiffRange(ctx context.Context, idx0, idx1 int) []float64 {
+	sdiffs, err := pgb.SDiffRange(ctx, int64(idx0), int64(idx1))
 	if err != nil {
 		log.Errorf("Unable to retrieve stake difficulty range: %v", err)
 		return nil
@@ -5454,13 +5454,13 @@ func (pgb *ChainDB) GetSDiffRange(idx0, idx1 int) []float64 {
 
 // SDiffRange returns an array of stake difficulties for block range
 // ind0 to ind1.
-func (pgb *ChainDB) SDiffRange(ind0, ind1 int64) ([]float64, error) {
+func (pgb *ChainDB) SDiffRange(ctx context.Context, ind0, ind1 int64) ([]float64, error) {
 	tip := pgb.Height()
 	if ind1 > tip || ind0 < 0 {
 		return nil, fmt.Errorf("Cannot retrieve sdiff range [%d,%d], have height %d",
 			ind0, ind1, tip)
 	}
-	return retrieveSDiffRange(pgb.ctx, pgb.db, ind0, ind1)
+	return retrieveSDiffRange(ctx, pgb.db, ind0, ind1)
 }
 
 // GetMempoolSSTxSummary returns the current *apitypes.MempoolTicketFeeInfo.
@@ -5541,7 +5541,7 @@ func decPkScript(ver uint16, pkScript []byte, isTicketCommit bool, chainParams *
 // objects similar to the raw result of SearchRawTransactionsVerbose, but with
 // fewer Vin details, namely the SigScript and Sequence. This powers the
 // /address/{addr}/.../raw API endpoints.
-func (pgb *ChainDB) GetAddressTransactionsRawWithSkip(addr string, count, skip int) []*apitypes.AddressTxRaw {
+func (pgb *ChainDB) GetAddressTransactionsRawWithSkip(ctx context.Context, addr string, count, skip int) []*apitypes.AddressTxRaw {
 	_, err := stdaddr.DecodeAddress(addr, pgb.chainParams) // likely redundant with checks in caller
 	if err != nil {
 		log.Infof("Invalid address %s: %v", addr, err)
@@ -5609,7 +5609,7 @@ func (pgb *ChainDB) GetAddressTransactionsRawWithSkip(addr string, count, skip i
 
 	_, height := pgb.BestBlock() // for confirmations
 
-	ctx, cancel := context.WithTimeout(pgb.ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	// vins
@@ -5798,8 +5798,8 @@ func (pgb *ChainDB) GetChainParams() *chaincfg.Params {
 
 // GetBlockVerbose fetches the *chainjson.GetBlockVerboseResult for a given
 // block height. Optionally include verbose transactions.
-func (pgb *ChainDB) getBlockVerbose(idx int, verboseTx bool) *chainjson.GetBlockVerboseResult {
-	return rpcutils.GetBlockVerbose(pgb.Client, int64(idx), verboseTx)
+func (pgb *ChainDB) getBlockVerbose(ctx context.Context, idx int, verboseTx bool) *chainjson.GetBlockVerboseResult {
+	return rpcutils.GetBlockVerbose(ctx, pgb.Client, int64(idx), verboseTx)
 }
 
 func sumOutsTxRawResult(txs []chainjson.TxRawResult) (sum float64) {
@@ -5914,7 +5914,7 @@ func trimmedTxInfoFromMsgTx(txraw *chainjson.TxRawResult, ticketPrice int64, msg
 
 // BlockSubsidy gets the *chainjson.GetBlockSubsidyResult for the given height
 // and number of voters, which can be fewer than the network parameter allows.
-func (pgb *ChainDB) BlockSubsidy(height int64, voters uint16) *chainjson.GetBlockSubsidyResult {
+func (pgb *ChainDB) BlockSubsidy(_ context.Context, height int64, voters uint16) *chainjson.GetBlockSubsidyResult {
 	ssv := standalone.SSVOriginal
 	if pgb.IsDCP0012Active(height) {
 		ssv = standalone.SSVDCP0012
@@ -5932,7 +5932,7 @@ func (pgb *ChainDB) BlockSubsidy(height int64, voters uint16) *chainjson.GetBloc
 }
 
 // GetExplorerBlock gets a *exptypes.Blockinfo for the specified block.
-func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
+func (pgb *ChainDB) GetExplorerBlock(ctx context.Context, hash string) *exptypes.BlockInfo {
 	// This function is quit expensive, and it is used by multiple
 	// BlockDataSavers, so remember the BlockInfo generated for this block hash.
 	// This also disallows concurrently calling this function for the same block
@@ -5944,7 +5944,7 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 	}
 	pgb.lastExplorerBlock.Unlock()
 
-	data := pgb.GetBlockVerboseByHash(hash, true)
+	data := pgb.GetBlockVerboseByHash(ctx, hash, true)
 	if data == nil {
 		log.Error("Unable to get block for block hash " + hash)
 		return nil
@@ -5971,7 +5971,7 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 		PreviousHash:          data.PreviousHash,
 		NextHash:              data.NextHash,
 		StakeValidationHeight: pgb.chainParams.StakeValidationHeight,
-		Subsidy:               pgb.BlockSubsidy(b.Height, b.Voters),
+		Subsidy:               pgb.BlockSubsidy(ctx, b.Height, b.Voters),
 	}
 
 	if data.PoWHash != "" {
@@ -5984,7 +5984,7 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 		}
 
 		// Get the block header
-		header, err := pgb.Client.GetBlockHeader(pgb.ctx, blockChainHash)
+		header, err := pgb.Client.GetBlockHeader(ctx, blockChainHash)
 		if err != nil {
 			log.Errorf("failed to fetch header for block hash %s: %v", data.Hash, err)
 			return nil
@@ -6112,13 +6112,13 @@ func (pgb *ChainDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 
 // GetExplorerBlocks creates an slice of exptypes.BlockBasic beginning at start
 // and decreasing in block height to end, not including end.
-func (pgb *ChainDB) GetExplorerBlocks(start int, end int) []*exptypes.BlockBasic {
+func (pgb *ChainDB) GetExplorerBlocks(ctx context.Context, start int, end int) []*exptypes.BlockBasic {
 	if start < end {
 		return nil
 	}
 	summaries := make([]*exptypes.BlockBasic, 0, start-end)
 	for i := start; i > end; i-- {
-		data := pgb.getBlockVerbose(i, true)
+		data := pgb.getBlockVerbose(ctx, i, true)
 		block := new(exptypes.BlockBasic)
 		if data != nil {
 			block = makeExplorerBlockBasic(data, pgb.chainParams)
@@ -6132,11 +6132,11 @@ func (pgb *ChainDB) GetExplorerBlocks(start int, end int) []*exptypes.BlockBasic
 // transaction is unconfirmed, getstakedifficulty, while the chain server's best
 // block remains unchanged. If the transaction is confirmed, the ticket price is
 // queryied from ChainDB's database. This is an ugly solution to atomic RPCs.
-func (pgb *ChainDB) txWithTicketPrice(txhash *chainhash.Hash) (*chainjson.TxRawResult, int64, error) {
+func (pgb *ChainDB) txWithTicketPrice(ctx context.Context, txhash *chainhash.Hash) (*chainjson.TxRawResult, int64, error) {
 	// If the transaction is unconfirmed, the RPC client must provide the ticket
 	// price. Ensure the best block does not change between calls to
 	// getrawtransaction and getstakedifficulty.
-	ctx, cancel := context.WithTimeout(pgb.ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	blockHash, _, err := pgb.Client.GetBestBlock(ctx)
 	if err != nil {
@@ -6152,7 +6152,7 @@ func (pgb *ChainDB) txWithTicketPrice(txhash *chainhash.Hash) (*chainjson.TxRawR
 		}
 
 		if txraw.Confirmations > 0 {
-			return txraw, pgb.GetSBitsByHash(txraw.BlockHash), nil
+			return txraw, pgb.GetSBitsByHash(ctx, txraw.BlockHash), nil
 		}
 
 		sdiffRes, err := pgb.Client.GetStakeDifficulty(ctx)
@@ -6179,14 +6179,14 @@ func (pgb *ChainDB) txWithTicketPrice(txhash *chainhash.Hash) (*chainjson.TxRawR
 
 // GetExplorerTx creates a *exptypes.TxInfo for the transaction with the given
 // ID.
-func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
+func (pgb *ChainDB) GetExplorerTx(ctx context.Context, txid string) *exptypes.TxInfo {
 	txhash, err := chainhash.NewHashFromStr(txid)
 	if err != nil {
 		log.Errorf("Invalid transaction hash %s", txid)
 		return nil
 	}
 
-	txraw, ticketPrice, err := pgb.txWithTicketPrice(txhash)
+	txraw, ticketPrice, err := pgb.txWithTicketPrice(ctx, txhash)
 	if err != nil {
 		log.Errorf("txWithTicketPrice: %v", err)
 		return nil
@@ -6249,7 +6249,7 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 			} else {
 				// Alt. DB-powered height lookup:
 				// vin.BlockHeight = uint32(pgb.TxHeight(vinHash))
-				prevTx, err := pgb.Client.GetRawTransactionVerbose(pgb.ctx, vinHash)
+				prevTx, err := pgb.Client.GetRawTransactionVerbose(ctx, vinHash)
 				if err == nil {
 					vin.BlockHeight = uint32(prevTx.BlockHeight)
 				} else {
@@ -6296,14 +6296,14 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		tx.Maturity = int64(pgb.chainParams.CoinbaseMaturity)
 
 		if tx.IsTreasurySpend() {
-			tSpendTally, err := pgb.TSpendVotes(txhash)
+			tSpendTally, err := pgb.TSpendVotes(ctx, txhash)
 			if err != nil {
 				log.Errorf("Failed to retrieve vote tally for tspend %v: %v", txid, err)
 			}
 			tx.TSpendMeta = new(dbtypes.TreasurySpendMetaData)
 			tx.TSpendMeta.TreasurySpendVotes = tSpendTally
 
-			tip, err := pgb.GetTip()
+			tip, err := pgb.GetTip(ctx)
 			if err != nil {
 				log.Errorf("Failed to get the chain tip from the database.: %v", err)
 				return nil
@@ -6343,7 +6343,7 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 			secTillVoteStart := (tx.TSpendMeta.VoteStart - tipHeight) * targetBlockTimeSec
 			tx.TSpendMeta.VoteStartDate = time.Now().Add(time.Duration(secTillVoteStart) * time.Second).UTC()
 			if voteStarted { // started
-				voteStartTimeStamp, err := pgb.BlockTimeByHeight(tx.TSpendMeta.VoteStart)
+				voteStartTimeStamp, err := pgb.BlockTimeByHeight(ctx, tx.TSpendMeta.VoteStart)
 				if err != nil {
 					log.Errorf("Error fetching tspend start block time: %v", err)
 				}
@@ -6360,7 +6360,7 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 				tx.TSpendMeta.NextTVI = tipHeight + int64(blocksToNextTVI)
 			}
 			if tipHeight > tx.TSpendMeta.VoteEnd { // voting has ended
-				voteEndTimeStamp, err := pgb.BlockTimeByHeight(tx.TSpendMeta.VoteEnd)
+				voteEndTimeStamp, err := pgb.BlockTimeByHeight(ctx, tx.TSpendMeta.VoteEnd)
 				if err != nil {
 					log.Errorf("Error fetching tspend end block time: %v", err)
 				}
@@ -6378,7 +6378,7 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 					currentVoteEndBlock = tipHeight
 				}
 
-				misses, err := pgb.missedVotesForBlockRange(tx.TSpendMeta.VoteStart, currentVoteEndBlock)
+				misses, err := pgb.missedVotesForBlockRange(ctx, tx.TSpendMeta.VoteStart, currentVoteEndBlock)
 				if err != nil {
 					log.Errorf("failed to get missed votes count for tspend voting window: %v", err)
 					return nil
@@ -6431,7 +6431,7 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 			utxoData := pgb.utxoCache.Peek(dbtypes.ChainHash(*txhash), uint32(i))
 			spent = utxoData == nil // if true, definitely spent since this tx is confirmed; if false, spender might be unconfirmed!
 		}
-		// txout, err := pgb.Client.GetTxOut(pgb.ctx, txhash, uint32(i), tree, true)
+		// txout, err := pgb.Client.GetTxOut(ctx, txhash, uint32(i), tree, true)
 		// if err != nil {
 		//	log.Warnf("Failed to determine if tx out is spent for output %d of tx %s: %v", i, txid, err)
 		// }
@@ -6441,7 +6441,7 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 
 		/* this tx is unconfirmed, gettxout won't ever say if the output is spent
 		else {
-			txout, err := pgb.Client.GetTxOut(pgb.ctx, txhash, uint32(i), tree, true)
+			txout, err := pgb.Client.GetTxOut(ctx, txhash, uint32(i), tree, true)
 			if err != nil {
 				log.Warnf("Failed to determine if tx out is spent for output %d of tx %s: %v", i, txid, err)
 			}
@@ -6484,8 +6484,8 @@ func (pgb *ChainDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 }
 
 // GetTip grabs the highest block stored in the database.
-func (pgb *ChainDB) GetTip() (*exptypes.WebBasicBlock, error) {
-	tip, err := pgb.getTip()
+func (pgb *ChainDB) GetTip(ctx context.Context) (*exptypes.WebBasicBlock, error) {
+	tip, err := pgb.getTip(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -6507,13 +6507,13 @@ func (pgb *ChainDB) GetTip() (*exptypes.WebBasicBlock, error) {
 
 // getTip returns the last block stored using StoreBlockSummary.
 // If no block has been stored yet, it returns the best block in the database.
-func (pgb *ChainDB) getTip() (*apitypes.BlockDataBasic, error) {
+func (pgb *ChainDB) getTip(ctx context.Context) (*apitypes.BlockDataBasic, error) {
 	pgb.tipMtx.Lock()
 	defer pgb.tipMtx.Unlock()
 	if pgb.tipSummary != nil && pgb.tipSummary.Hash == pgb.BestBlockHashStr() {
 		return pgb.tipSummary, nil
 	}
-	tip, err := retrieveLatestBlockSummary(pgb.ctx, pgb.db)
+	tip, err := retrieveLatestBlockSummary(ctx, pgb.db)
 	if err != nil {
 		return nil, err
 	}
@@ -6523,13 +6523,13 @@ func (pgb *ChainDB) getTip() (*apitypes.BlockDataBasic, error) {
 
 // DecodeRawTransaction creates a *chainjson.TxRawResult from a hex-encoded
 // transaction.
-func (pgb *ChainDB) DecodeRawTransaction(txhex string) (*chainjson.TxRawResult, error) {
+func (pgb *ChainDB) DecodeRawTransaction(ctx context.Context, txhex string) (*chainjson.TxRawResult, error) {
 	bytes, err := hex.DecodeString(txhex)
 	if err != nil {
 		log.Errorf("DecodeRawTransaction failed: %v", err)
 		return nil, err
 	}
-	tx, err := pgb.Client.DecodeRawTransaction(pgb.ctx, bytes)
+	tx, err := pgb.Client.DecodeRawTransaction(ctx, bytes)
 	if err != nil {
 		log.Errorf("DecodeRawTransaction failed: %v", err)
 		return nil, err
@@ -6538,7 +6538,7 @@ func (pgb *ChainDB) DecodeRawTransaction(txhex string) (*chainjson.TxRawResult, 
 }
 
 // TxHeight gives the block height of the transaction id specified
-func (pgb *ChainDB) TxHeight(txid *chainhash.Hash) (height int64) {
+func (pgb *ChainDB) TxHeight(ctx context.Context, txid *chainhash.Hash) (height int64) {
 	// Alt. DB-powered height lookup:
 	// txBlock, _, _, err := pgb.TransactionBlock(txid.String())
 	// if err != nil {
@@ -6546,7 +6546,7 @@ func (pgb *ChainDB) TxHeight(txid *chainhash.Hash) (height int64) {
 	// 	return 0
 	// }
 	// return txBlock.Height
-	txraw, err := pgb.Client.GetRawTransactionVerbose(pgb.ctx, txid)
+	txraw, err := pgb.Client.GetRawTransactionVerbose(ctx, txid)
 	if err != nil {
 		log.Errorf("GetRawTransactionVerbose failed for: %v", txid)
 		return 0
@@ -6557,16 +6557,16 @@ func (pgb *ChainDB) TxHeight(txid *chainhash.Hash) (height int64) {
 
 // GetExplorerFullBlocks gets the *exptypes.BlockInfo's for a range of block
 // heights.
-func (pgb *ChainDB) GetExplorerFullBlocks(start int, end int) []*exptypes.BlockInfo {
+func (pgb *ChainDB) GetExplorerFullBlocks(ctx context.Context, start int, end int) []*exptypes.BlockInfo {
 	if start < end {
 		return nil
 	}
 	summaries := make([]*exptypes.BlockInfo, 0, start-end)
 	for i := start; i > end; i-- {
-		data := pgb.getBlockVerbose(i, true)
+		data := pgb.getBlockVerbose(ctx, i, true)
 		block := new(exptypes.BlockInfo)
 		if data != nil {
-			block = pgb.GetExplorerBlock(data.Hash)
+			block = pgb.GetExplorerBlock(ctx, data.Hash)
 		}
 		summaries = append(summaries, block)
 	}
@@ -6574,11 +6574,11 @@ func (pgb *ChainDB) GetExplorerFullBlocks(start int, end int) []*exptypes.BlockI
 }
 
 // CurrentDifficulty returns the current difficulty from dcrd.
-func (pgb *ChainDB) CurrentDifficulty() (float64, error) {
+func (pgb *ChainDB) CurrentDifficulty(ctx context.Context) (float64, error) {
 	// pgb.lastExplorerBlock.Lock()
 	// defer pgb.lastExplorerBlock.Unlock()
 	// return pgb.lastExplorerBlock.blockInfo.Difficulty, nil // last block; same as next? probably not
-	diff, err := pgb.Client.GetDifficulty(pgb.ctx)
+	diff, err := pgb.Client.GetDifficulty(ctx)
 	if err != nil {
 		log.Error("GetDifficulty failed")
 		return diff, err
@@ -6588,7 +6588,7 @@ func (pgb *ChainDB) CurrentDifficulty() (float64, error) {
 
 // Difficulty returns the difficulty for the first block mined after the
 // provided UNIX timestamp.
-func (pgb *ChainDB) Difficulty(timestamp int64) float64 {
+func (pgb *ChainDB) Difficulty(ctx context.Context, timestamp int64) float64 {
 	pgb.lastExplorerBlock.Lock()
 	diff, ok := pgb.lastExplorerBlock.difficulties[timestamp]
 	pgb.lastExplorerBlock.Unlock()
@@ -6596,7 +6596,7 @@ func (pgb *ChainDB) Difficulty(timestamp int64) float64 {
 		return diff
 	}
 
-	diff, err := retrieveDiff(pgb.ctx, pgb.db, timestamp)
+	diff, err := retrieveDiff(ctx, pgb.db, timestamp)
 	if err != nil {
 		log.Errorf("Unable to retrieve difficulty: %v", err)
 		return -1
@@ -6612,8 +6612,8 @@ func (pgb *ChainDB) Difficulty(timestamp int64) float64 {
 // will be nil if the GetRawMempoolVerbose RPC fails. A zero-length non-nil
 // slice is returned if there are no transactions in mempool. UNUSED?
 /*
-func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
-	mempooltxs, err := pgb.Client.GetRawMempoolVerbose(pgb.ctx, chainjson.GRMAll)
+func (pgb *ChainDB) GetMempool(ctx context.Context) []exptypes.MempoolTx {
+	mempooltxs, err := pgb.Client.GetRawMempoolVerbose(ctx, chainjson.GRMAll)
 	if err != nil {
 		log.Errorf("GetRawMempoolVerbose failed: %v", err)
 		return nil
@@ -6626,7 +6626,7 @@ func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
 		if err != nil {
 			continue
 		}
-		txn, err := pgb.Client.GetRawTransaction(pgb.ctx, hash)
+		txn, err := pgb.Client.GetRawTransaction(ctx, hash)
 		if err != nil {
 			log.Errorf("GetRawTransaction: %v", err)
 			continue
@@ -6683,8 +6683,8 @@ func (pgb *ChainDB) GetMempool() []exptypes.MempoolTx {
 */
 
 // BlockchainInfo retrieves the result of the getblockchaininfo node RPC.
-// func (pgb *ChainDB) BlockchainInfo() (*chainjson.GetBlockChainInfoResult, error) {
-// 	return pgb.Client.GetBlockChainInfo(pgb.ctx)
+// func (pgb *ChainDB) BlockchainInfo(ctx context.Context) (*chainjson.GetBlockChainInfoResult, error) {
+// 	return pgb.Client.GetBlockChainInfo(ctx)
 // }
 
 // UpdateChan creates a channel that will receive height updates. All calls to

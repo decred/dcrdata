@@ -43,7 +43,7 @@ func (pgb *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.BlockFetche
 	}
 
 	// Retrieve the best block in the database from the meta table.
-	lastBlock, err := pgb.HeightDB()
+	lastBlock, err := pgb.HeightDB(ctx)
 	if err != nil {
 		return -1, fmt.Errorf("RetrieveBestBlockHeight: %w", err)
 	}

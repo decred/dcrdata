@@ -160,7 +160,7 @@ func mainCore(ctx context.Context) error {
 	}
 
 	// Check current height of DB.
-	lastBlock, err := db.HeightDB()
+	lastBlock, err := db.HeightDB(ctx)
 	if err != nil {
 		return fmt.Errorf("HeightDB: %v", err)
 	}

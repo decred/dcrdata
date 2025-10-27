@@ -7,6 +7,7 @@
 package explorer
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"net/http"
@@ -66,54 +67,54 @@ const (
 // explorerDataSource implements extra data retrieval functions that require a
 // faster solution than RPC, or additional functionality.
 type explorerDataSource interface {
-	BlockHeight(hash string) (int64, error)
+	BlockHeight(ctx context.Context, hash string) (int64, error)
 	Height() int64
-	HeightDB() (int64, error)
-	BlockHash(height int64) (string, error)
-	SpendingTransaction(fundingTx string, vout uint32) (string, uint32, error)
-	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
-	PoolStatusForTicket(txid string) (dbtypes.TicketSpendType, dbtypes.TicketPoolStatus, error)
-	TreasuryBalance() (*dbtypes.TreasuryBalance, error)
-	TreasuryTxns(n, offset int64, txType stake.TxType) ([]*dbtypes.TreasuryTx, error)
-	AddressHistory(address string, N, offset int64, txnType dbtypes.AddrTxnViewType) ([]*dbtypes.AddressRow, *dbtypes.AddressBalance, error)
-	AddressData(address string, N, offset int64, txnType dbtypes.AddrTxnViewType) (*dbtypes.AddressInfo, error)
-	DevBalance() (*dbtypes.AddressBalance, error)
-	FillAddressTransactions(addrInfo *dbtypes.AddressInfo) error
-	BlockMissedVotes(blockHash string) ([]string, error)
-	TicketMiss(ticketHash string) (string, int64, error)
-	SideChainBlocks() ([]*dbtypes.BlockStatus, error)
-	DisapprovedBlocks() ([]*dbtypes.BlockStatus, error)
-	BlockStatus(hash string) (dbtypes.BlockStatus, error)
-	BlockStatuses(height int64) ([]*dbtypes.BlockStatus, error)
-	BlockFlags(hash string) (bool, bool, error)
-	TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) (*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, int64, error)
-	TransactionBlocks(hash string) ([]*dbtypes.BlockStatus, []uint32, error)
-	Transaction(txHash string) ([]*dbtypes.Tx, error)
-	VinsForTx(*dbtypes.Tx) (vins []dbtypes.VinTxProperty, err error)
-	VoutsForTx(*dbtypes.Tx) ([]dbtypes.Vout, error)
-	PosIntervals(limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error)
-	TimeBasedIntervals(timeGrouping dbtypes.TimeBasedGrouping, limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error)
-	AgendasVotesSummary(agendaID string) (summary *dbtypes.AgendaSummary, err error)
-	BlockTimeByHeight(height int64) (int64, error)
+	HeightDB(context.Context) (int64, error)
+	BlockHash(ctx context.Context, height int64) (string, error)
+	SpendingTransaction(ctx context.Context, fundingTx string, vout uint32) (string, uint32, error)
+	SpendingTransactions(ctx context.Context, fundingTxID string) ([]string, []uint32, []uint32, error)
+	PoolStatusForTicket(ctx context.Context, txid string) (dbtypes.TicketSpendType, dbtypes.TicketPoolStatus, error)
+	TreasuryBalance(context.Context) (*dbtypes.TreasuryBalance, error)
+	TreasuryTxns(ctx context.Context, n, offset int64, txType stake.TxType) ([]*dbtypes.TreasuryTx, error)
+	AddressHistory(ctx context.Context, address string, N, offset int64, txnType dbtypes.AddrTxnViewType) ([]*dbtypes.AddressRow, *dbtypes.AddressBalance, error)
+	AddressData(ctx context.Context, address string, N, offset int64, txnType dbtypes.AddrTxnViewType) (*dbtypes.AddressInfo, error)
+	DevBalance(ctx context.Context) (*dbtypes.AddressBalance, error)
+	FillAddressTransactions(ctx context.Context, addrInfo *dbtypes.AddressInfo) error
+	BlockMissedVotes(ctx context.Context, blockHash string) ([]string, error)
+	TicketMiss(ctx context.Context, ticketHash string) (string, int64, error)
+	SideChainBlocks(context.Context) ([]*dbtypes.BlockStatus, error)
+	DisapprovedBlocks(context.Context) ([]*dbtypes.BlockStatus, error)
+	BlockStatus(ctx context.Context, hash string) (dbtypes.BlockStatus, error)
+	BlockStatuses(ctx context.Context, height int64) ([]*dbtypes.BlockStatus, error)
+	BlockFlags(ctx context.Context, hash string) (bool, bool, error)
+	TicketPoolVisualization(ctx context.Context, interval dbtypes.TimeBasedGrouping) (*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, int64, error)
+	TransactionBlocks(ctx context.Context, hash string) ([]*dbtypes.BlockStatus, []uint32, error)
+	Transaction(ctx context.Context, txHash string) ([]*dbtypes.Tx, error)
+	VinsForTx(context.Context, *dbtypes.Tx) (vins []dbtypes.VinTxProperty, err error)
+	VoutsForTx(context.Context, *dbtypes.Tx) ([]dbtypes.Vout, error)
+	PosIntervals(ctx context.Context, limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error)
+	TimeBasedIntervals(ctx context.Context, timeGrouping dbtypes.TimeBasedGrouping, limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error)
+	AgendasVotesSummary(ctx context.Context, agendaID string) (summary *dbtypes.AgendaSummary, err error)
+	BlockTimeByHeight(ctx context.Context, height int64) (int64, error)
 	GetChainParams() *chaincfg.Params
-	GetExplorerBlock(hash string) *types.BlockInfo
-	GetExplorerBlocks(start int, end int) []*types.BlockBasic
-	GetBlockHeight(hash string) (int64, error)
-	GetBlockHash(idx int64) (string, error)
-	GetExplorerTx(txid string) *types.TxInfo
-	GetTip() (*types.WebBasicBlock, error)
-	DecodeRawTransaction(txhex string) (*chainjson.TxRawResult, error)
-	SendRawTransaction(txhex string) (string, error)
-	GetTransactionByHash(txid string) (*wire.MsgTx, error)
-	GetHeight() (int64, error)
-	TxHeight(txid *chainhash.Hash) (height int64)
+	GetExplorerBlock(ctx context.Context, hash string) *types.BlockInfo
+	GetExplorerBlocks(ctx context.Context, start int, end int) []*types.BlockBasic
+	GetBlockHeight(ctx context.Context, hash string) (int64, error)
+	GetBlockHash(ctx context.Context, idx int64) (string, error)
+	GetExplorerTx(ctx context.Context, txid string) *types.TxInfo
+	GetTip(context.Context) (*types.WebBasicBlock, error)
+	DecodeRawTransaction(ctx context.Context, txhex string) (*chainjson.TxRawResult, error)
+	SendRawTransaction(ctx context.Context, txhex string) (string, error)
+	GetTransactionByHash(ctx context.Context, txid string) (*wire.MsgTx, error)
+	GetHeight(context.Context) (int64, error)
+	TxHeight(ctx context.Context, txid *chainhash.Hash) (height int64)
 	DCP0010ActivationHeight() int64
 	DCP0011ActivationHeight() int64
 	DCP0012ActivationHeight() int64
-	BlockSubsidy(height int64, voters uint16) *chainjson.GetBlockSubsidyResult
-	GetExplorerFullBlocks(start int, end int) []*types.BlockInfo
-	CurrentDifficulty() (float64, error)
-	Difficulty(timestamp int64) float64
+	BlockSubsidy(ctx context.Context, height int64, voters uint16) *chainjson.GetBlockSubsidyResult
+	GetExplorerFullBlocks(ctx context.Context, start int, end int) []*types.BlockInfo
+	CurrentDifficulty(context.Context) (float64, error)
+	Difficulty(ctx context.Context, timestamp int64) float64
 }
 
 type PoliteiaBackend interface {
@@ -451,8 +452,10 @@ func (exp *explorerUI) StoreMPData(_ *mempool.StakeData, _ []types.MempoolTx, in
 
 // Store implements BlockDataSaver.
 func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
+	ctx := context.TODO()
+
 	// Retrieve block data for the passed block hash.
-	newBlockData := exp.dataSource.GetExplorerBlock(msgBlock.BlockHash().String())
+	newBlockData := exp.dataSource.GetExplorerBlock(ctx, msgBlock.BlockHash().String())
 
 	// Use the latest block's blocktime to get the last 24hr timestamp.
 	day := 24 * time.Hour
@@ -460,12 +463,12 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 
 	// Hashrate change over last day
 	timestamp := newBlockData.BlockTime.T.Add(-day).Unix()
-	last24hrDifficulty := exp.dataSource.Difficulty(timestamp)
+	last24hrDifficulty := exp.dataSource.Difficulty(ctx, timestamp)
 	last24HrHashRate := dbtypes.CalculateHashRate(last24hrDifficulty, targetTimePerBlock)
 
 	// Hashrate change over last month
 	timestamp = newBlockData.BlockTime.T.Add(-30 * day).Unix()
-	lastMonthDifficulty := exp.dataSource.Difficulty(timestamp)
+	lastMonthDifficulty := exp.dataSource.Difficulty(ctx, timestamp)
 	lastMonthHashRate := dbtypes.CalculateHashRate(lastMonthDifficulty, targetTimePerBlock)
 
 	difficulty := blockData.Header.Difficulty
@@ -478,7 +481,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 		stakePerc = blockData.PoolInfo.Value / dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin()
 	}
 
-	treasuryBalance, err := exp.dataSource.TreasuryBalance()
+	treasuryBalance, err := exp.dataSource.TreasuryBalance(ctx)
 	if err != nil {
 		log.Errorf("Store: TreasuryBalance failed: %v", err)
 		treasuryBalance = &dbtypes.TreasuryBalance{}
@@ -571,7 +574,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 
 	// Simulate the annual staking rate.
 	go func(height int64, sdiff float64, supply int64) {
-		ASR, _ := exp.simulateASR(1000, false, stakePerc,
+		ASR, _ := exp.simulateASR(ctx, 1000, false, stakePerc,
 			dcrutil.Amount(supply).ToCoin(),
 			float64(height), sdiff)
 		p.Lock()
@@ -630,7 +633,7 @@ func (exp *explorerUI) updateDevFundBalance() {
 	// yield processor to other goroutines
 	runtime.Gosched()
 
-	devBalance, err := exp.dataSource.DevBalance()
+	devBalance, err := exp.dataSource.DevBalance(context.TODO())
 	if err == nil && devBalance != nil {
 		exp.pageData.Lock()
 		exp.pageData.HomeInfo.DevFund = devBalance.TotalUnspent
@@ -677,7 +680,7 @@ func (exp *explorerUI) addRoutes() {
 // starting amount of DCR and calculation parameters.  Generate a TEXT table of
 // the simulation results that can optionally be used for future expansion of
 // dcrdata functionality.
-func (exp *explorerUI) simulateASR(StartingDCRBalance float64, IntegerTicketQty bool,
+func (exp *explorerUI) simulateASR(ctx context.Context, StartingDCRBalance float64, IntegerTicketQty bool,
 	CurrentStakePercent float64, ActualCoinbase float64, CurrentBlockNum float64,
 	ActualTicketPrice float64) (ASR float64, ReturnTable string) {
 
@@ -694,7 +697,7 @@ func (exp *explorerUI) simulateASR(StartingDCRBalance float64, IntegerTicketQty 
 	votesPerBlock := exp.ChainParams.VotesPerBlock()
 
 	StakeRewardAtBlock := func(blocknum float64) float64 {
-		Subsidy := exp.dataSource.BlockSubsidy(int64(blocknum), votesPerBlock)
+		Subsidy := exp.dataSource.BlockSubsidy(ctx, int64(blocknum), votesPerBlock)
 		return dcrutil.Amount(Subsidy.PoS / int64(votesPerBlock)).ToCoin()
 	}
 
