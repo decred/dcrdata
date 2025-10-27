@@ -11,15 +11,15 @@ replace (
 
 require (
 	github.com/caarlos0/env/v6 v6.10.1
-	github.com/decred/dcrd/blockchain/stake/v5 v5.0.0
+	github.com/decred/dcrd/blockchain/stake/v5 v5.0.1
 	github.com/decred/dcrd/blockchain/standalone/v2 v2.2.0
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.4
-	github.com/decred/dcrd/chaincfg/v3 v3.2.0
-	github.com/decred/dcrd/dcrutil/v4 v4.0.1
-	github.com/decred/dcrd/rpc/jsonrpc/types/v4 v4.1.0
-	github.com/decred/dcrd/rpcclient/v8 v8.0.0
-	github.com/decred/dcrd/txscript/v4 v4.1.0
-	github.com/decred/dcrd/wire v1.6.0
+	github.com/decred/dcrd/chaincfg/v3 v3.2.1
+	github.com/decred/dcrd/dcrutil/v4 v4.0.2
+	github.com/decred/dcrd/rpc/jsonrpc/types/v4 v4.2.0
+	github.com/decred/dcrd/rpcclient/v8 v8.0.2-0.20251027153552-600eb1c07244
+	github.com/decred/dcrd/txscript/v4 v4.1.1
+	github.com/decred/dcrd/wire v1.7.0
 	github.com/decred/dcrdata/db/dcrpg/v8 v8.0.0
 	github.com/decred/dcrdata/exchanges/v3 v3.1.0
 	github.com/decred/dcrdata/gov/v6 v6.0.0
@@ -91,16 +91,16 @@ require (
 	github.com/decred/dcrd/crypto/blake256 v1.0.1 // indirect
 	github.com/decred/dcrd/crypto/ripemd160 v1.0.2 // indirect
 	github.com/decred/dcrd/database/v2 v2.0.2 // indirect
-	github.com/decred/dcrd/database/v3 v3.0.1 // indirect
+	github.com/decred/dcrd/database/v3 v3.0.2 // indirect
 	github.com/decred/dcrd/dcrec v1.0.1 // indirect
 	github.com/decred/dcrd/dcrec/edwards/v2 v2.0.3 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v3 v3.0.0 // indirect
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0 // indirect
 	github.com/decred/dcrd/dcrjson/v4 v4.0.1 // indirect
 	github.com/decred/dcrd/dcrutil/v3 v3.0.0 // indirect
 	github.com/decred/dcrd/gcs/v2 v2.1.0 // indirect
 	github.com/decred/dcrd/gcs/v3 v3.0.0 // indirect
-	github.com/decred/dcrd/gcs/v4 v4.0.0 // indirect
+	github.com/decred/dcrd/gcs/v4 v4.1.0 // indirect
 	github.com/decred/dcrd/hdkeychain/v3 v3.1.0 // indirect
 	github.com/decred/dcrd/lru v1.1.1 // indirect
 	github.com/decred/dcrd/rpc/jsonrpc/types/v3 v3.0.0 // indirect
@@ -133,7 +133,7 @@ require (
 	github.com/google/trillian v1.4.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/schema v1.1.0 // indirect
-	github.com/gorilla/websocket v1.5.0 // indirect
+	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/h2non/go-is-svg v0.0.0-20160927212452-35e8c4b0612c // indirect
 	github.com/hashicorp/go-bexpr v0.1.10 // indirect
 	github.com/holiman/bloomfilter/v2 v2.0.3 // indirect
@@ -205,5 +205,5 @@ require (
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
-	lukechampine.com/blake3 v1.2.1 // indirect
+	lukechampine.com/blake3 v1.3.0 // indirect
 )
