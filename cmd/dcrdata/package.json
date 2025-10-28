@@ -55,9 +55,10 @@
   },
   "dependencies": {
     "bootstrap": "^5.2.3",
-    "dompurify": "^2.4.5",
+    "dompurify": "^3.3.0",
     "lodash-es": "^4.17.21",
     "qrcode": "^1.5.1",
+    "regenerator-runtime": "^0.14.1",
     "url-parse": "^1.5.10"
   }
 }
