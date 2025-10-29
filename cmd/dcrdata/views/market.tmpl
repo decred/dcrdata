@@ -97,9 +97,6 @@
                           <span class="fs22 fw-bold d-inline-block">$</span>
                       {{end}}
                       <span class="fs24" data-price="{{$state.Price}}" data-token="{{$token}}" data-market-target="xcIndex">{{commaWithDecimal $state.Price 2}}</span> <span class="fs16 text-secondary">{{$botState.Index}}</span><br>
-                      {{if eq $token "coindesk"}}
-                        <a class="fs12" href="https://www.coindesk.com/price/bitcoin">Powered by CoinDesk</a>
-                      {{end}}
                   </div>
               {{end}}
             </div>
