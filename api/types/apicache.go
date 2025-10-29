@@ -6,6 +6,7 @@ package types
 
 import (
 	"container/heap"
+	"context"
 	"fmt"
 	"math"
 	"sync"
@@ -268,7 +269,7 @@ func (apic *APICache) blockHash(height int64) (chainhash.Hash, bool) {
 
 // GetBlockHash attempts to get the block hash for the main chain block at the
 // given height. The empty string ("") is returned in the event of a cache miss.
-func (apic *APICache) GetBlockHash(height int64) string {
+func (apic *APICache) GetBlockHash(_ context.Context, height int64) string {
 	if !apic.IsEnabled() {
 		return ""
 	}

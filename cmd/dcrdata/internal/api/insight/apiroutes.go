@@ -6,6 +6,7 @@ package insight
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -32,23 +33,23 @@ import (
 )
 
 type BlockDataSource interface {
-	AddressBalance(address string) (bal *dbtypes.AddressBalance, cacheUpdated bool, err error)
-	OutpointAddresses(txHash string, voutIndex uint32) ([]string, int64, error)
-	AddressUTXO(address string) ([]*dbtypes.AddressTxnOutput, bool, error)
-	BlockSummaryTimeRange(min, max int64, limit int) ([]dbtypes.BlockDataBasic, error)
-	GetBlockHash(idx int64) (string, error)
-	GetBlockHeight(hash string) (int64, error)
-	GetBlockVerboseByHash(hash string, verboseTx bool) *chainjson.GetBlockVerboseResult
-	GetHeight() (int64, error)
-	GetRawTransactionVerbose(txid *chainhash.Hash) (*chainjson.TxRawResult, error)
-	GetTransactionHex(txid *chainhash.Hash) string
+	AddressBalance(ctx context.Context, address string) (bal *dbtypes.AddressBalance, cacheUpdated bool, err error)
+	OutpointAddresses(ctx context.Context, txHash string, voutIndex uint32) ([]string, int64, error)
+	AddressUTXO(ctx context.Context, address string) ([]*dbtypes.AddressTxnOutput, bool, error)
+	BlockSummaryTimeRange(ctx context.Context, min, max int64, limit int) ([]dbtypes.BlockDataBasic, error)
+	GetBlockHash(ctx context.Context, idx int64) (string, error)
+	GetBlockHeight(ctx context.Context, hash string) (int64, error)
+	GetBlockVerboseByHash(ctx context.Context, hash string, verboseTx bool) *chainjson.GetBlockVerboseResult
+	GetHeight(context.Context) (int64, error)
+	GetRawTransactionVerbose(ctx context.Context, txid *chainhash.Hash) (*chainjson.TxRawResult, error)
+	GetTransactionHex(ctx context.Context, txid *chainhash.Hash) string
 	Height() int64
 	DCP0010ActivationHeight() int64
 	DCP0011ActivationHeight() int64
 	DCP0012ActivationHeight() int64
-	InsightAddressTransactions(addr []string, recentBlockHeight int64) (txs, recentTxs []chainhash.Hash, err error)
-	SendRawTransaction(txhex string) (string, error)
-	SpendDetailsForFundingTx(fundHash string) ([]*apitypes.SpendByFundingHash, error)
+	InsightAddressTransactions(ctx context.Context, addr []string, recentBlockHeight int64) (txs, recentTxs []chainhash.Hash, err error)
+	SendRawTransaction(ctx context.Context, txhex string) (string, error)
+	SpendDetailsForFundingTx(ctx context.Context, fundHash string) ([]*apitypes.SpendByFundingHash, error)
 }
 
 const (
@@ -144,6 +145,8 @@ func writeInsightNotFound(w http.ResponseWriter, str string) {
 }
 
 func (iapi *InsightApi) getTransaction(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	txid, err := m.GetTxIDCtx(r)
 	if err != nil {
 		errStr := html.EscapeString(err.Error())
@@ -152,7 +155,7 @@ func (iapi *InsightApi) getTransaction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Return raw transaction
-	txOld, err := iapi.BlockData.GetRawTransactionVerbose(txid)
+	txOld, err := iapi.BlockData.GetRawTransactionVerbose(ctx, txid)
 	if err != nil {
 		apiLog.Errorf("Unable to get transaction %s", txid)
 		writeInsightNotFound(w, fmt.Sprintf("Unable to get transaction (%s)", txid))
@@ -162,7 +165,7 @@ func (iapi *InsightApi) getTransaction(w http.ResponseWriter, r *http.Request) {
 	txsOld := []*chainjson.TxRawResult{txOld}
 
 	// convert to insight struct
-	txsNew, err := iapi.TxConverter(txsOld)
+	txsNew, err := iapi.TxConverter(ctx, txsOld)
 
 	if err != nil {
 		apiLog.Errorf("Error Processing Transactions")
@@ -174,6 +177,8 @@ func (iapi *InsightApi) getTransaction(w http.ResponseWriter, r *http.Request) {
 }
 
 func (iapi *InsightApi) getTransactionHex(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	txid, err := m.GetTxIDCtx(r)
 	if err != nil {
 		errStr := html.EscapeString(err.Error())
@@ -181,7 +186,7 @@ func (iapi *InsightApi) getTransactionHex(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	txHex := iapi.BlockData.GetTransactionHex(txid)
+	txHex := iapi.BlockData.GetTransactionHex(ctx, txid)
 	if txHex == "" {
 		writeInsightNotFound(w, fmt.Sprintf("Unable to get transaction (%s)", txHex))
 		return
@@ -195,6 +200,8 @@ func (iapi *InsightApi) getTransactionHex(w http.ResponseWriter, r *http.Request
 }
 
 func (iapi *InsightApi) getBlockSummary(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	// Attempt to get hash or height of block from URL path.
 	hash, err := m.GetBlockHashCtx(r)
 	if err != nil {
@@ -204,7 +211,7 @@ func (iapi *InsightApi) getBlockSummary(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		hash, err = iapi.BlockData.GetBlockHash(int64(idx))
+		hash, err = iapi.BlockData.GetBlockHash(ctx, int64(idx))
 		if dbtypes.IsTimeoutErr(err) {
 			apiLog.Errorf("GetBlockHash: %v", err)
 			http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -216,7 +223,7 @@ func (iapi *InsightApi) getBlockSummary(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	block := iapi.BlockData.GetBlockVerboseByHash(hash, false)
+	block := iapi.BlockData.GetBlockVerboseByHash(ctx, hash, false)
 	if block == nil {
 		writeInsightNotFound(w, "Unable to get block")
 		return
@@ -234,6 +241,8 @@ func (iapi *InsightApi) getBlockSummary(w http.ResponseWriter, r *http.Request) 
 }
 
 func (iapi *InsightApi) getBlockHash(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	idx := m.GetBlockIndexCtx(r)
 	if idx < 0 {
 		writeInsightError(w, "No index found in query")
@@ -245,7 +254,7 @@ func (iapi *InsightApi) getBlockHash(w http.ResponseWriter, r *http.Request) {
 		writeInsightError(w, "Block height out of range")
 		return
 	}
-	hash, err := iapi.BlockData.GetBlockHash(int64(idx))
+	hash, err := iapi.BlockData.GetBlockHash(ctx, int64(idx))
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("GetBlockHash: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -265,6 +274,8 @@ func (iapi *InsightApi) getBlockHash(w http.ResponseWriter, r *http.Request) {
 }
 
 func (iapi *InsightApi) getRawBlock(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	hash, err := m.GetBlockHashCtx(r)
 	if err != nil {
 		idx := m.GetBlockIndexCtx(r)
@@ -273,7 +284,7 @@ func (iapi *InsightApi) getRawBlock(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		hash, err = iapi.BlockData.GetBlockHash(int64(idx))
+		hash, err = iapi.BlockData.GetBlockHash(ctx, int64(idx))
 		if dbtypes.IsTimeoutErr(err) {
 			apiLog.Errorf("GetBlockHash: %v", err)
 			http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -292,7 +303,7 @@ func (iapi *InsightApi) getRawBlock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	blockMsg, err := iapi.nodeClient.GetBlock(r.Context(), chainHash)
+	blockMsg, err := iapi.nodeClient.GetBlock(ctx, chainHash)
 	if err != nil {
 		errStr := html.EscapeString(err.Error())
 		writeInsightNotFound(w, fmt.Sprintf("Failed to retrieve block %s: %q",
@@ -316,6 +327,8 @@ func (iapi *InsightApi) getRawBlock(w http.ResponseWriter, r *http.Request) {
 }
 
 func (iapi *InsightApi) broadcastTransactionRaw(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	// Check for rawtx.
 	rawHexTx, err := m.GetRawHexTx(r)
 	if err != nil {
@@ -333,7 +346,7 @@ func (iapi *InsightApi) broadcastTransactionRaw(w http.ResponseWriter, r *http.R
 	}
 
 	// Broadcast the transaction.
-	txid, err := iapi.BlockData.SendRawTransaction(rawHexTx)
+	txid, err := iapi.BlockData.SendRawTransaction(ctx, rawHexTx)
 	if err != nil {
 		apiLog.Errorf("Unable to send transaction %s", rawHexTx)
 		errStr := html.EscapeString(err.Error())
@@ -351,6 +364,8 @@ func (iapi *InsightApi) broadcastTransactionRaw(w http.ResponseWriter, r *http.R
 }
 
 func (iapi *InsightApi) getAddressesTxnOutput(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	addresses, err := m.GetAddressCtx(r, iapi.params) // Required, also validates the addresses
 	if err != nil {
 		errStr := html.EscapeString(err.Error())
@@ -392,7 +407,7 @@ func (iapi *InsightApi) getAddressesTxnOutput(w http.ResponseWriter, r *http.Req
 		tStart := time.Now()
 
 		// Query for UTXOs for the current address.
-		confirmedTxnOutputs, _, err := iapi.BlockData.AddressUTXO(address)
+		confirmedTxnOutputs, _, err := iapi.BlockData.AddressUTXO(ctx, address)
 
 		apiLog.Debugf("AddressUTXO completed for %s with %d UTXOs in %v.",
 			address, len(confirmedTxnOutputs), time.Since(tStart))
@@ -567,6 +582,8 @@ func removeSliceElements(txOuts []*apitypes.AddressTxnOutput, inds []int) []*api
 }
 
 func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	pageNum := m.GetPageNumCtx(r)
 	hash, blockerr := m.GetBlockHashCtx(r)
 	addresses, addrerr := m.GetAddressCtx(r, iapi.params) // validates the addresses
@@ -585,7 +602,7 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 	txPageSize := 10
 
 	if blockerr == nil {
-		blkTrans := iapi.BlockData.GetBlockVerboseByHash(hash, true)
+		blkTrans := iapi.BlockData.GetBlockVerboseByHash(ctx, hash, true)
 		if blkTrans == nil {
 			apiLog.Errorf("Unable to get block %s transactions", hash)
 			writeInsightError(w, fmt.Sprintf("Unable to get block %q transactions", hash))
@@ -622,7 +639,7 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 		}
 
 		// Convert to chainjson transaction to Insight tx type.
-		txsNew, err := iapi.TxConverter(txsOld)
+		txsNew, err := iapi.TxConverter(ctx, txsOld)
 		if err != nil {
 			apiLog.Error("getTransactions: Error processing transactions: %v", err)
 			writeInsightError(w, "Error Processing Transactions")
@@ -640,7 +657,7 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 	if addrerr == nil {
 		address := addresses[0]
 		hashes, recentTxs, err :=
-			iapi.BlockData.InsightAddressTransactions([]string{address},
+			iapi.BlockData.InsightAddressTransactions(ctx, []string{address},
 				int64(iapi.status.Height()-2))
 		if dbtypes.IsTimeoutErr(err) {
 			apiLog.Errorf("InsightAddressTransactions: %v", err)
@@ -741,7 +758,7 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 		skipTxns := (pageNum - 1) * txPageSize
 		txsOld := []*chainjson.TxRawResult{}
 		for i := skipTxns; i < txCount && i < txPageSize+skipTxns; i++ {
-			txOld, err := iapi.BlockData.GetRawTransactionVerbose(&hashes[i])
+			txOld, err := iapi.BlockData.GetRawTransactionVerbose(ctx, &hashes[i])
 			if err != nil {
 				apiLog.Errorf("Unable to get transaction %s", hashes[i])
 				errStr := html.EscapeString(err.Error())
@@ -757,7 +774,7 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 
 		// Convert to chainjson transaction to Insight tx type. TxConverter also
 		// retrieves previous outpoint addresses.
-		txsNew, err := iapi.TxConverter(txsOld)
+		txsNew, err := iapi.TxConverter(ctx, txsOld)
 		if err != nil {
 			apiLog.Error("getTransactions: Error processing transactions: %v", err)
 			writeInsightError(w, "Error Processing Transactions")
@@ -773,6 +790,8 @@ func (iapi *InsightApi) getTransactions(w http.ResponseWriter, r *http.Request) 
 }
 
 func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	addresses, err := m.GetAddressCtx(r, iapi.params) // Required, also validates the addresses
 	if err != nil {
 		errStr := html.EscapeString(err.Error())
@@ -811,7 +830,7 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 	var UnconfirmedTxTimes []int64
 
 	rawTxs, recentTxs, err :=
-		iapi.BlockData.InsightAddressTransactions(addresses, int64(iapi.status.Height()-2))
+		iapi.BlockData.InsightAddressTransactions(ctx, addresses, int64(iapi.status.Height()-2))
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("InsightAddressTransactions: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -916,7 +935,7 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 	// Make getrawtransaction RPCs for each selected transaction.
 	txsOld := []*chainjson.TxRawResult{}
 	for i, rawTx := range rawTxs {
-		txOld, err := iapi.BlockData.GetRawTransactionVerbose(&rawTx)
+		txOld, err := iapi.BlockData.GetRawTransactionVerbose(ctx, &rawTx)
 		if err != nil {
 			apiLog.Errorf("Unable to get transaction %s", rawTx)
 			errStr := html.EscapeString(err.Error())
@@ -931,7 +950,7 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Convert to Insight API struct.
-	txsNew, err := iapi.DcrToInsightTxns(txsOld, noAsm, noScriptSig, noSpent)
+	txsNew, err := iapi.DcrToInsightTxns(ctx, txsOld, noAsm, noScriptSig, noSpent)
 	if err != nil {
 		apiLog.Error("Unable to process transactions")
 		errStr := html.EscapeString(err.Error())
@@ -948,6 +967,8 @@ func (iapi *InsightApi) getAddressesTxn(w http.ResponseWriter, r *http.Request) 
 }
 
 func (iapi *InsightApi) getSyncInfo(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	errorResponse := func(err error) {
 		// To insure JSON encodes an error properly as a string, and no error as
 		// null, use a pointer to a string.
@@ -963,7 +984,7 @@ func (iapi *InsightApi) getSyncInfo(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, syncInfo, m.GetIndentCtx(r))
 	}
 
-	blockChainHeight, err := iapi.nodeClient.GetBlockCount(r.Context())
+	blockChainHeight, err := iapi.nodeClient.GetBlockCount(ctx)
 	if err != nil {
 		errorResponse(err)
 		return
@@ -1101,6 +1122,8 @@ func dateFromStr(format, dateStr string) (date time.Time, isToday bool, err erro
 }
 
 func (iapi *InsightApi) getBlockSummaryByTime(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	// Format of the blockDate URL param, and of the pagination parameters
 	blockDateStr := m.GetBlockDateCtx(r)
 	ymdFormat := "2006-01-02"
@@ -1123,7 +1146,7 @@ func (iapi *InsightApi) getBlockSummaryByTime(w http.ResponseWriter, r *http.Req
 
 	// TODO: limit the query rather than returning all and limiting in go.
 	minTime, maxTime := minDate.Unix(), maxDate.Unix()
-	blockSummary, err := iapi.BlockData.BlockSummaryTimeRange(minTime, maxTime, 0)
+	blockSummary, err := iapi.BlockData.BlockSummaryTimeRange(ctx, minTime, maxTime, 0)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("BlockSummaryTimeRange: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1164,6 +1187,8 @@ func (iapi *InsightApi) getBlockSummaryByTime(w http.ResponseWriter, r *http.Req
 }
 
 func (iapi *InsightApi) getAddressInfo(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	addresses, err := m.GetAddressCtx(r, iapi.params)
 	if err != nil {
 		errStr := html.EscapeString(err.Error())
@@ -1177,7 +1202,7 @@ func (iapi *InsightApi) getAddressInfo(w http.ResponseWriter, r *http.Request) {
 	address := addresses[0]
 
 	// Get confirmed balance.
-	balance, _, err := iapi.BlockData.AddressBalance(address)
+	balance, _, err := iapi.BlockData.AddressBalance(ctx, address)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("AddressSpentUnspent: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1206,7 +1231,7 @@ func (iapi *InsightApi) getAddressInfo(w http.ResponseWriter, r *http.Request) {
 
 	// Get confirmed transactions.
 	rawTxs, recentTxs, err :=
-		iapi.BlockData.InsightAddressTransactions(addresses, int64(iapi.status.Height()-2))
+		iapi.BlockData.InsightAddressTransactions(ctx, addresses, int64(iapi.status.Height()-2))
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("InsightAddressTransactions: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1369,6 +1394,8 @@ func fromToForSlice(from, to, sliceLength, txLimit int64) (int64, int64, error) 
 }
 
 func (iapi *InsightApi) getEstimateFee(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	nbBlocks := GetNbBlocksCtx(r)
 	if nbBlocks == 0 {
 		nbBlocks = 2
@@ -1376,7 +1403,7 @@ func (iapi *InsightApi) getEstimateFee(w http.ResponseWriter, r *http.Request) {
 
 	// A better solution would be a call to the DCRD RPC "estimatefee" endpoint
 	// but that does not appear to be exposed currently.
-	infoResult, err := iapi.nodeClient.GetInfo(r.Context())
+	infoResult, err := iapi.nodeClient.GetInfo(ctx)
 	if err != nil {
 		apiLog.Error("Error getting status")
 		errStr := html.EscapeString(err.Error())
@@ -1393,8 +1420,10 @@ func (iapi *InsightApi) getEstimateFee(w http.ResponseWriter, r *http.Request) {
 
 // GetPeerStatus handles requests for node peer info (i.e. getpeerinfo RPC).
 func (iapi *InsightApi) GetPeerStatus(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	// Use a RPC call to tell if we are connected or not
-	_, err := iapi.nodeClient.GetPeerInfo(r.Context())
+	_, err := iapi.nodeClient.GetPeerInfo(ctx)
 	connected := err == nil
 
 	var port *string

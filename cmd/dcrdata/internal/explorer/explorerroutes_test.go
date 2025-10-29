@@ -1,6 +1,7 @@
 package explorer
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -29,7 +30,7 @@ func (ws *ChainDBStub) GetChainParams() *chaincfg.Params {
 }
 
 // GetTip is required to populate a CommonPageData for the explorer.
-func (ws *ChainDBStub) GetTip() (*types.WebBasicBlock, error) {
+func (ws *ChainDBStub) GetTip(_ context.Context) (*types.WebBasicBlock, error) {
 	return &types.WebBasicBlock{
 		Hash:       "00000000000000001cf26099864194b77b860fa11241baf9f39aad436d43c7a6",
 		Height:     295566,

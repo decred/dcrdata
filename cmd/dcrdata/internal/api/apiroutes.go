@@ -49,68 +49,68 @@ const maxBlockRangeCount = 1000
 // DataSource specifies an interface for advanced data collection using the
 // auxiliary DB (e.g. PostgreSQL).
 type DataSource interface {
-	GetHeight() (int64, error)
-	GetBestBlockHash() (string, error)
-	GetBlockHash(idx int64) (string, error)
-	GetBlockHeight(hash string) (int64, error)
-	GetBlockByHash(string) (*wire.MsgBlock, error)
-	SpendingTransaction(fundingTx string, vout uint32) (string, uint32, error)
-	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
-	AddressHistory(address string, N, offset int64, txnType dbtypes.AddrTxnViewType) ([]*dbtypes.AddressRow, *dbtypes.AddressBalance, error)
-	FillAddressTransactions(addrInfo *dbtypes.AddressInfo) error
-	AddressTransactionDetails(addr string, count, skip int64,
+	GetHeight(ctx context.Context) (int64, error)
+	GetBestBlockHash(ctx context.Context) (string, error)
+	GetBlockHash(ctx context.Context, idx int64) (string, error)
+	GetBlockHeight(ctx context.Context, hash string) (int64, error)
+	GetBlockByHash(context.Context, string) (*wire.MsgBlock, error)
+	SpendingTransaction(ctx context.Context, fundingTx string, vout uint32) (string, uint32, error)
+	SpendingTransactions(ctx context.Context, fundingTxID string) ([]string, []uint32, []uint32, error)
+	AddressHistory(ctx context.Context, address string, N, offset int64, txnType dbtypes.AddrTxnViewType) ([]*dbtypes.AddressRow, *dbtypes.AddressBalance, error)
+	FillAddressTransactions(ctx context.Context, addrInfo *dbtypes.AddressInfo) error
+	AddressTransactionDetails(ctx context.Context, addr string, count, skip int64,
 		txnType dbtypes.AddrTxnViewType) (*apitypes.Address, error)
-	AddressTotals(address string) (*apitypes.AddressTotals, error)
-	VotesInBlock(hash string) (int16, error)
-	TxHistoryData(address string, addrChart dbtypes.HistoryChart,
+	AddressTotals(ctx context.Context, address string) (*apitypes.AddressTotals, error)
+	VotesInBlock(ctx context.Context, hash string) (int16, error)
+	TxHistoryData(ctx context.Context, address string, addrChart dbtypes.HistoryChart,
 		chartGroupings dbtypes.TimeBasedGrouping) (*dbtypes.ChartsData, error)
-	TreasuryBalance() (*dbtypes.TreasuryBalance, error)
-	BinnedTreasuryIO(chartGroupings dbtypes.TimeBasedGrouping) (*dbtypes.ChartsData, error)
-	TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) (
+	TreasuryBalance(context.Context) (*dbtypes.TreasuryBalance, error)
+	BinnedTreasuryIO(ctx context.Context, chartGroupings dbtypes.TimeBasedGrouping) (*dbtypes.ChartsData, error)
+	TicketPoolVisualization(ctx context.Context, interval dbtypes.TimeBasedGrouping) (
 		*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, int64, error)
-	AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error)
-	AddressRowsCompact(address string) ([]*dbtypes.AddressRowCompact, error)
+	AgendaVotes(ctx context.Context, agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error)
+	AddressRowsCompact(ctx context.Context, address string) ([]*dbtypes.AddressRowCompact, error)
 	Height() int64
 	IsDCP0010Active(height int64) bool
 	IsDCP0011Active(height int64) bool
 	IsDCP0012Active(height int64) bool
 	AllAgendas() (map[string]dbtypes.MileStone, error)
-	GetTicketInfo(txid string) (*apitypes.TicketInfo, error)
-	PowerlessTickets() (*apitypes.PowerlessTickets, error)
-	GetStakeInfoExtendedByHash(hash string) *apitypes.StakeInfoExtended
-	GetStakeInfoExtendedByHeight(idx int) *apitypes.StakeInfoExtended
-	GetPoolInfo(idx int) *apitypes.TicketPoolInfo
+	GetTicketInfo(ctx context.Context, txid string) (*apitypes.TicketInfo, error)
+	PowerlessTickets(context.Context) (*apitypes.PowerlessTickets, error)
+	GetStakeInfoExtendedByHash(ctx context.Context, hash string) *apitypes.StakeInfoExtended
+	GetStakeInfoExtendedByHeight(ctx context.Context, idx int) *apitypes.StakeInfoExtended
+	GetPoolInfo(ctx context.Context, idx int) *apitypes.TicketPoolInfo
 	// GetPoolInfoByHash(hash string) *apitypes.TicketPoolInfo
-	GetPoolInfoRange(idx0, idx1 int) []apitypes.TicketPoolInfo
-	GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []uint32)
+	GetPoolInfoRange(ctx context.Context, idx0, idx1 int) []apitypes.TicketPoolInfo
+	GetPoolValAndSizeRange(ctx context.Context, idx0, idx1 int) ([]float64, []uint32)
 	GetPool(idx int64) ([]string, error)
-	CurrentCoinSupply() *apitypes.CoinSupply
+	CurrentCoinSupply(context.Context) *apitypes.CoinSupply
 	GetHeader(idx int) *chainjson.GetBlockHeaderVerboseResult
-	GetBlockHeaderByHash(hash string) (*wire.BlockHeader, error)
-	GetBlockVerboseByHash(hash string, verboseTx bool) *chainjson.GetBlockVerboseResult
-	GetAPITransaction(txid *chainhash.Hash) *apitypes.Tx
-	GetTransactionHex(txid *chainhash.Hash) string
-	GetTrimmedTransaction(txid *chainhash.Hash) *apitypes.TrimmedTx
-	GetVoteInfo(txid *chainhash.Hash) (*apitypes.VoteInfo, error)
-	GetVoteVersionInfo(ver uint32) (*chainjson.GetVoteInfoResult, error)
-	GetStakeVersionsLatest() (*chainjson.StakeVersions, error)
-	GetAllTxIn(txid *chainhash.Hash) []*apitypes.TxIn
-	GetAllTxOut(txid *chainhash.Hash) []*apitypes.TxOut
-	GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions
-	GetStakeDiffEstimates() *apitypes.StakeDiff
-	GetSummary(idx int) *apitypes.BlockDataBasic
-	GetSummaryRange(idx0, idx1 int) []*apitypes.BlockDataBasic
-	GetSummaryRangeStepped(idx0, idx1, step int) []*apitypes.BlockDataBasic
-	GetSummaryByHash(hash string, withTxTotals bool) *apitypes.BlockDataBasic
-	GetBestBlockSummary() *apitypes.BlockDataBasic
-	GetBlockSize(idx int) (int32, error)
-	GetBlockSizeRange(idx0, idx1 int) ([]int32, error)
-	GetSDiff(idx int) float64
-	GetSDiffRange(idx0, idx1 int) []float64
+	GetBlockHeaderByHash(ctx context.Context, hash string) (*wire.BlockHeader, error)
+	GetBlockVerboseByHash(ctx context.Context, hash string, verboseTx bool) *chainjson.GetBlockVerboseResult
+	GetAPITransaction(ctx context.Context, txid *chainhash.Hash) *apitypes.Tx
+	GetTransactionHex(ctx context.Context, txid *chainhash.Hash) string
+	GetTrimmedTransaction(ctx context.Context, txid *chainhash.Hash) *apitypes.TrimmedTx
+	GetVoteInfo(ctx context.Context, txid *chainhash.Hash) (*apitypes.VoteInfo, error)
+	GetVoteVersionInfo(ctx context.Context, ver uint32) (*chainjson.GetVoteInfoResult, error)
+	GetStakeVersionsLatest(context.Context) (*chainjson.StakeVersions, error)
+	GetAllTxIn(ctx context.Context, txid *chainhash.Hash) []*apitypes.TxIn
+	GetAllTxOut(ctx context.Context, txid *chainhash.Hash) []*apitypes.TxOut
+	GetTransactionsForBlockByHash(ctx context.Context, hash string) *apitypes.BlockTransactions
+	GetStakeDiffEstimates(context.Context) *apitypes.StakeDiff
+	GetSummary(ctx context.Context, idx int) *apitypes.BlockDataBasic
+	GetSummaryRange(ctx context.Context, idx0, idx1 int) []*apitypes.BlockDataBasic
+	GetSummaryRangeStepped(ctx context.Context, idx0, idx1, step int) []*apitypes.BlockDataBasic
+	GetSummaryByHash(ctx context.Context, hash string, withTxTotals bool) *apitypes.BlockDataBasic
+	GetBestBlockSummary(context.Context) *apitypes.BlockDataBasic
+	GetBlockSize(ctx context.Context, idx int) (int32, error)
+	GetBlockSizeRange(ctx context.Context, idx0, idx1 int) ([]int32, error)
+	GetSDiff(ctx context.Context, idx int) float64
+	GetSDiffRange(ctx context.Context, idx0, idx1 int) []float64
 	GetMempoolSSTxSummary() *apitypes.MempoolTicketFeeInfo
 	GetMempoolSSTxFeeRates(N int) *apitypes.MempoolTicketFees
 	GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails
-	GetAddressTransactionsRawWithSkip(addr string, count, skip int) []*apitypes.AddressTxRaw
+	GetAddressTransactionsRawWithSkip(ctx context.Context, addr string, count, skip int) []*apitypes.AddressTxRaw
 	GetMempoolPriceCountTime() *apitypes.PriceCountTime
 }
 
@@ -166,8 +166,8 @@ func NewContext(cfg *AppContextConfig) *appContext {
 	}
 }
 
-func (c *appContext) updateNodeConnections() error {
-	nodeConnections, err := c.nodeClient.GetConnectionCount(context.TODO())
+func (c *appContext) updateNodeConnections(ctx context.Context) error {
+	nodeConnections, err := c.nodeClient.GetConnectionCount(ctx)
 	if err != nil {
 		// Assume there arr no connections if RPC had an error.
 		c.Status.SetConnections(0)
@@ -190,7 +190,7 @@ func (c *appContext) updateNodeConnections() error {
 	}
 
 	// Check the reconnected node's best block, and update Status.height.
-	_, nodeHeight, err := c.nodeClient.GetBestBlock(context.TODO())
+	_, nodeHeight, err := c.nodeClient.GetBestBlock(ctx)
 	if err != nil {
 		c.Status.SetReady(false)
 		return fmt.Errorf("node: getbestblock failed: %v", err)
@@ -221,7 +221,7 @@ out:
 	keepon:
 		select {
 		case <-rpcCheckTicker.C:
-			if err := c.updateNodeConnections(); err != nil {
+			if err := c.updateNodeConnections(ctx); err != nil {
 				log.Warn("updateNodeConnections: ", err)
 				break keepon
 			}
@@ -236,7 +236,7 @@ out:
 				panic("BlockData DataSourceLite is nil")
 			}
 
-			summary := c.DataSource.GetBestBlockSummary()
+			summary := c.DataSource.GetBestBlockSummary(ctx)
 			if summary == nil {
 				log.Errorf("BlockData summary is nil for height %d.", height)
 				break keepon
@@ -244,7 +244,7 @@ out:
 
 			c.Status.DBUpdate(height, summary.Time.UNIX())
 
-			bdHeight, err := c.DataSource.GetHeight()
+			bdHeight, err := c.DataSource.GetHeight(ctx)
 			// Catch certain pathological conditions.
 			switch {
 			case err != nil:
@@ -332,7 +332,9 @@ func (c *appContext) statusHappy(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) coinSupply(w http.ResponseWriter, r *http.Request) {
-	supply := c.DataSource.CurrentCoinSupply()
+	ctx := r.Context()
+
+	supply := c.DataSource.CurrentCoinSupply(ctx)
 	if supply == nil {
 		apiLog.Error("Unable to get coin supply.")
 		http.Error(w, http.StatusText(422), 422)
@@ -343,6 +345,8 @@ func (c *appContext) coinSupply(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) coinSupplyCirculating(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	var dcr bool
 	if dcrParam := r.URL.Query().Get("dcr"); dcrParam != "" {
 		var err error
@@ -353,7 +357,7 @@ func (c *appContext) coinSupplyCirculating(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	supply := c.DataSource.CurrentCoinSupply()
+	supply := c.DataSource.CurrentCoinSupply(ctx)
 	if supply == nil {
 		apiLog.Error("Unable to get coin supply.")
 		http.Error(w, http.StatusText(422), 422)
@@ -404,6 +408,8 @@ func (c *appContext) getBlockHash(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getBlockSummary(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	var withTxTotals bool
 	if txTotalsParam := r.URL.Query().Get("txtotals"); txTotalsParam != "" {
 		b, err := strconv.ParseBool(txTotalsParam)
@@ -423,7 +429,7 @@ func (c *appContext) getBlockSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	blockSummary := c.DataSource.GetSummaryByHash(hash, withTxTotals)
+	blockSummary := c.DataSource.GetSummaryByHash(ctx, hash, withTxTotals)
 	if blockSummary == nil {
 		apiLog.Errorf("Unable to get block %s summary", hash)
 		http.Error(w, http.StatusText(422), 422)
@@ -434,13 +440,14 @@ func (c *appContext) getBlockSummary(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getBlockTransactions(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	hash, err := c.getBlockHashCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	blockTransactions := c.DataSource.GetTransactionsForBlockByHash(hash)
+	blockTransactions := c.DataSource.GetTransactionsForBlockByHash(ctx, hash)
 	if blockTransactions == nil {
 		apiLog.Errorf("Unable to get block %s transactions", hash)
 		http.Error(w, http.StatusText(422), 422)
@@ -451,13 +458,15 @@ func (c *appContext) getBlockTransactions(w http.ResponseWriter, r *http.Request
 }
 
 func (c *appContext) getBlockTransactionsCount(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	hash, err := c.getBlockHashCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	blockTransactions := c.DataSource.GetTransactionsForBlockByHash(hash)
+	blockTransactions := c.DataSource.GetTransactionsForBlockByHash(ctx, hash)
 	if blockTransactions == nil {
 		apiLog.Errorf("Unable to get block %s transactions", hash)
 		http.Error(w, http.StatusText(http.StatusInternalServerError),
@@ -490,13 +499,15 @@ func (c *appContext) getBlockHeader(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getBlockRaw(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	hash, err := c.getBlockHashCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	msgBlock, err := c.DataSource.GetBlockByHash(hash)
+	msgBlock, err := c.DataSource.GetBlockByHash(ctx, hash)
 	if err != nil {
 		apiLog.Errorf("Unable to get block %s: %v", hash, err)
 		http.Error(w, http.StatusText(422), 422)
@@ -522,13 +533,15 @@ func (c *appContext) getBlockRaw(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getBlockHeaderRaw(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	hash, err := c.getBlockHashCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	blockHeader, err := c.DataSource.GetBlockHeaderByHash(hash)
+	blockHeader, err := c.DataSource.GetBlockHeaderByHash(ctx, hash)
 	if err != nil {
 		apiLog.Errorf("Unable to get block %s: %v", hash, err)
 		http.Error(w, http.StatusText(422), 422)
@@ -553,13 +566,15 @@ func (c *appContext) getBlockHeaderRaw(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getBlockVerbose(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	hash, err := c.getBlockHashCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	blockVerbose := c.DataSource.GetBlockVerboseByHash(hash, false)
+	blockVerbose := c.DataSource.GetBlockVerboseByHash(ctx, hash, false)
 	if blockVerbose == nil {
 		apiLog.Errorf("Unable to get block %s", hash)
 		http.Error(w, http.StatusText(422), 422)
@@ -570,13 +585,15 @@ func (c *appContext) getBlockVerbose(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getVoteInfo(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	ver, verStr, err := getVoteVersionQuery(r)
 	if err != nil || ver < 0 {
 		apiLog.Errorf("Unable to get vote info for stake version %s", verStr)
 		http.Error(w, "Unable to get vote info for stake version "+html.EscapeString(verStr), 422)
 		return
 	}
-	voteVersionInfo, err := c.DataSource.GetVoteVersionInfo(uint32(ver))
+	voteVersionInfo, err := c.DataSource.GetVoteVersionInfo(ctx, uint32(ver))
 	if err != nil || voteVersionInfo == nil {
 		apiLog.Errorf("Unable to get vote version %d info: %v", ver, err)
 		http.Error(w, "Unable to get vote info for stake version "+html.EscapeString(verStr), 422)
@@ -589,10 +606,10 @@ func (c *appContext) getVoteInfo(w http.ResponseWriter, r *http.Request) {
 // the specified transaction. This sets the vouts[i].Spend fields for each
 // output that is spent. For unspent outputs, the Spend field remains a nil
 // pointer.
-func (c *appContext) setOutputSpends(txid string, vouts []apitypes.Vout) error {
+func (c *appContext) setOutputSpends(ctx context.Context, txid string, vouts []apitypes.Vout) error {
 	// For each output of this transaction, look up any spending transactions,
 	// and the index of the spending transaction input.
-	spendHashes, spendVinInds, voutInds, err := c.DataSource.SpendingTransactions(txid)
+	spendHashes, spendVinInds, voutInds, err := c.DataSource.SpendingTransactions(ctx, txid)
 	if dbtypes.IsTimeoutErr(err) {
 		return fmt.Errorf("SpendingTransactions: %v", err)
 	}
@@ -617,18 +634,20 @@ func (c *appContext) setOutputSpends(txid string, vouts []apitypes.Vout) error {
 // setTxSpends retrieves spending transaction information for each output of the
 // given transaction. This sets the tx.Vout[i].Spend fields for each output that
 // is spent. For unspent outputs, the Spend field remains a nil pointer.
-func (c *appContext) setTxSpends(tx *apitypes.Tx) error {
-	return c.setOutputSpends(tx.TxID, tx.Vout)
+func (c *appContext) setTxSpends(ctx context.Context, tx *apitypes.Tx) error {
+	return c.setOutputSpends(ctx, tx.TxID, tx.Vout)
 }
 
 // setTrimmedTxSpends is like setTxSpends except that it operates on a TrimmedTx
 // instead of a Tx.
-func (c *appContext) setTrimmedTxSpends(tx *apitypes.TrimmedTx) error {
-	return c.setOutputSpends(tx.TxID, tx.Vout)
+func (c *appContext) setTrimmedTxSpends(ctx context.Context, tx *apitypes.TrimmedTx) error {
+	return c.setOutputSpends(ctx, tx.TxID, tx.Vout)
 }
 
 // getTransaction handles the /tx/{txid} API endpoint.
 func (c *appContext) getTransaction(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	// Look up any spending transactions for each output of this transaction
 	// when the client requests spends with the URL query ?spends=true.
 	var withSpends bool
@@ -648,7 +667,7 @@ func (c *appContext) getTransaction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tx := c.DataSource.GetAPITransaction(txid)
+	tx := c.DataSource.GetAPITransaction(ctx, txid)
 	if tx == nil {
 		apiLog.Errorf("Unable to get transaction %s", txid)
 		http.Error(w, http.StatusText(422), 422)
@@ -656,7 +675,7 @@ func (c *appContext) getTransaction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if withSpends {
-		if err := c.setTxSpends(tx); err != nil {
+		if err := c.setTxSpends(ctx, tx); err != nil {
 			errStr := html.EscapeString(err.Error())
 			apiLog.Errorf("Unable to get spending transaction info for outputs of %s: %q", txid, errStr)
 			http.Error(w, http.StatusText(http.StatusInternalServerError),
@@ -669,18 +688,22 @@ func (c *appContext) getTransaction(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getTransactionHex(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	txid, err := m.GetTxIDCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	hex := c.DataSource.GetTransactionHex(txid)
+	hex := c.DataSource.GetTransactionHex(ctx, txid)
 
 	fmt.Fprint(w, hex)
 }
 
 func (c *appContext) getDecodedTx(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	// Look up any spending transactions for each output of this transaction
 	// when the client requests spends with the URL query ?spends=true.
 	var withSpends bool
@@ -700,7 +723,7 @@ func (c *appContext) getDecodedTx(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tx := c.DataSource.GetTrimmedTransaction(txid)
+	tx := c.DataSource.GetTrimmedTransaction(ctx, txid)
 	if tx == nil {
 		apiLog.Errorf("Unable to get transaction %s", txid)
 		http.Error(w, http.StatusText(422), 422)
@@ -708,7 +731,7 @@ func (c *appContext) getDecodedTx(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if withSpends {
-		if err := c.setTrimmedTxSpends(tx); err != nil {
+		if err := c.setTrimmedTxSpends(ctx, tx); err != nil {
 			apiLog.Errorf("Unable to get spending transaction info for outputs of %s: %v", txid, err)
 			http.Error(w, http.StatusText(http.StatusInternalServerError),
 				http.StatusInternalServerError)
@@ -723,6 +746,8 @@ func (c *appContext) getDecodedTx(w http.ResponseWriter, r *http.Request) {
 // information about completed atomic swaps that were created and/or redeemed in
 // the transaction.
 func (c *appContext) getTxSwapsInfo(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	txHash, err := m.GetTxIDCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -730,7 +755,7 @@ func (c *appContext) getTxSwapsInfo(w http.ResponseWriter, r *http.Request) {
 	}
 	txid := txHash.String()
 
-	tx, err := c.nodeClient.GetRawTransaction(r.Context(), txHash)
+	tx, err := c.nodeClient.GetRawTransaction(ctx, txHash)
 	if err != nil {
 		apiLog.Errorf("Unable to get transaction %s: %v", txHash, err)
 		http.Error(w, http.StatusText(422), 422)
@@ -761,7 +786,7 @@ func (c *appContext) getTxSwapsInfo(w http.ResponseWriter, r *http.Request) {
 
 	outputSpenders := make(map[uint32]*txhelpers.OutputSpenderTxOut)
 	if maybeHasContracts {
-		spendingTxHashes, spendingTxVinInds, voutInds, err := c.DataSource.SpendingTransactions(txid)
+		spendingTxHashes, spendingTxVinInds, voutInds, err := c.DataSource.SpendingTransactions(ctx, txid)
 		if err != nil {
 			apiLog.Errorf("Unable to retrieve spending transactions for %s: %v", txid, err)
 			http.Error(w, http.StatusText(422), 422)
@@ -782,7 +807,7 @@ func (c *appContext) getTxSwapsInfo(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				return
 			}
-			spendingTx, err := c.nodeClient.GetRawTransaction(r.Context(), txhash)
+			spendingTx, err := c.nodeClient.GetRawTransaction(ctx, txhash)
 			if err != nil {
 				apiLog.Errorf("Unable to get transaction %s: %v", spendingTxHash, err)
 				http.Error(w, http.StatusText(422), 422)
@@ -817,6 +842,8 @@ func (c *appContext) getTxSwapsInfo(w http.ResponseWriter, r *http.Request) {
 
 // getTransactions handles the /txns POST API endpoint.
 func (c *appContext) getTransactions(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	// Look up any spending transactions for each output of this transaction
 	// when the client requests spends with the URL query ?spends=true.
 	var withSpends bool
@@ -838,7 +865,7 @@ func (c *appContext) getTransactions(w http.ResponseWriter, r *http.Request) {
 
 	txns := make([]*apitypes.Tx, 0, len(txids))
 	for i := range txids {
-		tx := c.DataSource.GetAPITransaction(txids[i])
+		tx := c.DataSource.GetAPITransaction(ctx, txids[i])
 		if tx == nil {
 			apiLog.Errorf("Unable to get transaction %s", txids[i])
 			http.Error(w, http.StatusText(422), 422)
@@ -846,7 +873,7 @@ func (c *appContext) getTransactions(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if withSpends {
-			if err := c.setTxSpends(tx); err != nil {
+			if err := c.setTxSpends(ctx, tx); err != nil {
 				apiLog.Errorf("Unable to get spending transaction info for outputs of %s: %v",
 					txids[i], err)
 				http.Error(w, http.StatusText(http.StatusInternalServerError),
@@ -862,6 +889,8 @@ func (c *appContext) getTransactions(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getDecodedTransactions(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	txids, err := m.GetTxnsCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -870,7 +899,7 @@ func (c *appContext) getDecodedTransactions(w http.ResponseWriter, r *http.Reque
 
 	txns := make([]*apitypes.TrimmedTx, 0, len(txids))
 	for i := range txids {
-		tx := c.DataSource.GetTrimmedTransaction(txids[i])
+		tx := c.DataSource.GetTrimmedTransaction(ctx, txids[i])
 		if tx == nil {
 			apiLog.Errorf("Unable to get transaction %v", tx)
 			http.Error(w, http.StatusText(422), 422)
@@ -883,12 +912,14 @@ func (c *appContext) getDecodedTransactions(w http.ResponseWriter, r *http.Reque
 }
 
 func (c *appContext) getTxVoteInfo(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	txid, err := m.GetTxIDCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
-	vinfo, err := c.DataSource.GetVoteInfo(txid)
+	vinfo, err := c.DataSource.GetVoteInfo(ctx, txid)
 	if err != nil {
 		err = fmt.Errorf("unable to get vote info for tx %v: %v",
 			txid, err)
@@ -902,12 +933,14 @@ func (c *appContext) getTxVoteInfo(w http.ResponseWriter, r *http.Request) {
 
 // For /tx/{txid}/tinfo
 func (c *appContext) getTxTicketInfo(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	txid, err := m.GetTxIDCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
-	tinfo, err := c.DataSource.GetTicketInfo(txid.String())
+	tinfo, err := c.DataSource.GetTicketInfo(ctx, txid.String())
 	if err != nil {
 		if errors.Is(err, dbtypes.ErrNoResult) {
 			http.Error(w, "ticket not found", http.StatusNotFound)
@@ -924,13 +957,15 @@ func (c *appContext) getTxTicketInfo(w http.ResponseWriter, r *http.Request) {
 
 // getTransactionInputs serves []TxIn
 func (c *appContext) getTransactionInputs(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	txid, err := m.GetTxIDCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	allTxIn := c.DataSource.GetAllTxIn(txid)
+	allTxIn := c.DataSource.GetAllTxIn(ctx, txid)
 	// allTxIn may be empty, but not a nil slice
 	if allTxIn == nil {
 		apiLog.Errorf("Unable to get all TxIn for transaction %s", txid)
@@ -943,6 +978,8 @@ func (c *appContext) getTransactionInputs(w http.ResponseWriter, r *http.Request
 
 // getTransactionInput serves TxIn[i]
 func (c *appContext) getTransactionInput(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	txid, err := m.GetTxIDCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -956,7 +993,7 @@ func (c *appContext) getTransactionInput(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	allTxIn := c.DataSource.GetAllTxIn(txid)
+	allTxIn := c.DataSource.GetAllTxIn(ctx, txid)
 	// allTxIn may be empty, but not a nil slice
 	if allTxIn == nil {
 		apiLog.Warnf("Unable to get all TxIn for transaction %s", txid)
@@ -975,13 +1012,15 @@ func (c *appContext) getTransactionInput(w http.ResponseWriter, r *http.Request)
 
 // getTransactionOutputs serves []TxOut
 func (c *appContext) getTransactionOutputs(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	txid, err := m.GetTxIDCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	allTxOut := c.DataSource.GetAllTxOut(txid)
+	allTxOut := c.DataSource.GetAllTxOut(ctx, txid)
 	// allTxOut may be empty, but not a nil slice
 	if allTxOut == nil {
 		apiLog.Errorf("Unable to get all TxOut for transaction %s", txid)
@@ -994,6 +1033,8 @@ func (c *appContext) getTransactionOutputs(w http.ResponseWriter, r *http.Reques
 
 // getTransactionOutput serves TxOut[i]
 func (c *appContext) getTransactionOutput(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	txid, err := m.GetTxIDCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -1006,7 +1047,7 @@ func (c *appContext) getTransactionOutput(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	allTxOut := c.DataSource.GetAllTxOut(txid)
+	allTxOut := c.DataSource.GetAllTxOut(ctx, txid)
 	// allTxOut may be empty, but not a nil slice
 	if allTxOut == nil {
 		apiLog.Errorf("Unable to get all TxOut for transaction %s", txid)
@@ -1026,13 +1067,15 @@ func (c *appContext) getTransactionOutput(w http.ResponseWriter, r *http.Request
 // getBlockStakeInfoExtendedByHash retrieves the apitype.StakeInfoExtended
 // for the given blockhash
 func (c *appContext) getBlockStakeInfoExtendedByHash(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	hash, err := c.getBlockHashCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	stakeinfo := c.DataSource.GetStakeInfoExtendedByHash(hash)
+	stakeinfo := c.DataSource.GetStakeInfoExtendedByHash(ctx, hash)
 	if stakeinfo == nil {
 		apiLog.Errorf("Unable to get block fee info for %s", hash)
 		http.Error(w, http.StatusText(422), 422)
@@ -1045,12 +1088,14 @@ func (c *appContext) getBlockStakeInfoExtendedByHash(w http.ResponseWriter, r *h
 // getBlockStakeInfoExtendedByHeight retrieves the apitype.StakeInfoExtended
 // for the given blockheight on mainchain
 func (c *appContext) getBlockStakeInfoExtendedByHeight(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	idx, err := c.getBlockHeightCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
-	stakeinfo := c.DataSource.GetStakeInfoExtendedByHeight(int(idx))
+	stakeinfo := c.DataSource.GetStakeInfoExtendedByHeight(ctx, int(idx))
 	if stakeinfo == nil {
 		apiLog.Errorf("Unable to get stake info for height %d", idx)
 		http.Error(w, http.StatusText(422), 422)
@@ -1061,7 +1106,9 @@ func (c *appContext) getBlockStakeInfoExtendedByHeight(w http.ResponseWriter, r 
 }
 
 func (c *appContext) getStakeDiffSummary(w http.ResponseWriter, r *http.Request) {
-	stakeDiff := c.DataSource.GetStakeDiffEstimates()
+	ctx := r.Context()
+
+	stakeDiff := c.DataSource.GetStakeDiffEstimates(ctx)
 	if stakeDiff == nil {
 		apiLog.Errorf("Unable to get stake diff info")
 		http.Error(w, http.StatusText(422), 422)
@@ -1074,7 +1121,9 @@ func (c *appContext) getStakeDiffSummary(w http.ResponseWriter, r *http.Request)
 // Encodes apitypes.PowerlessTickets, which is missed or expired tickets sorted
 // by revocation status.
 func (c *appContext) getPowerlessTickets(w http.ResponseWriter, r *http.Request) {
-	tickets, err := c.DataSource.PowerlessTickets()
+	ctx := r.Context()
+
+	tickets, err := c.DataSource.PowerlessTickets(ctx)
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
@@ -1084,7 +1133,9 @@ func (c *appContext) getPowerlessTickets(w http.ResponseWriter, r *http.Request)
 }
 
 func (c *appContext) getStakeDiffCurrent(w http.ResponseWriter, r *http.Request) {
-	stakeDiff := c.DataSource.GetStakeDiffEstimates()
+	ctx := r.Context()
+
+	stakeDiff := c.DataSource.GetStakeDiffEstimates(ctx)
 	if stakeDiff == nil {
 		apiLog.Errorf("Unable to get stake diff info")
 		http.Error(w, http.StatusText(422), 422)
@@ -1100,7 +1151,9 @@ func (c *appContext) getStakeDiffCurrent(w http.ResponseWriter, r *http.Request)
 }
 
 func (c *appContext) getStakeDiffEstimates(w http.ResponseWriter, r *http.Request) {
-	stakeDiff := c.DataSource.GetStakeDiffEstimates()
+	ctx := r.Context()
+
+	stakeDiff := c.DataSource.GetStakeDiffEstimates(ctx)
 	if stakeDiff == nil {
 		apiLog.Errorf("Unable to get stake diff info")
 		http.Error(w, http.StatusText(422), 422)
@@ -1148,7 +1201,9 @@ func (c *appContext) getSSTxDetails(w http.ResponseWriter, r *http.Request) {
 // getTicketPoolCharts pulls the initial data to populate the /ticketpool page
 // charts.
 func (c *appContext) getTicketPoolCharts(w http.ResponseWriter, r *http.Request) {
-	timeChart, priceChart, outputsChart, height, err := c.DataSource.TicketPoolVisualization(dbtypes.AllGrouping)
+	ctx := r.Context()
+
+	timeChart, priceChart, outputsChart, height, err := c.DataSource.TicketPoolVisualization(ctx, dbtypes.AllGrouping)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("TicketPoolVisualization: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1174,6 +1229,8 @@ func (c *appContext) getTicketPoolCharts(w http.ResponseWriter, r *http.Request)
 }
 
 func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	tp := m.GetTpCtx(r)
 	// default to day if no grouping was sent
 	if tp == "" {
@@ -1188,7 +1245,7 @@ func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request)
 		http.Error(w, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
 		return
 	}
-	timeChart, _, _, height, err := c.DataSource.TicketPoolVisualization(interval)
+	timeChart, _, _, height, err := c.DataSource.TicketPoolVisualization(ctx, interval)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("TicketPoolVisualization: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1231,13 +1288,14 @@ func (c *appContext) getProposalChartData(w http.ResponseWriter, r *http.Request
 }
 
 func (c *appContext) getBlockSize(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	idx, err := c.getBlockHeightCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	blockSize, err := c.DataSource.GetBlockSize(int(idx))
+	blockSize, err := c.DataSource.GetBlockSize(ctx, int(idx))
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -1247,6 +1305,8 @@ func (c *appContext) getBlockSize(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) blockSubsidies(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	idx, err := c.getBlockHeightCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
@@ -1262,7 +1322,7 @@ func (c *appContext) blockSubsidies(w http.ResponseWriter, r *http.Request) {
 	numVotes := int16(c.Params.TicketsPerBlock)
 	if hash != "" {
 		var err error
-		numVotes, err = c.DataSource.VotesInBlock(hash)
+		numVotes, err = c.DataSource.VotesInBlock(ctx, hash)
 		if dbtypes.IsTimeoutErr(err) {
 			apiLog.Errorf("VotesInBlock: %v", err)
 			http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1296,6 +1356,8 @@ func (c *appContext) blockSubsidies(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getBlockRangeSize(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	idx0 := m.GetBlockIndex0Ctx(r)
 	if idx0 < 0 {
 		http.Error(w, http.StatusText(422), 422)
@@ -1308,7 +1370,7 @@ func (c *appContext) getBlockRangeSize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	blockSizes, err := c.DataSource.GetBlockSizeRange(idx0, idx)
+	blockSizes, err := c.DataSource.GetBlockSizeRange(ctx, idx0, idx)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -1318,6 +1380,8 @@ func (c *appContext) getBlockRangeSize(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getBlockRangeSteppedSize(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	idx0 := m.GetBlockIndex0Ctx(r)
 	if idx0 < 0 {
 		http.Error(w, http.StatusText(422), 422)
@@ -1336,7 +1400,7 @@ func (c *appContext) getBlockRangeSteppedSize(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	blockSizesFull, err := c.DataSource.GetBlockSizeRange(idx0, idx)
+	blockSizesFull, err := c.DataSource.GetBlockSizeRange(ctx, idx0, idx)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -1358,6 +1422,8 @@ func (c *appContext) getBlockRangeSteppedSize(w http.ResponseWriter, r *http.Req
 }
 
 func (c *appContext) getBlockRangeSummary(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	idx0 := m.GetBlockIndex0Ctx(r)
 	idx1 := m.GetBlockIndexCtx(r)
 
@@ -1375,7 +1441,7 @@ func (c *appContext) getBlockRangeSummary(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	blocks := c.DataSource.GetSummaryRange(idx0, idx1)
+	blocks := c.DataSource.GetSummaryRange(ctx, idx0, idx1)
 	if blocks == nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -1385,6 +1451,8 @@ func (c *appContext) getBlockRangeSummary(w http.ResponseWriter, r *http.Request
 }
 
 func (c *appContext) getBlockRangeSteppedSummary(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	idx0 := m.GetBlockIndex0Ctx(r)
 	idx1 := m.GetBlockIndexCtx(r)
 	step := m.GetBlockStepCtx(r)
@@ -1407,7 +1475,7 @@ func (c *appContext) getBlockRangeSteppedSummary(w http.ResponseWriter, r *http.
 		return
 	}
 
-	blocks := c.DataSource.GetSummaryRangeStepped(idx0, idx1, step)
+	blocks := c.DataSource.GetSummaryRangeStepped(ctx, idx0, idx1, step)
 	if blocks == nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -1448,13 +1516,15 @@ func (c *appContext) getTicketPool(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getTicketPoolInfo(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	idx, err := c.getBlockHeightCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	tpi := c.DataSource.GetPoolInfo(int(idx))
+	tpi := c.DataSource.GetPoolInfo(ctx, int(idx))
 	writeJSON(w, tpi, m.GetIndentCtx(r))
 }
 
@@ -1468,6 +1538,7 @@ func (c *appContext) getTicketPoolInfoRange(w http.ResponseWriter, r *http.Reque
 		c.getTicketPoolValAndSizeRange(w, r)
 		return
 	}
+	ctx := r.Context()
 
 	idx0 := m.GetBlockIndex0Ctx(r)
 	if idx0 < 0 {
@@ -1481,7 +1552,7 @@ func (c *appContext) getTicketPoolInfoRange(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	tpis := c.DataSource.GetPoolInfoRange(idx0, idx)
+	tpis := c.DataSource.GetPoolInfoRange(ctx, idx0, idx)
 	if tpis == nil {
 		http.Error(w, "invalid range", http.StatusUnprocessableEntity)
 		return
@@ -1490,6 +1561,8 @@ func (c *appContext) getTicketPoolInfoRange(w http.ResponseWriter, r *http.Reque
 }
 
 func (c *appContext) getTicketPoolValAndSizeRange(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	idx0 := m.GetBlockIndex0Ctx(r)
 	if idx0 < 0 {
 		http.Error(w, http.StatusText(422), 422)
@@ -1502,7 +1575,7 @@ func (c *appContext) getTicketPoolValAndSizeRange(w http.ResponseWriter, r *http
 		return
 	}
 
-	pvs, pss := c.DataSource.GetPoolValAndSizeRange(idx0, idx)
+	pvs, pss := c.DataSource.GetPoolValAndSizeRange(ctx, idx0, idx)
 	if pvs == nil || pss == nil {
 		http.Error(w, "invalid range", http.StatusUnprocessableEntity)
 		return
@@ -1518,17 +1591,21 @@ func (c *appContext) getTicketPoolValAndSizeRange(w http.ResponseWriter, r *http
 }
 
 func (c *appContext) getStakeDiff(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	idx, err := c.getBlockHeightCtx(r)
 	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	sdiff := c.DataSource.GetSDiff(int(idx))
+	sdiff := c.DataSource.GetSDiff(ctx, int(idx))
 	writeJSON(w, []float64{sdiff}, m.GetIndentCtx(r))
 }
 
 func (c *appContext) getStakeDiffRange(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	idx0 := m.GetBlockIndex0Ctx(r)
 	if idx0 < 0 {
 		http.Error(w, http.StatusText(422), 422)
@@ -1541,11 +1618,13 @@ func (c *appContext) getStakeDiffRange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sdiffs := c.DataSource.GetSDiffRange(idx0, idx)
+	sdiffs := c.DataSource.GetSDiffRange(ctx, idx0, idx)
 	writeJSON(w, sdiffs, m.GetIndentCtx(r))
 }
 
 func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	addresses, err := m.GetAddressCtx(r, c.Params)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
@@ -1553,7 +1632,7 @@ func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
 	}
 
 	address := addresses[0]
-	totals, err := c.DataSource.AddressTotals(address)
+	totals, err := c.DataSource.AddressTotals(ctx, address)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("AddressTotals: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1572,6 +1651,8 @@ func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
 // hexadecimal string into a list of bools. A maximum of 64 addresses can be
 // provided. Duplicates are not filtered.
 func (c *appContext) addressExists(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	addresses, err := m.GetAddressRawCtx(r, c.Params)
 	if err != nil {
 		apiLog.Errorf("addressExists rejecting request: %v", err)
@@ -1579,7 +1660,7 @@ func (c *appContext) addressExists(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// GetAddressCtx throws an error if there would be no addresses.
-	strMask, err := c.nodeClient.ExistsAddresses(context.TODO(), addresses)
+	strMask, err := c.nodeClient.ExistsAddresses(ctx, addresses)
 	if err != nil {
 		log.Warnf("existsaddress error: %v", err)
 		http.Error(w, http.StatusText(422), 422)
@@ -1607,6 +1688,8 @@ func (c *appContext) addressIoCsvCR(w http.ResponseWriter, r *http.Request) {
 // Handler for address activity CSV file download.
 // /download/address/io/{address}[/win]
 func (c *appContext) addressIoCsv(crlf bool, w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	wf, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "unable to flush streamed data", http.StatusBadRequest)
@@ -1631,7 +1714,7 @@ func (c *appContext) addressIoCsv(crlf bool, w http.ResponseWriter, r *http.Requ
 	// and/or put a hard limit on the number of rows that can be retrieved.
 	// However it is a slice of pointers, and they are are also in the address
 	// cache and thus shared across calls to the same address.
-	rows, err := c.DataSource.AddressRowsCompact(address)
+	rows, err := c.DataSource.AddressRowsCompact(ctx, address)
 	if err != nil {
 		log.Errorf("Failed to fetch AddressTxIoCsv: %v", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -1691,6 +1774,8 @@ func (c *appContext) addressIoCsv(crlf bool, w http.ResponseWriter, r *http.Requ
 }
 
 func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	addresses, err := m.GetAddressCtx(r, c.Params)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
@@ -1709,7 +1794,7 @@ func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Reques
 		http.Error(w, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
 		return
 	}
-	data, err := c.DataSource.TxHistoryData(address, dbtypes.TxsType, interval)
+	data, err := c.DataSource.TxHistoryData(ctx, address, dbtypes.TxsType, interval)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("TxHistoryData: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1725,6 +1810,8 @@ func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Reques
 }
 
 func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	addresses, err := m.GetAddressCtx(r, c.Params)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
@@ -1742,7 +1829,7 @@ func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.R
 		http.Error(w, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
 		return
 	}
-	data, err := c.DataSource.TxHistoryData(address, dbtypes.AmountFlow, interval)
+	data, err := c.DataSource.TxHistoryData(ctx, address, dbtypes.AmountFlow, interval)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("TxHistoryData: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1758,7 +1845,9 @@ func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.R
 }
 
 func (c *appContext) getTreasuryBalance(w http.ResponseWriter, r *http.Request) {
-	treasuryBalance, err := c.DataSource.TreasuryBalance()
+	ctx := r.Context()
+
+	treasuryBalance, err := c.DataSource.TreasuryBalance(ctx)
 	if err != nil {
 		log.Errorf("TreasuryBalance failed: %v", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -1769,6 +1858,8 @@ func (c *appContext) getTreasuryBalance(w http.ResponseWriter, r *http.Request) 
 }
 
 func (c *appContext) getTreasuryIO(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	chartGrouping := m.GetChartGroupingCtx(r)
 	if chartGrouping == "" {
 		http.Error(w, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
@@ -1779,7 +1870,7 @@ func (c *appContext) getTreasuryIO(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
 		return
 	}
-	data, err := c.DataSource.BinnedTreasuryIO(interval)
+	data, err := c.DataSource.BinnedTreasuryIO(ctx, interval)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("BinnedTreasuryIO: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1857,6 +1948,8 @@ func (c *appContext) getDepthChart(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	addresses, err := m.GetAddressCtx(r, c.Params)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
@@ -1875,7 +1968,7 @@ func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Reque
 		skip = 0
 	}
 
-	txs, err := c.DataSource.AddressTransactionDetails(address, count, skip, dbtypes.AddrTxnAll)
+	txs, err := c.DataSource.AddressTransactionDetails(ctx, address, count, skip, dbtypes.AddrTxnAll)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("AddressTransactionDetails: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1892,6 +1985,8 @@ func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Reque
 // getAddressTransactionsRaw handles the various /address/{addr}/.../raw API
 // endpoints.
 func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	addresses, err := m.GetAddressCtx(r, c.Params)
 	if err != nil || len(addresses) > 1 {
 		http.Error(w, http.StatusText(422), 422)
@@ -1910,7 +2005,7 @@ func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Re
 		skip = 0
 	}
 
-	txs := c.DataSource.GetAddressTransactionsRawWithSkip(address, int(count), int(skip))
+	txs := c.DataSource.GetAddressTransactionsRawWithSkip(ctx, address, int(count), int(skip))
 	if txs == nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -1921,12 +2016,14 @@ func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Re
 
 // getAgendaData processes a request for agenda chart data from /agenda/{agendaId}.
 func (c *appContext) getAgendaData(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	agendaID := m.GetAgendaIdCtx(r)
 	if agendaID == "" {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
-	chartDataByTime, err := c.DataSource.AgendaVotes(agendaID, 0)
+	chartDataByTime, err := c.DataSource.AgendaVotes(ctx, agendaID, 0)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("AgendaVotes timeout error %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -1937,7 +2034,7 @@ func (c *appContext) getAgendaData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	chartDataByHeight, err := c.DataSource.AgendaVotes(agendaID, 1)
+	chartDataByHeight, err := c.DataSource.AgendaVotes(ctx, agendaID, 1)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("AgendaVotes timeout error: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -2084,10 +2181,12 @@ func (c *appContext) getBlockHeightCtx(r *http.Request) (int64, error) {
 }
 
 func (c *appContext) getBlockHashCtx(r *http.Request) (string, error) {
+	ctx := r.Context()
+
 	hash, err := m.GetBlockHashCtx(r)
 	if err != nil {
 		idx := int64(m.GetBlockIndexCtx(r))
-		hash, err = c.DataSource.GetBlockHash(idx)
+		hash, err = c.DataSource.GetBlockHash(ctx, idx)
 		if err != nil {
 			apiLog.Errorf("Unable to GetBlockHash: %v", err)
 			return "", err

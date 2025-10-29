@@ -150,7 +150,7 @@ func (source dataSourceStub) GetStakeVersions(_ context.Context, hash string, co
 	return result, nil
 }
 
-func counter(hash string) (uint32, uint32, uint32, error) {
+func counter(_ context.Context, hash string) (uint32, uint32, uint32, error) {
 	return 1, 2, 3, nil
 }
 

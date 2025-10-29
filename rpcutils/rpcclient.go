@@ -232,14 +232,14 @@ func GetBlockHeaderVerboseByString(client BlockFetcher, hash string) *chainjson.
 
 // GetBlockVerbose creates a *chainjson.GetBlockVerboseResult for the block index
 // specified by idx via an RPC connection to a chain server.
-func GetBlockVerbose(client VerboseBlockGetter, idx int64, verboseTx bool) *chainjson.GetBlockVerboseResult {
-	blockhash, err := client.GetBlockHash(context.TODO(), idx)
+func GetBlockVerbose(ctx context.Context, client VerboseBlockGetter, idx int64, verboseTx bool) *chainjson.GetBlockVerboseResult {
+	blockhash, err := client.GetBlockHash(ctx, idx)
 	if err != nil {
 		log.Errorf("GetBlockHash(%d) failed: %v", idx, err)
 		return nil
 	}
 
-	blockVerbose, err := client.GetBlockVerbose(context.TODO(), blockhash, verboseTx)
+	blockVerbose, err := client.GetBlockVerbose(ctx, blockhash, verboseTx)
 	if err != nil {
 		log.Errorf("GetBlockVerbose(%v) failed: %v", blockhash, err)
 		return nil
@@ -456,7 +456,7 @@ type BlockHashGetter interface {
 // Realistically, this should rarely be anything but 0 or 1, but no limits are
 // placed here on the number of blocks checked.
 func OrphanedTipLength(ctx context.Context, client BlockHashGetter,
-	tipHeight int64, hashFunc func(int64) (string, error)) (int64, error) {
+	tipHeight int64, hashFunc func(context.Context, int64) (string, error)) (int64, error) {
 	commonHeight := tipHeight
 	var dbHash string
 	var err error
@@ -470,7 +470,7 @@ func OrphanedTipLength(ctx context.Context, client BlockHashGetter,
 		default:
 		}
 
-		dbHash, err = hashFunc(commonHeight)
+		dbHash, err = hashFunc(ctx, commonHeight)
 		if err != nil {
 			return -1, fmt.Errorf("Unable to retrieve block at height %d: %v", commonHeight, err)
 		}

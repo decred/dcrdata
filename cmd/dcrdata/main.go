@@ -259,7 +259,7 @@ func _main(ctx context.Context) error {
 			return
 		}
 
-		chainDBHeight, err = chainDB.HeightDB()
+		chainDBHeight, err = chainDB.HeightDB(ctx)
 		if err != nil {
 			err = fmt.Errorf("chainDB.HeightDB failed: %w", err)
 			return
@@ -311,7 +311,7 @@ func _main(ctx context.Context) error {
 	}
 
 	// Get the last block added to the DB.
-	lastBlockPG, err := chainDB.HeightDB()
+	lastBlockPG, err := chainDB.HeightDB(ctx)
 	if err != nil {
 		return fmt.Errorf("Unable to get height from PostgreSQL DB: %v", err)
 	}
@@ -859,7 +859,7 @@ func _main(ctx context.Context) error {
 	if cfg.ImportSideChains {
 		// First identify the side chain blocks that are missing from the DB.
 		log.Info("Retrieving side chain blocks from dcrd...")
-		sideChainBlocksToStore, nSideChainBlocks, err := chainDB.MissingSideChainBlocks()
+		sideChainBlocksToStore, nSideChainBlocks, err := chainDB.MissingSideChainBlocks(ctx)
 		if err != nil {
 			return fmt.Errorf("Unable to determine missing side chain blocks: %v", err)
 		}

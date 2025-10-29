@@ -21,12 +21,12 @@ import (
 )
 
 // GetTransactionByHash gets a wire.MsgTx for the specified transaction hash.
-func (pgb *ChainDB) GetTransactionByHash(txid string) (*wire.MsgTx, error) {
+func (pgb *ChainDB) GetTransactionByHash(ctx context.Context, txid string) (*wire.MsgTx, error) {
 	txhash, err := chainhash.NewHashFromStr(txid)
 	if err != nil {
 		return nil, err
 	}
-	tx, err := pgb.Client.GetRawTransaction(pgb.ctx, txhash)
+	tx, err := pgb.Client.GetRawTransaction(ctx, txhash)
 	if err != nil {
 		return nil, err
 	}
@@ -35,8 +35,8 @@ func (pgb *ChainDB) GetTransactionByHash(txid string) (*wire.MsgTx, error) {
 
 // GetRawTransactionVerbose gets a chainjson.TxRawResult for the specified
 // transaction hash.
-func (pgb *ChainDB) GetRawTransactionVerbose(txid *chainhash.Hash) (*chainjson.TxRawResult, error) {
-	txraw, err := pgb.Client.GetRawTransactionVerbose(pgb.ctx, txid)
+func (pgb *ChainDB) GetRawTransactionVerbose(ctx context.Context, txid *chainhash.Hash) (*chainjson.TxRawResult, error) {
+	txraw, err := pgb.Client.GetRawTransactionVerbose(ctx, txid)
 	if err != nil {
 		log.Errorf("GetRawTransactionVerbose failed for: %s", txid)
 		return nil, err
@@ -46,13 +46,13 @@ func (pgb *ChainDB) GetRawTransactionVerbose(txid *chainhash.Hash) (*chainjson.T
 
 // SendRawTransaction attempts to decode the input serialized transaction,
 // passed as hex encoded string, and broadcast it, returning the tx hash.
-func (pgb *ChainDB) SendRawTransaction(txhex string) (string, error) {
+func (pgb *ChainDB) SendRawTransaction(ctx context.Context, txhex string) (string, error) {
 	msg, err := txhelpers.MsgTxFromHex(txhex)
 	if err != nil {
 		log.Errorf("SendRawTransaction failed: could not decode hex")
 		return "", err
 	}
-	ctx, cancel := context.WithTimeout(pgb.ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	hash, err := pgb.Client.SendRawTransaction(ctx, msg, true)
 	if err != nil {
@@ -67,9 +67,9 @@ func (pgb *ChainDB) SendRawTransaction(txhex string) (string, error) {
 // by hash. It also returns a list of recently (defined as greater than
 // recentBlockHeight) confirmed transactions that can be used to validate
 // mempool status.
-func (pgb *ChainDB) InsightAddressTransactions(addr []string, recentBlockHeight int64) (txs, recentTxs []chainhash.Hash, err error) {
+func (pgb *ChainDB) InsightAddressTransactions(ctx context.Context, addr []string, recentBlockHeight int64) (txs, recentTxs []chainhash.Hash, err error) {
 	// Time of a "recent" block
-	recentBlocktime, err0 := pgb.BlockTimeByHeight(recentBlockHeight)
+	recentBlocktime, err0 := pgb.BlockTimeByHeight(ctx, recentBlockHeight)
 	if err0 != nil {
 		return nil, nil, err0
 	}
@@ -78,7 +78,7 @@ func (pgb *ChainDB) InsightAddressTransactions(addr []string, recentBlockHeight 
 	var txns []chainhash.Hash // []txSortable
 	var numRecent int
 	for i := range addr {
-		rows, err := pgb.AddressRowsMerged(addr[i])
+		rows, err := pgb.AddressRowsMerged(ctx, addr[i])
 		if err != nil {
 			return nil, nil, err
 		}
@@ -110,12 +110,12 @@ func (pgb *ChainDB) InsightAddressTransactions(addr []string, recentBlockHeight 
 
 // OutpointAddresses fetches all addresses and the value of a given outpoint
 // (txHash:voutIndex).
-func (pgb *ChainDB) OutpointAddresses(txHash string, voutIndex uint32) ([]string, int64, error) {
+func (pgb *ChainDB) OutpointAddresses(ctx context.Context, txHash string, voutIndex uint32) ([]string, int64, error) {
 	ch, err := chainHashFromStr(txHash)
 	if err != nil {
 		return nil, 0, err
 	}
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	_, addrs, val, err := retrieveAddressIDsByOutpoint(ctx, pgb.db, ch, voutIndex)
 	return addrs, val, pgb.replaceCancelError(err)
@@ -123,8 +123,8 @@ func (pgb *ChainDB) OutpointAddresses(txHash string, voutIndex uint32) ([]string
 
 // GetTransactionHex returns the full serialized transaction for the specified
 // transaction hash as a hex encode string.
-func (pgb *ChainDB) GetTransactionHex(txid *chainhash.Hash) string {
-	tx, err := pgb.Client.GetRawTransaction(pgb.ctx, txid)
+func (pgb *ChainDB) GetTransactionHex(ctx context.Context, txid *chainhash.Hash) string {
+	tx, err := pgb.Client.GetRawTransaction(ctx, txid)
 	if err != nil {
 		log.Errorf("GetRawTransaction(%v) failed: %v", txid, err)
 		return ""
@@ -139,14 +139,14 @@ func (pgb *ChainDB) GetTransactionHex(txid *chainhash.Hash) string {
 
 // GetBlockVerboseByHash returns a *chainjson.GetBlockVerboseResult for the
 // specified block hash, optionally with transaction details.
-func (pgb *ChainDB) GetBlockVerboseByHash(hash string, verboseTx bool) *chainjson.GetBlockVerboseResult {
+func (pgb *ChainDB) GetBlockVerboseByHash(ctx context.Context, hash string, verboseTx bool) *chainjson.GetBlockVerboseResult {
 	blockhash, err := chainhash.NewHashFromStr(hash)
 	if err != nil {
 		log.Errorf("Invalid block hash %s", hash)
 		return nil
 	}
 
-	blockVerbose, err := pgb.Client.GetBlockVerbose(pgb.ctx, blockhash, verboseTx)
+	blockVerbose, err := pgb.Client.GetBlockVerbose(ctx, blockhash, verboseTx)
 	if err != nil {
 		log.Errorf("GetBlockVerbose(%v) failed: %v", hash, err)
 		return nil
@@ -156,8 +156,8 @@ func (pgb *ChainDB) GetBlockVerboseByHash(hash string, verboseTx bool) *chainjso
 
 // GetTransactionsForBlockByHash returns a *apitypes.BlockTransactions for the
 // block with the specified hash.
-func (pgb *ChainDB) GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions {
-	blockVerbose := pgb.GetBlockVerboseByHash(hash, false)
+func (pgb *ChainDB) GetTransactionsForBlockByHash(ctx context.Context, hash string) *apitypes.BlockTransactions {
+	blockVerbose := pgb.GetBlockVerboseByHash(ctx, hash, false)
 	return makeBlockTransactions(blockVerbose)
 }
 
@@ -175,8 +175,8 @@ func makeBlockTransactions(blockVerbose *chainjson.GetBlockVerboseResult) *apity
 
 // GetBlockHash returns the hash of the block at the specified height. TODO:
 // create GetBlockHashes to return all blocks at a given height.
-func (pgb *ChainDB) GetBlockHash(idx int64) (string, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) GetBlockHash(ctx context.Context, idx int64) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	hash, err := retrieveBlockHash(ctx, pgb.db, idx)
 	if err != nil {
@@ -188,8 +188,8 @@ func (pgb *ChainDB) GetBlockHash(idx int64) (string, error) {
 
 // BlockSummaryTimeRange returns the blocks created within a specified time
 // range (min, max time), up to limit transactions.
-func (pgb *ChainDB) BlockSummaryTimeRange(min, max int64, limit int) ([]dbtypes.BlockDataBasic, error) {
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+func (pgb *ChainDB) BlockSummaryTimeRange(ctx context.Context, min, max int64, limit int) ([]dbtypes.BlockDataBasic, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	blockSummary, err := retrieveBlockSummaryByTimeRange(ctx, pgb.db, min, max, limit)
 	return blockSummary, pgb.replaceCancelError(err)
@@ -197,7 +197,7 @@ func (pgb *ChainDB) BlockSummaryTimeRange(min, max int64, limit int) ([]dbtypes.
 
 // AddressUTXO returns the unspent transaction outputs (UTXOs) paying to the
 // specified address in a []*dbtypes.AddressTxnOutput.
-func (pgb *ChainDB) AddressUTXO(address string) ([]*dbtypes.AddressTxnOutput, bool, error) {
+func (pgb *ChainDB) AddressUTXO(ctx context.Context, address string) ([]*dbtypes.AddressTxnOutput, bool, error) {
 	_, err := stdaddr.DecodeAddress(address, pgb.chainParams)
 	if err != nil {
 		return nil, false, err
@@ -233,7 +233,7 @@ func (pgb *ChainDB) AddressUTXO(address string) ([]*dbtypes.AddressTxnOutput, bo
 		<-wait
 
 		// Try again, starting with the cache.
-		return pgb.AddressUTXO(address)
+		return pgb.AddressUTXO(ctx, address)
 	}
 
 	// We will run the DB query, so block others from doing the same. When query
@@ -247,7 +247,7 @@ func (pgb *ChainDB) AddressUTXO(address string) ([]*dbtypes.AddressTxnOutput, bo
 	}
 
 	// Query the DB for the current UTXO set for this address.
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	txnOutputs, err := retrieveAddressDbUTXOs(ctx, pgb.db, address)
 	if err != nil {
@@ -255,7 +255,7 @@ func (pgb *ChainDB) AddressUTXO(address string) ([]*dbtypes.AddressTxnOutput, bo
 	}
 	// Get the pkscripts that db doesn't have.
 	for _, out := range txnOutputs {
-		txOutRes, err := pgb.Client.GetTxOut(pgb.ctx, (*chainhash.Hash)(&out.TxHash), out.Vout, 0, false)
+		txOutRes, err := pgb.Client.GetTxOut(ctx, (*chainhash.Hash)(&out.TxHash), out.Vout, 0, false)
 		if err != nil {
 			log.Warnf("could not get tx out (%v:%d): %w", out.TxHash, out.Vout, err)
 			continue
@@ -272,12 +272,12 @@ func (pgb *ChainDB) AddressUTXO(address string) ([]*dbtypes.AddressTxnOutput, bo
 
 // SpendDetailsForFundingTx will return the details of any spending transactions
 // (tx, index, block height) for a given funding transaction.
-func (pgb *ChainDB) SpendDetailsForFundingTx(fundHash string) ([]*apitypes.SpendByFundingHash, error) {
+func (pgb *ChainDB) SpendDetailsForFundingTx(ctx context.Context, fundHash string) ([]*apitypes.SpendByFundingHash, error) {
 	ch, err := chainHashFromStr(fundHash)
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pgb.queryTimeout)
 	defer cancel()
 	addrRow, err := retrieveSpendingTxsByFundingTxWithBlockHeight(ctx, pgb.db, ch)
 	if err != nil {

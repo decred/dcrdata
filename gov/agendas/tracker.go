@@ -32,7 +32,7 @@ type VoteDataSource interface {
 
 // dcrd does not supply vote counts for completed votes, so the tracker will
 // need a means to get the counts from a database somewhere.
-type voteCounter func(string) (uint32, uint32, uint32, error)
+type voteCounter func(context.Context, string) (uint32, uint32, uint32, error)
 
 // AgendaSummary summarizes the current state of voting on a particular agenda.
 type AgendaSummary struct {
@@ -319,7 +319,7 @@ func (tracker *VoteTracker) update(voteInfo *chainjson.GetVoteInfoResult, blocks
 			if counts == nil {
 				counts = new(voteCount)
 				var err error
-				counts.yes, counts.abstain, counts.no, err = tracker.voteCounter(agenda.ID)
+				counts.yes, counts.abstain, counts.no, err = tracker.voteCounter(context.TODO(), agenda.ID)
 				if err != nil {
 					log.Errorf("Error counting votes for %s: %v", agenda.ID, err)
 					continue

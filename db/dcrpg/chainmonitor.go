@@ -166,7 +166,7 @@ func (p *ChainMonitor) ReorgHandler(reorg *txhelpers.ReorgData) error {
 	// Update project fund in cache, but clear NO address cache data since
 	// switchToSideChain maintains the cache via TipToSideChain and StoreBlock.
 	go func() {
-		if err := p.db.updateProjectFundCache(); err != nil {
+		if err := p.db.updateProjectFundCache(p.ctx); err != nil {
 			log.Errorf("Failed to update project fund data in cache: %v", err)
 		}
 	}()
