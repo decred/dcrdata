@@ -189,6 +189,33 @@ func (exp *explorerUI) SyncStatusFileIntercept(next http.Handler) http.Handler {
 	})
 }
 
+// ETagAndLastModifiedIntercept handles ETag and Last-Modified headers for caching purposes.
+func (exp *explorerUI) ETagAndLastModifiedIntercept(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		eTag, lastModified := exp.eTagAndLastModified()
+		if match := r.Header.Get("If-None-Match"); match != "" {
+			if match == eTag {
+				w.WriteHeader(http.StatusNotModified)
+				return
+			}
+		} else if modifiedSince := r.Header.Get("If-Modified-Since"); modifiedSince != "" {
+			if t, err := time.Parse(http.TimeFormat, modifiedSince); err == nil {
+				if lastModified.Before(t.Add(1 * time.Second)) {
+					w.WriteHeader(http.StatusNotModified)
+					return
+				}
+			}
+		}
+
+		// Set ETag and Last-Modified headers.
+		w.Header().Set("ETag", eTag)
+		w.Header().Set("Last-Modified", lastModified.Format(http.TimeFormat))
+		w.Header().Set("Cache-Control", "private")
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func getBlockHashCtx(r *http.Request) string {
 	hash, ok := r.Context().Value(ctxBlockHash).(string)
 	if !ok {
