@@ -25,7 +25,7 @@
                             <label class="mb-0 me-1">Vote Status</label>
                             <select
                                 id="votestatus"
-                                class="form-control-sm mb-2 me-sm-2 mb-sm-0"
+                                class="form-control-sm mb-2 me-sm-2 mb-sm-0 dropdown"
                                 data-pagenavigation-target="votestatus"
                                 data-action="change->pagenavigation#setFilterbyVoteStatus"
                             >
@@ -60,7 +60,7 @@
                                 data-action="change->pagenavigation#setPageSize"
                                 data-offset="{{$.Offset}}"
                                 data-offsetkey="offset"
-                                class="form-control-sm mb-2 me-sm-2 mb-sm-0 {{if lt $pending 20}}disabled{{end}}"
+                                class="form-control-sm mb-2 me-sm-2 mb-sm-0 {{if lt $pending 20}}disabled{{end}} dropdown"
                                 {{if lt $pending 20}}disabled="disabled"{{end}}
                             >
                             {{if ge $pending 20}}<option {{if eq $count 20}}selected{{end}} value="20">20</option>{{end}}
