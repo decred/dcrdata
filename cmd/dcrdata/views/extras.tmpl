@@ -104,7 +104,7 @@
 				<span class="patty"></span>
 				<span class="patty"></span>
 				<span class="patty short"></span>
-				<div id="menu">
+				<div id="menu" style="max-height: 90vh; overflow-x: hidden;">
 					<a class="menu-item" data-keynav-skip href="/" title="Home">Home</a>
 					<a class="menu-item" data-keynav-skip href="/blocks" title="Decred blocks">Blocks</a>
 					<a class="menu-item" data-keynav-skip href="/mempool" title="Decred mempool">Mempool</a>
@@ -118,6 +118,7 @@
 					<a class="menu-item" data-keynav-skip href="/treasury" title="Decred Treasury">Treasury</a>
 					<a class="menu-item" data-keynav-skip href="/decodetx" title="Decode or send a raw transaction">Decode/Broadcast Tx</a>
 					<a class="menu-item" data-keynav-skip href="/verify-message" title="Verify Message">Verify Message</a>
+					<a class="menu-item" data-keynav-skip href="/stake-reward" title="Calculate Stake Reward">Calculate Stake Reward</a>
 				{{- if eq .NetName "Mainnet"}}
 					<a class="menu-item" data-keynav-skip href="{{.Links.Testnet}}" title="Home">Switch To Testnet</a>
 				{{- else}}
@@ -188,12 +189,12 @@
 		</span>
 	</div>
 	<script
-		src="/dist/js/4.9eec6eb13cc00a3d.bundle.js"
+		src="/dist/js/4.06b06a4759f2b4ad.bundle.js"
 		data-turbolinks-eval="false"
 		data-turbolinks-suppress-warning
 	></script>
 	<script
-		src="/dist/js/app.a882ac4b6d92599f.bundle.js"
+		src="/dist/js/app.6060a2b12c046ffe.bundle.js"
 		data-turbolinks-eval="false"
 		data-turbolinks-suppress-warning
 	></script>
