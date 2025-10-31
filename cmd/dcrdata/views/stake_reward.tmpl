@@ -4,8 +4,8 @@
 {{template "html-head" headData .CommonPageData "Decred Staking Reward Calculator"}}
 {{template "navbar" . }}
 <div class="container main">
-    <h4 class="mb-2">Calculate Decred Staking Reward</h4>
-    <div class="mb-1 fs15">
+  <h4 class="mb-2">Calculate Decred Staking Reward</h4>
+  <div class="mb-1 fs15">
         <p> Use this Decred Staking Calculator to estimate your potential stake reward to see how much you'll earn by staking Decred.
             The rewards predicted by this calculator are only an estimate, It does not consider network fees or fees paid to a VSP. 
             Staking Decred provides stake holders with rewards in addition to the potential market price gains.
@@ -18,8 +18,8 @@
             Decred provides this calculator for guidance only and accepts no responsibility for any discrepancy between estimated and actual rewards.
         </p>
 
-    </div>
-    <div class="row">
+  </div>
+  <div class="row">
       <form action="/stake-reward" method="post" class="py-1 px-lg-3 text-start col-24 col-lg-12 my-2">
         <div class="mb-3 row">
             <label for="amount" class="col-auto col-form-label">Amount ({{.ExchangeRate.Index}}):</label>
@@ -148,7 +148,8 @@
           </div>
          {{- end -}}
          {{- end -}}
-    </div> 
+    </div>
+  </div>
 </div>
 {{ template "footer" . }}
 </body>
