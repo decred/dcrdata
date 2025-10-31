@@ -781,7 +781,6 @@ func _main(ctx context.Context) error {
 		r.Get("/verify-message", explore.VerifyMessagePage)
 		r.With(mw.Tollbooth(limiter)).Post("/verify-message", explore.VerifyMessageHandler)
 
-
 		// Pages that can be cached because they depend on block and/or mempool data cached by
 		// *explorer.explorerUI. This middleware sets ETag and Last-Modified headers that are
 		// reset if a new block or mempool change is detected.
