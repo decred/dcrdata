@@ -84,7 +84,7 @@
               <div class="btn-set secondary-card d-inline-flex flex-nowrap mx-2">
                 <label>Chart</label>
                 <select
-                  class="chart-box d-inline-flex"
+                  class="chart-box d-inline-flex dropdown"
                   data-address-target="options"
                   data-action="change->address#changeGraph"
                 >
@@ -283,7 +283,7 @@
               name="txntype"
               data-address-target="txntype"
               data-action="change->address#changeTxType"
-              class="form-control-sm mb-2 me-sm-2 mb-sm-0"
+              class="form-control-sm mb-2 me-sm-2 mb-sm-0 dropwdown"
             >
               <option {{if eq $txType "all"}}selected{{end}} value="all">All</option>
               <option {{if eq $txType "tspend"}}selected{{end}} value="tspend">Spend</option>
@@ -298,7 +298,7 @@
               id="pagesize"
               data-address-target="pagesize"
               data-action="change->address#changePageSize"
-              class="form-control-sm mb-2 me-sm-2 mb-sm-0 {{if lt $TxnCount 20}}disabled{{end}}"
+              class="form-control-sm mb-2 me-sm-2 mb-sm-0 {{if lt $TxnCount 20}}disabled{{end}} dropdown"
               {{- if lt $TxnCount 20}} disabled{{end}}
             >
             {{- $Txlen := len .Transactions}}
