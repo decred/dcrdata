@@ -327,6 +327,8 @@ func formattedDuration(duration time.Duration, str *periodMap) string {
 
 func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 	netTheme := "theme-" + strings.ToLower(netName(params))
+	netName := netName(params)
+	notMainnet := netName != "Mainnet"
 
 	return template.FuncMap{
 		"blockVoteBitsStr": func(voteBits uint16) string {
@@ -632,6 +634,9 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		},
 		"floor": math.Floor,
 		"headData": func(data *CommonPageData, title string) headData {
+			if notMainnet {
+				title = fmt.Sprintf("%s - %s", title, netName)
+			}
 			return headData{
 				Data:  data,
 				Title: title,
