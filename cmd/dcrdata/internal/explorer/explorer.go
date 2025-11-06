@@ -8,8 +8,10 @@ package explorer
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"math"
+	"math/big"
 	"net/http"
 	"os"
 	"os/signal"
@@ -201,6 +203,8 @@ type pageData struct {
 	BlockInfo      *types.BlockInfo
 	BlockchainInfo *chainjson.GetBlockChainInfoResult
 	HomeInfo       *types.HomeInfo
+	eTag           string
+	lastModified   time.Time
 }
 
 type explorerUI struct {
@@ -359,6 +363,7 @@ func New(cfg *ExplorerConfig) *explorerUI {
 			},
 		},
 	}
+	exp.resetETagAndLastModified()
 
 	log.Infof("Mean Voting Blocks calculated: %d", exp.pageData.HomeInfo.Params.MeanVotingBlocks)
 
@@ -447,6 +452,9 @@ func (exp *explorerUI) StoreMPData(_ *mempool.StakeData, _ []types.MempoolTx, in
 	exp.invsMtx.Lock()
 	exp.invs = inv
 	exp.invsMtx.Unlock()
+
+	exp.resetETagAndLastModified()
+
 	log.Debugf("Updated mempool details for the explorerUI.")
 }
 
@@ -616,6 +624,8 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 		}()
 	}
 
+	exp.resetETagAndLastModified()
+
 	return nil
 }
 
@@ -627,6 +637,21 @@ func (exp *explorerUI) ChartsUpdated() {
 		exp.pageData.HomeInfo.MixedPercent = float64(anonSet) / float64(exp.pageData.HomeInfo.CoinSupply) * 100
 	}
 	exp.pageData.Unlock()
+}
+
+// resetETagAndLastModified resets the eTag and last modified time to new
+// values and is protected by the exp.pageData mutex.
+func (exp *explorerUI) resetETagAndLastModified() {
+	exp.pageData.Lock()
+	exp.pageData.eTag = generateRandomString()
+	exp.pageData.lastModified = time.Now()
+	exp.pageData.Unlock()
+}
+
+func (exp *explorerUI) eTagAndLastModified() (eTag string, lastModified time.Time) {
+	exp.pageData.RLock()
+	defer exp.pageData.RUnlock()
+	return exp.pageData.eTag, exp.pageData.lastModified
 }
 
 func (exp *explorerUI) updateDevFundBalance() {
@@ -878,4 +903,17 @@ func indexPrice(index exchanges.CurrencyPair, indices map[string]map[exchanges.C
 		return 0
 	}
 	return price / nSources
+}
+
+const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+const nLetters = len(letters)
+
+// generateRandomString creates a random alphanumeric string of length 16.
+func generateRandomString() string {
+	bytes := make([]byte, 16)
+	for i := range bytes {
+		num, _ := rand.Int(rand.Reader, big.NewInt(int64(nLetters)))
+		bytes[i] = letters[num.Int64()]
+	}
+	return string(bytes)
 }
