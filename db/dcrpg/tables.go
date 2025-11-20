@@ -218,6 +218,15 @@ func (pgb *ChainDB) deleteDuplicates(barLoad chan *dbtypes.ProgressBarLoad) erro
 
 		// Remove duplicate agenda_votes
 		{TableName: "agenda_votes", DropDupsFunc: pgb.deleteDuplicateAgendaVotes},
+
+		// Remove duplicate votes
+		{TableName: "votes", DropDupsFunc: pgb.deleteDuplicateVotes},
+
+		// Remove duplicate misses
+		{TableName: "misses", DropDupsFunc: pgb.deleteDuplicateMisses},
+
+		// Remove duplicate treasury txs
+		{TableName: "treasury", DropDupsFunc: pgb.deleteDuplicateTreasuryTxs},
 	}
 
 	var err error
