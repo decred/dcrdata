@@ -19,8 +19,6 @@ set -e
 
 shopt -s expand_aliases
 
-export GO111MODULE=on
-
 GV=$(go version | sed "s/^.*go\([0-9.]*\).*/\1/")
 echo "Go version: $GV"
 
