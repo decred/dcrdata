@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/decred/dcrd/dcrutil/v4"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
 	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrdata/v8/db/dbtypes"
@@ -93,15 +94,17 @@ type Vin = chainjson.Vin
 
 // TxShort models info about transaction TxID
 type TxShort struct {
-	TxID     string `json:"txid"`
-	Size     int32  `json:"size"`
-	Version  int32  `json:"version"`
-	Locktime uint32 `json:"locktime"`
-	Expiry   uint32 `json:"expiry"`
-	Vin      []Vin  `json:"vin"`
-	Vout     []Vout `json:"vout"`
-	Tree     int8   `json:"tree"`
-	Type     string `json:"type"`
+	TxID     string         `json:"txid"`
+	Size     int32          `json:"size"`
+	Version  int32          `json:"version"`
+	Locktime uint32         `json:"locktime"`
+	Expiry   uint32         `json:"expiry"`
+	Fee      dcrutil.Amount `json:"fee"`
+	FeeRate  dcrutil.Amount `json:"feerate"`
+	Vin      []Vin          `json:"vin"`
+	Vout     []Vout         `json:"vout"`
+	Tree     int8           `json:"tree"`
+	Type     string         `json:"type"`
 }
 
 // AgendasInfo holds the high level details about an agenda.
@@ -121,12 +124,14 @@ type AgendaAPIResponse struct {
 
 // TrimmedTx models data to resemble to result of the decoderawtransaction RPC.
 type TrimmedTx struct {
-	TxID     string `json:"txid"`
-	Version  int32  `json:"version"`
-	Locktime uint32 `json:"locktime"`
-	Expiry   uint32 `json:"expiry"`
-	Vin      []Vin  `json:"vin"`
-	Vout     []Vout `json:"vout"`
+	TxID     string         `json:"txid"`
+	Version  int32          `json:"version"`
+	Locktime uint32         `json:"locktime"`
+	Expiry   uint32         `json:"expiry"`
+	Fee      dcrutil.Amount `json:"fee"`
+	FeeRate  dcrutil.Amount `json:"feerate"`
+	Vin      []Vin          `json:"vin"`
+	Vout     []Vout         `json:"vout"`
 }
 
 // Txns models the multi transaction post data structure

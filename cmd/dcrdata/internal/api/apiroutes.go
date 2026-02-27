@@ -840,7 +840,7 @@ func (c *appContext) getTxSwapsInfo(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, swapsInfo, m.GetIndentCtx(r))
 }
 
-// getTransactions handles the /txns POST API endpoint.
+// getTransactions handles the /txs POST API endpoint.
 func (c *appContext) getTransactions(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 

@@ -231,8 +231,8 @@
                             <tr>
                               <th>Transaction ID</th>
                               <th class="text-end">Total DCR</th>
-                              <th class="text-end">Size</th>
                               <th class="text-end">Fee Rate</th>
+                              <th class="text-end">Size</th>
                               <th class="text-end">Time in Mempool</th>
                             </tr>
                           </thead>
@@ -247,8 +247,8 @@
                                   <td class="mono fs15 text-end">
                                     {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
                                   </td>
-                                  <td class="mono fs15 text-end">{{.Size}} B</td>
                                   <td class="mono fs15 text-end">{{printf "%.8f" (.FeeRate)}} DCR/kB</td>
+                                  <td class="mono fs15 text-end">{{.Size}} B</td>
                                   <td class="mono fs15 text-end" data-time-target="age" data-age="{{.Time}}"></td>
                               </tr>
                               {{- end -}}
@@ -307,8 +307,9 @@
                             <tr>
                               <th>Transaction ID</th>
                               <th class="text-end">Total DCR</th>
-                              <th class="text-end">Size</th>
+					          <th class="text-end">Fee</th>
                               <th class="text-end">Fee Rate</th>
+                              <th class="text-end">Size</th>
                               <th class="text-end">Time in Mempool</th>
                             </tr>
                           </thead>
@@ -323,8 +324,9 @@
                                   <td class="mono fs15 text-end">
                                     {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
                                   </td>
+					              <td class="mono fs15 text-end">{{.Fee}}</td>
+                                  <td class="mono fs15 text-end">{{dcrPerKbToAtomsPerByte .FeeRate}} atoms/B</td>
                                   <td class="mono fs15 text-end">{{.Size}} B</td>
-                                  <td class="mono fs15 text-end">{{printf "%.8f" (.FeeRate)}} DCR/kB</td>
                                   <td class="mono fs15 text-end" data-time-target="age" data-age="{{.Time}}"></td>
                               </tr>
                               {{- end -}}

@@ -4983,6 +4983,7 @@ func (pgb *ChainDB) GetAPITransaction(ctx context.Context, txid *chainhash.Hash)
 		},
 	}
 
+	tx.Fee, tx.FeeRate = txhelpers.TxFeeRate(msgTx)
 	copy(tx.Vin, txraw.Vin)
 
 	for i := range txraw.Vout {
@@ -5024,6 +5025,8 @@ func (pgb *ChainDB) GetTrimmedTransaction(ctx context.Context, txid *chainhash.H
 		Expiry:   tx.Expiry,
 		Vin:      tx.Vin,
 		Vout:     tx.Vout,
+		Fee:      tx.Fee,
+		FeeRate:  tx.FeeRate,
 	}
 }
 
