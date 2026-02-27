@@ -33,12 +33,15 @@ const prettyDurations = {
 }
 const exchangeLinks = {
   CurrencyPairDCRBTC: {
-    dcrdex: 'https://dex.decred.org'
+    dcrdex: 'https://dex.decred.org',
+    coinex: 'https://www.coinex.com/en/exchange/DCR-BTC'
   },
   CurrencyPairDCRUSDT: {
     binance: 'https://www.binance.com/en/trade/DCR_USDT',
     dcrdex: 'https://dex.decred.org',
-    mexc: 'https://www.mexc.com/exchange/DCR_USDT'
+    mexc: 'https://www.mexc.com/exchange/DCR_USDT',
+    kucoin: 'https://www.kucoin.com/trade/DCR-USDT',
+    coinex: 'https://www.coinex.com/en/exchange/DCR-USDT'
   }
 }
 const CurrencyPairDCRUSDT = 'DCR-USDT'
