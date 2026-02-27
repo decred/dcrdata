@@ -306,17 +306,18 @@ export default class extends Controller {
     e.preventDefault()
     const url = e.target.href
     const parser = new URL(url)
-    const start = parser.searchParams.get('start')
-    const pagesize = parser.searchParams.get('n')
+    const start = parseInt(parser.searchParams.get('start'))
+    const pagesize = parseInt(parser.searchParams.get('n'))
     const txntype = parser.searchParams.get('txntype')
     this.fetchTable(txntype, pagesize, start)
   }
 
   toPage (direction) {
     const params = ctrl.paginationParams
-    const count = ctrl.pageSize
+    const count = parseInt(ctrl.pageSize)
+    const offset = parseInt(params.offset)
     const txType = ctrl.txnType
-    let requestedOffset = params.offset + count * direction
+    let requestedOffset = offset + count * direction
     if (requestedOffset >= params.count) return
     if (requestedOffset < 0) requestedOffset = 0
     ctrl.fetchTable(txType, count, requestedOffset)
@@ -351,8 +352,9 @@ export default class extends Controller {
 
   setPageability () {
     const params = ctrl.paginationParams
-    const rowMax = params.count
-    const count = ctrl.pageSize
+    const rowMax = parseInt(params.count)
+    const count = parseInt(ctrl.pageSize)
+    const offset = parseInt(params.offset)
     if (ctrl.paginationParams.count === 0) {
       ctrl.paginationheaderTarget.classList.add('d-hide')
     } else {
@@ -370,8 +372,8 @@ export default class extends Controller {
         el.classList.add('disabled')
       }
     }
-    setAbility(ctrl.pageplusTarget, params.offset + count < rowMax)
-    setAbility(ctrl.pageminusTarget, params.offset - count >= 0)
+    setAbility(ctrl.pageplusTarget, offset + count < rowMax)
+    setAbility(ctrl.pageminusTarget, offset - count >= 0)
     ctrl.pageSizeOptions.forEach((option) => {
       if (option.value > 100) {
         if (rowMax > 100) {
@@ -387,9 +389,9 @@ export default class extends Controller {
     })
     setAbility(ctrl.pagesizeTarget, rowMax > 20)
     const suffix = rowMax > 1 ? 's' : ''
-    let rangeEnd = params.offset + count
+    let rangeEnd = offset + count
     if (rangeEnd > rowMax) rangeEnd = rowMax
-    ctrl.rangeTarget.innerHTML = 'showing ' + (params.offset + 1) + ' &ndash; ' +
+    ctrl.rangeTarget.innerHTML = 'showing ' + (offset + 1) + ' &ndash; ' +
     rangeEnd + ' of ' + rowMax.toLocaleString() + ' transaction' + suffix
   }
 

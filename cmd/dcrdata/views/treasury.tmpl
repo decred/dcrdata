@@ -3,7 +3,6 @@
 <html lang="en">
 {{template "html-head" headData .CommonPageData "Decred Decentralized Treasury"}}
   {{template "navbar" . }}
-  {{- $mempool := .Mempool -}}
   {{- with .Data}}
   {{- $bal := .Balance -}}
   {{- $TxnCount := $bal.TxCount}}
@@ -158,8 +157,8 @@
               </tr>
             </thead>
             <tbody>
-              {{if gt $mempool.NumTSpends 0 -}}
-              {{- range $mempool.TSpends -}}
+              {{if gt .Mempool.NumTSpends 0 -}}
+              {{- range .Mempool.TSpends -}}
               <tr>
                 <td class="break-word clipboard">
                   <a class="hash lh1rem" href="/tx/{{.Hash}}" title="{{.Hash}}">{{.Hash}}</a>
@@ -180,7 +179,7 @@
           </table>
         </div>
       </div>
-      {{if gt $mempool.NumTAdds 0 -}}{{- /* this will be rare, so only show the section header and table if needed */ -}}
+      {{if gt .Mempool.NumTAdds 0 -}}{{- /* this will be rare, so only show the section header and table if needed */ -}}
       <div class="row">
         <div class="col-sm-24">
           <div class="me-auto h4 col-24">Unconfirmed Treasury Adds</div>
@@ -193,7 +192,7 @@
               </tr>
             </thead>
             <tbody>
-              {{range $mempool.TAdds -}}
+              {{range .Mempool.TAdds -}}
               <tr>
                 <td class="break-word clipboard">
                   <a class="hash lh1rem" href="/tx/{{.Hash}}">{{.Hash}}</a>
