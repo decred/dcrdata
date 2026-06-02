@@ -39,7 +39,7 @@ export default class extends Controller {
       'bsubsidyTotal', 'bsubsidyPow', 'bsubsidyPos', 'bsubsidyDev',
       'coinSupply', 'blocksdiff', 'devFund', 'windowIndex', 'posBar',
       'rewardIdx', 'powBar', 'poolSize', 'poolValue', 'ticketReward',
-      'targetPct', 'poolSizePct', 'hashrate', 'hashrateDelta',
+      'targetPct', 'poolSizePct', 'hashrate', 'hashrateUnit', 'hashrateDelta',
       'nextExpectedSdiff', 'nextExpectedMin', 'nextExpectedMax', 'mempool',
       'mpRegTotal', 'mpRegCount', 'mpTicketTotal', 'mpTicketCount', 'mpVoteTotal', 'mpVoteCount',
       'mpRevTotal', 'mpRevCount', 'mpRegBar', 'mpVoteBar', 'mpTicketBar',
@@ -188,7 +188,9 @@ export default class extends Controller {
     this.poolSizePctTarget.textContent = parseFloat(ex.pool_info.percent).toFixed(2)
     const treasuryTotal = ex.dev_fund + ex.treasury_bal.balance
     this.devFundTarget.innerHTML = humanize.decimalParts(treasuryTotal / 100000000, true, 0)
-    this.hashrateTarget.innerHTML = humanize.decimalParts(ex.hash_rate, false, 8, 2)
+    const hashrate = humanize.hashrate(ex.hash_rate, 'Ph/s')
+    this.hashrateTarget.innerHTML = humanize.decimalParts(hashrate.value, false, 8, 2)
+    this.hashrateUnitTarget.textContent = hashrate.unit
     this.hashrateDeltaTarget.innerHTML = humanize.fmtPercentage(ex.hash_rate_change_month)
     this.blockVotesTarget.dataset.hash = blockData.block.hash
     this.setVotes()
