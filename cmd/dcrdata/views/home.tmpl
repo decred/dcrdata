@@ -314,9 +314,10 @@
                         </div>
                         <div class="col-12 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                             <div class="fs13 text-secondary"><a href="/charts?chart=hashrate">Hashrate</a></div>
+                            {{ $hashrate := hashRateFormatting .HashRate }}
                             <div class="mono lh1rem pt-1 pb-1 fs14-decimal fs24 d-flex align-items-baseline">
-                                <span data-homepage-target="hashrate">{{template "decimalParts" (float64AsDecimalParts .HashRate 8 true 2)}}</span>
-                                <span class="ps-1 unit lh15rem">Ph/s</span>
+                                <span data-homepage-target="hashrate">{{template "decimalParts" $hashrate.Parts}}</span>
+                                <span class="ps-1 unit lh15rem" data-homepage-target="hashrateUnit">{{ $hashrate.Unit }}</span>
                             </div>
                             <div class="fs12 text-black-50 lh1rem text-black-50">
                                 <span data-homepage-target="hashrateDelta">{{template "fmtPercentage" .HashRateChangeMonth}}</span> in past 30 days

@@ -25,7 +25,6 @@ const multiYAxisChart = ['ticket-price', 'coin-supply', 'privacy-participation']
 // index 0 represents y1 and 1 represents y2 axes.
 const yValueRanges = { 'ticket-price': [1] }
 const chainworkUnits = ['exahash', 'zettahash', 'yottahash']
-const hashrateUnits = ['Th/s', 'Ph/s', 'Eh/s']
 let ticketPoolSizeTarget, premine, stakeValHeight, stakeShare
 let baseSubsidy, subsidyInterval, subsidyExponent, windowSize, avgBlockTime
 let rawCoinSupply, rawPoolValue
@@ -626,10 +625,13 @@ export default class extends Controller {
         break
 
       case 'hashrate': // Total chainwork over time
-        d = zip2D(data, data.rate, 1e-3, data.offset)
-        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Network Hashrate (petahash/s)'],
-          false, 'Network Hashrate (petahash/s)', true, false))
-        yFormatter = customYFormatter(y => withBigUnits(y * 1e3, hashrateUnits))
+        {
+          const unit = humanize.hashrateUnit(data.rate, 'Th/s')
+          d = zip2D(data, data.rate, unit.multiplier, data.offset)
+          assign(gOptions, mapDygraphOptions(d, [xlabel, `Network Hashrate (${unit.label})`],
+            false, `Network Hashrate (${unit.description})`, true, false))
+          yFormatter = customYFormatter(y => `${y.toFixed(3)} ${unit.label}`)
+        }
         break
 
       case 'missed-votes':

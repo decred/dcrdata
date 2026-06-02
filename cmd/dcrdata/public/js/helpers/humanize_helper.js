@@ -8,6 +8,12 @@ function round (value, precision) {
   return Math.round(value * multiplier) / multiplier
 }
 
+const hashrateUnits = [
+  { label: 'Th/s', description: 'terahash/s', multiplier: 1 },
+  { label: 'Ph/s', description: 'petahash/s', multiplier: 1e-3 },
+  { label: 'Eh/s', description: 'exahash/s', multiplier: 1e-6 }
+]
+
 function hashParts (hash) {
   const clipLen = 6
   const hashLen = hash.length - clipLen
@@ -72,6 +78,32 @@ const humanize = {
     htmlString += '</div>'
 
     return htmlString
+  },
+  hashrateUnit: function (rates, sourceUnit) {
+    let maxRate = 0
+    const sourceMultiplier = sourceUnit === 'Ph/s' ? 1e3 : sourceUnit === 'Eh/s' ? 1e6 : 1
+    if (!Array.isArray(rates)) rates = [rates]
+    for (const rate of rates) {
+      const thRate = rate * sourceMultiplier
+      if (thRate > maxRate) maxRate = thRate
+    }
+    if (!Number.isFinite(maxRate) || maxRate === 0) return hashrateUnits[0]
+
+    const unitIndex = Math.min(
+      Math.max(Math.floor(Math.log10(maxRate) / 3), 0),
+      hashrateUnits.length - 1
+    )
+    return hashrateUnits[unitIndex]
+  },
+  hashrate: function (rate, sourceUnit) {
+    const sourceMultiplier = sourceUnit === 'Ph/s' ? 1e3 : sourceUnit === 'Eh/s' ? 1e6 : 1
+    const thRate = rate * sourceMultiplier
+    const unit = this.hashrateUnit(rate, sourceUnit)
+    return {
+      value: thRate * unit.multiplier,
+      unit: unit.label,
+      description: unit.description
+    }
   },
   threeSigFigs: function (v) {
     const sign = v >= 0 ? '' : '-'

@@ -35,6 +35,11 @@ type templates struct {
 	exec      func(string, interface{}) (string, error)
 }
 
+type hashrateDisplay struct {
+	Parts []string
+	Unit  string
+}
+
 func newTemplates(folder string, reload bool, common []string, helpers template.FuncMap) templates {
 	com := make([]string, 0, len(common))
 	for _, file := range common {
@@ -208,6 +213,34 @@ func amountAsDecimalPartsTrimmed(v, numPlaces int64, useCommas bool) []string {
 	}
 
 	return []string{left, right, tail}
+}
+
+func hashRateFormatting(phRate float64) hashrateDisplay {
+	units := []struct {
+		label      string
+		multiplier float64
+	}{
+		{label: "Th/s", multiplier: 1},
+		{label: "Ph/s", multiplier: 1e-3},
+		{label: "Eh/s", multiplier: 1e-6},
+	}
+
+	thRate := phRate * 1e3
+	unitIndex := 0
+	if thRate > 0 {
+		unitIndex = int(math.Floor(math.Log10(thRate) / 3))
+		if unitIndex < 0 {
+			unitIndex = 0
+		} else if unitIndex >= len(units) {
+			unitIndex = len(units) - 1
+		}
+	}
+
+	value := thRate * units[unitIndex].multiplier
+	return hashrateDisplay{
+		Parts: float64Formatting(value, 8, true, 2),
+		Unit:  units[unitIndex].label,
+	}
 }
 
 // threeSigFigs returns a representation of the float formatted to three
@@ -406,6 +439,7 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			return p
 		},
 		"float64AsDecimalParts": float64Formatting,
+		"hashRateFormatting":    hashRateFormatting,
 		"amountAsDecimalParts": func(v int64, useCommas bool) []string {
 			return float64Formatting(dcrutil.Amount(v).ToCoin(), 8, useCommas)
 		},
